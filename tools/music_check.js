@@ -142,10 +142,20 @@ function wav(pcm, rate) {
   const du = await p.evaluate(() => window.__diff('evening-foot', 'evening-unknown'));
   if (!(du < 1e-5)) fail('evening-unknown', 'an unknown palette is not the default');
   // the stings, in the key of the hour; and a morning that turns to a rainy night on the bar line
-  const stung = await render('evening-stings', Object.assign({ stings: info.stings.map((k, i) => [2 + i * 2.2, k]) }, base)); judge('evening-stings', stung);
+  const stung = await render('evening-stings', Object.assign({ stings: info.stings.map((k, i) => [2 + i * 2.2, k]) }, base), 34); judge('evening-stings', stung);
   const ds = await p.evaluate(() => window.__diff('evening-foot', 'evening-stings'));
   if (!(ds > 0.002)) fail('evening-stings', 'the stings make no sound');
   console.log(`${ds > 0.002 ? 'ok  ' : 'FAIL'} ${'evening-stings'.padEnd(24)} peak ${db(stung.peak)} dB  rms ${db(stung.rms)} dB  above 4 kHz ${(stung.high * 100).toFixed(3)}%  differs from foot by ${db(ds)} dB`);
+  // the story's score (the bluehour palette): its theme with two notes and with all of them and his answer, a Stop
+  // (the beat goes, the pad and the theme stay, and it comes back), and its own stings, each with room to ring
+  const sb = { slot: 'evening', hour: 17.3, palette: 'bluehour' };
+  for (const [name, states, secs] of [['story-first-frame', Object.assign({ theme: 0 }, sb), 44], ['story-last-frame', Object.assign({}, sb, { slot: 'night', theme: 6, rain: 0.8 }), 44],
+    ['story-stop', [Object.assign({ at: 0, theme: 3 }, sb), { at: 14, held: true }, { at: 44, held: false }], 62],
+    ['story-stings', Object.assign({ theme: 3, stings: ['note', 'turn', 'doubt', 'meet', 'found'].map((k, i) => [3 + i * 9, k]) }, sb), 56]]) {
+    const r = await render(name, states, secs), ok = judge(name, r);
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(24)} peak ${db(r.peak)} dB  rms ${db(r.rms)} dB  above 4 kHz ${(r.high * 100).toFixed(3)}%  quietest 2 s ${db(r.quiet)} dB`);
+  }
+  for (const [x, y] of [['story-first-frame', 'story-stop'], ['story-first-frame', 'story-stings']]) { const d = await p.evaluate(([a, c]) => window.__diff(a, c), [x, y]); if (!(d > 0.002)) fail(y, `no different from ${x}`); }
   const turn = await render('morning-to-night', [{ at: 0, slot: 'morning' }, { at: 8, slot: 'night', rain: 0.7 }], 32), okTurn = judge('morning-to-night', turn);
   console.log(`${okTurn ? 'ok  ' : 'FAIL'} ${'morning-to-night'.padEnd(24)} peak ${db(turn.peak)} dB  rms ${db(turn.rms)} dB  quietest 2 s ${db(turn.quiet)} dB`);
 

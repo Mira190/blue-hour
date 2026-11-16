@@ -19,9 +19,9 @@
 window.OEMusic = (function () {
   const SLOTS = ['morning', 'daytime', 'evening', 'night'];
   const TRAVEL = ['foot', 'car', 'ride', 'ferry', 'heli', 'rail'];
-  const PALETTES = ['default', 'tokyo', 'kyoto', 'sydney', 'alpine'];
+  const PALETTES = ['default', 'tokyo', 'kyoto', 'sydney', 'alpine', 'bluehour'];
   const ALIAS = { queenstown: 'alpine' };
-  const STING_KINDS = ['day', 'rank', 'job', 'stamp', 'fail', 'message'];
+  const STING_KINDS = ['day', 'rank', 'job', 'stamp', 'fail', 'message', 'note', 'turn', 'doubt', 'meet', 'found'];
   const NOTE = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
   const MODES = {
     lydian: [0, 2, 4, 6, 7, 9, 11], ionian: [0, 2, 4, 5, 7, 9, 11], mixolydian: [0, 2, 4, 5, 7, 9, 10],
@@ -80,6 +80,17 @@ window.OEMusic = (function () {
       if (slot !== 'night') { p.comp = 'arp'; p.drums = slot === 'daytime' ? 'soft' : 'none'; }
       p.lower = true; // the melody an octave down: warm, never piercing
     },
+    // a story's score (Blue Hour, docs/SOUND.md "The score"): not music to walk to but a case being put together. A
+    // felt piano and a low pad in C sharp minor, no percussion, nothing improvised: the only tune is the theme
+    // (state.theme), five notes for the five syllables of the first line anyone says, of which the score knows only as
+    // many as the roll has frames; and his answer, the same five turned upside down, which meets hers on one note
+    bluehour(p, slot) {
+      p.root = 1; p.mode = 'aeolian'; p.ext = 'add9'; p.bars = 2; p.bpm = slot === 'night' ? 50 : 54;
+      p.progs = slot === 'night' ? [[0, 5, 3, 4], [0, 3, 5, 6]] : [[0, 5, 2, 6], [0, 3, 5, 4]];
+      p.mel = [0, 2, 3, 5, 7, 8, 10]; p.comp = 'roll'; p.keys = 'felt'; p.voice = 'glow'; p.bass = 'long'; p.drums = 'none';
+      p.lv.drums = 0; p.lv.keys = 0.8; p.lead = 0; p.wet += 0.4; p.bright = 4200;
+      p.her = [4, 2, 1, 0, 2]; p.his = [0, 2, 3, 4, 2];
+    },
     // open fifths and soft glowing bells, slower, no percussion
     alpine(p, slot) {
       p.root = (p.root + 5) % 12; p.bpm *= 0.94; p.harmony = 'fifths'; p.bars = 2;
@@ -88,7 +99,8 @@ window.OEMusic = (function () {
       p.lead = Math.min(p.lead, 0.3); p.lv.drums = 0; p.wet += 0.3;
     },
   };
-  const DEFAULTS = { slot: 'daytime', hour: 13, rain: 0, wind: 0, snow: false, district: null, palette: null, mode: 'foot', indoors: false, talking: false, event: null };
+  const DEFAULTS = { slot: 'daytime', hour: 13, rain: 0, wind: 0, snow: false, district: null, palette: null, mode: 'foot', indoors: false, talking: false, event: null,
+    theme: 0, held: false }; // (a story's: how many frames of the roll are taken, which is how much of its theme the score knows; and time held)
   function slotOf(hour) { const h = ((hour % 24) + 24) % 24; return h < 5 ? 'night' : h < 10 ? 'morning' : h < 17 ? 'daytime' : h < 21 ? 'evening' : 'night'; }
   // a state, merged over the last one and made safe
   function normalise(prev, s) {
@@ -99,7 +111,7 @@ window.OEMusic = (function () {
     if (SLOTS.indexOf(o.slot) < 0) o.slot = slotOf(o.hour);
     o.rain = clamp(+o.rain || 0, 0, 1); o.wind = clamp(+o.wind || 0, 0, 1); o.snow = !!o.snow;
     o.mode = TRAVEL.indexOf(o.mode) < 0 ? 'foot' : o.mode;
-    o.indoors = !!o.indoors; o.talking = !!o.talking;
+    o.indoors = !!o.indoors; o.talking = !!o.talking; o.held = !!o.held; o.theme = clamp(Math.floor(+o.theme || 0), 0, 9);
     o.palette = o.palette ? String(o.palette).toLowerCase() : null;
     o.district = o.district ? String(o.district) : null; o.event = o.event ? String(o.event) : null;
     return o;
@@ -133,13 +145,17 @@ window.OEMusic = (function () {
     // indoors: drier and closer
     p.indoors = s.indoors;
     if (s.indoors) { p.wet *= 0.4; p.lv.drums *= 0.6; p.lv.drops *= 0.5; p.lv.keys *= 1.1; }
+    // time held (a story's Stop): the beat is time's, so it goes with it. The pad stays on the chord it has, the piano
+    // and the bass are let ring out, and what is left is the theme alone, slower
+    p.held = !!s.held && !!p.her; p.theme = s.theme;
+    if (p.held) { p.lv.keys = 0; p.lv.bass = 0; p.lv.felt = 0; p.lv.pulse = 0; p.lv.drops = 0; p.lv.pad *= 0.8; p.wet += 0.5; }
     p.duck = s.talking ? 0.562 : 1; // 5 dB under speech
     p.event = s.event;
     if (s.event) p.bpm += 1;
     p.bright = clamp(p.bright, 1800, 6000);
     p.dseed = s.district ? hash(s.district) : 0;
     p.key = p.slot + '|' + pal; // the harmonic material
-    p.id = [p.key, p.rainy ? 'r' : 'd', s.mode === 'heli' ? 'h' : p.lv.pulse ? 'p' : 'f'].join('|');
+    p.id = [p.key, p.rainy ? 'r' : 'd', s.mode === 'heli' ? 'h' : p.lv.pulse ? 'p' : 'f', p.held ? 's' : ''].join('|');
     return p;
   }
   function describeOf(p, s, bpm) {
@@ -167,6 +183,18 @@ window.OEMusic = (function () {
     stamp: () => [[0, -12, 'felt', 2, 0.22], [0.14, 7, 'mallet', 2, 0.15]],
     fail: th => [[0, 7, 'felt', 2, 0.18], [0.32, th, 'felt', 2.5, 0.17]],
     message: () => [[0, 7, 'mallet', 1.5, 0.15], [0.16, 12, 'mallet', 2, 0.16]],
+    // a story's (the bluehour palette's theme; elsewhere a plain figure on the same degrees): `note`, a print taken, is
+    // the one note of the theme the roll has just earned; `turn`, the case turned over, a low octave and the sixth
+    // over it; `doubt`, the false solution, her first three notes with the second of them a semitone flat; `meet`, the
+    // two lines in contrary motion to one note, and the major chord on that note after it, the only one in the
+    // score; `found`, the last note alone and the third over it
+    note: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2], j = clamp(1 + (T.theme || 0), 0, 4); return [[0, 12 + m[h[j]], 'glow', 3.5, 0.17], [0.02, m[h[j]], 'felt', 2.5, 0.08]]; },
+    turn: () => [[0, -24, 'felt', 3.4, 0.15], [0.03, -12, 'felt', 3.4, 0.13], [0.5, -4, 'felt', 3, 0.15], [0.5, 8, 'glow', 3.5, 0.1]],
+    doubt: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2]; return [[0, 12 + m[h[0]], 'glow', 3, 0.13], [0.9, 12 + m[h[1]] - 1, 'glow', 3, 0.13], [1.8, 12 + m[h[2]] - 1, 'glow', 3.8, 0.13], [1.8, -12 + m[h[2]] - 1, 'felt', 3, 0.08]]; },
+    meet: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2], a = T.his || [0, 2, 3, 4, 2], o = [];
+      for (let j = 0; j < 5; j++) o.push([j * 1.15, 12 + m[h[j]], 'glow', 4, 0.13], [j * 1.15, m[a[j]], 'felt', 3.4, 0.12]);
+      return o.concat([[5.9, -9, 'felt', 4.5, 0.15], [5.95, 8, 'felt', 4.5, 0.11], [6.0, 10, 'felt', 4.5, 0.1], [6.3, 20, 'glow', 5, 0.12]]); }, // (E major, on the note they met on)
+    found: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2]; return [[0, 12 + m[h[4]], 'glow', 4.5, 0.15], [1.3, 19, 'glow', 5, 0.1], [1.3, -12, 'felt', 4, 0.1]]; },
   };
 
   function loadVolume() {
@@ -376,6 +404,7 @@ window.OEMusic = (function () {
       const T = resolve(st), first = !P;
       let restart = first;
       rest = false;
+      if (!first && T.held !== P.held) phraseBar = 0; // (time held or let go: the phrase begins again, so the theme is the first thing heard in a Stop)
       if (!first && T.id !== P.id) {
         const moved = T.key !== P.key;
         xf = moved ? 4 : 3; restart = moved; rest = moved;
@@ -400,7 +429,7 @@ window.OEMusic = (function () {
       const human = () => (rng() - 0.5) * 0.012;
       const soft = () => 0.93 + 0.07 * rng(); // velocities in a narrow range: nothing jumps out
       if (cb === 0) {
-        chord = buildChord(prog[Math.floor(phraseBar / P.bars)]);
+        chord = buildChord(P.held ? 0 : prog[Math.floor(phraseBar / P.bars)]); // (time held: the harmony does not move either)
         chord.v.forEach((m, i) => q('pad', 'pad', t0 + i * 0.05, m, P.bars * barDur, 0.012));
       }
       const v = chord.v, top = v.slice(-2);
@@ -444,8 +473,16 @@ window.OEMusic = (function () {
           q('felt', 'felt', at(s) + human(), v[M.felt] + (rng() < 0.35 ? 12 : 0), 4 * s16, 0.11 * soft());
         }
       }
+      // a story's theme, once in each phrase of eight bars, from its fifth: hers on a soft bell, as many of its notes as
+      // the roll has frames (two before the first, all five from the third on); from the sixth frame his answer under
+      // it on the piano, a bar behind until the last frame, where they are played together and end on one note
+      if (P.her && phraseBar === (P.held ? 0 : 4) && !rest) {
+        const deg = (d, oct) => lb + 12 * oct + P.mel[d], k = clamp(2 + P.theme, 2, 5), step = (P.held ? 3 : 2) * spb;
+        for (let j = 0; j < k; j++) q('glow', 'lead', t0 + j * step + human(), deg(P.her[j], 1), 3, (j === k - 1 ? 0.16 : 0.14) * soft());
+        if (P.theme >= 5) { const lag = P.theme >= 6 ? 0 : 4 * spb; for (let j = 0; j < 5; j++) q('felt', 'lead', t0 + lag + j * step + human(), deg(P.his[j], 0), 3, 0.13 * soft()); }
+      }
       // melody: a contour walk, landing on chord tones, the third bar answering the first
-      if (on('lead') && !rest) {
+      if (on('lead') && !rest && !P.her) {
         const dens = P.lead * (pb === 3 ? 0.6 : 1);
         if (rng() < 0.3 + dens * 1.1) {
           let cell, steps;
@@ -535,6 +572,7 @@ window.OEMusic = (function () {
         const T = resolve(st), now = ctx.currentTime;
         N.duck.gain.setTargetAtTime(T.duck, now, 0.12);
         N.wet.gain.setTargetAtTime(T.wet, now, 0.4);
+        if (T.held) for (const k of ['keys', 'bass', 'felt', 'pulse', 'drops']) N.bus[k].in.gain.setTargetAtTime(0, now, 0.3); // (time is braked in under a second: so is the beat)
       }
     }
     function sting(kind, at) {
@@ -542,7 +580,7 @@ window.OEMusic = (function () {
       const T = P || resolve(st), t = (at != null ? at : ctx.currentTime) + 0.02;
       const has = x => T.scale.indexOf(x) >= 0, th = has(4) ? 4 : has(3) ? 3 : 5;
       const base = 60 + T.root - (T.root > 6 ? 12 : 0);
-      for (const [dt, semis, voice, dur, vel] of STINGS[kind](th)) V[voice](N.bus.sting, t + dt, base + semis, dur, vel);
+      for (const [dt, semis, voice, dur, vel] of STINGS[kind](th, T)) V[voice](N.bus.sting, t + dt, base + semis, dur, vel);
       return true;
     }
     function volume(v) {

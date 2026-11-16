@@ -85,7 +85,7 @@ window.OEStory = (function () {
     // the frame whenever something changes that the player did not do (time stopping, time running, the camera going down)
     const camBtn = el('g-story-cam', '', 'button'), chip = el('g-story-chip', '');
     camBtn.type = 'button';
-    const sfx = name => { if (ctx.sfx) ctx.sfx(name); };
+    const sfx = name => { if (ctx.sfx) ctx.sfx(name); }, sting = kind => { if (ctx.sting) ctx.sting(kind); };
     const say = text => { sfx('word'); chip.textContent = text; chip.classList.remove('on'); void chip.offsetWidth; chip.classList.add('on'); };
     const camLabel = () => { camBtn.innerHTML = st.cam ? `<i></i>Lower the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}` : `<i></i>Raise the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}`; };
     function raise(on) {
@@ -111,6 +111,7 @@ window.OEStory = (function () {
       printEl.innerHTML = `<figure><img alt="" src="${p.src}">${postmark(p.stamp, n)}<figcaption><b>${n}</b>${esc(p.cap || p.stamp || '')}</figcaption></figure>`;
       printEl.classList.remove('on'); void printEl.offsetWidth; printEl.classList.add('on');
       later(720, () => sfx('stamp')); // (the postmark comes down)
+      later(1500, () => sting('note')); // (and the score has one more note of its tune)
       later(4200, () => printEl.classList.remove('on'));
     }
     // the roll so far: every print kept, laid out as prints on a table; opened from the film strip or with Tab
@@ -247,7 +248,7 @@ window.OEStory = (function () {
       // the scene's air (leaves, birds), made again only where the scene's differs; and a car, where the frame sends one
       { const a = JSON.stringify(fr.air || (fr.weather === 'rain' || st.rain ? { leaves: 40, birds: 0 } : {})); if (a !== st.air && ctx.air) { st.air = a; ctx.air(JSON.parse(a)); } }
       // the score, set to the scene: the evening going into night as the frames go, the roof's air, the rain
-      if (ctx.score) ctx.score(Object.assign({ slot: i < 3 ? 'evening' : 'night', hour: 17.3 + i * 0.55, rain: fr.weather === 'rain' || st.rain ? 0.8 : 0, mode: i === 3 ? 'heli' : 'foot' }, fr.score || {}));
+      if (ctx.score) ctx.score(Object.assign({ slot: i < 3 ? 'evening' : 'night', hour: 17.3 + i * 0.55, rain: fr.weather === 'rain' || st.rain ? 0.8 : 0, mode: i === 3 ? 'heli' : 'foot', theme: i, held: false }, fr.score || {})); // (theme: the score knows as much of its tune as the roll has frames)
       if (fr.weather === 'rain' && !st.rain) { st.rain = true; later(1500, () => { say('It has begun to rain'); sfx('rain'); }); }
       const go = () => {
         if (st.fr !== fr) return;
@@ -278,6 +279,7 @@ window.OEStory = (function () {
       const opts = q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: `<span class="pr">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>` })) : q.options.map((text, i) => ({ k: i, text })), right = q.frame || q.answer;
       st.want = opts.findIndex(o => o.k === right); // (which answer is the right one: tools/story_play.js picks it)
       ctx.ask(q.frame && !w.alive ? Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }) : w, [q.q], opts, c => { // (what an afterimage is told is yours to choose: the question is not in their mouth)
+        if (!!c && c.k === right && q.frame) sting('turn'); // (a print that settles it: the case turns)
         const ok = !!c && c.k === right, said = [].concat((ok ? q.right : q.wrong) || (ok ? [] : ['No. Look at the prints again.']));
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
@@ -290,7 +292,7 @@ window.OEStory = (function () {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
       st.phase = 'stop'; st.t = 0; st.beat = 'still';
       veil.classList.add('on'); ctx.stage.classList.add('story-stop');
-      ctx.hush(true); ctx.hold(true); sfx('stop'); if (ctx.held) ctx.held(true);
+      ctx.hush(true); ctx.hold(true); sfx('stop'); if (ctx.held) ctx.held(true); if (ctx.score) ctx.score({ held: true }); // (the beat is time's: it stops with it)
       if (fr.light && ctx.light) ctx.light(fr.light); // (a Stop that goes back to an hour: the last one, to the blue hour she waited at)
       pulse();
       // (no word over the moment itself: the street held, its sound braked, and for 2.5 s nothing written on it)
@@ -377,7 +379,8 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       st.phase = 'after'; st.t = 0; st.beat = ''; st.late = !!late;
       veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; hint(false); aimAt(null); goal('');
-      ctx.hush(false); ctx.hold(false); st.orbit = 0;
+      ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false });
+      if (!late && fr.turn) later(1500, () => sting(fr.turn)); // (the case turned over, or the false solution: under the first line said after)
       say('Time runs again'); sfx('run'); if (ctx.held) ctx.held(false);
       pulse();
       for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
@@ -412,6 +415,7 @@ ${E.found ? `<div class="found">${ticket(E.found.ticket || {})}<p>${esc(E.found.
 ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}
 <div class="row">${st.prints.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="free">${esc(E.free || 'Walk the city')}</button><button type="button" data-do="again">Play it again</button></div></div>`;
       endEl.classList.add('on');
+      if (E.found) later(2400, () => sting('found')); // (as the ticket comes up)
       requestAnimationFrame(() => endEl.classList.add('in'));
       const go = endEl.querySelector('button.go');
       if (go) go.focus({ preventScroll: true });
@@ -491,8 +495,8 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
         }
         if (st.beat === 'meeting') { // they meet where you stand, and go out like a breath let go
           const met = [g, st.ghost2].every(q => !q || !q.to);
-          if (met && !st.met) { st.met = st.t; pulse(); }
-          if ((st.met && st.t > st.met + 2.6) || st.t > 40) resume();
+          if (met && !st.met) { st.met = st.t; pulse(); sting('meet'); } // (the two lines of the theme, to one note)
+          if ((st.met && st.t > st.met + 7.5) || st.t > 40) resume(); // (held until the phrase has ended on its chord)
         }
         markTick();
         if (leftS <= 0 && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true);

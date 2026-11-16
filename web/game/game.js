@@ -3135,7 +3135,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     say: (who, lines, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff' }, who), lines.map(l => fill(l)), null, done),
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
-    score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: 'tokyo' }, state)); },
+    score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
+    sting: kind => { if (storyMusic) storyMusic.sting(kind); }, // (a phrase of the score at a beat of the story: music.js's stings)
     // the story's own sound (audio.js): a cue by name, and the still chord of time held
     sfx: name => { if (A.sfx) A.sfx(name); },
     held: on => { if (A.held) A.held(on); },
