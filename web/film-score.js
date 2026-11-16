@@ -62,6 +62,22 @@ window.OEFilmScore = (function () {
       g.setValueAtTime(0, 0); g.linearRampToValueAtTime(0.42, 2.5); g.setValueAtTime(0.42, T); g.linearRampToValueAtTime(0.12, T + 4);
       g.setValueAtTime(0.12, end - 3); g.linearRampToValueAtTime(0, end + 1.5); }
 
+    // plan.swell (a story's opening): nothing arrives. A low bed from the first second (the root, its octave and the
+    // fifth between: no third, so it says neither minor nor major), slowly breathing, with one high fifth held far
+    // off; the two notes of the theme the story's score begins with, before the title; and the title's chord and the
+    // finale's rising over two seconds and more at half their level instead of striking. Before this the score was
+    // silent for the opening's first eighteen seconds and then struck its chord in 40 ms, 25 dB over the second before
+    const swell = !!plan.swell;
+    // plan.under: the game's own score is playing under this one (the loading cue through the opening, the score in
+    // a flight): then it is the bed, and this adds only what rises at the title and after
+    if (swell && !plan.under) { const mix = ctx.createGain(), lp = filter('lowpass', 420, 0.6);
+      for (const [m, v] of [[root - 24, 0.5], [root - 12, 0.3], [root - 5, 0.2], [root - 12 + 0.05, 0.22]]) { const o = osc('sine', hz(m), 0, D), g = ctx.createGain(); g.gain.value = v; o.connect(g); g.connect(mix); }
+      const l = osc('sine', 0.09, 0, D), lg = ctx.createGain(); lg.gain.value = 0.18; l.connect(lg); lg.connect(mix.gain);
+      mix.connect(lp);
+      const g = voice(lp, 0.6); g.setValueAtTime(0, 0); g.linearRampToValueAtTime(0.03, 2); g.linearRampToValueAtTime(0.085, 9); g.linearRampToValueAtTime(0.11, T); g.setValueAtTime(0.11, T + 2); g.linearRampToValueAtTime(0.07, T + 7); g.setValueAtTime(0.07, end - 1); g.linearRampToValueAtTime(0, end + 1.6);
+      const hi = osc('sine', hz(root + 19), 0, D), hv = osc('sine', 0.21, 0, D), hg = ctx.createGain(); hg.gain.value = 2.5; hv.connect(hg); hg.connect(hi.frequency);
+      const gh = voice(hi, 0.9, 0.2); gh.setValueAtTime(0, 3); gh.linearRampToValueAtTime(0.006, 10); gh.setValueAtTime(0.006, T); gh.linearRampToValueAtTime(0, T + 5); }
+
     // the city's air: a bed of filtered noise
     if (!clean && plan.air !== 'none') { const air = plan.air || 'city', n = noiseSrc(0, D);
       const bp = filter(air === 'wind' ? 'bandpass' : 'lowpass', air === 'harbour' ? 700 : air === 'wind' ? 500 : 380, air === 'wind' ? 0.4 : 0.6);
@@ -96,15 +112,16 @@ window.OEFilmScore = (function () {
       }
       chord.forEach((m, i) => {
         const o = osc('sine', hz(m), t, t + 9); o.detune.value = (rnd() - 0.5) * 8;
-        const a = (0.11 - i * 0.012) * level;
+        const a = (0.11 - i * 0.012) * level * (swell ? 0.42 : 1), up = swell ? 2.4 + i * 0.12 : 0.04; // (swell: risen into, the low notes first)
         const g = voice(o, 0.85, (i % 2 ? 1 : -1) * Math.min(0.6, i * 0.12));
-        g.setValueAtTime(0, t); g.linearRampToValueAtTime(a, t + 0.04); g.exponentialRampToValueAtTime(a * 0.35, t + 2.5); g.exponentialRampToValueAtTime(0.0001, t + 8.5);
+        g.setValueAtTime(0, t); g.linearRampToValueAtTime(a, t + up); g.exponentialRampToValueAtTime(a * 0.35, t + up + 2.5); g.exponentialRampToValueAtTime(0.0001, t + 8.5);
       });
     }
     const chordAt = (degs, oct = 0) => degs.map(d => deg(d, oct));
     const chords = plan.chords || [[0, 2, 4], [3, 5, 7], [1, 3, 5], [4, 6, 8]];
     riser(T, 3.4);
-    hit(T + 0.03, [root - 12, root - 5, root, root + 7, deg(2, 1), deg(4, 1), deg(1, 2), deg(4, 2)]);
+    if (swell && !plan.under) { const m = plan.motif || [4, 2]; piano(T - 2.7, deg(m[0], 1), 0.75, -0.15); piano(T - 1.35, deg(m[1], 1), 0.7, 0.15); } // (her first two notes, and the title on the third beat)
+    hit(T + 0.03 - (swell ? 0.6 : 0), [root - 12, root - 5, root, root + 7, deg(2, 1), deg(4, 1), deg(1, 2), deg(4, 2)]);
 
     // the pad: the city's chords changing at the cuts after the title
     const cuts = plan.cuts.filter(c => c > T + 0.5 && c < end - 0.5);
@@ -170,14 +187,15 @@ window.OEFilmScore = (function () {
     const motif = plan.motif || [4, 2, 0, 1, 2];
     cuts.forEach((c, i) => {
       if (c >= F - 0.1) return;
-      note(c, deg(motif[i % motif.length], 1), 1, (i % 2 ? 0.25 : -0.25));
+      if (swell && c < T) return; // (before the title a story's score has only its bed and two notes)
+      note(c, deg(motif[i % motif.length], 1), swell ? (plan.under ? 0.5 : 0.75) : 1, (i % 2 ? 0.25 : -0.25));
       // the answer, a beat and a half later
       note(c + 60 / (plan.tempo || 76) * 1.5, deg(motif[(i + 2) % motif.length], 1), 0.6, (i % 2 ? -0.3 : 0.3));
     });
 
     // the finale: a riser and a quieter hit as the lights come on, then the chord rings out
     riser(F, 2.4);
-    hit(F + 0.03, [root - 12, root - 5, root, deg(2), deg(4), deg(1, 1), deg(2, 1), deg(4, 2)], 0.7);
+    hit(F + 0.03 - (swell ? 1.2 : 0), [root - 12, root - 5, root, deg(2), deg(4), deg(1, 1), deg(2, 1), deg(4, 2)], 0.7);
     [0, 2, 4, 1].forEach((d, i) => note(F + 1.2 + i * 0.9, deg(d, 2), 0.5, [-0.4, 0.4, -0.2, 0.2][i]));
 
     // the hush: the music holds its breath (the drone, pad, pulse, motif and their room), the air goes on

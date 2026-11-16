@@ -21,6 +21,23 @@ window.OpenEarthGame = async function game(cityId) {
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
   // ------------------------------------------------------------ load
+  // The score while the roll loads (music.js loop; docs/SOUND.md "Before the first frame"): the story's own, as much of
+  // it as it knows before a frame is taken, from the loading screen through the title and the prologue until the first
+  // frame's score takes it over. A browser gives a page no sound before it is touched: where it does, the cue starts
+  // with the page; where it does not, the loading screen says so and the first key or touch starts it.
+  let cue = null;
+  if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
+    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !!A.ctx && A.ctx.state !== 'running');
+    const begin = () => {
+      A.start();
+      if (cue || !A.ctx) return;
+      cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
+      on(A.ctx, 'statechange', heard); heard();
+    };
+    begin();
+    for (const ev of ['pointerdown', 'keydown']) on(window, ev, () => { if (cue) begin(); }, { capture: true });
+  }
+  const cueOut = () => { if (cue) { cue.stop(5); cue = false; } }; // (false: it has played, and is not begun again)
   const loadMsg = OEWorld.loadLine('g-'); // (index.html #g-load-msg, #g-load-bar and #g-load-stage)
   // a step of the load, by name, for the telemetry's note of where a page that died was (telemetry.js prev_stage)
   const loadStep = name => { try { performance.mark('oe:step', { detail: { view: 'game', city: cityId, step: name } }); } catch (e) { /* no User Timing */ } };
@@ -3115,12 +3132,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
     story: G.story, stage, player, touch, toast: t => H.toast(t),
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
-    beacon: at => {
+    // (kind 'stand', where a picture is taken from: the camera's amber, so that it is not taken for someone to go to)
+    beacon: (at, kind) => {
       if (!storyBeacon) {
         const col = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.5, 26, 20, 1, true), new THREE.ShaderMaterial({
-          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 } },
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: new THREE.Color(0.62, 0.78, 1.0) } },
           vertexShader: 'varying float vH; void main() { vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: 'uniform float uT; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(vec3(0.62, 0.78, 1.0) * a * 2.2, a); }' }));
+          fragmentShader: 'uniform float uT; uniform vec3 uC; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(uC * a * 2.2, a); }' }));
         col.position.y = 13 + 2.6; // (from over a head upward: whoever stands under it is seen, not lost in it)
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
         ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
@@ -3129,6 +3147,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         world.add(storyBeacon);
       }
       storyBeacon.visible = !!at;
+      if (at) { const amber = kind === 'stand'; storyBeacon.userData.col.material.uniforms.uC.value.setRGB(amber ? 1.0 : 0.62, amber ? 0.8 : 0.78, amber ? 0.52 : 1.0); storyBeacon.userData.ring.material.color.setHex(amber ? 0xffcf8a : 0x9fc4ff); }
       if (at) storyBeacon.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1])))); // (at[3]: the floor it stands on, a roof's)
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
@@ -3156,7 +3175,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     say: (who, lines, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff' }, who), lines.map(l => fill(l)), null, done),
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
-    score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
+    score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { cueOut(); storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
     sting: kind => { if (storyMusic) storyMusic.sting(kind); }, // (a phrase of the score at a beat of the story: music.js's stings)
     // the story's own sound (audio.js): a cue by name, and the still chord of time held
     sfx: name => { if (A.sfx) A.sfx(name); },
@@ -5390,7 +5409,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // variant to be swapped for as the sun goes down)
   const epOv = story && G.story.episodes && G.story.episodes[0] && G.story.episodes[0].overture;
   // (a film: the overture, or a flight a story plays between two places; `guideAt` is given the film's guide each frame)
-  makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
+  // (a film played while the story's score is: the loading cue through the opening, the score itself in a flight. Its
+  // own score then leaves the bed to that one: film-score.js plan.under)
+  makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } } });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;

@@ -129,7 +129,51 @@ Nothing was copied from any of these: the notes, the voices and the code are our
 | They meet | `meet`: both lines to one note, then the major chord; the Stop holds until it has sounded |
 | The last card | The existing `end` cue; `found` as the ticket comes up |
 
+**Before the first frame.** The loading screen, the title and the prologue play the score as it is before a
+frame is taken: the felt piano's rolled chords, the pad, and the two notes of the theme the score knows so far,
+so that the first frame's score is the same music going on, not a second piece. Two things decided how.
+
+- *A file, not the live score.* The live score writes its notes 300 ms ahead from a timer, and a page that is
+  parsing and building the map holds the main thread for longer than that: notes would drop. Bouncing it in
+  the page was measured too: thirteen seconds for eight bars on a desktop with nothing else to do, which a
+  load cannot spare. So `tools/load_cue.js` bounces eight bars (35.6 s at 54) with the score's own code,
+  lays the render's tail over its start so the loop has no seam, and writes
+  `web/assets/story/late/cue.mp3` (342 kB). `OEMusic.loop` plays it as one looping buffer on the audio
+  thread, through the music bus, so it ducks under the prologue's voice like the score. Run the tool again
+  after a change to the `bluehour` palette.
+- *A browser gives a page no sound before it is touched.* Where it does (a site the visitor has played
+  before, a browser set to allow it), the cue starts with the page. Where it does not, the loading screen's
+  upper bar says "Click for sound" ("Tap" on a phone) and the first key or touch anywhere starts it. The
+  file is decoded only once the context runs, so a page nobody touches keeps no samples.
+
+At the first frame the cue fades over five seconds under the score coming in (the same key, the same tempo)
+and its buffer is let go. `?walk=1` has no cue. `tools/load_score.js` checks it as a browser that asks for
+the touch: the bar says so and stops saying so, the score is on the bus within a second or two of the
+touch and still there on the title, and the loop's join is smoother than the steps inside it.
+
 **Checked.** `tools/music_check.js` renders `story-first-frame`, `story-last-frame`, `story-stop` and
 `story-stings` with the rest (peak under −8 dBFS, never silent for two seconds, dark above 4 kHz) and
 writes them as WAV files to listen to. Not checked by ear on a device's speaker; levels against the street
 are those of the map's score, which the story played before.
+
+**The opening and the flight** (`web/film-score.js`, the episode's `overture.score` and frame 5's `flight.score`).
+The opening's score was silent for its first eighteen seconds and then struck an eight-note chord in 40 ms as the
+title fell: 25 dB over the second before it, 33 dB over it in its first 50 ms, at -18 dBFS where the game's score
+sits at -27. The owner heard it as a jolt. It is rearranged (`swell` on the plan) so that nothing arrives:
+
+- a low bed from the first second (the root, its octave and the fifth between them, no third; one high fifth held
+  far off), rising slowly to the title;
+- her first two notes on the piano before the title, which falls where the third would;
+- the title's chord and the finale's rise over two seconds and more, the low notes first, at under half their
+  old level;
+- no hush before the title: with nothing loud after it, there is nothing to hold a breath for.
+
+When the game's score is already playing (the loading cue runs through the opening; the score itself through a
+flight), `game.js` sets `under` on the plan and the film's score leaves the bed and the two notes to it: one piece
+of music, with the title rising out of it.
+
+`tools/overture_levels.js` renders the opening's score and prints its level second by second; it fails on a rise
+of more than 8 dB from one second to the next, a 50 ms window more than 12 dB over the second before it, or a
+peak over -8 dBFS (`UNDER=1`: as it plays over the loading cue). Now: largest rise 7.5 dB at the very start
+(from -47 to -39 dBFS), loudest second -22 dBFS at the title, peak -12 dBFS.
+

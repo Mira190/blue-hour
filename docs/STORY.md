@@ -281,6 +281,28 @@ postmark, the rotor over the flight, a chord laid note by note at the end.
 this kerb at this hour, and the one odd thing about the job, a word pencilled on the old plan (`prologue` on
 the episode). A case left unfinished says so on the title, with a second button to start the evening again.
 
+**The mark says what it is of.** One mark in the frame and one light in the street, and their shape says what is
+asked, the way a quest marker and an interaction prompt are told apart in *The Witcher 3*, *Ghost of Tsushima*
+and *Death Stranding* (shape and colour first, words second; nothing copied from them):
+
+| Kind | In the frame | Reads | The light |
+|---|---|---|---|
+| `go`: a place to walk to (where the world will stop, the car, a lift's door) | a ring | `86 m` | pale column |
+| `meet`, `ghost`: someone to talk to | a speech mark; paper for the living, blue for an afterimage | `Talk · 12 m` | pale column |
+| `stand`: where the picture is taken from | a camera, amber | `Stand here · 8 m` | amber column and ring |
+| `frame`: the thing the picture is of | a finder's corners, amber | `Frame this` (no metres) | none |
+
+A thing to photograph is turned to, never walked to, so it carries no distance: on the roof the dome's mark read
+"143 m" under an arrow and sent the player looking for a way off the edge. With the camera up the finder's own
+lines are the guide and the mark shows only when the thing is off the frame, as the way to turn.
+`tools/story_play.js` fails a frame whose mark at the standpoint is not `frame` or has a number on it.
+
+A mark is watched moving, not in a still. The first pass of the kinds trembled at the frame's edge: a class was
+toggled with `undefined`, which flips it every frame, so the ring came and went and the arrow stepped in and out,
+and every still of it looked right. `tools/mark_steady.js` holds the player still, turns the lens each way round
+the compass, and reads the mark every frame for three seconds a view: its words, classes and kind must not
+change, its place must not go back and forth, and neither its words nor its arrow may be cut by the edge.
+
 **A print is a thing you are given.** After the shutter the print is in your hand for a moment, its postmark struck
 on it (the hour, the frame), and goes to the roll, where Tab opens every print taken so far.
 
