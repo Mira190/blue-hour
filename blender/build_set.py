@@ -73,14 +73,12 @@ def lift():
     b.select_set(True)
     bpy.ops.object.transform_apply(location=True, rotation=True)
     parts.append(b)
-    # the way to it: a mat with a lit edge, two posts and the rope between them and the wall
+    # the way to it: a mat with a lit edge, two posts and a belt from each, drawn taut to a catch on the wall (a lobby's
+    # retractable queue belt: one straight strap, not a rope in pieces); web/game/game.js makes them solid
     parts += [box(-1.25, -2.4, 0.0, 1.25, -0.2, 0.02, mat), box(-1.25, -2.46, 0.0, 1.25, -2.4, 0.03, amber)]
     for x in (-1.5, 1.5):
-        parts.append(lathe([(0.16, 0.0, steel), (0.16, 0.03, steel), (0.025, 0.05, steel), (0.025, 0.92, steel), (0.045, 0.94, steel), (0.045, 0.99, steel), (0.0, 1.0, steel)], seg=12, at=(x, -2.2, 0)))
-        for k in range(6):  # the rope, sagging from the post back to the wall
-            t0, t1 = k / 6, (k + 1) / 6
-            sag = lambda t: 0.9 - 0.22 * math.sin(math.pi * t)
-            parts.append(box(x - 0.018, -2.2 + t0 * 2.0, sag(t0) - 0.018, x + 0.018, -2.2 + t1 * 2.0, sag(t0) + 0.018, rope))
+        parts.append(lathe([(0.16, 0.0, steel), (0.16, 0.03, steel), (0.025, 0.05, steel), (0.025, 0.86, steel), (0.045, 0.86, steel), (0.045, 0.99, steel), (0.0, 1.0, steel)], seg=12, at=(x, -2.2, 0)))
+        parts += [box(x - 0.006, -2.155, 0.87, x + 0.006, -0.04, 0.92, rope), box(x - 0.03, -0.04, 0.85, x + 0.03, 0.0, 0.94, steel)]
     # the lobby's downlights, in the ceiling over the mat
     for x in (-1.6, 0.0, 1.6):
         for y in (-0.9, -2.6):

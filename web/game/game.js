@@ -3106,6 +3106,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, lensWas = null;
+  // the lift lobby's two queue belts (blender/build_set.py lift: a post at (±1.5, -2.2) in the model, a belt from it to
+  // the wall at y = 0) as a row of posts, so that nobody, the guide included, walks through a belt
+  const beltPosts = r => {
+    const h = (r.h || 0) * Math.PI / 180, c = Math.cos(h), s = Math.sin(h), z = r.at[2] ?? Math.max(0, nav.terrain(r.at[0], r.at[1]));
+    for (const lx of [-1.5, 1.5]) for (let ly = -2.2; ly <= 0.01; ly += 0.2) posts.add(r.at[0] + lx * c - ly * s, r.at[1] + lx * s + ly * c, z + 0.3, 0.06, 'column');
+  };
   // the way from where a frame is taken to what it is of, kept clear: of the crowd who stand in it, a walker is sent on
   // elsewhere (out of sight, as anyone the crowd is done with) and someone crossing a square or the Scramble steps to
   // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
@@ -3126,12 +3132,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
     story: G.story, stage, player, touch, toast: t => H.toast(t),
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
-    beacon: at => {
+    // (kind 'stand', where a picture is taken from: the camera's amber, so that it is not taken for someone to go to)
+    beacon: (at, kind) => {
       if (!storyBeacon) {
         const col = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.5, 26, 20, 1, true), new THREE.ShaderMaterial({
-          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 } },
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: new THREE.Color(0.62, 0.78, 1.0) } },
           vertexShader: 'varying float vH; void main() { vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: 'uniform float uT; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(vec3(0.62, 0.78, 1.0) * a * 2.2, a); }' }));
+          fragmentShader: 'uniform float uT; uniform vec3 uC; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(uC * a * 2.2, a); }' }));
         col.position.y = 13 + 2.6; // (from over a head upward: whoever stands under it is seen, not lost in it)
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
         ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
@@ -3140,6 +3147,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         world.add(storyBeacon);
       }
       storyBeacon.visible = !!at;
+      if (at) { const amber = kind === 'stand'; storyBeacon.userData.col.material.uniforms.uC.value.setRGB(amber ? 1.0 : 0.62, amber ? 0.8 : 0.78, amber ? 0.52 : 1.0); storyBeacon.userData.ring.material.color.setHex(amber ? 0xffcf8a : 0x9fc4ff); }
       if (at) storyBeacon.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1])))); // (at[3]: the floor it stands on, a roof's)
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
@@ -3209,7 +3217,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
-    relic: r => { if (!past) return null; if (r.from) clearSight(r.from, r.at); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
+    relic: r => { if (!past) return null; if (r.from) clearSight(r.from, r.at); if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
     finder: q => { if (past) past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); },
     lens: fov => { cam.distTo = 0; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(22, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below)
     // where to make for on the way to a place that is up a tower (or down from one): the nearer stop of the lift that
@@ -3222,8 +3230,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return best ? [best.at[0], best.at[1], best.at[2] + 1.2, best.at[2]] : null;
     },
     // a guide (companion.js): an animal that goes ahead of you to where the story wants you
-    guide: g => (window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, ground: (x, y) => Math.max(0, nav.terrain(x, y)), player, height: g.scale || 1,
+    // walked as the player walks: slid along walls, round posts, trunks, rails and cars (nav.slide), never onto ground the
+    // walker may not stand on, so that it goes round a fence and not through it
+    guide: g => (window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
       route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
+      slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy); return nav.walk(m.x, m.y, z, true).ok ? m : { x, y }; },
+      stand: (x, y, z) => nav.walk(x, y, z, true).ok,
       people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r) out.push([q.x, q.y]); } return out; } }) : null),
     // the view turned towards a place (gently, and never against the player's own hand on it)
     look: at => { if (player.mode === 'foot') cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); },
