@@ -119,7 +119,7 @@
 /* ---- a line as the world runs on again: type on the picture */
 /* what is said (the guide's line, what comes after a picture) is a subtitle: low in the frame, clear of the goal at the top left */
 .game-stage.story .g-toasts { top: auto; bottom: max(178px, calc(env(safe-area-inset-bottom) + 178px)); width: min(640px, calc(100% - 48px)); }
-.game-stage.story .g-toast { border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; padding: 4px 0; text-align: center; font: 300 clamp(16px, 2vw, 20px)/1.4 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px #000, 0 0 3px rgba(0, 0, 0, 0.8); }
+.game-stage.story .g-toast { border: 0; background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0) 100%); /* (a soft dark under the line: read over bright paving too) */ -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; padding: 10px 28px; text-align: center; font: 300 clamp(16px, 2vw, 20px)/1.4 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px #000, 0 0 3px rgba(0, 0, 0, 0.8); }
 
 /* ---- the last card: the print, what it was, what comes next */
 #g-story-end { position: absolute; inset: 0; z-index: 9; display: none; place-items: center; background: rgba(4, 8, 18, 0.8); -webkit-backdrop-filter: blur(8px) saturate(0.6); backdrop-filter: blur(8px) saturate(0.6); color: var(--paper); opacity: 0; transition: opacity 1.2s ease; overflow: auto; }
