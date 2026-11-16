@@ -316,12 +316,15 @@ window.OEStory = (function () {
     }
     // the finder's rectangle in the picture, as fractions from its top left
     const finderRect = () => { const f = finder.getBoundingClientRect(), s = ctx.stage.getBoundingClientRect(); return [(f.left - s.left) / s.width, (f.top - s.top) / s.height, (f.right - s.left) / s.width, (f.bottom - s.top) / s.height]; };
+    // what the shot is of, as the mark points at it and the frame is judged on it: the relic itself when there is one
+    // (a task's own subject point was left standing beside a relic, 21 m off and 14 m up, and the mark sent the player there)
+    const subjectOf = T => { const R = T.relic; if (!R) return T.subject || null; const z = R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1]); return [R.at[0], R.at[1], z + (R.eye ?? 0.6)]; };
     // where the frame stands: in place, and on its subject
     function framed() {
       const T = st.fr.task, placed = !T.stand || near(T.stand, T.within_m || 4);
       let aimed;
       if (!st.cam) aimed = false; // (nothing is framed with the camera down)
-      else if (T.relic) { const R = T.relic, z = R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1]), q = ctx.screen([R.at[0], R.at[1], z + (R.eye ?? 0.6)]), r = finderRect(); aimed = q.front && q.x > r[0] && q.x < r[2] && q.y > r[1] && q.y < r[3]; } // (the thing itself, inside the bright lines)
+      else if (T.relic) { const q = ctx.screen(subjectOf(T)), r = finderRect(); aimed = q.front && q.x > r[0] && q.x < r[2] && q.y > r[1] && q.y < r[3]; } // (the thing itself, inside the bright lines)
       else if (T.both) aimed = [st.ghost, st.ghost2].every(g => { if (!g) return true; const q = ctx.screen([g.x, g.y, g.z + 1.2]); return q.front && q.x > 0.06 && q.x < 0.94 && q.y > 0.06 && q.y < 0.94; });
       else aimed = !T.subject || ctx.aim(T.subject) <= (T.within_deg || 40);
       return { placed, aimed };
@@ -451,9 +454,9 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
           const text = !st.cam ? (!f.placed ? G.stand || 'Find where this was taken from.' : G.raise || `Raise the camera${ctx.touch ? '.' : ': R.'}`) : !f.placed ? G.stand || 'Find where this was taken from.' : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
-          const want = !f.placed ? spot(T.stand) : T.subject ? [T.subject[0], T.subject[1], T.subject[2], T.subject[2]] : null;
+          const S0 = subjectOf(T), want = !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
           if (String(want) !== String(st.target)) aimAt(want);
-          if (f.placed && T.subject) ctx.beacon(null); // (the subject is marked in the frame, with no light standing on it)
+          if (f.placed && S0) ctx.beacon(null); // (the subject is marked in the frame, with no light standing on it)
           if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
           st.ready = on; finder.classList.toggle('ready', on);
           shutter.classList.toggle('ready', on);
