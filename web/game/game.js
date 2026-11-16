@@ -3097,7 +3097,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
-      const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = 1.4 + 0.5 * t / L;
+      const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = 1.4 + 0.15 * Math.max(0, t); // (wider as it goes: a tram's length at 24 m)
       if (t < -2.5 || t > L - 0.6 || Math.abs(side) > (t < 3.5 ? 3.5 : w)) continue;
       if (!p.pz) { p.line = -1; continue; }
       const to = (Math.sign(side) || 1) * ((t < 3.5 ? 3.5 : w) + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
@@ -6242,7 +6242,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); }
         player.rig.root.visible = false; fpOn = true;
       }
-    } else if (fpOn) { fpOn = false; player.rig.root.visible = true; }
+    } else if (fpOn) { fpOn = false; player.rig.root.visible = true; if (lensWas != null) { cam.dist = lensWas; lensWas = null; } } // (a frame's own lens is given back when the finder's view ends)
     Wd.fitShadow(live.look, live.half);
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();

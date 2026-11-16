@@ -257,14 +257,17 @@ def board():
     Q += disc(0.205, 1.53, 0.035, y - 0.001, pale)                                     # the moon, a crescent
     Q += disc(0.222, 1.54, 0.032, y - 0.0015, night)
     Q.append(rect(-0.285, 1.36, 0.285, 1.372, -0.006, RED))                            # a red rule under the sky
-    Q.append(rect(-0.006, 0.47, 0.006, 1.33, -0.006, mix(PAPER, RED, 0.5)))            # and between the columns
+    Q.append(rect(0.096, 0.47, 0.104, 1.33, -0.006, mix(PAPER, RED, 0.5)))             # and between the title and the rest
     parts.append(quads("face", Q))
-    parts += letters("五島プラネタリウム", 0.098, INK, "gothic", (0.15, -0.008, 1.335), vertical=True, track=0.97)
-    parts += letters("今夜の星空", 0.084, RED, "gothic", (-0.07, -0.008, 1.33), vertical=True, track=1.02)
-    parts += letters("十月十日", 0.05, INK, "maru", (-0.2, -0.008, 1.33), vertical=True)
-    parts += letters("午後七時", 0.05, INK, "maru", (-0.2, -0.008, 1.1), vertical=True)
-    parts += letters("解説つき", 0.042, INK, "maru", (-0.2, -0.008, 0.87), vertical=True)
-    parts += letters("東急文化会館 八階", 0.036, INK, "medium", (-0.07, -0.008, 0.41))
+    # (read right to left: the title; the evening's, in red; the date and the hour; and who gives it)
+    parts += letters("五島プラネタリウム", 0.098, INK, "gothic", (0.175, -0.008, 1.335), vertical=True, track=0.97)
+    parts += letters("今夜の星空", 0.08, RED, "gothic", (0.04, -0.008, 1.33), vertical=True, track=1.02)
+    parts += letters("十月十日", 0.05, INK, "maru", (-0.09, -0.008, 1.33), vertical=True)
+    parts += letters("午後七時", 0.068, INK, "gothic", (-0.09, -0.008, 1.1), vertical=True)
+    parts += letters("解説", 0.05, INK, "maru", (-0.215, -0.008, 1.33), vertical=True)
+    parts += letters("水野", 0.07, INK, "gothic", (-0.215, -0.008, 1.2), vertical=True)
+    parts += letters("晶", 0.07, INK, "gothic", (-0.215, -0.008, 1.03), vertical=True)
+    parts += letters("東急文化会館 八階", 0.036, INK, "medium", (0.0, -0.008, 0.41))
     parts.append(blob(0.5, 0.42))
     return join("board", parts)
 
@@ -336,7 +339,19 @@ def shoeshine():
     parts += [box(sx - 0.15, -0.15, 0.24, sx + 0.15, 0.15, 0.28, wood), box(sx - 0.12, -0.13, 0.28, sx + 0.1, 0.11, 0.295, cloth)]
     for dx, dy in ((-0.13, -0.13), (0.1, -0.13), (-0.13, 0.1), (0.1, 0.1)):
         parts.append(box(sx + dx, dy, 0, sx + dx + 0.03, dy + 0.03, 0.24, dark))
-    parts.append(lathe([(0.045, 0, tin), (0.045, 0.03, tin), (0.0, 0.031, dark)], seg=10, at=(0.05, -0.3, 0)))  # the tin of polish
+    # a hundred-yen note (series B, 1953: Itagaki Taisuke in an oval at its left, 百円 at its right) on the lid, under the
+    # tin of polish, its end out from under it
+    note, ink2 = hexc(0xd9c48c), hexc(0x6b4a2a)
+    nz, nx0 = 0.2965, -0.2
+    Qn = [([(nx0, -0.06, nz), (nx0 + 0.148, -0.06, nz), (nx0 + 0.148, 0.016, nz), (nx0, 0.016, nz)], note),
+          ([(nx0 + 0.006, -0.054, nz + 0.0005), (nx0 + 0.142, -0.054, nz + 0.0005), (nx0 + 0.142, -0.051, nz + 0.0005), (nx0 + 0.006, -0.051, nz + 0.0005)], ink2),
+          ([(nx0 + 0.006, 0.007, nz + 0.0005), (nx0 + 0.142, 0.007, nz + 0.0005), (nx0 + 0.142, 0.01, nz + 0.0005), (nx0 + 0.006, 0.01, nz + 0.0005)], ink2)]
+    ov = [(nx0 + 0.04 + math.cos(k / 16 * 2 * math.pi) * 0.022, -0.022 + math.sin(k / 16 * 2 * math.pi) * 0.027, nz + 0.0006) for k in range(16)]
+    Qn += [([(nx0 + 0.04, -0.022, nz + 0.0006), ov[k], ov[(k + 1) % 16]], ink2) for k in range(16)]
+    parts.append(quads("note", Qn))
+    for o in letters("百円", 0.026, ink2, "mincho", (0, 0, 0)):
+        parts.append(place(o, rx=-math.pi / 2, at=(nx0 + 0.105, -0.022, nz + 0.0007)))
+    parts.append(lathe([(0.045, 0, tin), (0.045, 0.03, tin), (0.0, 0.031, dark)], seg=14, at=(nx0 + 0.11, -0.01, 0.2965)))  # the tin of polish
     parts.append(box(-0.2, -0.36, 0, -0.04, -0.3, 0.05, dark))  # the brush
     parts += letters("くつみがき", 0.05, PAPER, "maru", (0, -0.152, 0.15))  # (lettered on the box's front)
     parts.append(blob(0.75, 0.5, at=(0.25, 0)))
@@ -452,6 +467,10 @@ def tram():
             parts += [place(d, rz=0 if side < 0 else math.pi, at=(body * 5.0, side * (W + 0.006), 0)) for d in letters("デハ204" if body > 0 else "デハ203", 0.11, cream, "medium", (0, 0, 0.78))]
         parts.append(box(body * 7.4 - 1.0, -0.86, 0.1, body * 7.4 + 1.0, 0.86, 0.36, hexc(0x2b2d30)))  # its bogie
     parts.append(box(-0.32, -0.9, 0.45, 0.32, 0.9, 2.3, hexc(0x2a2a28)))                 # the bellows at the joint
+    for body in (-1, 1):  # the route boards over the windows, both sides: the line runs by way of Sangenjaya
+        for side in (-1, 1):
+            parts.append(box(body * 5.2 - 0.85, side * W - 0.012, 2.15, body * 5.2 + 0.85, side * W + 0.012, 2.4, hexc(0xf4efe0)))
+            parts += [place(d, rz=0 if side < 0 else math.pi, at=(body * 5.2, side * (W + 0.016), 0)) for d in letters("三軒茶屋 経由", 0.21, INK, "gothic", (0, 0, 2.275))]
     parts.append(box(-0.9, -0.86, 0.1, 0.9, 0.86, 0.36, hexc(0x2b2d30)))                  # and its bogie
     for bx in (-7.4, 0.0, 7.4):
         for wx in ((-0.6, 0.6) if bx else (0.0,)):
@@ -633,6 +652,29 @@ def river():
             Q += box_quads(xx - 0.25, yy - 0.25, 0.0, xx + 0.25, yy + 0.25, 1.35, stone)
             Q += box_quads(xx - 0.3, yy - 0.3, 1.35, xx + 0.3, yy + 0.3, 1.47, stone2)
     parts = [quads("river", Q, alpha=fade), sheet]
+    # the works: a timber gantry across the river with the contract's board hung from it, facing the bridge, and lamps on
+    # trestles along both banks
+    timber, board_c, red_lamp = hexc(0x6a5640), hexc(0xece6d4), hexc(0xd23a22)
+    GY = 12.0
+    for s in (-1, 1):
+        parts.append(box(s * (W + 0.7) - 0.09, GY - 0.09, 0.0, s * (W + 0.7) + 0.09, GY + 0.09, 3.0, timber))
+    parts.append(box(-W - 0.8, GY - 0.08, 2.82, W + 0.8, GY + 0.08, 3.0, timber))
+    parts.append(box(-1.35, GY - 0.03, 1.3, 1.35, GY + 0.03, 2.72, board_c))
+    for x in (-1.0, 1.0):
+        parts.append(box(x - 0.02, GY - 0.02, 2.72, x + 0.02, GY + 0.02, 2.82, timber))
+    parts += letters("渋谷川暗渠工事", 0.3, INK, "gothic", (0, GY - 0.035, 2.38))
+    parts.append(box(-1.2, GY - 0.035, 2.13, 1.2, GY - 0.033, 2.15, RED))
+    parts += letters("工事主任 神原", 0.19, INK, "gothic", (0, GY - 0.035, 1.92))
+    parts += letters("現場主任 早瀬", 0.19, INK, "gothic", (0, GY - 0.035, 1.6))
+    for s in (-1, 1):
+        for ty in (1.0, 6.0):
+            x = s * (W + 1.3)
+            parts.append(box(x - 0.6, ty - 0.03, 0.75, x + 0.6, ty + 0.03, 0.88, board_c))
+            for lx in (-0.5, 0.5):
+                parts.append(quads("trestle", [line(x + lx - 0.12, 0.0, x + lx, 0.8, 0.05, 0.0, timber), line(x + lx + 0.12, 0.0, x + lx, 0.8, 0.05, 0.0, timber)]))
+                for v in parts[-1].data.vertices:
+                    v.co.y, v.co.z = ty, v.co.z
+            parts.append(lathe([(0.0, 0.88, red_lamp), (0.07, 0.92, red_lamp), (0.08, 0.98, red_lamp), (0.05, 1.04, red_lamp), (0.0, 1.06, red_lamp)], seg=10, at=(x, ty, 0)))
     for xx, name in ((-W - 0.75, "宮益橋"), (W + 0.75, "みやますはし")):
         parts.append(box(xx - 0.16, BY0 - 0.27, 0.35, xx + 0.16, BY0 - 0.25, 1.25, hexc(0x3b3833)))
         parts += letters(name, 0.26 if len(name) == 3 else 0.14, hexc(0xe9e2cc), "mincho", (xx, BY0 - 0.275, 1.2), vertical=True, track=1.0 if len(name) == 3 else 0.98)
