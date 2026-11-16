@@ -6244,7 +6244,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         camera.position.copy(eye).addScaledVector(h, 0.12);
         camera.up.set(0, 1, 0);
         camera.lookAt(eye.addScaledVector(h, 50 * Math.cos(pt)).add(fpUp.set(0, 50 * Math.sin(pt), 0)));
-        const f = Math.max(22, Math.min(60, 22 + (cam.dist - 2.5) * 5.5));
+        // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
+        // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it)
+        const f0 = Math.max(22, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * 1.5 / camera.aspect) * 180 / Math.PI);
         if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); }
         player.rig.root.visible = false; fpOn = true;
       }

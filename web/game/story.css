@@ -276,3 +276,36 @@
   /* (the camera's button, raised, under the goal's lines and not over them) */
   #g-story-cam.up { top: max(196px, calc(env(safe-area-inset-top) + 196px)); }
 }
+
+/* ---- two faces for two years: someone of 1964 speaks in the serif, and so does what was found; tonight speaks in the sans */
+.game-stage.story .g-dialog[data-era="past"] p { font: 400 clamp(19px, 2.2vw, 25px)/1.5 var(--f-serif); letter-spacing: 0.005em; }
+#g-story-end p { font: 400 17px/1.6 var(--f-serif); }
+#g-story-album li p.note { font: 400 14px/1.45 var(--f-serif); font-style: normal; color: var(--paper); }
+#g-story-album li p.note::before { content: ""; display: block; width: 18px; height: 1px; margin: 0 auto 8px; background: var(--amber); opacity: 0.7; }
+
+/* ---- a question answered with a print: the roll so far as a row of prints, each a button */
+.game-stage.story .gd-choices:has(.pr) { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 10px; max-width: 46em; }
+.game-stage.story .gd-choices button:has(.pr) { display: block; padding: 6px 6px 8px; background: var(--paper); border-color: transparent; color: #0b1020; text-align: left; transition: transform 0.25s, box-shadow 0.25s; }
+.game-stage.story .gd-choices button:has(.pr) > kbd { display: none; }
+.game-stage.story .gd-choices button:has(.pr):is(:hover, :focus-visible) { background: var(--paper); border-color: var(--amber); transform: translateY(-4px) rotate(-1deg); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); }
+.gd-choices .pr { display: grid; grid-template-columns: auto 1fr; gap: 5px 7px; align-items: baseline; }
+.gd-choices .pr :is(img, i) { grid-column: 1 / -1; display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #0b0d12; filter: saturate(0.9) contrast(1.05); }
+.gd-choices .pr b { font: 500 11px/1 var(--f-mono); color: #0b1020; }
+.gd-choices .pr span { font: 400 9px/1.35 var(--f-mono); letter-spacing: 0.04em; color: #3a3f4c; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 640px) { .game-stage.story .gd-choices:has(.pr) { grid-template-columns: repeat(3, 1fr); gap: 7px; } .gd-choices .pr span { display: none; } }
+
+/* ---- what was in the camera all along: the ticket's face and its back, in the hand, a breath after the card */
+#g-story-end .found { display: grid; justify-items: center; gap: 16px; margin: 6px 0 4px; opacity: 0; }
+#g-story-end.in .found { animation: g-story-found 1.8s 2.4s ease both; }
+#g-story-end .ticket { display: flex; justify-content: center; }
+#g-story-end .ticket svg { width: min(38vw, 190px); height: auto; transform: rotate(var(--r)); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6); }
+#g-story-end .ticket svg + svg { margin-left: -14px; margin-top: 12px; }
+#g-story-end .found p { color: var(--paper); }
+@keyframes g-story-found { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #g-story-end.in .found { animation: none; opacity: 1; } }
+/* (the last card never wider than the screen: a long stamp under a frame of the strip pushed the whole card off a phone's right edge) */
+#g-story-end .card { width: min(92vw, 600px); box-sizing: border-box; grid-template-columns: minmax(0, 1fr); }
+#g-story-end .card > * { min-width: 0; max-width: 100%; }
+#g-story-end .sheet li { min-width: 0; }
+#g-story-end .sheet img { width: 100%; }
+#g-story-end .sheet span { overflow: hidden; text-overflow: ellipsis; }
