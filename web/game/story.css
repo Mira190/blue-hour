@@ -272,3 +272,7 @@
   /* (on a phone the thumbs' controls fill the foot of the frame: what is said sits above them) */
   .game-stage.story .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); width: calc(100% - 40px); }
 }
+@media (pointer: coarse), (max-width: 640px) {
+  /* (the camera's button, raised, under the goal's lines and not over them) */
+  #g-story-cam.up { top: max(196px, calc(env(safe-area-inset-top) + 196px)); }
+}
