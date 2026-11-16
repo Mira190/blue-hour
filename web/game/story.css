@@ -265,3 +265,10 @@
 @keyframes g-story-meteor { 0% { opacity: 0; transform: translate(0, 0) rotate(152deg) scaleX(0.1); } 2% { opacity: 1; } 8% { opacity: 1; transform: translate(-9vw, 7vw) rotate(152deg) scaleX(1); } 11%, 100% { opacity: 0; transform: translate(-12vw, 9.3vw) rotate(152deg) scaleX(0.6); } }
 @media (max-width: 640px) { .game-stage.story .g-title::after { left: 46%; top: 9%; width: 40vw; } }
 @media (prefers-reduced-motion: reduce) { .game-stage.story .g-title::after { animation: none; } }
+/* with the camera up the finder's own marks (the year, the button to lower it) take the top of the frame: the goal keeps
+   its line and drops its help, which the shutter's own label says */
+.game-stage.story:has(#g-story-finder.on) #g-story-goal em { display: none; }
+@media (pointer: coarse), (max-width: 640px) {
+  /* (on a phone the thumbs' controls fill the foot of the frame: what is said sits above them) */
+  .game-stage.story .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); width: calc(100% - 40px); }
+}
