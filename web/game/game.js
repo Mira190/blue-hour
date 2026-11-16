@@ -21,6 +21,23 @@ window.OpenEarthGame = async function game(cityId) {
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
   // ------------------------------------------------------------ load
+  // The score while the roll loads (music.js loop; docs/SOUND.md "Before the first frame"): the story's own, as much of
+  // it as it knows before a frame is taken, from the loading screen through the title and the prologue until the first
+  // frame's score takes it over. A browser gives a page no sound before it is touched: where it does, the cue starts
+  // with the page; where it does not, the loading screen says so and the first key or touch starts it.
+  let cue = null;
+  if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
+    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !!A.ctx && A.ctx.state !== 'running');
+    const begin = () => {
+      A.start();
+      if (cue || !A.ctx) return;
+      cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
+      on(A.ctx, 'statechange', heard); heard();
+    };
+    begin();
+    for (const ev of ['pointerdown', 'keydown']) on(window, ev, () => { if (cue) begin(); }, { capture: true });
+  }
+  const cueOut = () => { if (cue) { cue.stop(5); cue = false; } }; // (false: it has played, and is not begun again)
   const loadMsg = OEWorld.loadLine('g-'); // (index.html #g-load-msg, #g-load-bar and #g-load-stage)
   // a step of the load, by name, for the telemetry's note of where a page that died was (telemetry.js prev_stage)
   const loadStep = name => { try { performance.mark('oe:step', { detail: { view: 'game', city: cityId, step: name } }); } catch (e) { /* no User Timing */ } };
@@ -3156,7 +3173,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     say: (who, lines, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff' }, who), lines.map(l => fill(l)), null, done),
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
-    score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
+    score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { cueOut(); storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
     sting: kind => { if (storyMusic) storyMusic.sting(kind); }, // (a phrase of the score at a beat of the story: music.js's stings)
     // the story's own sound (audio.js): a cue by name, and the still chord of time held
     sfx: name => { if (A.sfx) A.sfx(name); },
