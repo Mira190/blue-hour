@@ -45,6 +45,33 @@
 @keyframes g-story-ping { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
 #g-story-mark b { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); white-space: nowrap; font: 400 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper); text-shadow: 0 1px 8px #000, 0 0 2px #000; font-variant-numeric: tabular-nums; }
 @keyframes g-story-beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+/* ---- what the mark is of, by its shape (story.js MARKS): a ring is a place to walk to; these are the others */
+/* someone to talk to: a speech mark, three dots in it; the living in paper, an afterimage in its blue */
+#g-story-mark[data-kind="meet"] i, #g-story-mark[data-kind="ghost"] i { width: 30px; height: 22px; margin: -11px 0 0 -15px; border-radius: 11px 11px 11px 3px; }
+#g-story-mark[data-kind="meet"] i::before, #g-story-mark[data-kind="ghost"] i::before { border-radius: inherit; }
+#g-story-mark[data-kind="meet"] i::after, #g-story-mark[data-kind="ghost"] i::after { width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; color: var(--paper); background: currentColor; box-shadow: -6px 0 0 currentColor, 6px 0 0 currentColor; }
+#g-story-mark[data-kind="ghost"] i { border-color: #9fc4ff; }
+#g-story-mark[data-kind="ghost"] i::after { color: #9fc4ff; }
+#g-story-mark[data-kind="ghost"] i::before { border-color: #9fc4ff; }
+#g-story-mark[data-kind="ghost"] b { color: #cfe0ff; }
+/* (its words beside it, not under it: under it is the face of whoever it is over) */
+#g-story-mark[data-kind="meet"]:not(.off) b, #g-story-mark[data-kind="ghost"]:not(.off) b { left: 24px; top: -5px; transform: none; }
+/* where the picture is taken from: a camera, in the camera's amber */
+#g-story-mark[data-kind="stand"] i { width: 30px; height: 21px; margin: -10.5px 0 0 -15px; border-radius: 4px; border-color: var(--amber); box-shadow: 0 0 0 1px rgba(4, 8, 18, 0.5), 0 0 16px 2px rgba(255, 207, 138, 0.5); }
+#g-story-mark[data-kind="stand"] i::before { border-radius: inherit; }
+#g-story-mark[data-kind="stand"] i::after { width: 9px; height: 9px; margin: -5.5px 0 0 -5.5px; background: none; border: 1px solid var(--amber); }
+#g-story-mark[data-kind="stand"] b, #g-story-mark[data-kind="frame"] b { color: var(--amber); }
+/* the thing the picture is of: the corners of a finder round it, and no metres (it is turned to, not walked to) */
+#g-story-mark[data-kind="frame"] i { width: 46px; height: 32px; margin: -16px 0 0 -23px; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.95)); animation: g-story-focus 2.2s ease-in-out infinite;
+  background: linear-gradient(var(--amber), var(--amber)) left top / 10px 1.5px, linear-gradient(var(--amber), var(--amber)) left top / 1.5px 8px, linear-gradient(var(--amber), var(--amber)) right top / 10px 1.5px, linear-gradient(var(--amber), var(--amber)) right top / 1.5px 8px,
+    linear-gradient(var(--amber), var(--amber)) left bottom / 10px 1.5px, linear-gradient(var(--amber), var(--amber)) left bottom / 1.5px 8px, linear-gradient(var(--amber), var(--amber)) right bottom / 10px 1.5px, linear-gradient(var(--amber), var(--amber)) right bottom / 1.5px 8px; background-repeat: no-repeat; }
+#g-story-mark[data-kind="frame"] i::before { display: none; }
+#g-story-mark[data-kind="frame"] i::after { background: var(--amber); }
+#g-story-mark[data-kind="frame"] b { top: 26px; padding-left: 0.2em; }
+/* (at a side of the frame the words are set inward from the mark, not cut by the edge) */
+#g-story-mark[data-kind].r b { left: auto; right: -16px; top: 22px; transform: none; }
+#g-story-mark[data-kind].l b { left: -16px; right: auto; top: 22px; transform: none; }
+@keyframes g-story-focus { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.86); } }
 
 /* ---- the keys, the first time they are needed */
 #g-story-keys { position: absolute; left: 50%; bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px)); transform: translateX(-50%); z-index: 6; pointer-events: none; opacity: 0; transition: opacity 0.6s ease;

@@ -3132,12 +3132,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
     story: G.story, stage, player, touch, toast: t => H.toast(t),
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
-    beacon: at => {
+    // (kind 'stand', where a picture is taken from: the camera's amber, so that it is not taken for someone to go to)
+    beacon: (at, kind) => {
       if (!storyBeacon) {
         const col = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.5, 26, 20, 1, true), new THREE.ShaderMaterial({
-          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 } },
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: new THREE.Color(0.62, 0.78, 1.0) } },
           vertexShader: 'varying float vH; void main() { vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: 'uniform float uT; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(vec3(0.62, 0.78, 1.0) * a * 2.2, a); }' }));
+          fragmentShader: 'uniform float uT; uniform vec3 uC; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(uC * a * 2.2, a); }' }));
         col.position.y = 13 + 2.6; // (from over a head upward: whoever stands under it is seen, not lost in it)
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
         ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
@@ -3146,6 +3147,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         world.add(storyBeacon);
       }
       storyBeacon.visible = !!at;
+      if (at) { const amber = kind === 'stand'; storyBeacon.userData.col.material.uniforms.uC.value.setRGB(amber ? 1.0 : 0.62, amber ? 0.8 : 0.78, amber ? 0.52 : 1.0); storyBeacon.userData.ring.material.color.setHex(amber ? 0xffcf8a : 0x9fc4ff); }
       if (at) storyBeacon.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1])))); // (at[3]: the floor it stands on, a roof's)
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
