@@ -56,8 +56,12 @@
 #g-story-frames.on { opacity: 1; }
 #g-story-frames b { font: 300 30px/0.9 var(--f-mono); letter-spacing: 0; color: var(--amber); font-variant-numeric: tabular-nums; margin-right: 10px; vertical-align: -3px; }
 #g-story-frames .strip { display: flex; gap: 3px; padding: 4px; background: rgba(4, 8, 18, 0.6); border-top: 2px dotted rgba(244, 239, 230, 0.35); border-bottom: 2px dotted rgba(244, 239, 230, 0.35); }
-#g-story-frames .strip i { width: 20px; height: 14px; background: var(--amber); opacity: 0.9; transition: opacity 0.8s ease, background 0.8s ease; }
-#g-story-frames .strip i.spent { background: rgba(244, 239, 230, 0.16); opacity: 1; }
+#g-story-frames small { font: 300 13px/1 var(--f-mono); color: rgba(244, 239, 230, 0.45); margin: 0 10px 0 -6px; letter-spacing: 0.04em; }
+/* a collection: what is still to take is an empty, dark frame; what is taken is lit, its own picture in it */
+#g-story-frames .strip i { width: 30px; height: 20px; box-sizing: border-box; border: 1px solid rgba(244, 239, 230, 0.14); background: rgba(244, 239, 230, 0.04) center / cover no-repeat; transition: border-color 0.8s ease, box-shadow 0.8s ease, filter 0.8s ease; }
+#g-story-frames .strip i.got { border-color: var(--amber); background-color: var(--amber); box-shadow: 0 0 10px rgba(232, 178, 92, 0.45); filter: saturate(1.05) brightness(1.08); }
+#g-story-frames .strip i.new { animation: g-story-got 1.4s cubic-bezier(.2, .8, .2, 1); }
+@keyframes g-story-got { 0% { transform: scale(1.9); box-shadow: 0 0 26px rgba(255, 214, 140, 0.95); } 100% { transform: scale(1); } }
 
 /* ---- the episode's name, falling on the stopped street */
 #g-story-card { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; pointer-events: none; opacity: 0; transition: opacity 1.2s ease; background: radial-gradient(ellipse at center, rgba(4, 8, 18, 0.1) 20%, rgba(4, 8, 18, 0.6) 100%); }
@@ -147,7 +151,8 @@
   #g-story-frames { left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom)); grid-auto-flow: column; align-items: center; gap: 10px; }
   #g-story-frames span:first-child { font-size: 0; }
   #g-story-frames b { font-size: 20px; margin: 0; vertical-align: 0; }
-  #g-story-frames .strip i { width: 14px; height: 10px; }
+  #g-story-frames .strip i { width: 20px; height: 14px; }
+  #g-story-frames small { font-size: 11px; margin: 0 6px 0 2px; }
   #g-story-shutter { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px)); transform: none; font-size: 0; gap: 0; }
   #g-story-shutter i { width: 76px; height: 76px; box-shadow: inset 0 0 0 5px rgba(4, 8, 18, 0.6), inset 0 0 0 38px rgba(244, 239, 230, 0.22); }
   #g-story-shutter.ready i { box-shadow: inset 0 0 0 5px rgba(4, 8, 18, 0.6), inset 0 0 0 38px var(--amber), 0 0 30px rgba(255, 207, 138, 0.45); }

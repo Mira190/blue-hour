@@ -77,7 +77,7 @@ window.OEStory = (function () {
       }
     }
     const el = (id, html, tag = 'div') => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; ctx.stage.appendChild(e); return e; };
-    const frames = el('g-story-frames', `<span><b></b>frames left</span><span class="strip">${'<i></i>'.repeat(N)}</span><em>${ctx.touch ? 'Tap' : '<kbd>Tab</kbd>'} · the roll</em>`, 'button'), card = el('g-story-card', '<div><small></small><span></span></div>'), veil = el('g-story-veil', ''), flash = el('g-story-flash', '');
+    const frames = el('g-story-frames', `<span><b></b><small>/${String(N).padStart(2, '0')}</small>taken</span><span class="strip">${'<i></i>'.repeat(N)}</span><em>${ctx.touch ? 'Tap' : '<kbd>Tab</kbd>'} · the roll</em>`, 'button'), card = el('g-story-card', '<div><small></small><span></span></div>'), veil = el('g-story-veil', ''), flash = el('g-story-flash', '');
     const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '');
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · wheel: the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
@@ -157,7 +157,8 @@ window.OEStory = (function () {
     const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0 };
     const timers = [];
     const later = (ms, fn) => timers.push(setTimeout(fn, ms));
-    const show = () => { frames.querySelector('b').textContent = String(st.left).padStart(2, '0'); frames.querySelectorAll('.strip i').forEach((c, i) => c.classList.toggle('spent', i < N - st.left)); };
+    // the roll as a collection: each frame taken lit, with its own picture in it; those still to take dark and empty
+    const show = () => { const got = N - st.left; frames.querySelector('b').textContent = String(got).padStart(2, '0'); frames.querySelectorAll('.strip i').forEach((c, i) => { const p = st.prints[i], on = i < got; if (on && !c.classList.contains('got')) { c.classList.add('got', 'new'); setTimeout(() => c.classList.remove('new'), 1400); } else if (!on) c.classList.remove('got', 'new'); c.style.backgroundImage = on && p && p.src ? `url("${p.src}")` : ''; }); };
     function title(small, big, secs) {
       card.querySelector('small').textContent = small; card.querySelector('span').textContent = big;
       card.classList.add('on');
