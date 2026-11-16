@@ -187,7 +187,13 @@ window.OEStory = (function () {
     const spot = p => { const z = p[2] != null ? p[2] : ctx.floor(p[0], p[1]); return [p[0], p[1], z + 1.2, z]; };
     const near = (p, r) => Math.hypot(p[0] - ctx.player.x, p[1] - ctx.player.y) < r && (p[2] == null || Math.abs(p[2] - ctx.player.z) < 4);
     // where the goal is: the light in the world, and its mark in the frame (held at the edge on the side it lies)
-    function aimAt(at, turn) { st.target = at; ctx.beacon(at); if (!at) mark.classList.remove('on'); else if (turn && ctx.look) ctx.look(at); guideTo(at); } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    // What the mark is of is said by its shape, so that nobody walks towards a thing they are only to photograph (on the
+    // roof the mark on the dome read "143 m" and pointed off the edge): `go` a ring and its metres (a place to walk to);
+    // `meet` and `ghost` a speech mark, "Talk" (the living in paper, an afterimage in its blue); `stand` a camera, "Stand
+    // here" (where the picture is taken from, and the light there is amber); `frame` the corners of a finder and no
+    // metres (the thing the picture is of: turned to, never walked to)
+    const MARKS = { meet: 'Talk', ghost: 'Talk', stand: 'Stand here' };
+    function aimAt(at, turn, kind) { st.target = at; st.kind = kind || 'go'; mark.dataset.kind = st.kind; ctx.beacon(at, st.kind); if (!at) mark.classList.remove('on'); else if (turn && ctx.look) ctx.look(at); guideTo(at); } // (turn: the view is brought round to it, so that a new goal is in front of you)
     // the guide, once met (in the first Stop), stays the episode through: ahead of you to wherever the goal is while the
     // world runs (someone to meet, where it will stop, the car), at your side when there is nowhere to go; in a Stop
     // he is sent by seek and task instead (to the afterimage, to where the picture is taken from)
@@ -195,15 +201,21 @@ window.OEStory = (function () {
     function markTick() {
       if (!st.target) return;
       const via = ctx.via ? ctx.via(st.target) : null, to = via || st.target; // (a place up a tower: the lift's door first)
-      if (String(via) !== String(st.via)) { st.via = via; ctx.beacon(to); }
-      const q = ctx.screen(to), W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
+      if (String(via) !== String(st.via)) { st.via = via; ctx.beacon(to, st.kind); }
+      const talk = !via && (st.kind === 'meet' || st.kind === 'ghost'); // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
+      const q = ctx.screen(talk ? [to[0], to[1], to[2] + 0.95] : to), W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
       let x = q.x * W, y = q.y * H;
       if (!q.front) { x = W - x; y = H - m; } // (behind: its mark at the foot of the frame, on its side)
       const off = !q.front || x < m || x > W - m || y < m || y > H - m;
       x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y));
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      mark.querySelector('b').textContent = `${Math.max(1, Math.round(q.dist))} m${off ? (q.front ? '' : ' · behind you') : ''}`;
-      mark.classList.toggle('on', q.dist > 4 && !(st.cam && st.beat === 'shoot')); mark.classList.toggle('off', off); // (with the camera up the frame lines are the guide: no ring over the thing itself)
+      mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
+      const k = via ? 'go' : st.kind, side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
+      if (mark.dataset.kind !== k) mark.dataset.kind = k;
+      mark.querySelector('b').textContent = k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
+      // (the thing to photograph: marked while the camera is down, and with it up only when it is off the frame, as the
+      // way to turn; over the thing itself the finder's bright lines are the guide)
+      mark.classList.toggle('on', k === 'frame' ? !st.cam || off : q.dist > 4); mark.classList.toggle('off', off);
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';
@@ -257,7 +269,7 @@ window.OEStory = (function () {
         // (or where you walk to: nobody has to take it)
         if (fr.ride && ctx.ride && !st.rode && ctx.ride(fr.ride)) { st.rode = true; st.beat = 'ride'; st.rideGo = go; goal(fr.ride.line || 'A car is coming for you.'); return; }
         st.rode = false;
-        if (fr.meet) { st.beat = 'meet'; goal(fr.meet.goal || ''); const m = living(fr.meet); if (m) aimAt(spot([m.x, m.y, m.z]), true); }
+        if (fr.meet) { st.beat = 'meet'; goal(fr.meet.goal || ''); const m = living(fr.meet); if (m) aimAt(spot([m.x, m.y, m.z]), true, 'meet'); }
         else approach();
       };
       // a frame reached by air: the flight to it first (ctx.film: the helicopter, the city under it, and the place it sets you down)
@@ -319,7 +331,7 @@ window.OEStory = (function () {
         }
         if (st.dog && st.ghost) st.dog.lead([st.ghost.x, st.ghost.y], a.reach_m || 3.2);
         goal(a.seek || 'Someone is still moving. Go to them.');
-        aimAt(spot([st.ghost.x, st.ghost.y, st.ghost.z]), true);
+        aimAt(spot([st.ghost.x, st.ghost.y, st.ghost.z]), true, 'ghost');
         if (!st.hinted) { st.hinted = true; hint(true); }
       });
     }
@@ -488,7 +500,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
           const S0 = subjectOf(T), want = !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
-          if (String(want) !== String(st.target)) aimAt(want);
+          if (String(want) !== String(st.target)) aimAt(want, false, f.placed ? 'frame' : 'stand');
           if (f.placed && S0) ctx.beacon(null); // (the subject is marked in the frame, with no light standing on it)
           if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
           st.ready = on; finder.classList.toggle('ready', on);
