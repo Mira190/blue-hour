@@ -27,6 +27,7 @@
 //                         "seek": "...", "lines": ["..."] },   // who moves in the stopped world, and what they say
 //         "afterimage2": { ... },                              // a second, who says nothing
 //         "task": { "subject": [x, y, z], "within_deg": 40,    // the photograph: of what,
+//                   "hold": [0.9, 0.35],                       // the camera held out from the eye (forward, up: over a roof's glass),
 //                   "stand": [x, y, z?], "within_m": 4,        // from where (if it matters),
 //                   "both": true,                              // or: with both afterimages in the frame
 //                   "goals": { "stand": "...", "shoot": "...", "ready": "...", "aim": "..." },
@@ -93,6 +94,7 @@ window.OEStory = (function () {
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? st.fr.task.lens : null); // (a frame taken through a long lens: task.lens, degrees)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
+      if (on && ctx.look) { const at = subjectOf(st.fr.task); if (at) ctx.look(at); } // (the lens comes up facing the thing: it is then above or below, never behind)
       say(on ? `Camera up${finder.dataset.year ? ` · it sees ${finder.dataset.year}` : ''}` : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
     camBtn.addEventListener('click', () => raise(!st.cam));
@@ -206,16 +208,22 @@ window.OEStory = (function () {
       const q = ctx.screen(talk ? [to[0], to[1], to[2] + 0.95] : to), W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
       let x = q.x * W, y = q.y * H;
       if (!q.front) { x = W - x; y = H - m; } // (behind: its mark at the foot of the frame, on its side)
-      const off = !q.front || x < m || x > W - m || y < m || y > H - m;
-      x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y));
+      // with the camera up the frame lines are the guide: no ring over the thing itself. But while it is outside them
+      // an arrow on the frame's edge says which way to turn the lens, and what for (a player on the roof stood at the
+      // light looking down for minutes with nothing to say where the thing was)
+      const up = st.cam && st.beat === 'shoot', r = up ? finderRect() : null, R = up && st.fr.task.relic;
+      if (up && !q.front) y = H; // (behind: off the foot of the frame, on its side)
+      const off = up ? !q.front || x < r[0] * W || x > r[2] * W || y < r[1] * H || y > r[3] * H : !q.front || x < m || x > W - m || y < m || y > H - m;
+      if (up) { x = Math.max(r[0] * W + 22, Math.min(r[2] * W - 22, x)); y = Math.max(r[1] * H + 22, Math.min(r[3] * H - 40, y)); }
+      else { x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y)); }
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
-      const k = via ? 'go' : st.kind, side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
+      const k = via ? 'go' : st.kind, lens = up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
       if (mark.dataset.kind !== k) mark.dataset.kind = k;
-      mark.querySelector('b').textContent = k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
-      // (the thing to photograph: marked while the camera is down, and with it up only when it is off the frame, as the
-      // way to turn; over the thing itself the finder's bright lines are the guide)
-      mark.classList.toggle('on', k === 'frame' ? !st.cam || off : q.dist > 4); mark.classList.toggle('off', off);
+      mark.querySelector('b').textContent = lens ? (R && R.name) || 'Frame this' : k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
+      // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
+      // outside the lines; inside them the finder's bright lines are the guide)
+      mark.classList.toggle('on', lens ? off : k === 'frame' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens);
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';
@@ -531,6 +539,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || st.beat === 'meeting' || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
+      get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null);

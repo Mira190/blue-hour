@@ -6098,7 +6098,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     let moved = 0;
     for (const [mx, my] of [[sx, sy], [sx, 0], [0, sy]]) {
       if (!mx && !my) continue;
-      const m = nav.slide(player.x, player.y, player.z, mx, my), w = nav.walk(m.x, m.y, player.z, true);
+      const m = nav.slide(player.x, player.y, player.z, mx, my);
+      // an escalator's balustrades hold whoever is on its steps: between its two landings nobody leaves them sideways.
+      // (Its glass is no wall, standing closer to the steps than a body is wide, and the drop beside the steps was to
+      // do it; but where a floor or a stair lay within a step's reach of them a walker stepped off, into the slot
+      // between the escalator and the stair, and stood in the balustrade)
+      if (player.ground) for (const s of nav.strips) {
+        if (!s.moving_ms) continue;
+        const [u0, v0] = nav.stripUV(s, player.x, player.y), h = nav.stripHeight(s, player.x, player.y), lim = s.half_width - 0.03, end = s.us[s.us.length - 1];
+        if (h == null || Math.abs(h - player.z) > 0.3 || u0 < s.us[0] + 0.5 || u0 > end - 0.5) continue;
+        const [, v] = nav.stripUV(s, m.x, m.y);
+        if (Math.abs(v) > lim) { const dv = v - Math.sign(v) * Math.max(lim, Math.min(Math.abs(v0), s.half_width)); m.x += s.axis[1] * dv; m.y -= s.axis[0] * dv; }
+        break;
+      }
+      const w = nav.walk(m.x, m.y, player.z, true);
       if (w.ok) {
         moved = Math.hypot(m.x - player.x, m.y - player.y);
         player.x = m.x; player.y = m.y;
@@ -6287,7 +6300,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (h.lengthSq() > 1e-6) {
         h.normalize();
         const pt = Math.max(-1.1, Math.min(0.9, 0.3 - cam.pitch)), eye = W(player.x, player.y, player.z + 1.56);
-        camera.position.copy(eye).addScaledVector(h, 0.12);
+        // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
+        // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
+        const hold = story.hold;
+        if (hold) eye.y += hold[1];
+        camera.position.copy(eye).addScaledVector(h, hold ? hold[0] : 0.12);
         camera.up.set(0, 1, 0);
         camera.lookAt(eye.addScaledVector(h, 50 * Math.cos(pt)).add(fpUp.set(0, 50 * Math.sin(pt), 0)));
         // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps

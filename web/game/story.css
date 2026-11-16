@@ -336,3 +336,16 @@
 #g-story-end .sheet li { min-width: 0; }
 #g-story-end .sheet img { width: 100%; }
 #g-story-end .sheet span { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- with the camera up, on a desktop: the goal is one line over the frame lines, not a column across their corner
+   (it lay over the finder's top left mark and the year), and the button that lowers the camera is clear of them too */
+@media (pointer: fine) and (min-width: 641px) {
+  .game-stage.story:has(#g-story-finder.on) #g-story-goal { left: 50%; width: min(100%, 980px); transform: translateX(-50%); padding: 16px 24px 0; text-align: center; }
+  .game-stage.story:has(#g-story-finder.on) #g-story-goal small::after { display: none; }
+  .game-stage.story:has(#g-story-finder.on) #g-story-goal span { max-width: none; margin-top: 10px; font-size: clamp(15px, 1.3vw, 17px); }
+  #g-story-cam.up { top: auto; bottom: max(28px, env(safe-area-inset-bottom)); }
+}
+/* the arrow on the finder's edge while the thing is outside the lines: no ring, the arrow and the thing's name */
+#g-story-mark.lens i { display: none; }
+#g-story-mark.lens u { transform: rotate(var(--a, 0rad)) translateX(8px); }
+#g-story-mark.lens b { top: 18px; color: var(--amber); }
