@@ -5804,6 +5804,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     weather.update(dt, clockT, W(fx, fy, fz));
     if (weather.tread && OEWeather.S.snowDepth > 0.02) weather.tread(treaders(fx, fy), dt); // tracks in the snow (weather.js)
     const wS = OEWeather.S, inside = player.mode === 'car' || player.mode === 'ride' || player.mode === 'heli';
+    // the room the street's sound rings in (audio.js place): a lift or a room, high in the open air (a deck, the
+    // helicopter), under a roof outside (the viaduct, an arcade), or the open crossing
+    if (A.place) A.place(player.mode === 'lift' || room ? 'inside' : fz - Math.max(0, nav.terrain(fx, fy) || 0) > 40 ? 'roof' : weather.covered() && player.mode === 'foot' ? 'viaduct' : 'open');
     if (crowdDraw && crowdDraw.setRain) { const wet = Math.max(wS.rain, wS.snow * 0.7); crowdDraw.setRain(wet < 0.4 ? 0 : wet); } // (nobody puts an umbrella up before the rain can be seen) // (umbrellas go up in the snow too)
     if (A.rain) A.rain(titleOn ? 0 : wS.rain, weather.covered() && player.mode === 'foot', inside);
     // the cicadas of a hot day: from 25 degrees up, by daylight, silent in the rain
