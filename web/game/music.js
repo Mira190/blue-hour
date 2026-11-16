@@ -638,5 +638,33 @@ window.OEMusic = (function () {
   }
   function describe(state) { const s = normalise(DEFAULTS, state); return describeOf(resolve(s), s, 0); }
 
-  return { create, bounce, describe, slots: SLOTS, palettes: PALETTES, stings: STING_KINDS, modes: TRAVEL };
+  // The score while the page loads (docs/SOUND.md "Before the first frame"): a few bars of the score, bounced ahead of
+  // time into a file (tools/load_cue.js) and played as one looping buffer. Not written live: the live score writes its
+  // notes 300 ms ahead from a timer, and a page that is parsing and building a city holds the main thread for longer
+  // than that; and not bounced here, which takes a desktop thirteen seconds of the load. A buffer plays on the audio
+  // thread and never drops a note. The file is the loop and a little of its second time round, so `seconds` of it from
+  // `lead` in is one turn whatever a decoder pads its start with. It is decoded once the context runs (a page that is
+  // never touched keeps no samples), and let go when it is stopped.
+  //   const cue = OEMusic.loop(ctx, bus, 'assets/story/late/cue.mp3', 35.556);   cue.stop(5);   // fades, then lets go
+  function loop(c, dest, url, seconds, lead = 0.25) {
+    const vol = loadVolume(), out = c.createGain();
+    let src = null, dead = !vol;
+    out.gain.value = 0; out.connect(dest);
+    const running = () => new Promise(r => { const go = () => { if (c.state !== 'suspended') { c.removeEventListener('statechange', go); r(); } }; c.addEventListener('statechange', go); go(); });
+    const made = dead ? Promise.resolve(false) : Promise.all([fetch(url).then(r => { if (!r.ok) throw new Error(`${r.status} ${url}`); return r.arrayBuffer(); }), running()])
+      .then(([bytes]) => (dead ? null : c.decodeAudioData(bytes))).then(buf => {
+        if (dead || !buf) return false;
+        src = c.createBufferSource(); src.buffer = buf; src.loop = true; src.loopStart = lead; src.loopEnd = lead + seconds; src.connect(out); src.start(0, lead);
+        out.gain.setTargetAtTime(vol, c.currentTime, 0.9);
+        return true;
+      }).catch(e => { console.warn('music: no loading cue', e); return false; });
+    function stop(fade = 3) {
+      if (dead) return;
+      dead = true;
+      try { out.gain.cancelScheduledValues(c.currentTime); out.gain.setTargetAtTime(0, c.currentTime, fade / 4); } catch (e) { /* the context closed */ }
+      setTimeout(() => { try { if (src) src.stop(); out.disconnect(); } catch (e) { /* the context closed */ } src = null; }, fade * 1000 + 200);
+    }
+    return { stop, made };
+  }
+  return { create, bounce, loop, describe, slots: SLOTS, palettes: PALETTES, stings: STING_KINDS, modes: TRAVEL };
 })();
