@@ -7,8 +7,13 @@
 // melody. Browsers allow sound only after a click, so start() is called from the Play button.
 'use strict';
 window.OEAudio = (function () {
-  let ctx = null, master = null, noise = null, muted = false;
+  // The mix (docs/SOUND.md): every sound of the street goes into `master`, the world's bus, and from it through the
+  // tape (the Stop's brake, below) into `duck` (lowered under dialogue, with the score) and `main` (the Sound switch);
+  // a send from the tape's output rings in the place's room (a convolver, place()). The story's own sound is a bus of
+  // its own (storyBus), never braked or ducked.
+  let ctx = null, master = null, noise = null, muted = false, main = null, duck = null, verbIn = null, tape = null, ready = Promise.resolve();
   const ch = {};
+  const HRTF = !(navigator.maxTouchPoints > 0);
   function noiseSource() {
     const s = ctx.createBufferSource();
     s.buffer = noise;
@@ -17,13 +22,27 @@ window.OEAudio = (function () {
     return s;
   }
   function start() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    if (ctx) { if (ctx.state === 'suspended' && !muted) ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = muted ? 0 : 0.55;
-    master.connect(ctx.destination);
+    main = ctx.createGain(); main.gain.value = muted ? 0 : 0.55; main.connect(ctx.destination);
+    duck = ctx.createGain(); duck.connect(main);
+    verbIn = ctx.createGain();
+    master = ctx.createGain(); master.connect(duck); master.connect(verbIn);
+    room = null; sbus = null; mbus = null; verbs.length = 0; placeNow = null; irs = {}; tape = null;
+    place('open');
+    // the tape: an AudioWorklet made from tapeWorklet's source (no file to fetch); until it is loaded, or where there
+    // is none, the world goes straight on and the Stop only hushes it
+    if (ctx.audioWorklet && window.Blob && window.URL) {
+      const url = URL.createObjectURL(new Blob([`(${tapeWorklet})()`], { type: 'application/javascript' })), c = ctx;
+      ready = c.audioWorklet.addModule(url).then(() => {
+        if (ctx !== c) return;
+        tape = new AudioWorkletNode(ctx, 'oe-tape', { outputChannelCount: [2] });
+        master.disconnect(); master.connect(tape); tape.connect(duck); tape.connect(verbIn);
+      }).catch(e => console.warn('audio: no tape, the Stop only hushes the street', e)); // (no worklet: the plain hush)
+    }
+    if (muted && ctx.suspend) ctx.suspend();
     noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -134,7 +153,7 @@ window.OEAudio = (function () {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
   }
-  function beep(pitch) { blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035); }
+  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035); }
   function step() {
     if (!ctx || muted) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime;
@@ -145,15 +164,7 @@ window.OEAudio = (function () {
   function horn() { blip(196, 1.3, 'sawtooth', 0.06); blip(247, 1.3, 'sawtooth', 0.04); }
   // your horn; another driver's at a gain (its distance) and a pitch (a bus's is lower)
   function honk(gain = 1, pitch = 1) { blip(415 * pitch, 0.32, 'square', 0.045 * gain); blip(523 * pitch, 0.32, 'square', 0.035 * gain); }
-  function shutter() { // a focal-plane shutter: two short clicks
-    if (!ctx || muted) return;
-    for (const [at, f] of [[0, 3200], [0.06, 2400]]) {
-      const s = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + at;
-      s.buffer = noise; bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 1.2;
-      g.gain.setValueAtTime(0.14, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
-      s.connect(bp); bp.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.05);
-    }
-  }
+  function shutter() { sfx('shutter'); } // (the photo mode's: the story's camera, below)
   function thump() { // a rubber stamp on paper: a short low knock and a slap of noise
     if (!ctx || muted) return;
     blip(95, 0.18, 'sine', 0.22);
@@ -245,7 +256,15 @@ window.OEAudio = (function () {
   function out(level, pan) {
     const g = ctx.createGain();
     g.gain.value = level;
-    if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); g.connect(p); p.connect(master); }
+    pan = Math.max(-1, Math.min(1, pan || 0));
+    // (with a mouse, a head-related panner, which places a call in front of you or off to a side as ears do; a touch
+    // screen's phone keeps the cheap stereo pan. The level is the distance's already: no roll-off of its own)
+    if (pan && HRTF && ctx.createPanner) {
+      const p = ctx.createPanner(), az = pan * Math.PI / 2;
+      p.panningModel = 'HRTF'; p.rolloffFactor = 0;
+      if (p.positionX) { p.positionX.value = Math.sin(az); p.positionZ.value = -Math.cos(az); } else p.setPosition(Math.sin(az), 0, -Math.cos(az));
+      g.connect(p); p.connect(master);
+    } else if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); }
     else g.connect(master);
     return g;
   }
@@ -370,20 +389,150 @@ window.OEAudio = (function () {
     for (const [at, n] of BASS[w]) tone(d, t + at, 1.3, 'triangle', hz(n), 0, 0.5, 0.02);
     bar(d, t + 5.9, hz(MELODY[w][MELODY[w].length - 1][1] + (w ? 5 : 0)), 2.2, 0.7);
   }
-  // the Stop (story.js): the street's sound falls away, and comes back
-  function hush(on) { if (master && !muted) ramp(master.gain, on ? 0.09 : 0.55, on ? 0.25 : 1.2); }
-  function setMuted(m) { muted = m; if (master) ramp(master.gain, m ? 0 : 0.55, 0.05); if (sbus) ramp(sbus.gain, m ? 0 : 0.5, 0.05); if (m) held(false); if (m && window.speechSynthesis) window.speechSynthesis.cancel(); }
-  function stop() { if (ctx) { ctx.close(); ctx = null; mbus = null; } }
-  // for the score (game/music.js): the context it plays on, and a bus into the master, so that the
-  // Sound switch mutes the music with everything else
+  // ------------------------------------------------------------ the Stop: the street's own sound braked like tape
+  // The world's bus is kept, the last five seconds of it, in a ring. When time is held the street is played back from
+  // that ring at a speed falling as the story's clock does (st.k from 1 to 0 over 0.95 s, the world's time k², so the
+  // tape's speed k²: its pitch and its rate fall together), darkening as it slows (two one-pole low-passes closing from
+  // 11 kHz to 150 Hz). Under it, as it slows, grains of the moment it stopped (Hann-like windows 80 to 300 ms long, at
+  // the pitch, a fifth, an octave and a twelfth over, high-passed) rise into a held shimmer, made of nothing but the
+  // last sound the street made. Let go, the tape spins up again from where it stopped (k from 0 to 1 over 0.6 s) and
+  // crosses into the live street in a quarter of a second. Its only control is the k-rate parameter `held`, set at a
+  // time, so an offline render (tools/sound_render.js) brakes exactly where a live one does.
+  function tapeWorklet() {
+    const BRAKE = 0.95, SPIN = 0.6, XF = 0.25, N = 1 << 18, M = N - 1, RATES = [1, 1.5, 2, 2, 3], SH = 0.35;
+    class Tape extends AudioWorkletProcessor {
+      static get parameterDescriptors() { return [{ name: 'held', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }]; }
+      constructor() {
+        super();
+        this.L = new Float32Array(N); this.R = new Float32Array(N);
+        this.w = 0; this.r = 0; this.mode = 0; this.t = 0; this.lp = [0, 0, 0, 0]; this.hp = [0, 0, 0, 0]; this.seed = 7;
+        this.g = []; for (let i = 0; i < 7; i++) this.g.push({ n: 0, len: 1, p: 0, rate: 1, pl: 0.7, pr: 0.7, wait: i * 1700 });
+      }
+      rnd() { this.seed = (this.seed * 16807) % 2147483647; return this.seed / 2147483647; }
+      process(inputs, outputs, params) {
+        const inp = inputs[0] || [], o = outputs[0], oL = o[0], oR = o[1] || o[0], n = oL.length, sr = sampleRate;
+        const iL = inp[0], iR = inp[1] || inp[0], held = params.held[0] > 0.5, BL = this.L, BR = this.R, lp = this.lp, hp = this.hp;
+        // (held while spinning up, or let go mid-brake: from the speed it had)
+        if (held && (this.mode === 0 || this.mode === 3)) { this.t = this.mode === 3 ? (1 - Math.min(1, this.t / SPIN)) * BRAKE : 0; if (this.mode === 0) this.r = this.w; this.mode = 1; }
+        if (!held && (this.mode === 1 || this.mode === 2)) { this.t = this.mode === 1 ? (1 - this.t / BRAKE) * SPIN : 0; this.mode = 3; }
+        if (this.mode === 0) {
+          for (let i = 0; i < n; i++) { const xl = iL ? iL[i] : 0, xr = iR ? iR[i] : 0; BL[this.w & M] = xl; BR[this.w & M] = xr; this.w++; oL[i] = xl; if (oR !== oL) oR[i] = xr; }
+          return true;
+        }
+        const k0 = this.mode === 1 ? Math.max(0, 1 - this.t / BRAKE) : this.mode === 3 ? Math.min(1, this.t / SPIN) : 0;
+        const a = 1 - Math.exp(-2 * Math.PI * (150 + 11000 * k0 * k0) / sr), ah = Math.exp(-2 * Math.PI * 900 / sr);
+        const read = (B, p) => { const i = Math.floor(p), f = p - i; return B[i & M] * (1 - f) + B[(i + 1) & M] * f; };
+        for (let i = 0; i < n; i++) {
+          const xl = iL ? iL[i] : 0, xr = iR ? iR[i] : 0;
+          if (this.mode !== 2) { BL[this.w & M] = xl; BR[this.w & M] = xr; this.w++; }
+          const k = this.mode === 1 ? Math.max(0, 1 - this.t / BRAKE) : this.mode === 3 ? Math.min(1, this.t / SPIN) : 0;
+          let tl = 0, tr = 0;
+          if (k > 0) { this.r += k * k; tl = read(BL, this.r); tr = read(BR, this.r); }
+          lp[0] += a * (tl - lp[0]); lp[1] += a * (lp[0] - lp[1]); lp[2] += a * (tr - lp[2]); lp[3] += a * (lp[2] - lp[3]);
+          const gk = Math.sqrt(k);
+          let L = lp[1] * gk, R = lp[3] * gk;
+          // the shimmer: grains of the ring round where the tape is (where it stopped, once it has)
+          const s = this.mode === 3 ? (1 - k) * (1 - k) : 1 - k;
+          if (s > 0.001) {
+            let gl = 0, gr = 0;
+            for (const g of this.g) {
+              if (g.n <= 0) {
+                if (g.wait-- > 0) continue;
+                g.len = Math.floor((0.08 + 0.22 * this.rnd()) * sr); g.n = g.len; g.rate = RATES[Math.floor(this.rnd() * RATES.length)] * (1 + (this.rnd() - 0.5) * 0.008);
+                g.p = Math.min(this.r - (0.08 + 0.4 * this.rnd()) * sr, this.w - 2 - g.len * g.rate);
+                const pan = this.rnd(); g.pl = Math.sqrt(1 - pan); g.pr = Math.sqrt(pan); g.wait = Math.floor(this.rnd() * g.len * 0.6);
+              }
+              const x = 1 - g.n / g.len, e = 16 * x * x * (1 - x) * (1 - x), v = (read(BL, g.p) + read(BR, g.p)) * 0.5 * e;
+              gl += v * g.pl; gr += v * g.pr; g.p += g.rate; g.n--;
+            }
+            // (high-passed: the air of it, not its weight)
+            hp[0] = ah * (hp[0] + gl - hp[1]); hp[1] = gl; hp[2] = ah * (hp[2] + gr - hp[3]); hp[3] = gr;
+            L += hp[0] * s * SH; R += hp[2] * s * SH;
+          }
+          // spun up: across into the live street
+          if (this.mode === 3 && this.t > SPIN) { const x = Math.min(1, (this.t - SPIN) / XF); L = L * (1 - x) + xl * x; R = R * (1 - x) + xr * x; if (x >= 1) this.mode = 0; }
+          oL[i] = L; if (oR !== oL) oR[i] = R;
+          this.t += 1 / sr;
+          if (this.mode === 1 && this.t >= BRAKE) { this.mode = 2; this.t = 0; }
+        }
+        return true;
+      }
+    }
+    registerProcessor('oe-tape', Tape);
+  }
+  // the Stop (story.js): the street brakes to a held shimmer, and spins up again (the tape, above; without one the
+  // street's sound only falls away and comes back)
+  function hush(on) {
+    if (!ctx) return;
+    if (tape) { tape.parameters.get('held').setValueAtTime(on ? 1 : 0, ctx.currentTime); if (!on) ramp(master.gain, 1, 0.1); } // (a hush from before the tape was loaded let go)
+    else ramp(master.gain, on ? 0.16 : 1, on ? 0.25 : 1.2);
+  }
+  // ------------------------------------------------------------ a room for each place
+  // Convolution with impulse responses made here (exponentially decaying noise that darkens as it decays, after a few
+  // discrete early reflections at the distances of the walls that make them): the crossing's tall faces and open sky,
+  // the concrete under the viaduct, a lobby or a lift, the open deck 230 m up. place(kind) crossfades to a new
+  // convolver in 0.3 s (game.js says which, from where the player is). Each response is scaled to an energy of one (the
+  // convolver's own normalising is off), so `wet` is the room's level against the dry sound: the open street's 15 dB
+  // under it, the viaduct's 9.
+  const PLACES = {
+    open: { rt: 1.5, wet: 0.18, pre: 0.012, dark: 2600, er: [[0.031, 0.5], [0.047, -0.35], [0.083, 0.3], [0.121, -0.22], [0.19, 0.15]] },
+    viaduct: { rt: 1.9, wet: 0.35, pre: 0.004, dark: 1800, er: [[0.009, 0.7], [0.014, -0.6], [0.021, 0.5], [0.028, -0.45], [0.036, 0.4], [0.045, -0.3]] },
+    inside: { rt: 0.7, wet: 0.25, pre: 0.003, dark: 4000, er: [[0.006, 0.6], [0.011, -0.5], [0.017, 0.4], [0.024, -0.3]] },
+    roof: { rt: 0.4, wet: 0.05, pre: 0.02, dark: 6000, er: [[0.06, 0.2]] },
+  };
+  let irs = {}, placeNow = null;
+  const verbs = [];
+  function impulse(kind) {
+    if (irs[kind]) return irs[kind];
+    const P = PLACES[kind], sr = ctx.sampleRate, n = Math.floor(sr * (P.pre + P.rt * 1.1)), b = ctx.createBuffer(2, n, sr);
+    for (let c = 0; c < 2; c++) {
+      const d = b.getChannelData(c);
+      let lp = 0;
+      for (let i = Math.floor(P.pre * sr); i < n; i++) {
+        const t = i / sr - P.pre, fc = P.dark + (14000 - P.dark) * Math.exp(-6 * t / P.rt);
+        lp += (1 - Math.exp(-2 * Math.PI * fc / sr)) * (Math.random() * 2 - 1 - lp);
+        d[i] = lp * Math.pow(10, -3 * t / P.rt) * Math.min(1, t / 0.01);
+      }
+      for (const [at, g] of P.er) { const i = Math.floor((P.pre + at * (c ? 1.07 : 1)) * sr); if (i < n) d[i] += g * 0.6; }
+    }
+    let e = 0; for (let c = 0; c < 2; c++) for (const v of b.getChannelData(c)) e += v * v;
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c), k = 1 / Math.sqrt(e / 2); for (let i = 0; i < n; i++) d[i] *= k; }
+    return (irs[kind] = b);
+  }
+  function place(kind) {
+    if (!ctx || kind === placeNow || !PLACES[kind]) return;
+    placeNow = kind;
+    const t = ctx.currentTime, cv = ctx.createConvolver(), g = ctx.createGain();
+    cv.normalize = false; cv.buffer = impulse(kind); g.gain.value = 0; verbIn.connect(cv); cv.connect(g); g.connect(duck);
+    g.gain.setTargetAtTime(PLACES[kind].wet, t, 0.1);
+    for (const v of verbs.splice(0)) { v.g.gain.setTargetAtTime(0, t, 0.1); setTimeout(() => { try { verbIn.disconnect(v.cv); v.g.disconnect(); } catch (e) { /* already gone */ } }, 1500); }
+    verbs.push({ cv, g });
+  }
+  // under a line of dialogue the street and the score step back 5 dB, and come up again half a second after it
+  function duckFor(sec = 0.4) {
+    if (!duck) return;
+    const g = duck.gain, t = ctx.currentTime;
+    g.cancelScheduledValues(t); g.setTargetAtTime(0.56, t, 0.05); g.setTargetAtTime(1, t + sec, 0.45);
+  }
+  // the Sound switch: off, the context is suspended (nothing is computed on a phone that is not heard)
+  function setMuted(m) {
+    muted = m;
+    if (main) ramp(main.gain, m ? 0 : 0.55, 0.05); if (sbus) ramp(sbus.gain, m ? 0 : 0.5, 0.05);
+    if (m) held(false); if (m && window.speechSynthesis) window.speechSynthesis.cancel();
+    const c = ctx;
+    if (c && c.suspend) { if (m) setTimeout(() => { if (muted && ctx === c) c.suspend(); }, 150); else c.resume(); }
+  }
+  function stop() { if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
+  // everything else, not braked: the score is not the street's)
   let mbus = null;
   function musicBus() {
     if (!ctx) return null;
-    if (!mbus || mbus.context !== ctx) { mbus = ctx.createGain(); mbus.connect(master); }
+    if (!mbus || mbus.context !== ctx) { mbus = ctx.createGain(); mbus.connect(duck); }
     return mbus;
   }
   // ------------------------------------------------------------ the story's own sound (story.js)
-  // A bus of its own, past the master: the Stop hushes the street to a sixth, and what the story says and does in a
+  // A bus of its own, past the world's: the Stop brakes the street, and what the story says and does in a
   // stopped street has to be heard over it. The Sound switch still mutes it.
   let sbus = null, pad = null;
   function storyBus() {
@@ -391,48 +540,119 @@ window.OEAudio = (function () {
     if (!sbus || sbus.context !== ctx) { sbus = ctx.createGain(); sbus.gain.value = muted ? 0 : 0.5; sbus.connect(ctx.destination); pad = null; }
     return sbus;
   }
-  const sTone = (at, dur, type, f0, f1, vol, attack = 0.006) => { const b = storyBus(); if (b && !muted) tone(b, ctx.currentTime + at, dur, type, f0, f1, vol, attack); };
-  function sNoise(at, dur, freq, q, vol, kind = 'bandpass') {
+  const sTone = (at, dur, type, f0, f1, vol, attack = 0.006) => { const b = storyBus(); if (b && !muted) tone(b, ctx.currentTime + at, dur, type, f0, f1, vol * lv, attack); };
+  function sNoise(at, dur, freq, q, vol, kind = 'bandpass') { burst(at, { dur, f: freq, q, vol, type: kind, att: Math.min(0.01, dur / 3) }); }
+  // a burst of noise through a filter: the stuff of every mechanism here (a transient with att ~1 ms, a body with a
+  // longer one); f1 sweeps the filter over its length
+  function burst(at, { dur, f, f1 = 0, q = 1, vol, type = 'bandpass', att = 0.001 }) {
     const b = storyBus(); if (!b || muted) return;
-    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + at;
-    s.buffer = noise; f.type = kind; f.frequency.value = freq; f.Q.value = q;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.01, dur / 3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f); f.connect(g); g.connect(b); s.start(t, Math.random()); s.stop(t + dur + 0.03);
+    const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + at;
+    s.buffer = noise; fl.type = type; fl.frequency.setValueAtTime(f, t); if (f1) fl.frequency.exponentialRampToValueAtTime(f1, t + dur); fl.Q.value = q;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * lv, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(fl); fl.connect(g); g.connect(b); s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.03);
   }
-  // A voice for a line of dialogue: not words, the sound of someone saying them. Each syllable is a buzz at the
-  // speaker's pitch through the two resonances of a vowel, falling a little as a spoken syllable does; v.pitch is the
-  // speaker's (Hz), v.rough a hoarser buzz, v.breath air in it (the old), v.past a second, fainter syllable a moment
-  // after (someone speaking from another year)
-  const VOWELS = [[730, 1090], [270, 2290], [300, 870], [530, 1840], [570, 840]];
+  // a short knock of a body: its resonance (a sine falling a little) and the click that excites it
+  const knock = (at, f, vol, dur = 0.06) => { sTone(at, dur, 'sine', f, f * 0.8, vol, 0.0015); burst(at, { dur: dur * 0.5, f: f * 4, q: 1.2, vol: vol * 0.7 }); };
+  const R = () => Math.random();
+  // A voice for a line of dialogue: not words, the sound of someone saying them. v.pitch is the speaker's (Hz), v.breath
+  // air in it (the old), v.past a second, fainter tick a moment after (someone speaking from another year)
   function voice(v = {}) {
     // (a pitched syllable for every few letters was tried and read as a toy: what is heard now is the felt tick of
     // type being set, a little higher for a higher voice, and a second fainter one after it for someone of another year)
     if (!storyBus() || muted) return;
+    duckFor();
     const f = 700 + (v.pitch || 180) * 5;
-    sNoise(0, 0.022, f * (0.9 + Math.random() * 0.2), 2.2, 0.028 + (v.breath ? 0.008 : 0));
+    sNoise(0, 0.022, f * (0.9 + R() * 0.2), 2.2, 0.028 + (v.breath ? 0.008 : 0));
     if (v.past) sNoise(0.09, 0.03, f, 2.2, 0.009);
   }
-  // what the story does, heard: each a few notes or a breath of noise, made here
+  // What the story does, heard (docs/SOUND.md). Each is built as a sound designer layers one: a transient (the click
+  // or the strike, a millisecond or two of filtered noise), a body (the resonance of what was struck) and a tail (the
+  // room, or the mechanism running down). Nothing is a bare oscillator beep, and no tone falls away on its own (that
+  // was a telephone running out of battery: stopfx.js).
+  // (each cue's trim, in dB, from tools/sound_render.js: its loudest 400 ms at the level docs/SOUND.md gives it)
+  const TRIM = { shutter: 2, 'cam-up': 6.5, 'cam-down': 6, found: 3, goal: 14, stamp: 2, wrong: 2.5, end: -1, run: -3 };
+  let lv = 1;
   function sfx(name) {
     if (!storyBus() || muted) return;
+    lv = Math.pow(10, (TRIM[name] || 0) / 20);
+    try { cue(name); } finally { lv = 1; }
+  }
+  function cue(name) {
     switch (name) {
-      // the Stop: the floor of the sound drops out, and over it bells go up into a long room (a fifth, a ninth, an octave:
-      // nothing resolves, it only opens)
-      case 'stop': sNoise(0, 1.1, 5200, 0.5, 0.045, 'highpass'); [1318.5, 1975.5, 2637].forEach((f, k) => glass(0.85 + k * 0.22, f, 0.05 - k * 0.01)); break; // a breath drawn in, then three notes of glass in a long room: no thud
-      case 'run': sNoise(0, 0.9, 900, 0.6, 0.1, 'highpass'); [2637, 1975.5, 1318.5, 880].forEach((f, k) => glass(k * 0.09, f, 0.07)); break; // the air comes back, and the bells come down
-      case 'goal': sNoise(0, 0.55, 1400, 0.6, 0.03); break;                                                                 // a breath of air: here is what to do (no chime)
-      case 'word': break;                                                                                                   // (a word in the frame is read, not rung)
-      case 'cam-up': sNoise(0, 0.05, 2600, 2, 0.2); sNoise(0.09, 0.04, 3600, 3, 0.18); break;                                // leather, then the catch
-      case 'cam-down': sNoise(0, 0.06, 1500, 1.5, 0.16); break;
-      case 'found': [1318.5, 1568, 1975.5, 2637].forEach((f, k) => glass(k * 0.08, f, 0.06)); break;                              // glass: it is in the frame
-      case 'wind': for (let k = 0; k < 7; k++) sNoise(0.16 + k * 0.045, 0.02, 2200 - k * 90, 4, 0.13); sNoise(0.5, 0.05, 900, 2, 0.14); break; // the film wound on: a ratchet, a stop
-      case 'shutter': sNoise(0, 0.035, 3200, 1.2, 0.5); sNoise(0.06, 0.035, 2400, 1.2, 0.45); break;                           // a focal-plane shutter: two short clicks
-      case 'stamp': sTone(0, 0.2, 'sine', 92, 60, 0.5, 0.004); sNoise(0, 0.06, 700, 0.8, 0.3, 'lowpass'); break;             // the postmark struck
-      case 'ghost': sTone(0, 2.4, 'sine', 440, 446, 0.05, 0.6); sTone(0, 2.4, 'sine', 659, 652, 0.035, 0.8); sNoise(0, 2.2, 3000, 0.5, 0.012); break; // somebody of another year is here
-      case 'right': glass(0, 1318.5, 0.045); break;
-      case 'wrong': sNoise(0, 0.2, 220, 0.8, 0.1, 'lowpass'); break;
-      case 'rain': sNoise(0, 2.5, 4200, 0.4, 0.05, 'highpass'); break;
-      case 'end': for (const [k, f] of [220, 277.2, 329.6, 440, 554.4].entries()) sTone(k * 0.32, 4.5 - k * 0.3, 'sine', f, 0, 0.08, 0.05); break; // the evening resolves: a chord, laid note by note
+      // the Stop: the street brakes itself (hush: the tape). Over it, air drawn in that swells to the moment time
+      // stops, the floor of the sound let go (a breath of low air, not a tone) and three notes of glass in a long
+      // room, a fifth, a ninth, an octave: nothing resolves, it only opens
+      case 'stop':
+        burst(0, { dur: 1.05, f: 2500, f1: 7000, q: 0.6, vol: 0.05, att: 0.9 });
+        burst(0.9, { dur: 0.9, f: 220, f1: 70, q: 0.7, vol: 0.16, type: 'lowpass', att: 0.04 });
+        [1318.5, 1975.5, 2637].forEach((f, k) => glass(0.9 + k * 0.2, f, 0.034 - k * 0.006));
+        break;
+      // the air comes back with the tape, and the bells come down
+      case 'run':
+        burst(0, { dur: 0.75, f: 6000, f1: 1800, q: 0.6, vol: 0.06, att: 0.45 });
+        [2637, 1975.5, 1318.5, 880].forEach((f, k) => glass(0.1 + k * 0.09, f, 0.04));
+        break;
+      // a breath of air: here is what to do (no chime). Two bands, the upper one later, as a breath is
+      case 'goal': burst(0, { dur: 0.6, f: 1200, q: 0.7, vol: 0.035, att: 0.18 }); burst(0.08, { dur: 0.5, f: 5200, q: 0.8, vol: 0.016, att: 0.16 }); break;
+      case 'word': break; // (a word in the frame is read, not rung)
+      // the camera brought up: the leather strap's creak (stick-slip: a few grains of a mid band, unevenly spaced),
+      // the cloth's swish, then the body in the hand and the catch of the finder
+      case 'cam-up': {
+        let t = 0; for (let k = 0; k < 6; k++) { burst(t, { dur: 0.016, f: 750 + R() * 500, q: 2.5, vol: 0.05 + R() * 0.04 }); t += 0.012 + R() * 0.016; }
+        burst(0.02, { dur: 0.17, f: 2400, q: 0.6, vol: 0.03, att: 0.06 });
+        knock(0.15, 240, 0.13, 0.05); burst(0.17, { dur: 0.006, f: 4200, q: 3, vol: 0.12 });
+        break;
+      }
+      case 'cam-down': burst(0, { dur: 0.15, f: 2000, q: 0.6, vol: 0.03, att: 0.05 }); knock(0.1, 200, 0.1, 0.06); break;
+      // it is in the frame: the Stop's glass crystallising. Grains of high glass, quick and sparse then settling, and
+      // one clear note held under them
+      case 'found': {
+        const P = [1318.5, 1568, 1975.5, 2349.3, 2637, 3136];
+        for (let k = 0; k < 12; k++) glass(0.42 * Math.pow(k / 11, 0.8), P[Math.floor(R() * P.length)] * (R() < 0.3 ? 2 : 1), 0.006 + 0.004 * R(), 0.25);
+        glass(0.03, 1318.5, 0.022); burst(0, { dur: 0.6, f: 7000, q: 0.7, vol: 0.012, att: 0.2 });
+        break;
+      }
+      // the film wound on with the lever: its throw (a rustle of metal), the ratchet's teeth over a gear's whirr, the
+      // stop at the end of the frame, the lever's spring home
+      case 'wind': {
+        burst(0.2, { dur: 0.32, f: 1300, q: 1.6, vol: 0.022, att: 0.04 });
+        let t = 0.22; for (let k = 0; k < 9; k++) { burst(t, { dur: 0.007, f: 2600 + R() * 900, q: 4, vol: 0.09 + R() * 0.04 }); t += 0.028 + R() * 0.008; }
+        knock(t + 0.03, 150, 0.12, 0.05); burst(t + 0.03, { dur: 0.02, f: 2200, q: 2, vol: 0.08 });
+        burst(t + 0.12, { dur: 0.012, f: 5200, q: 2, vol: 0.05 });
+        break;
+      }
+      // a focal-plane shutter behind a mirror: the mirror slaps up (a knock of the body, its click), the first curtain
+      // and the second a sixtieth of a second after (two dry ticks), the mirror down again with a ring of its spring
+      case 'shutter':
+        knock(0, 190, 0.32, 0.05); burst(0, { dur: 0.022, f: 2300, q: 0.9, vol: 0.35 }); burst(0.001, { dur: 0.05, f: 600, q: 0.7, vol: 0.12, type: 'lowpass' });
+        burst(0.014, { dur: 0.007, f: 5200, q: 1.5, vol: 0.2 });
+        burst(0.031, { dur: 0.01, f: 3800, q: 2, vol: 0.24 });
+        knock(0.058, 160, 0.2, 0.05); burst(0.058, { dur: 0.026, f: 1900, q: 1, vol: 0.22 });
+        sTone(0.06, 0.09, 'sine', 3730, 0, 0.012, 0.001); sTone(0.06, 0.06, 'sine', 5210, 0, 0.006, 0.001);
+        break;
+      // the postmark struck on paper on a counter: the paper's slap, the wood under it, the stamp's thump, its handle
+      // rattling a moment after
+      case 'stamp':
+        burst(0, { dur: 0.04, f: 1800, q: 0.5, vol: 0.18, type: 'lowpass' });
+        burst(0, { dur: 0.14, f: 240, q: 4, vol: 0.2 });
+        sTone(0, 0.11, 'sine', 115, 60, 0.32, 0.002);
+        burst(0.07, { dur: 0.012, f: 3000, q: 3, vol: 0.05 });
+        break;
+      // somebody of another year is here: two notes beating against each other a few times a second, a breath moving
+      // through the vowels of someone about to speak, and very high glass far off
+      case 'ghost':
+        sTone(0, 2.4, 'sine', 440, 446, 0.032, 0.6); sTone(0, 2.4, 'sine', 659, 652, 0.022, 0.8);
+        burst(0, { dur: 2.2, f: 600, f1: 1300, q: 3, vol: 0.016, att: 0.8 }); burst(0.2, { dur: 2, f: 3000, q: 0.5, vol: 0.008, att: 0.7 });
+        glass(0.7, 2637, 0.007); glass(1.1, 3951, 0.004);
+        break;
+      case 'right': glass(0, 1318.5, 0.035); glass(0.07, 1975.5, 0.02); break;
+      case 'wrong': knock(0, 170, 0.18, 0.12); break; // (a dull knock of wood: no buzzer)
+      case 'rain': burst(0, { dur: 2.5, f: 4200, q: 0.4, vol: 0.05, type: 'highpass', att: 0.6 }); break;
+      // the evening resolves: an open chord (A, E, C sharp, G sharp, B) as a slow pad of soft sines, and its notes in
+      // glass laid one by one over it
+      case 'end':
+        for (const [k, f] of [110, 164.8, 277.2, 415.3, 493.9].entries()) { sTone(k * 0.3, 5 - k * 0.3, 'sine', f, 0, 0.05, 0.9); glass(k * 0.3, f * 4, 0.012); }
+        break;
       default: break;
     }
   }
@@ -448,10 +668,11 @@ window.OEAudio = (function () {
     return room;
   }
   // a bell of glass: a note, and the partials over it that a struck bar has, each dying faster than the one below
-  function glass(at, f, vol) {
+  // (none over the ear's range); len shortens it (a grain of glass)
+  function glass(at, f, vol, len = 1) {
     const r = hall(); if (!r || muted) return;
     const t = ctx.currentTime + at, out = ctx.createGain(); out.gain.value = 1; out.connect(r); out.connect(storyBus());
-    for (const [k, a, d] of [[1, 1, 3.2], [2.76, 0.42, 1.6], [5.4, 0.2, 0.8], [8.93, 0.08, 0.4]]) tone(out, t, d, 'sine', f * k, 0, vol * a, 0.003);
+    for (const [k, a, d] of [[1, 1, 3.2], [2.76, 0.42, 1.6], [5.4, 0.2, 0.8], [8.93, 0.08, 0.4]]) if (f * k < 16000) tone(out, t, d * len, 'sine', f * k, 0, vol * a * lv, 0.003);
     setTimeout(() => { try { out.disconnect(); } catch (e) { /* already gone */ } }, (at + 4) * 1000);
   }
   // time held: a choir far off, for as long as it is. Four voices on an open chord (a fifth, an octave, a ninth), each a
@@ -469,12 +690,12 @@ window.OEAudio = (function () {
       }
       const hi = ctx.createOscillator(), hg = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
       hi.type = 'sine'; hi.frequency.value = 1318.5; hg.gain.value = 0.05; hi.connect(hg); hg.connect(g); lfo.frequency.value = 0.11; lg.gain.value = 0.03; lfo.connect(lg); lg.connect(hg.gain); hi.start(); lfo.start(); nodes.push(hi, lfo);
-      g.gain.value = 0.0001; g.connect(r); g.connect(b); ramp(g.gain, 0.11, 2.4);
+      g.gain.value = 0.0001; g.connect(r); g.connect(b); ramp(g.gain, 0.08, 2.4); // (under the tape's shimmer)
       pad = { g, os: nodes };
     } else if (!on && pad) {
       const q = pad; pad = null; ramp(q.g.gain, 0.0001, 0.9);
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 3200);
     }
   }
-  return { start, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
+  return { start, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
 })();
