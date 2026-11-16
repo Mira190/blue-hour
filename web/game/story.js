@@ -286,7 +286,7 @@ window.OEStory = (function () {
       ctx.hush(true); ctx.hold(true); sfx('stop'); if (ctx.held) ctx.held(true);
       if (fr.light && ctx.light) ctx.light(fr.light); // (a Stop that goes back to an hour: the last one, to the blue hour she waited at)
       pulse();
-      if (!first) say('Time has stopped');
+      // (no word over the moment itself: the street held, its sound braked, and for 2.5 s nothing written on it)
       // the view turns through the held street: once round the first time, a quarter turn every time after, so that
       // what hangs in the air is seen to hang (it is the camera moving that shows a moment is held)
       st.orbit = first ? 0.5 : 0.32; later(first ? 4200 : 1500, () => { st.orbit = 0; }); // (the first time, the view turns round you through the held street)
@@ -294,7 +294,7 @@ window.OEStory = (function () {
       if (fr.afterimage2 && !st.ghost2) { st.ghost2 = ctx.figure(fr.afterimage2, fr.afterimage2.at); st.ghost2.face(ctx.player.x, ctx.player.y); }
       // the world holds a breath (the first time, the title falls on it), and then the one thing to do
       if (first) later(900, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
-      later(first ? 4300 : 1300, () => {
+      later(first ? 4300 : 2500, () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
         show(); frames.classList.add('on');
         if (!a || !(a.lines || []).length) return task();
@@ -305,7 +305,7 @@ window.OEStory = (function () {
         const gd = st.ep.guide;
         if (gd && ctx.guide && !st.dog) {
           const d = ctx.guide(gd);
-          if (d) { const nearHome = gd.from && near(gd.from, 70), at = nearHome ? gd.from : [ctx.player.x + 3, ctx.player.y + 2.5]; d.place(at[0], at[1], Math.atan2(ctx.player.y - at[1], ctx.player.x - at[0])); st.dog = d; if (st.fi === 0 && gd.line) later(600, () => ctx.toast(esc(gd.line))); }
+          if (d) { const nearHome = gd.from && near(gd.from, 70), at = nearHome ? gd.from : [ctx.player.x + 3, ctx.player.y + 2.5]; d.place(at[0], at[1], Math.atan2(ctx.player.y - at[1], ctx.player.x - at[0])); st.dog = d; if (st.fi === 0 && gd.line) later(3200, () => ctx.toast(esc(gd.line))); } // (after the goal has been read, not over it)
         }
         if (st.dog && st.ghost) st.dog.lead([st.ghost.x, st.ghost.y], a.reach_m || 3.2);
         goal(a.seek || 'Someone is still moving. Go to them.');
@@ -415,8 +415,8 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
-        const K = ctx.touch ? 'Left thumb walks, drag to look.' : 'W A S D walk · mouse looks · Shift runs.', f = st.beat === 'shoot' && fr.task ? framed() : null;
-        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : `Follow the ring. ${st.fi === 0 ? K : ''}`) : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'} ${st.fi === 0 ? K : ''}`
+        const f = st.beat === 'shoot' && fr.task ? framed() : null;
+        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
           : st.beat === 'ride' ? 'Walk to the car and press E to get in. Or walk the whole way.' : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. Walk closer if it is small.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
