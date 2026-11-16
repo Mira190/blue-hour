@@ -237,6 +237,11 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
   font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: rgba(236, 232, 225, 0.62); white-space: nowrap; }
 .roll-bar.top { top: 0; } .roll-bar.foot { bottom: 0; }
 .roll-bar b { font-weight: 500; color: var(--accent); }
+/* the score waits for a touch (a browser's rule): said on the upper bar until it sounds */
+.roll-sound { display: none; color: var(--accent); animation: roll-sound 2.4s ease-in-out infinite; }
+.loader.no-sound .roll-sound { display: inline; }
+@keyframes roll-sound { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .roll-sound { animation: none; } }
 .roll-frames { display: flex; gap: 4px; padding: 5px 6px; border-top: 2px dotted rgba(236, 232, 225, 0.3); border-bottom: 2px dotted rgba(236, 232, 225, 0.3); }
 .roll-frames s { position: relative; width: clamp(24px, 3.2vw, 48px); aspect-ratio: 3 / 2; text-decoration: none; background: #0a0c12; outline: 1px solid rgba(236, 232, 225, 0.1); overflow: hidden; }
 .roll-frames s::after { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s ease; background: var(--img) center / cover no-repeat, linear-gradient(180deg, #0a1440, #24408f 60%, #b9794f); }
@@ -935,7 +940,7 @@ window.dispatchEvent(new Event('three-ready'));
   $('g-loader').insertAdjacentHTML('afterbegin', `<figure class="roll" aria-hidden="true">${[1, 2, 3].map(n => `<div class="roll-art" style="background-image:url(assets/story/late/key-${n}.webp)"></div>`).join('')}
     <div class="roll-grade"></div><div class="roll-flare"></div><div class="roll-grain"></div>
     <div class="roll-title"><i lang="ja">ブルーアワー</i><b>Blue Hour</b><u></u><span>Episode ${ep.no != null ? ep.no : 1} <em>·</em> ${(ep.title || 'You came late').replace(/[<&]/g, '')}</span></div>
-    <div class="roll-bar top"><span>Survey order · <b>Shibuya 渋谷</b></span><span class="wide">10 October · sunset 17:14</span></div>
+    <div class="roll-bar top"><span>Survey order · <b>Shibuya 渋谷</b></span><span class="roll-sound">${matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} for sound</span><span class="wide">10 October · sunset 17:14</span></div>
     <div class="roll-bar foot"><span class="roll-count wide">Loading the roll · frame <b>1</b> of 7</span><div class="roll-frames">${[1, 2, 3, 4, 5, 6, 7].map(n => `<s style="--img:url(assets/story/late/frame-${n}.webp)"></s>`).join('')}</div></div></figure>`);
   $('g-load-native').textContent = '“Hachiko corner, from the north-west kerb, 17:14.”';
   const frames = [...$('g-loader').querySelectorAll('.roll-frames s')], count = $('g-loader').querySelector('.roll-count b');
