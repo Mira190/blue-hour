@@ -3,7 +3,7 @@
 // model is a file with the clips `idle`, `walk`, `trot` and `sit` on the spot (blender/build_dog.py's Akita), and
 // whoever makes one says where it stands and where it leads (story.js, from a map's data).
 //
-//   const dog = OECompanion.create({ url, world, W, ground, player, people(x, y, r) -> [[x, y], ...], speeds: { walk, trot } });
+//   const dog = OECompanion.create({ url, world, W, ground(x, y, z) -> the floor there near z, player, people(x, y, r) -> [[x, y], ...], speeds: { walk, trot } });
 //   dog.place(x, y, facing)       where it stands (it is drawn once its model has loaded)
 //   dog.lead([x, y], reach)       goes to the player first, then ahead of them to the place, and sits there
 //   dog.go([x, y], look)          goes there by itself and sits, looking at `look` ([x, y, z]) if given
@@ -20,7 +20,9 @@ window.OECompanion = (function () {
   const CATCH = 35;    // left further behind than this (a ride, a lift), it is found at the player's heels again
   // route(x, y, z, tx, ty) -> [[x, y, z], ...] | null: the way on foot (route.js ways.walk), so that it leads along the
   // footways and over the crossings and not in a straight line into a wall
-  function create({ url, world, W, ground, player, people = null, route = null, speeds = { walk: 0.95, trot: 2.3 }, height = 1 }) {
+  // slide(x, y, z, dx, dy) -> {x, y}: a step as the walker takes it, along a wall and round a post (nav.slide), so that it
+  // never goes through a fence, a rail or a belt; stand(x, y, z): may a walker stand there
+  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, speeds = { walk: 0.95, trot: 2.3 }, height = 1 }) {
     const root = new THREE.Group();
     root.visible = false;
     world.add(root);
@@ -74,14 +76,14 @@ window.OECompanion = (function () {
       }
       const off = turn(Math.atan2(vy, vx), 5.5, dt);
       const v = speed * Math.max(0.25, 1 - off / 1.6);
-      const step = Math.min(d, v * dt);
-      s.x += Math.cos(s.h) * step; s.y += Math.sin(s.h) * step;
+      const step = Math.min(d, v * dt), dx = Math.cos(s.h) * step, dy = Math.sin(s.h) * step;
+      if (slide) { const m = slide(s.x, s.y, s.z, dx, dy); s.x = m.x; s.y = m.y; } else { s.x += dx; s.y += dy; }
       s.speed = v;
       // a crowd shoulder to shoulder is a wall to this: when it has got nowhere for a second it goes through, as an
       // afterimage may (better seen passing through a coat than left behind a queue)
       if (s.thru > 0) s.thru -= dt;
       s.gain = (s.gain || 0) + (d - Math.hypot(tx - s.x, ty - s.y)); s.gainT = (s.gainT || 0) + dt;
-      if (s.gainT > 1) { if (s.gain < 0.35 * speed) s.thru = 2.5; s.gain = 0; s.gainT = 0; }
+      if (s.gainT > 1) { if (s.gain < 0.35 * speed) { s.thru = 2.5; s.held = (s.held || 0) + 1; if (s.to) replan(); } else s.held = 0; s.gain = 0; s.gainT = 0; } // (held up: through the crowd, never a wall; and the way again from here)
       return d - step;
     }
     const face = (x, y, dt) => turn(Math.atan2(y - s.y, x - s.x), 4, dt);
@@ -91,22 +93,35 @@ window.OECompanion = (function () {
       const P = s.path;
       if (!P || !P.length) return s.to;
       while (s.pi < P.length - 1 && dist(P[s.pi][0], P[s.pi][1]) < 1.2) s.pi++;
-      if (dist(P[s.pi][0], P[s.pi][1]) > 8) { replan(); return s.path && s.path.length ? s.path[0] : s.to; } // (pushed off it: the way again from here)
+      // pushed off the stretch it is on (measured to the stretch, not to its far end: a straight way's next point can be
+      // thirty metres on, and was taken for being lost, the way planned again from its feet, and the dog stood still)
+      const a = P[Math.max(0, s.pi - 1)], b = P[s.pi], ux = b[0] - a[0], uy = b[1] - a[1], k = Math.max(0, Math.min(1, ((s.x - a[0]) * ux + (s.y - a[1]) * uy) / (ux * ux + uy * uy || 1e-9)));
+      if (dist(a[0] + ux * k, a[1] + uy * k) > 6) { replan(); return s.path && s.path.length > 1 ? s.path[1] : s.to; }
       return s.pi >= P.length - 1 ? s.to : P[s.pi];
     }
-    // found again behind the player, out of the way of their view, when it has been left far behind
+    // found again behind the player, out of the way of their view, when it has been left far behind: on ground a walker
+    // may stand on (behind, or beside, or at their feet), and coming into sight there, not there all at once
     function catchUp() {
-      const bx = player.x - Math.sin(player.h || 0) * 2.5 + Math.cos(player.h || 0) * 0.9, by = player.y - Math.cos(player.h || 0) * 2.5 - Math.sin(player.h || 0) * 0.9;
-      s.x = bx; s.y = by; s.z = ground(bx, by); s.h = Math.atan2(player.y - by, player.x - bx); s.thru = 0;
+      const h = player.h || 0, sn = Math.sin(h), cs = Math.cos(h);
+      let bx = player.x, by = player.y;
+      for (const [b, r] of [[2.5, 0.9], [2.5, -0.9], [1.5, 1.2], [1.5, -1.2], [0, 1.2], [0, -1.2]]) {
+        const x = player.x - sn * b + cs * r, y = player.y - cs * b - sn * r;
+        if (!stand || stand(x, y, player.z)) { bx = x; by = y; break; }
+      }
+      s.x = bx; s.y = by; s.z = ground(bx, by, player.z); s.h = Math.atan2(player.y - by, player.x - bx); s.thru = 0; s.fade = 0;
       if (s.to) replan();
     }
+    // its coat's opacity: faded in where it appears, out where it goes (opaque again when whole, so that it sorts as a solid)
+    function shade(a) { for (const m of mats) { m.transparent = a < 1; m.opacity = a; m.depthWrite = a > 0.5; } }
     function tick(dt) {
       if (s.state === 'away') return;
       s.t += dt;
       const px = player.x, py = player.y;
       // (the player in a car, a lift, the air: he is not seen, and is at their heels again when they are on foot)
-      if (player.mode && player.mode !== 'foot' && s.state !== 'leave') { s.off = true; root.visible = false; return; }
+      // (the player in a car, a lift, the air: it fades where it stood, and is at their heels again when they are on foot)
+      if (player.mode && player.mode !== 'foot' && s.state !== 'leave') { s.off = true; s.fade = Math.max(0, s.fade - dt / 0.5); shade(s.fade); root.visible = s.ready && s.fade > 0; ring.material.opacity = 0; return; }
       if (s.off) { s.off = false; root.visible = s.ready; catchUp(); }
+      if (s.state !== 'leave' && s.fade < 1) { s.fade = Math.min(1, s.fade + dt / 0.7); shade(s.fade); }
       if (s.state !== 'leave' && s.state !== 'go' && s.state !== 'sit' && dist(px, py) > CATCH) catchUp();
       const dp = dist(px, py);
       let lookAt = null;
@@ -115,7 +130,8 @@ window.OECompanion = (function () {
         lookAt = [px, py, player.z + 1.5];
       } else if (s.state === 'lead' || s.state === 'wait' || s.state === 'fetch') {
         const left = dist(s.to[0], s.to[1]);
-        if (left < s.reach) { s.state = 'sit'; s.t = 0; s.look = null; if (s.done) { const d = s.done; s.done = null; d(); } }
+        if (left < s.reach || (s.held > 1 && left < s.reach + 3)) { s.state = 'sit'; // (or as near as it can get: a belt, a rail between)
+          s.t = 0; s.look = null; if (s.done) { const d = s.done; s.done = null; d(); } }
         else if (s.state === 'fetch') { if (dp > AHEAD) move(px, py, speeds.trot * 1.2, dt); else { s.state = 'lead'; s.t = 0; } lookAt = [px, py, player.z + 1.5]; }
         else if (dp > FAR) { // the player has fallen behind: it stops and looks back, and in a while goes to them
           if (s.state !== 'wait') { s.state = 'wait'; s.t = 0; }
@@ -142,10 +158,10 @@ window.OECompanion = (function () {
       } else if (s.state === 'leave') {
         const left = move(s.to[0], s.to[1], speeds.trot * 1.4, dt);
         if (s.t > 1.2) s.fade = Math.max(0, s.fade - dt / 1.4);
-        for (const m of mats) { m.transparent = true; m.opacity = s.fade; }
+        shade(s.fade);
         if (left < 0.3 || s.fade <= 0) { s.state = 'away'; root.visible = false; if (s.done) { const d = s.done; s.done = null; d(); } return; }
       }
-      s.z = ground(s.x, s.y);
+      s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)
       const leading = s.state === 'greet' || s.state === 'lead' || s.state === 'wait' || s.state === 'fetch';
@@ -183,8 +199,8 @@ window.OECompanion = (function () {
     }
     const api = {
       get x() { return s.x; }, get y() { return s.y; }, get z() { return s.z; }, get state() { return s.state; }, get ready() { return s.ready; }, get clip() { return cur; }, root,
-      place(x, y, h = 0) { s.x = x; s.y = y; s.h = h; s.z = ground(x, y); s.state = 'sit'; s.t = 1; s.fade = 1; root.visible = s.ready; root.position.copy(W(x, y, s.z)); root.rotation.y = h; return api; },
-      lead(to, reach = 3, done = null) { s.to = to; s.reach = reach; s.done = done; s.state = s.greeted ? 'lead' : 'greet'; s.t = 0; replan(); return api; },
+      place(x, y, h = 0) { s.x = x; s.y = y; s.h = h; s.z = ground(x, y, player.z); s.state = 'sit'; s.t = 1; s.fade = 0; shade(0); root.visible = s.ready; root.position.copy(W(x, y, s.z)); root.rotation.y = h; return api; },
+      lead(to, reach = 3, done = null) { s.to = to; s.reach = reach; s.done = done; s.held = 0; s.state = s.greeted ? 'lead' : 'greet'; s.t = 0; replan(); return api; },
       heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; return api; },
       go(to, look = null) { s.to = to; s.look = look; s.state = 'go'; s.t = 0; return api; },
       leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; return api; },
