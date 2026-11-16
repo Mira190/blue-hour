@@ -202,7 +202,7 @@ window.OEStory = (function () {
       x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y));
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       mark.querySelector('b').textContent = `${Math.max(1, Math.round(q.dist))} m${off ? (q.front ? '' : ' · behind you') : ''}`;
-      mark.classList.toggle('on', q.dist > 4); mark.classList.toggle('off', off);
+      mark.classList.toggle('on', q.dist > 4 && !(st.cam && st.beat === 'shoot')); mark.classList.toggle('off', off); // (with the camera up the frame lines are the guide: no ring over the thing itself)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';
@@ -326,7 +326,7 @@ window.OEStory = (function () {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
-      finder.dataset.year = (st.fr.afterimage && st.fr.afterimage.year) || ''; // (the year the finder shows: the camera sees the evening it was loaded for)
+      { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)
       if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1; to = [R.at[0] + (px - R.at[0]) / l * 2.2 + 0.8, R.at[1] + (py - R.at[1]) / l * 2.2]; } if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
