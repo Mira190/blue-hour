@@ -218,12 +218,12 @@ window.OEStory = (function () {
       else { x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y)); }
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
-      const k = via ? 'go' : st.kind, lens = up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
+      const k = via ? 'go' : st.kind, lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
       if (mark.dataset.kind !== k) mark.dataset.kind = k;
       mark.querySelector('b').textContent = lens ? (R && R.name) || 'Frame this' : k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
-      mark.classList.toggle('on', lens ? off : k === 'frame' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens);
+      mark.classList.toggle('on', lens ? off : k === 'frame' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';

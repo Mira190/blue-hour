@@ -297,6 +297,12 @@ A thing to photograph is turned to, never walked to, so it carries no distance: 
 lines are the guide and the mark shows only when the thing is off the frame, as the way to turn.
 `tools/story_play.js` fails a frame whose mark at the standpoint is not `frame` or has a number on it.
 
+A mark is watched moving, not in a still. The first pass of the kinds trembled at the frame's edge: a class was
+toggled with `undefined`, which flips it every frame, so the ring came and went and the arrow stepped in and out,
+and every still of it looked right. `tools/mark_steady.js` holds the player still, turns the lens each way round
+the compass, and reads the mark every frame for three seconds a view: its words, classes and kind must not
+change, its place must not go back and forth, and neither its words nor its arrow may be cut by the edge.
+
 **A print is a thing you are given.** After the shutter the print is in your hand for a moment, its postmark struck
 on it (the hour, the frame), and goes to the roll, where Tab opens every print taken so far.
 
