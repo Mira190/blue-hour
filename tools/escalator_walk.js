@@ -33,14 +33,37 @@ const [,, city = 'shibuya'] = process.argv;
       at(0);
       for (let t = 0.5; t <= 3; t += 0.5) { g.cam.yaw = Math.atan2(s.axis[0], s.axis[1]); g.advance(0.5, ['KeyW']); at(t); }
       for (let t = 4; t <= 50; t += 1) { g.advance(1); at(t); }
-      res.push({ name: s.name, us: [s.us[0], s.us[s.us.length - 1]], mu, zs: [s.zs[0], s.zs[s.zs.length - 1]], track });
+      // and beside it: walked at from the same floor a body's width to either side of the steps, nobody gets in between
+      // the escalator and what stands next to it (a stair's glass, the outer glass), where they stood inside its balustrade
+      const sides = [];
+      for (const off of [-1.05, -0.8, 0.8, 1.05]) {
+        const sx = x + s.axis[1] * off, sy = y - s.axis[0] * off, f2 = nav.floorAt(sx, sy, s.zs[0] + 0.5);
+        [pl.x, pl.y, pl.z] = [sx, sy, f2 ? f2.z : s.zs[0]]; pl.mode = 'foot'; pl.ground = true; pl.vz = 0; pl.walking = true;
+        let worst = null;
+        for (let t = 0; t < 8; t += 0.5) { pl.h = g.cam.yaw = Math.atan2(s.axis[0], s.axis[1]); g.advance(0.5, ['KeyW']); const [u, v] = nav.stripUV(s, pl.x, pl.y); if (u > 0.8 && Math.abs(v) > s.half_width + 0.05 && Math.abs(v) < 1.4 && (!worst || u > worst.u)) worst = { u: +u.toFixed(2), v: +v.toFixed(2), z: +pl.z.toFixed(2), floor: pl.floor }; }
+        sides.push({ off, worst });
+      }
+      // and off its side: standing on the steps part of the way along and walking sideways, nobody leaves them
+      for (const [key, uu] of [['KeyA', 3], ['KeyD', 3], ['KeyA', 4.5], ['KeyD', 4.5], ['KeyA', 12], ['KeyD', 12], ['KeyA', s.us[s.us.length - 1] - 3], ['KeyD', s.us[s.us.length - 1] - 3]]) {
+        const sx = s.origin[0] + s.axis[0] * uu, sy = s.origin[1] + s.axis[1] * uu;
+        [pl.x, pl.y, pl.z] = [sx, sy, nav.stripHeight(s, sx, sy)]; pl.mode = 'foot'; pl.ground = true; pl.vz = 0; pl.walking = true; pl.floor = s.name;
+        let worst = null;
+        for (let t = 0; t < 3; t += 0.25) { pl.h = g.cam.yaw = Math.atan2(s.axis[0], s.axis[1]); g.advance(0.25, [key]); const [u, v] = nav.stripUV(s, pl.x, pl.y), h = nav.stripHeight(s, pl.x - s.axis[1] * -v, pl.y + s.axis[0] * -v); if (Math.abs(v) > s.half_width + 0.05 && (!worst || Math.abs(v) > Math.abs(worst.v))) worst = { u: +u.toFixed(2), v: +v.toFixed(2), z: +pl.z.toFixed(2), floor: pl.floor }; }
+        sides.push({ off: `${key} at u ${uu}`, worst });
+      }
+      res.push({ name: s.name, us: [s.us[0], s.us[s.us.length - 1]], mu, zs: [s.zs[0], s.zs[s.zs.length - 1]], track, sides });
     }
     return res;
   });
+  let bad = 0;
   for (const r of out) {
     console.log(`${r.name}: strip u ${r.us}, moving ${r.mu}, z ${r.zs}`);
     for (const q of r.track) console.log(`  t ${q.t}  u ${q.u}  z ${q.z}  ${q.floor}`);
+    const last = r.track[r.track.length - 1], carried = last.u > r.us[1] - 0.5 && Math.abs(last.z - r.zs[1]) < 0.3;
+    console.log(`${carried ? 'ok  ' : 'FAIL'} ${r.name}: carried to its far end (u ${last.u}, z ${last.z})`); if (!carried) bad++;
+    for (const q of r.sides) { console.log(`${q.worst ? 'FAIL' : 'ok  '} ${r.name}: ${typeof q.off === 'number' ? `walked at ${q.off} m beside the steps` : `stepped sideways, ${q.off}`}${q.worst ? `, got in beside them: ${JSON.stringify(q.worst)}` : ', kept out'}`); if (q.worst) bad++; }
   }
   console.log(logs.join('\n'));
   await b.close();
+  process.exit(bad || logs.length ? 1 : 0);
 })();
