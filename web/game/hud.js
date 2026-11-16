@@ -250,6 +250,7 @@ window.OEHud = (function () {
       cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 };
       box.hidden = false;
       box.style.setProperty('--npc', npc.color || 'var(--accent)');
+      box.dataset.era = npc.alive === false ? 'past' : ''; // (someone of another year: a story sets their words in another face)
       nameEl.textContent = npc.name; roleEl.textContent = npc.role || '';
       next(true);
     }

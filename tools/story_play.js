@@ -42,7 +42,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (same > 240) { console.log('FAIL stuck', JSON.stringify(s)); break; }
     if (s.dlg) {
       await mark(s, `said-${s.phase}-${s.beat}`);
-      if (s.choices.length) await p.evaluate(() => { const st = window.__game.story.state, q = st.fr.meet.ask[st.asked], want = q.options[q.answer]; const bt = [...document.querySelectorAll('#gd-choices button')].find(x => x.textContent.endsWith(want)); (bt || document.querySelector('#gd-choices button')).click(); });
+      if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
+        await p.evaluate(() => { const st = window.__game.story.state, B = document.querySelectorAll('#gd-choices button'); (B[st.want] || B[0]).click(); }); } // (story.js says which answer is right: state.want)
       else await p.keyboard.press('KeyE');
       await p.waitForTimeout(350); continue;
     }
