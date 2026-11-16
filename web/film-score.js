@@ -68,7 +68,9 @@ window.OEFilmScore = (function () {
     // finale's rising over two seconds and more at half their level instead of striking. Before this the score was
     // silent for the opening's first eighteen seconds and then struck its chord in 40 ms, 25 dB over the second before
     const swell = !!plan.swell;
-    if (swell) { const mix = ctx.createGain(), lp = filter('lowpass', 420, 0.6);
+    // plan.under: the game's own score is playing under this one (the loading cue through the opening, the score in
+    // a flight): then it is the bed, and this adds only what rises at the title and after
+    if (swell && !plan.under) { const mix = ctx.createGain(), lp = filter('lowpass', 420, 0.6);
       for (const [m, v] of [[root - 24, 0.5], [root - 12, 0.3], [root - 5, 0.2], [root - 12 + 0.05, 0.22]]) { const o = osc('sine', hz(m), 0, D), g = ctx.createGain(); g.gain.value = v; o.connect(g); g.connect(mix); }
       const l = osc('sine', 0.09, 0, D), lg = ctx.createGain(); lg.gain.value = 0.18; l.connect(lg); lg.connect(mix.gain);
       mix.connect(lp);
@@ -118,7 +120,7 @@ window.OEFilmScore = (function () {
     const chordAt = (degs, oct = 0) => degs.map(d => deg(d, oct));
     const chords = plan.chords || [[0, 2, 4], [3, 5, 7], [1, 3, 5], [4, 6, 8]];
     riser(T, 3.4);
-    if (swell) { const m = plan.motif || [4, 2]; piano(T - 2.7, deg(m[0], 1), 0.75, -0.15); piano(T - 1.35, deg(m[1], 1), 0.7, 0.15); } // (her first two notes, and the title on the third beat)
+    if (swell && !plan.under) { const m = plan.motif || [4, 2]; piano(T - 2.7, deg(m[0], 1), 0.75, -0.15); piano(T - 1.35, deg(m[1], 1), 0.7, 0.15); } // (her first two notes, and the title on the third beat)
     hit(T + 0.03 - (swell ? 0.6 : 0), [root - 12, root - 5, root, root + 7, deg(2, 1), deg(4, 1), deg(1, 2), deg(4, 2)]);
 
     // the pad: the city's chords changing at the cuts after the title
@@ -186,7 +188,7 @@ window.OEFilmScore = (function () {
     cuts.forEach((c, i) => {
       if (c >= F - 0.1) return;
       if (swell && c < T) return; // (before the title a story's score has only its bed and two notes)
-      note(c, deg(motif[i % motif.length], 1), swell ? 0.75 : 1, (i % 2 ? 0.25 : -0.25));
+      note(c, deg(motif[i % motif.length], 1), swell ? (plan.under ? 0.5 : 0.75) : 1, (i % 2 ? 0.25 : -0.25));
       // the answer, a beat and a half later
       note(c + 60 / (plan.tempo || 76) * 1.5, deg(motif[(i + 2) % motif.length], 1), 0.6, (i % 2 ? -0.3 : 0.3));
     });
