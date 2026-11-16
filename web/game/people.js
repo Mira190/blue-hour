@@ -1186,13 +1186,23 @@ transformed = crowdPose(transformed, false);`);
         active.set(i, r);
       }
     }
+    // where a walker is drawn: the simulated place, eased over a few hundredths of a second. The simulation moves in
+    // steps a frame does not always take (one put back for coming closer than 0.32 m to someone in a press on the
+    // crossing, one every 2nd or 4th frame for a walker 60 m and more away: actors.js), and drawn as it is, a walker
+    // in a dense column went on, stopped a frame, went on. Put somewhere else (2 m and more at once): drawn there
+    function drawn(p) {
+      if (p.rx == null || Math.abs(p.x - p.rx) + Math.abs(p.y - p.ry) > 2 || Math.abs(p.z - p.rz) > 1) { p.rx = p.x; p.ry = p.y; p.rz = p.z; return; }
+      const k = 1 - Math.exp(-dtNow / 0.08);
+      p.rx += (p.x - p.rx) * k; p.ry += (p.y - p.ry) * k; p.rz += (p.z - p.rz) * k;
+    }
     function place(i, p, moving) {
       const r = active.get(i);
+      drawn(p);
       if (r) {
         const u = wantUmb(p);
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null }); }
         unshow(p);
-        r.root.position.set(p.x, p.z, -p.y);
+        r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
         if (p.wave) { p.wave = false; r.wave(tNow); }
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
@@ -1200,7 +1210,7 @@ transformed = crowdPose(transformed, false);`);
       }
       p.wave = false;
       const sit = p.mode === 'sit';
-      at.set(p.x, p.z - (sit ? p.thigh : 0), -p.y);
+      at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
       if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 2.3, 2.3)))) { unshow(p); return; } // (or behind the street wall: visibility.js)
       show(p);
