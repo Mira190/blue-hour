@@ -155,3 +155,25 @@ touch and still there on the title, and the loop's join is smoother than the ste
 `story-stings` with the rest (peak under −8 dBFS, never silent for two seconds, dark above 4 kHz) and
 writes them as WAV files to listen to. Not checked by ear on a device's speaker; levels against the street
 are those of the map's score, which the story played before.
+
+**The opening and the flight** (`web/film-score.js`, the episode's `overture.score` and frame 5's `flight.score`).
+The opening's score was silent for its first eighteen seconds and then struck an eight-note chord in 40 ms as the
+title fell: 25 dB over the second before it, 33 dB over it in its first 50 ms, at -18 dBFS where the game's score
+sits at -27. The owner heard it as a jolt. It is rearranged (`swell` on the plan) so that nothing arrives:
+
+- a low bed from the first second (the root, its octave and the fifth between them, no third; one high fifth held
+  far off), rising slowly to the title;
+- her first two notes on the piano before the title, which falls where the third would;
+- the title's chord and the finale's rise over two seconds and more, the low notes first, at under half their
+  old level;
+- no hush before the title: with nothing loud after it, there is nothing to hold a breath for.
+
+When the game's score is already playing (the loading cue runs through the opening; the score itself through a
+flight), `game.js` sets `under` on the plan and the film's score leaves the bed and the two notes to it: one piece
+of music, with the title rising out of it.
+
+`tools/overture_levels.js` renders the opening's score and prints its level second by second; it fails on a rise
+of more than 8 dB from one second to the next, a 50 ms window more than 12 dB over the second before it, or a
+peak over -8 dBFS (`UNDER=1`: as it plays over the loading cue). Now: largest rise 7.5 dB at the very start
+(from -47 to -39 dBFS), loudest second -22 dBFS at the title, peak -12 dBFS.
+

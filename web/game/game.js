@@ -5409,7 +5409,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // variant to be swapped for as the sun goes down)
   const epOv = story && G.story.episodes && G.story.episodes[0] && G.story.episodes[0].overture;
   // (a film: the overture, or a flight a story plays between two places; `guideAt` is given the film's guide each frame)
-  makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
+  // (a film played while the story's score is: the loading cue through the opening, the score itself in a flight. Its
+  // own score then leaves the bed to that one: film-score.js plan.under)
+  makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } } });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
