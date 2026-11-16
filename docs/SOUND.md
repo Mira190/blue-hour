@@ -62,12 +62,12 @@ old browser, or a page that is not a secure context) the Stop only hushes the st
 or a room (`doors.roomAt`), `roof` with the ears more than 40 m over the ground (the deck, the
 helicopter), `viaduct` on foot under a roof (`weather.covered()`), `open` otherwise.
 
-| Room | RT60 | Wet | Early reflections |
+| Room | RT60 | Wet (against the dry sound) | Early reflections |
 |---|---|---|---|
-| open (the crossing's faces, open sky) | 1.5 s | 0.13 | slaps at 31 to 190 ms |
-| viaduct (concrete overhead) | 1.9 s | 0.30 | dense, 9 to 45 ms |
-| inside (a lobby, a lift) | 0.7 s | 0.22 | 6 to 24 ms |
-| roof (230 m up) | 0.4 s | 0.05 | one, faint |
+| open (the crossing's faces, open sky) | 1.5 s | −15 dB | slaps at 31 to 190 ms |
+| viaduct (concrete overhead) | 1.9 s | −9 dB | dense, 9 to 45 ms |
+| inside (a lobby, a lift) | 0.7 s | −12 dB | 6 to 24 ms |
+| roof (230 m up) | 0.4 s | −26 dB | one, faint |
 
 ## Levels
 
