@@ -125,24 +125,23 @@ On the afternoon of the 10th, with the city indoors, Kanbara went up to the roof
 Sumiko, on her break, had gone up to warn Akira and met Kanbara instead. He took her by the wrist;
 she tore free, leaving her white glove in his hand, shoved him and ran. He was on his feet when she
 left. Ten minutes later Tatsuo came up. Kanbara, frightened now, told him the culvert would be put
-on the foreman. Tatsuo pushed him. Akira, coming up the stair with the rings being drawn in the sky,
-took one frame of two men at the parapet without understanding it, and then found Kanbara below
-with Sumiko's glove.
+on the foreman. Tatsuo pushed him. Akira, coming up the stair with the rings being drawn in the sky, passed
+Tatsuo coming down without looking at him, and found Kanbara below with Sumiko's glove in his fist.
 
 **The double sacrifice.** Akira believed Sumiko had done it. He walked into the police box at the
 station and said that he had. On the way to the car he asked the detective for one minute at the
-kerb opposite the Hachiko corner. He took one photograph of her waiting, with himself and the two
-officers in the shop window beside him, gave the camera and a hundred yen to a shoeshine boy, and
-said: *take it across. Tell her to open it.* He did not cross, because to be seen with her was to
-make her his reason.
+kerb opposite the Hachiko corner. He took one photograph of her waiting, took the base plate off the camera (it loads from below)
+and put inside it her ticket for the night train, with one word pencilled on the back: 待つ, *wait*.
+He gave the camera and a hundred yen to a shoeshine boy, and said: *take it across. Tell her to
+open it.* He did not cross, because to be seen with her was to make her his reason.
 
 The boy carried the camera over, saw a policeman watching, pushed it into her hands and ran without
 a word.
 
 Sumiko heard the next day that Akira had confessed to killing Kanbara. She believed he had done it,
 for her, because of what she had told him about Kanbara. She kept silent so that it would not have
-been for nothing. Akira had told her once never to open the back of a camera: light kills what is
-inside. She never opened it.
+been for nothing. Akira had told her once never to open a camera: light kills what is inside. She never opened it.
+So the one word he sent her she obeyed for sixty years without ever reading it.
 
 So each of them believed the other guilty, and each kept the secret to protect the other.
 
@@ -154,8 +153,10 @@ a Mizuno and found nobody. She went on coming to her kerb every 10 October. For 
 they stood on opposite kerbs of the same crossing for one hour a year and never saw each other
 through it.
 
-Akira died in March of this year, aged 86. His will paid for one thing: a survey photograph of the
-Hachiko corner, taken from the opposite kerb, at 17:14 on 10 October.
+Akira died in March of this year, aged 86. His will paid for one thing: somebody with a camera on
+her corner at 17:14 on 10 October, carrying the old plan of the kerb on which he had pencilled the
+same word. (The office reads it out in the first minute; Mr Tanaka says whose hand it is in frame 6;
+the ticket's back shows it on the last card.)
 
 **You** are the survey photographer who took the job. You arrived at 17:15. You were on the
 crossing, not at the kerb, when it stopped.
@@ -183,6 +184,11 @@ It has the movements a classical mystery has, and two things taken straight from
   player answers them from the six prints already taken. Who was behind Kanbara? Why did Akira not
   cross? What did he send across with the boy? A wrong answer costs a look and a hint at which
   print to look at again. The player solves the case; nobody recites it to them.
+- **A print as an answer** (frames 5 and 6): twice the roll itself is the answer. Tatsuo lies (he is
+  the story's one liar: *nobody from my gang went up on any roof*), and he confesses only when the
+  player names the frame that says otherwise, the roof, where Kanbara heard nailed boots on the
+  stair. Mr Tanaka asks to be shown his pitch before he trusts the player with the sentence he never
+  delivered. The living are shown a print; an afterimage, who cannot see one, is told (rule 4).
 
 Later episodes are other cases at other hours, each a different promise left standing somewhere in
 Shibuya. The last card of this one loads the next roll.
@@ -195,11 +201,11 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 |---|---|---|---|---|---|
 | 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera. A name under the base plate: 水野 |
 | 2 | 17:19 | Under the **Center Gai arch**, looking back across the crossing to the station kerb | Shun at the vintage shop reads the camera: 29 frames taken, never developed | A shoeshine boy | He came. He stood across the street between two policemen |
-| 3 | 17:24 | **Hachiko**, with the station behind | (an old man by the statue is watching the camera) | The detective at the police box | He confessed within the hour. In the dead man's hand: a lift girl's glove. *Sumiko ran a lift.* |
-| 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man | The second shadow at the parapet wears a site helmet. It was not her |
-| 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother | He did it, and let Akira carry it. Each lover believed the other guilty and kept silent |
-| 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again | Mr Tanaka by Hachiko: he was the boy; the sentence he never delivered; Akira lived fifteen minutes away for 48 years; who hired you | Akira, new this year | The message was in the camera all along: three men in a shop window, and two tickets held up |
-| 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 82: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses |
+| 3 | 17:24 | **Hachiko**, with the station behind | (an old man by the statue is watching the camera) | The detective at the police box | He confessed within the hour. In the dead man's fist: a lift girl's glove. *She came from the lift with one glove on.* |
+| 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man | She left him alive. What came up the stair after her was nailed site boots. It was not her |
+| 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother | He lies; the roof's frame breaks it. He did it, and let Akira carry it. Each lover believed the other guilty and kept silent |
+| 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again | Mr Tanaka by Hachiko: he was the boy (he asks to be shown his pitch); the sentence he never delivered; Akira lived fifteen minutes away for 48 years; who hired you | Akira, new this year | What he could not carry across is under the camera's base plate, and cannot be looked at while there is film in it |
+| 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 82: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses. On the last card the camera is opened: her ticket, and one word |
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
@@ -300,9 +306,10 @@ the Stop cuts it to silence. The evening opens quietly enough to hear one person
 
 **Built, and not yet.** Built and played through end to end: the seven frames, the living and the
 afterimages and all their lines, the questions, the lens view, the roll kept between visits, the
-last card with the contact sheet, the finale. Not yet: the 1964 plates (the double exposure is told
-in the lines after each photograph, not shown; section 8, item 1), the old woman's clear umbrella,
-a softer rain in the mix, and voices.
+last card with the contact sheet, the finale, a print as an answer, and the ticket on the last card.
+The 1964 plates were given up for the things the camera sees (above), and with them every line that
+described a picture nobody could see: **a line may speak only of what is in the finder**, so the
+things are the evidence and the rest is testimony. Not yet: the old woman's clear umbrella, and voices.
 
 ## 7. Fair play: every clue, and where it is first shown
 
@@ -311,13 +318,16 @@ a softer rain in the mix, and voices.
 | Sumiko is alive: the old woman with the clear umbrella | The opening shot of every episode from 1; she is the only bystander who is at the kerb every evening, and in the Stop she is the only stopped person looking at the girl | 6 |
 | *You came late* was said by a living voice | Episode 1: the line is heard a beat before the girl turns | 6 |
 | An afterimage need not be dead | The boy (2) and Mr Tanaka (4) | 6 |
-| An afterimage cannot see past its kerb, or a print | Episode 1, her fourth line; episode 3, Kanbara cannot be shown the print | 6, 7 |
-| The photographer is never in his own pictures | Episode 2's title; every print | 2, 6 |
-| The time of the fall | The rings in the sky (3) | 5 |
-| The helmet | Tatsuo's helmet in the lane (4), under his arm (5) | 5 |
-| The glove was lost before the fall | Kanbara: *whose glove I was holding*, not who pushed (3) | 5 |
-| Akira lived, and where | Tanaka (4) | 6, 7 |
-| Who hired you | The first line of the brief, on the loading card of episode 1: *Survey: Hachiko corner, from the north-west kerb, 17:14.* | 4 |
+| An afterimage cannot see past its kerb, or a print | Her fifth line (1); Kanbara asks whether the dome is there (4); Tatsuo is told, not shown (5) | 6, 7 |
+| Sumiko ran a lift, and had one glove at 17:14 | Her third line (1): *straight from the lift at the store, one glove on* | 3 |
+| The lecture was his, and he meant to be back for it | The board at her corner (1), again from his kerb (6) | 6 |
+| The time of the fall | Kanbara: the rings being drawn in the sky (4) | 5 |
+| Who came up the stair | Kanbara: nailed site boots (4); Tatsuo's helmet, and his trade in his second line (5) | 5 |
+| The glove was lost before the fall | Kanbara: *I was still on my feet*; Yuna's grandmother saw the girl come down (4) | 5 |
+| The camera opens from below | Shun: a name scratched *where only a repairman would find it*; the base plate, on the first evening's last line (1, 2) | 6, the last card |
+| Why she never opened it | Akira: *light kills what is inside* (6), before she says it (7) | the last card |
+| Akira lived, and where | The tram for Sangenjaya at its stop (2); Tanaka (6) | 6, 7 |
+| Who hired you, and the word on the plan | The office, in the first minute: 待つ pencilled on that corner | 6, the last card |
 | The crossing was not a scramble in 1964 | The 1964 prints: no diagonal stripes on the road (1, 2, 6) | 7 |
 
 ## 8. What the game has to do to tell it
@@ -335,8 +345,9 @@ In the order it should be built. Each is small; none is a new world.
 3. **Finding a standpoint.** The beacon gives way to the print itself: hold the 1964 plate up
    against the street (a ghosted overlay in the viewfinder) and walk until the piers line up.
    Episode 2 teaches it; 3, 5 and 6 use it.
-4. **Pressing a statement.** In an afterimage's lines, one line can be answered with a print
-   (`press: { with: <frame>, lines: [...] }`): the existing dialogue with a choice of prints.
+4. **A print as an answer** (built). After anyone's lines, a question answered with a print
+   (`ask: [{ q, frame: <n>, wrong, right }]`, then `then: [...]`): the roll so far is laid out and
+   the one that settles it is picked. What each frame settled is written under it in the roll (`note`).
 5. **The living.** A minute with a present-day person before the Stop (the existing people and
    dialogue: Shun, Yuna, Taro, Mr Tanaka), and the old woman with the clear umbrella placed at the
    kerb in every episode's opening.
@@ -361,6 +372,13 @@ railway viaduct south of the station, where the river's line can still be read.
 - Short lines. Nobody explains the rules; they say what they saw.
 - Sumiko's first words of each evening are in Japanese, then English, as built.
 - Every episode's last line is a question or a fact that reopens the case. Never a summary.
+- Two faces for two years: someone of 1964 speaks in a serif (Newsreader, SIL Open Font Licence),
+  as does what the last card finds; tonight speaks in the interface's sans. The word on the ticket's
+  back is in Klee One (SIL OFL), a pencil's hand. The ticket is drawn for the story in the manner of
+  a card ticket of the national railway; its wording is ours, and it carries no fare.
+- The opening's first caption gives the place's own number (as many as three thousand people cross
+  at one change of the lights at the busiest hours, the figure the ward and the press give) and the
+  story's hook in the same breath.
 - No character speaks of data, surveys of buildings or how the map was made
   (`tools/voice_check.py`). The player's trade is photographing streets; that is all that is said
   of it.

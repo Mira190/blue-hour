@@ -118,7 +118,7 @@ window.OEStory = (function () {
     const album = el('g-story-album', '');
     const fileName = n => `blue-hour-${(st.ep && st.ep.id) || 'roll'}-${n}`;
     function albumDraw(big) {
-      const P = st.prints, cell = i => { const p = P[i]; return p ? `<li class="${i === big ? 'big' : ''}" style="--r:${((i * 37) % 7 - 3) * 0.6}deg"><button type="button" data-i="${i}" aria-label="Frame ${i + 1}">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}${postmark(p.stamp, i + 1)}<span><b>${i + 1}</b>${esc(p.stamp)}</span></button>${p.cap ? `<p>${esc(p.cap)}</p>` : ''}${p.src ? `<a download="${fileName(`frame-${i + 1}`)}.jpg" href="${p.src}">Save this print</a>` : ''}</li>` : `<li class="blank"><span><b>${i + 1}</b>not yet taken</span></li>`; };
+      const P = st.prints, cell = i => { const p = P[i]; return p ? `<li class="${i === big ? 'big' : ''}" style="--r:${((i * 37) % 7 - 3) * 0.6}deg"><button type="button" data-i="${i}" aria-label="Frame ${i + 1}">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}${postmark(p.stamp, i + 1)}<span><b>${i + 1}</b>${esc(p.stamp)}</span></button>${p.cap ? `<p>${esc(p.cap)}</p>` : ''}${p.note ? `<p class="note">${esc(p.note)}</p>` : ''}${p.src ? `<a download="${fileName(`frame-${i + 1}`)}.jpg" href="${p.src}">Save this print</a>` : ''}</li>` : `<li class="blank"><span><b>${i + 1}</b>not yet taken</span></li>`; };
       album.innerHTML = `<div class="table"><header><small>${esc(S.title || '')}${st.ep && st.ep.no ? ` · Episode ${st.ep.no}` : ''}</small><h2>The roll</h2><span>${P.length} of ${N} frames taken</span></header>
 <ol>${Array.from({ length: N }, (_, i) => cell(i)).join('')}</ol>
 <div class="row">${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
@@ -271,15 +271,22 @@ window.OEStory = (function () {
       aimAt(fr.lead_s != null || !(fr.stop_at || a) ? null : spot(fr.stop_at || a.at), true);
     }
     // what the living ask: each question until it is answered rightly (a wrong answer costs nothing but the look they give you)
+    // A question with `frame` is answered with a print (the living are shown it; an afterimage, who cannot see a
+    // photograph, is told what it has in it): the roll so far is laid out, and the one that settles it is picked.
     function ask(m, w, done) {
       const q = (m.ask || [])[st.asked];
-      if (!q) return done();
-      ctx.ask(w, [q.q], q.options.map(text => ({ text })), c => {
-        sfx(c && q.options.indexOf(c.text) === q.answer ? 'right' : 'wrong');
-        if (c && q.options.indexOf(c.text) === q.answer) { st.asked++; return q.right ? ctx.say(w, [q.right], () => ask(m, w, done)) : ask(m, w, done); }
-        ctx.say(w, [q.wrong || 'No. Look at the prints again.'], () => ask(m, w, done));
+      if (!q || (q.frame && !st.prints[q.frame - 1])) { st.want = -1; return done(); } // (a print the roll does not have cannot be asked for)
+      const opts = q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: `<span class="pr">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>` })) : q.options.map((text, i) => ({ k: i, text })), right = q.frame || q.answer;
+      st.want = opts.findIndex(o => o.k === right); // (which answer is the right one: tools/story_play.js picks it)
+      ctx.ask(q.frame && !w.alive ? Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }) : w, [q.q], opts, c => { // (what an afterimage is told is yours to choose: the question is not in their mouth)
+        const ok = !!c && c.k === right, said = [].concat((ok ? q.right : q.wrong) || (ok ? [] : ['No. Look at the prints again.']));
+        sfx(ok ? 'right' : 'wrong'); st.want = -1;
+        if (ok) st.asked++;
+        return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
       });
     }
+    // what is said, what is asked, and what is said once it is answered (`then`): of the living, or of an afterimage
+    const hear = (m, w, done) => ctx.say(w, m.lines || [], () => { st.asked = 0; ask(m, w, () => ((m.then || []).length ? ctx.say(w, m.then, done) : done())); });
     function stop() {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
       st.phase = 'stop'; st.t = 0; st.beat = 'still';
@@ -287,7 +294,7 @@ window.OEStory = (function () {
       ctx.hush(true); ctx.hold(true); sfx('stop'); if (ctx.held) ctx.held(true);
       if (fr.light && ctx.light) ctx.light(fr.light); // (a Stop that goes back to an hour: the last one, to the blue hour she waited at)
       pulse();
-      if (!first) say('Time has stopped');
+      // (no word over the moment itself: the street held, its sound braked, and for 2.5 s nothing written on it)
       // the view turns through the held street: once round the first time, a quarter turn every time after, so that
       // what hangs in the air is seen to hang (it is the camera moving that shows a moment is held)
       st.orbit = first ? 0.5 : 0.32; later(first ? 4200 : 1500, () => { st.orbit = 0; }); // (the first time, the view turns round you through the held street)
@@ -295,7 +302,7 @@ window.OEStory = (function () {
       if (fr.afterimage2 && !st.ghost2) { st.ghost2 = ctx.figure(fr.afterimage2, fr.afterimage2.at); st.ghost2.face(ctx.player.x, ctx.player.y); }
       // the world holds a breath (the first time, the title falls on it), and then the one thing to do
       if (first) later(900, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
-      later(first ? 4300 : 1300, () => {
+      later(first ? 4300 : 2500, () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
         show(); frames.classList.add('on');
         if (!a || !(a.lines || []).length) return task();
@@ -306,7 +313,7 @@ window.OEStory = (function () {
         const gd = st.ep.guide;
         if (gd && ctx.guide && !st.dog) {
           const d = ctx.guide(gd);
-          if (d) { const nearHome = gd.from && near(gd.from, 70), at = nearHome ? gd.from : [ctx.player.x + 3, ctx.player.y + 2.5]; d.place(at[0], at[1], Math.atan2(ctx.player.y - at[1], ctx.player.x - at[0])); st.dog = d; if (st.fi === 0 && gd.line) later(600, () => ctx.toast(esc(gd.line))); }
+          if (d) { const nearHome = gd.from && near(gd.from, 70), at = nearHome ? gd.from : [ctx.player.x + 3, ctx.player.y + 2.5]; d.place(at[0], at[1], Math.atan2(ctx.player.y - at[1], ctx.player.x - at[0])); st.dog = d; if (st.fi === 0 && gd.line) later(3200, () => ctx.toast(esc(gd.line))); } // (after the goal has been read, not over it)
         }
         if (st.dog && st.ghost) st.dog.lead([st.ghost.x, st.ghost.y], a.reach_m || 3.2);
         goal(a.seek || 'Someone is still moving. Go to them.');
@@ -349,7 +356,7 @@ window.OEStory = (function () {
       ctx.beacon(null);
       let print = null;
       try { print = ctx.snap(); } catch (e) { print = null; }
-      st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '' });
+      st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '', note: fr.note || '' }); // (note: what the frame settled, written under it in the roll)
 showPrint(st.prints[st.prints.length - 1], st.prints.length);
       frames.classList.remove('kept'); void frames.offsetWidth; frames.classList.add('kept'); // (the strip says the print is kept, and where the roll is)
       pulse(); sfx('shutter'); sfx('wind');
@@ -382,6 +389,15 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       st.wait = late ? 7 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
     }
+    // what was in the camera all along (the last card's `found`): a card ticket of that year, its face and its back, as
+    // things in the hand. {lines: [from, to], small, date, issuer, back: what is pencilled on the back}
+    const ticket = t => { const face = (inner, r) => `<svg viewBox="0 0 230 122" style="--r:${r}deg" aria-hidden="true"><defs><pattern id="tk-w" width="14" height="8" patternUnits="userSpaceOnUse"><path d="M0 4 q3.5 -4 7 0 t7 0" fill="none" stroke="#b9a37c" stroke-width="0.7" opacity="0.5"/></pattern></defs>
+<rect x="1" y="1" width="228" height="120" rx="2" fill="#e6d7b6"/><rect x="1" y="1" width="228" height="120" rx="2" fill="url(#tk-w)"/>${inner}</svg>`;
+      return `<div class="ticket" role="img" aria-label="${esc(t.alt || '')}">${face(`<g fill="#2a2620" font-family="'Shippori Mincho','Hiragino Mincho ProN','Yu Mincho',serif" text-anchor="middle">
+<text x="126" y="44" font-size="21" letter-spacing="2">${esc((t.lines || [])[0] || '')}</text><text x="126" y="76" font-size="21" letter-spacing="2">${esc((t.lines || [])[1] || '')}</text>
+<text x="126" y="101" font-size="10.5" letter-spacing="3">${esc(t.small || '')}</text><text x="126" y="114" font-size="7.5" letter-spacing="2" opacity="0.75">${esc(t.issuer || '')}</text></g>
+<text x="20" y="61" transform="rotate(-90 20 61)" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" letter-spacing="1.5" fill="#5a2a2a" opacity="0.8">${esc(t.date || '')}</text>`, -4)}
+${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" font-family="'Klee One','YuKyokasho','Hiragino Maru Gothic ProN','Shippori Mincho',serif" font-size="44" fill="#4a4a4e" opacity="0.72">${esc(t.back || '')}</text>`, 3)}</div>`; };
     // the last card: the whole roll, what it was, and two ways on
     function end() {
       const ep = st.ep, E = typeof ep.end === 'string' ? { title: ep.end } : ep.end || {};
@@ -393,6 +409,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       endEl.innerHTML = `<div class="card">${last && last.src ? `<figure><img alt="The last photograph you took" src="${last.src}"><figcaption><span>Frame ${st.prints.length} of ${N}</span><span>${esc(last.stamp)}</span></figcaption></figure>` : ''}
 ${st.prints.length > 1 ? `<ol class="sheet">${st.prints.slice(0, -1).map((p, i) => `<li>${p.src ? `<img alt="Frame ${i + 1}" src="${p.src}">` : ''}<span>${i + 1} · ${esc(p.stamp)}</span></li>`).join('')}</ol>` : ''}
 <small>${esc(S.title || '')}${ep.no ? ` · Episode ${ep.no}` : ''}</small><h2>${esc(E.title || 'To be continued')}</h2>
+${E.found ? `<div class="found">${ticket(E.found.ticket || {})}<p>${esc(E.found.line || '')}</p></div>` : ''}
 ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}
 <div class="row">${st.prints.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="free">${esc(E.free || 'Walk the city')}</button><button type="button" data-do="again">Play it again</button></div></div>`;
       endEl.classList.add('on');
@@ -416,8 +433,8 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
-        const K = ctx.touch ? 'Left thumb walks, drag to look.' : 'W A S D walk · mouse looks · Shift runs.', f = st.beat === 'shoot' && fr.task ? framed() : null;
-        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : `Follow the ring. ${st.fi === 0 ? K : ''}`) : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'} ${st.fi === 0 ? K : ''}`
+        const f = st.beat === 'shoot' && fr.task ? framed() : null;
+        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
           : st.beat === 'ride' ? 'Walk to the car and press E to get in. Or walk the whole way.' : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. Walk closer if it is small.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
@@ -431,6 +448,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       // time is not cut, it is braked: the world slows to nothing over most of a second, and runs up again faster
       st.k = st.phase === 'stop' ? Math.max(0, st.k - dt / 0.95) : Math.min(1, st.k + dt / 0.6);
       for (const id in st.cast) st.cast[id].animate(dt * st.k * st.k); // (the living slow and hold with the world)
+      st.soft = (st.soft || 0) + ((st.phase === 'stop' && st.beat === 'still' ? 1 : 0) - (st.soft || 0)) * Math.min(1, dt * (st.beat === 'still' ? 2.2 : 1.1));
       if (st.phase === 'go') {
         goalEl.querySelector('small').textContent = `${S.title || ''} · Frame ${st.fi + 1} of ${N}`;
         if (st.beat === 'meet') {
@@ -440,7 +458,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
             st.beat = 'talk'; aimAt(null); goal('');
             if (m.face) m.face(ctx.player.x, ctx.player.y);
             const w = { name: m.name || '', role: [m.age ? `${m.age}` : '', m.role || ''].filter(Boolean).join(' · '), alive: true, voice: voiceOf(Object.assign({}, m, { voice: m.voice || fr.meet.voice })) }; // (the living: their age tonight)
-            ctx.say(w, fr.meet.lines || [], () => ask(fr.meet, w, () => approach()));
+            hear(fr.meet, w, () => approach());
           }
         } else if (st.beat === 'approach') {
           const a = fr.afterimage, at = fr.stop_at || (a && a.at);
@@ -456,7 +474,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
           if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; hint(false); }
           if (g && near([g.x, g.y, g.z], a.reach_m || 3.2)) {
             st.beat = 'talk'; hint(false); aimAt(null); goal('');
-            sfx('ghost'); ctx.say(who(a), a.lines || [], () => task());
+            sfx('ghost'); hear(a, who(a), () => task());
           }
         }
         if (ctx.finder) ctx.finder(st.beat === 'shoot' && st.cam ? finderRect() : null);
@@ -490,6 +508,10 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       get stopped() { return st.phase === 'stop'; },
       get scale() { return st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done' ? 1 : st.k * st.k; }, // how much time the world is given: 1 running, 0 held
       get orbit() { return st.orbit; },
+      // the lens at the Stop: it pushes in as time brakes and lets go as it runs (degrees off the field of view), and
+      // for the wordless first moments the street behind goes soft round you (0..1, the depth of field's weight)
+      get push() { return st.phase === 'stop' || st.phase === 'after' ? -6 * (1 - st.k) : 0; },
+      get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || st.beat === 'meeting' || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view

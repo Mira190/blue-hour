@@ -5281,6 +5281,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // stepping out round you, as control comes to you.
   const OPENING = G.start.shot ? (sh => ({ look: sh.look, dur: sh.dur || 4.2, walkIn: sh.walk_in ?? 2.2, sway: (sh.sway_deg ?? 8) * Math.PI / 180,
     face: Math.atan2((G.start.facing || [0, 1])[0] - G.start.at[0], (G.start.facing || [0, 1])[1] - G.start.at[1]), yaw: null, r: 470, h: 150 }))(G.start.shot) : null;
+  // the story's title is a shot from the street, not from the air: low behind the start's kerb, looking up past the
+  // screens into the blue hour, the sky the top of the frame and the crossing under it, pushing in slowly (the air is
+  // the map's least finished view, and the story is one kerb's). TITLE_LOW: metres behind the start, the eye's height,
+  // and how far the push goes
+  const TITLE_LOW = { back: 9, eye: 1.25, push: 7 };
+  if (OPENING && G.story) {
+    const [lx, ly, lz] = OPENING.look, [sx, sy] = G.start.at, d = Math.hypot(lx - sx, ly - sy);
+    OPENING.yaw = Math.atan2(lx - sx, ly - sy); OPENING.r = d + TITLE_LOW.back; OPENING.h = Math.max(0, nav.terrain(sx, sy)) + TITLE_LOW.eye - lz; OPENING.push = TITLE_LOW.push;
+  }
   // the title's view for the opening shot: from behind the start's view, turned by up to 30 degrees and raised
   // as far as it takes to see the screens clear of the towers in front of them (Shibuya's station towers)
   function openingView() {
@@ -5766,7 +5775,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.rig.hideHead) player.rig.hideHead(player.mode === 'heli' && cam.mode === 'cockpit' && !photo.on && !(cine.active && cine.label !== 'crane'));
     // depth of field in photo mode, and with the camera's motion blur in the opening shot; never in play
     if (atmos && atmos.camFx) atmos.camFx(overture && overture.active ? overture.fx : photo.on ? { focus: camera.position.distanceTo(photo.focus), aperture: lensBlur(camera.fov, camera.position.distanceTo(photo.focus), photo.fstop || 2.8) }
-      : arriving && cine.active ? { focus: camera.position.distanceTo(live.look), aperture: lensBlur(camera.fov, camera.position.distanceTo(live.look), 4), blur: 0.5 } : null);
+      : arriving && cine.active ? { focus: camera.position.distanceTo(live.look), aperture: lensBlur(camera.fov, camera.position.distanceTo(live.look), 4), blur: 0.5 }
+      : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
     mirrorTick();
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
     if (window.OEVis) OEVis.at(camera); // what cannot be seen from here is left out (visibility.js)
@@ -5810,6 +5820,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     weather.update(dt, clockT, W(fx, fy, fz));
     if (weather.tread && OEWeather.S.snowDepth > 0.02) weather.tread(treaders(fx, fy), dt); // tracks in the snow (weather.js)
     const wS = OEWeather.S, inside = player.mode === 'car' || player.mode === 'ride' || player.mode === 'heli';
+    // the room the street's sound rings in (audio.js place): a lift or a room, high in the open air (a deck, the
+    // helicopter), under a roof outside (the viaduct, an arcade), or the open crossing
+    if (A.place) A.place(player.mode === 'lift' || room ? 'inside' : fz - Math.max(0, nav.terrain(fx, fy) || 0) > 40 ? 'roof' : weather.covered() && player.mode === 'foot' ? 'viaduct' : 'open');
     if (crowdDraw && crowdDraw.setRain) { const wet = Math.max(wS.rain, wS.snow * 0.7); crowdDraw.setRain(wet < 0.4 ? 0 : wet); } // (nobody puts an umbrella up before the rain can be seen) // (umbrellas go up in the snow too)
     if (A.rain) A.rain(titleOn ? 0 : wS.rain, weather.covered() && player.mode === 'foot', inside);
     // the cicadas of a hot day: from 25 degrees up, by daylight, silent in the rain
@@ -6160,6 +6173,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return best;
   }
+  let titleMustered = false;
   function updateCamera(dt, titleOn) {
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
@@ -6177,8 +6191,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       titleR += (O.r - titleR) * k; titleH += (O.h - titleH) * k;
       titleLook.copy(W(c[0], c[1], c[2]));
       camera.up.set(0, 1, 0);
-      camera.position.copy(titleLook).add(new THREE.Vector3(Math.sin(titleYaw) * -titleR, titleH, Math.cos(titleYaw) * titleR));
+      const tr = titleR - (O.push || 0) * (1 - Math.exp(-titleT / 30)); // (the slow push in)
+      camera.position.copy(titleLook).add(new THREE.Vector3(Math.sin(titleYaw) * -tr, titleH, Math.cos(titleYaw) * tr));
       camera.lookAt(titleLook);
+      // (the title is paused, so nothing is simulated under it; the crowd is stepped here, gathered once at the scramble's
+      // kerbs, and waits there under the screens, not an empty crossing)
+      if (O.push && crowd) {
+        crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
+        // (nobody in the lens: at eye height in the crowd a passer-by a pace off filled half the poster)
+        if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
+      }
       live.pos.copy(camera.position);
       Wd.fitShadow(titleLook, 600);
       return;
@@ -6194,7 +6216,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const shot = cine.step(clockT), cockpit = !shot && player.mode === 'heli' && cam.mode === 'cockpit';
     // (and in the helicopter's chase view with its speed, up to 6 degrees at top speed: the sense of speed in the air)
     heliFov += ((player.mode === 'heli' && cam.mode === 'chase' ? Math.min(6, heli.st.speed * 0.12) : 0) - heliFov) * Math.min(1, dt * 1.5);
-    const fov = shot && cine.label === 'overture' ? overture.fov : shot && cine.label === 'survey' ? surveyFov : cockpit ? COCKPIT.fov : BASE_FOV + (shot ? 0 : Math.round((carFov + heliFov) * 4) / 4) + (seated && !shot ? 6 : 0), near = cockpit || seated ? 0.12 : 0.3;
+    const fov = shot && cine.label === 'overture' ? overture.fov : shot && cine.label === 'survey' ? surveyFov : cockpit ? COCKPIT.fov : BASE_FOV + (shot ? 0 : Math.round((carFov + heliFov) * 4) / 4) + (seated && !shot ? 6 : 0) + (story && !shot ? story.push : 0), near = cockpit || seated ? 0.12 : 0.3;
     if (camera.fov !== fov || camera.near !== near) { camera.fov = fov; camera.near = near; camera.updateProjectionMatrix(); }
     if (shot) {
       camera.up.set(0, 1, 0);
@@ -6238,7 +6260,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         camera.position.copy(eye).addScaledVector(h, 0.12);
         camera.up.set(0, 1, 0);
         camera.lookAt(eye.addScaledVector(h, 50 * Math.cos(pt)).add(fpUp.set(0, 50 * Math.sin(pt), 0)));
-        const f = Math.max(22, Math.min(60, 22 + (cam.dist - 2.5) * 5.5));
+        // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
+        // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it)
+        const f0 = Math.max(22, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * 1.5 / camera.aspect) * 180 / Math.PI);
         if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); }
         player.rig.root.visible = false; fpOn = true;
       }

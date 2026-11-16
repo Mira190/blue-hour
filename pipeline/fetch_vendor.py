@@ -40,18 +40,25 @@ FONTS = [
     "family=JetBrains+Mono:wght@400;500",
     "family=Zalando+Sans+Expanded:wght@200..500",
     "family=Inter+Tight:wght@400;500;600",
+    "family=Newsreader:opsz,wght@6..72,400",  # the story's serif: what someone of another year says, and what was found
 ]
 def cjk_text():
-    """the cities' names on the title, and the title drop of each map's overture (game.overture.title)"""
+    """the cities' names on the title, the title drop of each map's overture (game.overture.title), and what is
+    printed on the thing a story's last card shows (game.story episodes' end.found.ticket)"""
     chars = set("大阪京都東香港")
     for f in glob.glob(os.path.join(os.path.dirname(WEB), "cities", "*", "city.json")):
-        ov = (json.load(open(f, encoding="utf8")).get("game") or {}).get("overture", {})
+        g = json.load(open(f, encoding="utf8")).get("game") or {}
+        ov = g.get("overture", {})
+        for ep in (g.get("story") or {}).get("episodes", []):
+            for v in ((ep.get("end") or {}).get("found") or {}).get("ticket", {}).values():
+                chars |= {c for c in "".join(v) if ord(c) > 0x2e7f}
         for t in (ov.get("title", {}), ov.get("night", {}).get("title", {})):  # (the day's and the night's)
             chars |= {c for c in t.get("name", "") + t.get("line", "") if ord(c) > 0x2e7f}
     return "".join(sorted(chars))
 
 
 CJK = "family=Shippori+Mincho:wght@500&family=Noto+Serif+TC:wght@500&text=" + urllib.request.quote(cjk_text())
+HAND = "family=Klee+One:wght@400&text=" + urllib.request.quote("待つ")  # the one word in pencil (the story's last card)
 SUBSETS = {"latin", "latin-ext"}
 
 
@@ -91,7 +98,7 @@ def three():
 
 def fonts():
     css_out, files = ["/* Vendored by pipeline/fetch_vendor.py from Google Fonts (SIL Open Font Licence). */"], {}
-    for q, all_subsets in [(f, False) for f in FONTS] + [(CJK, True)]:
+    for q, all_subsets in [(f, False) for f in FONTS] + [(CJK, True), (HAND, True)]:
         css = get(f"https://fonts.googleapis.com/css2?{q}&display=swap", binary=False)
         for subset, block in re.findall(r"/\*\s*([\w-]+)\s*\*/\s*(@font-face\s*{[^}]*})", css) or [("all", b) for b in re.findall(r"@font-face\s*{[^}]*}", css)]:
             if not all_subsets and subset not in SUBSETS:
