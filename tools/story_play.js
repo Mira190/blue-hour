@@ -4,7 +4,7 @@
 // takes a still at each beat, prints the state at each, and exits 1 if the last card is not reached or the page throws.
 //   python3 -m http.server 8800 --directory web &
 //   node tools/story_play.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
-// FROM=6: from the last frame only. LIMIT=seconds: how long the whole play may take.
+// FROM=6: from the last frame only (FROM=5 UPTO=5: the fifth frame only). LIMIT=seconds: how long the whole play may take.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
@@ -60,6 +60,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.waitForTimeout(1500); await mark(s, 'aimed');
       await p.evaluate(() => window.__game.story.shoot());
       await p.waitForTimeout(1500); await snap(`${s.fi + 1}-print`); // (the print in the hand, its postmark struck)
+      if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
     else if (s.phase === 'go' && s.beat === 'flight') await mark(s, 'flight'); // (a frame reached by air: its film plays itself out)

@@ -91,6 +91,7 @@ window.OEStory = (function () {
     function raise(on) {
       if (st.phase !== 'stop' || st.beat !== 'shoot' || st.cam === on) return;
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
+      if (st.fr.task.lens && ctx.lens) ctx.lens(on ? st.fr.task.lens : null); // (a frame taken through a long lens: task.lens, degrees)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
       say(on ? `Camera up${finder.dataset.year ? ` · it sees ${finder.dataset.year}` : ''}` : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
@@ -317,7 +318,7 @@ window.OEStory = (function () {
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(st.fr.task.relic); // (what the camera sees here that tonight does not have)
+      if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       finder.dataset.year = (st.fr.afterimage && st.fr.afterimage.year) || ''; // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)

@@ -3088,7 +3088,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
-  let storyBeacon = null;
+  let storyBeacon = null, lensWas = null;
+  // the way from where a frame is taken to what it is of, kept clear: of the crowd who stand in it, a walker is sent on
+  // elsewhere (out of sight, as anyone the crowd is done with) and someone crossing a square or the Scramble steps to
+  // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
+  // person waiting at the kerb's edge filled the finder from where the last frame is taken)
+  const clearSight = (a, b) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    for (const p of crowd.P.slice(0, crowd.active)) {
+      if (p.line < 0 && !p.pz) continue;
+      const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = 1.4 + 0.5 * t / L;
+      if (t < -2.5 || t > L - 0.6 || Math.abs(side) > (t < 3.5 ? 3.5 : w)) continue;
+      if (!p.pz) { p.line = -1; continue; }
+      const to = (Math.sign(side) || 1) * ((t < 3.5 ? 3.5 : w) + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
+      p.x += -uy * to; p.y += ux * to;
+    }
+  };
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
@@ -3176,8 +3191,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
-    relic: r => { if (!past) return null; const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
+    relic: r => { if (!past) return null; if (r.from) clearSight(r.from, r.at); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
     finder: q => { if (past) past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); },
+    lens: fov => { cam.distTo = 0; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(22, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below)
     // where to make for on the way to a place that is up a tower (or down from one): the nearer stop of the lift that
     // goes there, so that the mark is on a door that can be walked to and not on a roof 230 m overhead
     via: at => {
