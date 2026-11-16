@@ -5750,7 +5750,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.rig.hideHead) player.rig.hideHead(player.mode === 'heli' && cam.mode === 'cockpit' && !photo.on && !(cine.active && cine.label !== 'crane'));
     // depth of field in photo mode, and with the camera's motion blur in the opening shot; never in play
     if (atmos && atmos.camFx) atmos.camFx(overture && overture.active ? overture.fx : photo.on ? { focus: camera.position.distanceTo(photo.focus), aperture: lensBlur(camera.fov, camera.position.distanceTo(photo.focus), photo.fstop || 2.8) }
-      : arriving && cine.active ? { focus: camera.position.distanceTo(live.look), aperture: lensBlur(camera.fov, camera.position.distanceTo(live.look), 4), blur: 0.5 } : null);
+      : arriving && cine.active ? { focus: camera.position.distanceTo(live.look), aperture: lensBlur(camera.fov, camera.position.distanceTo(live.look), 4), blur: 0.5 }
+      : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
     mirrorTick();
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
     if (window.OEVis) OEVis.at(camera); // what cannot be seen from here is left out (visibility.js)
@@ -6178,7 +6179,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const shot = cine.step(clockT), cockpit = !shot && player.mode === 'heli' && cam.mode === 'cockpit';
     // (and in the helicopter's chase view with its speed, up to 6 degrees at top speed: the sense of speed in the air)
     heliFov += ((player.mode === 'heli' && cam.mode === 'chase' ? Math.min(6, heli.st.speed * 0.12) : 0) - heliFov) * Math.min(1, dt * 1.5);
-    const fov = shot && cine.label === 'overture' ? overture.fov : shot && cine.label === 'survey' ? surveyFov : cockpit ? COCKPIT.fov : BASE_FOV + (shot ? 0 : Math.round((carFov + heliFov) * 4) / 4) + (seated && !shot ? 6 : 0), near = cockpit || seated ? 0.12 : 0.3;
+    const fov = shot && cine.label === 'overture' ? overture.fov : shot && cine.label === 'survey' ? surveyFov : cockpit ? COCKPIT.fov : BASE_FOV + (shot ? 0 : Math.round((carFov + heliFov) * 4) / 4) + (seated && !shot ? 6 : 0) + (story && !shot ? story.push : 0), near = cockpit || seated ? 0.12 : 0.3;
     if (camera.fov !== fov || camera.near !== near) { camera.fov = fov; camera.near = near; camera.updateProjectionMatrix(); }
     if (shot) {
       camera.up.set(0, 1, 0);

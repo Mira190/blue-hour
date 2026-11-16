@@ -430,6 +430,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       // time is not cut, it is braked: the world slows to nothing over most of a second, and runs up again faster
       st.k = st.phase === 'stop' ? Math.max(0, st.k - dt / 0.95) : Math.min(1, st.k + dt / 0.6);
       for (const id in st.cast) st.cast[id].animate(dt * st.k * st.k); // (the living slow and hold with the world)
+      st.soft = (st.soft || 0) + ((st.phase === 'stop' && st.beat === 'still' ? 1 : 0) - (st.soft || 0)) * Math.min(1, dt * (st.beat === 'still' ? 2.2 : 1.1));
       if (st.phase === 'go') {
         goalEl.querySelector('small').textContent = `${S.title || ''} · Frame ${st.fi + 1} of ${N}`;
         if (st.beat === 'meet') {
@@ -489,6 +490,10 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       get stopped() { return st.phase === 'stop'; },
       get scale() { return st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done' ? 1 : st.k * st.k; }, // how much time the world is given: 1 running, 0 held
       get orbit() { return st.orbit; },
+      // the lens at the Stop: it pushes in as time brakes and lets go as it runs (degrees off the field of view), and
+      // for the wordless first moments the street behind goes soft round you (0..1, the depth of field's weight)
+      get push() { return st.phase === 'stop' || st.phase === 'after' ? -6 * (1 - st.k) : 0; },
+      get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || st.beat === 'meeting' || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
