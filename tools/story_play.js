@@ -38,7 +38,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
     if (s.phase === 'done') { done = true; break; }
-    const key = `${s.phase}/${s.beat}/${s.fi}/${s.dlg}`; same = key === last ? same + 1 : 0; last = key;
+    // (the opening shots, before the first card, are not stuck while their camera still moves: on a software renderer
+    // they take many minutes of frames, and were counted as a dead end)
+    const film = s.phase === 'dressed' ? await p.evaluate(() => { const c = window.__game.camera; return c ? `${Math.round(c.position.x * 4)},${Math.round(c.position.y * 4)},${Math.round(c.position.z * 4)}` : ''; }) : '';
+    const key = `${s.phase}/${s.beat}/${s.fi}/${s.dlg}/${film}`; same = key === last ? same + 1 : 0; last = key;
     if (same > 240) { console.log('FAIL stuck', JSON.stringify(s)); break; }
     if (s.dlg) {
       await mark(s, `said-${s.phase}-${s.beat}`);

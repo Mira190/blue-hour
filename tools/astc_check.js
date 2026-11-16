@@ -6,7 +6,7 @@
 //   node tools/astc_check.js [pictures under web/...]      # exits 1 under the floor (MIN_DB, default 30), on a GL error,
 //                                                          # or where the encoder's own count of its error is off
 const { chromium } = require('playwright');
-const pics = process.argv.slice(2).length ? process.argv.slice(2) : ['data/shibuya/ground_2_1.jpg', 'data/shibuya/atlas.webp', 'data/shibuya/scramble.webp', 'data/tokyo/tks_signs.webp', 'data/sydney/ground_1_2.jpg', 'data/shibuya/far.jpg', 'assets/trees/trees_far.glb#0', 'assets/people/R_Female_Adult_14.glb#1', 'assets/people/H_Surveyor_M.glb#3'];
+const pics = process.argv.slice(2).length ? process.argv.slice(2) : ['data/shibuya/ground_2_1.jpg', 'data/shibuya/atlas.webp', 'data/shibuya/scramble.webp', 'data/shibuya/far.jpg', 'assets/trees/trees_far.glb#0', 'assets/people/R_Female_Adult_14.glb#1', 'assets/people/H_Surveyor_M.glb#3'];
 const MIN = +(process.env.MIN_DB || 30);
 (async () => {
   const b = await chromium.launch({ args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });

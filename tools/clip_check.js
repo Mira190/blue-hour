@@ -14,7 +14,7 @@
 //            every car model: the top of the head under the roof
 // Prints one line per measure and exits 1 when any is over its tolerance.
 //   python3 -m http.server 8800 --directory web &
-//   xvfb-run -a node tools/clip_check.js sydney [seconds] [out.json]   # llvmpipe; without xvfb-run, SwiftShader
+//   xvfb-run -a node tools/clip_check.js shibuya [seconds] [out.json]  # llvmpipe; without xvfb-run, SwiftShader; GPU=metal on a Mac
 // GAME_TIME (HH:MM, or YYYY-MM-DDTHH:MM) pins the page's clock to that wall time in the city's own
 // time zone (tools/pin_clock.js), as tools/check.sh does; unset or "live", the real clock
 const { chromium } = require('playwright');
@@ -42,7 +42,7 @@ const TOL = {
 };
 
 (async () => {
-  const b = await chromium.launch(process.env.DISPLAY
+  const b = await chromium.launch(process.env.GPU === 'metal' ? { args: ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] } : process.env.DISPLAY
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: 800, height: 500 } });
