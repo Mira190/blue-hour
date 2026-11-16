@@ -90,3 +90,46 @@ audio.js) to sit over it:
 Peaks stay under −11 dBFS. The renders also hold `the-stop` (the street, braked, held five seconds, let
 go), `tape` (the brake with no cues over it), `tape-engine` (a steady note braked, to read its pitch
 curve) and `place-*` (footsteps and a call in each room, with its tail).
+
+## The score
+
+The story's score is the `bluehour` palette of `web/game/music.js` (`game.story.palette` in
+`cities/shibuya/city.json`; `story.js` drives it through `ctx.score` and `ctx.sting`).
+
+**What was wrong.** Until November 2026 the story played the map's `tokyo` palette: soft electric keys, a
+kalimba, a shaker and a heartbeat, a melody improvised from a seed. That is music to walk about to. It said
+"rest" under a story that says "seven frames, and they are running out"; it had no tune a player could know
+again; it played on unchanged through a Stop; and nothing in it knew when the case turned.
+
+**What the frontier does, and what was taken.**
+
+| Practice | Where it comes from | Taken here |
+|---|---|---|
+| A theme that is assembled by the player's progress | *Outer Wilds* (A. Prahlow): each traveller found adds an instrument to one tune | The theme is five notes. The score knows two of them before the first frame and one more for each frame taken; a print's sting (`note`) is the note just earned |
+| Leitmotif, and a second theme derived from the first | Film practice since Wagner; J. Williams; *The Last of Us* (G. Santaolalla): very few notes, one instrument | Hers: G♯ E D♯ C♯ E in C♯ minor (the overture's motif, and the five syllables of 遅かったね). His is hers upside down. Played together they move in contrary motion and end on one note: two people who mirrored each other for sixty years |
+| Spotting: silence and stillness are scored | W. Murch on film sound; *Return of the Obra Dinn* (L. Pope): music only at the memory, cut dead after | No percussion anywhere. In a Stop the beat and the bass go inside a third of a second and the harmony stops moving: pulse and chord change are time's. The pad and the theme, slower, are what is left |
+| Vertical layers switched by game state, changes on the bar line | iMUSE (LucasArts, 1991); Wwise and FMOD interactive music | Already how `music.js` works (a bus a layer, changes on the bar line); the Stop alone does not wait for the bar |
+| Stingers at story beats, in key and made of the theme | *Ace Attorney* (the turn of a cross-examination), *Disco Elysium* | `turn` (a print settles a question; the world runs on after a reversal), `doubt` (frame 3's false solution: her first three notes with two of them a semitone flat), `meet`, `found` |
+| One major chord, kept for the end | T. Newman, J. Hisaishi: a minor score that earns one resolution | `meet` ends on E major, the chord on the note the two lines meet on. Nothing else in the score is major |
+
+Nothing was copied from any of these: the notes, the voices and the code are ours.
+
+**By frame.**
+
+| When | What plays |
+|---|---|
+| Walking to a frame | Felt piano, rolled chords two bars each, a low pad, a long bass. Once in eight bars the theme on a soft bell, as far as the roll has got |
+| A Stop | Pad on one chord; the theme alone at the first bar and every eight, three beats a note |
+| A print taken | `note`, 1.5 s after the shutter, under the postmark |
+| A print that answers a question (frames 5, 6) | `turn` |
+| Time runs on after frames 2, 4, 5 | `turn`; after frame 3, `doubt` |
+| Frame 4, the roof | The helicopter's mix: pads only |
+| From frame 6 | His answer under hers on the piano, a bar behind |
+| Frame 7 | Rain (the felt piano and drops come in), the two themes together |
+| They meet | `meet`: both lines to one note, then the major chord; the Stop holds until it has sounded |
+| The last card | The existing `end` cue; `found` as the ticket comes up |
+
+**Checked.** `tools/music_check.js` renders `story-first-frame`, `story-last-frame`, `story-stop` and
+`story-stings` with the rest (peak under −8 dBFS, never silent for two seconds, dark above 4 kHz) and
+writes them as WAV files to listen to. Not checked by ear on a device's speaker; levels against the street
+are those of the map's score, which the story played before.
