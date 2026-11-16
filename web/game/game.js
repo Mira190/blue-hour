@@ -6177,7 +6177,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       camera.lookAt(titleLook);
       // (the title is paused, so nothing is simulated under it; the crowd is stepped here, gathered once at the scramble's
       // kerbs, and waits there under the screens, not an empty crossing)
-      if (O.push && crowd) { crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); } }
+      if (O.push && crowd) {
+        crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
+        // (nobody in the lens: at eye height in the crowd a passer-by a pace off filled half the poster)
+        if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
+      }
       live.pos.copy(camera.position);
       Wd.fitShadow(titleLook, 600);
       return;
