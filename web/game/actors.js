@@ -505,16 +505,20 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let i = 1; i < k; i++) if (wall(ex + dx * i / k, ey + dy * i / k, ez + dz * i / k)) return false;
       return true;
     }
-    // a footway that leads into a place that is shut (most of it there, or a short one that ends there)
+    // a footway that leads into a place that is shut (most of it there, or a short one that ends there), or that runs
+    // through a wall the model has where the map's line has a passage (a station's facade over a way into it): walked,
+    // it put walkers through the wall, where the player is stopped and the player's routes are cut (route.js)
     const shutLines = new Map();
     function shutLine(li) {
-      if (!shut) return false;
+      if (!shut && !wall) return false;
       let v = shutLines.get(li);
       if (v !== undefined) return v;
       const l = net.L[li], k = Math.max(2, Math.ceil(l.len)), q = {};
       let inside = 0, end = false;
-      for (let i = 0; i <= k; i++) { net.at(li, l.len * i / k, q); if (shut(q.x, q.y)) { inside++; if (i === 0 || i === k) end = true; } }
-      v = inside > (k + 1) / 2 || (end && l.len < 12);
+      if (shut) for (let i = 0; i <= k; i++) { net.at(li, l.len * i / k, q); if (shut(q.x, q.y)) { inside++; if (i === 0 || i === k) end = true; } }
+      let cut = false;
+      if (wall) for (let d = 0.5; d < l.len - 0.5 && !cut; d += 0.5) { net.at(li, d, q); cut = wall(q.x, q.y, q.z); }
+      v = cut || inside > (k + 1) / 2 || (end && l.len < 12);
       shutLines.set(li, v);
       return v;
     }
@@ -541,7 +545,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         lineAt(line, s, tmp);
         const x = tmp.x - tmp.hy * dir * p.side, y = tmp.y + tmp.hx * dir * p.side;
         if (hot && (Math.hypot(x - hot.x, y - hot.y) > hot.r || Math.hypot(x - cx, y - cy) < rMe)) continue;
-        if (shut && (shut(x, y) || shutLine(line))) continue; // (not in a subway entrance's stair well)
+        if ((shut && shut(x, y)) || shutLine(line)) continue; // (not in a subway entrance's stair well)
         // (with a margin: a little outside the view's edge, and hidden at the footway's line too, where its first steps
         // may take it; on an open square a walker put at the very edge of sight was in it a step later)
         if (unseen && (seen(x, y, tmp.z, 0.05) || seen(tmp.x, tmp.y, tmp.z, 0.05))) continue;
