@@ -184,7 +184,11 @@ window.OEStory = (function () {
     const spot = p => { const z = p[2] != null ? p[2] : ctx.floor(p[0], p[1]); return [p[0], p[1], z + 1.2, z]; };
     const near = (p, r) => Math.hypot(p[0] - ctx.player.x, p[1] - ctx.player.y) < r && (p[2] == null || Math.abs(p[2] - ctx.player.z) < 4);
     // where the goal is: the light in the world, and its mark in the frame (held at the edge on the side it lies)
-    function aimAt(at, turn) { st.target = at; ctx.beacon(at); if (!at) mark.classList.remove('on'); else if (turn && ctx.look) ctx.look(at); } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    function aimAt(at, turn) { st.target = at; ctx.beacon(at); if (!at) mark.classList.remove('on'); else if (turn && ctx.look) ctx.look(at); guideTo(at); } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    // the guide, once met (in the first Stop), stays the episode through: ahead of you to wherever the goal is while the
+    // world runs (someone to meet, where it will stop, the car), at your side when there is nowhere to go; in a Stop
+    // he is sent by seek and task instead (to the afterimage, to where the picture is taken from)
+    function guideTo(at) { if (!st.dog || st.phase === 'stop') return; if (at) st.dog.lead([at[0], at[1]], st.beat === 'meet' ? 2.2 : 3); else st.dog.heel(); }
     function markTick() {
       if (!st.target) return;
       const via = ctx.via ? ctx.via(st.target) : null, to = via || st.target; // (a place up a tower: the lift's door first)
@@ -365,11 +369,11 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       say('Time runs again'); sfx('run'); if (ctx.held) ctx.held(false);
       pulse();
       for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
-      if (st.dog) { const d = st.dog; st.dog = null; d.leave((st.ep.guide || {}).from || [d.x, d.y], () => d.remove()); st.gone = d; } // (the guide runs off as the world runs on, and is gone before he gets anywhere)
+      if (st.dog) st.dog.heel(); // (the guide stays with you as the world runs on, to lead you to the next frame)
       if (ctx.finder) ctx.finder(null);
       const said = late ? [fr.late || 'The lights changed. Come back to where it stopped, and it will stop again.'] : fr.after || [];
       said.forEach((line, i) => later(1400 + i * 4200, () => ctx.toast(esc(line))));
-      st.wait = late ? 7 : 2.5 + said.length * 4.2;
+      st.wait = late ? 7 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
     }
     // the last card: the whole roll, what it was, and two ways on
@@ -377,6 +381,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       const ep = st.ep, E = typeof ep.end === 'string' ? { title: ep.end } : ep.end || {};
       st.phase = 'done';
       forget(); sfx('end'); if (ctx.held) ctx.held(false);
+      if (st.dog) { const d = st.dog; st.dog = null; d.leave((st.ep.guide || {}).from || [d.x, d.y], () => d.remove()); st.gone = d; } // (the case closed: he goes home)
       frames.classList.remove('on'); goal('');
       const last = st.prints[st.prints.length - 1];
       endEl.innerHTML = `<div class="card">${last && last.src ? `<figure><img alt="The last photograph you took" src="${last.src}"><figcaption><span>Frame ${st.prints.length} of ${N}</span><span>${esc(last.stamp)}</span></figcaption></figure>` : ''}
@@ -402,10 +407,11 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
     function tick(dt) {
       const ep = st.ep, fr = st.fr;
       if (st.gone) { st.gone.tick(dt); if (st.gone.state === 'away') st.gone = null; } // (a guide on his way off)
+      if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const K = ctx.touch ? 'Left thumb walks, drag to look.' : 'W A S D walk · mouse looks · Shift runs.', f = st.beat === 'shoot' && fr.task ? framed() : null;
-        const how = !goalText ? '' : st.beat === 'meet' ? 'Walk up to them: they speak when you are close.' : st.beat === 'approach' ? `Follow the ring. ${st.fi === 0 ? K : ''}` : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'} ${st.fi === 0 ? K : ''}`
+        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : `Follow the ring. ${st.fi === 0 ? K : ''}`) : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'} ${st.fi === 0 ? K : ''}`
           : st.beat === 'ride' ? 'Walk to the car and press E to get in. Or walk the whole way.' : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. Walk closer if it is small.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
@@ -439,7 +445,6 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
         const g = st.ghost, a = fr.afterimage, leftS = Math.max(0, (fr.stop_s || 420) - st.t);
         goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)}`;
         for (const q of [g, st.ghost2]) if (q) { q.animate(dt); if (!q.to) q.face(ctx.player.x, ctx.player.y); }
-        if (st.dog) st.dog.tick(dt);
         if (st.beat === 'seek') {
           // the keys are put away once they have been used
           if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; hint(false); }
