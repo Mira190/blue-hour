@@ -253,8 +253,12 @@ adds only the ring, the tone and, in rain, the rain. Nothing appears at the mome
 
 **The camera sees 1964.** With the camera raised, inside the finder's bright lines a thing of that year stands where
 it stood, drawn over tonight like a second exposure on the frame (`web/game/past.js`; models by
-`blender/build_past.py`); outside the lines there is only tonight. The photograph is of that thing: the goal is to
-find it in the finder, and it is what the frame's lines turn on.
+`blender/build_past.py`; what each is drawn from, and the look: docs/PAST.md); outside the lines there is only tonight. The photograph is of that thing: the goal is to
+find it in the finder, and it is what the frame's lines turn on. Each frame has a stand point (`task.stand`, a light on
+the ground) from which its thing fills about a third of the finder with nothing of tonight's crowd or the afterimage in
+the way (the crowd standing in that sightline is sent on when the frame begins: `clearSight` in `game.js`); the last
+of them is taken from his kerb through a long lens (`task.lens`, degrees). A thing forms in the finder the first time
+it is inside the lines.
 
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
@@ -262,7 +266,7 @@ find it in the finder, and it is what the frame's lines turn on.
 | 2 | the station kerb, from the arch | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
 | 3 | Hachiko | the red lamp of the police box | where the man gave himself up |
 | 4 | east, from the roof | the planetarium's dome, inside Hikarie | where he lectured; the tickets were for its last show |
-| 5 | the tower's foot | the river open between its walls, and its bridge | Kanbara's works put it under the street |
+| 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
 | 6 | her corner, from his kerb | the pillar box, her umbrella against it, the board | the same corner as frame 1, as he saw it |
 | 7 | the crossing | the two of them | nothing else is needed |
 
