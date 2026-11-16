@@ -22,15 +22,18 @@
 .game-stage.story .gt-go .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
 
 /* ---- the goal: the one thing to do now, under the Stop's minutes */
-#g-story-goal { position: absolute; left: 50%; top: 0; transform: translateX(-50%); z-index: 6; width: min(100%, 760px); padding: max(26px, env(safe-area-inset-top)) 24px 46px; text-align: center; pointer-events: none;
-  opacity: 0; transition: opacity 0.7s ease; color: var(--paper); background: radial-gradient(ellipse 60% 100% at 50% 0, var(--night), transparent 100%); }
+/* (top left, as a game's objective sits: the middle of the frame is the picture's, never the text's) */
+#g-story-goal { position: absolute; left: 0; top: 0; z-index: 6; width: min(100%, 440px); box-sizing: border-box; padding: max(24px, env(safe-area-inset-top)) 24px 40px max(28px, env(safe-area-inset-left)); text-align: left; pointer-events: none;
+  opacity: 0; transition: opacity 0.7s ease; color: var(--paper); background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.55), transparent 75%); }
 #g-story-goal.on { opacity: 1; }
-/* a new goal is announced: large, in the middle of the frame, long enough to be read, and then up to its line */
-#g-story-goal.new { animation: g-story-goal-in 5.6s cubic-bezier(0.6, 0, 0.2, 1) both; }
-@keyframes g-story-goal-in { 0% { opacity: 0; transform: translateX(-50%) translateY(34vh) scale(1.7); } 8%, 76% { opacity: 1; transform: translateX(-50%) translateY(34vh) scale(1.7); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
+/* a new goal comes in from the left on its hairline: read where it will stay */
+#g-story-goal.new { animation: g-story-goal-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+#g-story-goal.new small::after { animation: g-story-rule 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes g-story-goal-in { 0% { opacity: 0; transform: translateX(-14px); } 100% { opacity: 1; transform: none; } }
+@keyframes g-story-rule { 0% { width: 0; } 100% { width: 28px; } }
 #g-story-goal small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); font-variant-numeric: tabular-nums; }
-#g-story-goal small::after { content: ""; display: block; width: 28px; height: 1px; margin: 12px auto 13px; background: rgba(255, 207, 138, 0.6); }
-#g-story-goal span { font: 300 clamp(17px, 2.2vw, 22px)/1.3 var(--f-body); letter-spacing: 0.01em; text-shadow: 0 1px 18px rgba(0, 0, 0, 0.9); }
+#g-story-goal small::after { content: ""; display: block; width: 28px; height: 1px; margin: 11px 0 12px; background: rgba(255, 207, 138, 0.7); }
+#g-story-goal span { display: block; max-width: 34ch; font: 400 clamp(16px, 1.6vw, 19px)/1.4 var(--f-body); letter-spacing: 0.005em; text-wrap: balance; text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9); }
 
 /* ---- where it is: a bright-line mark on the place, held at the frame's edge on the side it lies */
 #g-story-mark { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; will-change: transform; }
@@ -114,8 +117,9 @@
 .game-stage.story .gd-hint { text-align: center; font-size: 9px; letter-spacing: 0.3em; color: rgba(244, 239, 230, 0.5); }
 
 /* ---- a line as the world runs on again: type on the picture */
-.game-stage.story .g-toasts { top: max(30px, env(safe-area-inset-top)); width: min(640px, calc(100% - 48px)); }
-.game-stage.story .g-toast { border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; padding: 4px 0; text-align: center; font: 300 clamp(16px, 2vw, 20px)/1.4 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px #000, 0 0 3px rgba(0, 0, 0, 0.8); }
+/* what is said (the guide's line, what comes after a picture) is a subtitle: low in the frame, clear of the goal at the top left */
+.game-stage.story .g-toasts { top: auto; bottom: max(178px, calc(env(safe-area-inset-bottom) + 178px)); width: min(640px, calc(100% - 48px)); }
+.game-stage.story .g-toast { border: 0; background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0) 100%); /* (a soft dark under the line: read over bright paving too) */ -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; padding: 10px 28px; text-align: center; font: 300 clamp(16px, 2vw, 20px)/1.4 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px #000, 0 0 3px rgba(0, 0, 0, 0.8); }
 
 /* ---- the last card: the print, what it was, what comes next */
 #g-story-end { position: absolute; inset: 0; z-index: 9; display: none; place-items: center; background: rgba(4, 8, 18, 0.8); -webkit-backdrop-filter: blur(8px) saturate(0.6); backdrop-filter: blur(8px) saturate(0.6); color: var(--paper); opacity: 0; transition: opacity 1.2s ease; overflow: auto; }
@@ -238,7 +242,7 @@
 #g-story-cam i { width: 15px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px; box-shadow: inset 0 0 0 2.5px rgba(4, 8, 18, 0.62), inset 0 0 0 5px currentColor; }
 #g-story-cam kbd { margin-left: 4px; padding: 3px 6px; border: 1px solid currentColor; border-radius: 2px; font: inherit; letter-spacing: 0.06em; }
 @keyframes g-story-cam { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 207, 138, 0.5); } 50% { box-shadow: 0 0 0 9px rgba(255, 207, 138, 0); } }
-#g-story-chip { position: absolute; left: 50%; top: 31%; transform: translateX(-50%); z-index: 8; pointer-events: none; opacity: 0; white-space: nowrap; padding: 10px 18px; border-top: 1px solid rgba(255, 207, 138, 0.6); border-bottom: 1px solid rgba(255, 207, 138, 0.6);
+#g-story-chip { position: absolute; left: 50%; top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); transform: translateX(-50%); z-index: 8; pointer-events: none; opacity: 0; white-space: nowrap; padding: 8px 16px; border-top: 1px solid rgba(255, 207, 138, 0.6); border-bottom: 1px solid rgba(255, 207, 138, 0.6);
   background: rgba(4, 8, 18, 0.55); color: var(--paper); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; }
 #g-story-chip.on { animation: g-story-chip 2.6s ease both; }
 @keyframes g-story-chip { 0% { opacity: 0; letter-spacing: 0.7em; } 14%, 72% { opacity: 1; letter-spacing: 0.4em; } 100% { opacity: 0; } }
@@ -249,3 +253,26 @@
 /* ---- a case left unfinished: the second button on the title */
 .game-stage.story #gt-anew { margin-left: 12px; padding: 15px 20px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; cursor: pointer; }
 .game-stage.story #gt-anew:is(:hover, :focus-visible) { border-color: var(--paper); }
+
+/* the street's own signs (the station's name card) are the free walk's: in the story only the story speaks */
+.game-stage.story .g-ekimei { display: none !important; }
+
+/* a meteor across the title's sky, now and then: right of the tower, where the sky is open and the title is not (he
+   counted stars for a living; the street's boards say COMET). Drawn over the picture, so no tower can hide it */
+.game-stage.story .g-title::after { content: ""; position: absolute; left: 64%; top: 7%; width: min(26vw, 340px); height: 2px; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgba(190, 215, 255, 0), rgba(200, 225, 255, 0.55) 70%, #fff); border-radius: 2px; filter: drop-shadow(0 0 4px rgba(190, 220, 255, 0.9)) drop-shadow(0 0 10px rgba(150, 190, 255, 0.6));
+  transform-origin: 100% 50%; animation: g-story-meteor 9s cubic-bezier(0.3, 0, 0.7, 1) 3s infinite; }
+@keyframes g-story-meteor { 0% { opacity: 0; transform: translate(0, 0) rotate(152deg) scaleX(0.1); } 2% { opacity: 1; } 8% { opacity: 1; transform: translate(-9vw, 7vw) rotate(152deg) scaleX(1); } 11%, 100% { opacity: 0; transform: translate(-12vw, 9.3vw) rotate(152deg) scaleX(0.6); } }
+@media (max-width: 640px) { .game-stage.story .g-title::after { left: 46%; top: 9%; width: 40vw; } }
+@media (prefers-reduced-motion: reduce) { .game-stage.story .g-title::after { animation: none; } }
+/* with the camera up the finder's own marks (the year, the button to lower it) take the top of the frame: the goal keeps
+   its line and drops its help, which the shutter's own label says */
+.game-stage.story:has(#g-story-finder.on) #g-story-goal em { display: none; }
+@media (pointer: coarse), (max-width: 640px) {
+  /* (on a phone the thumbs' controls fill the foot of the frame: what is said sits above them) */
+  .game-stage.story .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); width: calc(100% - 40px); }
+}
+@media (pointer: coarse), (max-width: 640px) {
+  /* (the camera's button, raised, under the goal's lines and not over them) */
+  #g-story-cam.up { top: max(196px, calc(env(safe-area-inset-top) + 196px)); }
+}
