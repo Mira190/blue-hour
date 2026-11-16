@@ -215,6 +215,10 @@ window.OEStory = (function () {
       if (!ep) return null;
       st.ep = ep; st.phase = 'dressed'; st.t = 0;
       ctx.dress(ep.date || null, ep.light || 'blue', ep.weather || null);
+      // the air (leaves coming down, pigeons going over) from the opening shot on, the first frame's own if it has one:
+      // made at frame(), it came half a second before the first Stop, after the walk in and the phone call, and to the
+      // player the leaves and the birds came with the Stop instead of being caught by it
+      { const f = ep.frames[0] || {}, a = JSON.stringify(f.air || (f.weather === 'rain' ? { leaves: 40, birds: 0 } : {})); if (ctx.air && a !== st.air) { st.air = a; ctx.air(JSON.parse(a)); } }
       return ep;
     }
     // as the player is given the street
