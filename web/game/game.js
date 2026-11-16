@@ -56,7 +56,7 @@ window.OpenEarthGame = async function game(cityId) {
     if (new URLSearchParams(location.search).get('settle') !== 'off' && OEWorld.deepenUnderWater) { const dr = OEWorld.deepenUnderWater([Tfine, D.T], D.LM); if (dr) { D.drawTfine = dr[0]; D.drawT = dr[1]; } }
   }
   const { scene, B, P, G, CITY } = D;
-  document.title = `${G.title} · Open Earth 3D`;
+  document.title = 'Blue Hour';
   // "Paris on Foot": the place set large, "on foot" under it
   const tm = /^(.+?)\s+(on foot)$/i.exec(G.title), gtTitle = $('#gt-title');
   gtTitle.textContent = tm ? tm[1] : G.title;
@@ -5344,7 +5344,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const series = G.title.replace(/\s+[\u3000-\u9fff].*$/, '').replace(/:.*$/, '');
     $('#gt-city').textContent = `${series} · ${DISTRICT.place || CITY.place || CITY.name}, ${CITY.country}`;
     if (DISTRICT.blurb) { $('#gt-blurb').textContent = DISTRICT.blurb; $('#g-title p').textContent = DISTRICT.blurb; }
-    document.title = `${nm[1]} · ${series} · Open Earth 3D`;
+    document.title = `${nm[1]} · Blue Hour`;
   }
   presetTime('live');
   if (story) story.dress(); // (the story's evening from the first frame drawn: the map is never seen at the hour on the player's wall)
