@@ -46,6 +46,7 @@ const TOL = {
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: 800, height: 500 } });
+  if (process.env.TIER) await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER); // (TIER=low: the tier a software renderer picks)
   const pinned = await pinClock(p, city); // (GAME_TIME)
   if (pinned) console.log(`clock pinned to ${pinned.spec} in ${pinned.tz} (${pinned.utc})`);
   const logs = [];
@@ -143,6 +144,7 @@ const TOL = {
     // inside a building's or a landmark's walls, at body height
     H.inWall = (x, y, z, r) => g.nav.col.overlap(x, y, r, z + 0.5, z + 1.6, (i, q) => q.tag === 1 && q.zhi <= z + 0.75);
     // keep the worst few of each kind, for looking at
+    H.wallBy = {}; // (walkers in a wall, by their line and where: the footway to look at)
     H.note = (kind, deep, at) => {
       const l = H.worst[kind] = H.worst[kind] || [];
       l.push(Object.assign({ deep: +deep.toFixed(2) }, at));
@@ -291,7 +293,7 @@ const TOL = {
           const d = H.boxCircle(H.benchBox(bn), q.x, q.y, 0.2);
           if (d > TOL.peoplePost.deep) { o.peoplePost++; H.note('walker in bench', d, { x: +q.x.toFixed(1), y: +q.y.toFixed(1) }); }
         }
-        if (q.state === 'walk' && g.nav.solid(q.x, q.y, q.z, 0.2 - TOL.peopleWall.deep)) { o.peopleWall++; H.note('walker in wall', 1, { x: +q.x.toFixed(1), y: +q.y.toFixed(1), z: +q.z.toFixed(1) }); }
+        if (q.state === 'walk' && g.nav.solid(q.x, q.y, q.z, 0.2 - TOL.peopleWall.deep)) { o.peopleWall++; H.note('walker in wall', 1, { x: +q.x.toFixed(1), y: +q.y.toFixed(1), z: +q.z.toFixed(1) }); const wk = `line ${q.line} ${q.mode}${q.pz ? ` kerb ${q.ph}` : ''}${q.lat != null && Math.abs(q.lat) > 1.2 ? ' wide' : ''}`; H.wallBy[wk] = (H.wallBy[wk] || 0) + 1; }
       }
       // NPCs in the traffic's way
       for (const n of g.npcs) for (const a of boxes) {
@@ -516,6 +518,8 @@ const TOL = {
   if (!drive.length) console.log('     no post or trunk near enough to drive at');
   if (seats.n) line(!seats.fails, `seated heads under the roof: ${seats.n - seats.fails} of ${seats.n} (every crowd character, driver and rear seats); lowest: ${seats.worst.slice(0, 3).map(q => `${q.who} ${q.scale} in a ${q.car} ${q.seat} ${q.cl} m`).join(', ')}`);
   for (const [k, l] of Object.entries(worst)) console.log(`     worst ${k}: ${l.map(q => JSON.stringify(q)).join(' ')}`);
+  const wallBy = await p.evaluate(() => Object.entries(window.__clip.wallBy).sort((a, b) => b[1] - a[1]).slice(0, 8));
+  if (wallBy.length) console.log(`     walkers in a wall by line: ${wallBy.map(([k, n]) => `${k} (${n})`).join('; ')}`);
   line(!logs.length, `no page errors${logs.length ? `: ${logs.slice(0, 3).join(' | ')}` : ''}`);
   if (outFile) fs.writeFileSync(outFile, JSON.stringify({ city, stat, run, drive, seats, worst, fails }, null, 1));
   await b.close();
