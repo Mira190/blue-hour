@@ -1,0 +1,40 @@
+{
+ "note": "Mean % of place area in direct sun over its protected window (or 10:00-14:00), 21st of each month.",
+ "year": 2026,
+ "rows": [
+  {
+   "place": "Yoyogi Park 代々木公園",
+   "prod": 97.5,
+   "finer_samples": 97.5,
+   "finer_dsm": 97.34,
+   "finer_time": 97.5,
+   "reference": 97.33,
+   "lit_rays_leaving_extent_low_pct": 0,
+   "prod_minus_reference": 0.17,
+   "seconds": 36.166
+  },
+  {
+   "place": "Miyashita Park 宮下公園",
+   "prod": 85.26,
+   "finer_samples": 85.44,
+   "finer_dsm": 84.3,
+   "finer_time": 85.29,
+   "reference": 84.84,
+   "lit_rays_leaving_extent_low_pct": 0,
+   "prod_minus_reference": 0.42,
+   "seconds": 2.206
+  },
+  {
+   "place": "Jingu-dori Park 神宮通公園",
+   "prod": 92.87,
+   "finer_samples": 92.95,
+   "finer_dsm": 92.99,
+   "finer_time": 92.8,
+   "reference": 93.06,
+   "lit_rays_leaving_extent_low_pct": 0,
+   "prod_minus_reference": -0.19,
+   "seconds": 0.379
+  }
+ ],
+ "max_abs_numerical_error_pp": 0.42
+}

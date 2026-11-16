@@ -1,0 +1,18 @@
+{
+  "note": "The map this project builds: Shibuya, where Blue Hour is set. status: live (built and in web/data/<id>). The cities built before the project became one story are kept at the tag archive/world-2026-11.",
+  "parked": [],
+  "cities": [
+    {
+      "id": "shibuya",
+      "name": "Shibuya",
+      "native": "渋谷",
+      "country": "Japan",
+      "lat": 35.6586,
+      "lon": 139.6913,
+      "status": "live",
+      "summary": "Sangenjaya to Shibuya, Harajuku and Yoyogi Park: 48,000 buildings at PLATEAU-surveyed heights, the scramble and Hachiko, SHIBUYA SKY's roof with its lift and escalator, Center Gai, Yoyogi's gymnasiums and the streets Persona 5 drew, from Sangenjaya's backstreets to the station.",
+      "district": "Shibuya",
+      "tagline": "The scramble, Hachiko, SHIBUYA SKY, Center Gai and Sangenjaya's lanes"
+    }
+  ]
+}

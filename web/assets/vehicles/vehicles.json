@@ -1,0 +1,1181 @@
+{
+ "note": "The vehicles every city's game shares, built by blender/build_vehicles.py. A city picks a livery (by name, or its own colours) and a registration in game.vehicles; 'paint' says which material takes which livery colour.",
+ "axes": "+z forward, +y up, +x left; helicopter origin under the mast at the bottom of the skids, ferry origin at the waterline amidships",
+ "helicopter": {
+  "file": "helicopter.glb",
+  "default_livery": "survey",
+  "liveries": {
+   "survey": {
+    "primary": "#f3f4f1",
+    "secondary": "#15253b",
+    "accent": "#ff6a14"
+   },
+   "rescue": {
+    "primary": "#f4f3ee",
+    "secondary": "#c8102e",
+    "accent": "#ffcc00"
+   },
+   "news": {
+    "primary": "#1d4e89",
+    "secondary": "#f4f4f2",
+    "accent": "#e63946"
+   },
+   "executive": {
+    "primary": "#17191c",
+    "secondary": "#3a3f45",
+    "accent": "#c9a227"
+   }
+  },
+  "paint": {
+   "Paint_Primary": "primary",
+   "Paint_Secondary": "secondary",
+   "Stripe_Accent": "accent"
+  },
+  "registrations": {
+   "Australia": "VH-OEH",
+   "Japan": "JA03DE",
+   "United States": "N3DOE",
+   "United Kingdom": "G-OEHX",
+   "France": "F-HOEX",
+   "Netherlands": "PH-OEH",
+   "China": "B-73DE",
+   "Hong Kong": "B-HOE",
+   "Singapore": "9V-OEH",
+   "Germany": "D-HOEX",
+   "New Zealand": "ZK-OEH",
+   "Canada": "C-GOEH",
+   "Italy": "I-OEHX",
+   "Spain": "EC-OEH",
+   "South Korea": "HL93DE"
+  },
+  "registration_default": "OEH-3D",
+  "logo": "OPEN EARTH 3D",
+  "rotor_rpm": 395,
+  "tail_rotor_rpm": 3580,
+  "length_m": 10.7,
+  "rotor_radius_m": 5.1,
+  "rotor_hub": [
+   0,
+   3.3,
+   0
+  ],
+  "tail_rotor": [
+   0.04,
+   2.12,
+   -5.78
+  ],
+  "duct_radius_m": 0.46,
+  "door": {
+   "node": "Door_Pilot",
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "open_deg": 70
+  },
+  "lod1_triangles": 12281,
+  "lod1_m": 90,
+  "triangles": 103904
+ },
+ "ferry": {
+  "file": "ferry.glb",
+  "default_livery": "bay",
+  "liveries": {
+   "harbour": {
+    "hull": "#1d5a3b",
+    "band": "#e2b02a",
+    "cabin": "#efe6cc",
+    "trim": "#f5f0e1",
+    "deck": "#6d7068",
+    "boot": "#7b2b23"
+   },
+   "bay": {
+    "hull": "#f2f2ee",
+    "band": "#123b6d",
+    "cabin": "#f7f7f4",
+    "trim": "#123b6d",
+    "deck": "#7d8183",
+    "boot": "#2d3640"
+   },
+   "river": {
+    "hull": "#2e3a46",
+    "band": "#3fb8c9",
+    "cabin": "#d9dee2",
+    "trim": "#eef1f3",
+    "deck": "#5d646a",
+    "boot": "#1d2329"
+   },
+   "commuter": {
+    "hull": "#f08c1e",
+    "band": "#1f2328",
+    "cabin": "#f4efe6",
+    "trim": "#f9f6f0",
+    "deck": "#6a6d6f",
+    "boot": "#3a2a24"
+   }
+  },
+  "paint": {
+   "Hull": "hull",
+   "Band": "band",
+   "Cabin": "cabin",
+   "Bulwark": "cabin",
+   "Trim": "trim",
+   "Deck": "deck",
+   "Boot": "boot"
+  },
+  "length_m": 34.0,
+  "beam_m": 9.6,
+  "deck_m": 1.55,
+  "upper_deck_m": 4.18,
+  "label_m": 12.2,
+  "waterline": [
+   [
+    17.0,
+    0.0
+   ],
+   [
+    16.89,
+    1.0
+   ],
+   [
+    16.55,
+    1.7
+   ],
+   [
+    16.0,
+    2.29
+   ],
+   [
+    15.22,
+    2.82
+   ],
+   [
+    14.23,
+    3.28
+   ],
+   [
+    13.02,
+    3.68
+   ],
+   [
+    11.6,
+    4.02
+   ],
+   [
+    9.97,
+    4.3
+   ],
+   [
+    8.12,
+    4.52
+   ],
+   [
+    6.01,
+    4.67
+   ],
+   [
+    3.55,
+    4.77
+   ],
+   [
+    0.0,
+    4.8
+   ],
+   [
+    -3.55,
+    4.77
+   ],
+   [
+    -6.01,
+    4.67
+   ],
+   [
+    -8.12,
+    4.52
+   ],
+   [
+    -9.97,
+    4.3
+   ],
+   [
+    -11.6,
+    4.02
+   ],
+   [
+    -13.02,
+    3.68
+   ],
+   [
+    -14.23,
+    3.28
+   ],
+   [
+    -15.22,
+    2.82
+   ],
+   [
+    -16.0,
+    2.29
+   ],
+   [
+    -16.55,
+    1.7
+   ],
+   [
+    -16.89,
+    1.0
+   ],
+   [
+    -17.0,
+    0.0
+   ],
+   [
+    -16.89,
+    -1.0
+   ],
+   [
+    -16.55,
+    -1.7
+   ],
+   [
+    -16.0,
+    -2.29
+   ],
+   [
+    -15.22,
+    -2.82
+   ],
+   [
+    -14.23,
+    -3.28
+   ],
+   [
+    -13.02,
+    -3.68
+   ],
+   [
+    -11.6,
+    -4.02
+   ],
+   [
+    -9.97,
+    -4.3
+   ],
+   [
+    -8.12,
+    -4.52
+   ],
+   [
+    -6.01,
+    -4.67
+   ],
+   [
+    -3.55,
+    -4.77
+   ],
+   [
+    -0.0,
+    -4.8
+   ],
+   [
+    3.55,
+    -4.77
+   ],
+   [
+    6.01,
+    -4.67
+   ],
+   [
+    8.12,
+    -4.52
+   ],
+   [
+    9.97,
+    -4.3
+   ],
+   [
+    11.6,
+    -4.02
+   ],
+   [
+    13.02,
+    -3.68
+   ],
+   [
+    14.23,
+    -3.28
+   ],
+   [
+    15.22,
+    -2.82
+   ],
+   [
+    16.0,
+    -2.29
+   ],
+   [
+    16.55,
+    -1.7
+   ],
+   [
+    16.89,
+    -1.0
+   ]
+  ],
+  "lod1_triangles": 5907,
+  "lod1_m": 260,
+  "triangles": 35436
+ },
+ "cars": {
+  "models": {
+   "Car_Sedan": {
+    "weight": 0.3,
+    "length_m": 4.8,
+    "width_m": 1.82,
+    "height_m": 1.45,
+    "axles_m": [
+     1.45,
+     -1.35
+    ],
+    "wheel_r_m": 0.33,
+    "track_m": 1.56,
+    "steering": [
+     -0.38,
+     0.9,
+     0.31
+    ],
+    "steering_tilt": 0.42,
+    "seats": {
+     "driver": [
+      -0.38,
+      0.5,
+      -0.22
+     ],
+     "passenger": [
+      0.38,
+      0.5,
+      -0.22
+     ],
+     "rear_left": [
+      0.36,
+      0.5,
+      -1.08
+     ],
+     "rear_right": [
+      -0.36,
+      0.5,
+      -1.08
+     ]
+    },
+    "cabin": "Car_Sedan_Cabin",
+    "triangles": 24654,
+    "lod1_triangles": 5396,
+    "lod2_triangles": 1052,
+    "cabin_triangles": 2312
+   },
+   "Car_Hatch": {
+    "weight": 0.25,
+    "length_m": 4.15,
+    "width_m": 1.76,
+    "height_m": 1.47,
+    "axles_m": [
+     1.27,
+     -1.27
+    ],
+    "wheel_r_m": 0.31,
+    "track_m": 1.52,
+    "steering": [
+     -0.38,
+     0.89,
+     0.21
+    ],
+    "steering_tilt": 0.42,
+    "seats": {
+     "driver": [
+      -0.38,
+      0.49,
+      -0.32
+     ],
+     "passenger": [
+      0.38,
+      0.49,
+      -0.32
+     ],
+     "rear_left": [
+      0.36,
+      0.49,
+      -1.18
+     ],
+     "rear_right": [
+      -0.36,
+      0.49,
+      -1.18
+     ]
+    },
+    "cabin": "Car_Hatch_Cabin",
+    "triangles": 22497,
+    "lod1_triangles": 4939,
+    "lod2_triangles": 948,
+    "cabin_triangles": 2312
+   },
+   "Car_SUV": {
+    "weight": 0.25,
+    "length_m": 4.7,
+    "width_m": 1.88,
+    "height_m": 1.76,
+    "axles_m": [
+     1.38,
+     -1.32
+    ],
+    "wheel_r_m": 0.38,
+    "track_m": 1.62,
+    "steering": [
+     -0.38,
+     0.97,
+     0.26
+    ],
+    "steering_tilt": 0.42,
+    "seats": {
+     "driver": [
+      -0.38,
+      0.57,
+      -0.27
+     ],
+     "passenger": [
+      0.38,
+      0.57,
+      -0.27
+     ],
+     "rear_left": [
+      0.36,
+      0.57,
+      -1.13
+     ],
+     "rear_right": [
+      -0.36,
+      0.57,
+      -1.13
+     ]
+    },
+    "cabin": "Car_SUV_Cabin",
+    "triangles": 24790,
+    "lod1_triangles": 5443,
+    "lod2_triangles": 1054,
+    "cabin_triangles": 2312
+   },
+   "Car_Van": {
+    "weight": 0.08,
+    "length_m": 5.1,
+    "width_m": 1.95,
+    "height_m": 2.08,
+    "axles_m": [
+     1.62,
+     -1.6
+    ],
+    "wheel_r_m": 0.36,
+    "track_m": 1.68,
+    "steering": [
+     -0.38,
+     0.95,
+     1.3
+    ],
+    "steering_tilt": 0.42,
+    "seats": {
+     "driver": [
+      -0.38,
+      0.55,
+      0.77
+     ],
+     "passenger": [
+      0.38,
+      0.55,
+      0.77
+     ]
+    },
+    "cabin": "Car_Van_Cabin",
+    "triangles": 25078,
+    "lod1_triangles": 5517,
+    "lod2_triangles": 1073,
+    "cabin_triangles": 1772
+   },
+   "Car_Taxi": {
+    "taxi": true,
+    "length_m": 4.8,
+    "width_m": 1.82,
+    "height_m": 1.62,
+    "axles_m": [
+     1.45,
+     -1.35
+    ],
+    "wheel_r_m": 0.33,
+    "track_m": 1.56,
+    "steering": [
+     -0.38,
+     0.9,
+     0.31
+    ],
+    "steering_tilt": 0.42,
+    "seats": {
+     "driver": [
+      -0.38,
+      0.5,
+      -0.22
+     ],
+     "passenger": [
+      0.38,
+      0.5,
+      -0.22
+     ],
+     "rear_left": [
+      0.36,
+      0.5,
+      -1.08
+     ],
+     "rear_right": [
+      -0.36,
+      0.5,
+      -1.08
+     ]
+    },
+    "cabin": "Car_Taxi_Cabin",
+    "triangles": 25018,
+    "lod1_triangles": 5476,
+    "lod2_triangles": 1063,
+    "cabin_triangles": 2312
+   },
+   "Bus": {
+    "bus": true,
+    "length_m": 12.0,
+    "width_m": 2.5,
+    "height_m": 3.05,
+    "axles_m": [
+     3.45,
+     -2.45
+    ],
+    "wheel_r_m": 0.5,
+    "track_m": 2.08,
+    "triangles": 20976,
+    "lod1_triangles": 4613,
+    "lod2_triangles": 918
+   },
+   "Car_Super": {
+    "player": true,
+    "name": "supercar",
+    "top_ms": 92,
+    "pull_ms2": 12.5,
+    "lamp_glow": 0.5,
+    "finish": {
+     "metalness": 0.0,
+     "roughness": 0.22,
+     "sky": 0.4,
+     "weave_mm": 5,
+     "rim": "#8a6a45"
+    },
+    "length_m": 4.7,
+    "width_m": 2.04,
+    "height_m": 1.16,
+    "axles_m": [
+     1.32,
+     -1.42
+    ],
+    "wheel_r_m": 0.355,
+    "track_m": 1.67,
+    "steering": [
+     -0.37,
+     0.7,
+     0.36
+    ],
+    "steering_tilt": 0.42,
+    "seats": {
+     "driver": [
+      -0.37,
+      0.34,
+      -0.14
+     ],
+     "passenger": [
+      0.37,
+      0.34,
+      -0.14
+     ]
+    },
+    "leg_rake": 2.6,
+    "cabin": "Car_Super_Cabin",
+    "triangles": 79855,
+    "cabin_triangles": 3768
+   }
+  },
+  "liveries": {
+   "taxi": {
+    "colours": [
+     "#f3f3f0",
+     "#c9ccd0",
+     "#1c1d1f"
+    ],
+    "band": "#1c1d1f",
+    "share": 0.12
+   },
+   "bus": {
+    "colour": "#f2f2ef",
+    "band": "#1f5fa8",
+    "share": 0.04
+   },
+   "colours": [
+    "#f2f2f2",
+    "#1c1c1e",
+    "#8a9099",
+    "#b3242b",
+    "#1f4e8c",
+    "#d8d3c8",
+    "#2f3b33",
+    "#c9a227",
+    "#5a6470",
+    "#7a1f2b",
+    "#e7e5df",
+    "#3d4146"
+   ]
+  },
+  "tones": {
+   "Paint": 0,
+   "Paint2": 1,
+   "Seat": 2,
+   "Glass": 4,
+   "Tyre": 5,
+   "Light_Head": 6,
+   "Light_Tail": 7,
+   "Trim": 8,
+   "Chrome": 9,
+   "Rim": 10,
+   "Plate": 11,
+   "Sign": 12,
+   "Light_Amber": 13,
+   "Seam": 8,
+   "Dash": 8,
+   "Carbon": 8,
+   "Alloy": 10,
+   "Disc": 9,
+   "Carbon_Matt": 8,
+   "Caliper": 1,
+   "Screen": 8,
+   "Light_Accent": 8
+  },
+  "file": "cars.glb",
+  "far_file": "cars_far.glb",
+  "lod1_m": 35,
+  "lod2_m": 110,
+  "note": "Paint takes each car's colour, Paint2 a second (a taxi's or bus's band); 'tones' maps materials to the traffic shader's slots"
+ },
+ "ferry_river": {
+  "file": "ferry_river.glb",
+  "default_livery": "river",
+  "liveries": {
+   "harbour": {
+    "hull": "#1d5a3b",
+    "band": "#e2b02a",
+    "cabin": "#efe6cc",
+    "trim": "#f5f0e1",
+    "deck": "#6d7068",
+    "boot": "#7b2b23"
+   },
+   "bay": {
+    "hull": "#f2f2ee",
+    "band": "#123b6d",
+    "cabin": "#f7f7f4",
+    "trim": "#123b6d",
+    "deck": "#7d8183",
+    "boot": "#2d3640"
+   },
+   "river": {
+    "hull": "#2e3a46",
+    "band": "#3fb8c9",
+    "cabin": "#d9dee2",
+    "trim": "#eef1f3",
+    "deck": "#5d646a",
+    "boot": "#1d2329"
+   },
+   "commuter": {
+    "hull": "#f08c1e",
+    "band": "#1f2328",
+    "cabin": "#f4efe6",
+    "trim": "#f9f6f0",
+    "deck": "#6a6d6f",
+    "boot": "#3a2a24"
+   }
+  },
+  "paint": {
+   "Hull": "hull",
+   "Band": "band",
+   "Cabin": "cabin",
+   "Bulwark": "cabin",
+   "Trim": "trim",
+   "Deck": "deck",
+   "Boot": "boot"
+  },
+  "length_m": 22.0,
+  "beam_m": 6.6,
+  "deck_m": 0.95,
+  "upper_deck_m": 3.17,
+  "label_m": 7.55,
+  "waterline": [
+   [
+    11.0,
+    0.0
+   ],
+   [
+    10.94,
+    0.85
+   ],
+   [
+    10.75,
+    1.34
+   ],
+   [
+    10.43,
+    1.74
+   ],
+   [
+    9.99,
+    2.08
+   ],
+   [
+    9.43,
+    2.37
+   ],
+   [
+    8.73,
+    2.62
+   ],
+   [
+    7.9,
+    2.83
+   ],
+   [
+    6.93,
+    3.0
+   ],
+   [
+    5.8,
+    3.13
+   ],
+   [
+    4.47,
+    3.22
+   ],
+   [
+    2.83,
+    3.28
+   ],
+   [
+    0.0,
+    3.3
+   ],
+   [
+    -2.83,
+    3.28
+   ],
+   [
+    -4.47,
+    3.22
+   ],
+   [
+    -5.8,
+    3.13
+   ],
+   [
+    -6.93,
+    3.0
+   ],
+   [
+    -7.9,
+    2.83
+   ],
+   [
+    -8.73,
+    2.62
+   ],
+   [
+    -9.43,
+    2.37
+   ],
+   [
+    -9.99,
+    2.08
+   ],
+   [
+    -10.43,
+    1.74
+   ],
+   [
+    -10.75,
+    1.34
+   ],
+   [
+    -10.94,
+    0.85
+   ],
+   [
+    -11.0,
+    0.0
+   ],
+   [
+    -10.94,
+    -0.85
+   ],
+   [
+    -10.75,
+    -1.34
+   ],
+   [
+    -10.43,
+    -1.74
+   ],
+   [
+    -9.99,
+    -2.08
+   ],
+   [
+    -9.43,
+    -2.37
+   ],
+   [
+    -8.73,
+    -2.62
+   ],
+   [
+    -7.9,
+    -2.83
+   ],
+   [
+    -6.93,
+    -3.0
+   ],
+   [
+    -5.8,
+    -3.13
+   ],
+   [
+    -4.47,
+    -3.22
+   ],
+   [
+    -2.83,
+    -3.28
+   ],
+   [
+    -0.0,
+    -3.3
+   ],
+   [
+    2.83,
+    -3.28
+   ],
+   [
+    4.47,
+    -3.22
+   ],
+   [
+    5.8,
+    -3.13
+   ],
+   [
+    6.93,
+    -3.0
+   ],
+   [
+    7.9,
+    -2.83
+   ],
+   [
+    8.73,
+    -2.62
+   ],
+   [
+    9.43,
+    -2.37
+   ],
+   [
+    9.99,
+    -2.08
+   ],
+   [
+    10.43,
+    -1.74
+   ],
+   [
+    10.75,
+    -1.34
+   ],
+   [
+    10.94,
+    -0.85
+   ]
+  ],
+  "lod1_triangles": 4604,
+  "lod1_m": 260,
+  "triangles": 27322
+ },
+ "ferry_steamer": {
+  "file": "ferry_steamer.glb",
+  "default_livery": "earnslaw",
+  "liveries": {
+   "harbour": {
+    "hull": "#1d5a3b",
+    "band": "#e2b02a",
+    "cabin": "#efe6cc",
+    "trim": "#f5f0e1",
+    "deck": "#6d7068",
+    "boot": "#7b2b23"
+   },
+   "bay": {
+    "hull": "#f2f2ee",
+    "band": "#123b6d",
+    "cabin": "#f7f7f4",
+    "trim": "#123b6d",
+    "deck": "#7d8183",
+    "boot": "#2d3640"
+   },
+   "river": {
+    "hull": "#2e3a46",
+    "band": "#3fb8c9",
+    "cabin": "#d9dee2",
+    "trim": "#eef1f3",
+    "deck": "#5d646a",
+    "boot": "#1d2329"
+   },
+   "commuter": {
+    "hull": "#f08c1e",
+    "band": "#1f2328",
+    "cabin": "#f4efe6",
+    "trim": "#f9f6f0",
+    "deck": "#6a6d6f",
+    "boot": "#3a2a24"
+   },
+   "earnslaw": {
+    "hull": "#f3f2ed",
+    "band": "#1c1f22",
+    "cabin": "#f4f2ec",
+    "trim": "#7a4a26",
+    "deck": "#9b7a55",
+    "boot": "#9a2b20"
+   }
+  },
+  "paint": {
+   "Hull": "hull",
+   "Band": "band",
+   "Cabin": "cabin",
+   "Bulwark": "cabin",
+   "Trim": "trim",
+   "Deck": "deck",
+   "Boot": "boot"
+  },
+  "length_m": 51.2,
+  "beam_m": 7.3,
+  "deck_m": 2.05,
+  "upper_deck_m": 4.55,
+  "label_m": 19.0,
+  "waterline": [
+   [
+    25.6,
+    0.04
+   ],
+   [
+    23.47,
+    1.11
+   ],
+   [
+    21.33,
+    1.79
+   ],
+   [
+    19.2,
+    2.32
+   ],
+   [
+    17.07,
+    2.73
+   ],
+   [
+    14.93,
+    3.05
+   ],
+   [
+    12.8,
+    3.29
+   ],
+   [
+    10.67,
+    3.45
+   ],
+   [
+    8.53,
+    3.53
+   ],
+   [
+    6.4,
+    3.54
+   ],
+   [
+    4.27,
+    3.54
+   ],
+   [
+    2.13,
+    3.54
+   ],
+   [
+    0.0,
+    3.54
+   ],
+   [
+    -2.13,
+    3.54
+   ],
+   [
+    -4.27,
+    3.54
+   ],
+   [
+    -6.4,
+    3.54
+   ],
+   [
+    -8.53,
+    3.54
+   ],
+   [
+    -10.67,
+    3.54
+   ],
+   [
+    -12.8,
+    3.54
+   ],
+   [
+    -14.93,
+    3.53
+   ],
+   [
+    -17.07,
+    3.44
+   ],
+   [
+    -19.2,
+    3.2
+   ],
+   [
+    -21.33,
+    2.77
+   ],
+   [
+    -23.47,
+    2.03
+   ],
+   [
+    -25.6,
+    0.64
+   ],
+   [
+    -23.47,
+    -2.03
+   ],
+   [
+    -21.33,
+    -2.77
+   ],
+   [
+    -19.2,
+    -3.2
+   ],
+   [
+    -17.07,
+    -3.44
+   ],
+   [
+    -14.93,
+    -3.53
+   ],
+   [
+    -12.8,
+    -3.54
+   ],
+   [
+    -10.67,
+    -3.54
+   ],
+   [
+    -8.53,
+    -3.54
+   ],
+   [
+    -6.4,
+    -3.54
+   ],
+   [
+    -4.27,
+    -3.54
+   ],
+   [
+    -2.13,
+    -3.54
+   ],
+   [
+    0.0,
+    -3.54
+   ],
+   [
+    2.13,
+    -3.54
+   ],
+   [
+    4.27,
+    -3.54
+   ],
+   [
+    6.4,
+    -3.54
+   ],
+   [
+    8.53,
+    -3.53
+   ],
+   [
+    10.67,
+    -3.45
+   ],
+   [
+    12.8,
+    -3.29
+   ],
+   [
+    14.93,
+    -3.05
+   ],
+   [
+    17.07,
+    -2.73
+   ],
+   [
+    19.2,
+    -2.32
+   ],
+   [
+    21.33,
+    -1.79
+   ],
+   [
+    23.47,
+    -1.11
+   ]
+  ],
+  "single_ended": true,
+  "funnel_top": [
+   0,
+   16.4,
+   -2.78
+  ],
+  "note": "A single-ended twin-screw lake steamer of 1912 in the class of the TSS Earnslaw (51.2 x 7.3 m); bow at +z",
+  "lod1_triangles": 7309,
+  "lod1_m": 260,
+  "triangles": 42984
+ }
+}

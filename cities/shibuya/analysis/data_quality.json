@@ -1,0 +1,49 @@
+{
+ "ml_heights": {
+  "buildings": 56926,
+  "with_height": 7098,
+  "height_is_ml": 0,
+  "ml_with_floor_count": 0,
+  "median_ml_over_floor_height": null,
+  "share_ml_below_half": null,
+  "towers_15_floors_plus": 0,
+  "towers_median_ml_over_floor_height": null
+ },
+ "terrain": {
+  "region_m": [
+   -2700,
+   1750,
+   -3100,
+   900
+  ],
+  "land": {
+   "samples": 28480,
+   "median_excess_m": 6.0,
+   "p90_excess_m": 14.7
+  },
+  "under_buildings": {
+   "samples": 16067,
+   "median_excess_m": 5.8,
+   "p90_excess_m": 14.5
+  },
+  "open_ground": {
+   "samples": 12413,
+   "median_excess_m": 6.2,
+   "p90_excess_m": 14.8
+  },
+  "points": {
+   "Shibuya scramble": {
+    "terrarium_m": 38.7,
+    "dem_m": 15.2
+   },
+   "Sangenjaya": {
+    "terrarium_m": 38.6,
+    "dem_m": 32.2
+   },
+   "Harajuku Station": {
+    "terrarium_m": 34.8,
+    "dem_m": 32.5
+   }
+  }
+ }
+}

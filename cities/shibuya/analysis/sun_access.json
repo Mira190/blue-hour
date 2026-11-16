@@ -1,0 +1,124 @@
+{
+ "year": 2026,
+ "dsm": {
+  "cell_m": 2,
+  "nx": 2225,
+  "ny": 2000,
+  "build_ms": 381
+ },
+ "places": [
+  {
+   "name": "Yoyogi Park 代々木公園",
+   "lep": false,
+   "period": "all",
+   "window": "12:00-13:00",
+   "window_verified": true,
+   "area_m2": 533484,
+   "samples": 21342,
+   "mean_pct_in_sun_by_month": [
+    95,
+    97,
+    98,
+    99,
+    99,
+    99,
+    99,
+    99,
+    98,
+    97,
+    95,
+    94
+   ],
+   "protected_months": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "name": "Miyashita Park 宮下公園",
+   "lep": false,
+   "period": "all",
+   "window": "12:00-13:00",
+   "window_verified": true,
+   "area_m2": 11573,
+   "samples": 1287,
+   "mean_pct_in_sun_by_month": [
+    83,
+    85,
+    86,
+    87,
+    88,
+    88,
+    88,
+    87,
+    86,
+    83,
+    81,
+    81
+   ],
+   "protected_months": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "name": "Jingu-dori Park 神宮通公園",
+   "lep": false,
+   "period": "all",
+   "window": "12:00-13:00",
+   "window_verified": true,
+   "area_m2": 1963,
+   "samples": 217,
+   "mean_pct_in_sun_by_month": [
+    79,
+    89,
+    97,
+    100,
+    100,
+    100,
+    100,
+    100,
+    98,
+    91,
+    84,
+    78
+   ],
+   "protected_months": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  }
+ ],
+ "rays": 1370760,
+ "ray_ms": 1379
+}
