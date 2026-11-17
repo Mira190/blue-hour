@@ -891,7 +891,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           // patch, its two halves as far apart as the place is far off, closing as you come to it and one line on it; a
           // patch that only warmed within 9 m said nothing to a player 44 m off, and nothing about which way was nearer)
           if (T.find && T.stand) {
-            const w = T.within_m || 4, d = Math.hypot(T.stand[0] - ctx.player.x, T.stand[1] - ctx.player.y), fix = f.placed ? 'on' : d < w * 3 ? 'near' : 'far';
+            const w = T.within_m || 4, d = Math.hypot(T.stand[0] - ctx.player.x, T.stand[1] - ctx.player.y), fix = f.placed ? 'on' : d < Math.max(w * 3, 14) ? 'near' : 'far'; // (nearer within a stone's throw: from the wrong blossom of four, the right one is twelve metres off)
             const split = f.placed ? 0 : 30 * (1 - Math.exp(-Math.max(0, d - w) / 14));
             finder.style.setProperty('--split', split.toFixed(1));
             if (finder.dataset.fix !== fix) { finder.dataset.fix = fix; finder.querySelector('.rf small').textContent = fix === 'on' ? 'The place · here' : fix === 'near' ? 'The place · nearer' : 'The place · far'; }
