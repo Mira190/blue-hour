@@ -11,9 +11,14 @@ window.OEAudio = (function () {
   // tape (the Stop's brake, below) into `duck` (lowered under dialogue, with the score) and `main` (the Sound switch);
   // a send from the tape's output rings in the place's room (a convolver, place()). The story's own sound is a bus of
   // its own (storyBus), never braked or ducked.
-  let ctx = null, master = null, noise = null, muted = false, main = null, duck = null, verbIn = null, tape = null, ready = Promise.resolve();
+  let ctx = null, master = null, noise = null, muted = false, main = null, duck = null, verbIn = null, tape = null, deck = null, ready = Promise.resolve();
   const ch = {};
-  const HRTF = !(navigator.maxTouchPoints > 0);
+  const UA = navigator.userAgent, TOUCH = navigator.maxTouchPoints > 0, HRTF = !TOUCH;
+  // (an iPad says it is a Mac; its touch screen gives it away: telemetry.js)
+  const IOS = /iPhone|iPad|iPod/.test(UA) || (/Mac OS X/.test(UA) && navigator.maxTouchPoints > 1);
+  // The Stop's tape: an AudioWorklet with a mouse, the deck of the browser's own nodes on a touch screen (deckOf, below).
+  // ?tape=worklet or ?tape=deck picks one, for the tools.
+  const TAPE = (/[?&]tape=(worklet|deck)\b/.exec(location.search) || [])[1] || (TOUCH ? 'deck' : 'worklet');
   function noiseSource() {
     const s = ctx.createBufferSource();
     s.buffer = noise;
@@ -24,23 +29,41 @@ window.OEAudio = (function () {
   // A browser starts a page's sound only from a user's activation: a key, a click, and for a touch its end (pointerup,
   // touchend), not its start (a touch's pointerdown is not one, so a phone's first tap started nothing). iOS also leaves
   // a context 'interrupted' after a call or a trip to another app. Any of these, anywhere on the page, resumes it.
-  const wake = () => { if (ctx && !muted && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
+  // iOS has a context made outside a touch start as it pleases (a context it was not given leave for has come up at the
+  // wrong rate and played distorted, WebKit bug 154538): there, the context is made in the first touch, the one that
+  // would have resumed it, and until then start() only says that sound is wanted (`pending`)
+  let want = false;
+  const madeFns = [];
+  const allowed = () => !IOS || !navigator.userActivation || navigator.userActivation.isActive;
+  const wake = () => {
+    if (!ctx) { if (want && !muted) start(); return; }
+    if (!muted && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+  };
   for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, wake, { capture: true, passive: true });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  // fn() once the context is made (now, if it is): the loading cue waits on this where the context waits on a touch
+  function made(fn) { if (ctx) fn(); else madeFns.push(fn); }
   function start() {
     if (ctx) { wake(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+    if (!allowed()) { want = true; return; }
+    want = false;
     ctx = new AC();
     main = ctx.createGain(); main.gain.value = muted ? 0 : 0.55; main.connect(ctx.destination);
     duck = ctx.createGain(); duck.connect(main);
     verbIn = ctx.createGain();
     master = ctx.createGain(); master.connect(duck); master.connect(verbIn);
-    room = null; sbus = null; mbus = null; verbs.length = 0; placeNow = null; irs = {}; tape = null;
+    room = null; sbus = null; mbus = null; verbs.length = 0; placeNow = null; irs = {}; tape = null; deck = null; ready = Promise.resolve();
+    for (const k of Object.keys(ch)) delete ch[k];
     place('open');
-    // the tape: an AudioWorklet made from tapeWorklet's source (no file to fetch); until it is loaded, or where there
-    // is none, the world goes straight on and the Stop only hushes it
-    if (ctx.audioWorklet && window.Blob && window.URL) {
+    // the tape: on a touch screen the deck, made now of the browser's own nodes (deckOf). With a mouse an AudioWorklet
+    // made from tapeWorklet's source (no file to fetch); until it is loaded, or where there is none, the world goes
+    // straight on and the Stop only hushes it
+    if (TAPE === 'deck') {
+      deck = deckOf();
+      master.disconnect(); master.connect(deck.input); deck.output.connect(duck); deck.output.connect(verbIn);
+    } else if (ctx.audioWorklet && window.Blob && window.URL) {
       const url = URL.createObjectURL(new Blob([`(${tapeWorklet})()`], { type: 'application/javascript' })), c = ctx;
       ready = c.audioWorklet.addModule(url).then(() => {
         if (ctx !== c) return;
@@ -49,68 +72,93 @@ window.OEAudio = (function () {
       }).catch(e => console.warn('audio: no tape, the Stop only hushes the street', e)); // (no worklet: the plain hush)
     }
     if (muted && ctx.suspend) ctx.suspend();
+    else if (ctx.state !== 'running') ctx.resume().catch(() => {}); // (in the touch that made it, where that is why it waited)
     noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // (the street's beds, the rotor to the rain, are made the first time each is heard: bed() below. Made here, a dozen
+    // sources and filters ran silent from the loading screen on, on a phone's audio thread while the page loaded)
+    for (const fn of madeFns.splice(0)) { try { fn(); } catch (e) { console.warn('audio:', e); } }
+  }
+  // the street's continuous sounds, each made the first time it is asked to be heard (until then a call that would set
+  // it to silence does nothing)
+  const BEDS = {
     // rotor: band-passed noise chopped at the blade-pass rate
-    const rn = noiseSource(), bp = ctx.createBiquadFilter(), rg = ctx.createGain(), chop = ctx.createOscillator(), cg = ctx.createGain(), rv = ctx.createGain();
-    bp.type = 'bandpass'; bp.frequency.value = 140; bp.Q.value = 0.8;
-    chop.type = 'square'; chop.frequency.value = 0.01; cg.gain.value = 0.5; rg.gain.value = 0.5; rv.gain.value = 0;
-    chop.connect(cg); cg.connect(rg.gain); chop.start();
-    rn.connect(bp); bp.connect(rg); rg.connect(rv); rv.connect(master);
-    ch.rotor = { vol: rv, chop };
+    rotor() {
+      const rn = noiseSource(), bp = ctx.createBiquadFilter(), rg = ctx.createGain(), chop = ctx.createOscillator(), cg = ctx.createGain(), rv = ctx.createGain();
+      bp.type = 'bandpass'; bp.frequency.value = 140; bp.Q.value = 0.8;
+      chop.type = 'square'; chop.frequency.value = 4; cg.gain.value = 0.5; rg.gain.value = 0.5; rv.gain.value = 0;
+      chop.connect(cg); cg.connect(rg.gain); chop.start();
+      rn.connect(bp); bp.connect(rg); rg.connect(rv); rv.connect(master);
+      return { vol: rv, chop };
+    },
     // ferry engine: a low saw hum
-    const eo = ctx.createOscillator(), el = ctx.createBiquadFilter(), eg = ctx.createGain();
-    eo.type = 'sawtooth'; eo.frequency.value = 48; el.type = 'lowpass'; el.frequency.value = 160; eg.gain.value = 0;
-    eo.connect(el); el.connect(eg); eg.connect(master); eo.start();
-    ch.engine = { vol: eg, osc: eo };
+    engine() {
+      const eo = ctx.createOscillator(), el = ctx.createBiquadFilter(), eg = ctx.createGain();
+      eo.type = 'sawtooth'; eo.frequency.value = 48; el.type = 'lowpass'; el.frequency.value = 160; eg.gain.value = 0;
+      eo.connect(el); el.connect(eg); eg.connect(master); eo.start();
+      return { vol: eg, osc: eo };
+    },
     // wind at height and speed
-    const wn = noiseSource(), wl = ctx.createBiquadFilter(), wg = ctx.createGain();
-    wl.type = 'bandpass'; wl.frequency.value = 900; wl.Q.value = 0.4; wg.gain.value = 0;
-    wn.connect(wl); wl.connect(wg); wg.connect(master);
-    ch.wind = wg; ch.windF = wl;
+    wind() {
+      const wn = noiseSource(), wl = ctx.createBiquadFilter(), wg = ctx.createGain();
+      wl.type = 'bandpass'; wl.frequency.value = 900; wl.Q.value = 0.4; wg.gain.value = 0;
+      wn.connect(wl); wl.connect(wg); wg.connect(master);
+      return { vol: wg, f: wl };
+    },
     // a car's engine: two saws a fifth apart through a low-pass that opens with the throttle
-    const co = ctx.createOscillator(), c2 = ctx.createOscillator(), cl = ctx.createBiquadFilter(), cv = ctx.createGain();
-    co.type = c2.type = 'sawtooth'; co.frequency.value = 40; c2.frequency.value = 60; cl.type = 'lowpass'; cl.frequency.value = 300; cl.Q.value = 2; cv.gain.value = 0;
-    co.connect(cl); c2.connect(cl); cl.connect(cv); cv.connect(master); co.start(); c2.start();
-    ch.car = { vol: cv, a: co, b: c2, lp: cl };
+    car() {
+      const co = ctx.createOscillator(), c2 = ctx.createOscillator(), cl = ctx.createBiquadFilter(), cv = ctx.createGain();
+      co.type = c2.type = 'sawtooth'; co.frequency.value = 40; c2.frequency.value = 60; cl.type = 'lowpass'; cl.frequency.value = 300; cl.Q.value = 2; cv.gain.value = 0;
+      co.connect(cl); c2.connect(cl); cl.connect(cv); cv.connect(master); co.start(); c2.start();
+      return { vol: cv, a: co, b: c2, lp: cl };
+    },
     // tyres scrubbing sideways: band-passed noise
-    const sn = noiseSource(), sb = ctx.createBiquadFilter(), sg = ctx.createGain();
-    sb.type = 'bandpass'; sb.frequency.value = 1500; sb.Q.value = 6; sg.gain.value = 0;
-    sn.connect(sb); sb.connect(sg); sg.connect(master);
-    ch.skid = sg;
+    skid() {
+      const sn = noiseSource(), sb = ctx.createBiquadFilter(), sg = ctx.createGain();
+      sb.type = 'bandpass'; sb.frequency.value = 1500; sb.Q.value = 6; sg.gain.value = 0;
+      sn.connect(sb); sb.connect(sg); sg.connect(master);
+      return { vol: sg };
+    },
     // rain: a hiss of fine drops (high-passed noise), the patter on leaves and paving (a band of
     // noise that flutters), and under a roof its drumming (a low band, louder there)
-    const hn = noiseSource(), hh = ctx.createBiquadFilter(), hg = ctx.createGain();
-    hh.type = 'highpass'; hh.frequency.value = 3200; hg.gain.value = 0;
-    hn.connect(hh); hh.connect(hg); hg.connect(master);
-    const pn = noiseSource(), pb = ctx.createBiquadFilter(), pg = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain(), pv = ctx.createGain();
-    pb.type = 'bandpass'; pb.frequency.value = 1400; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
-    pl.type = 'triangle'; pl.frequency.value = 7.3; plg.gain.value = 0.35; pl.connect(plg); plg.connect(pg.gain); pl.start();
-    pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(master);
-    const rn2 = noiseSource(), rb = ctx.createBiquadFilter(), rgain = ctx.createGain();
-    rb.type = 'bandpass'; rb.frequency.value = 420; rb.Q.value = 0.9; rgain.gain.value = 0;
-    rn2.connect(rb); rb.connect(rgain); rgain.connect(master);
-    ch.rain = { hiss: hg, patter: pv, roof: rgain, hp: hh };
-  }
+    rain() {
+      const hn = noiseSource(), hh = ctx.createBiquadFilter(), hg = ctx.createGain();
+      hh.type = 'highpass'; hh.frequency.value = 3200; hg.gain.value = 0;
+      hn.connect(hh); hh.connect(hg); hg.connect(master);
+      const pn = noiseSource(), pb = ctx.createBiquadFilter(), pg = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain(), pv = ctx.createGain();
+      pb.type = 'bandpass'; pb.frequency.value = 1400; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
+      pl.type = 'triangle'; pl.frequency.value = 7.3; plg.gain.value = 0.35; pl.connect(plg); plg.connect(pg.gain); pl.start();
+      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(master);
+      const rn2 = noiseSource(), rb = ctx.createBiquadFilter(), rgain = ctx.createGain();
+      rb.type = 'bandpass'; rb.frequency.value = 420; rb.Q.value = 0.9; rgain.gain.value = 0;
+      rn2.connect(rb); rb.connect(rgain); rgain.connect(master);
+      return { hiss: hg, patter: pv, roof: rgain, hp: hh };
+    },
+  };
+  // the bed, made now if it is to be heard (on: the level asked for is over silence); null while it is not there and
+  // need not be
+  const bed = (name, on) => ch[name] || (on && ctx && !muted ? (ch[name] = BEDS[name]()) : null);
   const ramp = (p, v, t = 0.25) => { if (ctx) p.setTargetAtTime(v, ctx.currentTime, t); };
   function rotor(spin, load = 0) {
-    if (!ctx) return;
-    ramp(ch.rotor.vol.gain, spin * (0.22 + 0.12 * load));
-    ramp(ch.rotor.chop.frequency, 4 + spin * 16, 0.4);
+    const c = ctx && bed('rotor', spin > 0.001);
+    if (!c) return;
+    ramp(c.vol.gain, spin * (0.22 + 0.12 * load));
+    ramp(c.chop.frequency, 4 + spin * 16, 0.4);
   }
-  function engine(level) { if (ctx) { ramp(ch.engine.vol.gain, level * 0.09); ramp(ch.engine.osc.frequency, 42 + level * 18, 0.6); } }
+  function engine(level) { const c = ctx && bed('engine', level > 0.001); if (c) { ramp(c.vol.gain, level * 0.09); ramp(c.osc.frequency, 42 + level * 18, 0.6); } }
   // level 0..1: the air's rush (a helicopter's speed, or the weather's wind and its gusts, whichever is louder)
-  function wind(level, gust = 0) { if (!ctx) return; ramp(ch.wind.gain, Math.min(0.14, level * 0.12), 0.4); if (ch.windF) ramp(ch.windF.frequency, 500 + 700 * level + 500 * gust, 0.5); }
+  function wind(level, gust = 0) { const c = ctx && bed('wind', level > 0.001); if (!c) return; ramp(c.vol.gain, Math.min(0.14, level * 0.12), 0.4); ramp(c.f.frequency, 500 + 700 * level + 500 * gust, 0.5); }
   // rpm 0..1 (idle to the red line), throttle 0..1, level 0..1 (0 off; lower from the back seat)
   function car(rpm, throttle = 0, level = 1) {
-    if (!ctx) return;
+    const c = ctx && bed('car', level > 0.001);
+    if (!c) return;
     const f = 34 + rpm * 120;
-    ramp(ch.car.vol.gain, level * (0.035 + 0.05 * throttle), 0.08);
-    ramp(ch.car.a.frequency, f, 0.06); ramp(ch.car.b.frequency, f * 1.5, 0.06);
-    ramp(ch.car.lp.frequency, 220 + 900 * throttle * rpm + 200 * rpm, 0.08);
+    ramp(c.vol.gain, level * (0.035 + 0.05 * throttle), 0.08);
+    ramp(c.a.frequency, f, 0.06); ramp(c.b.frequency, f * 1.5, 0.06);
+    ramp(c.lp.frequency, 220 + 900 * throttle * rpm + 200 * rpm, 0.08);
   }
-  function skid(level) { if (ctx) ramp(ch.skid.gain, Math.min(0.06, level * 0.06), 0.06); }
+  function skid(level) { const c = ctx && bed('skid', level > 0.001); if (c) ramp(c.vol.gain, Math.min(0.06, level * 0.06), 0.06); }
   // level 0..1 (drizzle to a downpour); roof: under one, which drums; inside: a car or a cabin, muffled
   let dripAt = 0;
   // thunder from dist metres: near, a crack and a long roll; far, only the low rumble, later and softer
@@ -142,12 +190,13 @@ window.OEAudio = (function () {
     ramp(ch.cicada.gain, Math.min(1, level) * 0.022, 2);
   }
   function rain(level, roof = false, inside = false) {
-    if (!ctx || !ch.rain) return;
+    const c = ctx && bed('rain', level > 0.001);
+    if (!c) return;
     const k = inside ? 0.35 : 1;
-    ramp(ch.rain.hiss.gain, level * 0.05 * k * (roof ? 0.6 : 1), 0.8);
-    ramp(ch.rain.patter.gain, level * 0.07 * k * (roof ? 0.5 : 1), 0.8);
-    ramp(ch.rain.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0) * Math.min(1, level * 1.4), 0.6);
-    ramp(ch.rain.hp.frequency, inside ? 1800 : 3200, 0.5);
+    ramp(c.hiss.gain, level * 0.05 * k * (roof ? 0.6 : 1), 0.8);
+    ramp(c.patter.gain, level * 0.07 * k * (roof ? 0.5 : 1), 0.8);
+    ramp(c.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0) * Math.min(1, level * 1.4), 0.6);
+    ramp(c.hp.frequency, inside ? 1800 : 3200, 0.5);
     // under a roof, now and then a drop off its edge
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
@@ -467,11 +516,74 @@ window.OEAudio = (function () {
     }
     registerProcessor('oe-tape', Tape);
   }
-  // the Stop (story.js): the street brakes to a held shimmer, and spins up again (the tape, above; without one the
-  // street's sound only falls away and comes back)
+  // ------------------------------------------------------------ the tape on a touch screen: a deck of the browser's own nodes
+  // An AudioWorklet takes the whole of a context's rendering onto its own thread, and that thread is not a real-time one
+  // (Chromium's design notes; WebKit renders the same way): on a phone, under a page that is loading the map or
+  // compiling its shaders, it misses blocks, and a missed block is a click. iOS has also, more than once, left a whole
+  // context distorted, at full level, once a worklet was added to it (WebKit bugs 251091, 274507). The owner heard the
+  // phone "as if it were broken" from the opening on, on iOS 27. So a touch screen brakes the street without one: the
+  // street is read through a delay whose length grows as the tape slows, and a line read through a growing delay is
+  // heard at the speed 1 - d'(t), pitch and rate falling together as the worklet's do; the same speed k², the same
+  // low-pass closing from 11 kHz to 150 Hz (a biquad of Q 0.5, the worklet's two one-pole sections), the same gain √k.
+  // The brake over 0.95 s from k = 1 lengthens the delay by 2/3 of that; held, the tape is silent; let go, it spins up
+  // over 0.6 s from where it was (a third of 0.6 s more delay) and crosses into the live street in a quarter of a second,
+  // when the delay goes back to nothing. What the deck has not got is the worklet's shimmer of grains of the last
+  // moment: a phone hears the held street as the room's tail, the story's choir and its glass.
+  function deckOf() {
+    const BRAKE = 0.95, SPIN = 0.6, XF = 0.25, MAXD = 4;
+    const input = ctx.createGain(), dry = ctx.createGain(), dl = ctx.createDelay(MAXD), lp = ctx.createBiquadFilter(), wet = ctx.createGain(), output = ctx.createGain();
+    lp.type = 'lowpass'; lp.Q.value = 0.5; lp.frequency.value = 11150; wet.gain.value = 0; dl.delayTime.value = 0;
+    input.connect(dry); dry.connect(output); input.connect(dl); dl.connect(lp); lp.connect(wet); wet.connect(output);
+    // a phase: 'live', 'brake' or 'spin' from t0, with the speed k0 and the delay d0 it began at (held is a brake that
+    // has run out; a spin's end crosses into the live street)
+    let ph = { kind: 'live', t0: 0, k0: 1, d0: 0 };
+    const cube = x => x * x * x, run = (kind, k0) => (kind === 'brake' ? k0 * BRAKE : (1 - k0) * SPIN);
+    // where the deck is at time t: the speed k, the delay d, the tape's gain w and the live street's y
+    function at(t) {
+      const s = Math.max(0, t - ph.t0), r = run(ph.kind, ph.k0), sr = Math.min(s, r);
+      if (ph.kind === 'brake') {
+        const k = Math.max(0, ph.k0 - sr / BRAKE);
+        return { k, d: Math.min(MAXD - 0.1, ph.d0 + sr - BRAKE / 3 * (cube(ph.k0) - cube(k))), w: Math.sqrt(k), y: 0 };
+      }
+      if (ph.kind === 'spin' && s < r + XF + 0.02) {
+        const k = Math.min(1, ph.k0 + sr / SPIN), d = Math.min(MAXD - 0.1, ph.d0 + sr - SPIN / 3 * (cube(k) - cube(ph.k0))), x = Math.max(0, (s - r) / XF);
+        return { k, d, w: Math.sqrt(k) * (1 - Math.min(1, x)), y: Math.min(1, x), crossing: s > r };
+      }
+      return { k: 1, d: 0, w: 0, y: 1, live: true };
+    }
+    const params = [dl.delayTime, lp.frequency, wet.gain, dry.gain];
+    // lay a phase on the params from time t, from where the deck is then (q): the delay, the low-pass and the tape's
+    // gain in straight segments, the live street crossed out of over the first (both read the same street there)
+    function lay(kind, t, k0, d0, q) {
+      for (const p of params) { if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t); else p.cancelScheduledValues(t); }
+      ph = { kind, t0: t, k0, d0 };
+      const T = run(kind, k0), n = Math.max(2, Math.ceil(24 * T / BRAKE));
+      dl.delayTime.setValueAtTime(d0, t); lp.frequency.setValueAtTime(150 + 11000 * k0 * k0, t); wet.gain.setValueAtTime(q.w, t); dry.gain.setValueAtTime(q.y, t);
+      dry.gain.linearRampToValueAtTime(0, t + T / n);
+      for (let i = 1; i <= n; i++) {
+        const u = t + T * i / n, z = at(u);
+        dl.delayTime.linearRampToValueAtTime(z.d, u); lp.frequency.linearRampToValueAtTime(150 + 11000 * z.k * z.k, u); wet.gain.linearRampToValueAtTime(Math.sqrt(z.k), u);
+      }
+      if (kind === 'spin') { // spun up: across into the live street, and the delay back to nothing once it is not heard
+        const e = t + T;
+        wet.gain.linearRampToValueAtTime(0, e + XF); dry.gain.setValueAtTime(0, e); dry.gain.linearRampToValueAtTime(1, e + XF);
+        dl.delayTime.setValueAtTime(at(e).d, e + XF); dl.delayTime.setValueAtTime(0, e + XF + 0.02);
+      }
+    }
+    function set(on) {
+      const t = ctx.currentTime + 0.005, q = at(t);
+      // held: from the live street, or from a spin up (from its speed; crossing into the street, from the full speed)
+      if (on) { if (ph.kind !== 'brake') lay('brake', t, q.live || q.crossing ? 1 : q.k, q.live ? 0 : q.d, q); }
+      else if (ph.kind === 'brake') lay('spin', t, q.k, q.d, q);
+    }
+    return { input, output, set };
+  }
+  // the Stop (story.js): the street brakes to a held shimmer, and spins up again (the tape, above; the deck on a touch
+  // screen; without either the street's sound only falls away and comes back)
   function hush(on) {
     if (!ctx) return;
-    if (tape) { tape.parameters.get('held').setValueAtTime(on ? 1 : 0, ctx.currentTime); if (!on) ramp(master.gain, 1, 0.1); } // (a hush from before the tape was loaded let go)
+    if (deck) deck.set(on);
+    else if (tape) { tape.parameters.get('held').setValueAtTime(on ? 1 : 0, ctx.currentTime); if (!on) ramp(master.gain, 1, 0.1); } // (a hush from before the tape was loaded let go)
     else ramp(master.gain, on ? 0.16 : 1, on ? 0.25 : 1.2);
   }
   // ------------------------------------------------------------ a room for each place
@@ -529,8 +641,9 @@ window.OEAudio = (function () {
     if (m) held(false); if (m && window.speechSynthesis) window.speechSynthesis.cancel();
     const c = ctx;
     if (c && c.suspend) { if (m) setTimeout(() => { if (muted && ctx === c) c.suspend(); }, 150); else c.resume(); }
+    else if (!c && !m && want) start(); // (sound turned on in a touch, where it was waiting for one)
   }
-  function stop() { if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  function stop() { want = false; if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -724,5 +837,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { start, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
+  return { start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
 })();

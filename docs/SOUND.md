@@ -34,6 +34,14 @@ story cues, dialogue ticks ─► storyBus ────────────�
   the Stop. **The score** is not: it is not the street's. **The story's own sound** is never braked or
   ducked: it is what is heard in a stopped street.
 - **Off** (the Sound switch) suspends the context after the fade, so a muted phone computes nothing.
+- **The street's beds** (the rotor, an engine, the wind, a car, its tyres, the rain) are made the first time each is
+  asked to be heard, not with the context: made with it, a dozen sources and filters ran silent on a phone's audio
+  thread from the loading screen on, while the page loaded.
+- **On iOS the context is made in the first touch** (a key, a tap), the one that would have resumed it, and not with
+  the page: a context iOS was not given leave for has come up at the wrong rate and played distorted (WebKit bug
+  154538). Until then `OEAudio.pending` says sound is wanted and the loading screen asks for the touch as before;
+  `OEAudio.made(fn)` runs fn when the context is made (the loading cue waits on it). Elsewhere it is made with the
+  page and resumed by the touch.
 
 ## The Stop
 
@@ -49,6 +57,23 @@ lets it go. The tape keeps the last five seconds of the world's bus in a ring an
    live street;
 3. **spins up** on release over 0.6 s (k from 0 to 1) from where it stopped, and crosses into the
    live street in 0.25 s.
+
+**On a touch screen, the deck.** The owner played the episode on an iPhone (iOS 27, November 2026) and heard, from
+the opening on, a noise "as if the phone were broken". The tape was the one thing in the mix a phone does not do
+well. An AudioWorklet takes the whole of a context's rendering onto its own thread, which is not a real-time one
+(Chromium's design notes; WebKit renders the same way): under a page loading the map or compiling its shaders it
+misses blocks, and a missed block is a click, a run of them a roar. And iOS has more than once left a whole context
+distorted, at full level, once a worklet was added to it (WebKit bugs 251091, 274507; each fixed, each a regression
+of the one before). So a touch screen (`maxTouchPoints`, as the HRTF panner is chosen) brakes the street with the
+browser's own nodes instead (`deckOf` in audio.js): the street read through a DelayNode whose delay grows as the tape
+slows is heard at the speed 1 − d′(t), pitch and rate falling together; the delay follows ∫(1 − k²), so the speed is
+k² as the worklet's is, through a low-pass of Q 0.5 closing from 11 kHz to 150 Hz (the worklet's two one-pole
+sections), at a gain of √k, laid on the parameters in straight segments a fortieth of a second long. Held, the deck
+is silent where the worklet has its shimmer of grains (about −50 dB in the render): a phone hears the held street as
+the room's tail, the story's choir and its glass. `?tape=worklet` or `?tape=deck` picks one on any device.
+`TAPE=worklet|deck tools/sound_render.js` renders either (unset, a phone's, the deck): rendered side by side, the
+engine's note brakes on the same curve (47, 44, 35, 26 Hz at 2.0 to 2.2 s), spins up on the same one, and neither
+clicks.
 
 The story's own cue `stop` lays over it air drawn in that swells to the moment time stops, a breath of
 low air as the floor goes (noise, never a falling tone: a falling tone was tried in stopfx.js and was "a

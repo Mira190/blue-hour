@@ -161,7 +161,9 @@ window.OEHero = (function () {
         L.root = root;
         const ready = Promise.all(shrunk.map((t, i, a) => shrink(t, a.done || (a.done = new Map()))))
           .then(() => (window.OETex && OETex.stats.on ? OETex.packObject(root) : null))
-          .then(() => L.root === root && opts.warm ? opts.warm(root) : null);
+          .then(() => L.root === root && opts.warm ? opts.warm(root) : null)
+          // (and its vertex buffers sent in slices: on its first draw they went in one, 0.7 s of the tap on Play)
+          .then(() => L.root === root && opts.upload ? opts.upload(root) : null);
         Promise.resolve(ready).catch(e => console.warn('hero warm-up:', e)).then(() => {
           if (L.root !== root) return;
           L.state = 'ready';
@@ -219,14 +221,18 @@ window.OEHero = (function () {
 
     let t = 0;
     const eye = new THREE.Vector3(), ctr = new THREE.Vector3();
-    function update(camera, dt) {
+    // anchor: [x, y] where the player will be, loaded round as the camera is (the title and the opening: the camera
+    // is away, and the level the story starts in was fetched and compiled as the opening flew into it, a hitch of
+    // most of a second for each few of its shaders on a phone, tools/entry_cost.js); shown by the camera alone
+    function update(camera, dt, anchor = null) {
       t += dt || 0;
       const cx = camera.position.x, cy = -camera.position.z, night = uNight.value;
       for (const L of levels) {
         const d = Math.hypot(cx - L.h.at[0], cy - L.h.at[1]) - (L.h.r || 150);
-        if (L.state === 'idle' && d < LOAD_M) load(L);
-        else if ((L.state === 'ready' || L.state === 'loading') && d > DROP_M) drop(L);
-        else if (L.state === 'failed' && d > DROP_M) L.state = 'idle';
+        const near = anchor ? Math.min(d, Math.hypot(anchor[0] - L.h.at[0], anchor[1] - L.h.at[1]) - (L.h.r || 150)) : d;
+        if (L.state === 'idle' && near < LOAD_M) load(L);
+        else if ((L.state === 'ready' || L.state === 'loading') && near > DROP_M) drop(L);
+        else if (L.state === 'failed' && near > DROP_M) L.state = 'idle';
         if (L.state !== 'ready') continue;
         const show = d < SHOW_M;
         if (L.root.visible !== show) { L.root.visible = show; showHidden(L, !show); }
