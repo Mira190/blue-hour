@@ -1,16 +1,15 @@
 // The title as a visitor finds it: the crossing held behind it (game.js titleHold), and time let go on Play.
-// Stills of the title four seconds apart (the camera has moved, the crowd has not), with its meteor held mid-flight
-// (story.css g-story-meteor), then across Play; fails if anyone on the crossing moved while the title stood, if nobody
-// is out on the road, or if nobody moved once time was let go.
+// Stills of the title three seconds apart (the camera has moved, the crowd has not), then across Play; fails if anyone
+// on the crossing moved while the title stood, if nobody is out on the road, or if nobody moved once time was let go.
 //   python3 -m http.server 8800 --directory web &
-//   xvfb-run -a node tools/title_shot.js out_dir [WxH]          (GPU=metal on a Mac)
+//   xvfb-run -a node tools/title_shot.js out_dir [WxH]
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = '/tmp/title-shot', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number);
   fs.mkdirSync(out, { recursive: true });
-  const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: w < 500, hasTouch: w < 500 });
   let bad = 0; const fail = m => { bad++; console.log(`FAIL ${m}`); };
@@ -27,11 +26,6 @@ const [,, out = '/tmp/title-shot', size = '1440x900'] = process.argv;
   if (a.road < 20) fail(`only ${a.road} people are out on the crossing behind the title`);
   if (Math.abs(a.sum - c.sum) > 1e-6) fail('the crowd moved while the title stood');
   if (String(a.cam) === String(c.cam)) fail('the camera did not move through the held street');
-  await p.screenshot({ path: `${out}/title-${size}.png` });
-  // a meteor: its animation held where the streak is at its longest
-  const met = await p.evaluate(() => { const a = document.getAnimations().find(x => x.animationName === 'g-story-meteor'); if (!a) return false; a.pause(); a.currentTime = 3000 + 9000 * 0.075; return true; });
-  if (met) { await p.waitForTimeout(200); await p.screenshot({ path: `${out}/title-meteor-${size}.png` }); await p.evaluate(() => { const a = document.getAnimations().find(x => x.animationName === 'g-story-meteor'); if (a) a.play(); }); }
-  console.log(met ? 'meteor held' : 'no meteor animation');
   await p.evaluate(() => document.getElementById('gt-play').click());
   await p.waitForTimeout(700); await p.screenshot({ path: `${out}/let-go-1.png` });
   await p.waitForTimeout(700); const d = await crowd(); await p.screenshot({ path: `${out}/let-go-2.png` });
