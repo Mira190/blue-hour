@@ -584,7 +584,7 @@ window.OEAudio = (function () {
   // was a telephone running out of battery: stopfx.js).
   // (each cue's trim, in dB, from tools/sound_render.js: its loudest 400 ms at the level docs/SOUND.md gives it)
   const TRIM = { shutter: 2, 'cam-up': 6.5, 'cam-down': 6, found: 3, goal: 14, stamp: 2, wrong: 2.5, end: -1, run: -3, key: 12 };
-  let lv = 1;
+  let lv = 1, keyAt = 0;
   function sfx(name) {
     if (!storyBus() || muted) return;
     lv = Math.pow(10, (TRIM[name] || 0) / 20);
@@ -609,7 +609,16 @@ window.OEAudio = (function () {
       case 'goal': burst(0, { dur: 0.6, f: 1200, q: 0.7, vol: 0.035, att: 0.18 }); burst(0.08, { dur: 0.5, f: 5200, q: 0.8, vol: 0.016, att: 0.16 }); break;
       case 'word': break; // (a word in the frame is read, not rung)
       // a key of the machine the preface is typed on: the slug on the platen, a tick with a little body under it
-      case 'key': duckFor(0.3); burst(0, { dur: 0.022, f: 3100, q: 1.4, vol: 0.02, att: 0.001 }); burst(0.004, { dur: 0.05, f: 420, q: 1.2, vol: 0.014, type: 'lowpass', att: 0.002 }); break;
+      // (a typed line is a run of these: no two alike, as no two keys of a machine strike alike. The slug's ring and the
+      // body under it vary by a few per cent and a few dB, one in five is struck harder, and two never come closer than
+      // 45 ms: a run of identical ticks was a machine gun, not a typist)
+      case 'key': {
+        const now = ctx.currentTime; if (now - keyAt < 0.045) break; keyAt = now;
+        const v = (R() < 0.2 ? 1.35 : 0.75 + R() * 0.35);
+        duckFor(0.3); burst(0, { dur: 0.018 + R() * 0.008, f: 2800 + R() * 700, q: 1.2 + R() * 0.5, vol: 0.02 * v, att: 0.001 });
+        burst(0.003 + R() * 0.003, { dur: 0.045 + R() * 0.015, f: 380 + R() * 90, q: 1.2, vol: 0.014 * v, type: 'lowpass', att: 0.002 });
+        break;
+      }
       // the camera brought up: the leather strap's creak (stick-slip: a few grains of a mid band, unevenly spaced),
       // the cloth's swish, then the body in the hand and the catch of the finder
       case 'cam-up': {
