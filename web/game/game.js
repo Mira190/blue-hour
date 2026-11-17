@@ -6590,7 +6590,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (close && Wd.trees && Wd.trees.crownsNear) {
       if (!camCrowns.at || Math.hypot(camCrowns.at[0] - tx, camCrowns.at[1] - ty) > 4) { Wd.trees.crownsNear(tx, ty, dist + 14, camCrowns.list); camCrowns.at = [tx, ty]; }
       if (camCrowns.list.length) {
-        const inCrown = p => { for (const [cx, cy, cz, r, h] of camCrowns.list) { const dx = p.x - cx, dy = -p.z - cy, dz = p.y - cz; if ((dx * dx + dy * dy) / (r * r) + (dz * dz) / (h * h) < 1) return true; } return false; };
+        // (a crown as a drum, its full width from its lowest leaf to its top: its outer boughs hang lower than the
+        // ellipsoid their leaves were grown round, and stood in front of the lens when it was clear of the ellipsoid)
+        const inCrown = p => { for (const [cx, cy, cz, r, h] of camCrowns.list) { const dx = p.x - cx, dy = -p.z - cy; if (dx * dx + dy * dy < r * r && p.y > cz - h - 0.4 && p.y < cz + h) return true; } return false; };
         // (tested where the camera is drawn: pulled in toward the walker by a wall, as it was last frame, it stood
         // inside a crown that its place unpulled was clear of)
         const at = d => { orbit(cam.lift - d, camProbe); return cam.pull < 1 ? camProbe.lerpVectors(camTarget, camProbe, cam.pull) : camProbe; };

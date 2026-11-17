@@ -499,5 +499,6 @@ cherries, which stays out of their crowns (below).
 **The cherries by Hachiko.** The two in the square's round planters stood at 7.2 m, and their crowns came down to
 a walker's head beside the planter; the chase camera behind the player stood in their leaves. They now stand at the
 model's own 8.8 m (kept pruned up, as the square's are; `cities/shibuya/city.py` `hachiko_trees`), and the chase
-camera on foot keeps out of every crown near it (`web/trees.js` `crownsNear`, each crown as the ellipsoid its leaves
-were grown in): its pitch comes down under the leaves, eased as its lift over a wall is, and back once clear.
+camera on foot keeps out of every crown near it (`web/trees.js` `crownsNear`, each crown as a drum from its lowest
+leaf to its top, its full width, since the outer boughs hang below the ellipsoid the leaves were grown round): its pitch
+comes down under the leaves, eased as its lift over a wall is, and back once clear.

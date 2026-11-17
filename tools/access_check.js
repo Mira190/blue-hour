@@ -116,7 +116,7 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
   }
   await p.evaluate(() => { const m = document.getElementById('g-menu'); if (m && !m.hidden) document.getElementById('g-menu-close').click(); });
   // the camera by Hachiko's cherries: never in a crown, walking round the planters at each side
-  const inCrown = () => p.evaluate(() => { const g = window.__game, c = g.camera.position, L = g.Wd.trees.crownsNear(c.x, -c.z, 20, []); let worst = 9; for (const [cx, cy, cz, r, h] of L) worst = Math.min(worst, Math.sqrt(((c.x - cx) ** 2 + (-c.z - cy) ** 2) / (r * r) + ((c.y - cz) ** 2) / (h * h))); return { worst: +worst.toFixed(2), cam: [+c.x.toFixed(1), +(-c.z).toFixed(1), +c.y.toFixed(1)], duck: +(g.cam.duck || 0).toFixed(2), n: L.length }; });
+  const inCrown = () => p.evaluate(() => { const g = window.__game, c = g.camera.position, L = g.Wd.trees.crownsNear(c.x, -c.z, 20, []); let worst = 9; for (const [cx, cy, cz, r, h] of L) { const out = Math.max(Math.hypot(c.x - cx, -c.z - cy) / r, c.y < cz ? 1 + (cz - h - 0.4 - c.y) / h : 1 + (c.y - cz - h) / h); worst = Math.min(worst, out); } return { worst: +worst.toFixed(2), cam: [+c.x.toFixed(1), +(-c.z).toFixed(1), +c.y.toFixed(1)], duck: +(g.cam.duck || 0).toFixed(2), n: L.length }; });
   const P = [[381.0, -1035.5], [383.6, -1049.2]];
   let worst = 9, k = 0;
   const has = await p.evaluate(() => !!(window.__game.Wd && window.__game.Wd.trees && window.__game.Wd.trees.crownsNear));
@@ -134,7 +134,7 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
     if (k === 0 || k === 6) await snap(`4-hachiko-${k}`);
     k++;
   }
-  if (has) check(worst >= 1, `the chase camera stays out of the crowns (nearest ${worst} of a crown's radius)`);
+  if (has) check(worst >= 1, `the chase camera stays out of the crowns (nearest ${worst.toFixed(2)}: 1 is a crown's edge)`);
   check(!errors.length, `no page errors (${errors.length})`);
   await b.close();
   console.log(fails.length ? `${fails.length} failed` : 'all passed');
