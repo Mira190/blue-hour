@@ -277,21 +277,8 @@ sound dropping out at the Stop and a still chord for as long as time is held, th
 camera's catch, glass when the thing of 1964 comes into the frame, the shutter, the film wound on, the
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
-**The story's name is said once, over the live street.** The loader is the episode's chapter card, not a second title:
-its number, its name in the book face (Newsreader), a hairline, the job as it was given, and under the load's hairline
-only the stage (downloading, building the city, preparing the city; the page's own step, such as compiling the shaders,
-is shown only when the load fails). BLUE HOUR and ブルーアワー stand on the title over the live street and nowhere before
-it. Until November 2026 the loader carried the full title too, and the title screen then said the same five things again
-(the place, the date and hour, the name, its Japanese, the episode), so the reveal over the real street was a repeat.
-The rule is the one the big narrative games keep (ideas only; nothing taken): the name is shown once, at a moment of its
-own, over the live world, and what comes before it carries context and progress. God of War (2018) boots into its menu as
-the first frame of the one unbroken shot, and Play lets that shot run on; Journey's name comes up over the sun as the
-traveller crests the first dune; Ghost of Tsushima holds its title card until Jin rides out through the field of flowers
-after the prologue (the "late title card"); Marvel's Spider-Man folds its fast travel's load into a ride on the subway.
-Their loading screens name a place or a chapter and never the game again.
-
 **The opening, from the page's first second, shows each thing once and never goes back.** The loader (the roll being
-loaded, the key art, the episode's card); the title over the live street at dusk; the film, which goes from far to near and does not leave
+loaded, the key art); the title over the live street at dusk; the film, which goes from far to near and does not leave
 again (the district from the air, down to the kerb, the crossing from above, the kerb behind you); then the street is
 the player's, and **the order is in their hand**: the job sheet they were sent out with comes up into the frame on the
 file's own paper, in its hand, its words coming up as ink does. Who, which kerb, what for, and why at this hour: a
