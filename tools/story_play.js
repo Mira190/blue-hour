@@ -70,6 +70,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
     if (s.phase === 'done') { done = true; break; }
+    // the words the opening lays over the picture, each once: the place as the film sees the crossing from above, and the
+    // story's name as it falls on the first Stop (docs/STORY.md, each thing said in one beat)
+    { const w = await p.evaluate(() => { const o = document.querySelector('.ov-title'), c = document.getElementById('g-story-card'), txt = e => e.innerText.replace(/\s+/g, ' ').trim();
+        return { place: o && +getComputedStyle(o).opacity > 0.5 ? txt(o) : '', card: c && c.classList.contains('on') && +getComputedStyle(c).opacity > 0.5 ? txt(c) : '' }; });
+      // (a still at once, not snap's whole frame: the card is up for three seconds, and a whole frame on a software renderer takes longer)
+      const now = name => p.screenshot({ path: `${out}/${name}.png`, timeout: 60000 }).catch(() => console.log(`(no still ${name})`));
+      if (w.place && !seen.has('film-place')) { seen.add('film-place'); console.log('film place:', w.place); await now('0-film-place'); }
+      if (w.card && !seen.has(`card-${s.fi}`)) { seen.add(`card-${s.fi}`); console.log(`frame ${s.fi + 1} card:`, w.card); await now(`${s.fi + 1}-card`); } }
     // (the opening shots, before the first card, are not stuck while their camera still moves: on a software renderer
     // they take many minutes of frames, and were counted as a dead end)
     const film = s.phase === 'dressed' ? await p.evaluate(() => { const c = window.__game.camera; return c ? `${Math.round(c.position.x * 4)},${Math.round(c.position.y * 4)},${Math.round(c.position.z * 4)}` : ''; }) : '';
