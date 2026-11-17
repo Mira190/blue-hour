@@ -128,7 +128,8 @@ function assemble() {
           console.log(`sound before the touch: ${st}`);
           if (o && o.hasTouch) await page.touchscreen.tap(vp.width / 2, vp.height * 0.4); else await page.mouse.click(vp.width / 2, vp.height * 0.4);
           await page.waitForTimeout(800);
-          console.log(`sound after the touch: ${await page.evaluate(() => window.OEAudio.ctx && window.OEAudio.ctx.state)}`);
+          const now = await page.evaluate(() => window.OEAudio.ctx && window.OEAudio.ctx.state);
+          console.log(`${now === 'running' ? '' : 'FAIL '}sound after the touch: ${now}`); if (now !== 'running') process.exitCode = 1;
           return r;
         };
       }
