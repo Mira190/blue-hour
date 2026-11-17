@@ -519,3 +519,7 @@
 @media (max-width: 640px) { .game-stage.story .gd-choices:has(.pr) { grid-template-columns: repeat(4, 1fr); } }
 /* ---- Play, with the title in the Stop: the card goes as time is let go, and the street is seen to move before the film (game.js titleLetGo) */
 .game-stage.title-go .g-title { opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
+/* ---- a controller in the hand (pad.js): the prompts show its signs, as round buttons and triggers */
+.game-stage.pad kbd.pad { border-radius: 999px; min-width: 1.1em; text-align: center; letter-spacing: 0.04em; text-transform: none; }
+.game-stage.pad kbd.pad:is([data-b="LT"], [data-b="RT"], [data-b="LB"], [data-b="RB"], [data-b="LENS"]) { border-radius: 3px 3px 9px 9px; }
+.game-stage.story .gd-hint kbd { padding: 2px 5px; margin-right: 4px; border: 1px solid currentColor; border-radius: 2px; font: inherit; letter-spacing: 0.06em; }
