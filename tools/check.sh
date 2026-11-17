@@ -212,6 +212,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
+    st skyline skyline - '^FAIL|Error' python3 pipeline/skyline.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
   fi
