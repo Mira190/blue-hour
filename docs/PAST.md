@@ -19,6 +19,40 @@ Things that stood where something has since been built (`over`: the dome inside 
 are drawn through what is there now. Their depth is written just past the near plane in their own order, so they hide
 themselves as a solid does and nothing of tonight hides them.
 
+## The afterimages
+
+The people of that year (the story's afterimages, `game.story` frames' `afterimage`, cast as Rocketbox avatars) have the
+same look as the things, laid differently: they are not in the finder only, they stand in tonight's street, and they
+read as a person left in an old exposure rather than a ghost (docs/STORY.md, rule 3). `OEPeople.exposure`
+(`web/game/people.js`), applied by the story's `figure` in `web/game/game.js`:
+
+- **Their own body, face and clothes.** The avatar's materials are kept and patched, not replaced: the same silver print
+  tones as the things (85% of the colour to the warm grey scale, lifted blacks, the warm white), a living grain at 24
+  frames a second, and a soft warm light on the edge that rises with how light the surface is. A little of their own
+  light (a key from above) so that a face is read at night, much less than a thing of 1964 has: they stand in the
+  street's light too.
+- **A double exposure, not a hologram.** They are drawn as a second exposure is laid on a first: what they add, over the
+  street let through as much as they are dark (blend one, one minus alpha, alpha falling to 0.45 where they are dark).
+  Against a lit shop front a dark coat is half there; against the night they stand whole. No outline, no glow, no blue,
+  and no shadow thrown on tonight's ground.
+- **They move.** The held crowd does not; an afterimage plays its own idle clip, and its head turns to the player (two
+  fifths at the neck, the rest at the head, up to 70 degrees each way, eased), and its body comes round only when the
+  head cannot reach. The turn is laid over the clip's pose after the mixer and taken off before the next update, so
+  that a held world, where the clip may not move a bone, never winds it round (AGENTS.md).
+- **The living of tonight** (`cast`: Mrs Hayase, Mr Tanaka) are not touched.
+
+What was learnt from, not copied: the double exposure of film and of the cinema's dissolves, where the second image is
+added to the first and only its light shows (the screen blend of compositing); *Return of the Obra Dinn* (2018) and
+*Ghost Trick* (2010) for the dead as a held moment that is read rather than feared; past.js's own silver print. The
+blending is three.js's `CustomBlending` (MIT).
+
+**What the cast cannot show.** The avatars are of today: there is no 1964 among them. Sumiko is a young woman in
+everyday clothes, not a lift girl in her store's uniform with a pillbox hat and one glove; the detective (Rocketbox's
+police avatar) is a young man of today in a work vest over a sweater, not a 1964 detective in a hat and a raincoat;
+Kanbara is a modern suit; Tatsuo a construction worker of today in a work shirt, bare-headed, where a site of 1964 would have given him a helmet.
+The print's tones take the most modern of it away (no saturated colour, no logo reads), but the cut of the clothes is
+today's. That waits on faces and costume (issue 12).
+
 ## The things
 
 | Model | Drawn from | Adopted |
