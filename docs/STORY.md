@@ -182,8 +182,10 @@ It has the movements a classical mystery has, and two things taken straight from
 - **A false solution at the midpoint** (frame 3): the evidence points at Sumiko herself, the client.
 - **The challenge to the reader** (before frame 7): the living Sumiko asks three questions, and the
   player answers them from the six prints already taken. Who was behind Kanbara? Why did Akira not
-  cross? What did he send across with the boy? A wrong answer costs a look and a hint at which
-  print to look at again. The player solves the case; nobody recites it to them.
+  cross? What did he send across with the boy? Each is answered with evidence first and then in
+  words: the print, or a pair of prints the player has set side by side, that proves it, then the
+  sentence. A right sentence on the wrong print is not an answer. A wrong answer costs a look and a
+  hint at which print to look at again. The player solves the case; nobody recites it to them.
 - **A print as an answer** (frames 5 and 6): twice the roll itself is the answer. Tatsuo lies (he is
   the story's one liar: *nobody from my gang went up on any roof*), and he confesses only when the
   player names the frame that says otherwise, the roof, where Kanbara heard nailed boots on the
@@ -312,11 +314,26 @@ the player says is kept (`flags` in `web/game/story.js`, in the save) and answer
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her; the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer, and the file strikes it |
 | 5, Tatsuo | shows him the print that breaks his alibi. Two wrong prints and he knows a guess | failure, as above |
-| 7, Sumiko's three questions | answers from the roll. Two wrong and she turns back to the road | failure, as above |
+| 7, Sumiko's three questions | shows the print or the pair that proves each (`proof`: frames and pairs, `"4-5"`), then says it. Both are judged together; two wrong and she turns back to the road. Where every print that proves one was spent (or its pair never set side by side), she asks it another way, in words alone (`lost_q`) | failure, as above |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it (rules 5 and 6) | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and Sumiko's first question has to be reasoned. The last card lists what the evening did not show |
 
 Failure costs the minute and is seen: nobody is sent back further than the frame they are in, and the flight or the ride
 to it is not made twice. `tools/story_play.js` plays these too (`SLIP=n`, `SPEND=n`).
+
+**How the case was worked, and going back in.** The last card says, in the file's hand, what the player said and what
+they took back (struck through), which frames were spent and what stood there, which of the five pairs were never set
+side by side (by their frame numbers: what they would have said is for going back in to find), and how often the
+player was seen through. Under it, and on the title once the case is closed, every frame can be gone back into: the
+save keeps one snapshot a frame, taken on arriving at it (how many prints, the flags, the pairs found, the file), and
+the closed case keeps its prints, so a frame is entered again with the roll and the flags as they were then and
+another answer can be tried (`BACKTO=n` in `tools/story_play.js`).
+
+**Everything said can be read again.** The log of the evening (`web/game/log.js`; `L`, a button on the dialogue, and
+the roll) has every line said, by whom and at which frame's hour, every question and the answer given, and what was
+said over the picture, in order. It is kept with the case, as far as the case is: a case taken up at frame n has what
+was said before it. In a dialogue one step back (`Q`, or the button) shows the line before; a line being typed is shown
+whole on the first press. The words come in three sizes, with an opaque backing for the dialogue and the goal, kept in
+this browser; the default is the size the story was set in.
 
 **The roll is the case board, and the file is under it.** In the roll (Tab) any two prints can be set side by side;
 five pairs say together what neither says alone (`pairs` on the episode), and the last card counts how many the player
