@@ -8,6 +8,9 @@
 // SLIP=n: at frame n the first question that can be lost is answered wrongly until the one asked sees through the player; the
 // card must come up, and the frame is taken up again and played rightly. SPEND=n: frame n is spent from the wrong place (the
 // release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
+// The log (log.js): every line the dialogue shows is written down here as it is shown, and after frame 3 the log is opened
+// and must have the same lines in the same order; stills of it, and of the words at their largest with their backing.
+// LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
 // The game moves a twentieth of a second a frame at most, so on a software renderer, at a frame a second or less, the
 // story's own clock ran twenty times slow, and the runner's 50 minutes ended in the first frame's first dialogue (#1).
@@ -42,6 +45,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(r)); }), whole > 0) : null; };
   const snap = async name => { await drawAll(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await drawAll(false); };
   await snap('00-title');
+    // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
+  // read from the call, not the screen, where a line passed between two looks was missed)
+  const listen = () => p.evaluate(() => { const d = window.__game.dlg, show = d.show, H = window.__heard = window.__heard || { lines: [] };
+    d.show = function (npc, lines, ...rest) { if (npc && npc.log) H.lines.push(...lines); return show.call(this, npc, lines, ...rest); }; });
+  await listen();
   await p.evaluate(() => document.getElementById('gt-play').click());
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it
@@ -50,7 +58,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const face = at => p.evaluate(at => { const g = window.__game, pl = g.player, d = Math.hypot(at[0] - pl.x, at[1] - pl.y); pl.h = Math.atan2(at[0] - pl.x, at[1] - pl.y); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = at[2] != null ? Math.max(-0.25, Math.min(1.35, 0.3 - Math.atan2(at[2] - (pl.z + 1.6), d))) : 0.25; } }, at);
   const seen = new Set();
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(1200); await snap(`${s.fi + 1}-${name}`); };
-  let slipped = 0, spent = false;
+  let slipped = 0, spent = false, logged = !!process.env.FROM, logWas = null, big = 0;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
   // every question with a right answer costs something to guess at (q.fail): one that does not can be answered by
@@ -71,8 +79,34 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); break; }
     // seen through: the card is up; the frame is taken up again
     if (await p.evaluate(() => document.getElementById('g-story-fail').classList.contains('on'))) { slipped = 2; console.log(`frame ${s.fi + 1}: seen through`); await snap(`${s.fi + 1}-seen-through`); await p.evaluate(() => document.querySelector('#g-story-fail button').click()); await p.waitForTimeout(600); continue; }
+    // after frame 3: the log has every line said so far, in order
+    if (!logged && s.fi >= 3) {
+      logged = true;
+      const r = await p.evaluate(() => { const L = window.__game.story && document.getElementById('g-story-log'); window.__game.storyLog.show(true); const e = window.__game.storyLog.entries; return { on: !!L && L.classList.contains('on'), lines: e.filter(q => q.kind === 'line' || q.kind === 'q').map(q => q.text), answers: e.filter(q => q.kind === 'a').length, shown: document.querySelectorAll('#g-story-log li:not(.fr)').length, n: e.length, heard: window.__heard.lines.slice() }; });
+      const miss = r.heard.findIndex((x, i) => r.lines[i] !== x);
+      console.log(`log after frame 3: ${r.lines.length} lines, ${r.answers} answers; heard ${r.heard.length}`);
+      if (!r.on || r.shown !== r.n || r.lines.length !== r.heard.length || miss >= 0) { errors.push(`the log after frame 3: ${r.on ? '' : 'not open; '}${r.shown} of ${r.n} shown; ${r.lines.length} lines for ${r.heard.length} heard${miss >= 0 ? `; line ${miss + 1} is "${(r.lines[miss] || '').slice(0, 60)}" for "${r.heard[miss].slice(0, 60)}"` : ''}`); console.log(errors[errors.length - 1]); }
+      await snap('log'); await p.evaluate(() => { const o = document.querySelector('#g-story-log ol'); o.firstElementChild.scrollIntoView({ block: 'start' }); }); await snap('log-top');
+      await p.evaluate(() => window.__game.storyLog.setWords({ size: 2, solid: true })); await snap('log-largest');
+      await p.evaluate(() => window.__game.storyLog.show(false)); await p.waitForTimeout(600); await snap('goal-largest'); big = 1;
+      logWas = r.lines;
+      if (process.env.LOGRELOAD) { // the page opened again in the middle of the case: the log is as it was
+        await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
+        await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
+        await p.waitForTimeout(1500); await listen(); await p.evaluate(() => document.getElementById('gt-play').click());
+        await p.waitForFunction(() => !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 900000, polling: 500 });
+        const back = await p.evaluate(() => window.__game.storyLog.entries.filter(q => q.kind === 'line' || q.kind === 'q').map(q => q.text));
+        const f = await p.evaluate(() => window.__game.story.state.fi), want = logWas.length; // (frame 4 begun: what was said before it)
+        console.log(`log after a reload at frame ${f + 1}: ${back.length} lines (were ${want})`);
+        if (back.length < want - 0 || back.slice(0, want).some((x, i) => x !== logWas[i])) { errors.push(`the log after a reload: ${back.length} lines, were ${want}`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(n => { window.__heard.lines = window.__game.storyLog.entries.filter(q => q.kind === 'line' || q.kind === 'q').map(q => q.text).slice(0, n); }, want);
+        await p.evaluate(() => window.__game.storyLog.setWords({ size: 2, solid: true }));
+      }
+      continue;
+    }
     if (s.dlg) {
       await mark(s, `said-${s.phase}-${s.beat}`);
+      if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
         const slip = +process.env.SLIP === s.fi + 1 && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
         if (slip) slipped = 1;
