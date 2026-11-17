@@ -391,8 +391,9 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         }
         // (the beam on a car stopped close ahead, s.near metres: dimmed as the eye would adapt to it,
         // rather than a white wall where a queue's back is lit from 3 m)
-        // (with the dipped beam's cut-off, only nose to tail: under 5 m it would light the bumper ahead as no camera would show it)
-        const nearK = s.near != null && s.near < 5 ? Math.max(0.3, Math.max(0, s.near) / 5) : 1;
+        // (with the dipped beam's cut-off, only close behind one: under 8 m it lit a white car's bumper and plate 3 m ahead
+        // to a glare, as no photograph of a queue shows it)
+        const nearK = s.near != null && s.near < 8 ? Math.max(0.3, Math.max(0, s.near) / 8) : 1;
         if (api.lamp) api.lamp.intensity = lit ? (PHYS() ? BEAM.cd : 1.4) * nearK : 0;
       },
       // a person in a seat, facing forward: the rig's root on the floor in front of the cushion
