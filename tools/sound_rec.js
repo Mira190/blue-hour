@@ -54,11 +54,14 @@ function assemble() {
   if (!all.length) return null;
   const RATE = all[0].rate, t0 = Math.min(...all.map(c => c.chunks[0].perf));
   for (const c of all) {
-    // (in the context's own frames while it runs: positions as whole samples, so no join opens a gap)
-    let pos = null, prevEnd = null; const r = RATE / c.rate;
+    // (in the context's own frames, which run on without a gap while it runs: positions as whole samples, so no join
+    // opens one. Only a context that stood still, suspended, is placed again by the clock, and only forward: a block's
+    // timestamp read in a stall of the main thread was 0.1 s out, and once left a hole of silence in the recording)
+    let pos = null, prevEnd = null, prevF = null; const r = RATE / c.rate;
     for (const k of c.chunks) {
-      const want = (k.perf - t0) / 1000 * RATE;
-      pos = prevEnd == null || Math.abs(want - prevEnd) > 0.08 * RATE ? Math.max(prevEnd || 0, Math.round(want)) : prevEnd;
+      const want = (k.perf - t0) / 1000 * RATE, contiguous = prevF != null && k.f0 === prevF;
+      pos = prevEnd == null || (!contiguous && want - prevEnd > 0.08 * RATE) || want - prevEnd > 1.5 * RATE ? Math.max(prevEnd || 0, Math.round(want)) : prevEnd;
+      prevF = k.f0 + k.n;
       k.pos = pos; k.at = pos / RATE; prevEnd = pos + k.n * r;
     }
     c.endPos = prevEnd; c.end = prevEnd / RATE;
