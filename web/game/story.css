@@ -54,6 +54,8 @@
 #g-story-mark[data-kind="ghost"] i::after { color: #9fc4ff; }
 #g-story-mark[data-kind="ghost"] i::before { border-color: #9fc4ff; }
 #g-story-mark[data-kind="ghost"] b { color: #cfe0ff; }
+/* (and an afterimage's mark is drawn in a broken line, so that it is told from the living's without its blue) */
+#g-story-mark[data-kind="ghost"] i, #g-story-mark[data-kind="ghost"] i::before { border-style: dashed; }
 /* (its words beside it, not under it: under it is the face of whoever it is over) */
 #g-story-mark[data-kind="meet"]:not(.off) b, #g-story-mark[data-kind="ghost"]:not(.off) b { left: 24px; top: -5px; transform: none; }
 /* where the picture is taken from: a camera, in the camera's amber */
@@ -77,6 +79,8 @@
 #g-story-keys { position: absolute; left: 50%; bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px)); transform: translateX(-50%); z-index: 6; pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
   display: flex; gap: 26px; white-space: nowrap; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-keys.on { opacity: 1; }
+/* (the keys' hint is of the street: under the pause menu it is not drawn through the panel) */
+.game-stage:has(.g-overlay:not([hidden])) #g-story-keys { visibility: hidden; }
 #g-story-keys kbd { display: inline-block; min-width: 22px; padding: 5px 6px; margin-right: 5px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: inherit; letter-spacing: 0.06em; text-align: center; }
 #g-story-keys kbd + kbd { margin-left: -1px; }
 
@@ -494,3 +498,6 @@
 @media (max-width: 640px) { .game-stage.story #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); } }
 /* ---- Play, with the title in the Stop: the card goes as time is let go, and the street is seen to move before the film (game.js titleLetGo) */
 .game-stage.title-go .g-title { opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
+
+/* an answer ringed by the arrows or a controller's d-pad: an outline, not only a tint */
+.game-stage.story .gd-choices button.sel { border-color: var(--amber); background: rgba(255, 207, 138, 0.1); outline: 2px solid var(--amber); outline-offset: 2px; }

@@ -931,6 +931,26 @@ diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.62, 0.11, 0.05), vec3(0.9, 0
         }
         return out;
       },
+      // The crowns round a point, for the chase camera to keep out of: [x, y, zc, r, h] in local metres, each crown as
+      // the ellipsoid its leaves were grown in (blender/build_trees.py inside(): an ellipsoid, a dome, an umbrella or a
+      // palm is [zc, r, h]; a vase [z0, z1, rb, rt] and a cone [z0, z1, rb] stand in their own bounds), scaled as the
+      // tree is drawn, and a third wider and lower for the leaf cards round those points. Trees under 3 m are left out.
+      crownsNear(x, y, R, out = []) {
+        out.length = 0;
+        for (let i = 0; i < n; i++) {
+          const tx = pos[3 * i], ty = -pos[3 * i + 2];
+          if (Math.abs(tx - x) > R || Math.abs(ty - y) > R) continue;
+          const s = Math.hypot(M[16 * i], M[16 * i + 2]); if (!(s > 0)) continue;
+          const S = I.species[names[which[i]]]; if (!S || !S.crown || (S.height_m || 0) * s < 3) continue;
+          const C = S.crown, sy = Math.hypot(M[16 * i + 4], M[16 * i + 5], M[16 * i + 6]), foot = pos[3 * i + 1] - 4;
+          let zc, r, h;
+          if (C.length >= 4) { zc = (C[0] + C[1]) / 2; h = (C[1] - C[0]) / 2; r = Math.max(C[2], C[3]); }
+          else if (C[1] >= 0.8 * S.height_m) { zc = (C[0] + C[1]) / 2; h = (C[1] - C[0]) / 2; r = C[2] * 0.7; }
+          else { zc = C[0]; r = C[1]; h = C[2]; }
+          out.push([tx, ty, foot + zc * sy, r * s * 1.1, h * sy * 1.15]);
+        }
+        return out;
+      },
       // per frame: the wind, and the level of detail when the camera has moved 12 m, at most five times a
       // second while it keeps moving (a sort walks every tree: a fast move made it most frames' work), at once
       // after a jump of 120 m

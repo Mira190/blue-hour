@@ -3272,13 +3272,15 @@ def hachiko_square(K, h, lm):
 
 def hachiko_trees(lm):
     """The square's own trees, [x, y, z, height] in decimetres (places.json's layout): a cherry in each
-    round planter (the species: city.json trees.areas). The bed round Hachiko has no tree."""
+    round planter (the species: city.json trees.areas). The bed round Hachiko has no tree. They stand at the
+    model's own 8.8 m: kept pruned up, as the square's are, their lowest leaves clear a walker's head beside the
+    planter (at 7.2 m the crown came down to head height there). The chase camera keeps out of crowns (game.js)."""
     if not lm.get("hachiko"):
         return []
     out = []
     for c in HK_PLANTERS:
         g = lm_ground_at(lm, *c)
-        out += [round(c[0] * 10), round(c[1] * 10), round((g + HK_PLANTER["h"] - 0.08) * 10), 72]
+        out += [round(c[0] * 10), round(c[1] * 10), round((g + HK_PLANTER["h"] - 0.08) * 10), 88]
     return out
 
 

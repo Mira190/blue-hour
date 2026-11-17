@@ -25,6 +25,8 @@
 #   gl      the map as an ordinary device opens it: no WebGL call refused, and every material drawn on a GPU with
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
+#   access  the story by a controller alone (its answers, the log, the roll), and the chase camera kept out
+#           of the trees' crowns (tools/access_check.js);
 #   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
@@ -33,7 +35,7 @@
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static story ride mem clip gl touch astc
+#   tools/check.sh all                  # static story ride mem clip gl touch access astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
@@ -45,8 +47,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story ride mem clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story ride mem clip gl touch access astc game"   # the browser checks, in the order they run
+ALL="story ride mem clip gl touch access astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -81,7 +83,7 @@ else
     echo "checking what changed since the last pass, $(git log -1 --format='%h %s' "$last" | cut -c1-70) (CHECK_FULL=1 for the whole branch)" >&2
     base=$last
   fi
-  page() { add story mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
+  page() { add story mem; [ "$TIER" = full ] && add clip gl touch access; return 0; }   # the page or the map changed
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
@@ -90,6 +92,7 @@ else
       tools/clip_check.js|tools/pin_clock.js) static=1; add clip ;;
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
+      tools/access_check.js) static=1; add access ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/*|cities/*) static=1; page ;;
@@ -186,6 +189,11 @@ run_touch() {
   if timeout 1500 $X node tools/touch_check.js "$MAP" "$OUT/touch" >"$OUT/touch.log" 2>&1; then
     echo "ok   touch  $(grep -c '^ok' "$OUT/touch.log") steps on a phone's page"
   else echo "FAIL touch  $(grep '^FAIL' "$OUT/touch.log" | head -2 | cut -c6-140 | paste -sd ';' -)   (see $OUT/touch.log)"; fi
+}
+run_access() {
+  if timeout 3000 $X node tools/access_check.js "$OUT/access" >"$OUT/access.log" 2>&1; then
+    echo "ok   access $(grep -c '^ok' "$OUT/access.log") steps by a controller, and the camera by the trees"
+  else echo "FAIL access $(grep '^FAIL' "$OUT/access.log" | head -2 | cut -c6-140 | paste -sd ';' -)   (see $OUT/access.log)"; fi
 }
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
   if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then

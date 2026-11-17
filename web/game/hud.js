@@ -249,12 +249,12 @@ window.OEHud = (function () {
   // was being said, and the question with it.
   function dialogue(audio) {
     const box = $('#gd'), nameEl = $('#gd-name'), roleEl = $('#gd-role'), textEl = $('#gd-text'), choicesEl = $('#gd-choices'), hint = $('#gd-hint');
-    let cur = null, view = 0;
+    let cur = null, view = 0, sel = -1; // (sel: the answer ringed by the arrows or a d-pad)
     const said = []; // (the lines said, latest last: for the step back, across one speaker's talk and the next)
     const touchy = () => matchMedia('(pointer: coarse)').matches;
     const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
     function show(npc, lines, choices, done) {
-      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 };
+      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 }; sel = -1;
       view = 0; box.hidden = false; box.classList.remove('back');
       head(npc);
       next(true);
@@ -293,6 +293,13 @@ window.OEHud = (function () {
       if (!cur || view || cur.i < cur.lines.length - 1 || !cur.choices.length) return;
       hint.textContent = '';
       choicesEl.innerHTML = cur.choices.map((c, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd>${c.text}</button>`).join('');
+      sel = -1;
+    }
+    // an answer picked with the arrows or a d-pad: ringed and focused, then taken with E, Enter or A
+    function move(d) {
+      if (!dlgApi.hasChoices) return;
+      const n = cur.choices.length; sel = sel < 0 ? (d > 0 ? 0 : n - 1) : (sel + d + n) % n;
+      choicesEl.querySelectorAll('button').forEach((b, k) => { b.classList.toggle('sel', k === sel); if (k === sel) b.focus({ preventScroll: true }); });
     }
     function choose(k) {
       if (!cur || view || !cur.choices[k] || cur.typed < cur.full.length) return;
@@ -322,7 +329,8 @@ window.OEHud = (function () {
     choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
     // (the dialogue's own buttons, a story's: a step back, and the log)
     box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false); });
-    return { show, next, back, choose, tick, get open() { return !!cur; }, get stepped() { return view; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    const dlgApi = { show, next, back, choose, move, tick, get sel() { return sel; }, get open() { return !!cur; }, get stepped() { return view; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    return dlgApi;
   }
 
   // ------------------------------------------------------------ toasts

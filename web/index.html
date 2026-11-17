@@ -441,6 +441,9 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 .gd-choices button { text-align: left; border: 1px solid var(--line); background: rgba(236, 232, 225, 0.03); border-radius: var(--r); padding: 10px 12px; cursor: pointer; color: var(--ink);
   font: 500 13.5px/1.35 var(--f-body); display: flex; gap: 12px; align-items: center; transition: border-color 0.3s, background 0.3s; }
 .gd-choices button:hover { border-color: rgba(255, 176, 102, 0.6); background: var(--accent-wash); }
+/* an answer ringed by the arrows or a controller's d-pad, and a button the d-pad rings in an open panel: a ring, not only a colour */
+.gd-choices button.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+.game-stage.pad :is(button, a[href], input):focus { outline: 2px solid #ffcf8a; outline-offset: 3px; }
 .gd-choices kbd { flex: none; }
 .gd-tools { display: none; }
 .gd-hint { display: block; text-align: right; font: 400 8.5px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); min-height: 1em; }
@@ -773,6 +776,8 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
           <tr><td><kbd>W A S D</kbd> or arrows</td><td>Walk, relative to the camera; drag to look around, scroll to zoom</td></tr>
           <tr><td><kbd>Shift</kbd> · <kbd>X</kbd> · <kbd>Space</kbd></td><td>Sprint while held · switch between walking and running · jump</td></tr>
           <tr><td><kbd>E</kbd></td><td>Talk, board, fly, drive your car, get in a taxi, get out</td></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> · <kbd>Q</kbd></td><td>In a conversation: ring an answer, then <kbd>E</kbd> · back to the line said before</td></tr>
+          <tr><td>Controller</td><td>Left stick walk, right stick look, A talk and go on, X or RT the shutter, Y or LT raise the camera, RB or View the roll, LB the log, d-pad an answer, a line back or on, or a button in a panel, B or Menu back</td></tr>
           <tr><td><kbd>Y</kbd> · <kbd>N</kbd></td><td>Raise your hand at the kerb for a taxi · the phone: order a ride, bring your car</td></tr>
           <tr><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road</td></tr>
           <tr><td>Taxi or ride</td><td><kbd>F</kbd> skip the trip, <kbd>V</kbd> from the back seat, <kbd>E</kbd> get out when it stops</td></tr>

@@ -498,3 +498,34 @@ railway viaduct south of the station, where the river's line can still be read.
 - No character speaks of data, surveys of buildings or how the map was made
   (`tools/voice_check.py`). The player's trade is photographing streets; that is all that is said
   of it.
+
+## 10. Reach: a controller, the marks, and the camera under the trees
+
+Issue 10's last items, so that the story is played by anyone with whatever is in their hands. The log of the evening
+and the size of the words and their backing are `web/game/log.js` (L, or from the roll).
+
+- **A controller at parity with the keys** (`web/game/game.js` `padPoll`; the Gamepad API's standard mapping). The
+  left stick walks as the touch joystick does and the right stick looks as a drag does, at 2.7 rad a second round at
+  full tilt; each button presses the key it stands for, so every listener that takes a key takes it the same: A talks
+  and goes on (E), X or RT takes the picture, Y or LT raises the camera where its button stands, RB or View opens the
+  roll (Tab), LB the log (L), B or Menu goes back (Esc), L3 runs. Where a panel is open (the roll, the last card, a
+  retry, the log, the pause menu, the title) the d-pad rings its buttons in turn and A presses the one ringed. In a
+  conversation the d-pad goes back a line and on again, and rings an answer when there are answers; on a keyboard the
+  arrows or W and S ring one and E or Enter takes it, and the number keys still pick at once.
+- **Touch** already had a button for everything the keys do (the camera, the shutter, the roll from the strip, the
+  log from the roll).
+- **Marks that do not depend on colour.** The mark's kinds are told apart by shape (a ring to walk to, a speech mark
+  for someone to talk to, a viewfinder's corners for the thing to frame, a rangefinder's patch for where to stand)
+  and named in words under it; an afterimage's speech mark is drawn in a broken line as well as in blue, so it is told
+  from the living's without its colour. Someone of 1964 speaks in a serif, the living in the sans. A ringed answer or
+  button has an outline, not only a tint.
+
+`tools/access_check.js` plays these (the `access` target of `tools/check.sh`).
+
+**The cherries by Hachiko.** The two in the square's round planters stood at 7.2 m, and their crowns came down to
+a walker's head beside the planter; the chase camera behind the player stood in their leaves. They now stand at the
+model's own 8.8 m (kept pruned up, as the square's are; `cities/shibuya/city.py` `hachiko_trees`), and the chase
+camera on foot keeps out of every crown near it (`web/trees.js` `crownsNear`, each crown as a drum from its lowest
+leaf to its top, its full width, since the outer boughs hang below the ellipsoid the leaves were grown round): its
+pitch comes down under the leaves, never lower than just over the walker's head, eased as its lift over a wall is,
+and tested where the camera is drawn, pulled in by a wall or not.
