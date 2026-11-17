@@ -2,7 +2,7 @@
 // Gamepad API's standard mapping, faked in the page), the log of what was said, the menu's size of the words and what is
 // behind them, and the chase camera kept out of the tree crowns by Hachiko (issue 10). Stills of each into out_dir.
 //   python3 -m http.server 8800 --directory web &
-//   xvfb-run -a node tools/access_check.js out_dir [WxH]
+//   xvfb-run -a node tools/access_check.js out_dir [WxH]          (ONLY=trees: the camera by Hachiko's cherries only)
 // Exits 1 on a failed check or a page error.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -33,6 +33,7 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
   await press(0);
   await p.waitForTimeout(800);
   check(await p.evaluate(() => document.getElementById('g-title').hidden), 'A on the title begins');
+  if (process.env.ONLY !== 'trees') { // (ONLY=trees: the camera by the trees alone)
   // on into play by the controller alone: A through the preface and every line, until the first walk to someone
   // (the opening film and its cameras, which a key would skip, played out as they are)
   const play = () => p.evaluate(() => { const g = window.__game, s = g.story && g.story.state, o = g.overture && g.overture(), d = document.getElementById('gd'); return { phase: s ? s.phase : 'free', beat: s ? s.beat : '', dlg: !!d && !d.hidden, choices: !!g.dlg.hasChoices, film: !!(o && o.active) || !!(g.cine && g.cine.active) }; });
@@ -112,6 +113,7 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
   await snap('3-words-largest-solid');
   await p.evaluate(() => { document.querySelector('#gm-words button[data-x="1"]').click(); document.querySelector('#gm-back button[data-b="shade"]').click(); window.__game.dlg.next(false); window.__game.dlg.next(false); });
 
+  }
   await p.evaluate(() => { const m = document.getElementById('g-menu'); if (m && !m.hidden) document.getElementById('g-menu-close').click(); });
   // the camera by Hachiko's cherries: never in a crown, walking round the planters at each side
   const inCrown = () => p.evaluate(() => { const g = window.__game, c = g.camera.position, L = g.Wd.trees.crownsNear(c.x, -c.z, 20, []); let worst = 9; for (const [cx, cy, cz, r, h] of L) worst = Math.min(worst, Math.sqrt(((c.x - cx) ** 2 + (-c.z - cy) ** 2) / (r * r) + ((c.y - cz) ** 2) / (h * h))); return { worst: +worst.toFixed(2), cam: [+c.x.toFixed(1), +(-c.z).toFixed(1), +c.y.toFixed(1)], duck: +(g.cam.duck || 0).toFixed(2), n: L.length }; });

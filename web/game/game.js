@@ -6591,10 +6591,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (!camCrowns.at || Math.hypot(camCrowns.at[0] - tx, camCrowns.at[1] - ty) > 4) { Wd.trees.crownsNear(tx, ty, dist + 14, camCrowns.list); camCrowns.at = [tx, ty]; }
       if (camCrowns.list.length) {
         const inCrown = p => { for (const [cx, cy, cz, r, h] of camCrowns.list) { const dx = p.x - cx, dy = -p.z - cy, dz = p.y - cz; if ((dx * dx + dy * dy) / (r * r) + (dz * dz) / (h * h) < 1) return true; } return false; };
-        if (inCrown(orbit(cam.lift, camProbe))) {
+        // (tested where the camera is drawn: pulled in toward the walker by a wall, as it was last frame, it stood
+        // inside a crown that its place unpulled was clear of)
+        const at = d => { orbit(cam.lift - d, camProbe); return cam.pull < 1 ? camProbe.lerpVectors(camTarget, camProbe, cam.pull) : camProbe; };
+        if (inCrown(at(0))) {
           const most = Math.max(0, Math.min(1.35, cam.pitch + cam.lift) - 0.04);
           duckWant = most;
-          for (let d = 0.05; d < most; d += 0.05) if (!inCrown(orbit(cam.lift - d, camProbe))) { duckWant = d; break; }
+          for (let d = 0.05; d < most; d += 0.05) if (!inCrown(at(d))) { duckWant = d; break; }
         }
       }
     }
