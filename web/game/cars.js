@@ -1197,7 +1197,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     return changed ? Object.assign({}, route, { pts, nodes, mids, len: pts.reduce((s, q, i) => s + (i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0), 0) }) : route;
   }
   const WALKER = { walker: true, x: 0, y: 0, v: 0 }; // (what a chauffeur stops for when it is a person on its way)
-  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null } = {}) {
+  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null, callFrom = 0 } = {}) {
     // (strict: the autopilot of your own car, always in your sight: its guard against stepping into a car reads its
     // body as it is turned, not only as its way is, so that creeping on out of a tangle it never clips one on a bend.
     // id: its name among the traffic's blockers, game.js: a car that stands for it is not one stopped for good)
@@ -1419,12 +1419,16 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     // the gap to the line of the next junction ahead, if it must stop there (Infinity if not)
     const halted = new Set();
     const PRIO_T = 12; // (s: the other road's few seconds of green, amber and all red, and a little to spare)
+    // (how far ahead a signal is called: PRIO_T at its speed, or callFrom metres, a ride with you in it. Called from 70 m as
+    // it pulled away from the kerb 95 m short of the scramble, the walk had started, ran its 30 s, and the ride stood 35 s
+    // in the queue under the JR viaduct; called from the kerb, the walk not yet started waits for its turn)
+    const callAt = () => Math.max(PRIO_T * Math.max(st.v, 4) + 20, callFrom);
     function lineGap(dtNow = 0) {
       st.toLine = Infinity;
       if (!lights || !route.nodes) return Infinity;
       for (let i = 0; i < route.nodes.length; i++) {
         const nd = route.nodes[i], sN = P.cum[Math.min(nd.k, P.cum.length - 1)];
-        if (sN - st.s > 90 && !(priority && sN - st.s < PRIO_T * Math.max(st.v, 4) + 20)) break;
+        if (sN - st.s > 90 && !(priority && sN - st.s < callAt())) break;
         const a = lights.armAt(nd.line, nd.end);
         if (!a) continue;
         if (sN - st.s > 90) { if (lights.priority && a.j.sig) lights.priority(a); break; } // (far off, but at speed: the signals called in time)
@@ -1502,7 +1506,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       for (const nd of route.nodes) {
         const sN = P.cum[Math.min(nd.k, P.cum.length - 1)];
         if (sN < st.s) continue;
-        if (sN - st.s > PRIO_T * Math.max(st.v, 4) + 20) return;
+        if (sN - st.s > callAt()) return;
         const a = lights.armAt(nd.line, nd.end);
         if (!a) continue;
         if (a.j.sig && sN - a.back > st.s) lights.priority(a);
