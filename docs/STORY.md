@@ -311,9 +311,21 @@ to it is not made twice. `tools/story_play.js` plays these too (`SLIP=n`, `SPEND
 
 **The roll is the case board, and the file is under it.** In the roll (Tab) any two prints can be set side by side;
 five pairs say together what neither says alone (`pairs` on the episode), and the last card counts how many the player
-found. Under the prints lies **the file**, a sheet of kraft paper on which the case writes itself down, typed: each
+found. Under the prints lies **the file**, a sheet of kraft paper on which the case is written down by hand: each
 frame's note as it is taken, each thing the player committed to, each pair that argued. It holds what is established
 and what the player said, never what it means; a line the player takes back is struck through and stays.
+
+**The print develops.** After the shutter the print is white paper; tonight comes up in it, and then the other year
+comes up through tonight (the frame is drawn twice at the shutter, once without what the camera remembers:
+`ctx.snap`, `ctx.snapBase`). The double exposure is the reward of every frame, so it is seen to happen. A frame spent
+stops at tonight: the paper waits, and nothing more comes.
+
+**The plate.** In a frame whose place is found, raising the camera shows the frame as it was taken, faint over the
+street: the view from the standpoint, drawn once from there (`ctx.plate`). The player walks until the two lie on each
+other, as a rephotographer does (section 8, item 3). It fades when they do.
+
+**What the player says is seen to be written down.** A slip of the file's own paper comes in at the top of the frame
+and the line is written on it in the file's hand and pen as it is said; a line that strikes an earlier one says so.
 
 **The second frame's Stop is empty.** Seven frames had one shape (walk, the living, the Stop, the one who still moves,
 the camera). In the second nobody moves: a stool at a tram stop, and the place to find alone. The boy who sat on it is
@@ -442,7 +454,9 @@ railway viaduct south of the station, where the river's line can still be read.
 - Every episode's last line is a question or a fact that reopens the case. Never a summary.
 - Two faces for two years: someone of 1964 speaks in a serif (Newsreader, SIL Open Font Licence),
   as does what the last card finds; tonight speaks in the interface's sans. The word on the ticket's
-  back is in Klee One (SIL OFL), a pencil's hand. The ticket is drawn for the story in the manner of
+  back is in Klee One (SIL OFL), a pencil's hand. The file under the prints is written in Caveat (SIL OFL, Pablo Impallari), a quick
+  adult hand: what is established in pencil, what the player said in a fountain pen's blue-black, so a line is told
+  apart by its ink, not a slant. The ticket is drawn for the story in the manner of
   a card ticket of the national railway; its wording is ours, and it carries no fare.
 - The opening's first caption gives the place's own number (as many as three thousand people cross
   at one change of the lights at the busiest hours, the figure the ward and the press give) and the
