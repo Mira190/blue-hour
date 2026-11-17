@@ -466,7 +466,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
         const r = ctx.rideNow(), R = fr.ride, there = near(R.to, 45);
         if (r && r.state !== 'in') { if (!st.target || Math.hypot(st.target[0] - r.at[0], st.target[1] - r.at[1]) > 1.5) aimAt(spot(r.at)); const text = r.state === 'coming' ? R.line || 'A car is coming for you.' : R.board || 'Your car is here. Get in.'; if (text !== goalText) goal(text); st.inCar = false; }
         else if (r) { if (!st.inCar) { st.inCar = true; aimAt(null); goal(R.riding || ''); if (ctx.score) ctx.score({ mode: 'ride' }); } }
-        if (!r || (there && (!r || r.state !== 'in'))) { st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
+        if (!r || (there && (!r || r.state !== 'in'))) { if (r && ctx.rideOff) ctx.rideOff(); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
       }
       st.t += dt;
       // time is not cut, it is braked: the world slows to nothing over most of a second, and runs up again faster
