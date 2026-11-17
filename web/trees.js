@@ -931,6 +931,18 @@ diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.62, 0.11, 0.05), vec3(0.9, 0
         }
         return out;
       },
+      // beside trunks(), tree for tree: how high its lowest leaves hang over its foot, how far out its crown reaches and
+      // how high its top is (metres, as it is drawn; trees.json clear_m and crown_r, guessed for an older trees.json):
+      // what a camera at eye height keeps out of (game.js)
+      crowns() {
+        const out = [];
+        for (let i = 0; i < n; i++) {
+          const s = Math.hypot(M[16 * i], M[16 * i + 2]), sy = Math.hypot(M[16 * i + 4], M[16 * i + 5], M[16 * i + 6]);
+          const S = I.species[names[which[i]]] || {}, H = S.height_m || 12, c = S.crown || [];
+          if (s > 0) out.push((S.clear_m != null ? S.clear_m : H * 0.3) * sy, (S.crown_r != null ? S.crown_r : (c[1] || H * 0.35)) * s, H * sy);
+        }
+        return out;
+      },
       // per frame: the wind, and the level of detail when the camera has moved 12 m, at most five times a
       // second while it keeps moving (a sort walks every tree: a fast move made it most frames' work), at once
       // after a jump of 120 m

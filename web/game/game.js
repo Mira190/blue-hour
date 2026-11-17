@@ -554,7 +554,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   { const L = G.props.street_lamp || [], NP = (Wd.night && Wd.night.poles) || [], TR = Wd.trees && Wd.trees.trunks ? Wd.trees.trunks() : [];
     for (let i = 0; i < L.length; i += 3) posts.add(L[i] / 10, L[i + 1] / 10, L[i + 2] / 10, 0.12, 'lamp');
     for (let i = 0; i < NP.length; i += 3) posts.add(NP[i], NP[i + 1], NP[i + 2], 0.12, 'lamp');
-    for (let i = 0; i < TR.length; i += 4) posts.add(TR[i], TR[i + 1], TR[i + 2], TR[i + 3], 'tree'); }
+    const CW = Wd.trees && Wd.trees.crowns ? Wd.trees.crowns() : []; // (and its crown: where its leaves begin, how far out and up they reach)
+    for (let i = 0; i < TR.length; i += 4) { const q = posts.add(TR[i], TR[i + 1], TR[i + 2], TR[i + 3], 'tree'), j = i / 4 * 3; if (CW.length) { q.hb = CW[j]; q.rc = CW[j + 1]; q.top = CW[j + 2]; } } }
   // (and a hero level's own lamp posts, hero[].posts: drawn by its model, solid here)
   for (const h of G.hero || []) for (const [x, y] of h.posts || []) posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp');
   // (and what stands round in it and is a fence however low, hero[].rounds [x, y, r]: a planter's rail, which the walker's
@@ -2778,7 +2779,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // whether the line is up, and its fade toward that: hidden in a conversation, a menu, a map, photo
   // mode or a cinematic shot, and in the last few metres to the objective
   function routeShow(dt, titled) {
-    const want = (routeMode === 'on' || clockT < routePeek) && !!guide.pts && !titled && !photo.on && !dlg.open && !uiOpen() && !cine.active && gold.left > 6;
+    const want = (routeMode === 'on' || clockT < routePeek) && !!guide.pts && !titled && !photo.on && !dlg.open && !uiOpen() && !cine.active && gold.left > 6 && !(story && story.finder); // (nor through the story's raised camera: seen from the eye along the ground, the band stood up in the finder as a shaft of light, issue 19)
     gold.fade(want ? 1 : 0, dt);
     gold.night(U.uNight.value);
     const b = $('#gq-route');
@@ -3163,8 +3164,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the frame as it is drawn now, small, for the episode's print (drawn and read back in one task: the canvas keeps no copy)
     snap: () => {
       // (what the camera in your hands sees: not yourself, and not the goal's light)
-      const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible;
-      player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false;
+      const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible, gl = gold.mesh.visible;
+      player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false; gold.mesh.visible = false; // (nor the way's band on the ground)
       mirrorTick();
       const out = document.createElement('canvas'), h = Math.min(480, canvas.height);
       out.height = h; out.width = Math.round(h * 1.5);
@@ -3176,7 +3177,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (past) past.whole(true); // (the photograph is the finder's picture, edge to edge)
       const src = take(0.86);
       if (past) past.whole(false);
-      player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc;
+      player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc; gold.mesh.visible = gl;
       storySnapBase = base;
       return src;
     },
@@ -6464,8 +6465,28 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (const s of [1, -1]) if (nav.clearFraction(sa.copy(side).multiplyScalar(s * 0.45).add(a), sb.copy(side).multiplyScalar(s * 0.6).add(b)) < 0.97) return false;
       return true;
     };
+    // a tree's crown is not a wall, but a view through it is a screen of leaves (issue 19: the first line of a frame was
+    // said through one): on foot the way from the head to the camera stops where it goes into the dense middle of a
+    // crown (from its lowest leaves to its top, within three quarters of its reach), and the camera comes closer or
+    // lower as it does for a wall. Not in a vehicle or the air, which look down over crowns
+    const leafy = close ? postsNear(camTarget.x, -camTarget.z, dist + 8).filter(q => q.kind === 'tree' && q.hb != null) : [];
+    const leaves = (a, b) => {
+      let f = 1;
+      for (const q of leafy) {
+        const R = q.rc * 0.75, lo = q.z + q.hb + 0.2, hi = q.z + q.top;
+        // (the way in plan, a.x/-a.z to b.x/-b.z, against the circle of the crown; then the heights where it is inside it)
+        const ax = a.x, ay = -a.z, dx = b.x - a.x, dy = -b.z + a.z, A = dx * dx + dy * dy, B = 2 * ((ax - q.x) * dx + (ay - q.y) * dy), C = (ax - q.x) ** 2 + (ay - q.y) ** 2 - R * R;
+        if (A < 1e-9) continue;
+        const D = B * B - 4 * A * C;
+        if (D <= 0) continue;
+        const t0 = Math.max(0, (-B - Math.sqrt(D)) / (2 * A)), t1 = Math.min(1, (-B + Math.sqrt(D)) / (2 * A));
+        if (t1 <= t0) continue;
+        for (let k = 0; k <= 6; k++) { const t = t0 + (t1 - t0) * k / 6, z = a.y + (b.y - a.y) * t; if (z > lo && z < hi) { f = Math.min(f, Math.max(0, t - 0.04)); break; } }
+      }
+      return f;
+    };
     // (riding a glass lift, the camera holds outside it, looking in through its glass: not pulled in by the shaft)
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b); return f < 0.97 && thin(a, b) ? 1 : f; };
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && thin(a, b) ? 1 : f, g); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     let want = null;
     for (const lift of CAM_LIFTS) {

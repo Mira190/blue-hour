@@ -531,6 +531,13 @@ SPECIES = {
                      note="Spiny-headed mat-rush (Lomandra longifolia): a dense tussock of stiff, flat, glossy dark green "
                           "strap leaves 0.6-1 m long, arching but not drooping, with split brown tips; the strappy native "
                           "of Sydney's sandstone gullies and its planted beds"),
+    # (last, so that every species before it keeps its seed: build_all seeds by place in this list)
+    "cherry_plaza": dict(deciduous=True, H=10.0, trunk=4.0, r0=0.36, crown=("ellipsoid", 7.9, 5.2, 2.3), n=400, size=2.1, n1=6, n2=5, leaf="sakura",
+                         bark="#3e3431", lean=0.05, leader=False, colour="#5d8a3a", autumn_colour="#b2532f", bloom_colour="#f3dadc",
+                         bloom_offset_d=0, bloom_len=1.0, bark_bands=True,
+                         note="Somei-yoshino cherry in a city square (Hachiko Square's planters): the same tree as 'cherry', its "
+                              "lower limbs taken off as a square's trees are pruned, so that its leaves begin over 3 m up and "
+                              "a crowd and a camera at eye height pass under them; a taller clean trunk and the crown held high"),
 }
 
 
@@ -1047,11 +1054,14 @@ def build_all(atlas):
         tri = []
         for lod in range(3):
             T = grow(name, sp, 100 + k, lod)
+            if lod == 0:  # how high its lowest leaf hangs, and how far out its widest: what the game's camera keeps out of
+                L = [T.m.v[i] for i in T.nrm] or [(0.0, 0.0, sp["H"])]
+                clear = (round(float(min(q[2] for q in L)), 2), round(float(max(math.hypot(q[0], q[1]) for q in L)), 2))
             ob = to_object(T, f"{name}_LOD{lod}")
             objs[ob.name] = ob
             tri.append(triangles(ob))
         info[name] = {"height_m": sp["H"], "crown": list(sp["crown"][1:]), "colour": sp["colour"], "bark": sp["bark"], "triangles": tri,
-                      "cell": CELLS[sp["leaf"]], "trunk_r": sp["r0"], "note": sp["note"]}
+                      "cell": CELLS[sp["leaf"]], "trunk_r": sp["r0"], "clear_m": clear[0], "crown_r": clear[1], "note": sp["note"]}
         for k_ in ("bloom_colour", "autumn_colour", "deciduous", "bloom_offset_d", "bloom_len", "bark_bands"):
             if k_ in sp:
                 info[name][k_] = sp[k_]

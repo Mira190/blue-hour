@@ -73,6 +73,8 @@
    ],
    "cell": 1,
    "trunk_r": 0.36,
+   "clear_m": 2.84,
+   "crown_r": 8.3,
    "note": "London plane: the street tree of both cities",
    "autumn_colour": "#7f7444",
    "deciduous": true
@@ -94,6 +96,8 @@
    ],
    "cell": 2,
    "trunk_r": 0.34,
+   "clear_m": 2.44,
+   "crown_r": 9.13,
    "note": "English elm: Melbourne's avenues",
    "autumn_colour": "#8c8240",
    "deciduous": true
@@ -114,6 +118,8 @@
    ],
    "cell": 0,
    "trunk_r": 0.4,
+   "clear_m": 8.32,
+   "crown_r": 7.7,
    "note": "Eucalyptus: pale bark, open crown in clumps"
   },
   "fig": {
@@ -132,6 +138,8 @@
    ],
    "cell": 3,
    "trunk_r": 0.85,
+   "clear_m": 2.94,
+   "crown_r": 12.3,
    "note": "Moreton Bay fig: a broad dark dome on buttresses"
   },
   "jacaranda": {
@@ -150,6 +158,8 @@
    ],
    "cell": 4,
    "trunk_r": 0.26,
+   "clear_m": 1.85,
+   "crown_r": 7.74,
    "note": "Jacaranda: purple in late spring (cards swap to the bloom cell with the season)",
    "bloom_colour": "#9177c9"
   },
@@ -169,6 +179,8 @@
    ],
    "cell": 6,
    "trunk_r": 0.42,
+   "clear_m": 5.64,
+   "crown_r": 6.11,
    "note": "Canary Island date palm"
   },
   "maple": {
@@ -187,6 +199,8 @@
    ],
    "cell": 7,
    "trunk_r": 0.2,
+   "clear_m": 1.01,
+   "crown_r": 6.18,
    "note": "Japanese maple (momiji, Acer palmatum): a low, wide, layered crown; red from mid November in Tokyo and Kyoto",
    "autumn_colour": "#c2412b",
    "deciduous": true
@@ -207,6 +221,8 @@
    ],
    "cell": 8,
    "trunk_r": 0.3,
+   "clear_m": 3.82,
+   "crown_r": 7.8,
    "note": "Japanese black pine (kuromatsu, Pinus thunbergii): a leaning, crooked trunk under flat pads of needles, as on the Kyoto Gyoen's and the Kokyo Gaien's lawns"
   },
   "sugi": {
@@ -225,6 +241,8 @@
    ],
    "cell": 9,
    "trunk_r": 0.45,
+   "clear_m": 4.76,
+   "crown_r": 6.1,
    "note": "Japanese cedar (sugi, Cryptomeria japonica): straight red-brown trunk, a narrow cone; the shrine woods' tree, and stands for hinoki"
   },
   "camphor": {
@@ -243,6 +261,8 @@
    ],
    "cell": 10,
    "trunk_r": 0.72,
+   "clear_m": 6.1,
+   "crown_r": 12.74,
    "note": "Camphor laurel (kusunoki, Cinnamomum camphora): a broad, bright evergreen dome on a massive trunk; the shrine trees of Osaka and Kyoto and Meiji Jingu's commonest"
   },
   "zelkova": {
@@ -262,6 +282,8 @@
    ],
    "cell": 11,
    "trunk_r": 0.45,
+   "clear_m": 2.63,
+   "crown_r": 10.32,
    "note": "Japanese zelkova (keyaki, Zelkova serrata): a broom of upswept limbs and fine twigs; the avenue tree of Omotesando and the precincts, rust-orange in November",
    "autumn_colour": "#8e6a3e",
    "deciduous": true
@@ -282,6 +304,8 @@
    ],
    "cell": 12,
    "trunk_r": 0.34,
+   "clear_m": 0.94,
+   "crown_r": 5.89,
    "note": "Ginkgo (icho, Ginkgo biloba): a tall narrow crown on a central stem; Tokyo's and Osaka's street tree (Midosuji, Jingu Gaien), gold in late November",
    "autumn_colour": "#c8a640",
    "deciduous": true
@@ -302,6 +326,8 @@
    ],
    "cell": 17,
    "trunk_r": 0.34,
+   "clear_m": 1.32,
+   "crown_r": 7.72,
    "note": "Somei-yoshino cherry (Cerasus x yedoensis): a short dark trunk that forks low into a few limbs spreading wide, a crown wider than it is tall; pale pink on bare branches for about a fortnight from late March in Tokyo (web/trees.js), then fresh leaves, orange-red in November. Its cards are all bloom cards, shown as the leaf cell out of flower",
    "bloom_colour": "#f3dadc",
    "autumn_colour": "#b2532f",
@@ -326,6 +352,8 @@
    ],
    "cell": 13,
    "trunk_r": 0.36,
+   "clear_m": 2.78,
+   "crown_r": 7.17,
    "note": "Evergreen broadleaf (Schima superba, Machilus; in Japan shii and kashi): a dense, dark, glossy rounded crown; Hong Kong's hillside woods and the laurel forest of the old shrine groves"
   },
   "pisonia": {
@@ -344,6 +372,8 @@
    ],
    "cell": 14,
    "trunk_r": 0.5,
+   "clear_m": 3.21,
+   "crown_r": 8.42,
    "note": "Pisonia (Pisonia grandis): several pale soft trunks from one base, leaning out (fallen stems re-root and sprout, so a tree is a clump), and a broad low canopy of big lime-green leaves; the coral cays' forest, mostly 6-8 m on Heron Island"
   },
   "casuarina": {
@@ -362,6 +392,8 @@
    ],
    "cell": 15,
    "trunk_r": 0.28,
+   "clear_m": 1.9,
+   "crown_r": 5.69,
    "note": "Coastal she-oak (Casuarina equisetifolia): an open, tapering crown of drooping grey-green branchlets, behind the beaches"
   },
   "shidarezakura": {
@@ -380,6 +412,8 @@
    ],
    "cell": 18,
    "trunk_r": 0.46,
+   "clear_m": -0.38,
+   "crown_r": 7.85,
    "note": "Weeping cherry (shidarezakura, Cerasus spachiana 'Pendula', an Edohigan): a stout trunk, scaffold limbs arching up into a dome and curtains of thin branches hanging nearly to the ground, pink a few days before the Somei-yoshino: Maruyama Park's Gion weeping cherry, the temple gardens, Rikugien",
    "bloom_colour": "#efbdca",
    "autumn_colour": "#b2532f",
@@ -404,6 +438,8 @@
    ],
    "cell": 19,
    "trunk_r": 0.26,
+   "clear_m": 0.63,
+   "crown_r": 5.54,
    "note": "Kawazu-zakura (Cerasus 'Kawazu-zakura', from Kawazu in Izu): a small upright tree whose deep pink flowers open in February, five weeks before the Somei-yoshino's, and last a month",
    "bloom_colour": "#ef9fb9",
    "autumn_colour": "#b2532f",
@@ -429,6 +465,8 @@
    ],
    "cell": 20,
    "trunk_r": 0.32,
+   "clear_m": 0.75,
+   "crown_r": 6.13,
    "note": "Yaezakura (Cerasus serrulata 'Kanzan', the commonest double cherry): upswept limbs in a vase, heavy deep pink double flowers in mid April, about two weeks after the Somei-yoshino, with bronze new leaves",
    "bloom_colour": "#eba3bc",
    "autumn_colour": "#b2532f",
@@ -453,6 +491,8 @@
    ],
    "cell": 21,
    "trunk_r": 0.07,
+   "clear_m": -0.21,
+   "crown_r": 2.86,
    "note": "Beach cabbage (Scaevola taccada): a dense mound of thick yellow-green leaves on many soft stems from the sand, 1-3 m high and wider than tall, the first shrub behind a cay's beach"
   },
   "argusia": {
@@ -471,6 +511,8 @@
    ],
    "cell": 22,
    "trunk_r": 0.12,
+   "clear_m": 0.51,
+   "crown_r": 3.49,
    "note": "Octopus bush (Argusia argentea, now Heliotropium arboreum): crooked spreading stems under a rounded crown of silvery grey-green felted leaves in rosettes, about 3.5 m high and 5 m across"
   },
   "tussock": {
@@ -489,6 +531,8 @@
    ],
    "cell": 23,
    "trunk_r": 0.04,
+   "clear_m": -0.17,
+   "crown_r": 0.74,
    "note": "Tussock (snow tussock, Chionochloa rigida, and hard tussock, Festuca novae-zelandiae): a dense fountain of fine rolled blades about a metre high, olive at the base and straw to bleached gold above; the grassland of Otago's open hills round Queenstown, and a planted bed's grass"
   },
   "susuki": {
@@ -507,6 +551,8 @@
    ],
    "cell": 24,
    "trunk_r": 0.05,
+   "clear_m": -0.36,
+   "crown_r": 1.33,
    "note": "Susuki (Miscanthus sinensis, Japanese silver grass): a clump of broad arching leaves with a pale midrib about 1.2 m high, through which the flowering culms stand to 1.7-2 m with fan-shaped silky heads, red-tinged in late August, silver in October and buff through the winter, when the leaves are straw; the open grass of the Kamo's banks and of Tokyo's park meadows",
    "autumn_colour": "#b59b5c"
   },
@@ -526,7 +572,35 @@
    ],
    "cell": 26,
    "trunk_r": 0.05,
+   "clear_m": -0.2,
+   "crown_r": 0.82,
    "note": "Spiny-headed mat-rush (Lomandra longifolia): a dense tussock of stiff, flat, glossy dark green strap leaves 0.6-1 m long, arching but not drooping, with split brown tips; the strappy native of Sydney's sandstone gullies and its planted beds"
+  },
+  "cherry_plaza": {
+   "height_m": 10.0,
+   "crown": [
+    7.9,
+    5.2,
+    2.3
+   ],
+   "colour": "#5d8a3a",
+   "bark": "#3e3431",
+   "triangles": [
+    1954,
+    428,
+    103
+   ],
+   "cell": 17,
+   "trunk_r": 0.36,
+   "clear_m": 4.39,
+   "crown_r": 6.72,
+   "note": "Somei-yoshino cherry in a city square (Hachiko Square's planters): the same tree as 'cherry', its lower limbs taken off as a square's trees are pruned, so that its leaves begin over 3 m up and a crowd and a camera at eye height pass under them; a taller clean trunk and the crown held high",
+   "bloom_colour": "#f3dadc",
+   "autumn_colour": "#b2532f",
+   "deciduous": true,
+   "bloom_offset_d": 0,
+   "bloom_len": 1.0,
+   "bark_bands": true
   }
  }
 }
