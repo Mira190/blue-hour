@@ -80,6 +80,7 @@ window.OEStory = (function () {
     const el = (id, html, tag = 'div') => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; ctx.stage.appendChild(e); return e; };
     const frames = el('g-story-frames', `<span><b></b><small>/${String(N).padStart(2, '0')}</small>taken</span><span class="strip">${'<i></i>'.repeat(N)}</span><em>${ctx.touch ? 'Tap' : '<kbd>Tab</kbd>'} · the roll</em>`, 'button'), card = el('g-story-card', '<div><small></small><span></span></div>'), veil = el('g-story-veil', ''), flash = el('g-story-flash', '');
     const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '');
+    const failEl = el('g-story-fail', ''), slip = el('g-story-slip', '<small>Entered in the file</small><p></p>');
     const pre = el('g-story-pre', '<div><small></small><div class="tx"></div><em></em></div>');
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · wheel: the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
@@ -110,27 +111,66 @@ window.OEStory = (function () {
 <text x="60" y="59" font-size="16" font-weight="600">${esc(hour)}</text><text x="60" y="74" font-size="8.5" letter-spacing="1.5">FRAME ${n} OF ${N}</text></g></svg>`; };
     // the print in your hand for a moment after the shutter: the picture, its postmark struck on it, then away to the roll
     const printEl = el('g-story-print', '');
-    function showPrint(p, n) {
+    // It develops: white paper, then tonight comes up in it, and then the other year comes up through tonight (base:
+    // the same frame without what the camera remembers, ctx.snapBase). The double exposure is the reward of every
+    // frame, so it is seen to happen. A frame spent has only tonight: the paper waits, and nothing more comes.
+    function showPrint(p, n, base) {
       if (!p || !p.src) return;
-      printEl.innerHTML = `<figure><img alt="" src="${p.src}">${postmark(p.stamp, n)}<figcaption><b>${n}</b>${esc(p.cap || p.stamp || '')}</figcaption></figure>`;
+      const two = !!base && !p.plain;
+      printEl.innerHTML = `<figure class="${two ? 'two' : ''}${p.plain ? ' plain' : ''}"><span class="dev"><img alt="" src="${two ? base : p.src}">${two ? `<img alt="" class="then" src="${p.src}">` : ''}</span>${postmark(p.stamp, n)}<figcaption><b>${n}</b>${esc(p.cap || p.stamp || '')}</figcaption></figure>`;
       printEl.classList.remove('on'); void printEl.offsetWidth; printEl.classList.add('on');
-      later(720, () => sfx('stamp')); // (the postmark comes down)
-      later(1500, () => sting('note')); // (and the score has one more note of its tune)
-      later(4200, () => printEl.classList.remove('on'));
+      if (two) later(1900, () => sfx('found')); // (glass, as the other year comes up)
+      later(3000, () => sfx('stamp')); // (the postmark comes down)
+      later(3600, () => sting('note')); // (and the score has one more note of its tune)
+      later(6400, () => printEl.classList.remove('on'));
     }
     // the roll so far: every print kept, laid out as prints on a table; opened from the film strip or with Tab
     const album = el('g-story-album', '');
     const fileName = n => `blue-hour-${(st.ep && st.ep.id) || 'roll'}-${n}`;
+    // The roll is the case board: two prints set side by side say what neither says alone, where the episode has
+    // something for that pair (ep.pairs: [{ of: [a, b], line }]); what was found stays written under the table and is
+    // counted on the last card. Nobody asks for it: it is the player's own look at their own evidence.
+    let vs = [], vsSaid = '', slipT = 0;
+    // The file: a sheet of kraft paper under the prints on which the case is written down by hand, a line at a time.
+    // What goes on it is what is established and what the player has said, never what it means: a frame's own note as
+    // it is taken, a thing the player committed to (an option's `file`), a pair of prints that argued. A line the
+    // player later takes back is struck through, not removed (`strikes` names the `key` of the line it answers).
+    function filed(text, { key = '', strikes = '', kind = '' } = {}) {
+      if (!text) return;
+      if (strikes) for (const e of st.file) if (e.key === strikes) e.struck = true;
+      st.file.push({ at: (st.fr && st.fr.stamp) || '', text, key, kind });
+      keep(); frames.classList.remove('filed'); void frames.offsetWidth; frames.classList.add('filed');
+      // (what the player said is seen to be written down in the same hand, a letter at a time, as it is said: the game has heard it)
+      if (kind === 'said') {
+        const p = slip.querySelector('p'); clearInterval(slipT); let i = 0;
+        slip.querySelector('small').textContent = strikes ? 'Struck from the file, and entered' : 'Entered in the file';
+        p.textContent = ''; slip.classList.add('on');
+        slipT = setInterval(() => { p.textContent = text.slice(0, ++i); if (i >= text.length) { clearInterval(slipT); later(3600, () => { if (p.textContent === text) slip.classList.remove('on'); }); } }, 30);
+      }
+    }
+    const pairKey = (a, b) => `${Math.min(a, b) + 1}-${Math.max(a, b) + 1}`;
+    function versus(i) {
+      vs = vs.includes(i) ? vs.filter(k => k !== i) : vs.concat(i).slice(-2);
+      vsSaid = '';
+      if (vs.length === 2) {
+        const key = pairKey(vs[0], vs[1]), hit = ((st.ep && st.ep.pairs) || []).find(p => pairKey(p.of[0] - 1, p.of[1] - 1) === key), dud = vs.some(k => st.prints[k].plain);
+        if (hit && !dud) { vsSaid = hit.line; if (!st.pairs.includes(key)) { st.pairs.push(key); filed(`Frames ${key.replace('-', ' and ')}, side by side. ${hit.line}`, { kind: 'pair' }); sfx('found'); sting('note'); } }
+        else { vsSaid = dud ? 'One of these is only tonight. It has nothing to set against the other.' : 'These two do not argue with each other.'; sfx('word'); }
+      }
+      albumDraw(-1);
+    }
     function albumDraw(big) {
-      const P = st.prints, cell = i => { const p = P[i]; return p ? `<li class="${i === big ? 'big' : ''}" style="--r:${((i * 37) % 7 - 3) * 0.6}deg"><button type="button" data-i="${i}" aria-label="Frame ${i + 1}">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}${postmark(p.stamp, i + 1)}<span><b>${i + 1}</b>${esc(p.stamp)}</span></button>${p.cap ? `<p>${esc(p.cap)}</p>` : ''}${p.note ? `<p class="note">${esc(p.note)}</p>` : ''}${p.src ? `<a download="${fileName(`frame-${i + 1}`)}.jpg" href="${p.src}">Save this print</a>` : ''}</li>` : `<li class="blank"><span><b>${i + 1}</b>not yet taken</span></li>`; };
+      const P = st.prints, cell = i => { const p = P[i]; return p ? `<li class="${i === big ? 'big' : ''}" style="--r:${((i * 37) % 7 - 3) * 0.6}deg"><button type="button" data-i="${i}" aria-label="Frame ${i + 1}">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}${postmark(p.stamp, i + 1)}<span><b>${i + 1}</b>${esc(p.stamp)}</span></button>${p.cap ? `<p>${esc(p.cap)}</p>` : ''}${P.length > 1 ? `<button type="button" class="vs${vs.includes(i) ? ' on' : ''}" data-c="${i}">${vs.includes(i) ? 'Chosen' : 'Set beside another'}</button>` : ''}${p.src ? `<a download="${fileName(`frame-${i + 1}`)}.jpg" href="${p.src}">Save this print</a>` : ''}</li>` : `<li class="blank"><span><b>${i + 1}</b>not yet taken</span></li>`; };
       album.innerHTML = `<div class="table"><header><small>${esc(S.title || '')}${st.ep && st.ep.no ? ` · Episode ${st.ep.no}` : ''}</small><h2>The roll</h2><span>${P.length} of ${N} frames taken</span></header>
+${vs.length === 2 ? `<div class="versus${st.pairs.includes(pairKey(vs[0], vs[1])) ? ' hit' : ''}" role="status"><figure>${vs.slice().sort((a, b) => a - b).map(k => `<span>${P[k].src ? `<img alt="Frame ${k + 1}" src="${P[k].src}">` : '<i></i>'}<b>${k + 1}</b></span>`).join('')}</figure><p>${esc(vsSaid)}</p></div>` : P.length > 1 ? `<p class="how">Set two prints side by side: some of them say together what neither says alone.${st.pairs.length ? ` Found so far: ${st.pairs.length}.` : ''}</p>` : ''}
 <ol>${Array.from({ length: N }, (_, i) => cell(i)).join('')}</ol>
+${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3><ul>${st.file.map(e => `<li class="${e.struck ? 'struck' : ''}${e.kind ? ` ${e.kind}` : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}</span></li>`).join('')}</ul></section>` : ''}
 <div class="row">${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
     }
     function albumOpen(on) {
       if (on && (st.phase === 'idle' || st.phase === 'dressed')) return;
       album.classList.toggle('on', on);
-      if (on) { albumDraw(-1); if (document.exitPointerLock) document.exitPointerLock(); }
+      if (on) { vs = []; vsSaid = ''; albumDraw(-1); if (document.exitPointerLock) document.exitPointerLock(); }
     }
     // the whole roll as one picture, to keep: the frames in a strip of film, numbered and stamped
     function saveSheet() {
@@ -151,7 +191,8 @@ window.OEStory = (function () {
       });
     }
     album.addEventListener('click', e => {
-      const d = e.target.closest('button[data-do]'), b = e.target.closest('button[data-i]');
+      const d = e.target.closest('button[data-do]'), b = e.target.closest('button[data-i]'), c = e.target.closest('button[data-c]');
+      if (c) return versus(+c.dataset.c);
       if (d) return d.dataset.do === 'sheet' ? saveSheet() : albumOpen(false);
       if (b) { const li = b.parentNode, was = li.classList.contains('big'); album.querySelectorAll('li.big').forEach(q => q.classList.remove('big')); li.classList.toggle('big', !was); return; }
       if (e.target === album) albumOpen(false);
@@ -159,7 +200,7 @@ window.OEStory = (function () {
     goalEl.setAttribute('role', 'status'); goalEl.setAttribute('aria-live', 'polite');
     const pulse = () => { flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); };
     // phase: idle, dressed, go (the world runs: a word with the living, the way to the next place), stop, after, done
-    const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0 };
+    const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0, flags: {}, pairs: [], slips: 0, file: [] };
     const timers = [];
     const later = (ms, fn) => timers.push(setTimeout(fn, ms));
     // the roll as a collection: each frame taken lit, with its own picture in it; those still to take dark and empty
@@ -171,7 +212,7 @@ window.OEStory = (function () {
     }
     // the case kept in this browser: the frame it is at and the prints so far
     const KEY = () => `oe-story-${st.ep ? st.ep.id : ''}`;
-    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
+    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
     const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
@@ -291,12 +332,13 @@ window.OEStory = (function () {
       for (const [i, r] of (ep.set || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r)); // (tonight's own set dressing: a lift's doors, a sign)
       for (const c of ep.cast || []) if (!st.cast[c.id]) st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice });
       const k = kept();
-      if (k) { st.left = k.left; st.prints = k.prints; }
+      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); }
+      else { st.flags = {}; st.pairs = []; st.file = []; }
       if (ep.walk_in_s != null && !k) ctx.walkIn(ep.walk_in_s);
       show(); if (k) frames.classList.add('on');
       // a case begun at its first frame opens on a voice: who you are, why you are on this kerb at this hour, and the one
       // odd thing about the job (ep.prologue: {who, voice, lines}); a case taken up again goes straight to its frame
-      const P = !k && ep.prologue;
+      const P = !k && ep.prologue && !ep.prologue.after && ep.prologue; // (after: the office rings once the first Stop has let go, not before it)
       if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
       else frame(k ? k.fi : 0);
     }
@@ -321,7 +363,7 @@ window.OEStory = (function () {
         else approach();
       };
       // a frame reached by air: the flight to it first (ctx.film: the helicopter, the city under it, and the place it sets you down)
-      if (fr.flight && ctx.film) { st.beat = 'flight'; goal(''); aimAt(null); frames.classList.remove('on'); ctx.film(fr.flight, () => { frames.classList.add('on'); go(); }); }
+      if (fr.flight && ctx.film && !st.again) { st.beat = 'flight'; goal(''); aimAt(null); frames.classList.remove('on'); ctx.film(fr.flight, () => { frames.classList.add('on'); go(); }); }
       else go();
     }
     const living = m => (m.cast ? st.cast[m.cast] : ctx.person(m.npc));
@@ -337,21 +379,46 @@ window.OEStory = (function () {
     // what the living ask: each question until it is answered rightly (a wrong answer costs nothing but the look they give you)
     // A question with `frame` is answered with a print (the living are shown it; an afterimage, who cannot see a
     // photograph, is told what it has in it): the roll so far is laid out, and the one that settles it is picked.
+    // What the player says decides what comes after (the case is the player's, not recited to them):
+    // - a line may be { if: flag, not: flag, say }: said only to a player who has (or has not) done the thing (L);
+    // - a question with `choice` has no right answer: each option { text, set: flag, say } is something the player
+    //   commits to, kept in st.flags (and in the save) for later lines to answer;
+    // - a question with `fail: { after, lines, title, line }` can be lost: after that many wrong answers in one talk
+    //   the one asked sees through the player, the Stop lets go, and the frame is taken up again from its beginning
+    //   (failed, retry). Nothing but the minute is lost, but it is lost in front of the player;
+    // - a question that wants a print the player spent on nothing (shoot: plain) is passed over; the frame's
+    //   `lost<n>` flag is set, so those who would have answered to it say something else.
+    const L = list => [].concat(list || []).filter(l => typeof l === 'string' || ((!l.if || st.flags[l.if]) && (!l.not || !st.flags[l.not]))).map(l => (typeof l === 'string' ? l : l.say));
     function ask(m, w, done) {
-      const q = (m.ask || [])[st.asked];
+      let q = (m.ask || [])[st.asked];
+      while (q && ((q.if && !st.flags[q.if]) || (q.not && st.flags[q.not]) || (q.frame && st.prints[q.frame - 1] && st.prints[q.frame - 1].plain))) q = (m.ask || [])[++st.asked];
       if (!q || (q.frame && !st.prints[q.frame - 1])) { st.want = -1; return done(); } // (a print the roll does not have cannot be asked for)
+      if (q.choice) {
+        const opts = q.options.map((o, i) => ({ k: i, text: o.text }));
+        st.want = q.play || 0; // (tools/story_play.js takes this one)
+        return ctx.ask(q.own ? Object.assign({}, w, { name: q.own, role: '', alive: true }) : w, [q.q], opts, c => { // (own: the question is the player's own, not in anyone's mouth)
+          const o = q.options[c ? c.k : 0] || q.options[0];
+          if (o.set) st.flags[o.set] = true;
+          if (o.file) filed(o.file.say || o.file, { key: o.file.key || o.set || '', strikes: o.file.strikes || '', kind: 'said' });
+          st.want = -1; st.asked++; keep(); sfx('goal');
+          const said = L(o.say);
+          return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
+        });
+      }
       const opts = q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: `<span class="pr">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>` })) : q.options.map((text, i) => ({ k: i, text })), right = q.frame || q.answer;
       st.want = opts.findIndex(o => o.k === right); // (which answer is the right one: tools/story_play.js picks it)
+      st.canFail = !!q.fail;
       ctx.ask(q.frame && !w.alive ? Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }) : w, [q.q], opts, c => { // (what an afterimage is told is yours to choose: the question is not in their mouth)
         if (!!c && c.k === right && q.frame) sting('turn'); // (a print that settles it: the case turns)
-        const ok = !!c && c.k === right, said = [].concat((ok ? q.right : q.wrong) || (ok ? [] : ['No. Look at the prints again.']));
+        const ok = !!c && c.k === right, said = L((ok ? q.right : q.wrong) || (ok ? [] : ['No. Look at the prints again.']));
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
+        else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
         return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
       });
     }
     // what is said, what is asked, and what is said once it is answered (`then`): of the living, or of an afterimage
-    const hear = (m, w, done) => ctx.say(w, m.lines || [], () => { st.asked = 0; ask(m, w, () => ((m.then || []).length ? ctx.say(w, m.then, done) : done())); });
+    const hear = (m, w, done) => { st.slips = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = L(m.lines); return first.length ? ctx.say(w, first, go) : go(); };
     function stop() {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
       st.phase = 'stop'; st.t = 0; st.beat = 'still';
@@ -366,6 +433,8 @@ window.OEStory = (function () {
       if (a && !st.ghost) { st.ghost = ctx.figure(a, a.at); st.ghost.face(ctx.player.x, ctx.player.y); }
       if (fr.afterimage2 && !st.ghost2) { st.ghost2 = ctx.figure(fr.afterimage2, fr.afterimage2.at); st.ghost2.face(ctx.player.x, ctx.player.y); }
       // the world holds a breath (the first time, the title falls on it), and then the one thing to do
+      // (a Stop in which something moves that should not, fr.stirs: { cast, line, after_s }: one of the living turns to look)
+      if (fr.stirs && st.cast[fr.stirs.cast]) later((fr.stirs.after_s || 7) * 1000, () => { if (st.phase !== 'stop' || st.fr !== fr) return; const c = st.cast[fr.stirs.cast]; if (c.face) c.face(ctx.player.x, ctx.player.y); if (fr.stirs.line) ctx.toast(esc(fr.stirs.line)); sfx('ghost'); });
       if (first) later(900, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
       later(first ? 4300 : 2500, () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
@@ -390,7 +459,7 @@ window.OEStory = (function () {
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      st.findT = 0; st.lit = !st.fr.task.find; st.placedOnce = false; // (find: no light stands where this one is taken from, until the player has looked a while)
+      st.findT = 0; st.lit = !st.fr.task.find; st.placedOnce = false; st.spendT = 0; // (find: no light stands where this one is taken from, until the player has looked a while)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
@@ -417,20 +486,48 @@ window.OEStory = (function () {
       const fr = st.fr, T = fr.task, G = T.goals || {};
       if (!st.cam) return raise(true); // (the release with the camera down brings it up)
       const f = framed();
-      if (!f.placed || !f.aimed) { goal(!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'); st.miss = 2.5; return; }
+      // A frame taken from the wrong place is spent (the rules of the Stop, 5 and 6): the release pressed a second time
+      // within a few seconds takes the picture as it is, a print of tonight and nothing under it, and the story goes on
+      // without what stood here. Not the first frame, which teaches the camera, nor the last, which is the ending.
+      const spare = st.fi > 0 && !T.both && !fr.finale, off = !f.placed || !f.aimed, spend = off && spare && st.spendT > 0;
+      if (off && !spend) { goal(`${!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'}${spare ? ' The release again spends the frame as it is.' : ''}`); st.miss = spare ? 5 : 2.5; st.spendT = spare ? 5 : 0; return; }
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
       ctx.beacon(null);
       let print = null;
       try { print = ctx.snap(); } catch (e) { print = null; }
-      st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '', note: fr.note || '' }); // (note: what the frame settled, written under it in the roll)
-showPrint(st.prints[st.prints.length - 1], st.prints.length);
+      if (spend) { st.prints.push({ src: print, stamp: fr.stamp || '', cap: 'Only tonight. Nothing of 1964 came up in it.', note: fr.lost ? `Spent. Not on the roll: ${fr.lost}` : 'Spent.', plain: true }); st.flags[`lost${st.fi + 1}`] = true; }
+      else st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '', note: fr.note || '' }); // (note: what the frame settled, written under it in the roll)
+      st.spendT = 0;
+      { const p = st.prints[st.prints.length - 1]; filed(`Frame ${st.prints.length}. ${p.note || p.cap}`, { kind: p.plain ? 'spent' : 'print' }); for (const e of fr.file || []) if ((!e.if || st.flags[e.if]) && (!e.not || !st.flags[e.not])) filed(e.say, { key: e.key || '', strikes: e.strikes || '', kind: 'said' }); } // (fr.file: what the frame makes of something the player said before)
+      if (spend) later(700, () => say('Spent: only tonight'));
+showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.snapBase() : null);
       frames.classList.remove('kept'); void frames.offsetWidth; frames.classList.add('kept'); // (the strip says the print is kept, and where the roll is)
       pulse(); sfx('shutter'); sfx('wind');
       st.left = Math.max(0, st.left - 1); show();
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; aimAt(null); goal('');
       st.beat = 'shown';
       if (fr.finale) return finale();
-      later(900, () => ((T.lines || []).length ? ctx.say(who(fr.afterimage || {}), T.lines, () => resume()) : resume()));
+      // (what the print shows is said, and what the player makes of it is asked: task.ask, task.then; a frame spent has
+      // only its `spent` lines)
+      later(4600, () => hear(spend ? { lines: T.spent || [] } : { lines: T.lines, ask: T.ask, then: T.then }, who(fr.afterimage || T.voice || {}), () => resume()));
+    }
+    // seen through: the card says so, and the frame is taken up again from its beginning (the flight or the ride to it
+    // is not made twice)
+    function failed(F) {
+      st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong');
+      failEl.innerHTML = `<div class="card"><small>${esc(st.fr.stamp || '')} · frame ${st.fi + 1}</small><h2>${esc(F.title || 'Seen through')}</h2><p>${esc(F.line || '')}</p><div class="row"><button type="button" class="go">Take it up again${st.fr.stamp ? ` · ${esc(st.fr.stamp)}` : ''}</button></div></div>`;
+      failEl.classList.add('on'); st.failed = (st.failed || 0) + 1;
+      if (document.exitPointerLock) document.exitPointerLock();
+      const b = failEl.querySelector('button'); if (b) b.focus({ preventScroll: true });
+    }
+    function retry() {
+      failEl.classList.remove('on');
+      veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
+      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; hint(false);
+      ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false }); if (ctx.held) ctx.held(false);
+      for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
+      if (ctx.finder) ctx.finder(null);
+      st.again = true; st.rode = true; frame(st.fi); st.again = false;
     }
     // the last frame: every light to walk, and the two of them leave their kerbs and meet in the middle
     function finale() {
@@ -439,6 +536,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       for (const g of [st.ghost, st.ghost2]) if (g) { const dx = g.x - mid[0], dy = g.y - mid[1], l = Math.hypot(dx, dy) || 1; g.walkTo(mid[0] + dx / l * 0.45, mid[1] + dy / l * 0.45, 1.1); }
       st.beat = 'meeting'; st.t = 0;
     }
+    const rings = () => { const P = st.ep && st.ep.prologue; return !!(P && P.after && !st.rang && L(P.lines).length); };
     function resume(late) {
       const fr = st.fr;
       st.phase = 'after'; st.t = 0; st.beat = ''; st.late = !!late;
@@ -451,9 +549,9 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length);
       for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
       if (st.dog) st.dog.heel(); // (the guide stays with you as the world runs on, to lead you to the next frame)
       if (ctx.finder) ctx.finder(null);
-      const said = late ? [fr.late || 'The lights changed. Come back to where it stopped, and it will stop again.'] : fr.after || [];
+      const said = late ? [fr.late || 'The lights changed. Come back to where it stopped, and it will stop again.'] : L(fr.after);
       said.forEach((line, i) => later(1400 + i * 4200, () => ctx.toast(esc(line))));
-      st.wait = late ? 7 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
+      st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
     }
     // what was in the camera all along (the last card's `found`): a card ticket of that year, its face and its back, as
@@ -473,11 +571,14 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
       if (st.dog) { const d = st.dog; st.dog = null; d.leave((st.ep.guide || {}).from || [d.x, d.y], () => d.remove()); st.gone = d; } // (the case closed: he goes home)
       frames.classList.remove('on'); goal('');
       const last = st.prints[st.prints.length - 1];
+      // (what the evening did not show: each frame spent, by what stood there; and how the case was worked)
+      const lost = st.prints.map((p, i) => (p.plain ? `Frame ${i + 1} was only tonight${ep.frames[i].lost ? `: ${ep.frames[i].lost}` : ''}.` : '')).filter(Boolean);
+      const np = (ep.pairs || []).length, tally = [np ? `${st.pairs.length} of ${np} pairs of prints set against each other` : '', st.failed ? `seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}` : ''].filter(Boolean).join(' · ');
       endEl.innerHTML = `<div class="card">${last && last.src ? `<figure><img alt="The last photograph you took" src="${last.src}"><figcaption><span>Frame ${st.prints.length} of ${N}</span><span>${esc(last.stamp)}</span></figcaption></figure>` : ''}
 ${st.prints.length > 1 ? `<ol class="sheet">${st.prints.slice(0, -1).map((p, i) => `<li>${p.src ? `<img alt="Frame ${i + 1}" src="${p.src}">` : ''}<span>${i + 1} · ${esc(p.stamp)}</span></li>`).join('')}</ol>` : ''}
 <small>${esc(S.title || '')}${ep.no ? ` · Episode ${ep.no}` : ''}</small><h2>${esc(E.title || 'To be continued')}</h2>
 ${E.found ? `<div class="found">${ticket(E.found.ticket || {})}<p>${esc(E.found.line || '')}</p></div>` : ''}
-${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}
+${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="lost">${lost.map(esc).join('<br>')}</p>` : ''}${tally ? `<p class="tally">${esc(tally)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}
 <div class="row">${st.prints.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="free">${esc(E.free || 'Walk the city')}</button><button type="button" data-do="again">Play it again</button></div></div>`;
       endEl.classList.add('on');
       if (E.found) later(2400, () => sting('found')); // (as the ticket comes up)
@@ -487,6 +588,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
     }
     endEl.addEventListener('click', e => { const b = e.target.closest('button[data-do]'); if (b) (b.dataset.do === 'sheet' ? saveSheet : b.dataset.do === 'again' ? ctx.again : ctx.free)(); });
     shutter.addEventListener('click', shoot);
+    failEl.addEventListener('click', e => { if (e.target.closest('button')) retry(); });
     frames.type = 'button'; frames.addEventListener('click', () => albumOpen(true));
     const onKey = e => {
       if (e.code === 'KeyF' && !e.repeat && st.beat === 'shoot') { e.preventDefault(); e.stopPropagation(); shoot(); }
@@ -564,6 +666,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
           const text = !st.cam ? (!f.placed ? standGoal : G.raise || `Raise the camera${ctx.touch ? '.' : ': R.'}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
+          if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
           const S0 = subjectOf(T), want = hunt ? null : !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
           if (String(want) !== String(st.target)) aimAt(want, false, f.placed ? 'frame' : 'stand');
           if (f.placed && S0) ctx.beacon(null); // (the subject is marked in the frame, with no light standing on it)
@@ -580,6 +683,10 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
         if (leftS <= 0 && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true);
       } else if (st.phase === 'after' && st.t > st.wait) {
         if (st.late) { st.phase = 'go'; approach(); }
+        else if (st.fi === 0 && rings()) { // the office rings, now that time runs again: who you are, why this kerb, and the one odd thing about the job
+          const P = ep.prologue; st.rang = true; st.phase = 'go'; st.beat = 'prologue'; goal('');
+          ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), L(P.lines), () => frame(1));
+        }
         else if (st.fi + 1 < ep.frames.length) frame(st.fi + 1);
         else end();
       }
@@ -601,7 +708,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
-        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre]) e.remove();
+        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip]) e.remove();
         for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();
         for (const id in st.cast) st.cast[id].remove();
       },

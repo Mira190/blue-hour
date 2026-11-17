@@ -110,6 +110,47 @@
 .game-stage.story-on #game-gl { transition: filter 1.4s ease; }
 .game-stage.story-stop #game-gl { filter: brightness(0.92) contrast(1.12) saturate(0.5); transition: filter 0.45s ease; }
 
+/* ---- the file: kraft paper under the prints, written up in a hand a line at a time (story.js filed). Caveat (SIL OFL):
+   what is established in a soft pencil's brown-black, what the player said in a fountain pen's blue-black, a line taken
+   back struck through with the same pen and left to be read. Caveat has no italic: a told-apart line is told by its ink. */
+#g-story-album .file { --graphite: #2a1f16; --pen: #1d2a4a; width: min(100%, 760px); padding: 24px 32px 30px; text-align: left; color: var(--graphite); background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(60, 36, 12, 0.18); transform: rotate(-0.4deg); }
+#g-story-album .file h3 { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(43, 33, 24, 0.45); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; color: #5a2a22; }
+#g-story-album .file ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+#g-story-album .file li { display: grid; grid-template-columns: 2.8em 1fr; gap: 16px; justify-items: start; align-items: baseline; text-align: left; font: 450 21px/1.28 var(--f-hand); letter-spacing: 0.005em; font-variant-numeric: lining-nums; }
+#g-story-album .file li b { font-weight: 600; color: #6a2c22; }
+#g-story-album .file li.said span { color: var(--pen); }
+#g-story-album .file li.pair span { font-weight: 550; }
+#g-story-album .file li.spent span { color: rgba(42, 31, 22, 0.58); }
+#g-story-album .file li.struck span { text-decoration: line-through; text-decoration-color: var(--pen); text-decoration-thickness: 2px; color: rgba(42, 31, 22, 0.55); }
+@media (max-width: 640px) { #g-story-album .file { padding: 18px 18px 22px; } #g-story-album .file li { grid-template-columns: 1fr; gap: 0; font-size: 20px; } }
+/* ---- what the player said, written on to the file as it is said, in the file's own hand and pen (story.js filed) */
+#g-story-slip { position: absolute; top: max(18px, env(safe-area-inset-top)); right: 18px; z-index: 11; width: min(360px, calc(100% - 36px)); padding: 13px 16px 15px; color: #2b2118; background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); transform: translateY(-140%) rotate(0.6deg); opacity: 0; transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease; pointer-events: none; }
+#g-story-slip.on { transform: rotate(0.6deg); opacity: 1; }
+#g-story-slip small { display: block; margin-bottom: 8px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: #5a2a22; }
+#g-story-slip p { margin: 0; min-height: 2.6em; font: 450 21px/1.28 var(--f-hand); letter-spacing: 0.005em; color: #1d2a4a; }
+/* ---- seen through: the card, and the frame taken up again (story.js failed) */
+#g-story-fail { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.86); color: var(--paper); }
+#g-story-fail.on { display: grid; animation: g-story-album-in 0.6s ease; }
+#g-story-fail .card { display: grid; justify-items: center; gap: 18px; max-width: min(92vw, 520px); text-align: center; }
+#g-story-fail small { font: 400 10px/1 var(--f-mono); letter-spacing: 0.4em; margin-right: -0.4em; text-transform: uppercase; color: var(--amber); }
+#g-story-fail h2 { margin: 0; font: 200 clamp(26px, 4.4vw, 46px)/1.1 var(--f-display); letter-spacing: 0.12em; margin-right: -0.12em; text-transform: uppercase; }
+#g-story-fail p { margin: 0; max-width: 40ch; font: 300 16px/1.6 var(--f-body); color: rgba(244, 239, 230, 0.84); }
+#g-story-fail button { margin-top: 10px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; }
+#g-story-fail button:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; outline: none; }
+/* ---- the roll as the case board: two prints set side by side (story.js versus) */
+#g-story-album .how { margin: 0; max-width: 52ch; text-align: center; font: 400 10px/1.7 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+#g-story-album .versus { display: grid; gap: 14px; justify-items: center; max-width: 640px; padding: 16px 18px 18px; border: 1px solid rgba(244, 239, 230, 0.22); background: rgba(4, 8, 18, 0.5); }
+#g-story-album .versus.hit { border-color: var(--amber); }
+#g-story-album .versus figure { margin: 0; display: flex; gap: 12px; }
+#g-story-album .versus span { position: relative; display: block; padding: 5px 5px 0; background: var(--paper); }
+#g-story-album .versus img, #g-story-album .versus i { display: block; width: min(38vw, 240px); aspect-ratio: 3 / 2; object-fit: cover; background: #1a1d26; }
+#g-story-album .versus b { display: block; padding: 5px 0 6px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.2em; color: #3a3f4c; text-align: left; }
+#g-story-album .versus p { margin: 0; max-width: 54ch; text-align: center; font: 300 16px/1.55 var(--f-body); color: rgba(244, 239, 230, 0.9); }
+#g-story-album .versus.hit p { color: var(--paper); }
+#g-story-album button.vs { padding: 8px 12px; border: 1px solid rgba(244, 239, 230, 0.35); border-radius: 2px; background: transparent; color: rgba(244, 239, 230, 0.8); font: 400 9px/1 var(--f-mono); letter-spacing: 0.22em; text-transform: uppercase; cursor: pointer; }
+#g-story-album button.vs.on { border-color: var(--amber); background: var(--amber); color: #0b1020; }
+#g-story-end p.lost, #g-story-end p.tally { font: 400 10px/1.7 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); max-width: 56ch; }
+#g-story-end p.lost { color: var(--amber); }
 /* ---- before the opening shot: black, and the hour typed on it a letter at a time (story.js preface) */
 #g-story-pre { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 8vh max(24px, 7vw); background: #03050a; color: var(--paper); opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
 #g-story-pre.on { opacity: 1; pointer-events: auto; cursor: pointer; }
@@ -250,16 +291,23 @@
 #g-story-album li .pm { width: 44%; right: 3%; top: 5%; }
 #g-story-print { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; pointer-events: none; opacity: 0; }
 #g-story-print figure { position: relative; margin: 0; width: min(62vw, 560px); padding: 12px 12px 0; background: var(--paper); box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7); transform: rotate(-2.5deg); }
+#g-story-print .dev { position: relative; display: block; background: #efe9dc; overflow: hidden; }
 #g-story-print img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; filter: saturate(0.9) contrast(1.05); }
+#g-story-print img.then { position: absolute; inset: 0; height: 100%; }
+/* (it develops: paper, then tonight comes up, then the other year through it; a frame spent stops at tonight) */
+#g-story-print.on .dev img:first-child { animation: g-story-dev 6.4s ease-out both; }
+#g-story-print.on .dev img.then { animation: g-story-dev2 6.4s ease-in-out both; }
+@keyframes g-story-dev { 0%, 6% { opacity: 0; filter: brightness(2.6) contrast(0.4) saturate(0); } 22% { opacity: 1; filter: brightness(1.25) contrast(0.85) saturate(0.5); } 30%, 100% { opacity: 1; filter: saturate(0.9) contrast(1.05); } }
+@keyframes g-story-dev2 { 0%, 26% { opacity: 0; filter: brightness(2.2) saturate(0) blur(3px); } 40% { opacity: 0.7; filter: brightness(1.5) saturate(0.3) blur(0.6px); } 47%, 100% { opacity: 1; filter: saturate(0.9) contrast(1.05); } }
 #g-story-print figcaption { display: flex; gap: 12px; align-items: baseline; padding: 11px 2px 12px; font: 400 10px/1.3 var(--f-mono); letter-spacing: 0.18em; text-transform: uppercase; color: #3a3f4c; }
 #g-story-print figcaption b { color: #0b1020; }
-#g-story-print.on { animation: g-story-print 4.2s cubic-bezier(0.5, 0, 0.2, 1) both; }
-#g-story-print.on .pm { animation: g-story-pm 4.2s both; }
+#g-story-print.on { animation: g-story-print 6.4s cubic-bezier(0.5, 0, 0.2, 1) both; }
+#g-story-print.on .pm { animation: g-story-pm 6.4s both; }
 /* (up out of the developer; held; then down and away to the film strip at the foot of the frame) */
-@keyframes g-story-print { 0% { opacity: 0; transform: translateY(26px) scale(0.94); } 9%, 74% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(-34vw, 38vh) scale(0.16) rotate(-8deg); } }
+@keyframes g-story-print { 0% { opacity: 0; transform: translateY(26px) scale(0.94); } 6%, 82% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(-34vw, 38vh) scale(0.16) rotate(-8deg); } }
 /* (the strike: it comes down hard, a little too big, and settles) */
-@keyframes g-story-pm { 0%, 17% { opacity: 0; transform: rotate(-11deg) scale(2.4); } 22% { opacity: 0.95; transform: rotate(-11deg) scale(0.94); } 26%, 100% { opacity: 0.82; transform: rotate(-11deg) scale(1); } }
-@media (prefers-reduced-motion: reduce) { #g-story-print.on, #g-story-print.on .pm { animation-duration: 4.2s; animation-timing-function: step-end; } }
+@keyframes g-story-pm { 0%, 46% { opacity: 0; transform: rotate(-11deg) scale(2.4); } 49% { opacity: 0.95; transform: rotate(-11deg) scale(0.94); } 52%, 100% { opacity: 0.82; transform: rotate(-11deg) scale(1); } }
+@media (prefers-reduced-motion: reduce) { #g-story-print.on, #g-story-print.on .pm { animation-duration: 6.4s; animation-timing-function: step-end; } #g-story-print.on .dev img { animation: none; } }
 
 /* ---- the camera sees another year: the year over the finder's frame; what it shows of that year is drawn in the
    world, inside these lines only (past.js) */
@@ -354,7 +402,7 @@
 /* ---- with the camera up, on a desktop: the goal is one line over the frame lines, not a column across their corner
    (it lay over the finder's top left mark and the year), and the button that lowers the camera is clear of them too */
 @media (pointer: fine) and (min-width: 641px) {
-  .game-stage.story:has(#g-story-finder.on) #g-story-goal { left: 50%; width: min(100%, 980px); transform: translateX(-50%); padding: 16px 24px 0; text-align: center; }
+  .game-stage.story:has(#g-story-finder.on) #g-story-goal { left: 0; right: 0; margin-inline: auto; width: min(100%, 980px); padding: 16px 24px 0; text-align: center; } /* (centred by its margins, not by a transform: the goal's own entrance ends on transform: none and left it half its width to the right, cut by the edge) */
   .game-stage.story:has(#g-story-finder.on) #g-story-goal small::after { display: none; }
   .game-stage.story:has(#g-story-finder.on) #g-story-goal span { max-width: none; margin-top: 10px; font-size: clamp(15px, 1.3vw, 17px); }
   #g-story-cam.up { top: auto; bottom: max(28px, env(safe-area-inset-bottom)); }

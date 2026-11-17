@@ -98,6 +98,7 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
       relic,
       rect(r) { if (r) keep.set(r[0], r[1], r[2], r[3]); else keep.set(1, 1, -1, -1); U.uPast.value.copy(keep); },
       whole(on) { if (on) { U.uPast.value.set(-1, -1, 1, 1); live.forEach(o => { o.t0 = -1e9; }); } else U.uPast.value.copy(keep); }, // (the photograph has it whole)
+      none() { U.uPast.value.set(1, 1, -1, -1); }, // (one picture of tonight only: the print before the other year comes up in it)
     };
   }
   return { create };
