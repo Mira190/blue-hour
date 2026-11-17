@@ -110,6 +110,16 @@
 .game-stage.story-on #game-gl { transition: filter 1.4s ease; }
 .game-stage.story-stop #game-gl { filter: brightness(0.92) contrast(1.12) saturate(0.5); transition: filter 0.45s ease; }
 
+/* ---- before the opening shot: black, and the hour typed on it a letter at a time (story.js preface) */
+#g-story-pre { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 8vh max(24px, 7vw); background: #03050a; color: var(--paper); opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
+#g-story-pre.on { opacity: 1; pointer-events: auto; cursor: pointer; }
+#g-story-pre > div { width: min(640px, 100%); }
+#g-story-pre small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.44em; text-transform: uppercase; color: var(--amber); }
+#g-story-pre small::after { content: ""; display: block; width: 28px; height: 1px; margin: 20px 0 26px; background: rgba(255, 207, 138, 0.6); }
+#g-story-pre p { margin: 0 0 1.05em; min-height: 1.7em; font: 400 clamp(14px, 1.55vw, 17px)/1.7 var(--f-mono); letter-spacing: 0.02em; color: rgba(244, 239, 230, 0.9); }
+#g-story-pre p.on:not(.done)::after { content: ""; display: inline-block; width: 0.55em; height: 1.05em; margin-left: 0.18em; vertical-align: -0.16em; background: var(--amber); }
+#g-story-pre p:last-child.done { color: var(--amber); }
+#g-story-pre em { display: block; margin-top: 34px; font: 400 10px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.42); }
 /* ---- the camera raised: the bright-line frame, the rangefinder's patch at its centre, and the release */
 #g-story-finder { position: absolute; inset: 12% 18%; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; --l: rgba(244, 239, 230, 0.95);
   background: linear-gradient(var(--l), var(--l)) 0 0 / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 0 0 / 1.5px 40px no-repeat, linear-gradient(var(--l), var(--l)) 100% 0 / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 100% 0 / 1.5px 40px no-repeat,
@@ -117,6 +127,10 @@
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7)); }
 #g-story-finder::after { content: ""; position: absolute; left: 50%; top: 50%; width: 74px; height: 50px; margin: -25px 0 0 -37px; border-radius: 3px; background: rgba(255, 207, 138, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 207, 138, 0.35); }
 #g-story-finder.on { opacity: 1; }
+/* (a frame whose place the player finds, story.js task.find: the patch warms as the place comes near, and is lit in it) */
+#g-story-finder::after { transition: background 0.6s ease, box-shadow 0.6s ease; }
+#g-story-finder[data-fix="near"]::after { background: rgba(255, 207, 138, 0.3); box-shadow: inset 0 0 0 1px rgba(255, 207, 138, 0.7); }
+#g-story-finder[data-fix="on"]::after { background: rgba(255, 207, 138, 0.5); box-shadow: inset 0 0 0 1.5px var(--amber), 0 0 26px rgba(255, 207, 138, 0.5); }
 #g-story-shutter { position: absolute; left: 50%; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 16px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-shutter.on { display: flex; }
