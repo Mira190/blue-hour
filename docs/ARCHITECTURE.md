@@ -1539,7 +1539,7 @@ not compressed.
 | `helicopter.glb` | 3.75 MB | 1.69 MB |
 | `ferry.glb`, `ferry_river.glb` | 3.73 MB | 2.04 MB |
 | `trees.glb` (48 species and stages), its leaf atlases WebP (`pipeline/glb_webp.py`: quality 92, the cut-out alpha exact; a fifth of the PNG) | 5.15 MB | 1.85 MB |
-| the surveyors, `H_Surveyor_W.glb` + `_M` | 4.57 MB | 2.16 MB |
+| the surveyors (now Kagami, `H_Kagami_W.glb` + `_M`), as measured then | 4.57 MB | 2.16 MB |
 | the NPCs' clips, `R_clips_f.glb` + `_m` | 3.94 MB | 2.01 MB |
 | all 87 shared models | 60.28 MB | 35.98 MB |
 

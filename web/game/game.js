@@ -675,11 +675,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   // ------------------------------------------------------------ people and traffic
   // realistic characters (people.js); the box-built rigs are the fallback if their files can't be loaded
+  // Kagami, whom you play, as a woman or a man (W, M): the main characters (H_Kagami_W, H_Kagami_M); where their
+  // file does not load, the crowd's casual characters stand in (never a worker in a hi-vis vest: that was the surveyor)
   const PLAYER_KEY = 'oe3d-player', PLAYER_LOOKS = {
-    W_Worker: { character: 'W_Worker', skin: '#d49c76', hair: '#33241b', scale: 0.92 },
-    M_Worker: { character: 'M_Worker', skin: '#e3b08d', hair: '#4a3222', scale: 0.97 } };
+    W: { character: 'W_Casual', skin: '#e0b494', hair: '#2a211c', scale: 0.92 },
+    M: { character: 'M_Casual2', skin: '#d9a984', hair: '#1c1714', scale: 0.97 } };
   for (const [k, v] of Object.entries(G.player_looks || {})) if (PLAYER_LOOKS[k]) Object.assign(PLAYER_LOOKS[k], v); // a city's own look for the player
-  let playerChar = 'W_Worker';
+  let playerChar = 'W';
   try { if (PLAYER_LOOKS[localStorage.getItem(PLAYER_KEY)]) playerChar = localStorage.getItem(PLAYER_KEY); } catch (e) { /* storage blocked */ }
   let lib = null;
   const NPC_LOAD_M = 300;
@@ -692,17 +694,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // files: one character that fails to load (after its retries, gltf.js) leaves the rest of the
   // library in place, and whoever was to wear it wears another realistic character (stand-in)
   if (lib) {
-    // the surveyors you play are the main characters (blender/build_people.py): the one you play now
-    // loads here, the other when you switch; the old characters stand in if their files don't load
-    for (const [k, h] of Object.entries({ W_Worker: 'H_Surveyor_W', M_Worker: 'H_Surveyor_M' })) if (lib.heroes[h]) PLAYER_LOOKS[k].hero = h;
+    // Kagami is a main character (blender/build_people.py): the one you play now loads here, the other when you
+    // switch; the old characters stand in if their files don't load
+    for (const [k, h] of Object.entries({ W: 'H_Kagami_W', M: 'H_Kagami_M' })) if (lib.heroes[h]) PLAYER_LOOKS[k].hero = h;
     const pl = PLAYER_LOOKS[playerChar];
     if (pl.hero) await lib.require(pl.hero).then(() => Object.assign(pl, { character: pl.hero, scale: 1 })).catch(e => console.warn(`${pl.hero} unavailable:`, e));
     await lib.require(pl.character).catch(e => console.warn(`${pl.character} unavailable:`, e));
     // the NPCs' characters once the game can be played, nearest the start first (afterPlayable, issue 335), and as
     // you first come within NPC_LOAD_M of them (npcStream; issue 148)
   }
-  // a character that is loaded for one that is not: of the same sex, textured (an NPC's or a
-  // surveyor's) before the crowd's, at its own size (the crowd's run large)
+  // a character that is loaded for one that is not: of the same sex, textured (an NPC's or
+  // Kagami's) before the crowd's, at its own size (the crowd's run large)
   const sexOf = c => (/^W_|Female|_W$/.test(c) ? 'W' : 'M');
   function standIn(look) {
     const want = sexOf(look.character), have = Object.keys(lib.tpl), rank = c => (sexOf(c) === want ? 0 : 4) + (/^R_/.test(c) ? 0 : /^H_/.test(c) ? 1 : 2);
@@ -731,9 +733,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // a map names who is on its streets (game.crowd.cast: {f, m}, in order): its own people in everyday clothes, the
     // visitors a place like it has, any character built for any map. Before, the cast was the story's NPCs in the
     // order of their names, which put the office suits first, and a crossing was six suits and their copies
-    if (CR.cast) { const pick = k => (CR.cast[k] || []).filter(n => lib.npcs[n]); return pick('f').slice(0, Math.ceil(tier / 2)).concat(pick('m').slice(0, Math.floor(tier / 2))); }
+    // and nobody in it wears the face of the one you play (Kagami, as a woman or a man: their head is a cast member's,
+    // and a walker at your elbow with your face and hair was your twin in the street), or is one of the people the
+    // story names (an old woman in Sumiko's cardigan crossing beside her, or a second Akira, is a clue that lies)
+    const faceOf = c => c && (c.head || c.avatar), mine = new Set(Object.values(lib.heroes || {}).map(faceOf).filter(Boolean));
+    const named = new Set();
+    (function walk(o) { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { if (k === 'character' && typeof v === 'string') named.add(v); else walk(v); } })(G.story);
+    const walks = n => lib.npcs[n] && !mine.has(faceOf(lib.npcs[n])) && !named.has(n);
+    if (CR.cast) { const pick = k => (CR.cast[k] || []).filter(walks); return pick('f').slice(0, Math.ceil(tier / 2)).concat(pick('m').slice(0, Math.floor(tier / 2))); }
     const from = new Set([cityId, ...(CR.real_from || [])]);
-    const all = Object.entries(lib.npcs).filter(([n, c]) => (c.cities || []).some(x => from.has(x)) && !/Police|Pilot|Security|Construction|Delivery|Gardener|Worker|Nurse|Chef/.test(n)).map(([n]) => n);
+    const all = Object.entries(lib.npcs).filter(([n, c]) => (c.cities || []).some(x => from.has(x)) && walks(n) && !/Police|Pilot|Security|Construction|Delivery|Gardener|Worker|Nurse|Chef/.test(n)).map(([n]) => n);
     const cast = QC.name !== 'low' ? HIGH_CAST : QC.budget && QC.budget.cast ? Math.min(LOW_CAST, QC.budget.cast) : LOW_CAST; // (fewer on a phone's lighter sets: quality.js level)
     if (all.length <= cast) return all;
     const f = all.filter(n => lib.npcs[n].sex === 'f'), m = all.filter(n => lib.npcs[n].sex !== 'f');
@@ -870,7 +879,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const cars = OEActors.traffic(world, roadNet, U, CR.cars || 120, (CR.radius_m || 450) + 100, { lib: vlib, cfg: Object.assign({ parked: CITY.country === 'Japan' ? 0.05 : 0.16 }, (G.vehicles || {}).cars), eye: camera, keep: KEEP, ground: lineGround, crowd, nav, posts, junctions, stops: G.props.bus_stop || null });
   const density = { low: 0.35, normal: 1, high: 1 };
   const playerLook = () => Object.assign({ shirt: '#2f4858', pants: '#2b3440', skin: '#e0ac85', hair: '#3b2a20' }, PLAYER_LOOKS[playerChar]);
-  const player = { rig: makeRig(playerLook(), { vest: true }),
+  const player = { rig: makeRig(playerLook()),
     x: 0, y: 0, z: 0, h: 0, vz: 0, speed: 0, ground: true, floor: 'ground', mode: 'foot', vehicle: null, auto: null, walking: false };
   world.add(player.rig.root);
   async function setPlayerCharacter(name) { // swap the player's character in place
@@ -880,7 +889,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     await lib.require(pl.character).catch(() => {});
     playerChar = name;
     try { localStorage.setItem(PLAYER_KEY, name); } catch (e) { /* storage blocked */ }
-    const old = player.rig, parent = old.root.parent, rig = makeRig(playerLook(), { vest: true });
+    const old = player.rig, parent = old.root.parent, rig = makeRig(playerLook());
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
     rig.legRake = old.legRake; rig.reach = old.reach; // in a seat, the same way
     if (parent) { parent.remove(old.root); parent.add(rig.root); }
@@ -6234,7 +6243,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
 
-  // on foot, m/s: a stroll, the default run (the surveyors' run clip is cut at 5.4 to 5.8 m/s, so it plays
+  // on foot, m/s: a stroll, the default run (Kagami's run clip is cut at 5.4 to 5.8 m/s, so it plays
   // near its own pace and the feet keep to the ground) and a sprint while Shift is held
   const GAIT = { walk: 1.4, run: 6, sprint: 8.5 };
   function walkStep(dt, fwd, side) {

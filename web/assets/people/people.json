@@ -653,17 +653,18 @@
    "Wrist.R": "Bip01_R_Hand"
   },
   "characters": {
-   "H_Surveyor_W": {
-    "file": "H_Surveyor_W.glb",
-    "label": "Surveyor (woman)",
-    "avatar": "Professions/Construction_Female_01",
+   "H_Kagami_W": {
+    "file": "H_Kagami_W.glb",
+    "label": "Kagami (woman)",
+    "avatar": "Professions/Business_Female_02",
+    "head": "Adults/Female_Adult_03",
     "ground_speed": {
      "Walk": 1.214,
      "Run": 5.379,
      "Sprint": 5.379
     },
-    "height_m": 1.772,
-    "triangles": 8662,
+    "height_m": 1.739,
+    "triangles": 9922,
     "clips": [
      "Idle",
      "Idle_Neutral",
@@ -677,17 +678,18 @@
      "Interact"
     ]
    },
-   "H_Surveyor_M": {
-    "file": "H_Surveyor_M.glb",
-    "label": "Surveyor (man)",
-    "avatar": "Professions/Construction_Male_08",
+   "H_Kagami_M": {
+    "file": "H_Kagami_M.glb",
+    "label": "Kagami (man)",
+    "avatar": "Adults/Male_Adult_07",
+    "head": "Adults/Male_Adult_10",
     "ground_speed": {
      "Walk": 1.012,
      "Run": 5.839,
      "Sprint": 5.839
     },
-    "height_m": 1.832,
-    "triangles": 8474,
+    "height_m": 1.829,
+    "triangles": 9096,
     "clips": [
      "Idle",
      "Idle_Neutral",
@@ -860,6 +862,19 @@
     "triangles": 8288,
     "cities": [
      "sydney"
+    ],
+    "mask": 0.0482
+   },
+   "R_Business_Female_04_f013": {
+    "file": "R_Business_Female_04_f013.glb",
+    "sex": "f",
+    "avatar": "Professions/Business_Female_04",
+    "head": "Professions/Sports_Female_02",
+    "tags": [],
+    "height_m": 1.733,
+    "triangles": 8150,
+    "cities": [
+     "shibuya"
     ],
     "mask": 0.0482
    },
@@ -1420,6 +1435,19 @@
      "reef",
      "sydney",
      "tokyo"
+    ],
+    "mask": 0.261
+   },
+   "R_Male_Adult_05_m008": {
+    "file": "R_Male_Adult_05_m008.glb",
+    "sex": "m",
+    "avatar": "Adults/Male_Adult_05",
+    "head": "Professions/Business_Male_02",
+    "tags": [],
+    "height_m": 1.822,
+    "triangles": 7586,
+    "cities": [
+     "shibuya"
     ],
     "mask": 0.261
    },

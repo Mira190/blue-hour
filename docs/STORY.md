@@ -158,8 +158,38 @@ her corner at 17:14 on 10 October, carrying the old plan of the kerb on which he
 same word. (The office reads it out in the first minute; Mr Tanaka says whose hand it is in frame 6;
 the ticket's back shows it on the last card.)
 
-**You** are the survey photographer who took the job: Kagami 鏡 to the office, a surname and nothing more, so that whoever plays is the one called. You arrived at 17:15. You were on the
+**You** are the photographer who took the job: Kagami 鏡 to the office, a surname and nothing more, so that whoever plays is the one called. You arrived at 17:15. You were on the
 crossing, not at the kerb, when it stopped.
+
+**Who you are, to look at.** Kagami photographs streets for a living and takes an office's jobs (a kerb as it stands
+before works); about thirty; late, and out on a job whenever the sister rings: the man who would not cross, sixty
+years on, in someone else. Played as a woman or a man (`blender/build_people.py` `CHARACTERS`, the menu's *Play as*).
+For most of the evening the player sees Kagami's back, at the chase camera's distance, in a crowd of thousands at
+dusk; the face comes only in a conversation's reverse shot. So the figure is made to be read by its outline, its
+colours and what it carries before its face, and to look like Tokyo in October:
+
+- **Camel over black.** The colours of a trench coat and a black turtleneck, the detective's and the artist's, in
+  what a Japanese photographer of thirty wears to work: a relaxed cut, clean lines, nothing printed on it, no more
+  than four colours, shoes to walk an evening in, and the clean look (清潔感) a Tokyo eye reads first. She wears a
+  camel double-breasted jacket, which reads as a short trench, over a plain black turtleneck, black wide trousers and
+  flats; he a camel chore jacket over a black shirt open on a black T-shirt, black denim and dark brown shoes. Camel
+  stands out of a crowd in black and grey suits and against the blue of the hour without competing with the amber of
+  the marks; none of it is a colour the 1964 afterimages wear. (The first pass, a beige jacket over a striped knit and
+  an ecru shirt, read as an office on a Friday, not as someone who looks into things.)
+- **The trade, at a glance.** A black digital SLR round the neck on a black strap, resting on the chest, its lens
+  tipped down by its weight: the commonest picture there is of someone who photographs for a living. It is Kagami's
+  own working camera (the job sheet's photograph is taken with it), not the one of 1964, which is only ever seen
+  through. It hangs where the arms do not swing; a camera bag on the hip, tried first, was in the hand's way at every
+  step. Modelled with the body (`neck_camera`): the strap round the back of the neck on the collar and over the
+  collarbones, kept off the cloth, and the camera riding on the chest.
+- **A Japanese face nobody else in the story wears.** Rocketbox's faces (Female_Adult_03's, with her own black
+  hair, long, which the camera's strap goes under; Male_Adult_10's) on bodies that are in neither the crowd's cast
+  nor the story's. Yuna, who had the woman's face, now has her own (Sports_Female_02's), so the two are not twins at the
+  lift.
+
+It was, until November 2026, a surveyor of the old map: a construction worker's hard hat, hi-vis vest, gloves and
+radio, a fair-haired woman or a dark-skinned man. That is a figure from a building site, not a person in this story.
+What Rocketbox's faces cannot do in a close shot (no blendshapes, no mouth) waits on issue 12, with everyone's.
 
 **Sumiko is alive.** She is 82. She is the old woman with the clear umbrella who is at the Hachiko
 kerb in the opening shot of every episode. The girl of 22 is what she left there.
@@ -364,7 +394,7 @@ the camera). In the second nobody moves: a stool at a tram stop, and the place t
 met alive, at seventy-four, in the sixth, and is not heard twice.
 
 **It opens in the Stop, and the voice comes after.** The world stops a second after the player is given the street;
-the office rings only when time runs again: who you are (a surveyor, late), why this kerb, the word pencilled on the
+the office rings only when time runs again: who you are (a photographer, late), why this kerb, the word pencilled on the
 old plan, and that your sister has rung again and been told you are out. The last card answers that line with one of
 its own.
 
