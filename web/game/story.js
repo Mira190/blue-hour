@@ -459,7 +459,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
-          : st.beat === 'ride' ? 'Walk to the car and press E to get in. Or walk the whole way.' : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. Walk closer if it is small.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
+          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : 'press E'} to get in. Or walk the whole way.` : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
@@ -491,7 +491,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
         markTick();
       } else if (st.phase === 'stop') {
         const g = st.ghost, a = fr.afterimage, leftS = Math.max(0, (fr.stop_s || 420) - st.t);
-        goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)}`;
+        goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
         for (const q of [g, st.ghost2]) if (q) { q.animate(dt); if (!q.to) q.face(ctx.player.x, ctx.player.y); }
         if (st.beat === 'seek') {
           // the keys are put away once they have been used
