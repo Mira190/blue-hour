@@ -57,7 +57,15 @@ const [,, out = '/tmp/dialogue-check', size = '1440x900'] = process.argv;
   await press(); await press(); d = await D();
   if (!(!d.back && d.text === Q && d.choices === 2)) fail(`on again did not come back to the question: back ${d.back}, "${d.text.slice(0, 40)}", ${d.choices}`); else console.log('on again: the question, and its answers');
   // the answer, and the log
-  if (phone) await p.tap('#gd-choices button[data-k="1"]'); else await p.keyboard.press('Digit2');
+  // (on a desktop by the arrows: the hand on the first answer, then the second, ringed by an outline and not only by its
+  // colour; E gives it)
+  if (phone) await p.tap('#gd-choices button[data-k="1"]');
+  else {
+    await p.keyboard.press('ArrowDown'); await p.keyboard.press('ArrowDown'); await p.waitForTimeout(150);
+    const on = await p.evaluate(() => { const f = document.activeElement; return f && f.closest('#gd-choices') ? { k: f.dataset.k, ring: getComputedStyle(f).outlineStyle } : null; });
+    if (!on || on.k !== '1' || on.ring === 'none') fail(`the arrows did not put the hand on the second answer, ringed: ${JSON.stringify(on)}`); else console.log('arrows: the hand on the second answer, ringed');
+    await p.keyboard.press('KeyE');
+  }
   await p.waitForTimeout(200);
   if ((await p.evaluate(() => window.__picked)) !== 1) fail('the answer was not taken');
   await p.evaluate(() => { window.__game.dlg.show({ name: 'Sumiko', role: '81', alive: true, color: '#ffcf8a', log: true }, ['Then you know what I know.'], null, null); });
