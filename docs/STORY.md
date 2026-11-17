@@ -464,3 +464,40 @@ railway viaduct south of the station, where the river's line can still be read.
 - No character speaks of data, surveys of buildings or how the map was made
   (`tools/voice_check.py`). The player's trade is photographing streets; that is all that is said
   of it.
+
+## 10. Reach: a controller, a finger, the words, and the log
+
+Issue 10's last items, so that the story is played by anyone, with whatever is in their hands.
+
+- **A controller at parity with the keys** (`web/game/game.js` `padPoll`; the Gamepad API's standard mapping). The
+  left stick walks as the touch joystick does and the right stick looks as a drag does; each button presses the key
+  it stands for, so every listener that takes a key takes it the same: A talks and goes on (E), X or RT takes the
+  picture, Y or LT raises the camera where its button stands, RB or View opens the roll (Tab), LB what was said (H),
+  B or Menu goes back (Esc), L3 runs. Where a panel is open (the roll, the last card, a retry, the log, the pause
+  menu, the title) the d-pad rings its buttons in turn and A presses the one ringed. In a conversation the d-pad, the
+  arrows or W and S ring an answer and A, E or Enter takes it; the number keys still pick at once.
+- **Touch** already had a button for everything the keys do (the camera, the shutter, the roll from the strip); the
+  log is reached from the roll's own button.
+- **The words, sized and backed.** The pause menu's *Words on screen* sets what is said, the answers and the goal
+  line to Standard, Large (1.2×) or Largest (1.45×); *Behind the words* sets the shade under them (the lower third's
+  gradient, as designed) or Solid, a dark plate under the line itself, whatever the picture behind it. Both are kept
+  for the next visit (`oe3d-words`, `oe3d-words-back`).
+- **Marks that do not depend on colour.** The mark's kinds were already told apart by shape (a ring to walk to, a
+  speech mark for someone to talk to, a viewfinder's corners for the thing to frame, a rangefinder's patch for where
+  to stand) and named in words under it; an afterimage's speech mark is now drawn in a broken line as well as in blue,
+  so it is told from the living's without its colour. Someone of 1964 speaks in a serif, the living in the sans; in
+  the log, what the player said is set in, in italics, and labelled *You*. A ringed answer or button has an outline,
+  not only a tint.
+- **The log of what was said** (`web/game/hud.js` `dialogue`): every line as it is said, who said it and in which
+  year, and each answer the player chose, to read again over the street (H, LB, or *What was said* in the roll). The
+  file under the prints keeps what is established; the log keeps everything.
+
+`tools/access_check.js` plays each of these: the title, a conversation and its answers by a faked controller, the
+log, the sticks, the roll and the log from it by the d-pad, the menu's words, and the chase camera by Hachiko's
+cherries, which stays out of their crowns (below).
+
+**The cherries by Hachiko.** The two in the square's round planters stood at 7.2 m, and their crowns came down to
+a walker's head beside the planter; the chase camera behind the player stood in their leaves. They now stand at the
+model's own 8.8 m (kept pruned up, as the square's are; `cities/shibuya/city.py` `hachiko_trees`), and the chase
+camera on foot keeps out of every crown near it (`web/trees.js` `crownsNear`, each crown as the ellipsoid its leaves
+were grown in): its pitch comes down under the leaves, eased as its lift over a wall is, and back once clear.

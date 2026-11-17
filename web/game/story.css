@@ -33,7 +33,7 @@
 @keyframes g-story-rule { 0% { width: 0; } 100% { width: 28px; } }
 #g-story-goal small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); font-variant-numeric: tabular-nums; }
 #g-story-goal small::after { content: ""; display: block; width: 28px; height: 1px; margin: 11px 0 12px; background: rgba(255, 207, 138, 0.7); }
-#g-story-goal span { display: block; max-width: 34ch; font: 400 clamp(16px, 1.6vw, 19px)/1.4 var(--f-body); letter-spacing: 0.005em; text-wrap: balance; text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9); }
+#g-story-goal span { display: block; max-width: 34ch; font: 400 calc(clamp(16px, 1.6vw, 19px) * var(--words, 1))/1.4 var(--f-body); letter-spacing: 0.005em; text-wrap: balance; text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9); }
 
 /* ---- where it is: a bright-line mark on the place, held at the frame's edge on the side it lies */
 #g-story-mark { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; will-change: transform; }
@@ -54,6 +54,9 @@
 #g-story-mark[data-kind="ghost"] i::after { color: #9fc4ff; }
 #g-story-mark[data-kind="ghost"] i::before { border-color: #9fc4ff; }
 #g-story-mark[data-kind="ghost"] b { color: #cfe0ff; }
+/* (and an afterimage's mark is drawn in a broken line, so that it is told from the living's without its blue) */
+#g-story-mark[data-kind="ghost"] i { border-style: dashed; }
+#g-story-mark[data-kind="ghost"] i::before { border-style: dashed; }
 /* (its words beside it, not under it: under it is the face of whoever it is over) */
 #g-story-mark[data-kind="meet"]:not(.off) b, #g-story-mark[data-kind="ghost"]:not(.off) b { left: 24px; top: -5px; transform: none; }
 /* where the picture is taken from: a camera, in the camera's amber */
@@ -77,6 +80,8 @@
 #g-story-keys { position: absolute; left: 50%; bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px)); transform: translateX(-50%); z-index: 6; pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
   display: flex; gap: 26px; white-space: nowrap; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-keys.on { opacity: 1; }
+/* (the keys' hint is of the street: under a panel over it, the pause menu or the log, it is not drawn through the panel) */
+.game-stage:has(.g-overlay:not([hidden]), #gd-log:not([hidden])) #g-story-keys { visibility: hidden; }
 #g-story-keys kbd { display: inline-block; min-width: 22px; padding: 5px 6px; margin-right: 5px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: inherit; letter-spacing: 0.06em; text-align: center; }
 #g-story-keys kbd + kbd { margin-left: -1px; }
 
@@ -190,7 +195,7 @@
 .game-stage.story .g-prompt { border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 .game-stage.story .g-prompt #gp-alt { display: none; }
 .game-stage.story .gd-choices { max-width: 34em; margin: 0 auto 10px; text-align: left; }
-.game-stage.story .gd-choices button { border-color: rgba(244, 239, 230, 0.3); background: rgba(4, 8, 18, 0.5); font: 300 16px/1.4 var(--f-body); color: var(--paper); border-radius: 2px; }
+.game-stage.story .gd-choices button { border-color: rgba(244, 239, 230, 0.3); background: rgba(4, 8, 18, 0.5); font: 300 calc(16px * var(--words, 1))/1.4 var(--f-body); color: var(--paper); border-radius: 2px; }
 .game-stage.story .gd-choices button:is(:hover, :focus-visible) { border-color: var(--amber); background: rgba(255, 207, 138, 0.1); }
 
 /* ---- what they say: a lower third on the picture, not a window over it */
@@ -200,7 +205,7 @@
 .game-stage.story .gd-head { justify-content: center; gap: 12px; }
 .game-stage.story .gd-head b { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; color: var(--amber); }
 .game-stage.story .gd-head span { font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; color: rgba(244, 239, 230, 0.6); }
-.game-stage.story .g-dialog p { margin: 16px auto 14px; max-width: 34em; min-height: 3.1em; font: 300 clamp(18px, 2.1vw, 23px)/1.55 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px rgba(0, 0, 0, 0.9); }
+.game-stage.story .g-dialog p { margin: 16px auto 14px; max-width: 34em; min-height: 3.1em; font: 300 calc(clamp(18px, 2.1vw, 23px) * var(--words, 1))/1.55 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px rgba(0, 0, 0, 0.9); }
 .game-stage.story .gd-hint { text-align: center; font-size: 9px; letter-spacing: 0.3em; color: rgba(244, 239, 230, 0.5); }
 
 /* ---- a line as the world runs on again: type on the picture */
@@ -372,7 +377,7 @@
 }
 
 /* ---- two faces for two years: someone of 1964 speaks in the serif, and so does what was found; tonight speaks in the sans */
-.game-stage.story .g-dialog[data-era="past"] p { font: 400 clamp(19px, 2.2vw, 25px)/1.5 var(--f-serif); letter-spacing: 0.005em; }
+.game-stage.story .g-dialog[data-era="past"] p { font: 400 calc(clamp(19px, 2.2vw, 25px) * var(--words, 1))/1.5 var(--f-serif); letter-spacing: 0.005em; }
 #g-story-end p { font: 400 17px/1.6 var(--f-serif); }
 #g-story-album li p.note { font: 400 14px/1.45 var(--f-serif); font-style: normal; color: var(--paper); }
 #g-story-album li p.note::before { content: ""; display: block; width: 18px; height: 1px; margin: 0 auto 8px; background: var(--amber); opacity: 0.7; }
@@ -416,3 +421,9 @@
 #g-story-mark.lens i { display: none; }
 #g-story-mark.lens u { transform: rotate(var(--a, 0rad)) translateX(8px); }
 #g-story-mark.lens b { top: 18px; color: var(--amber); }
+
+/* ---- the words backed solid (the menu's Behind the words): the goal on a plate of its own, as the line said is */
+.game-stage.story.words-solid #g-story-goal span { background: rgba(4, 8, 18, 0.88); padding: 0.3em 0.55em; border-radius: 3px; text-shadow: none; }
+.game-stage.story.words-solid .g-dialog { background: linear-gradient(to top, rgba(4, 8, 18, 0.95), rgba(4, 8, 18, 0.7) 55%, transparent); }
+.game-stage.story.words-solid .g-dialog p { display: table; margin-inline: auto; }
+.game-stage.story .gd-choices button.sel { border-color: var(--amber); background: rgba(255, 207, 138, 0.1); outline: 2px solid var(--amber); outline-offset: 2px; }

@@ -245,9 +245,26 @@ window.OEHud = (function () {
   // ------------------------------------------------------------ dialogue: typewriter with voice beeps
   function dialogue(audio) {
     const box = $('#gd'), nameEl = $('#gd-name'), roleEl = $('#gd-role'), textEl = $('#gd-text'), choicesEl = $('#gd-choices'), hint = $('#gd-hint');
-    let cur = null;
+    let cur = null, sel = -1;
+    // Everything said, kept as it is said: who, in which year's face, and the words; and what the player answered.
+    // The log (H, a controller's LB, or from the roll) lays it out to read again, as subtitles' history does.
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const said = [], plain = h => { const d = document.createElement('div'); d.innerHTML = h; d.querySelectorAll('kbd').forEach(k => k.remove()); return d.textContent.replace(/\s+/g, ' ').trim(); };
+    const logEl = document.createElement('div');
+    logEl.id = 'gd-log'; logEl.setAttribute('role', 'dialog'); logEl.setAttribute('aria-label', 'What was said'); logEl.hidden = true;
+    (document.getElementById('game-stage') || document.body).appendChild(logEl);
+    function logDraw() {
+      const touch = matchMedia('(pointer: coarse)').matches;
+      logEl.innerHTML = `<div class="sheet"><header><h2>What was said</h2><button type="button" class="x" data-do="close">Close${touch ? '' : ' <kbd>H</kbd>'}</button></header>${said.length ? `<ol>${said.map(e => `<li class="${e.you ? 'you' : e.past ? 'past' : ''}"><b>${e.you ? 'You' : esc(e.name)}${e.past ? `<em>${esc(e.year || 'then')}</em>` : ''}</b><span>${esc(e.text)}</span></li>`).join('')}</ol>` : '<p class="none">Nobody has said anything yet.</p>'}</div>`;
+      const ol = logEl.querySelector('ol'); if (ol) ol.scrollTop = ol.scrollHeight;
+    }
+    function log(on) {
+      logEl.hidden = !on;
+      if (on) { logDraw(); const x = logEl.querySelector('[data-do=close]'); if (x) x.focus({ preventScroll: true }); if (document.exitPointerLock) document.exitPointerLock(); }
+    }
+    logEl.addEventListener('click', e => { if (e.target === logEl || e.target.closest('[data-do=close]')) log(false); });
     function show(npc, lines, choices, done) {
-      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 };
+      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 }; sel = -1;
       box.hidden = false;
       box.style.setProperty('--npc', npc.color || 'var(--accent)');
       box.dataset.era = npc.alive === false ? 'past' : ''; // (someone of another year: a story sets their words in another face)
@@ -260,6 +277,7 @@ window.OEHud = (function () {
       if (!first) cur.i++;
       if (cur.i >= cur.lines.length) { if (cur.choices.length) return; close(); return; }
       cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0;
+      said.push({ name: cur.npc.name || '', past: cur.npc.alive === false, year: cur.npc.year || (cur.npc.alive === false ? cur.npc.role || '' : ''), text: plain(cur.full) }); if (said.length > 400) said.shift();
       textEl.textContent = '';
       choicesEl.innerHTML = '';
       hint.textContent = cur.i < cur.lines.length - 1 || !cur.choices.length ? (matchMedia('(pointer: coarse)').matches ? 'Tap to continue' : 'E or click to continue') : '';
@@ -269,9 +287,16 @@ window.OEHud = (function () {
       hint.textContent = '';
       choicesEl.innerHTML = cur.choices.map((c, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd>${c.text}</button>`).join('');
     }
+    // an answer picked with arrows or a d-pad: ringed and focused, then taken with E, Enter or A
+    function move(d) {
+      if (!api2.hasChoices) return;
+      const n = cur.choices.length; sel = sel < 0 ? (d > 0 ? 0 : n - 1) : (sel + d + n) % n;
+      choicesEl.querySelectorAll('button').forEach((b, k) => { b.classList.toggle('sel', k === sel); if (k === sel) b.focus({ preventScroll: true }); });
+    }
     function choose(k) {
       if (!cur || !cur.choices[k]) return;
       const c = cur.choices[k], done = cur.done;
+      said.push({ you: true, text: plain(c.said || c.text) });
       close(c);
       if (done) done(c);
     }
@@ -295,7 +320,8 @@ window.OEHud = (function () {
     }
     choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
     box.addEventListener('click', () => next(false));
-    return { show, next, choose, tick, get open() { return !!cur; }, get hasChoices() { return !!(cur && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    const api2 = { show, next, choose, move, tick, log, get sel() { return sel; }, get logOpen() { return !logEl.hidden; }, get said() { return said.slice(); }, get open() { return !!cur; }, get hasChoices() { return !!(cur && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    return api2;
   }
 
   // ------------------------------------------------------------ toasts

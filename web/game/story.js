@@ -165,7 +165,7 @@ window.OEStory = (function () {
 ${vs.length === 2 ? `<div class="versus${st.pairs.includes(pairKey(vs[0], vs[1])) ? ' hit' : ''}" role="status"><figure>${vs.slice().sort((a, b) => a - b).map(k => `<span>${P[k].src ? `<img alt="Frame ${k + 1}" src="${P[k].src}">` : '<i></i>'}<b>${k + 1}</b></span>`).join('')}</figure><p>${esc(vsSaid)}</p></div>` : P.length > 1 ? `<p class="how">Set two prints side by side: some of them say together what neither says alone.${st.pairs.length ? ` Found so far: ${st.pairs.length}.` : ''}</p>` : ''}
 <ol>${Array.from({ length: N }, (_, i) => cell(i)).join('')}</ol>
 ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3><ul>${st.file.map(e => `<li class="${e.struck ? 'struck' : ''}${e.kind ? ` ${e.kind}` : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}</span></li>`).join('')}</ul></section>` : ''}
-<div class="row">${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
+<div class="row">${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}${ctx.said ? `<button type="button" data-do="said">What was said${ctx.touch ? '' : ' <kbd>H</kbd>'}</button>` : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
     }
     function albumOpen(on) {
       if (on && (st.phase === 'idle' || st.phase === 'dressed')) return;
@@ -193,7 +193,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     album.addEventListener('click', e => {
       const d = e.target.closest('button[data-do]'), b = e.target.closest('button[data-i]'), c = e.target.closest('button[data-c]');
       if (c) return versus(+c.dataset.c);
-      if (d) return d.dataset.do === 'sheet' ? saveSheet() : albumOpen(false);
+      if (d) return d.dataset.do === 'sheet' ? saveSheet() : d.dataset.do === 'said' ? (albumOpen(false), ctx.said(true)) : albumOpen(false); // (what was said: the log of every line, over the street)
       if (b) { const li = b.parentNode, was = li.classList.contains('big'); album.querySelectorAll('li.big').forEach(q => q.classList.remove('big')); li.classList.toggle('big', !was); return; }
       if (e.target === album) albumOpen(false);
     });

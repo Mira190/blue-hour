@@ -3202,6 +3202,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     again: () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
     free: () => { const u = new URL(location.href); u.searchParams.set('walk', '1'); u.searchParams.delete('overture'); location.href = u.toString(); },
+    said: on => dlg.log(on !== false), // (the log of what was said, opened from the roll)
     say: (who, lines, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff' }, who), lines.map(l => fill(l)), null, done),
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
@@ -3600,7 +3601,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let makeFilm = null; // (overture.js's films, made on this map)
   let heliAway = null; // (the helicopter of a story's flight, leaving once it has set you down)
   let storyMusic = null; // (the score under the story: music.js, started with the first scene)
-  let joy = { x: 0, y: 0 }, touchLift = 0, uiOpen = () => (window.OEMetro && OEMetro.isOpen()) || !$('#g-menu').hidden || !$('#g-bigmap').hidden || !$('#g-pass').hidden || !$('#g-title').hidden || !!(life && life.open) || !!(fish && fish.api && fish.api.logOpen());
+  let joy = { x: 0, y: 0 }, touchLift = 0, uiOpen = () => (window.OEMetro && OEMetro.isOpen()) || !$('#g-menu').hidden || !$('#g-bigmap').hidden || !$('#g-pass').hidden || !$('#g-title').hidden || !!(life && life.open) || !!(fish && fish.api && fish.api.logOpen()) || dlg.logOpen;
   const k = c => keys.has(c);
   on(window, 'keydown', e => {
     if (e.target.closest && e.target.closest('input, select, textarea')) return;
@@ -3622,6 +3623,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (overture && overture.active) { overture.skip(); return; } // a key ends the overture, easing down to the player
     if (arriving) settleArrival(); // a key settles the arrival (and still walks, looks or opens what it opens)
     else if (cine.active && cine.label !== 'crane') { cine.skip(); return; } // a key ends a hop or a survey shot
+    if (dlg.logOpen) { if (c === 'Escape' || c === 'KeyH' || c === 'Enter' || c === 'KeyE') dlg.log(false); return; } // (what was said, read again: H or Esc puts it away)
     if (c === 'Escape' && life && life.open) { life.close(); return; }
     if (c === 'Escape' && fish && fish.api && fish.api.logOpen()) { fish.api.showLog(false); return; }
     if (life && life.open) { life.key(c); return; } // (the diary and its pages have the keys while they are up)
@@ -3632,6 +3634,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return;
     }
     if (dlg.open) {
+      if (c === 'KeyH') { dlg.log(true); return; }
+      if (/^(ArrowUp|ArrowLeft|KeyW)$/.test(c) && dlg.hasChoices) { dlg.move(-1); return; } // (an answer picked with the arrows, as with a d-pad)
+      if (/^(ArrowDown|ArrowRight|KeyS)$/.test(c) && dlg.hasChoices) { dlg.move(1); return; }
+      if ((c === 'KeyE' || c === 'Enter' || c === 'Space') && dlg.hasChoices && dlg.sel >= 0) { dlg.choose(dlg.sel); return; }
       if (c === 'KeyE' || c === 'Enter' || c === 'Space' || c === 'KeyF') dlg.next(false);
       if (/^Digit[1-9]$/.test(c)) dlg.choose(+c.slice(5) - 1);
       return;
@@ -3663,6 +3669,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (life && life.key(c)) { /* the diary (J) and what the modules on life.js take */ }
     else if (c === 'KeyH' && player.mode === 'ferry') takeHelm();
     else if (c === 'KeyR' && player.mode === 'foot') unstuck();
+    else if (c === 'KeyH' && player.mode !== 'car' && player.mode !== 'ferry') dlg.log(true); // what was said, every line, to read again
     else if (c === 'KeyX' && player.mode === 'foot') { player.walking = !player.walking; H.toast(player.walking ? 'Walking. <kbd>X</kbd> to run, hold <kbd>Shift</kbd> to sprint.' : 'Running. <kbd>X</kbd> to walk, hold <kbd>Shift</kbd> to sprint.'); }
   });
   on(window, 'keyup', e => keys.delete(e.code));
@@ -3673,6 +3680,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!drag || drag.id !== e.pointerId || fingers.size > 1) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
+    lookBy(dx, dy);
+  });
+  // a look by so many pixels of drag (a mouse, a finger, a controller's right stick)
+  function lookBy(dx, dy) {
     if (photo.on) { photo.az += dx * 0.006; photo.pitch = Math.max(-0.35, Math.min(1.5, photo.pitch + dy * 0.005)); photoSync(); return; }
     if (closeup) { closeup.c.turn(-dx * 0.004, -dy * 0.003); return; }
     if (player.mode === 'heli' && cam.mode === 'cockpit') { cam.lookYaw = Math.max(-2.4, Math.min(2.4, cam.lookYaw - dx * 0.005)); cam.lookPitch = Math.max(-1.1, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
@@ -3680,7 +3691,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (player.mode === 'seat') { cam.lookYaw = Math.max(-1.9, Math.min(1.9, cam.lookYaw + dx * 0.004)); cam.lookPitch = Math.max(-0.7, Math.min(0.9, cam.lookPitch - dy * 0.0035)); } // in a seat: you turn your head
     else { cam.yawTo = null; cam.yaw += dx * 0.006; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + dy * 0.005)); }
     cam.lastInput = clockT;
-  });
+  }
   on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.open) dlg.next(false); drag = null; });
   on($('#gp-alt'), 'click', () => { const a = altAction(); if (a) { A.start(); a.act(); } });
   // on a phone the prompt is a button too, and two fingers on the picture zoom as the wheel does
@@ -3729,6 +3740,65 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     hold('#gt-cam', () => { if (player.mode === 'car' || player.mode === 'ride') cam.mode = cam.mode === 'cabin' ? 'chase' : 'cabin'; else nextView(); });
     hold('#gt-lens', () => (player.mode === 'car' ? assistToggle() : lens()));
   }
+  // A controller (the Gamepad API's standard mapping), at parity with the keys and the touch controls: the left
+  // stick walks as the touch joystick does, the right stick looks as a drag does, and each button presses the key it
+  // stands for, so that every listener that takes a key (the story's, the dialogue's, the menu's) takes it the same.
+  //   A: E (talk, go on, get in; a ringed button: press it) · B, Menu: Esc · X: F (the shutter) · Y: R (raise the camera)
+  //   LB: H (what was said) · RB, View: Tab (the roll) · L3: Shift (run) · RT: F · LT: R · d-pad: an answer, or a button
+  // Where a panel is open (the roll, the last card, the log, a retry, the pause menu, the title), the d-pad rings its
+  // buttons in turn and A presses the one ringed: nothing there is out of a controller's reach.
+  const PAD_KEYS = { 0: 'KeyE', 1: 'Escape', 2: 'KeyF', 3: 'KeyR', 4: 'KeyH', 5: 'Tab', 6: 'KeyR', 7: 'KeyF', 8: 'Tab', 9: 'Escape', 10: 'ShiftLeft' };
+  const PAD_PANELS = ['#gd-log', '#g-story-fail', '#g-story-end', '#g-story-album', '#g-menu', '#g-title'];
+  const padWas = []; let padJoy = false;
+  const padKey = (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, key: code === 'Escape' ? 'Escape' : code === 'Tab' ? 'Tab' : code, bubbles: true, cancelable: true }));
+  const shown = el => !!el && (el.checkVisibility ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : el.offsetParent !== null || getComputedStyle(el).position === 'fixed');
+  const padPanel = () => { for (const q of PAD_PANELS) { const e = document.querySelector(q); if (e && !e.hidden && shown(e)) return e; } return null; };
+  const padButtons = el => [...el.querySelectorAll('button, a[href], input, [tabindex="0"]')].filter(b => !b.disabled && shown(b));
+  function padRing(d) {
+    const el = padPanel(); if (!el) return false;
+    const bs = padButtons(el); if (!bs.length) return true;
+    const i = bs.indexOf(document.activeElement), j = i < 0 ? (d > 0 ? 0 : bs.length - 1) : (i + d + bs.length) % bs.length;
+    bs[j].focus({ preventScroll: false }); stage.classList.add('pad'); return true;
+  }
+  function padPress(i) {
+    if (i >= 12 && i <= 15) { // the d-pad
+      const d = i === 12 || i === 14 ? -1 : 1;
+      if (dlg.hasChoices && !dlg.logOpen) dlg.move(d); else padRing(d);
+      return;
+    }
+    if (i === 0) {
+      const el = padPanel(), f = document.activeElement;
+      if (el && f && el.contains(f) && f !== el && f.click) { f.click(); return; } // (the ringed button)
+      if (el && el.id === 'g-title') { padKey('Enter', true); padKey('Enter', false); return; }
+      if (dlg.hasChoices && dlg.sel < 0 && !dlg.logOpen) { dlg.move(1); return; } // (the first press rings an answer, the next takes it)
+    }
+    if (i === 3 || i === 6) { const cb = document.getElementById('g-story-cam'); if (cb && shown(cb)) { cb.click(); return; } if (story) return; } // (Y raises the story's camera where its button stands, as a tap does; it never unsticks you mid-scene)
+    if (i === 2 || i === 7) { const sb = document.getElementById('g-story-shutter'); if (sb && shown(sb)) { sb.click(); return; } }
+    const code = PAD_KEYS[i]; if (code) padKey(code, true);
+  }
+  function padPoll(dt) {
+    const list = navigator.getGamepads ? navigator.getGamepads() : null;
+    let gp = null; if (list) for (const g of list) if (g && g.connected && g.mapping === 'standard') { gp = g; break; }
+    if (!gp) { if (padJoy) { joy = { x: 0, y: 0 }; padJoy = false; } return; }
+    const dz = v => (Math.abs(v) < 0.18 ? 0 : (v - Math.sign(v) * 0.18) / 0.82);
+    for (let i = 0; i < gp.buttons.length && i < 17; i++) {
+      const on = gp.buttons[i].pressed || gp.buttons[i].value > 0.5;
+      if (on && !padWas[i]) { A.start(); padPress(i); }
+      else if (!on && padWas[i] && PAD_KEYS[i] && keys.has(PAD_KEYS[i])) padKey(PAD_KEYS[i], false);
+      padWas[i] = on;
+    }
+    if (on0(gp)) stage.classList.add('pad');
+    // the left stick: the walk, as the touch joystick (not while a finger is on that)
+    const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0);
+    if (lx || ly) { joy = { x: lx, y: -ly }; padJoy = true; if (arriving) settleArrival(); }
+    else if (padJoy) { joy = { x: 0, y: 0 }; padJoy = false; }
+    // the right stick: the look, as a drag of 900 px a second at full tilt
+    const rx = dz(gp.axes[2] || 0), ry = dz(gp.axes[3] || 0);
+    if ((rx || ry) && !uiOpen() && !dlg.open) lookBy(rx * Math.abs(rx) * 900 * dt, ry * Math.abs(ry) * 600 * dt);
+  }
+  const on0 = gp => gp.buttons.some(b => b.pressed) || gp.axes.some(a => Math.abs(a) > 0.5);
+  // the pointer's hover and the pad's ring are not shown at once: a mouse moved puts the ring away
+  on(window, 'pointermove', () => stage.classList.remove('pad'), { passive: true });
   let nearXing = null; // (the closed level crossing you stand at)
   let skip = false, waitFerry = null, lastDock = null, lastBoard = null, waitRail = null; // (waitRail: the station whose next train you are waiting for, the railway's clock run fast)
   // V: the chase camera and the bird's-eye view, and in the helicopter the pilot's own view between them
@@ -5298,6 +5368,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     try { localStorage.setItem('oe3d-fps', String(gov.cap)); } catch (err) { /* storage blocked */ }
     $$('#gm-fps button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
+  // the words on screen (what is said, the goal, the answers): their size and what is behind them, kept for the next visit
+  const words = { x: 1, back: 'shade' };
+  try { words.x = +localStorage.getItem('oe3d-words') || 1; words.back = localStorage.getItem('oe3d-words-back') || 'shade'; } catch (err) { /* storage blocked */ }
+  const wordsSet = () => {
+    stage.style.setProperty('--words', String(words.x)); stage.classList.toggle('words-solid', words.back === 'solid');
+    $$('#gm-words button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.x === words.x)));
+    $$('#gm-back button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.b === words.back)));
+    try { localStorage.setItem('oe3d-words', String(words.x)); localStorage.setItem('oe3d-words-back', words.back); } catch (err) { /* storage blocked */ }
+  };
+  wordsSet();
+  on($('#gm-words'), 'click', e => { const b = e.target.closest('button'); if (b) { words.x = +b.dataset.x; wordsSet(); } });
+  on($('#gm-back'), 'click', e => { const b = e.target.closest('button'); if (b) { words.back = b.dataset.b; wordsSet(); } });
   on($('#gm-route'), 'click', e => { const b = e.target.closest('button'); if (b) setRouteMode(b.dataset.r); });
   on($('#gm-weather'), 'click', e => {
     const b = e.target.closest('button');
@@ -5778,6 +5860,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot') cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     if (story && heli.group && !heli.st.on) heli.group.visible = false; // (the story's helicopter is seen only in the flight it plays: story ctx film)
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
+    padPoll(dt);
     if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
     const ob = titleOn ? null : objective();
@@ -6359,6 +6442,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
+  const camCrowns = { at: null, list: [] }; // (the tree crowns round the walker, gathered again every 4 m: trees.js crownsNear)
   function rig(dt) {
     const k2 = Math.min(1, dt * 6);
     cockpitGlass(player.mode === 'heli' && cam.mode === 'cockpit' && !photo.on);
@@ -6498,7 +6582,28 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (want.lift > cam.lift) { cam.lift = Math.min(want.lift, cam.lift + Math.min((want.lift - cam.lift) * dt * 4, dt * 0.8)); cam.liftHold = 0.6; }
     else if (want.lift > cam.lift - 0.01) cam.liftHold = 0.6;
     else if ((cam.liftHold -= dt) <= 0) cam.lift = Math.max(want.lift, cam.lift - Math.min((cam.lift - want.lift) * dt * 2, dt * 0.5));
-    const f = clear(camTarget, orbit(cam.lift, camPos)), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
+    // Under a tree the camera goes under its leaves, not into them: behind the walker by Hachiko's cherries it stood
+    // in their crowns and the picture was leaves (issue 10). On foot the pitch comes down until the camera is clear of
+    // every crown near it (trees.js crownsNear: each as the ellipsoid its leaves were grown in), never lower than just
+    // over the walker's head, eased down and back as the lift is, and held 0.6 s before it rises again
+    let duckWant = 0;
+    if (close && Wd.trees && Wd.trees.crownsNear) {
+      if (!camCrowns.at || Math.hypot(camCrowns.at[0] - tx, camCrowns.at[1] - ty) > 4) { Wd.trees.crownsNear(tx, ty, dist + 14, camCrowns.list); camCrowns.at = [tx, ty]; }
+      if (camCrowns.list.length) {
+        const inCrown = p => { for (const [cx, cy, cz, r, h] of camCrowns.list) { const dx = p.x - cx, dy = -p.z - cy, dz = p.y - cz; if ((dx * dx + dy * dy) / (r * r) + (dz * dz) / (h * h) < 1) return true; } return false; };
+        if (inCrown(orbit(cam.lift, camProbe))) {
+          const most = Math.max(0, Math.min(1.35, cam.pitch + cam.lift) - 0.04);
+          duckWant = most;
+          for (let d = 0.05; d < most; d += 0.05) if (!inCrown(orbit(cam.lift - d, camProbe))) { duckWant = d; break; }
+        }
+      }
+    }
+    cam.duck = cam.duck || 0;
+    if (jumped) { cam.duck = duckWant; cam.duckHold = 0; }
+    else if (duckWant > cam.duck) { cam.duck = Math.min(duckWant, cam.duck + Math.max(dt * 0.3, Math.min((duckWant - cam.duck) * dt * 4, dt * 1.2))); cam.duckHold = 0.6; }
+    else if (duckWant > cam.duck - 0.01) cam.duckHold = 0.6;
+    else if ((cam.duckHold -= dt) <= 0) cam.duck = Math.max(duckWant, cam.duck - Math.min((cam.duck - duckWant) * dt * 2, dt * 0.4));
+    const f = clear(camTarget, orbit(cam.lift - cam.duck, camPos)), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
     else cam.pull += pull < cam.pull ? -Math.min(cam.pull - pull, Math.max(dt * 2, (cam.pull - pull) * dt * 4)) : Math.min(pull - cam.pull, dt * 0.8);
     if (cam.pull < 1) camPos.lerpVectors(camTarget, camPos, cam.pull);
