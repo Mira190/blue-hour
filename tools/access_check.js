@@ -42,10 +42,10 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
     if (s.phase === 'free' || (s.phase === 'go' && !s.dlg && !s.film)) break;
     if (Date.now() - t0 > 1200e3) { check(false, `into play by the controller (stuck at ${JSON.stringify(s)})`); break; }
     if (s.dlg && s.choices) { await press(13); await press(0); } // (an answer: ringed, then taken)
-    else if (s.dlg || (s.phase === 'dressed' && s.beat === 'preface')) await press(0);
+    else if (s.dlg || s.film || (s.phase === 'dressed' && s.beat === 'preface')) await press(0); // (A skips the opening's film, as any key does)
     await p.waitForTimeout(700);
   }
-  check(await p.evaluate(() => window.__game.dlg.said.length > 0 || !window.__game.story), 'into play by the controller alone');
+  check((await play()).phase !== 'dressed', 'into play by the controller alone');
   await frames(10);
 
   // a conversation: A goes on, the d-pad rings an answer, A takes it; every line and the answer are in the log
