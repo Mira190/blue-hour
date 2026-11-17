@@ -74,7 +74,7 @@ window.OELog = (function () {
           : `<li class="${e.kind}${e.past ? ' past' : ''}"><h4><b>${esc(e.who)}</b>${e.kind === 'a' && e.to ? `<span>to ${esc(e.to)}</span>` : e.role ? `<span>${esc(e.role)}</span>` : ''}</h4><p>${esc(e.text)}</p></li>`;
       }
       box.innerHTML = `<div class="sheet"><header><small>The log</small><h2>The evening</h2><span>${list.length ? (() => { const n = list.filter(e => e.kind !== 'aside' && e.kind !== 'a').length, a = list.filter(e => e.kind === 'a').length; return `${n} line${n === 1 ? '' : 's'} said · ${a} answer${a === 1 ? '' : 's'} given`; })() : 'Nothing said yet'}</span></header>
-<div class="words" role="group" aria-label="Words"><small>Words</small>${SIZES.map((s, i) => `<button type="button" data-size="${i}" aria-pressed="${w.size === i}" style="--s:${1 + i * 0.22}">${s}</button>`).join('')}<button type="button" data-solid aria-pressed="${w.solid}">Backing</button></div>
+<div class="words" role="group" aria-label="Words"><small>Words</small>${SIZES.map((s, i) => `<button type="button" data-size="${i}" aria-pressed="${w.size === i}" style="--s:${1 + i * 0.22}">${s}</button>`).join('')}<button type="button" data-solid aria-pressed="${w.solid}">Backing</button></div>${self.gamepad && self.gamepad.connected ? `<div class="words" role="group" aria-label="Controller"><small>${esc(self.gamepad.label('R'))}</small><button type="button" data-hold aria-pressed="${!self.gamepad.toggle}">Held up</button><button type="button" data-hold="t" aria-pressed="${!!self.gamepad.toggle}">Each pull</button></div>` : ''}
 <ol>${html || '<li class="none"><p>What is said tonight is written here, in order.</p></li>'}</ol>
 <div class="row"><button type="button" class="go" data-do="close">Back${ctx.touch ? '' : ' <kbd>L</kbd>'}</button></div></div>`;
       if (end) { const o = box.querySelector('ol li:last-child'); if (o) requestAnimationFrame(() => o.scrollIntoView({ block: 'end' })); }
@@ -92,6 +92,7 @@ window.OELog = (function () {
       if (b.dataset.do === 'close') show(false);
       else if (b.dataset.size != null) setWords({ size: +b.dataset.size });
       else if (b.dataset.solid != null) setWords({ solid: !words().solid });
+      else if (b.dataset.hold != null && self.gamepad) { self.gamepad.setToggle(b.dataset.hold === 't'); draw(false); } // (the trigger raises the camera while held, or each pull raises or lowers it)
     });
     // L opens it and closes it; Esc closes it; while it is up, the game has no keys
     const onKey = e => {
@@ -100,11 +101,13 @@ window.OELog = (function () {
       if (e.code === 'KeyL' && !e.repeat && ctx.can && ctx.can()) { e.preventDefault(); e.stopImmediatePropagation(); show(true); }
     };
     addEventListener('keydown', onKey, true);
-    return {
+    const self = {
       line, answer, aside, restore, trim, show, setWords, words,
       get open() { return open; }, get entries() { return list.slice(); },
       dispose() { removeEventListener('keydown', onKey, true); box.remove(); },
+      gamepad: null, // (pad.js, set by game.js)
     };
+    return self;
   }
   return { create, words };
 })();

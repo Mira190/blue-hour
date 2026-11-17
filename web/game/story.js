@@ -91,12 +91,14 @@ window.OEStory = (function () {
     const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '');
     const failEl = el('g-story-fail', ''), slip = el('g-story-slip', '<small>Entered in the file</small><p></p>');
     const pre = el('g-story-order', '');
-    const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · wheel: the lens'}`, 'button'), endEl = el('g-story-end', '');
+    const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · <kbd>Wheel</kbd> the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
     // the camera in the hand or at the eye: a button that says which, and what the key does; and a word in the middle of
     // the frame whenever something changes that the player did not do (time stopping, time running, the camera going down)
     const camBtn = el('g-story-cam', '', 'button'), chip = el('g-story-chip', '');
     camBtn.type = 'button';
+    // a key as the prompts name it: the pad's sign while a controller is in the hand (ctx.key, pad.js), else the key
+    const K = k => (ctx.key ? ctx.key(k) : k);
     const sfx = name => { if (ctx.sfx) ctx.sfx(name); }, sting = kind => { if (ctx.sting) ctx.sting(kind); };
     const say = text => { sfx('word'); chip.textContent = text; chip.classList.remove('on'); void chip.offsetWidth; chip.classList.add('on'); };
     const camLabel = () => { camBtn.innerHTML = st.cam ? `<i></i>Lower the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}` : `<i></i>Raise the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}`; };
@@ -311,8 +313,10 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       mark.classList.toggle('on', lens ? off : k === 'frame' || k === 'guide' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
-    const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';
-    function hint(on) { if (on) keys.innerHTML = KEYS; keys.classList.toggle('on', on); }
+    // (with a controller in the hand: its sticks)
+    const KEYS = () => (ctx.padOn && ctx.padOn() ? `<span><kbd class="pad">${K('Left stick')}</kbd>walk</span><span><kbd class="pad">${K('Right stick')}</kbd>look</span>` : ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>');
+    let keysAre = '';
+    function hint(on) { if (on) { keysAre = KEYS(); keys.innerHTML = keysAre; } keys.classList.toggle('on', on); }
     const voiceOf = a => Object.assign(a.year ? { pitch: 170, past: 1 } : a.age >= 70 ? { pitch: 160, breath: 1 } : { pitch: 200 }, a.voice || {}); // (someone of another year is heard twice; the old have breath in it)
     const who = a => ({ name: a.name || '', role: a.year ? String(a.year) : [a.age ? `${a.age}` : '', a.role || ''].filter(Boolean).join(' · '), alive: !a.year, voice: voiceOf(a) }); // (the living: their age tonight; an afterimage: its year)
 
@@ -344,7 +348,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const ink = t => [...t].map(c => (c === ' ' ? ' ' : `<i style="animation-delay:${(n++ * (still ? 0 : 20)) + 500}ms">${esc(c)}</i>`)).join('');
       pre.innerHTML = `<div class="sheet"><small>${ink(O.head || '')}</small>${O.to ? `<b>${ink(O.to)}</b>` : ''}${O.lines.map(l => `<p>${ink(l)}</p>`).join('')}
 ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none" stroke="#2a1f16" stroke-width="1.1" opacity="0.75"><path d="M8 78 H120 Q138 78 138 96 V116"/><path d="M8 62 H128 Q154 62 154 88 V116" stroke-dasharray="3 3"/><path d="M150 8 V40 Q150 54 164 54 H212"/><path d="M40 78 v-20 M70 78 v-20 M100 78 v-20" opacity="0.5"/></g><circle cx="112" cy="92" r="17" fill="none" stroke="#1d2a4a" stroke-width="1.2" opacity="0.8"/><text x="112" y="99" text-anchor="middle" font-size="17" fill="#1d2a4a" style="font-family: var(--f-jp, serif)">${esc(O.plan.word || '')}</text><text x="12" y="20" font-size="8" letter-spacing="2" fill="#5a2a22" style="font-family: var(--f-mono, monospace)">N-W KERB</text></svg><figcaption>${ink(O.plan.note || '')}</figcaption></figure>` : ''}
-<em>${ctx.touch ? 'Tap to put it away' : 'E · put it away'}</em></div>`;
+<em>${ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap to put it away' : '<kbd>E</kbd> put it away'}</em></div>`;
       st.phase = 'go'; st.beat = 'order'; goal('');
       pre.classList.add('on');
       let over = false; const total = 500 + n * (still ? 0 : 20);
@@ -700,10 +704,11 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       if (st.gone) { st.gone.tick(dt); if (st.gone.state === 'away') st.gone = null; } // (a guide on his way off)
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
+      if (keys.classList.contains('on') && KEYS() !== keysAre) hint(true); // (the keys, or the pad's sticks, as the hand changes)
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
-        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : 'Tab'}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
-          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : 'press E'} to get in. Or walk the whole way.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera as you look: the patch in the middle of the finder warms as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
+        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
+          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} to get in. Or walk the whole way.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera as you look: the patch in the middle of the finder warms as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
@@ -761,7 +766,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           if (T.find && T.stand) { const fix = f.placed ? 'on' : near(T.stand, (T.within_m || 4) * 3) ? 'near' : 'far'; if (finder.dataset.fix !== fix) finder.dataset.fix = fix; if (f.placed && !st.placedOnce) { st.placedOnce = true; if (!st.lit) { sfx('found'); say('This is the place'); } } }
           else if (finder.dataset.fix) delete finder.dataset.fix;
           const standGoal = hunt ? (st.findT > 32 && G.find2 ? G.find2 : G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
-          const text = !st.cam ? (!f.placed ? standGoal : G.raise || `Raise the camera${ctx.touch ? '.' : ': R.'}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
+          const text = !st.cam ? (!f.placed ? standGoal : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
