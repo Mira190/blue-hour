@@ -20,7 +20,7 @@ window.OEPast = (function () {
   function create({ THREE, world }) {
     let kit = null;
     const U = { uPast: { value: new THREE.Vector4(1, 1, -1, -1) }, uT: { value: 0 } }, keep = new THREE.Vector4(1, 1, -1, -1);
-    const waiting = [], live = new Set();
+    const waiting = [], live = new Set(); let stash = null;
     // (two files: the things of the other year, and tonight's own set dressing, which is always seen: `set`)
     let pending = 2; const got = {};
     for (const file of ['assets/past/past.glb', 'assets/story/set.glb']) new THREE.GLTFLoader().load(file, gl => {
@@ -97,7 +97,10 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
     return {
       relic,
       rect(r) { if (r) keep.set(r[0], r[1], r[2], r[3]); else keep.set(1, 1, -1, -1); U.uPast.value.copy(keep); },
-      whole(on) { if (on) { U.uPast.value.set(-1, -1, 1, 1); live.forEach(o => { o.t0 = -1e9; }); } else U.uPast.value.copy(keep); }, // (the photograph has it whole)
+      // (hold: the things are whole for this one picture and form in the finder as before afterwards: the plate the
+      // player is given to find a standpoint by, game.js plate)
+      whole(on, hold) { if (on) { stash = hold ? [...live].map(o => [o, o.t0]) : null; U.uPast.value.set(-1, -1, 1, 1); live.forEach(o => { o.t0 = -1e9; }); } else { U.uPast.value.copy(keep); if (stash) { stash.forEach(([o, t]) => { o.t0 = t; }); stash = null; } } }, // (the photograph has it whole)
+      none() { U.uPast.value.set(1, 1, -1, -1); }, // (one picture of tonight only: the print before the other year comes up in it)
     };
   }
   return { create };
