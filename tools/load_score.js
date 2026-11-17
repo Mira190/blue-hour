@@ -7,6 +7,8 @@
 // Takes a still of the loading screen waiting and sounding. Exits 1 if any of these fails or the page throws.
 //   python3 -m http.server 8800 --directory web &
 //   node tools/load_score.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
+// IOS=1: as an iPhone's Safari (its user agent and touch), where the page makes no AudioContext until the touch:
+// the loading screen says so before there is a context, and the touch makes it, running, and starts the score.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = '/tmp/load-score', size = '1440x900'] = process.argv;
@@ -15,7 +17,8 @@ const [,, out = '/tmp/load-score', size = '1440x900'] = process.argv;
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args: args.concat('--autoplay-policy=document-user-activation-required') });
-  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500, isMobile: w < 500 });
+  const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+  const p = await b.newPage(Object.assign({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500 || !!process.env.IOS, isMobile: w < 500 || !!process.env.IOS }, process.env.IOS ? { userAgent: IOS_UA } : {}));
   const errors = [], fail = m => { errors.push(m); console.log('FAIL', m); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 300)}`));
   fs.mkdirSync(out, { recursive: true });
@@ -29,12 +32,14 @@ const [,, out = '/tmp/load-score', size = '1440x900'] = process.argv;
     for (let i = 0; i < 10; i++) { await new Promise(r => setTimeout(r, 100)); tap.getFloatTimeDomainData(d); for (const v of d) peak = Math.max(peak, Math.abs(v)); }
     return peak;
   });
-  await p.waitForFunction(() => document.querySelector('.roll-sound') && window.OEAudio && window.OEAudio.ctx, null, { timeout: 120000 });
+  await p.waitForFunction(() => document.querySelector('.roll-sound') && window.OEAudio && (window.OEAudio.ctx || window.OEAudio.pending), null, { timeout: 120000 });
   if (!(await waiting())) fail('the loading screen does not say the score waits for a touch');
+  if (process.env.IOS) { const made = await p.evaluate(() => !!window.OEAudio.ctx); if (made) fail('an AudioContext was made before the touch'); else console.log('ok   no AudioContext before the touch'); }
   await p.screenshot({ path: `${out}/waiting-${size}.png` });
   const t0 = Date.now();
   await p.mouse.click(w / 2, h / 2);
-  await p.waitForFunction(() => window.OEAudio.ctx.state === 'running', null, { timeout: 20000 }).catch(() => fail('a touch does not start the sound'));
+  await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 20000 }).catch(() => fail('a touch does not start the sound'));
+  console.log(`ok   the tape: ${await p.evaluate(() => window.OEAudio.tape)}`);
   if (await waiting()) fail('the loading screen still asks for a touch after one');
   let first = 0;
   for (let i = 0; i < 10 && !first; i++) if (await level() > 0.004) first = (Date.now() - t0) / 1000;

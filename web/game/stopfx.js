@@ -47,12 +47,13 @@ window.OEStopFX = (function () {
     }
     // the models of what hangs (blender/build_stop.py): leaves, a handbill, a pigeon in five parts. Each geometry is
     // taken about its own joint, and `at` is where that joint sits in the model
-    let kit = null;
+    let kit = null, kitIn = null;
+    const kitP = new Promise(r => { kitIn = r; });
     new THREE.GLTFLoader().load('assets/stop/stop.glb', gl => {
       gl.scene.updateMatrixWorld(true); const k = {};
       gl.scene.traverse(o => { if (o.isMesh) { const at = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld); k[o.name] = { geo: o.geometry.clone().applyMatrix4(o.matrixWorld).translate(-at.x, -at.y, -at.z), at }; } });
-      kit = k;
-    }, undefined, e => console.warn('The leaves and birds of the stopped air are unavailable:', e));
+      kit = k; kitIn(k);
+    }, undefined, e => { console.warn('The leaves and birds of the stopped air are unavailable:', e); kitIn(null); });
     // lit by the scene, so their form reads; and a share of their own colour given back unlit, as the screens and
     // shop fronts all round would light them (the night's sky light alone leaves a gold leaf olive)
     const GLOW = 0.5;
@@ -155,6 +156,21 @@ window.OEStopFX = (function () {
       ring.rotation.x = -Math.PI / 2; ring.position.y = 0.12; ring.renderOrder = 19; g.add(ring);
       world.add(g);
     }
+    // one of each thing made here (the air's points, a leaf of each kind and the bill, a bird's five parts, the ring),
+    // kept hidden in the world and compiled while the title is up (fn: game.js warmFor): made at the story's first beat,
+    // they were compiled in the frame after the tap on Play (tools/entry_cost.js). Their programs stay with them, and
+    // the air and the Stop, made later of the same materials, find them made
+    let spare = null;
+    function warm(fn) {
+      return kitP.then(k => {
+        if (!k || spare) return null;
+        spare = new THREE.Group(); spare.name = 'stopfx-spare'; spare.visible = false;
+        const ringM = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 8), new THREE.MeshBasicMaterial({ color: 0xbfd6ff, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        spare.add(points(4, 1, 1, 0.05, 0xfff1d6, true), points(4, 1, 1, 0.05, 0xcfe0ff, false), cards(3), flock(1), ringM);
+        world.add(spare);
+        return fn(spare);
+      });
+    }
     function release() { if (g && letGo < 0) letGo = 0; }
     function tick(dt, scale, player, high = false) {
       const wdt = dt * scale, running = scale > 0.5;
@@ -176,7 +192,7 @@ window.OEStopFX = (function () {
       if (splash) { splash.material.uniforms.uFall.value = letGo >= 0 ? letGo * letGo * 4 : 0; splash.material.uniforms.uFade.value = fade * 0.9; splash.material.uniforms.uP.value.copy(at); }
       if (ring) { const k = Math.min(1, age / 1.1), e = 1 - Math.pow(1 - k, 3); ring.scale.setScalar(1 + e * 85); ring.material.opacity = 0.9 * (1 - k); if (k >= 1) { g.remove(ring); ring.geometry.dispose(); ring.material.dispose(); ring = null; } }
     }
-    return { air, start, release, tick, dispose, get on() { return !!g; } };
+    return { air, start, release, tick, dispose, warm, get on() { return !!g; } };
   }
   return { create };
 })();

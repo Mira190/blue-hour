@@ -2716,10 +2716,12 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // another process). In the frame that first draws a model that is a stall of the whole frame's GPU
   // work, seconds on a software renderer (issue 266), and once per new program. Done here, once the
   // programs are ready, it is one wait in a task of its own, off the frame, for all of them at once.
+  // (every program the material has, not only its current one: a see-through two-sided material is drawn back face then
+  // front, two programs, and the back's first use was left to the frame after the tap on Play, tools/entry_cost.js)
   function firstUse(renderer, mats) {
     for (const m of mats) {
-      const p = renderer.properties.get(m).currentProgram;
-      try { if (p && p.getUniforms && (!p.isReady || p.isReady())) { p.getUniforms(); p.getAttributes(); } } catch (e) { /* read on its first draw instead */ }
+      const mp = renderer.properties.get(m), ps = mp.programs ? [...mp.programs.values()] : [mp.currentProgram];
+      for (const p of ps) try { if (p && p.getUniforms && (!p.isReady || p.isReady())) { p.getUniforms(); p.getAttributes(); } } catch (e) { /* read on its first draw instead */ }
     }
   }
 
