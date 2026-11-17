@@ -6517,7 +6517,28 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         player.rig.root.visible = false; fpOn = true;
       }
     } else if (fpOn) { fpOn = false; player.rig.root.visible = true; if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); } // (a frame's own lens is given back when the finder's view ends)
+    lensClear();
     Wd.fitShadow(live.look, live.half);
+  }
+  // nobody the lens is inside (issue 22): the camera keeps out of walls, and in a tight place (a lift's lobby) it is
+  // pulled in among the people standing there, where its near plane cut through a face. As games do with someone
+  // between the camera and the player, whoever of the named cast, the story's people, the guide or the crowd's near
+  // people has the lens within their body is not drawn for that frame (layer 0, which nothing else in the game
+  // turns off), and is drawn again the moment it is out
+  const lensHid = new Set();
+  function lensClear() {
+    for (const o of lensHid) o.traverse(q => q.layers.enable(0));
+    lensHid.clear();
+    if (cine.active && cine.label !== 'hop') return;
+    const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y;
+    const near = (root, x, y, z, h, r) => {
+      if (!root || Math.abs(x - cx) > r || Math.abs(y - cy) > r || Math.hypot(x - cx, y - cy) > r || cz < z - 0.1 || cz > z + h) return;
+      root.traverse(q => q.layers.disable(0)); lensHid.add(root);
+    };
+    for (const n of npcs) if (n.rig && n.rig.root) near(n.rig.root, n.x, n.y, n.z, 1.95, 0.62); // (a body's reach from its middle, 0.3 m, and the near plane's, 0.3)
+    for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, 0.62);
+    const gd = guideMade; if (gd && gd.root) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75);
+    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs((q.rx ?? q.x) - cx) < 0.55 && Math.abs((q.ry ?? q.y) - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) crowdDraw.hide(i); }
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
