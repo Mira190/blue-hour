@@ -3175,31 +3175,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return src;
     },
     snapBase: () => storySnapBase,
-    // The plate: the view from where a frame was taken, looking at what it is of, with the things of the other year in
-    // it. The player holds it up against the street (story.js: a ghost over the lens's view) and walks until the two
-    // lie on each other, as a rephotographer does. Drawn once from there and read back, as snap is.
-    plate: (stand, subject, lens) => {
-      const kp = camera.position.clone(), kq = camera.quaternion.clone(), kf = camera.fov, ku = camera.up.clone();
-      const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible;
-      try {
-        const z = stand[2] != null ? stand[2] : Math.max(0, nav.terrain(stand[0], stand[1]));
-        const eye = W(stand[0], stand[1], z + 1.56), to = W(subject[0], subject[1], subject[2]), h = to.clone().sub(eye); h.y = 0; h.normalize();
-        camera.position.copy(eye).addScaledVector(h, 0.12); camera.up.set(0, 1, 0); camera.lookAt(to);
-        const f0 = Math.max(12, Math.min(60, lens || 40)); // (the lens the frame is seen through, as the frame loop sets it)
-        camera.fov = camera.aspect >= 1.5 ? f0 : Math.min(95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lens ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI);
-        camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
-        player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false;
-        if (past) past.whole(true, true);
-        if (atmos) atmos.render(world, camera); else renderer.render(world, camera);
-        const out = document.createElement('canvas'); out.width = Math.min(720, canvas.width); out.height = Math.round(out.width * canvas.height / canvas.width);
-        out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
-        return out.toDataURL('image/jpeg', 0.72);
-      } catch (e) { console.warn('plate', e); return null; } finally {
-        if (past) past.whole(false);
-        player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc;
-        camera.position.copy(kp); camera.quaternion.copy(kq); camera.up.copy(ku); camera.fov = kf; camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
-      }
-    },
     again: () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
     free: () => { const u = new URL(location.href); u.searchParams.set('walk', '1'); u.searchParams.delete('overture'); location.href = u.toString(); },
     say: (who, lines, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff' }, who), lines.map(l => fill(l)), null, done),
