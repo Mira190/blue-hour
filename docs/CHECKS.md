@@ -29,6 +29,8 @@ The static checks:
 - the building solids valid on their decimetre grid (`pipeline/solid_rings.py --check`);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
   (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);
+- no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
+  stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
 - the far crowd's copy of every cast member (`pipeline/crowd_cast.py --check`);
 - every shared model meshopt-compressed, and the parts the page loads before and after playable
   as their model splits now (`pipeline/meshopt_glb.mjs --check`, `pipeline/meshopt.py split`).
