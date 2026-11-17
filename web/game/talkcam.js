@@ -40,7 +40,7 @@ window.OETalkCam = (function () {
     // what stands between the lens at c and a face at h: null when nothing, else what ('wall', 'tree', 'leaves', 'body')
     // skip: ids of the people who may be in the line (the subject; for a shot over a shoulder, the shoulder's, which is
     // checked narrower: a shoulder at the frame's edge, never over the face)
-    function blocked(c, h, skip, shoulder) {
+    function blocked(c, h, skip, shoulder, noCrowd) {
       if (walls(h, c) < 0.999) return 'wall';
       const mx = (c[0] + h[0]) / 2, my = (c[1] + h[1]) / 2, half = Math.hypot(h[0] - c[0], h[1] - c[1]) / 2;
       for (const q of trees(mx, my, half + 6)) {
@@ -50,7 +50,7 @@ window.OETalkCam = (function () {
         if (d < (q.rc || 3) && z > q.z + (q.hb != null ? q.hb : 1.8) - 0.2 && z < q.z + 14) return 'leaves';
       }
       for (const q of bodies(mx, my, half + 1)) {
-        if (skip.includes(q.id)) continue;
+        if (skip.includes(q.id) || (noCrowd && q.crowd != null)) continue;
         const [d, t] = toAxis(c, h, q.x, q.y), z = c[2] + (h[2] - c[2]) * t, s = q.id === shoulder;
         if (t < 0.02 || t > 0.98) { if (d < 0.2 && !s) return q.crowd != null ? 'crowd' : 'body'; continue; } // (the lens inside someone)
         if (d < (s ? 0.2 : BODY_R) && z < q.z + (q.h || HEAD_TOP)) return q.crowd != null ? 'crowd' : 'body';
@@ -75,12 +75,14 @@ window.OETalkCam = (function () {
       return { c: [S[0] + bx * d, S[1] + by * d, S[2] - 0.04], at: S, shoulder: null };
     }
     // the shot of `kind` on side s, the farthest in that is clear, or null
-    function fit(kind, P, S, s, ids) {
+    // (lenient: one of the crowd may stand in the way, whom the game then leaves undrawn while the shot lasts: in a
+    // Stop the held crowd cannot be seen to move aside)
+    function fit(kind, P, S, s, ids, lenient) {
       for (const k of [1, 0.8, 0.6, 0.42]) {
         const q = place(kind, P, S, s, k);
         const why = blocked(q.c, q.at, kind === 'reverse' ? ['player'] : [ids.speaker], q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? ids.speaker : null);
         if (!why) return Object.assign(q, { k, why: null });
-        if (why === 'crowd' && k === 1) { q.k = k; q.why = why; q.crowd = true; return q; } // (the crowd steps aside at the cut: clearing)
+        if (lenient && why === 'crowd') return Object.assign(q, { k, why, crowd: true });
       }
       return null;
     }
@@ -89,7 +91,7 @@ window.OETalkCam = (function () {
       let best = null;
       for (const s of [1, -1]) {
         let score = 0;
-        for (const kind of ['two', 'single', 'reverse']) { const q = fit(kind, P, S, s, ids); score += !q ? 10 : (q.crowd ? 1 : 0) + (1 - q.k); }
+        for (const kind of ['two', 'single', 'reverse']) { const q = fit(kind, P, S, s, ids) || fit(kind, P, S, s, ids, true); score += !q ? 10 : (q.crowd ? 2 : 0) + (1 - q.k); }
         if (!best || score < best.score) best = { s, score };
       }
       return best.s;
@@ -117,7 +119,8 @@ window.OETalkCam = (function () {
         talk.cut = false;
         if (!talk.s) talk.s = side(P, S, ids);
         let q = fit(talk.kind, P, S, talk.s, ids), crossed = false;
-        if (!q) { q = fit(talk.kind, P, S, -talk.s, ids); if (q) { crossed = true; talk.s = -talk.s; } }
+        if (!q) q = fit(talk.kind, P, S, talk.s, ids, true);
+        if (!q) { q = fit(talk.kind, P, S, -talk.s, ids) || fit(talk.kind, P, S, -talk.s, ids, true); if (q) { crossed = true; talk.s = -talk.s; } }
         // (nothing clear on either side: through the player's eyes, a little in front of their face)
         if (!q && talk.kind !== 'reverse') { const dx = S[0] - P[0], dy = S[1] - P[1], L = Math.hypot(dx, dy) || 1; q = { c: [P[0] + dx / L * 0.25, P[1] + dy / L * 0.25, P[2]], at: S, shoulder: null, k: 0, why: 'eyes' }; }
         if (!q) { const dx = P[0] - S[0], dy = P[1] - S[1], L = Math.hypot(dx, dy) || 1; q = { c: [S[0] + dx / L * 0.25, S[1] + dy / L * 0.25, S[2]], at: P, shoulder: null, k: 0, why: 'eyes' }; }
@@ -138,7 +141,7 @@ window.OETalkCam = (function () {
       const look = [q.c[0] + Math.sin(yw) * Math.cos(pitch) * 10, q.c[1] + Math.cos(yw) * Math.cos(pitch) * 10, q.c[2] + Math.sin(pitch) * 10];
       return { pos: q.c.slice(), look, fov: vfov, focus: dist, subject: sub, kind: talk.kind, side: talk.s, shoulder: q.shoulder };
     }
-    // the crowd's people standing in the way from the lens to the face now: the game sends them aside at a cut
+    // the crowd's people standing in the way from the lens to the face now: the game leaves them undrawn
     function clearing() {
       if (!talk || !talk.q) return [];
       const out = [], q = talk.q;
@@ -153,7 +156,7 @@ window.OETalkCam = (function () {
     function check() {
       if (!talk || !talk.q) return null;
       const q = talk.q, skip = talk.at === 'player' ? ['player'] : [talk.speaker.id];
-      return blocked(q.c, q.at, skip, q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? talk.speaker.id : null);
+      return blocked(q.c, q.at, skip, q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? talk.speaker.id : null, true); // (the crowd in the way is not drawn: clearing)
     }
     // the next line of the same speech: from the opening two-shot to the speaker's single, a cut; after that the
     // lines run on in the single (a cut to the same framing is a jump, not a cut)

@@ -3140,7 +3140,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const out = [{ id: 'player', x: player.x, y: player.y, z: player.z }];
       for (const f of storyFigs) out.push({ id: f.id, x: f.x, y: f.y, z: f.z });
       for (const n of npcs) if (Math.abs(n.x - x) < r && Math.abs(n.y - y) < r) out.push({ id: `npc:${n.id}`, x: n.x, y: n.y, z: n.z });
-      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r) out.push({ id: `crowd:${i}`, crowd: i, x: q.x, y: q.y, z: q.z || nav.terrain(q.x, q.y) }); }
+      // (the crowd where each is drawn, rx: held in a Stop, that is not always where it is simulated)
+      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if (q.line >= 0 && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push({ id: `crowd:${i}`, crowd: i, x: qx, y: qy, z: q.rz ?? q.z ?? nav.terrain(qx, qy) }); }
       return out;
     } }) : null;
   let talkShot = null, talkPrint = false, talkTyped = '';
@@ -6359,8 +6360,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect);
         if (t) {
           talkShot = t;
-          if (cut) { // (at a cut: whoever of the crowd stands in the way steps out of it, and the player faces the one they talk to)
-            for (const i of talkCam.clearing()) { const q = crowd.P[i]; if (!q.pz) q.line = -1; else { const dx = t.subject[0] - t.pos[0], dy = t.subject[1] - t.pos[1], L = Math.hypot(dx, dy) || 1, sd = (q.x - t.pos[0]) * -dy / L + (q.y - t.pos[1]) * dx / L, to = (Math.sign(sd) || 1) * 1.1 - sd; q.x += -dy / L * to; q.y += dx / L * to; } }
+          // (whoever of the crowd still stands in the way is not drawn while the shot lasts: the title's way, which the
+          // held crowd of a Stop allows where moving them aside would not be seen)
+          if (crowdDraw) for (const i of talkCam.clearing()) crowdDraw.hide(i);
+          if (cut) { // (at a cut: the player faces the one they talk to)
             const sp = talkCam.talk.speaker; if (sp && Math.hypot(sp.x - player.x, sp.y - player.y) > 0.3) player.h = Math.atan2(sp.x - player.x, sp.y - player.y);
           }
           camera.up.set(0, 1, 0);
