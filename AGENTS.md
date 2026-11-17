@@ -218,8 +218,6 @@ The owner should not be the one who finds the bug.
   Both scripts also write the parts the pages load before playable and after (`cars_far.glb`,
   `trees_far.glb`, `trees_near.glb`: `python pipeline/meshopt.py split <model.glb>`);
   `tools/check.sh` fails on a stale part.
-- After a step that writes `buildings.json`, `python pipeline/skyline.py` makes the loading screen's skyline again
-  (`web/data/shibuya/skyline.json`, the rooftops `web/skyline.js` draws; `tools/check.sh` fails on a stale one).
 - After a step that writes `buildings.json`, two passes keep what the map's raw data lacks:
   `python pipeline/stations.py --city shibuya` (Japan's stations in panel and glass, and piers under a
   building that stands off the ground) and `python pipeline/lobby.py --city shibuya` (a lift's street
