@@ -383,7 +383,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (!ep) return;
       ctx.stage.classList.add('story-on');
       for (const [i, r] of (ep.set || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r)); // (tonight's own set dressing: a lift's doors, a sign)
-      for (const c of ep.cast || []) if (!st.cast[c.id]) st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice });
+      for (const c of ep.cast || []) if (!st.cast[c.id]) { st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice }); if (c.face && st.cast[c.id].face) st.cast[c.id].face(c.face[0], c.face[1]); } // (face: where they look all evening, the old man at the crossing)
       const k = kept();
       if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; }
       else { st.flags = {}; st.pairs = []; st.file = []; st.snaps = []; }
@@ -507,7 +507,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       });
     }
     // what is said, what is asked, and what is said once it is answered (`then`): of the living, or of an afterimage
-    const hear = (m, w, done) => { st.slips = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = L(m.lines); return first.length ? ctx.say(w, first, go) : go(); };
+    // (a line among them may be another's: { by: a cast id, say }, heard in that one's voice and under no name: the first
+    // evening's *You came late* is the old woman's, a beat before the girl turns, and the last evening says so)
+    const runs = list => { const out = []; for (const l of [].concat(list || [])) { if (typeof l !== 'string' && ((l.if && !st.flags[l.if]) || (l.not && st.flags[l.not]))) continue; const by = typeof l === 'string' ? '' : l.by || '', text = typeof l === 'string' ? l : l.say; if (out.length && out[out.length - 1].by === by) out[out.length - 1].lines.push(text); else out.push({ by, lines: [text] }); } return out; };
+    const sayRuns = (R, w, done) => { if (!R.length) return done(); const [r, ...rest] = R, c = r.by && st.cast[r.by]; const who2 = c ? { name: (st.ep.cast || []).find(q => q.id === r.by)?.unseen || 'A voice', role: 'tonight', alive: true, voice: voiceOf(c) } : w; return ctx.say(who2, r.lines, () => sayRuns(rest, w, done)); };
+    const hear = (m, w, done) => { st.slips = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = runs(m.lines); return first.length ? sayRuns(first, w, go) : go(); };
     function stop() {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
       st.phase = 'stop'; st.t = 0; st.beat = 'still';
@@ -631,9 +635,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (st.phase === 'go' && st.beat === 'approach' && fr.find) { const a = fr.stop_at || (fr.afterimage && fr.afterimage.at); return a ? { at: a, lines: fr.hints || [fr.goal2, `${dogName} knows the place. He takes you to it.`, 'A ring, where he stood.'], go: true } : null; }
       const T = fr.task;
       if (st.phase === 'stop' && st.beat === 'shoot' && T && T.find && T.stand && !framed().placed) return { at: T.stand, look: subjectOf(T), lines: T.hints || [(T.goals || {}).find2, `${dogName} knows the place. He goes to it and sits there.`, 'A light, where it was taken from.'] };
+      if (st.phase === 'stop' && st.beat === 'shoot' && T && T.hint_at && T.hints && !st.ready) return { at: T.hint_at, look: null, lines: T.hints, only: true };
       return null;
     }
-    function huntFresh() { st.hint = 0; st.hintText = ''; st.nudged = false; st.hk = null; }
+    function huntFresh() { st.hint = 0; st.hintText = ''; st.nudged = false; st.hk = null; st.hintLight = null; }
     function nudge() { if (!st.nudged && !st.hint && st.findT > NUDGE_S && !st.mov) { st.nudged = true; say(ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Stuck? Tap for a hint' : `Stuck? ${K('H')} for a hint`); hintBtn.classList.remove('nudge'); void hintBtn.offsetWidth; hintBtn.classList.add('nudge'); } }
     function hint() {
       const H = hunting(); if (!H || st.hint >= 3) return;
@@ -648,7 +653,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         else if (st.dog) st.dog.go([H.at[0], H.at[1]], H.look || null, 3.4);
         if (text) { st.hintText = text; goal(text); }
       }
-      if (n === 3) { st.lit = true; if (H.go) aimAt(spot(H.at), false); if (text) say(text); }
+      if (n === 3) { st.lit = true; if (H.go || H.only) aimAt(spot(H.at), false, H.only ? 'stand' : 'go'); if (H.only) st.hintLight = spot(H.at); if (text) say(text); }
     }
     function movSay(text) { movEl.querySelector('p').textContent = text; if (ctx.log && ctx.log.aside) ctx.log.aside(esc(text)); } // (and in the log of the evening, as what was seen)
     // the photograph: of what, from where
@@ -886,7 +891,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           // half a minute says more, and after find_s the light stands there after all, so nobody is left looking; the
           // patch in the middle of the finder warms as the place comes near, the way a rangefinder's comes into register)
           const hunt = !!T.find && !st.lit && !f.placed;
-          if (hunt) { st.findT += dt; nudge(); }
+          if (hunt || (T.hint_at && !on && !st.lit)) { st.findT += dt; nudge(); }
           // (and it reads at every distance, not only the last nine metres: a split-image rangefinder's line through the
           // patch, its two halves as far apart as the place is far off, closing as you come to it and one line on it; a
           // patch that only warmed within 9 m said nothing to a player 44 m off, and nothing about which way was nearer)
@@ -903,8 +908,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
-          const S0 = subjectOf(T), want = hunt ? null : !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
-          if (String(want) !== String(st.target)) aimAt(want, false, f.placed ? 'frame' : 'stand');
+          const S0 = subjectOf(T), lightAt = st.hintLight && !near(st.hintLight, 3) ? st.hintLight : null, want = hunt ? null : lightAt || (!f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null);
+          if (String(want) !== String(st.target)) aimAt(want, false, lightAt || !f.placed ? 'stand' : 'frame');
           if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
           st.ready = on; finder.classList.toggle('ready', on);
           shutter.classList.toggle('ready', on);

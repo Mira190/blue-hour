@@ -191,7 +191,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     else if (s.phase === 'stop' && s.beat === 'seek') {
       if (!seen.has(`guide-${s.fi}`) && s.fi === 0) { seen.add(`guide-${s.fi}`); const d = await p.evaluate(() => { const g = window.__game, d = g.story.state.dog; return d ? Math.hypot(d.x - g.player.x, d.y - g.player.y) : -1; }); console.log(`the guide met: ${d.toFixed(1)} m from you`); if (d < 0 || d > 6) { errors.push(`the guide's film ended with him ${d.toFixed(1)} m from you`); console.log(errors[errors.length - 1]); } } const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }
     else if (s.phase === 'stop' && s.beat === 'shoot') {
-      const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
+      const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, hintAt: T.hint_at || null, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
       // a frame whose place the player finds has no light standing on it and no mark of where to stand, until they have looked a while
       if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`);
         // and its hints, asked for (story.js hint, H): a word, the dog to the place and sitting there, the light on it
@@ -206,6 +206,24 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           console.log(`frame ${s.fi + 1} hints:`, JSON.stringify({ h1, h2, h3 }));
           if (h1.n !== 1 || h2.n !== 2 || !h2.dog || h2.to < 0 || h2.to > 1.5 || h2.lit || h3.n !== 3 || !h3.lit || !h3.light || h3.objective) { errors.push(`frame ${s.fi + 1}: its hints did not give a word, the dog at the place and the light in turn: ${JSON.stringify({ h1, h2, h3 })}`); console.log(errors[errors.length - 1]); }
         } }
+      // a picture found without a standpoint (task.hint_at: both kerbs in one frame): its hints lead to a place that does it
+      if (T.hintAt && process.env.HINTS !== '0' && !seen.has(`hintat-${s.fi}`)) {
+        seen.add(`hintat-${s.fi}`);
+        for (let k = 0; k < 2; k++) { await p.keyboard.press('KeyH'); await frames(3); }
+        await p.waitForTimeout(2500);
+        const h2 = await p.evaluate(at => { const st = window.__game.story.state, d = st.dog; return { n: st.hint, to: d && d.to ? Math.hypot(d.to[0] - at[0], d.to[1] - at[1]) : -1 }; }, T.hintAt);
+        await p.keyboard.press('KeyH'); await frames(4);
+        const h3 = await p.evaluate(() => { const st = window.__game.story.state, L = window.__game.lights(); return { n: st.hint, light: L.story, objective: L.objective, kind: st.kind }; });
+        console.log(`frame ${s.fi + 1} hints:`, JSON.stringify({ h2, h3 })); await snap(`${s.fi + 1}-hint-light`);
+        if (h2.n !== 2 || h2.to < 0 || h2.to > 1.5 || h3.n !== 3 || !h3.light || h3.objective) { errors.push(`frame ${s.fi + 1}: its hints did not lead to a place that sees both: ${JSON.stringify({ h2, h3 })}`); console.log(errors[errors.length - 1]); }
+        // and the place they lead to does it: from there, the camera raised towards the middle of the two, both are in the frame
+        await goTo(T.hintAt, 0); const mid = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2]; await face(mid);
+        await p.evaluate(() => window.__game.story.raise(true)); await frames(6); await p.waitForTimeout(1200);
+        const ok = await p.evaluate(() => !!window.__game.story.state.ready); await snap(`${s.fi + 1}-hint-place`);
+        console.log(`frame ${s.fi + 1}: from the place the hints lead to, both in the frame: ${ok}`);
+        if (!ok) { errors.push(`frame ${s.fi + 1}: from the place its hints lead to, both are not in the frame`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(2);
+      }
       if (+process.env.SPEND === s.fi + 1 && !spent) { // from the wrong place, the release twice: the frame is spent, and the story goes on without it
         spent = true;
         await p.evaluate(() => { const g = window.__game; g.story.raise(true); g.player.h += Math.PI; if (g.cam) g.cam.yaw = g.player.h; });
