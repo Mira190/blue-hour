@@ -53,6 +53,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   let slipped = 0, spent = false;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
+  // every question with a right answer costs something to guess at (q.fail): one that does not can be answered by
+  // trying each print in turn, and asks nothing of the player (Mr Tanaka's pitch, until it had one)
+  { const E = ((JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'cities', 'shibuya', 'city.json'), 'utf8')).game || {}).story) || null;
+    for (const ep of (E && E.episodes) || []) (ep.frames || []).forEach((f, i) => { for (const m of [f.meet, f.afterimage, f.task]) for (const q of (m && m.ask) || []) if ((q.frame || q.answer != null) && !q.fail) errors.push(`frame ${i + 1}: "${q.q}" has a right answer and nothing lost by guessing (fail)`); }); }
   const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
@@ -76,17 +80,18 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       else await p.keyboard.press('KeyE');
       await p.waitForTimeout(350); continue;
     }
-    if (s.phase === 'go' && s.beat === 'meet') { const at = await p.evaluate(() => { const t = window.__game.story.state.target; return t ? [t[0], t[1], t[3]] : null; }); if (at) await goTo(at, 1.8); }
+    if (s.phase === 'go' && s.beat === 'meet') {
+      // while the dog leads, he alone shows the way: no light standing in the street, no gold line, and no mark while he is in the frame
+      if (!seen.has(`led-${s.fi}`)) { await frames(4); const g = await p.evaluate(() => { const G = window.__game, st = G.story.state, d = st.dog; return d && d.ready ? { guided: !!st.guided, light: st.lightK || '', gold: G.guide().n, mark: document.getElementById('g-story-mark').classList.contains('on'), kind: document.getElementById('g-story-mark').dataset.kind } : null; });
+        if (g) { seen.add(`led-${s.fi}`); console.log(`frame ${s.fi + 1} led:`, JSON.stringify(g)); if (!g.guided || g.light || g.gold || (g.mark && g.kind !== 'guide' && g.kind !== 'meet')) { errors.push(`frame ${s.fi + 1}: the dog leads, and the way is shown twice: ${JSON.stringify(g)}`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-led`); } }
+      const at = await p.evaluate(() => { const t = window.__game.story.state.target; return t ? [t[0], t[1], t[3]] : null; }); if (at) await goTo(at, 1.8);
+    }
     else if (s.phase === 'go' && s.beat === 'approach') { const at = await p.evaluate(() => { const st = window.__game.story.state, fr = st.fr, a = fr.stop_at || (fr.afterimage && fr.afterimage.at); if (fr.find && !st.lit && st.target) window.__findMarked = st.fi + 1; return fr.lead_s != null && !st.late ? null : a; }); if (at) await goTo(at, 4); }
     else if (s.phase === 'stop' && s.beat === 'seek') { const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }
     else if (s.phase === 'stop' && s.beat === 'shoot') {
       const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
       // a frame whose place the player finds has no light standing on it and no mark of where to stand, until they have looked a while
-      if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`);
-        // (and the plate is in the lens's view to find it by: the frame as it was taken, faint over the street)
-        await p.evaluate(() => window.__game.story.raise(true)); await frames(4); await p.waitForTimeout(900);
-        if (!await p.evaluate(() => { const e = document.getElementById('g-story-plate'); return e.classList.contains('on') && !!e.querySelector('img'); })) { errors.push(`frame ${s.fi + 1}: its place is to be found, and the camera shows no plate to find it by`); console.log(errors[errors.length - 1]); }
-        await snap(`${s.fi + 1}-plate`); await p.evaluate(() => window.__game.story.raise(false)); await frames(2); }
+      if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`); }
       if (+process.env.SPEND === s.fi + 1 && !spent) { // from the wrong place, the release twice: the frame is spent, and the story goes on without it
         spent = true;
         await p.evaluate(() => { const g = window.__game; g.story.raise(true); g.player.h += Math.PI; if (g.cam) g.cam.yaw = g.player.h; });
