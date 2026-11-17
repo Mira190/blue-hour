@@ -3752,6 +3752,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return;
     }
     if (dlg.open) {
+      // the answers by the arrows, as a pad's d-pad goes through them (pad.js): the hand on one, then E, Enter or Space takes it
+      const B = dlg.hasChoices ? [...document.querySelectorAll('#gd-choices button')] : [], f = document.activeElement;
+      if (B.length && /^Arrow(Up|Down|Left|Right)$/.test(c)) { const d = /Up|Left/.test(c) ? -1 : 1, i = B.indexOf(f); B[i < 0 ? (d > 0 ? 0 : B.length - 1) : (i + d + B.length) % B.length].focus({ preventScroll: true }); return; }
+      if (B.length && B.includes(f) && (c === 'KeyE' || c === 'Enter' || c === 'Space')) { e.preventDefault(); f.click(); return; }
       if (c === 'KeyE' || c === 'Enter' || c === 'Space' || c === 'KeyF') dlg.next(false);
       if (c === 'KeyQ' || c === 'Backspace') dlg.back(); // (one step back: the line said before)
       if (/^Digit[1-9]$/.test(c)) dlg.choose(+c.slice(5) - 1);

@@ -516,3 +516,13 @@ railway viaduct south of the station, where the river's line can still be read.
 - No character speaks of data, surveys of buildings or how the map was made
   (`tools/voice_check.py`). The player's trade is photographing streets; that is all that is said
   of it.
+
+## 10. What is left for people, and the marks without colour
+
+What issue 10 asked that a container cannot finish is planned and split off: recorded Japanese voices and faces that
+hold a close shot ([VOICES.md](VOICES.md); issues 11 and 12), the hundred metres on a real GPU against photographs
+(issue 13), and playtests with people who have not seen the story ([PLAYTEST.md](PLAYTEST.md); issue 14).
+
+The marks do not depend on colour: their kinds are told apart by shape and named in words, and an afterimage's speech
+mark is drawn in a broken line as well as in blue, so it is told from the living's without its colour. An answer the
+hand is on (the arrows on a keyboard, the d-pad on a pad) has an outline as well as its amber.
