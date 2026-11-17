@@ -177,7 +177,7 @@
 .game-stage.story .gt-btns { grid-template-columns: 56px; }
 .game-stage.story .gt-btns button:not(#gt-run) { display: none; }
 @media (pointer: coarse), (max-width: 640px) {
-  #g-story-finder { inset: 16% 8%; }
+  #g-story-finder { inset: 21% 8% 16%; } /* (its top under the goal's four lines: at 16% the goal lay over the year and the corner) */
   #g-story-keys { gap: 16px; letter-spacing: 0.12em; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); }
   #g-story-frames { left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom)); grid-auto-flow: column; align-items: center; gap: 10px; }
   #g-story-frames span:first-child { font-size: 0; }
@@ -301,7 +301,7 @@
 }
 @media (pointer: coarse), (max-width: 640px) {
   /* (the camera's button, raised, under the goal's lines and not over them) */
-  #g-story-cam.up { top: max(196px, calc(env(safe-area-inset-top) + 196px)); }
+  #g-story-cam.up { top: calc(21% + 48px); } /* (inside the finder, under its top right corner) */
 }
 
 /* ---- two faces for two years: someone of 1964 speaks in the serif, and so does what was found; tonight speaks in the sans */

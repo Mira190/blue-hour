@@ -212,7 +212,7 @@ window.OEStory = (function () {
       // an arrow on the frame's edge says which way to turn the lens, and what for (a player on the roof stood at the
       // light looking down for minutes with nothing to say where the thing was)
       const up = st.cam && st.beat === 'shoot', r = up ? finderRect() : null, R = up && st.fr.task.relic;
-      if (up && !q.front) y = H; // (behind: off the foot of the frame, on its side)
+      if (up && !q.front) { x = x < W / 2 ? 0 : W; y = H / 2; } // (behind: on the frame's left or right edge, the way to turn; at its foot the arrow said look down, and down was the floor)
       const off = up ? !q.front || x < r[0] * W || x > r[2] * W || y < r[1] * H || y > r[3] * H : !q.front || x < m || x > W - m || y < m || y > H - m;
       if (up) { x = Math.max(r[0] * W + 22, Math.min(r[2] * W - 22, x)); y = Math.max(r[1] * H + 22, Math.min(r[3] * H - 40, y)); }
       else { x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y)); }
@@ -220,7 +220,7 @@ window.OEStory = (function () {
       mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
       const k = via ? 'go' : st.kind, lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
       if (mark.dataset.kind !== k) mark.dataset.kind = k;
-      mark.querySelector('b').textContent = lens ? (R && R.name) || 'Frame this' : k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
+      mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
       mark.classList.toggle('on', lens ? off : k === 'frame' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
@@ -459,14 +459,14 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
-          : st.beat === 'ride' ? 'Walk to the car and press E to get in. Or walk the whole way.' : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. Walk closer if it is small.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
+          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : 'press E'} to get in. Or walk the whole way.` : f ? (!f.placed ? 'Stand in the light on the ground.' : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
         const r = ctx.rideNow(), R = fr.ride, there = near(R.to, 45);
         if (r && r.state !== 'in') { if (!st.target || Math.hypot(st.target[0] - r.at[0], st.target[1] - r.at[1]) > 1.5) aimAt(spot(r.at)); const text = r.state === 'coming' ? R.line || 'A car is coming for you.' : R.board || 'Your car is here. Get in.'; if (text !== goalText) goal(text); st.inCar = false; }
         else if (r) { if (!st.inCar) { st.inCar = true; aimAt(null); goal(R.riding || ''); if (ctx.score) ctx.score({ mode: 'ride' }); } }
-        if (!r || (there && (!r || r.state !== 'in'))) { st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
+        if (!r || (there && (!r || r.state !== 'in'))) { if (r && ctx.rideOff) ctx.rideOff(); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
       }
       st.t += dt;
       // time is not cut, it is braked: the world slows to nothing over most of a second, and runs up again faster
@@ -491,7 +491,7 @@ ${E.line ? `<p>${esc(E.line)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next
         markTick();
       } else if (st.phase === 'stop') {
         const g = st.ghost, a = fr.afterimage, leftS = Math.max(0, (fr.stop_s || 420) - st.t);
-        goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)}`;
+        goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
         for (const q of [g, st.ghost2]) if (q) { q.animate(dt); if (!q.to) q.face(ctx.player.x, ctx.player.y); }
         if (st.beat === 'seek') {
           // the keys are put away once they have been used

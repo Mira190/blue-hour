@@ -108,7 +108,7 @@ hold is cut from the plot, not bent.
   out. The camera is his. He is the man who is not in the photograph, because he took them all.
 - **Tatsuo Hayase** 早瀬辰雄, 31. Sumiko's brother. A foreman on the river works.
 - **Soichi Kanbara** 神原宗一, 38. A section chief on the works, and the man the family means
-  Sumiko to marry. He dies on the planetarium's roof at about 15:20 on 10 October.
+  Sumiko to marry. He dies off the planetarium's roof at about ten past three on 10 October, as the rings are drawn in the sky.
 - **The boy**, 14. Shines shoes by the station. He is given a hundred yen to carry a camera across
   the street.
 
@@ -119,7 +119,7 @@ frames night after night, and on one of them the night itself. He did not know w
 Kanbara came asking for the film.
 
 Akira and Sumiko had decided to leave Tokyo on the night train on the 10th. They would meet at the
-Hachiko corner at sunset, "when the sky is the colour of the dome before the show".
+north-west kerb of the Hachiko crossing at sunset, "when the sky is the colour of the dome before the show".
 
 On the afternoon of the 10th, with the city indoors, Kanbara went up to the roof for the film.
 Sumiko, on her break, had gone up to warn Akira and met Kanbara instead. He took her by the wrist;
@@ -130,7 +130,7 @@ Tatsuo coming down without looking at him, and found Kanbara below with Sumiko's
 
 **The double sacrifice.** Akira believed Sumiko had done it. He walked into the police box at the
 station and said that he had. On the way to the car he asked the detective for one minute at the
-kerb opposite the Hachiko corner. He took one photograph of her waiting, took the base plate off the camera (it loads from below)
+station kerb, by Hachiko, across from her corner. He took one photograph of her waiting, took the base plate off the camera (it loads from below)
 and put inside it her ticket for the night train, with one word pencilled on the back: 待つ, *wait*.
 He gave the camera and a hundred yen to a shoeshine boy, and said: *take it across. Tell her to
 open it.* He did not cross, because to be seen with her was to make her his reason.
@@ -158,7 +158,7 @@ her corner at 17:14 on 10 October, carrying the old plan of the kerb on which he
 same word. (The office reads it out in the first minute; Mr Tanaka says whose hand it is in frame 6;
 the ticket's back shows it on the last card.)
 
-**You** are the survey photographer who took the job. You arrived at 17:15. You were on the
+**You** are the survey photographer who took the job: Kagami 鏡 to the office, a surname and nothing more, so that whoever plays is the one called. You arrived at 17:15. You were on the
 crossing, not at the kerb, when it stopped.
 
 **Sumiko is alive.** She is 82. She is the old woman with the clear umbrella who is at the Hachiko
