@@ -14,6 +14,7 @@
 // A frame without its draws takes a few tens of ms: the story keeps its time, and every still is of drawn frames.
 const { chromium } = require('playwright');
 const fs = require('fs');
+const { audit: escalators } = require('./escalator_route');
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number);
@@ -75,6 +76,47 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         await p.evaluate(slip => { const st = window.__game.story.state, B = document.querySelectorAll('#gd-choices button'); (B[slip ? (st.want + 1) % B.length : st.want] || B[0]).click(); }, slip); } // (story.js says which answer is right: state.want)
       else await p.keyboard.press('KeyE');
       await p.waitForTimeout(350); continue;
+    }
+    // a frame whose way goes up from a lift's stop by an escalator (frame 4, SHIBUYA SKY's 46F): the way found from the
+    // stop rides no escalator against its steps (tools/escalator_route.js), and a still from where the lift lets you out
+    // shows the line going the way that does (it once led right, beside the escalator that runs down)
+    if (s.phase === 'go' && !s.dlg && !seen.has(`lift-${s.fi}`)) {
+      const st = await p.evaluate(() => {
+        const g = window.__game, fr = g.story.state.fr || {}, nav = g.nav, MOV = nav.strips.filter(q => q.moving_ms);
+        const t0 = g.story.state.target, t = t0 ? [t0[0], t0[1], t0[3] != null ? t0[3] : t0[2]] : fr.stop_at || (fr.afterimage && fr.afterimage.at); // (x, y, z)
+        if (!t || !MOV.length) return null;
+        for (const l of g.G.lifts || []) for (const q of l.stops) {
+          const [x, y, z] = q.at, tz = t[2] != null ? t[2] : 0;
+          if (Math.hypot(t[0] - x, t[1] - y) < 120 && tz > z + 2 && MOV.some(m => Math.hypot(m.origin[0] - x, m.origin[1] - y) < 15 && Math.abs(m.zs[0] - z) < 12)) return { at: q.at, face: q.face || null, name: q.name };
+        }
+        return null;
+      });
+      if (st) { // (once the target is up there: the first goal of the frame is the lift at the street)
+        seen.add(`lift-${s.fi}`);
+        const r = await escalators(p);
+        for (const l of r.lines) { console.log(`frame ${s.fi + 1}: ${l}`); if (l.startsWith('FAIL')) errors.push(`frame ${s.fi + 1}: ${l}`); }
+        await p.evaluate(st => { const g = window.__game, pl = g.player; [pl.x, pl.y, pl.z] = st.at; pl.vz = 0; pl.ground = true; if (st.face) pl.h = Math.atan2(st.face[0], st.face[1]); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = 0.4; g.cam.dist = 9; } }, st); // (from behind and above: the lobby's ceiling is high, the line and both escalators in view)
+        // (the line in the world: game.js's guide, planned on foot from where you stand; __game.guide() hands back the guide itself)
+        const pts = () => p.evaluate(() => (window.__game.guide().pts || []).length);
+        for (let k = 0; k < 20 && !(await pts()); k++) { await frames(2); await p.waitForTimeout(300); }
+        await frames(4); await p.waitForTimeout(1500);
+        // the line from the stop: rides no escalator against its steps, and turns the way the one up stands (to the left
+        // of where the lift faces at SHIBUYA SKY: the one to the right runs down)
+        const way = await p.evaluate(st => {
+          const g = window.__game, P = g.guide().pts || [], pl = g.player;
+          let i0 = 0, bd = Infinity;
+          P.forEach((q, i) => { const d = Math.hypot(q[0] - pl.x, q[1] - pl.y, q[2] - pl.z); if (d < bd) { bd = d; i0 = i; } });
+          const ahead = P.slice(i0), fx = st.face ? st.face[0] : Math.sin(pl.h), fy = st.face ? st.face[1] : Math.cos(pl.h);
+          const q = ahead.find(q => Math.hypot(q[0] - pl.x, q[1] - pl.y) > 6), side = q ? -(q[0] - pl.x) * fy + (q[1] - pl.y) * fx : 0;
+          return { n: P.length, off: bd, against: g.ways.against(ahead), side, rides: g.nav.strips.filter(s => s.moving_ms && ahead.some(q => { const h = g.nav.stripHeight(s, q[0], q[1]); return h != null && Math.abs(h - q[2]) < 0.8; })).map(s => s.name) };
+        }, st);
+        console.log(`frame ${s.fi + 1}: from ${st.name}, the line (${way.n} points, ${way.off.toFixed(1)} m from you) goes ${way.side > 0 ? 'left' : 'right'}, on ${way.rides.join(', ') || 'no escalator'}${way.against > 0.25 ? `, ${way.against.toFixed(1)} m against an escalator's steps` : ''}`);
+        if (!way.n || way.off > 3) errors.push(`frame ${s.fi + 1}: from ${st.name} no line is drawn near you (${way.n} points, ${way.off.toFixed(1)} m off)`);
+        if (way.against > 0.25) errors.push(`frame ${s.fi + 1}: from ${st.name} the line rides an escalator ${way.against.toFixed(1)} m against its steps`);
+        // (the camera eases after the player: from the street it comes up 217 m, so it is set again and given time to settle)
+        for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h - 0.6; g.cam.pitch = 0.25; g.cam.dist = 7; }); await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way`); }
+        continue;
+      }
     }
     if (s.phase === 'go' && s.beat === 'meet') { const at = await p.evaluate(() => { const t = window.__game.story.state.target; return t ? [t[0], t[1], t[3]] : null; }); if (at) await goTo(at, 1.8); }
     else if (s.phase === 'go' && s.beat === 'approach') { const at = await p.evaluate(() => { const st = window.__game.story.state, fr = st.fr, a = fr.stop_at || (fr.afterimage && fr.afterimage.at); if (fr.find && !st.lit && st.target) window.__findMarked = st.fi + 1; return fr.lead_s != null && !st.late ? null : a; }); if (at) await goTo(at, 4); }
