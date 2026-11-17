@@ -19,7 +19,7 @@ let page = null, film = null, polling = null, busy = false;
 // (a still of frames drawn whole: story_play.js's DRAW runs most frames without their draws)
 const still = async file => {
   await page.evaluate(() => new Promise(r => { if (!window.__draw) return r(); window.__draw.all = true; requestAnimationFrame(() => requestAnimationFrame(r)); }));
-  try { await page.screenshot({ path: path.join(out, file) }); } finally { await page.evaluate(() => { if (window.__draw) window.__draw.all = false; }).catch(() => {}); }
+  try { await page.screenshot({ path: path.join(out, file), timeout: 300000 }); } finally { await page.evaluate(() => { if (window.__draw) window.__draw.all = false; }).catch(() => {}); }
 };
 const judge = s => [
   (!s.front || Math.abs(s.x) > 0.92 || Math.abs(s.y) > 0.92) && `face off the screen (${s.x}, ${s.y})`,
