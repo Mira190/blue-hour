@@ -595,6 +595,8 @@ window.OEAudio = (function () {
       // a breath of air: here is what to do (no chime). Two bands, the upper one later, as a breath is
       case 'goal': burst(0, { dur: 0.6, f: 1200, q: 0.7, vol: 0.035, att: 0.18 }); burst(0.08, { dur: 0.5, f: 5200, q: 0.8, vol: 0.016, att: 0.16 }); break;
       case 'word': break; // (a word in the frame is read, not rung)
+      // a key of the machine the preface is typed on: the slug on the platen, a tick with a little body under it
+      case 'key': burst(0, { dur: 0.022, f: 3100, q: 1.4, vol: 0.02, att: 0.001 }); burst(0.004, { dur: 0.05, f: 420, q: 1.2, vol: 0.014, type: 'lowpass', att: 0.002 }); break;
       // the camera brought up: the leather strap's creak (stick-slip: a few grains of a mid band, unevenly spaced),
       // the cloth's swish, then the body in the hand and the catch of the finder
       case 'cam-up': {

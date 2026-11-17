@@ -277,6 +277,23 @@ sound dropping out at the Stop and a still chord for as long as time is held, th
 camera's catch, glass when the thing of 1964 comes into the frame, the shutter, the film wound on, the
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
+**It opens on its hour, in words.** Between the title and the opening shot the screen is black and four lines are typed
+on it, a letter at a time: what the blue hour is, that it cannot be kept, that in Tokyo on the tenth of October it begins
+at 17:14, and that some things were left standing in it (`preface` on the episode; `web/game/story.js` `preface`). The
+title names the hour and the whole device turns on it, and nothing had said what it is. Any key or a tap goes on; a case
+taken up again does not show it; with reduced motion the lines stand whole. `?preface=0` goes without it.
+
+**Two places are found, not shown.** A light on the ground for every standpoint made the player the camera's operator:
+seven frames and never a choice of where to stand. In two frames the place is the deduction, and nothing stands on it:
+
+| Frame | What is withheld | What the player has instead |
+|---|---|---|
+| 2 | the light and the mark at the standpoint (`task.find`) | the goal says what the frame looks at and from under what; with the camera up, the rangefinder's patch warms within three times the standpoint's radius and is lit in it |
+| 6 | the ring at his kerb (`find` on the frame) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
+
+Nobody is left looking: after half a minute the goal says more (`find2`, `goal2`), and after `find_s` (80 s, 90 s) the
+light stands there as it does in the other frames. `tools/story_play.js` fails a found frame that has a mark on it.
+
 **It opens on a voice.** Before the first Stop the office rings: who you are (a surveyor, late), why you are on
 this kerb at this hour, and the one odd thing about the job, a word pencilled on the old plan (`prologue` on
 the episode). A case left unfinished says so on the title, with a second button to start the evening again.
