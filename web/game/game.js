@@ -3277,22 +3277,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (the back only: the same turn at the neck threw her head back)
       if (old) rig.root.traverse(o => { if (o.isBone && /Spine1$|Spine2$/.test(o.name)) bend.push(o); });
       const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+      // (an afterimage: a person in an old exposure laid over tonight's street, people.js exposure; and the one thing
+      // that tells them from the held crowd is that they move: the head turns to the player, the body follows only
+      // when the head cannot reach)
+      const look = [];
       if (!a.alive) {
-        const tint = new THREE.Color(0x9fc4ff);
-        rig.root.traverse(o => {
-          if (!o.isMesh || !o.material) return;
-          o.castShadow = false;
-          o.material = o.material.clone();
-          Object.assign(o.material, { transparent: true, opacity: 0.82 });
-          if (o.material.color) o.material.color.lerp(tint, 0.7);
-          if (o.material.emissive) { o.material.emissive.set(0x6f9cff); o.material.emissiveIntensity = 1.5; }
-        });
+        if (OEPeople.exposure) OEPeople.exposure(rig.root);
+        rig.root.traverse(o => { if (o.isBone && /Neck$/.test(o.name)) look[0] = o; else if (o.isBone && /Head$/.test(o.name)) look[1] = o; });
       }
       const f = { x: p.x, y: p.y, z: p.z, to: null };
       const put = () => rig.root.position.copy(W(f.x, f.y, f.z));
       put(); world.add(rig.root);
       let t = 0;
-      f.face = (x, y) => { rig.root.rotation.y = Math.PI - Math.atan2(x - f.x, y - f.y); };
+      const turn = (x, y) => { f.yaw = Math.atan2(x - f.x, y - f.y); rig.root.rotation.y = Math.PI - f.yaw; };
+      f.face = (x, y) => { if (!look[1] || f.yaw == null) turn(x, y); else f.want = [x, y]; }; // (an afterimage looks first, and turns after)
+      const hq = new THREE.Quaternion(), hp = new THREE.Quaternion(), hv = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+      let hYaw = 0, hPitch = 0;
       f.walkTo = (x, y, speed = 1.15) => { f.to = [x, y, speed]; };
       f.animate = dt => {
         t += dt;
@@ -3300,13 +3300,37 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (f.to) {
           const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy);
           if (d < 0.25) f.to = null;
-          else { v = f.to[2]; const k = Math.min(1, v * dt / d); f.face(f.to[0], f.to[1]); f.x += dx * k; f.y += dy * k; f.z = Math.max(0, nav.terrain(f.x, f.y)); put(); }
+          else { v = f.to[2]; const k = Math.min(1, v * dt / d); turn(f.to[0], f.to[1]); f.x += dx * k; f.y += dy * k; f.z = Math.max(0, nav.terrain(f.x, f.y)); put(); }
         }
         // (the bend is laid over the clip's pose, and taken off again before the clip is asked for the next: with time
         // held the clip does not move the bones, and a bend added every frame turned her round and round)
         for (const b of bend) if (b.userData.bent && b.quaternion.equals(b.userData.bent)) b.quaternion.copy(b.userData.raw);
+        for (const b of look) if (b && b.userData.turned && b.quaternion.equals(b.userData.turned)) b.quaternion.copy(b.userData.raw);
         rig.animate(dt, v, 'ground', t);
         for (const b of bend) { b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion); b.rotation.z -= 0.09; b.userData.bent = (b.userData.bent || new THREE.Quaternion()).copy(b.quaternion); }
+        // the head to the player: laid over the clip's pose after the mixer, as the bend is, and taken off before it.
+        // The neck takes two fifths of the turn and the head the rest, up to 70 degrees each way; past that the body
+        // comes round, at a walker's pace. Eased, so that it is seen to turn (in a Stop the clip runs, dt is real)
+        if (look[1] && f.want && !f.to) {
+          const [x, y] = f.want, want = Math.atan2(x - f.x, y - f.y), off = angDiff(want, f.yaw);
+          if (Math.abs(off) > 1.0) turn(f.x + Math.sin(f.yaw + Math.sign(off) * Math.min(Math.abs(off) - 1.0, dt * 1.4)), f.y + Math.cos(f.yaw + Math.sign(off) * Math.min(Math.abs(off) - 1.0, dt * 1.4)));
+          const yw = Math.max(-1.2, Math.min(1.2, angDiff(want, f.yaw))), dz = (player.z + 1.55) - (f.z + 1.55), pt = Math.max(-0.35, Math.min(0.35, Math.atan2(dz, Math.hypot(x - f.x, y - f.y) || 1)));
+          const k = Math.min(1, dt * 3.2); hYaw += (yw - hYaw) * k; hPitch += (pt - hPitch) * k;
+        } else { const k = Math.min(1, dt * 2); hYaw -= hYaw * k; hPitch -= hPitch * k; }
+        rig.root.updateMatrixWorld(true);
+        for (const [i, b] of look.entries()) {
+          if (!b) continue;
+          b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion);
+          const share = i === 0 ? 0.4 : 0.6;
+          // (turned in the world: about the vertical, then about the line across the face, whatever the bone's own axes)
+          b.parent.getWorldQuaternion(hp);
+          b.getWorldQuaternion(hq);
+          hv.set(Math.cos(f.yaw + hYaw), 0, Math.sin(f.yaw + hYaw)); // (the right hand's way, across the face: the map's (cos, -sin) in three.js's axes)
+          hq.premultiply(new THREE.Quaternion().setFromAxisAngle(UP, -hYaw * share)).premultiply(new THREE.Quaternion().setFromAxisAngle(hv, hPitch * share));
+          b.quaternion.copy(hp.invert().multiply(hq));
+          b.updateMatrixWorld(true);
+          b.userData.turned = (b.userData.turned || new THREE.Quaternion()).copy(b.quaternion);
+        }
       };
       f.remove = () => world.remove(rig.root);
       return f;
