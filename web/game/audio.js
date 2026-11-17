@@ -21,8 +21,14 @@ window.OEAudio = (function () {
     s.start();
     return s;
   }
+  // A browser starts a page's sound only from a user's activation: a key, a click, and for a touch its end (pointerup,
+  // touchend), not its start (a touch's pointerdown is not one, so a phone's first tap started nothing). iOS also leaves
+  // a context 'interrupted' after a call or a trip to another app. Any of these, anywhere on the page, resumes it.
+  const wake = () => { if (ctx && !muted && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
+  for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, wake, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
   function start() {
-    if (ctx) { if (ctx.state === 'suspended' && !muted) ctx.resume(); return; }
+    if (ctx) { wake(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ctx = new AC();
@@ -508,11 +514,12 @@ window.OEAudio = (function () {
     for (const v of verbs.splice(0)) { v.g.gain.setTargetAtTime(0, t, 0.1); setTimeout(() => { try { verbIn.disconnect(v.cv); v.g.disconnect(); } catch (e) { /* already gone */ } }, 1500); }
     verbs.push({ cv, g });
   }
-  // under a line of dialogue the street and the score step back 5 dB, and come up again half a second after it
+  // under a line of dialogue (and the preface's type) the street and the score step back 8 dB, and come up again half a
+  // second after it (5 dB left the type's ticks under the score in their own band: tools/sound_rec.js)
   function duckFor(sec = 0.4) {
     if (!duck) return;
     const g = duck.gain, t = ctx.currentTime;
-    g.cancelScheduledValues(t); g.setTargetAtTime(0.56, t, 0.05); g.setTargetAtTime(1, t + sec, 0.45);
+    g.cancelScheduledValues(t); g.setTargetAtTime(0.4, t, 0.025); g.setTargetAtTime(1, t + sec, 0.45);
   }
   // the Sound switch: off, the context is suspended (nothing is computed on a phone that is not heard)
   function setMuted(m) {
@@ -561,16 +568,18 @@ window.OEAudio = (function () {
     // type being set, a little higher for a higher voice, and a second fainter one after it for someone of another year)
     if (!storyBus() || muted) return;
     duckFor();
+    // (13 dB up from where it was set by its level alone: recorded in the mix, a line's ticks were 3 to 11 dB under the
+    // score round 2 kHz, which is to say not heard; now they stand 6 dB or more over it, tools/sound_rec.js)
     const f = 700 + (v.pitch || 180) * 5;
-    sNoise(0, 0.022, f * (0.9 + R() * 0.2), 2.2, 0.028 + (v.breath ? 0.008 : 0));
-    if (v.past) sNoise(0.09, 0.03, f, 2.2, 0.009);
+    sNoise(0, 0.022, f * (0.9 + R() * 0.2), 2.2, 0.12 + (v.breath ? 0.035 : 0));
+    if (v.past) sNoise(0.09, 0.03, f, 2.2, 0.038);
   }
   // What the story does, heard (docs/SOUND.md). Each is built as a sound designer layers one: a transient (the click
   // or the strike, a millisecond or two of filtered noise), a body (the resonance of what was struck) and a tail (the
   // room, or the mechanism running down). Nothing is a bare oscillator beep, and no tone falls away on its own (that
   // was a telephone running out of battery: stopfx.js).
   // (each cue's trim, in dB, from tools/sound_render.js: its loudest 400 ms at the level docs/SOUND.md gives it)
-  const TRIM = { shutter: 2, 'cam-up': 6.5, 'cam-down': 6, found: 3, goal: 14, stamp: 2, wrong: 2.5, end: -1, run: -3 };
+  const TRIM = { shutter: 2, 'cam-up': 6.5, 'cam-down': 6, found: 3, goal: 14, stamp: 2, wrong: 2.5, end: -1, run: -3, key: 12 };
   let lv = 1;
   function sfx(name) {
     if (!storyBus() || muted) return;
@@ -596,7 +605,7 @@ window.OEAudio = (function () {
       case 'goal': burst(0, { dur: 0.6, f: 1200, q: 0.7, vol: 0.035, att: 0.18 }); burst(0.08, { dur: 0.5, f: 5200, q: 0.8, vol: 0.016, att: 0.16 }); break;
       case 'word': break; // (a word in the frame is read, not rung)
       // a key of the machine the preface is typed on: the slug on the platen, a tick with a little body under it
-      case 'key': burst(0, { dur: 0.022, f: 3100, q: 1.4, vol: 0.02, att: 0.001 }); burst(0.004, { dur: 0.05, f: 420, q: 1.2, vol: 0.014, type: 'lowpass', att: 0.002 }); break;
+      case 'key': duckFor(0.3); burst(0, { dur: 0.022, f: 3100, q: 1.4, vol: 0.02, att: 0.001 }); burst(0.004, { dur: 0.05, f: 420, q: 1.2, vol: 0.014, type: 'lowpass', att: 0.002 }); break;
       // the camera brought up: the leather strap's creak (stick-slip: a few grains of a mid band, unevenly spaced),
       // the cloth's swish, then the body in the hand and the catch of the finder
       case 'cam-up': {
@@ -696,7 +705,8 @@ window.OEAudio = (function () {
       pad = { g, os: nodes };
     } else if (!on && pad) {
       const q = pad; pad = null; ramp(q.g.gain, 0.0001, 0.9);
-      setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 3200);
+      // (stopped once it has fallen 60 dB: at 3.2 s it was still 31 dB down, and the cut was a click under the street)
+      setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
   return { start, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };

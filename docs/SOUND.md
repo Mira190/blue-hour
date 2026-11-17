@@ -18,7 +18,7 @@ browser on a phone.
 | Procedural sound from physical behaviour | Andy Farnell, *Designing Sound* (MIT Press, 2010) | The shutter as the mechanism's sequence, the strap's creak as stick-slip, the ratchet's teeth |
 | A convolution reverb per space, swapped as the player moves | Frostbite, Wwise's Reflect and convolution, Unreal's submix reverbs; the impulse response as exponentially decaying noise (J. A. Moorer, "About this reverberation business", 1979) | Four rooms (open crossing, the viaduct, inside, the deck at 230 m), impulse responses made at start from noise, crossfaded in 0.3 s. Tone.js (MIT) renders its reverb's IR the same way |
 | HRTF spatialisation of point sources | Wwise and FMOD's 3D panners, Steam Audio (Apache-2.0), Resonance Audio (Apache-2.0) | Web Audio's own HRTF `PannerNode` for the walk signals' calls with a mouse; a stereo pan on a touch screen. Resonance Audio and Omnitone (ambisonics, Apache-2.0) were considered and not adopted: a dependency and a cost a phone does not need for a handful of sources |
-| Ducking (sidechain) of ambience and score under dialogue | Wwise auto-ducking and HDR audio (DICE's Battlefield) | The street and the score step back 5 dB under each line of dialogue, released half a second after it |
+| Ducking (sidechain) of ambience and score under dialogue | Wwise auto-ducking and HDR audio (DICE's Battlefield) | The street and the score step back 8 dB under each line of dialogue and the preface's type (25 ms in), released half a second after it. It was 5 dB, which left the ticks under the score: "Listened to", below |
 | Loudness targets | ITU-R BS.1770-4 (K-weighting, gating), EBU R128; the Audio Standards Working Group's ASWG-R001 for games (−24 LUFS ±2 at home, −18 on a phone) | `tools/sound_render.js` measures every cue's peak, its loudest 400 ms (momentary) and its gated integrated loudness, with BS.1770's filters |
 
 ## The mix
@@ -26,7 +26,7 @@ browser on a phone.
 ```
 street sources ─► master (the world's bus) ─► tape (AudioWorklet) ─┬─► duck ─► main (Sound switch) ─► out
                                                                     └─► place's room (convolver) ─► duck
-score (music.js) ─► musicBus ─────────────────────────────────────────► duck
+score (music.js), the opening's score ─► musicBus ─────────────────────► duck
 story cues, dialogue ticks ─► storyBus ─────────────────────────────────────────────────────────────► out
 ```
 
