@@ -471,11 +471,13 @@ window.OEOverture = (function () {
     function startScore(offset = 0) {
       if (!scoreBuf || (window.OEAudio && OEAudio.muted)) return;
       try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        audio = audio || new AC();
+        // on the game's own context and its music bus (docs/SOUND.md): a second context made here, after the touch that
+        // started the game's, is one a phone (iOS) leaves suspended, and it was outside the Sound switch and the duck
+        const A = window.OEAudio, AC = window.AudioContext || window.webkitAudioContext, bus = A && A.ctx && A.musicBus();
+        audio = bus ? A.ctx : audio || new AC();
         let b = scoreBuf;
         if (Array.isArray(b)) { b = audio.createBuffer(2, scoreBuf[0].length, 24000); b.copyToChannel(scoreBuf[0], 0); b.copyToChannel(scoreBuf[1], 1); }
-        const g = audio.createGain(); g.gain.value = 0.8; g.connect(audio.destination);
+        const g = audio.createGain(); g.gain.value = bus ? 0.8 / 0.55 : 0.8; g.connect(bus || audio.destination); // (the bus goes out at main's 0.55: the same level as before)
         scoreSrc = audio.createBufferSource(); scoreSrc.buffer = b; scoreSrc.connect(g); scoreSrc.start(0, offset);
         scoreSrc.gainNode = g;
       } catch (e) { scoreSrc = null; }
