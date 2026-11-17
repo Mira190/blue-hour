@@ -3,6 +3,7 @@
 //   click    a lone step in the waveform (its second difference 30 times the local one and over 0.02): a node stopped or
 //            a gain set at once, a buffer that ends off zero;
 //   clip     a sample at full scale, or a peak over -1 dBFS;
+//   dropout  20 ms or more of digital silence once the sound has begun;
 //   seam     the loading cue's loop point: the step there against the steps in the rest of the turn;
 //   masked   a line of dialogue whose type ticks stand less than 6 dB over the street and the score under them, in their
 //            own band (round 2 kHz, where the ear hears the one against the other);
@@ -48,6 +49,9 @@ function analyse(dir, opts = {}) {
   // clipping and peaks
   let clip = 0, peak = 0; const hot = [];
   for (let i = 0; i < n; i++) { const a = Math.max(Math.abs(L[i]), Math.abs(R[i])); if (a > peak) peak = a; if (a >= 0.999) clip++; if (a > 0.891 && (!hot.length || i / rate - hot[hot.length - 1].t > 0.5)) hot.push({ t: +(i / rate).toFixed(2), dbfs: +db(a).toFixed(1) }); }
+  // dropouts: digital silence of 20 ms or more once the sound has begun and run three seconds (a buffer the audio thread missed, or a hole
+  // the recording itself left: tools/sound_rec.js places blocks by the context's frames so that it leaves none)
+  const drops = []; { let first = -1, run = 0; for (let i = 0; i < n; i++) { const z = L[i] === 0 && R[i] === 0; if (!z && first < 0) first = i; if (first < 0) continue; if (z) run++; else { if (run > rate * 0.02 && i - run > first + rate * 3) drops.push({ t: +((i - run) / rate).toFixed(3), ms: Math.round(run / rate * 1000) }); run = 0; } } }
   // 2 ms blocks of rms: strikes
   const B = Math.round(rate * 0.002), nb = Math.floor(n / B), blk = new Float32Array(nb);
   for (let k = 0; k < nb; k++) { let s = 0; for (let i = k * B; i < (k + 1) * B; i++) s += (L[i] * L[i] + R[i] * R[i]) * 0.5; blk[k] = s / B; }
@@ -124,7 +128,7 @@ function analyse(dir, opts = {}) {
   const tag = list => list.map(x => Object.assign(x, { near: near(x.t), beat: beatAt(x.t), stall: inStall(x.t) || undefined }));
   for (const l of [strikes, clicks]) for (let i = l.length - 1; i >= 0; i--) if (l[i].t > tail) l.splice(i, 1);
   said.sort((a, b) => a.t - b.t); masked.sort((a, b) => a.t - b.t);
-  [strikes, clicks, jumps, hot, seams, masked].forEach(tag);
+  [strikes, clicks, jumps, hot, seams, masked, drops].forEach(tag);
   // (a click within half a second of a mechanism's cue is its own transient: the shutter's curtains, the strap, the ratchet)
   const MECH = ['shutter', 'wind', 'cam-up', 'cam-down', 'stamp', 'key', 'wrong', 'thump'];
   for (const c of clicks) if (named.some(e => e.kind === 'sfx' && MECH.includes(e.detail[0]) && c.t - e.t > -0.15 && c.t - e.t < 0.6)) c.designed = true;
@@ -134,17 +138,18 @@ function analyse(dir, opts = {}) {
     seconds: +(n / rate).toFixed(1), rate, peak_dbfs: +db(peak).toFixed(2), clipped_samples: clip, integrated_lufs: gated,
     loudest_momentary: M.reduce((a, m) => (m[1] > a[1] ? m : a), [0, -99]),
     stalls: stalls.length, stalled_seconds: +stalls.reduce((s, [a, b]) => s + b - a, 0).toFixed(1),
-    over_minus1: hot, strikes, clicks, jumps, seams, lines: said.length, masked, said,
+    over_minus1: hot, dropouts: drops, strikes, clicks, jumps, seams, lines: said.length, masked, said,
     margin_median: said.length ? said.map(q => q.margin).sort((a, b) => a - b)[Math.floor(said.length / 2)] : null,
     momentary: M.filter((m, i) => i % 5 === 0), events: events.filter(e => e.kind !== 'stall'),
   };
-  report.grating = clip > 0 || hot.length > 0 || real(clicks).length > 0 || badSeams.length > 0 || masked.length > 0 || real(strikes).filter(s => s.rise > 30).length > 0;
+  report.grating = real(drops).length > 0 || clip > 0 || hot.length > 0 || real(clicks).length > 0 || badSeams.length > 0 || masked.length > 0 || real(strikes).filter(s => s.rise > 30).length > 0;
   fs.writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   if (!opts.quiet) {
     const p = (label, l, f) => { const r = real(l); console.log(`${r.length ? '!!' : 'ok'}   ${label}: ${r.length}${l.length - r.length ? ` (and ${l.length - r.length} in stalls)` : ''}`); r.slice(0, 25).forEach(x => console.log(`       ${String(x.t).padStart(7)} s  ${f(x)}  [${x.beat}] ${x.near}`)); };
     console.log(`listened to ${report.seconds} s at ${rate} Hz: peak ${report.peak_dbfs} dBFS, integrated ${gated} LUFS, loudest 400 ms ${report.loudest_momentary[1]} LUFS at ${report.loudest_momentary[0]} s; ${report.stalls} main-thread stalls (${report.stalled_seconds} s)`);
     console.log(`${clip ? '!!' : 'ok'}   samples at full scale: ${clip}`);
     p('peaks over -1 dBFS', hot, x => `${x.dbfs} dBFS`);
+    p('dropouts (20 ms of digital silence)', drops, x => `${x.ms} ms`);
     p('strikes (20 dB in 5 ms)', strikes, x => `+${x.rise} dB to ${x.dbfs} dBFS`);
     p('clicks', clicks, x => `step ${x.step}, ${x.ratio}x its neighbourhood`); { const d = clicks.filter(x => x.designed); if (d.length) console.log(`       (and ${d.length} the mechanisms' own: ${[...new Set(d.map(x => x.near.split(' (')[0]))].join(', ')})`); }
     p('loudness jumps', jumps, x => `${x.from} -> ${x.to} LUFS`);
