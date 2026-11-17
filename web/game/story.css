@@ -418,3 +418,5 @@
 #g-story-mark.lens i { display: none; }
 #g-story-mark.lens u { transform: rotate(var(--a, 0rad)) translateX(8px); }
 #g-story-mark.lens b { top: 18px; color: var(--amber); }
+/* ---- Play, with the title in the Stop: the card goes as time is let go, and the street is seen to move before the film (game.js titleLetGo) */
+.game-stage.title-go .g-title { opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
