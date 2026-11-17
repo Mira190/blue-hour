@@ -149,9 +149,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
       if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
-    else if (s.phase === 'dressed' && s.beat === 'preface') { // (the hour in words, on black, before the opening: a still of it typed half way and whole)
-      const typed = await p.evaluate(() => document.querySelector('#g-story-pre .tx').textContent.length);
-      if (typed > 60) await mark(s, 'preface'); if (typed > 250) await mark(s, 'preface-whole');
+    else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
+      if (!seen.has('order')) { seen.add('order'); await p.waitForTimeout(4000); await snap('1-order'); if (!await p.evaluate(() => { const e = document.getElementById('g-story-order'); return e.classList.contains('on') && e.querySelectorAll('i').length > 80; })) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
+      await p.keyboard.press('KeyE');
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
     else if (s.phase === 'go' && s.beat === 'flight') await mark(s, 'flight'); // (a frame reached by air: its film plays itself out)
