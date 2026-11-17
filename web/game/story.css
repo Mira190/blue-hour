@@ -551,14 +551,14 @@
 #g-story-mov.on { opacity: 1; }
 #g-story-mov p { position: absolute; left: 0; right: 0; bottom: calc(8.5vh + 26px); margin: 0 auto; width: min(760px, calc(100% - 48px)); text-align: center;
   font: 300 clamp(15px, 1.45vw, 19px)/1.55 var(--f-display); letter-spacing: 0.02em; color: var(--paper); text-shadow: 0 1px 14px rgba(0, 0, 0, 0.75), 0 0 2px rgba(0, 0, 0, 0.6); opacity: 0; }
-#g-story-mov button { position: absolute; right: max(16px, 3vw); bottom: calc(8.5vh + 18px); pointer-events: auto; cursor: pointer; background: none; border: 0; padding: 10px 0;
+#g-story-mov button { position: absolute; right: max(16px, 3vw); top: calc(8.5vh + 10px); pointer-events: auto; /* (over the picture's top, under the bar: at the foot it met the words on a screen 800 wide) */ cursor: pointer; background: none; border: 0; padding: 10px 0;
   font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); opacity: 0; transition: opacity 0.8s ease 1.4s, color 0.3s; }
 #g-story-mov.on button { opacity: 1; }
 #g-story-mov button:is(:hover, :focus-visible) { color: var(--paper); }
 .game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
 @media (max-width: 640px) {
   #g-story-mov p { bottom: calc(8.5vh + 18px); width: calc(100% - 32px); font-size: 15px; }
-  #g-story-mov button { top: calc(8.5vh + 8px); bottom: auto; right: 16px; }
+  #g-story-mov button { right: 16px; }
 }
 
 /* ---- a hint, asked for (story.js hint): where a place is to be found, a quiet button on the right, the camera's small
