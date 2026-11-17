@@ -89,7 +89,9 @@ function analyse(dir, opts = {}) {
     for (let s = e.t + len; s < Math.min(end, n / rate - 0.1); s += len) {
       let typical = 0; for (let k = 1; k < 20; k++) typical = Math.max(typical, step(s - len * k / 20)); // (the same window at twenty places in the turn)
       const at = step(s), lv = (a, b) => { let q = 0; const i0 = Math.round(a * rate), i1 = Math.round(b * rate); for (let i = i0; i < i1; i++) q += L[i] * L[i]; return pw(q / Math.max(1, i1 - i0)); };
-      seams.push({ t: +s.toFixed(2), step: +at.toFixed(4), typical: +typical.toFixed(4), level: +(lv(s, s + 0.05) - lv(s - 0.05, s)).toFixed(1) });
+      // (a seam under another sound, a cue or a voice, is not judged: the step there is that sound's)
+      const busy = named.some(q => q.kind !== 'loop' && q.kind !== 'loop-start' && q.kind !== 'score' && Math.abs(q.t - s) < 1.5) || undefined;
+      seams.push({ t: +s.toFixed(2), step: +at.toFixed(4), typical: +typical.toFixed(4), level: +(lv(s, s + 0.05) - lv(s - 0.05, s)).toFixed(1), busy });
     }
   }
   // dialogue over the street and the score: each tick of a line's type (a 'voice' event) in the band it sounds in (round
@@ -127,7 +129,7 @@ function analyse(dir, opts = {}) {
   const MECH = ['shutter', 'wind', 'cam-up', 'cam-down', 'stamp', 'key', 'wrong', 'thump'];
   for (const c of clicks) if (named.some(e => e.kind === 'sfx' && MECH.includes(e.detail[0]) && c.t - e.t > -0.15 && c.t - e.t < 0.6)) c.designed = true;
   const real = l => l.filter(x => !x.stall && !x.designed);
-  const badSeams = seams.filter(s => s.step > Math.max(0.01, s.typical * 1.5) || Math.abs(s.level) > 6);
+  const badSeams = seams.filter(s => !s.busy && s.step > Math.max(0.01, s.typical * 1.5) || Math.abs(s.level) > 6);
   const report = {
     seconds: +(n / rate).toFixed(1), rate, peak_dbfs: +db(peak).toFixed(2), clipped_samples: clip, integrated_lufs: gated,
     loudest_momentary: M.reduce((a, m) => (m[1] > a[1] ? m : a), [0, -99]),

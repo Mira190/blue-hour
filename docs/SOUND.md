@@ -177,3 +177,45 @@ of more than 8 dB from one second to the next, a 50 ms window more than 12 dB ov
 peak over -8 dBFS (`UNDER=1`: as it plays over the loading cue). Now: largest rise 7.5 dB at the very start
 (from -47 to -39 dBFS), loudest second -22 dBFS at the title, peak -12 dBFS.
 
+
+## Listened to
+
+Issue 7: the sound had been checked by level and timing, cue by cue, and never heard through. It is now recorded
+through, the episode from the loading screen to the last card, as a player hears it, and read for what grates.
+
+**How it is recorded.** `tools/sound_rec.js` plays the episode with `tools/story_play.js` unchanged, in a browser
+whose every AudioContext is tapped where it meets the speakers (`tools/sound_tap.js`, added to the page before its own
+scripts): a gain in place of `destination`, into an AudioWorklet that copies what it gets to the harness. The
+worklet runs on the audio thread, so a busy main thread loses nothing; each block carries the context's frame and its
+output timestamp, so two contexts land on one timeline. The same worklet keeps the level every 512 frames of the score
+(before the duck), the street with the score (after it) and the story's own bus, each also round 2 kHz, so what masks
+what can be read afterwards; and the page posts what it asked the sound to do (cues, voices, the Stop, the score's
+state and stings) and the story's beats, on the same clock.
+
+```
+NODE_PATH=$(npm root -g) DRAW=300 xvfb-run -a node tools/sound_rec.js out/desktop 1440x900
+NODE_PATH=$(npm root -g) DRAW=300 GESTURE=1 xvfb-run -a node tools/sound_rec.js out/phone 390x844
+node tools/sound_page.js out/page desktop-before=... desktop-after=... phone-before=... phone-after=...
+```
+
+`GESTURE=1` gives the page no sound until it is touched, and touches the loading screen once, as a player does; the
+recording fails if the sound is not running after it. No stills are taken (`SHOTS=1` to take them): on a software
+renderer a still holds the main thread for seconds, and the score, which writes its notes 300 ms ahead from a timer,
+drops them in the hold. The main thread's remaining stalls (a timer asked for every 100 ms that came 350 ms late or
+more) are recorded, and what falls in one is listed apart, not counted: it is the test machine's, not the game's.
+
+**What is listened for** (`tools/sound_analyse.js`, run by the recorder; alone: `node tools/sound_analyse.js out/desktop`):
+
+| | Measured as | Counts as grating |
+|---|---|---|
+| A click | the waveform's second difference against the 20 ms round it | 30 times its neighbourhood and over 0.02, and not within half a second of a mechanism's own cue (the shutter's curtains, the strap, the ratchet) |
+| A cue that strikes | the level of 6 ms against the 60 ms before it | 20 dB up to over −42 dBFS (listed), 30 dB (grates) |
+| Clipping | the float samples before the 16-bit clamp | any at full scale, any peak over −1 dBFS |
+| A loop seam | the loading cue's join against the same window at twenty places in its turn | a step half as big again, or a level step over 6 dB |
+| A voice under the score | each tick of type (a `voice` call, a key of the preface) as what it adds to the story bus round 2 kHz, against the street and the score in that band while it sounds | a line whose median tick stands less than 6 dB over them |
+| A level that jumps | momentary loudness (BS.1770 K-weighting, 400 ms, every 100 ms) | up 10 LU in half a second (not out of silence), or down 14 |
+
+`tools/sound_page.js` makes a page of two runs: each recording whole as an MP3, its loudness from the first card to
+the last over the story's beats with the findings marked, the findings side by side, and the same moments of each
+(the preface, the opening's end, the first line, the first Stop, the first photograph, time running on) found by what
+the story did, so that two runs at different paces line up.

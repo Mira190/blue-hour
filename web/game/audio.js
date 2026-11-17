@@ -611,7 +611,7 @@ window.OEAudio = (function () {
       case 'cam-up': {
         let t = 0; for (let k = 0; k < 6; k++) { burst(t, { dur: 0.016, f: 750 + R() * 500, q: 2.5, vol: 0.05 + R() * 0.04 }); t += 0.012 + R() * 0.016; }
         burst(0.02, { dur: 0.17, f: 2400, q: 0.6, vol: 0.03, att: 0.06 });
-        knock(0.15, 240, 0.13, 0.05); burst(0.17, { dur: 0.006, f: 4200, q: 3, vol: 0.12 });
+        knock(0.15, 240, 0.13, 0.05); burst(0.17, { dur: 0.006, f: 4200, q: 3, vol: 0.06 }); // (the catch: 6 dB under what it was, which struck over a stopped street)
         break;
       }
       case 'cam-down': burst(0, { dur: 0.15, f: 2000, q: 0.6, vol: 0.03, att: 0.05 }); knock(0.1, 200, 0.1, 0.06); break;
@@ -643,10 +643,12 @@ window.OEAudio = (function () {
         break;
       // the postmark struck on paper on a counter: the paper's slap, the wood under it, the stamp's thump, its handle
       // rattling a moment after
+      // (recorded through, it struck: 30 dB over a stopped street in 12 ms, as the score's note came in under it. The
+      // thump is pressed now, not dropped: 6 ms in and lower, the slap 3 ms in; tools/sound_rec.js)
       case 'stamp':
-        burst(0, { dur: 0.04, f: 1800, q: 0.5, vol: 0.18, type: 'lowpass' });
+        burst(0, { dur: 0.04, f: 1800, q: 0.5, vol: 0.15, type: 'lowpass', att: 0.003 });
         burst(0, { dur: 0.14, f: 240, q: 4, vol: 0.2 });
-        sTone(0, 0.11, 'sine', 115, 60, 0.32, 0.002);
+        sTone(0, 0.11, 'sine', 115, 60, 0.22, 0.006);
         burst(0.07, { dur: 0.012, f: 3000, q: 3, vol: 0.05 });
         break;
       // somebody of another year is here: two notes beating against each other a few times a second, a breath moving
