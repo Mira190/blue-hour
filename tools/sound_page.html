@@ -1,0 +1,136 @@
+<title>Blue Hour, Listened To</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500&display=swap">
+<style>
+/* Layout: one column like the story's cards; per view a stack of two takes (before, after), each a player over its loudness line */
+:root {
+  --bg: #04060b; --surface: #0a0f18; --ink: #ece8e1; --muted: #8a93a3; --faint: #5b6472; --line: rgba(236, 232, 225, 0.12);
+  --accent: #ffb066; --shade: #9d9bf0; --good: #63d39a; --critical: #ff6f61;
+  --f-display: "Newsreader", "Hiragino Mincho ProN", Georgia, serif;
+  --f-body: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 48px; }
+h1 { font: italic 500 clamp(30px, 5vw, 46px)/1.1 var(--f-display); margin: 0; text-wrap: balance; }
+h2 { font: italic 400 26px/1.2 var(--f-display); margin: 0; }
+h3 { font: 500 12px/1.4 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+p { margin: 0; max-width: 68ch; color: var(--ink); }
+.lede { color: var(--muted); max-width: 68ch; }
+.mono, td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 14px; }
+.eyebrow { font: 500 12px var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+section { display: grid; gap: 18px; }
+#views { display: grid; gap: 48px; }
+#notes:empty { display: none; }
+.take { display: grid; gap: 8px; padding: 14px 16px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 2px; }
+.take-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+.take-head b { font: 600 14px var(--f-body); }
+.take-head .stats { font: 12px var(--f-mono); color: var(--muted); }
+.pill { font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; border: 1px solid currentColor; }
+.pill.bad { color: var(--critical); } .pill.ok { color: var(--good); }
+audio { width: 100%; height: 36px; }
+canvas { width: 100%; height: 150px; display: block; cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 12px var(--f-mono); color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 1px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.n { white-space: nowrap; }
+.worse { color: var(--critical); } .better { color: var(--good); }
+.moments { display: grid; gap: 14px; }
+.moment { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.moment-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
+.moment-row label { font: 12px var(--f-mono); color: var(--muted); display: grid; gap: 4px; }
+ul.notes { margin: 0; padding-left: 18px; display: grid; gap: 6px; max-width: 72ch; }
+footer { color: var(--faint); font-size: 13px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Blue Hour · episode one · issue 7</div>
+    <h1>Listened to, from the first card to the last</h1>
+    <p class="lede">The episode recorded with its sound on, as the speakers get it, on a desktop (1440×900) and a phone (390×844, sound given only after a tap). Before is main as it was; after is this change. Each line is the loudness every half second (ITU-R BS.1770, 400 ms); the bands under it are the story's beats. Click a line to jump there.</p>
+  </header>
+  <section id="notes"></section>
+  <section id="findings">
+    <h2>What grated, and what is left</h2>
+    <div class="tbl"><table id="tbl"></table></div>
+  </section>
+  <div id="views"></div>
+  <section>
+    <h2>The same moments, side by side</h2>
+    <p class="lede">Short excerpts found by what the story did, so that two runs at different paces line up.</p>
+    <div class="moments" id="moments"></div>
+  </section>
+  <footer id="foot">Recorded in Chromium on a software renderer (Mesa llvmpipe) with a fake audio device. Not checked: a real GPU, Safari or iOS, a phone's own speaker.</footer>
+</div>
+<script>
+const D = /*DATA*/null;
+if (D.notes) document.getElementById('notes').innerHTML = D.notes;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const byKey = Object.fromEntries(D.data.map(d => [d.key, d]));
+const views = [...new Set(D.data.map(d => d.key.replace(/-?(before|after)$/, '') || 'desktop'))];
+const keyOf = (v, w) => (v === 'desktop' && byKey[w] ? w : `${v}-${w}`);
+const label = v => (v === 'desktop' ? 'Desktop, 1440×900' : v === 'phone' ? 'Phone, 390×844, after a tap' : v);
+const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const PH = { loading: '#1a2230', dressed: '#24203a', go: '#14242a', stop: '#2a2238', after: '#2a2418', done: '#1c1c1c' };
+
+function plot(cv, d, audio) {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  const L = 34, R = 6, T = 8, B = 18, x = t => L + (W - L - R) * t / d.seconds, y = v => T + (H - T - B) * (1 - (Math.max(-70, Math.min(-10, v)) + 70) / 60);
+  g.clearRect(0, 0, W, H);
+  // the beats as bands
+  const bs = [{ t: 0, phase: 'loading' }].concat(d.beats);
+  bs.forEach((b, i) => { const e = i + 1 < bs.length ? bs[i + 1].t : d.seconds; g.fillStyle = PH[b.phase] || PH.go; g.fillRect(x(b.t), T, Math.max(1, x(e) - x(b.t)), H - T - B); });
+  g.strokeStyle = css('--line'); g.fillStyle = css('--faint'); g.font = `10px ${css('--f-mono')}`; g.lineWidth = 1;
+  for (const v of [-60, -40, -20]) { g.beginPath(); g.moveTo(L, y(v)); g.lineTo(W - R, y(v)); g.stroke(); g.fillText(String(v), 2, y(v) + 3); }
+  const step = d.seconds > 900 ? 300 : d.seconds > 300 ? 120 : 60;
+  for (let t = 0; t <= d.seconds; t += step) g.fillText(mmss(t), Math.min(W - R - 28, x(t) + 2), H - 5);
+  g.strokeStyle = css('--ink'); g.globalAlpha = 0.85; g.beginPath(); d.M.forEach(([t, v], i) => (i ? g.lineTo(x(t), y(v)) : g.moveTo(x(t), y(v)))); g.stroke(); g.globalAlpha = 1;
+  const mark = (list, col, row) => { g.fillStyle = col; for (const m of list) g.fillRect(x(m.t) - 1, T + row * 7, 3, 6); };
+  mark(d.clicks, css('--critical'), 0); mark(d.jumps, css('--shade'), 1); mark(d.masked, css('--accent'), 2);
+  if (audio && audio.currentTime) { g.fillStyle = css('--accent'); g.fillRect(x(audio.currentTime), T, 1.5, H - T - B); }
+  cv.onclick = e => { if (!audio) return; const r = cv.getBoundingClientRect(); audio.currentTime = Math.max(0, (e.clientX - r.left - L) / (r.width - L - R) * d.seconds); audio.play(); };
+}
+const vw = document.getElementById('views'), takes = [];
+for (const v of views) {
+  const s = document.createElement('section');
+  s.innerHTML = `<h2>${label(v)}</h2><div class="legend"><span><i style="background:var(--critical)"></i>click</span><span><i style="background:var(--shade)"></i>loudness jump</span><span><i style="background:var(--accent)"></i>dialogue under the score</span><span><i style="background:${PH.dressed}"></i>opening</span><span><i style="background:${PH.go}"></i>walking</span><span><i style="background:${PH.stop}"></i>the Stop</span></div>`;
+  for (const w of ['before', 'after']) {
+    const d = byKey[keyOf(v, w)]; if (!d) continue;
+    const t = document.createElement('div'); t.className = 'take';
+    t.innerHTML = `<div class="take-head"><b>${w === 'before' ? 'Before' : 'After'}</b><span class="pill ${d.grating ? 'bad' : 'ok'}">${d.grating ? 'grates' : 'nothing grates'}</span><span class="stats">${mmss(d.seconds)} · peak ${d.peak} dBFS · ${d.lufs} LUFS integrated</span></div><audio controls preload="none" src="${d.key}.mp3"></audio><canvas aria-label="Loudness of the ${w} recording over time"></canvas>`;
+    s.appendChild(t); takes.push({ cv: t.querySelector('canvas'), d, a: t.querySelector('audio') });
+  }
+  vw.appendChild(s);
+}
+const draw = () => takes.forEach(k => plot(k.cv, k.d, k.a));
+takes.forEach(k => k.a.addEventListener('timeupdate', () => plot(k.cv, k.d, k.a)));
+addEventListener('resize', draw); document.fonts && document.fonts.ready.then(draw); draw();
+// the findings, before against after, per view
+const rows = [
+  ['Clicks (a lone step in the waveform)', d => d.clicks.length, true],
+  ['Dialogue lines whose ticks are under the score', d => `${d.masked.length} of ${d.lines}`, true, d => d.masked.length],
+  ['Ticks over the bed, round 2 kHz (median)', d => (d.margin == null ? '–' : `${d.margin > 0 ? '+' : ''}${d.margin} dB`), false, d => -(d.margin || 0)],
+  ['Loudness jumps (10 LU up, 14 down, in 0.5 s)', d => d.jumps.length, true],
+  ['Strikes (20 dB in 5 ms)', d => d.strikes.length, true],
+  ['Peaks over −1 dBFS / samples at full scale', d => `${d.hot.length} / ${d.clip}`, true, d => d.hot.length + d.clip],
+  ['Peak', d => `${d.peak} dBFS`, false, null],
+  ['Integrated loudness', d => `${d.lufs} LUFS`, false, null],
+];
+let th = '<tr><th>Measure</th>'; for (const v of views) th += `<th>${label(v).split(',')[0]} before</th><th>after</th>`;
+let tb = ''; for (const [name, f, , score] of rows) { tb += `<tr><td>${name}</td>`; for (const v of views) { const a = byKey[keyOf(v, 'before')], b = byKey[keyOf(v, 'after')]; const sc = score === undefined ? f : score; let cls = ''; if (a && b && sc) { const x = +sc(a), y = +sc(b); cls = y < x ? 'better' : y > x ? 'worse' : ''; } tb += `<td class="n">${a ? f(a) : '–'}</td><td class="n ${cls}">${b ? f(b) : '–'}</td>`; } tb += '</tr>'; }
+document.getElementById('tbl').innerHTML = `<thead>${th}</tr></thead><tbody>${tb}</tbody>`;
+const mo = document.getElementById('moments');
+for (const m of D.moments) {
+  const el = document.createElement('div'); el.className = 'moment';
+  let row = '';
+  for (const v of views) for (const w of ['before', 'after']) { const d = byKey[keyOf(v, w)], q = d && d.moments.find(x => x.id === m.id); if (q) row += `<label>${label(v).split(',')[0]} · ${w} (${mmss(q.at)})<audio controls preload="none" src="${q.file}"></audio></label>`; }
+  if (!row) continue; // (a moment none of the runs reached)
+  el.innerHTML = `<h3>${m.name}</h3><div class="moment-row">${row}</div>`; mo.appendChild(el);
+}
+</script>
