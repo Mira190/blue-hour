@@ -1206,17 +1206,21 @@ transformed = crowdPose(transformed, false);`);
       // the player, who stands 6 m in front of it: the far figures were being drawn at the lens while people behind
       // the player were given faces), and those in the view first, since a face behind the camera is seen by no one.
       // On a crowded crossing the few skinned people there are go where they are looked at.
+      // Through a long lens (the story's finder at 22 to 40 degrees, a conversation's 35 mm) someone 50 m off is as big in
+      // the frame as someone 25 m off is in the chase view: the distance is counted as the lens sees it, and a few more
+      // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
+      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = Math.round(near * Math.min(1.5, zoom));
       const want = [], ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
       for (let i = 0; i < nActive; i++) {
         const p = P[i]; if (p.line < 0) continue;
-        const d = Math.hypot(p.x - ex, p.y - ey);
+        const d = Math.hypot(p.x - ex, p.y - ey) / zoom;
         if (d >= nearR) continue;
         const seen = !culling || frustum.intersectsSphere(ball.set(at.set(p.x, p.z + 1, -p.y), 1.5));
         want.push([seen ? d : d + nearR, i]);
       }
       ball.radius = 30;
       want.sort((a, b) => a[0] - b[0]);
-      const keep = new Set(want.slice(0, near).map(w => w[1]));
+      const keep = new Set(want.slice(0, nNear).map(w => w[1]));
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
       for (const i of keep) {
         // (a stand-in gives way to the walker's own character once that has come, not only when they next come near)

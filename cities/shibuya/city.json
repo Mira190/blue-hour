@@ -104,9 +104,9 @@
         ],
         "radius": 2.0,
         "mix": {
-          "cherry": 1.0
+          "cherry_plaza": 1.0
         },
-        "note": "The round planter north of Hachiko holds a Somei-yoshino (photographs 2020-25)."
+        "note": "The round planter north of Hachiko holds a Somei-yoshino (photographs 2020-25), pruned as a square's trees are: its leaves begin over 3 m up (cherry_plaza, issue 19)."
       },
       {
         "name": "Hachiko Square's planters, south",
@@ -116,7 +116,7 @@
         ],
         "radius": 2.0,
         "mix": {
-          "cherry": 1.0
+          "cherry_plaza": 1.0
         },
         "note": "And so does the one south of him."
       },

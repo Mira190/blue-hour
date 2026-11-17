@@ -424,9 +424,9 @@ def build_atlas(path):
 # Heights in metres; a crown is a shape that says, for a point, how far out it is (1 at the
 # surface). Species are near their usual street-tree size; the game scales each tree.
 SPECIES = {
-    "plane": dict(deciduous=True, H=17.0, trunk=4.2, r0=0.36, crown=("ellipsoid", 10.6, 6.6, 6.4), n=330, size=2.9, n1=7, n2=4, leaf="plane",
+    "plane": dict(deciduous=True, H=17.0, trunk=4.2, r0=0.36, crown=("ellipsoid", 10.6, 6.6, 6.4), prune=3.2, n=330, size=2.9, n1=7, n2=4, leaf="plane",
                   bark="#a08f78", lean=0.04, leader=True, colour="#557f37", autumn_colour="#7f7444", note="London plane: the street tree of both cities"),
-    "elm": dict(deciduous=True, H=16.0, trunk=3.0, r0=0.34, crown=("vase", 3.2, 16.0, 1.2, 7.4), n=320, size=2.7, n1=5, n2=5, leaf="elm",
+    "elm": dict(deciduous=True, H=16.0, trunk=3.0, r0=0.34, crown=("vase", 3.2, 16.0, 1.2, 7.4), prune=3.2, n=320, size=2.7, n1=5, n2=5, leaf="elm",
                 bark="#5a4c40", lean=0.02, leader=False, colour="#4f7a32", autumn_colour="#8c8240", note="English elm: Melbourne's avenues"),
     "gum": dict(H=18.0, trunk=6.5, r0=0.40, crown=("clumps", 12.5, 5.6, 5.0), n=200, size=2.8, n1=5, n2=3, leaf="gum",
                 bark="#ddd5c6", lean=0.10, leader=True, colour="#73906d", note="Eucalyptus: pale bark, open crown in clumps"),
@@ -454,11 +454,11 @@ SPECIES = {
                     bark="#5a4f45", lean=0.04, leader=False, colour="#56813a",
                     note="Camphor laurel (kusunoki, Cinnamomum camphora): a broad, bright evergreen dome on a massive trunk; the "
                          "shrine trees of Osaka and Kyoto and Meiji Jingu's commonest"),
-    "zelkova": dict(deciduous=True, H=20.0, trunk=3.0, r0=0.45, crown=("vase", 3.6, 20.0, 1.6, 8.6), n=420, size=3.0, n1=7, n2=5, leaf="zelkova",
+    "zelkova": dict(deciduous=True, H=20.0, trunk=3.0, r0=0.45, crown=("vase", 3.6, 20.0, 1.6, 8.6), prune=3.2, n=420, size=3.0, n1=7, n2=5, leaf="zelkova",
                     bark="#857d70", lean=0.02, leader=False, colour="#557d35", autumn_colour="#8e6a3e",
                     note="Japanese zelkova (keyaki, Zelkova serrata): a broom of upswept limbs and fine twigs; the avenue tree of "
                          "Omotesando and the precincts, rust-orange in November"),
-    "ginkgo": dict(deciduous=True, H=17.0, trunk=2.6, r0=0.34, crown=("ellipsoid", 10.0, 4.2, 7.4), n=360, size=2.8, n1=9, n2=3, leaf="ginkgo",
+    "ginkgo": dict(deciduous=True, H=17.0, trunk=2.6, r0=0.34, crown=("ellipsoid", 10.0, 4.2, 7.4), prune=3.2, n=360, size=2.8, n1=9, n2=3, leaf="ginkgo",
                    bark="#6e655a", lean=0.02, excurrent=True, colour="#62903a", autumn_colour="#c8a640",
                    note="Ginkgo (icho, Ginkgo biloba): a tall narrow crown on a central stem; Tokyo's and Osaka's street tree "
                         "(Midosuji, Jingu Gaien), gold in late November"),
@@ -531,6 +531,13 @@ SPECIES = {
                      note="Spiny-headed mat-rush (Lomandra longifolia): a dense tussock of stiff, flat, glossy dark green "
                           "strap leaves 0.6-1 m long, arching but not drooping, with split brown tips; the strappy native "
                           "of Sydney's sandstone gullies and its planted beds"),
+    # (last, so that every species before it keeps its seed: build_all seeds by place in this list)
+    "cherry_plaza": dict(deciduous=True, H=10.0, trunk=4.0, r0=0.36, crown=("ellipsoid", 7.9, 5.2, 2.3), n=400, size=2.1, n1=6, n2=5, leaf="sakura",
+                         bark="#3e3431", lean=0.05, leader=False, colour="#5d8a3a", autumn_colour="#b2532f", bloom_colour="#f3dadc",
+                         bloom_offset_d=0, bloom_len=1.0, bark_bands=True,
+                         note="Somei-yoshino cherry in a city square (Hachiko Square's planters): the same tree as 'cherry', its "
+                              "lower limbs taken off as a square's trees are pruned, so that its leaves begin over 3 m up and "
+                              "a crowd and a camera at eye height pass under them; a taller clean trunk and the crown held high"),
 }
 
 
@@ -704,6 +711,10 @@ def grow(name, sp, seed, lod):
     if sp["crown"][0] == "tussock":
         return grow_tussock(name, sp, rng, lod)
     P, clumps = crown_points(sp, rng)
+    # a street tree pruned for the pavement under it (Japan's road rules keep 2.5 m clear over a footway): no spray of
+    # leaves hangs below `prune` metres, the crown lifted off the walkers and off a camera at eye height (issue 19)
+    if sp.get("prune"):
+        P = P[P[:, 2] >= sp["prune"] + sp["size"] * 0.75]   # (a spray hangs some three quarters of its card below its point)
     shape = sp["crown"]
     if shape[0] in ("vase", "cone"):
         crown_c = np.array([0, 0, (shape[1] + shape[2]) / 2])
@@ -1047,11 +1058,14 @@ def build_all(atlas):
         tri = []
         for lod in range(3):
             T = grow(name, sp, 100 + k, lod)
+            if lod == 0:  # how high its lowest leaf hangs, and how far out its widest: what the game's camera keeps out of
+                L = [T.m.v[i] for i in T.nrm] or [(0.0, 0.0, sp["H"])]
+                clear = (round(float(min(q[2] for q in L)), 2), round(float(max(math.hypot(q[0], q[1]) for q in L)), 2))
             ob = to_object(T, f"{name}_LOD{lod}")
             objs[ob.name] = ob
             tri.append(triangles(ob))
         info[name] = {"height_m": sp["H"], "crown": list(sp["crown"][1:]), "colour": sp["colour"], "bark": sp["bark"], "triangles": tri,
-                      "cell": CELLS[sp["leaf"]], "trunk_r": sp["r0"], "note": sp["note"]}
+                      "cell": CELLS[sp["leaf"]], "trunk_r": sp["r0"], "clear_m": clear[0], "crown_r": clear[1], "note": sp["note"]}
         for k_ in ("bloom_colour", "autumn_colour", "deciduous", "bloom_offset_d", "bloom_len", "bark_bands"):
             if k_ in sp:
                 info[name][k_] = sp[k_]
