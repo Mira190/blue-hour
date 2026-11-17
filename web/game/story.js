@@ -400,7 +400,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // a frame begins: the sky it has, a word with the living if there is one, and the way to where the world will stop
     function frame(i) {
       const fr = st.ep.frames[i];
-      st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0;
+      st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0; huntFresh(); // (the hints asked for in one frame are not carried into the next: the third's light stood beside the dog leading to the old man)
       if (fr.weather) ctx.weather(fr.weather, !!fr.wet);
       // (the case as it stood on arriving at this frame: what going back into it from the last card restores. Not the
       // prints themselves, which the roll keeps in order, but how many; a frame taken up again after a slip keeps its first)
@@ -660,7 +660,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      st.findT = 0; st.lit = !st.fr.task.find; st.placedOnce = false; st.spendT = 0; huntFresh(); // (find: no light stands where this one is taken from, until the player asks for one)
+      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; huntFresh(); // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
