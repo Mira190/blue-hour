@@ -26,6 +26,11 @@ const [,, out = '/tmp/afterimages', size = '1440x900'] = process.argv;
   const seen = new Set(), ghosts = [];
   for (const f of story.frames) for (const a of [f.afterimage, f.afterimage2]) if (a && !seen.has(a.character)) { seen.add(a.character); ghosts.push(a); }
   const living = story.cast;
+  // (each of them as themselves: their characters asked for and come, as the story asks for them when it opens)
+  const chars = [...new Set(ghosts.concat(living).map(a => a.character))];
+  await p.evaluate(cs => { const L = window.__game.peopleLib; for (const c of cs) Promise.resolve(L.require(c)).catch(() => {}); }, chars);
+  await p.waitForFunction(cs => cs.every(c => window.__game.peopleLib.tpl[c]), chars, { timeout: 600000, polling: 1000 })
+    .catch(async () => errors.push(`not every character came: ${await p.evaluate(cs => cs.filter(c => !window.__game.peopleLib.tpl[c]).join(', '), chars)}`));
   // (the arrival from the title's orbit settled and over: held, its shot would never end, and its blur stays on the picture)
   await p.evaluate(() => { const g = window.__game; if (g.arriving()) g.settleArrival(); g.advance(2); if (g.cine.active) g.cine.stop(); });
   await p.evaluate(() => { const g = window.__game; g.hold(true); g.clock.scale = 0; if (g.weather) g.weather.set('clear', { now: true }); g.player.rig.root.visible = false; });

@@ -26,7 +26,10 @@ same look as the things, laid differently: they are not in the finder only, they
 read as a person left in an old exposure rather than a ghost (docs/STORY.md, rule 3). `OEPeople.exposure`
 (`web/game/people.js`), applied by the story's `figure` in `web/game/game.js`:
 
-- **Their own body, face and clothes.** The avatar's materials are kept and patched, not replaced: the same silver print
+- **Their own body, face and clothes.** A figure made before its character has come stands in as someone of the
+same sex until it does, and then is swapped for itself where it stood (five of the cast were once one man in a
+vest); the story asks for its cast as the game opens.
+- **The print's tones.** The avatar's materials are kept and patched, not replaced: the same silver print
   tones as the things (85% of the colour to the warm grey scale, lifted blacks, the warm white), a living grain at 24
   frames a second, and a soft warm light on the edge that rises with how light the surface is. A little of their own
   light (a key from above) so that a face is read at night, much less than a thing of 1964 has: they stand in the
@@ -46,12 +49,13 @@ added to the first and only its light shows (the screen blend of compositing); *
 *Ghost Trick* (2010) for the dead as a held moment that is read rather than feared; past.js's own silver print. The
 blending is three.js's `CustomBlending` (MIT).
 
-**What the cast cannot show.** The avatars are of today: there is no 1964 among them. Sumiko is a young woman in
-everyday clothes, not a lift girl in her store's uniform with a pillbox hat and one glove; the detective (Rocketbox's
-police avatar) is a young man of today in a work vest over a sweater, not a 1964 detective in a hat and a raincoat;
-Kanbara is a modern suit; Tatsuo a construction worker of today in a work shirt, bare-headed, where a site of 1964 would have given him a helmet.
-The print's tones take the most modern of it away (no saturated colour, no logo reads), but the cut of the clothes is
-today's. That waits on faces and costume (issue 12).
+**What the cast cannot show.** The avatars are of today: there is no 1964 among them. Sumiko is a fair-haired
+young woman in a jacket and cargo trousers, not a Japanese lift girl of 22 in her store's uniform with a pillbox
+hat and one glove; the detective is a present-day officer in a white shirt and a peaked cap, not a 1964 detective
+in a hat and a raincoat; Kanbara is in shirtsleeves, not a 1964 suit; Tatsuo is in a blue work uniform, bare-headed
+where a site of 1964 would have given him a helmet; Akira in a tweed jacket is the nearest to his year. The print's
+tones take the most modern of it away (no saturated colour, no logo reads), but the cut of the clothes and the
+faces are today's, and Sumiko is not cast as who she is. That waits on faces and costume (issue 12).
 
 ## The things
 

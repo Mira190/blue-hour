@@ -3205,23 +3205,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // world) or, with a.alive, a living person of this evening. Stood where there is room near `at`, or at at[2] exactly
   const storyFigure = (a, at) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
-    const old = a.alive && a.age >= 70, bend = [];
-    const rig = makeRig({ character: a.character, scale: old ? 0.93 : 1 });
-    // (the back only: the same turn at the neck threw her head back)
-    if (old) rig.root.traverse(o => { if (o.isBone && /Spine1$|Spine2$/.test(o.name)) bend.push(o); });
-    const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+    const old = a.alive && a.age >= 70, bend = [], look = [];
+    let rig = makeRig({ character: a.character, scale: old ? 0.93 : 1 }), gone = false;
     // (an afterimage: a person in an old exposure laid over tonight's street, people.js exposure; and the one thing
     // that tells them from the held crowd is that they move: the head turns to the player, the body follows only
     // when the head cannot reach)
-    const look = [];
-    if (!a.alive) {
-      if (OEPeople.exposure) OEPeople.exposure(rig.root);
-      rig.root.traverse(o => { if (o.isBone && /Neck$/.test(o.name)) look[0] = o; else if (o.isBone && /Head$/.test(o.name)) look[1] = o; });
-    }
+    const dress = r => {
+      bend.length = 0; look.length = 0;
+      // (the back only: the same turn at the neck threw her head back)
+      if (old) r.root.traverse(o => { if (o.isBone && /Spine1$|Spine2$/.test(o.name)) bend.push(o); });
+      if (!a.alive) {
+        if (OEPeople.exposure) OEPeople.exposure(r.root);
+        r.root.traverse(o => { if (o.isBone && /Neck$/.test(o.name)) look[0] = o; else if (o.isBone && /Head$/.test(o.name)) look[1] = o; });
+      }
+    };
+    dress(rig);
+    const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
     const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1) };
     storyFigs.add(f);
     const put = () => rig.root.position.copy(W(f.x, f.y, f.z));
     put(); world.add(rig.root);
+    // (made before their own character had come, they are someone else standing in for them, people.js: the moment
+    // it comes they are themselves, where they stood and facing as they faced. Five of the cast were one man in a vest)
+    if (lib && a.character && !lib.tpl[a.character] && (lib.npcs[a.character] || lib.heroes[a.character] || lib.info.characters[a.character]))
+      Promise.resolve(lib.require(a.character)).then(() => {
+        if (gone || !lib.tpl[a.character]) return;
+        const r = makeRig({ character: a.character, scale: old ? 0.93 : 1 });
+        dress(r);
+        r.root.position.copy(rig.root.position); r.root.rotation.copy(rig.root.rotation);
+        world.remove(rig.root); world.add(r.root); rig = r; f.rig = r;
+      }).catch(e => console.warn(`${a.character} unavailable:`, e));
     let t = 0;
     const turn = (x, y) => { f.yaw = Math.atan2(x - f.x, y - f.y); rig.root.rotation.y = Math.PI - f.yaw; };
     f.face = (x, y) => { if (!look[1] || f.yaw == null) turn(x, y); else f.want = [x, y]; }; // (an afterimage looks first, and turns after)
@@ -3266,7 +3279,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         b.userData.turned = (b.userData.turned || new THREE.Quaternion()).copy(b.quaternion);
       }
     };
-    f.remove = () => { world.remove(rig.root); storyFigs.delete(f); };
+    f.remove = () => { gone = true; world.remove(rig.root); storyFigs.delete(f); };
     f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
     return f;
   };
@@ -3285,6 +3298,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), o = posts.pushOut(m.x, m.y, GUIDE_BODY * (g.scale || 1), z); return nav.walk(o.x, o.y, z, true).ok ? o : { x, y }; },
     stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, GUIDE_BODY * (g.scale || 1), z).hit,
     people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r) out.push([q.x, q.y]); } return out; } }) : null);
+  // the story's people, asked for as the game opens, so that each is themselves when they are first seen
+  if (lib && G.story && !new URLSearchParams(location.search).has('walk')) {
+    const want = new Set();
+    for (const ep of G.story.episodes || []) for (const c of [...(ep.cast || []), ...(ep.frames || []).flatMap(fr => [fr.afterimage, fr.afterimage2])]) if (c && c.character) want.add(c.character);
+    for (const c of want) if (!lib.tpl[c] && (lib.npcs[c] || lib.heroes[c] || lib.info.characters[c])) Promise.resolve(lib.require(c)).catch(() => {});
+  }
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
     story: G.story, stage, player, touch, log: storyLog, toast: t => { if (storyLog) storyLog.aside(t); H.toast(t); },
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
