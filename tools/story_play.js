@@ -5,6 +5,10 @@
 //   python3 -m http.server 8800 --directory web &
 //   node tools/story_play.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
 // FROM=6: from the last frame only (FROM=5 UPTO=5: the fifth frame only). LIMIT=seconds: how long the whole play may take.
+// DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
+// The game moves a twentieth of a second a frame at most, so on a software renderer, at a frame a second or less, the
+// story's own clock ran twenty times slow, and the runner's 50 minutes ended in the first frame's first dialogue (#1).
+// A frame without its draws takes a few tens of ms: the story keeps its time, and every still is of drawn frames.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
@@ -19,12 +23,22 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  const DRAW = +(process.env.DRAW || 0);
+  if (DRAW > 1) await p.addInitScript(n => {
+    const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0, drawn: 0 };
+    window.requestAnimationFrame = fn => raf(t => { D.on = D.all || D.frames++ % n === 0; if (D.on) D.drawn++; fn(t); D.on = true; }); // (outside a frame, the loader's slices and the prints: as they are)
+    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+  }, DRAW);
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
-  const snap = async name => { try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } };
+  // (a still is of frames drawn whole: every frame drawn from two before it until it is taken)
+  // (and so is the photograph, the game's own picture of its canvas: drawn whole from the camera's raising to the print)
+  let whole = 0;
+  const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))); }), whole > 0) : null; };
+  const snap = async name => { await drawAll(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await drawAll(false); };
   await snap('00-title');
   await p.evaluate(() => document.getElementById('gt-play').click());
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
@@ -34,7 +48,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const face = at => p.evaluate(at => { const g = window.__game, pl = g.player, d = Math.hypot(at[0] - pl.x, at[1] - pl.y); pl.h = Math.atan2(at[0] - pl.x, at[1] - pl.y); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = at[2] != null ? Math.max(-0.25, Math.min(1.35, 0.3 - Math.atan2(at[2] - (pl.z + 1.6), d))) : 0.25; } }, at);
   const seen = new Set();
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(1200); await snap(`${s.fi + 1}-${name}`); };
-  const t0 = Date.now(); let done = false, last = '', same = 0;
+  const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
+  // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
+  const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
     if (s.phase === 'done') { done = true; break; }
@@ -42,7 +58,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     // they take many minutes of frames, and were counted as a dead end)
     const film = s.phase === 'dressed' ? await p.evaluate(() => { const c = window.__game.camera; return c ? `${Math.round(c.position.x * 4)},${Math.round(c.position.y * 4)},${Math.round(c.position.z * 4)}` : ''; }) : '';
     const key = `${s.phase}/${s.beat}/${s.fi}/${s.dlg}/${film}`; same = key === last ? same + 1 : 0; last = key;
-    if (same > 240) { console.log('FAIL stuck', JSON.stringify(s)); break; }
+    // (stuck by the story's own clock, which a slow machine runs slow: two minutes of it in one beat, or a clock that
+    // has not moved at all; the last frame's meeting, 40 s of the story, was 240 looks long at a sixth of the pace)
+    if (!same) { beatT = tWas = s.t; still = 0; } else { still = s.t === tWas ? still + 1 : 0; tWas = s.t; }
+    if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); break; }
     if (s.dlg) {
       await mark(s, `said-${s.phase}-${s.beat}`);
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
@@ -59,13 +78,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (T.both) { const m = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2], n = [-(T.b[1] - T.a[1]), T.b[0] - T.a[0]], l = Math.hypot(...n); await goTo([m[0] + n[0] / l * 30, m[1] + n[1] / l * 30], 0); await face(m); }
       else if (T.subject) await face(T.subject);
       // the mark the player follows points at what the frame is judged on (it once pointed 21 m off, up a wall)
-      if (T.subject && !T.both) { await p.waitForTimeout(300); const t = await p.evaluate(() => window.__game.story.state.target); const off = t ? Math.hypot(t[0] - T.subject[0], t[1] - T.subject[1]) : Infinity; if (off > 1.5) { errors.push(`frame ${s.fi + 1}: the mark is ${off.toFixed(1)} m from the subject`); console.log(errors[errors.length - 1]); } }
+      if (T.subject && !T.both) { await frames(3); await p.waitForTimeout(300); const t = await p.evaluate(() => window.__game.story.state.target); const off = t ? Math.hypot(t[0] - T.subject[0], t[1] - T.subject[1]) : Infinity; if (off > 1.5) { errors.push(`frame ${s.fi + 1}: the mark is ${off.toFixed(1)} m from the subject`); console.log(errors[errors.length - 1]); } }
       // and it is the mark of a thing to photograph, with no metres on it (on the roof it read "143 m": a place to walk to)
       if (T.subject && !T.both) { const m = await p.evaluate(() => { const e = document.getElementById('g-story-mark'); return { kind: e.dataset.kind, text: e.querySelector('b').textContent }; }); if (m.kind !== 'frame' || /\d/.test(m.text)) { errors.push(`frame ${s.fi + 1}: at the standpoint the mark is "${m.kind}", reading "${m.text}"`); console.log(errors[errors.length - 1]); } }
-      await snap(`${s.fi + 1}-cam-down`); await p.evaluate(() => window.__game.story.raise(true)); // (the camera to the eye: R)
+      await snap(`${s.fi + 1}-cam-down`); await drawAll(true); await p.evaluate(() => window.__game.story.raise(true)); // (the camera to the eye: R)
       await p.waitForTimeout(1500); await mark(s, 'aimed');
       await p.evaluate(() => window.__game.story.shoot());
-      await p.waitForTimeout(1500); await snap(`${s.fi + 1}-print`); // (the print in the hand, its postmark struck)
+      await p.waitForTimeout(1500); await snap(`${s.fi + 1}-print`); await drawAll(false); // (the print in the hand, its postmark struck)
       if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
@@ -75,7 +94,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
   else console.log('FAIL the last card was not reached', JSON.stringify(await state()));
-  console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}`);
+  console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}${DRAW > 1 ? `; ${await p.evaluate(() => `${window.__draw.drawn} of ${window.__draw.frames} frames drawn`)}` : ''}`);
   // PRINTS=dir: the photographs taken, as files (the loading screen's frames are made from them)
   if (process.env.PRINTS) { fs.mkdirSync(process.env.PRINTS, { recursive: true }); const pr = await p.evaluate(() => window.__game.story.state.prints.map(q => q.src)); pr.forEach((src, i) => { if (src) fs.writeFileSync(`${process.env.PRINTS}/frame-${i + 1}.jpg`, Buffer.from(src.split(',')[1], 'base64')); }); }
   await b.close();
