@@ -1034,6 +1034,8 @@
         "r": 100.0,
         "lift": 0.05,
         "posts": [[294.0, -1001.0], [277.2, -989.3], [309.1, -986.8], [370.6, -971.9], [376.5, -946.6], [382.3, -921.2], [395.1, -997.1], [421.7, -930.0], [420.4, -956.0], [419.3, -982.0], [431.8, -998.4], [457.8, -997.1], [414.0, -1009.8], [348.7, -1061.0], [357.9, -1036.7], [328.6, -1063.2], [332.4, -1041.8], [340.4, -1007.8]],
+        "rounds": [[381.0, -1035.5, 1.75], [383.6, -1049.2, 1.75]],
+        "rounds_note": "What stands round in the level and is a fence to a walker however low: Hachiko Square's two planters (city.py HK_PLANTERS), 0.72 m of granite a walker would step up onto, inside a stainless rail 1.69 m from their middle. [x, y, radius to the rail's outside, m].",
         "bake": 0.7,
         "fill": 0.3,
         "street": 0.45,

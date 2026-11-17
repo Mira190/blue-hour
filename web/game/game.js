@@ -556,6 +556,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (let i = 0; i < TR.length; i += 4) posts.add(TR[i], TR[i + 1], TR[i + 2], TR[i + 3], 'tree'); }
   // (and a hero level's own lamp posts, hero[].posts: drawn by its model, solid here)
   for (const h of G.hero || []) for (const [x, y] of h.posts || []) posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp');
+  // (and what stands round in it and is a fence however low, hero[].rounds [x, y, r]: a planter's rail, which the walker's
+  // step would otherwise take them over and onto the soil, with the dog after them)
+  for (const h of G.hero || []) for (const [x, y, r] of h.rounds || []) posts.add(x, y, nav.terrain(x, y), r, 'round');
   nav.posts = posts;
   // where someone or a car beside a mapped line stands: its deck, the surface the line is on (a pier, a
   // bridge's walkway, a flight of steps: not the ground under it), or the ground drawn there (null on the bank of the water)
@@ -3152,6 +3155,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
     screen: at => { const v = W(at[0], at[1], at[2] ?? player.z + 1.2), d = Math.hypot(at[0] - player.x, at[1] - player.y), f = v.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera); return { x: v.x * 0.5 + 0.5, y: 0.5 - v.y * 0.5, front: f, dist: d }; },
+    // whether nothing solid (a wall, a roof, a landmark's stone) stands between the lens and a point of the map
+    seen: at => { const c = camera.position; return !nav.col.pick(c.x, -c.z, c.y, at[0], at[1], at[2] ?? player.z + 1.2); },
     // (by the compass only: how far the lens must turn to face it; nobody is asked to tilt the camera up a tower)
     aim: at => { const v = W(at[0], at[1], 0).sub(camera.position), f = camera.getWorldDirection(new THREE.Vector3()); v.y = 0; f.y = 0; if (v.lengthSq() < 1e-6 || f.lengthSq() < 1e-6) return 0; return Math.acos(Math.max(-1, Math.min(1, v.normalize().dot(f.normalize())))) * 180 / Math.PI; },
     // the frame as it is drawn now, small, for the episode's print (drawn and read back in one task: the canvas keeps no copy)
@@ -3483,10 +3488,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const m = player.mode, me = m === 'heli' ? heli.st : m === 'ferry' ? player.vehicle : player;
     const auto = m === 'car' && pilot ? pilot : null; // (the autopilot's destination is the route's, whatever the walk's is)
     // (in a story the way is to the story's own goal, by the footways and the lifts: round a station, up a tower)
-    const storyWay = story && story.on && story.state.target && m === 'foot' ? story.state.target : null;
+    const storyWay = story && story.on && story.state.target && m === 'foot' && !story.guided ? story.state.target : null; // (and none while the dog leads: he is the way)
     const goal = titled ? null : storyWay ? { x: storyWay[0], y: storyWay[1], z: storyWay[3] != null ? storyWay[3] : null, kind: 'waypoint' } : auto ? { x: auto.dest.at[0], y: auto.dest.at[1], z: null, kind: 'pilot' } : routeGoal(target, ob);
     const here = goal && Math.hypot(goal.x - me.x, goal.y - me.y) < (m === 'heli' ? 30 : 12) && (m !== 'heli' || heli.st.landed);
-    // (in a story no line is drawn on the ground: the map's routes are not the story's way, and a line that leads elsewhere is worse than none)
+    // (in a story no line is drawn on the ground but the story's own way: the map's routes are not the story's way, and a line that leads elsewhere is worse than none)
     if ((story && !storyWay) || !goal || here || m === 'rail' || m === 'board') { if (guide.pts) gold.set(null);  guide.key = ''; guide.pts = null; return; }
     const off = gold.follow(me.x, me.y, m === 'heli' ? me.z : null);
     const key = `${m}|${Math.round(goal.x)},${Math.round(goal.y)}|${goal.kind}|${m === 'ride' && ride ? `${ride.phase}${ride.drv.path ? (ride.drv.path.rid ??= ++guide.n) : ''}` : auto ? `${auto.join ? 'join' : (auto.drv.path.rid ??= ++guide.n)}` : ''}|${m === 'ferry' && me ? me.ci : ''}`;

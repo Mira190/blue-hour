@@ -10,7 +10,7 @@
 //   dog.leave([x, y], done)       runs off there, fading, and is taken away
 //   dog.heel()                    walks at the player's side, a pace behind, until it is sent somewhere
 //   dog.tick(dt)                  every frame (its own time: a stopped world's guide still moves)
-//   dog.x, dog.y, dog.z, dog.state ('away' | 'greet' | 'lead' | 'wait' | 'fetch' | 'go' | 'sit' | 'leave'), dog.ready
+//   dog.x, dog.y, dog.z, dog.to (where it is going, or null), dog.state ('away' | 'greet' | 'lead' | 'wait' | 'fetch' | 'go' | 'sit' | 'leave'), dog.ready
 'use strict';
 window.OECompanion = (function () {
   const AHEAD = 3.4;   // it leads from about this far in front
@@ -119,6 +119,23 @@ window.OECompanion = (function () {
       const px = player.x, py = player.y;
       // (the player in a car, a lift, the air: he is not seen, and is at their heels again when they are on foot)
       // (the player in a car, a lift, the air: it fades where it stood, and is at their heels again when they are on foot)
+      // (a lift he rides with you, at your side in the car: gone at the bottom and found at the top, he was a dog that
+      // vanished and came back from nowhere)
+      if (player.mode === 'lift' && s.state !== 'leave' && s.state !== 'away') {
+        const h = player.h || 0, x = px + Math.cos(h) * 0.55 - Math.sin(h) * 0.25, y = py - Math.sin(h) * 0.55 - Math.cos(h) * 0.25;
+        const gap = Math.hypot(x - s.x, y - s.y), k = Math.min(1, dt * 6);
+        s.x += (x - s.x) * k; s.y += (y - s.y) * k; s.z = player.z; s.rode = true; s.speed = gap > 0.15 ? speeds.walk : 0; // (walked in beside you, then still)
+        turn(gap > 0.4 ? Math.atan2(y - s.y, x - s.x) : Math.atan2(Math.cos(h), Math.sin(h)), 4, dt);
+        if (s.fade < 1) { s.fade = Math.min(1, s.fade + dt / 0.5); shade(s.fade); }
+        root.visible = s.ready; root.position.copy(W(s.x, s.y, s.z)); root.rotation.y = s.h; ring.material.opacity = 0;
+        if (mixer) {
+          play(s.speed ? 'walk' : 'idle', 0.3);
+          for (const b of [neck, head]) if (b && b.userData.over && b.quaternion.equals(b.userData.over)) b.quaternion.copy(b.userData.raw); // (no turn of the head laid over the clip in the car)
+          mixer.update(dt);
+        }
+        return;
+      }
+      if (s.rode) { s.rode = false; if (s.to) replan(); }
       if (player.mode && player.mode !== 'foot' && s.state !== 'leave') { s.off = true; s.fade = Math.max(0, s.fade - dt / 0.5); shade(s.fade); root.visible = s.ready && s.fade > 0; ring.material.opacity = 0; return; }
       if (s.off) { s.off = false; root.visible = s.ready; catchUp(); }
       if (s.state !== 'leave' && s.fade < 1) { s.fade = Math.min(1, s.fade + dt / 0.7); shade(s.fade); }
@@ -198,7 +215,7 @@ window.OECompanion = (function () {
       bone.quaternion.premultiply(q0).premultiply(q1).premultiply(q0.invert());
     }
     const api = {
-      get x() { return s.x; }, get y() { return s.y; }, get z() { return s.z; }, get state() { return s.state; }, get ready() { return s.ready; }, get clip() { return cur; }, root,
+      get x() { return s.x; }, get y() { return s.y; }, get z() { return s.z; }, get state() { return s.state; }, get to() { return s.to; }, get ready() { return s.ready; }, get clip() { return cur; }, root,
       place(x, y, h = 0) { s.x = x; s.y = y; s.h = h; s.z = ground(x, y, player.z); s.state = 'sit'; s.t = 1; s.fade = 0; shade(0); root.visible = s.ready; root.position.copy(W(x, y, s.z)); root.rotation.y = h; return api; },
       lead(to, reach = 3, done = null) { s.to = to; s.reach = reach; s.done = done; s.held = 0; s.state = s.greeted ? 'lead' : 'greet'; s.t = 0; replan(); return api; },
       heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; return api; },
