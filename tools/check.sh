@@ -13,6 +13,7 @@
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
+#           - nothing standing in a lift's street lobby or through its portal (tools/lobby_check.py);
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
@@ -137,7 +138,10 @@ twice() {   # <kind> <first log> <second log>: the verdict of the second run
   else echo "FAIL $1   (${same:-$(echo "$two" | head -2 | cut -c1-110 | paste -sd ';' -)}; see $3; the first run $2)"; fi
 }
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
-  if LIMIT=3000 timeout 3600 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
+  # (and one frame in thirty drawn, without a GPU: the game moves a twentieth of a second a frame at most, so at a software
+  # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
+  # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
+  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
   else echo "FAIL story  $(grep '^FAIL\|pageerror' "$OUT/story.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/story.log)"; fi
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
@@ -166,7 +170,12 @@ run_game() {   # (every step takes about half an hour on a software renderer)
 run_gl() {   # the governor's extras shed from the first frame, the scene multisampled, the ladder walked, every WebGL call asked for its error
   if START=0.8/0.5 Q=msaa=on WALK=1 timeout 1800 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; then
     echo "ok   gl     opened with the extras shed and multisampling on, the ladder walked: WebGL refused no call"
-  else echo "FAIL gl     $(grep -o '"call":"[^"]*"' "$OUT/gl.log" | head -2 | cut -c9-160 | paste -sd ';' -)   (see $OUT/gl.log)"; fi
+  else
+    # (a refused call was found among the last few hundred: played again asking after every call, which names it and
+    # where it was made, and takes most of an hour on a software renderer)
+    if grep -q 'EVERY=1 names it' "$OUT/gl.log"; then cp "$OUT/gl.log" "$OUT/gl-first.log"; EVERY=1 START=0.8/0.5 Q=msaa=on WALK=1 timeout 5400 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; fi
+    echo "FAIL gl     $(grep -o '"call":"[^"]*"' "$OUT/gl.log" "$OUT/gl-first.log" 2>/dev/null | head -2 | cut -d: -f2- | cut -c9-160 | paste -sd ';' -)   (see $OUT/gl.log)"
+  fi
   # the same map as a GPU with sixteen texture units in a fragment shader (Apple's, most phones'; the software
   # renderer has 32): every program that does not link there is compiled again with less until it does
   if Q=units=16 timeout 1800 $X node tools/sampler_probe.js "$MAP" >"$OUT/units.log" 2>&1; then
@@ -210,6 +219,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
+    st lobby lobby "nothing stands in a lift's lobby or through its portal" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb

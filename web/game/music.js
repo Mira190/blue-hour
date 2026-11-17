@@ -662,7 +662,7 @@ window.OEMusic = (function () {
       if (dead) return;
       dead = true;
       try { out.gain.cancelScheduledValues(c.currentTime); out.gain.setTargetAtTime(0, c.currentTime, fade / 4); } catch (e) { /* the context closed */ }
-      setTimeout(() => { try { if (src) src.stop(); out.disconnect(); } catch (e) { /* the context closed */ } src = null; }, fade * 1000 + 200);
+      setTimeout(() => { try { if (src) src.stop(); out.disconnect(); } catch (e) { /* the context closed */ } src = null; }, fade * 2000 + 200); // (eight of its time constants: 70 dB down, where a stop is not heard)
     }
     return { stop, made };
   }
