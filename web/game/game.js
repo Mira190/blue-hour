@@ -188,7 +188,8 @@ window.OpenEarthGame = async function game(cityId) {
   // It falls off with distance, not its square (decay 1): even over the ground round you rather than a hot
   // spot at your feet, and under the trees' crowns rather than among their leaves. In the scene from the
   // start, dark by day, so that the night does not add a light to every lit shader (a recompile of the
-  // city); no shadow.
+  // city); no shadow. Diffuse light only (lens.js diffusePoints): its highlight on glass and polished stone was a
+  // lamp carried over the player's head.
   const nightFill = new THREE.PointLight(OEWorld.lin('#c9d4ea'), 0, 40, 1);
   nightFill.name = 'night fill';
   world.add(nightFill);
