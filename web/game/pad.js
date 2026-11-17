@@ -16,11 +16,11 @@ window.OEPad = (function () {
   const B = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, VIEW: 8, MENU: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
   // the signs of a pad, by its maker: the face buttons by their letters, or a PlayStation's shapes
   const SIGNS = {
-    xbox: { LENS: 'LB · RB', ANY: 'Any button', LSTICK: 'Left stick', RSTICK: 'Right stick', A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', LT: 'LT', RT: 'RT', VIEW: 'View', MENU: 'Menu', LS: 'L', RS: 'R' },
-    ps: { LENS: 'L1 · R1', ANY: 'Any button', LSTICK: 'Left stick', RSTICK: 'Right stick', A: '✕', B: '○', X: '□', Y: '△', LB: 'L1', RB: 'R1', LT: 'L2', RT: 'R2', VIEW: 'Create', MENU: 'Options', LS: 'L', RS: 'R' },
+    xbox: { LENS: 'LB · RB', ANY: 'Any button', LSTICK: 'Left stick', RSTICK: 'Right stick', A: 'A', B: 'B', X: 'X', Y: 'Y', LB: 'LB', RB: 'RB', LT: 'LT', RT: 'RT', VIEW: 'View', MENU: 'Menu', LS: 'L', RS: 'R', UP: '↑' },
+    ps: { LENS: 'L1 · R1', ANY: 'Any button', LSTICK: 'Left stick', RSTICK: 'Right stick', A: '✕', B: '○', X: '□', Y: '△', LB: 'L1', RB: 'R1', LT: 'L2', RT: 'R2', VIEW: 'Create', MENU: 'Options', LS: 'L', RS: 'R', UP: '↑' },
   };
   // a key named on screen, and the pad's button for it
-  const KEY_PAD = { Wheel: 'LENS', 'Any key': 'ANY', 'Left stick': 'LSTICK', 'Right stick': 'RSTICK', E: 'A', Enter: 'A', '↵': 'A', Space: 'A', F: 'RT', R: 'LT', Tab: 'Y', L: 'VIEW', Q: 'B', Esc: 'B', Escape: 'B', Shift: 'LS', X: 'LS', W: 'LS', A: 'LS', S: 'LS', D: 'LS' };
+  const KEY_PAD = { Wheel: 'LENS', 'Any key': 'ANY', 'Left stick': 'LSTICK', 'Right stick': 'RSTICK', E: 'A', Enter: 'A', '↵': 'A', Space: 'A', F: 'RT', R: 'LT', Tab: 'Y', H: 'UP', L: 'VIEW', Q: 'B', Esc: 'B', Escape: 'B', Shift: 'LS', X: 'LS', W: 'LS', A: 'LS', S: 'LS', D: 'LS' };
   const dz = v => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
   const opts = () => { try { return JSON.parse(localStorage.getItem('oe-pad') || '{}') || {}; } catch (e) { return {}; } };
   // ctx: { stage, open() -> the card or panel up now whose buttons the pad moves through (or null), dialogue() -> the
@@ -63,6 +63,7 @@ window.OEPad = (function () {
         const dir = b === 'DOWN' || b === 'RIGHT' ? 1 : -1;
         if (open) return cycle(usable(open), dir);
         if (choices && choices.length) return cycle(choices, dir);
+        if (b === 'UP') return key('KeyH', 'h'); // (nothing open: up on the d-pad asks for a hint, where a place is to be found)
         return;
       }
       if (b === 'A') {

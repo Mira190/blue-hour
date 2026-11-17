@@ -62,6 +62,15 @@ const FRAME = +(process.env.FRAME || 2);
     await snap(`${name}-up`);
     await p.evaluate(() => window.__game.story.raise(false)); await frames(2);
   }
+  // HINT=n: back where the world stopped, n hints asked for (H), and a still four seconds on, the view turned to the place
+  if (+process.env.HINT) {
+    await p.evaluate(at => { const g = window.__game, pl = g.player; pl.x = at[0]; pl.y = at[1]; }, where.at);
+    for (let k = 0; k < +process.env.HINT; k++) { await p.keyboard.press('KeyH'); await frames(3); }
+    await p.evaluate(at => { const g = window.__game, pl = g.player; pl.h = Math.atan2(at[0] - pl.x, at[1] - pl.y); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = 0.3; } }, T.stand);
+    await frames(4); await p.waitForTimeout(4000);
+    const r = await p.evaluate(() => { const st = window.__game.story.state, d = st.dog; return { hint: st.hint, lit: st.lit, goal: document.querySelector('#g-story-goal span').textContent, dog: d ? { at: [+d.x.toFixed(1), +d.y.toFixed(1)], state: d.state } : null, button: document.getElementById('g-story-hint').textContent }; });
+    console.log(`hint ${process.env.HINT}`, JSON.stringify(r)); await snap(`hint-${process.env.HINT}`);
+  }
   console.log(errors.length ? `${errors.length} page errors` : 'no page errors');
   await b.close();
   process.exit(errors.length ? 1 : 0);

@@ -202,7 +202,7 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 | # | Hour | Where, and the picture | The living | Who moves in the Stop | What turns over |
 |---|---|---|---|---|---|
 | 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera. A name under the base plate: 水野 |
-| 2 | 17:19 | **The tram stop at the station kerb**, from the crossing's edge behind the boy's box: the empty stool near, the tram behind it | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
+| 2 | 17:19 | **The tram stop at the station kerb**, from the old man's stone cherry blossom in the square by Hachiko: the boy's box near, the tram behind it | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
 | 3 | 17:24 | **Hachiko**, with the station behind | (an old man by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
 | 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man, in three lines and three | She left him alive. What came up the stair after her was nailed boots: his works wore them, and so did the lecturer. It was not her; the player names whose |
 | 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair. Each lover believed the other guilty and kept silent |
@@ -265,7 +265,7 @@ it is inside the lines.
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
 | 1 | her corner | the board for the planetarium's evening lecture | she waited under it, for a man who "counted stars for a living" |
-| 2 | the station kerb, from behind the boy's box | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
+| 2 | the station kerb, from the stone cherry blossom by Hachiko | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
 | 3 | Hachiko | the red lamp of the police box | where the man gave himself up |
 | 4 | east, from the roof | the planetarium's dome, inside Hikarie | where he lectured; the tickets were for its last show |
 | 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
@@ -294,34 +294,57 @@ stops. The title falls once more, in that Stop, and nowhere else in play (`order
 It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
 away for the card, and was then come down to again from the air. Out, for that reason.
 
-**Two places are found, not shown.** A light on the ground for every standpoint made the player the camera's operator:
-seven frames and never a choice of where to stand. In two frames the place is the deduction, and nothing stands on it:
+**Three places are found, not shown, and a hint is the player's to ask for.** A light on the ground for every
+standpoint made the player the camera's operator: seven frames and never a choice of where to stand. In three frames the
+place is the deduction, and nothing stands on it until the player asks:
 
-| Frame | What is withheld | What the player has instead |
+| Frame | Where the picture was taken from | What the player has to find it by |
 |---|---|---|
-| 2 | the light and the mark at the standpoint (`task.find`) | the goal says what is in the picture and in what order (the boy's box near, the tram behind it, its Shibuya end towards you), as a photograph to be taken again is matched by what stands in front of what; with the camera up, the line through the rangefinder's patch is cut in two, its halves as far apart as the place is far off, and they close as it comes near (a split-image finder's), at every distance |
-| 6 | the ring at his kerb (`find` on the frame) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
+| 2 | a stone cherry blossom set in the paving of the square by Hachiko (one of four round its planters; `cities/shibuya/city.py` `HK_BLOSSOMS`) | Shun, just before: every year on this night an old man stands on one of them and looks at the crossing, because *somebody stood there once*. Stand where the man stood. The old man is the boy (frame 6), standing where the man who gave him the camera stood; the print is of his pitch, the box near, the tram for Sangenjaya behind it |
+| 4 | the glass of the roof beside Kanbara, where he looks down at where the dome stood | the dead man himself: he stands at the place, and looks where the picture looks |
+| 6 | his kerb, across the crossing from her corner (`find` on the frame: the world stops there) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
 
-Nobody is left looking: after half a minute the goal says more (`find2`, `goal2`), and after `find_s` (60 s, 90 s) the
-light stands there as it does in the other frames. `tools/story_play.js` fails a found frame that has a mark on it.
+A place to be found is a thing in the street a player can walk up to and know (a stone flower in the paving, a man at
+the glass, a kerb in a print), and it is in the story for a reason of the story's: the old man's blossom is where the
+man stood who gave a boy a camera; the roof's glass is where the dead man looks; the kerb is where Akira stood for one
+minute between two policemen. The words say what to look for, never which way to walk.
 
-**A place to find is told by its picture, and answered at every distance.** The first wording of frame 2 sent the
-player under the Center Gai arch, where the world stops; the standpoint had been moved 44 m off for the tram's framing,
-to the crossing's edge behind the boy's box, and nothing said so. The player stood where the words said, every release
-said *not from here*, and the patch warmed only within nine metres of a place nobody had named. From first principles, a
-place to be found has to be:
+With the camera up, the line through the rangefinder's patch is cut in two, its halves as far apart as the place is far
+off, and they close as it comes near (a split-image finder's), at every distance, with what it measures under it (*the
+place · far, nearer, here*). Of four blossoms, the line closes on one.
 
-- told by what can be seen from it (what is near and what stands behind it, the parallax a photograph is retaken by),
-  never by a name of the map that the place does not have;
-- answered all the way there, so that a step nearer can be told from a step away: the split line, from 44 m to none;
+**A hint is asked for, never given.** A second line on a timer and a light after a minute and a half decided for the
+player when they were stuck, and gave the place away to one who was about to find it. Now nothing more is shown until
+they ask: H (a pad's d-pad up, or the button on the right, its three dots the three hints) gives the next of three, each
+saying more (`hints` on the frame or its task):
+
+1. a word that narrows it (the four blossoms, and that the line closes on his);
+2. the dog: he goes to the place and sits there, looking at what the picture is of (he is the one sign inside the story,
+   so he is the hint too; where the world stops, he leads there and nothing else shows the way);
+3. the light on it, as the other frames have.
+
+After 45 s of looking without one the button is offered once (*Stuck? H for a hint*) and pressed for nobody. The last card
+says which places were found alone and which with a hint, and which. `tools/story_play.js` asks for all three on each
+found frame and fails if they do not come in turn; it fails a found frame that has a mark on it before they are asked for.
+
+**A place to find is told by what can be found there, and answered at every distance.** The first wording of frame 2
+sent the player under the Center Gai arch, where the world stops; the standpoint had been moved 44 m off for the tram's
+framing, to the crossing's edge behind the boy's box, and nothing said so. The player stood where the words said, every
+release said *not from here*, and the patch warmed only within nine metres of a place nobody had named. From first
+principles, a place to be found has to be:
+
+- a thing in the street that can be walked up to and known, said in the story's words, never a name of the map that the
+  place does not have;
+- answered all the way there, so that a step nearer can be told from a step away: the split line;
 - one fact with its words: `tools/find_probe.js` plays the frame to its camera and takes stills from where the world
-  stops, from the standpoint and from points between, with what the finder says at each.
+  stops, from the standpoint and from points given, with what the finder says at each, and after a hint asked for.
 
-Learnt from games that hide a place in a picture: the paintings of *Elden Ring*, found by standing where they were
-painted; the memories of *Breath of the Wild*, photographs matched to the land; the treasure maps of *Red Dead
-Redemption 2*, drawings of a view. In each the clue is the composition and the answer is given on the spot. Nothing of
-theirs is copied; the split-image line is a camera's own (the focusing screens of the 1950s and the rangefinders'
-coincident images).
+Learnt from games that hide a place in a picture or a word: the paintings of *Elden Ring*, found by standing where they
+were painted; the memories of *Breath of the Wild*, photographs matched to the land; the treasure maps of *Red Dead
+Redemption 2*, drawings of a view. And from games that trust the player to look before they are helped: *The Witness*
+and *Return of the Obra Dinn* give no hints at all, and the *Professor Layton* games give theirs only when asked, three
+to a puzzle, each saying more than the last. In each the clue is the place's own and the answer is given on the spot. Nothing of theirs is copied; the split-image line is a camera's own (the focusing screens of the 1950s
+and the rangefinders' coincident images).
 
 **The player's word decides what comes after.** Deduction that is recited to the player is not deduction. So what
 the player says is kept (`flags` in `web/game/story.js`, in the save) and answered later:

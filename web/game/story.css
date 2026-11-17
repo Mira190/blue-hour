@@ -559,3 +559,19 @@
   #g-story-mov p { bottom: calc(8.5vh + 18px); width: calc(100% - 32px); font-size: 15px; }
   #g-story-mov button { top: calc(8.5vh + 8px); bottom: auto; right: 16px; }
 }
+
+/* ---- a hint, asked for (story.js hint): where a place is to be found, a quiet button on the right, the camera's small
+   type; its three dots are the three hints, filled as they are taken. It is offered once (.nudge) after a while of
+   looking, and never pressed for the player */
+#g-story-hint { position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px)); z-index: 8; display: none; align-items: center; gap: 10px;
+  padding: 9px 13px; border: 1px solid rgba(244, 239, 230, 0.35); border-radius: 2px; background: rgba(4, 8, 18, 0.55); color: rgba(244, 239, 230, 0.86); cursor: pointer;
+  font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; transition: border-color 0.3s, color 0.3s; }
+#g-story-hint.on { display: flex; }
+#g-story-hint i { font-style: normal; letter-spacing: 0.18em; color: var(--amber); }
+#g-story-hint kbd { min-width: 0; padding: 3px 6px; border: 1px solid rgba(244, 239, 230, 0.45); border-radius: 2px; font: inherit; letter-spacing: 0; }
+#g-story-hint:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); }
+#g-story-hint.nudge { animation: g-story-hint 1.4s ease-in-out 3; }
+@keyframes g-story-hint { 50% { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 18px rgba(255, 207, 138, 0.35); } }
+.game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
+@media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
+@media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }
