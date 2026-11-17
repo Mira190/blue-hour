@@ -55,7 +55,7 @@ window.OEStory = (function () {
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
   //        person(id) -> one of the map's people { x, y, z, name, role }, beacon(at | null): a light standing at [x, y, , floor]
   //        (none: taken away), screen(at) -> { x, y, front, dist } where [x, y, z] is in the frame (0..1), aim(at) -> degrees
-  //        between the lens and it, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
+  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     // the story's own interface (story.css): the map's instruments are put away for as long as the story is here
@@ -80,8 +80,8 @@ window.OEStory = (function () {
     const el = (id, html, tag = 'div') => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; ctx.stage.appendChild(e); return e; };
     const frames = el('g-story-frames', `<span><b></b><small>/${String(N).padStart(2, '0')}</small>taken</span><span class="strip">${'<i></i>'.repeat(N)}</span><em>${ctx.touch ? 'Tap' : '<kbd>Tab</kbd>'} · the roll</em>`, 'button'), card = el('g-story-card', '<div><small></small><span></span></div>'), veil = el('g-story-veil', ''), flash = el('g-story-flash', '');
     const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '');
-    const failEl = el('g-story-fail', ''), plateEl = el('g-story-plate', ''), slip = el('g-story-slip', '<small>Entered in the file</small><p></p>');
-    const pre = el('g-story-pre', '<div><small></small><div class="tx"></div><em></em></div>');
+    const failEl = el('g-story-fail', ''), slip = el('g-story-slip', '<small>Entered in the file</small><p></p>');
+    const pre = el('g-story-order', '');
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · wheel: the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
     // the camera in the hand or at the eye: a button that says which, and what the key does; and a word in the middle of
@@ -237,17 +237,51 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     // here" (where the picture is taken from, and the light there is amber); `frame` the corners of a finder and no
     // metres (the thing the picture is of: turned to, never walked to)
     const MARKS = { meet: 'Talk', ghost: 'Talk', stand: 'Stand here' };
-    function aimAt(at, turn, kind) { st.target = at; st.kind = kind || 'go'; mark.dataset.kind = st.kind; ctx.beacon(at, st.kind); if (!at) mark.classList.remove('on'); else if (turn && ctx.look) ctx.look(at); guideTo(at); } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    function aimAt(at, turn, kind) { st.target = at; st.kind = kind || 'go'; mark.dataset.kind = st.kind; guideTo(at); light(null); if (!at) mark.classList.remove('on'); else { if (turn && ctx.look) ctx.look(at); markTick(0); } } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    // the light standing in the street, set only when it changes
+    function light(at, kind) { const k = at ? `${at}|${kind}` : ''; if (k === st.lightK) return; st.lightK = k; ctx.beacon(at, kind); }
+    // Who shows the way. A dog going ahead of you is the way, and anything else that says where to go is a second voice
+    // saying it: a column of light over the street, a gold line on the paving, a ring at the edge of the frame with
+    // its metres. Each draws the eye off him to a sign, and he becomes something walking beside the instructions. So
+    // while he leads to the goal, he alone shows it. The signs come back only where he cannot do it: before he is met,
+    // while he is off on his own errand, where the goal is a thing to frame and not a place, and when the player has
+    // gone LOST_S seconds without getting any nearer (whatever the reason: the signs are the net under him). Two
+    // things stay: someone to talk to is marked once they are near and in sight (TALK_M: across a wall, 116 m off, a
+    // speech mark only said there was someone behind it), and when he is out of the frame an arrow at its edge says
+    // where he is, not where the goal is
+    const TALK_M = 12, LOST_S = 30, LEADS = { greet: 1, lead: 1, wait: 1, fetch: 1, go: 1, sit: 1 };
+    function ledBy(to) {
+      const d = st.dog;
+      return !!(d && d.ready && d.to && LEADS[d.state] && st.kind !== 'frame' && Math.hypot(d.to[0] - to[0], d.to[1] - to[1]) < 6);
+    }
     // the guide, once met (in the first Stop), stays the episode through: ahead of you to wherever the goal is while the
     // world runs (someone to meet, where it will stop, the car), at your side when there is nowhere to go; in a Stop
     // he is sent by seek and task instead (to the afterimage, to where the picture is taken from)
     function guideTo(at) { if (!st.dog || st.phase === 'stop') return; if (at) st.dog.lead([at[0], at[1]], st.beat === 'meet' ? 2.2 : 3); else st.dog.heel(); }
-    function markTick() {
-      if (!st.target) return;
+    function markTick(dt = 0) {
+      if (!st.target) { st.guided = false; light(null); return; }
       const via = ctx.via ? ctx.via(st.target) : null, to = via || st.target; // (a place up a tower: the lift's door first)
-      if (String(via) !== String(st.via)) { st.via = via; ctx.beacon(to, st.kind); }
-      const talk = !via && (st.kind === 'meet' || st.kind === 'ghost'); // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
-      const q = ctx.screen(talk ? [to[0], to[1], to[2] + 0.95] : to), W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
+      st.via = via;
+      const W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
+      // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
+      const person = !via && (st.kind === 'meet' || st.kind === 'ghost'), head = person ? [to[0], to[1], to[2] + 0.95] : to;
+      let q = ctx.screen(head);
+      const talk = person && q.front && q.dist <= TALK_M && (!ctx.seen || ctx.seen(head)); // (near and in sight: a speech mark; else a place to walk to)
+      // getting nearer? (the leg is the beat and the kind of goal: a car that moves is the same leg)
+      const leg = `${st.fi}|${st.phase}|${st.beat}|${st.kind}`, px = ctx.player.x, py = ctx.player.y, left = Math.hypot(to[0] - px, to[1] - py);
+      if (leg !== st.leg) { st.leg = leg; st.best = left; st.idle = 0; st.lost = false; }
+      if (left < st.best - 2) { st.best = left; st.idle = 0; } else st.idle += dt;
+      const led = !st.lost && ledBy(st.target);
+      if (led && st.idle > LOST_S) st.lost = true;
+      st.guided = led && !st.lost;
+      light(st.guided || st.kind === 'frame' ? null : to, via ? 'go' : st.kind);
+      let k = via || (person && !talk) ? 'go' : st.kind;
+      if (st.guided && !talk) {
+        // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him
+        const d = st.dog, dq = ctx.screen([d.x, d.y, d.z + 0.6]), dx = dq.x * W, dy = dq.y * H;
+        if ((dq.front && dx > m && dx < W - m && dy > m && dy < H - m) || dq.dist < 6) { mark.classList.remove('on'); return; } // (at your heels, out of the frame below you, he is not lost: no arrow pointing at your feet)
+        q = dq; k = 'guide';
+      }
       let x = q.x * W, y = q.y * H;
       if (!q.front) { x = W - x; y = H - m; } // (behind: its mark at the foot of the frame, on its side)
       // with the camera up the frame lines are the guide: no ring over the thing itself. But while it is outside them
@@ -260,12 +294,12 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       else { x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y)); }
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
-      const k = via ? 'go' : st.kind, lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
+      const lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
       if (mark.dataset.kind !== k) mark.dataset.kind = k;
-      mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
+      mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : k === 'guide' ? `${(st.ep.guide || {}).name || 'The dog'}${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
-      mark.classList.toggle('on', lens ? off : k === 'frame' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
+      mark.classList.toggle('on', lens ? off : k === 'frame' || k === 'guide' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';
@@ -285,44 +319,36 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       { const f = ep.frames[0] || {}, a = JSON.stringify(f.air || (f.weather === 'rain' ? { leaves: 40, birds: 0 } : {})); if (ctx.air && a !== st.air) { st.air = a; ctx.air(JSON.parse(a)); } }
       return ep;
     }
-    // before the opening shot, on black: what the blue hour is, typed a letter at a time as on a machine (ep.preface:
-    // { head, lines }). A player who is given a street that stops should already know which hour it is and why that
-    // hour: the title names it and nothing said what it meant. Any key or a tap goes on; a case taken up again, and a
-    // player who asks for less motion, are not made to wait for the typing
-    function preface(done) {
-      const ep = st.ep || dress(), P = ep && ep.preface;
-      if (!P || !(P.lines || []).length || kept()) return done();
-      const box = pre.querySelector('.tx'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      let over = false, tm = 0;
-      pre.querySelector('small').textContent = P.head || '';
-      pre.querySelector('em').textContent = ctx.touch ? 'Tap to go on' : 'Any key to go on';
-      box.textContent = '';
-      const ps = P.lines.map(() => box.appendChild(document.createElement('p')));
-      st.beat = 'preface'; pre.classList.add('on');
+    // The order in the hand. As the player is given the street, the sheet they were sent out with comes up into the
+    // frame: who, which kerb, what for, and why at this hour (a survey photograph is taken at blue hour, when the sky
+    // and the lamps are equally bright; so the hour the whole story turns on is explained by the job, on a thing the
+    // player holds, with the street still running behind it). Its words come up as ink does, a letter at a time, and
+    // the old plan's corner is on it with its one pencilled word. E, Enter or a tap puts it away; left alone it goes
+    // by itself. It was a black card with typing on it between the title and the opening shot: the street had already
+    // been shown on the title, was taken away for the card, and was then come down to again from the air.
+    // (ep.order: { head, to, lines, plan: { word, note } }; a case taken up again does not show it.)
+    function order(done) {
+      const ep = st.ep, O = ep && ep.order;
+      if (!O || !(O.lines || []).length) return done();
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let n = 0;
+      const ink = t => [...t].map(c => (c === ' ' ? ' ' : `<i style="animation-delay:${(n++ * (still ? 0 : 20)) + 500}ms">${esc(c)}</i>`)).join('');
+      pre.innerHTML = `<div class="sheet"><small>${ink(O.head || '')}</small>${O.to ? `<b>${ink(O.to)}</b>` : ''}${O.lines.map(l => `<p>${ink(l)}</p>`).join('')}
+${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none" stroke="#2a1f16" stroke-width="1.1" opacity="0.75"><path d="M8 78 H120 Q138 78 138 96 V116"/><path d="M8 62 H128 Q154 62 154 88 V116" stroke-dasharray="3 3"/><path d="M150 8 V40 Q150 54 164 54 H212"/><path d="M40 78 v-20 M70 78 v-20 M100 78 v-20" opacity="0.5"/></g><circle cx="112" cy="92" r="17" fill="none" stroke="#1d2a4a" stroke-width="1.2" opacity="0.8"/><text x="112" y="99" text-anchor="middle" font-size="17" fill="#1d2a4a" style="font-family: var(--f-jp, serif)">${esc(O.plan.word || '')}</text><text x="12" y="20" font-size="8" letter-spacing="2" fill="#5a2a22" style="font-family: var(--f-mono, monospace)">N-W KERB</text></svg><figcaption>${ink(O.plan.note || '')}</figcaption></figure>` : ''}
+<em>${ctx.touch ? 'Tap to put it away' : 'E · put it away'}</em></div>`;
+      st.phase = 'go'; st.beat = 'order'; goal('');
+      pre.classList.add('on');
+      let over = false; const total = 500 + n * (still ? 0 : 20);
       const end = () => {
         if (over) return;
-        over = true; clearTimeout(tm); removeEventListener('keydown', skip, true); pre.removeEventListener('pointerdown', skip);
+        over = true; clearTimeout(tm); removeEventListener('keydown', key, true); pre.removeEventListener('pointerdown', end);
         pre.classList.remove('on'); st.beat = '';
-        setTimeout(done, 900); // (once the black has let go)
+        st.file.unshift({ at: '', text: [O.head, O.to].concat(O.lines).filter(Boolean).join(' '), kind: 'order' }); // (the file begins with what the player was sent out with)
+        setTimeout(done, 500);
       };
-      const skip = e => { if (e.type === 'keydown') { if (e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopPropagation(); } end(); };
-      addEventListener('keydown', skip, true); pre.addEventListener('pointerdown', skip);
-      if (still) { P.lines.forEach((l, i) => { ps[i].textContent = l; }); tm = setTimeout(end, 2000 + P.lines.join(' ').length * 55); return; }
-      let li = 0, ci = 0;
-      const type = () => {
-        if (over) return;
-        const line = P.lines[li];
-        if (ci >= line.length) { // (a breath at the end of a line; the last one stands a while)
-          ps[li].classList.add('done');
-          if (++li >= P.lines.length) { tm = setTimeout(end, 3200); return; }
-          ci = 0; tm = setTimeout(type, 620); return;
-        }
-        const c = line[ci++];
-        ps[li].textContent = line.slice(0, ci); ps[li].classList.add('on');
-        if (c !== ' ' && ci % 2) sfx('key');
-        tm = setTimeout(type, c === '.' || c === ':' ? 340 : c === ',' ? 190 : 34);
-      };
-      tm = setTimeout(type, 900);
+      const key = e => { if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); } };
+      const tm = setTimeout(end, total + 14000); // (read at leisure; the Stop waits for it)
+      addEventListener('keydown', key, true); pre.addEventListener('pointerdown', end);
     }
     // as the player is given the street
     function begin() {
@@ -340,7 +366,8 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       // odd thing about the job (ep.prologue: {who, voice, lines}); a case taken up again goes straight to its frame
       const P = !k && ep.prologue && !ep.prologue.after && ep.prologue; // (after: the office rings once the first Stop has let go, not before it)
       if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
-      else frame(k ? k.fi : 0);
+      else if (!k) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
+      else frame(k.fi);
     }
     // a frame begins: the sky it has, a word with the living if there is one, and the way to where the world will stop
     function frame(i) {
@@ -462,8 +489,6 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       st.findT = 0; st.lit = !st.fr.task.find; st.placedOnce = false; st.spendT = 0; // (find: no light stands where this one is taken from, until the player has looked a while)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
-      // (a frame whose place is found: the plate, the view from where it was taken, to hold up against the street)
-      { const T = st.fr.task, S0 = T.find && T.stand && ctx.plate ? subjectOf(T) : null, src = S0 ? ctx.plate(T.stand, S0, T.lens || 0) : null; plateEl.innerHTML = src ? `<img alt="" src="${src}">` : ''; st.plate = !!src; }
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)
       if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand && !T.find ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1; to = [R.at[0] + (px - R.at[0]) / l * 2.2 + 0.8, R.at[1] + (py - R.at[1]) / l * 2.2]; } if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
@@ -494,7 +519,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const spare = st.fi > 0 && !T.both && !fr.finale, off = !f.placed || !f.aimed, spend = off && spare && st.spendT > 0;
       if (off && !spend) { goal(`${!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'}${spare ? ' The release again spends the frame as it is.' : ''}`); st.miss = spare ? 5 : 2.5; st.spendT = spare ? 5 : 0; return; }
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
-      ctx.beacon(null);
+      light(null);
       let print = null;
       try { print = ctx.snap(); } catch (e) { print = null; }
       if (spend) { st.prints.push({ src: print, stamp: fr.stamp || '', cap: 'Only tonight. Nothing of 1964 came up in it.', note: fr.lost ? `Spent. Not on the roll: ${fr.lost}` : 'Spent.', plain: true }); st.flags[`lost${st.fi + 1}`] = true; }
@@ -507,7 +532,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       pulse(); sfx('shutter'); sfx('wind');
       st.left = Math.max(0, st.left - 1); show();
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; aimAt(null); goal('');
-      st.beat = 'shown'; plateEl.classList.remove('on'); st.plate = false;
+      st.beat = 'shown';
       if (fr.finale) return finale();
       // (what the print shows is said, and what the player makes of it is asked: task.ask, task.then; a frame spent has
       // only its `spent` lines)
@@ -546,7 +571,6 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; hint(false); aimAt(null); goal('');
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false });
       if (!late && fr.turn) later(1500, () => sting(fr.turn)); // (the case turned over, or the false solution: under the first line said after)
-      plateEl.classList.remove('on'); st.plate = false;
       say('Time runs again'); sfx('run'); if (ctx.held) ctx.held(false);
       pulse();
       for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
@@ -608,7 +632,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : 'Tab'}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
-          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : 'press E'} to get in. Or walk the whole way.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera: it shows the frame as it was taken, faint over the street. Walk until the two lie on each other.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
+          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : 'press E'} to get in. Or walk the whole way.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera as you look: the patch in the middle of the finder warms as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch ? 'Tap the shutter.' : 'Press F, or click the shutter.') : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
@@ -642,7 +666,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
           }
           if (fr.lead_s != null && !st.late ? st.t >= fr.lead_s : !at || (near(at, fr.stop_r || 12) && st.t > (st.late ? 6 : 0.5))) stop();
         }
-        markTick();
+        markTick(dt);
       } else if (st.phase === 'stop') {
         const g = st.ghost, a = fr.afterimage, leftS = Math.max(0, (fr.stop_s || 420) - st.t);
         goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
@@ -669,11 +693,9 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
           const text = !st.cam ? (!f.placed ? standGoal : G.raise || `Raise the camera${ctx.touch ? '.' : ': R.'}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
-          plateEl.classList.toggle('on', !!st.plate && st.cam); plateEl.classList.toggle('there', !!st.plate && on);
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
           const S0 = subjectOf(T), want = hunt ? null : !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
           if (String(want) !== String(st.target)) aimAt(want, false, f.placed ? 'frame' : 'stand');
-          if (f.placed && S0) ctx.beacon(null); // (the subject is marked in the frame, with no light standing on it)
           if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
           st.ready = on; finder.classList.toggle('ready', on);
           shutter.classList.toggle('ready', on);
@@ -683,7 +705,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
           if (met && !st.met) { st.met = st.t; pulse(); sting('meet'); } // (the two lines of the theme, to one note)
           if ((st.met && st.t > st.met + 7.5) || st.t > 40) resume(); // (held until the phrase has ended on its chord)
         }
-        markTick();
+        markTick(dt);
         if (leftS <= 0 && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true);
       } else if (st.phase === 'after' && st.t > st.wait) {
         if (st.late) { st.phase = 'go'; approach(); }
@@ -696,8 +718,9 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
       }
     }
     return {
-      dress, begin, preface, tick, shoot, raise, state: st,
+      dress, begin, tick, shoot, raise, state: st,
       get stopped() { return st.phase === 'stop'; },
+      get guided() { return !!st.guided; }, // the dog shows the way, and nothing else does: the game draws no gold line
       get scale() { return st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done' ? 1 : st.k * st.k; }, // how much time the world is given: 1 running, 0 held
       get orbit() { return st.orbit; },
       // the lens at the Stop: it pushes in as time brakes and lets go as it runs (degrees off the field of view), and
@@ -712,7 +735,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
-        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, plateEl, slip]) e.remove();
+        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip]) e.remove();
         for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();
         for (const id in st.cast) st.cast[id].remove();
       },

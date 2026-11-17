@@ -54,6 +54,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   let slipped = 0, spent = false;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
+  // every question with a right answer costs something to guess at (q.fail): one that does not can be answered by
+  // trying each print in turn, and asks nothing of the player (Mr Tanaka's pitch, until it had one)
+  { const E = ((JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'cities', 'shibuya', 'city.json'), 'utf8')).game || {}).story) || null;
+    for (const ep of (E && E.episodes) || []) (ep.frames || []).forEach((f, i) => { for (const m of [f.meet, f.afterimage, f.task]) for (const q of (m && m.ask) || []) if ((q.frame || q.answer != null) && !q.fail) errors.push(`frame ${i + 1}: "${q.q}" has a right answer and nothing lost by guessing (fail)`); }); }
   const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
@@ -96,39 +100,47 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const r = await escalators(p);
         for (const l of r.lines) { console.log(`frame ${s.fi + 1}: ${l}`); if (l.startsWith('FAIL')) errors.push(`frame ${s.fi + 1}: ${l}`); }
         await p.evaluate(st => { const g = window.__game, pl = g.player; [pl.x, pl.y, pl.z] = st.at; pl.vz = 0; pl.ground = true; if (st.face) pl.h = Math.atan2(st.face[0], st.face[1]); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = 0.4; g.cam.dist = 9; } }, st); // (from behind and above: the lobby's ceiling is high, the line and both escalators in view)
-        // (the line in the world: game.js's guide, planned on foot from where you stand; __game.guide() hands back the guide itself)
-        const pts = () => p.evaluate(() => (window.__game.guide().pts || []).length);
-        for (let k = 0; k < 20 && !(await pts()); k++) { await frames(2); await p.waitForTimeout(300); }
+        // the way shown from the stop: the dog's while he leads (route.js's walk to the place, with no height, as companion.js
+        // asks it: the top of what stands there), else the gold line (game.js's guide; __game.guide() hands back the guide).
+        // It rides no escalator against its steps, and turns the way the one up stands: to the left of where the lift faces at
+        // SHIBUYA SKY (the one to the right runs down)
+        const guided = await p.evaluate(() => !!window.__game.story.guided);
+        if (guided) await p.evaluate(st => { const g = window.__game, d = g.story.state.dog, t = g.story.state.target; if (d && t) { d.place(st.at[0] + (st.face ? st.face[1] : 0) * 0.8, st.at[1] - (st.face ? st.face[0] : 0) * 0.8, g.player.h); d.lead([t[0], t[1]], 3); } }, st);
+        else for (let k = 0; k < 20 && !(await p.evaluate(() => (window.__game.guide().pts || []).length)); k++) { await frames(2); await p.waitForTimeout(300); }
         await frames(4); await p.waitForTimeout(1500);
-        // the line from the stop: rides no escalator against its steps, and turns the way the one up stands (to the left
-        // of where the lift faces at SHIBUYA SKY: the one to the right runs down)
-        const way = await p.evaluate(st => {
-          const g = window.__game, P = g.guide().pts || [], pl = g.player;
+        const way = await p.evaluate(([st, guided]) => {
+          const g = window.__game, pl = g.player, t = g.story.state.target;
+          let P = [];
+          if (guided) { const r = t && g.ways.walk({ x: pl.x, y: pl.y, z: pl.z }, { x: t[0], y: t[1] }); P = r ? r.pts : []; } else P = g.guide().pts || [];
           let i0 = 0, bd = Infinity;
           P.forEach((q, i) => { const d = Math.hypot(q[0] - pl.x, q[1] - pl.y, q[2] - pl.z); if (d < bd) { bd = d; i0 = i; } });
           const ahead = P.slice(i0), fx = st.face ? st.face[0] : Math.sin(pl.h), fy = st.face ? st.face[1] : Math.cos(pl.h);
           const q = ahead.find(q => Math.hypot(q[0] - pl.x, q[1] - pl.y) > 6), side = q ? -(q[0] - pl.x) * fy + (q[1] - pl.y) * fx : 0;
           return { n: P.length, off: bd, against: g.ways.against(ahead), side, rides: g.nav.strips.filter(s => s.moving_ms && ahead.some(q => { const h = g.nav.stripHeight(s, q[0], q[1]); return h != null && Math.abs(h - q[2]) < 0.8; })).map(s => s.name) };
-        }, st);
-        console.log(`frame ${s.fi + 1}: from ${st.name}, the line (${way.n} points, ${way.off.toFixed(1)} m from you) goes ${way.side > 0 ? 'left' : 'right'}, on ${way.rides.join(', ') || 'no escalator'}${way.against > 0.25 ? `, ${way.against.toFixed(1)} m against an escalator's steps` : ''}`);
-        if (!way.n || way.off > 3) errors.push(`frame ${s.fi + 1}: from ${st.name} no line is drawn near you (${way.n} points, ${way.off.toFixed(1)} m off)`);
-        if (way.against > 0.25) errors.push(`frame ${s.fi + 1}: from ${st.name} the line rides an escalator ${way.against.toFixed(1)} m against its steps`);
-        // (the camera eases after the player: from the street it comes up 217 m, so it is set again and given time to settle)
-        for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h - 0.6; g.cam.pitch = 0.25; g.cam.dist = 7; }); await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way`); }
+        }, [st, guided]);
+        const what = guided ? "the dog's way" : 'the line';
+        console.log(`frame ${s.fi + 1}: from ${st.name}, ${what} (${way.n} points, ${way.off.toFixed(1)} m from you) goes ${way.side > 0 ? 'left' : 'right'}, on ${way.rides.join(', ') || 'no escalator'}${way.against > 0.25 ? `, ${way.against.toFixed(1)} m against an escalator's steps` : ''}`);
+        if (!way.n || way.off > 3) errors.push(`frame ${s.fi + 1}: from ${st.name} ${what} does not start where you stand (${way.n} points, ${way.off.toFixed(1)} m off)`);
+        if (way.against > 0.25) errors.push(`frame ${s.fi + 1}: from ${st.name} ${what} rides an escalator ${way.against.toFixed(1)} m against its steps`);
+        // (the camera eases after the player: from the street it comes up 217 m, so it is set again and given time to settle; the
+        // stills a second apart, the dog setting off the way he leads)
+        for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h - (innerWidth > innerHeight ? 0.6 : 0); g.cam.pitch = 0.25; g.cam.dist = 7; }); await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way${k ? `-${k}` : ''}`); }
         continue;
       }
     }
     if (s.phase === 'go' && s.beat === 'meet') { const at = await p.evaluate(() => { const t = window.__game.story.state.target; return t ? [t[0], t[1], t[3]] : null; }); if (at) await goTo(at, 1.8); }
+    if (s.phase === 'go' && s.beat === 'meet') {
+      // while the dog leads, he alone shows the way: no light standing in the street, no gold line, and no mark while he is in the frame
+      if (!seen.has(`led-${s.fi}`)) { await frames(4); const g = await p.evaluate(() => { const G = window.__game, st = G.story.state, d = st.dog; return d && d.ready ? { guided: !!st.guided, light: st.lightK || '', gold: G.guide().n, mark: document.getElementById('g-story-mark').classList.contains('on'), kind: document.getElementById('g-story-mark').dataset.kind } : null; });
+        if (g) { seen.add(`led-${s.fi}`); console.log(`frame ${s.fi + 1} led:`, JSON.stringify(g)); if (!g.guided || g.light || g.gold || (g.mark && g.kind !== 'guide' && g.kind !== 'meet')) { errors.push(`frame ${s.fi + 1}: the dog leads, and the way is shown twice: ${JSON.stringify(g)}`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-led`); } }
+      const at = await p.evaluate(() => { const t = window.__game.story.state.target; return t ? [t[0], t[1], t[3]] : null; }); if (at) await goTo(at, 1.8);
+    }
     else if (s.phase === 'go' && s.beat === 'approach') { const at = await p.evaluate(() => { const st = window.__game.story.state, fr = st.fr, a = fr.stop_at || (fr.afterimage && fr.afterimage.at); if (fr.find && !st.lit && st.target) window.__findMarked = st.fi + 1; return fr.lead_s != null && !st.late ? null : a; }); if (at) await goTo(at, 4); }
     else if (s.phase === 'stop' && s.beat === 'seek') { const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }
     else if (s.phase === 'stop' && s.beat === 'shoot') {
       const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
       // a frame whose place the player finds has no light standing on it and no mark of where to stand, until they have looked a while
-      if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`);
-        // (and the plate is in the lens's view to find it by: the frame as it was taken, faint over the street)
-        await p.evaluate(() => window.__game.story.raise(true)); await frames(4); await p.waitForTimeout(900);
-        if (!await p.evaluate(() => { const e = document.getElementById('g-story-plate'); return e.classList.contains('on') && !!e.querySelector('img'); })) { errors.push(`frame ${s.fi + 1}: its place is to be found, and the camera shows no plate to find it by`); console.log(errors[errors.length - 1]); }
-        await snap(`${s.fi + 1}-plate`); await p.evaluate(() => window.__game.story.raise(false)); await frames(2); }
+      if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`); }
       if (+process.env.SPEND === s.fi + 1 && !spent) { // from the wrong place, the release twice: the frame is spent, and the story goes on without it
         spent = true;
         await p.evaluate(() => { const g = window.__game; g.story.raise(true); g.player.h += Math.PI; if (g.cam) g.cam.yaw = g.player.h; });
@@ -152,9 +164,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
       if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
-    else if (s.phase === 'dressed' && s.beat === 'preface') { // (the hour in words, on black, before the opening: a still of it typed half way and whole)
-      const typed = await p.evaluate(() => document.querySelector('#g-story-pre .tx').textContent.length);
-      if (typed > 60) await mark(s, 'preface'); if (typed > 250) await mark(s, 'preface-whole');
+    else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
+      if (!seen.has('order')) { seen.add('order'); await p.waitForTimeout(4000); await snap('1-order'); if (!await p.evaluate(() => { const e = document.getElementById('g-story-order'); return e.classList.contains('on') && e.querySelectorAll('i').length > 80; })) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
+      await p.keyboard.press('KeyE');
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
     else if (s.phase === 'go' && s.beat === 'flight') await mark(s, 'flight'); // (a frame reached by air: its film plays itself out)

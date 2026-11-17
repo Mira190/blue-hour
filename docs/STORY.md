@@ -277,11 +277,20 @@ sound dropping out at the Stop and a still chord for as long as time is held, th
 camera's catch, glass when the thing of 1964 comes into the frame, the shutter, the film wound on, the
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
-**It opens on its hour, in words.** Between the title and the opening shot the screen is black and four lines are typed
-on it, a letter at a time: what the blue hour is, that it cannot be kept, that in Tokyo on the tenth of October it begins
-at 17:14, and that some things were left standing in it (`preface` on the episode; `web/game/story.js` `preface`). The
-title names the hour and the whole device turns on it, and nothing had said what it is. Any key or a tap goes on; a case
-taken up again does not show it; with reduced motion the lines stand whole. `?preface=0` goes without it.
+**The opening, from the page's first second, shows each thing once and never goes back.** The loader (the roll being
+loaded, the key art); the title over the live street at dusk; the film, which goes from far to near and does not leave
+again (the district from the air, down to the kerb, the crossing from above, the kerb behind you); then the street is
+the player's, and **the order is in their hand**: the job sheet they were sent out with comes up into the frame on the
+file's own paper, in its hand, its words coming up as ink does. Who, which kerb, what for, and why at this hour: a
+survey photograph is taken at blue hour, *the few minutes after sunset when the sky and the street lamps are equally
+bright*. Under it, the old plan's corner with its one pencilled word, 待つ. So the hour the story turns on is explained by
+the job, on a thing the player holds, with the street still running behind it; and the word the office will speak of is
+seen before it is said. E or a tap puts it away, it becomes the first line of the file, and a second later the world
+stops. The title falls once more, in that Stop, and nowhere else in play (`order` on the episode; `web/game/story.js`
+`order`).
+
+It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
+away for the card, and was then come down to again from the air. Out, for that reason.
 
 **Two places are found, not shown.** A light on the ground for every standpoint made the player the camera's operator:
 seven frames and never a choice of where to stand. In two frames the place is the deduction, and nothing stands on it:
@@ -320,10 +329,6 @@ comes up through tonight (the frame is drawn twice at the shutter, once without 
 `ctx.snap`, `ctx.snapBase`). The double exposure is the reward of every frame, so it is seen to happen. A frame spent
 stops at tonight: the paper waits, and nothing more comes.
 
-**The plate.** In a frame whose place is found, raising the camera shows the frame as it was taken, faint over the
-street: the view from the standpoint, drawn once from there (`ctx.plate`). The player walks until the two lie on each
-other, as a rephotographer does (section 8, item 3). It fades when they do.
-
 **What the player says is seen to be written down.** A slip of the file's own paper comes in at the top of the frame
 and the line is written on it in the file's hand and pen as it is said; a line that strikes an earlier one says so.
 
@@ -359,6 +364,26 @@ toggled with `undefined`, which flips it every frame, so the ring came and went 
 and every still of it looked right. `tools/mark_steady.js` holds the player still, turns the lens each way round
 the compass, and reads the mark every frame for three seconds a view: its words, classes and kind must not
 change, its place must not go back and forth, and neither its words nor its arrow may be cut by the edge.
+
+**The dog is the way, and nothing else is while he leads.** A guide who walks ahead is the most legible sign a
+game has and the only one inside the fiction: the eye stays in the street, and following him is a relationship,
+not an instruction. Every other sign that points the same way is a second voice saying it, and the eye goes to the
+louder one: with the column of light, the gold line on the paving and the ring at the frame's edge all pointing
+where he went, Hachi was something walking beside the instructions. So while he leads to the goal
+(`story.js` `ledBy`, `st.guided`) there is no light standing in the street, no gold line, and no mark while he is
+in the frame; out of it, the arrow at the frame's edge points to him, not to the goal. The signs come back
+where he cannot show it: before he is met in the first Stop, when the goal is a thing to frame (turned to, not
+walked to), and when the player has gone thirty seconds without getting any nearer, whatever the reason (the
+net under him: he is a dog, and the player may not be following). Someone to talk to is marked *Talk* only when
+near (12 m) and in sight (`ctx.seen`, a ray against the collision world): a speech mark across a wall 116 m off
+said only that someone stood behind it. He rides a lift at the player's side, and is not lost at the bottom and
+found at the top. Learnt from *Ico*, *The Last Guardian* and *Firewatch*, where a companion or the place itself
+carries the way; nothing of theirs is copied. `tools/story_play.js` fails a frame in which he leads and the
+way is shown twice.
+
+A flight between frames (frame 5's way down from the roof) is part of the telling: it is skipped only by Space,
+Enter or Esc, and not in its first second and a half. Any key used to skip it, so the E that closed the last line,
+or the first step taken, set the player on the street with no way down seen.
 
 **A print is a thing you are given.** After the shutter the print is in your hand for a moment, its postmark struck
 on it (the hour, the frame), and goes to the roll, where Tab opens every print taken so far.

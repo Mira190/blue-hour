@@ -404,7 +404,38 @@ window.OELens = (function () {
       .replace(last, '$1\n\t\t}$2');
     C.lights_fragment_begin = src.slice(0, a) + blk + src.slice(b);
   }
-  function patchChunks() { guardShaders(); loopAreaLights(); skipDarkSpots(); }
+  // The game's one point light is the fill over the player at night (game/game.js nightFill): a lamp nobody can see,
+  // there only so the ground and the people near you read. Its diffuse light passes for the place's own; its
+  // specular did not: on the Shibuya Sky deck's dark glass, a polished column or a wet street it drew a small round
+  // white highlight just over and behind the player's head that went everywhere with them, a lamp carried over
+  // the player. So a point light gives diffuse light only: whatever its BRDF added to the specular (and the
+  // clearcoat's and the sheen's) is put back as it was before it.
+  function diffusePoints() {
+    const C = THREE.ShaderChunk, src = C.lights_fragment_begin;
+    if (typeof src !== 'string' || src.includes('oeFillDiffuse')) return;
+    const a = src.indexOf('#if ( NUM_POINT_LIGHTS > 0 )'), b = a < 0 ? -1 : src.indexOf('#pragma unroll_loop_end', a);
+    const call = /(\t*)(RE_Direct\( directLight,[^\n]*\);)/;
+    if (b < 0 || !call.test(src.slice(a, b))) { console.warn('lens.js: the point lights\' loop was not found; the night fill keeps its highlight'); return; }
+    const blk = src.slice(a, b).replace(call, (m, t, c) => `${t}{ // oeFillDiffuse
+${t}vec3 oeSpec = reflectedLight.directSpecular;
+${t}#ifdef USE_CLEARCOAT
+${t}vec3 oeCoat = clearcoatSpecularDirect;
+${t}#endif
+${t}#ifdef USE_SHEEN
+${t}vec3 oeSheen = sheenSpecularDirect;
+${t}#endif
+${t}${c}
+${t}reflectedLight.directSpecular = oeSpec;
+${t}#ifdef USE_CLEARCOAT
+${t}clearcoatSpecularDirect = oeCoat;
+${t}#endif
+${t}#ifdef USE_SHEEN
+${t}sheenSpecularDirect = oeSheen;
+${t}#endif
+${t}}`);
+    C.lights_fragment_begin = src.slice(0, a) + blk + src.slice(b);
+  }
+  function patchChunks() { guardShaders(); loopAreaLights(); skipDarkSpots(); diffusePoints(); }
   if (window.THREE) patchChunks(); else addEventListener('three-ready', patchChunks, { once: true });
 
   return { shader, merge, bright, stack, sunOnScreen, guardShaders };
