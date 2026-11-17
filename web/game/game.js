@@ -3167,8 +3167,109 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       p.x += -uy * to; p.y += ux * to;
     }
   };
+  // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
+  const storyFigs = new Set();
+  const talkCam = window.OETalkCam ? OETalkCam.create({
+    walls: (a, b) => nav.clearFraction(W(a[0], a[1], a[2]), W(b[0], b[1], b[2])),
+    trees: (x, y, r) => postsNear(x, y, r).filter(q => q.kind === 'tree' || q.kind === 'lamp'),
+    bodies: (x, y, r) => {
+      const out = [{ id: 'player', x: player.x, y: player.y, z: player.z }];
+      for (const f of storyFigs) out.push({ id: f.id, x: f.x, y: f.y, z: f.z });
+      for (const n of npcs) if (Math.abs(n.x - x) < r && Math.abs(n.y - y) < r) out.push({ id: `npc:${n.id}`, x: n.x, y: n.y, z: n.z });
+      // (the crowd where each is drawn, rx: held in a Stop, that is not always where it is simulated)
+      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if (q.line >= 0 && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push({ id: `crowd:${i}`, crowd: i, x: qx, y: qy, z: q.rz ?? q.z ?? nav.terrain(qx, qy) }); }
+      return out;
+    } }) : null;
+  let talkShot = null, talkPrint = false, talkTyped = '';
+  const talkText = document.getElementById('gd-text');
+  // who is speaking, by the name the story gives them: the nearest of its people (or of the map's) with that name
+  const talkSpeaker = who => {
+    const nm = who && who.name; let best = null, bd = 40;
+    const live = (id, src, eye) => ({ id, name: nm, eye, get x() { return src.x; }, get y() { return src.y; }, get z() { return src.z; } });
+    for (const f of storyFigs) { const d = Math.hypot(f.x - player.x, f.y - player.y); if (f.name === nm && d < bd) { bd = d; best = live(f.id, f, f.eye); } }
+    if (!best) for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (n.name === nm && d < bd) { bd = d; best = live(`npc:${n.id}`, n, 1.58); } }
+    return best;
+  };
+  // a line said (who: as story.js gives it; choices: the answers under it): which shot it is cut to
+  const talkLine = (who, choices) => {
+    if (!talkCam || player.mode !== 'foot') return;
+    const sp = talkSpeaker(who), next = talkPrint ? 'close' : null;
+    talkPrint = false;
+    if (!sp && !talkCam.talk && !(choices && choices.length)) return; // (a voice with nobody here: the office on the phone)
+    talkCam.open(sp, { x: player.x, y: player.y, z: player.z, eye: 1.58 }, sp ? next : 'reverse');
+    talkTyped = '';
+  };
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
+  // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
+  // world) or, with a.alive, a living person of this evening. Stood where there is room near `at`, or at at[2] exactly
+  const storyFigure = (a, at) => {
+    // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
+    const old = a.alive && a.age >= 70, bend = [];
+    const rig = makeRig({ character: a.character, scale: old ? 0.93 : 1 });
+    // (the back only: the same turn at the neck threw her head back)
+    if (old) rig.root.traverse(o => { if (o.isBone && /Spine1$|Spine2$/.test(o.name)) bend.push(o); });
+    const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+    // (an afterimage: a person in an old exposure laid over tonight's street, people.js exposure; and the one thing
+    // that tells them from the held crowd is that they move: the head turns to the player, the body follows only
+    // when the head cannot reach)
+    const look = [];
+    if (!a.alive) {
+      if (OEPeople.exposure) OEPeople.exposure(rig.root);
+      rig.root.traverse(o => { if (o.isBone && /Neck$/.test(o.name)) look[0] = o; else if (o.isBone && /Head$/.test(o.name)) look[1] = o; });
+    }
+    const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1) };
+    storyFigs.add(f);
+    const put = () => rig.root.position.copy(W(f.x, f.y, f.z));
+    put(); world.add(rig.root);
+    let t = 0;
+    const turn = (x, y) => { f.yaw = Math.atan2(x - f.x, y - f.y); rig.root.rotation.y = Math.PI - f.yaw; };
+    f.face = (x, y) => { if (!look[1] || f.yaw == null) turn(x, y); else f.want = [x, y]; }; // (an afterimage looks first, and turns after)
+    const hq = new THREE.Quaternion(), hp = new THREE.Quaternion(), hv = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+    let hYaw = 0, hPitch = 0;
+    f.walkTo = (x, y, speed = 1.15) => { f.to = [x, y, speed]; };
+    f.animate = dt => {
+      t += dt;
+      let v = 0;
+      if (f.to) {
+        const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy);
+        if (d < 0.25) f.to = null;
+        else { v = f.to[2]; const k = Math.min(1, v * dt / d); turn(f.to[0], f.to[1]); f.x += dx * k; f.y += dy * k; f.z = Math.max(0, nav.terrain(f.x, f.y)); put(); }
+      }
+      // (the bend is laid over the clip's pose, and taken off again before the clip is asked for the next: with time
+      // held the clip does not move the bones, and a bend added every frame turned her round and round)
+      for (const b of bend) if (b.userData.bent && b.quaternion.equals(b.userData.bent)) b.quaternion.copy(b.userData.raw);
+      for (const b of look) if (b && b.userData.turned && b.quaternion.equals(b.userData.turned)) b.quaternion.copy(b.userData.raw);
+      rig.animate(dt, v, 'ground', t);
+      for (const b of bend) { b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion); b.rotation.z -= 0.09; b.userData.bent = (b.userData.bent || new THREE.Quaternion()).copy(b.quaternion); }
+      // the head to the player: laid over the clip's pose after the mixer, as the bend is, and taken off before it.
+      // The neck takes two fifths of the turn and the head the rest, up to 70 degrees each way; past that the body
+      // comes round, at a walker's pace. Eased, so that it is seen to turn (in a Stop the clip runs, dt is real)
+      if (look[1] && f.want && !f.to) {
+        const [x, y] = f.want, want = Math.atan2(x - f.x, y - f.y), off = angDiff(want, f.yaw);
+        if (Math.abs(off) > 1.0) turn(f.x + Math.sin(f.yaw + Math.sign(off) * Math.min(Math.abs(off) - 1.0, dt * 1.4)), f.y + Math.cos(f.yaw + Math.sign(off) * Math.min(Math.abs(off) - 1.0, dt * 1.4)));
+        const yw = Math.max(-1.2, Math.min(1.2, angDiff(want, f.yaw))), dz = (player.z + 1.55) - (f.z + 1.55), pt = Math.max(-0.35, Math.min(0.35, Math.atan2(dz, Math.hypot(x - f.x, y - f.y) || 1)));
+        const k = Math.min(1, dt * 3.2); hYaw += (yw - hYaw) * k; hPitch += (pt - hPitch) * k;
+      } else { const k = Math.min(1, dt * 2); hYaw -= hYaw * k; hPitch -= hPitch * k; }
+      rig.root.updateMatrixWorld(true);
+      for (const [i, b] of look.entries()) {
+        if (!b) continue;
+        b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion);
+        const share = i === 0 ? 0.4 : 0.6;
+        // (turned in the world: about the vertical, then about the line across the face, whatever the bone's own axes)
+        b.parent.getWorldQuaternion(hp);
+        b.getWorldQuaternion(hq);
+        hv.set(Math.cos(f.yaw + hYaw), 0, Math.sin(f.yaw + hYaw)); // (the right hand's way, across the face: the map's (cos, -sin) in three.js's axes)
+        hq.premultiply(new THREE.Quaternion().setFromAxisAngle(UP, -hYaw * share)).premultiply(new THREE.Quaternion().setFromAxisAngle(hv, hPitch * share));
+        b.quaternion.copy(hp.invert().multiply(hq));
+        b.updateMatrixWorld(true);
+        b.userData.turned = (b.userData.turned || new THREE.Quaternion()).copy(b.quaternion);
+      }
+    };
+    f.remove = () => { world.remove(rig.root); storyFigs.delete(f); };
+    f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
+    return f;
+  };
   // the log of the evening (log.js): what the story's people say, and what the player answered, to be read again
   const storyLog = window.OELog && G.story && !new URLSearchParams(location.search).has('walk') ? OELog.create({ stage, touch,
     at: () => (story ? { fi: story.state.fi, stamp: (story.state.fr && story.state.fr.stamp) || '' } : {}),
@@ -3234,13 +3335,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     snapBase: () => storySnapBase,
     again: () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
     free: () => { const u = new URL(location.href); u.searchParams.set('walk', '1'); u.searchParams.delete('overture'); location.href = u.toString(); },
-    say: (who, lines, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done), // (log: kept in the evening's log)
+    say: (who, lines, done) => (talkLine(who), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done)), // (log: kept in the evening's log)
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
     score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { cueOut(); storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
     sting: kind => { if (storyMusic) storyMusic.sting(kind); }, // (a phrase of the score at a beat of the story: music.js's stings)
     // the story's own sound (audio.js): a cue by name, and the still chord of time held
-    sfx: name => { if (A.sfx) A.sfx(name); },
+    sfx: name => { if (name === 'wrong' || (name === 'right' && talkPrint)) talkPrint = true; else if (name === 'right') talkPrint = false; if (A.sfx) A.sfx(name); }, // (an answer judged: the line after it is a closer single)
     held: on => { if (A.held) A.held(on); },
     // time held and let go: what was falling or flying hangs where it was (stopfx.js)
     // a flight between two places (a frame's `flight`: an overture's spec, its shots, captions and where you stand at the end):
@@ -3302,7 +3403,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // where that car is and what it is doing: {at: [x, y, z], state: 'coming' | 'waiting' | 'in'}, or null once it has gone
     rideNow: () => (!ride || ride.phase === 'leaving' ? null : { at: [ride.drv.st.x, ride.drv.st.y, ride.drv.st.z], state: player.mode === 'ride' ? 'in' : ride.phase === 'coming' ? 'coming' : 'waiting' }),
     hold: on => { if (!stopFx) return; if (on) stopFx.start(W(player.x, player.y, player.z), { rain: !!(weather && weather.state && weather.state.rain > 0.15) }); else stopFx.release(); },
-    ask: (who, lines, choices, done) => dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), choices, done), // (a question: the lines, then answers to pick from)
+    ask: (who, lines, choices, done) => (talkLine(who, choices), talkPrint = choices.some(c => /class="pr"/.test(c.text)), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), choices, done)), // (a question: the lines, then answers to pick from)
     dress: (date, light, wx) => {
       const [m, d] = date || [clock.m, clock.d];
       setClock(clock.y, m, d, S.presetTime(light, clock.y, m, d));
@@ -3312,49 +3413,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, secs); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     },
-    // someone the story places: an afterimage (someone of another year, pale and half there, who moves in the stopped
-    // world) or, with a.alive, a living person of this evening. Stood where there is room near `at`, or at at[2] exactly
-    figure: (a, at) => {
-      // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
-      const old = a.alive && a.age >= 70, bend = [];
-      const rig = makeRig({ character: a.character, scale: old ? 0.93 : 1 });
-      // (the back only: the same turn at the neck threw her head back)
-      if (old) rig.root.traverse(o => { if (o.isBone && /Spine1$|Spine2$/.test(o.name)) bend.push(o); });
-      const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
-      if (!a.alive) {
-        const tint = new THREE.Color(0x9fc4ff);
-        rig.root.traverse(o => {
-          if (!o.isMesh || !o.material) return;
-          o.castShadow = false;
-          o.material = o.material.clone();
-          Object.assign(o.material, { transparent: true, opacity: 0.82 });
-          if (o.material.color) o.material.color.lerp(tint, 0.7);
-          if (o.material.emissive) { o.material.emissive.set(0x6f9cff); o.material.emissiveIntensity = 1.5; }
-        });
-      }
-      const f = { x: p.x, y: p.y, z: p.z, to: null };
-      const put = () => rig.root.position.copy(W(f.x, f.y, f.z));
-      put(); world.add(rig.root);
-      let t = 0;
-      f.face = (x, y) => { rig.root.rotation.y = Math.PI - Math.atan2(x - f.x, y - f.y); };
-      f.walkTo = (x, y, speed = 1.15) => { f.to = [x, y, speed]; };
-      f.animate = dt => {
-        t += dt;
-        let v = 0;
-        if (f.to) {
-          const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy);
-          if (d < 0.25) f.to = null;
-          else { v = f.to[2]; const k = Math.min(1, v * dt / d); f.face(f.to[0], f.to[1]); f.x += dx * k; f.y += dy * k; f.z = Math.max(0, nav.terrain(f.x, f.y)); put(); }
-        }
-        // (the bend is laid over the clip's pose, and taken off again before the clip is asked for the next: with time
-        // held the clip does not move the bones, and a bend added every frame turned her round and round)
-        for (const b of bend) if (b.userData.bent && b.quaternion.equals(b.userData.bent)) b.quaternion.copy(b.userData.raw);
-        rig.animate(dt, v, 'ground', t);
-        for (const b of bend) { b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion); b.rotation.z -= 0.09; b.userData.bent = (b.userData.bent || new THREE.Quaternion()).copy(b.quaternion); }
-      };
-      f.remove = () => world.remove(rig.root);
-      return f;
-    },
+    figure: storyFigure,
     // one of the map's own people, lent to the story (where they stand, and their name for the line)
     person: id => { const n = npcs.find(q => q.id === id); return n ? { x: n.x, y: n.y, z: n.z, name: n.name, role: n.role, color: n.color } : null; },
     weather: (kind, now) => { if (weather) weather.set(kind, now ? { now: true } : undefined); }, // (now: as if it had been so for a while, the street already wet)
@@ -5654,7 +5713,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     moreTray(true, false); // (the tour points at the buttons behind "more")
     return OEOnboard.tour(tourSteps(), { root: document.body, onEnd: () => { moreTray(was, false); OEOnboard.markDone(CITY.id); if (then) then(); } });
   }
-  on($('#gt-play'), 'click', () => (story ? titleLetGo(() => startGame(false)) : startGame(false)));
+  on($('#gt-play'), 'click', () => startGame(false));
   on($('#gt-continue'), 'click', () => startGame(true));
   on($('#gt-timechoice'), 'click', e => { const b = e.target.closest('button'); if (b) $$('#gt-timechoice button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   const nowLoc = S.utcToLocal(Date.now());
@@ -5939,6 +5998,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // depth of field in photo mode, and with the camera's motion blur in the opening shot; never in play
     if (atmos && atmos.camFx) atmos.camFx(overture && overture.active ? overture.fx : photo.on ? { focus: camera.position.distanceTo(photo.focus), aperture: lensBlur(camera.fov, camera.position.distanceTo(photo.focus), photo.fstop || 2.8) }
       : arriving && cine.active ? { focus: camera.position.distanceTo(live.look), aperture: lensBlur(camera.fov, camera.position.distanceTo(live.look), 4), blur: 0.5 }
+      : talkShot ? { focus: talkShot.focus, aperture: lensBlur(camera.fov, talkShot.focus, 2.8) } // (a conversation: the face sharp, the street behind it soft, where the tier draws depth of field)
       : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
     mirrorTick();
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
@@ -6350,40 +6410,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return best;
   }
   let titleMustered = false;
-  // The story's title stands in the Stop. What only this game has is a crossing held mid-stride, so that is what is
-  // behind the title before anything is pressed: the walk on, the crowd out on the stripes and still, leaves and a
-  // flock of pigeons hanging in the air in front of the lens, and the camera pushing slowly in through them (it is the
-  // camera moving that shows a moment is held). Play lets time go: the crowd walks on, what hung falls and flies, and
-  // the film begins a breath later. It is a look ahead, not the story's first Stop, which has its ring and its tone.
-  let titleHeld = false, titleAirT = 0, titleGo = 0;
-  const titleCentre = new THREE.Vector3();
-  function titleHold() {
-    const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
-    if (!j || reduced) return;
-    junctions.walkIn(j, 0); cars.clearBox(j.x, j.y, 45);
-    for (let i = 0; i < 120; i++) crowd.update(0.1, player.x, player.y, clockT, null); // (twelve seconds of the walk: they are out on the stripes)
-    titleHeld = true;
-  }
-  function titleAir(dt) {
-    if (!stopFx || reduced) return;
-    if (!titleAirT && !titleGo) { // the air hangs a few paces in front of the lens, at the height of the street
-      const d = camera.getWorldDirection(new THREE.Vector3()); d.y = 0; d.normalize();
-      titleCentre.copy(camera.position).addScaledVector(d, 9); titleCentre.y = W(player.x, player.y, player.z).y;
-      stopFx.air(titleCentre, { leaves: 90, birds: 14 });
-    }
-    // (running for a second and a half as it is made, so that the flock is over the kerb and the leaves are anywhere in
-    // their fall, and braked to nothing; let go, it runs up again)
-    const k = titleGo ? Math.min(1, (performance.now() - titleGo) / 500) : Math.max(0, 1 - titleAirT / 1.5);
-    stopFx.tick(dt, k * k, titleCentre, false);
-    if (stopFx.made || titleAirT === 0) titleAirT += Math.max(dt, 1e-3);
-  }
-  // Play, with the title in the Stop: time is let go first, and the game begins when the street has moved
-  function titleLetGo(then) {
-    if (!titleHeld || titleGo) return titleGo ? null : then();
-    titleGo = performance.now(); titleHeld = false;
-    stage.classList.add('title-go'); if (A.sfx) A.sfx('run');
-    setTimeout(() => { stage.classList.remove('title-go'); then(); }, 1700);
-  }
   function updateCamera(dt, titleOn) {
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
@@ -6407,9 +6433,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (the title is paused, so nothing is simulated under it; the crowd is stepped here, gathered once at the scramble's
       // kerbs, and waits there under the screens, not an empty crossing)
       if (O.push && crowd) {
-        if (!titleHeld) crowd.update(dt, player.x, player.y, clockT, null);
-        if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); if (story) titleHold(); }
-        if (story) titleAir(dt);
+        crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
         // (nobody in the lens: at eye height in the crowd a passer-by a pace off filled half the poster)
         if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
       }
@@ -6461,6 +6485,38 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (Math.abs(f - camera.fov) > 0.01) { camera.fov = f; camera.updateProjectionMatrix(); }
       camera.lookAt(lk);
     } else camera.lookAt(live.look);
+    // a conversation of the story (talkcam.js): its shot over the chase view, cut to at each line, and the chase view
+    // eased back over half a second when the talk is over
+    talkShot = null;
+    if (talkCam && talkCam.talk) {
+      if (!dlg.open || player.mode !== 'foot' || shot) { talkCam.close(); blendFrom(0.5, true); player.rig.root.visible = true; }
+      else if (!(story && story.finder)) {
+        // (a new line of what is said: the text in the box is no longer the last frame's carried on; hud.js types each line out)
+        const typed = talkText ? talkText.textContent : '';
+        if (talkTyped && !typed.startsWith(talkTyped) && !talkCam.talk.cut) talkCam.line();
+        talkTyped = typed;
+        const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect);
+        if (t) {
+          talkShot = t;
+          // (whoever of the crowd still stands in the way is not drawn while the shot lasts: the title's way, which the
+          // held crowd of a Stop allows where moving them aside would not be seen)
+          if (crowdDraw) for (const i of talkCam.clearing()) crowdDraw.hide(i);
+          if (cut) { // (at a cut: the player faces the one they talk to)
+            const sp = talkCam.talk.speaker; if (sp && Math.hypot(sp.x - player.x, sp.y - player.y) > 0.3) player.h = Math.atan2(sp.x - player.x, sp.y - player.y);
+          }
+          camera.up.set(0, 1, 0);
+          camera.position.copy(W(t.pos[0], t.pos[1], t.pos[2]));
+          camera.lookAt(W(t.look[0], t.look[1], t.look[2]));
+          if (Math.abs(camera.fov - t.fov) > 0.01) { camera.fov = t.fov; camera.updateProjectionMatrix(); }
+          player.rig.root.visible = t.shoulder !== null || t.kind === 'reverse' || Math.hypot(t.pos[0] - player.x, t.pos[1] - player.y) > 0.5; // (through the player's own eyes, the last resort: not their own head)
+          if (cut) { // (what the shot cut to shows, for tools/talk_check.js: where the face is in the frame, what stands before it, and whether the lens is in a wall)
+            const L = talkCam.log[talkCam.log.length - 1], v = W(t.subject[0], t.subject[1], t.subject[2]), P = camera.position, d = v.clone().sub(P);
+            camera.updateMatrixWorld(); const front = d.dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera);
+            if (L) Object.assign(L, { x: +v.x.toFixed(3), y: +v.y.toFixed(3), front, block: talkCam.check(), inWall: nav.clearFraction(d.clone().normalize().multiplyScalar(Math.min(0.6, d.length() / 2)).add(P), P) < 0.999, aspect: +camera.aspect.toFixed(3) });
+          }
+        }
+      }
+    }
     // the story's camera raised (story.js): the view is the lens's, from your own eye, not from behind you. The drag
     // that turns the chase view turns your head (lower the view to look up), and the wheel that brings the chase view
     // closer is the lens's ring: 12 degrees, a long lens, to 60, a wide one
@@ -7207,7 +7263,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { storyFigure, talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };

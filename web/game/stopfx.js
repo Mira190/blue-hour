@@ -176,7 +176,7 @@ window.OEStopFX = (function () {
       if (splash) { splash.material.uniforms.uFall.value = letGo >= 0 ? letGo * letGo * 4 : 0; splash.material.uniforms.uFade.value = fade * 0.9; splash.material.uniforms.uP.value.copy(at); }
       if (ring) { const k = Math.min(1, age / 1.1), e = 1 - Math.pow(1 - k, 3); ring.scale.setScalar(1 + e * 85); ring.material.opacity = 0.9 * (1 - k); if (k >= 1) { g.remove(ring); ring.geometry.dispose(); ring.material.dispose(); ring = null; } }
     }
-    return { air, start, release, tick, dispose, get on() { return !!g; }, get made() { return !!amb; } }; // (made: the scene's air is in the world)
+    return { air, start, release, tick, dispose, get on() { return !!g; } };
   }
   return { create };
 })();

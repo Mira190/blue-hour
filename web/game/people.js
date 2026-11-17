@@ -480,6 +480,57 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     m.needsUpdate = true;
   }
 
+  // ------------------------------------------------------------ an afterimage: a person in an old exposure
+  // Someone of another year standing in tonight's street (the story's afterimages, game.js figure; docs/PAST.md). One
+  // look for all of them, the look past.js gives the things of 1964: their own body, face and clothes, in a silver
+  // print's tones (a warm grey with a little of the colour left, the blacks lifted to the paper's), a fine grain that
+  // lives, and a soft light on the edge. Laid over the street as a second exposure is laid over a first: where they
+  // are dark the street shows through, where they are light they are solid, so that against a lit shop front they
+  // are half there and against the night they stand whole. No outline, no glow, no blue.
+  // exposure(root): every mesh under root drawn so; the materials are the person's own, cloned and patched on top.
+  const EXPOSURE = `
+vec3 xpN = normalize(normal);
+float xpKey = max(dot(xpN, normalize((viewMatrix * vec4(0.35, 0.85, 0.4, 0.0)).xyz)), 0.0);
+float xpRim = pow(1.0 - abs(dot(xpN, normalize(vViewPosition))), 3.0);
+vec3 xpC = gl_FragColor.rgb + diffuseColor.rgb * (0.04 + 0.1 * xpKey) * uXpLift;
+float xpV = sqrt(max(dot(xpC, vec3(0.3, 0.59, 0.11)), 0.0));
+vec3 xpP = mix(vec3(0.26, 0.245, 0.225), vec3(1.0, 0.95, 0.86), smoothstep(-0.02, 0.95, xpV));
+vec3 xpT = xpP * xpP * (0.78 + 0.44 * sqrt(max(xpC, 0.0)) / max(xpV, 0.03) * 0.5);
+xpC = mix(xpC, xpT, 0.85);
+xpC += vec3(1.0, 0.9, 0.74) * xpRim * 0.08 * (0.3 + xpV);
+float xpG = fract(sin(dot(floor(gl_FragCoord.xy / 1.5) + floor(uXpT * 24.0) * vec2(17.0, 31.0), vec2(12.9898, 78.233))) * 43758.5453);
+xpC *= 1.0 + (xpG - 0.5) * 0.12;
+xpV = sqrt(max(dot(xpC, vec3(0.3, 0.59, 0.11)), 0.0));
+gl_FragColor = vec4(xpC, 1.0 - 0.32 * (1.0 - smoothstep(0.08, 0.5, xpV)));`;
+  const xpU = { uXpT: { value: 0 }, uXpLift: { value: 1 } }, xpMade = new WeakMap(), xpOwn = new WeakSet();
+  function exposure(root) {
+    const one = m => {
+      if (!m || xpOwn.has(m)) return m;
+      if (xpMade.has(m)) return xpMade.get(m); // (one clone a material: the same character twice is one program)
+      const c = m.clone(), own = m.onBeforeCompile, key = m.customProgramCacheKey;
+      c.userData = m.userData; // (the palette's uniforms, shared: clone() passes userData through JSON)
+      c.onBeforeCompile = (sh, r) => {
+        if (own) own.call(m, sh, r);
+        Object.assign(sh.uniforms, xpU);
+        sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform float uXpT, uXpLift;\nvoid main() {')
+          .replace('#include <dithering_fragment>', `#include <dithering_fragment>${EXPOSURE}`);
+      };
+      c.customProgramCacheKey = () => `exposure|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+      // (a second exposure: what it adds, over what was there let through as it is dark: one, one minus its alpha)
+      Object.assign(c, { transparent: true, depthWrite: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
+      xpMade.set(m, c); xpOwn.add(c);
+      c.needsUpdate = true;
+      return c;
+    };
+    root.traverse(o => {
+      if (!o.isMesh || !o.material) return;
+      o.castShadow = false; // (a picture laid over the street: it throws no shadow on it)
+      o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material);
+      o.renderOrder = 3;
+      if (!o.userData.xpTick) { o.userData.xpTick = true; const was = o.onBeforeRender; o.onBeforeRender = (...a) => { xpU.uXpT.value = performance.now() / 1000; if (was) was.apply(o, a); }; }
+    });
+  }
+
   // ------------------------------------------------------------ one person: skinned, animated
   function paletteMaterial(pal, cls) {
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0 });
@@ -1269,5 +1320,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, end, setRain, meshes, active, umbrellas: umbMeshes };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
 })();

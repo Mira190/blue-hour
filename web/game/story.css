@@ -153,8 +153,6 @@
 #g-story-album .versus.hit p { color: var(--paper); }
 #g-story-album button.vs { padding: 8px 12px; border: 1px solid rgba(244, 239, 230, 0.35); border-radius: 2px; background: transparent; color: rgba(244, 239, 230, 0.8); font: 400 9px/1 var(--f-mono); letter-spacing: 0.22em; text-transform: uppercase; cursor: pointer; }
 #g-story-album button.vs.on { border-color: var(--amber); background: var(--amber); color: #0b1020; }
-#g-story-end p.lost, #g-story-end p.tally { font: 400 10px/1.7 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); max-width: 56ch; }
-#g-story-end p.lost { color: var(--amber); }
 /* ---- the order in the hand: the sheet the player was sent out with, its words coming up as ink does (story.js order).
    The file's own paper and hand; the street runs on behind it. */
 #g-story-order { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; display: grid; justify-items: center; pointer-events: none; transform: translateY(104%); transition: transform 0.7s cubic-bezier(0.2, 0.75, 0.2, 1); }
@@ -496,6 +494,33 @@
 .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-mark, #g-story-keys) { opacity: 0; }
 /* (on a phone the goal lies over the brightest part of the frame, the shop fronts across the road: a deeper scrim under it) */
 @media (max-width: 640px) { .game-stage.story #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); } }
+
+/* ---- the last card: how the case was worked, in the file's hand (story.js worked), and the frames to go back into */
+#g-story-end { align-items: safe center; } /* (a card taller than the window scrolls from its top: centred, its top was out of reach) */
+#g-story-end .worked { --pen: #1d2a4a; width: 100%; box-sizing: border-box; padding: 18px 22px 20px; text-align: left; color: #2a1f16; background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(60, 36, 12, 0.18); transform: rotate(-0.5deg); }
+#g-story-end .worked h3 { margin: 0 0 12px; padding-bottom: 9px; border-bottom: 1px solid rgba(43, 33, 24, 0.45); font: 400 10px/1 var(--f-mono); letter-spacing: 0.36em; text-transform: uppercase; color: #5a2a22; }
+#g-story-end .worked ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+#g-story-end .worked li { display: grid; grid-template-columns: 3.2em 1fr; gap: 12px; align-items: baseline; font: 450 19px/1.25 var(--f-hand); font-variant-numeric: lining-nums; }
+#g-story-end .worked li b { font-weight: 600; color: #6a2c22; }
+#g-story-end .worked li.said span { color: var(--pen); }
+#g-story-end .worked li.struck span { text-decoration: line-through; text-decoration-color: var(--pen); text-decoration-thickness: 2px; color: rgba(42, 31, 22, 0.6); }
+#g-story-end .worked li em { font-style: normal; text-decoration: none; display: inline-block; color: #6a2c22; }
+#g-story-end .worked li.spent span { color: rgba(42, 31, 22, 0.75); }
+#g-story-end nav.back, #gt-back { display: grid; gap: 10px; justify-items: center; }
+:is(#g-story-end nav.back, #gt-back) small { font: 400 9px/1 var(--f-mono); letter-spacing: 0.32em; margin-right: -0.32em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+:is(#g-story-end nav.back, #gt-back) span { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+:is(#g-story-end nav.back, #gt-back) button { display: grid; gap: 5px; justify-items: center; min-width: 52px; padding: 9px 8px; border: 1px solid rgba(244, 239, 230, 0.32); border-radius: 2px; background: rgba(4, 8, 18, 0.4); color: rgba(244, 239, 230, 0.7); font: 400 9px/1 var(--f-mono); letter-spacing: 0.12em; cursor: pointer; }
+:is(#g-story-end nav.back, #gt-back) button b { font: 300 18px/1 var(--f-mono); color: var(--amber); }
+:is(#g-story-end nav.back, #gt-back) button:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); }
+#gt-back { justify-items: start; margin-top: 4px; }
+#gt-back span { justify-content: flex-start; }
+@media (max-width: 640px) { #g-story-end .worked { padding: 14px 14px 16px; } #g-story-end .worked li { grid-template-columns: 1fr; gap: 0; font-size: 18px; } :is(#g-story-end nav.back, #gt-back) button { min-width: 40px; padding: 8px 5px; } }
+
+/* ---- the summation: a pair of prints set side by side is shown as one piece of evidence; a spent print is only tonight */
+.gd-choices .pr.pair .pp { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.gd-choices .pr.pair .pp :is(img, i) { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #0b0d12; }
+.gd-choices .pr.spent :is(img, i) { filter: saturate(0.2) brightness(0.8); }
+@media (max-width: 640px) { .game-stage.story .gd-choices:has(.pr) { grid-template-columns: repeat(4, 1fr); } }
 /* ---- Play, with the title in the Stop: the card goes as time is let go, and the street is seen to move before the film (game.js titleLetGo) */
 .game-stage.title-go .g-title { opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
 
