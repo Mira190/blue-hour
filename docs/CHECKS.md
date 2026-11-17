@@ -9,10 +9,10 @@ the script is short: a set of checks that open no browser, and a handful that op
 | Target | What it does | Tool |
 |---|---|---|
 | `static` | Everything that needs no browser, a minute or two together (below) | several |
-| `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on. A still at each beat | `tools/story_play.js` |
+| `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on. A still at each beat. Without a GPU one frame in ten is drawn (`DRAW=10`) and the rest run the game without their draw calls, so that the story keeps its own time on a software renderer; the stills and the photographs are of frames drawn whole | `tools/story_play.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
-| `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks every WebGL call for its error; then as a GPU with sixteen texture units, where every material must still be drawn | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
+| `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); then as a GPU with sixteen texture units, where every material must still be drawn | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
 | `touch` | Plays the free game by touch on a phone's page, where no key can be pressed | `tools/touch_check.js` |
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder | `tools/astc_check.js` |
 | `game` | The free game's long scenario: walk, talk, the helicopter, your car, a taxi, the trains | `tools/game_check.js` |
