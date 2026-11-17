@@ -276,7 +276,8 @@ window.OEAudio = (function () {
   }
   function tone(dst, at, dur, type, f0, f1, vol, attack = 0.008) {
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = type; o.frequency.setValueAtTime(f0, at); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, at + dur * 0.9);
+    g.gain.value = 0; // (silent until its envelope starts, as the score's voices are: music.js gain())
+    o.type = type; o.frequency.value = f0; o.frequency.setValueAtTime(f0, at); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, at + dur * 0.9);
     g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + attack); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
     o.connect(g); g.connect(dst); o.start(at); o.stop(at + dur + 0.02);
     return o;
@@ -554,6 +555,9 @@ window.OEAudio = (function () {
   function burst(at, { dur, f, f1 = 0, q = 1, vol, type = 'bandpass', att = 0.001 }) {
     const b = storyBus(); if (!b || muted) return;
     const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + at;
+    // (silent, and at its frequency, from the moment it is made, not only from its start: a recording heard a single
+    // sample's tick where a burst began a little after it was made, the goal's second breath; tools/sound_rec.js)
+    g.gain.value = 0; fl.frequency.value = f;
     s.buffer = noise; fl.type = type; fl.frequency.setValueAtTime(f, t); if (f1) fl.frequency.exponentialRampToValueAtTime(f1, t + dur); fl.Q.value = q;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * lv, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(fl); fl.connect(g); g.connect(b); s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.03);

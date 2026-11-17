@@ -116,6 +116,7 @@ function assemble() {
       // drops its notes in the hold; the recording is of the game, not of the camera)
       if (!process.env.SHOTS) page.screenshot = async () => Buffer.alloc(0);
       await page.addInitScript(tapSrc);
+      if (process.env.EXTRA_INIT) await page.addInitScript(fs.readFileSync(process.env.EXTRA_INIT, 'utf8')); // (EXTRA_INIT=file.js: more of the page's sound to log, for a hunt)
       page.on('console', m => { if (/audio|music|sound/i.test(m.text())) console.log('console:', m.text().slice(0, 200)); });
       if (gesture) { // one touch on the loading screen, as a player gives it, once the page has its sound waiting
         const goto = page.goto.bind(page);
