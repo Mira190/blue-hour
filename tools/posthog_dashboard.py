@@ -18,7 +18,7 @@ import urllib.request
 
 HOST = os.environ.get('POSTHOG_HOST', 'https://eu.posthog.com')
 DASHBOARD = 'Open Earth 3D: visitors and service levels'
-OURS = "event IN ('view', 'load', 'time', 'page', 'error', 'gl_lost', 'dwell', 'tour', 'mode', 'quest', 'exit', 'crash', 'jank', 'quality') AND coalesce(toString(properties.view), '') != 'test'"
+OURS = "event IN ('view', 'load', 'time', 'page', 'error', 'gl_lost', 'dwell', 'tour', 'mode', 'quest', 'story', 'exit', 'crash', 'jank', 'quality') AND coalesce(toString(properties.view), '') != 'test'"
 D3 = "properties.view IN ('city', 'game', 'reef')"
 NOT_TEST = [{'key': 'view', 'value': ['test'], 'operator': 'is_not', 'type': 'event'}]
 PLAY = [{'key': 'view', 'value': ['game', 'reef'], 'operator': 'exact', 'type': 'event'}]

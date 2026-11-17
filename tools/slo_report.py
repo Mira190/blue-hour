@@ -42,7 +42,12 @@ def pct(xs, p):
     return xs[lo] + (xs[min(lo + 1, len(xs) - 1)] - xs[lo]) * (k - lo)
 
 
-def read_posthog(days):
+# this project's pages only: the key is shared with the project it was split from (Open Earth 3D), whose pages are
+# served at other paths and hosts
+SITE = "(properties.$pathname LIKE '/blue-hour%' OR properties.$host LIKE 'blue-hour%')"
+
+
+def read_posthog(days, every_site=False):
     """The site's events of the last days from PostHog (HogQL), in the collector's form."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from posthog_dashboard import API, OURS
@@ -56,7 +61,7 @@ def read_posthog(days):
     out, seen, page, last = [], set(), 20000, None
     while True:
         after = f"AND timestamp >= toDateTime64('{last}', 6, 'UTC') " if last else ''
-        q = (f"SELECT uuid, event, timestamp, distinct_id, properties FROM events WHERE {OURS} "
+        q = (f"SELECT uuid, event, timestamp, distinct_id, properties FROM events WHERE {OURS} {'' if every_site else 'AND ' + SITE} "
              f"AND timestamp > now() - INTERVAL {int(float(days or 7) * 86400)} SECOND {after}ORDER BY timestamp LIMIT {page}")
         res = api.call('POST', f'/api/projects/{pid}/query/', {'query': {'kind': 'HogQLQuery', 'query': q}}).get('results') or []
         fresh = 0
@@ -111,6 +116,29 @@ def report(events):
     r['devices'] = dict(Counter(e['props'].get('device', '') for e in views))
     r['tiers'] = dict(Counter(e['props'].get('tier', '') for e in views))
     r['referrers'] = dict(Counter(e['props'].get('ref') for e in views if e['props'].get('ref')).most_common(10))
+    # who, by visitor: country (PostHog's, from the request), language, time zone, system and browser, GPU
+    first = {}
+    for e in views:
+        first.setdefault(e['vid'], e['props'])
+    def by(f):
+        return dict(Counter(f(p) or '?' for p in first.values()).most_common(10))
+    r['countries'] = by(lambda p: p.get('$geoip_country_code'))
+    r['languages'] = by(lambda p: p.get('lang'))
+    r['time_zones'] = by(lambda p: p.get('tz'))
+    r['systems'] = by(lambda p: f"{p.get('os') or '?'} {p.get('browser') or '?'}")
+    r['gpus'] = by(lambda p: p.get('gpu'))
+    # the story's funnel: of the visitors who began the case, how many reached each frame, and finished
+    st = [e for e in events if e['event'] == 'story']
+    if st:
+        reach = defaultdict(set)
+        for e in st:
+            p = e['props']
+            reach[int(p.get('frame') or 1)].add(e['vid'])
+            if p.get('action') == 'end':
+                reach['end'].add(e['vid'])
+        r['story'] = {'began': len({e['vid'] for e in st}), 'reached': {k: len(v) for k, v in sorted(reach.items(), key=lambda kv: (isinstance(kv[0], str), kv[0]))},
+                      'seen_through': sum(1 for e in st if e['props'].get('action') == 'seen_through'),
+                      'spent': sum(1 for e in st if e['props'].get('action') == 'spent')}
 
     # time on screen, by view; play time is the game's and the reef sites'
     times = [e for e in events if e['event'] == 'time']
@@ -357,6 +385,12 @@ def show(r):
     print('Devices:  ' + ', '.join(f'{k} {n}' for k, n in r['devices'].items()) + ' · tiers ' + ', '.join(f'{k} {n}' for k, n in r['tiers'].items()))
     if r['referrers']:
         print('From:     ' + ', '.join(f'{k} {n}' for k, n in r['referrers'].items()))
+    for label, k in (('Country:  ', 'countries'), ('Language: ', 'languages'), ('Zone:     ', 'time_zones'), ('System:   ', 'systems'), ('GPU:      ', 'gpus')):
+        if r.get(k):
+            print(label + ', '.join(f'{a} {n}' for a, n in r[k].items()))
+    if r.get('story'):
+        s = r['story']
+        print(f"Story:    began {s['began']} · reached " + ', '.join(f"{'last card' if k == 'end' else f'frame {k}'} {n}" for k, n in s['reached'].items()) + f" · seen through {s['seen_through']} · frames spent {s['spent']}")
     print('\nService levels')
     for s in r['slo']:
         v = s['value']
@@ -417,10 +451,11 @@ def main():
     ap.add_argument('--posthog', action='store_true', help='read the events from PostHog instead (POSTHOG_PERSONAL_API_KEY)')
     ap.add_argument('--days', type=float, default=0)
     ap.add_argument('--json', action='store_true')
+    ap.add_argument('--every-site', action='store_true', help='with --posthog: the old project\'s pages too (the key is shared)')
     a = ap.parse_args()
     if not a.log and not a.posthog:
         ap.error('give a log file or --posthog')
-    events = read_posthog(a.days or 7) if a.posthog else read(a.log, a.days)
+    events = read_posthog(a.days or 7, a.every_site) if a.posthog else read(a.log, a.days)
     r = report(events)
     if a.json:
         print(json.dumps(r, indent=1, default=str))
