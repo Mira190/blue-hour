@@ -154,6 +154,50 @@ window.OERoute = (function () {
       for (let i = 1; i < m; i++) { const t = i / m; if (!nav.room(ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t, nav.R)) return false; }
       return true;
     }
+    // whether the straight line from a to b goes out across a street's carriageway (that is what the crossings are for)
+    const RW = { motorway: 14, trunk: 12, primary: 12, secondary: 10, tertiary: 9, residential: 7, unclassified: 6 };
+    function acrossRoad(ax, ay, az, bx, by, bz) {
+      const m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
+      for (let k = 0; k <= m; k++) {
+        const t = k / m, q = roadNet.nearest(ax + (bx - ax) * t, ay + (by - ay) * t, 8, az + (bz - az) * t, 2);
+        if (q && RW[roadNet.L[q.line].c] && q.d < RW[roadNet.L[q.line].c] / 2) return true;
+      }
+      return false;
+    }
+    // a moving escalator (a strip with moving_ms) is walked only the way it runs, along its axis: the way up SHIBUYA
+    // SKY is the north escalator, and the line once took the west one beside it, which runs down to SKY EDGE. escDir:
+    // which way a step from a to b goes along the steps it is on, +1 with them, -1 against, 0 across or on none
+    const MOV = nav.strips.filter(s => s.moving_ms).map(s => {
+      const u0 = s.us[0], u1 = s.us[s.us.length - 1], hw = s.half_width, c = [];
+      for (const u of [u0, u1]) for (const v of [-hw, hw]) c.push([s.origin[0] + s.axis[0] * u - s.axis[1] * v, s.origin[1] + s.axis[1] * u + s.axis[0] * v]);
+      return { s, x0: Math.min(...c.map(p => p[0])), x1: Math.max(...c.map(p => p[0])), y0: Math.min(...c.map(p => p[1])), y1: Math.max(...c.map(p => p[1])) };
+    });
+    function escDir(ax, ay, az, bx, by, bz) {
+      if (!MOV.length) return 0;
+      const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2;
+      for (const q of MOV) {
+        if (mx < q.x0 || mx > q.x1 || my < q.y0 || my > q.y1) continue;
+        const h = nav.stripHeight(q.s, mx, my);
+        if (h == null || Math.abs(h - mz) > 0.6) continue;
+        const du = (bx - ax) * q.s.axis[0] + (by - ay) * q.s.axis[1], d = Math.hypot(bx - ax, by - ay) || 1;
+        return du > 0.2 * d ? Math.sign(q.s.moving_ms) : du < -0.2 * d ? -Math.sign(q.s.moving_ms) : 0;
+      }
+      return 0;
+    }
+    // the metres of a way of points [[x, y, z]] walked against a moving escalator, every 0.5 m
+    function against(P) {
+      let bad = 0;
+      if (!MOV.length) return 0;
+      for (let i = 1; i < P.length; i++) {
+        if (P[i][3]) continue; // (in a lift)
+        const [ax, ay, az] = P[i - 1], [bx, by, bz] = P[i], d = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.ceil(d / 0.5));
+        for (let k = 0; k < m; k++) {
+          const t0 = k / m, t1 = (k + 1) / m;
+          if (escDir(ax + (bx - ax) * t0, ay + (by - ay) * t0, az + (bz - az) * t0, ax + (bx - ax) * t1, ay + (by - ay) * t1, az + (bz - az) * t1) < 0) bad += d / m;
+        }
+      }
+      return bad;
+    }
 
     // ------------------------------------------------------------ the walking network
     // lines: foot and road (not the motorway), in metres, with their class
@@ -171,13 +215,14 @@ window.OERoute = (function () {
       const at = (u, v) => { const x = st.origin[0] + st.axis[0] * u - st.axis[1] * v, y = st.origin[1] + st.axis[1] * u + st.axis[0] * v; return [x, y, zAt(u)]; };
       const nv = hw > 1 ? Math.max(1, Math.ceil(2 * hw / 6)) : 0, vs = nv ? Array.from({ length: nv + 1 }, (_, i) => -hw + 2 * hw * i / nv) : [0];
       const nu = Math.max(1, Math.ceil((u1 - u0) / 4));
-      for (const v of vs) lines.push(polyline(Array.from({ length: nu + 1 }, (_, i) => at(u0 + (u1 - u0) * i / nu, v)), 'surface'));
+      for (const v of vs) { const l = polyline(Array.from({ length: nu + 1 }, (_, i) => at(u0 + (u1 - u0) * i / nu, v)), 'surface'); l.strip = 1; lines.push(l); }
       if (vs.length > 1) for (let u = u0; u <= u1 + 1e-6; u += Math.max(1, (u1 - u0) / Math.max(1, Math.round((u1 - u0) / 15)))) lines.push(polyline(vs.map(v => at(u, v)), 'surface'));
     }
     const GC = 24, gkey = (cx, cy) => (cx + 32768) * 65536 + (cy + 32768);
     // nodes: position (moved onto walkable ground when first used), and a grid to snap to
     const NX = [], NY = [], NZ = [], NS = []; // NS: 0 not yet checked, 1 walkable, 2 nowhere to stand
     const liftNodes = []; // the lifts' stops (repair joins one with no footway near it to the network)
+    const stripEnds = []; // the ends of the lines along each strip: its landings (repair joins one the network leads nowhere from)
     const ngrid = new Map();
     function nodeAt(x, y, z) {
       const cx = Math.floor(x / MERGE), cy = Math.floor(y / MERGE);
@@ -210,6 +255,7 @@ window.OERoute = (function () {
     }
     // edges: two nodes, a cost per metre, and their points (walkable one to the next)
     const EA = [], EB = [], EM = [], EP = [];
+    let EO = null; // per edge, the way it may be walked (oneWay): 0 either, 1 from EA to EB only, -1 from EB to EA only, 2 neither
     const drive = new Uint8Array(roadNet.L.length); // 1: a road line a car can't get along
     let ready = false, building = null, busy = 0; // busy: the milliseconds of work the build took
     const phases = {};
@@ -343,6 +389,7 @@ window.OERoute = (function () {
         for (let i = 0; i < lines.length; i++) {
           const l = lines[i], sp = splits[i].sort((a, b) => a[0] - b[0]);
           for (let k = 1; k < sp.length; k++) if (sp[k][1] !== sp[k - 1][1]) stretch(l, sp[k - 1][0], sp[k][0], sp[k - 1][1], sp[k][1], l.c);
+          if (l.strip) stripEnds.push(sp[0][1], sp[sp.length - 1][1]);
           if (i % 50 === 0) await tick(0.25 + 0.6 * i / lines.length, 'walking the footways');
         }
         for (const [a, b] of links) stretch(null, 0, 0, a, b, 'link');
@@ -392,6 +439,7 @@ window.OERoute = (function () {
         await tick(0.9, 'links');
         index();
         await repair(tick);
+        oneWay();
         index();
         await tick(0.99, 'joining the pieces');
         // each node's piece of the network, in metres: a search off the network goes on past the
@@ -492,36 +540,35 @@ window.OERoute = (function () {
         if (a) join(n, a.j, F.back(a.cell).reverse());
         await tick(0.98, 'joining the lifts');
       }
+      // a strip's landing that the network leads nowhere from but back the way it came: the lines up SHIBUYA SKY's north
+      // escalator and the stair beside it stopped at the roof, short of its paths, so every way up went by the west stair,
+      // beside the escalator that runs down. Over the landing's floor to the nearest point of the network (within 30 m)
+      // whose way round over the network is more than twice as long and 20 m longer
+      // (one search from each landing: the lines' ends across a strip's width lie within a few metres of one another)
+      const landed = [];
+      for (const n of new Set(stripEnds)) {
+        if (NS[n] !== 1 || !ADJ0 || n >= ADJ0.length - 1 || landed.some(m => Math.hypot(NX[m] - NX[n], NY[m] - NY[n]) < 4 && Math.abs(NZ[m] - NZ[n]) < 1)) continue;
+        landed.push(n);
+        const D = netFrom(n, 2 * 30 + 20), F = flood(NX[n], NY[n], NZ[n], { limit: 30, extra: 30, cells: 1500, want: e => EM[e] !== LIFT });
+        const a = F && F.att.filter(q => q.g > 2).sort((p, q) => p.g - q.g).find(q => {
+          const e = SE[q.j], round = Math.min((D.get(EA[e]) ?? Infinity) + along(e, 0, SK[q.j]), (D.get(EB[e]) ?? Infinity) + along(e, SK[q.j], lastOf(e)));
+          return round > 2 * q.g + 20;
+        });
+        if (a) join(n, a.j, F.back(a.cell).reverse());
+        await tick(0.98, 'joining the landings');
+      }
       // a loose end the network joins to what is close to it only by a long way round: a footway that stops at the edge of
       // a square OpenStreetMap maps as an area, with no line across it (Circular Quay's promenade between the wharves and
       // the station, where the way from the west of the quay to the Opera House went 2 km round by the Domain, for 530 m
       // as the crow flies): straight over the open ground to the nearest point of the network within SHORT_M whose way
       // round is more than ROUND times as long and SLACK_M longer, where a walker can go straight and not out across a
       // street's carriageway (that is what the crossings are for)
-      const SHORT_M = 100, ROUND = 2.5, SLACK_M = 30, RW = { motorway: 14, trunk: 12, primary: 12, secondary: 10, tertiary: 9, residential: 7, unclassified: 6 };
-      const acrossRoad = (ax, ay, az, bx, by, bz) => {
-        const m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
-        for (let k = 0; k <= m; k++) {
-          const t = k / m, q = roadNet.nearest(ax + (bx - ax) * t, ay + (by - ay) * t, 8, az + (bz - az) * t, 2);
-          if (q && RW[roadNet.L[q.line].c] && q.d < RW[roadNet.L[q.line].c] / 2) return true;
-        }
-        return false;
-      };
+      const SHORT_M = 100, ROUND = 2.5, SLACK_M = 30;
       let shortcuts = 0, floodMs = 0, floods = 0;
       const cutOff = Uint8Array.from({ length: NX.length }, (_, n) => (sizeOf(n) < top * 0.5 ? 1 : 0)); // (as the pieces were before)
       for (let n = 0; n < NX.length; n++) {
         if (ADJ0[n + 1] - ADJ0[n] !== 1 || EM[ADJ[ADJ0[n]]] === LIFT) continue; // (a loose end of a piece cut off too: every point of the main network is a long way round from it)
-        const D = new Map([[n, 0]]), h = new Heap(), LIM = ROUND * SHORT_M + SLACK_M;
-        h.push(0, n);
-        while (h.size) {
-          const a = h.pop(), d = h.top;
-          if (d > D.get(a)) continue;
-          if (d > LIM) break;
-          for (let k = ADJ0[a]; k < ADJ0[a + 1]; k++) {
-            const e = ADJ[k], b = EA[e] === a ? EB[e] : EA[e], nd = d + along(e, 0, lastOf(e));
-            if (nd < (D.get(b) ?? Infinity)) { D.set(b, nd); h.push(nd, b); }
-          }
-        }
+        const D = netFrom(n, ROUND * SHORT_M + SLACK_M);
         const cand = new Map();
         near(NX[n], NY[n], SHORT_M, (j, d) => {
           if (d < 3 || Math.abs(SP[3 * j + 2] - NZ[n]) >= LEVEL) return;
@@ -580,6 +627,21 @@ window.OERoute = (function () {
         EA.push(n); EB.push(m); EM.push(1); EP.push(Float32Array.from(P));
       }
     }
+    // the metres over the network from node n to each node within LIM of it (a Map)
+    function netFrom(n, LIM) {
+      const D = new Map([[n, 0]]), h = new Heap();
+      h.push(0, n);
+      while (h.size) {
+        const a = h.pop(), d = h.top;
+        if (d > D.get(a)) continue;
+        if (d > LIM) break;
+        for (let k = ADJ0[a]; k < ADJ0[a + 1]; k++) {
+          const e = ADJ[k], b = EA[e] === a ? EB[e] : EA[e], nd = d + along(e, 0, lastOf(e));
+          if (nd < (D.get(b) ?? Infinity)) { D.set(b, nd); h.push(nd, b); }
+        }
+      }
+      return D;
+    }
     // the network's points within r of (x, y): fn(point index, distance)
     function near(x, y, r, fn) {
       const c0 = Math.max(0, Math.floor((x - r - sg.x0) / SG)), c1 = Math.min(sg.nx - 1, Math.floor((x + r - sg.x0) / SG));
@@ -597,6 +659,27 @@ window.OERoute = (function () {
       return s;
     }
     const lastOf = e => EP[e].length / 3 - 1;
+    // each edge's way along the moving escalators it runs on (EO): a stretch with the steps one way only, one that
+    // goes against them in one place and with them in another not at all (a join laid over the ground across them)
+    function oneWay() {
+      EO = new Int8Array(EA.length);
+      if (!MOV.length) return;
+      for (let e = 0; e < EA.length; e++) {
+        const P = EP[e];
+        let fw = 0, bw = 0, on = 0, all = 0;
+        for (let k = 3; k < P.length; k += 3) {
+          const d = escDir(P[k - 3], P[k - 2], P[k - 1], P[k], P[k + 1], P[k + 2]), l = Math.hypot(P[k] - P[k - 3], P[k + 1] - P[k - 2]);
+          all += l;
+          if (d) on += l;
+          if (d > 0) fw = 1; else if (d < 0) bw = 1;
+        }
+        EO[e] = fw && bw ? 2 : fw ? 1 : bw ? -1 : 0;
+        // (and a metre ridden costs half one walked: the steps carry you, and the goal says to take them, not the stair beside)
+        if (EO[e] === 1 || EO[e] === -1) EM[e] *= 1 - 0.5 * on / Math.max(all, 1e-6);
+      }
+    }
+    // whether edge e may be walked from its EA end towards EB (fromA) or the other way
+    const goes = (e, fromA) => !EO || !EO[e] || EO[e] === (fromA ? 1 : -1);
 
     // ------------------------------------------------------------ over the ground, onto the network
     // A search over a 1.25 m grid from (x, y, z), walked as the walker walks (steps up no higher than
@@ -605,7 +688,9 @@ window.OERoute = (function () {
     // where no one can stand. goal: a point to look out for on the way.
     // (want(e): only the network's edges it says yes to count; cells: how many squares at most;
     // aim: head for the goal first, an A* search, when that is all it is for)
-    function flood(x, y, z, { limit = 160, extra = 30, goal = null, want = null, cells = 24000, aim = false } = {}) {
+    // (dir: which way it is walked over a moving escalator: 1 from the start, as a walker goes; -1 to it, a search back
+    // from the target; 0 either, for a join of the network whose way oneWay() reads from its points)
+    function flood(x, y, z, { limit = 160, extra = 30, goal = null, want = null, cells = 24000, aim = false, dir = 0 } = {}) {
       const start = nav.walk(x, y, z + 0.3).ok ? { x, y, z: nav.walk(x, y, z + 0.3).z } : nav.stand(x, y, z, { rMax: 40 });
       if (!start) return null;
       const keys = new Map(), CX = [], CY = [], CZ = [], G = [], PAR = [];
@@ -642,12 +727,13 @@ window.OERoute = (function () {
             if (di && dj && !nav.walk(cx + di * CELL / 2, cy + dj * CELL / 2, cz + 0.3).ok) continue; // no corner cut
             nid = add(i, j, w.z, Infinity, id); IJ.push([i, j]);
           } else if (Math.abs(CZ[nid] - cz) > 1.0 || (di && dj && !nav.walk(cx + di * CELL / 2, cy + dj * CELL / 2, cz + 0.3).ok)) continue;
+          if (dir && MOV.length) { const ed = escDir(cx, cy, cz, CX[nid], CY[nid], CZ[nid]); if (ed && ed !== dir) continue; } // (not against an escalator's steps)
           const ng = g + step;
           if (ng < G[nid]) { G[nid] = ng; PAR[nid] = id; heap.push(ng + est(nid), nid); }
         }
       }
       const back = id => { const out = []; for (let c = id; c >= 0; c = PAR[c]) out.push([CX[c], CY[c], CZ[c]]); return out; }; // from the cell back to the start
-      const all = [...att.values()].sort((a, b) => a.g - b.g), bigs = all.filter(a => a.big).slice(0, 10);
+      const all = [...att.values()].sort((a, b) => a.g - b.g), bigs = all.filter(a => a.big).slice(0, 24); // (24: a lobby with a stair and two escalators has more lines in reach than 10, and the nearest way onto the one up was left out)
       return { start, att: all.filter(a => !a.big).slice(0, 14).concat(bigs), back, reached, G };
     }
 
@@ -670,10 +756,10 @@ window.OERoute = (function () {
       if (!ready) return null;
       const bz = b.z != null ? b.z : (() => { const f = nav.floorAt(b.x, b.y, Math.max(300, nav.terrain(b.x, b.y) + 1)); return f && f.kind !== 'deck' ? f.z : nav.terrain(b.x, b.y); })();
       const tk = `${Math.round(b.x)},${Math.round(b.y)},${Math.round(bz)}`;
-      if (!tCache || tCache.k !== tk) tCache = { k: tk, F: flood(b.x, b.y, bz) };
+      if (!tCache || tCache.k !== tk) tCache = { k: tk, F: flood(b.x, b.y, bz, { dir: -1 }) };
       const T = tCache.F;
       if (!T) return null;
-      const S = flood(a.x, a.y, a.z, { goal: T.start });
+      const S = flood(a.x, a.y, a.z, { goal: T.start, dir: 1 });
       if (!S) return null;
       let bestCost = S.reached >= 0 ? S.G[S.reached] : Infinity, plan = S.reached >= 0 ? { direct: S.reached } : null;
       // the target's points, by edge
@@ -684,6 +770,7 @@ window.OERoute = (function () {
         const e = SE[s.j], t = tAt.get(e);
         if (!t) continue;
         const c = s.g + along(e, SK[s.j], SK[t.j]) * EM[e] + t.g;
+        if (SK[t.j] !== SK[s.j] && !goes(e, SK[t.j] > SK[s.j])) continue;
         if (c < bestCost) { bestCost = c; plan = { same: [s, t] }; }
       }
       // over the network (A*, straight-line distance to the target as the estimate)
@@ -692,13 +779,13 @@ window.OERoute = (function () {
       const seed = (n, c, from) => { if (c < (dist.get(n) ?? Infinity)) { dist.set(n, c); prev.set(n, from); heap.push(c + h(n), n); } };
       for (const s of S.att) {
         const e = SE[s.j];
-        seed(EA[e], s.g + along(e, SK[s.j], 0) * EM[e], { start: s, e });
-        seed(EB[e], s.g + along(e, SK[s.j], lastOf(e)) * EM[e], { start: s, e });
+        if (goes(e, false)) seed(EA[e], s.g + along(e, SK[s.j], 0) * EM[e], { start: s, e });
+        if (goes(e, true)) seed(EB[e], s.g + along(e, SK[s.j], lastOf(e)) * EM[e], { start: s, e });
       }
       const tEnds = new Map(); // node -> [{t, e, cost from the node}]
       for (const t of T.att) {
         const e = SE[t.j];
-        for (const [n, k] of [[EA[e], 0], [EB[e], lastOf(e)]]) { if (!tEnds.has(n)) tEnds.set(n, []); tEnds.get(n).push({ t, e, c: along(e, k, SK[t.j]) * EM[e] + t.g }); }
+        for (const [n, k] of [[EA[e], 0], [EB[e], lastOf(e)]]) { if (!goes(e, n === EA[e])) continue; if (!tEnds.has(n)) tEnds.set(n, []); tEnds.get(n).push({ t, e, c: along(e, k, SK[t.j]) * EM[e] + t.g }); }
       }
       let settled = 0;
       while (heap.size) {
@@ -709,6 +796,7 @@ window.OERoute = (function () {
         for (const q of tEnds.get(n) || []) if (d + q.c < bestCost) { bestCost = d + q.c; plan = { via: n, end: q }; }
         for (let k = ADJ0[n]; k < ADJ0[n + 1]; k++) {
           const e = ADJ[k], m = EA[e] === n ? EB[e] : EA[e];
+          if (!goes(e, EA[e] === n)) continue;
           seed(m, d + along(e, 0, lastOf(e)) * EM[e], { node: n, e });
         }
       }
@@ -717,7 +805,7 @@ window.OERoute = (function () {
       // (a search that found nothing is not tried again from within 40 m of where it started)
       const dk = `${tk}|${Math.round(S.start.x / 40)},${Math.round(S.start.y / 40)}`;
       if (!plan && !noWay.has(dk) && Math.hypot(T.start.x - S.start.x, T.start.y - S.start.y) < 1500) {
-        const D = flood(S.start.x, S.start.y, S.start.z, { goal: T.start, limit: 2500, extra: 0, cells: 60000, want: () => false, aim: true });
+        const D = flood(S.start.x, S.start.y, S.start.z, { goal: T.start, limit: 2500, extra: 0, cells: 60000, want: () => false, aim: true, dir: 1 });
         if (D && D.reached >= 0) { S.back = D.back; plan = { direct: D.reached }; } else { noWay.add(dk); if (noWay.size > 200) noWay.clear(); }
       }
       if (!plan) return null;
@@ -748,7 +836,7 @@ window.OERoute = (function () {
         edgePts(q.e, EA[q.e] === plan.via ? 0 : lastOf(q.e), SK[q.t.j]);
         toEnd(q.t.cell);
       }
-      const out = unhook(mend(simplify(pts)));
+      const out = pull(unhook(mend(simplify(pts))));
       let len = 0;
       for (let i = 1; i < out.length; i++) len += Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]);
       return { pts: out, len, end: [T.start.x, T.start.y, T.start.z] };
@@ -763,9 +851,36 @@ window.OERoute = (function () {
           if (P[i][3] || P[i + 1][3]) continue; // (a lift's stop)
           const ux = bx - ax, uy = by - ay, vx = cx - bx, vy = cy - by, lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
           if (lu < 1e-3 || lv < 1e-3 || Math.min(lu, lv) > 8 || (ux * vx + uy * vy) / (lu * lv) > -0.87) continue; // (turning back by more than 150 degrees)
-          if (!segOK(ax, ay, az, cx, cy, cz)) continue;
+          if (!segOK(ax, ay, az, cx, cy, cz) || against([P[i - 1], P[i + 1]])) continue;
           P.splice(i, 1); again = true;
           break;
+        }
+      }
+      return P;
+    }
+    // a detour of a few metres cut straight where a walker can go straight: off a lift at SHIBUYA SKY the way went out to
+    // the stair's foot, where the lift's stop joins the network, and back across it to the escalator beside, for one
+    // step straight from the doors to the escalator. Over no more than 12 points and 25 m, where the straight line is
+    // under 0.8 of the way and 1.5 m shorter, can be walked and rides no escalator against its steps
+    function pull(P) {
+      for (let i = 0; i + 2 < P.length; i++) {
+        let L = 0;
+        const cum = [0];
+        for (let j = i + 1; j < P.length && j <= i + 12; j++) { if (P[j][3]) break; L += Math.hypot(P[j][0] - P[j - 1][0], P[j][1] - P[j - 1][1]); cum.push(L); if (L > 25) break; }
+        let tried = false;
+        for (let j = i + cum.length - 1; j >= i + 2; j--) {
+          const d = Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]), l = cum[j - i];
+          if (!(d < 0.8 * l && l - d > 1.5)) continue;
+          if (segOK(P[i][0], P[i][1], P[i][2], P[j][0], P[j][1], P[j][2], 0.5) && roomAlong(P[i][0], P[i][1], P[i][2], P[j][0], P[j][1], P[j][2]) && !against([P[i], P[j]]) && !acrossRoad(P[i][0], P[i][1], P[i][2], P[j][0], P[j][1], P[j][2])) { P.splice(i + 1, j - i - 1); break; }
+          // (no straight line: something stands in it, a column by the lift's doors. Round it over the ground, once from
+          // each point, to the furthest point that is worth it)
+          if (tried || l - d < 2.5) continue;
+          tried = true;
+          const F = flood(P[i][0], P[i][1], P[i][2], { goal: { x: P[j][0], y: P[j][1], z: P[j][2] }, limit: 0.8 * l, extra: 0, cells: 800, want: () => false, aim: true, dir: 1 });
+          if (F && F.reached >= 0 && F.G[F.reached] + Math.hypot(F.start.x - P[i][0], F.start.y - P[i][1]) < 0.8 * l) {
+            const Q = simplify([P[i]].concat(F.back(F.reached).reverse(), [P[j]]));
+            if (!against(Q) && !Q.some((q, k) => k && acrossRoad(Q[k - 1][0], Q[k - 1][1], Q[k - 1][2], q[0], q[1], q[2]))) { P.splice(i + 1, j - i - 1, ...Q.slice(1, -1)); i += Q.length - 2; break; }
+          }
         }
       }
       return P;
@@ -785,7 +900,7 @@ window.OERoute = (function () {
         const ax = P[i][0], ay = P[i][1], ex = P[j][0] - ax, ey = P[j][1] - ay, L = Math.hypot(ex, ey) || 1;
         let worst = 0, wk = -1;
         for (let k = i + 1; k < j; k++) { const d = Math.abs((P[k][0] - ax) * ey - (P[k][1] - ay) * ex) / L; if (d > worst) { worst = d; wk = k; } }
-        if (worst < 1.5 && (j - i > 60 ? false : segOK(P[i][0], P[i][1], P[i][2], P[j][0], P[j][1], P[j][2]))) continue;
+        if (worst < 1.5 && (j - i > 60 ? false : segOK(P[i][0], P[i][1], P[i][2], P[j][0], P[j][1], P[j][2]) && !against([P[i], P[j]]))) continue;
         const m = worst >= 1.5 ? wk : (i + j) >> 1;
         keep[m] = 1;
         stack.push([i, m], [m, j]);
@@ -802,7 +917,7 @@ window.OERoute = (function () {
         let ok = true;
         for (let k = 1; k < m && ok && !b[3]; k++) { const t = k / m; if (Number.isNaN(standZ(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, 1.5))) ok = false; }
         if (!ok) {
-          const D = flood(a[0], a[1], a[2], { goal: { x: b[0], y: b[1], z: b[2] }, limit: d * 3 + 30, extra: 0, cells: 4000, want: () => false, aim: true });
+          const D = flood(a[0], a[1], a[2], { goal: { x: b[0], y: b[1], z: b[2] }, limit: d * 3 + 30, extra: 0, cells: 4000, want: () => false, aim: true, dir: 1 });
           if (D && D.reached >= 0) for (const q of D.back(D.reached).reverse().slice(1)) out.push(q);
         }
         out.push(b);
@@ -1002,7 +1117,7 @@ window.OERoute = (function () {
       return { of: n => find(n), size };
     }
     const debug = { pieces, flood, segOK, node: i => [NX[i], NY[i], NZ[i]], degree: i => ADJ0[i + 1] - ADJ0[i], near: (x, y, r) => { const o = []; near(x, y, r, (j, d) => o.push([j, SE[j], +d.toFixed(1)])); return o; }, edge: e => ({ a: EA[e], b: EB[e], pts: EP[e] }), SE: () => SE, SK: () => SK };
-    return { debug, build, get ready() { return ready; }, walk, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
+    return { debug, build, get ready() { return ready; }, walk, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
   }
 
   // ------------------------------------------------------------ the gold line

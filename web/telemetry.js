@@ -46,7 +46,9 @@ window.OETelemetry = (function () {
     format: 'posthog',     // 'posthog' or 'jsonl'
     key: 'phc_v8YPULU9RMwSuJD4K3WYDM8KaGck9Z2XeAFdKeVRD95B',   // the project's public capture key (it only writes events)
   };
-  const VERSION = 5;   // 5: shader errors ("error" kind "shader"), "gl_lost" says how far the load had come, a dead page's
+  const VERSION = 6;   // 6: the story's progress ("story" events: begin, frame, print, seen_through, spent, end) and its
+                       //    frame and beat as the spot; the time zone (tz) with the language
+                       // 5: shader errors ("error" kind "shader"), "gl_lost" says how far the load had come, a dead page's
                        //    "crash" says how much it had downloaded (prev_mb), and no events from a local checkout unless asked
                        // 4: the device (gpu, cores, mem, os, browser), the frame's tail and cost (f95, f99, cpu_ms, gpu_ms,
                        //    draws, tris_k, passes, px_k, bound), "jank" and "quality" events, the load's weight (kb, req),
@@ -124,7 +126,7 @@ window.OETelemetry = (function () {
   const bm = /(Edg|OPR|Firefox|Chrome|Version)\/(\d+)/.exec(ua);
   const browser = bm ? { Edg: 'edge', OPR: 'opera', Firefox: 'firefox', Chrome: 'chrome', Version: /Safari\//.test(ua) ? 'safari' : 'other' }[bm[1]] : 'other';
   const conn = navigator.connection || {};
-  const base = () => Object.assign({ v: VERSION, sid, device, webgpu: !!navigator.gpu, lang: navigator.language || '', ref,
+  const base = () => Object.assign({ v: VERSION, sid, device, webgpu: !!navigator.gpu, lang: navigator.language || '', tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } })(), ref,
     app: (window.OE_VERSION && (window.OE_VERSION.release || window.OE_VERSION.version)) || '', w: innerWidth, h: innerHeight, dpr: Math.round(devicePixelRatio * 100) / 100,
     os, browser, browser_v: bm ? Number(bm[2]) : undefined, net: conn.effectiveType || undefined, save_data: conn.saveData || undefined }, tierOf());
 
@@ -190,7 +192,9 @@ window.OETelemetry = (function () {
   function where() {
     if (reef) return { kind: 'reef', city: q.get('city') || q.get('site') || 'whitsundays' };
     const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('@')[0];
-    if (!h || h === 'globe') return { kind: 'globe', city: '' };
+    // (Blue Hour is one story on one map: its page with no address is the story's game, not the globe it once had, and
+    // was counted as the globe, so nothing of the game's own was read from it: no spot, no mode, no frame rate by place)
+    if (!h || h === 'globe') return document.getElementById('game-stage') ? { kind: 'game', city: document.documentElement.dataset.map || 'shibuya' } : { kind: 'globe', city: '' };
     if (/^play-/.test(h)) return { kind: 'game', city: h.slice(5) };
     return { kind: 'city', city: h };
   }
@@ -525,6 +529,12 @@ window.OETelemetry = (function () {
         if (!g || !g.player) return null;
         const ttl = $id('g-title');
         if (ttl && !ttl.hidden) return { spot: 'title screen', mode: 'menu' };
+        // the story (game.js story.js): where in the case, as the spot; and what to count as its steps
+        const S = g.story && g.story.state;
+        if (S && S.phase && S.phase !== 'idle' && S.phase !== 'dressed') {
+          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: S.phase === 'stop' || !!(document.getElementById('gd') && !document.getElementById('gd').hidden),
+            story: { fi: S.fi, phase: S.phase, prints: (S.prints || []).length, spent: (S.prints || []).filter(q => q.plain).length, failed: S.failed || 0, pairs: (S.pairs || []).length, ep: S.ep && S.ep.id } };
+        }
         const p = g.player, a = g.places && g.places.area && g.places.area();
         const spot = (a && a.name) || nearest(names(g), p.x, p.y, 300) || 'streets';
         const out = { spot: clip(spot), mode: g.photo && g.photo.on ? 'photo' : p.mode, watching: !!((g.cine && g.cine.active) || (g.onboard && g.onboard.active && g.onboard.active())) };
@@ -583,6 +593,18 @@ window.OETelemetry = (function () {
       if (cur.stamps != null && h.stamps > cur.stamps) track('quest', { action: 'done', stamps: h.stamps });
       else if (was && was.quest && h.quest && was.quest !== h.quest && h.stamps === cur.stamps) track('quest', { action: 'step', from: was.quest });
       cur.stamps = h.stamps;
+    }
+    // the story's steps: the case begun, each frame reached, each print taken (and whether it was spent), seen through,
+    // and the last card; with how far it had come, so a funnel of the episode can be read off them
+    if (h.story) {
+      const a = h.story, b = was && was.story, at = { ep: a.ep, frame: a.fi + 1, prints: a.prints };
+      if (!b) track('story', Object.assign({ action: a.prints || a.fi ? 'resume' : 'begin' }, at));
+      else {
+        if (a.fi !== b.fi) track('story', Object.assign({ action: 'frame' }, at));
+        if (a.prints > b.prints) track('story', Object.assign({ action: a.spent > b.spent ? 'spent' : 'print' }, at));
+        if (a.failed > b.failed) { track('story', Object.assign({ action: 'seen_through' }, at)); flush(); }
+        if (a.phase === 'done' && b.phase !== 'done') { track('story', Object.assign({ action: 'end', spent: a.spent, failed: a.failed, pairs: a.pairs }, at)); flush(); } // (the last card: sent at once)
+      }
     }
     if (performance.memory) slice.heap = Math.max(slice.heap, Math.round(performance.memory.usedJSHeapSize / 1048576));
   }

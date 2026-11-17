@@ -243,47 +243,73 @@ window.OEHud = (function () {
   }
 
   // ------------------------------------------------------------ dialogue: typewriter with voice beeps
+  // A story's speakers (npc.log) are written in its log as each line begins, and the answer given as it is chosen
+  // (api.log: log.js). A line typed a letter at a time is shown whole on the first press and passed on the second.
+  // One step back (back()) shows the line said before, whole, with its speaker; on again comes back to the line that
+  // was being said, and the question with it.
   function dialogue(audio) {
     const box = $('#gd'), nameEl = $('#gd-name'), roleEl = $('#gd-role'), textEl = $('#gd-text'), choicesEl = $('#gd-choices'), hint = $('#gd-hint');
-    let cur = null;
+    let cur = null, view = 0;
+    const said = []; // (the lines said, latest last: for the step back, across one speaker's talk and the next)
+    const touchy = () => matchMedia('(pointer: coarse)').matches;
+    const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
     function show(npc, lines, choices, done) {
       cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 };
-      box.hidden = false;
-      box.style.setProperty('--npc', npc.color || 'var(--accent)');
-      box.dataset.era = npc.alive === false ? 'past' : ''; // (someone of another year: a story sets their words in another face)
-      nameEl.textContent = npc.name; roleEl.textContent = npc.role || '';
+      view = 0; box.hidden = false; box.classList.remove('back');
+      head(npc);
       next(true);
     }
+    const hintFor = () => (cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : 'E or click to continue') : '');
     function next(first) {
       if (!cur) return;
+      if (!first && view > 0) { view--; return view ? recall() : present(); } // (stepping back: on is forward through what was said, to the line being said)
       if (!first && cur.typed < cur.full.length) { cur.typed = cur.full.length; textEl.textContent = cur.full; showChoices(); return; } // finish the line at once
       if (!first) cur.i++;
       if (cur.i >= cur.lines.length) { if (cur.choices.length) return; close(); return; }
       cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0;
       textEl.textContent = '';
       choicesEl.innerHTML = '';
-      hint.textContent = cur.i < cur.lines.length - 1 || !cur.choices.length ? (matchMedia('(pointer: coarse)').matches ? 'Tap to continue' : 'E or click to continue') : '';
+      hint.textContent = hintFor();
+      const ask = cur.i === cur.lines.length - 1 && cur.choices.length > 0;
+      said.push({ npc: cur.npc, text: cur.full }); if (said.length > 60) said.shift();
+      if (cur.npc.log && api.log) api.log.line(cur.npc, cur.full, ask);
+    }
+    // the line being said, as it stands (whole, once it has been stepped away from)
+    function present() {
+      box.classList.remove('back'); head(cur.npc);
+      cur.typed = cur.full.length; textEl.textContent = cur.full; hint.textContent = hintFor(); showChoices();
+    }
+    function recall() {
+      const e = said[said.length - 1 - view];
+      box.classList.add('back'); head(e.npc);
+      textEl.textContent = e.text; choicesEl.innerHTML = '';
+      hint.textContent = touchy() ? 'Said before · tap to come back' : 'Said before · E to come back';
+    }
+    function back() {
+      if (!cur || view + 1 >= said.length) return false;
+      view++; recall(); return true;
     }
     function showChoices() {
-      if (!cur || cur.i < cur.lines.length - 1 || !cur.choices.length) return;
+      if (!cur || view || cur.i < cur.lines.length - 1 || !cur.choices.length) return;
       hint.textContent = '';
       choicesEl.innerHTML = cur.choices.map((c, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd>${c.text}</button>`).join('');
     }
     function choose(k) {
-      if (!cur || !cur.choices[k]) return;
+      if (!cur || view || !cur.choices[k] || cur.typed < cur.full.length) return;
       const c = cur.choices[k], done = cur.done;
+      if (cur.npc.log && api.log) api.log.answer(cur.npc, c);
       close(c);
       if (done) done(c);
     }
     function close(choice) {
       const d = cur && !choice ? cur.done : null;
-      cur = null;
-      box.hidden = true;
+      cur = null; view = 0;
+      box.hidden = true; box.classList.remove('back');
       choicesEl.innerHTML = '';
       if (d) d(null);
     }
     function tick(dt) {
-      if (!cur || cur.typed >= cur.full.length) return;
+      if (!cur || view || cur.typed >= cur.full.length) return;
       const before = Math.floor(cur.typed);
       cur.typed = Math.min(cur.full.length, cur.typed + dt * 55);
       const n = Math.floor(cur.typed);
@@ -294,8 +320,9 @@ window.OEHud = (function () {
       }
     }
     choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
-    box.addEventListener('click', () => next(false));
-    return { show, next, choose, tick, get open() { return !!cur; }, get hasChoices() { return !!(cur && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    // (the dialogue's own buttons, a story's: a step back, and the log)
+    box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false); });
+    return { show, next, back, choose, tick, get open() { return !!cur; }, get stepped() { return view; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts
@@ -325,6 +352,6 @@ window.OEHud = (function () {
     setTimeout(() => el.remove(), 3200);
   }
 
-  const api = { baseMap, minimap, rideMap, rideLine, dialogue, toast, drawIcon, stamp, keys: null };
+  const api = { baseMap, minimap, rideMap, rideLine, dialogue, toast, drawIcon, stamp, keys: null, log: null }; // (log: a story's log, log.js)
   return api;
 })();

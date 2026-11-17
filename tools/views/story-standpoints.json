@@ -1,0 +1,247 @@
+{
+ "_": "Issue 20: the story's seven standpoints, the roof (frame 4) and the flight down from it, at the story's hours: what the map built round the player is checked against (tools/scramble_shot.js). floor: the deck the eye stands on (0: heights over sea level).",
+ "date": [
+  11,
+  14
+ ],
+ "times": {
+  "dusk": "sunset+20",
+  "night": "21:00"
+ },
+ "views": [
+  {
+   "name": "f1-stand",
+   "eye": [
+    362.6,
+    -996.4,
+    1.6
+   ],
+   "look": [
+    361.9,
+    -989.9,
+    1.2
+   ],
+   "fov": 60
+  },
+  {
+   "name": "f2-stand",
+   "eye": [
+    360.82,
+    -1021.76,
+    1.6
+   ],
+   "look": [
+    384.0,
+    -1018.5,
+    3.0
+   ],
+   "fov": 60
+  },
+  {
+   "name": "f3-stand",
+   "eye": [
+    395.0,
+    -1043.0,
+    1.6
+   ],
+   "look": [
+    378.4,
+    -1043.4,
+    1.5
+   ],
+   "fov": 60
+  },
+  {
+   "name": "f4-roof-relic",
+   "eye": [
+    543.33,
+    -1108.84,
+    1.6
+   ],
+   "look": [
+    638.0,
+    -1050.0,
+    -189.8
+   ],
+   "floor": 241.8,
+   "fov": 55
+  },
+  {
+   "name": "f4-roof-out",
+   "eye": [
+    543.33,
+    -1108.84,
+    245.5
+   ],
+   "look": [
+    2000.0,
+    -200.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "f4-roof-east",
+   "eye": [
+    543.33,
+    -1108.84,
+    245.5
+   ],
+   "look": [
+    2600.0,
+    -1500.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "air-north",
+   "eye": [
+    470.0,
+    -1088.0,
+    251.0
+   ],
+   "look": [
+    400.0,
+    1500.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "air-west",
+   "eye": [
+    470.0,
+    -1088.0,
+    251.0
+   ],
+   "look": [
+    -2000.0,
+    -900.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "air-south",
+   "eye": [
+    470.0,
+    -1088.0,
+    251.0
+   ],
+   "look": [
+    300.0,
+    -3500.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "f5-stand",
+   "eye": [
+    521.87,
+    -1074.06,
+    1.6
+   ],
+   "look": [
+    519.42,
+    -1067.66,
+    1.2
+   ],
+   "fov": 60
+  },
+  {
+   "name": "f6-stand",
+   "eye": [
+    377.0,
+    -1013.2,
+    1.6
+   ],
+   "look": [
+    362.6,
+    -992.4,
+    1.5
+   ],
+   "fov": 60
+  },
+  {
+   "name": "f7-stand",
+   "eye": [
+    374.0,
+    -1006.0,
+    1.6
+   ],
+   "look": [
+    364.5,
+    -994.5,
+    1.5
+   ],
+   "fov": 60
+  },
+  {
+   "name": "flight-1",
+   "eye": [
+    470.0,
+    -1088.0,
+    251.0
+   ],
+   "look": [
+    377.0,
+    -1013.0,
+    10.0
+   ],
+   "floor": 0,
+   "fov": 55
+  },
+  {
+   "name": "flight-2",
+   "eye": [
+    435.0,
+    -1094.0,
+    173.0
+   ],
+   "look": [
+    -800.0,
+    -600.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 55
+  },
+  {
+   "name": "flight-3",
+   "eye": [
+    400.0,
+    -1100.0,
+    95.0
+   ],
+   "look": [
+    503.2,
+    -1040.6,
+    16.5
+   ],
+   "floor": 0,
+   "fov": 55
+  },
+  {
+   "name": "flight-end",
+   "eye": [
+    503.2,
+    -1040.6,
+    18.0
+   ],
+   "look": [
+    377.0,
+    -1013.0,
+    10.0
+   ],
+   "floor": 0,
+   "fov": 60
+  }
+ ]
+}
