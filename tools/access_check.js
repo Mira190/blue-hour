@@ -33,10 +33,10 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
   await press(0);
   await p.waitForTimeout(800);
   check(await p.evaluate(() => document.getElementById('g-title').hidden), 'A on the title begins');
+  const play = () => p.evaluate(() => { const g = window.__game, s = g.story && g.story.state, o = g.overture && g.overture(), d = document.getElementById('gd'); return { phase: s ? s.phase : 'free', beat: s ? s.beat : '', dlg: !!d && !d.hidden, choices: !!g.dlg.hasChoices, film: !!(o && o.active) || !!(g.cine && g.cine.active) }; });
   if (process.env.ONLY !== 'trees') { // (ONLY=trees: the camera by the trees alone)
   // on into play by the controller alone: A through the preface and every line, until the first walk to someone
   // (the opening film and its cameras, which a key would skip, played out as they are)
-  const play = () => p.evaluate(() => { const g = window.__game, s = g.story && g.story.state, o = g.overture && g.overture(), d = document.getElementById('gd'); return { phase: s ? s.phase : 'free', beat: s ? s.beat : '', dlg: !!d && !d.hidden, choices: !!g.dlg.hasChoices, film: !!(o && o.active) || !!(g.cine && g.cine.active) }; });
   const t0 = Date.now();
   for (;;) {
     const s = await play();
@@ -121,11 +121,15 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
   let worst = 9, k = 0;
   const has = await p.evaluate(() => !!(window.__game.Wd && window.__game.Wd.trees && window.__game.Wd.trees.crownsNear));
   check(has, 'the trees give their crowns');
+  // (the opening's film, if it still plays, skipped as a player does: the chase camera is the one judged)
+  for (let k = 0; k < 240; k++) { const s = await play(); if (s.phase === 'free' || (s.phase !== 'dressed' && !s.film)) break; await press(s.choices ? 13 : 0); if (s.choices) await press(0); await p.waitForTimeout(700); }
   if (has) for (const [px, py] of P) for (const a of [0, 1.6, 3.1, 4.7]) {
     await p.evaluate(([px, py, a]) => { const g = window.__game, pl = g.player; pl.x = px + Math.sin(a) * 2.4; pl.y = py + Math.cos(a) * 2.4; pl.h = a + Math.PI; g.cam.yaw = pl.h; g.cam.pitch = 0.36; g.cam.dist = 7.5; g.cam.snap = true; }, [px, py, a]);
     await frames(60);
     const s = await inCrown();
     console.log('  hachiko', k, JSON.stringify(s));
+    const off = Math.hypot(s.cam[0] - (px + Math.sin(a) * 2.4), s.cam[1] - (py + Math.cos(a) * 2.4));
+    if (off > 12) check(false, `the chase camera behind the walker at ${k} (it is ${off.toFixed(0)} m off)`);
     worst = Math.min(worst, s.worst);
     if (k === 0 || k === 6) await snap(`4-hachiko-${k}`);
     k++;
