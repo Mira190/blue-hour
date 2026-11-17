@@ -67,14 +67,14 @@
    "colour": "#557f37",
    "bark": "#a08f78",
    "triangles": [
-    1852,
-    435,
+    1834,
+    431,
     103
    ],
    "cell": 1,
    "trunk_r": 0.36,
-   "clear_m": 2.84,
-   "crown_r": 8.3,
+   "clear_m": 3.7,
+   "crown_r": 8.61,
    "note": "London plane: the street tree of both cities",
    "autumn_colour": "#7f7444",
    "deciduous": true
@@ -90,14 +90,14 @@
    "colour": "#4f7a32",
    "bark": "#5a4c40",
    "triangles": [
-    1623,
-    363,
+    1615,
+    361,
     103
    ],
    "cell": 2,
    "trunk_r": 0.34,
-   "clear_m": 2.44,
-   "crown_r": 9.13,
+   "clear_m": 3.9,
+   "crown_r": 9.21,
    "note": "English elm: Melbourne's avenues",
    "autumn_colour": "#8c8240",
    "deciduous": true
@@ -276,14 +276,14 @@
    "colour": "#557d35",
    "bark": "#857d70",
    "triangles": [
-    2165,
-    471,
+    2157,
+    467,
     103
    ],
    "cell": 11,
    "trunk_r": 0.45,
-   "clear_m": 2.63,
-   "crown_r": 10.32,
+   "clear_m": 3.98,
+   "crown_r": 10.27,
    "note": "Japanese zelkova (keyaki, Zelkova serrata): a broom of upswept limbs and fine twigs; the avenue tree of Omotesando and the precincts, rust-orange in November",
    "autumn_colour": "#8e6a3e",
    "deciduous": true
@@ -298,14 +298,14 @@
    "colour": "#62903a",
    "bark": "#6e655a",
    "triangles": [
-    2105,
-    545,
+    2043,
+    533,
     103
    ],
    "cell": 12,
    "trunk_r": 0.34,
-   "clear_m": 0.94,
-   "crown_r": 5.89,
+   "clear_m": 3.27,
+   "crown_r": 6.0,
    "note": "Ginkgo (icho, Ginkgo biloba): a tall narrow crown on a central stem; Tokyo's and Osaka's street tree (Midosuji, Jingu Gaien), gold in late November",
    "autumn_colour": "#c8a640",
    "deciduous": true
