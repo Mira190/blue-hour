@@ -158,7 +158,12 @@ run_game() {   # (every step takes about half an hour on a software renderer)
 run_gl() {   # the governor's extras shed from the first frame, the scene multisampled, the ladder walked, every WebGL call asked for its error
   if START=0.8/0.5 Q=msaa=on WALK=1 timeout 1800 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; then
     echo "ok   gl     opened with the extras shed and multisampling on, the ladder walked: WebGL refused no call"
-  else echo "FAIL gl     $(grep -o '"call":"[^"]*"' "$OUT/gl.log" | head -2 | cut -c9-160 | paste -sd ';' -)   (see $OUT/gl.log)"; fi
+  else
+    # (a refused call was found among the last few hundred: played again asking after every call, which names it and
+    # where it was made, and takes most of an hour on a software renderer)
+    if grep -q 'EVERY=1 names it' "$OUT/gl.log"; then cp "$OUT/gl.log" "$OUT/gl-first.log"; EVERY=1 START=0.8/0.5 Q=msaa=on WALK=1 timeout 5400 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; fi
+    echo "FAIL gl     $(grep -o '"call":"[^"]*"' "$OUT/gl.log" "$OUT/gl-first.log" 2>/dev/null | head -2 | cut -d: -f2- | cut -c9-160 | paste -sd ';' -)   (see $OUT/gl.log)"
+  fi
   # the same map as a GPU with sixteen texture units in a fragment shader (Apple's, most phones'; the software
   # renderer has 32): every program that does not link there is compiled again with less until it does
   if Q=units=16 timeout 1800 $X node tools/sampler_probe.js "$MAP" >"$OUT/units.log" 2>&1; then
