@@ -660,7 +660,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; huntFresh(); // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
+      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; st.ready = false; huntFresh(); // (ready: not the last frame's, which was taken: the first H of the last frame went to nothing) // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
