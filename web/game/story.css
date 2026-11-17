@@ -53,6 +53,8 @@
 #g-story-mark[data-kind="ghost"] i { border-color: #9fc4ff; }
 #g-story-mark[data-kind="ghost"] i::after { color: #9fc4ff; }
 #g-story-mark[data-kind="ghost"] i::before { border-color: #9fc4ff; }
+/* (and drawn in a broken line, so that an afterimage's mark is told from the living's without its blue) */
+#g-story-mark[data-kind="ghost"] i, #g-story-mark[data-kind="ghost"] i::before { border-style: dashed; }
 #g-story-mark[data-kind="ghost"] b { color: #cfe0ff; }
 /* (its words beside it, not under it: under it is the face of whoever it is over) */
 #g-story-mark[data-kind="meet"]:not(.off) b, #g-story-mark[data-kind="ghost"]:not(.off) b { left: 24px; top: -5px; transform: none; }
@@ -77,6 +79,8 @@
 #g-story-keys { position: absolute; left: 50%; bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px)); transform: translateX(-50%); z-index: 6; pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
   display: flex; gap: 26px; white-space: nowrap; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-keys.on { opacity: 1; }
+/* (the keys' hint is of the street: under the pause menu it is not drawn through the panel) */
+.game-stage:has(.g-overlay:not([hidden])) #g-story-keys { visibility: hidden; }
 #g-story-keys kbd { display: inline-block; min-width: 22px; padding: 5px 6px; margin-right: 5px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: inherit; letter-spacing: 0.06em; text-align: center; }
 #g-story-keys kbd + kbd { margin-left: -1px; }
 
@@ -523,3 +527,6 @@
 .game-stage.pad kbd.pad { border-radius: 999px; min-width: 1.1em; text-align: center; letter-spacing: 0.04em; text-transform: none; }
 .game-stage.pad kbd.pad:is([data-b="LT"], [data-b="RT"], [data-b="LB"], [data-b="RB"], [data-b="LENS"]) { border-radius: 3px 3px 9px 9px; }
 .game-stage.story .gd-hint kbd { padding: 2px 5px; margin-right: 4px; border: 1px solid currentColor; border-radius: 2px; font: inherit; letter-spacing: 0.06em; }
+
+/* an answer the hand is on (the arrows, a pad's d-pad): an outline as well as the amber, so it is seen without its colour */
+.game-stage.story .gd-choices button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
