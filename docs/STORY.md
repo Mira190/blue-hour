@@ -203,7 +203,7 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 |---|---|---|---|---|---|
 | 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera. A name under the base plate: 水野 |
 | 2 | 17:19 | **The tram stop at the station kerb**, from the old man's stone cherry blossom in the square by Hachiko: the boy's box near, the tram behind it | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
-| 3 | 17:24 | **Hachiko**, with the station behind | (an old man by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
+| 3 | 17:24 | **Hachiko**, with the station behind | (an old man on a stone blossom by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
 | 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man, in three lines and three | She left him alive. What came up the stair after her was nailed boots: his works wore them, and so did the lecturer. It was not her; the player names whose |
 | 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair. Each lover believed the other guilty and kept silent |
 | 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again. Across the road, in the held crowd, a clear umbrella turns | Mr Tanaka by Hachiko: he was the boy (he asks to be shown his pitch); the sentence he never delivered; Akira lived fifteen minutes away for 48 years; who hired you | Akira, new this year | What he could not carry across is under the camera's base plate, and cannot be looked at while there is film in it |
@@ -294,15 +294,21 @@ stops. The title falls once more, in that Stop, and nowhere else in play (`order
 It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
 away for the card, and was then come down to again from the air. Out, for that reason.
 
-**Three places are found, not shown, and a hint is the player's to ask for.** A light on the ground for every
-standpoint made the player the camera's operator: seven frames and never a choice of where to stand. In three frames the
-place is the deduction, and nothing stands on it until the player asks:
+**Every place but the first is found, not shown, and a hint is the player's to ask for.** A light on the ground for
+every standpoint made the player the camera's operator: seven frames and never a choice of where to stand. The first frame
+has its light, because it teaches what a light is (where a picture is taken from) before it is taken away; the third
+has no standpoint, only a thing to find in the finder (the red lamp by Hachiko); in every other frame the place is the
+deduction, and nothing stands on it until the player asks:
 
 | Frame | Where the picture was taken from | What the player has to find it by |
 |---|---|---|
 | 2 | a stone cherry blossom set in the paving of the square by Hachiko (one of four round its planters; `cities/shibuya/city.py` `HK_BLOSSOMS`) | Shun, just before: every year on this night an old man stands on one of them and looks at the crossing, because *somebody stood there once*. Stand where the man stood. The old man is the boy (frame 6), standing where the man who gave him the camera stood; the print is of his pitch, the box near, the tram for Sangenjaya behind it |
 | 4 | the glass of the roof beside Kanbara, where he looks down at where the dome stood | the dead man himself: he stands at the place, and looks where the picture looks |
+| 5 | the street a few steps from Tatsuo on Hikarie's side, where it opens straight ahead the way the water ran | the foreman himself, looking at where his river ran |
 | 6 | his kerb, across the crossing from her corner (`find` on the frame: the world stops there) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
+| 7 | no standpoint: any place that has both kerbs in one frame (`task.both`; the hints lead to the west corner, `hint_at`) | the goal: from the middle you can face only one of them |
+
+Tonight the old man stands on his blossom all evening, looking at the crossing, so what Shun says of him is seen.
 
 A place to be found is a thing in the street a player can walk up to and know (a stone flower in the paving, a man at
 the glass, a kerb in a print), and it is in the story for a reason of the story's: the old man's blossom is where the
@@ -519,7 +525,7 @@ things are the evidence and the rest is testimony. Not yet: the old woman's clea
 | What the player must be able to work out | Shown first | Needed |
 |---|---|---|
 | Sumiko is alive: the old woman with the clear umbrella | The opening shot of every episode from 1; she is the only bystander who is at the kerb every evening, and in the Stop she is the only stopped person looking at the girl | 6 |
-| *You came late* was said by a living voice | Episode 1: the line is heard a beat before the girl turns | 6 |
+| *You came late* was said by a living voice | Episode 1: the line is heard in the old woman's voice, under no name (*A voice · tonight*), a beat before the girl turns (`{ by: 'old' }` on the line) | 7 |
 | An afterimage need not be dead | The empty stool (2): nobody was left there, because the boy walked on, and is met alive (6) | 6 |
 | An afterimage cannot see past its kerb, or a print | Her fifth line (1); Kanbara asks whether the dome is there (4); Tatsuo is told, not shown (5) | 6, 7 |
 | Sumiko ran a lift, and had one glove at 17:14 | Her third line (1): *straight from the lift at the store, one glove on* | 3 |
@@ -532,7 +538,39 @@ things are the evidence and the rest is testimony. Not yet: the old woman's clea
 | Akira lived, and where | The tram for Sangenjaya at its stop (2); Tanaka (6) | 6, 7 |
 | Who hired you, and the word on the plan | The office, when time first runs again (1): 待つ pencilled on that corner | 6, the last card |
 | He came, and did not cross | The detective walked him to the kerb, a constable on his other side (3) | 6 |
-| The crossing was not a scramble in 1964 | The 1964 prints: no diagonal stripes on the road (1, 2, 6) | 7 |
+| The crossing was not a scramble in 1964 | Said as the world runs on after the last frame (7). The prints are tonight's street with the things of 1964 in it, so their road has tonight's stripes, and cannot show it | 7 |
+
+### The words checked against the street (November 2026)
+
+Every line of the episode was read against where things stand and against the truth above, once every place but the
+first was to be found from the words. What was wrong, and is mended:
+
+- Frame 2 sent the player under the Center Gai arch for a standpoint 44 m off (the words and the place were written by
+  two hands); its old man stood by the statue, on none of the blossoms Shun says he stands on. Both now agree.
+- Frame 1's *You came late* was the girl's line in her own voice, so frame 7's *That was me, the first time, too* had
+  nothing under it. It is the old woman's, as this bible always had it.
+- Frame 4's lift girl at the store over the station could not have seen the Hayase girl go up the planetarium's roof; she
+  saw her go over to the planetarium and come back with one glove.
+- Frame 5 said to look north-east; the river is north of its standpoint.
+- The clear umbrella is not built (see *Built, and not yet*), and two lines described it in the held crowd and on the
+  crossing; they say an old woman until it is.
+- The pairs counted steps between places that have moved: forty steps from her corner to the tram stop's kerb,
+  twenty-five from the police box to the stool.
+- The fair-play row on the scramble's stripes could no longer hold (above).
+
+What is the owner's to decide, with the default taken until then:
+
+- **The year.** The story is set sixty years on: Sumiko is 82, Mr Tanaka 74, Akira died at 86 and his afterimage is of
+  2023, which is 2024. The street is the newest real one, and says 2026 (*AW 2026* and *SHIBUYA 2026* on the screens, an
+  arena tour of 2026, the Nishiguchi Sky Vision of May 2026, 令和八年 on the ema). The street cannot go back, so the
+  default is that the story comes forward: *sixty years* stays as people say it, and the exact numbers move (Sumiko 84,
+  Mr Tanaka 76, Akira dead at 87, his afterimage of 2025, *fifty years* on opposite kerbs). Until then a sharp player can
+  see two years.
+- **Kanbara's afterimage is on SHIBUYA SKY's roof**, 200 m from where he was left (the planetarium's roof, on Hikarie's
+  site), and rule 4 says an afterimage stays within a few steps of where it was left. His lines suppose he is on his own
+  roof (*the lecturer photographs the sky from this roof*). Default: keep him there, and let rule 4 say what the story
+  does: one who fell is left at the height he fell from, and is met at the nearest place a living person can stand that
+  high and see the spot; until the owner says, the rule and the frame disagree.
 
 ## 8. What the game has to do to tell it
 
