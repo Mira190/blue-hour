@@ -110,6 +110,40 @@
 .game-stage.story-on #game-gl { transition: filter 1.4s ease; }
 .game-stage.story-stop #game-gl { filter: brightness(0.92) contrast(1.12) saturate(0.5); transition: filter 0.45s ease; }
 
+/* ---- the file: kraft paper under the prints, typed a line at a time (story.js filed) */
+#g-story-album .file { width: min(100%, 760px); padding: 26px 30px 30px; text-align: left; color: #2b2118; background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(60, 36, 12, 0.18); transform: rotate(-0.4deg); }
+#g-story-album .file h3 { margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(43, 33, 24, 0.45); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; color: #5a2a22; }
+#g-story-album .file ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+#g-story-album .file li { display: grid; grid-template-columns: 5ch 1fr; gap: 16px; justify-items: start; text-align: left; font: 400 13px/1.6 var(--f-mono); letter-spacing: 0.01em; }
+#g-story-album .file li b { font-weight: 400; color: #5a2a22; }
+#g-story-album .file li.said span { font-style: italic; }
+#g-story-album .file li.pair span { color: #3b2412; }
+#g-story-album .file li.spent span { color: rgba(43, 33, 24, 0.6); }
+#g-story-album .file li.struck span { text-decoration: line-through; text-decoration-thickness: 1.5px; color: rgba(43, 33, 24, 0.55); }
+@media (max-width: 640px) { #g-story-album .file { padding: 20px 18px 22px; } #g-story-album .file li { grid-template-columns: 1fr; gap: 2px; } }
+/* ---- seen through: the card, and the frame taken up again (story.js failed) */
+#g-story-fail { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.86); color: var(--paper); }
+#g-story-fail.on { display: grid; animation: g-story-album-in 0.6s ease; }
+#g-story-fail .card { display: grid; justify-items: center; gap: 18px; max-width: min(92vw, 520px); text-align: center; }
+#g-story-fail small { font: 400 10px/1 var(--f-mono); letter-spacing: 0.4em; margin-right: -0.4em; text-transform: uppercase; color: var(--amber); }
+#g-story-fail h2 { margin: 0; font: 200 clamp(26px, 4.4vw, 46px)/1.1 var(--f-display); letter-spacing: 0.12em; margin-right: -0.12em; text-transform: uppercase; }
+#g-story-fail p { margin: 0; max-width: 40ch; font: 300 16px/1.6 var(--f-body); color: rgba(244, 239, 230, 0.84); }
+#g-story-fail button { margin-top: 10px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; }
+#g-story-fail button:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; outline: none; }
+/* ---- the roll as the case board: two prints set side by side (story.js versus) */
+#g-story-album .how { margin: 0; max-width: 52ch; text-align: center; font: 400 10px/1.7 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+#g-story-album .versus { display: grid; gap: 14px; justify-items: center; max-width: 640px; padding: 16px 18px 18px; border: 1px solid rgba(244, 239, 230, 0.22); background: rgba(4, 8, 18, 0.5); }
+#g-story-album .versus.hit { border-color: var(--amber); }
+#g-story-album .versus figure { margin: 0; display: flex; gap: 12px; }
+#g-story-album .versus span { position: relative; display: block; padding: 5px 5px 0; background: var(--paper); }
+#g-story-album .versus img, #g-story-album .versus i { display: block; width: min(38vw, 240px); aspect-ratio: 3 / 2; object-fit: cover; background: #1a1d26; }
+#g-story-album .versus b { display: block; padding: 5px 0 6px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.2em; color: #3a3f4c; text-align: left; }
+#g-story-album .versus p { margin: 0; max-width: 54ch; text-align: center; font: 300 16px/1.55 var(--f-body); color: rgba(244, 239, 230, 0.9); }
+#g-story-album .versus.hit p { color: var(--paper); }
+#g-story-album button.vs { padding: 8px 12px; border: 1px solid rgba(244, 239, 230, 0.35); border-radius: 2px; background: transparent; color: rgba(244, 239, 230, 0.8); font: 400 9px/1 var(--f-mono); letter-spacing: 0.22em; text-transform: uppercase; cursor: pointer; }
+#g-story-album button.vs.on { border-color: var(--amber); background: var(--amber); color: #0b1020; }
+#g-story-end p.lost, #g-story-end p.tally { font: 400 10px/1.7 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); max-width: 56ch; }
+#g-story-end p.lost { color: var(--amber); }
 /* ---- before the opening shot: black, and the hour typed on it a letter at a time (story.js preface) */
 #g-story-pre { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 8vh max(24px, 7vw); background: #03050a; color: var(--paper); opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
 #g-story-pre.on { opacity: 1; pointer-events: auto; cursor: pointer; }
