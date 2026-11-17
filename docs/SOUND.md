@@ -211,6 +211,7 @@ more) are recorded, and what falls in one is listed apart, not counted: it is th
 | A click | the waveform's second difference against the 20 ms round it | 30 times its neighbourhood and over 0.02, and not within half a second of a mechanism's own cue (the shutter's curtains, the strap, the ratchet) |
 | A cue that strikes | the level of 6 ms against the 60 ms before it | 20 dB up to over −42 dBFS (listed), 30 dB (grates) |
 | Clipping | the float samples before the 16-bit clamp | any at full scale, any peak over −1 dBFS |
+| A dropout | digital silence in the recording once the sound has run three seconds | 20 ms or more |
 | A loop seam | the loading cue's join against the same window at twenty places in its turn | a step half as big again, or a level step over 6 dB |
 | A voice under the score | each tick of type (a `voice` call, a key of the preface) as what it adds to the story bus round 2 kHz, against the street and the score in that band while it sounds | a line whose median tick stands less than 6 dB over them |
 | A level that jumps | momentary loudness (BS.1770 K-weighting, 400 ms, every 100 ms) | up 10 LU in half a second (not out of silence), or down 14 |
@@ -248,6 +249,9 @@ this change (`tools/sound_page.js` of the four runs is the page the owner listen
 - *A touch.* The sound resumed on a pointerdown or a key; the spec and WebKit count a touch at its end. It resumes on
   any pointerup, touchend, click or key, and when the page is seen again (iOS leaves a context interrupted). Chromium's
   phone emulation started on the first tap before and after; Safari was not run.
+- *A typed line* (the preface's keys, a tick for every second letter) was the same tick each time, a machine gun
+  once it was loud enough to hear: no two are alike now (a few per cent of pitch, a few dB, one in five struck
+  harder), and two never come within 45 ms.
 - *Stops before silence.* The held choir was stopped 3.2 s into a fade with a time constant of 0.9 s (31 dB down), the
   loading cue at five time constants: both now wait for eight.
 
@@ -255,4 +259,7 @@ Still marked and listened to: the rises left are the story's own cues over a sto
 stings for a turn and a right answer, the stamp with the score's note, the frame found), 11 to 14 LU in half a second,
 each rising over 25 ms or more and peaking under −20 dBFS: the moments, heard over the hush, as they are meant to be.
 A third of the lines, in the score's fuller bars, stand over it by less than 6 dB. Counts move between runs with the
-software renderer's pace. Not checked: a real GPU or audio device, Safari or iOS, a phone's own speaker, headphones.
+software renderer's pace. Main with the story's later calls (the ghost when the clear umbrella turns, a goal on a
+choice, found and the score's note when two prints argue in the roll) was recorded through again on a desktop: no
+clicks, no dropouts, nothing over −1 dBFS, ticks a median 7 dB over the bed. `wrong` on the fail card, which a played
+route does not reach, was recorded alone: clean. Not checked: a real GPU or audio device, Safari or iOS, a phone's own speaker, headphones.
