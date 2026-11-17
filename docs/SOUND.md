@@ -219,3 +219,40 @@ more) are recorded, and what falls in one is listed apart, not counted: it is th
 the last over the story's beats with the findings marked, the findings side by side, and the same moments of each
 (the preface, the opening's end, the first line, the first Stop, the first photograph, time running on) found by what
 the story did, so that two runs at different paces line up.
+
+**What it heard (November 2026), and what was done.** Main as it was, recorded through on a desktop and a phone, then
+this change (`tools/sound_page.js` of the four runs is the page the owner listened to):
+
+| | Desktop before | after | Phone before | after |
+|---|---|---|---|---|
+| Clicks | 2 | 0 | 1 | 0 |
+| Lines whose ticks are under the score | 28 of 39 | 12 of 43 | 33 of 39 | 19 of 49 |
+| Ticks over the bed round 2 kHz, median | +1.1 dB | +10.5 dB | −1.4 dB | +7.6 dB |
+| Peaks over −1 dBFS, samples at full scale | 0, 0 | 0, 0 | 0, 0 | 0, 0 |
+| AudioContexts | 3 | 1 | 3 | 1 |
+
+- *Voices under the score.* The type's ticks (a line's `voice`, the preface's `key`) were set by their level alone, and
+  in the mix they sat 3 to 11 dB under the score in their own band. They are 13 dB up (the keys 12), the duck is 8 dB
+  (was 5) and comes in in 25 ms (was 50), and the preface's keys duck the score as a line does.
+- *The opening ended on a cut.* Its render stops at its length plus two seconds while the last chord and the room
+  still ring, and the fade at its end (three seconds) outlasted what was left: a step of 0.07 as the prologue began.
+  `film-score.js` fades the render's last 1.5 s.
+- *Two more AudioContexts.* The opening's and the flight's scores each made one of their own (`overture.js`): one a
+  phone (iOS) leaves suspended when it is made outside a touch, and one the Sound switch and the duck did not reach.
+  They play on the game's context, through the music bus, at the level they had.
+- *Cues that struck.* The postmark's thump rose 30 dB over a stopped street in 12 ms, with the score's note under it;
+  the finder's catch as the camera comes up rose 22. The thump is 6 ms in and 3 dB lower, the slap 3 ms in, the catch
+  6 dB down.
+- *A sample's tick* where a cue's later layer began (the goal's second breath, 80 ms in): three in each run. Every node
+  of a cue is silent, and its filter at its frequency, from the moment it is made; none since.
+- *A touch.* The sound resumed on a pointerdown or a key; the spec and WebKit count a touch at its end. It resumes on
+  any pointerup, touchend, click or key, and when the page is seen again (iOS leaves a context interrupted). Chromium's
+  phone emulation started on the first tap before and after; Safari was not run.
+- *Stops before silence.* The held choir was stopped 3.2 s into a fade with a time constant of 0.9 s (31 dB down), the
+  loading cue at five time constants: both now wait for eight.
+
+Still marked and listened to: the rises left are the story's own cues over a stopped street (time running on, the
+stings for a turn and a right answer, the stamp with the score's note, the frame found), 11 to 14 LU in half a second,
+each rising over 25 ms or more and peaking under −20 dBFS: the moments, heard over the hush, as they are meant to be.
+A third of the lines, in the score's fuller bars, stand over it by less than 6 dB. Counts move between runs with the
+software renderer's pace. Not checked: a real GPU or audio device, Safari or iOS, a phone's own speaker, headphones.

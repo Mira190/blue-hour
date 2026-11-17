@@ -1,7 +1,7 @@
 // A page to listen to recordings made by tools/sound_rec.js, before and after a change (docs/SOUND.md "Listened to"):
 // each recording whole as an MP3, its loudness from the first card to the last with the story's beats under it and what
 // the analysis found marked on it, the findings side by side, and short excerpts of the same moments in each.
-//   node tools/sound_page.js out_dir before=dir1 after=dir2 [phone-before=dir3 phone-after=dir4 ...]
+//   node tools/sound_page.js out_dir before=dir1 after=dir2 [phone-before=dir3 phone-after=dir4 ...] [notes=notes.html]
 // Writes out_dir/index.html and out_dir/*.mp3 (ffmpeg with libmp3lame). Recordings are named by their key: "x-before"
 // and "x-after" are paired as one view x.
 'use strict';
@@ -11,7 +11,8 @@ const { execFileSync } = require('child_process');
 const { analyse } = require('./sound_analyse.js');
 const [,, out = '/tmp/sound-page', ...pairs] = process.argv;
 fs.mkdirSync(out, { recursive: true });
-const recs = pairs.map(a => { const [k, d] = a.split('='); return { key: k, dir: d }; });
+const recs = pairs.map(a => { const [k, d] = a.split('='); return { key: k, dir: d }; }).filter(r => r.key !== 'notes');
+const notes = pairs.filter(a => a.startsWith('notes=')).map(a => fs.readFileSync(a.slice(6), 'utf8')).join('\n'); // (notes=file.html: what changed, said above the findings)
 const mp3 = (src, dst, from, len, kbps = 96) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...(from != null ? ['-ss', String(Math.max(0, from)), '-t', String(len)] : []), '-i', src, '-codec:a', 'libmp3lame', '-b:a', `${kbps}k`, dst]);
 // the moments to hear in every recording, found by what the story did (so that two runs at different paces line up)
 const MOMENTS = [
@@ -37,6 +38,6 @@ for (const r of recs) {
     M: rep.momentary, beats, clicks: real(rep.clicks), designed: rep.clicks.filter(x => x.designed && !x.stall).length, strikes: real(rep.strikes), jumps: real(rep.jumps), hot: rep.over_minus1, clip: rep.clipped_samples,
     seams: rep.seams, masked: rep.masked, lines: rep.lines, margin: rep.margin_median, moments, grating: rep.grating });
 }
-const html = fs.readFileSync(path.join(__dirname, 'sound_page.html'), 'utf8').replace('/*DATA*/null', JSON.stringify({ data, moments: MOMENTS.map(m => ({ id: m.id, name: m.name })) }));
+const html = fs.readFileSync(path.join(__dirname, 'sound_page.html'), 'utf8').replace('/*DATA*/null', JSON.stringify({ notes, data, moments: MOMENTS.map(m => ({ id: m.id, name: m.name })) }));
 fs.writeFileSync(path.join(out, 'index.html'), html);
 console.log(`wrote ${out}/index.html and ${fs.readdirSync(out).filter(f => f.endsWith('.mp3')).length} MP3s (${(fs.readdirSync(out).reduce((s, f) => s + fs.statSync(path.join(out, f)).size, 0) / 1e6).toFixed(1)} MB)`);

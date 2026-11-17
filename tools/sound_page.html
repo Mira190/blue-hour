@@ -22,6 +22,8 @@ p { margin: 0; max-width: 68ch; color: var(--ink); }
 header { display: grid; gap: 14px; }
 .eyebrow { font: 500 12px var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 section { display: grid; gap: 18px; }
+#views { display: grid; gap: 48px; }
+#notes:empty { display: none; }
 .take { display: grid; gap: 8px; padding: 14px 16px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 2px; }
 .take-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
 .take-head b { font: 600 14px var(--f-body); }
@@ -52,6 +54,7 @@ footer { color: var(--faint); font-size: 13px; }
     <h1>Listened to, from the first card to the last</h1>
     <p class="lede">The episode recorded with its sound on, as the speakers get it, on a desktop (1440×900) and a phone (390×844, sound given only after a tap). Before is main as it was; after is this change. Each line is the loudness every half second (ITU-R BS.1770, 400 ms); the bands under it are the story's beats. Click a line to jump there.</p>
   </header>
+  <section id="notes"></section>
   <section id="findings">
     <h2>What grated, and what is left</h2>
     <div class="tbl"><table id="tbl"></table></div>
@@ -66,6 +69,7 @@ footer { color: var(--faint); font-size: 13px; }
 </div>
 <script>
 const D = /*DATA*/null;
+if (D.notes) document.getElementById('notes').innerHTML = D.notes;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const byKey = Object.fromEntries(D.data.map(d => [d.key, d]));
 const views = [...new Set(D.data.map(d => d.key.replace(/-?(before|after)$/, '') || 'desktop'))];
