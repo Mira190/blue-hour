@@ -133,10 +133,10 @@ twice() {   # <kind> <first log> <second log>: the verdict of the second run
   else echo "FAIL $1   (${same:-$(echo "$two" | head -2 | cut -c1-110 | paste -sd ';' -)}; see $3; the first run $2)"; fi
 }
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
-  # (and one frame in ten drawn, without a GPU: the game moves a twentieth of a second a frame at most, so at a software
+  # (and one frame in thirty drawn, without a GPU: the game moves a twentieth of a second a frame at most, so at a software
   # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
-  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 10)} LIMIT=3000 timeout 3600 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
+  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
   else echo "FAIL story  $(grep '^FAIL\|pageerror' "$OUT/story.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/story.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that

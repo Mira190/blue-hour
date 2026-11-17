@@ -34,10 +34,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
-  // (a still is of frames drawn whole: every frame drawn from two before it until it is taken)
-  // (and so is the photograph, the game's own picture of its canvas: drawn whole from the camera's raising to the print)
+  // (a still is of frames drawn whole: every frame drawn from the one before it until it is taken)
   let whole = 0;
-  const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))); }), whole > 0) : null; };
+  const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(r)); }), whole > 0) : null; };
   const snap = async name => { await drawAll(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await drawAll(false); };
   await snap('00-title');
   await p.evaluate(() => document.getElementById('gt-play').click());
@@ -83,10 +82,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (T.subject && !T.both) { await frames(3); await p.waitForTimeout(300); const t = await p.evaluate(() => window.__game.story.state.target); const off = t ? Math.hypot(t[0] - T.subject[0], t[1] - T.subject[1]) : Infinity; if (off > 1.5) { errors.push(`frame ${s.fi + 1}: the mark is ${off.toFixed(1)} m from the subject`); console.log(errors[errors.length - 1]); } }
       // and it is the mark of a thing to photograph, with no metres on it (on the roof it read "143 m": a place to walk to)
       if (T.subject && !T.both) { const m = await p.evaluate(() => { const e = document.getElementById('g-story-mark'); return { kind: e.dataset.kind, text: e.querySelector('b').textContent }; }); if (m.kind !== 'frame' || /\d/.test(m.text)) { errors.push(`frame ${s.fi + 1}: at the standpoint the mark is "${m.kind}", reading "${m.text}"`); console.log(errors[errors.length - 1]); } }
-      await snap(`${s.fi + 1}-cam-down`); await drawAll(true); await p.evaluate(() => window.__game.story.raise(true)); // (the camera to the eye: R)
+      await snap(`${s.fi + 1}-cam-down`); await p.evaluate(() => window.__game.story.raise(true)); // (the camera to the eye: R)
       await p.waitForTimeout(1500); await mark(s, 'aimed');
-      await p.evaluate(() => window.__game.story.shoot());
-      await p.waitForTimeout(1500); await snap(`${s.fi + 1}-print`); await drawAll(false); // (the print in the hand, its postmark struck)
+      await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false); // (the photograph is the game's own picture of its canvas, taken as the shutter goes: of a frame drawn whole)
+      await p.waitForTimeout(1500); await snap(`${s.fi + 1}-print`); // (the print in the hand, its postmark struck)
       if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
     else if (s.phase === 'dressed' && s.beat === 'preface') { // (the hour in words, on black, before the opening: a still of it typed half way and whole)
