@@ -669,6 +669,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       spots.slice(0, order.length).forEach((sp, k) => {
         const q = P[order[k][0]];
         release(q);
+        // (one of a scramble's own crowd is taken off it: left on it, the scramble's step went on walking it from its
+        // new place straight to the spot it had been making for, through whatever stood between, #1)
+        if (q.pz) { uncount(q); q.pz = q.g = null; }
         q.state = 'walk'; q.mode = 'ground'; q.lat = null; q.side = sp.side ?? 0.3 + rnd() * 1.4; q.pause = 0; q.still = 0; q.wait = 0;
         q.line = sp.line; q.s = Math.max(0, Math.min(net.L[sp.line].len, sp.s)); q.dir = sp.dir;
         lineAt(q.line, q.s, tmp); q.x = tmp.x; q.y = tmp.y; q.z = tmp.z; // (walk() puts it beside the line)
