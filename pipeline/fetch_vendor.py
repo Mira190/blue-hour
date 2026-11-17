@@ -41,6 +41,7 @@ FONTS = [
     "family=Zalando+Sans+Expanded:wght@200..500",
     "family=Inter+Tight:wght@400;500;600",
     "family=Newsreader:opsz,wght@6..72,400",  # the story's serif: what someone of another year says, and what was found
+    "family=Caveat:wght@400..600",  # the hand the file is written in, on its kraft paper (the roll)
 ]
 def cjk_text():
     """the cities' names on the title, the title drop of each map's overture (game.overture.title), and what is

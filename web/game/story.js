@@ -126,7 +126,7 @@ window.OEStory = (function () {
     // something for that pair (ep.pairs: [{ of: [a, b], line }]); what was found stays written under the table and is
     // counted on the last card. Nobody asks for it: it is the player's own look at their own evidence.
     let vs = [], vsSaid = '';
-    // The file: a sheet of kraft paper under the prints on which the case writes itself down, typed, a line at a time.
+    // The file: a sheet of kraft paper under the prints on which the case is written down by hand, a line at a time.
     // What goes on it is what is established and what the player has said, never what it means: a frame's own note as
     // it is taken, a thing the player committed to (an option's `file`), a pair of prints that argued. A line the
     // player later takes back is struck through, not removed (`strikes` names the `key` of the line it answers).

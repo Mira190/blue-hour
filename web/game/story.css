@@ -110,17 +110,19 @@
 .game-stage.story-on #game-gl { transition: filter 1.4s ease; }
 .game-stage.story-stop #game-gl { filter: brightness(0.92) contrast(1.12) saturate(0.5); transition: filter 0.45s ease; }
 
-/* ---- the file: kraft paper under the prints, typed a line at a time (story.js filed) */
-#g-story-album .file { width: min(100%, 760px); padding: 26px 30px 30px; text-align: left; color: #2b2118; background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(60, 36, 12, 0.18); transform: rotate(-0.4deg); }
-#g-story-album .file h3 { margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(43, 33, 24, 0.45); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; color: #5a2a22; }
-#g-story-album .file ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
-#g-story-album .file li { display: grid; grid-template-columns: 5ch 1fr; gap: 16px; justify-items: start; text-align: left; font: 400 13px/1.6 var(--f-mono); letter-spacing: 0.01em; }
-#g-story-album .file li b { font-weight: 400; color: #5a2a22; }
-#g-story-album .file li.said span { font-style: italic; }
-#g-story-album .file li.pair span { color: #3b2412; }
-#g-story-album .file li.spent span { color: rgba(43, 33, 24, 0.6); }
-#g-story-album .file li.struck span { text-decoration: line-through; text-decoration-thickness: 1.5px; color: rgba(43, 33, 24, 0.55); }
-@media (max-width: 640px) { #g-story-album .file { padding: 20px 18px 22px; } #g-story-album .file li { grid-template-columns: 1fr; gap: 2px; } }
+/* ---- the file: kraft paper under the prints, written up in a hand a line at a time (story.js filed). Caveat (SIL OFL):
+   what is established in a soft pencil's brown-black, what the player said in a fountain pen's blue-black, a line taken
+   back struck through with the same pen and left to be read. Caveat has no italic: a told-apart line is told by its ink. */
+#g-story-album .file { --graphite: #2a1f16; --pen: #1d2a4a; width: min(100%, 760px); padding: 24px 32px 30px; text-align: left; color: var(--graphite); background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(60, 36, 12, 0.18); transform: rotate(-0.4deg); }
+#g-story-album .file h3 { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(43, 33, 24, 0.45); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; color: #5a2a22; }
+#g-story-album .file ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+#g-story-album .file li { display: grid; grid-template-columns: 2.8em 1fr; gap: 16px; justify-items: start; align-items: baseline; text-align: left; font: 450 21px/1.28 var(--f-hand); letter-spacing: 0.005em; font-variant-numeric: lining-nums; }
+#g-story-album .file li b { font-weight: 600; color: #6a2c22; }
+#g-story-album .file li.said span { color: var(--pen); }
+#g-story-album .file li.pair span { font-weight: 550; }
+#g-story-album .file li.spent span { color: rgba(42, 31, 22, 0.58); }
+#g-story-album .file li.struck span { text-decoration: line-through; text-decoration-color: var(--pen); text-decoration-thickness: 2px; color: rgba(42, 31, 22, 0.55); }
+@media (max-width: 640px) { #g-story-album .file { padding: 18px 18px 22px; } #g-story-album .file li { grid-template-columns: 1fr; gap: 0; font-size: 20px; } }
 /* ---- seen through: the card, and the frame taken up again (story.js failed) */
 #g-story-fail { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.86); color: var(--paper); }
 #g-story-fail.on { display: grid; animation: g-story-album-in 0.6s ease; }
