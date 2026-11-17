@@ -20,6 +20,8 @@ const [,, out = '/tmp/dialogue-check', size = '1440x900'] = process.argv;
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());
   await p.waitForFunction(() => !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 600000, polling: 500 });
+  // (the order in the hand comes up first: put away, as a player does, before anyone speaks)
+  for (let i = 0; i < 40 && await p.evaluate(() => window.__game.story.state.beat === 'order'); i++) { await p.waitForTimeout(1500); if (phone) await p.touchscreen.tap(195, 700); else await p.keyboard.press('KeyE'); }
   await p.waitForTimeout(1500);
   const snap = name => p.screenshot({ path: `${out}/${name}.png` });
   // a press: a tap on the words on a phone, E on a desktop
