@@ -60,17 +60,20 @@ window.OEStory = (function () {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     // the story's own interface (story.css): the map's instruments are put away for as long as the story is here
     ctx.stage.classList.add('story');
-    { // the title: the story's name, the evening, and one button
+    { // the title: the episode's card. The story's name and its line were on the loader just before (index.html), and
+      // the name falls again at the first Stop, where it means something; here is what the player chooses: the case,
+      // its evening, the job as it was given, and the button (an episode menu, when there are more episodes, is this card
+      // once for each)
       const q = sel => ctx.stage.querySelector(sel), ep0 = eps[0] || {}, T = S.card || {};
       if (q('#gt-city')) q('#gt-city').textContent = T.eyebrow || '';
-      if (q('#gt-title')) q('#gt-title').innerHTML = `${esc(S.title || '')}${T.native ? `<small lang="ja">${esc(T.native)}</small>` : ''}`;
-      if (q('#gt-blurb')) q('#gt-blurb').textContent = T.line || '';
+      if (q('#gt-title')) q('#gt-title').innerHTML = ep0.title ? `${ep0.no ? `<small>Episode ${esc(ep0.no)}</small>` : ''}${esc(ep0.title)}` : esc(S.title || '');
+      if (q('#gt-blurb')) q('#gt-blurb').textContent = ep0.line || '';
       // a case left unfinished in this browser: the button says so (which frame it takes up at), and a second one starts
       // the evening again from its first frame; nobody opens the page into the rain of the last frame without being told
       let left = null;
       try { left = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
       const going = left && left.fi > 0 && left.fi < (ep0.frames || []).length;
-      if (q('#gt-play')) q('#gt-play').innerHTML = `<span>${going ? `Continue · frame ${left.fi + 1} of ${N}` : `${ep0.no ? `Episode ${esc(ep0.no)} · ` : ''}${esc(ep0.title || 'Begin')}`}</span><kbd>↵</kbd>`;
+      if (q('#gt-play')) q('#gt-play').innerHTML = `<span>${going ? `Continue · frame ${left.fi + 1} of ${N}` : 'Begin'}</span><kbd>↵</kbd>`;
       if (going && q('#gt-play') && !q('#gt-anew')) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'gt-anew'; b.textContent = 'Start the evening again';
         b.addEventListener('click', () => { try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } q('#gt-play').click(); });
@@ -207,6 +210,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const show = () => { const got = N - st.left; frames.querySelector('b').textContent = String(got).padStart(2, '0'); frames.querySelectorAll('.strip i').forEach((c, i) => { const p = st.prints[i], on = i < got; if (on && !c.classList.contains('got')) { c.classList.add('got', 'new'); setTimeout(() => c.classList.remove('new'), 1400); } else if (!on) c.classList.remove('got', 'new'); c.style.backgroundImage = on && p && p.src ? `url("${p.src}")` : ''; }); };
     function title(small, big, secs) {
       card.querySelector('small').textContent = small; card.querySelector('span').textContent = big;
+      card.querySelector('small').classList.toggle('jp', /^[\u3040-\u30ff\u4e00-\u9fff]/.test(small)); // (the name in its own script, in the Mincho)
       card.classList.add('on');
       later(secs * 1000, () => card.classList.remove('on'));
     }
@@ -462,7 +466,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // the world holds a breath (the first time, the title falls on it), and then the one thing to do
       // (a Stop in which something moves that should not, fr.stirs: { cast, line, after_s }: one of the living turns to look)
       if (fr.stirs && st.cast[fr.stirs.cast]) later((fr.stirs.after_s || 7) * 1000, () => { if (st.phase !== 'stop' || st.fr !== fr) return; const c = st.cast[fr.stirs.cast]; if (c.face) c.face(ctx.player.x, ctx.player.y); if (fr.stirs.line) ctx.toast(esc(fr.stirs.line)); sfx('ghost'); });
-      if (first) later(900, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
+      // (the first time, the story's name falls on it, the late title card of a film: it was on the loader as a name, and
+      // here it is seen to mean something, the crossing held at the blue hour; the episode was on the title's card)
+      if (first) later(900, () => title((S.card || {}).native || '', S.title || '', 3.0));
       later(first ? 4300 : 2500, () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
         show(); frames.classList.add('on');

@@ -1718,9 +1718,12 @@ def write_index():
                 c["story"] = st["title"]
                 ep = (st.get("episodes") or [{}])[0]  # its first episode, for the loader to name (index.html)
                 c["story_episode"] = {k: ep[k] for k in ("no", "title") if ep.get(k) is not None}
+                # its name in its own script and the line under it, which the loader stands under the name
+                c["story_card"] = {k: v for k, v in (st.get("card") or {}).items() if k in ("native", "line") and v}
             else:
                 c.pop("story", None)
                 c.pop("story_episode", None)
+                c.pop("story_card", None)
             # a phone's district of the map (pipeline/district.py): its packs, cut round the start, and what a phone's
             # game downloads with them
             dm = os.path.join(data, "d", "district.json")

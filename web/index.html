@@ -204,8 +204,8 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
    card. The evening fills the frame between the black bars of a scope picture: three pictures filmed in the game, each
    pushed slowly in and dissolved into the next, graded dark so that the type stands on them, with grain and a lens's
    streak of light over them. The story's name stands in the middle, wide and light, its Japanese over it in a Mincho,
-   the episode under a hairline; the job as it was given and the load's progress sit low and small, and the roll's seven
-   frames come up along the lower bar. Only opacity and transforms move, so it runs while the map builds. */
+   its line under a hairline; the load's progress sits low and small, and the roll's seven frames come up along the
+   lower bar. Nothing of an episode is on it: none has been chosen yet, and the title's card is where one is. Only opacity and transforms move, so it runs while the map builds. */
 .loader.has-roll { place-items: end center; background: #020308; overflow: hidden; }
 .roll { position: absolute; inset: 0; margin: 0; pointer-events: none; overflow: hidden; }
 .roll-art { position: absolute; inset: -3%; background: center / cover no-repeat; opacity: 0; filter: saturate(1.2) contrast(1.12) brightness(0.72); will-change: transform, opacity; animation: roll-art 30s linear infinite; }
@@ -231,8 +231,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 .roll-title b { margin-top: clamp(14px, 2.2vh, 26px); font: 300 clamp(38px, 8.6vw, 148px)/1 var(--f-display); letter-spacing: 0.3em; margin-right: -0.3em; text-transform: uppercase; white-space: nowrap;
   background: linear-gradient(180deg, #ffffff 30%, #b9cdf5 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 40px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 60px rgba(110, 150, 255, 0.28)); }
 .roll-title u { display: block; width: min(46vw, 520px); height: 1px; margin: clamp(18px, 3vh, 34px) 0 clamp(14px, 2.2vh, 22px); background: linear-gradient(90deg, transparent, rgba(255, 196, 140, 0.9), transparent); text-decoration: none; }
-.roll-title span { font: 400 clamp(10px, 1.05vw, 13px)/1 var(--f-mono); letter-spacing: 0.56em; margin-right: -0.56em; text-transform: uppercase; color: rgba(236, 232, 225, 0.92); text-shadow: 0 1px 12px #000; }
-.roll-title span em { font-style: normal; color: var(--accent); }
+.roll-title span { max-width: 40ch; font: 400 clamp(14px, 1.3vw, 18px)/1.6 var(--f-serif); letter-spacing: 0.01em; color: rgba(236, 232, 225, 0.88); text-shadow: 0 1px 12px #000; text-wrap: balance; }
 /* the bars of a scope picture: the job's heading on the upper one, the roll on the lower */
 .roll-bar { position: absolute; left: 0; right: 0; height: max(8vh, 46px); background: #000; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 max(4vw, 20px);
   font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: rgba(236, 232, 225, 0.62); white-space: nowrap; }
@@ -245,7 +244,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 @media (prefers-reduced-motion: reduce) { .roll-sound { animation: none; } }
 .roll-frames { display: flex; gap: 4px; padding: 5px 6px; border-top: 2px dotted rgba(236, 232, 225, 0.3); border-bottom: 2px dotted rgba(236, 232, 225, 0.3); }
 .roll-frames s { position: relative; width: clamp(24px, 3.2vw, 48px); aspect-ratio: 3 / 2; text-decoration: none; background: #0a0c12; outline: 1px solid rgba(236, 232, 225, 0.1); overflow: hidden; }
-.roll-frames s::after { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s ease; background: var(--img) center / cover no-repeat, linear-gradient(180deg, #0a1440, #24408f 60%, #b9794f); }
+.roll-frames s::after { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s ease; background: linear-gradient(180deg, #0a1440, #24408f 60%, #b9794f); }
 .roll-frames s.on::after { opacity: 1; }
 .roll-frames s.now { outline-color: var(--accent); animation: roll-now 1.3s ease-in-out infinite; }
 @keyframes roll-now { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
@@ -941,15 +940,16 @@ window.dispatchEvent(new Event('three-ready'));
     $('g-load-msg').textContent = city ? 'Blue Hour needs WebGL 2, which this browser has turned off or does not support.' : 'The map could not be loaded.';
     $('g-loader').classList.add('err'); return;
   }
-  // the loading screen (styled above): the job as it was given and the roll being loaded, a frame exposed for each
-  // seventh of the load
+  // the loading screen (styled above): the story's name, the line under it, and the roll being loaded, a frame exposed
+  // for each seventh of the load. Nothing of an episode: none has been chosen yet (the title's card is where one is)
+  const card = city.story_card || {}, esc = t => String(t).replace(/[<&]/g, c => (c === '<' ? '&lt;' : '&amp;'));
   $('g-loader').classList.add('has-roll');
   $('g-loader').insertAdjacentHTML('afterbegin', `<figure class="roll" aria-hidden="true">${[1, 2, 3].map(n => `<div class="roll-art" style="background-image:url(assets/story/late/key-${n}.webp)"></div>`).join('')}
     <div class="roll-grade"></div><div class="roll-flare"></div><div class="roll-grain"></div>
-    <div class="roll-title"><i lang="ja">ブルーアワー</i><b>Blue Hour</b><u></u><span>Episode ${ep.no != null ? ep.no : 1} <em>·</em> ${(ep.title || 'You came late').replace(/[<&]/g, '')}</span></div>
-    <div class="roll-bar top"><span>Survey order · <b>Shibuya 渋谷</b></span><span class="roll-sound">${matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} for sound</span><span class="wide">10 October · sunset 17:14</span></div>
-    <div class="roll-bar foot"><span class="roll-count wide">Loading the roll · frame <b>1</b> of 7</span><div class="roll-frames">${[1, 2, 3, 4, 5, 6, 7].map(n => `<s style="--img:url(assets/story/late/frame-${n}.webp)"></s>`).join('')}</div></div></figure>`);
-  $('g-load-native').textContent = '“Hachiko corner, from the north-west kerb, 17:14.”';
+    <div class="roll-title"><i lang="ja">${esc(card.native || 'ブルーアワー')}</i><b>${esc(city.story || 'Blue Hour')}</b><u></u>${card.line ? `<span>${esc(card.line)}</span>` : ''}</div>
+    <div class="roll-bar top"><span><b>Shibuya 渋谷</b></span><span class="roll-sound">${matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} for sound</span><span class="wide">A story in episodes</span></div>
+    <div class="roll-bar foot"><span class="roll-count wide">Loading the roll · frame <b>1</b> of 7</span><div class="roll-frames">${'<s></s>'.repeat(7)}</div></div></figure>`);
+  $('g-load-native').hidden = true;
   const frames = [...$('g-loader').querySelectorAll('.roll-frames s')], count = $('g-loader').querySelector('.roll-count b');
   const expose = () => { const k = Math.min(6, Math.floor((parseFloat($('g-load-bar').style.width) || 0) / 100 * 7)); frames.forEach((f, i) => { f.classList.toggle('on', i < k); f.classList.toggle('now', i === k); }); count.textContent = k + 1; };
   new MutationObserver(expose).observe($('g-load-bar'), { attributes: true, attributeFilter: ['style'] }); expose();

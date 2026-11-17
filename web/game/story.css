@@ -13,10 +13,12 @@
 .game-stage.story .g-title { align-items: flex-end; padding-bottom: max(9vh, 48px); background: linear-gradient(to top, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.2) 46%, transparent 70%); }
 .game-stage.story .gt-card { width: min(620px, 100%); gap: 20px; }
 .game-stage.story :is(.gt-time, .gt-hints, .gt-skip, #gt-continue) { display: none !important; }
-.game-stage.story .gt-card .gt-eb { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
-.game-stage.story .gt-card h1 { font: 200 clamp(44px, 8vw, 104px)/0.96 var(--f-display); letter-spacing: 0.16em; color: var(--paper); text-shadow: 0 0 60px rgba(120, 150, 255, 0.28); }
+.game-stage.story .gt-card .gt-eb { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85); }
+/* the episode's card: its number, its name in the book face (the story's name was on the loader, and falls at the first Stop) */
+.game-stage.story .gt-card h1 { font: 400 clamp(40px, 5.6vw, 78px)/1.04 var(--f-serif); letter-spacing: 0; text-transform: none; color: var(--paper); text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55); text-wrap: balance; }
+.game-stage.story .gt-card h1 small:not(:lang(ja)) { margin: 0 0 18px; font: 400 11px/1 var(--f-mono); letter-spacing: 0.5em; text-transform: uppercase; color: var(--amber); text-shadow: 0 1px 10px rgba(0, 0, 0, 0.7); }
 .game-stage.story .gt-card h1 small:lang(ja) { margin-top: 20px; font: 500 18px/1 var(--f-jp); letter-spacing: 0.5em; color: var(--amber); opacity: 1; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8); }
-.game-stage.story .gt-card > p { font: 300 clamp(15px, 1.5vw, 18px)/1.6 var(--f-body); color: rgba(244, 239, 230, 0.86); max-width: 46ch; }
+.game-stage.story .gt-card > p { font: 400 clamp(15px, 1.5vw, 19px)/1.6 var(--f-serif); color: rgba(244, 239, 230, 0.88); max-width: 46ch; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8); }
 .game-stage.story .gt-go .btn.primary { min-width: 0; gap: 26px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber);
   font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s; }
 .game-stage.story .gt-go .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
@@ -98,6 +100,7 @@
 #g-story-card.on { opacity: 1; }
 #g-story-card div { text-align: center; color: var(--paper); }
 #g-story-card small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.44em; margin-right: -0.44em; text-transform: uppercase; color: var(--amber); }
+#g-story-card small.jp { font: 500 16px/1 var(--f-jp); letter-spacing: 0.6em; margin-right: -0.6em; }
 #g-story-card small::after { content: ""; display: block; width: 28px; height: 1px; margin: 18px auto 20px; background: rgba(255, 207, 138, 0.6); }
 #g-story-card span { display: block; font: 200 clamp(28px, 5.4vw, 64px)/1.08 var(--f-display); letter-spacing: 0.14em; margin-right: -0.14em; text-transform: uppercase; text-shadow: 0 2px 40px rgba(0, 0, 0, 0.8); }
 

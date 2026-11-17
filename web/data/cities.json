@@ -34,12 +34,16 @@
   ],
   "load_bytes": {
    "model": 4041981,
-   "game": 4628138
+   "game": 4628178
   },
   "story": "Blue Hour",
   "story_episode": {
    "no": 1,
    "title": "You came late"
+  },
+  "story_card": {
+   "native": "\u30d6\u30eb\u30fc\u30a2\u30ef\u30fc",
+   "line": "Tonight, as the sun goes down, the crossing stops. Somebody in it turns to look at you."
   },
   "lean_pack": {
    "dir": "d/",
@@ -51,7 +55,7 @@
     -2100,
     450
    ],
-   "bytes": 1563651
+   "bytes": 1563708
   }
  }
 ]
