@@ -121,7 +121,7 @@ has them).
 
 ## The story's places and the roof's escalators
 
-Two checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` for a server already up):
+Three checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` for a server already up):
 
 - `node tools/story_clear.js`: every place the story stands someone or sends the player (cast, afterimages, where a
   picture is taken from, where a car or a flight sets you down, the things of 1964 in tonight's street) is on a floor at
@@ -129,4 +129,11 @@ Two checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` for
 - `node tools/escalator_walk.js shibuya`: each escalator carries a walker from the floor before it to its far end (the
   north one up to the roof, the west one down), nobody walks in beside its steps, and nobody steps off them sideways
   between its landings (a walker did, into the slot between the escalator and the stair, and stood in the balustrade).
+- `node tools/escalator_route.js shibuya`: a route on foot rides a moving escalator only the way it runs: from each lift's
+  stop beside one to every place a story frame stands the player on the floor above, and from the floor before each
+  escalator to the floor past it and back. The gold line from SHIBUYA SKY's 46F lift once led right, up the stair beside
+  the escalator that runs down, because the lines up the north escalator and stair stopped at the roof short of its paths
+  (`web/game/route.js`: a strip's landing joined over its floor, the network's edges and its ground search one-way along
+  moving steps, a metre ridden costing half one walked). `tools/story_play.js` runs the same at frame 4 of the first
+  episode, so `tools/check.sh` has it, and takes a still of the line from where the lift lets you out (`4-lift-way`).
 
