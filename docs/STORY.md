@@ -158,7 +158,7 @@ her corner at 17:14 on 10 October, carrying the old plan of the kerb on which he
 same word. (The office reads it out in the first minute; Mr Tanaka says whose hand it is in frame 6;
 the ticket's back shows it on the last card.)
 
-**You** are the survey photographer who took the job. You arrived at 17:15. You were on the
+**You** are the survey photographer who took the job: Kagami 鏡 to the office, a surname and nothing more, so that whoever plays is the one called. You arrived at 17:15. You were on the
 crossing, not at the kerb, when it stopped.
 
 **Sumiko is alive.** She is 82. She is the old woman with the clear umbrella who is at the Hachiko
