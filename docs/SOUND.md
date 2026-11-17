@@ -73,7 +73,11 @@ is silent where the worklet has its shimmer of grains (about −50 dB in the ren
 the room's tail, the story's choir and its glass. `?tape=worklet` or `?tape=deck` picks one on any device.
 `TAPE=worklet|deck tools/sound_render.js` renders either (unset, a phone's, the deck): rendered side by side, the
 engine's note brakes on the same curve (47, 44, 35, 26 Hz at 2.0 to 2.2 s), spins up on the same one, and neither
-clicks.
+clicks. The episode recorded through on a phone with the deck (`GESTURE=1 tools/sound_rec.js`, 390×844, low tier):
+no sample at full scale, no peak over −1 dBFS (the peak −10.6 dBFS), no dropout, no click or strike outside the test
+machine's stalls; the rises as time runs on and the lines close to the score are those under "Listened to". Not
+heard on an iPhone: `tools/load_score.js` with `IOS=1` checks the page as one (no context before the touch, the deck,
+the score on the bus after it), in Chromium.
 
 The story's own cue `stop` lays over it air drawn in that swells to the moment time stops, a breath of
 low air as the floor goes (noise, never a falling tone: a falling tone was tried in stopfx.js and was "a
