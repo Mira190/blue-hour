@@ -198,7 +198,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
-      if (!seen.has('order')) { seen.add('order'); await p.waitForTimeout(4000); await snap('1-order'); if (!await p.evaluate(() => { const e = document.getElementById('g-story-order'); return e.classList.contains('on') && e.querySelectorAll('i').length > 80; })) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
+      // (looked at before the still: the sheet goes away by itself on the wall clock, 14 s after its ink, and on a software
+      // renderer the still alone, its frames drawn whole, took longer than that, so a check after it found the sheet put away)
+      if (!seen.has('order')) { seen.add('order'); const t0 = Date.now(); await p.waitForTimeout(4000); const inHand = await p.evaluate(() => { const e = document.getElementById('g-story-order'); return e.classList.contains('on') && e.querySelectorAll('i').length > 80; }); await snap('1-order'); console.log(`the order: ${inHand ? 'in the hand' : 'not in the hand'} at 4 s; its still taken at ${((Date.now() - t0) / 1000).toFixed(1)} s`); if (!inHand) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
       await p.keyboard.press('KeyE');
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
