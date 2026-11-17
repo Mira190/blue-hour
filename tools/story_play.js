@@ -53,6 +53,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   let slipped = 0, spent = false;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
+  // every question with a right answer costs something to guess at (q.fail): one that does not can be answered by
+  // trying each print in turn, and asks nothing of the player (Mr Tanaka's pitch, until it had one)
+  { const E = ((JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'cities', 'shibuya', 'city.json'), 'utf8')).game || {}).story) || null;
+    for (const ep of (E && E.episodes) || []) (ep.frames || []).forEach((f, i) => { for (const m of [f.meet, f.afterimage, f.task]) for (const q of (m && m.ask) || []) if ((q.frame || q.answer != null) && !q.fail) errors.push(`frame ${i + 1}: "${q.q}" has a right answer and nothing lost by guessing (fail)`); }); }
   const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
