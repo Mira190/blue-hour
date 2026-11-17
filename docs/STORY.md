@@ -202,7 +202,7 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 | # | Hour | Where, and the picture | The living | Who moves in the Stop | What turns over |
 |---|---|---|---|---|---|
 | 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera. A name under the base plate: 水野 |
-| 2 | 17:19 | Under the **Center Gai arch**, looking back across the crossing to the station kerb | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
+| 2 | 17:19 | **The tram stop at the station kerb**, from the crossing's edge behind the boy's box: the empty stool near, the tram behind it | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
 | 3 | 17:24 | **Hachiko**, with the station behind | (an old man by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
 | 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man, in three lines and three | She left him alive. What came up the stair after her was nailed boots: his works wore them, and so did the lecturer. It was not her; the player names whose |
 | 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair. Each lover believed the other guilty and kept silent |
@@ -265,7 +265,7 @@ it is inside the lines.
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
 | 1 | her corner | the board for the planetarium's evening lecture | she waited under it, for a man who "counted stars for a living" |
-| 2 | the station kerb, from the arch | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
+| 2 | the station kerb, from behind the boy's box | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
 | 3 | Hachiko | the red lamp of the police box | where the man gave himself up |
 | 4 | east, from the roof | the planetarium's dome, inside Hikarie | where he lectured; the tickets were for its last show |
 | 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
@@ -299,11 +299,29 @@ seven frames and never a choice of where to stand. In two frames the place is th
 
 | Frame | What is withheld | What the player has instead |
 |---|---|---|
-| 2 | the light and the mark at the standpoint (`task.find`) | the goal says what the frame looks at and from under what; with the camera up, the rangefinder's patch warms within three times the standpoint's radius and is lit in it |
+| 2 | the light and the mark at the standpoint (`task.find`) | the goal says what is in the picture and in what order (the boy's box near, the tram behind it, its Shibuya end towards you), as a photograph to be taken again is matched by what stands in front of what; with the camera up, the line through the rangefinder's patch is cut in two, its halves as far apart as the place is far off, and they close as it comes near (a split-image finder's), at every distance |
 | 6 | the ring at his kerb (`find` on the frame) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
 
-Nobody is left looking: after half a minute the goal says more (`find2`, `goal2`), and after `find_s` (80 s, 90 s) the
+Nobody is left looking: after half a minute the goal says more (`find2`, `goal2`), and after `find_s` (60 s, 90 s) the
 light stands there as it does in the other frames. `tools/story_play.js` fails a found frame that has a mark on it.
+
+**A place to find is told by its picture, and answered at every distance.** The first wording of frame 2 sent the
+player under the Center Gai arch, where the world stops; the standpoint had been moved 44 m off for the tram's framing,
+to the crossing's edge behind the boy's box, and nothing said so. The player stood where the words said, every release
+said *not from here*, and the patch warmed only within nine metres of a place nobody had named. From first principles, a
+place to be found has to be:
+
+- told by what can be seen from it (what is near and what stands behind it, the parallax a photograph is retaken by),
+  never by a name of the map that the place does not have;
+- answered all the way there, so that a step nearer can be told from a step away: the split line, from 44 m to none;
+- one fact with its words: `tools/find_probe.js` plays the frame to its camera and takes stills from where the world
+  stops, from the standpoint and from points between, with what the finder says at each.
+
+Learnt from games that hide a place in a picture: the paintings of *Elden Ring*, found by standing where they were
+painted; the memories of *Breath of the Wild*, photographs matched to the land; the treasure maps of *Red Dead
+Redemption 2*, drawings of a view. In each the clue is the composition and the answer is given on the spot. Nothing of
+theirs is copied; the split-image line is a camera's own (the focusing screens of the 1950s and the rangefinders'
+coincident images).
 
 **The player's word decides what comes after.** Deduction that is recited to the player is not deduction. So what
 the player says is kept (`flags` in `web/game/story.js`, in the save) and answered later:
@@ -407,6 +425,31 @@ said only that someone stood behind it. He rides a lift at the player's side, an
 found at the top. Learnt from *Ico*, *The Last Guardian* and *Firewatch*, where a companion or the place itself
 carries the way; nothing of theirs is copied. `tools/story_play.js` fails a frame in which he leads and the
 way is shown twice.
+
+**He keeps the player's pace.** A player runs at 6 m/s unless they choose to walk, and he led at a walk or a trot (1.2
+to 3 m/s): he was overtaken at every step, stood waiting for someone already ahead of him, and the arrow to him sat at
+the foot of the frame pointing at the floor ("Hachi", on SHIBUYA SKY's floor), or at a wall he was behind. He now keeps
+a gap in front of them that grows with their speed, at their speed, at a gallop when they run (a rotary gallop,
+`blender/build_dog.py` `run`); stops and looks back when they stop; and runs past them when they are further along the
+way than he is (`companion.js` `onAhead`). The arrow to him is shown only where he is in sight and in front of them: out
+of sight he is called back (`call`), and behind them on the way he is already running to be in front again. In a
+stopped world the crowd is a field of posts, and his way through it is planned once on a grid (A*, each person a disc
+he may not enter and a margin he would rather not, the way pulled straight where nothing stands in it): between them
+where there is room, round the edge of the crowd where there is not, never through a coat. Pushed off each person in
+turn he got nowhere in a crowd shoulder to shoulder, and after a second went through them. `tools/guide_meet.js`
+checks every frame of his way against every held person, and runs after him to see that he stays in front.
+
+**He is met, not found.** The first time the world stops the view turns once round you under the title, and then cuts
+to him: low among the held legs a dozen metres off, on his feet and looking at you; it backs away before him as he
+comes, swings round behind him as he nears you, and holds on the two of you as he sits at your feet and looks up,
+before it is eased round to behind you (`story.js` `meetGuide`, `guide.meet` on the episode; game.js draws its pose).
+Two lines go with him, at the foot of the frame between the bars: *A dog is walking through the stopped crowd. He is
+coming to you.*, and as he looks up, *He looks up at you, as if you were the one he had been waiting for.* The bronze by
+the station is of a dog who came to that station every evening for nearly ten years for a man who did not come back,
+and the story is about waiting. Space, Enter, Esc or the button end it with him beside you; with reduced motion asked
+for, he comes to you as before. Its grammar is film's: a subject walking into a lens that backs away at his own eye
+height, and a half turn round two figures that puts them in one frame. The owner asked for it: the crowd stopped, the
+camera given to the dog coming slowly, the words with him, and the camera with him all the way to your side.
 
 A flight between frames (frame 5's way down from the roof) is part of the telling: it is skipped only by Space,
 Enter or Esc, and not in its first second and a half. Any key used to skip it, so the E that closed the last line,

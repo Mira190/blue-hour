@@ -18,6 +18,13 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder | `tools/astc_check.js` |
 | `game` | The free game's long scenario: walk, talk, the helicopter, your car, a taxi, the trains | `tools/game_check.js` |
 
+Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
+film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
+to you passes within 0.42 m of a held person's middle or ends away from you, then runs after him at the game's own run
+and fails if he is behind the player more than a quarter of the time. A frame whose place is found (`task.find`):
+`tools/find_probe.js` plays it to its camera and takes stills, with what the finder says, from where the world stops,
+from the standpoint and from points given (`AT=x,y;x,y`), so that the words and the place are seen to agree.
+
 The static checks:
 
 - what the characters and the story say (`tools/voice_check.py`): locals, not the map's credits;
@@ -27,6 +34,8 @@ The static checks:
   by the browser's decoder to the same values (`pipeline/pack.py --check`, `tools/pack_check.js`);
 - the visibility sweep against exact rays (`tools/vis_unit.js`);
 - the frame-time governor on modelled devices (`tools/governor_unit.js`);
+- the story's guide without a browser: round a held crowd by its gap, never through a person, and in front of a player
+  who runs, stops and overtakes him (`tools/guide_unit.js`);
 - the building solids valid on their decimetre grid (`pipeline/solid_rings.py --check`);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
   (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);

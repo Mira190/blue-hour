@@ -10,6 +10,7 @@
 #             (pipeline/pack.py --check, tools/pack_check.js);
 #           - the visibility sweep against exact rays (tools/vis_unit.js);
 #           - the frame-time governor on modelled devices (tools/governor_unit.js);
+#           - the story's guide round a held crowd and ahead of a running player (tools/guide_unit.js);
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
@@ -216,6 +217,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st pack pack_decode "the packs decode to their JSON" '^FAIL|Error' node tools/pack_check.js
     st vis vis "the sweep hides nothing an exact ray reaches" '^FAIL|Error' env EYES=12 node tools/vis_unit.js
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
+    st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
