@@ -1304,19 +1304,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return out;
   }
   // into your car (walk round to the driver's door first), and out again
-  function enterCar() {
-    const d = doorAt(myCar, 'driver');
-    player.auto = { x: d.x, y: d.y, t: 0, then: () => {
-      player.mode = 'car'; player.vehicle = myCar;
-      myCar.C.sit(player.rig, 'driver');
-      if (headlamp) myCar.C.carry(headlamp);
-      const turn = Math.abs(angDiff(myCar.D.st.h, cam.yaw));
-      cam.mode = 'chase'; cam.dist = 7.5; cam.pitch = 0.2; cam.yaw = myCar.D.st.h;
-      blendFrom(0.8 + turn * 0.16, true); // (round behind the car from where you stood, not swung through it in a frame or two; longer the farther round)
-      A.thump();
-      H.toast(touch ? 'Your car. Push the stick forward to drive, back to brake and reverse, and to either side to steer. <b>Hand brake</b>, <b>Horn</b>, <b>View</b> and <b>Auto</b> are beside it; <b>E</b> gets out.'
-        : 'Your car. <kbd>W</kbd>/<kbd>S</kbd> drive, brake and reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> view, <kbd>E</kbd> get out.');
-    } };
+  function enterCar() { // (E and you are in the driver's seat, as for a ride: no walk to the door first)
+    player.auto = null; player.speed = 0;
+    player.mode = 'car'; player.vehicle = myCar;
+    myCar.C.sit(player.rig, 'driver');
+    if (headlamp) myCar.C.carry(headlamp);
+    const turn = Math.abs(angDiff(myCar.D.st.h, cam.yaw));
+    cam.mode = 'chase'; cam.dist = 7.5; cam.pitch = 0.2; cam.yaw = myCar.D.st.h;
+    blendFrom(0.8 + turn * 0.16, true); // (round behind the car from where you stood, not swung through it in a frame or two; longer the farther round)
+    A.thump();
+    H.toast(touch ? 'Your car. Push the stick forward to drive, back to brake and reverse, and to either side to steer. <b>Hand brake</b>, <b>Horn</b>, <b>View</b> and <b>Auto</b> are beside it; <b>E</b> gets out.'
+      : 'Your car. <kbd>W</kbd>/<kbd>S</kbd> drive, brake and reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> view, <kbd>E</kbd> get out.');
   }
   // out of a car onto the ground beside a door, on foot again
   function stepOut(o, seat, at = null) {
@@ -1789,6 +1787,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // queue that is forming; Shibuya's hailed taxi was sent behind a car just stopped so at 824, timed 21 s and there in 70)
   const queuedAt = a => { let n = 0, jam = 0; for (const c of cars.live) if (c.line >= 0 && c.lineArm === a && OECars.queueing(c)) { n++; if (c.why === 'room' && c.toLine - c.half < 3) jam = Math.max(jam, c.why === 'room' && (c.still || 0) > 20 ? JAM_WAIT : JAM_WAIT / 3); } return n * Q_CLEAR + jam + (n && a.j.sig && junctions.light(a) !== 'g' ? junctions.toGreen(a) : 0); };
   const queueWait = (arms, s0, skip = null) => { let t = 0; for (const q of arms || []) if (q.s > s0 + 2 && q.a !== skip) t += queuedAt(q.a); return t; };
+  // the car a story sends (story.js ride) drives at this much over the limit, with you in it: at the limit the way back to
+  // Hachiko was minutes of a dark street between two frames, and the owner asked for it faster (cars.js chauffeur pace);
+  // and held still this many seconds with you in it (a red, the queue to one), the trip is cut on to where it sets you down
+  const STORY_PACE = 1.6, STORY_HELD = 6;
+  // a story's helicopter waiting on its pad: its rotor turning over (vehicles.js st.idle, a fraction of flying speed),
+  // and how near it E gets you in (SHIBUYA SKY's pad is its Geo Compass, a round floor two metres over the deck round it)
+  const HELI_IDLE = 0.3, HELI_REACH = 12;
   const rideClock = () => clockT; // the traffic's clock, which junctions.js keeps its turns by (a ride's driver asks it for its way across)
   // A way that crosses a scramble near you is timed with its walk (SCR_WAIT): where another way round it
   // reaches you sooner, counted the same way, the ride takes that one, as a driver who knows the scramble's
@@ -2063,20 +2068,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     H.toast(`Ride with ${ride.name} cancelled.`);
     rideAway();
   }
+  // E beside the car and you are in it, in the seat on the kerb's side: no walk round to that door first (a walk up
+  // to the door, round the boot when you stood on the road's side, was seconds of nothing between the key and the seat)
   function boardRide() {
-    const o = ride, d = doorAt(o, kerbSeat);
-    o.phase = 'boarding';
-    player.auto = { x: d.x, y: d.y, t: 0, then: () => {
-      if (ride !== o) return;
-      player.mode = 'ride'; player.vehicle = o;
-      o.C.sit(player.rig, kerbSeat);
-      if (headlamp) o.C.carry(headlamp);
-      const turn = Math.abs(angDiff(o.drv.st.h, cam.yaw));
-      cam.mode = 'chase'; cam.dist = 8; cam.pitch = 0.24; cam.yaw = o.drv.st.h;
-      blendFrom(0.8 + turn * 0.16, true);
-      A.thump();
-      if (o.dest) setOff(o.dest); else askWhereTo();
-    }, cancel: () => { if (ride === o && o.phase === 'boarding') o.phase = 'waiting'; } }; // walked off: it waits on (one held in its lane too: hazards on, for five minutes)
+    const o = ride;
+    o.phase = 'boarding'; player.auto = null; player.speed = 0;
+    player.mode = 'ride'; player.vehicle = o;
+    o.C.sit(player.rig, kerbSeat);
+    if (headlamp) o.C.carry(headlamp);
+    const turn = Math.abs(angDiff(o.drv.st.h, cam.yaw));
+    cam.mode = 'chase'; cam.dist = 8; cam.pitch = 0.24; cam.yaw = o.drv.st.h;
+    blendFrom(0.8 + turn * 0.16, true); // (the view goes round behind the car, eased: the one move between the key and the road)
+    A.thump();
+    if (o.dest) setOff(o.dest); else askWhereTo();
   }
   // where you might go: the waypoint, the survey, your car, the landmarks, the wharves (each
   // somewhere whose nearest street is a drive away, not round the corner)
@@ -2117,7 +2121,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!rt) { o.dest = null; askWhereTo(`I can't get to ${dest.name} by road from here, sorry. Somewhere else?`, dest.id); return; }
     Object.assign(o, { dest, phase: 'driving', meter: 0, talkT: clockT + 9, t0: clockT });
     o.drv.leave();
-    const opts = Object.assign(rideGuard(o.C), { keep: keepSign, from: o.inLane ? 'lane' : 'kerb', lights: junctions, priority: true, callFrom: 200, now: rideClock }); // (got back into in its lane: on from there; you in it, its green called ahead, as for one coming for you)
+    const opts = Object.assign(rideGuard(o.C), { keep: keepSign, from: o.inLane ? 'lane' : 'kerb', lights: junctions, priority: true, callFrom: 200, now: rideClock, pace: dest.id === 'story' ? STORY_PACE : 1 }); // (got back into in its lane: on from there; you in it, its green called ahead, as for one coming for you; the story's car, briskly: STORY_PACE)
     o.drv = OECars.chauffeur(o.C, rt, opts);
     o.drv.opts = opts; // (for a new way round a jam)
     o.inLane = o.hold = false;
@@ -2612,6 +2616,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'ride' && player.vehicle === o) {
       Object.assign(player, { x: st.x, y: st.y, z: st.z, h: st.h, speed: st.v });
       if (o.phase === 'driving' && clockT > o.talkT) { o.talkT = clockT + 24 + srnd() * 18; H.toast(`<b>${o.name}:</b> ${smalltalk(st.x, st.y)}`); }
+      // the car a story sends, with you in it, is not sat in at a red or in the queue to one: held still STORY_HELD seconds,
+      // the trip goes on to where it sets you down, as F takes it (the queue to the Scramble's arm under the viaduct waits out
+      // its walk and its turns: on one way back to Hachiko 75 s of 127 were stood still)
+      // (once under way: not while it waits at the kerb for a gap to pull out into, or the drive is never seen)
+      if (o.phase === 'driving' && player.vehicle === o && o.dest && o.dest.id === 'story') { o.driveT = (o.driveT || 0) + dt; o.heldT = st.v < 0.5 && st.s > 8 && !cine.active ? (o.heldT || 0) + dt : 0; if (o.heldT > STORY_HELD) { o.heldT = 0; o.cut = o.driveT; skipRide(); } }
       if (o.phase === 'driving' && st.done) {
         o.phase = 'arrived';
         const fare = life ? life.fare(o.meter, o.kind) : '';
@@ -3372,6 +3381,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const fly = (g, shot) => {
         // (you are in it: nobody stands on the ground it is coming down to; you are seen once it is down, in the shot the spec names, out of its door)
         player.rig.root.visible = !g || !!(shot && shot.id === (spec.out_shot || 'foot'));
+        if (guideMade && guideMade.aboard) guideMade.aboard(!player.rig.root.visible); // (the dog in it with you, and out at your heels after you)
         if (!g) { // set down: it lifts off again, turns for its roof and goes, and is put back on its pad once it is out of sight
           let t = 0; const h0 = st.h;
           heliAway = dt => {
@@ -3386,7 +3396,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const x = g.x, y = -g.z, z = g.y;
         if (last) { const dx = x - last[0], dy = y - last[1], d = Math.hypot(dx, dy); if (d > 0.02) { const h = Math.atan2(dx, dy) + (spec.heading_offset || 0); st.h += angDiff(h, st.h) * 0.12; st.pitch = Math.min(0.22, d * 0.5); } }
         last = [x, y, z];
-        st.x = x; st.y = y; st.z = z; st.vx = st.vy = st.vz = 0; st.yawRate = 0; st.on = true; st.landed = false; st.rotor = 1;
+        st.x = x; st.y = y; st.z = z; st.vx = st.vy = st.vz = 0; st.yawRate = 0; st.on = true; st.landed = false; st.rotor += (1 - st.rotor) * 0.05; // (up from turning over to full as it lifts, not at once)
         if (!heli.loaded()) { heli.want(); heli.show(); }
         heli.update(1e-4, {}, []); heli.group.visible = true;
         if (A.rotor) A.rotor(1, 0.55); // (heard, as it is seen)
@@ -3396,6 +3406,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (f) { overture = f; f.story = performance.now(); if (f.play(done)) return; overture = was; }
       if (spec.end && spec.end.at) spawn(spec.end.at.slice(0, 2), undefined, spec.end.facing);
       then();
+    },
+    // the helicopter a flight goes by, on its pad (a frame's flight.board): board(null, 'parked') stands it there, seen,
+    // through the frame before; board(null, 'idle') starts it turning over once that frame's picture is taken;
+    // board(then) waits for you to get in (E beside it: then() plays the flight), and gives where it stands, or null where
+    // you are nowhere near it (a case taken up again at that frame, on the street: the flight alone); board(null) puts it away
+    board: (then, how = null) => {
+      const st = heli.st;
+      if (!then) { heliWait = how ? { then: null, idle: how === 'idle' } : null; return null; }
+      if (player.mode !== 'foot' || Math.hypot(st.x - player.x, st.y - player.y) > 150 || Math.abs(st.z - player.z) > 30) { heliWait = null; return null; }
+      if (!heli.loaded()) heli.want();
+      heliWait = { then, idle: true };
+      return [st.x, st.y, st.z];
     },
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
@@ -3414,7 +3436,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     guide: makeGuide,
     // the view turned towards a place (gently, and never against the player's own hand on it)
-    look: at => { if (player.mode === 'foot') cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); },
+    // (level: and up from looking down, or down from looking up, to the chase camera's own height: the roof's picture is taken
+    // looking straight down at the street, and the helicopter to get into after it was out of a view still pointed down)
+    look: (at, level = false) => { if (player.mode !== 'foot') return; cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); if (level) cam.pitchTo = 0.3; },
     // the air of the scene (stopfx.js): leaves coming down and birds going over, there before time stops and held when it does
     air: opts => { if (stopFx) stopFx.air(W(player.x, player.y, player.z), opts || {}); },
     // a car sent for you (a frame's `ride`: {to: [x, y], name}): it comes to the kerb, E gets in, and it drives you there
@@ -3716,6 +3740,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let overture = null; // the map's opening film (overture.js), made once the player is placed
   let makeFilm = null; // (overture.js's films, made on this map)
   let heliAway = null; // (the helicopter of a story's flight, leaving once it has set you down)
+  let heliWait = null; // (and before it: on its pad, seen, { then: E beside it gets you in, idle: its rotor turning over } (story ctx board)
   let storyMusic = null; // (the score under the story: music.js, started with the first scene)
   let joy = { x: 0, y: 0 }, touchLift = 0, uiOpen = () => (window.OEMetro && OEMetro.isOpen()) || !$('#g-menu').hidden || !$('#g-bigmap').hidden || !$('#g-pass').hidden || !$('#g-title').hidden || !!(life && life.open) || !!(fish && fish.api && fish.api.logOpen());
   const k = c => keys.has(c);
@@ -3803,7 +3828,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'heli' && cam.mode === 'cockpit') { cam.lookYaw = Math.max(-2.4, Math.min(2.4, cam.lookYaw - dx * 0.005)); cam.lookPitch = Math.max(-1.1, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
     else if (onTrain() && cam.mode !== 'chase') { cam.lookYaw = Math.max(-2.6, Math.min(2.6, cam.lookYaw + dx * 0.005)); cam.lookPitch = Math.max(-0.9, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
     else if (player.mode === 'seat') { cam.lookYaw = Math.max(-1.9, Math.min(1.9, cam.lookYaw + dx * 0.004)); cam.lookPitch = Math.max(-0.7, Math.min(0.9, cam.lookPitch - dy * 0.0035)); } // in a seat: you turn your head
-    else { cam.yawTo = null; cam.yaw += dx * 0.006; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + dy * 0.005)); }
+    else { cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + dy * 0.005)); }
     cam.lastInput = clockT;
   });
   on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.open) dlg.next(false); drag = null; });
@@ -3937,6 +3962,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function currentActionAny() {
     if (closeup) return { key: 'E', text: 'Step back', act: closeupEnd };
     if (dlg.open || uiOpen() || cine.active || OEOnboard.active()) return null; // nothing to start while the tour is showing
+    // a story's helicopter on its pad: E beside it and you are in (story ctx board), before anyone near it is talked to
+    if (heliWait && heliWait.then && player.mode === 'foot' && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < HELI_REACH && Math.abs(heli.st.z - player.z) < 4) return { key: 'E', story: true, text: 'Get in the helicopter', act: () => { const w = heliWait; heliWait = null; A.thump(); w.then(); } };
     if (player.mode === 'seat') return { key: 'E', text: 'Stand up', act: standUp };
     if (fish && fish.api && fish.api.busy()) return fish.api.action(); // a line is out (fishing.js)
     if (player.mode === 'lift') return { key: '', text: liftRide && liftRide.phase === 'ride' ? `To ${liftRide.b.name}…` : liftRide && liftRide.phase === 'call' ? 'The car is coming…' : '' };
@@ -5901,7 +5928,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot') cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
-    if (story && heli.group && !heli.st.on) heli.group.visible = false; // (the story's helicopter is seen only in the flight it plays: story ctx film)
+    if (story && heli.group && !heli.st.on) { heli.group.visible = !!heliWait; heli.st.idle = heliWait && heliWait.idle && heli.loaded() ? HELI_IDLE : 0; } // (the story's helicopter is seen only on its pad before the flight it plays, and in that flight: story ctx board, film)
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
     if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
@@ -6028,7 +6055,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
-      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { cam.yawTo = null; cam.yaw += lk.x * 2.6 * dt; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt)); cam.lastInput = clockT; }
+      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt)); cam.lastInput = clockT; }
     }
     if (D.district && playing && (player.mode === 'foot' || player.mode === 'car') && !inFrame(player.x, player.y, 8)) districtEdge(); // (a phone's district: its edge, said)
     const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + joy.y + (gamepad ? gamepad.move.y : 0);
@@ -6635,6 +6662,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (cam.distTo) { cam.dist += (cam.distTo - cam.dist) * Math.min(1, dt * 2.5); if (Math.abs(cam.distTo - cam.dist) < 0.05) cam.distTo = 0; } // easing in or out
     if (cam.yawTo != null) { const d = angDiff(cam.yawTo, cam.yaw); cam.yaw += d * Math.min(1, dt * 2.5); if (Math.abs(d) < 0.01) cam.yawTo = null; }
+    if (cam.pitchTo != null) { const d = cam.pitchTo - cam.pitch; cam.pitch += d * Math.min(1, dt * 2); if (Math.abs(d) < 0.01) cam.pitchTo = null; } // (and up or down: story ctx look, level)
     // (in a car it stands back a little more with the speed, eased: a knock that stopped the car dead brought it in half a metre in a frame)
     cam.back = veh ? (cam.back || 0) + (Math.min(2.5, Math.abs(vs.v) * 0.05) - (cam.back || 0)) * Math.min(1, dt * 3) : 0;
     const dist = player.mode === 'heli' ? Math.max(cam.distTo ? cam.dist : 14, cam.dist) + Math.min(4, heli.st.speed * 0.08) : player.mode === 'ferry' || player.mode === 'rail' ? Math.max(25, cam.dist) : veh ? Math.max(5, cam.dist) + cam.back : cam.dist;

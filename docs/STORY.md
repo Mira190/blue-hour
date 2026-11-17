@@ -239,15 +239,29 @@ of motion interrupted, at every depth, that the viewer then moves through. So (`
 - when time is let go, everything that hung falls.
 
 **Between places, the city is shown.** A frame can be reached by air (`flight` on the frame: an overture's
-spec played by `web/game/overture.js`, with the helicopter as its guide). After the roof: three shots and no
-orbit. Locked off low on the pad as it lifts out of the top of the frame; one unbroken take from behind and a
+spec played by `web/game/overture.js`, with the helicopter as its guide). The helicopter is seen before it is
+flown: it stands parked on the roof's pad through frame 4, starts up (its rotor turning over, heard) as that
+frame's picture is taken, and once what is said on the roof has been said the goal is to get in; the dog leads
+to it, and E beside it puts you in at once (`flight.board`; story ctx `board`). After the roof: three shots and
+no orbit. Locked off low on the pad as it lifts out of the top of the frame; one unbroken take from behind and a
 little above it, off the roof, over the Scramble with every screen lit, a wide turn to the north and down to
-the east; locked off on the ground as it comes down into the frame, and a step nearer as you get out. Any key
-ends it at once, on the ground; you are in it until it is down, and get out by its door; it lifts off again and
-goes. Its way is checked against the map's own buildings (`tools/flight_clear.py`). And a frame can be reached
-by car (`ride` on the frame): one is sent for you, the goal is the car until you are in it, it drives the real
-streets with the traffic and the lights, and the frame goes on where it sets you down, or where you walk to
-(`tools/story_ride.js` takes it).
+the east; locked off on the ground as it comes down into the frame, and a step nearer as you get out, the dog at
+your heels. Space, Enter or Esc ends it at once, on the ground; you are in it until it is down, and get out by its
+door; it lifts off again and goes. Its way is checked against the map's own buildings (`tools/flight_clear.py`).
+A case taken up again at frame 5, on the street, has the flight alone.
+
+For a day the way down was the air's own view with no helicopter in it, begun two seconds after the roof's
+picture: the line on the roof still promised the helicopter, what was said there was lost under the film (a film
+shows none of the street's words), and the player was on the street with no way down seen. Out, for that reason.
+
+And a frame can be reached by car (`ride` on the frame): one is sent for you, the goal is the car until you are in
+it, E beside it is the seat at once (no walk round to the kerb's door), it drives the real streets with the traffic
+and the lights at 1.6 times the limit (`STORY_PACE` in `web/game/game.js`: at the limit the way back to Hachiko
+was minutes of dark street between two frames), F skips the rest (the line under the goal says so while you ride),
+and held still six seconds at a red or in the queue to one (`STORY_HELD`) it goes on to where it sets you down as F
+takes it: the queue to the Scramble's arm under the viaduct waits out the walk and the other roads' turns, and one
+way back stood still 75 s of 127. The frame goes on where it sets you down, or where you walk to
+(`tools/story_ride.js` takes it; `tools/ride_people.js` times it).
 
 **What is in the air is there before it stops.** Leaves come off the street's trees all evening, a page of an old
 newspaper goes by, a flock of pigeons passes over every quarter minute; the Stop holds them where they are and
