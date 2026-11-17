@@ -270,9 +270,12 @@ window.OEOverture = (function () {
     const tier = ctx.tier || 'high';
     let kind = 'sakura', K = KINDS.sakura, hero = null, glow = null, drift = null, driftData = null, group = null, tail = [], sky = null, shower = [], nextStar = 0;
     const NDRIFT = { high: 420, medium: 260, low: 110 }[tier] || 200, BOX = 36;
+    let builtFor = null;
+    const buildKey = () => `${variant}|${spec.guide || kindFor(spec, ctx.clock.m, ctx.clock.d)}|${!!spec.sky}`;
     function build() {
       kind = spec.guide || kindFor(spec, ctx.clock.m, ctx.clock.d);
       K = KINDS[kind];
+      builtFor = buildKey();
       group = new THREE.Group();
       group.name = 'overture';
       const tex = glowTexture();
@@ -312,6 +315,17 @@ window.OEOverture = (function () {
         }
         shower.push({ parts, t0: -99, life: 1, a: new V3(), v: new V3() });
       }
+    }
+    // built ahead and compiled, hidden, while the title is up (warm: game.js compileFor, which resolves when the GPU has
+    // them): the tap on Play compiled the guide, its drift, its glows and the sky in the frame after it, which on the
+    // owner's iPhone held that tap 4.4 s (tools/entry_cost.js)
+    function prewarm(warm) {
+      if (active) return Promise.resolve();
+      pick();
+      if (group && builtFor !== buildKey()) dispose();
+      if (!group) build();
+      group.visible = false; if (sky) sky.visible = false;
+      return Promise.all([warm(group), sky ? warm(sky) : null]).catch(e => console.warn('overture warm-up:', e));
     }
     function dispose() {
       if (!group) return;
@@ -474,6 +488,7 @@ window.OEOverture = (function () {
         // on the game's own context and its music bus (docs/SOUND.md): a second context made here, after the touch that
         // started the game's, is one a phone (iOS) leaves suspended, and it was outside the Sound switch and the duck
         const A = window.OEAudio, AC = window.AudioContext || window.webkitAudioContext, bus = A && A.ctx && A.musicBus();
+        if (A && !bus) return; // (the game's sound not made yet: on iOS it is made in a touch, and a context made here would not be)
         audio = bus ? A.ctx : audio || new AC();
         let b = scoreBuf;
         if (Array.isArray(b)) { b = audio.createBuffer(2, scoreBuf[0].length, 24000); b.copyToChannel(scoreBuf[0], 0); b.copyToChannel(scoreBuf[1], 1); }
@@ -755,7 +770,9 @@ window.OEOverture = (function () {
       try { placeEnd(); resolve(); } catch (e) { console.warn(String(e)); return false; }
       onDone = done;
       active = true; settling = false; fired = new Set(); lastShot = null; from = null; lapsed = 0;
-      build();
+      if (group && builtFor !== buildKey()) dispose(); // (built ahead for another hour or season)
+      if (!group) build();
+      group.visible = true; if (sky) sky.visible = true;
       overlay();
       ctx.stage.classList.add('letterbox', 'overture');
       wasFrozen = ctx.clock.frozen; ctx.clock.frozen = true; clock0 = ctx.clock.min;
@@ -797,7 +814,7 @@ window.OEOverture = (function () {
       if (onDone) onDone(skipped);
     }
     return {
-      play, skip, update, prepareScore, scorePlan, point, get shots() { return shots; }, get total() { return total; }, get variant() { return variant; },
+      play, skip, update, prepareScore, prewarm, scorePlan, point, get shots() { return shots; }, get total() { return total; }, get variant() { return variant; },
       get active() { return active; }, get fov() { return fov; }, get fx() { return active ? fx : null; }, get t() { return t; }, get kind() { return kind; }, get end() { return endAt.slice(); },
       // the guide's and the camera's path through each shot (for tools/overture_film.js's checks)
       sample(s, k) { const g = shotPose(s, k); return { pos: pose.pos.clone(), look: pose.look.clone(), guide: g ? g.clone() : null }; },

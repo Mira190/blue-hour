@@ -27,14 +27,17 @@ window.OpenEarthGame = async function game(cityId) {
   // with the page; where it does not, the loading screen says so and the first key or touch starts it.
   let cue = null;
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
-    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !!A.ctx && A.ctx.state !== 'running');
+    // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
+    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
     const begin = () => {
       A.start();
-      if (cue || !A.ctx) return;
+      if (cue !== null || !A.ctx) { heard(); return; } // (false: played and let go)
       cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
       on(A.ctx, 'statechange', heard); heard();
     };
     begin();
+    if (A.made) A.made(() => { if (cue === null) begin(); }); // (iOS: the context is made in the first touch, audio.js)
+    if (A.pending) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
     for (const ev of ['pointerdown', 'keydown']) on(window, ev, () => { if (cue) begin(); }, { capture: true });
   }
   const cueOut = () => { if (cue) { cue.stop(5); cue = false; } }; // (false: it has played, and is not begun again)
@@ -210,6 +213,17 @@ window.OpenEarthGame = async function game(cityId) {
   // shaders compiled, before it is shown (issue 201; world.js upload)
   const uploadFor = obj => (OEWorld.upload ? OEWorld.upload(renderer, obj) : Promise.resolve());
   const warmFor = obj => uploadFor(obj).then(() => compileFor(obj));
+  // a model that comes late, its vertex buffers sent in slices before its first draw (world.js uploadBuffers, as the
+  // loader sends the city's): while they go, its meshes are on a layer of their own (30), seen by that pass alone and
+  // not by the frames between the slices, and then put back as they were (a hero level: hero.js)
+  const sendBuffers = root => {
+    if (!OEWorld.uploadBuffers) return null;
+    const ms = [], was = root.visible;
+    root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) { ms.push([o, o.layers.mask]); o.layers.set(30); } });
+    root.visible = true;
+    const put = () => { root.visible = was; for (const [o, m] of ms) o.layers.mask = m; };
+    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
+  };
   // the weather: dry, overcast, drizzle or rain, as the city's climate brings it for the date (weather.js)
   // a far land that reaches past the default far plane (Kamakura's, out to Mount Fuji at 70 km): the camera takes it in
   if ((Wd.world.userData.farHalf || 0) * 1.45 > camera.far) { camera.far = Wd.world.userData.farHalf * 1.45; camera.updateProjectionMatrix(); }
@@ -437,7 +451,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const [k, m] of Object.entries((D.LM && D.LM.materials) || {})) if (m.street_lit || m.decal || m.pattern === 'deck_zones') { mirror.patch(Wd.lmMats[k]); mirror.patch(Wd.floodMats[k]); }
   }
   // a hero level: a street modelled finely, loaded when the player comes near it and let go when they leave (hero.js)
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj) }) : null;
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj), upload: sendBuffers }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -1034,7 +1048,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a railway's trains: the modelled stock in place of the stand-ins, when it has loaded
   if (rail && rail.useModels) new THREE.GLTFLoader().load('assets/vehicles/trains.glb', g => { try { rail.useModels(g.scene); } catch (e) { console.warn('Train models unavailable, using simple ones:', e); } }, undefined, e => console.warn('Train models unavailable, using simple ones:', e));
   // a main line's trains past its station, where the city has them (trains.js): heard from the camera
-  const trains = G.trains && window.OETrains ? OETrains.create(world, G, { hour: () => clock.min / 60, listener: () => ({ x: camera.position.x, y: -camera.position.z, z: camera.position.y }) }) : null;
+  const trains = G.trains && window.OETrains ? OETrains.create(world, G, { hour: () => clock.min / 60, listener: () => ({ x: camera.position.x, y: -camera.position.z, z: camera.position.y }), warm: obj => warmFor(obj) }) : null;
   // ridden the way rail.js's trains are, where the city has no rail.js line (trains.js ride: its stations, the trains
   // standing at them, boarding, the next stop and getting off)
   if (!rail && trains && trains.ride) rail = trains.ride;
@@ -5762,6 +5776,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // opening shot; it lands on its pad once the game opens (heliToPad), not in the title's shot
     // (on a phone, after what afterPlayable fetches: one thing at a time)
     const heliIn = () => { if (running && !(QC.budget && QC.budget.extras === false) && !heli.loaded() && heli.prefetch && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 800) { loadStep('late helicopter'); heli.prefetch(); } };
+    // the opening's own things (its guide, the air it drifts in, the glows, the painted sky) built and their shaders
+    // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
+    if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
+    // and the story's stopped air: its leaves, birds and motes, made at the first beat after the tap (stopfx.js warm)
+    if (story && stopFx && stopFx.warm) setTimeout(() => stopFx.warm(warmFor), reduced ? 0 : 1000);
     setTimeout(() => { if (QC.lean) afterPlayable().then(heliIn); else heliIn(); }, reduced ? 0 : 900);
   });
   // What the first frame doesn't need, fetched once the game can be played, as the helicopter's model is (issue 335):
@@ -5922,7 +5941,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Wd.tick(now, camera);
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
-    if (hero) hero.update(camera, dt);
+    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
     weatherTick(simHold ? 0 : dt * (story ? story.scale : 1), titleOn, titleOn || paused || photo.on); // (held by a harness: the weather eases on only with advance(), which ticks it; stepped by the frames too, it eased by however many the machine drew, #420)

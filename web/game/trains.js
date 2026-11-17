@@ -633,6 +633,13 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         delete kinds[key];
       }
       api.models = true;
+      // every stock's cars made now and their shaders compiled and pictures sent (o.warm: game.js warmFor), not in the
+      // frame that first draws one: the first E235 on the viaduct was compiled in the frame after the tap on Play
+      // (tools/entry_cost.js)
+      if (o.warm) {
+        for (const sv of services) for (let k = 0; k < sv.cars; k++) kind(sv.stock, roleOf(sv, k));
+        for (const K of Object.values(kinds)) if (K.glb) for (const L of K.lods) for (const m of L.meshes) o.warm(m);
+      }
     });
     // head and tail lamps, a pair of sprites per end of each train drawn
     let gt = null;
