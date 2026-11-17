@@ -267,7 +267,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       if (st.guided && !talk) {
         // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him
         const d = st.dog, dq = ctx.screen([d.x, d.y, d.z + 0.6]), dx = dq.x * W, dy = dq.y * H;
-        if (dq.front && dx > m && dx < W - m && dy > m && dy < H - m) { mark.classList.remove('on'); return; }
+        if ((dq.front && dx > m && dx < W - m && dy > m && dy < H - m) || dq.dist < 6) { mark.classList.remove('on'); return; } // (at your heels, out of the frame below you, he is not lost: no arrow pointing at your feet)
         q = dq; k = 'guide';
       }
       let x = q.x * W, y = q.y * H;
