@@ -3792,9 +3792,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0);
     if (lx || ly) { joy = { x: lx, y: -ly }; padJoy = true; if (arriving) settleArrival(); }
     else if (padJoy) { joy = { x: 0, y: 0 }; padJoy = false; }
-    // the right stick: the look, as a drag of 900 px a second at full tilt
+    // the right stick: the look, as a drag of 450 px a second at full tilt (2.7 rad/s round, 1.5 up and down: a pad game's turn)
     const rx = dz(gp.axes[2] || 0), ry = dz(gp.axes[3] || 0);
-    if ((rx || ry) && !uiOpen() && !dlg.open) lookBy(rx * Math.abs(rx) * 900 * dt, ry * Math.abs(ry) * 600 * dt);
+    if ((rx || ry) && !uiOpen() && !dlg.open) lookBy(rx * Math.abs(rx) * 450 * dt, ry * Math.abs(ry) * 300 * dt);
   }
   const on0 = gp => gp.buttons.some(b => b.pressed) || gp.axes.some(a => Math.abs(a) > 0.5);
   // the pointer's hover and the pad's ring are not shown at once: a mouse moved puts the ring away
