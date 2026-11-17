@@ -492,15 +492,16 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
 vec3 xpN = normalize(normal);
 float xpKey = max(dot(xpN, normalize((viewMatrix * vec4(0.35, 0.85, 0.4, 0.0)).xyz)), 0.0);
 float xpRim = pow(1.0 - abs(dot(xpN, normalize(vViewPosition))), 3.0);
-vec3 xpC = gl_FragColor.rgb + diffuseColor.rgb * (0.05 + 0.12 * xpKey) * uXpLift;
-float xpL = dot(xpC, vec3(0.3, 0.59, 0.11));
-vec3 xpP = mix(vec3(0.06, 0.054, 0.046), vec3(1.0, 0.93, 0.8), smoothstep(-0.04, 0.9, xpL));
-xpC = mix(xpC, mix(xpP, xpP * (0.72 + 0.56 * xpC / max(xpL, 0.02)), 0.3), 0.85);
-xpC += vec3(1.0, 0.9, 0.74) * xpRim * 0.16 * (0.4 + xpL);
+vec3 xpC = gl_FragColor.rgb + diffuseColor.rgb * (0.04 + 0.1 * xpKey) * uXpLift;
+float xpV = sqrt(max(dot(xpC, vec3(0.3, 0.59, 0.11)), 0.0));
+vec3 xpP = mix(vec3(0.26, 0.245, 0.225), vec3(1.0, 0.95, 0.86), smoothstep(-0.02, 0.95, xpV));
+vec3 xpT = xpP * xpP * (0.78 + 0.44 * sqrt(max(xpC, 0.0)) / max(xpV, 0.03) * 0.5);
+xpC = mix(xpC, xpT, 0.85);
+xpC += vec3(1.0, 0.9, 0.74) * xpRim * 0.08 * (0.3 + xpV);
 float xpG = fract(sin(dot(floor(gl_FragCoord.xy / 1.5) + floor(uXpT * 24.0) * vec2(17.0, 31.0), vec2(12.9898, 78.233))) * 43758.5453);
-xpC += (xpG - 0.5) * 0.06 * (0.3 + xpL);
-xpL = dot(xpC, vec3(0.3, 0.59, 0.11));
-gl_FragColor = vec4(xpC, 1.0 - 0.55 * (1.0 - smoothstep(0.0, 0.45, xpL)));`;
+xpC *= 1.0 + (xpG - 0.5) * 0.12;
+xpV = sqrt(max(dot(xpC, vec3(0.3, 0.59, 0.11)), 0.0));
+gl_FragColor = vec4(xpC, 1.0 - 0.32 * (1.0 - smoothstep(0.08, 0.5, xpV)));`;
   const xpU = { uXpT: { value: 0 }, uXpLift: { value: 1 } }, xpMade = new WeakMap(), xpOwn = new WeakSet();
   function exposure(root) {
     const one = m => {

@@ -49,7 +49,7 @@ blending is three.js's `CustomBlending` (MIT).
 **What the cast cannot show.** The avatars are of today: there is no 1964 among them. Sumiko is a young woman in
 everyday clothes, not a lift girl in her store's uniform with a pillbox hat and one glove; the detective is a
 present-day uniformed officer (Rocketbox's police avatar), not a 1964 plain-clothes detective in a hat and a raincoat;
-Kanbara is a modern suit; Tatsuo a construction worker of today, with the helmet a site of 1964 would also have had.
+Kanbara is a modern suit; Tatsuo a construction worker of today in a work shirt, bare-headed, where a site of 1964 would have given him a helmet.
 The print's tones take the most modern of it away (no saturated colour, no logo reads), but the cut of the clothes is
 today's. That waits on faces and costume (issue 12).
 
