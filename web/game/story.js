@@ -55,7 +55,7 @@ window.OEStory = (function () {
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
   //        person(id) -> one of the map's people { x, y, z, name, role }, beacon(at | null): a light standing at [x, y, , floor]
   //        (none: taken away), screen(at) -> { x, y, front, dist } where [x, y, z] is in the frame (0..1), aim(at) -> degrees
-  //        between the lens and it, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
+  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     // the story's own interface (story.css): the map's instruments are put away for as long as the story is here
@@ -237,17 +237,51 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     // here" (where the picture is taken from, and the light there is amber); `frame` the corners of a finder and no
     // metres (the thing the picture is of: turned to, never walked to)
     const MARKS = { meet: 'Talk', ghost: 'Talk', stand: 'Stand here' };
-    function aimAt(at, turn, kind) { st.target = at; st.kind = kind || 'go'; mark.dataset.kind = st.kind; ctx.beacon(at, st.kind); if (!at) mark.classList.remove('on'); else if (turn && ctx.look) ctx.look(at); guideTo(at); } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    function aimAt(at, turn, kind) { st.target = at; st.kind = kind || 'go'; mark.dataset.kind = st.kind; guideTo(at); light(null); if (!at) mark.classList.remove('on'); else { if (turn && ctx.look) ctx.look(at); markTick(0); } } // (turn: the view is brought round to it, so that a new goal is in front of you)
+    // the light standing in the street, set only when it changes
+    function light(at, kind) { const k = at ? `${at}|${kind}` : ''; if (k === st.lightK) return; st.lightK = k; ctx.beacon(at, kind); }
+    // Who shows the way. A dog going ahead of you is the way, and anything else that says where to go is a second voice
+    // saying it: a column of light over the street, a gold line on the paving, a ring at the edge of the frame with
+    // its metres. Each draws the eye off him to a sign, and he becomes something walking beside the instructions. So
+    // while he leads to the goal, he alone shows it. The signs come back only where he cannot do it: before he is met,
+    // while he is off on his own errand, where the goal is a thing to frame and not a place, and when the player has
+    // gone LOST_S seconds without getting any nearer (whatever the reason: the signs are the net under him). Two
+    // things stay: someone to talk to is marked once they are near and in sight (TALK_M: across a wall, 116 m off, a
+    // speech mark only said there was someone behind it), and when he is out of the frame an arrow at its edge says
+    // where he is, not where the goal is
+    const TALK_M = 12, LOST_S = 30, LEADS = { greet: 1, lead: 1, wait: 1, fetch: 1, go: 1, sit: 1 };
+    function ledBy(to) {
+      const d = st.dog;
+      return !!(d && d.ready && d.to && LEADS[d.state] && st.kind !== 'frame' && Math.hypot(d.to[0] - to[0], d.to[1] - to[1]) < 6);
+    }
     // the guide, once met (in the first Stop), stays the episode through: ahead of you to wherever the goal is while the
     // world runs (someone to meet, where it will stop, the car), at your side when there is nowhere to go; in a Stop
     // he is sent by seek and task instead (to the afterimage, to where the picture is taken from)
     function guideTo(at) { if (!st.dog || st.phase === 'stop') return; if (at) st.dog.lead([at[0], at[1]], st.beat === 'meet' ? 2.2 : 3); else st.dog.heel(); }
-    function markTick() {
-      if (!st.target) return;
+    function markTick(dt = 0) {
+      if (!st.target) { st.guided = false; light(null); return; }
       const via = ctx.via ? ctx.via(st.target) : null, to = via || st.target; // (a place up a tower: the lift's door first)
-      if (String(via) !== String(st.via)) { st.via = via; ctx.beacon(to, st.kind); }
-      const talk = !via && (st.kind === 'meet' || st.kind === 'ghost'); // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
-      const q = ctx.screen(talk ? [to[0], to[1], to[2] + 0.95] : to), W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
+      st.via = via;
+      const W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
+      // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
+      const person = !via && (st.kind === 'meet' || st.kind === 'ghost'), head = person ? [to[0], to[1], to[2] + 0.95] : to;
+      let q = ctx.screen(head);
+      const talk = person && q.front && q.dist <= TALK_M && (!ctx.seen || ctx.seen(head)); // (near and in sight: a speech mark; else a place to walk to)
+      // getting nearer? (the leg is the beat and the kind of goal: a car that moves is the same leg)
+      const leg = `${st.fi}|${st.phase}|${st.beat}|${st.kind}`, px = ctx.player.x, py = ctx.player.y, left = Math.hypot(to[0] - px, to[1] - py);
+      if (leg !== st.leg) { st.leg = leg; st.best = left; st.idle = 0; st.lost = false; }
+      if (left < st.best - 2) { st.best = left; st.idle = 0; } else st.idle += dt;
+      const led = !st.lost && ledBy(st.target);
+      if (led && st.idle > LOST_S) st.lost = true;
+      st.guided = led && !st.lost;
+      light(st.guided || st.kind === 'frame' ? null : to, via ? 'go' : st.kind);
+      let k = via || (person && !talk) ? 'go' : st.kind;
+      if (st.guided && !talk) {
+        // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him
+        const d = st.dog, dq = ctx.screen([d.x, d.y, d.z + 0.6]), dx = dq.x * W, dy = dq.y * H;
+        if ((dq.front && dx > m && dx < W - m && dy > m && dy < H - m) || dq.dist < 6) { mark.classList.remove('on'); return; } // (at your heels, out of the frame below you, he is not lost: no arrow pointing at your feet)
+        q = dq; k = 'guide';
+      }
       let x = q.x * W, y = q.y * H;
       if (!q.front) { x = W - x; y = H - m; } // (behind: its mark at the foot of the frame, on its side)
       // with the camera up the frame lines are the guide: no ring over the thing itself. But while it is outside them
@@ -260,12 +294,12 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       else { x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y)); }
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
-      const k = via ? 'go' : st.kind, lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
+      const lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)
       if (mark.dataset.kind !== k) mark.dataset.kind = k;
-      mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
+      mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : k === 'guide' ? `${(st.ep.guide || {}).name || 'The dog'}${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
-      mark.classList.toggle('on', lens ? off : k === 'frame' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
+      mark.classList.toggle('on', lens ? off : k === 'frame' || k === 'guide' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     const KEYS = ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>';
@@ -492,7 +526,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const spare = st.fi > 0 && !T.both && !fr.finale, off = !f.placed || !f.aimed, spend = off && spare && st.spendT > 0;
       if (off && !spend) { goal(`${!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'}${spare ? ' The release again spends the frame as it is.' : ''}`); st.miss = spare ? 5 : 2.5; st.spendT = spare ? 5 : 0; return; }
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
-      ctx.beacon(null);
+      light(null);
       let print = null;
       try { print = ctx.snap(); } catch (e) { print = null; }
       if (spend) { st.prints.push({ src: print, stamp: fr.stamp || '', cap: 'Only tonight. Nothing of 1964 came up in it.', note: fr.lost ? `Spent. Not on the roll: ${fr.lost}` : 'Spent.', plain: true }); st.flags[`lost${st.fi + 1}`] = true; }
@@ -639,7 +673,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
           }
           if (fr.lead_s != null && !st.late ? st.t >= fr.lead_s : !at || (near(at, fr.stop_r || 12) && st.t > (st.late ? 6 : 0.5))) stop();
         }
-        markTick();
+        markTick(dt);
       } else if (st.phase === 'stop') {
         const g = st.ghost, a = fr.afterimage, leftS = Math.max(0, (fr.stop_s || 420) - st.t);
         goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
@@ -669,7 +703,6 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
           const S0 = subjectOf(T), want = hunt ? null : !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
           if (String(want) !== String(st.target)) aimAt(want, false, f.placed ? 'frame' : 'stand');
-          if (f.placed && S0) ctx.beacon(null); // (the subject is marked in the frame, with no light standing on it)
           if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
           st.ready = on; finder.classList.toggle('ready', on);
           shutter.classList.toggle('ready', on);
@@ -679,7 +712,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
           if (met && !st.met) { st.met = st.t; pulse(); sting('meet'); } // (the two lines of the theme, to one note)
           if ((st.met && st.t > st.met + 7.5) || st.t > 40) resume(); // (held until the phrase has ended on its chord)
         }
-        markTick();
+        markTick(dt);
         if (leftS <= 0 && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true);
       } else if (st.phase === 'after' && st.t > st.wait) {
         if (st.late) { st.phase = 'go'; approach(); }
@@ -694,6 +727,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
     return {
       dress, begin, preface, tick, shoot, raise, state: st,
       get stopped() { return st.phase === 'stop'; },
+      get guided() { return !!st.guided; }, // the dog shows the way, and nothing else does: the game draws no gold line
       get scale() { return st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done' ? 1 : st.k * st.k; }, // how much time the world is given: 1 running, 0 held
       get orbit() { return st.orbit; },
       // the lens at the Stop: it pushes in as time brakes and lets go as it runs (degrees off the field of view), and
