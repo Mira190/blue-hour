@@ -422,6 +422,12 @@ and *Death Stranding* (shape and colour first, words second; nothing copied from
 | `stand`: where the picture is taken from | a camera, amber | `Stand here · 8 m` | amber column and ring |
 | `frame`: the thing the picture is of | a finder's corners, amber | `Frame this` (no metres) | none |
 
+**One light standing in the street at a time.** Whatever the step, the street has at most one column of light in it,
+the story's own, on the one thing to do now. The free game's quests went on under the story and their objective column
+stood beside it (over the Center Gai arch, then over SHIBUYA SKY's door, and in the finder over the picture being
+taken); while the story is on it is not drawn, and `tools/story_play.js` fails a beat's still that has it. A light is a
+promise that the next thing is there; two are a choice nobody asked for, and the picture is the poorer for each.
+
 A thing to photograph is turned to, never walked to, so it carries no distance: on the roof the dome's mark read
 "143 m" under an arrow and sent the player looking for a way off the edge. With the camera up the finder's own
 lines are the guide and the mark shows only when the thing is off the frame, as the way to turn.
