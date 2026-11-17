@@ -197,7 +197,7 @@ window.OpenEarthGame = async function game(cityId) {
   // the car's headlamp and the helicopter's searchlight (cars.js, vehicles.js) in the world from here too, dark until
   // used: with every light of the game in place this early, the city's shaders compile behind the rest of the set-up
   // (earlyWarm, below) in the variant the game draws (three.js builds the number of lights into each), issue 327
-  const earlyLamps = { head: OECars.headlamp(world), search: OEVehicles.searchlight ? OEVehicles.searchlight(world) : null };
+  const earlyLamps = { head: OECars.headlamp(world, G.keep || 'left'), search: OEVehicles.searchlight ? OEVehicles.searchlight(world) : null };
   const show = window.OELights ? OELights.create(world, D, Wd) : null; // the city's nightly light show, if it has one
   if (window.OEVis) OEVis.create({ city: D.id, packs: D.PACKS, terrain: Tfine, tier: QC.name, solids: D.B.s, hidden: D.scene.hidden_solids }); // the occluder raster and its Worker, behind everything else
   atmos = window.OEAtmos ? OEAtmos.create(Wd, renderer, camera, { city: D.scene.city, sky: G.sky || {}, look: G.look || {} }) : null;
@@ -1843,7 +1843,33 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     solid: (x, y, z, h) => (inSight(x, y, z) ? cars.footprint(x, y, z, h, C.half, C.hw, 0) : 0),
     makeWay: (x, y, z, h, half, hw) => !!(junctions.makeWay && inSight(x, y, z) && junctions.makeWay(x, y, z, h, half, hw)),
     wedge: coming ? 1 : undefined,
+    people: (ps, np, step, st, C) => peopleOnWay(ps, np, step, st, C),
   });
+  // the first person along a driver's way (cars.js chauffeur people: ps, np points step apart from its bumper): how far
+  // along it, or Infinity. The crowd, the NPCs and you on foot, as the traffic brakes for them (actors.js 'person'); a
+  // ride drove through the people on the pavement's edge and stepping out under the JR viaduct, seeing only the
+  // scramble's crowd out on its road. (You are not waited on within 6 m of where it pulls in for you: you stand there.)
+  function peopleOnWay(ps, np, step, st, C) {
+    if (!np) return Infinity;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let k = 0; k < np; k++) { const x = ps[2 * k], y = ps[2 * k + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const R = C.hw + 0.3 + 0.25, R2 = R * R;
+    let gap = Infinity;
+    const test = (px, py, pz) => {
+      if (px < x0 - R || px > x1 + R || py < y0 - R || py > y1 + R || (pz != null && Math.abs(pz - st.z) > 2.5)) return;
+      for (let k = 0; k < np && k * step < gap; k++) {
+        const ex = ps[2 * k] - px, ey = ps[2 * k + 1] - py;
+        if (ex * ex + ey * ey < R2) { gap = Math.min(gap, Math.max(0, k * step - 0.3)); return; }
+      }
+    };
+    if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const p = crowd.P[i]; if (p.line >= 0 || p.pz) test(p.x, p.y, p.z); }
+    for (const n of npcs) test(n.x, n.y, n.z);
+    if (player.mode === 'foot') {
+      const g0 = gap; test(player.x, player.y, player.z);
+      if (gap < g0 && st.s + C.half + gap > st.end - 6) gap = g0;
+    }
+    return gap;
+  }
   // a ride (kind 'taxi' or 'hire') from a traffic car or a place on the roads, on its planned route to the pick-up
   function newRide(kind, from, pickup, plan, dest = null) {
     const tcfg = Object.assign({}, vlib.info.cars.liveries.taxi, ((G.vehicles || {}).cars || {}).taxi);
@@ -5553,7 +5579,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     moreTray(true, false); // (the tour points at the buttons behind "more")
     return OEOnboard.tour(tourSteps(), { root: document.body, onEnd: () => { moreTray(was, false); OEOnboard.markDone(CITY.id); if (then) then(); } });
   }
-  on($('#gt-play'), 'click', () => startGame(false));
+  on($('#gt-play'), 'click', () => (story ? titleLetGo(() => startGame(false)) : startGame(false)));
   on($('#gt-continue'), 'click', () => startGame(true));
   on($('#gt-timechoice'), 'click', e => { const b = e.target.closest('button'); if (b) $$('#gt-timechoice button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   const nowLoc = S.utcToLocal(Date.now());
@@ -6248,6 +6274,40 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return best;
   }
   let titleMustered = false;
+  // The story's title stands in the Stop. What only this game has is a crossing held mid-stride, so that is what is
+  // behind the title before anything is pressed: the walk on, the crowd out on the stripes and still, leaves and a
+  // flock of pigeons hanging in the air in front of the lens, and the camera pushing slowly in through them (it is the
+  // camera moving that shows a moment is held). Play lets time go: the crowd walks on, what hung falls and flies, and
+  // the film begins a breath later. It is a look ahead, not the story's first Stop, which has its ring and its tone.
+  let titleHeld = false, titleAirT = 0, titleGo = 0;
+  const titleCentre = new THREE.Vector3();
+  function titleHold() {
+    const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
+    if (!j || reduced) return;
+    junctions.walkIn(j, 0); cars.clearBox(j.x, j.y, 45);
+    for (let i = 0; i < 120; i++) crowd.update(0.1, player.x, player.y, clockT, null); // (twelve seconds of the walk: they are out on the stripes)
+    titleHeld = true;
+  }
+  function titleAir(dt) {
+    if (!stopFx || reduced) return;
+    if (!titleAirT && !titleGo) { // the air hangs a few paces in front of the lens, at the height of the street
+      const d = camera.getWorldDirection(new THREE.Vector3()); d.y = 0; d.normalize();
+      titleCentre.copy(camera.position).addScaledVector(d, 9); titleCentre.y = W(player.x, player.y, player.z).y;
+      stopFx.air(titleCentre, { leaves: 90, birds: 14 });
+    }
+    // (running for a second and a half as it is made, so that the flock is over the kerb and the leaves are anywhere in
+    // their fall, and braked to nothing; let go, it runs up again)
+    const k = titleGo ? Math.min(1, (performance.now() - titleGo) / 500) : Math.max(0, 1 - titleAirT / 1.5);
+    stopFx.tick(dt, k * k, titleCentre, false);
+    if (stopFx.made || titleAirT === 0) titleAirT += Math.max(dt, 1e-3);
+  }
+  // Play, with the title in the Stop: time is let go first, and the game begins when the street has moved
+  function titleLetGo(then) {
+    if (!titleHeld || titleGo) return titleGo ? null : then();
+    titleGo = performance.now(); titleHeld = false;
+    stage.classList.add('title-go'); if (A.sfx) A.sfx('run');
+    setTimeout(() => { stage.classList.remove('title-go'); then(); }, 1700);
+  }
   function updateCamera(dt, titleOn) {
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
@@ -6271,7 +6331,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (the title is paused, so nothing is simulated under it; the crowd is stepped here, gathered once at the scramble's
       // kerbs, and waits there under the screens, not an empty crossing)
       if (O.push && crowd) {
-        crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
+        if (!titleHeld) crowd.update(dt, player.x, player.y, clockT, null);
+        if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); if (story) titleHold(); }
+        if (story) titleAir(dt);
         // (nobody in the lens: at eye height in the crowd a passer-by a pace off filled half the poster)
         if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
       }
