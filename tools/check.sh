@@ -18,6 +18,8 @@
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
+#           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
 #   clip    what passes through what in the free game, ?walk=1 (tools/clip_check.js);
 #   gl      the map as an ordinary device opens it: no WebGL call refused, and every material drawn on a GPU with
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
@@ -30,7 +32,7 @@
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static story mem clip gl touch astc
+#   tools/check.sh all                  # static story ride mem clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
@@ -42,8 +44,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story mem clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story ride mem clip gl touch astc game"   # the browser checks, in the order they run
+ALL="story ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -85,8 +87,10 @@ else
       web/data/$MAP/d/*|pipeline/district.py|tools/mem_check.js) static=1; add mem ;;   # what a phone loads
       tools/story_play.js|tools/story_play.js|tools/start_play.js) static=1; add story ;;
       tools/clip_check.js|tools/pin_clock.js) static=1; add clip ;;
+      tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
+      web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/*|cities/*) static=1; page ;;
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
     esac
@@ -135,6 +139,10 @@ twice() {   # <kind> <first log> <second log>: the verdict of the second run
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
   if LIMIT=3000 timeout 3600 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
   else echo "FAIL story  $(grep '^FAIL\|pageerror' "$OUT/story.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/story.log)"; fi
+}
+run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
+  if LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
+  else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone")
