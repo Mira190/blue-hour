@@ -258,6 +258,10 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 .loader.has-roll .track { width: min(340px, 64vw); margin: 18px auto 0; }
 .loader.has-roll small { text-shadow: 0 1px 8px #000; }
 .loader.has-roll #g-load-msg { margin-top: 12px; font-size: 8.5px; letter-spacing: 0.22em; color: rgba(190, 197, 208, 0.7); }
+/* on the title card the stage under the hairline is enough: the step's own words ("Compiling the shaders for this
+   view") are the page's, not the film's, and are said only when the load has failed */
+.loader.has-roll:not(.err) #g-load-msg { display: none; }
+.loader.has-roll:not(.err) .ld-stage { margin-top: 14px; }
 .loader.has-roll .ld-stage { margin: 8px 0 0; }
 @media (max-width: 640px) { .roll-bar .wide { display: none; } .roll-art { background-position: 42% center; } .roll-title b { letter-spacing: 0.18em; margin-right: -0.18em; } }
 @media (prefers-reduced-motion: reduce) { .roll-art, .roll-grain, .roll-title { animation: none; } .roll-art:first-child { opacity: 1; } .roll-flare { display: none; } .roll-frames s.now { animation: none; } }

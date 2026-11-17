@@ -630,7 +630,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ street furniture: benches, lamps that light at night
-  loadMsg('People, traffic and ferries: downloading the models every city shares', 0.86);
+  loadMsg('People and traffic: downloading the shared models', 0.86);
   await idle();
   const lin = OEWorld.lin, dummy = new THREE.Object3D();
   // the traffic keeps off the stretches of road that run through a wall (cutAtWalls); the crowd
