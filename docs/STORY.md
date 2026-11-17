@@ -277,17 +277,8 @@ sound dropping out at the Stop and a still chord for as long as time is held, th
 camera's catch, glass when the thing of 1964 comes into the frame, the shutter, the film wound on, the
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
-**The first ten seconds are the two things only this game has.** The loader's picture is drawn, not loaded: Shibuya's
-own skyline at the blue hour in one fragment shader (`web/skyline.js`), six bands of rooftops baked from the map's
-buildings into six kilobytes (`pipeline/skyline.py`), their windows coming on as the load goes; it is on screen within
-a second of the page being asked for. And **the title stands in the Stop**: behind it the walk is on, the crowd is out
-on the stripes and still, leaves, a handbill and a flock of pigeons hang in front of the lens, and the camera pushes
-slowly in through them. Play lets time go (the crowd walks on, what hung falls and flies) and the film begins a breath
-later. It is a look ahead at what the evening is about, not the story's first Stop, which keeps its ring and its tone
-(`titleHold`, `titleAir`, `titleLetGo` in `web/game/game.js`; `tools/title_shot.js`, `tools/loader_shot.js`).
-
 **The opening, from the page's first second, shows each thing once and never goes back.** The loader (the roll being
-loaded, over its drawn skyline); the title over the held crossing at dusk; the film, which goes from far to near and does not leave
+loaded, the key art); the title over the live street at dusk; the film, which goes from far to near and does not leave
 again (the district from the air, down to the kerb, the crossing from above, the kerb behind you); then the street is
 the player's, and **the order is in their hand**: the job sheet they were sent out with comes up into the frame on the
 file's own paper, in its hand, its words coming up as ink does. Who, which kerb, what for, and why at this hour: a

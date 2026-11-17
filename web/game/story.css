@@ -492,5 +492,3 @@
 .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-mark, #g-story-keys) { opacity: 0; }
 /* (on a phone the goal lies over the brightest part of the frame, the shop fronts across the road: a deeper scrim under it) */
 @media (max-width: 640px) { .game-stage.story #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); } }
-/* ---- Play, with the title in the Stop: the card goes as time is let go, and the street is seen to move before the film (game.js titleLetGo) */
-.game-stage.title-go .g-title { opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
