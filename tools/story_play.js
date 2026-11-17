@@ -128,7 +128,6 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         continue;
       }
     }
-    if (s.phase === 'go' && s.beat === 'meet') { const at = await p.evaluate(() => { const t = window.__game.story.state.target; return t ? [t[0], t[1], t[3]] : null; }); if (at) await goTo(at, 1.8); }
     if (s.phase === 'go' && s.beat === 'meet') {
       // while the dog leads, he alone shows the way: no light standing in the street, no gold line, and no mark while he is in the frame
       if (!seen.has(`led-${s.fi}`)) { await frames(4); const g = await p.evaluate(() => { const G = window.__game, st = G.story.state, d = st.dog; return d && d.ready ? { guided: !!st.guided, light: st.lightK || '', gold: G.guide().n, mark: document.getElementById('g-story-mark').classList.contains('on'), kind: document.getElementById('g-story-mark').dataset.kind } : null; });
