@@ -2152,7 +2152,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const end = {}, P = o.drv.path;
     P.at(o.drv.st.end, end);
     o.meter += o.drv.remaining();
-    hopTo(end.x, end.y, end.z, o.dest.name, { cue: () => o.drv.finish(), quiet: true });
+    // (it stands where it is while the view goes on ahead, and is set down there at the end: driven on under the hop, out of
+    // sight, it once went into the Scramble as its walk began and stood among the walkers)
+    o.hold = true;
+    hopTo(end.x, end.y, end.z, o.dest.name, { cue: () => { o.hold = false; o.drv.finish(); }, quiet: true });
   }
   // what a ride's driver looks out for (cars.js chauffeur): the traffic, your car, you on foot
   // (one stopped for good, your car left in the lane or a car stuck in a jam, is driven round).
