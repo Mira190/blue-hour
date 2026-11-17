@@ -259,7 +259,7 @@ window.OEHud = (function () {
       head(npc);
       next(true);
     }
-    const hintFor = () => (cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : 'E or click to continue') : '');
+    const hintFor = () => (cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : '<kbd>E</kbd> or click to continue') : '');
     function next(first) {
       if (!cur) return;
       if (!first && view > 0) { view--; return view ? recall() : present(); } // (stepping back: on is forward through what was said, to the line being said)
@@ -269,7 +269,7 @@ window.OEHud = (function () {
       cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0;
       textEl.textContent = '';
       choicesEl.innerHTML = '';
-      hint.textContent = hintFor();
+      hint.innerHTML = hintFor();
       const ask = cur.i === cur.lines.length - 1 && cur.choices.length > 0;
       said.push({ npc: cur.npc, text: cur.full }); if (said.length > 60) said.shift();
       if (cur.npc.log && api.log) api.log.line(cur.npc, cur.full, ask);
@@ -277,13 +277,13 @@ window.OEHud = (function () {
     // the line being said, as it stands (whole, once it has been stepped away from)
     function present() {
       box.classList.remove('back'); head(cur.npc);
-      cur.typed = cur.full.length; textEl.textContent = cur.full; hint.textContent = hintFor(); showChoices();
+      cur.typed = cur.full.length; textEl.textContent = cur.full; hint.innerHTML = hintFor(); showChoices();
     }
     function recall() {
       const e = said[said.length - 1 - view];
       box.classList.add('back'); head(e.npc);
       textEl.textContent = e.text; choicesEl.innerHTML = '';
-      hint.textContent = touchy() ? 'Said before · tap to come back' : 'Said before · E to come back';
+      hint.innerHTML = touchy() ? 'Said before · tap to come back' : 'Said before · <kbd>E</kbd> to come back';
     }
     function back() {
       if (!cur || view + 1 >= said.length) return false;
