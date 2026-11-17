@@ -63,7 +63,7 @@ const [,, out = '/tmp/access-check', size = '1440x900'] = process.argv;
   await press(0);
   check(await p.evaluate(() => window.__picked === 'His'), 'A takes the ringed answer');
   await press(4); // LB: the log of the evening
-  const log = await p.evaluate(() => { const l = document.getElementById('g-story-log'); return { open: !!l && l.classList.contains('on'), rows: l ? [...l.querySelectorAll('li:not(.fr)')].map(li => li.className + '|' + li.textContent).slice(-3) : [] }; });
+  const log = await p.evaluate(() => { const l = document.getElementById('g-story-log'); return { open: !!l && l.classList.contains('on'), rows: l ? [...l.querySelectorAll('li:not(.fr):not(.aside)')].map(li => li.className + '|' + li.textContent).slice(-3) : [] }; });
   console.log('  log:', JSON.stringify(log.rows));
   check(log.open && log.rows.length === 3 && /glove/.test(log.rows[0]) && /past/.test(log.rows[0]) && /^a\|/.test(log.rows[2]) && /His/.test(log.rows[2]), 'LB opens the log: both lines, of 1964, and the answer as yours');
   await snap('2-log');
