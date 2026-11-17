@@ -107,6 +107,8 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
 - What a person sees. For a visual change take stills (`tools/game_shot.js`, `tools/story_play.js`,
   `tools/scramble_shot.js`) on a desktop and a phone, at day, dusk and night, and look at them.
   The roll's file (its kraft paper and hand) without playing the episode: `tools/file_shot.js`.
+  The loading screen's three pictures, held at each and at two dissolves, checked to come up in order inside a
+  desktop's load and never to let the frame dip: `tools/loader_roll.js`.
 
 ## How it came to this
 
