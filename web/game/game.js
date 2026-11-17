@@ -2116,7 +2116,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!rt) { o.dest = null; askWhereTo(`I can't get to ${dest.name} by road from here, sorry. Somewhere else?`, dest.id); return; }
     Object.assign(o, { dest, phase: 'driving', meter: 0, talkT: clockT + 9, t0: clockT });
     o.drv.leave();
-    const opts = Object.assign(rideGuard(o.C), { keep: keepSign, from: o.inLane ? 'lane' : 'kerb', lights: junctions, priority: true, now: rideClock }); // (got back into in its lane: on from there; you in it, its green called ahead, as for one coming for you)
+    const opts = Object.assign(rideGuard(o.C), { keep: keepSign, from: o.inLane ? 'lane' : 'kerb', lights: junctions, priority: true, callFrom: 200, now: rideClock }); // (got back into in its lane: on from there; you in it, its green called ahead, as for one coming for you)
     o.drv = OECars.chauffeur(o.C, rt, opts);
     o.drv.opts = opts; // (for a new way round a jam)
     o.inLane = o.hold = false;
@@ -2594,6 +2594,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const far = Math.hypot(st.x - player.x, st.y - player.y);
       H.toast(`<b>${o.name}</b> has pulled in${o.kind === 'hire' ? ` in the ${rideCar(o)}, ${o.plate}` : ''}${far > 25 ? `, ${Math.round(far)} m from you` : ''}. <kbd>E</kbd> to get in.`);
       A.honk();
+    }
+    // the story's car standing for you, you at its door or getting in: the first signal on its way to where it takes you
+    // called now (junctions.js priority), as the ride calls it on the move. Called only once it pulled away, it came too
+    // late for the scramble 95 m on, whose walk began as you got in, ran its 28 s and its all red, and the car stood 34 s
+    // in the queue under the JR viaduct. (A walk under way still runs its course, and is never passed over twice running.)
+    if (o.dest && o.dest.id === 'story' && o.dest.at && (o.phase === 'boarding' || (o.phase === 'waiting' && Math.hypot(st.x - player.x, st.y - player.y) < 15))) {
+      if (o.preRt === undefined) { const from = placeOnRoute(st) || st.route.to; o.preRt = (from && driveTo(from, o.dest.at[0], o.dest.at[1])) || null; }
+      if (o.preRt && o.preRt.nodes) for (const nd of o.preRt.nodes) { const a = junctions.armAt(nd.line, nd.end); if (a && a.j.sig) { junctions.priority(a); break; } }
     }
     if (o.phase === 'waiting') {
       // a driver waits five minutes, as the apps' drivers do; one you have walked well away from, one
