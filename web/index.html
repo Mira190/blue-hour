@@ -208,11 +208,19 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
    frames come up along the lower bar. Only opacity and transforms move, so it runs while the map builds. */
 .loader.has-roll { place-items: end center; background: #020308; overflow: hidden; }
 .roll { position: absolute; inset: 0; margin: 0; pointer-events: none; overflow: hidden; }
-.roll-art { position: absolute; inset: -3%; background: center / cover no-repeat; opacity: 0; filter: saturate(1.2) contrast(1.12) brightness(0.72); will-change: transform, opacity; animation: roll-art 30s linear infinite; }
-.roll-art:nth-child(2) { animation-delay: 10s; } .roll-art:nth-child(3) { animation-delay: 20s; }
-.roll-art:first-child { animation-name: roll-art-first; }
-@keyframes roll-art { 0% { opacity: 0; transform: scale(1.02); } 6%, 33% { opacity: 1; } 41%, 100% { opacity: 0; transform: scale(1.14); } }
-@keyframes roll-art-first { 0% { opacity: 1; transform: scale(1.02); } 33% { opacity: 1; } 41% { opacity: 0; transform: scale(1.14); } 94% { opacity: 0; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1.02); } }
+.roll-art { position: absolute; inset: -3%; background: center / cover no-repeat; opacity: 0; filter: saturate(1.2) contrast(1.12) brightness(0.72); will-change: transform, opacity; }
+/* the three pictures (the crossing, the helicopter over the roof, the district from the air) come round in 10.5 s:
+   3.5 s each, a 1.1 s dissolve from one into the next, each pushed in at the pace it always was. A desktop's load is
+   nine to eleven seconds, so all three are seen in it; at ten seconds a picture the loader had gone before the second
+   came up. Each dissolve is the picture coming up over the one before at full strength, so the frame never dips: the
+   second and third fade in over the first and second, the first is put back under the third (unseen) and the third
+   fades off it. Only opacity and transforms, so it runs while the map builds. */
+.roll-art:nth-child(1) { animation: roll-art-1 10.5s linear infinite; }
+.roll-art:nth-child(2) { animation: roll-art-2 10.5s linear infinite; }
+.roll-art:nth-child(3) { animation: roll-art-3 10.5s linear infinite; }
+@keyframes roll-art-1 { 0% { opacity: 1; transform: scale(1.031); } 33.333% { transform: scale(1.066); } 38% { opacity: 1; } 38.1%, 76.1% { opacity: 0; } 76.2% { opacity: 1; transform: scale(1.02); } 89.524% { transform: scale(1.02); } 100% { opacity: 1; transform: scale(1.031); } }
+@keyframes roll-art-2 { 0%, 22.857% { opacity: 0; transform: scale(1.02); } 33.333%, 71.4% { opacity: 1; } 66.667% { transform: scale(1.066); } 71.5%, 100% { opacity: 0; transform: scale(1.066); } }
+@keyframes roll-art-3 { 0%, 56.19% { opacity: 0; transform: scale(1.02); } 66.667%, 89.524% { opacity: 1; } 100% { opacity: 0; transform: scale(1.066); } }
 /* the grade: the middle held down for the title, the corners and the foot taken to black, a cold shadow and a warm light */
 .roll-grade { position: absolute; inset: 0; background: radial-gradient(60% 46% at 50% 50%, rgba(2, 4, 12, 0.62), rgba(2, 4, 12, 0) 100%), radial-gradient(130% 100% at 50% 50%, rgba(2, 3, 8, 0) 45%, rgba(2, 3, 8, 0.86) 100%),
   linear-gradient(180deg, rgba(2, 3, 8, 0.6), rgba(2, 3, 8, 0) 26%, rgba(2, 3, 8, 0) 62%, rgba(2, 3, 8, 0.92) 100%), linear-gradient(120deg, rgba(20, 44, 110, 0.32), rgba(255, 150, 80, 0.1)); }
@@ -257,8 +265,8 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 .loader.has-roll small { text-shadow: 0 1px 8px #000; }
 .loader.has-roll #g-load-msg { margin-top: 12px; font-size: 8.5px; letter-spacing: 0.22em; color: rgba(190, 197, 208, 0.7); }
 .loader.has-roll .ld-stage { margin: 8px 0 0; }
-@media (max-width: 640px) { .roll-bar .wide { display: none; } .roll-art { background-position: 42% center; } .roll-title b { letter-spacing: 0.18em; margin-right: -0.18em; } }
-@media (prefers-reduced-motion: reduce) { .roll-art, .roll-grain, .roll-title { animation: none; } .roll-art:first-child { opacity: 1; } .roll-flare { display: none; } .roll-frames s.now { animation: none; } }
+@media (max-width: 640px) { .roll-bar .wide { display: none; } .roll-art { background-position: 42% center; } .roll-art:nth-child(2) { background-position: 50% center; } /* (the helicopter in the middle of its picture, not cut by the phone's edge) */ .roll-title b { letter-spacing: 0.18em; margin-right: -0.18em; } }
+@media (prefers-reduced-motion: reduce) { .roll .roll-art, .roll-grain, .roll-title { animation: none; } .roll-art:first-child { opacity: 1; } .roll-flare { display: none; } .roll-frames s.now { animation: none; } }
 @media (max-width: 640px) {
   .plate-hud { inset: 14px; font-size: 8.5px; }
   .ph-t.tr, .plate-tick { display: none; }

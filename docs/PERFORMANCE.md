@@ -812,6 +812,43 @@ built for), screen-size culling for small instanced props once they are under a 
 shadow pass to casters whose shadow lands inside the shadow camera's sharp range. Each must pass the
 same before-and-after stills.
 
+## The tap on Play (the entry)
+
+The owner played the episode on an iPhone (iOS 27, November 2026): the tap on the title's Play took 4.4 s to answer
+(the telemetry's `inp`), and the opening that follows had six hitches, the worst 0.9 s. `tools/entry_cost.js` loads
+the story as a phone, waits on the title, taps Play and reports the time to the frame after the tap, the opening's
+long frames, the shader programs linked (named by their material, or by their defines), the objects drawn with a
+program the tap made, the programs first used in it, and a CPU profile of each. On llvmpipe it found the tap 4.5 s
+(3.2 s of it waiting for programs to link) and four kinds of thing made after the loader's warm-up and compiled in
+the frame that first drew them:
+
+- **the hero level** (hero.js), fetched only as the opening's camera flew within reach of it: 25 programs mid-flight,
+  a hitch of most of a second for each few. It is now loaded round the player as well as the camera while the title
+  is up and while the opening plays, so it is fetched, compiled and its vertex buffers sent behind the title (the
+  buffers were 0.7 s of the tap: `sendBuffers` in game.js lays them in slices with world.js `uploadBuffers`, the
+  meshes on a layer of their own until they are in). It is shown, as before, only once it is ready;
+- **the opening's own things** (overture.js: the guide, its drift, the glows, the painted sky), built in the tap:
+  now built hidden and compiled behind the title (`prewarm`), and drawn by the tap;
+- **the stopped air** (stopfx.js: the leaves, the pigeons, the motes), made at the story's first beat: one of each is
+  now kept hidden in the world and compiled behind the title (`warm`), so the later ones find their programs made;
+- **the trains** (trains.js: the E235's cars, per material), made when the first train of a stock came: every stock's
+  cars are now made as the cars' models arrive and warmed then.
+
+And a program's first use reads its log back, a wait on the GPU: world.js `firstUse` now reads every program a
+material has, not only the current one (a see-through two-sided material is drawn back face then front, two
+programs; the back's was read in the tap).
+
+| llvmpipe, 390×844, low tier, Play 25 s after the title | before | after |
+|---|---|---|
+| tap to the frame after it | 4.5 s (1.3 s in another run) | 0.3 s (one frame of the software renderer) |
+| programs linked in the tap / in the opening's first 12 s | 8 / 25 | 0 / 0 |
+
+Tapped 7 s after the title, as the owner did, the hero level is still compiling when the opening starts: its slices
+go on under the opening, it is not drawn until they are done, and the city's own model stands there meanwhile. What
+is left in the opening on llvmpipe is the software renderer's own frame time and the 3-second WebGL error check
+(game.js `glCheck`), whose wait for the GPU is the length of a frame on a real one. Not measured: a real iPhone, whose
+shader compiles (ANGLE to Metal) took 22 of the owner's 33 s of load.
+
 ## The build stage (issue 327)
 
 The telemetry's desktop loads spent about 10 s between "decoded" and "built". `tools/start_profile.js LOAD=1
