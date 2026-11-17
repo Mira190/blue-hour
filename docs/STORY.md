@@ -277,6 +277,29 @@ sound dropping out at the Stop and a still chord for as long as time is held, th
 camera's catch, glass when the thing of 1964 comes into the frame, the shutter, the film wound on, the
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
+**Each thing is said in one beat, the one whose job it is.** Until November 2026 the story's name was said four times
+before the case began (on the loader with the episode under it, on the title with the place, the date, the line and the
+episode again, in the film as the crossing is seen from above, and on the first Stop), each beat having added its own.
+From first principles, a beat earns its words by what it alone has to do:
+
+| Beat | Its job | What it says |
+|---|---|---|
+| The loader | the player has chosen nothing yet and waits: what this is, and that it is coming | the story's name, its Japanese and its line (the story's `card`), the roll loading, the stage. Nothing of an episode |
+| The title over the live street | the threshold: choose the case, or take it up again | the episode's card: its evening (`card.eyebrow`), its number, its name in the book face, the job as it was given (the episode's `line`), Begin, or Continue and Start the evening again. More episodes, when there are, are more of these cards (the episode menu, item 6 below) |
+| The film | where and when | the place as the crossing is seen from above: 渋谷, Shibuya, 10 October · 17:14 (`overture.title`) |
+| The order in hand | the job, in the fiction | the job sheet |
+| The first Stop | the premise seen: the crossing held at the blue hour | the story's name falls, in its own script and in English: the late title card, where the name is seen to mean something |
+| The end | the case closed | the end's card |
+
+Detective and episodic games keep the same split (ideas only; nothing taken). The game's name is the front door, and a
+case or chapter is named where it is chosen or as it begins: L.A. Noire's cases open on their own title cards; Life is
+Strange chooses its episode from a menu and lets its own name come up over the first walk down the school corridor, once
+the story has started; Alan Wake 2 puts each chapter's name on screen in the game. When a big narrative game says its
+name twice, the second time is a late title card after something has happened, never a second screen straight after the
+first: Ghost of Tsushima holds its card until Jin rides out through the field of flowers after the prologue, and Journey's
+name comes up over the sun as the traveller crests the first dune. God of War (2018) opens its menu on the first frame of
+its one unbroken shot. Their loading screens carry progress and context, not the name again.
+
 **The opening, from the page's first second, shows each thing once and never goes back.** The loader (the roll being
 loaded, the key art); the title over the live street at dusk; the film, which goes from far to near and does not leave
 again (the district from the air, down to the kerb, the crossing from above, the kerb behind you); then the street is
