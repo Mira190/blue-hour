@@ -50,18 +50,17 @@ async function poll() {
         let release; const gate = new Promise(r => { release = r; });
         film = gate; // (story_play.js's keys wait: nothing moves the talk on but this)
         await page.evaluate(() => window.__game.hold(true));
-        for (let i = 0; i < 10; i++) {
+        try { for (let i = 0; i < 10; i++) {
           await page.evaluate(i => { const g = window.__game; if (i === 4) g.dlg.next(false); for (let k = 0; k < 15; k++) { g.frame(1 / 30); g.dlg.tick(1 / 30); } }, i);
           await still(`cut-${String(i).padStart(2, '0')}.png`);
           const r = await page.evaluate(() => { const g = window.__game, t = g.talkShot && g.talkShot(), c = g.camera; return t ? { kind: t.kind, inWall: g.nav.clearFraction(new c.position.constructor(t.subject[0], t.subject[2], -t.subject[1]).sub(c.position).normalize().multiplyScalar(0.5).add(c.position), c.position) < 0.999 } : null; });
           console.log(`cut film ${i} (${(i * 0.5).toFixed(1)} s): ${r ? `${r.kind}${r.inWall ? ' THE LENS IN A WALL' : ''}` : 'chase view'}`);
           if (r && r.inWall) bad.push(`cut film ${i}: the lens in a wall`);
-        }
-        await page.evaluate(() => window.__game.hold(false));
-        release(); film = true;
+        } } catch (e) { bad.push(`cut film: ${String(e).slice(0, 200)}`); console.log(`cut film failed: ${String(e).slice(0, 300)}`); }
+        finally { await page.evaluate(() => window.__game.hold(false)).catch(() => {}); release(); film = true; }
       }
     }
-  } catch (e) { /* the page went on, or closed */ }
+  } catch (e) { if (!/closed|Target/.test(String(e))) console.log(`(talk check: ${String(e).slice(0, 200)})`); }
   busy = false;
 }
 pw.chromium.launch = async (...a) => {
