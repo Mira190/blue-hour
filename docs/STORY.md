@@ -348,6 +348,26 @@ and every still of it looked right. `tools/mark_steady.js` holds the player stil
 the compass, and reads the mark every frame for three seconds a view: its words, classes and kind must not
 change, its place must not go back and forth, and neither its words nor its arrow may be cut by the edge.
 
+**The dog is the way, and nothing else is while he leads.** A guide who walks ahead is the most legible sign a
+game has and the only one inside the fiction: the eye stays in the street, and following him is a relationship,
+not an instruction. Every other sign that points the same way is a second voice saying it, and the eye goes to the
+louder one: with the column of light, the gold line on the paving and the ring at the frame's edge all pointing
+where he went, Hachi was something walking beside the instructions. So while he leads to the goal
+(`story.js` `ledBy`, `st.guided`) there is no light standing in the street, no gold line, and no mark while he is
+in the frame; out of it, the arrow at the frame's edge points to him, not to the goal. The signs come back
+where he cannot show it: before he is met in the first Stop, when the goal is a thing to frame (turned to, not
+walked to), and when the player has gone thirty seconds without getting any nearer, whatever the reason (the
+net under him: he is a dog, and the player may not be following). Someone to talk to is marked *Talk* only when
+near (12 m) and in sight (`ctx.seen`, a ray against the collision world): a speech mark across a wall 116 m off
+said only that someone stood behind it. He rides a lift at the player's side, and is not lost at the bottom and
+found at the top. Learnt from *Ico*, *The Last Guardian* and *Firewatch*, where a companion or the place itself
+carries the way; nothing of theirs is copied. `tools/story_play.js` fails a frame in which he leads and the
+way is shown twice.
+
+A flight between frames (frame 5's way down from the roof) is part of the telling: it is skipped only by Space,
+Enter or Esc, and not in its first second and a half. Any key used to skip it, so the E that closed the last line,
+or the first step taken, set the player on the street with no way down seen.
+
 **A print is a thing you are given.** After the shutter the print is in your hand for a moment, its postmark struck
 on it (the hour, the frame), and goes to the roll, where Tab opens every print taken so far.
 

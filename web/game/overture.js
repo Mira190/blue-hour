@@ -409,7 +409,7 @@ window.OEOverture = (function () {
       titleEl.innerHTML = `<b>${t.name || ctx.CITY.native || ctx.CITY.name}</b><span>${t.reading || ctx.CITY.name}</span><i>${t.line || lat}</i>`;
       capEl = document.createElement('div'); capEl.className = 'ov-cap';
       skipEl = document.createElement('button'); skipEl.className = 'ov-skip'; skipEl.type = 'button';
-      skipEl.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap to skip' : 'Any key to skip';
+      skipEl.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap to skip' : (ctx.G.overture || {}).skip_keys || 'Any key to skip'; // (a story's flight: only the keys that skip it)
       skipEl.addEventListener('click', e => { e.stopPropagation(); skip(); });
       layer.append(black, titleEl, capEl, skipEl);
       ctx.stage.appendChild(layer);

@@ -3213,9 +3213,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         heli.update(1e-4, {}, []); heli.group.visible = true;
         if (A.rotor) A.rotor(1, 0.55); // (heard, as it is seen)
       };
-      const f = makeFilm && !reduced ? makeFilm(Object.assign({}, G.overture, G.story.episodes[0].overture || {}, spec, { night: null }), spec.craft === false ? null : fly) : null; // (craft false: the air's own view, no helicopter in it)
+      const f = makeFilm && !reduced ? makeFilm(Object.assign({}, G.overture, G.story.episodes[0].overture || {}, spec, { night: null, skip_keys: 'Space to skip' }), spec.craft === false ? null : fly) : null; // (craft false: the air's own view, no helicopter in it)
       const done = () => { overture = was; then(); };
-      if (f) { overture = f; if (f.play(done)) return; overture = was; }
+      if (f) { overture = f; f.story = performance.now(); if (f.play(done)) return; overture = was; }
       if (spec.end && spec.end.at) spawn(spec.end.at.slice(0, 2), undefined, spec.end.facing);
       then();
     },
@@ -3594,7 +3594,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (c === 'Enter') snapPhoto(); else if (c === 'KeyE' || c === 'Escape') closeupEnd();
       return;
     }
-    if (overture && overture.active) { overture.skip(); return; } // a key ends the overture, easing down to the player
+    // a key ends the overture, easing down to the player. A story's flight is part of the telling, not an opening to get past:
+    // it is skipped only by a key meant for it (Space, Enter, Esc), and not in its first moments, when the E that closed the
+    // last line or the first step taken once the words had gone cut it, and the player was on the street with no way down
+    if (overture && overture.active) { if (overture.story && (!['Space', 'Enter', 'Escape'].includes(c) || performance.now() - overture.story < 1500)) return; overture.skip(); return; }
     if (arriving) settleArrival(); // a key settles the arrival (and still walks, looks or opens what it opens)
     else if (cine.active && cine.label !== 'crane') { cine.skip(); return; } // a key ends a hop or a survey shot
     if (c === 'Escape' && life && life.open) { life.close(); return; }
@@ -3643,7 +3646,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on(window, 'keyup', e => keys.delete(e.code));
   on(window, 'blur', () => keys.clear());
   let drag = null;
-  on(canvas, 'pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); A.start(); if (overture && overture.active) overture.skip(); else if (arriving) settleArrival(); else if (cine.active) cine.skip(); });
+  on(canvas, 'pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); A.start(); if (overture && overture.active) { if (!overture.story || performance.now() - overture.story > 1500) overture.skip(); } else if (arriving) settleArrival(); else if (cine.active) cine.skip(); });
   on(canvas, 'pointermove', e => {
     if (!drag || drag.id !== e.pointerId || fingers.size > 1) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
