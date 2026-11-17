@@ -51,6 +51,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const listen = () => p.evaluate(() => { const d = window.__game.dlg, show = d.show, H = window.__heard = window.__heard || { lines: [] };
     d.show = function (npc, lines, ...rest) { if (npc && npc.log) H.lines.push(...lines); return show.call(this, npc, lines, ...rest); }; });
   await listen();
+  // (the job sheet in the hand, seen by the page itself the moment it comes up with its ink: it goes away on the wall clock,
+  // 14 s after the ink, and a loop that first saw its beat late, or a still that took longer than that, found it already gone)
+  await p.evaluate(() => { const e = document.getElementById('g-story-order'); if (!e) return; const o = new MutationObserver(() => { if (e.classList.contains('on') && e.querySelectorAll('i').length > 80) { window.__orderOk = true; o.disconnect(); } }); o.observe(e, { attributes: true, attributeFilter: ['class'], childList: true }); });
   await p.evaluate(() => document.getElementById('gt-play').click());
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it
@@ -198,7 +201,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (process.env.UPTO && s.fi + 1 >= +process.env.UPTO) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
-      if (!seen.has('order')) { seen.add('order'); await p.waitForTimeout(4000); await snap('1-order'); if (!await p.evaluate(() => { const e = document.getElementById('g-story-order'); return e.classList.contains('on') && e.querySelectorAll('i').length > 80; })) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
+      // (read from what the page saw as the sheet came up, above: the sheet does not wait for the check or for the still)
+      if (!seen.has('order')) { seen.add('order'); const t0 = Date.now(); await p.waitForTimeout(4000); const inHand = await p.evaluate(() => !!window.__orderOk); await snap('1-order'); console.log(`the order: ${inHand ? 'it came up in the hand' : 'it never came up in the hand'}; its still taken at ${((Date.now() - t0) / 1000).toFixed(1)} s`); if (!inHand) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
       await p.keyboard.press('KeyE');
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
