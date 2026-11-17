@@ -13,7 +13,7 @@
  "of_km2": 17.8,
  "kept": {
   "buildings": 12589,
-  "solids": 13945,
+  "solids": 13946,
   "skyline": 1007,
   "meshes": 124,
   "skyline_meshes": 0,
@@ -62,16 +62,16 @@
   ]
  },
  "files": {
-  "buildings.bin": 821154,
+  "buildings.bin": 821201,
   "game.bin": 209466,
   "landmarks.bin": 310009,
   "places.bin": 83701,
   "scene.bin": 32075,
   "shore.png": 4935,
-  "vis.bin": 233475,
+  "vis.bin": 233388,
   "woods.webp": 191728
  },
- "bytes": 1886543,
- "whole_bytes": 4518769,
- "sha256": "1641f0b4ea0ee9a1609121638e95ace2916584b931eae68f6a547be9542ab0eb"
+ "bytes": 1886503,
+ "whole_bytes": 4518811,
+ "sha256": "adce3809f4da436c9472c25b564b7817d344ea1019e95f97ff8cf805c09c94de"
 }

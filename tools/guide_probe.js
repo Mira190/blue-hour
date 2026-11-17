@@ -1,6 +1,6 @@
 // The story's guide dog walked along its ways with a player following it: from the kerb to Hachiko (round the
 // planters' rails by the statue) and up to the lift's doors at Scramble Square (between its queue belts). Every
-// frame it checks that the dog stands where a walker may (nav.walk), clear of every post, trunk and belt, and on the
+// frame it checks that the dog stands where a walker may (nav.walk), his body clear of every post, trunk and belt, and on the
 // player's floor; it takes a still behind the player at the end of each way, and exits 1 on any fault.
 //   python3 -m http.server 8800 --directory web &
 //   node tools/guide_probe.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
@@ -41,7 +41,7 @@ const WAYS = [
       const g = window.__game, st = g.story.state, dog = st.dog, pl = g.player, nav = g.nav;
       pl.x = wy.from[0]; pl.y = wy.from[1]; const f = nav.floorAt(pl.x, pl.y, 400); pl.z = f ? f.z : pl.z;
       dog.place(wy.from[0] + 1.2, wy.from[1] + 0.8, 0); dog.lead(wy.to, 1.2);
-      const bad = []; let n = 0, t = 0;
+      const bad = [], BODY = 0.66; let n = 0, t = 0; // (game.js GUIDE_BODY, less the pushOut's last few centimetres)
       const iv = setInterval(() => {
         t += 0.05;
         // the player follows a couple of metres behind the dog, as a walker does
@@ -50,7 +50,7 @@ const WAYS = [
         n++;
         const w = nav.walk(dog.x, dog.y, dog.z, true);
         let post = null;
-        g.posts.near(dog.x, dog.y, 0.2, q => { if (Math.hypot(q.x - dog.x, q.y - dog.y) < q.r + 0.2) post = q.kind; }, dog.z);
+        g.posts.near(dog.x, dog.y, BODY, q => { if (Math.hypot(q.x - dog.x, q.y - dog.y) < q.r + BODY) post = q.kind; }, dog.z); // (his body, not only his middle: a belt passed through him)
         if (!w.ok || post || Math.abs(dog.z - pl.z) > 1.5) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), w.ok ? '' : w.why, post || '', +(dog.z - pl.z).toFixed(2)]);
         if (dog.state === 'sit' || t > 60) { clearInterval(iv); done({ n, t: +t.toFixed(1), state: dog.state, at: [+dog.x.toFixed(2), +dog.y.toFixed(2)], left: +Math.hypot(dog.x - wy.to[0], dog.y - wy.to[1]).toFixed(2), bad: bad.slice(0, 8), nbad: bad.length }); }
       }, 50);
