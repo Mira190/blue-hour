@@ -277,11 +277,20 @@ sound dropping out at the Stop and a still chord for as long as time is held, th
 camera's catch, glass when the thing of 1964 comes into the frame, the shutter, the film wound on, the
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
-**It opens on its hour, in words.** Between the title and the opening shot the screen is black and four lines are typed
-on it, a letter at a time: what the blue hour is, that it cannot be kept, that in Tokyo on the tenth of October it begins
-at 17:14, and that some things were left standing in it (`preface` on the episode; `web/game/story.js` `preface`). The
-title names the hour and the whole device turns on it, and nothing had said what it is. Any key or a tap goes on; a case
-taken up again does not show it; with reduced motion the lines stand whole. `?preface=0` goes without it.
+**The opening, from the page's first second, shows each thing once and never goes back.** The loader (the roll being
+loaded, the key art); the title over the live street at dusk; the film, which goes from far to near and does not leave
+again (the district from the air, down to the kerb, the crossing from above, the kerb behind you); then the street is
+the player's, and **the order is in their hand**: the job sheet they were sent out with comes up into the frame on the
+file's own paper, in its hand, its words coming up as ink does. Who, which kerb, what for, and why at this hour: a
+survey photograph is taken at blue hour, *the few minutes after sunset when the sky and the street lamps are equally
+bright*. Under it, the old plan's corner with its one pencilled word, 待つ. So the hour the story turns on is explained by
+the job, on a thing the player holds, with the street still running behind it; and the word the office will speak of is
+seen before it is said. E or a tap puts it away, it becomes the first line of the file, and a second later the world
+stops. The title falls once more, in that Stop, and nowhere else in play (`order` on the episode; `web/game/story.js`
+`order`).
+
+It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
+away for the card, and was then come down to again from the air. Out, for that reason.
 
 **Two places are found, not shown.** A light on the ground for every standpoint made the player the camera's operator:
 seven frames and never a choice of where to stand. In two frames the place is the deduction, and nothing stands on it:

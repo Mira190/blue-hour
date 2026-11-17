@@ -10,6 +10,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 |---|---|---|
 | `static` | Everything that needs no browser, a minute or two together (below) | several |
 | `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on. A still at each beat. Without a GPU one frame in thirty is drawn (`DRAW=30`) and the rest run the game without their draw calls, so that the story keeps its own time on a software renderer; the stills and the photographs are of frames drawn whole | `tools/story_play.js` |
+| `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
 | `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); then as a GPU with sixteen texture units, where every material must still be drawn | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
@@ -29,6 +30,8 @@ The static checks:
 - the building solids valid on their decimetre grid (`pipeline/solid_rings.py --check`);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
   (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);
+- no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
+  stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
 - the far crowd's copy of every cast member (`pipeline/crowd_cast.py --check`);
 - every shared model meshopt-compressed, and the parts the page loads before and after playable
   as their model splits now (`pipeline/meshopt_glb.mjs --check`, `pipeline/meshopt.py split`).
@@ -118,7 +121,7 @@ has them).
 
 ## The story's places and the roof's escalators
 
-Two checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` for a server already up):
+Three checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` for a server already up):
 
 - `node tools/story_clear.js`: every place the story stands someone or sends the player (cast, afterimages, where a
   picture is taken from, where a car or a flight sets you down, the things of 1964 in tonight's street) is on a floor at
@@ -126,4 +129,11 @@ Two checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` for
 - `node tools/escalator_walk.js shibuya`: each escalator carries a walker from the floor before it to its far end (the
   north one up to the roof, the west one down), nobody walks in beside its steps, and nobody steps off them sideways
   between its landings (a walker did, into the slot between the escalator and the stair, and stood in the balustrade).
+- `node tools/escalator_route.js shibuya`: a route on foot rides a moving escalator only the way it runs: from each lift's
+  stop beside one to every place a story frame stands the player on the floor above, and from the floor before each
+  escalator to the floor past it and back. The gold line from SHIBUYA SKY's 46F lift once led right, up the stair beside
+  the escalator that runs down, because the lines up the north escalator and stair stopped at the roof short of its paths
+  (`web/game/route.js`: a strip's landing joined over its floor, the network's edges and its ground search one-way along
+  moving steps, a metre ridden costing half one walked). `tools/story_play.js` runs the same at frame 4 of the first
+  episode, so `tools/check.sh` has it, and takes a still of the line from where the lift lets you out (`4-lift-way`).
 

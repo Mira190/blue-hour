@@ -230,6 +230,10 @@ window.OEFilmScore = (function () {
       }
     }
     const buf = await ctx.startRendering();
+    // the render stops at duration + 2 while the last chord and the room still ring: its last 1.5 s fade to nothing, so
+    // that the buffer's end is never heard as a cut (it was: tools/sound_rec.js, a step of 0.07 as the opening ended)
+    { const len = buf.length, k = Math.min(len, Math.round(rate * 1.5));
+      for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < k; i++) d[len - k + i] *= 0.5 + 0.5 * Math.cos(Math.PI * i / k); } }
     return [buf.getChannelData(0), buf.getChannelData(1)];
   }
   return { render };

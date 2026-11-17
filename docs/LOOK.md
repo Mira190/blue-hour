@@ -268,6 +268,43 @@ Filter for Plausible Motion Blur*, I3D 2012, in its simplest form). A camera tha
 265 it took 8 even taps up to 3% of the frame: the arrival onto Queenstown's Skyline deck drew
 each edge of the rock and the deck as a row of jagged copies.
 
+### A conversation's camera (`web/game/talkcam.js`, issue 15)
+
+While one of the story's people speaks, the view is a conversation's, not the chase camera's: an
+over-the-shoulder two-shot on the speaker as the talk opens (40 mm, the speaker's eyes on a third, a little
+headroom), a cut to the speaker's single on the next line (50 mm, from the player's side, 25 degrees off the
+line between them), a closer single (75 mm) on the line after an answer is judged, and the reverse over the
+speaker's shoulder for the player's own question or the roll. A screen held upright takes the vertical angle
+instead and puts the eyes nearer the middle. Each change is a cut; the chase view comes back eased over half a
+second. The speaker's face is in focus where the tier draws depth of field (f/2.8).
+
+The 180 degree rule is kept for the whole talk: the side of the line is chosen as the talk opens for the one on
+which the two-shot, the single and the reverse are all clear, and kept. A shot is clear when no wall (the
+camera's own probe, from the face to the lens), tree trunk, crown (from its lowest leaves up, `trees.json`
+`clear_m`, `crown_r`), lamp post or body stands within reach of the line from the lens to the eyes. A shot that
+is not clear comes in along the same line; only when nothing on that side is clear is the line crossed. The
+crowd in a Stop is held and cannot be seen to step aside, so whoever of it still stands in the way is left
+undrawn while the shot lasts. `tools/talk_check.js` plays the episode and fails a shot whose face is off the
+screen or occluded, or whose lens is in a wall.
+
+Learnt from, not copied: film grammar's coverage of a dialogue (master, singles, reverse; the line of action);
+the dialogue cameras of *Mass Effect* (2007) and *The Witcher 3* (2015), which cut between a small set of
+framings chosen per line and keep the axis; *Kentucky Route Zero* and *Disco Elysium* for when not to move the
+camera at all (a voice on the telephone keeps the street).
+
+### A lit sign's level (first principles)
+
+A light box after dark is tens of times the luminance of a facade lit by the street, more than any camera
+holds: in a photograph it is the exposure that decides how it reads, and a well exposed night photograph of a
+street puts its lit signs two to three stops over the fronts, the white near the top of the scale and the
+printed colour still deep. A sign drawn brighter than that adds nothing a photograph would keep: its white
+clips, the bloom spreads its area over everything near it, and the tone curve's roll-off pales its colours. The
+cost grows with the lit area, so the largest boxes need the lowest level: Center Gai's bookshop's box sign, the
+largest round the crossing and behind a conversation's speaker, has its own level (0.68 against the signs'
+common 1.3) and a diffuser's warm white (238) rather than paper's (`cities/shibuya/scramble.py` `x_bk_sign`).
+The rule of a film's lighting holds too: a lit practical behind a face may be brighter than the face, but
+never so large and blown that the eye goes to it first.
+
 ### Steep ground (`web/world.js` STEEP_ROCK, every city)
 
 The aerial photograph is taken from straight above, so on a face steeper than about 45 degrees

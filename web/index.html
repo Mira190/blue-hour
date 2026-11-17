@@ -440,6 +440,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
   font: 500 13.5px/1.35 var(--f-body); display: flex; gap: 12px; align-items: center; transition: border-color 0.3s, background 0.3s; }
 .gd-choices button:hover { border-color: rgba(255, 176, 102, 0.6); background: var(--accent-wash); }
 .gd-choices kbd { flex: none; }
+.gd-tools { display: none; }
 .gd-hint { display: block; text-align: right; font: 400 8.5px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); min-height: 1em; }
 /* the map, the passport and the menu */
 .g-overlay { position: absolute; inset: 0; background: rgba(2, 4, 8, 0.55); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); display: grid; place-items: center; padding: 20px; z-index: 6; }
@@ -720,7 +721,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
     <div class="g-hud g-vhud" id="g-vhud" hidden></div>
     <aside class="g-hud g-lens brackets" id="g-lens" hidden></aside>
     <aside class="g-hud g-phone brackets" id="g-phone" hidden aria-label="Phone"><header><b id="gph-title">Phone</b><button class="x" id="gph-close" aria-label="Put the phone away">×</button></header><canvas class="gph-map" id="gph-map" hidden aria-label="Map of the ride: the car, its route and the pick-up"></canvas><div id="gph-body"></div></aside>
-    <div class="g-dialog" id="gd" hidden role="dialog" aria-live="polite"><div class="gd-head"><b id="gd-name"></b><span id="gd-role"></span></div><p id="gd-text"></p><div class="gd-choices" id="gd-choices"></div><span class="gd-hint" id="gd-hint"></span></div>
+    <div class="g-dialog" id="gd" hidden role="dialog" aria-live="polite"><div class="gd-head"><b id="gd-name"></b><span id="gd-role"></span></div><p id="gd-text"></p><div class="gd-choices" id="gd-choices"></div><span class="gd-hint" id="gd-hint"></span><span class="gd-tools"><button type="button" data-gd="back" aria-label="The line before">Back<kbd>Q</kbd></button><button type="button" data-gd="log">The log<kbd>L</kbd></button></span></div>
 
     <div class="g-overlay" id="g-bigmap" hidden>
       <div class="g-panel g-mapwrap">
@@ -913,7 +914,9 @@ window.dispatchEvent(new Event('three-ready'));
 <script src="game/stopfx.js"></script>
 <script src="game/past.js"></script>
 <script src="game/companion.js"></script>
+<script src="game/log.js"></script>
 <script src="game/story.js"></script>
+<script src="game/talkcam.js"></script>
 <script src="game/hero.js"></script>
 <script src="game/game.js"></script>
 <script>

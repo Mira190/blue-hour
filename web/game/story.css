@@ -151,16 +151,23 @@
 #g-story-album button.vs.on { border-color: var(--amber); background: var(--amber); color: #0b1020; }
 #g-story-end p.lost, #g-story-end p.tally { font: 400 10px/1.7 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); max-width: 56ch; }
 #g-story-end p.lost { color: var(--amber); }
-/* ---- before the opening shot: black, and the hour typed on it a letter at a time (story.js preface) */
-#g-story-pre { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 8vh max(24px, 7vw); background: #03050a; color: var(--paper); opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
-#g-story-pre.on { opacity: 1; pointer-events: auto; cursor: pointer; }
-#g-story-pre > div { width: min(640px, 100%); }
-#g-story-pre small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.44em; text-transform: uppercase; color: var(--amber); }
-#g-story-pre small::after { content: ""; display: block; width: 28px; height: 1px; margin: 20px 0 26px; background: rgba(255, 207, 138, 0.6); }
-#g-story-pre p { margin: 0 0 1.05em; min-height: 1.7em; font: 400 clamp(14px, 1.55vw, 17px)/1.7 var(--f-mono); letter-spacing: 0.02em; color: rgba(244, 239, 230, 0.9); }
-#g-story-pre p.on:not(.done)::after { content: ""; display: inline-block; width: 0.55em; height: 1.05em; margin-left: 0.18em; vertical-align: -0.16em; background: var(--amber); }
-#g-story-pre p:last-child.done { color: var(--amber); }
-#g-story-pre em { display: block; margin-top: 34px; font: 400 10px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.42); }
+/* ---- the order in the hand: the sheet the player was sent out with, its words coming up as ink does (story.js order).
+   The file's own paper and hand; the street runs on behind it. */
+#g-story-order { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; display: grid; justify-items: center; pointer-events: none; transform: translateY(104%); transition: transform 0.7s cubic-bezier(0.2, 0.75, 0.2, 1); }
+#g-story-order.on { transform: none; pointer-events: auto; cursor: pointer; }
+#g-story-order .sheet { --graphite: #2a1f16; --pen: #1d2a4a; width: min(560px, calc(100% - 28px)); margin-bottom: max(18px, env(safe-area-inset-bottom)); padding: 22px 28px 18px; color: var(--graphite); background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.18), rgba(60, 36, 12, 0.1)); box-shadow: 0 -8px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(60, 36, 12, 0.18); transform: rotate(-1.2deg); }
+#g-story-order small { display: block; padding-bottom: 9px; margin-bottom: 12px; border-bottom: 1px solid rgba(43, 33, 24, 0.45); font: 400 10px/1.2 var(--f-mono); letter-spacing: 0.36em; text-transform: uppercase; color: #5a2a22; }
+#g-story-order b { display: block; margin-bottom: 6px; font: 600 23px/1.2 var(--f-hand); }
+#g-story-order p { margin: 0 0 6px; font: 450 21px/1.28 var(--f-hand); letter-spacing: 0.005em; }
+#g-story-order figure { margin: 10px 0 0; display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: center; }
+#g-story-order svg { width: 150px; height: auto; background: rgba(255, 244, 220, 0.22); box-shadow: inset 0 0 0 1px rgba(60, 36, 12, 0.2); }
+#g-story-order figcaption { font: 450 18px/1.25 var(--f-hand); color: var(--pen); }
+#g-story-order em { display: block; margin-top: 12px; font: 400 9px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(43, 33, 24, 0.6); }
+#g-story-order i { font-style: normal; opacity: 0; animation: g-story-ink 0.55s ease-out both; }
+#g-story-order.on i { animation-play-state: running; }
+@keyframes g-story-ink { 0% { opacity: 0; filter: blur(2.5px); } 60% { opacity: 0.85; filter: blur(0.4px); } 100% { opacity: 1; filter: none; } }
+@media (max-width: 640px) { #g-story-order .sheet { padding: 16px 18px 14px; } #g-story-order p { font-size: 19px; } #g-story-order figure { grid-template-columns: 110px 1fr; } #g-story-order svg { width: 110px; } }
+@media (prefers-reduced-motion: reduce) { #g-story-order { transition: none; } #g-story-order i { animation: none; opacity: 1; } }
 /* ---- the camera raised: the bright-line frame, the rangefinder's patch at its centre, and the release */
 #g-story-finder { position: absolute; inset: 12% 18%; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; --l: rgba(244, 239, 230, 0.95);
   background: linear-gradient(var(--l), var(--l)) 0 0 / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 0 0 / 1.5px 40px no-repeat, linear-gradient(var(--l), var(--l)) 100% 0 / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 100% 0 / 1.5px 40px no-repeat,
@@ -411,3 +418,77 @@
 #g-story-mark.lens i { display: none; }
 #g-story-mark.lens u { transform: rotate(var(--a, 0rad)) translateX(8px); }
 #g-story-mark.lens b { top: 18px; color: var(--amber); }
+
+/* ---- the dialogue's own two buttons: a step back to the line before, and the log of the evening (log.js) */
+.game-stage.story .gd-tools { display: flex; justify-content: center; gap: 22px; margin-top: 12px; }
+.game-stage.story .gd-tools button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 6px 2px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.62); }
+.game-stage.story .gd-tools button:is(:hover, :focus-visible) { color: var(--amber); }
+.game-stage.story .gd-tools kbd { padding: 2px 5px; border: 1px solid currentColor; border-radius: 2px; font: inherit; letter-spacing: 0.06em; }
+@media (pointer: coarse) { .game-stage.story .gd-tools { gap: 10px; } .game-stage.story .gd-tools button { padding: 10px 14px; border: 1px solid rgba(244, 239, 230, 0.3); border-radius: 2px; } .game-stage.story .gd-tools kbd { display: none; } }
+/* (a line stepped back to: said before, in a fainter hand, until on again brings back the one being said) */
+.game-stage.story .g-dialog.back p { color: rgba(244, 239, 230, 0.72); }
+.game-stage.story .g-dialog.back .gd-head::before { content: "Said before"; font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); }
+.game-stage.story .g-dialog.back .gd-tools [data-gd="back"] { color: var(--amber); }
+
+/* ---- the words: three sizes and a backing, for the dialogue and the goal (log.js, remembered in this browser) */
+.game-stage.story.words-1 .g-dialog p { font-size: clamp(22px, 2.6vw, 28px); max-width: 30em; }
+.game-stage.story.words-2 .g-dialog p { font-size: clamp(26px, 3.2vw, 34px); max-width: 28em; line-height: 1.45; }
+.game-stage.story.words-1 .gd-choices button { font-size: 19px; }
+.game-stage.story.words-2 .gd-choices button { font-size: 22px; }
+.game-stage.story.words-1 .gd-head :is(b, span) { font-size: 12px; }
+.game-stage.story.words-2 .gd-head :is(b, span) { font-size: 13px; }
+.game-stage.story.words-1 #g-story-goal { width: min(100%, 520px); } .game-stage.story.words-1 #g-story-goal span { font-size: clamp(19px, 1.9vw, 23px); }
+.game-stage.story.words-2 #g-story-goal { width: min(100%, 600px); } .game-stage.story.words-2 #g-story-goal span { font-size: clamp(22px, 2.3vw, 27px); }
+.game-stage.story:is(.words-1, .words-2) #g-story-goal em { font-size: 13px; }
+.game-stage.story.words-solid .g-dialog { padding-top: 22px; background: rgb(5, 8, 16); border-top: 1px solid rgba(244, 239, 230, 0.16); }
+.game-stage.story.words-solid .g-dialog p { text-shadow: none; }
+.game-stage.story.words-solid #g-story-goal { padding-bottom: 18px; background: rgb(5, 8, 16); border-bottom-right-radius: 2px; box-shadow: 0 0 0 1px rgba(244, 239, 230, 0.12); }
+.game-stage.story.words-solid #g-story-goal span { text-shadow: none; }
+@media (max-width: 640px) {
+  .game-stage.story.words-1 .g-dialog p { font-size: 21px; } .game-stage.story.words-2 .g-dialog p { font-size: 24px; }
+  .game-stage.story:is(.words-1, .words-2) .g-dialog { padding-top: 60px; }
+  .game-stage.story.words-1 #g-story-goal span { font-size: 19px; } .game-stage.story.words-2 #g-story-goal span { font-size: 21px; }
+  .game-stage.story.words-1 .gd-choices button { font-size: 17px; } .game-stage.story.words-2 .gd-choices button { font-size: 19px; }
+}
+
+/* ---- the log of the evening (log.js): what was said, in order, set as a script on the night's table */
+#g-story-log { position: absolute; inset: 0; z-index: 11; display: none; overflow: auto; padding: max(28px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom)); color: var(--paper);
+  background: radial-gradient(ellipse at 50% 20%, rgba(20, 28, 60, 0.94), rgba(4, 8, 18, 0.97) 70%); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+#g-story-log.on { display: block; animation: g-story-album-in 0.35s ease; }
+#g-story-log .sheet { max-width: 720px; margin: 0 auto; display: grid; gap: 24px; }
+#g-story-log header { text-align: center; display: grid; gap: 10px; }
+#g-story-log header small { font: 400 10px/1 var(--f-mono); letter-spacing: 0.36em; text-transform: uppercase; color: var(--amber); }
+#g-story-log header span { font: 400 10px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+#g-story-log h2 { margin: 0; font: 200 clamp(26px, 4vw, 44px)/1.1 var(--f-display); letter-spacing: 0.14em; text-transform: uppercase; }
+#g-story-log .words { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+#g-story-log .words small { margin-right: 6px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.55); }
+#g-story-log .words button { padding: 9px 13px; border: 1px solid rgba(244, 239, 230, 0.3); border-radius: 2px; background: transparent; color: var(--paper); font: 300 calc(13px * var(--s, 1))/1 var(--f-body); cursor: pointer; }
+#g-story-log .words button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); background: rgba(255, 207, 138, 0.08); }
+#g-story-log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+#g-story-log li.fr { display: flex; gap: 14px; align-items: baseline; margin-top: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 207, 138, 0.35); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--amber); }
+#g-story-log li.fr:first-child { margin-top: 0; }
+#g-story-log li.fr span { color: rgba(244, 239, 230, 0.6); letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+#g-story-log h4 { margin: 0 0 4px; display: flex; gap: 12px; align-items: baseline; font: 400 10px/1.2 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; }
+#g-story-log h4 b { font-weight: 400; color: var(--amber); }
+#g-story-log h4 span { color: rgba(244, 239, 230, 0.5); letter-spacing: 0.18em; }
+#g-story-log li p { margin: 0; font: 300 17px/1.55 var(--f-body); color: var(--paper); }
+#g-story-log li.past h4 b { color: #9fc4ff; }
+#g-story-log li.past p { font: 400 18px/1.5 var(--f-serif); }
+#g-story-log li.q p { font-weight: 400; }
+#g-story-log li.a { padding-left: 18px; border-left: 2px solid var(--amber); }
+#g-story-log li.a p { font: 450 21px/1.28 var(--f-hand); color: #ffe2b5; }
+#g-story-log li.aside p { font: 300 14px/1.5 var(--f-body); font-style: italic; color: rgba(244, 239, 230, 0.66); }
+#g-story-log li.none p { text-align: center; color: rgba(244, 239, 230, 0.6); }
+.game-stage.story.words-1 #g-story-log li p { font-size: 21px; } .game-stage.story.words-2 #g-story-log li p { font-size: 25px; }
+#g-story-log .row { display: flex; justify-content: center; position: sticky; bottom: calc(-1 * max(28px, env(safe-area-inset-bottom))); margin: 0 -20px; padding: 30px 0 max(28px, env(safe-area-inset-bottom)); background: linear-gradient(rgba(4, 8, 18, 0), rgb(4, 8, 18) 45%); }
+#g-story-log .row button { padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: rgba(4, 8, 18, 0.6); color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; cursor: pointer; }
+#g-story-log .row kbd { margin-left: 8px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 2px; font: inherit; }
+/* (on a phone the roll's strip sits where the dialogue's buttons are: it steps aside while someone speaks; the log and the
+   roll's prints are a button away in the dialogue itself) */
+@media (max-width: 640px) { .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-frames, #g-story-keys) { opacity: 0; pointer-events: none; } }
+/* (while someone speaks, nothing else is written over the lower third: a line said over the picture goes up, under the
+   goal, and the mark and the keys step aside; the dialogue has the screen's foot to itself) */
+.game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(19vh, 150px); bottom: auto; }
+.game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-mark, #g-story-keys) { opacity: 0; }
+/* (on a phone the goal lies over the brightest part of the frame, the shop fronts across the road: a deeper scrim under it) */
+@media (max-width: 640px) { .game-stage.story #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); } }

@@ -391,8 +391,10 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         }
         // (the beam on a car stopped close ahead, s.near metres: dimmed as the eye would adapt to it,
         // rather than a white wall where a queue's back is lit from 3 m)
-        const nearK = s.near != null && s.near < 12 ? Math.max(0.05, (Math.max(0, s.near) / 12) ** 2) : 1;
-        if (api.lamp) api.lamp.intensity = lit ? (PHYS() ? 2600 : 1.4) * nearK : 0;
+        // (with the dipped beam's cut-off, only close behind one: under 8 m it lit a white car's bumper and plate 3 m ahead
+        // to a glare, as no photograph of a queue shows it)
+        const nearK = s.near != null && s.near < 8 ? Math.max(0.3, Math.max(0, s.near) / 8) : 1;
+        if (api.lamp) api.lamp.intensity = lit ? (PHYS() ? BEAM.cd : 1.4) * nearK : 0;
       },
       // a person in a seat, facing forward: the rig's root on the floor in front of the cushion
       // (people.js puts the feet there), the shins forward and, at the wheel, the hands on it. The
@@ -438,7 +440,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         if (api.lamp === light) return;
         if (light.parent) light.parent.remove(light, light.target);
         light.position.set(0, Math.min(0.8, M.height_m * 0.5), M.player ? half + 0.12 : half - 0.2); // (ahead of the supercar's splitter, not over it)
-        light.target.position.set(0, -0.6, half + 16);
+        light.target.position.set(0, PHYS() ? light.position.y : -0.6, half + 16); // (level: the beam's map draws its dip)
         body.add(light, light.target);
         api.lamp = light;
       },
@@ -454,9 +456,49 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     };
     return api;
   }
-  // the headlamp beam, one for whichever car the player is in
-  function headlamp(world) {
-    const l = new THREE.SpotLight(lin('#fff1d6'), 0, 70, 0.55, 0.6, PHYS() ? 2 : 1);
+  // the headlamp beam, one for whichever car the player is in. A dipped beam, as the regulations draw it (UN R112,
+  // Japan's too): a band of light just under the horizon, its hot spot a degree or two down and a little to the kerb
+  // side, a sharp cut-off above it, and little but stray light over it. As a round cone of light, it lit the whole back
+  // of a car queued 6 m ahead as brightly as the road, and a white one went white; with the cut-off, its bumper is in
+  // the beam and its boot over it, as a photograph of a street at night shows them; and the road a few metres ahead
+  // was a fan of light brighter than any street lamp's pool (2600 cd in a 31° cone, 70 lux at 6 m: the brightest
+  // street lamp's pool here is about 4). The pattern is the light's map (three.js projects it from the lamp over the
+  // cone: v up, by the tangent of the angle off the beam's axis, which is level). Its hot spot is aimed a little lower
+  // than a real beam's, so that the road ahead shows a wash while a bumper 6 m ahead stays under 30 lux, which the
+  // grade carries without clipping a white car (tools/headlamp_shot.js tried 1000 to 2400 cd)
+  // BEAM: cd, the candela at the hot spot for both lamps together; hot, the hot spot's angle under the level (deg) and
+  // its spread; wide, the spread over the road's width; fore, the road just ahead; stray, the light over the cut-off
+  // (tools/headlamp_shot.js tries values on a running page: set them, then beam.apply())
+  const HEAD_ANGLE = 0.62;
+  const BEAM = { cd: 1400, hot: -3, hotW: 1.6, wide: 0.32, fore: 0.15, stray: 0.06, apply: () => { if (beamTex) beamPattern(true); } };
+  let beamTex = null;
+  function beamPattern(again = false) {
+    if (beamTex && !again) return beamTex;
+    const W = 128, H = 256, px = beamTex ? beamTex.image.data : new Uint8Array(W * H * 4), T = Math.tan(HEAD_ANGLE), D = 180 / Math.PI, B = BEAM;
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      const tx = ((i + 0.5) / W * 2 - 1) * T, ty = ((j + 0.5) / H * 2 - 1) * T;
+      const az = Math.atan(tx) * D, el = Math.atan2(ty, Math.hypot(1, tx)) * D;
+      const cut = -0.57 + 0.9 * smooth(4, 14, -az * KEEP_SIDE); // (the step up on the kerb's side, lighting its signs and people)
+      const under = 1 - smooth(cut - 0.35, cut + 0.35, el); // (the cut-off: under half a degree from light to dark)
+      const hot = Math.exp(-(((el - B.hot) / B.hotW) ** 2)) * (0.3 + 0.7 * Math.exp(-(((az + 2 * KEEP_SIDE) / 11) ** 2))); // (the hot spot, a little to the kerb)
+      const wide = B.wide * Math.exp(-(((el - B.hot - 0.5) / 3.5) ** 2)) * Math.exp(-((az / 20) ** 2)); // (the spread over the width of the road)
+      const fore = B.fore * smooth(-1, -6, el) * Math.exp(-((az / 22) ** 2)); // (the road just ahead: not a pool brighter than the road on)
+      const v = under * (hot + wide + fore) + (1 - under) * B.stray * Math.exp(-((az / 25) ** 2)); // (stray light over the cut-off: the boot of a car ahead, a face)
+      const k = 4 * (j * W + i), c = Math.round(255 * Math.min(1, v) * smooth(1, 0.82, Math.hypot(tx, ty) / T));
+      px[k] = px[k + 1] = px[k + 2] = c; px[k + 3] = 255;
+    }
+    if (!beamTex) {
+      beamTex = new THREE.DataTexture(px, W, H, THREE.RGBAFormat);
+      beamTex.magFilter = beamTex.minFilter = THREE.LinearFilter;
+    }
+    beamTex.needsUpdate = true;
+    return beamTex;
+  }
+  let KEEP_SIDE = 1; // (1: keep left, the kerb on the left, as in Japan; -1: keep right)
+  function headlamp(world, keep = 'left') {
+    KEEP_SIDE = keep === 'right' ? -1 : 1;
+    const l = new THREE.SpotLight(lin('#fff1d6'), 0, 70, PHYS() ? HEAD_ANGLE : 0.55, PHYS() ? 0.12 : 0.6, PHYS() ? 2 : 1);
+    if (PHYS()) l.map = beamPattern(); // (set once, before the first frame it lights: never a shader built again)
     l.userData.home = world; // (where it waits, lit by nobody, between cars: cars.js drop)
     world.add(l, l.target);
     return l;
@@ -1154,7 +1196,8 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     }
     return changed ? Object.assign({}, route, { pts, nodes, mids, len: pts.reduce((s, q, i) => s + (i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0), 0) }) : route;
   }
-  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride' } = {}) {
+  const WALKER = { walker: true, x: 0, y: 0, v: 0 }; // (what a chauffeur stops for when it is a person on its way)
+  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null, callFrom = 0 } = {}) {
     // (strict: the autopilot of your own car, always in your sight: its guard against stepping into a car reads its
     // body as it is turned, not only as its way is, so that creeping on out of a tangle it never clips one on a bend.
     // id: its name among the traffic's blockers, game.js: a car that stands for it is not one stopped for good)
@@ -1376,12 +1419,16 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     // the gap to the line of the next junction ahead, if it must stop there (Infinity if not)
     const halted = new Set();
     const PRIO_T = 12; // (s: the other road's few seconds of green, amber and all red, and a little to spare)
+    // (how far ahead a signal is called: PRIO_T at its speed, or callFrom metres, a ride with you in it. Called from 70 m as
+    // it pulled away from the kerb 95 m short of the scramble, the walk had started, ran its 30 s, and the ride stood 35 s
+    // in the queue under the JR viaduct; called from the kerb, the walk not yet started waits for its turn)
+    const callAt = () => Math.max(PRIO_T * Math.max(st.v, 4) + 20, callFrom);
     function lineGap(dtNow = 0) {
       st.toLine = Infinity;
       if (!lights || !route.nodes) return Infinity;
       for (let i = 0; i < route.nodes.length; i++) {
         const nd = route.nodes[i], sN = P.cum[Math.min(nd.k, P.cum.length - 1)];
-        if (sN - st.s > 90 && !(priority && sN - st.s < PRIO_T * Math.max(st.v, 4) + 20)) break;
+        if (sN - st.s > 90 && !(priority && sN - st.s < callAt())) break;
         const a = lights.armAt(nd.line, nd.end);
         if (!a) continue;
         if (sN - st.s > 90) { if (lights.priority && a.j.sig) lights.priority(a); break; } // (far off, but at speed: the signals called in time)
@@ -1459,7 +1506,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       for (const nd of route.nodes) {
         const sN = P.cum[Math.min(nd.k, P.cum.length - 1)];
         if (sN < st.s) continue;
-        if (sN - st.s > PRIO_T * Math.max(st.v, 4) + 20) return;
+        if (sN - st.s > callAt()) return;
         const a = lights.armAt(nd.line, nd.end);
         if (!a) continue;
         if (a.j.sig && sN - a.back > st.s) lights.priority(a);
@@ -1527,7 +1574,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       P.pos(st.s, q);
       const hz = hurry ? hurry(st, dry) : 1;
       let want = Math.min(cruise, q.v || cruise) * hz * WX.pace; // (slower in the wet, on snow and in fog)
-      for (let i = q.i + 1; i < P.pts.length && P.cum[i] - st.s < 120; i++) { const cv = P.corner[i] * WX.corner; if (cv < want) want = Math.min(want, Math.sqrt(cv * cv + 2 * 3 * WX.grip * (P.cum[i] - st.s))); } // (a bend taken slower on a slippery road, and braked for from farther back)
+      for (let i = q.i + 1; i < P.pts.length && P.cum[i] - st.s < 120; i++) { const cv = P.corner[i] * WX.corner; if (cv < want) want = Math.min(want, Math.sqrt(cv * cv + 2 * 3.4 * WX.grip * (P.cum[i] - st.s))); } // (a bend taken slower on a slippery road, and braked for from farther back)
       // (and a corner just behind: it is still turning it, the route's line being taken as a curve over some metres)
       for (let i = q.i; i > 0 && st.s - P.cum[i] < 8; i--) if (P.corner[i] * WX.corner < want) want = P.corner[i] * WX.corner;
       // the cars ahead, and the line at a red light or a stop sign
@@ -1538,6 +1585,11 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       const laneGap = carGap, xGap = dry ? Infinity : crossGap(others);
       if (xGap < carGap) { carGap = xGap; still = false; queued = queueing(st.xBlock, ruledQ); st.block = st.xBlock; }
       const across = xGap < laneGap; // (what holds it up is a car at an angle to it, not one ahead in its lane)
+      // and the people along its way (people: the crowd off the scramble, the NPCs, you on foot; game.js), as the traffic
+      // brakes for them (actors.js 'person'): waited on, never crept into, however long it has been held
+      const pGap = dry || !people || !st.np ? Infinity : people(st.ps, st.np, LOOK_STEP, st, C);
+      if (pGap < carGap) { carGap = pGap; still = false; queued = false; st.block = WALKER; }
+      const forPerson = !!(st.block && st.block.walker);
       // pulling out from the kerb, a look in the mirror first: it waits while a car is coming up the lane
       // behind it, moving, within 3.5 s, as a driver does (it would cut in front of it, and the car would
       // brake for it beside it, the two edging along nose to tail). A queue standing beside it is not waited
@@ -1547,8 +1599,8 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       // a car standing where it is to pull in: pull in behind it
       if (end && still && carGap < line && carGap < Infinity && st.s + carGap > st.end - 30) endAt(Math.min(st.end, st.s + Math.max(0, carGap - 3.2)));
       let left = st.end - st.s;
-      if (end) want = Math.min(want, Math.sqrt(2 * 2.2 * Math.max(0, left - 0.4)));
-      const gap = Math.min(carGap, line), w0 = want, room = gap < 2.8 || st.mirror ? 0 : (gap - 2.8) * 0.9 / WX.headway; // (a longer gap at any speed in the wet)
+      if (end) want = Math.min(want, Math.sqrt(2 * 2.5 * Math.max(0, left - 0.4)));
+      const gap = Math.min(carGap, line), w0 = want, room = gap < 2.8 || st.mirror ? 0 : (gap - 2.8) / WX.headway; // (a longer gap at any speed in the wet)
       if (room < want) want = room;
       st.why = want < w0 ? `${line <= carGap ? 'the line' : 'gap'} ${gap.toFixed(1)} m` : `${w0.toFixed(1)} m/s ahead`; // what sets the speed (for the game check)
       // held up behind cars (never at the line: a red light is waited out) it counts the time while it
@@ -1567,11 +1619,11 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       st.qBy = st.q && carGap < line ? st.block : null; // (the car it queues behind: that one does not queue behind it in turn)
       // caught up in cars that stopped against it (pulled out into a jam at the kerb), with no room to
       // drive round: after 8 s it creeps on through, as the traffic does when two are caught up
-      if (st.held > 8 && carGap < 0.5 && !across) want = Math.max(want, 1.5);
+      if (st.held > 8 && carGap < 0.5 && !across && !forPerson) want = Math.max(want, 1.5);
       // and held for 12 s in a tangle the traffic does not clear, it stops giving way and creeps on at
       // up to 3 m/s until it is under way (to the line, if a light is red), rather than wait for good
       // (never on into a car queueing ahead of it)
-      if (st.held > 12 && !queued && !across) want = Math.max(want, Math.min(3, w0, line < 2.8 ? 0 : (line - 2.8) * 0.9));
+      if (st.held > 12 && !queued && !across && !forPerson) want = Math.max(want, Math.min(3, w0, line < 2.8 ? 0 : (line - 2.8) * 0.9));
       // nose to nose with a car that waits on it in turn (it goes first by the rule, but this car is in its
       // way): after 3 s this one backs off a metre or two along its way, if the road behind is clear, as a
       // driver does who has pulled too far out; else it asks that car to back off (actors.js makeWay). Never
@@ -1581,6 +1633,8 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       // held up near the end for good (by a car that isn't moving off, not a light): stop here
       st.stall = st.v < 0.2 && room < 0.1 && carGap < line && !waiting ? st.stall + dt : 0; // (not in a queue for the lights)
       if (end && st.stall > (atSignal(st.block) ? 25 : 8) && left < 45 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; }
+      // (held 4 s by people on its way within 30 m of the end, the pavement's edge where it pulls in: it stops there)
+      else if (end && !dry && forPerson && st.v < 0.2 && st.stall > 4 && left < 30) { endAt(st.s); left = 0; }
       // and queued 8 s behind cars within 45 m of the end (a jam between it and you), it stops where
       // it is, as a driver picking you up does, and you walk the last few metres
       // (a queue held at a signal is waited out, not taken for a jam, unless it stands 25 s: Kyoto's taxi stopped 39 m
@@ -1597,7 +1651,9 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       // (the traffic brakes by the Intelligent Driver Model's interaction term too, actors.js idm; a ride's
       // driver keeps the limit alone: with it, creeping up a stop-and-go queue more slowly, it was held long
       // enough to read a car in the queue as stopped for good and go round it)
-      const dv = clamp(want - st.v, -7.5 * dt, 2.6 * dt);
+      // (off the line at 3.2 m/s², a brisk driver's, easing off as it nears the speed it wants: at 2.6 the ride the story
+      // sends felt slow away from every light; the limit itself is kept)
+      const dv = clamp(want - st.v, -7.5 * dt, Math.min(3.2, 0.8 + 1.2 * Math.max(0, want - st.v)) * dt);
       st.brake = dv < -0.02 * dt * 60 || (st.v < 0.2 && want < 0.1);
       st.v = Math.max(0, st.v + dv);
       const s0 = st.s, lat0 = st.lat;
@@ -1683,5 +1739,5 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     return { st, update, finish, jump, leave, poseAt, path: P, box: () => boxOf(st, C.half, C.hw, C.top), remaining: () => st.end - st.s, timeLeft, total: () => timed().total };
   }
 
-  return { car, headlamp, drive, router, path, chauffeur, queueing, pushOut, sweep, boxOf, kerbOf, ledgesUnder, CAR_STEP, ROADW, LANE, PERF, weather: WX, setWeather, sprayStep, sprayState: () => SPRAY };
+  return { car, headlamp, beam: BEAM, drive, router, path, chauffeur, queueing, pushOut, sweep, boxOf, kerbOf, ledgesUnder, CAR_STEP, ROADW, LANE, PERF, weather: WX, setWeather, sprayStep, sprayState: () => SPRAY };
 })();

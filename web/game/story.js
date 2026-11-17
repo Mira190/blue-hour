@@ -81,7 +81,7 @@ window.OEStory = (function () {
     const frames = el('g-story-frames', `<span><b></b><small>/${String(N).padStart(2, '0')}</small>taken</span><span class="strip">${'<i></i>'.repeat(N)}</span><em>${ctx.touch ? 'Tap' : '<kbd>Tab</kbd>'} · the roll</em>`, 'button'), card = el('g-story-card', '<div><small></small><span></span></div>'), veil = el('g-story-veil', ''), flash = el('g-story-flash', '');
     const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '');
     const failEl = el('g-story-fail', ''), slip = el('g-story-slip', '<small>Entered in the file</small><p></p>');
-    const pre = el('g-story-pre', '<div><small></small><div class="tx"></div><em></em></div>');
+    const pre = el('g-story-order', '');
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · wheel: the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
     // the camera in the hand or at the eye: a button that says which, and what the key does; and a word in the middle of
@@ -165,7 +165,7 @@ window.OEStory = (function () {
 ${vs.length === 2 ? `<div class="versus${st.pairs.includes(pairKey(vs[0], vs[1])) ? ' hit' : ''}" role="status"><figure>${vs.slice().sort((a, b) => a - b).map(k => `<span>${P[k].src ? `<img alt="Frame ${k + 1}" src="${P[k].src}">` : '<i></i>'}<b>${k + 1}</b></span>`).join('')}</figure><p>${esc(vsSaid)}</p></div>` : P.length > 1 ? `<p class="how">Set two prints side by side: some of them say together what neither says alone.${st.pairs.length ? ` Found so far: ${st.pairs.length}.` : ''}</p>` : ''}
 <ol>${Array.from({ length: N }, (_, i) => cell(i)).join('')}</ol>
 ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3><ul>${st.file.map(e => `<li class="${e.struck ? 'struck' : ''}${e.kind ? ` ${e.kind}` : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}</span></li>`).join('')}</ul></section>` : ''}
-<div class="row">${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
+<div class="row">${ctx.log ? `<button type="button" data-do="log">The log${ctx.touch ? '' : ' <kbd>L</kbd>'}</button>` : ''}${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
     }
     function albumOpen(on) {
       if (on && (st.phase === 'idle' || st.phase === 'dressed')) return;
@@ -193,7 +193,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     album.addEventListener('click', e => {
       const d = e.target.closest('button[data-do]'), b = e.target.closest('button[data-i]'), c = e.target.closest('button[data-c]');
       if (c) return versus(+c.dataset.c);
-      if (d) return d.dataset.do === 'sheet' ? saveSheet() : albumOpen(false);
+      if (d) return d.dataset.do === 'sheet' ? saveSheet() : d.dataset.do === 'log' ? (albumOpen(false), ctx.log.show(true)) : albumOpen(false); // (the log of the evening, log.js)
       if (b) { const li = b.parentNode, was = li.classList.contains('big'); album.querySelectorAll('li.big').forEach(q => q.classList.remove('big')); li.classList.toggle('big', !was); return; }
       if (e.target === album) albumOpen(false);
     });
@@ -319,44 +319,36 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       { const f = ep.frames[0] || {}, a = JSON.stringify(f.air || (f.weather === 'rain' ? { leaves: 40, birds: 0 } : {})); if (ctx.air && a !== st.air) { st.air = a; ctx.air(JSON.parse(a)); } }
       return ep;
     }
-    // before the opening shot, on black: what the blue hour is, typed a letter at a time as on a machine (ep.preface:
-    // { head, lines }). A player who is given a street that stops should already know which hour it is and why that
-    // hour: the title names it and nothing said what it meant. Any key or a tap goes on; a case taken up again, and a
-    // player who asks for less motion, are not made to wait for the typing
-    function preface(done) {
-      const ep = st.ep || dress(), P = ep && ep.preface;
-      if (!P || !(P.lines || []).length || kept()) return done();
-      const box = pre.querySelector('.tx'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      let over = false, tm = 0;
-      pre.querySelector('small').textContent = P.head || '';
-      pre.querySelector('em').textContent = ctx.touch ? 'Tap to go on' : 'Any key to go on';
-      box.textContent = '';
-      const ps = P.lines.map(() => box.appendChild(document.createElement('p')));
-      st.beat = 'preface'; pre.classList.add('on');
+    // The order in the hand. As the player is given the street, the sheet they were sent out with comes up into the
+    // frame: who, which kerb, what for, and why at this hour (a survey photograph is taken at blue hour, when the sky
+    // and the lamps are equally bright; so the hour the whole story turns on is explained by the job, on a thing the
+    // player holds, with the street still running behind it). Its words come up as ink does, a letter at a time, and
+    // the old plan's corner is on it with its one pencilled word. E, Enter or a tap puts it away; left alone it goes
+    // by itself. It was a black card with typing on it between the title and the opening shot: the street had already
+    // been shown on the title, was taken away for the card, and was then come down to again from the air.
+    // (ep.order: { head, to, lines, plan: { word, note } }; a case taken up again does not show it.)
+    function order(done) {
+      const ep = st.ep, O = ep && ep.order;
+      if (!O || !(O.lines || []).length) return done();
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let n = 0;
+      const ink = t => [...t].map(c => (c === ' ' ? ' ' : `<i style="animation-delay:${(n++ * (still ? 0 : 20)) + 500}ms">${esc(c)}</i>`)).join('');
+      pre.innerHTML = `<div class="sheet"><small>${ink(O.head || '')}</small>${O.to ? `<b>${ink(O.to)}</b>` : ''}${O.lines.map(l => `<p>${ink(l)}</p>`).join('')}
+${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none" stroke="#2a1f16" stroke-width="1.1" opacity="0.75"><path d="M8 78 H120 Q138 78 138 96 V116"/><path d="M8 62 H128 Q154 62 154 88 V116" stroke-dasharray="3 3"/><path d="M150 8 V40 Q150 54 164 54 H212"/><path d="M40 78 v-20 M70 78 v-20 M100 78 v-20" opacity="0.5"/></g><circle cx="112" cy="92" r="17" fill="none" stroke="#1d2a4a" stroke-width="1.2" opacity="0.8"/><text x="112" y="99" text-anchor="middle" font-size="17" fill="#1d2a4a" style="font-family: var(--f-jp, serif)">${esc(O.plan.word || '')}</text><text x="12" y="20" font-size="8" letter-spacing="2" fill="#5a2a22" style="font-family: var(--f-mono, monospace)">N-W KERB</text></svg><figcaption>${ink(O.plan.note || '')}</figcaption></figure>` : ''}
+<em>${ctx.touch ? 'Tap to put it away' : 'E · put it away'}</em></div>`;
+      st.phase = 'go'; st.beat = 'order'; goal('');
+      pre.classList.add('on');
+      let over = false; const total = 500 + n * (still ? 0 : 20);
       const end = () => {
         if (over) return;
-        over = true; clearTimeout(tm); removeEventListener('keydown', skip, true); pre.removeEventListener('pointerdown', skip);
+        over = true; clearTimeout(tm); removeEventListener('keydown', key, true); pre.removeEventListener('pointerdown', end);
         pre.classList.remove('on'); st.beat = '';
-        setTimeout(done, 900); // (once the black has let go)
+        st.file.unshift({ at: '', text: [O.head, O.to].concat(O.lines).filter(Boolean).join(' '), kind: 'order' }); // (the file begins with what the player was sent out with)
+        setTimeout(done, 500);
       };
-      const skip = e => { if (e.type === 'keydown') { if (e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopPropagation(); } end(); };
-      addEventListener('keydown', skip, true); pre.addEventListener('pointerdown', skip);
-      if (still) { P.lines.forEach((l, i) => { ps[i].textContent = l; }); tm = setTimeout(end, 2000 + P.lines.join(' ').length * 55); return; }
-      let li = 0, ci = 0;
-      const type = () => {
-        if (over) return;
-        const line = P.lines[li];
-        if (ci >= line.length) { // (a breath at the end of a line; the last one stands a while)
-          ps[li].classList.add('done');
-          if (++li >= P.lines.length) { tm = setTimeout(end, 3200); return; }
-          ci = 0; tm = setTimeout(type, 620); return;
-        }
-        const c = line[ci++];
-        ps[li].textContent = line.slice(0, ci); ps[li].classList.add('on');
-        if (c !== ' ' && ci % 2) sfx('key');
-        tm = setTimeout(type, c === '.' || c === ':' ? 340 : c === ',' ? 190 : 34);
-      };
-      tm = setTimeout(type, 900);
+      const key = e => { if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); } };
+      const tm = setTimeout(end, total + 14000); // (read at leisure; the Stop waits for it)
+      addEventListener('keydown', key, true); pre.addEventListener('pointerdown', end);
     }
     // as the player is given the street
     function begin() {
@@ -374,7 +366,8 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       // odd thing about the job (ep.prologue: {who, voice, lines}); a case taken up again goes straight to its frame
       const P = !k && ep.prologue && !ep.prologue.after && ep.prologue; // (after: the office rings once the first Stop has let go, not before it)
       if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
-      else frame(k ? k.fi : 0);
+      else if (!k) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
+      else frame(k.fi);
     }
     // a frame begins: the sky it has, a word with the living if there is one, and the way to where the world will stop
     function frame(i) {
@@ -725,7 +718,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
       }
     }
     return {
-      dress, begin, preface, tick, shoot, raise, state: st,
+      dress, begin, tick, shoot, raise, state: st,
       get stopped() { return st.phase === 'stop'; },
       get guided() { return !!st.guided; }, // the dog shows the way, and nothing else does: the game draws no gold line
       get scale() { return st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done' ? 1 : st.k * st.k; }, // how much time the world is given: 1 running, 0 held
