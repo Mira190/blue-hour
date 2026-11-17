@@ -76,8 +76,8 @@ const [,, out = '/tmp/guide-meet', size = '1440x900'] = process.argv;
   if (m.min < 0.42) errors.push(`the dog went within ${m.min.toFixed(2)} m of a held person's middle (${m.at}): through them`);
   if (!m.end || Math.hypot(m.end.x - m.end.pl[0], m.end.y - m.end.pl[1]) > 2.2) errors.push(`the film ended with the dog ${m.end ? Math.hypot(m.end.x - m.end.pl[0], m.end.y - m.end.pl[1]).toFixed(1) : '?'} m from the player`);
   // then followed at a run: the player runs (the game's own walk step, its run) at the dog; he must stay in front
-  const run = await p.evaluate(() => new Promise(done => {
-    const g = window.__game, st = g.story.state, d = st.dog, pl = g.player, log = { n: 0, behind: 0, gap: [], speeds: [], clips: {} };
+  await p.evaluate(() => { window.__run = new Promise(done => {
+    const g = window.__game, st = g.story.state, d = st.dog, pl = g.player, log = window.__runLog = { n: 0, behind: 0, gap: [], speeds: [], clips: {} };
     const down = c => window.dispatchEvent(new KeyboardEvent('keydown', { code: c, key: c, bubbles: true })), up = c => window.dispatchEvent(new KeyboardEvent('keyup', { code: c, key: c, bubbles: true }));
     let t = 0, last = performance.now();
     const tick = () => {
@@ -91,7 +91,15 @@ const [,, out = '/tmp/guide-meet', size = '1440x900'] = process.argv;
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
-  }));
+  }); });
+  // (a still of him at a gallop, the first time he is at a run's pace, from the chase view behind the player)
+  for (let k = 0; k < 400; k++) {
+    const r = await p.evaluate(() => ({ v: window.__game.story.state.dog.speed, done: window.__game.story.state.beat !== 'seek' }));
+    if (r.done) break;
+    if (r.v > 5) { await snap('run-gallop'); break; }
+    await p.waitForTimeout(150);
+  }
+  const run = await p.evaluate(() => window.__run);
   console.log('the run:', JSON.stringify(run));
   await snap('run-end');
   if (run.n && run.behind / run.n > 0.25) errors.push(`run after him, the dog was behind the player ${(100 * run.behind / run.n).toFixed(0)}% of the time`);
