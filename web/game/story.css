@@ -123,11 +123,6 @@
 #g-story-album .file li.spent span { color: rgba(42, 31, 22, 0.58); }
 #g-story-album .file li.struck span { text-decoration: line-through; text-decoration-color: var(--pen); text-decoration-thickness: 2px; color: rgba(42, 31, 22, 0.55); }
 @media (max-width: 640px) { #g-story-album .file { padding: 18px 18px 22px; } #g-story-album .file li { grid-template-columns: 1fr; gap: 0; font-size: 20px; } }
-/* ---- the plate: the frame as it was taken, faint over the lens's view, to walk into register with (story.js task) */
-#g-story-plate { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity 0.8s ease; mix-blend-mode: screen; }
-#g-story-plate img { display: block; width: 100%; height: 100%; object-fit: fill; filter: grayscale(1) sepia(0.35) contrast(1.15) brightness(1.05) blur(0.6px); }
-#g-story-plate.on { opacity: 0.42; }
-#g-story-plate.on.there { opacity: 0.14; }
 /* ---- what the player said, written on to the file as it is said, in the file's own hand and pen (story.js filed) */
 #g-story-slip { position: absolute; top: max(18px, env(safe-area-inset-top)); right: 18px; z-index: 11; width: min(360px, calc(100% - 36px)); padding: 13px 16px 15px; color: #2b2118; background: #c8a877 linear-gradient(180deg, rgba(255, 244, 220, 0.16), rgba(60, 36, 12, 0.1)); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); transform: translateY(-140%) rotate(0.6deg); opacity: 0; transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease; pointer-events: none; }
 #g-story-slip.on { transform: rotate(0.6deg); opacity: 1; }
