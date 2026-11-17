@@ -18,6 +18,10 @@
 // measured 263 MB one morning and 283 the next, in the rain. Then the heaviest hour a player meets is asked for, not
 // waited for: rain at ten at night (the wet street's mirror, the umbrellas, the lamps and the windows lit), held
 // WET seconds (default 12), and the peak counts it. The line says which part the peak fell in.
+// Then the page as a desktop opens it (issue 20; DESK=0 leaves it out): the story at 1440 x 900 on the high tier, to its
+// title card, and the vertex buffers its loader sent before the title by the loader's own log (world.js uploadBuffers,
+// `buffers: n objects, N MB`) against MEM_DESK (default 140 MB: the map round the player, docs/PERFORMANCE.md "A desktop's
+// map round the player", sent 125 where the whole map sent 283), with the time to the title and the GPU's buffers then.
 // QUERY='?district=off' measures the whole map on the phone tier, to compare with its district (pipeline/district.py).
 // TIER=low|medium|high (default low). QUERY=?a=b adds a query to the page's address. LV=n: the phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest). SNAP=file (%c for the city) writes a heap snapshot at the end (tools/heap_owners.js). JSON=1 prints the result as JSON. TOP=n lists n largest (default 8).
 const { chromium } = require('playwright');
@@ -347,6 +351,49 @@ async function measure(b, city) {
   return { city, ok, map, district, parts, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: peakRss, gl: r, canvas: pr, errors };
 }
 
+// the desktop's load to the title: the loader's upload before it, by its own log line
+async function desktop(b, city) {
+  const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  await ctx.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } });
+  await ctx.addInitScript(() => {
+    const M = window.__deskBuf = { buf: new Map(), sum: 0 }, P = WebGL2RenderingContext.prototype, bind = P.bindBuffer, data = P.bufferData, del = P.deleteBuffer, bound = new Map();
+    P.bindBuffer = function (t, x) { bound.set(t, x); return bind.call(this, t, x); };
+    P.bufferData = function (t, d) { const x = bound.get(t); if (x) { const n = typeof d === 'number' ? d : d ? d.byteLength : 0; M.sum += n - (M.buf.get(x) || 0); M.buf.set(x, n); } return data.apply(this, arguments); };
+    P.deleteBuffer = function (x) { M.sum -= M.buf.get(x) || 0; M.buf.delete(x); return del.call(this, x); };
+  });
+  const p = await ctx.newPage();
+  await pinClock(p, city, process.env.GAME_TIME || '2026-11-02T10:00');
+  const lines = [], errors = [];
+  p.on('console', m => { const t = m.text(); if (/^(buffers|buildings):/.test(t)) lines.push(t); });
+  p.on('pageerror', e => errors.push(String(e).slice(0, 200)));
+  const t0 = Date.now();
+  let title = null, gl = 0, move = null;
+  try {
+    await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.DESK_QUERY || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 250 });
+    title = (Date.now() - t0) / 1000;
+    gl = await p.evaluate(() => window.__deskBuf.sum);
+    // the free game's map moved: the player taken to the map's far corner and back, the cell under the player whole each time
+    move = await p.evaluate(async () => {
+      const W = window.__game.Wd, st = W && W.mapStream, F = window.__game.scene.frame;
+      if (!st) return null;
+      const G = st.grid, at0 = st.at.slice(), v0 = st.vertices, out = { vertices: v0, moves: [] };
+      const lodAt = (x, y) => st.lods[Math.floor((y - G.y0) / G.size) * G.nx + Math.floor((x - G.x0) / G.size)];
+      const far = [at0[0] < (F.x[0] + F.x[1]) / 2 ? F.x[1] - 300 : F.x[0] + 300, at0[1] < (F.y[0] + F.y[1]) / 2 ? F.y[1] - 300 : F.y[0] + 300];
+      for (const [x, y] of [far, at0]) {
+        const n = await W.mapAt(x, y, true);
+        out.moves.push({ changed: n, ms: Math.round(st.ms), vertices: st.vertices, here: lodAt(x, y) });
+      }
+      out.back = st.vertices === v0;
+      return out;
+    });
+    if (!move || !move.back || move.moves.some(m => m.here !== 0 || !m.changed)) errors.push(`the map round the player: ${JSON.stringify(move)}`);
+  } catch (e) { errors.push(String(e).slice(0, 200)); }
+  await ctx.close();
+  const up = lines.map(l => /^buffers: (\d+) objects, (\d+) MB/.exec(l)).filter(Boolean);
+  return { title, gl, move, upload: up.length ? up.reduce((a, m) => a + +m[2], 0) : null, lines, errors };
+}
+
 (async () => {
   const b = await chromium.launch(process.env.DISPLAY
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--enable-precise-memory-info'] }
@@ -386,6 +433,18 @@ async function measure(b, city) {
       if (m.gl.topRb.length) console.log(`     renderbuffers: ${m.gl.topRb.join(', ')}`);
     }
     for (const e of m.errors.slice(0, 5)) console.log(`     error: ${e}`);
+  }
+  if (process.env.DESK !== '0') for (const city of cities) {
+    const DESK_MB = +(process.env.MEM_DESK || 140), d = await desktop(b, city);
+    const bad = d.upload == null || d.upload > DESK_MB || d.errors.length;
+    if (bad) fail = true;
+    if (!process.env.JSON) {
+      console.log(`${bad ? 'FAIL' : 'ok  '} ${city} on a desktop: ${d.upload == null ? 'no upload logged' : `${d.upload} MB of vertex buffers sent before the title`} (budget ${DESK_MB}), the title after ${d.title == null ? '?' : d.title.toFixed(0)} s, the GPU's buffers then ${MB(d.gl)} MB`);
+      for (const l of d.lines) console.log(`     ${l}`);
+      if (d.move) console.log(`     the map round the player: ${d.move.vertices.toLocaleString()} vertices of buildings; to the far corner ${d.move.moves[0].changed} cells built again in ${d.move.moves[0].ms} ms, back ${d.move.moves[1].changed} in ${d.move.moves[1].ms} ms`);
+      for (const e of d.errors.slice(0, 5)) console.log(`     error: ${e}`);
+    }
+    out.push(Object.assign({ city, desktop: true }, d));
   }
   if (process.env.JSON) console.log(JSON.stringify(out, null, 1));
   await b.close();
