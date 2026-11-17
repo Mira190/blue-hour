@@ -262,6 +262,32 @@ landmarks' meshes, which went on being solid and being stood on where they had b
   climbs to the coping, it is still up to 14 cm under). Tokyo's stands on its paving; seven single points of its
   crowd's lines meet a wall, and Shibuya's meet one where two footways go down a subway stair (issue 496).
 
+### The trees, the camera in them and the crowd in a close frame (issue 19)
+
+Seen in the stills of episode one: the cherries in Hachiko Square's planters carried their leaves down to
+1.3 m, and the chase camera behind the player ended inside them (frame 3's first line was said through a
+screen of leaves); a street ginkgo by the station hung its to 0.9 m. A square's and a street's trees in Tokyo
+are pruned clear of the people under them (Japan's road rules keep 2.5 m over a footway, 4.5 m over a road):
+
+- `cherry_plaza` (`blender/build_trees.py`): the Somei-yoshino as a square prunes it, a clean trunk to 4 m and
+  the crown held high, its lowest leaves at 4.4 m at its own size; the two planters by Hachiko plant it
+  (`cities/shibuya/city.json` `trees.areas`). The cherries of the Meguro's banks keep their low boughs.
+- The street species (plane, elm, zelkova, ginkgo) are pruned in the build (`prune`): no spray hangs below
+  3.2 m, their lowest leaves 3.3 to 4 m up at their own size.
+- `trees.json` gives every species where its lowest leaves hang and how far its crown reaches (`clear_m`,
+  `crown_r`, measured from the built cards), `web/trees.js` `crowns()` each tree's as drawn, and the game keeps
+  them on its posts. On foot the chase camera's way to the head stops where it goes into the dense middle of a
+  crown and comes closer or lower, as for a wall; the conversation's camera (`web/game/talkcam.js`) counts a
+  crown, a trunk and a lamp post as in the way.
+- The crowd's skinned people are chosen by distance as the lens sees it (`web/game/people.js`): through the
+  finder's long lens a walker 50 m off is as big as one 25 m off in the chase view, so is a person and not a
+  far figure, and half as many more are people while the lens is long.
+- The way's band on the ground is hidden while the story's camera is raised and from the print: from the eye
+  along the ground it stood in frame 2's finder as an amber shaft in front of the tram.
+
+`tools/hero_trees.js` lists the trees round the Scramble with where their leaves begin and exits 1 on one lower
+than 2.5 m within 60 m.
+
 ## Only what the first frame sees (issue 358)
 
 The levels by a map's spawn (Kamakura's first) apply issue 358's rule to detail: memory and shading go to

@@ -335,6 +335,16 @@ was said before it. In a dialogue one step back (`Q`, or the button) shows the l
 whole on the first press. The words come in three sizes, with an opaque backing for the dialogue and the goal, kept in
 this browser; the default is the size the story was set in.
 
+**A controller plays it start to last card** (`web/game/pad.js`: the Gamepad API's standard mapping, no library). The
+left stick walks and the right one looks; the left trigger raises the camera while held (or each pull raises or lowers
+it, a setting in the log), the right trigger is the release, and the bumpers turn the lens's ring. A talks, passes a
+line and puts the order away, B steps back in a dialogue and closes what is open, Y opens the roll and View the log;
+the d-pad (or the left stick, flicked) moves through the answers, the prints, the roll's two-print compare and a
+card's buttons, and A presses the one it is on. Its buttons are sent to the page as the keys they stand for, so that
+everything that reads keys reads the pad. While the pad is the last thing touched every prompt shows its signs (A, LT,
+RT, Y; a PlayStation's shapes for one), and a key or the mouse brings the keys back. The Stop and the shutter rumble
+lightly where the pad can. `tools/pad_check.js` plays it with a virtual pad.
+
 **The roll is the case board, and the file is under it.** In the roll (Tab) any two prints can be set side by side;
 five pairs say together what neither says alone (`pairs` on the episode), and the last card counts how many the player
 found. Under the prints lies **the file**, a sheet of kraft paper on which the case is written down by hand: each
