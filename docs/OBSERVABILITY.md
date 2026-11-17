@@ -5,6 +5,17 @@
 > Where it names another city, the title screen, the viewer or the reef sites, it describes work kept at the tag
 > `archive/world-2026-11`; the shared code it explains is the code Shibuya runs.
 
+**Blue Hour's own dashboard** is built by `tools/posthog_bluehour.py` (*Blue Hour: players, the case and service
+levels*): who plays (country, language, time zone, device, system, GPU), how far into the case they get and where they
+leave it, the time spent in each beat, and the service levels, for this project's pages only. The PostHog project and its
+key are shared with Open Earth 3D, which this project was split from; its dashboard (`tools/posthog_dashboard.py`) mixes
+both, and so does `tools/slo_report.py --posthog --every-site`. Without that flag the report is Blue Hour's alone.
+
+The site is static (GitHub Pages), so it has no server logs. The country is PostHog's own, from the request's address at
+its end (`$geoip_country_code`); this code sends none. Since version 6 the story's page (no address after `#`) is counted
+as the game, `game:shibuya`: before, it was counted as the globe the project once had, and none of the game's own
+fields (spot, mode, frame rate by place) were read from it.
+
 The site is static (GitHub Pages), so it has no server logs. Every page loads `web/telemetry.js` first. The
 script watches the page from outside and sends a few small events in batches. The game and renderer
 code does not change for it: what the visitor is doing inside a view is read from the handles each view
@@ -22,6 +33,7 @@ already exposes (`window.__city`, `window.__game`, `window.__reef`).
 | `quality` | the view changes its own quality (`OETelemetry.set`, 30 a view at most) | what the view said: a governor's `scale`, what it has shed; `at_s` (seconds into the view). The same fields ride on the `time` events |
 | `tour` | the model's tour reaches a stop, ends, or is taken over | `action` (`stop` / `end` / `leave`), `stop`, `stops` |
 | `mode` | the game leaves its title screen (`start: true`), or the player changes how they move (on foot, car, ride, heli, ferry, rail, photo; at a reef: walk, swim, snorkel, scuba, boat) | `from`, `to` |
+| `story` | the story's case begun or taken up again (`begin` / `resume`), each frame reached (`frame`), each print taken (`print`, or `spent` when taken from the wrong place), the player seen through (`seen_through`), the last card (`end`) | `action`, `ep`, `frame`, `prints`; on `end` also `spent`, `failed`, `pairs`. Read in order they are the episode's funnel: how many begin, reach each frame and finish. While the story is on, the spot is the frame and its beat (`frame 3: stop shoot`) and the mode is `story` |
 | `quest` | the game's tracked quest moves a step, or a quest is done | `action` (`step` / `done`), `from`, `stamps` |
 | `exit` | the page closes (`pagehide`) | `page_s`, `view_s`, `views`, `idle_s` (since the last input), `ready`, `tour_max`, `hidden` |
 | `crash` | a page load finds that an earlier one of this browser died while on screen | `prev_view`, `prev_city`, `prev_spot`, `prev_mode`, `prev_ready`, `prev_stage` (the last step of the load the page named; `held` once a phone had played a minute at its level), `prev_lv` (the level of a phone's set the dead page ran at, `quality.js` `level`), `prev_mb` (what the view had downloaded, decoded, in MB: the memory signal on Safari and iOS, which give no heap; version 5), `prev_up_s`, `ago_s` |
@@ -35,7 +47,7 @@ real devices' dashboard (version 5).
 
 Every event carries a random visitor id (`oe3d-vid` in localStorage), a page-load id (`sid`), the device
 class (phone / tablet / desktop from the pointer and screen size), the quality tier (`web/quality.js`),
-WebGL 2 and software-renderer flags, WebGPU support, the viewport, the language, the referring site and
+WebGL 2 and software-renderer flags, WebGPU support, the viewport, the language, the time zone (`tz`, from version 6), the referring site and
 the deployed version. From version 4 also the device, coarsely: `gpu` (the GPU's family and model as the
 browser names it, such as `apple m1 pro` or `intel iris xe graphics`, with the driver version, device id
 and API level cut away), `gpu_class` (apple, intel, amd, nvidia, adreno, mali, powervr, software, other),

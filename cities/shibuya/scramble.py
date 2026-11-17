@@ -100,9 +100,15 @@ MATERIALS = {
     "x_clap": {"color": "#ecebe6", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.2]},
     "x_bk_blue": {"color": "#1f45a8", "roughness": 0.65, "metalness": 0.0},
     "x_bk_box": {"color": "#f1f1ee", "roughness": 0.5, "metalness": 0.1},
+    # its box sign's face: the atlas as the other signs', lit at its own level. A white light box is the largest lit
+    # area round the crossing; at the signs' common 1.3 it was the brightest thing in a frame by stops, its white
+    # clipped, its haze over everything near it and its blue name washed pale. A diffuser lit from inside sits
+    # some two to three stops over the street's fronts in a photograph of the corner at dusk, with its name the
+    # deep blue it is printed in: 0.68
+    "x_bk_sign": {"color": "#ffffff", "roughness": 0.6, "metalness": 0.0, "map": ATLAS_FILE, "emissive_map": True, "glow": 0.68},
 }
 MATERIALS.update(streets.MATERIALS)
-LIT = {"x_light", "x_atlas", "x_print", "x_red_lamp"}
+LIT = {"x_light", "x_atlas", "x_print", "x_red_lamp", "x_bk_sign"}
 
 
 # ---------------------------------------------------------------- data
@@ -1478,8 +1484,8 @@ def bookshop(K, A, D):
     u0, v0, u1, v1 = A.uv("bk_sign")
     um = u0 + (u1 - u0) * L1 / (L1 + L2)
     zb = zs0 + 0.16                         # (the blue edge along its foot)
-    K["x_atlas"].quad(np.array([*s_start, zb]), np.array([*c, zb]), np.array([*c, zs1]), np.array([*s_start, zs1]), [[u0, v0], [um, v0], [um, v1], [u0, v1]])
-    K["x_atlas"].quad(np.array([*c, zb]), np.array([*s_end, zb]), np.array([*s_end, zs1]), np.array([*c, zs1]), [[um, v0], [u1, v0], [u1, v1], [um, v1]])
+    K["x_bk_sign"].quad(np.array([*s_start, zb]), np.array([*c, zb]), np.array([*c, zs1]), np.array([*s_start, zs1]), [[u0, v0], [um, v0], [um, v1], [u0, v1]])
+    K["x_bk_sign"].quad(np.array([*c, zb]), np.array([*s_end, zb]), np.array([*s_end, zs1]), np.array([*c, zs1]), [[um, v0], [u1, v0], [u1, v1], [um, v1]])
     for p, q in ((s_start, c), (c, s_end)):
         K["x_bk_blue"].quad(np.array([*p, zs0]), np.array([*q, zs0]), np.array([*q, zb]), np.array([*p, zb]))
     wall_s, wall_e = r0 + n2 * 0.1, b + n1 * 0.1 + f1 * 0.2
@@ -1502,7 +1508,7 @@ def draw_bookshop(img, rects):
     a, b, s0 = (np.asarray(B[k], float) for k in ("a", "b", "south_from"))
     Lc = float(np.linalg.norm(b - a)) + 0.2 + 0.5
     split = int(w * (B["return_m"] + 0.5) / (B["return_m"] + 0.5 + Lc))
-    im = Image_new(w, h, (250, 250, 247))
+    im = Image_new(w, h, (238, 236, 229))   # (a diffuser's warm white, not the paper's 255: it is the light's colour after dark)
     d = ImageDraw.Draw(im)
     red, blue = (214, 40, 40), (24, 56, 190)
     # the open book: a red outline, its pages' top edges dipping to the spine at the corner (the side face

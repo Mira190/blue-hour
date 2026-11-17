@@ -58,6 +58,7 @@ window.OEStory = (function () {
   //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
+    let enterLater = () => {}; // (going back into a frame from the title: set once the case's functions exist, below)
     // the story's own interface (story.css): the map's instruments are put away for as long as the story is here
     ctx.stage.classList.add('story');
     { // the title: the episode's card. The story's name and its line were on the loader just before (index.html), and
@@ -74,6 +75,14 @@ window.OEStory = (function () {
       try { left = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
       const going = left && left.fi > 0 && left.fi < (ep0.frames || []).length;
       if (q('#gt-play')) q('#gt-play').innerHTML = `<span>${going ? `Continue · frame ${left.fi + 1} of ${N}` : 'Begin'}</span><kbd>↵</kbd>`;
+      // (a case closed in this browser, and none going: any of its frames can be gone back into, from here too)
+      const shut = !going && (() => { try { const c = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? c : null; } catch (e) { return null; } })();
+      if (shut && q('#gt-play') && !q('#gt-back')) {
+        const n = document.createElement('nav'); n.id = 'gt-back'; n.setAttribute('aria-label', 'Go back into a frame');
+        n.innerHTML = `<small>The case is closed · go back into a frame</small><span>${shut.stamps.map((t, i) => (shut.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span>`;
+        n.addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b) enterLater(+b.dataset.back); });
+        q('#gt-play').parentNode.after(n);
+      }
       if (going && q('#gt-play') && !q('#gt-anew')) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'gt-anew'; b.textContent = 'Start the evening again';
         b.addEventListener('click', () => { try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } q('#gt-play').click(); });
@@ -203,7 +212,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     goalEl.setAttribute('role', 'status'); goalEl.setAttribute('aria-live', 'polite');
     const pulse = () => { flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); };
     // phase: idle, dressed, go (the world runs: a word with the living, the way to the next place), stop, after, done
-    const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0, flags: {}, pairs: [], slips: 0, file: [] };
+    const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0, flags: {}, pairs: [], slips: 0, file: [], snaps: [] };
     const timers = [];
     const later = (ms, fn) => timers.push(setTimeout(fn, ms));
     // the roll as a collection: each frame taken lit, with its own picture in it; those still to take dark and empty
@@ -216,7 +225,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     }
     // the case kept in this browser: the frame it is at and the prints so far
     const KEY = () => `oe-story-${st.ep ? st.ep.id : ''}`;
-    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
+    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
     const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
@@ -362,8 +371,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       for (const [i, r] of (ep.set || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r)); // (tonight's own set dressing: a lift's doors, a sign)
       for (const c of ep.cast || []) if (!st.cast[c.id]) st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice });
       const k = kept();
-      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); }
-      else { st.flags = {}; st.pairs = []; st.file = []; }
+      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; }
+      else { st.flags = {}; st.pairs = []; st.file = []; st.snaps = []; }
+      st.resumed = !!k;
       if (ep.walk_in_s != null && !k) ctx.walkIn(ep.walk_in_s);
       show(); if (k) frames.classList.add('on');
       // a case begun at its first frame opens on a voice: who you are, why you are on this kerb at this hour, and the one
@@ -378,7 +388,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const fr = st.ep.frames[i];
       st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0;
       if (fr.weather) ctx.weather(fr.weather, !!fr.wet);
-      keep();
+      // (the case as it stood on arriving at this frame: what going back into it from the last card restores. Not the
+      // prints themselves, which the roll keeps in order, but how many; a frame taken up again after a slip keeps its first)
+      if (!(st.again || st.resumed) || !st.snaps[i]) { st.snaps.length = i; st.snaps[i] = { n: st.prints.length, left: st.left, flags: Object.assign({}, st.flags), pairs: st.pairs.slice(), file: st.file.map(e => Object.assign({}, e)), failed: st.failed || 0 }; }
+      st.resumed = false; keep();
       // the scene's air (leaves, birds), made again only where the scene's differs; and a car, where the frame sends one
       { const a = JSON.stringify(fr.air || (fr.weather === 'rain' || st.rain ? { leaves: 40, birds: 0 } : {})); if (a !== st.air && ctx.air) { st.air = a; ctx.air(JSON.parse(a)); } }
       // the score, set to the scene: the evening going into night as the frames go, the roof's air, the rain
@@ -420,10 +433,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // - a question that wants a print the player spent on nothing (shoot: plain) is passed over; the frame's
     //   `lost<n>` flag is set, so those who would have answered to it say something else.
     const L = list => [].concat(list || []).filter(l => typeof l === 'string' || ((!l.if || st.flags[l.if]) && (!l.not || !st.flags[l.not]))).map(l => (typeof l === 'string' ? l : l.say));
-    function ask(m, w, done) {
-      let q = (m.ask || [])[st.asked];
-      while (q && ((q.if && !st.flags[q.if]) || (q.not && st.flags[q.not]) || (q.frame && st.prints[q.frame - 1] && st.prints[q.frame - 1].plain))) q = (m.ask || [])[++st.asked];
+    function ask(m, w, done, as) {
+      let q = as || (m.ask || [])[st.asked];
+      while (!as && q && ((q.if && !st.flags[q.if]) || (q.not && st.flags[q.not]) || (q.frame && st.prints[q.frame - 1] && st.prints[q.frame - 1].plain))) q = (m.ask || [])[++st.asked];
       if (!q || (q.frame && !st.prints[q.frame - 1])) { st.want = -1; return done(); } // (a print the roll does not have cannot be asked for)
+      if (q.proof) return summation(m, w, q, done);
       if (q.choice) {
         const opts = q.options.map((o, i) => ({ k: i, text: o.text }));
         st.want = q.play || 0; // (tools/story_play.js takes this one)
@@ -446,6 +460,36 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         if (ok) st.asked++;
         else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
         return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
+      });
+    }
+    // The summation (a question with `proof`): answered with evidence first and then in words. The roll is laid out as
+    // it is, with the pairs of prints the player has set side by side; the print (or the pair) that proves it is picked,
+    // then the sentence. A right sentence on the wrong print is not an answer: both are judged together, and a wrong one
+    // counts once toward `fail`. `proof` lists the frames (numbers) and the pairs ("a-b") that prove it; those spent, or
+    // a pair never set side by side, are not on the roll to be shown. Where none is left, the question is asked another
+    // way (`lost_q`), in words alone: the lost<n> flags have said which print is gone.
+    //   { q, say: the second line (the words), proof: [5, "4-5"], lost_q, options, answer, right, wrong, wrong_print, fail }
+    const pairOf = k => String(k).split('-').map(Number);
+    const proofOn = q => (q.proof || []).filter(p => (typeof p === 'number' ? !!st.prints[p - 1] && !st.prints[p - 1].plain : st.pairs.includes(p)));
+    function summation(m, w, q, done) {
+      const proofs = proofOn(q);
+      if (!proofs.length) return ask(m, w, done, Object.assign({}, q, { proof: null, q: q.lost_q || q.q })); // (asked another way: in words alone)
+      const thumb = i => { const p = st.prints[i - 1]; return p && p.src ? `<img alt="" src="${p.src}">` : '<i></i>'; };
+      const opts = st.prints.map((p, i) => ({ k: i + 1, text: `<span class="pr${p.plain ? ' spent' : ''}">${thumb(i + 1)}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>` }))
+        .concat(st.pairs.slice().sort().map(key => { const [a, b] = pairOf(key); return { k: key, text: `<span class="pr pair"><span class="pp">${thumb(a)}${thumb(b)}</span><b>${a} + ${b}</b><span>Side by side</span></span>` }; }));
+      st.want = opts.findIndex(o => proofs.includes(o.k)); st.canFail = !!q.fail; st.proving = true;
+      ctx.ask(w, [q.q], opts, c => {
+        const shown = c ? c.k : null;
+        const words = q.options.map((text, i) => ({ k: i, text }));
+        st.want = q.answer; st.proving = false;
+        ctx.ask(w, [q.say || 'And in words?'], words, c2 => {
+          const okP = proofs.includes(shown), okS = !!c2 && c2.k === q.answer, ok = okP && okS;
+          sfx(ok ? 'right' : 'wrong'); st.want = -1;
+          if (ok) { sting('turn'); st.asked++; }
+          else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+          const said = L(ok ? q.right : okS ? (q.wrong_print || 'That is so. But that print does not say it. Show me the one that does.') : q.wrong);
+          return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
+        });
       });
     }
     // what is said, what is asked, and what is said once it is answered (`then`): of the living, or of an afterimage
@@ -596,22 +640,49 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
 <text x="126" y="101" font-size="10.5" letter-spacing="3">${esc(t.small || '')}</text><text x="126" y="114" font-size="7.5" letter-spacing="2" opacity="0.75">${esc(t.issuer || '')}</text></g>
 <text x="20" y="61" transform="rotate(-90 20 61)" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" letter-spacing="1.5" fill="#5a2a2a" opacity="0.8">${esc(t.date || '')}</text>`, -4)}
 ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" font-family="'Klee One','YuKyokasho','Hiragino Maru Gothic ProN','Shippori Mincho',serif" font-size="44" fill="#4a4a4e" opacity="0.72">${esc(t.back || '')}</text>`, 3)}</div>`; };
+    // How the case was worked, on the last card in the file's hand: what the player said, and what they took back (struck
+    // through); which frames were spent, and what stood there; which of the pairs of prints were never set side by side,
+    // by their frame numbers (what they would have said is for going back in to find); and how often they were seen through.
+    function worked() {
+      const ep = st.ep, li = [];
+      for (const e of st.file) if (e.kind === 'said') li.push(`<li class="said${e.struck ? ' struck' : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}${e.struck ? ' <em>Taken back.</em>' : ''}</span></li>`);
+      st.prints.forEach((p, i) => { if (p.plain) li.push(`<li class="spent"><b>${esc(p.stamp)}</b><span>Frame ${i + 1} spent: only tonight.${ep.frames[i].lost ? ` What stood there: ${esc(ep.frames[i].lost)}.` : ''}</span></li>`); });
+      const P = ep.pairs || [], never = P.map(q => pairKey(q.of[0] - 1, q.of[1] - 1)).filter(k => !st.pairs.includes(k));
+      if (P.length) li.push(`<li class="pair"><b>${st.pairs.length}/${P.length}</b><span>${never.length ? `Never set side by side: ${never.map(k => `frames ${k.replace('-', ' and ')}`).join('; ')}.` : 'Every pair of prints that argues was set side by side.'}</span></li>`);
+      if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and taken up again.</span></li>`);
+      return li.length ? `<section class="worked" aria-label="How the case was worked"><h3>How the case was worked</h3><ul>${li.join('')}</ul></section>` : '';
+    }
+    // Going back in: a case closed in this browser keeps its prints and the snapshot of each frame on arriving at it
+    // (`oe-story-<ep>-closed`), so that any frame can be entered again with the roll and the flags as they were then, and
+    // another answer tried, from the last card or from the title. Entering frame n writes the case as it stood at n and
+    // opens the page again (ctx.again); the first frame is the evening from its beginning.
+    const CLOSED = id => `oe-story-${id}-closed`;
+    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
+    const closedNow = () => (st.ep ? closedOf(st.ep.id) : null);
+    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
+    const goBack = C => (C ? `<nav class="back" aria-label="Go back into a frame"><small>Go back into a frame</small><span>${C.stamps.map((t, i) => (C.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span></nav>` : '');
+    enterLater = (i) => enter(i, eps[0]);
+    function enter(i, ep = st.ep) {
+      const C = closedOf(ep.id), s = C && C.snaps[i], key = `oe-story-${ep.id}`;
+      try {
+        if (!s || i === 0) localStorage.removeItem(key);
+        else localStorage.setItem(key, JSON.stringify({ fi: i, left: s.left, prints: C.prints.slice(0, s.n), flags: s.flags, pairs: s.pairs, file: s.file, failed: s.failed, snaps: C.snaps.slice(0, i + 1) }));
+      } catch (e) { /* storage blocked */ }
+      ctx.again();
+    }
     // the last card: the whole roll, what it was, and two ways on
     function end() {
       const ep = st.ep, E = typeof ep.end === 'string' ? { title: ep.end } : ep.end || {};
       st.phase = 'done';
-      forget(); sfx('end'); if (ctx.held) ctx.held(false);
+      close(); forget(); sfx('end'); if (ctx.held) ctx.held(false);
       if (st.dog) { const d = st.dog; st.dog = null; d.leave((st.ep.guide || {}).from || [d.x, d.y], () => d.remove()); st.gone = d; } // (the case closed: he goes home)
       frames.classList.remove('on'); goal('');
       const last = st.prints[st.prints.length - 1];
-      // (what the evening did not show: each frame spent, by what stood there; and how the case was worked)
-      const lost = st.prints.map((p, i) => (p.plain ? `Frame ${i + 1} was only tonight${ep.frames[i].lost ? `: ${ep.frames[i].lost}` : ''}.` : '')).filter(Boolean);
-      const np = (ep.pairs || []).length, tally = [np ? `${st.pairs.length} of ${np} pairs of prints set against each other` : '', st.failed ? `seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}` : ''].filter(Boolean).join(' · ');
       endEl.innerHTML = `<div class="card">${last && last.src ? `<figure><img alt="The last photograph you took" src="${last.src}"><figcaption><span>Frame ${st.prints.length} of ${N}</span><span>${esc(last.stamp)}</span></figcaption></figure>` : ''}
 ${st.prints.length > 1 ? `<ol class="sheet">${st.prints.slice(0, -1).map((p, i) => `<li>${p.src ? `<img alt="Frame ${i + 1}" src="${p.src}">` : ''}<span>${i + 1} · ${esc(p.stamp)}</span></li>`).join('')}</ol>` : ''}
 <small>${esc(S.title || '')}${ep.no ? ` · Episode ${ep.no}` : ''}</small><h2>${esc(E.title || 'To be continued')}</h2>
 ${E.found ? `<div class="found">${ticket(E.found.ticket || {})}<p>${esc(E.found.line || '')}</p></div>` : ''}
-${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="lost">${lost.map(esc).join('<br>')}</p>` : ''}${tally ? `<p class="tally">${esc(tally)}</p>` : ''}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}
+${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}${goBack(closedNow())}
 <div class="row">${st.prints.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="free">${esc(E.free || 'Walk the city')}</button><button type="button" data-do="again">Play it again</button></div></div>`;
       endEl.classList.add('on');
       if (E.found) later(2400, () => sting('found')); // (as the ticket comes up)
@@ -619,7 +690,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${lost.length ? `<p class="los
       const go = endEl.querySelector('button.go');
       if (go) go.focus({ preventScroll: true });
     }
-    endEl.addEventListener('click', e => { const b = e.target.closest('button[data-do]'); if (b) (b.dataset.do === 'sheet' ? saveSheet : b.dataset.do === 'again' ? ctx.again : ctx.free)(); });
+    endEl.addEventListener('click', e => { const g = e.target.closest('button[data-back]'); if (g) return enter(+g.dataset.back); const b = e.target.closest('button[data-do]'); if (b) (b.dataset.do === 'sheet' ? saveSheet : b.dataset.do === 'again' ? ctx.again : ctx.free)(); });
     shutter.addEventListener('click', shoot);
     failEl.addEventListener('click', e => { if (e.target.closest('button')) retry(); });
     frames.type = 'button'; frames.addEventListener('click', () => albumOpen(true));
