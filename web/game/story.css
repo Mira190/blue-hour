@@ -192,7 +192,8 @@
 #g-story-finder .rf b + b { bottom: 4px; transform: translateX(calc(var(--split, 30) * 1px)); }
 #g-story-finder[data-fix="on"] .rf b { background: var(--amber); }
 #g-story-finder .rf small { position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: rgba(244, 239, 230, 0.8); text-shadow: 0 1px 8px #000, 0 0 2px #000; }
-#g-story-finder[data-fix="on"] .rf small { color: var(--amber); }
+#g-story-finder .rf small { transition: opacity 0.6s ease, color 0.4s ease; }
+#g-story-finder[data-fix="on"] .rf small { color: var(--amber); opacity: 0; transition-delay: 1.4s; } /* (on the place, the joined line says it: the words go, and the picture is left as plain as it can be) */
 #g-story-shutter { position: absolute; left: 50%; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 16px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-shutter.on { display: flex; }

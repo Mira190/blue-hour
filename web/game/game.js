@@ -5913,7 +5913,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const toPickup = player.mode === 'foot' && ride && (ride.phase === 'coming' || ride.phase === 'waiting') && Math.hypot(ride.pickup.x - player.x, ride.pickup.y - player.y) > 40 ? [ride.pickup.x, ride.pickup.y] : null;
     updateRoute(clockT, toPickup || target, toPickup ? null : ob, titleOn);
     gold.tick(clockT);
-    beam.visible = !!target && !titleOn && Math.hypot(target[0] - (player.mode === 'heli' ? heli.st.x : player.x), target[1] - (player.mode === 'heli' ? heli.st.y : player.y)) > 45;
+    // (one light standing in the street at a time: while the story is on, its own light is the only one. The free game's
+    // objective went on under it, and its column stood over the Center Gai arch, then over SHIBUYA SKY's door, beside the
+    // story's light, and in the finder over the picture being taken)
+    beam.visible = !(story && story.on) && !!target && !titleOn && Math.hypot(target[0] - (player.mode === 'heli' ? heli.st.x : player.x), target[1] - (player.mode === 'heli' ? heli.st.y : player.y)) > 45;
     if (target) { const f = nav.floorAt(target[0], target[1], Math.max(300, nav.terrain(target[0], target[1]) + 1)); beam.position.copy(W(target[0], target[1], f ? f.z : 0)); beam.scale.set(1, player.mode === 'heli' ? 4 : 1, 1); }
     const me = player.mode === 'heli' ? heli.st : player.mode === 'ferry' ? player.vehicle : player;
     put('#gq-title', ob ? ob.title : (Q.length && goals.allDone() ? 'Free roam' : ''));
@@ -6455,7 +6458,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       camera.position.copy(W(sf.pos[0], sf.pos[1], sf.pos[2]));
       camera.lookAt(W(sf.look[0], sf.look[1], sf.look[2]));
       if (camera.fov !== sf.fov) { camera.fov = sf.fov; camera.updateProjectionMatrix(); }
-      filmOn = true; filmYaw = Math.atan2(sf.look[0] - sf.pos[0], sf.look[1] - sf.pos[1]); lensClear(); Wd.fitShadow(W(sf.look[0], sf.look[1], sf.look[2]), 60);
+      filmOn = true; filmYaw = Math.atan2(sf.look[0] - sf.pos[0], sf.look[1] - sf.pos[1]); lensClear(sf); Wd.fitShadow(W(sf.look[0], sf.look[1], sf.look[2]), 60);
       return;
     }
     if (filmOn) { filmOn = false; cam.yaw = filmYaw; blendFrom(1.2, true); } // (and then round to whoever is next, where the goal turns the view: cam.yawTo)
@@ -6542,19 +6545,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // people has the lens within their body is not drawn for that frame (layer 0, which nothing else in the game
   // turns off), and is drawn again the moment it is out
   const lensHid = new Set();
-  function lensClear() {
+  // A film of the story's (film: its pose) is low among people held still, and someone a pace in front of the lens filled
+  // half a phone's upright frame with the back of their head as the dog walked behind them: in a film, whoever stands
+  // within 3 m in front of the lens and in its line to what it looks at is not drawn either, as a film crew would ask
+  // them to step out of the shot
+  function lensClear(film = null) {
     for (const o of lensHid) o.traverse(q => q.layers.enable(0));
     lensHid.clear();
     if (cine.active && cine.label !== 'hop') return;
     const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y;
+    let fx = 0, fy = 0, fl = 0;
+    if (film) { fx = film.look[0] - cx; fy = film.look[1] - cy; fl = Math.hypot(fx, fy) || 1; fx /= fl; fy /= fl; }
+    const inShot = (x, y) => { if (!film) return false; const dx = x - cx, dy = y - cy, t = dx * fx + dy * fy; return t > 0 && t < Math.min(3, fl - 0.9) && Math.abs(dx * fy - dy * fx) < 0.75 + 0.15 * t; };
     const near = (root, x, y, z, h, r) => {
-      if (!root || Math.abs(x - cx) > r || Math.abs(y - cy) > r || Math.hypot(x - cx, y - cy) > r || cz < z - 0.1 || cz > z + h) return;
+      if (!root || (!inShot(x, y) && (Math.abs(x - cx) > r || Math.abs(y - cy) > r || Math.hypot(x - cx, y - cy) > r || cz < z - 0.1 || cz > z + h))) return;
       root.traverse(q => q.layers.disable(0)); lensHid.add(root);
     };
     for (const n of npcs) if (n.rig && n.rig.root) near(n.rig.root, n.x, n.y, n.z, 1.95, 0.62); // (a body's reach from its middle, 0.3 m, and the near plane's, 0.3)
     for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, 0.62);
-    const gd = guideMade; if (gd && gd.root) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75);
-    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs((q.rx ?? q.x) - cx) < 0.55 && Math.abs((q.ry ?? q.y) - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) crowdDraw.hide(i); }
+    const gd = guideMade; if (gd && gd.root && !film) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75); // (in a film of him, he is what it is of)
+    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y; if (q.line >= 0 && ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) || inShot(x, y))) crowdDraw.hide(i); }
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
@@ -7268,7 +7278,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { storyFigure, talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible) }), storyFigure, talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
