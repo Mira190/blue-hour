@@ -12,6 +12,13 @@ window.OEWorld = (function () {
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   const idle = () => new Promise(r => setTimeout(r, 0));
+  // The map round the player on a desktop's game (issue 20; docs/PERFORMANCE.md, "A desktop's map round the player"):
+  // the buildings by cells of `size` metres, whole within `near` of where they were built round, simplified past it
+  // (buildings-geo.js lod 1) to the map's edge, every solid kept (`tall` 0: the roof at 242 m and the flight see the
+  // low houses to the haze), and built again only once the player has gone `step` metres, which the story never does
+  // (its standpoints, the roof and the flight are all within 200 m of the Scramble): nothing changes level in sight.
+  // ?map-near=, ?map-mid=, ?map-tall=, ?map-step= to compare; ?map=whole as before
+  const DESK_MAP = { size: 250, near: 700, mid: 1e9, tall: 0, step: 350 };
 
   // The loader's lines (index.html #load-* and #g-load-*): what is being done, the bar, and the stage the
   // load is at, which the caller can name (a third argument) or which follows from how far along it is, so
@@ -933,8 +940,10 @@ vec3 steepRock(vec3 c, float k) {
     // On a phone's game (quality.js lean, budget.map) the map is built round the player: the buildings by cells of a
     // grid, whole near the start, in one lift further off and the skyline alone past that, and again as the player
     // moves (api.mapAt; buildings-geo.js cells; issue 443)
-    const MAP = game && LEAN && small && QW.budget && QW.budget.map && new URLSearchParams(location.search).get('map') !== 'whole'
-      ? Object.assign({ at: (groundAt || [(scene.frame.x[0] + scene.frame.x[1]) / 2, (scene.frame.y[0] + scene.frame.y[1]) / 2]).slice(0, 2) }, QW.budget.map) : null;
+    const MQ = new URLSearchParams(location.search), MAPSET = !game || MQ.get('map') === 'whole' ? null
+      : LEAN && small && QW.budget && QW.budget.map ? QW.budget.map : !LEAN ? DESK_MAP : null;
+    const MAP = MAPSET ? Object.assign({ at: (groundAt || [(scene.frame.x[0] + scene.frame.x[1]) / 2, (scene.frame.y[0] + scene.frame.y[1]) / 2]).slice(0, 2) }, MAPSET,
+      ...['near', 'mid', 'tall', 'step'].filter(k => MQ.has(`map-${k}`)).map(k => ({ [k]: +MQ.get(`map-${k}`) }))) : null;
     const bldJob = window.OEBuildings && OEBuildings.start ? OEBuildings.start(D, { lin, SRC: BUILDING_SRC, small, cells: MAP,
       dsm: game ? { T: D.Tfine || D.T, frame: { cell: 2, x0: scene.frame.x[0], x1: scene.frame.x[1], y0: scene.frame.y[0], y1: scene.frame.y[1] } } : null }) : null;
     // and, in the game, the landmarks laid on the walking model's grid there next (game/navcells.js; nav.js takes them)
@@ -1732,12 +1741,14 @@ float inH(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453
     U.uPhotoGrade = PG;
     if (NU) Object.assign(U, NU);
     // (a cell of the map built round the player, as it comes and goes: a still caster, hidden while the street wall
-    // hides it, its arrays the GPU's alone once sent)
+    // hides it, on a phone its arrays the GPU's alone once sent; a desktop keeps them, a third of the whole map's, so
+    // that a lost context is restored in place)
     const letGo = function () { this.array = null; };
     const onCell = (m, added) => {
       if (!added) { if (window.OEVis) OEVis.ungate(m); return; }
       still(m);
       if (window.OEVis) OEVis.gate(m, true);
+      if (!LEAN) return;
       for (const a of Object.values(m.geometry.attributes)) a.onUpload(letGo);
       m.geometry.index.onUpload(letGo);
     };
@@ -1764,7 +1775,7 @@ float inH(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453
     // index, bid), and in the game, which picks from its collision world, those go too (Kyoto's 120 MB, issue 406).
     // A lost context then cannot be restored in place, and the game reloads instead (api.gpuOnly)
     let gpuOnly = false; // (set here, before the api is made)
-    if (BLD.stream) gpuOnly = true;
+    if (BLD.stream && LEAN) gpuOnly = true;
     // (a phone: once every aerial tile has been on screen and on the roofs' photo, the tiles' decoded pictures go)
     if (stream) Promise.all([pics.shown(), BLD.photo]).then(() => {
       stream.settled = true;
@@ -1781,7 +1792,7 @@ float inH(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453
         } catch (e) { /* nothing to shrink */ }
       }, 3000);
     });
-    else if (game && bCells) bGeo.setIndex(null); // (the cells have their own: the picking mesh's is the viewer's alone)
+    else if (game && bCells && bGeo) bGeo.setIndex(null); // (the cells have their own: the picking mesh's is the viewer's alone)
     if (LEAN && bCells && !BLD.stream) {
       for (const n of ['normal', 'color', 'fac', 'inf', 'ext', 'srcCode'].concat(game ? ['position', 'bid'] : [])) if (bGeo.attributes[n]) bGeo.attributes[n].onUpload(letGo);
       for (const c of bCells.children) if (c.geometry.index) c.geometry.index.onUpload(letGo);

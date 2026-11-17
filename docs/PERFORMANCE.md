@@ -1599,6 +1599,67 @@ On a phone the district answers it by building less: Shibuya's walking model 762
 roads 221 -> 82; Tokyo's 2,445 -> 1,655, 800 -> 364 and 291 -> 81 (the table under "A phone's district").
 
 
+## A desktop's map round the player (issue 20)
+
+The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the
+GPU before the title. Opening the story on the high tier, the loader's own log said `buffers: 1000 objects, 283 MB`,
+for an episode played within 200 m of the Scramble.
+
+**Where the 283 MB was** (`tools/upload_map.js`: the bytes WebGL was given by the title, and the scene's drawable
+geometry by kind and by the distance of its bounds from the player at the Scramble):
+
+| Kind | MB | within 150 m / 500 m / 1.5 km / 3 km / further |
+|---|---|---|
+| The buildings' walls and roofs: the whole map in one geometry, 4.9 million vertices of 45 bytes and a 32-bit index | 243 | 4 / 14 / 72 / 127 / 12 (as cells, 229 MB with 16-bit indices) |
+| The ground: twenty aerial tiles over the map, and the two fine ones under the player | 12 | the fine two within 150 m |
+| Two vertex-coloured meshes at the Scramble (unnamed) | 4 | within 150 m |
+| The far land | 3 | (one mesh round everything) |
+| The rest: the landmarks, the inland water's walls and rails, the crowd's and the lamps' instanced pools, the far trees, the night's lights | 22 | most within 150 m |
+
+So it was the buildings, and nine tenths of them more than 500 m away: the street wall round the Scramble was 18 MB.
+The crowd's pools (under a megabyte), the trees and the landmarks are small, and most of them are the hero level's.
+
+**The cut** (`world.js` `DESK_MAP`). A desktop's game now takes the phone's road with its own distances: the buildings
+by cells of 250 m, whole within 700 m of where the player starts (every standpoint, the roof and the flight's way are
+within 200 m of the Scramble, so their whole view of the hero level and the streets round it is at full detail), and
+past that to the map's edge in the middle distance's form (`buildings-geo.js` level 1: the walls in one lift from base
+to eave, a pitched roof flat at its ridge, no plinth, posts or passage ceilings). Nothing is left out: unlike the
+phone's skyline zone, every solid is kept to the edge (`tall` 0), because the roof at 242 m and the flight see the low
+houses to the haze. And the cells are built again only when the player has gone 350 m (`step`), which the story never
+does: no cell changes level while the story is played, so nothing can pop from the roof or the flight. In the free
+game (`?walk=1`) a walk of 350 m rebuilds the cells that change, on the page in slices of 6 ms, at 350 m and more from
+the player, the old cells drawn until the new ones are in (to the map's far corner: 55 cells, 27 s of slices between
+the software renderer's slow frames; back again 1.3 s). A desktop keeps the cells' arrays after they are sent (85 MB of the page's, where it held 243), so a lost
+context is still restored in place; a phone lets them go as before. `?map=whole` builds the map whole to compare;
+`?map-near=`, `?map-mid=`, `?map-tall=` and `?map-step=` try other distances.
+
+| Story, high tier, 1440 x 900 (`tools/upload_map.js`, llvmpipe) | Before | After |
+|---|---|---|
+| Vertex buffers sent before the title, by the loader's log | 283 MB | **125 MB** (44%) |
+| WebGL's buffers at the title | 285 MB | 128 MB |
+| The buildings' vertices | 4,910,630 | 1,858,855 |
+| The buildings built in the Worker | 4.2-4.5 s | 2.6-3.0 s |
+| Time to the title (three runs each) | 71, 72, 74 s | 74, 75, 76 s |
+
+The time to the title did not move on the software renderer: there it is the shaders' compile (36 s of it) and the
+first frames, and copying 158 MB more into llvmpipe's memory cost about a second. On a real GPU the 158 MB not sent
+is a bus transfer and the driver's memory not taken; what that is worth on a mid laptop was not measured.
+
+**Stills** (`tools/scramble_shot.js shibuya tools/views/story-standpoints.json`, 1440 x 900, at dusk and at 21:00):
+the seven standpoints, the roof at the frame 4 stand looking at its relic and out over the city to the north-east and
+east, from the air over the roof's west edge looking north, west and south, and four points along the flight down.
+Before and after are the same pictures: from the roof and the air the mean difference is 2 levels in 255, with under
+half a percent of pixels over 40, all in the far zone's lit windows; at the standpoints the differences are the crowd
+and the screens' programmes at their moment. A phone's set is unchanged (the low tier's lean path, its level and its
+district), so its stills were not taken again.
+
+**A budget** (`tools/mem_check.js`, run by `tools/check.sh mem`): after the phone, the story is opened as a desktop to
+its title and fails if the loader's log says more than **140 MB** of vertex buffers were sent (MEM_DESK), or if the
+map does not come back whole under the player after a trip to the far corner. `DESK=0` leaves it out.
+
+**Not checked:** a real GPU, Safari, WebGPU, a mid laptop's time to the title. Every number here is Chromium under
+llvmpipe.
+
 ## The device's own numbers (November 2026)
 
 The owner's Apple M3 played Shibuya at 5 to 20 frames a second with the governor at its floor (scale 0.6, no
