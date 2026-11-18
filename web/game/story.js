@@ -113,7 +113,7 @@ window.OEStory = (function () {
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? st.fr.task.lens : null); // (a frame taken through a long lens: task.lens, degrees)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
-      if (on && ctx.look) { const at = subjectOf(st.fr.task); if (at) ctx.look(at); } // (the lens comes up facing the thing: it is then above or below, never behind)
+      // (the lens comes up onto the thing, at its height, unless it is behind you: game.js reads story.subject as it raises it)
       say(on ? `Camera up${finder.dataset.year ? ` · it sees ${finder.dataset.year}` : ''}` : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
     camBtn.addEventListener('click', () => raise(!st.cam));
@@ -966,6 +966,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
+      get subject() { return st.phase === 'stop' && st.beat === 'shoot' && st.cam && st.fr ? subjectOf(st.fr.task) : null; }, // what the frame is of, where the raised camera comes up onto
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || st.beat === 'meeting' || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
