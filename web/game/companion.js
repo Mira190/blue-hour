@@ -22,6 +22,7 @@ window.OECompanion = (function () {
   const LOST = 12;     // and after a while further than this, it comes back for them
   const CLEAR = 1.1;   // it keeps this far from someone standing in its way
   const CATCH = 35;    // left further behind than this (a ride, a lift), it is found at the player's heels again
+  const EDGE_KEEP = 0.9; // and where he leads, how far off the edge of the way he bears away from it
   const PASS_ROOM = 0.9; // the room he wants beyond himself, on the side he passes the player on
   // route(x, y, z, tx, ty) -> [[x, y, z], ...] | null: the way on foot (route.js ways.walk), so that it leads along the
   // footways and over the crossings and not in a straight line into a wall
@@ -93,6 +94,13 @@ window.OECompanion = (function () {
         if (od < 0.05 || od > CLEAR) continue;
         const k = (CLEAR - od) / CLEAR, side = Math.sign(ox * vy - oy * vx) || 1;
         vx += (ox / od) * k * 1.0 + (oy / od) * side * k * 1.3; vy += (oy / od) * k * 1.0 - (ox / od) * side * k * 1.3;
+      }
+      // (and off the edge of the way he is beside, leading: a wall, a kerb, a well within EDGE_KEEP of his flank, and none on
+      // the other, and he bears away from it; pushed round the crowd and the player he ran along the kerb at Hachiko)
+      if (edge && s.state === 'lead') {
+        const vl = Math.hypot(vx, vy) || 1, lx = -vy / vl, ly = vx / vl;
+        const L = edge(s.x + lx * EDGE_KEEP, s.y + ly * EDGE_KEEP, s.z, s.x, s.y), R = edge(s.x - lx * EDGE_KEEP, s.y - ly * EDGE_KEEP, s.z, s.x, s.y);
+        if (L !== R) { const k = L ? -0.8 : 0.8; vx = vx / vl + lx * k; vy = vy / vl + ly * k; }
       }
       const off = turn(Math.atan2(vy, vx), 5.5, dt);
       const v = speed * Math.max(0.25, 1 - off / 1.6);

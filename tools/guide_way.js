@@ -20,11 +20,12 @@ const FLOAT_M = 0.06, SINK_M = 0.08, WIDE_M = 3.2, EDGE_M = 0.8, RUN_M = 1.5;
 // each frame's lead: from where the player stands when it is given to whom or where the story sends them
 // (f4 is the frame as the story gives it: from where the page leaves you at its start; the others from the data)
 const LEADS = [
-  { name: 'f4-hachiko-to-lift', live: 3 },
   { name: 'f2-kerb-to-shun', from: [362.3, -988.6], to: [342.1, -978.4] },
   { name: 'f3-centergai-to-hachiko', from: [342.1, -978.4], to: [374.79, -1046.45] },
   { name: 'f6-lift-to-tanaka', from: [521.87, -1074.06], to: [378.79, -1030.7] },
   { name: 'f7-hachiko-to-kerb', from: [377.0, -1013.2], to: [359.4, -983.0] },
+  // (last: it ends at Yuna, and the story starts her talk and calls him to heel)
+  { name: 'f4-hachiko-to-lift', live: 3 },
 ].filter(l => !process.env.LEADS || process.env.LEADS.split(',').some(k => l.name.startsWith(k)));
 (async () => {
   const [w, h] = size.split('x').map(Number);
@@ -68,6 +69,7 @@ const LEADS = [
   let fails = 0;
   for (const L of LEADS) {
     const lead = L.live ? { name: L.name, from: live.at, to: live.target, live: true } : L;
+    if (L.live) await p.evaluate(({ at, target }) => { const g = window.__game, st = g.story.state, pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = at[2]; st.target = target; const d = st.dog, f = d.free(pl.x + 1.2, pl.y + 1.2, 2) || [pl.x, pl.y]; d.place(f[0], f[1], 0); d.met(); }, live);
     let r = null;
     const run = p.evaluate(({ L, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M }) => new Promise(async done => {
       const g = window.__game, st = g.story.state, dog = st.dog, pl = g.player, nav = g.nav, ways = g.ways, THREE = window.THREE;
