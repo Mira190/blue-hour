@@ -94,11 +94,11 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
   if (FILM) { // the film: a frame every 1/FILM s of the page's own time, each taken once it is drawn
     const dir = `${out}/frames`; fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
     await p.evaluate(() => window.__vt.start());
-    let n = 0, after = 0;
-    while (n < FILM * 120 && after < FILM * 2) {
+    let n = 0, past = 0;
+    while (n < FILM * 120 && past < FILM * 2) {
       await p.evaluate(ms => window.__vt.step(ms), 1000 / FILM);
       await p.screenshot({ path: `${dir}/${String(n++).padStart(5, '0')}.jpg`, type: 'jpeg', quality: 92, timeout: 180000 });
-      if ((await beat()) !== 'flight') after++;
+      if ((await beat()) !== 'flight') past++;
       if (n % (FILM * 5) === 0) console.log(`filmed ${n / FILM} s`);
     }
     await p.evaluate(() => { /* back to the real clock for what is measured after */ });
