@@ -3225,6 +3225,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       p.x += -uy * to; p.y += ux * to;
     }
   };
+  // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
+  // forty metres off among a held crowd of umbrellas, neither could be found in the print)
+  const clearRound = (x, y, r) => {
+    for (const p of crowd.P.slice(0, crowd.active)) {
+      if (p.line < 0 && !p.pz) continue;
+      const dx = p.x - x, dy = p.y - y, d = Math.hypot(dx, dy);
+      if (d >= r) continue;
+      if (!p.pz) { p.line = -1; continue; }
+      const k = (r + 0.4) / (d || 1); p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k;
+    }
+  };
   // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
   const storyFigs = new Set();
   const talkCam = window.OETalkCam ? OETalkCam.create({
@@ -3473,6 +3484,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // fractions of the picture from its top left, or null with the camera down)
     relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
     clear: (a, b) => clearSight(a, b), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to)
+    clearRound: (x, y, r) => clearRound(x, y, r), // (and out of a ring round someone the frame is of)
     finder: q => { if (past) past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); },
     lens: fov => { cam.distTo = 0; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(12, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below)
     // where to make for on the way to a place that is up a tower (or down from one): the nearer stop of the lift that
@@ -6632,7 +6644,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
         // narrow screen through about 0.7 of that angle across its width, so that on a phone the thing is near the size it
         // is in a desktop's finder, and its lettering can be read
-        const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lensWas != null ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI);
+        const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lensWas != null && f0 < 45 ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a frame's wide lens, the last frame's two kerbs, keeps the film frame's width on a phone too)
         if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); }
         player.rig.root.visible = false; fpOn = true;
       }

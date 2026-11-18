@@ -664,8 +664,11 @@ best detective games. What a detective story owes its player, in one line each, 
    they could be seen: from 30 m off the middle a kiosk filled half the print and was taken as *both of them*, and from
    the corner the hints lead to, two pale figures forty metres off stood among a held crowd of umbrellas. Now each must be
    in sight of the lens (`ctx.seen`) and within 60 m, and when the frame begins the held crowd steps out of the two ways
-   from that corner to them (`ctx.clear`, the clearing a relic's sightline already had). `tools/story_play.js` takes the
-   last frame from the corner its hints lead to.
+   from that corner to them (`ctx.clear`, the clearing a relic's sightline already had) and out of a ring round each
+   (`ctx.clearRound`), so that each stands alone on a kerb. The two are about 50 degrees apart from that corner, and in
+   the default finder they stood at its very edges: the frame has a wide lens of its own (`task.lens` 50), kept wide on a
+   phone held upright (a frame's own lens narrows a phone's view only where it is long, to read a thing of 1964).
+   `tools/story_play.js` takes the last frame from the corner its hints lead to.
 8. **Nothing of ours in the print.** Where a frame has no standpoint (frame 3), the guide went to sit 2.2 m before the
    thing on the line from the player to it, and his head filled the foot of the print. He sits beside it now, off that
    line.
