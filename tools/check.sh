@@ -32,6 +32,8 @@
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
 #   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   story1, story2, story3  the story in three parts, each on its own runner (frames 1 to 4; 5 and 6 from a late start; 7
+#           and the last card from one): what "story" checks, in a third of the time; CHECK_SPLIT=1 --plan names them for "story"
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
 # Prints one line per check and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
@@ -51,7 +53,7 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story walk ride mem clip gl touch astc game"   # the browser checks, in the order they run
+KINDS="story story1 story2 story3 walk ride mem clip gl touch astc game"   # the browser checks, in the order they run
 ALL="story walk ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
@@ -118,7 +120,10 @@ fi
 
 if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to this script: a runner's shard
   [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && echo static
-  for k in $want; do echo "$k"; done
+  for k in $want; do
+    # (a runner's plan: the story in three parts, one a runner, which together play every frame and the last card)
+    if [ "$k" = story ] && [ "${CHECK_SPLIT:-0}" = 1 ]; then echo story1; echo story2; echo story3; else echo "$k"; fi
+  done
   exit 0
 fi
 
@@ -156,11 +161,20 @@ twice() {   # <kind> <first log> <second log>: the verdict of the second run
   else echo "FAIL $1   (${same:-$(echo "$two" | head -2 | cut -c1-110 | paste -sd ';' -)}; see $3; the first run $2)"; fi
 }
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
+  story_part story "" "" "the episode plays through its seven frames to the last card"
+}
+# the story in parts, one a runner (CHECK_SPLIT=1 --plan): from the title to frame 4's print, where the log has been read;
+# frames 5 and 6 from a case left at frame 5; frame 7, its summation and the last card from one left at frame 7
+run_story1() { story_part story1 "" 4 "frames 1 to 4 played from the title to frame 4's print"; }
+run_story2() { story_part story2 4 6 "frames 5 and 6 played from a case left at frame 5"; }
+run_story3() { story_part story3 6 "" "frame 7 and the last card played from a case left at frame 7"; }
+story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # (and one frame in thirty drawn, without a GPU: the game moves a twentieth of a second a frame at most, so at a software
   # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
-  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
-  else echo "FAIL story  $(grep '^FAIL\|pageerror' "$OUT/story.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/story.log)"; fi
+  local n=$1 log="$OUT/$1.log"
+  if FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(grep '^FAIL\|pageerror\|^error:' "$log" | head -2 | cut -c1-160 | paste -sd ';' -)" "$log"; fi
 }
 run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
   local ok=1 d

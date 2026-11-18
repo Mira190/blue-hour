@@ -47,6 +47,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGETS: ${{ inputs.targets }}
         run: |
+          # (the story in three parts, each its own runner: a runner played the whole of it in 75 minutes, #51)
+          export CHECK_SPLIT=1
           base=
           if [ -n "$TARGETS" ]; then plan=$(tools/check.sh --plan $TARGETS)
           else
