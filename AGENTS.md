@@ -28,6 +28,11 @@ This repository is Blue Hour by itself, split from the Open Earth 3D repository 
   episode played through), merge it into `main` with a merge commit, and tell the owner in one line: the commit, and
   what the checks covered.
 - Never rewrite `main`. Publishing (a remote, GitHub Pages, any host) waits for the owner's word.
+- Main is published only where its checks pass: `.github/workflows/pages.yml` runs after
+  `.github/workflows/checks.yml` passes on main and publishes that commit (GitHub Pages, and Vercel through the
+  branch `live`). A red main keeps the site on the last commit that passed. So when main moved on while your check
+  ran, merge it in and run `tools/check.sh` again: if nothing main changed was touched on your branch it runs the
+  static checks only, and main's own checks play the two together.
 - A failure `main` has without your change isn't yours to block on: fix it if it is small, otherwise say so.
 
 # One story, one map
@@ -177,7 +182,8 @@ Measured in November 2026 over twelve long turns of eight sessions: 81% of a tur
 waiting for Chromium on the software renderer, and 17% in the model writing. On a session's machine (four cores) the
 story plays through in about 22 minutes (its clock runs at a third to a half of the wall clock's pace there: a frame costs
 80 to 140 ms though only one in thirty is drawn), and `tools/check.sh` with the story and the phone's memory takes 25 to
-33. Sessions ran it five or six times each, two runs in five only because main had moved on meanwhile. So:
+33. Sessions ran it five or six times each, two runs in five only because main had moved on meanwhile (a merge
+of main that touches nothing of the branch's now runs the static checks only: "Landing work on main"). So:
 
 - **One browser at a time.** A software-rendered page takes two to three of the four cores. A check that shared them
   with two films ran 66 minutes instead of 25 and failed stuck: the slower a frame, the slower the story's clock. Stop

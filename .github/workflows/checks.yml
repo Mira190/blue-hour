@@ -5,7 +5,8 @@
 # or that failed, is made up by the next. A failure opens an issue labelled main-red (or adds to the open
 # one) with the shards that failed and the commits they cover; the next pass closes it. A check that failed on
 # one step and then on another when run again passes as FLAKY (tools/check.sh); those are added to the issue
-# labelled check-flaky, so that an unsteady step shows by how often it is named.
+# labelled check-flaky, so that an unsteady step shows by how often it is named. Only a commit this passes on is
+# published (.github/workflows/pages.yml): a red main keeps the site on the last commit that passed.
 name: Checks
 
 on:
@@ -49,9 +50,10 @@ jobs:
           base=
           if [ -n "$TARGETS" ]; then plan=$(tools/check.sh --plan $TARGETS)
           else
-            # the commit of this workflow's last pass on this branch
+            # the commit of this workflow's last pass on this branch (of a push: a run by hand of a few targets
+            # passing is no pass of what changed before it)
             base=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow checks.yml --branch "$GITHUB_REF_NAME" \
-              --status success --limit 1 --json headSha --jq '.[0].headSha // empty' || true)
+              --event push --status success --limit 1 --json headSha --jq '.[0].headSha // empty' || true)
             if [ -n "$base" ] && git merge-base --is-ancestor "$base" HEAD 2>/dev/null; then
               plan=$(CHECK_TIER=full CHECK_BASE=$base tools/check.sh --plan)
             else base=; plan=$(tools/check.sh --plan all); fi
@@ -75,12 +77,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Chromium as last time
+        if: matrix.target != 'static'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ env.PLAYWRIGHT }}
+      # (Mesa keeps what llvmpipe compiled of each shader: on a session's machine the page came to its title in 60 s
+      # with none kept and in 28 s with them; each shard keeps its own, the phone's tier's and the desktop's)
+      - name: The shaders llvmpipe compiled last time
+        if: matrix.target != 'static'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mesa_shader_cache
+          key: mesa-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: mesa-${{ matrix.target }}-
       - name: Chromium, Xvfb and Mesa's software renderer
         if: matrix.target != 'static'
         run: |
           npm install -g "playwright@$PLAYWRIGHT"
           npx playwright install --with-deps chromium
           sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri
+      - name: Which renderer the browser gets
+        if: matrix.target != 'static'
+        continue-on-error: true
+        run: NODE_PATH=$(npm root -g) xvfb-run -a node tools/gl_renderer.js
       - name: What the static checks import
         if: matrix.target == 'static'
         run: pip install numpy scipy shapely pyproj pillow   # (scipy: pipeline/street_ground.py --check)

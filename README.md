@@ -80,10 +80,11 @@ the pipeline and the renderer, [docs/HERO.md](docs/HERO.md) the hero level,
 
 ## Online, and its version
 
-Every push to main publishes `web/` to GitHub Pages through `.github/workflows/pages.yml`. Each
+A commit on main is published once the checks pass on it (`.github/workflows/checks.yml`, then
+`.github/workflows/pages.yml`): `web/` goes to GitHub Pages, and the branch `live` moves to the commit,
+which Vercel's production deploys (`vercel.json`). A main the checks fail is not published. Each
 deploy gets a version: the major.minor in `VERSION` plus the workflow's run number (`0.1.42`),
-written with the commit and the build time to `web/version.json` and tagged. `vercel.json` deploys
-the same folder on Vercel from main.
+written with the commit and the build time to `web/version.json` and tagged.
 
 ## The world before
 
