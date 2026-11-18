@@ -64,7 +64,11 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 - a change to the page or the map (`web/`, `cities/`) runs `static`, `story` and `mem`;
 - a change to one of the checks' own tools runs that check;
 - a change to the build or the plumbing (`pipeline/`, `blender/`, `tools/`, `.github/`) runs `static`;
-- a change to the docs alone runs nothing.
+- a change to the docs alone runs nothing;
+- after a pass, when all that changed since is main's as main has it (main merged in, and nothing main changed
+  touched on the branch), `static` only: main's full tier plays the two together once the branch lands, and a
+  commit it fails is not published. The branch's own change since the pass, or a file both sides changed, runs
+  what it would have. `CHECK_FULL=1` runs it all.
 
 **After landing: the full tier, on main, in GitHub Actions** (`.github/workflows/checks.yml`). Each
 push to main runs `CHECK_TIER=full tools/check.sh --plan` against the commit of the last run that
@@ -76,6 +80,14 @@ prints its own runner. Nobody waits for it.
 - A failure opens an issue labelled `main-red` (or comments on the open one) with the shards that
   failed, links to their logs and stills, and the commits since the last pass. The next pass closes it.
 - Reproduce a shard with its name: `tools/check.sh clip`.
+- **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
+  push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
+  `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
+  production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
+  hand publishes main as it is.
+- Each browser shard prints which renderer it got (`tools/gl_renderer.js`): llvmpipe, or SwiftShader when the GL
+  backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled are kept
+  from one run to the next (`actions/cache`).
 
 **By name only: `game`.** `tools/game_check.js` was written for the game before the story: some 260
 steps of one scenario, half an hour on a software renderer. Its steps for what was removed (fishing,
