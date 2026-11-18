@@ -3406,8 +3406,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       // and a walker it has come up against (a corner taken, edging up to one who stands in the road),
       // or who has stepped up against it where it stands: a step out of its way, along the footway and across it, if that is not into a wall
-      if (crowd) for (let i = 0; i < api.active; i++) {
-        const c = C[i];
+      // (and your car and a ride (api.extra, not where a ride turning round is going next, nor a train): put down where
+      // someone already stood (your car parked at the start before the crowd's first step had it to see, #28), they
+      // walked on through it, a step that took them no deeper)
+      const nC = api.active, ex = api.extra.filter(o => !o.ahead && o.id !== 'train' && o.half > 0 && o.h != null);
+      if (crowd) for (let i = 0; i < nC + ex.length; i++) {
+        const c = i < nC ? C[i] : ex[i - nC];
         if (c.line < 0) continue;
         const R = c.half + 0.5, a0 = Math.floor((c.x - R) / CELL), a1 = Math.floor((c.x + R) / CELL), b0 = Math.floor((c.y - R) / CELL), b1 = Math.floor((c.y + R) / CELL);
         for (let a = a0; a <= a1; a++) for (let b = b0; b <= b1; b++) for (let j = bhead[bucket(a, b)]; j >= 0; j = bchain[j]) {
