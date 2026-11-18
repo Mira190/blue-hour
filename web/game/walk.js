@@ -11,7 +11,8 @@
 //          whoGate() -> false while who you play is still to be chosen (it asks), preview(spec): the street behind the
 //          title at that hour and under that sky, restore(): the title's own evening again, start(spec): set out,
 //          clock() -> { m, d, min }, sky() -> 'clear' | 'rain' | ..., where() -> { name, native } of the area you are
-//          in, key(k) -> the key's sign (a pad's while one is in the hand), menu(), photo(), story() }
+//          in, key(k) -> the key's sign (a pad's while one is in the hand), menu(), photo(), story(),
+//          ride() -> { mode: 'foot' | 'car' | 'heli' | ..., kmh, up (m above the ground), rotor (0..1) } }
 'use strict';
 window.OEWalk = (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -114,7 +115,7 @@ window.OEWalk = (function () {
     // the keys once, at the foot of the frame
     const hud = document.createElement('div');
     hud.id = 'g-walk-where'; hud.setAttribute('aria-live', 'off');
-    hud.innerHTML = '<small></small><span class="t"></span><em></em>';
+    hud.innerHTML = '<small></small><span class="t"></span><em></em><b class="g" hidden></b>';
     const acts = document.createElement('div');
     acts.id = 'g-walk-acts';
     acts.innerHTML = `<button type="button" data-do="photo"><i class="cam" aria-hidden="true"></i><span>Photograph</span>${ctx.touch ? '' : '<kbd>O</kbd>'}</button><button type="button" data-do="menu"><i class="menu" aria-hidden="true"></i><span>Hour · sky · story</span>${ctx.touch ? '' : '<kbd>Esc</kbd>'}</button>`;
@@ -123,14 +124,23 @@ window.OEWalk = (function () {
     const keys = document.createElement('div');
     keys.id = 'g-walk-keys';
     ctx.stage.append(hud, acts, keys);
-    let shown = { where: '', t: '', em: '' }, keysT = 0, walked = 0, lastXY = null;
-    const keyLine = () => (ctx.touch
-      ? '<span>The stick walks · drag to look</span><span>Top right: the camera · the hour, the sky, the story</span>'
-      : `<span><kbd>${ctx.key('W')}</kbd><kbd>${ctx.key('A')}</kbd><kbd>${ctx.key('S')}</kbd><kbd>${ctx.key('D')}</kbd>walk</span><span><kbd>${ctx.key('Shift')}</kbd>run</span><span><kbd>${ctx.key('O')}</kbd>photograph</span><span><kbd>${ctx.key('Esc')}</kbd>the hour, the sky, the story</span>`);
+    let shown = { where: '', t: '', em: '', g: '' }, keysT = 0, walked = 0, lastXY = null, mode = 'foot';
+    const taught = new Set(); // (the ways of getting about whose keys have been shown on this walk: each once, the first time)
+    // the keys at the foot of the frame: walking's as you set out, and a car's or the helicopter's the first time you are in one
+    const K = k => `<kbd>${ctx.key(k)}</kbd>`;
+    const keyLine = (m = 'foot') => {
+      if (m === 'car') return ctx.touch ? '<span>The stick drives, brakes and steers</span><span>At the right: the hand brake, the horn, the view</span><span>Stopped: tap Get out</span>'
+        : `<span>${K('W')}${K('S')}drive · brake</span><span>${K('A')}${K('D')}steer</span><span>${K('Space')}hand brake</span><span>${K('H')}horn</span><span>${K('V')}view</span><span>${K('E')}get out</span>`;
+      if (m === 'heli') return ctx.touch ? '<span>Up and Down climb and descend</span><span>The stick flies and turns</span><span>Set down: tap Get out</span>'
+        : `<span>${K('Space')}climb</span><span>${K('Shift')}descend</span><span>${K('W')}${K('S')}fly · slow</span><span>${K('A')}${K('D')}turn</span><span>${K('V')}view</span><span>${K('E')}get out, landed</span>`;
+      return ctx.touch
+        ? '<span>The stick walks · drag to look</span><span>Top right: the camera · the hour, the sky, the story</span>'
+        : `<span>${K('W')}${K('A')}${K('S')}${K('D')}walk</span><span>${K('Shift')}run</span><span>${K('O')}photograph</span><span>${K('Esc')}the hour, the sky, the story</span>`;
+    };
     function begin() {
       ctx.stage.classList.add('walk-on');
       hud.classList.add('on'); acts.classList.add('on');
-      keys.innerHTML = keyLine(); keys.classList.add('on'); keysT = 0; walked = 0; lastXY = null;
+      keys.innerHTML = keyLine(); keys.classList.add('on'); keysT = 0; walked = 0; lastXY = null; mode = 'foot'; taught.clear(); taught.add('foot');
       tick(0, null, true);
     }
     // each frame: the clock's minute, the area's name, the sky's word; the keys' line goes once you have walked a little
@@ -141,7 +151,17 @@ window.OEWalk = (function () {
       if (force || where !== shown.where) { hud.querySelector('small').textContent = where; if (!force) { hud.classList.remove('new'); void hud.offsetWidth; hud.classList.add('new'); } }
       if (force || t !== shown.t) hud.querySelector('.t').textContent = t;
       if (force || em !== shown.em) hud.querySelector('em').textContent = em;
-      shown = { where, t, em };
+      // at the wheel or the stick: the one number each needs under the hour (the speed; and in the air the height over
+      // the ground, to set it down by, and the rotor while it spools up), in the corner's own type, not a dashboard
+      const r = ctx.ride ? ctx.ride() : { mode: 'foot' };
+      const g = r.mode === 'car' ? `${Math.round(r.kmh)} km/h` : r.mode === 'heli' ? (r.rotor < 0.9 ? `Rotor ${Math.round(r.rotor * 100)}% · lifts at 90` : `${Math.round(r.kmh)} km/h · ${Math.round(r.up)} m up`) : '';
+      if (force || g !== shown.g) { const e = hud.querySelector('.g'); e.textContent = g; e.hidden = !g; }
+      if (r.mode !== mode && (r.mode === 'foot' || r.mode === 'car' || r.mode === 'heli')) { // (in or out: the keys for what you are in now, the first time on this walk)
+        mode = r.mode;
+        if (!taught.has(mode)) { taught.add(mode); keys.innerHTML = keyLine(mode); keys.classList.add('on'); keysT = 0; walked = 0; lastXY = null; }
+        else keys.classList.remove('on');
+      }
+      shown = { where, t, em, g };
       if (keys.classList.contains('on')) {
         keysT += dt;
         if (at) { if (lastXY) walked += Math.hypot(at[0] - lastXY[0], at[1] - lastXY[1]); lastXY = at; }

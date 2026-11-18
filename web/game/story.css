@@ -661,6 +661,9 @@
 #g-walk-where .t { display: block; font: 200 clamp(26px, 2.6vw, 34px)/1 var(--f-display); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 18px rgba(0, 0, 0, 0.85); }
 #g-walk-where em { display: block; margin-top: 9px; font: 400 9px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.7); text-shadow: 0 1px 10px #000; }
 #g-walk-where.new small { animation: g-story-goal-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+/* (at the wheel or the stick: the speed, and in the air the height over the ground, under the date: the corner's own type, in amber) */
+#g-walk-where .g { display: block; margin-top: 12px; font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--amber); font-variant-numeric: tabular-nums; text-shadow: 0 1px 10px #000; }
+#g-walk-where .g[hidden] { display: none; }
 /* the camera and the menu, at the top right, small: what the walk has to change, named */
 #g-walk-acts { position: absolute; right: max(22px, env(safe-area-inset-right)); top: max(22px, env(safe-area-inset-top)); z-index: 6; display: flex; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
 #g-walk-acts.on { opacity: 1; pointer-events: auto; }
@@ -698,6 +701,16 @@
 .game-stage.walk .g-overlay { grid-template-columns: minmax(0, 1fr); }
 .game-stage.walk :is(#gm-overture, #gm-route) { display: none; }
 .game-stage.walk .field:has(#gm-route) { display: none; }
+/* your car, brought to the nearest kerb: beside the way into the story, as a hairline button */
+.game-stage.walk .gm-walk #gm-car { justify-content: flex-start; }
+/* the car's and the helicopter's keys in the menu's list on the walk, not in the story */
+.gk-walk { display: none; }
+.game-stage.walk .gk-walk { display: table-row; }
+/* by touch at the wheel or the stick on the walk: the stick drives or flies, and beside it what each needs (the hand
+   brake, the horn and the view in a car; up, down and the view in the air); Run has nothing to do in either */
+.game-stage.story.walk:is(.at-car, .at-heli) .gt-btns { grid-template-columns: repeat(3, 56px); }
+.game-stage.story.walk:is(.at-car, .at-heli) .gt-btns :is(#gt-jump, #gt-down, #gt-cam) { display: block; }
+.game-stage.story.walk:is(.at-car, .at-heli) .gt-btns #gt-run { display: none; }
 /* (and in the story and on the walk alike, the old free game's: its tour of the map, the passport, the passport's fresh start, and its keys) */
 .game-stage.story :is(#gm-intro, #gm-reset, #gm-links, .gk-free) { display: none !important; }
 .game-stage:not(.story) .gk-story { display: none; }
@@ -769,3 +782,50 @@
 /* ---- the camera raised off the place its year was seen from: the year over the frame says so, and nothing of that year
    forms in the lines (past.js open) */
 #g-story-finder[data-off]::before { content: attr(data-year) "  ·  not from here"; color: rgba(244, 239, 230, 0.78); }
+
+/* ---- SKY GATE's ride (game.js podRide): the doors close on the lobby, the car is dark, its whole ceiling a picture that
+   keeps pace with the climb (the street's warm light giving way to the sky's), lines of light running down its walls as it
+   rises, the floors it passes not shown; then the doors open on the top stop. Shut, ride and open are put on by the
+   ride's own cues, on the game's clock, so the cut to the far stop is always behind shut doors */
+#g-pod { position: absolute; inset: 0; z-index: 7; pointer-events: none; overflow: hidden; visibility: hidden; --pod-s: 7s; }
+#g-pod:is(.shut, .ride, .open) { visibility: visible; }
+#g-pod .leaf { position: absolute; top: 0; bottom: 0; width: 50.5%; background: linear-gradient(90deg, #0d0f13, #1b1e24 48%, #121418);
+  box-shadow: inset 0 0 0 1px rgba(244, 239, 230, 0.05); transition: transform 0.75s cubic-bezier(0.55, 0, 0.25, 1); }
+#g-pod .leaf.l { left: 0; transform: translateX(-101%); }
+#g-pod .leaf.r { right: 0; transform: translateX(101%); background: linear-gradient(270deg, #0d0f13, #1b1e24 48%, #121418); }
+#g-pod .leaf.l::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 1px; background: rgba(255, 228, 184, 0.55); box-shadow: 0 0 14px rgba(255, 207, 138, 0.5); }
+#g-pod.shut .leaf { transform: none; }
+/* inside: black walls; the ceiling's picture; the lines */
+#g-pod .ceil, #g-pod .lines, #g-pod .say { position: absolute; opacity: 0; transition: opacity 0.6s ease 0.2s; }
+#g-pod.ride :is(.ceil, .lines, .say) { opacity: 1; }
+#g-pod.ride .leaf { background: #050608; box-shadow: none; transition: background 0.5s ease; }
+#g-pod.ride .leaf.l::after { opacity: 0; }
+#g-pod .ceil { left: 0; right: 0; top: 0; height: 46%; z-index: 1;
+  background: linear-gradient(180deg, var(--pod-a, #f1b46a) 0%, var(--pod-b, #6a4a6e) 38%, rgba(5, 6, 8, 0) 100%);
+  -webkit-mask: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 75%); mask: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 75%); }
+#g-pod.ride .ceil { animation: g-pod-sky var(--pod-s) linear both; }
+#g-pod.ride.down .ceil { animation-direction: reverse; }
+@keyframes g-pod-sky {
+  0% { --pod-a: #f1b46a; --pod-b: #6a4a6e; filter: brightness(0.75); }
+  45% { --pod-a: #8c8fb6; --pod-b: #273a6a; filter: brightness(1); }
+  100% { --pod-a: #b9d4ec; --pod-b: #1b3360; filter: brightness(1.15); }
+}
+@property --pod-a { syntax: "<color>"; inherits: false; initial-value: #f1b46a; }
+@property --pod-b { syntax: "<color>"; inherits: false; initial-value: #6a4a6e; }
+#g-pod .lines { inset: 0; z-index: 1;
+  background: repeating-linear-gradient(180deg, rgba(255, 236, 206, 0) 0 40px, rgba(255, 236, 206, 0.85) 40px 44px, rgba(255, 236, 206, 0) 44px 140px) 6% 0 / 2px 100% no-repeat,
+              repeating-linear-gradient(180deg, rgba(255, 236, 206, 0) 0 64px, rgba(255, 236, 206, 0.75) 64px 68px, rgba(255, 236, 206, 0) 68px 190px) 94% 0 / 2px 100% no-repeat,
+              repeating-linear-gradient(180deg, rgba(255, 236, 206, 0) 0 90px, rgba(255, 236, 206, 0.4) 90px 92px, rgba(255, 236, 206, 0) 92px 230px) 17% 0 / 1px 100% no-repeat,
+              repeating-linear-gradient(180deg, rgba(255, 236, 206, 0) 0 90px, rgba(255, 236, 206, 0.4) 90px 92px, rgba(255, 236, 206, 0) 92px 230px) 83% 0 / 1px 100% no-repeat;
+  filter: drop-shadow(0 0 6px rgba(255, 207, 138, 0.55)); }
+#g-pod.ride .lines { animation: g-pod-run 0.9s linear infinite; }
+#g-pod.ride.down .lines { animation-direction: reverse; }
+@keyframes g-pod-run { to { background-position: 6% 140px, 94% 190px, 17% 230px, 83% 230px; } }
+#g-pod .say { left: 0; right: 0; bottom: 18%; z-index: 2; text-align: center; color: var(--paper); text-shadow: 0 1px 14px #000; }
+#g-pod .say small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.42em; margin-right: -0.42em; text-transform: uppercase; color: var(--amber); }
+#g-pod .say b { display: block; margin-top: 14px; font: 200 clamp(26px, 3vw, 40px)/1 var(--f-display); letter-spacing: 0.22em; margin-right: -0.22em; }
+#g-pod .say em { display: block; margin-top: 12px; font: 400 9px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+/* the doors open on the top stop: the dark goes first, then the leaves slide apart */
+#g-pod.open .leaf { transform: translateX(-101%); background: #050608; transition-delay: 0.15s; }
+#g-pod.open .leaf.r { transform: translateX(101%); }
+@media (prefers-reduced-motion: reduce) { #g-pod .leaf, #g-pod :is(.ceil, .lines, .say) { transition: none; } #g-pod.ride :is(.ceil, .lines) { animation: none; } }

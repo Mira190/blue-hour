@@ -23,7 +23,8 @@
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
 #   walk    the title's second way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
-#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game;
+#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
+#           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
