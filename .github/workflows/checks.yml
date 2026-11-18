@@ -113,6 +113,11 @@ jobs:
         run: |
           [ "$TARGET" = static ] || export CHECK_STATIC=0
           CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
+      # (how long the play took and how many frames it ran: the same story played in 22 minutes on a session's
+      # machine and in 75 on a runner, with llvmpipe on both)
+      - name: What the browser took
+        if: always() && matrix.target != 'static'
+        run: grep -h 'played in\|^title\|GPU peak' "$RUNNER_TEMP"/check/*.log 2>/dev/null | cut -c1-200 || true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
