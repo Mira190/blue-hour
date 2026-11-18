@@ -865,7 +865,10 @@ def neck_camera(arm, mesh):
     hip was in the hand's way at every step). The strap goes round the back of the neck on the collar, over the
     collarbones and down to the camera's lugs, kept just off the cloth and under the hair; it is weighted as the
     cloth under it is, blended into the chest over its last 12 cm, and the camera rides on the chest (Spine2). Made in
-    the bind pose and joined to the body's mesh, so it is skinned with it. No maker's shape or name: a camera's form."""
+    the bind pose and joined to the body's mesh, so it is skinned with it. No maker's shape or name: a camera's form.
+    Also the strap for the camera of 1964 (camera_strap1964, which the page shows once Sumiko has given it, and hides
+    till then), and where that camera rests on the chest ("old": its middle and its axes, in three.js's model space:
+    x to the holder's left, y up, z out of the lens), with this one's lugs and frame."""
     import bmesh
     from mathutils import Vector, Matrix
     from mathutils.bvhtree import BVHTree
@@ -973,9 +976,27 @@ def neck_camera(arm, mesh):
     n_cam = len(verts)
     lugs = [C + R * (sx * (BW / 2 + 0.006)) + T * (BH / 2 - 0.022) - A * 0.012 for sx in (1, -1)]   # right, left
 
-    # the strap: round the back of the neck at the collar (a ray in from each side to the outermost cloth or skin), and
-    # from each side of the neck straight to its lug, lifted off the cloth where the line would sink into it. It lies
-    # close (GAP), under long hair as a strap does: the hair cards hang further out, and cover it
+    # the camera of 1964, once Sumiko has given it (people.js camera1964 draws it; its numbers are in people.json): a light
+    # rangefinder hangs flat on the chest, nearly level, its back on the coat where the chest stands furthest out under
+    # it, lower than this one; on its own thin leather strap, made here and shown by the page in place of this one
+    OW, OH, OD = 0.138, 0.076, 0.032   # (as people.js oldCamera: its lugs at its ends, 1.8 cm over its middle)
+    otilt = math.radians(10)
+    oA, oT = (fwd * math.cos(otilt) - up * math.sin(otilt)).normalized(), (up * math.cos(otilt) + fwd * math.sin(otilt)).normalized()
+    oz, ofront = neck.z - 0.25, 0.0
+    for dx in (-0.06, -0.03, 0.0, 0.03, 0.06):
+        for dz in (0.035, 0.0, -0.035):
+            o = Vector((neck.x, neck.y, oz + dz)) + left * dx
+            hit = bvh_body.ray_cast(o + fwd * 0.5, -fwd)[0]
+            if hit is not None:
+                ofront = max(ofront, (hit - neck).dot(fwd))
+    obase = Vector((neck.x, neck.y, oz)) + fwd * ofront
+    oback = min(((obase + R * (sx * OW / 2) + oT * (sy * OH / 2) - oA * (OD / 2)) - obase).dot(fwd) for sx in (-1, 1) for sy in (-1, 1))
+    oC = obase + fwd * (0.004 - oback)
+    olugs = [oC + R * (sx * (OW / 2 + 0.002)) + oT * 0.018 for sx in (1, -1)]   # right, left
+
+    # the straps: round the back of the neck at the collar (a ray in from each side to the outermost cloth or skin), and
+    # from each side of the neck straight to the camera's lugs, lifted off the cloth where the line would sink into it.
+    # They lie close (GAP), under long hair as a strap does: the hair cards hang further out, and cover them
     GAP = 0.0035
     z_col = neck.z + 0.025
     centre = Vector((neck.x, neck.y, z_col))
@@ -988,36 +1009,44 @@ def neck_camera(arm, mesh):
             back_arc.append(hit + d * GAP)
     if len(back_arc) < 12:
         raise SystemExit("neck_camera: no neck found")
-    # right lug -> right side of the neck -> round the back -> left side -> left lug
-    down_r = [off(lugs[0] + (back_arc[0] - lugs[0]) * (j / 16), GAP) for j in range(0, 16)]
-    down_l = [off(back_arc[-1] + (lugs[1] - back_arc[-1]) * (j / 16), GAP) for j in range(1, 17)]
-    line = down_r + back_arc + down_l
-    for _ in range(2):   # a strap's curves, not corners; lifted off again after
-        line = [line[0]] + [line[i - 1] * 0.25 + line[i] * 0.5 + line[i + 1] * 0.25 for i in range(1, len(line) - 1)] + [line[-1]]
-        line = [line[0]] + [off(p, GAP) for p in line[1:-1]] + [line[-1]]
-    # the ribbon: 2.2 cm, 2 mm thick; its width lies along the cloth (across the line and the surface's normal)
-    half = 0.011
-    for i, c in enumerate(line):
-        tan = (line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]).normalized()
-        h, nrm, _, _ = bvh.find_nearest(c)
-        nrm = nrm if h is not None else fwd
-        wdir = tan.cross(nrm).normalized()
-        for o in (-0.001, 0.001):
-            verts.extend([c + nrm * o + wdir * half, c + nrm * o - wdir * half])
-    S = 4
-    s0 = n_cam
-    for i in range(len(line) - 1):
-        a, b = s0 + i * S, s0 + (i + 1) * S
-        for q in ((0, 2), (2, 3), (3, 1), (1, 0)):
-            faces.append((a + q[0], b + q[0], b + q[1], a + q[1])); kinds.append("strap")
-    path_len = [0.0]
-    for i in range(1, len(line)):
-        path_len.append(path_len[-1] + (line[i] - line[i - 1]).length)
-    # long hair lies over the strap: a hair card's vertex within 3 cm of it is lifted off the body to clear it (fully
+
+    def strap_line(ends):   # right lug -> right side of the neck -> round the back -> left side -> left lug
+        down_r = [off(ends[0] + (back_arc[0] - ends[0]) * (j / 16), GAP) for j in range(0, 16)]
+        down_l = [off(back_arc[-1] + (ends[1] - back_arc[-1]) * (j / 16), GAP) for j in range(1, 17)]
+        line = down_r + back_arc + down_l
+        for _ in range(2):   # a strap's curves, not corners; lifted off again after
+            line = [line[0]] + [line[i - 1] * 0.25 + line[i] * 0.5 + line[i + 1] * 0.25 for i in range(1, len(line) - 1)] + [line[-1]]
+            line = [line[0]] + [off(p, GAP) for p in line[1:-1]] + [line[-1]]
+        return line
+
+    strap_end = []   # for each strap vertex, how far along its strap it is from the nearer end (for the weights)
+
+    def ribbon(line, half, kind):   # 2 mm thick; its width lies along the cloth (across the line and the surface's normal)
+        s0 = len(verts)
+        for i, c in enumerate(line):
+            tan = (line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]).normalized()
+            h, nrm, _, _ = bvh.find_nearest(c)
+            nrm = nrm if h is not None else fwd
+            wdir = tan.cross(nrm).normalized()
+            for o in (-0.001, 0.001):
+                verts.extend([c + nrm * o + wdir * half, c + nrm * o - wdir * half])
+        for i in range(len(line) - 1):
+            a, b = s0 + i * 4, s0 + (i + 1) * 4
+            for q in ((0, 2), (2, 3), (3, 1), (1, 0)):
+                faces.append((a + q[0], b + q[0], b + q[1], a + q[1])); kinds.append(kind)
+        along = [0.0]
+        for i in range(1, len(line)):
+            along.append(along[-1] + (line[i] - line[i - 1]).length)
+        strap_end.extend(min(t, along[-1] - t) for t in along for _ in range(4))
+
+    lines = [strap_line(lugs), strap_line(olugs)]
+    ribbon(lines[0], 0.011, "strap")          # 2.2 cm black webbing
+    ribbon(lines[1], 0.0075, "strap1964")     # 1.5 cm brown leather
+    # long hair lies over the straps: a hair card's vertex within 3 cm of one is lifted off the body to clear it (fully
     # within 1.5 cm, less further off), so that the cards cover the strap and nothing of it shows through them
     from mathutils.kdtree import KDTree
-    kd = KDTree(len(line))
-    for i, c in enumerate(line):
+    kd = KDTree(sum(len(ln) for ln in lines))
+    for i, c in enumerate(c for ln in lines for c in ln):
         kd.insert(c, i)
     kd.balance()
     clear, inv_m = GAP + 0.009, M.inverted()
@@ -1040,7 +1069,7 @@ def neck_camera(arm, mesh):
                 vs[i].co = inv_m @ W[i]
                 lifted += 1
     if lifted:
-        print(f"  neck_camera: {lifted} hair vertices lifted over the strap")
+        print(f"  neck_camera: {lifted} hair vertices lifted over the straps")
 
     me = bpy.data.meshes.new("neck_camera")
     inv = M.inverted()
@@ -1048,7 +1077,7 @@ def neck_camera(arm, mesh):
     mats = {}
     for kind, col, rough, metal in (("camera", (0.032, 0.032, 0.034), 0.55, 0.0), ("rubber", (0.022, 0.022, 0.023), 0.9, 0.0),
                                     ("metal", (0.46, 0.46, 0.47), 0.32, 1.0), ("glass", (0.02, 0.026, 0.04), 0.06, 0.0),
-                                    ("strap", (0.028, 0.028, 0.03), 0.8, 0.0)):
+                                    ("strap", (0.028, 0.028, 0.03), 0.8, 0.0), ("strap1964", (0.20, 0.11, 0.06), 0.55, 0.0)):
         m = bpy.data.materials.new(f"camera_{kind}")
         m.use_nodes = True
         bsdf = m.node_tree.nodes["Principled BSDF"]
@@ -1059,19 +1088,17 @@ def neck_camera(arm, mesh):
         mats[kind] = len(me.materials) - 1
     for p, kind in zip(me.polygons, kinds):
         p.material_index = mats[kind]
-        p.use_smooth = kind in ("strap", "rubber", "metal")
+        p.use_smooth = kind in ("strap", "strap1964", "rubber", "metal")
     ob = bpy.data.objects.new("neck_camera", me)
     bpy.context.scene.collection.objects.link(ob)
     ob.matrix_world = M
     groups = {}
     vg = lambda name: groups.get(name) or groups.setdefault(name, ob.vertex_groups.new(name=name))
-    total = path_len[-1]
     for vi, v in enumerate(verts):
         if vi < n_cam:
             vg("Bip01 Spine2").add([vi], 1.0, "REPLACE")
             continue
-        k = (vi - n_cam) // S
-        near = min(path_len[k], total - path_len[k])
+        near = strap_end[vi - n_cam]
         _, _, ti, _ = bvh_body.find_nearest(v)
         wsum = {}
         for i in body_tris[ti].vertices:
@@ -1091,6 +1118,11 @@ def neck_camera(arm, mesh):
     mesh.select_set(True)
     bpy.context.view_layer.objects.active = mesh
     bpy.ops.object.join()
+    # where the strap meets the camera, and which way its lens and top face, in three.js's model space (glTF's y up:
+    # Blender's x, z, -y), for another camera hung on the same strap (people.js camera1964: the one of 1964)
+    three = lambda v: [round(v.x, 4), round(v.z, 4), round(-v.y, 4)]
+    return {"lugs": [three(lugs[0]), three(lugs[1])], "lens": three(A), "top": three(T), "centre": three(C),
+            "old": {"centre": three(oC), "x": three(left), "y": three(oT), "z": three(oA)}}
 
 
 def suit(arm, mesh, kind):
@@ -1506,8 +1538,7 @@ def main():
         DRESSED.clear()
         for part, colour, *seed in spec.get("dress", []):
             dress(mesh, part, colour, *seed)
-        if spec.get("camera"):
-            neck_camera(rig, mesh)
+        cam = neck_camera(rig, mesh) if spec.get("camera") else None
         rig.name = f"{cid}_Rig"
         speeds = animate(rig, spec["sex"])
         mesh = next(c for c in rig.children if c.type == "MESH")
@@ -1515,6 +1546,9 @@ def main():
         print(f"{cid}: {tris} triangles, {len(rig.data.bones)} bones, ground speeds {speeds}")
         if args.preview:
             out = os.path.join(ROOT, "docs", "images", "people"); os.makedirs(out, exist_ok=True)
+            later = [m.node_tree.nodes["Principled BSDF"] for m in bpy.data.materials if m.name.startswith("camera_strap1964")]
+            for n in later:   # (the strap of the camera of 1964 is not on until the first frame's photograph)
+                n.inputs["Alpha"].default_value = 0.0
             for clip, frame in (("Idle", 20), ("Walk", 10)):
                 for t in rig.animation_data.nla_tracks:
                     t.mute = t.name != clip
@@ -1522,12 +1556,14 @@ def main():
                 preview(rig, os.path.join(out, f"{cid}_{clip}.png"))
             for t in rig.animation_data.nla_tracks:
                 t.mute = False
+            for n in later:
+                n.inputs["Alpha"].default_value = 1.0
         if not args.no_export:
             out = os.path.join(ROOT, "web", "assets", "people")
             export(rig, os.path.join(out, f"{cid}.glb"))
             heroes[cid] = {"file": f"{cid}.glb", "label": spec["label"], "avatar": spec["avatar"], "head": spec.get("head"), "ground_speed": speeds,
                            "height_m": round(max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices), 3), "triangles": tris,
-                           "clips": [t.name for t in rig.animation_data.nla_tracks]}
+                           "clips": [t.name for t in rig.animation_data.nla_tracks], **({"neck_camera": cam} if cam else {})}
     if not args.no_export:
         for cid in [c for c in heroes if c not in CHARACTERS]:   # main characters there are no more of
             heroes.pop(cid)

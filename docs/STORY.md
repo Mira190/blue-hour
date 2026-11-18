@@ -182,6 +182,17 @@ colours and what it carries before its face, and to look like Tokyo in October:
   through. It hangs where the arms do not swing; a camera bag on the hip, tried first, was in the hand's way at every
   step. Modelled with the body (`neck_camera`): the strap round the back of the neck on the collar and over the
   collarbones, kept off the cloth, and the camera riding on the chest.
+- **His camera round the neck.** From the first frame's photograph, once Sumiko has given it, Akira's camera of 1964
+  hangs round Kagami's neck in place of their own, which they put away with its strap (the frame's goal says so): flat
+  on the chest, nearly level, as a light camera hangs, on a thin brown leather strap of its own. A 35 mm rangefinder
+  of that time in no maker's shape, black leatherette under a chrome top plate with the finder's three windows, a lens
+  of chrome and black rings, the speed dial, the release, the advance lever and the rewind knob (`web/game/people.js`
+  `camera1964`, made in the page and rested where `blender/build_people.py` `neck_camera` found the coat, its strap
+  built there with the body's). The object of the
+  case is in every picture of the one who carries it; when the case is closed it is hers again, and Kagami's own is
+  back round the neck. Not in the free game. Carried in the hand first, it went into the thigh at the side, or leaned
+  into the coat held out in front; hung at the ends of the other camera's strap, it stood in the air off the chest. `tools/story_play.js` fails a
+  frame whose photograph is taken without it, and a last card with it still round the neck.
 - **A Japanese face nobody else in the story wears.** Rocketbox's faces (Female_Adult_03's, with her own black
   hair, long, which the camera's strap goes under; Male_Adult_10's) on bodies that are in neither the crowd's cast
   nor the story's. Yuna, who had the woman's face, now has her own (Sports_Female_02's), so the two are not twins at the

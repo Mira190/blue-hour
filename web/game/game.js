@@ -5929,6 +5929,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot') cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
+    // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
+    // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
+    // case is closed and it is hers again; never in the free game (people.js camera1964, hung where the main
+    // character's people.json neck_camera says the strap ends). Asked of the rig each frame, so a character swapped in
+    // the menu has it too
+    if (player.rig.setLook) {
+      const s = story && story.on && story.state, holds = !!s && (s.fi > 0 || (s.phase === 'stop' && /^(shoot|shown|failed)$/.test(s.beat)) || s.phase === 'after');
+      if (player.rig.oldCam !== holds) {
+        const h = lib && lib.heroes && lib.heroes[player.rig.character];
+        player.rig.oldCam = holds;
+        player.rig.setLook({ acc: holds ? ['camera1964'] : null, neckcam: (h && h.neck_camera) || null });
+      }
+    }
     if (story && heli.group && !heli.st.on) heli.group.visible = false; // (the story's helicopter is seen only in the flight it plays: story ctx film)
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
     if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
