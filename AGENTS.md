@@ -171,6 +171,24 @@ The owner should not be the one who finds the bug.
   - a pass that only looked right because the edit never landed is the worst outcome: when a still shows no change,
     check that the change is in the file before believing the still.
 
+# Time
+
+Measured in November 2026 over twelve long turns of eight sessions: 81% of a turn went in tools, nearly all of it
+waiting for Chromium on the software renderer, and 17% in the model writing. On a session's machine (four cores) the
+story plays through in about 22 minutes (its clock runs at a third to a half of the wall clock's pace there: a frame costs
+80 to 140 ms though only one in thirty is drawn), and `tools/check.sh` with the story and the phone's memory takes 25 to
+33. Sessions ran it five or six times each, two runs in five only because main had moved on meanwhile. So:
+
+- **One browser at a time.** A software-rendered page takes two to three of the four cores. A check that shared them
+  with two films ran 66 minutes instead of 25 and failed stuck: the slower a frame, the slower the story's clock. Stop
+  your own earlier browser job (by the PID or background task you started it as) before starting another.
+- **Play only what you changed while you work on it** (`FROM=n UPTO=n`, one screen, then the other once it is right),
+  and run the whole `tools/check.sh` once, when the branch is ready to land.
+- **Wait once.** A background job is waited for by one `until` loop on its own output, or by ending the turn and being
+  called back when it finishes; never a loop on another loop's output, never two loops on one job.
+- **Keep the context light.** A still or a log read into the conversation stays in it for every later step: look at a
+  contact sheet of stills (`tools/contact_sheet.py`), and read logs through `grep` or `tail`.
+
 # Session setup
 
 - `pip install -r requirements.txt`, and `pip install bpy==5.2.3` for Blender builds.
