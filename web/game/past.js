@@ -9,18 +9,27 @@
 //   relic(model, at, heading, { scale, over })   at: a THREE.Vector3; over: drawn through what has been built where it
 //                                                stood; returns { remove(), shown }
 //   rect([x0, y0, x1, y1] | null)                the finder's rectangle, or null: the camera is down
+//   open(on)                                     whether the camera stands where that year was seen from: off it, what
+//                                                had formed goes back into the grain (FADE_MS), and the finder holds
+//                                                tonight only; back on it, it forms again
 //   whole(on)                                    the whole picture is the finder's (the photograph being taken)
 //
 // The look of the past is one look, a silver print's: warm grey tones with a little of the colour left in them,
 // blacks lifted to the paper's, a fine grain that lives, and a soft light round each form's edge. A thing forms the
 // first time it is inside the finder's lines: out of grain and light into the solid in 0.8 s (REVEAL_MS).
+//
+// It is seen from where it was seen, and from nowhere else (docs/STORY.md, rule 5). For a day the finder showed the
+// board of frame 1 from wherever the camera was raised, while the goal said to step back into the light: the thing
+// was already there, so the light meant nothing, and a player stood off the place with the picture in the lines and
+// the release refusing it. Now the story says whether the lens is in place (`open`), and nothing forms off it.
 'use strict';
 window.OEPast = (function () {
-  const REVEAL_MS = 800;
+  const REVEAL_MS = 800, FADE_MS = 450;
   function create({ THREE, world }) {
     let kit = null;
     const U = { uPast: { value: new THREE.Vector4(1, 1, -1, -1) }, uT: { value: 0 } }, keep = new THREE.Vector4(1, 1, -1, -1);
     const waiting = [], live = new Set();
+    let isOpen = true, full = false;
     // (two files: the things of the other year, and tonight's own set dressing, which is always seen: `set`)
     let pending = 2; const got = {};
     for (const file of ['assets/past/past.glb', 'assets/story/set.glb']) new THREE.GLTFLoader().load(file, gl => {
@@ -71,33 +80,40 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
     const at = new THREE.Vector3(), ORIGIN = new THREE.Vector3();
     function relic(model, pos, heading = 0, { scale = 1, over = false, set = false } = {}) {
       const g = new THREE.Group(); g.position.copy(pos); g.rotation.y = heading; g.scale.setScalar(scale); // (heading: radians anticlockwise from the model's own axes, which are the map's: +x east, +y north)
-      const mat = set ? setMat : make(over, false), one = { shown: set, t0: set ? -1e9 : null };
+      const mat = set ? setMat : make(over, false), one = { shown: set, t0: set ? -1e9 : null, k: set ? 1 : 0, last: 0 };
       const put = () => {
         if (!kit[model]) return console.warn(`No thing of the other year called ${model}`);
         const m = new THREE.Mesh(kit[model], mat); m.frustumCulled = false; m.renderOrder = over ? 40 : 2;
-        // it forms the first time the camera is up and it is inside the lines
+        // it forms the first time the camera is up, in place, and it is inside the lines; off the place it goes back
+        // into the grain, and forms again from where it had got to when the lens is back on the place
         if (!set) m.onBeforeRender = (r, s, cam) => {
-          const now = performance.now(); U.uT.value = now / 1000;
-          // (its middle or its own origin, the point a frame aims at: a river's middle can be beside the one who looks along it)
-          if (one.t0 == null && U.uPast.value.x < U.uPast.value.z) for (const p of [kit[model].boundingSphere.center, ORIGIN]) {
-            at.copy(p).applyMatrix4(m.matrixWorld).applyMatrix4(cam.matrixWorldInverse);
-            const front = at.z < 0, q = U.uPast.value;
-            at.applyMatrix4(cam.projectionMatrix);
-            if (front && at.x > q.x && at.x < q.z && at.y > q.y && at.y < q.w) { one.t0 = now; break; }
+          const now = performance.now(), dt = one.last ? Math.min(100, now - one.last) : 0; one.last = now; U.uT.value = now / 1000;
+          if (full) { mat.userData.own.uReveal.value = 1; return; } // (the photograph: whole, whatever it had got to)
+          if (!isOpen) { one.t0 = null; one.k = Math.max(0, one.k - dt / FADE_MS); }
+          else {
+            // (its middle or its own origin, the point a frame aims at: a river's middle can be beside the one who looks along it)
+            if (one.t0 == null && U.uPast.value.x < U.uPast.value.z) for (const p of [kit[model].boundingSphere.center, ORIGIN]) {
+              at.copy(p).applyMatrix4(m.matrixWorld).applyMatrix4(cam.matrixWorldInverse);
+              const front = at.z < 0, q = U.uPast.value;
+              at.applyMatrix4(cam.projectionMatrix);
+              if (front && at.x > q.x && at.x < q.z && at.y > q.y && at.y < q.w) { one.t0 = now - one.k * REVEAL_MS; break; }
+            }
+            if (one.t0 != null) one.k = Math.min(1, (now - one.t0) / REVEAL_MS);
           }
-          const k = one.t0 == null ? 0 : Math.min(1, (now - one.t0) / REVEAL_MS);
-          mat.userData.own.uReveal.value = k; one.shown = k >= 1;
+          mat.userData.own.uReveal.value = one.k; one.shown = one.k >= 1;
         };
         g.add(m);
       };
       if (kit) put(); else waiting.push(put);
       world.add(g); live.add(one);
-      return { remove() { world.remove(g); live.delete(one); }, get shown() { return one.shown; } };
+      return { remove() { world.remove(g); live.delete(one); }, get shown() { return one.shown; }, get k() { return one.k; } };
     }
     return {
       relic,
       rect(r) { if (r) keep.set(r[0], r[1], r[2], r[3]); else keep.set(1, 1, -1, -1); U.uPast.value.copy(keep); },
-      whole(on) { if (on) { U.uPast.value.set(-1, -1, 1, 1); live.forEach(o => { o.t0 = -1e9; }); } else U.uPast.value.copy(keep); }, // (the photograph has it whole)
+      open(on) { isOpen = !!on; },
+      get isOpen() { return isOpen; },
+      whole(on) { full = !!on; if (on) U.uPast.value.set(-1, -1, 1, 1); else U.uPast.value.copy(keep); }, // (the photograph has it whole)
       none() { U.uPast.value.set(1, 1, -1, -1); }, // (one picture of tonight only: the print before the other year comes up in it)
     };
   }

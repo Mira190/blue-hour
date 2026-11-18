@@ -305,12 +305,19 @@ so that the first frame's score is the same music going on, not a second piece. 
   after a change to the `bluehour` palette.
 - *A browser gives a page no sound before it is touched.* Where it does (a site the visitor has played
   before, a browser set to allow it), the cue starts with the page. Where it does not, the loading screen's
-  upper bar says "Click for sound" ("Tap" on a phone) and the first key or touch anywhere starts it. The
-  file is decoded only once the context runs, so a page nobody touches keeps no samples.
+  lower bar says "Click for sound" ("Tap" on a phone) beside a speaker, and the first key or touch anywhere
+  starts it. The file is decoded only once the context runs, so a page nobody touches keeps no samples.
+  The browser's leave is kept per site, so the same build can sound at once on one host and wait on another:
+  Chrome lets a site it has seen the visitor play media on (its Media Engagement Index, `chrome://media-engagement`)
+  sound before a touch, and a new host has none of that. In November 2026 the page sounded at once on the
+  owner's GitHub Pages site, a host their browser knew, and waited on the new Vercel one,
+  where the ask then sat dimmed in the corner of the upper bar and went unread: a silent load was taken for a
+  broken deployment. So it was moved to the lower bar, where a game's loading screen says "press any key", in
+  the bar's own type, with a speaker drawn beside it so it reads as a thing to do and not as a caption.
 
 At the first frame the cue fades over five seconds under the score coming in (the same key, the same tempo)
 and its buffer is let go. `?walk=1` has no cue. `tools/load_score.js` checks it as a browser that asks for
-the touch: the bar says so and stops saying so, the score is on the bus within a second or two of the
+the touch: the lower bar says so where it can be read (on screen, clear of the roll) and stops saying so, the score is on the bus within a second or two of the
 touch and still there on the title, and the loop's join is smoother than the steps inside it.
 
 **Checked.** `tools/music_check.js` renders `story-first-frame`, `story-last-frame`, `story-stop` and

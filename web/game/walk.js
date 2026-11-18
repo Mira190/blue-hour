@@ -1,0 +1,161 @@
+// The walk: the story's map with no story in it (docs/STORY.md "The walk"). On the title, beside the episode's
+// button, a second way in: Kagami, whoever you chose, out on the same streets at an hour and under a sky you pick,
+// for as long as you like. Nothing stops, nobody asks for a photograph, nothing is owed: the city is all there is.
+//
+// It is the story's own interface, not a second game's: the title's card and type, the goal's corner for where and
+// when you are, the keys' line the first time. Nothing here draws the world or names a city: game.js lends what the
+// walk needs (the clock, the weather, the crane down to the street) and keeps what the walk does not offer out of it.
+//
+//   ctx: { stage, touch, place: { name, native }, date: [month, day] (the evening the story is set in),
+//          hourAt(kind) -> minutes on that evening ('live': now, where the map is), fmt(min) -> '17:14',
+//          whoGate() -> false while who you play is still to be chosen (it asks), preview(spec): the street behind the
+//          title at that hour and under that sky, restore(): the title's own evening again, start(spec): set out,
+//          clock() -> { m, d, min }, sky() -> 'clear' | 'rain' | ..., where() -> { name, native } of the area you are
+//          in, key(k) -> the key's sign (a pad's while one is in the hand), menu(), photo(), story() }
+'use strict';
+window.OEWalk = (function () {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  // The hour is the walk's one real choice, as a free ride's or a flight's is: the blue hour the story is set in, the
+  // night after it, or the hour it is now in Tokyo. The sky: clear, or rain (the wet street that mirrors the screens).
+  const HOURS = [['blue', 'Blue hour'], ['night', 'Night'], ['live', 'Now']];
+  const SKIES = [['clear', 'Clear'], ['rain', 'Rain']];
+  const KEEP = 'oe-walk'; // (the last walk's hour and sky, kept in this browser: the next one is offered at them)
+  const SKY_WORD = { clear: 'Clear', overcast: 'Overcast', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', storm: 'Storm', snow: 'Snow' };
+
+  function create(ctx) {
+    const q = sel => ctx.stage.querySelector(sel), title = q('#g-title');
+    let spec = { t: 'blue', w: 'clear' };
+    try { const k = JSON.parse(localStorage.getItem(KEEP) || 'null'); if (k && HOURS.some(h => h[0] === k.t) && SKIES.some(s => s[0] === k.w)) spec = { t: k.t, w: k.w }; } catch (e) { /* storage blocked */ }
+    let isOpen = false, walking = false;
+
+    // ---- on the title: the second way in, and the step that asks the hour and the sky
+    const go = document.createElement('button');
+    go.type = 'button'; go.className = 'btn'; go.id = 'gt-walk-go';
+    go.innerHTML = '<span>Walk Shibuya</span><small>No story · your hour</small>';
+    const row = q('.gt-go');
+    if (row) row.appendChild(go);
+    const step = document.createElement('div');
+    step.className = 'gt-walk'; step.id = 'gt-walk'; step.hidden = true;
+    step.setAttribute('role', 'group'); step.setAttribute('aria-labelledby', 'gt-walk-l');
+    const seg = (k, list) => `<div class="gt-walk-seg" role="radiogroup" aria-label="${k === 't' ? 'The hour' : 'The sky'}" data-k="${k}">${list.map(([v, label]) => `<button type="button" role="radio" aria-checked="false" data-v="${v}"><b>${esc(label)}</b><small></small></button>`).join('')}</div>`;
+    step.innerHTML = `<span class="eyebrow" id="gt-walk-l">Walk Shibuya</span>
+<div class="gt-walk-row"><span>The hour</span>${seg('t', HOURS)}</div>
+<div class="gt-walk-row"><span>The sky</span>${seg('w', SKIES)}</div>
+<div class="gt-walk-acts"><button type="button" class="btn primary" id="gt-walk-set"><span>Set out</span><kbd>↵</kbd></button><button type="button" class="btn" id="gt-walk-back"><span>Back</span><kbd>Esc</kbd></button></div>`;
+    if (row) row.after(step); else if (title) title.querySelector('.gt-card').appendChild(step);
+    const blurb = q('#gt-blurb'), eyebrow = q('#gt-city');
+    let was = null; // (the title's own lines, put back when the step is left)
+    const LINE = 'No case and no clock running out: the crossing as it is, at the hour you choose, for as long as you like. Esc changes the hour and the sky as you go.';
+    const dateOf = t => (t === 'live' ? null : ctx.date);
+    function sync() {
+      for (const b of step.querySelectorAll('[data-k="t"] button')) {
+        b.setAttribute('aria-checked', String(b.dataset.v === spec.t));
+        b.querySelector('small').textContent = ctx.fmt(ctx.hourAt(b.dataset.v));
+      }
+      for (const b of step.querySelectorAll('[data-k="w"] button')) b.setAttribute('aria-checked', String(b.dataset.v === spec.w));
+      // (over the card, the evening as the walk will have it: the place, the date, the hour)
+      if (isOpen && eyebrow) { const d = dateOf(spec.t), c = d ? null : ctx.clock(); eyebrow.textContent = `${ctx.place.name.toUpperCase()} ${ctx.place.native} · ${d ? `${d[1]} ${MONTHS[d[0] - 1]}` : `${c.d} ${MONTHS[c.m - 1]}`} · ${ctx.fmt(ctx.hourAt(spec.t))}`.toUpperCase(); }
+    }
+    function open(on) {
+      if (on === isOpen) return;
+      if (on && !ctx.whoGate()) return; // (who you play first, as for the story)
+      isOpen = on;
+      step.hidden = !on;
+      title.toggleAttribute('data-walk', on);
+      if (on) {
+        was = { blurb: blurb ? blurb.textContent : '', eyebrow: eyebrow ? eyebrow.textContent : '' };
+        if (blurb) blurb.textContent = LINE;
+        sync(); ctx.preview(spec);
+        const b = step.querySelector('#gt-walk-set'); if (b) b.focus({ preventScroll: true });
+      } else {
+        if (was) { if (blurb) blurb.textContent = was.blurb; if (eyebrow) eyebrow.textContent = was.eyebrow; }
+        ctx.restore();
+        go.focus({ preventScroll: true });
+      }
+    }
+    function pick(k, v) {
+      if (spec[k] === v) return;
+      spec = Object.assign({}, spec, { [k]: v });
+      try { localStorage.setItem(KEEP, JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
+      sync(); ctx.preview(spec);
+    }
+    const turn = (k, d) => { const list = k === 't' ? HOURS : SKIES, i = list.findIndex(x => x[0] === spec[k]); pick(k, list[(i + d + list.length) % list.length][0]); };
+    function setOut() {
+      if (!isOpen || walking) return;
+      walking = true; isOpen = false; step.hidden = true;
+      title.removeAttribute('data-walk');
+      if (was) { if (blurb) blurb.textContent = was.blurb; if (eyebrow) eyebrow.textContent = was.eyebrow; }
+      try { localStorage.setItem(KEEP, JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
+      ctx.start(spec);
+    }
+    go.addEventListener('click', () => open(true));
+    step.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.id === 'gt-walk-set') return setOut();
+      if (b.id === 'gt-walk-back') return open(false);
+      const s = b.closest('[data-k]');
+      if (s && b.dataset.v) pick(s.dataset.k, b.dataset.v);
+    });
+    // the title's keys while the step is up: Enter sets out (or presses what the hand is on), Esc goes back, the arrows
+    // change the hour (left and right) and the sky (up and down)
+    function titleKey(c) {
+      if (!isOpen) return false;
+      const f = document.activeElement;
+      if (c === 'Enter') { if (f && f.tagName === 'BUTTON' && step.contains(f) && f.id !== 'gt-walk-set') f.click(); else setOut(); return true; }
+      if (c === 'Escape' || c === 'Backspace') { open(false); return true; }
+      if (c === 'ArrowLeft' || c === 'ArrowRight') { turn('t', c === 'ArrowLeft' ? -1 : 1); return true; }
+      if (c === 'ArrowUp' || c === 'ArrowDown') { turn('w', c === 'ArrowUp' ? -1 : 1); return true; }
+      return true; // (nothing else on the title while the step is up)
+    }
+
+    // ---- out in the street: where and when you are, in the goal's corner; the menu and the camera at the top right;
+    // the keys once, at the foot of the frame
+    const hud = document.createElement('div');
+    hud.id = 'g-walk-where'; hud.setAttribute('aria-live', 'off');
+    hud.innerHTML = '<small></small><span class="t"></span><em></em>';
+    const acts = document.createElement('div');
+    acts.id = 'g-walk-acts';
+    acts.innerHTML = `<button type="button" data-do="photo"><i class="cam" aria-hidden="true"></i><span>Photograph</span>${ctx.touch ? '' : '<kbd>O</kbd>'}</button><button type="button" data-do="menu"><i class="menu" aria-hidden="true"></i><span>Hour · sky · story</span>${ctx.touch ? '' : '<kbd>Esc</kbd>'}</button>`;
+    acts.addEventListener('click', e => { const b = e.target.closest('button[data-do]'); if (!b) return; e.stopPropagation(); (b.dataset.do === 'photo' ? ctx.photo : ctx.menu)(); });
+    acts.addEventListener('pointerdown', e => e.stopPropagation());
+    const keys = document.createElement('div');
+    keys.id = 'g-walk-keys';
+    ctx.stage.append(hud, acts, keys);
+    let shown = { where: '', t: '', em: '' }, keysT = 0, walked = 0, lastXY = null;
+    const keyLine = () => (ctx.touch
+      ? '<span>The stick walks · drag to look</span><span>Top right: the camera · the hour, the sky, the story</span>'
+      : `<span><kbd>${ctx.key('W')}</kbd><kbd>${ctx.key('A')}</kbd><kbd>${ctx.key('S')}</kbd><kbd>${ctx.key('D')}</kbd>walk</span><span><kbd>${ctx.key('Shift')}</kbd>run</span><span><kbd>${ctx.key('O')}</kbd>photograph</span><span><kbd>${ctx.key('Esc')}</kbd>the hour, the sky, the story</span>`);
+    function begin() {
+      ctx.stage.classList.add('walk-on');
+      hud.classList.add('on'); acts.classList.add('on');
+      keys.innerHTML = keyLine(); keys.classList.add('on'); keysT = 0; walked = 0; lastXY = null;
+      tick(0, null, true);
+    }
+    // each frame: the clock's minute, the area's name, the sky's word; the keys' line goes once you have walked a little
+    function tick(dt, at, force = false) {
+      if (!walking) return;
+      const c = ctx.clock(), w = ctx.where(), sky = SKY_WORD[ctx.sky()] || '';
+      const where = `${w.name} ${w.native || ''}`.trim(), t = ctx.fmt(c.min), em = `${c.d} ${MONTHS[c.m - 1]}${sky ? ` · ${sky}` : ''}`;
+      if (force || where !== shown.where) { hud.querySelector('small').textContent = where; if (!force) { hud.classList.remove('new'); void hud.offsetWidth; hud.classList.add('new'); } }
+      if (force || t !== shown.t) hud.querySelector('.t').textContent = t;
+      if (force || em !== shown.em) hud.querySelector('em').textContent = em;
+      shown = { where, t, em };
+      if (keys.classList.contains('on')) {
+        keysT += dt;
+        if (at) { if (lastXY) walked += Math.hypot(at[0] - lastXY[0], at[1] - lastXY[1]); lastXY = at; }
+        if ((keysT > 6 && walked > 25) || keysT > 16) keys.classList.remove('on');
+      }
+    }
+    return {
+      open, titleKey, begin, tick,
+      get isOpen() { return isOpen; }, get walking() { return walking; }, get spec() { return spec; },
+      // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
+      takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },
+      // (set out at once from a fresh page, with the hour and sky given: the story's last card where it could not go on in place, or a harness)
+      auto(s) { if (s) spec = { t: HOURS.some(h => h[0] === s.t) ? s.t : 'night', w: SKIES.some(k => k[0] === s.w) ? s.w : 'clear' }; isOpen = true; setOut(); },
+    };
+  }
+  return { create, HOURS, SKIES };
+})();

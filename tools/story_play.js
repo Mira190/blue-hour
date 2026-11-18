@@ -11,8 +11,9 @@
 // release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
 // The log (log.js): every line the dialogue shows is written down here as it is shown, and after frame 3 the log is opened
 // and must have the same lines in the same order; stills of it, and of the words at their largest with their backing.
-// The summation (the last frame's questions with `proof`): each is answered with a print or a pair first, then in words; SLIP=7
-// answers it wrongly until she is not answered. At the last card, how the case was worked must name a frame spent (SPEND=n).
+// The summation (the last frame's questions with `proof`): each is answered with a name (one of the case's people) first, then
+// a print or a pair; SLIP=7 answers it wrongly until she is not answered. Frame 5's liar is cross-examined: one of his
+// statements, then the print that breaks it (SLIP=5). At the last card, how the case was worked must name a frame spent (SPEND=n).
 // BACKTO=n: from the last card, frame n is gone back into, and played to its print.
 // LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
@@ -130,6 +131,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
+        for (const [cls, name] of [['said', 'press'], ['who', 'name']]) if (!seen.has(`${name}-${s.fi}`) && await p.evaluate(c => !!document.querySelector(`#gd-choices .${c}`), cls)) { seen.add(`${name}-${s.fi}`); await snap(`${s.fi + 1}-${name}`); } // (a statement to press, his own words; one of the case's people to name)
         const slip = +process.env.SLIP === s.fi + 1 && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
         if (slip) slipped = 1;
         { const pv = await p.evaluate(() => !!window.__game.story.state.proving); if (pv) proved++; const k = `summation-${pv ? 'evidence' : 'words'}`; if (s.fi === 6 && !seen.has(k)) { seen.add(k); await snap(`7-${k}`); } } // (the summation: the roll laid out with its pairs, then the words)
@@ -243,6 +245,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (pr.n !== s.fi + 1 || !pr.plain) { errors.push(`frame ${s.fi + 1}: spent from the wrong place, and the roll has ${pr.n} prints, the last ${pr.plain ? 'only tonight' : 'not marked spent'}`); console.log(errors[errors.length - 1]); }
         else console.log(`frame ${s.fi + 1}: spent`);
         await p.waitForTimeout(1500); await snap(`${s.fi + 1}-spent`); continue;
+      }
+      // the camera taught (task.teach, the first frame; story.js teach): raised off the light, nothing of the other year forms
+      // in the lines, the year over them says so, and the card still has the light to stand in (the raise ticked); in the
+      // light, the ground there is lit and the card ticks it; raised there, the thing forms. For a day the board stood in
+      // the finder from anywhere while the goal said to step into the light, and the light meant nothing
+      if (T.stand && T.subject && !seen.has(`teach-${s.fi}`) && await p.evaluate(() => !!window.__game.story.state.teach)) {
+        seen.add(`teach-${s.fi}`);
+        const card = () => p.evaluate(() => { const g = window.__game, st = g.story.state, e = document.getElementById('g-story-teach'), L = [...e.querySelectorAll('li')]; return { on: e.classList.contains('on'), now: L.findIndex(l => l.classList.contains('now')), done: L.map(l => (l.classList.contains('done') ? 1 : 0)).join(''), formed: st.relic ? +st.relic.k.toFixed(2) : -1, off: 'off' in document.getElementById('g-story-finder').dataset, here: g.lights().here, ready: !!st.ready }; });
+        const side = await p.evaluate(([st, sub]) => { const g = window.__game, pl = g.player, dx = sub[0] - st[0], dy = sub[1] - st[1], l = Math.hypot(dx, dy) || 1, r = (g.story.state.fr.task.within_m || 4) * 2 + 1; pl.x = st[0] + dy / l * r; pl.y = st[1] - dx / l * r; return r; }, [T.stand, T.subject]);
+        await face(T.subject); await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1200);
+        const off = await card(); await snap(`${s.fi + 1}-teach-off-the-light`);
+        console.log(`frame ${s.fi + 1} taught, raised ${side} m off the light:`, JSON.stringify(off));
+        if (!off.on || off.now !== 0 || off.done !== '0100' || off.formed !== 0 || !off.off || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the card on its first step with the raise ticked, nothing of 1964 formed, the year saying not from here, no light underfoot)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(4);
+        await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
+        const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
+        console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
+        if (inL.now !== 1 || inL.done !== '1000' || !inL.here) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do, the ground lit)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1500);
+        const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
+        console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));
+        if (up.formed < 1 || up.off || !up.ready || up.done !== '1110' || up.now !== 3) { errors.push(`frame ${s.fi + 1}: raised in the light, ${JSON.stringify(up)} (the thing formed in the lines, ready, the card at its last step)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(4);
       }
       if (T.stand) await goTo(T.stand, 0.6);
       // the camera raised as a player raises it, from wherever the view behind them looks (here 63 degrees off the thing
@@ -403,6 +428,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (+process.env.SPEND && !c.worked.includes(`Frame ${process.env.SPEND} spent`)) { errors.push(`the last card does not name frame ${process.env.SPEND}, spent`); console.log(errors[errors.length - 1]); }
     if (c.back < 7) { errors.push(`the last card offers ${c.back} frames to go back into`); console.log(errors[errors.length - 1]); }
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
+    if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
+      await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
+      await p.waitForTimeout(2500);
+      const look = () => p.evaluate(() => { const g = window.__game, s = document.getElementById('game-stage'), c = g.clock, pad = n => String(n).padStart(2, '0');
+        return { same: !!window.__samePage, on: s.classList.contains('walk-on'), card: document.getElementById('g-story-end').classList.contains('on'), title: !document.getElementById('g-title').hidden,
+          at: (document.querySelector('#g-walk-where .t') || {}).textContent || '', clock: `${pad(Math.floor(c.min / 60))}:${pad(Math.floor(c.min) % 60)}`, phase: g.story.state.phase, cast: Object.keys(g.story.state.cast).length, light: g.lights() }; });
+      const w = await look();
+      console.log('the last card\'s walk:', JSON.stringify(w));
+      if (!w.same) errors.push('the last card\'s Walk Shibuya opened the page again: the walk is to go on in the same night');
+      else if (!w.on || w.card || w.title) errors.push(`the last card's Walk Shibuya did not take up the walk where the case ended (walk ${w.on}, card ${w.card}, title ${w.title})`);
+      else if (w.at !== w.clock || w.light.story || w.light.objective) errors.push(`the walk after the case: the corner says ${w.at} at ${w.clock}, a light stands (${JSON.stringify(w.light)})`);
+      if (errors.length && /last card's|walk after the case/.test(errors[errors.length - 1])) console.log(errors[errors.length - 1]);
+      await snap('end-walk');
+      // the lens turned away from the evening's people and a few seconds given: they go once it no longer has them
+      await p.evaluate(async () => { const g = window.__game; g.cam.yaw += Math.PI; for (let i = 0; i < 60; i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } });
+      // (and the page's own frames given time with the lens held there: the story's tick, which lets them go, runs in the
+      // page's frame, not in the frames stepped here; on a loaded machine none had come before they were counted)
+      if (w.cast) await p.waitForFunction(n => Object.keys(window.__game.story.state.cast).length < n, w.cast, { timeout: 60000, polling: 250 }).catch(() => {});
+      const w2 = await look();
+      console.log(`the walk after the case: the evening's cast ${w.cast} as it began, ${w2.cast} once the lens had turned away`);
+      if (w.cast && w2.cast >= w.cast) errors.push(`the walk after the case: the evening's ${w.cast} people still stand there with the lens turned away from them`);
+      await snap('end-walk-away');
+    }
     if (+process.env.BACKTO > 1) { // into a frame again from the last card: the roll as it was on arriving there, played to its print
       const n = +process.env.BACKTO;
       await p.evaluate(n => document.querySelector(`#g-story-end [data-back="${n - 1}"]`).click(), n);
