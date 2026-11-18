@@ -849,6 +849,56 @@ is left in the opening on llvmpipe is the software renderer's own frame time and
 (game.js `glCheck`), whose wait for the GPU is the length of a frame on a real one. Not measured: a real iPhone, whose
 shader compiles (ANGLE to Metal) took 22 of the owner's 33 s of load.
 
+### The loader's compile (issue 27)
+
+The owner's iPhone (iOS 27 Safari, low tier) loaded the story in 33.3 s, 22 s of it between "built" and the first frame:
+the loader's warm-up, about 150 ms a program for the programs it waits for. `tools/entry_cost.js` now also prints the
+load's stages (the telemetry's marks), the loader's own frames from "built" to the first frame, every program linked
+before the first frame against when it was first drawn with (on the title, in the opening's first `SHOT` seconds, later,
+never), the materials and objects behind each one it need not have made, and the programs a draw linked (a hitch in its
+frame: no warm-up made them). What it counted on main, and what was done:
+
+- **A third were never drawn.** Of 126 programs (136 on the desktop tier), 69 were drawn on the title, 6 in the
+  opening's first seconds and 50 not in the watch at all:
+  - **the shadow pass's variant with no lights** (world.js `compileDepth`), ten programs. The shadow pass keys its
+    depth programs with the lights the scene's render state last set up, and the loader's own compile sets up the
+    scene's lights before the first frame, so the variant with none was never drawn with. Dropped.
+  - **things hidden when the loader compiles**: the rain's streaks and splashes, the stopped air's spares, a car's
+    and the helicopter's parts, the petals, the light show. The loader now compiles what is `shown()` (world.js: it and
+    every parent visible), and what is hidden behind the title (game.js `warmRest`, a slice a frame, held through the
+    opening's shots as the rain's mirror is). A hidden thing the opening shows says so with `userData.warmFirst` and
+    is in the first set: the city's light show (lights.js), which the story's evening reaches five seconds into the
+    opening, otherwise compiled in its draw there.
+  - **post passes that are off** (the opening's depth of field and motion blur, the anime look), and the screen's
+    variant of passes that never draw to the screen (bloom's blurs and its composite, nine programs: `warmPasses`
+    compiled the last three passes for the screen whether they were on or not). The first set is the passes that are
+    on, and the screen's variant of the last of them only; the rest come first in `warmRest`, before the tap needs them.
+- **Programs that were one shader.** The weather's patch (weather.js `wrap`) keyed a paving's or a pond's program by
+  the material's name, though its text is written by the patch's options alone: the Scramble's plaza, setts, inlay
+  and asphalt were four programs for one shader. Keyed by the options now.
+- **`KHR_parallel_shader_compile`.** llvmpipe's Chromium exposes it; world.js `compile` already polls it (three.js's
+  `isReady`) so that slices overlap the loader. Safari has listed it since iOS 14.5, but a WebKit bug
+  ([251514](https://bugs.webkit.org/show_bug.cgi?id=251514)) reports its compiles still block, which the owner's 22 s
+  agrees with. The telemetry now says which devices expose it (`pcompile` on every event, quality.js `probe`); the
+  count of programs is what helps either way.
+- **The loader's animation** is CSS transforms and opacity (plate.js), run by the compositor, so the main thread's
+  slices do not stop it; what made it stutter is the GPU process busy compiling, which fewer programs shortens.
+
+| llvmpipe, Play 7 s after the title (`tools/entry_cost.js`) | main | after |
+|---|---|---|
+| 390×844, low tier: programs linked before the first frame | 126 | 89 |
+| built to the first frame | 8.2 s, 9.4 s | 6.6 s, 6.8 s, 7.5 s |
+| programs made before the tap, all told | 168 | 152 |
+| 1440×900, high tier: programs linked before the first frame | 136 | 97 to 99 |
+| built to the first frame | 38.2 s, 48.7 s | 30.7 s, 31.3 s, 33.1 s |
+| programs a draw linked, title to 10 s into the opening | the same three people's programs on the title, and the instanced program below | the same |
+
+At about 150 ms a program, 37 fewer programs is about 5.5 s off the iPhone's 22 s; the iPhone's own number waits for the
+owner's device (the telemetry's `load` event: `build_ms` to `frame_ms`, and `pcompile`). Left as they were, on main as
+here: three people's programs (their characters arrive after the loader's compile and before `lib.warm` is set) are
+linked in the title's first frame, and on the desktop tier one instanced standard program is linked by a draw in the
+title and waited on in the tap (2 to 15 s on llvmpipe; issue 31).
+
 ## The build stage (issue 327)
 
 The telemetry's desktop loads spent about 10 s between "decoded" and "built". `tools/start_profile.js LOAD=1

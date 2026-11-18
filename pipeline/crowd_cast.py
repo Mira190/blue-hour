@@ -60,12 +60,19 @@ def cast(info):
         want |= {cid, *g.get("crowd", {}).get("real_from", [])}
     npcs = info["npcs"]["characters"]
     names = {n for n, c in npcs.items() if set(c.get("cities", [])) & want and not UNIFORM.search(n)}
-    # ... or the cast a map names for its streets (game.crowd.cast: as many of each sex as the desktop draws, HIGH_CAST)
+    # ... or the cast a map names for its streets (game.crowd.cast: as many of each sex as the desktop draws, HIGH_CAST),
+    # leaving out, as game.js realCast does, whoever wears a face Kagami wears (people.json "heroes") or is one of the
+    # people the story names
+    face = lambda c: c.get("head") or c.get("avatar")
+    kagami = {face(h) for h in info.get("heroes", {}).get("characters", {}).values()}
     named = set()
     for cid in live_cities():
-        cc = json.load(open(os.path.join(ROOT, "cities", cid, "city.json"))).get("game", {}).get("crowd", {}).get("cast")
+        g = json.load(open(os.path.join(ROOT, "cities", cid, "city.json"))).get("game", {})
+        cc = g.get("crowd", {}).get("cast")
         if cc:
-            named |= set(cc.get("f", [])[:HIGH_CAST // 2]) | set(cc.get("m", [])[:HIGH_CAST // 2])
+            story = set(re.findall(r'"character": "([^"]+)"', json.dumps(g.get("story", {}))))
+            walks = [n for n in cc.get("f", []) + cc.get("m", []) if n in npcs and face(npcs[n]) not in kagami and n not in story]
+            named |= set([n for n in walks if npcs[n]["sex"] == "f"][:HIGH_CAST // 2]) | set([n for n in walks if npcs[n]["sex"] != "f"][:HIGH_CAST // 2])
     return sorted((named if named else names) & set(npcs))
 
 

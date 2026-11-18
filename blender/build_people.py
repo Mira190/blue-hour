@@ -1,9 +1,11 @@
-"""The game's main characters (the surveyors you play), from Microsoft Rocketbox (MIT): its
+"""The game's main character (Kagami, whom you play, as a woman or a man), from Microsoft Rocketbox (MIT): its
 avatars, made by artists and rigged on a 3ds Max Biped, with its motion-captured clips on the
 same skeleton. Each clip is copied onto the avatar bone by bone in world space (the avatars'
 bind pose and the clips' rest pose differ, so local rotations would not carry over), with the
 walk, run and sprint kept in place and their ground speed read from the clip's own extracted
-root motion. Textures are shrunk and written as WebP inside one glTF binary per character.
+root motion. Textures are shrunk and written as WebP inside one glTF binary per character. Kagami
+wears a Japanese face (another avatar's head, as the NPCs do), clothes taken to the colours Tokyo
+wears in October (dress), and a camera round the neck (neck_camera).
 
 The NPCs (--npcs) are Rocketbox avatars too: every R_<avatar>[_<head>][_<tag>...] character a
 city's game.npcs names (pipeline/fetch_rocketbox.py, npc_cast). An avatar can wear another
@@ -61,9 +63,31 @@ LOOPS = {"Idle", "Idle_Neutral", "Walk", "Run", "Sprint", "Talk", "Listen"}
 MAX_FRAMES = 12 * FPS
 LOOP_BLEND = 24   # frames
 
+# Kagami 鏡 (docs/STORY.md section 5), a photographer of streets in Tokyo, about thirty: one person as a woman or a man.
+# head: the avatar whose head (face, scalp and hair) the body wears; tags: as an NPC's (HAIR...); dress: [part, colour,
+# (seed)] (DRESS_BONES, sRGB), each part's cloth (or the garment of the seed's colour on it) taken to the colour with its
+# folds; camera: the camera round the neck (neck_camera).
+# Dressed as Tokyo dresses in October, and as the one who looks into things: camel over black, the colours of a
+# trench coat and a black turtleneck, the detective's and the artist's. Clean lines, nothing printed, light over dark,
+# no more than four colours, shoes to walk an evening in. She: a camel double-breasted jacket (it reads as a short
+# trench) over a plain black turtleneck (its stripes taken out), black wide trousers and flats, her own long black hair,
+# lying over the camera's strap (Female_Adult_03's face: Yuna wears another, so that they are not twins at the lift,
+# and the crowd's near walkers leave out the faces Kagami wears, game.js realCast). He: a camel chore jacket over a
+# black shirt open on a black T-shirt (the brick check taken to black), black denim and dark brown shoes
+# (Male_Adult_10's face: Taro on the roof wears another now). Neither body is in the crowd's cast or on anyone the
+# story names (docs/STORY.md "Who you are, to look at").
+# (the colours, sRGB, written out since pipeline/fetch_rocketbox.py reads this table as a literal: camel
+# (0.58, 0.48, 0.34); soft black (0.07, 0.07, 0.075), from her knit's grey and white (0.6, 0.6, 0.6) and his shirt's brick
+# (0.39, 0.23, 0.18); black denim (0.11, 0.11, 0.12); dark brown (0.09, 0.066, 0.052), from the shoes' (0.15, 0.106,
+# 0.086): the feet's own middle is the trousers' hems)
 CHARACTERS = {
-    "H_Surveyor_W": {"label": "Surveyor (woman)", "avatar": "Professions/Construction_Female_01", "sex": "f"},
-    "H_Surveyor_M": {"label": "Surveyor (man)", "avatar": "Professions/Construction_Male_08", "sex": "m"},
+    "H_Kagami_W": {"label": "Kagami (woman)", "avatar": "Professions/Business_Female_02", "head": "Adults/Female_Adult_03",
+                   "tags": [], "dress": [["top", [0.58, 0.48, 0.34]], ["chest", [0.07, 0.07, 0.075], [0.6, 0.6, 0.6], 0.1]],
+                   "camera": True, "sex": "f"},
+    "H_Kagami_M": {"label": "Kagami (man)", "avatar": "Adults/Male_Adult_07", "head": "Adults/Male_Adult_10",
+                   "tags": [], "dress": [["top", [0.58, 0.48, 0.34]], ["top", [0.07, 0.07, 0.075], [0.39, 0.23, 0.18], 0.25],
+                                         ["legs", [0.11, 0.11, 0.12]], ["feet", [0.09, 0.066, 0.052], [0.15, 0.106, 0.086]]], "camera": True,
+                   "sex": "m"},
 }
 
 # the NPCs' clips: the main characters' gestures (NPC_BASE, in every NPC's file), and what an NPC
@@ -114,6 +138,16 @@ WEAPON = re.compile(r"_(pistol|shotgun|machinegun|combat_knife)$")   # what "pla
 PATTERN = {"leopard", "mariniere"}
 TOP_BONES = {"Bip01 Spine", "Bip01 Spine1", "Bip01 Spine2", "Bip01 Neck", "Bip01 L Clavicle", "Bip01 R Clavicle",
              "Bip01 L UpperArm", "Bip01 R UpperArm", "Bip01 L Forearm", "Bip01 R Forearm"}
+# a main character's dress parts (CHARACTERS "dress"): the bones that move each part's cloth
+# (a jacket's skirts hang over the hips and are weighted to the thighs: the top takes them, and the trousers under them
+# keep their own colour by their hue; the cuffs are weighted to the hands, whose skin keeps its colour by its hue; a
+# trouser's waist is the pelvis's and its hems the feet's)
+DRESS_BONES = {"top": TOP_BONES | {"Bip01 Pelvis", "Bip01 L Thigh", "Bip01 R Thigh", "Bip01 L Hand", "Bip01 R Hand"},
+               "legs": {"Bip01 L Thigh", "Bip01 R Thigh", "Bip01 L Calf", "Bip01 R Calf", "Bip01 Pelvis", "Bip01 L Foot", "Bip01 R Foot"},
+               "feet": {"Bip01 L Foot", "Bip01 R Foot", "Bip01 L Toe0", "Bip01 R Toe0"},
+               # (what shows of a knit under a buttoned jacket: the neck and the V of the chest, not the waist, where
+               # the trousers have the same grey as its stripes)
+               "chest": {"Bip01 Spine1", "Bip01 Spine2", "Bip01 Neck", "Bip01 L Clavicle", "Bip01 R Clavicle"}}
 
 # the old characters' bone names (people.js: accessories, the head turn, the seated legs) on this
 # rig, as three.js names its nodes (spaces become underscores)
@@ -534,7 +568,7 @@ def swap_head(arm, mesh, donor):
     one's is; the move between them is applied anyway, and its vertex groups join by name."""
     da, dm = import_avatar(donor)
     drop_faces(dm, lambda n: not HEADISH.search(n))
-    drop_faces(mesh, lambda n: bool(HEADISH.search(n)))
+    drop_faces(mesh, lambda n: bool(HEADISH.search(n)) or n.endswith("_glasses"))   # (glasses were made for the old face)
     to = (arm.matrix_world @ arm.data.bones["Bip01 Head"].matrix_local) @ (da.matrix_world @ da.data.bones["Bip01 Head"].matrix_local).inverted()
     dm.data.transform(mesh.matrix_world.inverted() @ to @ dm.matrix_world)
     for md in list(dm.modifiers):
@@ -583,7 +617,7 @@ def fix_hair_cards(mesh):
         if not node:
             continue
         for link in list(bsdf.inputs["Alpha"].links):
-            if link.from_node is not node:
+            if link.from_node.name != node.name:   # (by name: two wrappers of one node are not the same Python object)
                 mat.node_tree.nodes.remove(link.from_node)
         mat.node_tree.links.new(node.outputs["Alpha"], bsdf.inputs["Alpha"])
         px = pixels(node.image)
@@ -771,6 +805,324 @@ def print_pattern(mesh, kind):
         shade = np.clip(luma(px) / max(1e-3, np.median(luma(px)[m > 0.5])), lo, hi)[..., None]
         px[..., :3] = px[..., :3] * (1 - m[..., None]) + np.clip(col * shade, 0, 1) * m[..., None]
         put_pixels(node.image, px)
+
+
+DRESSED = {}   # a body picture's name -> its pixels before the first dress (cleared for each main character)
+
+
+def dress(mesh, part, colour, seed=None, flat=0.4):
+    """The cloth of a part of the body (DRESS_BONES) taken to colour (sRGB), lit as it was: every texel on that part
+    whose hue is the hue of the part's middle (the faces only its own bones move), or of seed (sRGB: another garment
+    on the part, as a shirt under a jacket), whatever its folds do to its shade. A garment picked by its seed loses
+    most of its own pattern with its colour (a check taken to ecru would read as a print): its shading is softened, to
+    the power flat (a stripe taken to plain black: 0.1).
+    The sleeve to its cuff, which a Biped weights to the hand (it has no twist bones; the TOP tag leaves the cuffs), but
+    not the skin: round the hands, a texel whose hue is nearer the fingers' than the cloth's.
+    Another garment on the same part (a shirt under the jacket, a striped knit) has another hue and keeps it."""
+    vs = mesh.data.vertices
+    second = seed is not None
+    group = lambda names: {mesh.vertex_groups[n].index for n in mesh.vertex_groups.keys() if n in names or any(k in n for k in names if k.startswith(" "))}
+    bones, hands = group(DRESS_BONES[part]), group((" Hand", " Finger"))
+    middle = group({"top": {"Bip01 Spine", "Bip01 Spine1", "Bip01 Spine2"}, "legs": {"Bip01 L Thigh", "Bip01 R Thigh"}, "feet": DRESS_BONES["feet"],
+                    "chest": {"Bip01 Spine1", "Bip01 Spine2"}}[part])
+    weight = lambda i, gs: sum(g.weight for g in vs[i].groups if g.group in gs)
+    for slot in mesh.material_slots:
+        mat = slot.material
+        node = mat and mat.name.endswith("_body") and base_image(mat)
+        if not node:
+            continue
+        w, h = node.image.size
+        mine = [p for p in mesh.data.polygons if mesh.material_slots[p.material_index].material is mat]
+        px = pixels(node.image)
+        src = DRESSED.setdefault(node.image.name, px.copy())   # (every part is found on the picture as the artists painted it)
+        seed_m = uv_mask(mesh, [p for p in mine if all(weight(i, middle) > 0.8 for i in p.vertices)], w, h, grow=0) > 0.5
+        if seed_m.sum() < 1000:
+            continue
+        seed = np.median(src[seed_m, :3], axis=0) if seed is None else np.array(seed, np.float32)
+        on = uv_mask(mesh, [p for p in mine if sum(weight(i, bones) for i in p.vertices) > 0.5 * len(p.vertices)], w, h, grow=1)
+        hue = lambda c: c / np.maximum(luma(c), 0.02)[..., None]
+        d = np.linalg.norm(hue(src[..., :3]) - hue(seed[None, None])[0, 0], axis=-1)   # by hue, not by shade
+        m = on * np.clip(1 - (d - 0.22) / 0.1, 0, 1)
+        fingers = uv_mask(mesh, [p for p in mine if all(weight(i, hands) > 0.9 for i in p.vertices)], w, h, grow=0) > 0.5
+        if fingers.sum() > 200 and part != "feet":   # the skin, by the colour of the fingers: on and round the hands, a
+            # texel nearer it than the cloth is skin (nowhere else: a brown check's dark lines are as near the skin's hue)
+            skin = np.median(src[fingers, :3], axis=0)
+            near = uv_mask(mesh, [p for p in mine if any(weight(i, hands) > 0.3 for i in p.vertices)], w, h, grow=4) > 0.5
+            m *= ~near | (np.linalg.norm(hue(src[..., :3]) - hue(skin[None, None])[0, 0], axis=-1) > d)
+        if not (m > 0.5).any():
+            continue
+        shade = np.clip(luma(src) / max(1e-3, np.median(luma(src)[m > 0.5])), 0.35, 1.6)[..., None]
+        if second:
+            shade = shade ** flat
+        px[..., :3] = px[..., :3] * (1 - m[..., None]) + np.clip(np.array(colour) * shade, 0, 1) * m[..., None]
+        put_pixels(node.image, px)
+
+
+def neck_camera(arm, mesh):
+    """A camera hung round the neck, the way a working photographer carries one between pictures: a black digital SLR
+    with a standard zoom on a black strap, resting on the chest with its lens tipped down by its weight. It says from
+    the front and from the side what Kagami does for a living, and it hangs where the arms do not swing (a bag on the
+    hip was in the hand's way at every step). The strap goes round the back of the neck on the collar, over the
+    collarbones and down to the camera's lugs, kept just off the cloth and under the hair; it is weighted as the
+    cloth under it is, blended into the chest over its last 12 cm, and the camera rides on the chest (Spine2). Made in
+    the bind pose and joined to the body's mesh, so it is skinned with it. No maker's shape or name: a camera's form.
+    Also the strap for the camera of 1964 (camera_strap1964, which the page shows once Sumiko has given it, and hides
+    till then), and where that camera rests on the chest ("old": its middle and its axes, in three.js's model space:
+    x to the holder's left, y up, z out of the lens), with this one's lugs and frame."""
+    import bmesh
+    from mathutils import Vector, Matrix
+    from mathutils.bvhtree import BVHTree
+    M = mesh.matrix_world
+    bone = lambda n: arm.matrix_world @ arm.data.bones[n].head_local
+    up = Vector((0, 0, 1))
+    fwd = (bone("Bip01 REye") + bone("Bip01 LEye")) / 2 - bone("Bip01 Head")
+    fwd.z = 0
+    fwd.normalize()
+    left = up.cross(fwd).normalized()
+    vs = mesh.data.vertices
+    names = {g.index: g.name for g in mesh.vertex_groups}
+    W = [M @ v.co for v in vs]
+    mesh.data.calc_loop_triangles()
+    ARMS = (" UpperArm", " Forearm", " Hand", " Finger")
+    on_arm = lambda i: sum(g.weight for g in vs[i].groups if any(k in names[g.group] for k in ARMS))
+    mat_of = lambda t: mesh.material_slots[t.material_index].name
+    # what the strap and the camera lie on: the body and the neck's skin, not the arms (out from the body in the bind
+    # pose), the hair cards or the face
+    rest = [t for t in mesh.data.loop_triangles if not mat_of(t).endswith("_opacity") and sum(on_arm(i) for i in t.vertices) < 0.5]
+    body_tris = [t for t in rest if not mat_of(t).endswith("_head")]
+    bvh = BVHTree.FromPolygons(W, [tuple(t.vertices) for t in rest])
+    bvh_body = BVHTree.FromPolygons(W, [tuple(t.vertices) for t in body_tris])
+
+    def off(p, gap, n_iter=3):
+        """p, lifted out of the body to gap over its nearest surface where it lies nearer or inside."""
+        for _ in range(n_iter):
+            h, nrm, _, _ = bvh.find_nearest(p)
+            if h is None:
+                return p
+            s = (p - h).dot(nrm)
+            if s >= gap:
+                return p
+            p = p + nrm * (gap - s)
+        return p
+
+    # the camera: its back to the chest 26 cm under the base of the neck, tipped 38 degrees, lens down
+    neck = bone("Bip01 Neck")
+    z_cam = neck.z - 0.26
+    front = 0.0
+    for dx in (-0.08, -0.04, 0.0, 0.04, 0.08):
+        for dz in (0.06, 0.0, -0.06):
+            o = Vector((neck.x, neck.y, z_cam + dz)) + left * dx
+            hit = bvh_body.ray_cast(o + fwd * 0.5, -fwd)[0]
+            if hit is not None:
+                front = max(front, (hit - neck).dot(fwd))
+    tilt = math.radians(38)
+    A = (fwd * math.cos(tilt) - up * math.sin(tilt)).normalized()   # the lens's axis
+    T = (up * math.cos(tilt) + fwd * math.sin(tilt)).normalized()   # the camera's top
+    R = -left                                                       # its right, as the one carrying it holds it
+    BW, BH, BD = 0.136, 0.094, 0.07
+    # the body's back corners 1.2 cm off the cloth: the nearest of them sets how far out the camera hangs
+    base = Vector((neck.x, neck.y, z_cam)) + fwd * front
+    back = min(((base + R * (sx * BW / 2) + T * (sy * BH / 2) - A * (BD / 2)) - base).dot(fwd) for sx in (-1, 1) for sy in (-1, 1))
+    C = base + fwd * (0.012 - back)
+    verts, faces, kinds = [], [], []
+
+    def add(bm, kind, frame):
+        """bmesh's geometry, in the frame (a 4x4 to the world), as faces of kind."""
+        b0 = len(verts)
+        bm.verts.index_update()
+        verts.extend(frame @ v.co for v in bm.verts)
+        for f in bm.faces:
+            faces.append(tuple(b0 + v.index for v in f.verts)); kinds.append(kind)
+        bm.free()
+
+    def frame_at(c):
+        return Matrix(((R.x, T.x, A.x, c.x), (R.y, T.y, A.y, c.y), (R.z, T.z, A.z, c.z), (0, 0, 0, 1)))
+
+    def block(c, w, h, d, kind, bevel):
+        """A box w x h x d (right, top, lens) at c in the camera's frame, its edges chamfered."""
+        bm = bmesh.new()
+        for x in (-1, 1):
+            for y in (-1, 1):
+                for z in (-1, 1):
+                    for k in range(3):
+                        p = [x * w / 2, y * h / 2, z * d / 2]
+                        p[k] -= (x, y, z)[k] * bevel
+                        bm.verts.new(p)
+        bmesh.ops.convex_hull(bm, input=bm.verts)
+        add(bm, kind, frame_at(C + R * c[0] + T * c[1] + A * c[2]))
+
+    def ring(z0, length, r0, r1, kind, segs=28):
+        """A ring of the lens from z0 along the axis: radius r0 at its back, r1 at its front."""
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=segs, radius1=r0, radius2=r1, depth=length)
+        add(bm, kind, frame_at(C + A * (z0 + length / 2)))
+
+    block((0, 0, 0), BW, BH, BD, "camera", 0.012)                       # the body
+    block((0.052, -0.004, 0.012), 0.034, 0.088, 0.088, "rubber", 0.012)  # the grip, under the right hand
+    block((0, BH / 2 + 0.013, -0.006), 0.062, 0.03, 0.056, "camera", 0.01)   # the prism's housing
+    block((0, BH / 2 + 0.027, -0.008), 0.04, 0.012, 0.04, "camera", 0.005)
+    block((0, 0.014, BD / 2 + 0.001), 0.072, 0.06, 0.004, "camera", 0.002)   # the mount's plate
+    ring(BD / 2 + 0.003, 0.007, 0.034, 0.034, "metal")                      # the mount
+    ring(BD / 2 + 0.01, 0.024, 0.036, 0.037, "camera")                      # the barrel
+    ring(BD / 2 + 0.034, 0.034, 0.039, 0.039, "rubber")                     # the zoom ring
+    ring(BD / 2 + 0.068, 0.006, 0.0385, 0.0385, "metal")                    # a thin line of metal
+    ring(BD / 2 + 0.074, 0.022, 0.039, 0.039, "rubber")                     # the focus ring
+    ring(BD / 2 + 0.096, 0.012, 0.039, 0.041, "camera")                     # the lens's front
+    ring(BD / 2 + 0.108, 0.002, 0.031, 0.031, "glass")                      # the front glass
+    for sx in (-1, 1):
+        block((sx * (BW / 2 + 0.004), BH / 2 - 0.022, -0.012), 0.008, 0.016, 0.012, "metal", 0.002)   # the strap's lugs
+    block((-0.042, BH / 2 + 0.006, -0.01), 0.026, 0.012, 0.026, "rubber", 0.004)   # the dials
+    block((0.044, BH / 2 + 0.004, -0.004), 0.03, 0.008, 0.03, "rubber", 0.003)
+    n_cam = len(verts)
+    lugs = [C + R * (sx * (BW / 2 + 0.006)) + T * (BH / 2 - 0.022) - A * 0.012 for sx in (1, -1)]   # right, left
+
+    # the camera of 1964, once Sumiko has given it (people.js camera1964 draws it; its numbers are in people.json): a light
+    # rangefinder hangs flat on the chest, nearly level, its back on the coat where the chest stands furthest out under
+    # it, lower than this one; on its own thin leather strap, made here and shown by the page in place of this one
+    OW, OH, OD = 0.138, 0.076, 0.032   # (as people.js oldCamera: its lugs at its ends, 1.8 cm over its middle)
+    otilt = math.radians(10)
+    oA, oT = (fwd * math.cos(otilt) - up * math.sin(otilt)).normalized(), (up * math.cos(otilt) + fwd * math.sin(otilt)).normalized()
+    oz, ofront = neck.z - 0.25, 0.0
+    for dx in (-0.06, -0.03, 0.0, 0.03, 0.06):
+        for dz in (0.035, 0.0, -0.035):
+            o = Vector((neck.x, neck.y, oz + dz)) + left * dx
+            hit = bvh_body.ray_cast(o + fwd * 0.5, -fwd)[0]
+            if hit is not None:
+                ofront = max(ofront, (hit - neck).dot(fwd))
+    obase = Vector((neck.x, neck.y, oz)) + fwd * ofront
+    oback = min(((obase + R * (sx * OW / 2) + oT * (sy * OH / 2) - oA * (OD / 2)) - obase).dot(fwd) for sx in (-1, 1) for sy in (-1, 1))
+    oC = obase + fwd * (0.004 - oback)
+    olugs = [oC + R * (sx * (OW / 2 + 0.002)) + oT * 0.018 for sx in (1, -1)]   # right, left
+
+    # the straps: round the back of the neck at the collar (a ray in from each side to the outermost cloth or skin), and
+    # from each side of the neck straight to the camera's lugs, lifted off the cloth where the line would sink into it.
+    # They lie close (GAP), under long hair as a strap does: the hair cards hang further out, and cover them
+    GAP = 0.0035
+    z_col = neck.z + 0.025
+    centre = Vector((neck.x, neck.y, z_col))
+    back_arc = []
+    for k in range(25):   # from the right side round the back to the left
+        a = math.radians(-90 - 180 * k / 24)
+        d = (fwd * math.cos(a) + left * math.sin(a)).normalized()
+        hit = bvh.ray_cast(centre + d * 0.4, -d)[0]
+        if hit is not None:
+            back_arc.append(hit + d * GAP)
+    if len(back_arc) < 12:
+        raise SystemExit("neck_camera: no neck found")
+
+    def strap_line(ends):   # right lug -> right side of the neck -> round the back -> left side -> left lug
+        down_r = [off(ends[0] + (back_arc[0] - ends[0]) * (j / 16), GAP) for j in range(0, 16)]
+        down_l = [off(back_arc[-1] + (ends[1] - back_arc[-1]) * (j / 16), GAP) for j in range(1, 17)]
+        line = down_r + back_arc + down_l
+        for _ in range(2):   # a strap's curves, not corners; lifted off again after
+            line = [line[0]] + [line[i - 1] * 0.25 + line[i] * 0.5 + line[i + 1] * 0.25 for i in range(1, len(line) - 1)] + [line[-1]]
+            line = [line[0]] + [off(p, GAP) for p in line[1:-1]] + [line[-1]]
+        return line
+
+    strap_end = []   # for each strap vertex, how far along its strap it is from the nearer end (for the weights)
+
+    def ribbon(line, half, kind):   # 2 mm thick; its width lies along the cloth (across the line and the surface's normal)
+        s0 = len(verts)
+        for i, c in enumerate(line):
+            tan = (line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]).normalized()
+            h, nrm, _, _ = bvh.find_nearest(c)
+            nrm = nrm if h is not None else fwd
+            wdir = tan.cross(nrm).normalized()
+            for o in (-0.001, 0.001):
+                verts.extend([c + nrm * o + wdir * half, c + nrm * o - wdir * half])
+        for i in range(len(line) - 1):
+            a, b = s0 + i * 4, s0 + (i + 1) * 4
+            for q in ((0, 2), (2, 3), (3, 1), (1, 0)):
+                faces.append((a + q[0], b + q[0], b + q[1], a + q[1])); kinds.append(kind)
+        along = [0.0]
+        for i in range(1, len(line)):
+            along.append(along[-1] + (line[i] - line[i - 1]).length)
+        strap_end.extend(min(t, along[-1] - t) for t in along for _ in range(4))
+
+    lines = [strap_line(lugs), strap_line(olugs)]
+    ribbon(lines[0], 0.011, "strap")          # 2.2 cm black webbing
+    ribbon(lines[1], 0.0075, "strap1964")     # 1.5 cm brown leather
+    # long hair lies over the straps: a hair card's vertex within 3 cm of one is lifted off the body to clear it (fully
+    # within 1.5 cm, less further off), so that the cards cover the strap and nothing of it shows through them
+    from mathutils.kdtree import KDTree
+    kd = KDTree(sum(len(ln) for ln in lines))
+    for i, c in enumerate(c for ln in lines for c in ln):
+        kd.insert(c, i)
+    kd.balance()
+    clear, inv_m = GAP + 0.009, M.inverted()
+    lifted = 0
+    for p in mesh.data.polygons:
+        if not mesh.material_slots[p.material_index].name.endswith("_opacity"):
+            continue
+        for i in p.vertices:
+            v = W[i]
+            _, _, dist = kd.find(v)
+            if dist > 0.03:
+                continue
+            h, nrm, _, _ = bvh.find_nearest(v)
+            if h is None:
+                continue
+            s_ = (v - h).dot(nrm)
+            if s_ < clear:
+                k = 1.0 if dist < 0.015 else (0.03 - dist) / 0.015
+                W[i] = v + nrm * (clear - s_) * k
+                vs[i].co = inv_m @ W[i]
+                lifted += 1
+    if lifted:
+        print(f"  neck_camera: {lifted} hair vertices lifted over the straps")
+
+    me = bpy.data.meshes.new("neck_camera")
+    inv = M.inverted()
+    me.from_pydata([inv @ v for v in verts], [], faces)
+    mats = {}
+    for kind, col, rough, metal in (("camera", (0.032, 0.032, 0.034), 0.55, 0.0), ("rubber", (0.022, 0.022, 0.023), 0.9, 0.0),
+                                    ("metal", (0.46, 0.46, 0.47), 0.32, 1.0), ("glass", (0.02, 0.026, 0.04), 0.06, 0.0),
+                                    ("strap", (0.028, 0.028, 0.03), 0.8, 0.0), ("strap1964", (0.20, 0.11, 0.06), 0.55, 0.0)):
+        m = bpy.data.materials.new(f"camera_{kind}")
+        m.use_nodes = True
+        bsdf = m.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Base Color"].default_value = (*[c ** 2.2 for c in col], 1)   # (sRGB to the linear the node takes)
+        bsdf.inputs["Roughness"].default_value = rough
+        bsdf.inputs["Metallic"].default_value = metal
+        me.materials.append(m)
+        mats[kind] = len(me.materials) - 1
+    for p, kind in zip(me.polygons, kinds):
+        p.material_index = mats[kind]
+        p.use_smooth = kind in ("strap", "strap1964", "rubber", "metal")
+    ob = bpy.data.objects.new("neck_camera", me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.matrix_world = M
+    groups = {}
+    vg = lambda name: groups.get(name) or groups.setdefault(name, ob.vertex_groups.new(name=name))
+    for vi, v in enumerate(verts):
+        if vi < n_cam:
+            vg("Bip01 Spine2").add([vi], 1.0, "REPLACE")
+            continue
+        near = strap_end[vi - n_cam]
+        _, _, ti, _ = bvh_body.find_nearest(v)
+        wsum = {}
+        for i in body_tris[ti].vertices:
+            for g in vs[i].groups:
+                wsum[names[g.group]] = wsum.get(names[g.group], 0) + g.weight / 3
+        wsum.pop("Bip01 Head", None)   # (the strap does not turn with the head)
+        hold = max(0.0, min(1.0, (0.12 - near) / 0.12))
+        tot0 = sum(wsum.values()) or 1
+        wsum = {k2: w2 / tot0 * (1 - hold) for k2, w2 in wsum.items()}
+        wsum["Bip01 Spine2"] = wsum.get("Bip01 Spine2", 0) + hold
+        top4 = sorted(wsum.items(), key=lambda kv: -kv[1])[:4]
+        tot = sum(w2 for _, w2 in top4) or 1
+        for name, w2 in top4:
+            vg(name).add([vi], w2 / tot, "REPLACE")
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    mesh.select_set(True)
+    bpy.context.view_layer.objects.active = mesh
+    bpy.ops.object.join()
+    # where the strap meets the camera, and which way its lens and top face, in three.js's model space (glTF's y up:
+    # Blender's x, z, -y), for another camera hung on the same strap (people.js camera1964: the one of 1964)
+    three = lambda v: [round(v.x, 4), round(v.z, 4), round(-v.y, 4)]
+    return {"lugs": [three(lugs[0]), three(lugs[1])], "lens": three(A), "top": three(T), "centre": three(C),
+            "old": {"centre": three(oC), "x": three(left), "y": three(oT), "z": three(oA)}}
 
 
 def suit(arm, mesh, kind):
@@ -1042,6 +1394,17 @@ def build_npc(cid, spec):
     retouched by its tags."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     arm, mesh = import_avatar(spec["avatar"])
+    retouch(cid, arm, mesh, spec["head"], spec["tags"])
+    same_skeleton(cid, arm, spec["sex"])
+    arm.name = f"{cid}_Rig"
+    spec["skin"] = round(skin_mask(arm, mesh), 4)
+    return arm, mesh
+
+
+def retouch(cid, arm, mesh, head, tags):
+    """An avatar with another's head (head: its folder), without a hat if bare, its hair and clothes retouched by its
+    tags (an NPC's, or a main character's)."""
+    spec = {"head": head, "tags": tags}
     if spec["head"]:
         swap_head(arm, mesh, spec["head"])
     if "bare" in spec["tags"]:
@@ -1064,10 +1427,6 @@ def build_npc(cid, spec):
             suit(arm, mesh, tag)
         elif tag != "bare":
             raise SystemExit(f"{cid}: no tag {tag} (HAIR, CLOTH, PATTERN, TOP, SUIT, bare or plain)")
-    same_skeleton(cid, arm, spec["sex"])
-    arm.name = f"{cid}_Rig"
-    spec["skin"] = round(skin_mask(arm, mesh), 4)
-    return arm, mesh
 
 
 def build_npcs(only=None, clips=True):
@@ -1174,13 +1533,22 @@ def main():
         if args.only and cid not in args.only:
             continue
         bpy.ops.wm.read_factory_settings(use_empty=True)
-        rig = load_avatar(cid, spec)
+        rig, mesh = import_avatar(spec["avatar"])
+        retouch(cid, rig, mesh, spec.get("head"), spec.get("tags", []))
+        DRESSED.clear()
+        for part, colour, *seed in spec.get("dress", []):
+            dress(mesh, part, colour, *seed)
+        cam = neck_camera(rig, mesh) if spec.get("camera") else None
+        rig.name = f"{cid}_Rig"
         speeds = animate(rig, spec["sex"])
         mesh = next(c for c in rig.children if c.type == "MESH")
         tris = sum(len(p.vertices) - 2 for p in mesh.data.polygons)
         print(f"{cid}: {tris} triangles, {len(rig.data.bones)} bones, ground speeds {speeds}")
         if args.preview:
             out = os.path.join(ROOT, "docs", "images", "people"); os.makedirs(out, exist_ok=True)
+            later = [m.node_tree.nodes["Principled BSDF"] for m in bpy.data.materials if m.name.startswith("camera_strap1964")]
+            for n in later:   # (the strap of the camera of 1964 is not on until the first frame's photograph)
+                n.inputs["Alpha"].default_value = 0.0
             for clip, frame in (("Idle", 20), ("Walk", 10)):
                 for t in rig.animation_data.nla_tracks:
                     t.mute = t.name != clip
@@ -1188,13 +1556,21 @@ def main():
                 preview(rig, os.path.join(out, f"{cid}_{clip}.png"))
             for t in rig.animation_data.nla_tracks:
                 t.mute = False
+            for n in later:
+                n.inputs["Alpha"].default_value = 1.0
         if not args.no_export:
             out = os.path.join(ROOT, "web", "assets", "people")
             export(rig, os.path.join(out, f"{cid}.glb"))
-            heroes[cid] = {"file": f"{cid}.glb", "label": spec["label"], "avatar": spec["avatar"], "ground_speed": speeds,
+            heroes[cid] = {"file": f"{cid}.glb", "label": spec["label"], "avatar": spec["avatar"], "head": spec.get("head"), "ground_speed": speeds,
                            "height_m": round(max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices), 3), "triangles": tris,
-                           "clips": [t.name for t in rig.animation_data.nla_tracks]}
+                           "clips": [t.name for t in rig.animation_data.nla_tracks], **({"neck_camera": cam} if cam else {})}
     if not args.no_export:
+        for cid in [c for c in heroes if c not in CHARACTERS]:   # main characters there are no more of
+            heroes.pop(cid)
+            f = os.path.join(ROOT, "web", "assets", "people", f"{cid}.glb")
+            if os.path.exists(f):
+                os.remove(f)
+                print("removed", f)
         write_people_json(heroes)
 
 
