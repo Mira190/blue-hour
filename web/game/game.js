@@ -7652,7 +7652,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (clockT - vhudT < 0.3) return;
     vhudT = clockT;
-    const el = $('#g-vhud'), h = el.hidden ? 0 : Math.max(0, Math.round(stage.getBoundingClientRect().bottom - el.getBoundingClientRect().top) + 8 - 200);
+    // (measured only while it is drawn: the story's page keeps it out of sight with a style, not hidden, and a box that is
+    // not drawn measures its top as 0, which read as a readout the screen's whole height and lifted the prompt and the
+    // messages off its top, so that on a phone at the wheel of the walk's car Get out could not be seen or tapped)
+    const el = $('#g-vhud'), er = el.getBoundingClientRect(), h = el.hidden || !er.height ? 0 : Math.max(0, Math.round(stage.getBoundingClientRect().bottom - er.top) + 8 - 200);
     if (h !== vhudH) { vhudH = h; stage.style.setProperty('--vhud-h', `${h}px`); }
   }
   function vehicleHudFill() {

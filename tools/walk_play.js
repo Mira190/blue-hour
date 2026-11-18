@@ -182,7 +182,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     // (on a phone, the prompt is tapped where it is: nothing may lie over it, as the car's buttons once did over Get out)
     const act = async () => {
       if (phone) {
-        const over = await p.evaluate(() => { const b = document.getElementById('gp-main'), r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && !b.contains(e) ? (e.id || e.className || e.tagName) : ''; });
+        const over = await p.evaluate(() => { const b = document.getElementById('gp-main'), r = b.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2; if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return `nothing: it is off the screen at (${Math.round(x)}, ${Math.round(y)})`; const e = document.elementFromPoint(x, y); return e && !b.contains(e) ? (e.id || e.className || e.tagName) : ''; });
         if (over) fail(`on a phone, ${over} lies over the prompt ("${await prompt()}")`);
         await press('#gp-main');
       } else await p.keyboard.press('KeyE');
