@@ -149,6 +149,13 @@ The owner should not be the one who finds the bug.
   `tools/story_play.js` does. Stills force the desktop tier; a software renderer picks the low
   one for itself.
 - Say what you could not check: a real GPU, WebGPU, Safari or iOS.
+- On a phone every sound is made on the audio thread. iOS plays Web Audio in blocks of 2.7 ms, and anything the sound
+  waits on from another thread is starved by a busy page and heard as crackle: twice the owner's iPhone found it first
+  (the Stop's AudioWorklet, then the reverbs' long convolutions). No AudioWorklet, ScriptProcessorNode, second
+  AudioContext or media element's sound, and no ConvolverNode outside `audio.js` `reverb()`, which keeps a phone's
+  within WebKit's realtime limit (docs/SOUND.md, "Every sound on the audio thread"). `tools/check.sh` holds this
+  (`tools/audio_thread_check.py`, and the `audio` target); telemetry's `snd_stall` says when a phone's audio thread fell
+  behind.
 - A pose laid over an animation is taken off before the next frame. Twice a bone was turned after the mixer had posed
   it (an old woman's back, the guide dog's head to look at you), and wound round and round: the turn was added to the
   bone every frame, and the clip did not put the bone back (it does not key that bone, or the frame had no time in it:

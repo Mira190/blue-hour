@@ -19,9 +19,14 @@
 #             way (tools/flight_clear.py, tools/flight_frames.py);
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
+#           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
+#           (tools/reverb_check.js), and the opening and the story's own sound played as an iPhone, every convolver on
+#           the live context within WebKit's realtime limit, one context, no worklet (tools/phone_audio.js);
+#           when the sound changes;
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
 #   clip    what passes through what in the free game, ?walk=1 (tools/clip_check.js);
@@ -36,7 +41,7 @@
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static story ride mem clip gl touch astc
+#   tools/check.sh all                  # static story ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
@@ -48,8 +53,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story ride mem clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story ride mem audio clip gl touch astc game"   # the browser checks, in the order they run
+ALL="story ride mem audio clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -94,6 +99,8 @@ else
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_thread_check.py) static=1; add audio ;;
+      web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/*|cities/*) static=1; page ;;
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
@@ -157,6 +164,14 @@ run_mem() {
   if timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+}
+# every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
+run_audio() {
+  if timeout 900 node tools/reverb_check.js >"$OUT/reverb.log" 2>&1; then echo "ok   audio  $(grep -c '^ok' "$OUT/reverb.log") reverbs as a phone hears them, each within its tolerance of the whole convolution"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/reverb.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/reverb.log)"; fi
+  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
+    echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
 }
 run_clip() {
   if timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance"; return; fi
@@ -230,6 +245,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
+    st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
   fi
   for k in $KINDS; do is_in "$k" "$want" && "run_$k"; done
 } | tee "$OUT/summary.txt"
