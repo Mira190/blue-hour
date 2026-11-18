@@ -474,6 +474,8 @@
 #g-story-end .sheet li { min-width: 0; }
 #g-story-end .sheet img { width: 100%; }
 #g-story-end .sheet span { overflow: hidden; text-overflow: ellipsis; }
+/* (a phone's strip: "1 · 17:14" under a print 45 px wide was cut to "1 · 17…"; the frame over its hour instead) */
+@media (max-width: 640px) { #g-story-end .sheet span { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; text-align: center; overflow-wrap: anywhere; } }
 
 /* ---- with the camera up, on a desktop: the goal is one line over the frame lines, not a column across their corner
    (it lay over the finder's top left mark and the year), and the button that lowers the camera is clear of them too */
@@ -631,6 +633,9 @@
 @keyframes g-story-hint { 50% { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 18px rgba(255, 207, 138, 0.35); } }
 .game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
 @media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
+/* (on a phone held upright the camera's button is centred over the hint's corner, and wraps to two lines: the hint goes
+   above it, centred too, clear of Run on the right; tools/ui_fit.js) */
+@media (max-width: 640px) { #g-story-hint { right: auto; left: 50%; transform: translateX(-50%); bottom: max(222px, calc(env(safe-area-inset-bottom) + 222px)); white-space: nowrap; } }
 @media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }
 
 /* ---- the walk (walk.js): the title's second way in, and the street with no story in it.
@@ -803,3 +808,34 @@
 }
 /* the menu opened from the story on a phone: never wider than the screen, its close button on it (as the walk's) */
 .game-stage.story .g-overlay { grid-template-columns: minmax(0, 1fr); }
+
+/* (the dialogue never taller than the screen: the largest words, a question and four statements came off the top of a
+   320 px phone; it scrolls instead) */
+.game-stage.story .g-dialog { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; }
+/* ---- a phone held on its side, and any screen under 520 px tall (tools/ui_fit.js at 844x390): what stands at the
+   foot of an upright phone's frame has a third of the height. The dialogue keeps to the screen and scrolls if it must,
+   with its top margin taken in; a row of prints is one row of pictures without their lines (as on an upright phone);
+   the job sheet scrolls; the camera's button, raised, goes up to the menu's corner, clear of Run; and the first
+   frame's lesson shows the step to do now, under the goal and over the stick */
+@media (max-height: 520px) {
+  .game-stage.story .g-dialog { padding-top: 26px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .game-stage.story:is(.words-1, .words-2) .g-dialog { padding-top: 26px; }
+  .game-stage.story .g-dialog p { margin: 8px auto 10px; min-height: 0; font-size: 17px; line-height: 1.45; }
+  .game-stage.story.words-1 .g-dialog p { font-size: 19px; } .game-stage.story.words-2 .g-dialog p { font-size: 21px; }
+  .game-stage.story .gd-choices:has(.pr) { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 7px; max-width: 100%; }
+  .gd-choices .pr span { display: none; }
+  .gd-choices .pr :is(img, i) { aspect-ratio: 16 / 9; }
+  #g-story-order { inset: 0; align-content: end; }
+  #g-story-order .sheet { max-height: calc(100% - 20px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; margin-bottom: 10px; padding: 14px 20px 12px; }
+  #g-story-order b { font-size: 19px; } #g-story-order p { font-size: 17px; } #g-story-order figcaption { font-size: 15px; }
+  #g-story-order figure { grid-template-columns: 96px 1fr; } #g-story-order svg { width: 96px; }
+  #g-story-teach { top: auto; bottom: max(158px, calc(env(safe-area-inset-bottom) + 158px)); transform: none; }
+  #g-story-teach small::after { margin: 7px 0 8px; }
+  #g-story-teach li:not(.now) { display: none; }
+}
+@media (max-height: 520px) and (pointer: coarse), (max-height: 520px) and (max-width: 640px) {
+  #g-story-cam.up { top: max(70px, calc(env(safe-area-inset-top) + 70px)); }
+}
+/* (a tablet, or a phone on its side: the dialogue's own buttons, Back and the log, come down to the roll's corner; the
+   roll is put away while anyone talks, as on an upright phone) */
+@media (pointer: coarse) { .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-frames, #g-story-keys) { opacity: 0; pointer-events: none; } }
