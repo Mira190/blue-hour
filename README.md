@@ -23,7 +23,7 @@ It is three.js in one page, with no build step.
 | `web/assets/` | models: people, vehicles, trees, `past/` (1964), `story/` (the lift, key art), `stop/`, `animals/` |
 | `blender/` | the scripts that build the models (`build_past.py`, `build_set.py`, `build_stop.py`, `build_dog.py`, ...) |
 | `pipeline/` | the scripts that build the map from open data |
-| `tools/` | checks and harnesses: `story_play.js` plays the whole case, `story_ride.js` takes the car, `key_art.js` films stills |
+| `tools/` | checks and harnesses: `story_play.js` plays the whole case, `story_ride.js` takes the car, `key_shot.js` films the loader's pictures |
 | `docs/STORY.md` | the story bible |
 
 This repository was split from Open Earth 3D (its `story-only` branch) in November 2026.

@@ -1,0 +1,72 @@
+{
+ "_": "Issue 25: the loader's three pictures (tools/key_shot.js). Desktop 1440x900 sees nearly the whole 16:9 frame; a phone (390x844) a quarter of its width, placed by web/index.html .roll-art background-position. The title's band (35-60% of the height, centred) falls on sky or quiet street in both.",
+ "quality": 80,
+ "views": [
+  {
+   "name": "key-1",
+   "eye": [
+    379.6,
+    -1017.2,
+    1.65
+   ],
+   "look": [
+    351.7,
+    -974.6,
+    -7.2
+   ],
+   "fov": 50,
+   "muster": true,
+   "settle": 3,
+   "clear": [
+    31,
+    20
+   ]
+  },
+  {
+   "name": "key-2",
+   "eye": [
+    516.0,
+    -1132.0,
+    8.0
+   ],
+   "stand": [
+    518.0,
+    -1124.0
+   ],
+   "floor": 241.8,
+   "look": [
+    516.0,
+    -1000.0,
+    21.200000000000003
+   ],
+   "fov": 52,
+   "heli": [
+    516.0,
+    -1100.0,
+    257.5,
+    0,
+    4
+   ],
+   "time": 7
+  },
+  {
+   "name": "key-3",
+   "eye": [
+    160.0,
+    -1310.0,
+    115.0
+   ],
+   "stand": [
+    330.0,
+    -1060.0
+   ],
+   "look": [
+    382.0,
+    -829.0,
+    160.0
+   ],
+   "fov": 46,
+   "time": 5
+  }
+ ]
+}
