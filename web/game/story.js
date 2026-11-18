@@ -106,6 +106,12 @@ window.OEStory = (function () {
     const movEl = el('g-story-mov', `<p></p><button type="button">${ctx.touch ? 'Tap to skip' : 'Space to skip'}</button>`);
     movEl.querySelector('button').addEventListener('click', e => { e.stopPropagation(); movEnd(true); });
     const pre = el('g-story-order', '');
+    // the menu (sound, who you play, the crowd, the frame rate), by touch or the mouse: Esc and a pad's own button open it
+    // too, but a phone has neither (issue 48). At the top right, as the walk's is; put away under a talk, a film, a card
+    const menuBtn = el('g-story-menu', `<i aria-hidden="true"></i><span>Menu</span>${ctx.touch ? '' : ' <kbd>Esc</kbd>'}`, 'button');
+    menuBtn.type = 'button'; menuBtn.setAttribute('aria-label', 'Menu');
+    menuBtn.addEventListener('click', e => { e.stopPropagation(); if (ctx.menu) ctx.menu(); });
+    menuBtn.addEventListener('pointerdown', e => e.stopPropagation());
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · <kbd>Wheel</kbd> the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
     // the camera in the hand or at the eye: a button that says which, and what the key does; and a word in the middle of
@@ -1126,7 +1132,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
-        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip, movEl, hintBtn]) e.remove();
+        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip, movEl, hintBtn, menuBtn]) e.remove();
         if (st.dogNext) st.dogNext.remove();
         for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();
         for (const id in st.cast) st.cast[id].remove();

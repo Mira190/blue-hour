@@ -358,6 +358,22 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (read from what the page saw as the sheet came up, above: the sheet does not wait for the check or for the still)
       if (!seen.has('order')) { seen.add('order'); const t0 = Date.now(); await p.waitForTimeout(4000); const inHand = await p.evaluate(() => !!window.__orderOk); await snap('1-order'); console.log(`the order: ${inHand ? 'it came up in the hand' : 'it never came up in the hand'}; its still taken at ${((Date.now() - t0) / 1000).toFixed(1)} s`); if (!inHand) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
       await p.keyboard.press('KeyE');
+      // the menu from the story's own button, by touch on a phone (issue 48): it opens, and its close button shuts it
+      if (!seen.has('menu')) {
+        seen.add('menu');
+        const tap = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return false; const x = r.x + r.width / 2, y = r.y + r.height / 2; if (w < 500) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); return true; };
+        await p.waitForFunction(() => { const e = document.getElementById('g-story-menu'); return e && getComputedStyle(e).display !== 'none'; }, null, { timeout: 8000, polling: 200 }).catch(() => {});
+        if (!(await tap('#g-story-menu'))) { errors.push('the story has no menu button to press (issue 48)'); console.log(errors[errors.length - 1]); }
+        else {
+          await p.waitForTimeout(600);
+          const open = await p.evaluate(() => !document.getElementById('g-menu').hidden);
+          if (open) await snap('1-menu');
+          await tap('#g-menu-close'); await p.waitForTimeout(600);
+          const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
+          if (!open || !shut) { errors.push(`the story's menu button: ${open ? 'the menu opened and its close button did not shut it' : 'the menu did not open'}`); console.log(errors[errors.length - 1]); }
+          else console.log(`the menu: opened from the story's own button by ${w < 500 ? 'touch' : 'the mouse'}, and shut again`);
+        }
+      }
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
     else if (s.phase === 'go' && s.beat === 'board') { // a flight boarded on its pad (flight.board): the helicopter is there to be seen, turning over;
