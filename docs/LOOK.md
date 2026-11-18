@@ -250,6 +250,38 @@ A square with no street lamp in it (the scramble) gets a light card after dark
 floodlights and signs round it. A card may be aimed (`aim`) to light one thing from its
 side: a small warm one lights Hachiko's bronze, which lamps drawn as points leave black.
 
+The scramble's card was set (k 1.2, a peach #ffe4c8) before the hero level baked the shopfronts' and signs' own light
+into the crossing (`hero.bake`) and took a share of the street lights and the screens' area lights; on top of them it lit
+the whole crossing like an overcast afternoon, and its zebra stripes went to a pink white. From the story's first camera
+over the crossing at 17:38 (sun 6 degrees down), 13 % of the ground was at white; the Stop's own grade (its blue veil
+and half saturation) hid it, so the street seemed to flare up as time ran again. Measured with every other light as it
+is (`tools/light_split.js`, a film's camera with the world held): with the card at 1.2 the ground's mean was 0.46 and
+13 % of it clipped; at 0.7, 0.39 and none; at 0.5, 0.35 and none; without it, 0.25. It is 0.5 now, in a neutral warm
+white (#fff0e2), the light of LED shopfronts rather than of sodium.
+
+### Faces and lights: what may burn
+
+A photograph of Shibuya at night has one thing at white: the lights themselves (a lamp's head, a neon tube, the bulbs
+round a sign), each with its glow. A lit sign's face, a shop's light box and a lit window are bright, but their images
+stay in them: the letters stand off the face. The game set every glowing surface's light in absolute numbers
+(`glow` on a landmark material, `glow` on a hero level), and the exposure rises through the evening; so at the blue
+hour a white sign's face went past what the screen shows, the lens's roll-off (`lens.js`) took the face and its
+lettering to one white and the bloom spread over them (SHIBU HACHI BOX on Hachiko Square, the koban's sign, the
+shopfronts' light boxes: 0.2 to 0.6 % of a frame each at white, `WHO=1`).
+
+The root of it is which of the two a surface is, not its number. A **face** (an image that glows, `emissive_map` on a
+landmark material; a hero level's `glow*` light boxes and `win*` windows) is held under a ceiling set where the picture
+is, not in the scene: `uFaceCap` is `FACE_MAX` (0.9) over the exposure the lens is using (`atmosphere.js`), so that at
+any hour the brightest part of a face lands under the tone curve's last stretch (about 0.75) and what is darker on it
+keeps its place; it eases in over the top 40 % and scales the colour as a whole, as the lens's roll-off does
+(`world.js` `faceCap`). A **light** (`lamp`, `neon_*`, `aviation`, a hero level's `tube*`, `chase*`, `paper*`, the
+lamps' points) is not held: it is what the camera exposes against. This is HDRP's split between an emissive surface's
+"exposure weight" and a light, and how games author emissive signage (a face's luminance chosen against the camera,
+the light's own bloom saying how bright it is); the lens's highlight roll-off stays the net for everything else.
+
+`WHO=1 FAIL=0.3 tools/light_split.js` holds the rule: any surface that is not a light putting more than 0.3 % of a
+frame at white fails it, from the views given, at the hours given.
+
 ### The camera (`web/game/atmosphere.js` camFx)
 
 Depth of field and motion blur only where a camera would show them: photo mode gets an
