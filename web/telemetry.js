@@ -248,6 +248,8 @@ window.OETelemetry = (function () {
     if (slice.heap) props.heap_mb = slice.heap;
     if (slice.loaf) { props.loaf = slice.loaf; props.block_ms = Math.round(slice.block); }
     if (final) props.final = true;
+    // the sound's audio thread: how far behind the wall clock it fell, and how often by 25 ms or more (audio.js health)
+    try { const h = window.OEAudio && OEAudio.health && OEAudio.health(); if (h) Object.assign(props, h); } catch (e) { /* no sound */ }
     const worst = slice.worst;
     sinceFlush = 0; engFlush = 0; slice = fresh0(); cur.frames = frames();
     if (props.s > 0 || final) track('time', Object.assign(props, extra));

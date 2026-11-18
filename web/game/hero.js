@@ -111,6 +111,9 @@ window.OEHero = (function () {
             .replace('* streetLight(', '* uHeroStreet * streetLight(');
         }
       };
+      // a face that gives light (a shop's light box, a lit sign, a lit window) is held under the picture's ceiling for a
+      // face (world.js faceCap): bright, with its image still in it. Tubes, bulbs and lanterns are lights, and burn
+      if (/^(glow|win)/.test(name) && Wd.faceCap) m.onBeforeCompile = Wd.faceCap(m.onBeforeCompile);
       m.customProgramCacheKey = () => `hero|${h.id}|${name}|${own ? 'o' : ''}`;
       if (/^ground/.test(name)) m.userData.paving = true;
       // (a room's floor is laid on the ground the city draws, a few centimetres over it: in front of it, as a landmark's paving is)
