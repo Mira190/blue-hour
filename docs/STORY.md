@@ -242,12 +242,12 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 
 | # | Hour | Where, and the picture | The living | Who moves in the Stop | What turns over |
 |---|---|---|---|---|---|
-| 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera. A name under the base plate: 水野 |
-| 2 | 17:19 | **The tram stop at the station kerb**, from the old man's stone cherry blossom in the square by Hachiko: the boy's box near, the tram behind it | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
+| 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera, and says they were to take the night train after his lecture; he had both tickets. A name under the base plate: 水野 |
+| 2 | 17:19 | **The tram stop at the station kerb**, from the old man's stone cherry blossom in the square by Hachiko: the boy's box near, the tram behind it | Shun at the vintage shop reads the camera: thirty frames gone, six to go, never developed; it loads from below | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
 | 3 | 17:24 | **Hachiko**, with the station behind | (an old man on a stone blossom by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
 | 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man, in three lines and three | She left him alive. What came up the stair after her was nailed boots: his works wore them, and so did the lecturer. It was not her; the player names whose |
-| 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair. Each lover believed the other guilty and kept silent |
-| 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again. Across the road, in the held crowd, a clear umbrella turns | Mr Tanaka by Hachiko: he was the boy (he asks to be shown his pitch); the sentence he never delivered; Akira lived fifteen minutes away for 48 years; who hired you | Akira, new this year | What he could not carry across is under the camera's base plate, and cannot be looked at while there is film in it |
+| 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair, and let him confess. Why the lecturer confessed, and why she kept silent, nobody says: the frame ends on *what did he find at the top?* |
+| 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again. Across the road, in the held crowd, a clear umbrella turns | Mr Tanaka by Hachiko: he was the boy (he asks to be shown his pitch); the sentence he never delivered; Akira lived fifteen minutes away for 50 years; who hired you | Akira, new this year | What he could not carry across is under the camera's base plate, and cannot be looked at while there is film in it |
 | 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 84: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses. On the last card the camera is opened: her ticket, and one word |
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
@@ -588,13 +588,14 @@ things are the evidence and the rest is testimony. Not yet: the old woman's clea
 | Sumiko is alive: the old woman with the clear umbrella | The opening shot of every episode from 1; she is the only bystander who is at the kerb every evening, and in the Stop she is the only stopped person looking at the girl | 6 |
 | *You came late* was said by a living voice | Episode 1: the line is heard in the old woman's voice, under no name (*A voice · tonight*), a beat before the girl turns (`{ by: 'old' }` on the line) | 7 |
 | An afterimage need not be dead | The empty stool (2): nobody was left there, because the boy walked on, and is met alive (6) | 6 |
-| An afterimage cannot see past its kerb, or a print | Her fifth line (1); Kanbara asks whether the dome is there (4); Tatsuo is told, not shown (5) | 6, 7 |
+| An afterimage cannot see past its kerb, or a print | Her sixth line (1); Kanbara asks whether the dome is there (4); Tatsuo is told, not shown (5) | 6, 7 |
 | Sumiko ran a lift, and had one glove at 17:14 | Her third line (1): *straight from the lift at the store, one glove on* | 3 |
 | The lecture was his, and he meant to be back for it | The board at her corner (1), again from his kerb (6) | 6 |
 | The time of the fall | Kanbara: the rings being drawn in the sky (4) | 5 |
 | Who came up the stair | Kanbara: nailed boots, which the works wore and the lecturer too (4): two men fit, and the player names one; Tatsuo's helmet and trade, and *I passed him on the iron, coming down* (5) | 5 |
 | The glove was lost before the fall | Kanbara: *I was still on my feet*; Yuna's grandmother saw the girl come down (4) | 5 |
-| The camera opens from below | Shun: a name scratched *where only a repairman would find it*; the base plate, on the first evening's last line (1, 2) | 6, the last card |
+| The camera opens from below | The base plate, in the first evening's last line (1); Shun: *it loads from below, this one: the whole plate comes off* (2) | 6, the last card |
+| They were leaving that night, and he had her ticket | Her fourth line (1): *after his lecture we were taking the night train to Osaka. He had both our tickets* | the last card, where the ticket under the base plate is hers |
 | Why she never opened it | Akira: *light kills what is inside* (6), before she says it (7) | the last card |
 | Akira lived, and where | The tram for Sangenjaya at its stop (2); Tanaka (6) | 6, 7 |
 | Who hired you, and the word on the plan | The office, when time first runs again (1): 待つ pencilled on that corner | 6, the last card |
@@ -619,6 +620,45 @@ first was to be found from the words. What was wrong, and is mended:
   twenty-five from the police box to the stool.
 - The fair-play row on the scramble's stripes could no longer hold (above).
 
+### The case checked as a detective story (November 2026)
+
+The owner asked for the plot, the words, the hints and the places to be checked from first principles against the
+best detective games. What a detective story owes its player, in one line each, and what failed it:
+
+1. **The player draws the conclusion; the story confirms it.** Obra Dinn never says *you are right* until the player
+   has said it; Ace Attorney's witness says the contradiction only after it is presented. Here the answer to two of
+   Sumiko's three questions was recited before she asked: Tatsuo said *he thought she had done it* and *she said nothing
+   for sixty, because she thought he had done it for her*; the words over frame 5's picture and its note in the file
+   said *each of them believed the other had done it, and kept silent*; Akira said *I thought: she has done it*. The
+   challenge to the reader was a memory test, and Sumiko's own reveal (*and I believed he had done it, for me*) had been
+   spent by her brother two frames before. Now each witness says only what they saw and did: Tatsuo that he let the
+   lecturer confess and never asked why; Akira that he found the glove, gave himself up, and would not cross *with those
+   two beside me: they would have asked her why*. Frame 5 ends on a question (*what did he find at the top?*), its note
+   says what the print shows, and why he did not cross is the player's to put together (the glove, frame 3; the
+   detective's *you confess that fast to keep someone else out of the room*; Akira's minute). Her half of it is hers to
+   say, last.
+2. **Fair play: the ending is planted.** The last card finds *her ticket for the night train* under the base plate, and no
+   line before it spoke of a train or of leaving. Sumiko now says it in frame 1 (*after his lecture we were taking the night
+   train to Osaka; he had both our tickets*), so what Akira *could not carry across* in frame 6 can be guessed before it is
+   found, and the ticket on the card (Tokyo to Osaka, 39.10.10) is recognised. That a camera opens from below, which the
+   card depends on, is said by the one who knows cameras (Shun: *it loads from below, this one: the whole plate comes off*).
+3. **One place, one name.** Mr Tanaka, standing on the blossom frame 2 was taken from, said *stand where he stood*, and the
+   goal said *your second print shows the place*: a player on the blossom was already where a print was taken. He now says
+   Akira stood *at my old pitch, on the kerb*, the print he has just been shown, and the goal names the boy's pitch.
+4. **Nobody contradicts the story's own facts.** Tatsuo is 31 and was *thirty years a foreman*: now *half his life on the
+   works*. Akira's afterimage is of 2025 and spoke as if two policemen of 1964 stood beside him: he now remembers them.
+   Kanbara (above). The office's *you were due there at five* against the sheet's *sunset is at 17:14*: now *late, but there*.
+   Sumiko's *never to open the back of a camera* for a camera that opens from below: *never to open a camera*. Shun's
+   *nobody has made one in fifty years* (rangefinders are still made): *one like it*. Frame 7's goal asked the player to
+   *tell her what was in the camera* before anyone had opened it: now *carry his camera across the road to her kerb*,
+   what Akira could not do. Frame 2's last line claimed a police box *since before the war*, which no source checked: cut.
+5. **What held.** One question per frame, answered by a print and turned over (the false solution at frame 3, the boots
+   at 4, the brother at 5); a liar broken by evidence presented (Tatsuo, the roof's print); failure that costs the minute
+   and is seen; hints asked for, three, each saying more, the second inside the fiction (the dog), as *Professor Layton*
+   does; places found from things in the street and from the roll itself (frame 6), and one by geometry (frame 7); the
+   player's own words kept and answered (the accusation struck through); the opening shot planting the last reveal (the
+   living voice of *you came late*).
+
 What is the owner's to decide, with the default taken until then:
 
 - **The year** (decided by the owner, November 2026). The story was written sixty years on (Sumiko 82, Mr Tanaka 74,
@@ -629,10 +669,11 @@ What is the owner's to decide, with the default taken until then:
   two of them stood on opposite kerbs for fifty years (1976 to 2025). *Sixty years* stays in what people say, as people
   round a long time; what is counted (an age, a year, the pairs' years) is exact.
 - **Kanbara's afterimage is on SHIBUYA SKY's roof**, 200 m from where he was left (the planetarium's roof, on Hikarie's
-  site), and rule 4 says an afterimage stays within a few steps of where it was left. His lines suppose he is on his own
-  roof (*the lecturer photographs the sky from this roof*). Default: keep him there, and let rule 4 say what the story
-  does: one who fell is left at the height he fell from, and is met at the nearest place a living person can stand that
-  high and see the spot; until the owner says, the rule and the frame disagree.
+  site), and rule 4 says an afterimage stays within a few steps of where it was left. Default: keep him there, and let
+  the words say what the frame shows: the roof he fell from is gone (frame 3's last line: *the only place it can still
+  be seen from is above*), so he is met over it, *looking down at where his roof was*, and speaks of the dome's roof as
+  *that roof*, down there. Until November 2026 his lines had him on his own roof (*from this roof*) while the player
+  looked down 200 m at where it stood.
 
 ## 8. What the game has to do to tell it
 
