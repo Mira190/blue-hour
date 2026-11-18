@@ -176,3 +176,9 @@ Three checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` f
   moving steps, a metre ridden costing half one walked). `tools/story_play.js` runs the same at frame 4 of the first
   episode, so `tools/check.sh` has it, and takes a still of the line from where the lift lets you out (`4-lift-way`).
 
+And one longer, about twelve minutes: `node tools/glass_body.js [out_dir]` walks, runs and stands the player into each
+escalator's glass and along it (pushed sideways on the steps, across both landings, slantwise past the newel) and into
+the roof's rim glass from eight directions, and measures every frame the skin of the rig as the clip poses it, part by
+part, against the glass's plane and the collision world's walls; it fails on any part more than a centimetre in. With
+an out dir, stills close and from the chase camera at each, and five with time held.
+

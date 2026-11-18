@@ -2311,6 +2311,22 @@ quality tier runs a third of the cars.
     drawn in, eased, to within 0.2 m of the middle (a hand's width clear of the glass); and the feet go up onto the first riser as it rises under them, a
     step ahead of the slope, not 0.23 m into it (`tools/escalator_ride_shot.js` rides each from the middle and from the
     side, with stills from behind and beside).
+    That held a rider standing still, but the glass was no wall to a walker: pushed sideways on the steps, or walked
+    across a landing at it, the middle stopped only at the steps' edge, 0.13 m from the glass, and the stride's feet and
+    hands went 0.2 to 0.37 m into it (the owner's still: a shoulder, an arm and the torso in the glass). The glass is now
+    the surface's own `balustrade` (`{v, u, h}` in `game.surfaces`, from `cities/shibuya/city.py`, the same panes the
+    model draws), and `nav.slide` holds anyone's middle 0.4 m from a pane on the side they were on, round the newels'
+    ends too (`paneOut`). And a walker comes to any wall or glass with the stride ahead of the body: the foot and hand
+    that lead a walk reach 0.1 m past the capsule, a run's 0.25 m, while the clip eases to a stand in 0.3 s, so the
+    middle stops that much short of what is ahead along the way it goes (along a wall only the part the wall takes
+    away; and the step in and back out is not counted as walking, or the clip trod on the spot).
+    `tools/glass_body.js` measures it: on each escalator the player walked and run on and pushed into each balustrade,
+    stood at it, walked across both landings at it and come at it slantwise past the newel, and run and walked into
+    the roof's rim glass and along it from eight directions; every frame, the skin of the rig as the clip poses it
+    (each vertex named by the bone that bears it most: hands, forearms, shoulders, head, hips, knees, feet) and what it
+    carries, against the glass's plane and the collision world's walls. It fails on any part more than a centimetre in.
+    The white beams over the flights (`frame_air`) are no floor or wall but stop the chase camera (`camera` in their
+    material): it went through the one behind a rider, which then crossed the whole picture.
   - **High floors:** a travel point with a height (`[x, y, z]`) lands you on a roof.
     `always: true` lists it on the map before you have been there.
 - **Sound** (`web/game/audio.js`): synthesised with Web Audio, with no files.
