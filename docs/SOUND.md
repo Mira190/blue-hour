@@ -182,7 +182,8 @@ Gaussian's; 1 is noise. The seam is the largest difference of 60 ms windows from
   touched for sound): the opening shot by shot, then a Stop and its choir, a frame found, every room and the live score,
   and fails on a convolver on the live context longer than the realtime limit, a second context, a worklet, the deck or the
   hybrid not chosen, or anything given to speechSynthesis in the opening. Played with `?verb=whole` (the reverbs as they
-  were) it fails: seven convolvers of 20,286 to 185,220 frames;
+  were) it fails: seven convolvers of 20,286 to 185,220 frames. Run again touched first on the title (`FIRST=title`), it
+  fails on two pieces of music at once in the opening (below);
 - `tools/reverb_check.js` holds the hybrid to the table above.
 
 **Seen from a phone.** A browser says nothing of the blocks it missed. What a page can see is the context's clock against
@@ -332,6 +333,14 @@ sits at -27. The owner heard it as a jolt. It is rearranged (`swell` on the plan
 When the game's score is already playing (the loading cue runs through the opening; the score itself through a
 flight), `game.js` sets `under` on the plan and the film's score leaves the bed and the two notes to it: one piece
 of music, with the title rising out of it.
+
+On an iPhone the context is made in the first touch, and the plan is decided when the page loads: a player who never
+touched the loading screen has no loading cue then, so the opening's score is rendered with its own bed, and the touch
+that makes the context (on the title, or Play itself) began the cue as well. Two pieces of music played through the
+opening, the cue's piano over the score's bed of low sines (its lowest at 35 Hz). Now the cue is let go as the opening
+starts, before it has sounded, whenever the opening's score has its own bed (`game.js` `open`). `FIRST=title
+tools/phone_audio.js` touches the title first and fails on two pieces at once (before: two from the first shot to the
+last; now: one).
 
 `tools/overture_levels.js` renders the opening's score and prints its level second by second; it fails on a rise
 of more than 8 dB from one second to the next, a 50 ms window more than 12 dB over the second before it, or a

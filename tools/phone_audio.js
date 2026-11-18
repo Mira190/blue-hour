@@ -10,7 +10,10 @@
 //     is convolved on a background thread of default priority);
 //   - the deck and the hybrid reverb not chosen (audio.js: TAPE, VERB);
 //   - anything given to speechSynthesis while the opening plays, a page error, or a shot that makes more than MAXNODES
-//     nodes a second or keeps more than MAXLIVE sources sounding at once.
+//     nodes a second or keeps more than MAXLIVE sources sounding at once;
+//   - FIRST=title (the first touch on the title, not the loading screen: the context is made after the opening's score
+//     was rendered with its own bed): more than one piece of music at once in the opening (the loading cue was begun in
+//     that touch and played under it, until November 2026).
 // It prints what the opening asks of the sound, shot by shot (the calls into audio.js, the nodes made, the level at the
 // speakers and how much of it is under 150 Hz, the rooms' reverb), and the audio thread's health as telemetry.js reads it.
 //   python3 -m http.server 8800 --directory web &
@@ -55,6 +58,10 @@ const MAXNODES = +(process.env.MAXNODES || 400), MAXLIVE = +(process.env.MAXLIVE
     }
     const S = window.AudioScheduledSourceNode && window.AudioScheduledSourceNode.prototype;
     if (S) { const st = S.start; S.start = function (...a) { if (this.context instanceof AC) { L.live++; L.peakLive = Math.max(L.peakLive, L.live); this.addEventListener('ended', () => { L.live--; }); } return st.apply(this, a); }; }
+    // the music: buffers of 20 s or more sounding (the loading cue, the opening's score)
+    L.long = 0;
+    const B = window.AudioBufferSourceNode && AudioBufferSourceNode.prototype;
+    if (B) { const st = B.start; B.start = function (...a) { if (this.context instanceof AC && this.buffer && this.buffer.duration >= 20) { L.long++; this.addEventListener('ended', () => { L.long--; }); } return st.apply(this, a); }; }
     // the sound's own calls, once it is there
     const wrap = () => {
       const A = window.OEAudio; if (!A || A.__wrapped) return; A.__wrapped = true;
@@ -91,16 +98,18 @@ const MAXNODES = +(process.env.MAXNODES || 400), MAXLIVE = +(process.env.MAXLIVE
     for (const k of ['createScriptProcessor', 'createMediaElementSource', 'createMediaStreamSource']) if (P[k]) { const f = P[k]; P[k] = function (...a) { note(k); return f.apply(this, a); }; }
     // once a second while the opening plays: the nodes made in it and the sources sounding
     let made0 = 0;
-    setInterval(() => { const w = when(); if (w) L.marks.push(Object.assign({ made: L.made - made0, live: L.live, verb: +Math.max(0, ...L.taps.map(q => q.rms)).toExponential(1), out: L.outs.map(o => [+(20 * Math.log10(o.rms + 1e-9)).toFixed(1), +(20 * Math.log10(o.peak + 1e-9)).toFixed(1), +o.low.toFixed(2)]) }, w)); made0 = L.made; for (const q of L.taps) q.rms = 0; for (const o of L.outs) { o.rms = 0; o.peak = 0; o.low = 0; } }, 1000);
+    setInterval(() => { const w = when(); if (w) L.marks.push(Object.assign({ made: L.made - made0, live: L.live, verb: +Math.max(0, ...L.taps.map(q => q.rms)).toExponential(1), music: L.long, out: L.outs.map(o => [+(20 * Math.log10(o.rms + 1e-9)).toFixed(1), +(20 * Math.log10(o.peak + 1e-9)).toFixed(1), +o.low.toFixed(2)]) }, w)); made0 = L.made; for (const q of L.taps) q.rms = 0; for (const o of L.outs) { o.rms = 0; o.peak = 0; o.low = 0; } }, 1000);
     setInterval(() => { for (const q of L.taps) { q.an.getFloatTimeDomainData(q.d); let s = 0; for (const v of q.d) s += v * v; q.rms = Math.max(q.rms, Math.sqrt(s / q.d.length)); } }, 50);
   });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => document.querySelector('.roll-sound') && window.OEAudio && (window.OEAudio.ctx || window.OEAudio.pending), null, { timeout: 120000 });
-  await p.touchscreen.tap(w / 2, h / 2);
-  await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 20000 }).catch(() => fail('a touch does not start the sound'));
+  // FIRST=title: the first touch on the title, after the page has loaded (as a player who never touched the loading screen)
+  const touch = async (x = w / 2, y = h / 2) => { await p.touchscreen.tap(x, y); await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 20000 }).catch(() => fail('a touch does not start the sound')); };
+  if (process.env.FIRST !== 'title') await touch();
   console.log(`the tape: ${await p.evaluate(() => window.OEAudio.tape)}, ${await p.evaluate(() => window.OEAudio.ctx && window.OEAudio.ctx.sampleRate)} Hz`);
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(1500);
+  if (process.env.FIRST === 'title') { console.log(`the first touch, on the title at its left edge: ${await p.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.tagName + '#' + e.id + '.' + e.className : '-'; }, [3, h / 2])}`); await touch(3, h / 2); }
   await p.evaluate(() => document.getElementById('gt-play').click());
   await p.waitForFunction(() => { const o = window.__game.overture(); return o && o.active; }, null, { timeout: 60000 }).catch(() => fail('the opening does not start'));
   const shots = await p.evaluate(() => window.__game.overture().shots.map(q => ({ id: q.id, t0: q.t0, dur: q.dur })));
@@ -110,9 +119,11 @@ const MAXNODES = +(process.env.MAXNODES || 400), MAXLIVE = +(process.env.MAXLIVE
   for (const s of shots) {
     const c = L.calls.filter(q => q.shot === s.id), by = {};
     for (const q of c) by[q.k] = (by[q.k] || 0) + 1;
-    const m = L.marks.filter(q => q.shot === s.id), made = Math.max(0, ...m.map(q => q.made)), live = Math.max(0, ...m.map(q => q.live)), verb = Math.max(0, ...m.map(q => q.verb));
-    console.log(`${s.id.padEnd(8)} calls ${JSON.stringify(by)}  nodes a second, most ${made}  sounding, most ${live}  the room's reverb, loudest ${(20 * Math.log10(verb + 1e-9)).toFixed(1)} dBFS rms`);
+    const m = L.marks.filter(q => q.shot === s.id), made = Math.max(0, ...m.map(q => q.made)), live = Math.max(0, ...m.map(q => q.live)), verb = Math.max(0, ...m.map(q => q.verb)), music = Math.max(0, ...m.map(q => q.music));
+    console.log(`${s.id.padEnd(8)} calls ${JSON.stringify(by)}  nodes a second, most ${made}  sounding, most ${live}  the room's reverb, loudest ${(20 * Math.log10(verb + 1e-9)).toFixed(1)} dBFS rms  music buffers at once, most ${music}`);
     if (made > MAXNODES) fail(`${s.id}: ${made} nodes made in a second (over ${MAXNODES})`);
+    // (touched first on the title, the opening's score was made with its own bed: the loading cue must not play with it)
+    if (process.env.FIRST === 'title' && music > 1) fail(`${s.id}: ${music} pieces of music at once (the loading cue under the opening's own score and its bed)`);
     if (live > MAXLIVE) fail(`${s.id}: ${live} sources sounding at once (over ${MAXLIVE})`);
   }
   for (const m of L.marks) console.log(`  ${m.t.toFixed(1).padStart(5)} ${m.shot.padEnd(7)} at the speakers (rms dBFS, peak dBFS, share under 150 Hz): ${JSON.stringify(m.out)}`);

@@ -172,6 +172,10 @@ run_audio() {
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
+  # (and touched first on the title: the opening's score with its own bed, and the loading cue let go)
+  if FIRST=title DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio_title.log" 2>&1; then
+    echo "ok   audio  as an iPhone touched first on the title: one piece of music at a time in the opening"
+  else echo "FAIL audio  touched first on the title: $(grep '^FAIL' "$OUT/phone_audio_title.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio_title.log)"; fi
 }
 run_clip() {
   if timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance"; return; fi
