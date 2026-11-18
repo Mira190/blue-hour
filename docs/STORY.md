@@ -305,7 +305,8 @@ frame rate it shook and in a hover it turned this way and that. Now it is one fl
   about ten as it flares into the hover, banked by what the turn needs, a pedal turn at 29 degrees a second at most.
 - *One side of the line.* Every camera is on its right, the inside of the turn, so it crosses every frame left to right
   and banks towards the lens (the 180-degree rule; a cut that changes the angle by less than 30 degrees is a jump).
-- *The seven shots* (`tools/flight_frames.py` draws them as a storyboard without a browser, on a desktop and a phone):
+- *The seven shots* (`tools/flight_frames.py` draws them as a storyboard without a browser, on a desktop and a phone,
+  and checks every camera against the map's buildings: never in one, and none between it and the helicopter):
   1. `lift` — locked off low on the roof behind it; the lens pans with it once it moves, as it goes over the edge.
   2. `depart` — air to air: the camera ship off its right rear quarter, swinging out to its side, a 50 mm lens. The
      ship flies the way the helicopter has been going over the last second (an average, `escort` in overture.js), so a
@@ -315,7 +316,8 @@ frame rate it shook and in a hover it turned this way and that. Now it is one fl
      small in the frame, the crossing filling it: "one thing, breathing in and out".
   4. `orbit` — inside its turn, from over the crossing: it goes round the station banked towards us, the lit tracks
      wheeling behind it, the lens drawn in as it goes away; under ten degrees a second of pan.
-  5. `home` — the camera ship again off its right rear quarter as it rolls out heading south and comes down.
+  5. `home` — the camera ship again off its right rear quarter, high above the roofs by the station, as it rolls out
+     heading south and comes down towards its spot.
   6. `land` — locked off on the ground as it comes down into the frame, turns its door to your spot and settles.
   7. `foot` — a step nearer as you get out, the dog at your heels.
 - *A phone held upright* keeps most of each frame's width: an overture's lens is opened until the picture is 0.8 as

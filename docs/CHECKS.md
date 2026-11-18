@@ -44,8 +44,9 @@ The static checks:
 - no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
   stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
 - the story's flight: its way clear of the buildings (`tools/flight_clear.py`), and its seven shots as a storyboard,
-  on a desktop and a phone: the helicopter in the picture, the lens turning no faster than twelve degrees a second, and
-  every camera on one side of its way (`tools/flight_frames.py`). How it flies in the page, frame by frame, and where it
+  on a desktop and a phone: the helicopter in the picture, the lens turning no faster than twelve degrees a second,
+  every camera on one side of its way, out of the buildings and with none between it and the helicopter
+  (`tools/flight_frames.py`). How it flies in the page, frame by frame, and where it
   sets you and the dog down: `tools/heli_flight.js` (a browser, on its own: half an hour on a software renderer);
 - the far crowd's copy of every cast member (`pipeline/crowd_cast.py --check`);
 - every shared model meshopt-compressed, and the parts the page loads before and after playable

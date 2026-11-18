@@ -7,7 +7,9 @@ crosses the frame, and fails where:
   - the lens turns faster than PAN degrees a second (an aerial unit's pan is no faster than a frame's width in about
     seven seconds; the brief in docs/STORY.md, The flight);
   - the helicopter crosses the frame right to left in a shot after the first, where every camera is on its right
-    (screen direction, the 180-degree rule).
+    (screen direction, the 180-degree rule);
+  - a camera is in a building or within ROOM metres of one, or a building stands between it and the helicopter for more
+    than a few tenths of a second (the camera ship flew low among the towers by the station, a sign filling the frame).
 
     python tools/flight_frames.py [city]
 """
@@ -17,6 +19,8 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOM = 4.0       # metres a camera keeps from a building's walls and roof
+HIDDEN = 0.4     # seconds a building may stand between the lens and the helicopter (one passing across, not a shot of a wall)
 PAN = 12.0       # degrees a second at most, the lens's turn (a pan that follows the helicopter, not a whip)
 BARS = 0.085     # the film's bars, top and bottom, as a share of the screen's height (index.html .letterbox)
 SCREENS = {"desktop": 1440 / 900, "phone": 390 / 844}
@@ -153,9 +157,29 @@ def project(pos, look, fov, aspect, p):
     return (sum(d[i] * r[i] for i in range(3)) / z / (ty * aspect), sum(d[i] * u[i] for i in range(3)) / z / ty), z
 
 
+def solids(city):
+    """The map's building solids (as tools/flight_clear.py reads them): what stands at (x, y), up to what height."""
+    from shapely.geometry import Point, Polygon
+    from shapely.strtree import STRtree
+    B = json.load(open(os.path.join(ROOT, "web", "data", city, "buildings.json"), encoding="utf8"))
+    polys = [Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0) for s in B["s"]]
+    tops = [(s[1] + s[3]) / 10 for s in B["s"]]
+    lows = [(s[1] + s[2]) / 10 for s in B["s"]]
+    tree = STRtree(polys)
+
+    def near(x, y, z, r):  # a solid within r metres of (x, y) whose height spans z (less r below, r above)
+        P = Point(x, y)
+        for k in tree.query(P.buffer(r) if r else P):
+            if lows[k] - r < z < tops[k] + r and (polys[k].contains(P) or (r and polys[k].distance(P) < r)):
+                return round(tops[k])
+        return None
+    return near
+
+
 def main():
     city = sys.argv[1] if len(sys.argv) > 1 else "shibuya"
     cfg = json.load(open(os.path.join(ROOT, "cities", city, "city.json"), encoding="utf8"))
+    near = solids(city)
     bad = 0
     for ep in cfg["game"]["story"]["episodes"]:
         for fi, fr in enumerate(ep["frames"]):
@@ -175,6 +199,27 @@ def main():
                 if s.get("guide") != "path":
                     continue
                 about = 0 < n < len(shots) - 1  # (the lift, where it may leave the frame over the edge, and the last, where you are)
+                # the camera's room and its sight of the helicopter (the same on any screen)
+                walls, hid, run = None, 0.0, 0.0
+                steps = max(2, int(s["dur"] / 0.1))
+                for j in range(steps + 1):
+                    k = j / steps
+                    pos, look, fov, g = pose(s, k, path, end)
+                    if walls is None and near(pos[0], pos[1], pos[2], ROOM if n < len(shots) - 2 else 0):
+                        walls = (round(s["t0"] + k * s["dur"], 1), [round(v) for v in pos])
+                    c = [g[0], g[1], g[2] + 1.5]
+                    d = math.dist(pos, c)
+                    blocked = any(near(pos[0] + (c[0] - pos[0]) * u, pos[1] + (c[1] - pos[1]) * u, pos[2] + (c[2] - pos[2]) * u, 0)
+                                  for u in [i / max(2, int(d / 2)) for i in range(1, max(2, int(d / 2)))] if (1 - u) * d > 8)
+                    run = run + s["dur"] / steps if blocked else 0.0
+                    hid = max(hid, run)
+                print(f"  {s['id']:9s} camera {'in or by a building at ' + str(walls) if walls else 'clear of the buildings'}, the helicopter hidden {hid:.1f} s at most")
+                if walls:
+                    print(f"FAIL frame {fi + 1} {s['id']}: the camera is in or by a building at {walls[0]} s, {walls[1]}")
+                    bad += 1
+                if about and hid > HIDDEN:
+                    print(f"FAIL frame {fi + 1} {s['id']}: a building stands between the lens and the helicopter for {hid:.1f} s")
+                    bad += 1
                 for scr, aspect in SCREENS.items():
                     xs, ys, sizes, pans, dirs, out = [], [], [], [], [], 0
                     prev = None

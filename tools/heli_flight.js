@@ -31,7 +31,7 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
     window.requestAnimationFrame = fn => raf(t => { D.on = D.all || D.frames++ % n === 0; fn(t); D.on = true; });
     for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
   }, DRAW);
-  const still = async path => { if (DRAW > 1) await p.evaluate(() => new Promise(r => { window.__draw.all = true; requestAnimationFrame(() => requestAnimationFrame(r)); })); await p.screenshot({ path }); if (DRAW > 1) await p.evaluate(() => { window.__draw.all = false; }); };
+  const still = async path => { if (DRAW > 1) await p.evaluate(() => new Promise(r => { window.__draw.all = true; requestAnimationFrame(() => requestAnimationFrame(r)); })); await p.screenshot({ path, timeout: 180000 }); if (DRAW > 1) await p.evaluate(() => { window.__draw.all = false; }); };
   // a case left at frame 5 and opened again: on the street, so the flight plays by itself (story.js frame: no pad near)
   await p.addInitScript(() => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 4, left: 3, prints: Array.from({ length: 4 }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
   // every frame the game draws, after it: the helicopter as drawn, the camera, the tail and the cabin on the screen

@@ -226,7 +226,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st lobby lobby "nothing stands in a lift's lobby or through its portal" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
-    st flight flight_frames "the story's flight in every frame of its shots, all from one side of it" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
+    st flight flight_frames "the story's flight in every frame of its shots, from one side of it and clear of the buildings" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
