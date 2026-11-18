@@ -22,7 +22,7 @@ const [,, out = '/tmp/file-shot'] = process.argv;
       st.file = [
         ...frames.slice(0, 3).map((f, i) => ({ at: f.stamp, text: `Frame ${i + 1}. ${f.note || f.cap}`, kind: 'print' })),
         { at: frames[2].stamp, text: 'I said the detective lied about the minute.', kind: 'said', struck: true },
-        { at: frames[2].stamp, text: 'I said he spent the minute at the tram stop.', kind: 'said' },
+        { at: frames[2].stamp, text: "I said he spent the minute at the boy's pitch.", kind: 'said' },
         { at: frames[2].stamp, text: 'Frames 1 and 2, side by side. Thirty steps of road. Whatever kept him from her that evening, it was not the distance.', kind: 'pair' },
         { at: frames[3].stamp, text: 'Frame 4. Only tonight.', kind: 'spent' },
       ];

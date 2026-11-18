@@ -39,7 +39,7 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   const press = async k => { await set(k, 1); await frames(3); await set(k, 0); await frames(3); };
   const axes = a => p.evaluate(a => { window.__vpad.axes = a; window.__vpad.timestamp++; }, a);
   const st = () => p.evaluate(() => { const s = window.__game.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, cam: !!s.cam, prints: s.prints.length, dlg: !d.hidden, choices: document.querySelectorAll('#gd-choices button').length, want: s.want, pad: document.getElementById('game-stage').classList.contains('pad') }; });
-  const goTo = (at, d) => p.evaluate(([at, d]) => { const g = window.__game, pl = g.player; let dx = pl.x - at[0], dy = pl.y - at[1], l = Math.hypot(dx, dy); if (l < 0.5 || l > 60) { dx = 1; dy = 0; l = 1; } pl.x = at[0] + dx / l * d; pl.y = at[1] + dy / l * d; if (at[2] != null) pl.z = at[2] + 0.2; pl.h = Math.atan2(-dx, -dy); if (g.cam) g.cam.yaw = pl.h; }, [at, d]);
+  const goTo = (at, d) => p.evaluate(([at, d]) => { const g = window.__game, pl = g.player; let dx = pl.x - at[0], dy = pl.y - at[1], l = Math.hypot(dx, dy); if (l < 0.5) { dx = 1; dy = 0; l = 1; } pl.x = at[0] + dx / l * d; pl.y = at[1] + dy / l * d; if (at[2] != null) pl.z = at[2] + 0.2; pl.h = Math.atan2(-dx, -dy); if (g.cam) g.cam.yaw = pl.h; }, [at, d]);
   const until = async (fn, secs, what) => { const t = Date.now(); while (Date.now() - t < secs * 1000) { const s = await st(); if (await fn(s)) return s; await p.waitForTimeout(400); } fail(`timed out: ${what} ${JSON.stringify(await st())}`); return null; };
 
   await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
