@@ -11,6 +11,8 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/heli_flight.js out_dir [WxH]
 // SLOW=n: a frame in n is held a further 80 ms (an uneven frame rate, as a phone's in a flight over the lit city).
+// FILM=fps: the flight filmed instead, frame by frame on a virtual clock (tools/film/clock.js), into <out_dir>/flight.mp4
+// (no sound): what it looks like at a steady frame rate, whatever the machine.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
@@ -23,6 +25,8 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  const FILM = +(process.env.FILM || 0);
+  if (FILM) await p.addInitScript({ path: require('path').join(__dirname, 'film', 'clock.js') });
   // DRAW=n: one frame in n is drawn, the others run the game without their draw calls (as tools/story_play.js): on a
   // software renderer a film of fifty seconds is otherwise most of an hour. The stills are of frames drawn whole
   const DRAW = +(process.env.DRAW || 0);
@@ -74,7 +78,39 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
   for (let i = 0; i < 200 && !(await p.evaluate(() => { const o = window.__game.overture(); return !!(o && o.active); })); i++) await p.waitForTimeout(300);
   const shots = await p.evaluate(() => { const o = window.__game.overture(); return o.shots.map(q => ({ id: q.id, t0: q.t0, dur: q.dur })); });
   console.log('shots:', shots.map(q => `${q.id} ${q.dur} s`).join(', '));
+  // out: where you, the dog and the helicopter are, and a still a moment later
+  const after = async () => p.evaluate(() => {
+    const g = window.__game, st = g.heli.st, d = g.guideMade && g.guideMade(), me = g.player;
+    const hull = g.heli.boxes ? g.heli.boxes() : [];
+    const inside = (x, y, r) => hull.filter(q => { const fx = Math.sin(q.h), fy = Math.cos(q.h), dx = x - q.x, dy = y - q.y; return Math.abs(dx * fx + dy * fy) < q.hl + r && Math.abs(-dx * fy + dy * fx) < q.hw + r; }).length > 0;
+    // (in the model's own frame, as a check that needs no boxes of the helicopter's: forward along its nose, right of it)
+    const local = (x, y) => { const fx = Math.sin(st.h), fy = Math.cos(st.h), dx = x - st.x, dy = y - st.y; return [+(dx * fx + dy * fy).toFixed(2), +(dx * fy - dy * fx).toFixed(2)]; };
+    return { heli: [+st.x.toFixed(2), +st.y.toFixed(2), +st.z.toFixed(2), +(st.h * 180 / Math.PI).toFixed(1)], seen: g.heli.group.visible, landed: st.landed, model: g.heli.loaded(),
+      hull: hull.map(q => `${(q.hl * 2).toFixed(1)} x ${(q.hw * 2).toFixed(1)} x ${q.top.toFixed(1)} m`),
+      me: [+me.x.toFixed(2), +me.y.toFixed(2), +me.z.toFixed(2)], meLocal: local(me.x, me.y), meIn: inside(me.x, me.y, 0.3), meShown: me.rig.root.visible,
+      dog: d && d.ready ? [+d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2)] : null, dogLocal: d && d.ready ? local(d.x, d.y) : null, dogIn: d && d.ready ? inside(d.x, d.y, 0.35) : null, beat: g.story.state.beat };
+  });
   const seen = new Set();
+  if (FILM) { // the film: a frame every 1/FILM s of the page's own time, each taken once it is drawn
+    const dir = `${out}/frames`; fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
+    await p.evaluate(() => window.__vt.start());
+    let n = 0, after = 0;
+    while (n < FILM * 120 && after < FILM * 2) {
+      await p.evaluate(ms => window.__vt.step(ms), 1000 / FILM);
+      await p.screenshot({ path: `${dir}/${String(n++).padStart(5, '0')}.jpg`, type: 'jpeg', quality: 92, timeout: 180000 });
+      if ((await beat()) !== 'flight') after++;
+      if (n % (FILM * 5) === 0) console.log(`filmed ${n / FILM} s`);
+    }
+    await p.evaluate(() => { /* back to the real clock for what is measured after */ });
+    require('child_process').execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FILM), '-i', `${dir}/%05d.jpg`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', `${out}/flight.mp4`]);
+    console.log(`the film: ${out}/flight.mp4, ${n} frames`);
+    const q = await after();
+    console.log('after the flight:', JSON.stringify(q));
+    const bad = !q.hull.length || q.meIn || q.dogIn;
+    if (bad) console.log(`FAIL ${!q.hull.length ? 'the helicopter has no hull' : 'set down inside the helicopter'}`);
+    await b.close();
+    process.exit(bad ? 1 : 0);
+  }
   for (let i = 0; i < 3000 && (await beat()) === 'flight'; i++) {
     const t = await p.evaluate(() => { const o = window.__game.overture(); return o && o.active ? o.t : null; });
     if (t == null) { await p.waitForTimeout(300); continue; } // (not begun yet: the helicopter's model is still coming; story ctx film)
@@ -86,17 +122,6 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
     }
     await p.waitForTimeout(150);
   }
-  // out: where you, the dog and the helicopter are, and a still a moment later
-  const after = async () => p.evaluate(() => {
-    const g = window.__game, st = g.heli.st, d = g.guideMade && g.guideMade(), me = g.player;
-    const hull = g.heli.boxes ? g.heli.boxes() : [];
-    const inside = (x, y, r) => hull.filter(q => { const fx = Math.sin(q.h), fy = Math.cos(q.h), dx = x - q.x, dy = y - q.y; return Math.abs(dx * fx + dy * fy) < q.hl + r && Math.abs(-dx * fy + dy * fx) < q.hw + r; }).length > 0;
-    // (in the model's own frame, as a check that needs no boxes of the helicopter's: forward along its nose, right of it)
-    const local = (x, y) => { const fx = Math.sin(st.h), fy = Math.cos(st.h), dx = x - st.x, dy = y - st.y; return [+(dx * fx + dy * fy).toFixed(2), +(dx * fy - dy * fx).toFixed(2)]; };
-    return { heli: [+st.x.toFixed(2), +st.y.toFixed(2), +st.z.toFixed(2), +(st.h * 180 / Math.PI).toFixed(1)], seen: g.heli.group.visible, landed: st.landed,
-      me: [+me.x.toFixed(2), +me.y.toFixed(2), +me.z.toFixed(2)], meLocal: local(me.x, me.y), meIn: inside(me.x, me.y, 0.3), meShown: me.rig.root.visible,
-      dog: d && d.ready ? [+d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2)] : null, dogLocal: d && d.ready ? local(d.x, d.y) : null, dogIn: d && d.ready ? inside(d.x, d.y, 0.35) : null, beat: g.story.state.beat };
-  });
   const A = [];
   for (let k = 0; k < 6; k++) { A.push(await after()); if (k === 0) await still(`${out}/out-0.png`); await p.waitForTimeout(400); }
   await still(`${out}/out-1.png`);
@@ -134,6 +159,7 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
     if (q.dogIn) fails.push(`the dog stands inside the helicopter (${q.dogLocal} m from its mast, forward and right)`);
   }
   if (!A[0].meLocal) fails.push('nothing to measure');
+  if (!A[0].hull.length) fails.push('the helicopter has no hull: nothing keeps anyone out of it');
   for (const e of errors) fails.push(`page error: ${e.slice(0, 200)}`);
   const uniq = [...new Set(fails)];
   for (const f of uniq) console.log('FAIL', f);

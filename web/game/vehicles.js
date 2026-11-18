@@ -612,18 +612,24 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
   // a helicopter's hull in the model's frame (+z forward, +x left, +y up), from its body's own points: the length cut where
   // the body narrows from the cabin (skids and all) to the tail boom, each part the box round its points:
   // [{ c: its middle along the length, cx: across, hl, hw: half length and width, y0, y1: bottom and top }]
-  function hullOf(mesh, root) {
-    if (!mesh || !mesh.geometry) return [];
+  // (body: the node, a mesh or, where its model has several materials, a group of them)
+  function hullOf(body, root) {
+    if (!body) return [];
     root.updateMatrixWorld(true);
-    const M = new THREE.Matrix4().copy(root.matrixWorld).invert().multiply(mesh.matrixWorld), pos = mesh.geometry.attributes.position, v = new THREE.Vector3();
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3();
     const S = 0.25, slices = new Map();
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(M);
-      const k = Math.floor(v.z / S);
-      let q = slices.get(k);
-      if (!q) slices.set(k, q = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity });
-      q.x0 = Math.min(q.x0, v.x); q.x1 = Math.max(q.x1, v.x); q.y0 = Math.min(q.y0, v.y); q.y1 = Math.max(q.y1, v.y);
-    }
+    body.traverse(mesh => {
+      if (!mesh.isMesh || !mesh.geometry || !mesh.geometry.attributes.position) return;
+      M.copy(inv).multiply(mesh.matrixWorld);
+      const pos = mesh.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(M);
+        const k = Math.floor(v.z / S);
+        let q = slices.get(k);
+        if (!q) slices.set(k, q = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity });
+        q.x0 = Math.min(q.x0, v.x); q.x1 = Math.max(q.x1, v.x); q.y0 = Math.min(q.y0, v.y); q.y1 = Math.max(q.y1, v.y);
+      }
+    });
     const ks = [...slices.keys()].sort((a, b) => b - a); // nose first
     if (!ks.length) return [];
     // the cabin: from the nose back to where the body, once wider than 1.4 m (the skids), is narrower again; the boom: the
