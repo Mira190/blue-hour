@@ -452,7 +452,11 @@
 .gd-choices .pr { display: grid; grid-template-columns: auto 1fr; gap: 5px 7px; align-items: baseline; }
 .gd-choices .pr :is(img, i) { grid-column: 1 / -1; display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #0b0d12; filter: saturate(0.9) contrast(1.05); }
 .gd-choices .pr b { font: 500 11px/1 var(--f-mono); color: #0b1020; }
-.gd-choices .pr span { font: 400 9px/1.35 var(--f-mono); letter-spacing: 0.04em; color: #3a3f4c; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.gd-choices .pr span { font: 400 9.5px/1.4 var(--f-mono); letter-spacing: 0.03em; color: #3a3f4c; } /* (whole: a print is chosen by what it says it shows, and three lines cut most of them short: tools/ui_fit.js) */
+.game-stage.story .gd-choices:has(.pr) { align-items: start; }
+/* (a row of prints, or a long list of names, comes down the frame to the roll's corner on a narrower screen: the roll is
+   put away under them, as on a phone, and the prints themselves are the roll) */
+@media (max-width: 1199px) { .game-stage.story:has(.g-dialog:not([hidden]) .gd-choices button) :is(#g-story-frames, #g-story-keys) { opacity: 0; pointer-events: none; } }
 @media (max-width: 640px) { .game-stage.story .gd-choices:has(.pr) { grid-template-columns: repeat(3, 1fr); gap: 7px; } .gd-choices .pr span { display: none; } }
 
 /* ---- what was in the camera all along: the ticket's face and its back, in the hand, a breath after the card */

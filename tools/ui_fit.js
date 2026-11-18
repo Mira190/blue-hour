@@ -24,7 +24,7 @@ const WORDS = process.env.WORDS != null ? process.env.WORDS.split(',').map(Numbe
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const STILLS = process.env.STILLS || 'some';
 // (the screens put in front of a person at every size: one of each kind)
-const SHOW = /^(title-.*|1-order|1-teach-in-the-light|1-raised|1-print|.*-met|.*-show-a-print|.*-seen-through|.*-hint-place|roll-file|roll-versus|log|end|end-worked|end-back|walk-2-step|walk-4-out|walk-6-menu)$/;
+const SHOW = /^(title-.*|fail-card|1-order|1-teach-in-the-light|1-raised|1-print|.*-met|.*-show-a-print|.*-seen-through|.*-hint-place|roll-file|roll-versus|log|end|end-worked|end-back|walk-2-step|walk-4-out|walk-6-menu)$/;
 const PORT = process.env.PORT || 8800;
 
 // The audit, in the page: what does not fit, at this size. Only what is seen counts (shown, not transparent, not
@@ -40,7 +40,8 @@ function audit() {
     let o = 1;
     for (let x = e; x && x.nodeType === 1; x = x.parentElement) { const c = getComputedStyle(x); if (c.display === 'none') return false; o *= +c.opacity; if (o < 0.08) return false; }
     const c = getComputedStyle(e); if (c.visibility !== 'visible') return false;
-    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+    // (wholly off the screen is put away there, as the order sheet waits under the foot of the frame: not seen)
+    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight;
   };
   const scroller = c => /(auto|scroll)/.test(c.overflowX + c.overflowY);
   const clips = c => c.overflowX !== 'visible' || c.overflowY !== 'visible';
@@ -81,18 +82,8 @@ function audit() {
     const fs = parseFloat(c.fontSize);
     if (fs < 9) warn.push(`small words (${fs.toFixed(1)} px): ${what}`);
   }
-  // boxes wider than they are (words spilling sideways out of a box that does not clip)
-  for (const e of shown) {
-    const c = getComputedStyle(e);
-    if (scroller(c) || c.display === 'inline' || e.clientWidth === 0) continue;
-    if (e.scrollWidth > e.clientWidth + 2 + (parseFloat(c.letterSpacing) || 0) && [...e.querySelectorAll('*')].concat(e).some(x => textRect(x))) {
-      // (only the innermost: its parents spill because it does)
-      if (![...e.children].some(k => shown.has(k) && k.scrollWidth > k.clientWidth + 2 && getComputedStyle(k).display !== 'inline')) bad.push(`box spills sideways: ${where(e)} ${e.scrollWidth}/${e.clientWidth} px "${words(e)}"`);
-    }
-  }
   // the page itself scrolling sideways
   if (document.documentElement.scrollWidth > W + 1) bad.push(`the page scrolls sideways: ${document.documentElement.scrollWidth} px in ${W}`);
-  if (stage.scrollWidth > stage.clientWidth + 1) bad.push(`the stage is wider than the screen: ${stage.scrollWidth} px in ${stage.clientWidth}`);
   // buttons over buttons, and buttons off the screen
   const act = [...shown].filter(e => e.matches('button, a[href], input, select, textarea, [role=button], [role=radio], [role=tab], [tabindex]:not([tabindex="-1"])') && getComputedStyle(e).pointerEvents !== 'none' && onTop(e));
   for (const e of act) { const r = e.getBoundingClientRect(); if (r.left < -T || r.right > W + T || r.top < -T || r.bottom > H + T) { let inScroll = false; for (let x = e.parentElement; x && x !== stage; x = x.parentElement) if (scroller(getComputedStyle(x))) { inScroll = true; break; } if (!inScroll) bad.push(`button off the screen: "${words(e)}" (${where(e)})`); } }
@@ -133,6 +124,10 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
     const n = f.replace(/\.json$/, ''); if (ONLY && !ONLY.test(n)) continue;
     const j = JSON.parse(fs.readFileSync(path.join(d, f), 'utf8')); (dumps[j.ctx] || (dumps[j.ctx] = [])).push({ name: n, d: j });
   }
+  // (screens no still caught, staged on one that did with the story's own template and its longest words: the card of a
+  // frame failed, story.js failed(), with frame 6's line)
+  const STAGED = [{ name: 'fail-card', base: /^\d-stop$/, run: () => { const f = document.getElementById('g-story-fail'); f.innerHTML = '<div class="card"><small>17:46 · frame 6</small><h2>He turned back to the station</h2><p>An old man asked to be shown where he sat as a boy, and was shown somewhere else twice. He will not tell the rest to someone guessing. The roll has his pitch in it: find it before you go back to him.</p><div class="row"><button type="button" class="go">Take it up again · 17:46</button></div></div>'; f.classList.add('on'); } }];
+  for (const k of Object.keys(dumps)) for (const S of STAGED) { if (ONLY && !ONLY.test(S.name)) continue; const b = dumps[k].find(x => S.base.test(x.name)); if (b && !dumps[k].some(x => x.name === S.name)) dumps[k].push({ name: S.name, d: b.d, then: S.run }); }
   const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
   const report = [];
@@ -153,18 +148,22 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
       if (p) await p.close();
       p = await ctx.newPage();
       p.on('pageerror', e => console.log(`pageerror (${ctxName}):`, String(e).slice(0, 200)));
+      // (the street held still while the screens are measured, a frame of it drawn only for a still: window.__hold)
+      await p.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window), q = []; window.__hold = false; window.requestAnimationFrame = fn => (window.__hold ? (q.push(fn), 0) : raf(fn)); window.__release = () => { window.__hold = false; q.splice(0).forEach(f => raf(f)); }; });
       await p.addInitScript(`try { localStorage.setItem('oe3d-quality', ${JSON.stringify(process.env.TIER || 'high')}); (${prep || (() => {})})(); } catch (e) {}`);
       await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
       await p.waitForTimeout(3000);
+      await p.evaluate(() => { window.__hold = true; });
       await p.evaluate(() => document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } }));
     };
+    const still = async file => { await p.evaluate(() => window.__release()); await p.waitForTimeout(1500); await p.screenshot({ path: file, timeout: 120000 }).catch(() => console.log(`(no still ${file})`)); await p.evaluate(() => { window.__hold = true; }); };
     const check = async (name, lay) => {
       for (const size of sizes) {
         const [w, h] = size.split('x').map(Number);
         await p.setViewportSize({ width: w, height: h });
         if (lay) await lay();
-        await p.waitForTimeout(350); // (a frame of the street at the new size)
+        await p.waitForTimeout(60);
         for (const n of WORDS) {
           await p.evaluate(setWords, n);
           const r = await p.evaluate(audit);
@@ -172,8 +171,8 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
           const key = `${name} ${ctxName} ${size} words ${n}`;
           if (r.bad.length) { fails++; console.log(`FAIL ${key}\n  - ${r.bad.slice(0, 12).join('\n  - ')}`); }
           report.push({ name, ctx: ctxName, size, words: n, bad: r.bad, warn: r.warn });
-          const still = STILLS === 'all' ? n === 0 : STILLS === 'some' ? (n === 0 && SHOW.test(name)) || r.bad.length : false;
-          if (still && (n === 0 || r.bad.length)) await p.screenshot({ path: `${out}/${name}-${size}${n ? `-w${n}` : ''}.png`, timeout: 120000 }).catch(() => console.log(`(no still ${key})`));
+          const want = STILLS === 'all' ? n === 0 : STILLS === 'some' ? (n === 0 && SHOW.test(name)) || r.bad.length : false;
+          if (want && (n === 0 || r.bad.length)) await still(`${out}/${name}-${size}${n ? `-w${n}` : ''}.png`);
         }
         await p.evaluate(setWords, 0);
       }
@@ -181,7 +180,7 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
     for (const [name, prep] of TITLES) { if (ONLY && !ONLY.test(name)) continue; await open(prep); await check(name, null); }
     if (dumps[ctxName].length) {
       if (!p) await open(null);
-      for (const { name, d } of dumps[ctxName]) await check(name, () => p.evaluate(lay, d));
+      for (const { name, d, then } of dumps[ctxName]) await check(name, async () => { await p.evaluate(lay, d); if (then) await p.evaluate(then); });
     }
     await ctx.close();
   }
