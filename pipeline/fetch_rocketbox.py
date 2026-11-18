@@ -5,8 +5,8 @@ characters use, and the licence (MIT, (c) 2020 Microsoft).
 
     python pipeline/fetch_rocketbox.py
 
-The NPCs are the characters named R_<avatar>[_<head>][_<tag>...] in the cities' game.npcs
-(cities/*/city.json): the Rocketbox avatar, optionally wearing another avatar's head (named by
+The NPCs are the characters named R_<avatar>[_<head>][_<tag>...] in the cities' game.npcs, their crowds
+and their stories' people (cities/*/city.json): the Rocketbox avatar, optionally wearing another avatar's head (named by
 its Rocketbox model code, such as f003 or m024) and retouched by tags (build_people.py: HAIR,
 CLOTH, TOP, PATTERN, SUIT, "bare", "plain"). The reef and alpine sites name theirs in web/reef
 (looks.js for the roles and the visitor you play, game/<site>.js for a site's own people).
@@ -77,6 +77,17 @@ def npc_cast(listing):
         # ... and its crowd's (game.crowd.cast: the walkers drawn as people; a head or a hair colour of their own on a body
         # another of the cast wears is one more character here, issue 505)
         crowd = ((json.load(open(path, encoding="utf8")).get("game") or {}).get("crowd") or {}).get("cast") or {}
+        # ... and its story's people (game.story: the living cast and the afterimages; a build of every NPC removed the files
+        # of characters no city named, and the story's own were among them)
+        story = json.dumps((json.load(open(path, encoding="utf8")).get("game") or {}).get("story") or {})
+        for cid in sorted(set(re.findall(r'"character": "(R_[A-Za-z0-9_]+)"', story))):
+            m = NPC_ID.match(cid)
+            if not m or m.group(1) not in by_name or (m.group(2) and m.group(2) not in by_code):
+                raise SystemExit(f"{city}: story: no Rocketbox avatar for {cid}")
+            spec = cast.setdefault(cid, {"avatar": by_name[m.group(1)], "head": by_code[m.group(2)] if m.group(2) else None,
+                                         "tags": [t for t in m.group(3).split("_") if t],
+                                         "sex": "f" if "Female" in m.group(1) else "m", "clips": set(), "cities": set()})
+            spec["cities"].add(city)
         for cid in (crowd.get("f") or []) + (crowd.get("m") or []):
             m = NPC_ID.match(cid)
             if not m or m.group(1) not in by_name or (m.group(2) and m.group(2) not in by_code):
