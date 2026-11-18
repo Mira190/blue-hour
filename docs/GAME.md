@@ -2843,7 +2843,11 @@ naval uniform for a water-bus captain, a chef, salarymen, students.
   body. The body's bare skin (hands, and arms or legs of the same tone) takes the new
   face's colour.
 - **Tags:** `grey`, `white`, `brown` recolour the hair, on the scalp and the hair
-  cards; `dark` and `navy` dye white cloth (Brother Sozen's robe is a dyed kurta);
+  cards, and the brows a darker shade of it (`BROW`), leaving the lashes, the lids
+  and the folds of the ears as they are (issue 34); `glove` (one white glove, on the
+  right hand), `liftcap` (a lift girl's pillbox hat of the jacket's cloth) and
+  `handbag` (a black leather handbag held in the left hand) are made in the bind pose
+  and skinned with the body (issue 46); `dark` and `navy` dye white cloth (Brother Sozen's robe is a dyed kurta);
   `bare` takes off a hat or helmet; `plain` covers lettering, badges and another
   country's flag with the cloth beside them (`INSIGNIA`), and takes off any weapon;
   `leopard` and `mariniere` print the pattern over the top, from where each texel

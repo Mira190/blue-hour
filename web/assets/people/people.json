@@ -940,18 +940,21 @@
     ],
     "mask": 0.514
    },
-   "R_Business_Female_03_f011": {
-    "file": "R_Business_Female_03_f011.glb",
+   "R_Business_Female_03_f011_glove_liftcap": {
+    "file": "R_Business_Female_03_f011_glove_liftcap.glb",
     "sex": "f",
     "avatar": "Professions/Business_Female_03",
     "head": "Adults/Female_Adult_11",
-    "tags": [],
-    "height_m": 1.736,
-    "triangles": 9158,
+    "tags": [
+     "glove",
+     "liftcap"
+    ],
+    "height_m": 1.769,
+    "triangles": 9685,
     "cities": [
      "shibuya"
     ],
-    "mask": 0.514
+    "mask": 0.4856
    },
    "R_Business_Female_04_f003": {
     "file": "R_Business_Female_04_f003.glb",
@@ -1256,26 +1259,19 @@
      "paris"
     ]
    },
-   "R_Female_Adult_09_f011_grey": {
-    "file": "R_Female_Adult_09_f011_grey.glb",
+   "R_Female_Adult_09_f011_grey_handbag": {
+    "file": "R_Female_Adult_09_f011_grey_handbag.glb",
     "sex": "f",
     "avatar": "Adults/Female_Adult_09",
     "head": "Adults/Female_Adult_11",
     "tags": [
-     "grey"
+     "grey",
+     "handbag"
     ],
     "height_m": 1.736,
-    "triangles": 9236,
+    "triangles": 10304,
     "cities": [
-     "asakusa",
-     "fushimi-inari",
-     "hong-kong",
-     "kyoto",
-     "queenstown",
-     "shibuya",
-     "shinjuku",
-     "tokyo",
-     "ueno"
+     "shibuya"
     ],
     "mask": 0.07
    },
@@ -1361,11 +1357,7 @@
     "height_m": 1.739,
     "triangles": 8612,
     "cities": [
-     "ikebukuro",
-     "shibuya",
-     "shinjuku",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.1307
    },
@@ -1423,9 +1415,7 @@
     "height_m": 1.736,
     "triangles": 8630,
     "cities": [
-     "shibuya",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.0821
    },
@@ -1542,12 +1532,7 @@
     "height_m": 1.822,
     "triangles": 7086,
     "cities": [
-     "higashiyama",
-     "shibuya",
-     "shinjuku",
-     "tetsugaku",
-     "tsukishima",
-     "ueno"
+     "shibuya"
     ],
     "mask": 0.0368
    },
@@ -1625,10 +1610,7 @@
     "height_m": 1.829,
     "triangles": 6952,
     "cities": [
-     "akihabara",
-     "ikebukuro",
-     "shibuya",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.0611
    },
@@ -1728,9 +1710,7 @@
     "height_m": 1.822,
     "triangles": 6928,
     "cities": [
-     "shibuya",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.0612
    },
@@ -1771,10 +1751,7 @@
     "height_m": 1.821,
     "triangles": 7398,
     "cities": [
-     "odaiba",
-     "shibuya",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.2252
    },
