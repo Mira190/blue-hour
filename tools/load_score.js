@@ -34,6 +34,18 @@ const [,, out = '/tmp/load-score', size = '1440x900'] = process.argv;
   });
   await p.waitForFunction(() => document.querySelector('.roll-sound') && window.OEAudio && (window.OEAudio.ctx || window.OEAudio.pending), null, { timeout: 120000 });
   if (!(await waiting())) fail('the loading screen does not say the score waits for a touch');
+  // where it can be read: on screen, on the lower bar, clear of the roll and the count, in the bar's own type at the
+  // least (dimmed in the bar's corner of the upper one it went unread, and a new site's silent load was taken for a
+  // broken one)
+  await p.waitForTimeout(800); // (its fade in)
+  const hint = await p.evaluate(() => {
+    const box = e => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; }, e = document.querySelector('.roll-sound'), cs = getComputedStyle(e);
+    const bar = box(document.querySelector('.roll-bar.foot')), others = [...document.querySelectorAll('.roll-bar.foot > :not(.roll-sound)')].filter(o => o.offsetWidth).map(box);
+    const r = box(e), hit = others.some(o => r.l < o.r && o.l < r.r);
+    return { r, bar, hit, px: parseFloat(cs.fontSize), op: +cs.opacity, vis: cs.visibility, text: e.textContent };
+  });
+  if (hint.vis !== 'visible' || hint.op < 0.9 || hint.px < 9 || hint.hit || hint.r.l < 0 || hint.r.r > w || hint.r.t < hint.bar.t || hint.r.b > hint.bar.b) fail(`the touch is asked for where it is not read: ${JSON.stringify(hint)}`);
+  else console.log(`ok   "${hint.text}" on the lower bar, ${hint.px} px, clear of the roll`);
   if (process.env.IOS) { const made = await p.evaluate(() => !!window.OEAudio.ctx); if (made) fail('an AudioContext was made before the touch'); else console.log('ok   no AudioContext before the touch'); }
   await p.screenshot({ path: `${out}/waiting-${size}.png` });
   const t0 = Date.now();
@@ -41,6 +53,7 @@ const [,, out = '/tmp/load-score', size = '1440x900'] = process.argv;
   await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 20000 }).catch(() => fail('a touch does not start the sound'));
   console.log(`ok   the tape: ${await p.evaluate(() => window.OEAudio.tape)}`);
   if (await waiting()) fail('the loading screen still asks for a touch after one');
+  await p.waitForFunction(() => getComputedStyle(document.querySelector('.roll-sound')).visibility === 'hidden', null, { timeout: 8000 }).catch(() => fail('the ask for a touch is still on screen after one')); // (its fade, late where the load holds the main thread)
   let first = 0;
   for (let i = 0; i < 10 && !first; i++) if (await level() > 0.004) first = (Date.now() - t0) / 1000;
   if (!first) fail('no score on the music bus within 10 s of the touch'); else console.log(`ok   the score sounds ${first.toFixed(1)} s after the touch`);
