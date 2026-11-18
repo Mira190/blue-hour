@@ -55,7 +55,7 @@ window.OEStory = (function () {
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
   //        person(id) -> one of the map's people { x, y, z, name, role }, beacon(at | null): a light standing at [x, y, , floor]
   //        (none: taken away), screen(at) -> { x, y, front, dist } where [x, y, z] is in the frame (0..1), aim(at) -> degrees
-  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
+  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], clear(a, b) -> the held crowd out of the way from a to b, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     let enterLater = () => {}; // (going back into a frame from the title: set once the case's functions exist, below)
@@ -88,8 +88,14 @@ window.OEStory = (function () {
     }
     const el = (id, html, tag = 'div') => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; ctx.stage.appendChild(e); return e; };
     const frames = el('g-story-frames', `<span><b></b><small>/${String(N).padStart(2, '0')}</small>taken</span><span class="strip">${'<i></i>'.repeat(N)}</span><em>${ctx.touch ? 'Tap' : '<kbd>Tab</kbd>'} · the roll</em>`, 'button'), card = el('g-story-card', '<div><small></small><span></span></div>'), veil = el('g-story-veil', ''), flash = el('g-story-flash', '');
-    const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '');
+    const goalEl = el('g-story-goal', '<small></small><span></span><em></em>'), mark = el('g-story-mark', '<u></u><i></i><b></b>'), keys = el('g-story-keys', ''), finder = el('g-story-finder', '<i class="rf" aria-hidden="true"><b></b><b></b><small></small></i>');
     const failEl = el('g-story-fail', ''), slip = el('g-story-slip', '<small>Entered in the file</small><p></p>');
+    // the story's own film (meetGuide): its words at the foot of the frame, over the bars, and how to end it
+    // a hint, asked for (hint() below): the button, under the camera's own
+    const hintBtn = el('g-story-hint', '', 'button');
+    hintBtn.type = 'button'; hintBtn.addEventListener('click', e => { e.stopPropagation(); hint(); });
+    const movEl = el('g-story-mov', `<p></p><button type="button">${ctx.touch ? 'Tap to skip' : 'Space to skip'}</button>`);
+    movEl.querySelector('button').addEventListener('click', e => { e.stopPropagation(); movEnd(true); });
     const pre = el('g-story-order', '');
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · <kbd>Wheel</kbd> the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
@@ -211,7 +217,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     goalEl.setAttribute('role', 'status'); goalEl.setAttribute('aria-live', 'polite');
     const pulse = () => { flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); };
     // phase: idle, dressed, go (the world runs: a word with the living, the way to the next place), stop, after, done
-    const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0, flags: {}, pairs: [], slips: 0, file: [], snaps: [] };
+    const st = { ep: null, phase: 'idle', beat: '', t: 0, left: N, fi: 0, fr: null, ghost: null, ghost2: null, target: null, prints: [], from: null, late: false, miss: 0, cast: {}, hinted: false, asked: 0, k: 1, orbit: 0, flags: {}, pairs: [], slips: 0, file: [], snaps: [], hint: 0, helped: {} };
     const timers = [];
     const later = (ms, fn) => timers.push(setTimeout(fn, ms));
     // the roll as a collection: each frame taken lit, with its own picture in it; those still to take dark and empty
@@ -223,7 +229,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     }
     // the case kept in this browser: the frame it is at and the prints so far
     const KEY = () => `oe-story-${st.ep ? st.ep.id : ''}`;
-    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
+    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
     const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
@@ -285,16 +291,24 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const led = !st.lost && ledBy(st.target);
       if (led && st.idle > LOST_S) st.lost = true;
       st.guided = led && !st.lost;
-      light(st.guided || st.kind === 'frame' ? null : to, via ? 'go' : st.kind);
+      light((st.guided && !(st.hint >= 3)) || st.kind === 'frame' ? null : to, via ? 'go' : st.kind); // (the third hint is the light, his lead or not)
       let k = via || (person && !talk) ? 'go' : st.kind;
       if (st.guided && !talk) {
-        // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him
-        const d = st.dog, dq = ctx.screen([d.x, d.y, d.z + 0.6]), dx = dq.x * W, dy = dq.y * H;
-        if ((dq.front && dx > m && dx < W - m && dy > m && dy < H - m) || dq.dist < 6) { mark.classList.remove('on'); return; } // (at your heels, out of the frame below you, he is not lost: no arrow pointing at your feet)
+        // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him. But only to him
+        // where he can be seen from here and is in front of you on the way: on SHIBUYA SKY's floor the arrow said
+        // "Hachi" at the foot of the frame and pointed at the floor (he was behind a player who had run past him), and
+        // in the street it pointed at a wall he was behind. Out of sight a while, he is called and comes back to you
+        // (companion.js call); behind you on the way, he is already running to be in front again. Either way, no arrow
+        const d = st.dog, at = [d.x, d.y, d.z + 0.6], dq = ctx.screen(at), dx = dq.x * W, dy = dq.y * H;
+        const inSight = !ctx.seen || ctx.seen(at);
+        st.unseen = inSight ? 0 : (st.unseen || 0) + dt;
+        if (st.unseen > 1.5 && dq.dist > 10) d.call(); // (not for a post between: further than he leads from, and a while)
+        if ((dq.front && dx > m && dx < W - m && dy > m && dy < H - m) || dq.dist < 6 || !inSight || d.behind) { mark.classList.remove('on'); return; } // (at your heels, out of the frame below you, he is not lost: no arrow pointing at your feet)
         q = dq; k = 'guide';
       }
       let x = q.x * W, y = q.y * H;
       if (!q.front) { x = W - x; y = H - m; } // (behind: its mark at the foot of the frame, on its side)
+      if (!q.front && k === 'guide') { x = x < W / 2 ? m : W - m; y = H / 2; } // (the dog behind the lens: on the side to turn to, not at the foot, where it read as down)
       // with the camera up the frame lines are the guide: no ring over the thing itself. But while it is outside them
       // an arrow on the frame's edge says which way to turn the lens, and what for (a player on the roof stood at the
       // light looking down for minutes with nothing to say where the thing was)
@@ -369,9 +383,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (!ep) return;
       ctx.stage.classList.add('story-on');
       for (const [i, r] of (ep.set || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r)); // (tonight's own set dressing: a lift's doors, a sign)
-      for (const c of ep.cast || []) if (!st.cast[c.id]) st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice });
+      for (const c of ep.cast || []) if (!st.cast[c.id]) { st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice }); if (c.face && st.cast[c.id].face) st.cast[c.id].face(c.face[0], c.face[1]); } // (face: where they look all evening, the old man at the crossing)
       const k = kept();
-      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; }
+      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; }
       else { st.flags = {}; st.pairs = []; st.file = []; st.snaps = []; }
       st.resumed = !!k;
       if (ep.walk_in_s != null && !k) ctx.walkIn(ep.walk_in_s);
@@ -386,7 +400,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // a frame begins: the sky it has, a word with the living if there is one, and the way to where the world will stop
     function frame(i) {
       const fr = st.ep.frames[i];
-      st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0;
+      st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0; huntFresh(); // (the hints asked for in one frame are not carried into the next: the third's light stood beside the dog leading to the old man)
       if (fr.weather) ctx.weather(fr.weather, !!fr.wet);
       // (the case as it stood on arriving at this frame: what going back into it from the last card restores. Not the
       // prints themselves, which the roll keeps in order, but how many; a frame taken up again after a slip keeps its first)
@@ -429,8 +443,8 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       st.beat = 'approach'; st.t = 0;
       goal(fr.goal || '');
       // (a frame whose place the player finds, fr.find: no ring stands there; the goal says what is known of it, the roll
-      // has the print that shows it, a second line says more after half a minute and the ring comes after find_s)
-      st.findT = 0; st.lit = !fr.find || st.late;
+      // has the print that shows it, and more is given only when it is asked for: hint())
+      st.findT = 0; st.lit = !fr.find || st.late; huntFresh();
       aimAt(!st.lit || fr.lead_s != null || !(fr.stop_at || a) ? null : spot(fr.stop_at || a.at), true);
     }
     // what the living ask: each question until it is answered rightly (a wrong answer costs nothing but the look they give you)
@@ -506,7 +520,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       });
     }
     // what is said, what is asked, and what is said once it is answered (`then`): of the living, or of an afterimage
-    const hear = (m, w, done) => { st.slips = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = L(m.lines); return first.length ? ctx.say(w, first, go) : go(); };
+    // (a line among them may be another's: { by: a cast id, say }, heard in that one's voice and under no name: the first
+    // evening's *You came late* is the old woman's, a beat before the girl turns, and the last evening says so)
+    const runs = list => { const out = []; for (const l of [].concat(list || [])) { if (typeof l !== 'string' && ((l.if && !st.flags[l.if]) || (l.not && st.flags[l.not]))) continue; const by = typeof l === 'string' ? '' : l.by || '', text = typeof l === 'string' ? l : l.say; if (out.length && out[out.length - 1].by === by) out[out.length - 1].lines.push(text); else out.push({ by, lines: [text] }); } return out; };
+    const sayRuns = (R, w, done) => { if (!R.length) return done(); const [r, ...rest] = R, c = r.by && st.cast[r.by]; const who2 = c ? { name: (st.ep.cast || []).find(q => q.id === r.by)?.unseen || 'A voice', role: 'tonight', alive: true, voice: voiceOf(c) } : w; return ctx.say(who2, r.lines, () => sayRuns(rest, w, done)); };
+    const hear = (m, w, done) => { st.slips = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = runs(m.lines); return first.length ? sayRuns(first, w, go) : go(); };
     function stop() {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
       st.phase = 'stop'; st.t = 0; st.beat = 'still';
@@ -524,8 +542,16 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // (a Stop in which something moves that should not, fr.stirs: { cast, line, after_s }: one of the living turns to look)
       if (fr.stirs && st.cast[fr.stirs.cast]) later((fr.stirs.after_s || 7) * 1000, () => { if (st.phase !== 'stop' || st.fr !== fr) return; const c = st.cast[fr.stirs.cast]; if (c.face) c.face(ctx.player.x, ctx.player.y); if (fr.stirs.line) ctx.toast(esc(fr.stirs.line)); sfx('ghost'); });
       if (first) later(900, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
+      // (the guide's model asked for now, while the view turns: he is seen first close to, and must be there at the cut)
+      const gd0 = ep.guide, film = first && gd0 && gd0.meet !== false && ctx.guide && !st.dog && !ctx.reduced;
+      if (film) st.dogNext = ctx.guide(gd0);
       later(first ? 4300 : 2500, () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
+        if (film && st.dogNext) { const d = st.dogNext; st.dogNext = null; return meetGuide(gd0, d, seek); }
+        seek();
+      });
+      const seek = () => {
+        if (st.phase !== 'stop') return;
         show(); frames.classList.add('on');
         if (!a || !(a.lines || []).length) return task();
         st.beat = 'seek'; st.from = [ctx.player.x, ctx.player.y];
@@ -541,18 +567,120 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         goal(a.seek || 'Someone is still moving. Go to them.');
         aimAt(spot([st.ghost.x, st.ghost.y, st.ghost.z]), true, 'ghost');
         if (!st.hinted) { st.hinted = true; hint(true); }
-      });
+      };
     }
+    // The guide's entrance, the first time the world stops (ep.guide, and `meet` on it: from_m, speed, hold_s, lines).
+    // Asked for by the owner: the crowd stopped, then the view given to the dog coming slowly, the words with him, and
+    // the camera with him all the way to your side, so that he is met as someone who was coming for you, not found as a
+    // marker. The view cuts from you to him, low among the held legs a dozen metres off, on his feet and looking at you;
+    // it backs away before him as he comes, swings round behind him as he nears you, and holds on the two of you as he
+    // sits at your feet and looks up. Then it is eased round to behind you (game.js). His way to you is planned round the
+    // people standing still (companion.js), never through them. Space, Enter, Esc or the button end it with him beside
+    // you; a player who asked for less motion is not shown it (prefers-reduced-motion), and he comes as he always did.
+    function meetGuide(gd, d, done) {
+      st.dog = d;
+      const M = Object.assign({ from_m: 11, speed: 1.2, hold_s: 3.6 }, gd.meet || {}), pl = ctx.player, P = [pl.x, pl.y, pl.z];
+      const home = gd.from && near(gd.from, 70) ? gd.from : [pl.x + Math.sin(pl.h) * 12, pl.y + Math.cos(pl.h) * 12];
+      let ux = home[0] - P[0], uy = home[1] - P[1]; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+      // where he is first seen: on the line from his plinth to you, on ground he may stand on, clear of the crowd
+      let S = null;
+      for (const m of [M.from_m, M.from_m - 2, M.from_m + 2, M.from_m - 4, M.from_m + 4, M.from_m - 6]) { if (m < 4 || m > ul) continue; S = d.free(P[0] + ux * m, P[1] + uy * m, 1.8); if (S) break; }
+      if (!S) S = [P[0] + ux * Math.min(M.from_m, ul), P[1] + uy * Math.min(M.from_m, ul)];
+      // where he sits: a pace in front of you and a little to one side, so that the two of you are seen together
+      const sx = P[0] + ux * 1.05 - uy * 0.4, sy = P[1] + uy * 1.05 + ux * 0.4, side = d.free(sx, sy, 0.6) || [sx, sy];
+      const f0 = [P[0] - S[0], P[1] - S[1]], fl = Math.hypot(f0[0], f0[1]) || 1; f0[0] /= fl; f0[1] /= fl;
+      pl.h = Math.atan2(S[0] - P[0], S[1] - P[1]); // (you are turned to see him come)
+      st.beat = 'guide';
+      st.mov = { t: -1, S, side, P, M, f0, n0: [-f0[1], f0[0]], done, cam: null, look: null, fov: 30, sat: 0, said: 0, len: Math.hypot(side[0] - S[0], side[1] - S[1]) };
+      movEl.querySelector('p').textContent = ''; movEl.querySelector('p').style.opacity = '0';
+      ctx.stage.classList.add('letterbox'); movEl.classList.add('on');
+    }
+    function movEnd(skipped) {
+      const F = st.mov, d = st.dog; if (!F) return;
+      st.mov = null; ctx.stage.classList.remove('letterbox'); movEl.classList.remove('on');
+      if (d) { if (skipped || d.state !== 'sit') d.place(F.side[0], F.side[1], Math.atan2(F.P[1] - F.side[1], F.P[0] - F.side[0])); d.met(); }
+      F.done();
+    }
+    // each frame of it: where the lens is and what it looks at, eased after where he is (in the map's frame: x, y, height)
+    function movTick(dt) {
+      const F = st.mov, d = st.dog; if (!F || !d) return;
+      if (F.t < 0) { if (!d.ready && F.wait == null) F.wait = 0; if (!d.ready && (F.wait += dt) < 4) return; F.t = 0; d.place(F.S[0], F.S[1], Math.atan2(F.P[1] - F.S[1], F.P[0] - F.S[0]), true); } // (his model in: the film starts on him)
+      F.t += dt;
+      const t = F.t, M = F.M, P = F.P, head = [P[0], P[1], P[2] + 1.55], gd = st.ep.guide || {};
+      const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+      if (t > 1.4 && !F.went) { F.went = true; d.go(F.side, head, M.speed); }
+      if (F.went && d.state === 'sit' && !F.sat) F.sat = t;
+      // the words, with him: as he is first seen, and as he looks up at you
+      const words = L(M.lines || gd.line || []);
+      if (t > 0.6 && F.said < 1 && words[0]) { F.said = 1; F.sayAt = t; movSay(words[0]); }
+      if (F.sat && t > F.sat + 0.5 && F.said < 2 && words[1]) { F.said = 2; F.sayAt = t; movSay(words[1]); }
+      // (the words drawn from the film's own clock, as the overture's are, not by a CSS animation: on a slow machine the
+      // story's clock runs slower than the wall's, and the words had come and gone before he took a step)
+      if (F.said) { const u = t - F.sayAt, op = sm(u / 0.9) * (F.said < 2 ? 1 - sm((u - 5.4) / 0.9) : 1), q = movEl.querySelector('p'); q.style.opacity = op.toFixed(3); q.style.transform = `translateY(${(6 * (1 - sm(u / 1.2))).toFixed(2)}px)`; }
+      if (F.sat && t > F.sat + M.hold_s) return movEnd(false);
+      if (t > 40) return movEnd(true); // (he never got there: beside you all the same)
+      // how far he has come (0 where he was first seen, 1 at your feet), and the lens's place from it: in front of him and
+      // low (between him and you, looking back at him), then round to behind him and up, so that you are in the frame ahead
+      const D = [d.x, d.y, d.z], prog = Math.max(0, Math.min(1, 1 - Math.hypot(F.side[0] - D[0], F.side[1] - D[1]) / (F.len || 1)));
+      const a = 2.45 * sm((prog - 0.2) / 0.55), r = 4.3 + 0.9 * sm(prog), up = 0.55 + 0.95 * sm((prog - 0.3) / 0.6); // (a third of the frame, his paws in it, and the held street round him)
+      const ox = F.f0[0] * Math.cos(a) + F.n0[0] * Math.sin(a), oy = F.f0[1] * Math.cos(a) + F.n0[1] * Math.sin(a);
+      const k = sm((prog - 0.35) / 0.5), mid = [(D[0] + P[0]) / 2, (D[1] + P[1]) / 2, P[2] + 0.95];
+      const pos = [D[0] + ox * r + F.n0[0] * 0.5 * (1 - k), D[1] + oy * r + F.n0[1] * 0.5 * (1 - k), D[2] + up];
+      const look = [D[0] + (mid[0] - D[0]) * k, D[1] + (mid[1] - D[1]) * k, D[2] + 0.6 + (mid[2] - D[2] - 0.6) * k];
+      const fov = 32 + 6 * sm(prog);
+      if (!F.cam) { F.cam = pos.slice(); F.look = look.slice(); }
+      const e = 1 - Math.exp(-dt * 2.6), e2 = 1 - Math.exp(-dt * 4);
+      for (let i = 0; i < 3; i++) { F.cam[i] += (pos[i] - F.cam[i]) * e; F.look[i] += (look[i] - F.look[i]) * e2; }
+      F.fov += (fov - F.fov) * e;
+    }
+    // A place to find is the player's to find (fr.find: where the world stops; task.find: where the picture is taken
+    // from). Nothing more is shown until they ask: H (a pad's d-pad up, or the button) gives the next of three, each
+    // saying more. The first is a word that narrows it; the second sends the dog, who goes to the place and sits there,
+    // looking at what the picture is of (the guide is the one sign inside the story, so he is the hint too); the third
+    // is the light on it, as every other frame has. A second line on a timer and a light after a minute and a half
+    // decided for the player when they were stuck, and gave the place away to one who was about to find it. After
+    // NUDGE_S of looking without one the button is offered, once, and pressed for nobody. The last card says which
+    // places were found alone (`hints` on the frame or its task: the three lines; else the frame's own second line)
+    const NUDGE_S = 45;
+    function hunting() {
+      const fr = st.fr; if (!fr || st.lit) return null;
+      const dogName = (st.ep.guide || {}).name || 'The dog';
+      if (st.phase === 'go' && st.beat === 'approach' && fr.find) { const a = fr.stop_at || (fr.afterimage && fr.afterimage.at); return a ? { at: a, lines: fr.hints || [fr.goal2, `${dogName} knows the place. He takes you to it.`, 'A ring, where he stood.'], go: true } : null; }
+      const T = fr.task;
+      if (st.phase === 'stop' && st.beat === 'shoot' && T && T.find && T.stand && !framed().placed) return { at: T.stand, look: subjectOf(T), lines: T.hints || [(T.goals || {}).find2, `${dogName} knows the place. He goes to it and sits there.`, 'A light, where it was taken from.'] };
+      if (st.phase === 'stop' && st.beat === 'shoot' && T && T.hint_at && T.hints && !st.ready) return { at: T.hint_at, look: null, lines: T.hints, only: true };
+      return null;
+    }
+    function huntFresh() { st.hint = 0; st.hintText = ''; st.nudged = false; st.hk = null; st.hintLight = null; }
+    function nudge() { if (!st.nudged && !st.hint && st.findT > NUDGE_S && !st.mov) { st.nudged = true; say(ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Stuck? Tap for a hint' : `Stuck? ${K('H')} for a hint`); hintBtn.classList.remove('nudge'); void hintBtn.offsetWidth; hintBtn.classList.add('nudge'); } }
+    function hint() {
+      const H = hunting(); if (!H || st.hint >= 3) return;
+      const n = ++st.hint, text = H.lines[n - 1] || '';
+      st.helped[st.fi] = Math.max(st.helped[st.fi] || 0, n); keep();
+      sfx('goal'); say(`A hint · ${n} of 3`);
+      if (n === 1 && text) { st.hintText = text; goal(text); }
+      if (n === 2) { // (the dog: to the place, and he sits there; one who has not met him yet is met now)
+        const gd = st.ep.guide;
+        if (!st.dog && gd && ctx.guide) { const d = ctx.guide(gd); if (d) { d.place(ctx.player.x + 1.2, ctx.player.y + 1.2, 0); d.met(); st.dog = d; } }
+        if (H.go) aimAt(spot(H.at), false); // (where the world stops: he leads there, and nothing else shows the way)
+        else if (st.dog) st.dog.go([H.at[0], H.at[1]], H.look || null, 3.4);
+        if (text) { st.hintText = text; goal(text); }
+      }
+      if (n === 3) { st.lit = true; if (H.go || H.only) aimAt(spot(H.at), false, H.only ? 'stand' : 'go'); if (H.only) st.hintLight = spot(H.at); if (text) say(text); }
+    }
+    function movSay(text) { movEl.querySelector('p').textContent = text; if (ctx.log && ctx.log.aside) ctx.log.aside(esc(text)); } // (and in the log of the evening, as what was seen)
     // the photograph: of what, from where
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      st.findT = 0; st.lit = !st.fr.task.find; st.placedOnce = false; st.spendT = 0; // (find: no light stands where this one is taken from, until the player has looked a while)
+      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; st.ready = false; huntFresh(); // (ready: not the last frame's, which was taken: the first H of the last frame went to nothing) // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
+      if (st.fr.task.both && ctx.clearRound) for (const g of [st.ghost, st.ghost2]) if (g) ctx.clearRound(g.x, g.y, 3.5); // (each alone on their kerb)
+      if (st.fr.task.both && st.fr.task.hint_at && ctx.clear) for (const g of [st.ghost, st.ghost2]) if (g) ctx.clear(st.fr.task.hint_at, [g.x, g.y]); // (the held crowd out of the two ways from the corner the hints lead to: two figures among umbrellas forty metres off were not to be found in the print)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)
-      if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand && !T.find ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1; to = [R.at[0] + (px - R.at[0]) / l * 2.2 + 0.8, R.at[1] + (py - R.at[1]) / l * 2.2]; } if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
+      if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand && !T.find ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1, ux = (px - R.at[0]) / l, uy = (py - R.at[1]) / l, q = [R.at[0] + ux * 1.2 - uy * 2.2, R.at[1] + uy * 1.2 + ux * 2.2]; to = (st.dog.free && st.dog.free(q[0], q[1], 1.5)) || q; } /* (beside it, off the line from the lens: on that line, 2.2 m before the lamp, his head filled the foot of the third print) */ if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
     }
     // the finder's rectangle in the picture, as fractions from its top left
     const finderRect = () => { const f = finder.getBoundingClientRect(), s = ctx.stage.getBoundingClientRect(); return [(f.left - s.left) / s.width, (f.top - s.top) / s.height, (f.right - s.left) / s.width, (f.bottom - s.top) / s.height]; };
@@ -565,7 +693,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       let aimed;
       if (!st.cam) aimed = false; // (nothing is framed with the camera down)
       else if (T.relic) { const q = ctx.screen(subjectOf(T)), r = finderRect(); aimed = q.front && q.x > r[0] && q.x < r[2] && q.y > r[1] && q.y < r[3]; } // (the thing itself, inside the bright lines)
-      else if (T.both) aimed = [st.ghost, st.ghost2].every(g => { if (!g) return true; const q = ctx.screen([g.x, g.y, g.z + 1.2]); return q.front && q.x > 0.06 && q.x < 0.94 && q.y > 0.06 && q.y < 0.94; });
+      else if (T.both) aimed = [st.ghost, st.ghost2].every(g => { if (!g) return true; const at = [g.x, g.y, g.z + 1.2], q = ctx.screen(at); return q.front && q.x > 0.06 && q.x < 0.94 && q.y > 0.06 && q.y < 0.94 && q.dist < 60 && (!ctx.seen || ctx.seen(at)); }); // (on the screen, near enough to be told, and in sight: a kiosk between the lens and both of them was taken as the last picture)
       else aimed = !T.subject || ctx.aim(T.subject) <= (T.within_deg || 40);
       return { placed, aimed };
     }
@@ -664,6 +792,9 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
       const P = ep.pairs || [], never = P.map(q => pairKey(q.of[0] - 1, q.of[1] - 1)).filter(k => !st.pairs.includes(k));
       if (P.length) li.push(`<li class="pair"><b>${st.pairs.length}/${P.length}</b><span>${never.length ? `Never set side by side: ${never.map(k => `frames ${k.replace('-', ' and ')}`).join('; ')}.` : 'Every pair of prints that argues was set side by side.'}</span></li>`);
       if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and taken up again.</span></li>`);
+      { const found = ep.frames.map((f, i) => (f.find || (f.task && f.task.find) ? i : -1)).filter(i => i >= 0 && st.prints[i]), alone = found.filter(i => !st.helped[i]), helped = found.filter(i => st.helped[i]);
+        const L2 = a => a.map(i => i + 1).join(a.length > 2 ? ', ' : ' and ');
+        if (found.length) li.push(`<li class="found"><b>${alone.length}/${found.length}</b><span>${alone.length ? `Found alone: frame${alone.length > 1 ? 's' : ''} ${L2(alone)}.` : ''}${helped.length ? ` With a hint: ${helped.map(i => `${i + 1} (${['a word', 'the dog', 'the light'][st.helped[i] - 1]})`).join(', ')}.` : ''}</span></li>`); }
       return li.length ? `<section class="worked" aria-label="How the case was worked"><h3>How the case was worked</h3><ul>${li.join('')}</ul></section>` : '';
     }
     // Going back in: a case closed in this browser keeps its prints and the snapshot of each frame on arriving at it
@@ -711,6 +842,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
     const onKey = e => {
       if (e.code === 'KeyF' && !e.repeat && st.beat === 'shoot') { e.preventDefault(); e.stopPropagation(); shoot(); }
       else if (e.code === 'KeyR' && !e.repeat && st.phase === 'stop' && st.beat === 'shoot') { e.preventDefault(); e.stopPropagation(); raise(!st.cam); }
+      else if (e.code === 'KeyH' && !e.repeat && hunting()) { e.preventDefault(); e.stopPropagation(); hint(); }
       else if ((e.code === 'Tab' || (e.code === 'Escape' && album.classList.contains('on'))) && !e.repeat && st.phase !== 'idle' && st.phase !== 'dressed' && st.phase !== 'done') { e.preventDefault(); e.stopPropagation(); albumOpen(!album.classList.contains('on')); }
     };
     addEventListener('keydown', onKey, true);
@@ -725,8 +857,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
           : st.beat === 'ride' ? (st.inCar ? `${ctx.touch ? 'Tap Skip' : `Press ${K('F')}`} to be there now.` : `Walk to the car and ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} to get in. Or walk the whole way.`)
-          : st.beat === 'board' ? `${dogN ? `Follow ${dogN} to it, and` : 'Walk to it and'} ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} beside it.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera as you look: the patch in the middle of the finder warms as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
+          : st.beat === 'board' ? `${dogN ? `Follow ${dogN} to it, and` : 'Walk to it and'} ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} beside it.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'Raise the camera: the two halves of the line in the middle of the finder come together as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
+        const hk = hunting() && st.hint < 3 && !st.mov ? `${st.hint ? 'Another hint' : 'A hint'}<i>${'●'.repeat(st.hint)}${'○'.repeat(3 - st.hint)}</i>${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '' : `<kbd>${K('H')}</kbd>`}` : '';
+        if (hk !== st.hk) { st.hk = hk; hintBtn.innerHTML = hk; hintBtn.classList.toggle('on', !!hk); }
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
         const r = ctx.rideNow(), R = fr.ride, there = near(R.to, 45);
@@ -752,11 +886,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           }
         } else if (st.beat === 'approach') {
           const a = fr.afterimage, at = fr.stop_at || (a && a.at);
-          if (!st.lit && at) {
-            const was = st.findT; st.findT += dt;
-            if (fr.goal2 && was <= 32 && st.findT > 32) goal(fr.goal2);
-            if (st.findT > (fr.find_s || 90)) { st.lit = true; say('A light, where it was taken from'); sfx('goal'); aimAt(spot(at), false); }
-          }
+          if (!st.lit && at) { st.findT += dt; nudge(); }
           if (fr.lead_s != null && !st.late ? st.t >= fr.lead_s : !at || (near(at, fr.stop_r || 12) && st.t > (st.late ? 6 : 0.5))) stop();
         }
         markTick(dt);
@@ -772,6 +902,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
             sfx('ghost'); hear(a, who(a), () => task());
           }
         }
+        if (st.beat === 'guide') movTick(dt);
         if (ctx.finder) ctx.finder(st.beat === 'shoot' && st.cam ? finderRect() : null);
         if (st.beat === 'shoot') { // the goal says where to stand, then when the lens is on it, and the button shows it
           const T = fr.task, G = T.goals || {}, f = framed(), on = f.placed && f.aimed;
@@ -779,16 +910,25 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           // half a minute says more, and after find_s the light stands there after all, so nobody is left looking; the
           // patch in the middle of the finder warms as the place comes near, the way a rangefinder's comes into register)
           const hunt = !!T.find && !st.lit && !f.placed;
-          if (hunt) { st.findT += dt; if (st.findT > (T.find_s || 80)) { st.lit = true; say('A light, where it was taken from'); sfx('goal'); } }
-          if (T.find && T.stand) { const fix = f.placed ? 'on' : near(T.stand, (T.within_m || 4) * 3) ? 'near' : 'far'; if (finder.dataset.fix !== fix) finder.dataset.fix = fix; if (f.placed && !st.placedOnce) { st.placedOnce = true; if (!st.lit) { sfx('found'); say('This is the place'); } } }
+          if (hunt || (T.hint_at && !on && !st.lit)) { st.findT += dt; nudge(); }
+          // (and it reads at every distance, not only the last nine metres: a split-image rangefinder's line through the
+          // patch, its two halves as far apart as the place is far off, closing as you come to it and one line on it; a
+          // patch that only warmed within 9 m said nothing to a player 44 m off, and nothing about which way was nearer)
+          if (T.find && T.stand) {
+            const w = T.within_m || 4, d = Math.hypot(T.stand[0] - ctx.player.x, T.stand[1] - ctx.player.y), fix = f.placed ? 'on' : d < Math.max(w * 3, 14) ? 'near' : 'far'; // (nearer within a stone's throw: from the wrong blossom of four, the right one is twelve metres off)
+            const split = f.placed ? 0 : 30 * (1 - Math.exp(-Math.max(0, d - w) / 14));
+            finder.style.setProperty('--split', split.toFixed(1));
+            if (finder.dataset.fix !== fix) { finder.dataset.fix = fix; finder.querySelector('.rf small').textContent = fix === 'on' ? 'The place · here' : fix === 'near' ? 'The place · nearer' : 'The place · far'; }
+            if (f.placed && !st.placedOnce) { st.placedOnce = true; if (!st.lit) { sfx('found'); say('This is the place'); } }
+          }
           else if (finder.dataset.fix) delete finder.dataset.fix;
-          const standGoal = hunt ? (st.findT > 32 && G.find2 ? G.find2 : G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
-          const text = !st.cam ? (!f.placed ? standGoal : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
+          const standGoal = hunt ? (st.hintText || G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
+          const text = !st.cam ? (!f.placed ? standGoal : T.both && T.hint_at && !st.ready && G.shoot ? G.shoot : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
-          const S0 = subjectOf(T), want = hunt ? null : !f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null;
-          if (String(want) !== String(st.target)) aimAt(want, false, f.placed ? 'frame' : 'stand');
+          const S0 = subjectOf(T), lightAt = st.hintLight && !near(st.hintLight, 3) ? st.hintLight : null, want = hunt ? null : lightAt || (!f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null);
+          if (String(want) !== String(st.target)) aimAt(want, false, lightAt || !f.placed ? 'stand' : 'frame');
           if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
           st.ready = on; finder.classList.toggle('ready', on);
           shutter.classList.toggle('ready', on);
@@ -814,6 +954,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       dress, begin, tick, shoot, raise, state: st,
       get stopped() { return st.phase === 'stop'; },
       get guided() { return !!st.guided; }, // the dog shows the way, and nothing else does: the game draws no gold line
+      // the story's own film (the guide coming to you, meetGuide): the lens's place, what it looks at (the map's x, y and
+      // height) and its angle, while it plays; and its end, at once, with him beside you
+      get film() { const F = st.mov; return F && F.cam ? { pos: F.cam, look: F.look, fov: F.fov } : null; },
+      skipFilm() { if (st.mov && st.mov.t > 1.2) movEnd(true); },
       get scale() { return st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done' ? 1 : st.k * st.k; }, // how much time the world is given: 1 running, 0 held
       get orbit() { return st.orbit; },
       // the lens at the Stop: it pushes in as time brakes and lets go as it runs (degrees off the field of view), and
@@ -828,7 +972,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
-        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip]) e.remove();
+        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip, movEl, hintBtn]) e.remove();
+        if (st.dogNext) st.dogNext.remove();
         for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();
         for (const id in st.cast) st.cast[id].remove();
       },

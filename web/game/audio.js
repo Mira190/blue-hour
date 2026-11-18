@@ -372,11 +372,13 @@ window.OEAudio = (function () {
   }
   // ---------------------------------------------------------------- the railway (trains.js)
   // A train near the camera, one of three voices: the wheels' rumble on the rail (low noise, louder and
-  // brighter with speed), the air it pushes (a hiss that grows with the square of the speed, most of what
-  // a Shinkansen is), and its motors' whine while it pulls away or brakes. level 0 silences the voice;
-  // nothing plays between trains.
+  // brighter with speed), the roll of the wheels near you (a hiss that grows with the square of the speed; the air a
+  // Shinkansen pushes, most of what it is), over a steel bridge the bridge itself (a low boom), and the motors'
+  // whine while it pulls away or brakes. level 0 silences the voice; nothing plays between trains.
+  // close (0..1): how near the wheels are, for what the air takes first with distance (the roll, the whine's edge);
+  // bridge (0..1): the train is overhead on a steel deck (trainAt below)
   const trainCh = [];
-  function train(i, level, pan = 0, v = 0, a = 0, fast = false) {
+  function train(i, level, pan = 0, v = 0, a = 0, fast = false, close = 1, bridge = 0) {
     if (!ctx) return;
     let c = trainCh[i];
     if (!c) {
@@ -390,30 +392,59 @@ window.OEAudio = (function () {
       noiseSource().connect(air); air.connect(ag); ag.connect(outG);
       const mo = ctx.createOscillator(), m2 = ctx.createOscillator(), mf = mk('bandpass', 700, 3), mg = ctx.createGain();
       mo.type = 'sawtooth'; m2.type = 'square'; mo.connect(mf); m2.connect(mf); mf.connect(mg); mg.connect(outG); mo.start(); m2.start();
-      rg.gain.value = ag.gain.value = mg.gain.value = 0;
-      c = trainCh[i] = { outG, pn, rum, rg, air, ag, mo, m2, mf, mg };
+      const deck = mk('bandpass', 64, 4), dg = ctx.createGain(); // (a steel deck's drum: its lowest modes, 50 to 80 Hz)
+      noiseSource().connect(deck); deck.connect(dg); dg.connect(outG);
+      rg.gain.value = ag.gain.value = mg.gain.value = dg.gain.value = 0;
+      c = trainCh[i] = { outG, pn, rum, rg, air, ag, mo, m2, mf, mg, dg };
     }
     const on = muted ? 0 : Math.min(1.2, level), k = Math.min(1.4, v / 25);
     ramp(c.outG.gain, on, 0.12);
     if (c.pn) ramp(c.pn.pan, Math.max(-1, Math.min(1, pan)), 0.1);
     ramp(c.rum.frequency, 110 + 260 * k, 0.2); ramp(c.rg.gain, (fast ? 0.34 : 0.5) * Math.min(1, 0.25 + k), 0.2);
-    ramp(c.air.frequency, fast ? 2300 : 1500, 0.3); ramp(c.ag.gain, (fast ? 0.42 : 0.16) * k * k, 0.2);
-    // the inverter's whine follows the speed while the motors work, and fades as the train coasts
+    // (a commuter train's roll is near you or nowhere: heard from 240 m, a bed of hiss swelling slowly and falling as
+    // slowly was a jet going over. The wheels' own swells come with each bogie: clack)
+    ramp(c.air.frequency, fast ? 2300 : 1100, 0.3); ramp(c.ag.gain, (fast ? 0.42 : 0.07 * close) * k * k, 0.2);
+    ramp(c.dg.gain, fast ? 0 : 0.6 * bridge * Math.min(1, 0.3 + k), 0.15);
+    // the inverter's whine follows the speed while the motors work, and is gone as the train coasts
     const f = 180 + v * 46;
     ramp(c.mo.frequency, f, 0.1); ramp(c.m2.frequency, f * 1.5, 0.1); ramp(c.mf.frequency, f * 1.6, 0.1);
-    ramp(c.mg.gain, a && !fast ? 0.035 + 0.02 * Math.min(1, v / 8) : fast ? 0.012 * k : 0.004, 0.35);
+    ramp(c.mg.gain, (a && !fast ? 0.035 + 0.02 * Math.min(1, v / 8) : fast ? 0.012 * k : 0) * (0.3 + 0.7 * close), 0.35);
   }
-  // a bogie over a rail joint: its two axles, the second a wheelbase (2.1 m) behind the first
-  function clack(level, pan = 0, v = 10) {
+  // A train where you stand (trains.js asks for each of the three nearest, each frame): s = { near, above, v, a, len,
+  // pan, fast }, near the distance to its nearest car (m), above how far its rail is over your ears (m), len a car's
+  // length. A train is not a jet, and what tells the ear so is the wheels: a bogie at a time over the rail's joints and
+  // a deck's, its two axles a wheelbase apart, a car's two bogies 0.69 of its length apart and the next car's front bogie
+  // close behind the last one's rear (ta-tan . . . ta-tan ta-tan . . . ta-tan); the roll swelling with each bogie as it
+  // goes by; and overhead on a steel bridge, the bridge struck by every axle, a boom under the clatter. Far off, only the
+  // rumble: the air takes the high sound first, and the wheels are lost in it
+  const trainRun = [];
+  function trainAt(i, s, dt) {
+    if (!ctx) return;
+    if (!s) { train(i, 0); if (trainRun[i]) trainRun[i].t = 0; return; }
+    const near = s.near, level = Math.pow(Math.max(0, 1 - near / 240), 2.2) * (1 + 0.6 * Math.max(0, 1 - near / 30));
+    const close = Math.max(0, Math.min(1, (45 - near) / 35)), bridge = (s.above || 0) > 3 && near < 30 ? Math.min(1, (30 - near) / 14) : 0, pan = s.pan || 0;
+    train(i, level, pan, s.v, s.a || 0, !!s.fast, close, bridge);
+    const R = trainRun[i] = trainRun[i] || { t: 0, k: 0 };
+    if (s.fast || s.v < 1.5 || close <= 0) { R.t = 0; return; }
+    if ((R.t -= dt) > 0) return;
+    const len = s.len || 20, inner = 0.69 * len;
+    clack(level * (0.3 + 0.7 * close * close), pan, s.v, bridge, close);
+    R.t = (R.k++ % 2 ? len - inner : inner) / s.v;
+  }
+  // a bogie over a rail joint: its two axles, the second a wheelbase (2.1 m) behind the first. Each is steel on steel:
+  // a bright tick, the wheel's body and the knock of the axle; the roll of the bogie swelling past under them; and on a
+  // steel deck the deck itself, boomed by each axle and ringing a little
+  function clack(level, pan = 0, v = 10, bridge = 0, close = 1) {
     if (!ctx || muted || level <= 0.004) return;
-    const d = out(Math.min(1, level) * 0.5, pan), t = ctx.currentTime + 0.01, gap = Math.min(0.5, 2.1 / Math.max(2, v));
+    const d = out(Math.min(1, level) * 0.3, pan), t = ctx.currentTime + 0.01, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
+    const nz = (at, type, f, q, vol, a, rel) => { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noise; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + a); g.gain.exponentialRampToValueAtTime(0.0001, at + a + rel); s.connect(fl); fl.connect(g); g.connect(d); s.start(at, Math.random() * 1.5); s.stop(at + a + rel + 0.05); };
     for (const [at, k] of [[t, 1], [t + gap, 0.8]]) {
-      const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-      s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 520; f.Q.value = 1.2;
-      g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.9 * k, at + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.085);
-      s.connect(f); f.connect(g); g.connect(d); s.start(at, Math.random()); s.stop(at + 0.1);
-      tone(d, at, 0.05, 'sine', 150, 70, 0.7 * k, 0.003);
+      nz(at, 'bandpass', 2600, 1.4, 0.3 * k * close, 0.001, 0.012);  // (the tick: wheel on the joint's edge)
+      nz(at, 'lowpass', 900, 1.0, 0.85 * k, 0.003, 0.08);            // (the wheel's body)
+      tone(d, at, 0.06, 'sine', 160, 75, 0.6 * k, 0.003);             // (the axle's knock)
+      if (bridge > 0) { tone(d, at, 0.42, 'sine', 64, 44, 0.9 * k * bridge, 0.004); tone(d, at, 0.28, 'sine', 412, 405, 0.07 * k * bridge, 0.002); tone(d, at, 0.2, 'sine', 683, 676, 0.045 * k * bridge, 0.002); } // (the deck's boom, and its ring)
     }
+    nz(t - 0.12, 'bandpass', 1100, 0.8, 0.22 * close, 0.12, 0.45);    // (the bogie's roll swelling past)
   }
   // a struck bar: the note, its octave and a bright partial that dies first (the platform's chimes and melody)
   function bar(dst, at, f, dur, vol) {
@@ -837,5 +868,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
+  return { start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
 })();
