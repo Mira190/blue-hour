@@ -32,6 +32,7 @@
 //                   "both": true,                              // or: with both afterimages in the frame
 //                   "goals": { "stand": "...", "shoot": "...", "ready": "...", "aim": "..." },
 //                   "lines": ["..."] },                        // and what is said of the print
+//         "call": { "who": { "name": "...", "role": "..." }, "voice": { "pitch": 215 }, "lines": ["..."] }, // a message on the phone, as the frame begins
 //         "after": ["..."],                                    // said as the world runs on again
 //         "finale": true, "crosses": "old", "cross_to": [x, y] // the last frame: the afterimages meet; then one of the living crosses
 //       }],
@@ -400,7 +401,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // a frame begins: the sky it has, a word with the living if there is one, and the way to where the world will stop
     function frame(i) {
       const fr = st.ep.frames[i];
-      st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0; huntFresh(); // (the hints asked for in one frame are not carried into the next: the third's light stood beside the dog leading to the old man)
+      st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0; st.called = false; huntFresh(); // (the hints asked for in one frame are not carried into the next: the third's light stood beside the dog leading to the old man)
       if (fr.weather) ctx.weather(fr.weather, !!fr.wet);
       // (the case as it stood on arriving at this frame: what going back into it from the last card restores. Not the
       // prints themselves, which the roll keeps in order, but how many; a frame taken up again after a slip keeps its first)
@@ -419,6 +420,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         // (or where you walk to: nobody has to take it)
         if (fr.ride && ctx.ride && !st.rode && ctx.ride(fr.ride)) { st.rode = true; st.beat = 'ride'; st.rideGo = go; goal(fr.ride.line || 'A car is coming for you.'); return; }
         st.rode = false;
+        // a message on the phone (fr.call: { who, voice, lines }): heard once as the frame begins, before anything is
+        // asked of the player; a frame taken up again after a slip does not ring twice
+        if (fr.call && !st.called && !st.again && L(fr.call.lines).length) { st.called = true; st.beat = 'call'; goal(''); aimAt(null); return ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, fr.call.voice || {}) }, fr.call.who || {}), L(fr.call.lines), go); }
         if (fr.meet) { st.beat = 'meet'; goal(fr.meet.goal || ''); const m = living(fr.meet); if (m) aimAt(spot([m.x, m.y, m.z]), true, 'meet'); }
         else approach();
       };
