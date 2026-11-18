@@ -363,7 +363,7 @@ It has the movements a classical mystery has:
 | 4 | 17:31 | SHIBUYA SKY: down on to the dome inside Hikarie | Yuna: one glove; the police at the store | Kanbara | The roll's danger; the match; she left him alive; the cut empty at three; boots on the stair while he watched the rings | Finds the place at the glass; names the boots, or will not | *Kanbara's works: the river* |
 | 5 | 17:39 | The tower's foot: the river open, and the works' board | (a message from the sister) | Tatsuo | The alibi, broken by the roof; Kudo Masao; the threat; the glove; the lecturer on the stair; the turn back | Shows Tatsuo what the roof saw; finds where the water ran | *What did the lecturer find at the top?* |
 | 6 | 17:46 | His kerb, through a long lens: her corner as he saw it | Mr Tanaka: the sentence, the lie, Hoshino, the bath-house, the minute a year, the will | Akira, of 2025 | The darkroom, the darn, the minute, the word *wait* | Shows Tanaka his pitch; finds his kerb from the roll | *Carry it over to her* |
-| 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Proves each answer; finds the corner; takes the last frame | Every light green. They meet. She crosses |
+| 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Proves each answer; finds the corner that sees both kerbs; holds them in the frame while every light turns green and they walk to the middle; takes the last frame as they meet | She crosses |
 
 **How each place is reasoned to.** No place is given by a line saying where to walk; each follows from the frame before.
 The board at her corner names the planetarium and Mizuno (1). A name on a camera goes to the shop where old cameras sit among the clothes, and Shun's
@@ -608,7 +608,7 @@ it is inside the lines.
 | 4 | east, from the roof | the planetarium's dome, inside Hikarie | where he lectured; the tickets were for its last show |
 | 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
 | 6 | her corner, from his kerb | the pillar box, her umbrella against it, the board | the same corner as frame 1, as he saw it |
-| 7 | the crossing | the two of them | nothing else is needed |
+| 7 | the crossing, from a corner that sees both kerbs | the two of them meeting in the middle of it, every light green | nothing else is needed |
 
 **It is heard.** Nobody is recorded: every sound is made in the page (`web/game/audio.js`). Each speaker has a
 voice of their own for the sound of their lines (a pitch, breath in it for the old, a second fainter syllable
@@ -644,7 +644,7 @@ deduction, and nothing stands on it until the player asks:
 | 4 | the glass of the roof beside Kanbara, where he looks down at where the dome stood | the dead man himself: he stands at the place, and looks where the picture looks |
 | 5 | the street a few steps from Tatsuo on Hikarie's side, where it opens straight ahead the way the water ran | the foreman himself, looking at where his river ran |
 | 6 | his kerb, across the crossing from her corner (`find` on the frame: the world stops there) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
-| 7 | no standpoint: any place that has both kerbs in one frame (`task.both`; the hints lead to the south-west corner's plaza, `hint_at`) | the goal: from the middle you can face only one of them |
+| 7 | no standpoint: any place that has both kerbs in one frame (`task.both`; the hints lead to the south-west corner's plaza, `hint_at`); framed there, they walk to the middle and the picture is taken as they meet (`task.meet`) | the goal: from the middle you can face only one of them |
 
 Tonight the old man stands on his blossom all evening, looking at the crossing, so what Shun says of him is seen.
 
@@ -1027,6 +1027,41 @@ is needed? What came of it is sections 2 and 4 to 9. Where the issues' fix was n
   ticket is issued at Shibuya, where he bought it. The overture's *one woman has not crossed since 1964* was false; it
   says she has waited at this corner every tenth of October since.
 
+### The last photograph is of them meeting (issue 35, the owner's decision, 18 November 2026)
+
+Frame 7 was taken of the two kerbs: the girl on hers, Akira on his, 35 m apart, from a corner that sees both. It was
+right and it was not a picture. In the print (720 by 480) each was a small figure near an edge of a 50 degree frame, a
+held walker pushed out of the sightline stood large in front, and the card under it said *the first photograph they
+were ever in together*. The two of them meeting happened after the shutter, in the finale, where no frame was taken.
+The owner chose the issue's first way: the last frame is taken as they meet.
+
+- **The way to stand stays.** From the middle you can face only one of them; the corner that sees both kerbs is still the
+  deduction, with its three hints (`task.both`, `hint_at`).
+- **Then the wait.** Both kerbs held in the frame for half a second, or the release pressed on them, begins it
+  (`task.meet`, `story.js` `meetBegin`). In one moment, under a flash: every light at the crossing turns to walk in the
+  held world (the signals only, `ctx.walkIn(0, true)`; the cars and the crowd follow when time runs on), the held crowd
+  steps out of the two lanes they walk, a ring round the middle, the way from the lens to it, and a lane 6 m wide on behind
+  them (through a long lens a crowd crossing behind stood at their shoulders; cleared wider, the crossing in the
+  picture was empty, so the crowd stands either side of them), the dog sits at your side out of the frame and watches, and the two of them step off their kerbs and walk to each other. The goal says *Hold them both in the frame, and wait*, the word on the back of
+  the ticket before the card shows it; the release while they walk takes nothing (*Not yet*).
+- **The lens closes on them.** As they come, the lens goes from the frame's 50 degrees to one that is 9 m from top to
+  bottom where they meet (12 degrees, the lens's longest, from the corner the hints lead to), eased with how far they
+  have come, and the view is brought round to the middle, level (`meet.frame_m`): two people about a fifth of the
+  frame's height near its middle, the crossing round them and the held crowd parted either side. A narrow screen keeps the film frame's width at every length
+  of that lens (`ctx.lens(fov, true)`), so a phone's print is the desktop's picture.
+- **The music meets them.** The score's phrase for it (`music.js` `meet`: her line and his in contrary motion to one note,
+  and the only major chord in the score) is set going 5.9 s before they arrive, so that its chord falls as they meet; then
+  the goal is *Now. The last frame.* and the shutter is ready. They face each other, not the lens.
+- **They come up in the print.** As a thing of 1964 does in every other frame: the print develops tonight's crossing
+  first, its middle empty, and then the two of them in it (`ctx.snap(true)`: the afterimages are left out of the first
+  image). Pale against a lit street and small on the last card, they were missed in it; seen to arrive, they are not.
+- **Then time runs on.** The print in the hand, and the street crosses on the green it was given. The words after it no
+  longer say *every light is green*, which has been seen; the old woman crosses to his kerb.
+
+`tools/story_play.js` takes the frame from the corner the hints lead to and fails it if the release while they walk takes
+a picture, if they do not meet a step apart near the middle of the print, or if anyone of the held crowd stands within
+8 m in front of the lens; it takes five stills while they walk and one as they meet.
+
 ## 13. What is left, and the marks without colour
 
 What issue 10 asked that a container cannot finish is planned and split off: recorded Japanese voices and faces that
@@ -1038,6 +1073,5 @@ mark is drawn in a broken line as well as in blue, so it is told from the living
 hand is on (the arrows on a keyboard, the d-pad on a pad) has an outline as well as its amber.
 
 What is left of the story's own, each with its issue: frame 5's place is plain boxes and haze round its print (issue 33);
-the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the last
-photograph is two small figures at the edges of a wide frame, and the recommendation is to take it as they meet in the
-middle (issue 35, the owner's to decide); the old woman's clear umbrella is not built.
+the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the old
+woman's clear umbrella is not built.

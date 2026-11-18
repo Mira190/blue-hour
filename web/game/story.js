@@ -31,11 +31,13 @@
 //                   "stand": [x, y, z?], "within_m": 4,        // from where (if it matters),
 //                   "clear": [[x, y]], "clear_round": 2.5,     // the held crowd out of the way on past the thing, and round it,
 //                   "both": true,                              // or: with both afterimages in the frame
-//                   "goals": { "stand": "...", "shoot": "...", "ready": "...", "aim": "..." },
+//                   "meet": { "speed": 1.1, "frame_m": 9, "say": "..." }, // and taken as they meet: once both are framed,
+//                                                              // every light turns green and they walk to the middle
+//                   "goals": { "stand": "...", "shoot": "...", "ready": "...", "aim": "...", "wait": "...", "early": "..." },
 //                   "lines": ["..."] },                        // and what is said of the print
 //         "call": { "who": { "name": "...", "role": "..." }, "voice": { "pitch": 215 }, "lines": ["..."] }, // a message on the phone, as the frame begins
 //         "after": ["..."],                                    // said as the world runs on again
-//         "finale": true, "crosses": "old", "cross_to": [x, y] // the last frame: the afterimages meet; then one of the living crosses
+//         "finale": true, "crosses": "old", "cross_to": [x, y] // the last frame: the world runs on after it; then one of the living crosses
 //       }],
 //       "end": { "title": "...", "line": "...", "next": "...", "free": "..." } // the last card
 //     }]
@@ -113,7 +115,7 @@ window.OEStory = (function () {
     function raise(on) {
       if (st.phase !== 'stop' || st.beat !== 'shoot' || st.cam === on) return;
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
-      if (st.fr.task.lens && ctx.lens) ctx.lens(on ? st.fr.task.lens : null); // (a frame taken through a long lens: task.lens, degrees)
+      if (st.fr.task.lens && ctx.lens) ctx.lens(on ? (st.meet ? st.lensNow : st.fr.task.lens) : null, !!st.meet); // (a frame taken through a long lens: task.lens, degrees; the last frame's, closed on the two of them as they meet)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
       if (on && ctx.look) { const at = subjectOf(st.fr.task); if (at) ctx.look(at); } // (the lens comes up facing the thing: it is then above or below, never behind)
       say(on ? `Camera up${finder.dataset.year ? ` · it sees ${finder.dataset.year}` : ''}` : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
@@ -653,7 +655,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (st.phase === 'go' && st.beat === 'approach' && fr.find) { const a = fr.stop_at || (fr.afterimage && fr.afterimage.at); return a ? { at: a, lines: fr.hints || [fr.goal2, `${dogName} knows the place. He takes you to it.`, 'A ring, where he stood.'], go: true } : null; }
       const T = fr.task;
       if (st.phase === 'stop' && st.beat === 'shoot' && T && T.find && T.stand && !framed().placed) return { at: T.stand, look: subjectOf(T), lines: T.hints || [(T.goals || {}).find2, `${dogName} knows the place. He goes to it and sits there.`, 'A light, where it was taken from.'] };
-      if (st.phase === 'stop' && st.beat === 'shoot' && T && T.hint_at && T.hints && !st.ready) return { at: T.hint_at, look: null, lines: T.hints, only: true };
+      if (st.phase === 'stop' && st.beat === 'shoot' && T && T.hint_at && T.hints && !st.ready && !st.meet) return { at: T.hint_at, look: null, lines: T.hints, only: true }; // (not once they walk: the place is found)
       return null;
     }
     function huntFresh() { st.hint = 0; st.hintText = ''; st.nudged = false; st.hk = null; st.hintLight = null; }
@@ -678,7 +680,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; st.ready = false; huntFresh(); // (ready: not the last frame's, which was taken: the first H of the last frame went to nothing) // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
+      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; st.ready = false; st.meet = null; st.meetHold = 0; huntFresh(); // (ready: not the last frame's, which was taken: the first H of the last frame went to nothing) // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
       if (st.fr.task.both && ctx.clearRound) for (const g of [st.ghost, st.ghost2]) if (g) ctx.clearRound(g.x, g.y, 3.5); // (each alone on their kerb)
       if (st.fr.task.both && st.fr.task.hint_at && ctx.clear) for (const g of [st.ghost, st.ghost2]) if (g) ctx.clear(st.fr.task.hint_at, [g.x, g.y]); // (the held crowd out of the two ways from the corner the hints lead to: two figures among umbrellas forty metres off were not to be found in the print)
       { const T = st.fr.task, from = T.stand || [ctx.player.x, ctx.player.y]; if (ctx.clear) for (const c of T.clear || []) ctx.clear(from, c); if (T.clear_round && ctx.clearRound && T.relic) ctx.clearRound(T.relic.at[0], T.relic.at[1], T.clear_round); } // (task.clear: the way on past the thing kept clear too, to points beyond it; task.clear_round: a ring round it. Frame 2's stool had a held walker a metre off and the crowd standing on it from behind)
@@ -708,6 +710,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const fr = st.fr, T = fr.task, G = T.goals || {};
       if (!st.cam) return raise(true); // (the release with the camera down brings it up)
       const f = framed();
+      // (a frame taken as they meet, task.meet: the release with both in the frame sets them walking, and while they
+      // walk it waits; it is the picture once they have met)
+      if (T.meet && st.meet !== 'met') { if (st.meet === 'walk') { goal(G.early || 'Not yet. Wait for them.'); st.miss = 2.5; return; } if (f.placed && f.aimed) return meetBegin(); }
       // A frame taken from the wrong place is spent (the rules of the Stop, 5 and 6): the release pressed a second time
       // within a few seconds takes the picture as it is, a print of tonight and nothing under it, and the story goes on
       // without what stood here. Not the first frame, which teaches the camera, nor the last, which is the ending.
@@ -716,7 +721,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
       light(null);
       let print = null;
-      try { print = ctx.snap(); } catch (e) { print = null; }
+      try { print = ctx.snap(!!T.both); } catch (e) { print = null; } // (the frame of the two of them: they come up in it as it develops)
       if (spend) { st.prints.push({ src: print, stamp: fr.stamp || '', cap: 'Only tonight. Nothing of 1964 came up in it.', note: fr.lost ? `Spent. Not on the roll: ${fr.lost}` : 'Spent.', plain: true }); st.flags[`lost${st.fi + 1}`] = true; }
       else st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '', note: fr.note || '' }); // (note: what the frame settled, written under it in the roll)
       st.spendT = 0;
@@ -751,12 +756,61 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       if (ctx.finder) ctx.finder(null);
       st.again = true; st.rode = true; frame(st.fi); st.again = false;
     }
-    // the last frame: every light to walk, and the two of them leave their kerbs and meet in the middle
+    // The last frame is taken as they meet (task.meet). Once both kerbs are in the frame, every light at the crossing
+    // turns to walk, the held crowd steps out of their way under the flash, and the two of them leave their kerbs and
+    // walk to the middle. The lens closes on them as they come and the view is brought round to where they will meet;
+    // the score's phrase for it, two lines in contrary motion, is set going so that its chord falls as they meet; and only
+    // then is the release the picture. Taken of the two kerbs, the print was two small figures at the edges of a wide
+    // frame with a held walker large in front of it, and the card under it said *the first photograph they were ever in
+    // together* (#35)
+    function meetBegin() {
+      const T = st.fr.task, M = T.meet || {}, a = st.ghost, b = st.ghost2 || st.ghost;
+      if (!a || st.meet) return;
+      const mid = [(a.x + b.x) / 2, (a.y + b.y) / 2], me = [ctx.player.x, ctx.player.y];
+      st.meet = 'walk'; st.stung = false; st.walk = [];
+      // (each to the middle, along the way between their kerbs, so that each faces the other)
+      for (const g of [st.ghost, st.ghost2]) if (g) {
+        const dx = g.x - mid[0], dy = g.y - mid[1], l = Math.hypot(dx, dy) || 1, to = [mid[0] + dx / l * 0.2, mid[1] + dy / l * 0.2]; // (a walk ends within a quarter metre of where it goes: about a pace apart)
+        st.walk.push([g, Math.hypot(to[0] - g.x, to[1] - g.y)]);
+        if (ctx.clear) ctx.clear([g.x, g.y], to, 1.3); // (a lane of their own through the held crowd, a body's width each side)
+        g.walkTo(to[0], to[1], M.speed || 1.1);
+      }
+      const d = Math.hypot(mid[0] - me[0], mid[1] - me[1]), ux = (mid[0] - me[0]) / (d || 1), uy = (mid[1] - me[1]) / (d || 1);
+      if (ctx.clearRound) ctx.clearRound(mid[0], mid[1], 3.5); // (alone where they meet)
+      // (and nobody between the lens and them, from wherever the player found to stand, nor in a lane on behind them,
+      // as wide as two of them each side: through a long lens a crowd crossing behind stood at their shoulders, and they
+      // were lost in it; cleared wider, the crossing in the picture was empty. The crowd stands either side of them)
+      if (ctx.clear) { ctx.clear(me, mid); ctx.clear(mid, [mid[0] + ux * 18, mid[1] + uy * 18], 3.2); }
+      // (the dog, who waited too, sits at your side out of the frame and watches them; one still on his way to you from
+      // the middle trotted through the long lens's picture as they met, so from further off he is there under the flash)
+      if (st.dog) {
+        const q = [me[0] + uy * 1.2 - ux * 0.4, me[1] - ux * 1.2 - uy * 0.4], at = (st.dog.free && st.dog.free(q[0], q[1], 1.5)) || q;
+        if (Math.hypot(st.dog.x - at[0], st.dog.y - at[1]) > 4) st.dog.place(at[0], at[1], Math.atan2(mid[1] - at[1], mid[0] - at[0]));
+        st.dog.go(at, [mid[0], mid[1], ctx.floor(mid[0], mid[1]) + 1]);
+      }
+      if (ctx.walkIn) ctx.walkIn(0, true); // (every light at the crossing to walk; the cars and the crowd are moved only when time runs on)
+      pulse(); sfx('found'); if (M.say) say(M.say);
+      // (the lens: from the frame's own to one that is frame_m metres from top to bottom where they meet, so that the
+      // two of them stand about a fifth of its height, near its middle; not longer than lens_min degrees)
+      st.lens0 = st.lensNow = T.lens || 50;
+      st.lens1 = Math.max(M.lens_min || 12, Math.min(st.lens0, 2 * Math.atan((M.frame_m || 9) / 2 / Math.max(1, d)) * 180 / Math.PI));
+      if (ctx.look) ctx.look([mid[0], mid[1]], true);
+    }
+    function meetTick(dt, on) {
+      const M = st.fr.task.meet || {};
+      if (!st.meet) { st.meetHold = on ? st.meetHold + dt : 0; if (st.meetHold > 0.5) meetBegin(); return; } // (framed for half a second: a lens swung past them does not begin it)
+      if (st.meet !== 'walk') return;
+      const v = M.speed || 1.1, left = Math.max(0, ...st.walk.map(([g]) => (g.to ? Math.hypot(g.to[0] - g.x, g.to[1] - g.y) : 0))), all = Math.max(1, ...st.walk.map(w => w[1]));
+      if (!st.stung && left / v <= 5.9) { st.stung = true; sting('meet'); } // (music.js STINGS.meet: its chord 5.9 s in)
+      const k = Math.min(1, 1 - left / all);
+      st.lensNow = st.lens0 + (st.lens1 - st.lens0) * k * k * (3 - 2 * k);
+      if (st.walk.every(([g]) => !g.to)) { st.meet = 'met'; st.lensNow = st.lens1; if (!st.stung) { st.stung = true; sting('meet'); } }
+      if (st.cam && ctx.lens) ctx.lens(st.lensNow, true);
+    }
+    // the last frame taken: the print in the hand, and then time runs on (the words after it, and the living cross)
     function finale() {
-      const a = st.ghost, b = st.ghost2 || st.ghost, mid = [(a.x + b.x) / 2, (a.y + b.y) / 2];
-      ctx.walkIn(0);
-      for (const g of [st.ghost, st.ghost2]) if (g) { const dx = g.x - mid[0], dy = g.y - mid[1], l = Math.hypot(dx, dy) || 1; g.walkTo(mid[0] + dx / l * 0.45, mid[1] + dy / l * 0.45, 1.1); }
-      st.beat = 'meeting'; st.t = 0;
+      const fr = st.fr;
+      later(6800, () => { if (st.phase === 'stop' && st.fr === fr && st.beat === 'shown') resume(); });
     }
     const rings = () => { const P = st.ep && st.ep.prologue; return !!(P && P.after && !st.rang && L(P.lines).length); };
     function resume(late) {
@@ -774,6 +828,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       const said = late ? [fr.late || 'The lights changed. Come back to where it stopped, and it will stop again.'] : L(fr.after);
       said.forEach((line, i) => later(1400 + i * 4200, () => ctx.toast(esc(line))));
       st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
+      if (!late && fr.finale && st.meet && ctx.walkIn) ctx.walkIn(0); // (the lights went to walk in the Stop: now the street crosses on them)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
       // the next frame goes by helicopter: it starts up on its pad as this is said, and the way to it is given once all of it
       // has been (a flight shows nothing of the street's words, and they were lost under it)
@@ -898,8 +953,9 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
         markTick(dt);
       } else if (st.phase === 'stop') {
         const g = st.ghost, a = fr.afterimage, leftS = Math.max(0, (fr.stop_s || 420) - st.t);
-        goalEl.querySelector('small').textContent = st.beat === 'meeting' ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
-        for (const q of [g, st.ghost2]) if (q) { q.animate(dt); if (!q.to) q.face(ctx.player.x, ctx.player.y); }
+        goalEl.querySelector('small').textContent = st.meet ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
+        // (an afterimage looks at whoever carries the camera; the last frame's two, once they walk, at each other)
+        for (const q of [g, st.ghost2]) if (q) { q.animate(dt); const o = st.meet && (q === g ? st.ghost2 : g); if (!q.to) { if (o) q.face(o.x, o.y); else q.face(ctx.player.x, ctx.player.y); } }
         if (st.beat === 'seek') {
           // the keys are put away once they have been used
           if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; hint(false); }
@@ -916,7 +972,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           // half a minute says more, and after find_s the light stands there after all, so nobody is left looking; the
           // patch in the middle of the finder warms as the place comes near, the way a rangefinder's comes into register)
           const hunt = !!T.find && !st.lit && !f.placed;
-          if (hunt || (T.hint_at && !on && !st.lit)) { st.findT += dt; nudge(); }
+          if (hunt || (T.hint_at && !on && !st.lit && !st.meet)) { st.findT += dt; nudge(); }
+          // (the last frame, taken as they meet: both framed begins it, and then it is the picture only once they have met)
+          if (T.meet) meetTick(dt, on);
+          const shot = on && (!T.meet || st.meet === 'met');
           // (and it reads at every distance, not only the last nine metres: a split-image rangefinder's line through the
           // patch, its two halves as far apart as the place is far off, closing as you come to it and one line on it; a
           // patch that only warmed within 9 m said nothing to a player 44 m off, and nothing about which way was nearer)
@@ -929,23 +988,20 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           }
           else if (finder.dataset.fix) delete finder.dataset.fix;
           const standGoal = hunt ? (st.hintText || G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
-          const text = !st.cam ? (!f.placed ? standGoal : T.both && T.hint_at && !st.ready && G.shoot ? G.shoot : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
+          const raiseText = G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`;
+          const text = st.meet === 'walk' ? G.wait || 'Wait.' : st.meet === 'met' ? (!st.cam ? raiseText : shot ? G.ready || 'Now.' : G.aim || 'Turn back to them.')
+            : !st.cam ? (!f.placed ? standGoal : T.both && T.hint_at && !st.ready && G.shoot ? G.shoot : raiseText) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);
-          const S0 = subjectOf(T), lightAt = st.hintLight && !near(st.hintLight, 3) ? st.hintLight : null, want = hunt ? null : lightAt || (!f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null);
+          const S0 = subjectOf(T), lightAt = st.hintLight && !near(st.hintLight, 3) ? st.hintLight : null, want = hunt || st.meet ? null : lightAt || (!f.placed ? spot(T.stand) : S0 ? [S0[0], S0[1], S0[2], S0[2]] : null); // (once they walk, the place was found: no light stands in the street)
           if (String(want) !== String(st.target)) aimAt(want, false, lightAt || !f.placed ? 'stand' : 'frame');
-          if (on && !st.ready) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name)
-          st.ready = on; finder.classList.toggle('ready', on);
-          shutter.classList.toggle('ready', on);
-        }
-        if (st.beat === 'meeting') { // they meet where you stand, and go out like a breath let go
-          const met = [g, st.ghost2].every(q => !q || !q.to);
-          if (met && !st.met) { st.met = st.t; pulse(); sting('meet'); } // (the two lines of the theme, to one note)
-          if ((st.met && st.t > st.met + 7.5) || st.t > 40) resume(); // (held until the phrase has ended on its chord)
+          if (shot && !st.ready && !T.meet) { sfx('found'); if (T.relic && T.relic.name) say(`In the frame · ${T.relic.name}`); } // (it is in the frame: glass, and its name; as they meet, the score's chord says it)
+          st.ready = shot; finder.classList.toggle('ready', shot);
+          shutter.classList.toggle('ready', shot);
         }
         markTick(dt);
-        if (leftS <= 0 && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true);
+        if (leftS <= 0 && !st.meet && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true); // (not while they walk to each other, nor once they have met)
       } else if (st.phase === 'after' && st.t > st.wait) {
         if (st.late) { st.phase = 'go'; approach(); }
         else if (st.fi === 0 && rings()) { // the office rings, now that time runs again: who you are, why this kerb, and the one odd thing about the job
@@ -972,7 +1028,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
-      get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || st.beat === 'meeting' || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
+      get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
       dispose() {
