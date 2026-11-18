@@ -201,7 +201,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     else if (s.phase === 'stop' && s.beat === 'seek') {
       if (!seen.has(`guide-${s.fi}`) && s.fi === 0) { seen.add(`guide-${s.fi}`); const d = await p.evaluate(() => { const g = window.__game, d = g.story.state.dog; return d ? Math.hypot(d.x - g.player.x, d.y - g.player.y) : -1; }); console.log(`the guide met: ${d.toFixed(1)} m from you`); if (d < 0 || d > 6) { errors.push(`the guide's film ended with him ${d.toFixed(1)} m from you`); console.log(errors[errors.length - 1]); } } const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }
     else if (s.phase === 'stop' && s.beat === 'shoot') {
-      const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, hintAt: T.hint_at || null, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
+      const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, hintAt: T.hint_at || null, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, meet: !!T.meet, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
       // a frame whose place the player finds has no light standing on it and no mark of where to stand, until they have looked a while
       if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`);
         // and its hints, asked for (story.js hint, H): a word, the dog to the place and sitting there, the light on it
@@ -229,7 +229,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         // and the place they lead to does it: from there, the camera raised towards the middle of the two, both are in the frame
         await goTo(T.hintAt, 0); const mid = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2]; await face(mid);
         await p.evaluate(() => window.__game.story.raise(true)); await frames(6); await p.waitForTimeout(1200);
-        const ok = await p.evaluate(() => !!window.__game.story.state.ready); await snap(`${s.fi + 1}-hint-place`);
+        const ok = await p.evaluate(() => { const st = window.__game.story.state; return !!(st.ready || st.meet || st.meetHold > 0); }); await snap(`${s.fi + 1}-hint-place`); // (a frame taken as they meet is ready only once they have met: framed, they set off)
         console.log(`frame ${s.fi + 1}: from the place the hints lead to, both in the frame: ${ok}`);
         if (!ok) { errors.push(`frame ${s.fi + 1}: from the place its hints lead to, both are not in the frame`); console.log(errors[errors.length - 1]); }
         await p.evaluate(() => window.__game.story.raise(false)); await frames(2);
@@ -278,11 +278,56 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.waitForTimeout(1500); await mark(s, 'aimed');
       // from the first frame's photograph to the last card, the camera of 1964 is round Kagami's neck (game.js, people.js camera1964)
       if (!(await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam)))) { errors.push(`frame ${s.fi + 1}: the camera of 1964 is not round Kagami's neck`); console.log(errors[errors.length - 1]); }
+      // the last frame is taken as they meet (task.meet, #35): framed, both step off their kerbs as every light turns to walk;
+      // the release while they walk takes nothing; five stills while they come, the world held; and once they have met they
+      // stand a step apart near the middle of the print, both in sight, and nobody of the held crowd stands within 8 m in
+      // front of the lens
+      if (T.meet) {
+        const fail = m => { errors.push(`frame ${s.fi + 1}: ${m}`); console.log(errors[errors.length - 1]); };
+        await p.waitForFunction(() => !!window.__game.story.state.meet, null, { timeout: 300000, polling: 250 }).catch(() => {});
+        const m0 = await p.evaluate(() => { const st = window.__game.story.state, j = window.__game.junctions.J.find(q => q.scramble && Math.hypot(q.x - window.__game.player.x, q.y - window.__game.player.y) < 80); return { meet: st.meet || '', n: st.prints.length, walk: !!(j && j.walkNow), t: st.t }; });
+        console.log(`frame ${s.fi + 1}: framed, and they ${m0.meet === 'walk' ? 'walk' : `do not walk (${m0.meet})`}; every light to walk: ${m0.walk}`);
+        if (m0.meet !== 'walk') fail('both in the frame, and they do not step off their kerbs');
+        if (!m0.walk) fail('they walk, and the lights at the crossing are not to walk');
+        await p.evaluate(() => window.__game.story.shoot()); await frames(3);
+        const early = await p.evaluate(() => ({ n: window.__game.story.state.prints.length, goal: document.querySelector('#g-story-goal span').textContent }));
+        console.log(`frame ${s.fi + 1}: the release while they walk: ${early.n === m0.n ? 'nothing taken' : 'a picture taken'}, "${early.goal}"`);
+        if (early.n !== m0.n) fail('the release while they walk took the picture');
+        for (let i = 1; i <= 5; i++) { // (a still every two seconds of the story's clock while they walk: anything that moves is looked at for more than one)
+          const t1 = (await p.evaluate(() => window.__game.story.state.t)) + 2;
+          await p.waitForFunction(t => { const st = window.__game.story.state; return st.t >= t || st.meet !== 'walk'; }, t1, { timeout: 300000, polling: 200 }).catch(() => {});
+          await snap(`${s.fi + 1}-walk-${i}`);
+        }
+        await p.waitForFunction(() => window.__game.story.state.meet === 'met', null, { timeout: 600000, polling: 250 }).catch(() => {});
+        await frames(6); await p.waitForTimeout(1200);
+        const q = await p.evaluate(() => {
+          const g = window.__game, st = g.story.state, T = window.THREE, c = g.camera;
+          c.updateMatrixWorld(); const fw = c.getWorldDirection(new T.Vector3());
+          const W = (x, y, z) => new T.Vector3(x, z, -y), ndc = v => { const f = v.clone().sub(c.position).dot(fw) > 0, p = v.clone().project(c); return { x: p.x, y: p.y, f }; };
+          const w = innerWidth, h = innerHeight, sw = Math.min(w, h * 1.5), xr = sw / w, yr = sw / 1.5 / h; // (the print: the middle of the frame, three by two)
+          const two = [st.ghost, st.ghost2].map(f => ({ at: ndc(W(f.x, f.y, f.z + 0.9)) }));
+          const apart = Math.hypot(st.ghost.x - st.ghost2.x, st.ghost.y - st.ghost2.y), lens = Math.hypot(c.position.x - (st.ghost.x + st.ghost2.x) / 2, -c.position.z - (st.ghost.y + st.ghost2.y) / 2);
+          const near = []; const P = g.crowd && g.crowd.P;
+          if (P) for (let i = 0, m = Math.min(g.crowd.active, P.length); i < m; i++) { const r = P[i]; if (r.line < 0 && !r.pz) continue; const x = r.rx ?? r.x, y = r.ry ?? r.y, z = r.rz ?? r.z ?? 0, d = Math.hypot(x - c.position.x, y + c.position.z); if (d > 8) continue; const a = ndc(W(x, y, z + 1)); if (a.f && Math.abs(a.x) < xr && Math.abs(a.y) < yr) near.push(+d.toFixed(1)); }
+          const dg = st.dog && st.dog.ready ? ndc(W(st.dog.x, st.dog.y, st.dog.z + 0.5)) : null, dog = dg ? { at: [+st.dog.x.toFixed(1), +st.dog.y.toFixed(1)], state: st.dog.state, inPrint: dg.f && Math.abs(dg.x) < xr && Math.abs(dg.y) < yr } : null;
+          return { me: [+g.player.x.toFixed(1), +g.player.y.toFixed(1)], dog, meet: st.meet, two: two.map(o => [+o.at.x.toFixed(2), +o.at.y.toFixed(2), o.at.f]), xr: +xr.toFixed(2), yr: +yr.toFixed(2), apart: +apart.toFixed(2), lens: +lens.toFixed(1), fov: +c.fov.toFixed(1), near, ready: !!st.ready, goal: document.querySelector('#g-story-goal span').textContent };
+        });
+        console.log(`frame ${s.fi + 1} met:`, JSON.stringify(q));
+        if (q.meet !== 'met') fail(`they never met (${q.meet})`);
+        else {
+          if (q.apart > 1.3) fail(`met, and ${q.apart} m apart`);
+          if (q.two.some(([x, y, f]) => !f || Math.abs(x) > q.xr * 0.45 || Math.abs(y) > q.yr * 0.75)) fail(`met, and not near the middle of the print: ${JSON.stringify(q.two)}`);
+          if (q.near.length) fail(`met, and the held crowd stands ${q.near.join(', ')} m in front of the lens`);
+          if (q.dog && q.dog.inPrint) fail(`met, and the dog is in the print (${JSON.stringify(q.dog)})`);
+          if (!q.ready) fail(`met and framed, and the shutter is not ready ("${q.goal}")`);
+        }
+        await snap(`${s.fi + 1}-met`);
+      }
       await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false); // (the photograph is the game's own picture of its canvas, taken as the shutter goes: of a frame drawn whole)
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
       { const src = await p.evaluate(() => { const P = window.__game.story.state.prints; return (P[P.length - 1] || {}).src || ''; }); const m = /^data:image\/(\w+);base64,(.*)$/.exec(src); if (m) fs.writeFileSync(`${out}/${s.fi + 1}-print-own.${m[1] === 'jpeg' ? 'jpg' : m[1]}`, Buffer.from(m[2], 'base64')); } // (the print itself, as the roll keeps it: on a slow renderer the still above may be taken after it has gone to the roll)
       if (upto && s.fi + 1 >= upto) { done = true; break; } // (UPTO=n: stop after frame n's print)
-    } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
+    }
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
       // (read from what the page saw as the sheet came up, above: the sheet does not wait for the check or for the still)
       if (!seen.has('order')) { seen.add('order'); const t0 = Date.now(); await p.waitForTimeout(4000); const inHand = await p.evaluate(() => !!window.__orderOk); await snap('1-order'); console.log(`the order: ${inHand ? 'it came up in the hand' : 'it never came up in the hand'}; its still taken at ${((Date.now() - t0) / 1000).toFixed(1)} s`); if (!inHand) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
@@ -372,6 +417,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       else { console.log(`frame ${n} entered again: played to its print`); await snap(`again-${n}-print`); }
     }
   }
+  for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}${DRAW > 1 ? `; ${await p.evaluate(() => `${window.__draw.drawn} of ${window.__draw.frames} frames drawn`)}` : ''}`);
   // PRINTS=dir: the photographs taken, as files (the loading screen's frames are made from them)
   if (process.env.PRINTS) { fs.mkdirSync(process.env.PRINTS, { recursive: true }); const pr = await p.evaluate(() => window.__game.story.state.prints.map(q => q.src)); pr.forEach((src, i) => { if (src) fs.writeFileSync(`${process.env.PRINTS}/frame-${i + 1}.jpg`, Buffer.from(src.split(',')[1], 'base64')); }); }
