@@ -1,7 +1,8 @@
 // The story's conversations seen as a film covers them (web/game/talkcam.js, issue 15): the episode is played by
 // tools/story_play.js, and every shot a talk cuts to is judged as the game records it at the cut (game.js: where the
 // speaker's face is in the frame, what stands between it and the lens, whether the lens is in a wall). It fails a talk
-// whose face is off the screen or has a wall, a tree's trunk or leaves, a body or the crowd in front of it, a lens in a
+// whose face is off the screen or has a wall, a tree's trunk or leaves, a body or the crowd in front of it (or the crowd
+// anywhere in the frame before the face, or at its shoulder: what the renderer draws, issue 45), a lens in a
 // wall, or no clear shot at all; it writes a still of every talk's opening shot (talk-NN-*.png), and five seconds of
 // stills across the episode's first cut with time held (cut-NN.png: the world stepped half a second a still, the line
 // moved on after the fourth, so that the two-shot gives way to the single). FILM=0: not those.
@@ -24,6 +25,7 @@ const still = async file => {
 const judge = s => [
   (!s.front || Math.abs(s.x) > 0.92 || Math.abs(s.y) > 0.92) && `face off the screen (${s.x}, ${s.y})`,
   s.block && `${s.block} between the lens and the face`,
+  s.crowd > 0 && `${s.crowd} of the crowd drawn in the frame before the face or at its shoulder`, // (issue 45)
   s.inWall && 'the lens in a wall',
   s.why === 'eyes' && 'no clear shot on either side: through the eyes',
 ].filter(Boolean);
@@ -38,6 +40,22 @@ async function poll() {
       seen.push(s);
       const why = judge(s);
       console.log(`talk shot ${seen.length}: ${s.name} ${s.kind} side ${s.side}${s.crossed ? ' (line crossed)' : ''}${s.k < 1 ? ` (in to ${s.k})` : ''} face at (${s.x}, ${s.y})${why.length ? ` FAIL ${why.join('; ')}` : ''}`);
+      // (who is drawn as a whole person within 2.5 m of the face now, and as what: the crowd's, a map's NPC, the story's)
+      const near = await page.evaluate(() => {
+        const g = window.__game, t = g.talkShot && g.talkShot(); if (!t) return null;
+        const cd = g.crowdDraw && g.crowdDraw(), crowdRoots = new Set(cd && cd.active ? [...cd.active.values()].map(r => r.root) : []);
+        const npcRoots = new Set((g.npcs || []).map(n => n.rig && n.rig.root)), out = [], seenR = new Set();
+        g.world.traverse(o => {
+          if (!o.isSkinnedMesh) return;
+          let r = o; while (r.parent && r.parent !== g.world) r = r.parent;
+          if (seenR.has(r)) return; seenR.add(r);
+          for (let q = o; q; q = q.parent) if (!q.visible) return;
+          const d = Math.hypot(r.position.x - t.subject[0], -r.position.z - t.subject[1]);
+          if (d < 2.5 && d > 0.05) out.push(`${r.name || '?'} ${crowdRoots.has(r) ? '(crowd)' : npcRoots.has(r) ? '(npc)' : r === g.player.rig.root ? '(you)' : '(other)'} ${d.toFixed(2)} m`);
+        });
+        return out;
+      }).catch(() => null);
+      if (near && near.length) console.log(`  near the face: ${near.join(', ')}`);
       if (why.length) bad.push(`${s.name} (${s.kind}): ${why.join('; ')}`);
     }
     const last = seen[seen.length - 1], now = await page.evaluate(() => { const g = window.__game; return !!(g && g.talkShot && g.talkShot()); });

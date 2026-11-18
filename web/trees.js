@@ -105,7 +105,7 @@ vTurn = fract(sin(dot(ip.xz, vec2(12.9898, 78.233))) * 43758.5453);`;
     return sh => {
       sh.uniforms.uWind = U.uWind; sh.uniforms.uGale = U.uGale; sh.uniforms.uBloom = U.uBloom; sh.uniforms.uSakuraV = U.uSakuraV; sh.uniforms.uCherryBareV = U.uCherryBareV; sh.uniforms.uAutumn = U.uAutumn; sh.uniforms.uFall = U.uFall;
       sh.uniforms.uBare = U.uBare; sh.uniforms.uDecid = U.uDecid; sh.uniforms.uYoz = U.uYoz; sh.uniforms.uYozCol = U.uYozCol; sh.uniforms.uPlume = U.uPlume;
-      sh.defines = Object.assign(sh.defines || {}, { ATLAS_COLS: A.cols.toFixed(1), ATLAS_ROWS: A.rows.toFixed(1), CELL_BLOOM: A.bloom.toFixed(1), CELL_SAKURA: A.sakura.toFixed(1), CELL_CHERRY: A.cherry.toFixed(1), SAKURA_N: A.sakuraN, CELL_MAPLE: A.maple.toFixed(1), CELL_PLUME: A.plume.toFixed(1), ATLAS_CELLS: A.cols * A.rows });
+      sh.defines = Object.assign({}, sh.defines, { ATLAS_COLS: A.cols.toFixed(1), ATLAS_ROWS: A.rows.toFixed(1), CELL_BLOOM: A.bloom.toFixed(1), CELL_SAKURA: A.sakura.toFixed(1), CELL_CHERRY: A.cherry.toFixed(1), SAKURA_N: A.sakuraN, CELL_MAPLE: A.maple.toFixed(1), CELL_PLUME: A.plume.toFixed(1), ATLAS_CELLS: A.cols * A.rows });
       if (leaves) sh.defines.LEAVES = '';
       sh.vertexShader = sh.vertexShader.replace('#include <common>', VERT_HEAD).replace('#include <uv_vertex>', VERT_UV).replace('#include <begin_vertex>', VERT_WIND);
       // in winter a deciduous tree's cards fall, in the camera's pass and the shadow's alike: each card at its
@@ -558,6 +558,7 @@ vec3 nonPerturbedNormal = normal;`)
     }
     for (const per of meshes) for (const ps of per.slice(0, 2)) ps.forEach(shadowHooks);
     // the near models, come (loadNear): each species' stand-in meshes replaced, the trees sorted into them at the next update
+    let dressNew = null; // (the page's weather.dress, for what comes after the loader: below, dressNew)
     function addNear(gltf) {
       if (!gltf) return 0;
       let swapped = 0;
@@ -568,6 +569,7 @@ vec3 nonPerturbedNormal = normal;`)
         if (!fresh.length) return;
         for (const im of meshes[k][0]) { world.remove(im); im.geometry.dispose(); }
         fresh.forEach(shadowHooks);
+        if (dressNew) fresh.forEach(dressNew); // (the weather's patch before its first draw: a material only the near model has was drawn without it, a program linked in a draw on the title, issue 31)
         meshes[k][0] = fresh; standIn[k] = false; swapped++;
       });
       if (swapped) last.set(1e9, 0, 0);
@@ -911,6 +913,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.62, 0.11, 0.05), vec3(0.9, 0
           .catch(e => { console.warn('Near tree models unavailable:', e); return 0; }));
       },
       nearReady: () => !standIn.some((v, k) => v && count[k]),
+      set dressNew(f) { dressNew = f; },
       // the yozakura lights (#162): how many trees are lit and how many lanterns stand, for the tools
       // the lit lanterns, for the inland water's reflections: {heads, lit, placed} or null
       lanterns: () => (Y ? { heads: Y.heads, lit: Y.lit, placed: Y.placed, chochin: Y.chochin, bonbori: Y.lanterns } : null),

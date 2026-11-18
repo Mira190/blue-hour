@@ -21,13 +21,17 @@
 //   shot(player, aspect) -> { pos: [x, y, z], look: [x, y, z], fov (vertical, degrees), focus (m), subject } | null
 //   line()                         the next line of the same speech (the two-shot gives way to the single)
 //   close()                        the talk is over
-//   clearing(a, b) -> the crowd's indices standing in the way from a to b (the game moves them aside at a cut)
+//   framed()      -> the crowd's indices the shot cut to would show in front of the face, or at its shoulder (the game
+//                    sends a walker among them on elsewhere at the cut, and leaves the rest undrawn while the shot lasts)
+//   clearing()    -> those, and whoever of the crowd stands in the way from the lens to the face now (left undrawn)
 //   log: one entry a shot cut to, for tools/talk_check.js: { name, kind, side, crossed, clear, why }
 'use strict';
 window.OETalkCam = (function () {
   const LENS = { two: 48, single: 40, close: 28, reverse: 46 };   // horizontal angle of view (40, 50, 75 mm on a full frame), degrees
   const PORTRAIT = { two: 50, single: 40, close: 30, reverse: 46 }; // a screen held upright: the vertical angle instead
   const BODY_R = 0.3, HEAD_TOP = 1.85;
+  const RING = 1.6; // (nobody of the crowd within this of the face a shot is on: a stranger at the shoulder of a close shot reads as one of the talk)
+  const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
   function create(o) {
     const walls = o.walls, trees = o.trees || (() => []), bodies = o.bodies || (() => []);
     let talk = null;
@@ -50,7 +54,7 @@ window.OETalkCam = (function () {
         if (d < (q.rc || 3) && z > q.z + (q.hb != null ? q.hb : 1.8) - 0.2 && z < q.z + 14) return 'leaves';
       }
       for (const q of bodies(mx, my, half + 1)) {
-        if (skip.includes(q.id) || (noCrowd && q.crowd != null)) continue;
+        if (skip.includes(q.id) || (q.crowd != null && (noCrowd === true || (noCrowd && noCrowd.has(q.crowd))))) continue;
         const [d, t] = toAxis(c, h, q.x, q.y), z = c[2] + (h[2] - c[2]) * t, s = q.id === shoulder;
         if (t < 0.02 || t > 0.98) { if (d < 0.2 && !s) return q.crowd != null ? 'crowd' : 'body'; continue; } // (the lens inside someone)
         if (d < (s ? 0.2 : BODY_R) && z < q.z + (q.h || HEAD_TOP)) return q.crowd != null ? 'crowd' : 'body';
@@ -114,7 +118,7 @@ window.OETalkCam = (function () {
     // looks follows the face a little, as an operator's hand does
     function shot(player, aspect) {
       if (!talk || !talk.kind || !talk.speaker) return null;
-      const sp = talk.speaker, P = head(player), S = head(sp), ids = { speaker: sp.id };
+      const sp = talk.speaker, P = head(player), S = head(sp), ids = { speaker: sp.id }, cutNow = talk.cut;
       if (talk.cut) {
         talk.cut = false;
         if (!talk.s) talk.s = side(P, S, ids);
@@ -139,12 +143,36 @@ window.OETalkCam = (function () {
       const third = aspect >= 1 ? 1 / 3 : 0.16, off = -across * Math.atan(third * Math.tan(hfov / 2));
       const yw = yaw - off, h = Math.hypot(vx, vy), pitch = Math.atan2(sub[2] - q.c[2], h) + Math.atan(0.12 * Math.tan(vfov * Math.PI / 360)); // (the eyes a little over the middle: headroom)
       const look = [q.c[0] + Math.sin(yw) * Math.cos(pitch) * 10, q.c[1] + Math.cos(yw) * Math.cos(pitch) * 10, q.c[2] + Math.sin(pitch) * 10];
+      if (cutNow) { talk.view = [q.c, sub, yw, hfov]; talk.framed = framedBy(q.c, sub, yw, hfov); }
       return { pos: q.c.slice(), look, fov: vfov, focus: dist, subject: sub, kind: talk.kind, side: talk.s, shoulder: q.shoulder };
     }
-    // the crowd's people standing in the way from the lens to the face now: the game leaves them undrawn
+    // the crowd's people a shot shows in front of the face it is on, or at its shoulder: everyone nearer the lens than a
+    // pace beyond the face whose body comes into the frame (its reach at its distance: 0.75 m, an open umbrella's), and anyone within RING of
+    // the face. Only those in the line from the lens to the face were left undrawn, so a held walker a shoulder's width
+    // off it filled the middle of the summation's close shot, the old woman half hidden at its edge (issue 45). Worked
+    // out at the cut, from where the lens stands and where the frame looks
+    function framedBy(c, sub, yw, hfov) {
+      const D = Math.hypot(sub[0] - c[0], sub[1] - c[1]), out = [];
+      for (const b of bodies(c[0], c[1], D + RING + 1)) {
+        if (b.crowd == null) continue;
+        const dx = b.x - c[0], dy = b.y - c[1], r = Math.hypot(dx, dy);
+        if (Math.hypot(b.x - sub[0], b.y - sub[1]) < RING) { out.push(b.crowd); continue; }
+        if (r > D + 0.6) continue; // (the street beyond the face: the life behind a talk)
+        if (Math.abs(angDiff(Math.atan2(dx, dy), yw)) < hfov / 2 + Math.atan2(0.75, Math.max(r, 0.3))) out.push(b.crowd);
+      }
+      return out;
+    }
+    // the crowd's people the shot cut to shows in front of the face or at its shoulder (the game sends the walkers among
+    // them on elsewhere, and keeps what it leaves here undrawn while the shot lasts: talk.framed)
+    function framed() { return talk && talk.framed ? talk.framed : []; }
+    // for the harness: how many of the crowd the shot shows in front of the face or at its shoulder, of those drawn
+    // (undrawn: a Set of the crowd's indices not drawn this frame)
+    function framing(undrawn) { return talk && talk.view ? framedBy(...talk.view).filter(i => !undrawn.has(i)).length : 0; }
+    // the crowd's people standing in the way from the lens to the face now, and those the cut found in the frame: the
+    // game leaves them undrawn
     function clearing() {
       if (!talk || !talk.q) return [];
-      const out = [], q = talk.q;
+      const out = framed().slice(), q = talk.q;
       for (const b of bodies((q.c[0] + q.at[0]) / 2, (q.c[1] + q.at[1]) / 2, Math.hypot(q.at[0] - q.c[0], q.at[1] - q.c[1]) / 2 + 1)) {
         if (b.crowd == null) continue;
         const [d, t] = toAxis(q.c, q.at, b.x, b.y);
@@ -152,17 +180,18 @@ window.OETalkCam = (function () {
       }
       return out;
     }
-    // what stands between the lens and the face now, for the harness: null when clear
-    function check() {
+    // what stands between the lens and the face now, for the harness: null when clear. undrawn: the crowd's people not
+    // drawn this frame (a Set of indices; the game asks its renderer), or true for the whole crowd
+    function check(undrawn = true) {
       if (!talk || !talk.q) return null;
       const q = talk.q, skip = talk.at === 'player' ? ['player'] : [talk.speaker.id];
-      return blocked(q.c, q.at, skip, q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? talk.speaker.id : null, true); // (the crowd in the way is not drawn: clearing)
+      return blocked(q.c, q.at, skip, q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? talk.speaker.id : null, undrawn);
     }
     // the next line of the same speech: from the opening two-shot to the speaker's single, a cut; after that the
     // lines run on in the single (a cut to the same framing is a jump, not a cut)
     function line() { if (talk && talk.kind === 'two' && talk.speaker) { talk.kind = 'single'; talk.n++; talk.cut = true; } }
     function close() { talk = null; }
-    return { open, line, shot, close, clearing, check, log, get on() { return !!(talk && talk.kind && talk.speaker); }, get talk() { return talk; } };
+    return { open, line, shot, close, framed, framing, clearing, check, log, get on() { return !!(talk && talk.kind && talk.speaker); }, get talk() { return talk; } };
   }
   return { create };
 })();

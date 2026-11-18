@@ -104,8 +104,11 @@ NPC_BASE = ["Idle", "Idle_Neutral", "Walk", "Wave", "Talk", "Listen", "Nod"]
 # what the visitor you play at a reef or alpine site needs beyond those (web/reef/people.js): the fast run
 FIELD_CLIPS = {"Run": ("run_fast_01", "xy")}
 LOOPS |= set(NPC_CLIPS) - {"Wave", "Nod"}   # what an NPC does while it waits goes round and round
-# hair tags: the colour the hair (and the brows) takes, in sRGB
+# hair tags: the colour the hair takes, in sRGB; and the brows' (BROW): an old face's brows go grey later and thinner
+# than its hair, and are never white against the skin. The lashes keep their own colour. Sumiko at 84 had white brows
+# and white lashes round dark eyes, and her face read as a mask, not as an old Japanese woman's (issue 34)
 HAIR = {"grey": (0.60, 0.60, 0.62), "white": (0.80, 0.80, 0.80), "brown": (0.33, 0.19, 0.10)}
+BROW = {"grey": (0.31, 0.30, 0.30), "white": (0.42, 0.41, 0.41), "brown": (0.24, 0.14, 0.08)}
 # cloth tags: light, unsaturated cloth (a white shirt or robe) dyed this colour
 CLOTH = {"dark": (0.085, 0.085, 0.095), "navy": (0.07, 0.09, 0.17)}
 # top tags: the top's own colour (a coloured shirt) taken to this one, its folds kept: a ranger's khaki
@@ -663,10 +666,58 @@ def scalp(arm, mesh):
     return out
 
 
+def face_parts(arm, mesh):
+    """The head's faces that carry the brows (weighted to the brow bones), the hair cards that are lashes (within
+    3.5 cm of an eye: the upper lashes ride the blink bones, the lower the head's), the lids and the sockets round the
+    eyes (weighted to an eye's or a blink's bone), and the faces where the ears are (out at the sides, round the line of
+    the eyes and behind them: an ear and the hair round it)."""
+    names = {g.index: g.name for g in mesh.vertex_groups}
+    bone = lambda n: arm.matrix_world @ arm.data.bones[n].head_local
+    eyes = [bone("Bip01 REye"), bone("Bip01 LEye")]
+    eye = (eyes[0] + eyes[1]) / 2
+    fwd = eye - bone("Bip01 Head")
+    fwd.z = 0
+    fwd.normalize()
+    side = fwd.cross((0, 0, 1))
+    vs, M = mesh.data.vertices, mesh.matrix_world
+    brows, lashes, lids, ears = [], [], [], []
+    for p in mesh.data.polygons:
+        name = mesh.material_slots[p.material_index].name
+        if name.endswith("_head"):
+            w = sum(g.weight for i in p.vertices for g in vs[i].groups if "Eyebrow" in names[g.group]) / len(p.vertices)
+            c = M @ p.center - eye
+            if any(g.weight > 0.1 and "Eye" in names[g.group] and "Eyebrow" not in names[g.group] for i in p.vertices for g in vs[i].groups):
+                lids.append(p)
+            elif w > 0.3:
+                brows.append(p)
+            elif abs(c.dot(side)) > 0.06 and -0.06 < c.z < 0.02 and -0.13 < c.dot(fwd) < -0.04:
+                ears.append(p)
+        elif name.endswith("_opacity") and min(((M @ p.center) - e).length for e in eyes) < 0.035:
+            lashes.append(p)
+    return brows, lashes, lids, ears
+
+
+def skin_faces(mesh, polys, px, size):
+    """Of polys, those whose texels round the middle of their place on the texture are skin, not hair: light, or warm
+    (the shadowed fold of an ear is as dark as hair, but red where hair is a near-neutral brown)."""
+    from PIL import Image, ImageFilter
+    blur = lambda a: np.asarray(Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6)), dtype=np.float32) / 255
+    Ls, warm = blur(luma(px)), blur((px[..., 0] - px[..., 2]) * 4)
+    uv, out = mesh.data.uv_layers.active.data, []
+    for p in polys:
+        u = sum(uv[i].uv[0] for i in p.loop_indices) / p.loop_total
+        v = sum(uv[i].uv[1] for i in p.loop_indices) / p.loop_total
+        y, x = min(size[1] - 1, max(0, int(v * size[1]))), min(size[0] - 1, max(0, int(u * size[0])))
+        if Ls[y, x] > 0.33 or warm[y, x] > 0.36:
+            out.append(p)
+    return out
+
+
 def retouch_hair(arm, mesh, tag):
-    """Recolour the hair (HAIR[tag]) where it is painted on the scalp and on the hair cards,
-    keeping each strand's light and dark."""
+    """Recolour the hair (HAIR[tag]) where it is painted on the scalp and on the hair cards, and the brows (BROW[tag]),
+    keeping each strand's light and dark; the lashes and the ears' skin as they are."""
     polys = scalp(arm, mesh)
+    brows, lashes, lids, ears = face_parts(arm, mesh)
     for slot in mesh.material_slots:
         mat = slot.material
         node = mat and base_image(mat)
@@ -674,16 +725,28 @@ def retouch_hair(arm, mesh, tag):
             continue
         px = pixels(node.image)
         L = luma(px)
+        size = node.image.size
+        mine = lambda ps: [p for p in ps if mesh.material_slots[p.material_index].material is mat]
+        parts = []
         if mat.name.endswith("_head"):
-            # the dark texels there and just round it (the fringe's ends): hair, not skin
-            region = uv_mask(mesh, [p for p in polys if mesh.material_slots[p.material_index].material is mat], *node.image.size, grow=node.image.size[0] // 40)
-            m = region * np.clip((0.40 - L) / 0.18, 0, 1)
-        else:   # every dark texel, the cut-away ones too, so the cards' edges don't darken
-            m = np.clip((0.45 - L) / 0.2, 0, 1)
-        if not (m > 0.5).any():
-            continue
-        new = np.array(HAIR[tag]) * (0.55 + 0.45 * np.clip(L / np.median(L[m > 0.5]), 0.3, 2.2))[..., None]
-        px[..., :3] = px[..., :3] * (1 - m[..., None]) + np.clip(new, 0, 1) * m[..., None]
+            # the dark texels there and just round it (the fringe's ends): hair, not skin; the brows apart; and not the
+            # folds of an ear, as dark as hair and next to it (they went white in a grey head's ears), nor the dark round
+            # the eyes under the lids (it went white, a pale rim at the corners of the eyes)
+            brow = uv_mask(mesh, mine(brows), *size, grow=size[0] // 160)
+            ear = uv_mask(mesh, skin_faces(mesh, mine(ears), px, size), *size, grow=0)
+            lid = uv_mask(mesh, mine(lids), *size, grow=2)
+            warm = np.clip((px[..., 0] - px[..., 2] - 0.07) / 0.04, 0, 1)   # (an ear's fold, not the wisps of hair round it)
+            region = uv_mask(mesh, mine(polys), *size, grow=size[0] // 40) * (1 - brow) * (1 - ear * warm) * (1 - lid)
+            brow = brow * (1 - lid)
+            parts = [(region * np.clip((0.40 - L) / 0.18, 0, 1), HAIR[tag]), (brow * np.clip((0.40 - L) / 0.18, 0, 1), BROW[tag])]
+        else:   # every dark texel, the cut-away ones too, so the cards' edges don't darken; but the lashes
+            lash = uv_mask(mesh, mine(lashes), *size, grow=size[0] // 80)   # (wide: the cut-away texels round a lash are what its filtered edge shows)
+            parts = [(np.clip((0.45 - L) / 0.2, 0, 1) * (1 - lash), HAIR[tag])]
+        for m, colour in parts:
+            if not (m > 0.5).any():
+                continue
+            new = np.array(colour) * (0.55 + 0.45 * np.clip(L / np.median(L[m > 0.5]), 0.3, 2.2))[..., None]
+            px[..., :3] = px[..., :3] * (1 - m[..., None]) + np.clip(new, 0, 1) * m[..., None]
         put_pixels(node.image, px)
 
 
@@ -1125,6 +1188,286 @@ def neck_camera(arm, mesh):
             "old": {"centre": three(oC), "x": three(left), "y": three(oT), "z": three(oA)}}
 
 
+# ------------------------------------------------------------------ what the story's people wear and carry (issue 46)
+# The case turns on three things said and, until these, not seen: the girl's one white glove (frame 1, "one glove on";
+# the other is in a dead man's fist), the little hat of the store's lift girls (frame 4), and the old woman's handbag,
+# which has held his camera every tenth of October for sixty-two years (frame 7). Each is an NPC's tag (glove, liftcap,
+# handbag), made in the bind pose from this avatar's own bones and skin, weighted to what carries it and joined to the
+# body's mesh, as neck_camera is. Their materials are plain (a colour, no picture): one program for all of them.
+ACCESSORY = ("glove", "liftcap", "handbag")
+
+
+def plain_material(name, rgb, rough, metal=0.0):
+    """A material of one colour (sRGB), as the camera's parts are."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    bsdf = m.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (*[c ** 2.2 for c in rgb], 1)
+    bsdf.inputs["Roughness"].default_value = rough
+    bsdf.inputs["Metallic"].default_value = metal
+    return m
+
+
+def join_part(mesh, name, verts, faces, kinds, mats, weights, smooth=()):
+    """verts (world space) and faces as a mesh of their own, each face's material by its kind (mats: kind -> (sRGB,
+    roughness, metal)), vertex i weighted as weights(i) -> {bone: weight} says, joined to the body's mesh."""
+    me = bpy.data.meshes.new(name)
+    inv = mesh.matrix_world.inverted()
+    me.from_pydata([inv @ v for v in verts], [], faces)
+    index = {}
+    for kind, (rgb, rough, metal) in mats.items():
+        me.materials.append(plain_material(f"{name}_{kind}", rgb, rough, metal))
+        index[kind] = len(me.materials) - 1
+    for p, kind in zip(me.polygons, kinds):
+        p.material_index = index[kind]
+        p.use_smooth = kind in smooth
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.matrix_world = mesh.matrix_world
+    groups = {}
+    for i in range(len(verts)):
+        for b, w in weights(i).items():
+            (groups.get(b) or groups.setdefault(b, ob.vertex_groups.new(name=b))).add([i], w, "REPLACE")
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    mesh.select_set(True)
+    bpy.context.view_layer.objects.active = mesh
+    bpy.ops.object.join()
+
+
+def face_texels(mesh, polys, w, h):
+    """Each face's texels on a w x h picture, as a picture of face numbers (0: none; k + 1: polys[k])."""
+    from PIL import Image, ImageDraw
+    ids = Image.new("I", (w, h), 0)
+    d = ImageDraw.Draw(ids)
+    uv = mesh.data.uv_layers.active.data
+    for k, p in enumerate(polys):
+        d.polygon([(uv[i].uv[0] * w, uv[i].uv[1] * h) for i in p.loop_indices], fill=k + 1)
+    return np.asarray(ids, dtype=np.int64)
+
+
+def glove(arm, mesh, side="R"):
+    """One white cotton glove: a shell over the skin of the hand and the fingers, 1.6 mm off it, and on up the wrist to
+    a cuff 5 cm above it that stands 3 mm off the skin; weighted as the skin under it, so it bends as the hand does.
+    The hand's own skin under it goes (so nothing of it comes through a knuckle, or through the afterimage's exposure,
+    which lets what is behind a surface show); the wrist's stays under the cuff."""
+    import bmesh
+    names = {g.index: g.name for g in mesh.vertex_groups}
+    slots, vs, M = mesh.material_slots, mesh.data.vertices, mesh.matrix_world
+    body = next(sl.material for sl in slots if sl.material and sl.material.name.endswith("_body"))
+    node = base_image(body)
+    w, h = node.image.size
+    skin = skin_like(pixels(node.image))
+    hand, fore = re.compile(rf" {side} (Hand|Finger)"), re.compile(rf" {side} Forearm")
+    wrist = arm.matrix_world @ arm.data.bones[f"Bip01 {side} Hand"].head_local
+    up = ((arm.matrix_world @ arm.data.bones[f"Bip01 {side} Forearm"].head_local) - wrist).normalized()
+    share = lambda p, rx: sum(g.weight for i in p.vertices for g in vs[i].groups if rx.search(names.get(g.group, ""))) / len(p.vertices)
+    along = lambda i: ((M @ vs[i].co) - wrist).dot(up)
+    bp = [p for p in mesh.data.polygons if slots[p.material_index].material is body]
+    cand = [p for p in bp if share(p, hand) > 0.5 or ((share(p, hand) + share(p, fore)) > 0.5 and max(along(i) for i in p.vertices) < 0.05)]
+    ids = face_texels(mesh, cand, w, h)
+    tot = np.bincount(ids.ravel(), minlength=len(cand) + 1)[1:]
+    hit = np.bincount(ids.ravel(), weights=skin.ravel().astype(np.float64), minlength=len(cand) + 1)[1:]
+    polys = [p for k, p in enumerate(cand) if tot[k] and hit[k] / tot[k] > 0.5]
+    if len(polys) < 40:
+        raise SystemExit(f"glove: no {side} hand's skin found ({len(polys)} faces)")
+    N = M.to_3x3().inverted().transposed()
+    at, verts = {}, []
+    for p in polys:
+        for i in p.vertices:
+            if i not in at:
+                k = max(0.0, min(1.0, along(i) / 0.05))
+                at[i] = len(verts)
+                verts.append(M @ vs[i].co + (N @ vs[i].normal).normalized() * (0.0016 + 0.0014 * k))
+    faces = [tuple(at[i] for i in p.vertices) for p in polys]
+    src = {v: i for i, v in at.items()}
+    weights = lambda j: {names[g.group]: g.weight for g in vs[src[j]].groups if g.weight > 1e-4}
+    drop = {p.index for p in polys if share(p, hand) > 0.5}
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    bm.faces.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.faces[i] for i in sorted(drop)], context="FACES_ONLY")
+    bm.to_mesh(mesh.data)
+    bm.free()
+    join_part(mesh, "acc_glove", verts, faces, ["cotton"] * len(faces), {"cotton": ((0.86, 0.86, 0.84), 0.9, 0.0)}, weights, smooth=("cotton",))
+    print(f"  glove: {len(faces)} faces over the {side} hand's skin ({len(drop)} of its own taken off)")
+
+
+def tube(verts, faces, kinds, line, r, kind, sides=8):
+    """A round tube of radius r along the points of line (world space)."""
+    from mathutils import Vector
+    base = len(verts)
+    for i, c in enumerate(line):
+        t = (line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]).normalized()
+        a = t.cross(Vector((0, 0, 1)) if abs(t.z) < 0.9 else Vector((1, 0, 0))).normalized()
+        b = t.cross(a)
+        for k in range(sides):
+            q = 2 * math.pi * k / sides
+            verts.append(c + (a * math.cos(q) + b * math.sin(q)) * r)
+    for i in range(len(line) - 1):
+        for k in range(sides):
+            a0, a1 = base + i * sides + k, base + i * sides + (k + 1) % sides
+            faces.append((a0, a1, a1 + sides, a0 + sides))
+            kinds.append(kind)
+
+
+def lathe(verts, faces, kinds, frame, profile, rx, ry, kind, segs=40, top=True):
+    """A body of revolution in frame (origin, x, y, axis), elliptical (rx, ry at a radius of 1): profile is
+    [(height, radius)] from the bottom up; capped at the top if top."""
+    o, X, Y, A = frame
+    base = len(verts)
+    for z, r in profile:
+        for k in range(segs):
+            q = 2 * math.pi * k / segs
+            verts.append(o + A * z + X * (math.cos(q) * rx * r) + Y * (math.sin(q) * ry * r))
+    for j in range(len(profile) - 1):
+        for k in range(segs):
+            a0, a1 = base + j * segs + k, base + j * segs + (k + 1) % segs
+            faces.append((a0, a1, a1 + segs, a0 + segs))
+            kinds.append(kind)
+    if top:
+        last = base + (len(profile) - 1) * segs
+        faces.append(tuple(last + k for k in range(segs)))
+        kinds.append(kind)
+
+
+def cloth_colour(arm, mesh, rx=r" UpperArm"):
+    """The median colour (sRGB) of the body's picture where rx's bones carry it: a jacket's upper sleeves (its front
+    is over a shirt). Not told from skin by its colour: a taupe cloth is as warm as a hand."""
+    names = {g.index: g.name for g in mesh.vertex_groups}
+    slots, vs = mesh.material_slots, mesh.data.vertices
+    body = next(sl.material for sl in slots if sl.material and sl.material.name.endswith("_body"))
+    node = base_image(body)
+    w, h = node.image.size
+    px = pixels(node.image)
+    bone = re.compile(rx)
+    polys = [p for p in mesh.data.polygons if slots[p.material_index].material is body
+             and sum(g.weight for i in p.vertices for g in vs[i].groups if bone.search(names.get(g.group, ""))) > 0.6 * len(p.vertices)]
+    m = uv_mask(mesh, polys, w, h, grow=0) > 0.5
+    return tuple(float(c) for c in np.median(px[m, :3], axis=0))
+
+
+def lift_cap(arm, mesh):
+    """The little hat of the store's lift girls: a pillbox of the jacket's cloth, 13 by 15 cm and 5.5 cm tall, with a
+    band of the same a shade darker round its foot, set on the crown a little forward of the bun and tipped forward 10
+    degrees, pinned down over the crown as a pillbox sits: its foot as low as the hair under its lowest edge, so that no
+    edge of it stands off the head (set on the crown's top alone, it stood on the round of the head like a lid).
+    Weighted to the head. No badge."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    M = mesh.matrix_world
+    bone = lambda n: arm.matrix_world @ arm.data.bones[n].head_local
+    hd, eye = bone("Bip01 Head"), (bone("Bip01 REye") + bone("Bip01 LEye")) / 2
+    fwd = eye - hd
+    fwd.z = 0
+    fwd.normalize()
+    up = Vector((0, 0, 1))
+    side = fwd.cross(up).normalized()
+    W = [M @ v.co for v in mesh.data.vertices]
+    mesh.data.calc_loop_triangles()
+    tris = [t for t in mesh.data.loop_triangles if HEADISH.search(mesh.material_slots[t.material_index].name)]
+    bvh = BVHTree.FromPolygons(W, [tuple(t.vertices) for t in tris])
+    crown = hd + fwd * 0.012
+    hit = bvh.ray_cast(Vector((crown.x, crown.y, crown.z + 0.5)), Vector((0, 0, -1)))[0]
+    if hit is None:
+        raise SystemExit("liftcap: no crown found")
+    a = math.radians(10)
+    A = (up * math.cos(a) + fwd * math.sin(a)).normalized()
+    Y = A.cross(side).normalized()   # (forward, square to the tipped axis)
+    RX, RY, H = 0.066, 0.076, 0.055
+    sink = []
+    for k in range(16):   # the hair under the foot's edge, all round: the foot goes down to the lowest of it
+        q = 2 * math.pi * k / 16
+        p = hit + side * (math.cos(q) * RX * 0.97) + Y * (math.sin(q) * RY * 0.97)
+        h = bvh.ray_cast(p + A * 0.3, -A)[0]
+        if h is not None:
+            sink.append((h - hit).dot(A))
+    if len(sink) < 12:
+        raise SystemExit(f"liftcap: the head under the cap's edge not found ({len(sink)} of 16)")
+    o = hit + A * max(-0.032, min(sink) - 0.002)
+    srgb = cloth_colour(arm, mesh)   # (a picture's pixels are as it is stored, sRGB, as HAIR's colours are written into them)
+    band = tuple(c * 0.72 for c in srgb)
+    verts, faces, kinds = [], [], []
+    # the crown of the cap: straight sides, the top's edge rounded over 6 mm
+    lathe(verts, faces, kinds, (o, side, Y, A), [(0.0, 1.0), (H - 0.015, 1.0), (H - 0.009, 0.985), (H - 0.0045, 0.95), (H - 0.0015, 0.89), (H, 0.8)],
+          RX, RY, "cloth")
+    # the band: 1.2 cm, standing 1.5 mm proud of the sides
+    lathe(verts, faces, kinds, (o, side, Y, A), [(0.0, 1.022), (0.012, 1.022)], RX, RY, "band", top=False)
+    join_part(mesh, "acc_liftcap", verts, faces, kinds, {"cloth": (srgb, 0.85, 0.0), "band": (band, 0.75, 0.0)}, lambda j: {"Bip01 Head": 1.0},
+              smooth=("cloth", "band"))
+    print(f"  liftcap: on the crown at {tuple(round(v, 3) for v in o)}, {round((o - hit).dot(A) * 100, 1)} cm into the hair at the top, sRGB {tuple(round(c, 3) for c in srgb)}")
+
+
+def handbag(arm, mesh, side="L"):
+    """An old woman's handbag, held by its two handles in the hand (the left: the right waves and talks): black leather
+    over a stiff frame, 25 cm wide at the foot and 22 at the top, 19 cm tall and 8.5 cm deep, a brass frame and clasp
+    along its top, hanging 10 cm under the grip and off the leg on the back of the hand's side. Weighted to the hand,
+    so it hangs as the hand does. Made in the bind pose, where the hand points down and out: its long axis (wrist to
+    the middle finger's tip) is the way the bag hangs."""
+    from mathutils import Vector
+    bone = lambda n: arm.matrix_world @ arm.data.bones[n].head_local
+    wrist = bone(f"Bip01 {side} Hand")
+    D = (bone(f"Bip01 {side} Finger22") - wrist).normalized()                      # down the hand
+    th = bone(f"Bip01 {side} Finger0") - wrist
+    T = (th - D * th.dot(D)).normalized()                                          # to the thumb's side
+    Nn = D.cross(T).normalized()
+    if Nn.dot(Vector((1 if side == "L" else -1, 0, 0))) < 0:                       # the back of the hand: out from the body
+        Nn = -Nn
+    G = (bone(f"Bip01 {side} Finger2") + bone(f"Bip01 {side} Finger21")) / 2 - Nn * 0.008   # the grip, in the fingers
+    top = G + D * 0.10 + Nn * 0.035
+    verts, faces, kinds = [], [], []
+    # the body: rounded rectangles from its top to its foot, wider and deeper as they go down; the foot closed
+    rows = [(0.0, 0.22, 0.045), (0.012, 0.222, 0.055), (0.05, 0.23, 0.07), (0.12, 0.244, 0.082), (0.175, 0.25, 0.085), (0.19, 0.246, 0.08)]
+    rr, seg = 0.018, 6
+
+    def section(cw, cd):
+        pts = []
+        for cx, cy, q0 in ((1, 1, 0), (-1, 1, 90), (-1, -1, 180), (1, -1, 270)):
+            for s in range(seg + 1):
+                q = math.radians(q0 + 90 * s / seg)
+                r = min(rr, cd / 2 - 1e-3)
+                pts.append((cx * (cw / 2 - r) + math.cos(q) * r, cy * (cd / 2 - r) + math.sin(q) * r))
+        return pts
+    n_ring = len(section(0.2, 0.05))
+    base = len(verts)
+    for z, cw, cd in rows:
+        for x, y in section(cw, cd):
+            verts.append(top + D * z + T * x + Nn * y)
+    for j in range(len(rows) - 1):
+        for k in range(n_ring):
+            a0, a1 = base + j * n_ring + k, base + j * n_ring + (k + 1) % n_ring
+            faces.append((a1, a0, a0 + n_ring, a1 + n_ring))
+            kinds.append("leather")
+    for ring, flip in ((0, True), (len(rows) - 1, False)):   # the top under the frame, and the foot
+        f = tuple(base + ring * n_ring + k for k in range(n_ring))
+        faces.append(tuple(reversed(f)) if flip else f)
+        kinds.append("leather")
+    # the frame: a brass bar along each long edge of the top, and the clasp's two balls at its middle
+    for s in (1, -1):
+        tube(verts, faces, kinds, [top + T * (x * 0.105) + Nn * (s * 0.0215) - D * 0.002 for x in (-1, -0.5, 0, 0.5, 1)], 0.0035, "brass", sides=6)
+    from mathutils import Matrix
+    for s in (1, -1):
+        c = top + Nn * (s * 0.004) - D * 0.012
+        k0 = len(verts)
+        for i in range(5):
+            for j in range(8):
+                p, q = math.pi * (i + 0.5) / 5 - math.pi / 2, 2 * math.pi * j / 8
+                verts.append(c + (D * math.sin(p) + (T * math.cos(q) + Nn * math.sin(q)) * math.cos(p)) * 0.006)
+        for i in range(4):
+            for j in range(8):
+                a0, a1 = k0 + i * 8 + j, k0 + i * 8 + (j + 1) % 8
+                faces.append((a0, a1, a1 + 8, a0 + 8))
+                kinds.append("brass")
+    # the handles: two arcs of rolled leather from the top's ends up through the grip, one each side of it
+    for s in (1, -1):
+        A0, B0 = top + T * 0.065 + Nn * (s * 0.018), top - T * 0.065 + Nn * (s * 0.018)
+        C = 2 * (G + Nn * (s * 0.004)) - (A0 + B0) / 2
+        tube(verts, faces, kinds, [A0 * (1 - u) ** 2 + C * 2 * u * (1 - u) + B0 * u ** 2 for u in [i / 16 for i in range(17)]], 0.0045, "leather")
+    join_part(mesh, "acc_handbag", verts, faces, kinds, {"leather": ((0.06, 0.055, 0.055), 0.5, 0.0), "brass": ((0.66, 0.55, 0.34), 0.35, 1.0)},
+              lambda j: {f"Bip01 {side} Hand": 1.0}, smooth=("leather", "brass"))
+    print(f"  handbag: in the {side} hand, hanging along {tuple(round(v, 2) for v in D)}")
+
+
 def suit(arm, mesh, kind):
     """Dress a bare body (SUIT[kind]): the cloth's colour over the body's texture from the collar
     to the wrists and to the ankles or the knees, by where each texel is on the body in the bind
@@ -1425,8 +1768,14 @@ def retouch(cid, arm, mesh, head, tags):
             print_pattern(mesh, tag)
         elif tag in SUIT:
             suit(arm, mesh, tag)
+        elif tag == "glove":
+            glove(arm, mesh, "R")
+        elif tag == "liftcap":
+            lift_cap(arm, mesh)
+        elif tag == "handbag":
+            handbag(arm, mesh, "L")
         elif tag != "bare":
-            raise SystemExit(f"{cid}: no tag {tag} (HAIR, CLOTH, PATTERN, TOP, SUIT, bare or plain)")
+            raise SystemExit(f"{cid}: no tag {tag} (HAIR, CLOTH, PATTERN, TOP, SUIT, ACCESSORY, bare or plain)")
 
 
 def build_npcs(only=None, clips=True):

@@ -314,7 +314,7 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
       await new Promise(r => setTimeout(r, 800 * 3 ** i));
     }
   }
-  async function load(base, { onMsg } = {}) {
+  async function load(base, { onMsg, warmLater = false } = {}) {
     if (!THREE.GLTFLoader || !THREE.SkeletonUtils) throw new Error('GLTFLoader is not available');
     const L = new THREE.GLTFLoader();
     L.oeTex = false; // (a phone's pictures in ASTC blocks, tex.js: packed below, once an NPC's have been made smaller)
@@ -325,6 +325,11 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     const CC = info.crowd_cast, castFile = CC && !/[?&]farcast=off/.test(location.search) ? get(CC.file).catch(e => { console.warn('crowd_cast', e); return null; }) : null;
     const [aM, aW, cr, fc] = await Promise.all([get(info.anims.M), get(info.anims.W), get(info.crowd), castFile]);
     const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: {}, loading: {} };
+    // (lib.setWarm(fn): the game's warm-up, given once its loader has compiled what the first frame shows; lib.warmed
+    // resolves with it, for an NPC's character that came before it to wait on: below, ready)
+    // (warmLater: the game says it will give one; a page that never does, tools/people_lineup.js, shows them as they come)
+    lib.warmed = new Promise(r => { lib.setWarm = fn => { lib.warm = fn; r(fn); }; });
+    lib.warmLater = warmLater;
     cr.scene.traverse(o => {
       if (!o.isMesh) return;
       const g = o.geometry;
@@ -472,7 +477,12 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
         if (/_opacity$/.test(o.material.name || '') && !/glasses/.test(o.material.name)) { hair = o; roundHair(o); } else if (/_head$/.test(o.material.name || '')) head = o;
       });
       if (hair && head) matchHair(hair, head);
-      return (lean && npc ? smaller(tpl) : Promise.resolve()).then(() => packed(tpl.scene)).then(() => (lib.warm ? lib.warm(tpl.scene).catch(() => {}) : null)).then(() => {
+      // (an NPC's character that comes before the game has a warm-up to give it waits for one, and is shown once warmed:
+      // the crowd's cast came between the loader's compile and the title, and the title's first frames linked their
+      // programs in a draw, issue 31. Until then the far crowd's copy of each stands in. A main character is wanted by
+      // the load itself, and does not wait)
+      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {}) : Promise.resolve(); };
+      return (lean && npc ? smaller(tpl) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
         lib.tpl[name] = tpl;
         if (onMsg) onMsg(name);
         return tpl;
@@ -850,13 +860,14 @@ ${PAT_GLSL}`)
       if (!dressMats) {
         dressMats = [];
         model.traverse(o => {
-          if (!o.isSkinnedMesh || Array.isArray(o.material) || !o.material.map || /_opacity$|_head$/.test(o.material.name || '')) return;
-          const m = o.material.clone();
-          m.userData = { dress: { value: new THREE.Vector3(1, 0, 1) }, dye: { value: new THREE.Vector2() } };
-          dressMaterial(m, !!T.mask && /_body$/.test(m.name || '')); litMaterial(m);
+          if (!dressable(o)) return;
+          const m = dressedCopy(o.material, T);
           o.material = m;
           dressMats.push(m);
         });
+        // (and given the weather's patch at once, as the warm-up gave the copy it compiled: lib.dressNew, the game's
+        // weather.dress. Drawn first without it, the copy linked a program of its own in a draw, issue 31)
+        if (lib.dressNew) lib.dressNew(model);
       }
       for (const m of dressMats) dressVec(k, m.userData.dress.value, m.userData.dye.value);
     };
@@ -1094,6 +1105,28 @@ transformed = crowdPose(transformed, false);`);
     diffuseColor.rgb = mix(d, c, skin);
   }`;
   // a near person's clothes (their body's material, a copy of its own): rig.dress, below
+  // what of a scanned person the crowd's change of clothes dresses (rig.dress), and its copy of a material for it
+  const dressable = o => o.isSkinnedMesh && !Array.isArray(o.material) && !!o.material.map && !/_opacity$|_head$/.test(o.material.name || '');
+  function dressedCopy(m0, T) {
+    const m = m0.clone();
+    m.userData = { dress: { value: new THREE.Vector3(1, 0, 1) }, dye: { value: new THREE.Vector2() } };
+    dressMaterial(m, !!T.mask && /_body$/.test(m.name || '')); litMaterial(m);
+    return m;
+  }
+  // The dressed variant's program, compiled once a library (one for a body whose picture marks its skin, one for one that
+  // does not) with the first cast member that comes: the template's warm-up (lib.warm) reached its own materials, and
+  // the first walker of the crowd drawn in other clothes linked this one in a draw, in the opening on the desktop tier
+  // (issue 31)
+  function warmDress(lib, T, w) {
+    const key = T.mask ? 'masked' : 'plain', W = lib.dressWarm || (lib.dressWarm = {});
+    if (W[key]) return W[key];
+    let src = null;
+    T.scene.traverse(o => { if (!src && dressable(o)) src = o; });
+    if (!src) return null;
+    const c = src.clone();
+    c.material = dressedCopy(src.material, T);
+    return (W[key] = w(c).catch(() => {}));
+  }
   function dressMaterial(m, masked) {
     const own = m.onBeforeCompile, key = m.customProgramCacheKey;
     m.onBeforeCompile = (sh, r) => {
@@ -1273,6 +1306,15 @@ transformed = crowdPose(transformed, false);`);
     })());
     const UMB_KEYS = [true, false, 'shaft'];
     let rain = 0, umbOn = false;
+    // (the umbrellas' instanced meshes made now and their programs compiled as soon as the game gives a warm-up, not made
+    // at the first rain: the story's evening rains at its title, and the title's frame linked the canopies' program in a
+    // draw, a wait of seconds on the desktop tier in the tap, issue 31. Nobody puts one up before)
+    let umbWarm = !UMBRELLAS;
+    if (UMBRELLAS) {
+      for (const c of UMB_KEYS) umbMesh(c);
+      (lib.warmLater && !lib.warm ? lib.warmed : Promise.resolve(lib.warm)).then(w => (w ? Promise.all(UMB_KEYS.map(c => w(umbMeshes[c]))) : null))
+        .catch(() => {}).then(() => { umbWarm = true; const r = rain; rain = -1; setRain(r); });
+    }
     const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < 0.3 + 0.62 * Math.min(1, (rain - 0.06) / 0.5);
     const free = {}, active = new Map();
     let dtNow = 0, tNow = 0;
@@ -1400,12 +1442,14 @@ transformed = crowdPose(transformed, false);`);
     // the rain, 0..1 (weather.js): umbrellas go up as it comes on
     function setRain(r) {
       rain = r;
-      const on = UMBRELLAS && r > 0.06;
+      const on = UMBRELLAS && umbWarm && r > 0.06;
       if (on === umbOn) return;
       umbOn = on;
       for (const c of UMB_KEYS) { const m = umbMesh(c); m.visible = on; if (!on) m.count = 0; }
     }
-    return { begin, place, hide, end, setRain, meshes, active, umbrellas: umbMeshes };
+    // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
+    const shows = i => active.has(i) || !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count);
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
