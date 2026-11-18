@@ -712,6 +712,8 @@
    hand brake); Run has nothing to do in either */
 .game-stage.story.walk:is(.at-car, .at-heli) .gt-btns :is(#gt-jump, #gt-down, #gt-cam) { display: block; }
 .game-stage.story.walk:is(.at-car, .at-heli) .gt-btns #gt-run { display: none; }
+.game-stage.story.walk.at-heli .gt-btns #gt-jump { order: 1; } /* (Up over Down, in the one column) */
+.game-stage.story.walk.at-heli .gt-btns #gt-down { order: 2; }
 /* (and in the story and on the walk alike, the old free game's: its tour of the map, the passport, the passport's fresh start, and its keys) */
 .game-stage.story :is(#gm-intro, #gm-reset, #gm-links, .gk-free) { display: none !important; }
 .game-stage:not(.story) .gk-story { display: none; }
