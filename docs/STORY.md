@@ -501,6 +501,29 @@ What Rocketbox's faces cannot do in a close shot (no blendshapes, no mouth) wait
 eye, with the wheel as the lens's ring (a long lens to a wide one). Each frame asks for a picture
 a visitor to Shibuya would want anyway, and the clue is in it.
 
+**Raising the camera** (game.js, the finder's view; story.js `raise`, `subject`). For a while the lens's view was read
+every frame off the view behind you, so everything that moves that view moved the lens: its turn round you in the Stop,
+its swing round behind a walk, its ease towards the goal, its lift over a wall. It came up drifting, and wherever that
+view had been pitched (a player saw a wall's upper floors, and no lamp). Now, as the photography games and the aim of
+third-person games do it:
+- the lens has an aim of its own, from your eye (taken at your feet, 1.56 m up, eased over steps, never the animated
+  head), and moves only with your hand: no sway, no breathing, no drift (Xbox accessibility guideline 117; The Last of
+  Us Part II's camera sway is an option to turn off; mouse smoothing and camera moves the player did not make are listed
+  causes of motion sickness, Game Accessibility Guidelines);
+- it comes up in 0.28 s (a shooter's aim is 0.25 to 0.38 s), the view swinging from where it was to the eye and you no
+  longer drawn once it is at your face; onto the thing the frame is of, at its height, when that is within 100 degrees of
+  where you were looking, a turn onto it taking a quarter second more for each quarter turn so that it is never a
+  whip; behind you, the view is not spun round, and the arrow on the frame lines points to it (Fatal Frame's filament
+  points the way to a ghost; aim assists snap only to what is near the aim);
+- it comes up at an eye's own angle, 40 degrees (a 35 mm lens), and the ring then turns to the frame's own lens
+  (`task.lens`) in about a second, as a hand would (Fatal Frame II's camera comes up at a neutral lens; zoom is the
+  player's, by the wheel);
+- the hand turns a long lens less, by the ratio of its angle to the eye's (Rainbow Six Siege scales its aim so); the
+  walk with the camera up is a walk;
+- lowered, the view behind you comes back from the eye in 0.22 s looking where the lens looked.
+`tools/story_play.js` raises it in every frame from 63 degrees off the thing with the view pitched down: the thing must
+be in the picture and the lens still to within 0.15 degrees a frame with no hand on it.
+
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
 place the world stops; whoever still moves is found and heard; the camera comes up, the standpoint

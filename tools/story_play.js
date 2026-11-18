@@ -245,6 +245,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         await p.waitForTimeout(1500); await snap(`${s.fi + 1}-spent`); continue;
       }
       if (T.stand) await goTo(T.stand, 0.6);
+      // the camera raised as a player raises it, from wherever the view behind them looks (here 63 degrees off the thing
+      // and pitched well down): it comes up onto the thing within half a second, and then holds still with no hand on it.
+      // It once came up wherever that view had been pitched (on a wall's upper floors), and drifted on by itself
+      if (T.subject && !T.both && !seen.has(`raise-${s.fi}`)) {
+        seen.add(`raise-${s.fi}`);
+        await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
+        await frames(4);
+        await p.evaluate(() => window.__game.story.raise(true));
+        const R = await p.evaluate(at => new Promise(r => { const g = window.__game, c = g.camera, V = window.THREE.Vector3, out = [], t0 = performance.now();
+          const f = () => { const d = c.getWorldDirection(new V()), q = new V(at[0], at[2], -at[1]).project(c); out.push({ t: performance.now() - t0, d: [d.x, d.y, d.z], q: [q.x, q.y, q.z] }); if (performance.now() - t0 < 2500 || out.length < 45) requestAnimationFrame(f); else r(out); };
+          requestAnimationFrame(f); }), T.subject);
+        const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180 / Math.PI;
+        // (counted in frames, not the wall's time: the game moves 0.05 s a frame at most, so on a software renderer the raise's
+        // half a second is many seconds of the wall's; after 20 frames, a second of the game's own time, it is up)
+        const settle = R.slice(20), first = settle[0], last = settle[settle.length - 1];
+        let jit = 0; for (let i = 1; i < settle.length; i++) jit = Math.max(jit, ang(settle[i].d, settle[i - 1].d));
+        const drift = ang(first.d, last.d), q = last.q, inFrame = q[2] < 1 && Math.abs(q[0]) < 0.7 && Math.abs(q[1]) < 0.7;
+        await snap(`${s.fi + 1}-raised`);
+        console.log(`frame ${s.fi + 1} raised from 63 degrees off: the thing at ${q[0].toFixed(2)}, ${q[1].toFixed(2)} in the picture, the lens drifting ${drift.toFixed(2)} degrees and turning ${jit.toFixed(2)} at most a frame with no hand on it (${settle.length} frames)`);
+        if (!inFrame) { errors.push(`frame ${s.fi + 1}: raised from 63 degrees off, the camera does not come up on the thing (at ${q[0].toFixed(2)}, ${q[1].toFixed(2)})`); console.log(errors[errors.length - 1]); }
+        if (drift > 0.3 || jit > 0.15) { errors.push(`frame ${s.fi + 1}: the raised camera moves by itself (${drift.toFixed(2)} degrees, ${jit.toFixed(2)} a frame)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(6);
+      }
       if (T.both) { const m = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2], n = [-(T.b[1] - T.a[1]), T.b[0] - T.a[0]], l = Math.hypot(...n); await goTo(T.hintAt || [m[0] + n[0] / l * 30, m[1] + n[1] / l * 30], 0); await face(m); } // (from the corner its hints lead to: 30 m off the middle, a kiosk filled half the last print)
       else if (T.subject) await face(T.subject);
       // the mark the player follows points at what the frame is judged on (it once pointed 21 m off, up a wall)
