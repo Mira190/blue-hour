@@ -1347,7 +1347,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     cam.mode = 'chase'; cam.dist = 7.5; cam.pitch = 0.2; cam.yaw = myCar.D.st.h;
     blendFrom(0.8 + turn * 0.16, true); // (round behind the car from where you stood, not swung through it in a frame or two; longer the farther round)
     A.thump();
-    H.toast(touch ? 'Your car. Push the stick forward to drive, back to brake and reverse, and to either side to steer. <b>Hand brake</b>, <b>Horn</b>, <b>View</b> and <b>Auto</b> are beside it; <b>E</b> gets out.'
+    if (!walk) H.toast(touch ? 'Your car. Push the stick forward to drive, back to brake and reverse, and to either side to steer. <b>Hand brake</b>, <b>Horn</b>, <b>View</b> and <b>Auto</b> are beside it; <b>E</b> gets out.'
       : 'Your car. <kbd>W</kbd>/<kbd>S</kbd> drive, brake and reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> view, <kbd>E</kbd> get out.');
   }
   // out of a car onto the ground beside a door, on foot again
@@ -1378,7 +1378,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (k) { parkMyCar(k.pose); H.toast('Back on the road.'); }
   }
   function bringCar() {
-    if (!myCar) return;
+    if (!myCar) { H.toast('Your car is not here yet. Try again in a moment.'); return; }
     if (player.mode !== 'foot') { H.toast('Get out first.'); return; }
     const k = kerbNear(player.x, player.y, player.z, 10);
     if (!k) { H.toast('There is no street near enough to bring it to.'); return; }
@@ -2195,23 +2195,49 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       o.hold = false;
       // (nowhere clear in its last 30 m: further back along its way; and nowhere at all, it drives in from where it stands.
       // Finished at its stop all the same, it was set down on the people crossing there by Hachiko, #28)
+      // (and set down moving no faster than it can stop at short of the first person on its way in: put down at 5.5 m/s
+      // 6 m short, it braked for a woman waiting at the kerb by Hachiko and stopped with her in its bonnet, #50)
       const s = setDown(o) ?? setDown(o, Infinity);
-      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
   // where it is) at which its body, and a metre and a half round it, has nobody in it and no car near; null if there is none
   const SET_DOWN = 30;
+  // (first choice, a point from which its way in to the stop has nobody on it either; else the furthest clear one)
   function setDown(o, far = SET_DOWN) {
-    const st = o.drv.st, P = o.drv.path, e = {}, r = o.C.half + 1.5;
-    const clear = (x, y, z) => {
-      const near = q => Math.abs(q.x - x) < r && Math.abs(q.y - y) < r && Math.hypot(q.x - x, q.y - y) < r && (q.z == null || Math.abs(q.z - z) < 3);
-      if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && near(q)) return false; }
-      if (npcs.some(near)) return false;
-      return !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - x, c.y - y) < (c.half || 2.4) + 3.5);
-    };
-    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) { P.at(s, e); if (clear(e.x, e.y, e.z)) return s; }
-    return null;
+    const st = o.drv.st;
+    let any = null;
+    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) if (clearAt(o, s)) { if (wayIn(o, s) >= st.end - s) return s; any ??= s; }
+    return any;
+  }
+  // how far a ride put at s can drive on before the first person on its way (from its bumper, as its driver looks:
+  // cars.js look, game.js peopleOnWay), up to its stop; Infinity if nobody
+  const wayPts = new Float64Array(80), wayAt = {};
+  function wayIn(o, s) {
+    const st = o.drv.st, half = o.C.half, sh = st.shift;
+    let n = 0;
+    st.shift = 0;
+    for (let d = 0; s + half + d <= st.end + half && n < 40; d += 1.5) { o.drv.poseAt(Math.min(o.drv.path.len, s + half + d), wayAt); wayPts[2 * n] = wayAt.x; wayPts[2 * n + 1] = wayAt.y; n++; }
+    st.shift = sh;
+    o.drv.poseAt(s, wayAt);
+    return peopleOnWay(wayPts, n, 1.5, { z: wayAt.z, s, end: st.end }, o.C);
+  }
+  // whether a ride put at s of its way (as jump and finish put it) stands clear: its body and pad metres round it with
+  // nobody in it (the crowd, the NPCs, you on foot, the dog) and no car of the traffic near. Tested where the car will
+  // stand, not on its way's line: near its stop it pulls in to the kerb, metres off that line towards the pavement, and
+  // judged on the line it was set down on five people waiting by Hachiko (#50)
+  const atSet = {};
+  function clearAt(o, s, pad = 1.5) {
+    const st = o.drv.st, sh = st.shift;
+    st.shift = 0; o.drv.poseAt(s, atSet); st.shift = sh; // (jump and finish put it back in its lane: st.shift 0)
+    const x = atSet.x, y = atSet.y, z = atSet.z, r = o.C.half + pad;
+    const near = q => q && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r && Math.hypot(q.x - x, q.y - y) < r && (q.z == null || z == null || Math.abs(q.z - z) < 3);
+    if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && near(q)) return false; }
+    if (npcs.some(near)) return false;
+    if (player.mode === 'foot' && near(player)) return false;
+    const gd = guideMade; if (gd && gd.root && gd.root.visible && gd.state !== 'away' && near(gd)) return false;
+    return !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - x, c.y - y) < (c.half || 2.4) + 3.5);
   }
   // what a ride's driver looks out for (cars.js chauffeur): the traffic, your car, you on foot
   // (one stopped for good, your car left in the lane or a car stuck in a jam, is driven round).
@@ -2532,7 +2558,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const P = o.drv.path, at = {};
       for (let s = Math.min(st.end - 0.5, st.s + 22); s > st.s + 6; s -= 4) {
         P.at(s, at);
-        if (!inView(at.x, at.y, at.z) && !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - at.x, c.y - at.y) < (c.half || 2.4) + 3.5)) { o.drv.jump(s); break; }
+        if (!inView(at.x, at.y, at.z) && clearAt(o, s, 1)) { o.drv.jump(s); break; } // (and clear of people where it will stand, as a skipped ride is set down: #50)
       }
     }
     // coming for you up to a scramble whose walk is on, or about to start (its other road's amber or the all
@@ -4195,7 +4221,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // in a story, of everything the map offers (cars, the helicopter, a word with a passer-by) only what the story has a
   // part for is offered: a lift to ride, and getting out of what you are in
   // (and on the walk the same: the story's map with nothing of the old free game's in it, a lift and a way out of it)
-  function currentAction() { const a = currentActionAny(); return story && (story.on || walk) && a && a.act && !a.story ? null : a; }
+  // (in the story only what the story offers; on the walk that, and your car and the helicopter as well: walk, below)
+  function currentAction() { const a = currentActionAny(); return story && (story.on || walk) && a && a.act && !a.story && !(walk && a.walk) ? null : a; } // (walk: set only from the title or the last card, and left only by opening the page again, so no case runs under it; story.on is true on it, the evening being dressed)
   function currentActionAny() {
     if (closeup) return { key: 'E', text: 'Step back', act: closeupEnd };
     if (dlg.open || uiOpen() || cine.active || OEOnboard.active()) return null; // nothing to start while the tour is showing
@@ -4206,7 +4233,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'lift') return { key: '', text: liftRide && liftRide.phase === 'ride' ? `To ${liftRide.b.name}…` : liftRide && liftRide.phase === 'call' ? 'The car is coming…' : '' };
     if (player.mode === 'board') return { key: '', text: boarding.dir > 0 ? (boarding.t < 0.3 ? 'Opening the door…' : 'Climbing aboard…') : (boarding.t < 0.25 ? 'Engine off. Opening the door…' : 'Climbing out…') };
     if (player.mode === 'heli') {
-      if (heli.st.landed && heli.st.speed < 1) return { key: 'E', text: 'Get out', act: exitHeli };
+      if (heli.st.landed && heli.st.speed < 1) return { key: 'E', walk: true, text: 'Get out', act: exitHeli };
       return null;
     }
     if (player.mode === 'ferry') {
@@ -4219,12 +4246,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (here && player.vehicle.moved) return { key: 'E', text: `Get off at ${here.name}`, act: alightRail };
       return null;
     }
-    if (player.mode === 'car') return myCar.D.st.speed < 1.5 ? { key: 'E', text: 'Get out', act: exitCar } : null;
+    if (player.mode === 'car') return myCar.D.st.speed < 1.5 ? { key: 'E', walk: true, text: 'Get out', act: exitCar } : null;
     if (player.mode === 'ride') return ride && ride.phase !== 'asking' && ride.drv.st.v < 0.5 ? { key: 'E', story: true, text: ride.phase === 'arrived' ? `Get out at ${ride.dest.name}` : 'Get out here', act: leaveRide } : null;
     if (player.auto) return player.auto.label ? { key: '', text: player.auto.label } : null;
     let bn = null, bd = 3.2;
     for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (d < bd && Math.abs(n.z - player.z) < 2) { bd = d; bn = n; } }
-    if (bn) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
+    // (not on the story's page, which offers no talk of the old game's: there it stood first and was then put away, and
+    // so hid what comes after it, your car beside someone on the walk, a lift with its attendant beside it)
+    if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
     if (fish) { // at a fishing spot (the first time, the code comes with the key press)
       const sp = fish.api ? null : fishSpot(14), a = fish.api ? fish.api.action() : sp && { key: 'E', text: `Fish at ${sp.name}`, act: () => fishLoad().then(api => (api ? api.start() : H.toast('The tackle did not arrive. Try again in a moment.'))) };
       if (a) return a;
@@ -4233,8 +4262,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const again = ride.phase === 'leaving' || ride.prev ? 'back ' : '';
       return { key: 'E', story: true, text: ride.kind === 'taxi' ? `Get ${again}in the taxi` : `Get ${again}in ${ride.name}'s ${rideCar(ride)}`, act: () => { if (ride.phase === 'leaving') backAgain(); boardRide(); } };
     }
-    if (myCar && offCar(myCar, player.x, player.y) < 2.5 && Math.abs(myCar.D.st.z - player.z) < 2) return { key: 'E', text: 'Drive your car', act: enterCar };
-    if (Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 10 && Math.abs(heli.st.z - player.z) < 3) return { key: 'E', text: 'Board the helicopter', act: enterHeli };
+    // (your car at the kerb and the helicopter on its pad: on the walk too, as a free ride's own car and a sim's aircraft are)
+    if (myCar && offCar(myCar, player.x, player.y) < 2.5 && Math.abs(myCar.D.st.z - player.z) < 2) return { key: 'E', walk: true, text: 'Drive your car', act: enterCar };
+    if (Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 10 && Math.abs(heli.st.z - player.z) < 3 && (!story || heli.group.visible)) return { key: 'E', walk: true, text: 'Board the helicopter', act: enterHeli };
     const st = railStation(player.x, player.y, 25, player.z);
     if (st && (rail.cars.length || st.deck)) {
       // (a railway's station: the train standing nearest you, of the two directions' at a loop)
@@ -4494,7 +4524,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.mode = 'heli'; heli.st.on = true; heli.st.doorTo = 0;
     player.rig.root.position.copy(heli.way.seat); player.rig.root.rotation.set(0, 0, 0);
     cam.mode = 'chase'; cam.distTo = 20; // pull back to the chase view (near enough that the helicopter fills a sixth of the picture's height); it swings behind once under way
-    if (!heliCoach()) H.toast(touch ? 'Door shut, rotor spooling up: it lifts at 90%. Hold <b>Up</b> to climb and <b>Down</b> to descend; the stick flies and turns; <b>View</b> changes the view.'
+    if (!walk && !heliCoach()) H.toast(touch ? 'Door shut, rotor spooling up: it lifts at 90%. Hold <b>Up</b> to climb and <b>Down</b> to descend; the stick flies and turns; <b>View</b> changes the view.'
       : 'Door shut, rotor spooling up: it lifts at 90%. <kbd>Space</kbd> climb, <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd>, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> change view.');
   }
   // the first flight in this browser (any map): a short coach, a step at a time, each ticked off as you do
@@ -6021,6 +6051,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
+    if (story.dressSet) story.dressSet(); // (SKY GATE's lift doors and its sign over the way in, as the story has them: without them its lobby was a bare box on the walk)
     craneIn(() => walkUi.begin());
   };
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
@@ -6052,7 +6083,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       sky: () => (weather ? weather.state.kind : 'clear'),
       where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
       key: k => (gamepad ? gamepad.label(k) : k),
-      menu: () => toggleMenu(), photo: () => photoMode(true) });
+      menu: () => toggleMenu(), photo: () => photoMode(true),
+      ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
+        : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
+          : { mode: player.mode }) });
+    // the menu's Bring your car: to the kerb nearest you, as a free ride's own car is called (and the menu put away to see it)
+    { const gc = $('#gm-car'); if (gc) on(gc, 'click', () => { toggleMenu(); bringCar(); }); }
     // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
     const gs = $('#gm-story');
     if (gs) { gs.querySelector('span').textContent = `${EP0.no ? `Episode ${EP0.no} · ` : ''}${EP0.title || 'The story'}`; on(gs, 'click', () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); location.href = u.toString(); }); }
@@ -6312,7 +6348,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         player.rig.setLook({ acc: holds ? ['camera1964'] : null, neckcam: (h && h.neck_camera) || null });
       }
     }
-    if (story && heli.group && !heli.st.on) { heli.group.visible = !!heliWait; heli.st.idle = heliWait && heliWait.idle && heli.loaded() ? HELI_IDLE : 0; } // (the story's helicopter is seen only on its pad before the flight it plays, and in that flight: story ctx board, film)
+    if (story && heli.group && !heli.st.on) {
+      // (the story's helicopter is seen only on its pad before the flight it plays, and in that flight: story ctx board,
+      // film. On the walk it stands on its pad, or wherever you set it down, for anyone to fly: fetched once you are near
+      // enough to see it, on the roof or round it, and drawn once it has come; out of sight, not drawn)
+      const near = !!walk && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 260 && Math.abs(heli.st.z - player.z) < 60;
+      if (near && !heli.loaded()) heli.want();
+      heli.group.visible = !!heliWait || (near && heli.loaded()) || player.mode === 'board';
+      heli.st.idle = heliWait && heliWait.idle && heli.loaded() ? HELI_IDLE : 0;
+    }
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
     if (storyHere && storyHere.visible) { const U = storyHere.userData, t = (performance.now() - U.t0) / 900, e = 1 - Math.pow(1 - Math.min(1, t), 3); U.disc.material.uniforms.uT.value = performance.now() / 1000; U.wave.visible = t < 1; U.wave.scale.setScalar(U.r * (0.15 + 0.85 * e)); U.wave.material.opacity = 0.7 * (1 - Math.min(1, t)); }
     if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
@@ -7410,6 +7454,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function rideLift(l, from, to) {
     if (life) life.emit('ride', { kind: 'lift', route: l.id, from: l.stops[from].name, to: l.stops[to].name, name: l.name, toName: l.stops[to].name });
     if (liftCar(l)) { rideLiftCar(l, from, to); return; }
+    if (l.pod) { podRide(l, from, to); return; }
     const a = l.stops[from], b = l.stops[to], dz = b.at[2] - a.at[2];
     const realS = Math.abs(dz) / ((l.m_per_min || 240) / 60), dur = Math.min(9, Math.max(4.5, realS / 6));
     const A = head(), B = W(b.at[0], b.at[1], b.at[2] + 1.55), c = new THREE.Vector3(), p0 = OECine.polar(A, camera.position);
@@ -7426,6 +7471,47 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         save();
       }]],
       onEnd: () => H.toast(`${b.name}.`) });
+  }
+
+  // A lift ridden in the dark (game.json lifts[].pod: SHIBUYA SKY's SKY GATE, docs/cities/shibuya.md). The real one is
+  // a car with black walls, its whole ceiling a screen whose picture keeps pace with the climb, lines of light that
+  // change as it moves and its floor lamps dark until it stops (Hitachi; Rhizomatiks; Elevator Journal 28). So the ride
+  // is that, not the camera climbing the tower's face outside, which read as a jump across the map and spent the view
+  // from the roof before the roof: the doors close on the lobby, the car's dark, its ceiling going from the street's
+  // light to the sky's and its lines running down as it climbs, the floors it passes not shown; then the doors open on
+  // the top stop. Its time is the real one shortened (30 s to some 7), and a key or a tap still ends it at once.
+  let pod = null;
+  function podRide(l, from, to) {
+    const P = l.pod, a = l.stops[from], b = l.stops[to], up = b.at[2] >= a.at[2], dz = Math.abs(b.at[2] - a.at[2]);
+    const realS = P.s || dz / ((l.m_per_min || 240) / 60), dur = reduced ? 0.01 : Math.min(8, Math.max(6, realS / 4.5));
+    if (!pod) {
+      pod = document.createElement('div');
+      pod.id = 'g-pod'; pod.setAttribute('aria-hidden', 'true');
+      pod.innerHTML = '<i class="ceil"></i><i class="lines"></i><div class="say"><small></small><b></b><em></em></div><i class="leaf l"></i><i class="leaf r"></i>';
+      stage.appendChild(pod);
+    }
+    pod.querySelector('small').textContent = P.name || l.name;
+    pod.querySelector('b').textContent = up ? `${P.from || ''} → ${P.to || ''}` : `${P.to || ''} → ${P.from || ''}`;
+    pod.querySelector('em').textContent = `${Math.round(dz)} m · ${l.m_per_min || 240} m a minute`;
+    pod.style.setProperty('--pod-s', `${dur}s`);
+    pod.classList.toggle('down', !up);
+    pod.className = pod.className.replace(/\b(shut|ride|open)\b/g, '').trim();
+    void pod.offsetWidth;
+    const from0 = { pos: camera.position.clone(), look: live.look.clone() };
+    const end = () => { if (!pod) return; pod.classList.remove('shut', 'ride'); pod.classList.add('open'); setTimeout(() => { if (pod) pod.classList.remove('open'); }, 1200); };
+    cine.play(OECine.mix(() => from0, () => live, k => (k < 0.5 ? 0 : 1)), dur, { label: 'hop',
+      cues: [[0, () => { pod.classList.add('shut'); A.thump(); }],
+        [0.12, () => pod.classList.add('ride')],
+        [0.5, () => { // (the doors are shut and the car is dark: the far stop, with nobody to see the cut)
+          [player.x, player.y, player.z] = b.at;
+          if (b.face) player.h = Math.atan2(b.face[0], b.face[1]);
+          player.speed = 0; player.vz = 0; player.ground = true;
+          cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = 0.3; cam.dist = 6.5;
+          groundLod(player.x, player.y);
+          save();
+        }],
+        [0.88, () => { A.chime(); end(); }]],
+      onEnd: skipped => { end(); if (!skipped) H.toast(`${b.name}.`); } });
   }
 
   // A lift whose car is drawn (game.json lifts[].car: Queenstown's glass lift) is ridden in its car. Its car,
@@ -7601,8 +7687,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // on a phone the vehicle's readout stands over the stick, where the prompt and the messages are: they move up by
   // its height (--vhud-h, index.html), or a thumb could not reach "Get out" behind it
   let vhudH = -1, vhudT = 0, riding = false;
+  let atWas = '';
   function vehicleHud() {
     vehicleHudFill();
+    const at = player.mode === 'car' || player.mode === 'heli' ? player.mode : ''; // (at the wheel or the stick: the walk's phone buttons for each, story.css)
+    if (at !== atWas) { stage.classList.toggle('at-car', at === 'car'); stage.classList.toggle('at-heli', at === 'heli'); atWas = at; }
     if (!touch) return;
     // a passenger (in a taxi, aboard a ferry or a train, on a seat) has nowhere to walk: the stick, Jump, Run and Lens
     // are put away, the readout takes the width of the screen over one row of buttons (View, Skip, E), and the
@@ -7615,7 +7704,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (clockT - vhudT < 0.3) return;
     vhudT = clockT;
-    const el = $('#g-vhud'), h = el.hidden ? 0 : Math.max(0, Math.round(stage.getBoundingClientRect().bottom - el.getBoundingClientRect().top) + 8 - 200);
+    // (measured only while it is drawn: the story's page keeps it out of sight with a style, not hidden, and a box that is
+    // not drawn measures its top as 0, which read as a readout the screen's whole height and lifted the prompt and the
+    // messages off its top, so that on a phone at the wheel of the walk's car Get out could not be seen or tapped)
+    const el = $('#g-vhud'), er = el.getBoundingClientRect(), h = el.hidden || !er.height ? 0 : Math.max(0, Math.round(stage.getBoundingClientRect().bottom - er.top) + 8 - 200);
     if (h !== vhudH) { vhudH = h; stage.style.setProperty('--vhud-h', `${h}px`); }
   }
   function vehicleHudFill() {
