@@ -6759,7 +6759,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (!fpOn) {
         // (from the view as it was: where it stood, which way it looked, its lens)
         fp.from = { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
-        const d = camera.getWorldDirection(fpDir), yaw0 = Math.atan2(d.x, -d.z), pitch0 = Math.asin(Math.max(-1, Math.min(1, d.y)));
+        // (the way the view behind you faces, and its pitch as the eye's: 0.3 of it is level. Not that view's own downward
+        // look at you from over your shoulder, which brought the lens up 17 degrees low and the last frame's two kerbs out of it)
+        const yaw0 = cam.yaw, pitch0 = 0.3 - cam.pitch;
         let yaw = yaw0, pitch = Math.max(-0.3, Math.min(0.3, pitch0)); // (raised to the eye, the lens is held about level)
         const at = story.subject;
         if (at) {
