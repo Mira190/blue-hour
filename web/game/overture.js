@@ -590,7 +590,7 @@ window.OEOverture = (function () {
       if (ctx.guideAt) ctx.guideAt(g, s, k); // (a film whose guide is a thing of the game's: a helicopter the camera flies with)
       // the guide: placed and turning, lit from behind when the sun is low (its edge glows)
       if (hero || glow) {
-        const show = !!g && !(s.type === 'land' && k > 0.93);
+        const show = !!g && !ctx.guideAt && !(s.type === 'land' && k > 0.93); // (a film whose guide is a thing of the game's: that thing, not a glow on it)
         const gp = g || gprev;
         if (hero) {
           hero.visible = show;

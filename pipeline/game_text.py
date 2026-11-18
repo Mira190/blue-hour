@@ -6,7 +6,8 @@ open ground by game_data.py), the paths, the water, the wharves.
 Copies: the title card (title, local_name, water_name, greeting, blurb, under_bridge_note), the
 crowd's small talk, the quest lines and quests (a step that visits a flock keeps the place
 game_data.py found for it), the NPCs (all but where they stand), the travel names, the areas,
-the regulars and the funicular's name and note, the crowd's numbers and the look (game.crowd, game.look); and the spots and overheard chatter a city's
+the regulars and the funicular's name and note, the crowd's numbers and the look (game.crowd, game.look), the vehicles' liveries,
+registration and logo (game.vehicles); and the spots and overheard chatter a city's
 landmarks add (city.py game_extras, run on the built scene.json as game_data.py runs it).
 tools/voice_check.py checks the result.
 
@@ -24,7 +25,7 @@ from cityctx import City  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOVED_M = 20.0   # an NPC moved further than this in city.json stands where city.json puts it
 TOP = ("title", "local_name", "water_name", "greeting", "blurb", "under_bridge_note", "smalltalk", "lines", "areas", "regulars",
-       "crowd", "look", "overture", "hero", "story")  # (and two settings tuned by eye: how many people are out when, the grade by the hour)
+       "crowd", "look", "overture", "hero", "story", "vehicles")  # (and two settings tuned by eye: how many people are out when, the grade by the hour)
 
 
 def update(city):

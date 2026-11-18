@@ -9,6 +9,7 @@
 //   dog.go([x, y], look)          goes there by itself and sits, looking at `look` ([x, y, z]) if given
 //   dog.leave([x, y], done)       runs off there, fading, and is taken away
 //   dog.heel()                    walks at the player's side, a pace behind, until it is sent somewhere
+//   dog.aboard(on)                in with the player (a story's helicopter): not seen, and at their heels again once out
 //   dog.tick(dt)                  every frame (its own time: a stopped world's guide still moves)
 //   dog.x, dog.y, dog.z, dog.to (where it is going, or null), dog.state ('away' | 'greet' | 'lead' | 'wait' | 'fetch' | 'go' | 'sit' | 'leave'), dog.ready
 'use strict';
@@ -136,7 +137,7 @@ window.OECompanion = (function () {
         return;
       }
       if (s.rode) { s.rode = false; if (s.to) replan(); }
-      if (player.mode && player.mode !== 'foot' && s.state !== 'leave') { s.off = true; s.fade = Math.max(0, s.fade - dt / 0.5); shade(s.fade); root.visible = s.ready && s.fade > 0; ring.material.opacity = 0; return; }
+      if (((player.mode && player.mode !== 'foot') || s.aboard) && s.state !== 'leave') { s.off = true; s.fade = Math.max(0, s.fade - dt / 0.5); shade(s.fade); root.visible = s.ready && s.fade > 0; ring.material.opacity = 0; return; }
       if (s.off) { s.off = false; root.visible = s.ready; catchUp(); }
       if (s.state !== 'leave' && s.fade < 1) { s.fade = Math.min(1, s.fade + dt / 0.7); shade(s.fade); }
       if (s.state !== 'leave' && s.state !== 'go' && s.state !== 'sit' && dist(px, py) > CATCH) catchUp();
@@ -219,6 +220,7 @@ window.OECompanion = (function () {
       place(x, y, h = 0) { s.x = x; s.y = y; s.h = h; s.z = ground(x, y, player.z); s.state = 'sit'; s.t = 1; s.fade = 0; shade(0); root.visible = s.ready; root.position.copy(W(x, y, s.z)); root.rotation.y = h; return api; },
       lead(to, reach = 3, done = null) { s.to = to; s.reach = reach; s.done = done; s.held = 0; s.state = s.greeted ? 'lead' : 'greet'; s.t = 0; replan(); return api; },
       heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; return api; },
+      aboard(on) { s.aboard = !!on; return api; }, // (gone in with the player where nothing shows the seat: a story's helicopter; out at their heels after them)
       go(to, look = null) { s.to = to; s.look = look; s.state = 'go'; s.t = 0; return api; },
       leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; return api; },
       tick,

@@ -1123,6 +1123,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
   // Where the kerb it is to pull in at is taken (a car parked there, or one stopped for good),
   // it pulls in just behind, as a driver picking you up does, instead of waiting in the lane
   // for it to move; held up for good near the end, it stops where it is, hazards on.
+  // pace: a factor on the limit (and on how hard it pulls away) for the whole way: the car a story sends with you in it.
   // hurry(st, dry): a factor on the speeds it drives at, from where it is (a ride coming for
   // you drives briskly while it is out of your sight); dry is set in the dry run that times
   // the trip. timeLeft() is that dry run's time from here to the end: an arrival time that
@@ -1197,7 +1198,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     return changed ? Object.assign({}, route, { pts, nodes, mids, len: pts.reduce((s, q, i) => s + (i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0), 0) }) : route;
   }
   const WALKER = { walker: true, x: 0, y: 0, v: 0 }; // (what a chauffeur stops for when it is a person on its way)
-  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null, callFrom = 0 } = {}) {
+  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null, callFrom = 0, pace = 1 } = {}) {
     // (strict: the autopilot of your own car, always in your sight: its guard against stepping into a car reads its
     // body as it is turned, not only as its way is, so that creeping on out of a tangle it never clips one on a bend.
     // id: its name among the traffic's blockers, game.js: a car that stands for it is not one stopped for good)
@@ -1573,7 +1574,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       // how fast: the limit (or the cruise), bends ahead, the end of the route, the gap ahead
       P.pos(st.s, q);
       const hz = hurry ? hurry(st, dry) : 1;
-      let want = Math.min(cruise, q.v || cruise) * hz * WX.pace; // (slower in the wet, on snow and in fog)
+      let want = Math.min(cruise, q.v || cruise) * hz * pace * WX.pace; // (slower in the wet, on snow and in fog; pace: a driver told to hurry, over the limit)
       for (let i = q.i + 1; i < P.pts.length && P.cum[i] - st.s < 120; i++) { const cv = P.corner[i] * WX.corner; if (cv < want) want = Math.min(want, Math.sqrt(cv * cv + 2 * 3.4 * WX.grip * (P.cum[i] - st.s))); } // (a bend taken slower on a slippery road, and braked for from farther back)
       // (and a corner just behind: it is still turning it, the route's line being taken as a curve over some metres)
       for (let i = q.i; i > 0 && st.s - P.cum[i] < 8; i--) if (P.corner[i] * WX.corner < want) want = P.corner[i] * WX.corner;
@@ -1653,7 +1654,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       // enough to read a car in the queue as stopped for good and go round it)
       // (off the line at 3.2 m/s², a brisk driver's, easing off as it nears the speed it wants: at 2.6 the ride the story
       // sends felt slow away from every light; the limit itself is kept)
-      const dv = clamp(want - st.v, -7.5 * dt, Math.min(3.2, 0.8 + 1.2 * Math.max(0, want - st.v)) * dt);
+      const dv = clamp(want - st.v, -7.5 * dt, Math.min(3.2 * Math.min(1.4, pace), 0.8 + 1.2 * Math.max(0, want - st.v)) * dt); // (and away from a light the harder for it)
       st.brake = dv < -0.02 * dt * 60 || (st.v < 0.2 && want < 0.1);
       st.v = Math.max(0, st.v + dv);
       const s0 = st.s, lat0 = st.lat;

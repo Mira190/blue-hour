@@ -397,6 +397,8 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // the score, set to the scene: the evening going into night as the frames go, the roof's air, the rain
       if (ctx.score) ctx.score(Object.assign({ slot: i < 3 ? 'evening' : 'night', hour: 17.3 + i * 0.55, rain: fr.weather === 'rain' || st.rain ? 0.8 : 0, mode: i === 3 ? 'heli' : 'foot', theme: i, held: false }, fr.score || {})); // (theme: the score knows as much of its tune as the roll has frames)
       if (fr.weather === 'rain' && !st.rain) { st.rain = true; later(1500, () => { say('It has begun to rain'); sfx('rain'); }); }
+      // the helicopter the next frame's flight goes by (its flight.board) stands parked on its pad through this frame (ctx.board)
+      if (ctx.board) { const nx = st.ep.frames[i + 1]; ctx.board(null, nx && nx.flight && nx.flight.board ? 'parked' : null); }
       const go = () => {
         if (st.fr !== fr) return;
         // a frame reached by car: one is sent, the goal is the car until you are in it, and the frame goes on where it sets you down
@@ -407,7 +409,18 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         else approach();
       };
       // a frame reached by air: the flight to it first (ctx.film: the helicopter, the city under it, and the place it sets you down)
-      if (fr.flight && ctx.film && !st.again) { st.beat = 'flight'; goal(''); aimAt(null); frames.classList.remove('on'); ctx.film(fr.flight, () => { frames.classList.add('on'); go(); }); }
+      // Boarded (flight.board): the helicopter is on its pad with its rotor turning over, the goal is to get in, and E beside
+      // it puts you in at once; the flight lifts off from there with you (and the dog) in it. It was once a film that began
+      // two seconds after the roof's picture, with no helicopter in it: you were on the street with no way down seen, and
+      // what was said on the roof was cut off under it. A case taken up again at this frame, on the street, has the flight alone.
+      const fly = () => { st.beat = 'flight'; goal(''); aimAt(null); frames.classList.remove('on'); if (st.dog && st.dog.aboard) st.dog.aboard(true); ctx.film(fr.flight, () => { frames.classList.add('on'); if (st.dog && st.dog.aboard) st.dog.aboard(false); go(); }); };
+      const B = fr.flight && ctx.film && !st.again && fr.flight.board, pad = B && ctx.board ? ctx.board(() => { if (st.fr === fr && st.beat === 'board') fly(); }) : null;
+      // (why it is there, first: the office rings, in its own voice, the episode prologue's, with flight.board.call)
+      const board = () => { if (st.fr !== fr) return; st.beat = 'board'; goal(B.goal || 'Get in the helicopter.'); aimAt(spot(pad), true); if (ctx.look) ctx.look(pad, true); };
+      const C = pad && B.call, P = st.ep.prologue || {};
+      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true); ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
+      else if (pad) board();
+      else if (fr.flight && ctx.film && !st.again) fly();
       else go();
     }
     const living = m => (m.cast ? st.cast[m.cast] : ctx.person(m.npc));
@@ -628,6 +641,9 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       said.forEach((line, i) => later(1400 + i * 4200, () => ctx.toast(esc(line))));
       st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
+      // the next frame goes by helicopter: it starts up on its pad as this is said, and the way to it is given once all of it
+      // has been (a flight shows nothing of the street's words, and they were lost under it)
+      { const nx = !late && st.ep.frames[st.fi + 1]; if (nx && nx.flight && nx.flight.board && ctx.board) { ctx.board(null, 'idle'); st.wait = Math.max(st.wait, 1.4 + Math.max(0, said.length - 1) * 4.2 + 1.6); } }
     }
     // what was in the camera all along (the last card's `found`): a card ticket of that year, its face and its back, as
     // things in the hand. {lines: [from, to], small, date, issuer, back: what is pencilled on the back}
@@ -708,7 +724,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
-          : st.beat === 'ride' ? `Walk to the car and ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} to get in. Or walk the whole way.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera as you look: the patch in the middle of the finder warms as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
+          : st.beat === 'ride' ? (st.inCar ? `${ctx.touch ? 'Tap Skip' : `Press ${K('F')}`} to be there now.` : `Walk to the car and ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} to get in. Or walk the whole way.`)
+          : st.beat === 'board' ? `${dogN ? `Follow ${dogN} to it, and` : 'Walk to it and'} ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} beside it.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'No light marks this one. Raise the camera as you look: the patch in the middle of the finder warms as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
@@ -809,7 +826,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
       dispose() {
-        timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null);
+        timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
         for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip]) e.remove();
         for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();

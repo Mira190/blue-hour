@@ -131,7 +131,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const st = await p.evaluate(() => {
         const g = window.__game, fr = g.story.state.fr || {}, nav = g.nav, MOV = nav.strips.filter(q => q.moving_ms);
         const t0 = g.story.state.target, t = t0 ? [t0[0], t0[1], t0[3] != null ? t0[3] : t0[2]] : fr.stop_at || (fr.afterimage && fr.afterimage.at); // (x, y, z)
-        if (!t || !MOV.length) return null;
+        if (!t || !MOV.length || (t[2] != null && Math.abs(t[2] - g.player.z) < 12)) return null; // (up there already: frame 5's helicopter, on the roof)
         for (const l of g.G.lifts || []) for (const q of l.stops) {
           const [x, y, z] = q.at, tz = t[2] != null ? t[2] : 0;
           if (Math.hypot(t[0] - x, t[1] - y) < 120 && tz > z + 2 && MOV.some(m => Math.hypot(m.origin[0] - x, m.origin[1] - y) < 15 && Math.abs(m.zs[0] - z) < 12)) return { at: q.at, face: q.face || null, name: q.name };
@@ -214,7 +214,35 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.keyboard.press('KeyE');
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
-    else if (s.phase === 'go' && s.beat === 'flight') await mark(s, 'flight'); // (a frame reached by air: its film plays itself out)
+    else if (s.phase === 'go' && s.beat === 'board') { // a flight boarded on its pad (flight.board): the helicopter is there to be seen, turning over;
+      // E within reach of it names it, and is the flight at once (no walk to its door first)
+      if (!seen.has(`board-${s.fi}`)) {
+        seen.add(`board-${s.fi}`); await frames(4);
+        const h = await p.evaluate(() => { const g = window.__game, q = g.heli.st; return { at: [+q.x.toFixed(1), +q.y.toFixed(1), +q.z.toFixed(1)], seen: g.heli.group.visible, rotor: +q.rotor.toFixed(2), goal: document.querySelector('#g-story-goal span').textContent, how: document.querySelector('#g-story-goal em').textContent }; });
+        console.log(`frame ${s.fi + 1} board:`, JSON.stringify(h));
+        if (!h.seen || h.rotor < 0.1) { errors.push(`frame ${s.fi + 1}: the helicopter to get into is ${h.seen ? 'not turning over' : 'not to be seen'} on its pad`); console.log(errors[errors.length - 1]); }
+        await snap(`${s.fi + 1}-board`);
+        await goTo(h.at, 8); await frames(4); // (on its floor: the pad stands over the deck round it) await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h; g.cam.pitch = 0.3; });
+        const act = await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : null; });
+        if (act !== 'Get in the helicopter') { errors.push(`frame ${s.fi + 1}: 8 m from the helicopter E is "${act}"`); console.log(errors[errors.length - 1]); }
+        await frames(4); await snap(`${s.fi + 1}-board-near`);
+        await p.keyboard.press('KeyE'); await frames(2);
+        const b = await p.evaluate(() => ({ beat: window.__game.story.state.beat, me: window.__game.player.rig.root.visible }));
+        console.log(`frame ${s.fi + 1}: E beside the helicopter, the beat is ${b.beat}`);
+        if (b.beat !== 'flight') { errors.push(`frame ${s.fi + 1}: E beside the helicopter, and the beat is ${b.beat}, not the flight`); console.log(errors[errors.length - 1]); }
+      }
+    }
+    else if (s.phase === 'go' && s.beat === 'flight') { // a frame reached by air: its film plays itself out. A still through each shot; in a flight with a
+      // helicopter it is in every shot until you are out of it, and you are not (you are in it)
+      await mark(s, 'flight');
+      const f = await p.evaluate(() => { const g = window.__game, o = g.overture(); return o && o.active ? { t: o.t, shots: o.shots.map(q => ({ id: q.id, t0: q.t0, dur: q.dur })), heli: g.heli.group.visible, me: g.player.rig.root.visible, craft: g.story.state.fr.flight.craft !== false } : null; });
+      const q = f && f.shots.find(q => f.t >= q.t0 + q.dur * 0.35 && !seen.has(`fl-${s.fi}-${q.id}`));
+      if (q) {
+        seen.add(`fl-${s.fi}-${q.id}`); await snap(`${s.fi + 1}-flight-${q.id}`);
+        console.log(`frame ${s.fi + 1} flight ${q.id} at ${f.t.toFixed(1)} s: helicopter ${f.heli ? 'seen' : 'not seen'}, you ${f.me ? 'seen' : 'not seen'}`);
+        if (f.craft && q.id !== 'foot' && (!f.heli || f.me)) { errors.push(`frame ${s.fi + 1}: in the flight's ${q.id} shot the helicopter is ${f.heli ? 'seen' : 'not seen'} and you are ${f.me ? 'seen' : 'not seen'}`); console.log(errors[errors.length - 1]); }
+      }
+    }
     else if (s.phase === 'after') await mark(s, 'after');
     await p.waitForTimeout(500);
   }

@@ -35,7 +35,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       if (g.held && g.held()) return;
       W.frames++;
       const cars = [], pl = g.player, ride = g.ride(), my = g.myCar();
-      if (ride) { const s = ride.drv.st; cars.push(['ride', s, ride.C.half, ride.C.hw, s.v]); if (ride.phase === 'driving') { W.driveT = (W.driveT || 0) + dt; if (s.v <= 0.3) W.stopT = (W.stopT || 0) + dt; } if (ride.phase === 'driving' && s.v > 0.1) { W.rideT += dt; W.rideM += s.v * dt; W.rideV = Math.max(W.rideV, s.v); } }
+      if (ride) { const s = ride.drv.st; cars.push(['ride', s, ride.C.half, ride.C.hw, s.v]); if (ride.phase === 'driving') { W.driveT = (W.driveT || 0) + dt; if (s.v <= 0.3 && !g.cine.active) W.stopT = (W.stopT || 0) + dt; } if (ride.cut != null) W.cut = ride.cut; if (ride.phase === 'driving' && s.v > 0.1) { W.rideT += dt; W.rideM += s.v * dt; W.rideV = Math.max(W.rideV, s.v); } }
       if (my && my.D && my.D.st) { const s = my.D.st; cars.push(['your car', s, my.C.half, my.C.hw, s.v || s.speed || 0]); }
       for (const c of g.cars.live) if (c.line >= 0) cars.push(['traffic', c, c.half, c.hw, c.v]);
       const people = [];
@@ -74,7 +74,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   }
   const W = await p.evaluate(() => window.__ridePeople);
   console.log('frames watched', W.frames, '| ride driving', W.rideT.toFixed(1), 's,', W.rideM.toFixed(0), 'm, mean', (W.rideM / Math.max(1, W.rideT) * 3.6).toFixed(1), 'km/h moving, top', (W.rideV * 3.6).toFixed(1), 'km/h');
-  console.log('ride from boarding to setting down', (W.driveT || 0).toFixed(1), 's, stopped', (W.stopT || 0).toFixed(1), 's');
+  console.log('ride from boarding to setting down', (W.driveT || 0).toFixed(1), 's, stopped', (W.stopT || 0).toFixed(1), 's (not counting the cut on)', W.cut != null ? `; held still, cut on to its stop ${W.cut.toFixed(1)} s in` : '; never cut on');
   console.log('overlaps', JSON.stringify(W.worst));
   for (const x of W.hits) console.log('  ', JSON.stringify(x));
   console.log('ride', ended, errors.length ? `| ${errors.length} page errors` : '');
