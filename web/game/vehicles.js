@@ -335,7 +335,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     function update(dt, inp, events) {
       if (swap) swap();
       st.door += clamp(st.doorTo - st.door, -dt / 0.35, dt / 0.35); // a third of a second each way
-      const spool = st.on ? 1 : 0;
+      const spool = st.on ? 1 : st.idle || 0; // (idle: turning over on its pad, nobody flying it: a story's helicopter waiting for you)
       st.rotor += (spool - st.rotor) * Math.min(1, dt / 1.2);
       const ready = st.rotor > 0.9;
       // controls: forward thrust along the heading, yaw, climb; the assists do the rest (issue 335). The
@@ -442,7 +442,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     const lamps = {};
     dress(src, I.paint, colours, { lamps, decals: {
       Decal_Registration: decalTexture(reg, { w: 640, h: 120, color: ink, fill: 0.78 }),
-      Decal_Logo: decalTexture(cfg.logo || I.logo, { w: 1024, h: 128, color: ink, fill: 0.62, weight: 700, spacing: 0.12 }),
+      Decal_Logo: decalTexture(cfg.logo != null ? cfg.logo : I.logo, { w: 1024, h: 128, color: ink, fill: 0.62, weight: 700, spacing: 0.12 }), // (a map's own, or none: "" leaves the cowling plain)
     } });
     const g = new THREE.Group();
     g.add(src);
