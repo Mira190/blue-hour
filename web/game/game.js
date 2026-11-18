@@ -3403,6 +3403,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // walker may not stand on, so that it goes round a fence and not through it
   const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
+    edge: (x, y, z, fx, fy) => ways.edge(x, y, z, fx, fy),
     // (and its body kept off every post, belt and trunk: the walker's circle is at its middle, and its nose and rump
     // reach GUIDE_BODY from there whichever way it turns; a queue belt passed through it at the lift's doors)
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)

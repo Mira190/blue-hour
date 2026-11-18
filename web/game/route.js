@@ -179,13 +179,21 @@ window.OERoute = (function () {
       for (const [i, s] of [[0, 1], [1, -1]]) {
         let zl = z;
         for (let d = ROOM_STEP; d <= ROOM_MAX + 1e-6; d += ROOM_STEP) {
-          const px = x + nx * s * d, py = y + ny * s * d, zz = standZ(px, py, zl, 0.6);
-          if (Number.isNaN(zz) || (nav.posts && nav.posts.pushOut(px, py, 0.2, zz).hit) || (!road && inRoad(px, py, zz))) { out[i] = d - ROOM_STEP / 2; break; }
+          const px = x + nx * s * d, py = y + ny * s * d, zz = beyond(px, py, zl, road);
+          if (zz === null) { out[i] = d - ROOM_STEP / 2; break; }
           zl = zz;
         }
       }
       return out;
     }
+    // past the edge of the way, for someone at the level z (road: they are out in a carriageway, on a crossing)? The floor
+    // there, or null where it is an edge
+    function beyond(x, y, z, road) {
+      const zz = standZ(x, y, z, 0.6);
+      return Number.isNaN(zz) || (nav.posts && nav.posts.pushOut(x, y, 0.2, zz).hit) || (!road && inRoad(x, y, zz)) ? null : zz;
+    }
+    // is (x, y) past the edge of the way for a walker at (fx, fy, z): the guide's own test (companion.js), the same as room's
+    const edge = (x, y, z, fx = x, fy = y) => beyond(x, y, z, inRoad(fx, fy, z)) === null;
     // A guide leads down the middle of the way, not along its hoarding: the mapped footway lines run where the data put
     // them (along a building's front, round a kerb's corner), and a way pulled straight between them grazes the inside of
     // every turn. So the way is laid again, every CEN_STEP m: where it is narrower than twice CEN_KEEP, down its middle;
@@ -1202,7 +1210,7 @@ window.OERoute = (function () {
       return { of: n => find(n), size };
     }
     const debug = { pieces, flood, segOK, node: i => [NX[i], NY[i], NZ[i]], degree: i => ADJ0[i + 1] - ADJ0[i], near: (x, y, r) => { const o = []; near(x, y, r, (j, d) => o.push([j, SE[j], +d.toFixed(1)])); return o; }, edge: e => ({ a: EA[e], b: EB[e], pts: EP[e] }), SE: () => SE, SK: () => SK };
-    return { debug, build, get ready() { return ready; }, walk, room, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
+    return { debug, build, get ready() { return ready; }, walk, room, edge, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
   }
 
   // ------------------------------------------------------------ the gold line
