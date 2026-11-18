@@ -333,13 +333,17 @@ GUARD_NEAR = 62.0            # guard pipes within this of the junction's centre
 
 
 class Plan:
-    def __init__(self, D, wells=(), centre=HERO_CENTRE, r=HERO_R):
+    def __init__(self, D, wells=(), centre=HERO_CENTRE, r=HERO_R, standing=None):
         from shapely.ops import unary_union
         c = np.asarray(centre)
         self.centre = c
         self.disc = Point(*c).buffer(r, 48)
+        # what stands on the ground: not a deck or a bridge over it. (`base` is the underside over the ground and
+        # `ground` the ground's height over the sea, so the test the Scramble was built with counts every solid as
+        # standing; its plan is kept as built. A level that stands under a deck says what stands: `standing`.)
+        standing = standing or (lambda s: s.get("base", 0) - s.get("ground", 0) < 2.5)
         near = [Polygon(s["ring"]).buffer(0) for s in D.solids if len(s["ring"]) >= 3 and np.linalg.norm(np.mean(s["ring"], axis=0) - c) < r + 120
-                and s.get("base", 0) - s.get("ground", 0) < 2.5]          # (what stands on the ground: not a deck or a bridge over it)
+                and standing(s)]
         self.solids = unary_union([p.buffer(0.12) for p in near if p.is_valid and p.area > 1]).intersection(self.disc.buffer(5))
         # the stair wells the entrances cut into the ground (the landmarks' clip rings)
         self.wells = unary_union([Polygon(q).buffer(0.25) for q in wells if len(q) >= 3])

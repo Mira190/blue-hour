@@ -23,6 +23,7 @@
 // `buffers: n objects, N MB`) against MEM_DESK (default 140 MB: the map round the player, docs/PERFORMANCE.md "A desktop's
 // map round the player", sent 125 where the whole map sent 283), with the time to the title and the GPU's buffers then.
 // QUERY='?district=off' measures the whole map on the phone tier, to compare with its district (pipeline/district.py).
+// AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1).
 // TIER=low|medium|high (default low). QUERY=?a=b adds a query to the page's address. LV=n: the phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest). SNAP=file (%c for the city) writes a heap snapshot at the end (tools/heap_owners.js). JSON=1 prints the result as JSON. TOP=n lists n largest (default 8).
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
@@ -270,6 +271,16 @@ async function measure(b, city) {
     }
     await p.waitForTimeout(+(process.env.SETTLE || 8) * 1000);
     await part('the walk to the district\'s edge, settled');
+    // AT=x,y: then the player is put there and the page settles, so that what only that place loads (a hero level fetched
+    // near it alone, game.hero[].load_m: frame 5's Miyamasu, AT=521.9,-1074.1) is held with the rest at the peak
+    if (process.env.AT) {
+      const at = process.env.AT.split(',').map(Number);
+      await p.evaluate(([x, y]) => { const g = window.__game; g.spawn([x, y]); for (let i = 0; i < 10; i++) g.advance(1 / 30); }, at);
+      await p.waitForTimeout(+(process.env.SETTLE || 8) * 1000 + 6000);
+      const lv = await p.evaluate(() => { const g = window.__game, H = g.hero && g.hero(); return H ? H.state().map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : 'no levels'; });
+      console.log(`  at ${at.join(', ')}: ${lv}`);
+      await part(`at ${at.join(', ')}, settled`);
+    }
     // the heaviest hour: rain at ten at night, on the game's own clock and weather, drawn for WET seconds
     const wet = await p.evaluate(() => {
       const g = window.__game, c = g.clock;
