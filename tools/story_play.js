@@ -443,6 +443,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await snap('end-walk');
       // the lens turned away from the evening's people and a few seconds given: they go once it no longer has them
       await p.evaluate(async () => { const g = window.__game; g.cam.yaw += Math.PI; for (let i = 0; i < 60; i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } });
+      // (and the page's own frames given time with the lens held there: the story's tick, which lets them go, runs in the
+      // page's frame, not in the frames stepped here; on a loaded machine none had come before they were counted)
+      if (w.cast) await p.waitForFunction(n => Object.keys(window.__game.story.state.cast).length < n, w.cast, { timeout: 60000, polling: 250 }).catch(() => {});
       const w2 = await look();
       console.log(`the walk after the case: the evening's cast ${w.cast} as it began, ${w2.cast} once the lens had turned away`);
       if (w.cast && w2.cast >= w.cast) errors.push(`the walk after the case: the evening's ${w.cast} people still stand there with the lens turned away from them`);
