@@ -158,6 +158,12 @@ The crowd is seen from across the junction and from above; no shot stands among 
    shot; `drift`, `fov`, `lapse`, `title`, `caption`, `cues` (`red`, `green` on the map's
    `signal` junction). Keep it to about forty seconds and seven shots. A night overture may add
    `sky` (with `comet`, `banks`), `wet`, `show` and `anime.streak`.
+   A film whose guide is a thing of the game's (a story's flight, docs/STORY.md) gives the guide one
+   `path` for the whole film (`[x, y, z, t]` points, a cubic in time) and its shots `"guide": "path"`,
+   so the thing moves on unbroken through the cuts; a `move` may pan with it (`aim`, `lead_s`, `aim_up`),
+   and an `escort` is a camera ship flying with it (`az`, `dist`, `h`, `lag`, `lead_s`).
+   `python tools/flight_frames.py` draws such a film as a storyboard without a browser. On a phone
+   held upright every overture's lens is opened until the picture is 0.8 as wide as a 3:2 one.
 4. **The score.** `score` in the film's terms (`root`, `scale`, `chords`, `tempo`, `voice`) with
    `arp`, `hush_shot`/`hush_at` and `chirp` where they fit.
 5. **Check.** `xvfb-run -a node tools/overture_film.js <city> --stills` prints each shot's
