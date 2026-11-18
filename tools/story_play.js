@@ -251,10 +251,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         await frames(4);
         await p.evaluate(() => window.__game.story.raise(true));
         const R = await p.evaluate(at => new Promise(r => { const g = window.__game, c = g.camera, V = window.THREE.Vector3, out = [], t0 = performance.now();
-          const f = () => { const d = c.getWorldDirection(new V()), q = new V(at[0], at[2], -at[1]).project(c); out.push({ t: performance.now() - t0, d: [d.x, d.y, d.z], q: [q.x, q.y, q.z] }); if (performance.now() - t0 < 3500 || out.length < 30) requestAnimationFrame(f); else r(out); };
+          const f = () => { const d = c.getWorldDirection(new V()), q = new V(at[0], at[2], -at[1]).project(c); out.push({ t: performance.now() - t0, d: [d.x, d.y, d.z], q: [q.x, q.y, q.z] }); if (performance.now() - t0 < 2500 || out.length < 45) requestAnimationFrame(f); else r(out); };
           requestAnimationFrame(f); }), T.subject);
         const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180 / Math.PI;
-        const T0 = R[R.length - 1].t, settle = R.filter(q => q.t > Math.min(1200, T0 * 0.4)), first = settle[0], last = settle[settle.length - 1];
+        // (counted in frames, not the wall's time: the game moves 0.05 s a frame at most, so on a software renderer the raise's
+        // half a second is many seconds of the wall's; after 20 frames, a second of the game's own time, it is up)
+        const settle = R.slice(20), first = settle[0], last = settle[settle.length - 1];
         let jit = 0; for (let i = 1; i < settle.length; i++) jit = Math.max(jit, ang(settle[i].d, settle[i - 1].d));
         const drift = ang(first.d, last.d), q = last.q, inFrame = q[2] < 1 && Math.abs(q[0]) < 0.7 && Math.abs(q[1]) < 0.7;
         await snap(`${s.fi + 1}-raised`);
