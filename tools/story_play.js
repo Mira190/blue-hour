@@ -2,6 +2,7 @@
 // to each of the living, through what they say and ask, to where the world stops, to the afterimage, to the
 // standpoint, the photograph, and on. It walks by being put there (the way between places is not what it checks),
 // takes a still at each beat, prints the state at each, and exits 1 if the last card is not reached or the page throws.
+// Each print is saved as the roll keeps it, too (n-print-own.jpg): the double exposure itself.
 //   python3 -m http.server 8800 --directory web &
 //   node tools/story_play.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
 // FROM=6: from the last frame only (FROM=5 UPTO=5: the fifth frame only). LIMIT=seconds: how long the whole play may take.
@@ -254,6 +255,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (!(await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam)))) { errors.push(`frame ${s.fi + 1}: the camera of 1964 is not round Kagami's neck`); console.log(errors[errors.length - 1]); }
       await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false); // (the photograph is the game's own picture of its canvas, taken as the shutter goes: of a frame drawn whole)
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
+      { const src = await p.evaluate(() => { const P = window.__game.story.state.prints; return (P[P.length - 1] || {}).src || ''; }); const m = /^data:image\/(\w+);base64,(.*)$/.exec(src); if (m) fs.writeFileSync(`${out}/${s.fi + 1}-print-own.${m[1] === 'jpeg' ? 'jpg' : m[1]}`, Buffer.from(m[2], 'base64')); } // (the print itself, as the roll keeps it: on a slow renderer the still above may be taken after it has gone to the roll)
       if (upto && s.fi + 1 >= upto) { done = true; break; } // (UPTO=n: stop after frame n's print)
     } else if (s.phase === 'stop' && s.beat === 'meeting') await mark(s, 'meeting');
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
@@ -309,7 +311,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (+process.env.SPEND && !spent) { errors.push(`frame ${process.env.SPEND}: was to be spent, and was not`); console.log(errors[errors.length - 1]); }
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
-  if (done && await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam))) { errors.push('the case is closed, and the camera of 1964 is still round Kagami\'s neck: it is hers again'); console.log(errors[errors.length - 1]); }
+  // (not where UPTO=n stopped at a print: the case is still open there, and the camera rightly round the neck)
+  if (done && !upto && await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam))) { errors.push('the case is closed, and the camera of 1964 is still round Kagami\'s neck: it is hers again'); console.log(errors[errors.length - 1]); }
   if (!done) console.log('FAIL the last card was not reached', JSON.stringify(await state())); // (its own test: as the camera's else, it was said of every case that closed rightly)
   if (done && !upto) { // the last card: how the case was worked, in the file's hand; and the frames to go back into
     const c = await p.evaluate(() => { const e = document.getElementById('g-story-end'), w = e.querySelector('.worked'); if (w) e.scrollTop = Math.max(0, w.offsetTop - e.clientHeight / 3); return { worked: w ? w.textContent : '', back: e.querySelectorAll('[data-back]').length }; });

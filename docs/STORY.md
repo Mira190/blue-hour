@@ -35,15 +35,16 @@ right-hand column is where the player meets each one.
 |---|---|---|
 | 1 | **An afterimage** is what a person leaves at a place, at the hour they came nearest to doing a thing they meant to do there, and did not. Everyone leaves them, the living too. Most are gone by morning, because tomorrow the thing can still be done. One stays when it never can: the train has gone, or the person is dead. It is not a ghost | Shun, frame 2 (his grandfather's saying); the old woman, frame 7 (the girl is hers, and she is alive) |
 | 2 | **An afterimage keeps to its place**, as it was at that hour. It knows what its person knew then, and what has passed within a few steps of it since; so it can count the years. It cannot see past its place, and it cannot see a photograph: it can be told what a print shows, never shown. Where its place has been pulled down, it stands where the place can still be seen | The girl, frame 1 (*I cannot see past this kerb, and I cannot see a photograph*); Kanbara over the roof that is gone, frame 4 (*Is it there? The dome?*); Tatsuo is told what the roof saw, frame 5; Akira, frame 6 (*I can never see past the road*) |
-| 3 | **The Stop.** In it the world has no time: people, traffic, trains, rain and screens hold. Whoever carries the camera moves, and so does every afterimage of a tenth of October, whatever its hour. Of the living, only one is not wholly held: the woman whose own afterimage stands at the crossing | Frame 1, played; the old woman speaks in the first Stop and turns in the sixth |
+| 3 | **The Stop.** In it the world has no time: people, traffic, trains, rain and screens hold. Whoever carries the camera moves, and so does every afterimage that the tenth of October 1964 left behind, at whatever hour and in whatever year (Akira's of 2025 is that day's too). Nobody else's: the camera holds that one day open Of the living, only one is not wholly held: the woman whose own afterimage stands at the crossing | Frame 1, played; the old woman speaks in the first Stop and turns in the sixth |
 | 4 | **The first Stop** comes at 17:14 on 10 October 2026 because, for the first time, both halves of one promise stand at the crossing (her afterimage of 1964; his of 2025, which stayed when he died in March), and a camera is raised to her corner at the hour, as his was. His will paid for that camera without knowing what it would do | Mr Tanaka, frame 6 (*Last year he said he would cross at last… He went in March*; *His will paid for one thing*) |
 | 5 | **The camera** the girl gives you is an afterimage too: his camera as she held it at 17:16 on 10 October 1964, its roll as it was then, twenty-nine frames taken, seven left. It is as real as anything in the hand while there is film in it; it keeps the tenth of October open, and near a place that day touched, it stops the world. A frame taken there, facing as the day was seen, shows the thing of that day that stood there. A frame taken anywhere else is only tonight, and it is gone all the same. When the last frame is taken the day closes, and the camera goes back to her. The real one has been in an old woman's bag all evening | The girl, frame 1 (*A boy pushed this into my hands*); Shun reads it, frame 2; the old woman, frame 7 (*It is in my bag… And it is round your neck*); the last card |
 | 6 | Seven frames. There is no eighth. A frame wasted is a clue lost, and the case goes on without it | The counter; the roll |
 
-Hachi, the dog who leads you, is the oldest afterimage at the crossing: the dog of the bronze, who waited at the station
-every evening for nearly ten years for a man who did not come back. That is why he moves in the Stop, why he is there
-the first time it comes, and why he goes home when the case is closed. His place was the whole station; he walked it
-every evening. Nobody says so. A player who reads rule 1 and looks at the statue has it.
+Hachi, the dog who leads you, is the one figure in the Stop that these rules do not account for, and nobody explains
+him: the dog of the bronze, who came to the station every evening for nearly ten years for a man who did not come back.
+He moves in the Stop, comes to you the first time it comes, and goes home when the case is closed. A story about waiting
+has the most famous waiter in Japan at its door; that is enough. He is the guide, never a witness: he says nothing and
+knows nothing the player needs.
 
 ## 3. What the best of them do, and what is taken from each
 
@@ -921,7 +922,7 @@ is needed? What came of it is sections 2 and 4 to 9. Where the issues' fix was n
   covers everyone instead (rule 1): an afterimage is left at the hour its person came nearest to a thing and did not do
   it; most fade by morning; one stays when the thing can never be done. That one rule says why Akira's is of 2025 (the first
   year he meant to cross rather than look, and he died in March), and so why tonight is the first Stop; why Tatsuo's is at 17:39 (he
-  turned back from the police box); and what Hachi is. Every line that knew more than its hour was rewritten to its hour:
+  turned back from the police box). Every line that knew more than its hour was rewritten to its hour:
   Tatsuo no longer speaks of 1989 or an inquest (his sister says 1989 for him, in frame 7), Kanbara no longer knows what
   was said at the police box.
 - **The camera (38).** Taken: the camera in the hand is the afterimage of the camera, and the real one is in the old

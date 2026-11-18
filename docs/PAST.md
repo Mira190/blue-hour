@@ -80,7 +80,11 @@ the line to her corner, which stands across the road behind them (until November
 box, at 14 m through 50: see the tram above); the building and its dome from the Scramble
 Square roof through 34; the river from the bridge through 50; her corner from his kerb through the longest lens, 12. Her corner is the kerb: the board, the pillar box with her umbrella against it, the girl and the old woman stand on tonight's pavement a metre or two behind the kerb line at the Scramble's north-west corner (`cities/shibuya/scramble.py` `Plan`, its `pave`), never on the crossing's paint. Until November 2026 they stood out on the diagonal crosswalk, 3 to 10 m into the road, and the first photograph of the story was of a signboard on zebra stripes.
 The afterimage of each frame stands beside the sightline, not in it, and the crowd standing in it is sent on when the
-frame begins (`clearSight`, `web/game/game.js`).
+frame begins (`clearSight`, `web/game/game.js`). Where the thing is small and what stands behind it is the point of the
+picture (frame 2: the boy's empty stool, and her corner across the road, where he ran), the way on past it and a ring
+round it are kept clear too (`task.clear`, points beyond the thing; `task.clear_round`, metres), and the lens is aimed
+0.6 m above it (`eye`), so that the box sits below the middle of the print and the crossing (and, on a desktop, her
+corner) stands above it; a phone's print, cut from a portrait screen, keeps the box whole and the crossing.
 
 ## Liberties
 
