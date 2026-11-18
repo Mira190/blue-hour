@@ -287,12 +287,52 @@ first call, and says why: the kerb was the job and the light is going, the queue
 at sunset (the hour the roof is busiest), and its own helicopter is up there on the pad for tonight's pictures from
 the air; the pilot will set you down by the station first (`flight.board.call`). A helicopter nobody explained was a
 convenience; the hour running out is the story's own clock. Then the goal is to get in; the dog leads to it, and E
-beside it puts you in at once (`flight.board`; story ctx `board`). After the roof: three shots and
-no orbit. Locked off low on the pad as it lifts out of the top of the frame; one unbroken take from behind and a
-little above it, off the roof, over the Scramble with every screen lit, a wide turn to the north and down to
-the east; locked off on the ground as it comes down into the frame, and a step nearer as you get out, the dog at
-your heels. Space, Enter or Esc ends it at once, on the ground; you are in it until it is down, and get out by its
-door; it lifts off again and goes. Its way is checked against the map's own buildings (`tools/flight_clear.py`).
+beside it puts you in at once (`flight.board`; story ctx `board`). Space, Enter or Esc ends the flight at once, on the
+ground; you are in it until it is down, and get out by its door; it lifts off again and goes. If its model has not come
+yet (a case taken up again at this frame), the film waits a few seconds for it rather than fly the plain stand-in.
+
+**The flight, as an aerial unit would shoot it.** For a while it was three shots, the middle one a chase camera locked
+behind the helicopter along its path through a loop of 270 degrees: the city whipped round the frame at every turn, the
+cuts reversed the way it crossed the screen, and its nose was set from the step since the last frame, so on an uneven
+frame rate it shook and in a hover it turned this way and that. Now it is one flight and seven shots that cover it:
+
+- *One flight.* The helicopter's way is the film's own path (`flight.path`: points with their times, a cubic in time
+  through them), the same through every cut; the shots only choose where to watch it from. It lifts off the pad, hangs,
+  dips its nose and goes off the roof's edge to the west-north-west, over the crossing heading north, and round the
+  station in one turn to the right of 72 m radius at 21 m/s (a bank of 32 degrees, which the turn needs), and comes
+  down from the north into a hover over its spot, turns its door to you and settles. Every way it sits is read off the
+  path in the film's time (game.js story ctx `film`): nose along the way it goes, a few degrees down at a cruise, up
+  about ten as it flares into the hover, banked by what the turn needs, a pedal turn at 29 degrees a second at most.
+- *One side of the line.* Every camera is on its right, the inside of the turn, so it crosses every frame left to right
+  and banks towards the lens (the 180-degree rule; a cut that changes the angle by less than 30 degrees is a jump).
+- *The seven shots* (`tools/flight_frames.py` draws them as a storyboard without a browser, on a desktop and a phone):
+  1. `lift` — locked off low on the roof behind it; the lens pans with it once it moves, as it goes over the edge.
+  2. `depart` — air to air: the camera ship off its right rear quarter, swinging out to its side, a 50 mm lens. The
+     ship flies the way the helicopter has been going over the last second (an average, `escort` in overture.js), so a
+     turn never whips it round, and it looks where the helicopter will be a third of a second on, at its height: room
+     ahead of it in the frame.
+  3. `scramble` — the reveal, high to the east of the crossing looking down on it as it passes over heading north,
+     small in the frame, the crossing filling it: "one thing, breathing in and out".
+  4. `orbit` — inside its turn, from over the crossing: it goes round the station banked towards us, the lit tracks
+     wheeling behind it, the lens drawn in as it goes away; under ten degrees a second of pan.
+  5. `home` — the camera ship again off its right rear quarter as it rolls out heading south and comes down.
+  6. `land` — locked off on the ground as it comes down into the frame, turns its door to your spot and settles.
+  7. `foot` — a step nearer as you get out, the dog at your heels.
+- *A phone held upright* keeps most of each frame's width: an overture's lens is opened until the picture is 0.8 as
+  wide as a 3:2 one (at most 90 degrees). At the vertical angle alone a phone saw a third of the width a desktop saw.
+
+What was taken, and from where (design guidance only; no code or pictures copied): camera ships hold one side and fly
+the turn with the subject or inside it, rear quarter for an approach (Plane & Pilot and AOPA on air-to-air shoots; the
+Blue Angels' aerial DPs, Motion Picture Association, 2024; Fujinon on Top Gun: Maverick's 20-120 and 85-300 mm zooms);
+a pan no faster than a frame's width in about seven seconds (RED, panning speed); screen direction and cutting on the
+action (Videomaker; the 180-degree rule); shots of three to five seconds and more for a calm sequence (Bordwell,
+Intensified Continuity); a camera that turns at a bounded rate, looks ahead of what moves and is never rolled
+(Haigh-Hutchinson, GDC 2005; Nesky, 50 Game Camera Mistakes, GDC 2014); a fixed camera locked on the aircraft for
+what turns further than a follow can (Microsoft Flight Simulator's drone); and the helicopter's own way of flying,
+its takeoff, flare and pedal turn (FAA Helicopter Flying Handbook; copters.com; Transport Canada TP 4818). Its way is
+checked against the map's own buildings (`tools/flight_clear.py`, which reads the path), how it sits frame by frame and
+where it sets you and the dog down by `tools/heli_flight.js` (its tail once shook on an uneven frame rate, and you and
+the dog were set down inside its cabin), and its hull is solid to you, the dog, a car and the camera.
 A case taken up again at frame 5, on the street, has the flight alone.
 
 For a day the way down was the air's own view with no helicopter in it, begun two seconds after the roof's

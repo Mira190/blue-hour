@@ -123,6 +123,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
       continue;
     }
+    // out of a flight's helicopter: you and the dog stand outside its hull (both were once set down in its cabin;
+    // tools/heli_flight.js measures the flight itself)
+    if (s.beat !== 'flight' && [...seen].some(k => k.startsWith(`fl-${s.fi}-`)) && !seen.has(`out-${s.fi}`)) {
+      seen.add(`out-${s.fi}`);
+      const o = await p.evaluate(() => { const g = window.__game, d = g.guideMade && g.guideMade(), B = g.heli.group.visible && g.heli.boxes ? g.heli.boxes() : [];
+        const inn = (x, y, z, r) => B.length > 0 && !!window.OECars.pushOut(x, y, z, r, B).hit;
+        return { heli: B.length > 0, me: inn(g.player.x, g.player.y, g.player.z, 0.3), dog: !!(d && d.ready && inn(d.x, d.y, d.z, 0.35)) }; });
+      console.log(`frame ${s.fi + 1}: out of the helicopter: ${JSON.stringify(o)}`);
+      if (o.me || o.dog) { errors.push(`frame ${s.fi + 1}: set down from the flight ${[o.me && 'you', o.dog && 'the dog'].filter(Boolean).join(' and ')} in the helicopter's hull`); console.log(errors[errors.length - 1]); }
+    }
     if (s.dlg) {
       await mark(s, `said-${s.phase}-${s.beat}`);
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)

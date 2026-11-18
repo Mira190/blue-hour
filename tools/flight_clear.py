@@ -27,6 +27,30 @@ def curve(P, n=40):
     return out + [tuple(P[-1])]
 
 
+def timed(path, step=0.05):
+    """The film's own path (a flight's `path`: [x, y, z, t] points) as overture.js flies it: a cubic in time through the
+    points (Hermite, each point's velocity from its neighbours, nought at an end and at a point repeated)."""
+    P = [tuple(q[:3]) for q in path]
+    T = [q[3] for q in path]
+    n = len(P)
+    same = lambda u, v: sum((u[a] - v[a]) ** 2 for a in range(3)) < 1e-6
+    M = []
+    for i in range(n):
+        if i == 0 or i == n - 1 or same(P[i - 1], P[i]) or same(P[i], P[i + 1]):
+            M.append((0.0, 0.0, 0.0))
+        else:
+            M.append(tuple((P[i + 1][a] - P[i - 1][a]) / max(1e-3, T[i + 1] - T[i - 1]) for a in range(3)))
+    out = []
+    for i in range(n - 1):
+        h = max(1e-3, T[i + 1] - T[i])
+        k = max(1, int(h / step))
+        for j in range(k):
+            u = j / k
+            h00, h10, h01, h11 = 2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u, -2 * u ** 3 + 3 * u ** 2, u ** 3 - u ** 2
+            out.append(tuple(h00 * P[i][a] + h10 * h * M[i][a] + h01 * P[i + 1][a] + h11 * h * M[i + 1][a] for a in range(3)))
+    return out + [P[-1]]
+
+
 def main():
     city = sys.argv[1] if len(sys.argv) > 1 else "shibuya"
     B = json.load(open(os.path.join(ROOT, "web", "data", city, "buildings.json"), encoding="utf8"))
@@ -38,12 +62,15 @@ def main():
     bad = 0
     for ep in cfg["game"]["story"]["episodes"]:
         for fi, fr in enumerate(ep["frames"]):
-            for shot in (fr.get("flight") or {}).get("shots", []):
-                g = [p for p in shot.get("guide", []) if isinstance(p[0], (int, float))]
-                if len(g) < 2 or g[0] == g[-1]:
-                    continue
+            fl = fr.get("flight") or {}
+            ways = [("path", [tuple(q[:3]) for q in fl["path"]], timed(fl["path"]))] if fl.get("path") else []
+            for shot in fl.get("shots", []):
+                g = [p for p in shot.get("guide", []) if isinstance(p, list) and isinstance(p[0], (int, float))]
+                if len(g) >= 2 and g[0] != g[-1]:
+                    ways.append((shot["id"], g, curve(g)))
+            for name, g, pts in ways:
                 hits = []
-                for x, y, z in curve(g):
+                for x, y, z in pts:
                     m = LOW if z < g[-1][2] + 25 or z < g[0][2] + 8 else MARGIN  # (coming down to land, and lifting off: a rotor's width and a little)
                     for k in tree.query(Point(x, y).buffer(m)):
                         if tops[k] > z - CLEAR and lows[k] < z + 3 and polys[k].distance(Point(x, y)) < m:
@@ -52,7 +79,11 @@ def main():
                                 break
                 # (the pad it leaves and the ground it lands on are within a few metres of its skids by design)
                 hits = [h for h in hits if not (h[3] - h[2] < 3 and (abs(h[2] - g[0][2]) < 6 or abs(h[2] - g[-1][2]) < 6))]
-                print(f"frame {fi + 1} {shot['id']}: {'clear' if not hits else f'{len(hits)} m too close, first at {hits[0][:3]} under a top of {hits[0][3]} m'}")
+                # (and a whole flight's path lifts straight up off its pad and settles straight down onto its spot: within 12 m of
+                # either, and less than 10 m over it, what is under it is the roof or the ground it stands on)
+                hits = [h for h in hits if not (h[3] - h[2] < 3 and any(abs(h[0] - e[0]) < 12 and abs(h[1] - e[1]) < 12 and h[2] - e[2] < 10 for e in (g[0], g[-1])))]
+                hits = sorted(set(hits), key=hits.index)
+                print(f"frame {fi + 1} {name}: {'clear' if not hits else f'{len(hits)} points too close, first at {hits[0][:3]} under a top of {hits[0][3]} m'}")
                 bad += bool(hits)
     sys.exit(1 if bad else 0)
 

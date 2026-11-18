@@ -1314,6 +1314,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     for (const o of [myCar, ride]) if (o && o !== but && Math.hypot(stOf(o).x - x, stOf(o).y - y) < r + 5) out.push((o.D || o.drv).box());
     if (rail && rail.trainBoxes) for (const b of rail.trainBoxes()) if (Math.abs(b.x - x) < r + b.hl && Math.abs(b.y - y) < r + b.hl) out.push(b); // (a train's bodies)
+    // (and the helicopter's hull, cabin and tail boom, wherever it stands or hovers within reach, unless you are in it: a
+    // walker, a guide dog and a car are kept out of it as out of a car; nothing kept anyone out of it before)
+    if (heli.group.visible && player.mode !== 'heli' && player.mode !== 'board' && Math.hypot(heli.st.x - x, heli.st.y - y) < r + 8) for (const b of heli.boxes()) out.push(b);
     if (rail && rail.gateBoxes) for (const b of rail.gateBoxes(x, y, r)) out.push(b); // (and a closed crossing's arms)
     return out;
   }
@@ -3364,8 +3367,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
     // (and its body kept off every post, belt and trunk: the walker's circle is at its middle, and its nose and rump
     // reach GUIDE_BODY from there whichever way it turns; a queue belt passed through it at the lift's doors)
-    slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), o = posts.pushOut(m.x, m.y, GUIDE_BODY * (g.scale || 1), z); return nav.walk(o.x, o.y, z, true).ok ? o : { x, y }; },
-    stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, GUIDE_BODY * (g.scale || 1), z).hit,
+    // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
+    slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), r = GUIDE_BODY * (g.scale || 1), c = OECars.pushOut(m.x, m.y, z, r, carBoxes(m.x, m.y, 4)), o = posts.pushOut(c.x, c.y, r, z); return nav.walk(o.x, o.y, z, true).ok ? o : { x, y }; },
+    stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, GUIDE_BODY * (g.scale || 1), z).hit && !OECars.pushOut(x, y, z, GUIDE_BODY * (g.scale || 1), carBoxes(x, y, 4)).hit,
     people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r) out.push([q.x, q.y]); } return out; },
     held: () => !!(story && story.stopped && story.scale === 0) }) : null); // (the world held still: its people are planned round, not pushed off)
   // the story's people, asked for as the game opens, so that each is themselves when they are first seen
@@ -3437,35 +3441,90 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the helicopter is the film's guide, the camera flies with it, and a key sets you down at once
     film: (spec, then) => {
       const was = overture, st = heli.st, pad = [st.x, st.y, st.z, st.h];
-      let last = null;
-      const fly = (g, shot) => {
+      const sp = Object.assign({}, G.overture, G.story.episodes[0].overture || {}, spec, { night: null, skip_keys: 'Space to skip', end: Object.assign({}, spec.end || {}) });
+      const craft = spec.craft !== false;
+      // Its attitude is read off the film's path in the film's own time: the nose along the way it goes once it is going
+      // anywhere (and left where it is in a hover), nose down with speed and to gather it and up to shed it, banked into a
+      // turn by as much as the turn needs, as the flight's own physics asks (vehicles.js update), eased over a third of a
+      // second. It was once worked out from the step since the last frame: pitch half the metres per frame, the nose
+      // wherever that step pointed, a leaf's flutter in its path, and the flight's physics easing it back towards level
+      // under the film every frame. At an uneven frame rate its tail shook, and in a hover its nose swung after the flutter.
+      const att = { h: st.h, p: 0, r: 0, t: null };
+      // Where it sets down and which way it faces there (set): the end of its path, its door towards where you stand at the
+      // end (spec.end), so that you get out of its door onto that spot; and the spot itself outside its hull. It once faced
+      // whichever way the last step of its path had pointed it, and you (and the dog at your heels) were set down in its cabin
+      let set = null;
+      const fly = (g, s, k) => {
         // (you are in it: nobody stands on the ground it is coming down to; you are seen once it is down, in the shot the spec names, out of its door)
-        player.rig.root.visible = !g || !!(shot && shot.id === (spec.out_shot || 'foot'));
+        player.rig.root.visible = !g || !!(s && s.id === (spec.out_shot || 'foot'));
         if (guideMade && guideMade.aboard) guideMade.aboard(!player.rig.root.visible); // (the dog in it with you, and out at your heels after you)
         if (!g) { // set down: it lifts off again, turns for its roof and goes, and is put back on its pad once it is out of sight
           let t = 0; const h0 = st.h;
           heliAway = dt => {
             t += dt; const k = Math.min(1, t / 3), up = k * k * (3 - 2 * k), v = Math.max(0, t - 1.6) * 5.5;
             st.z += (up * 5 + Math.max(0, t - 3) * 3.2) * dt; st.h = h0 + Math.min(1.2, Math.max(0, t - 1.2) * 0.35); st.x += Math.sin(st.h) * v * dt; st.y += Math.cos(st.h) * v * dt;
-            st.pitch = Math.min(0.2, v * 0.02); st.vx = st.vy = st.vz = 0; st.on = true; st.landed = false; st.rotor = 1; heli.update(1e-4, {}, []); heli.group.visible = true;
+            st.pitch += (Math.min(0.2, v * 0.02) - st.pitch) * (1 - Math.exp(-dt / 0.5)); st.roll *= Math.exp(-dt / 0.4); // (eased in the world's time, not set each frame)
+            st.vx = Math.sin(st.h) * v; st.vy = Math.cos(st.h) * v; st.vz = up * 5; st.on = true; st.landed = false; st.rotor = 1; st.scripted = true; heli.place(); heli.group.visible = true;
             if (A.rotor) A.rotor(Math.max(0, 1 - t / 13), 0.4);
-            if (t > 14) { heliAway = null; st.on = false; st.rotor = 0; st.landed = true; [st.x, st.y, st.z, st.h] = pad; st.pitch = st.roll = 0; heli.update(1e-4, {}, []); heli.group.visible = false; }
+            if (t > 14) { heliAway = null; st.on = false; st.scripted = false; st.rotor = 0; st.landed = true; [st.x, st.y, st.z, st.h] = pad; st.pitch = st.roll = 0; st.vx = st.vy = st.vz = 0; heli.place(); heli.group.visible = false; }
           };
           return;
         }
-        const x = g.x, y = -g.z, z = g.y;
-        if (last) { const dx = x - last[0], dy = y - last[1], d = Math.hypot(dx, dy); if (d > 0.02) { const h = Math.atan2(dx, dy) + (spec.heading_offset || 0); st.h += angDiff(h, st.h) * 0.12; st.pitch = Math.min(0.22, d * 0.5); } }
-        last = [x, y, z];
-        st.x = x; st.y = y; st.z = z; st.vx = st.vy = st.vz = 0; st.yawRate = 0; st.on = true; st.landed = false; st.rotor += (1 - st.rotor) * 0.05; // (up from turning over to full as it lifts, not at once)
+        const x = g.x, y = -g.z;
+        let z = g.y;
+        const f = film.f, t = f.t, dt = att.t == null ? 0 : Math.max(0, Math.min(0.1, t - att.t));
+        att.t = t;
+        // the way the path goes here: its points a quarter of a second either side of now, in the film's time (the same
+        // whatever the frame rate), as velocity and acceleration (game coordinates)
+        // (the film's own path, spec.path, runs on through the cuts: read either side of now whatever shot it is in; a shot's
+        // own guide is read within the shot)
+        const own = s.guide === 'path' && f.hasPath, T = s.t0 + k * s.dur, end = own ? f.pathEnd : 0;
+        const P = kk => { if (own) return f.pathAt(s.t0 + kk * s.dur); const q = f.path(s, kk); return q ? [q.x, -q.z, q.y] : [x, y, z]; };
+        const kd = 0.25 / Math.max(0.1, s.dur), h1 = own ? Math.min(kd, T / s.dur) : Math.min(kd, k), h2 = own ? Math.min(kd, Math.max(0, end - T) / s.dur) : Math.min(kd, 1 - k), ta = h1 * s.dur, tb = h2 * s.dur;
+        const pa = P(k - h1), pb = P(k + h2), m = [x, y, z], v = [0, 0, 0], acc = [0, 0, 0];
+        for (let i = 0; i < 3; i++) {
+          if (ta + tb > 1e-3) v[i] = (pb[i] - pa[i]) / (ta + tb);
+          if (ta > 1e-3 && tb > 1e-3) acc[i] = ((pb[i] - m[i]) / tb - (m[i] - pa[i]) / ta) / ((ta + tb) / 2);
+        }
+        const vh = Math.hypot(v[0], v[1]), w = smoothK(0.6, 3, vh);
+        // never into the ground: down on it within 5 cm, and landed (its strobes off, level)
+        const floor = nav.groundBelow(x, y, z + 0.5), landed = z <= floor + 0.05;
+        if (landed) z = Math.max(z, floor);
+        // heading: towards the way it goes, as much as it is going anywhere (and left where it is in a hover); coming down
+        // where it sets down, to its door towards your spot; at most 29 degrees a second, a pedal turn's steady rate
+        const down = set && set.h != null && (set.from != null ? T >= set.from : set.shots.has(s.id));
+        const pathH = Math.atan2(v[0], v[1]) + (spec.heading_offset || 0);
+        const want = down ? set.h : att.h + angDiff(pathH, att.h) * w;
+        const yaw = Math.max(-0.5 * dt, Math.min(0.5 * dt, angDiff(want, att.h) * (1 - Math.exp(-dt / 0.4))));
+        att.h += yaw;
+        // pitch and bank, as the flight's physics would have them (vehicles.js update), with the flare a pilot gives it: nose
+        // up about ten degrees as it sheds speed into a hover, a few degrees down at a cruise, banked by what the turn needs
+        const fx = Math.sin(att.h), fy = Math.cos(att.h), along = v[0] * fx + v[1] * fy, aAlong = acc[0] * fx + acc[1] * fy;
+        const turn = vh > 1 ? (v[1] * acc[0] - v[0] * acc[1]) / (vh * vh) : 0;
+        const pitchT = landed ? 0 : Math.max(-0.24, Math.min(0.3, aAlong * 0.04 + along * 0.0035));
+        const rollT = landed ? 0 : -Math.max(-0.6, Math.min(0.6, Math.atan(along * turn / 9.81))) * w;
+        const e = 1 - Math.exp(-dt / 0.35);
+        att.p += (pitchT - att.p) * e; att.r += (rollT - att.r) * e;
+        Object.assign(st, { x, y, z, h: att.h, pitch: att.p, roll: att.r, vx: v[0], vy: v[1], vz: v[2], speed: vh, yawRate: dt > 0 ? yaw / dt : 0, fwd: Math.max(-1, Math.min(1, aAlong / 6 + along / 50)), lift: Math.max(-1, Math.min(1, v[2] / 8)), on: true, landed, scripted: true });
         if (!heli.loaded()) { heli.want(); heli.show(); }
-        heli.update(1e-4, {}, []); heli.group.visible = true;
+        heli.place(); heli.group.visible = true; // (its rotor spools up to full as it lifts, vehicles.js update: from turning over on its pad, not at once)
         if (A.rotor) A.rotor(1, 0.55); // (heard, as it is seen)
       };
-      const f = makeFilm && !reduced ? makeFilm(Object.assign({}, G.overture, G.story.episodes[0].overture || {}, spec, { night: null, skip_keys: 'Space to skip' }), spec.craft === false ? null : fly) : null; // (craft false: the air's own view, no helicopter in it)
-      const done = () => { overture = was; then(); };
-      if (f) { overture = f; f.story = performance.now(); if (f.play(done)) return; overture = was; }
-      if (spec.end && spec.end.at) spawn(spec.end.at.slice(0, 2), undefined, spec.end.facing);
-      then();
+      const go = () => {
+        const f = makeFilm && !reduced ? makeFilm(sp, craft ? fly : null) : null; // (craft false: the air's own view, no helicopter in it)
+        film.f = f;
+        if (f && craft) set = heliSetDown(f, sp);
+        // (and whatever the film did, you are let go standing outside it: a skip ends it with the helicopter wherever it was)
+        const done = () => { overture = was; clearOfHeli(); then(); };
+        if (f) { overture = f; f.story = performance.now(); if (f.play(done)) return; overture = was; }
+        if (sp.end && sp.end.at) spawn(sp.end.at.slice(0, 2), undefined, sp.end.facing);
+        then();
+      };
+      const film = { f: null };
+      // (its model first: a case taken up again at this frame, on the street, never had it on the roof, and flew the whole
+      // film in the plain stand-in, its blades flickering; a few seconds at most, then the stand-in after all)
+      if (craft && !heli.loaded()) { let once = false; const one = () => { if (!once) { once = true; go(); } }; heli.want().then(one, one); setTimeout(one, 6000); return; }
+      go();
     },
     // the helicopter a flight goes by, on its pad (a frame's flight.board): board(null, 'parked') stands it there, seen,
     // through the frame before; board(null, 'idle') starts it turning over once that frame's picture is taken;
@@ -3802,6 +3861,46 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let overture = null; // the map's opening film (overture.js), made once the player is placed
   let makeFilm = null; // (overture.js's films, made on this map)
   let heliAway = null; // (the helicopter of a story's flight, leaving once it has set you down)
+  const smoothK = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+  // where a story's flight sets down (story ctx film), worked out from its film before it plays: the last point of its path,
+  // the shots that end there (it hovers down in those), and the heading its door faces the end spot from (spec.land_heading,
+  // degrees, if the spec gives one). The end spot, if it is in its hull there (or nearer it than a person's shoulder), is
+  // moved out from its door until it is clear and can be stood on; the film's shots that are placed from "end" go with it
+  function heliSetDown(f, sp) {
+    const shots = sp.shots || [], last = sh => { const g = Array.isArray(sh.guide) ? sh.guide : []; return g.length ? f.point(g[g.length - 1]) : null; };
+    let L = null, from = null;
+    if (sp.path && sp.path.length > 1) {
+      // (a film with a path of its own: it comes down from the moment it is last over its spot slower than a walk, its final hover)
+      const q = sp.path[sp.path.length - 1];
+      L = f.point(q.slice(0, 3)); from = q[3];
+      for (let i = sp.path.length - 2; i >= 0; i--) { const a = sp.path[i]; if (Math.hypot(a[0] - L[0], a[1] - L[1]) > 6) break; from = a[3]; }
+      from -= 1.5; // (turning as it slows into the hover, not once it hangs there)
+    } else for (let i = shots.length - 1; i >= 0 && !L; i--) L = last(shots[i]);
+    if (!L) return null;
+    const ids = new Set(shots.filter(sh => { const q = last(sh); return q && Math.hypot(q[0] - L[0], q[1] - L[1]) < 1.5; }).map(sh => sh.id));
+    const E = sp.end && sp.end.at ? f.point(sp.end.at) : null, door = heli.door || { x: 1.5, y: 1.5 }, doorA = Math.atan2(door.x, door.y);
+    let h = sp.land_heading != null ? sp.land_heading * Math.PI / 180 : E && Math.hypot(E[0] - L[0], E[1] - L[1]) > 0.5 && Math.hypot(E[0] - L[0], E[1] - L[1]) < 15 ? Math.atan2(E[0] - L[0], E[1] - L[1]) - doorA : null;
+    if (E && h != null) {
+      const z = nav.groundBelow(L[0], L[1], (L[2] ?? 0) + 0.5), boxes = heli.boxesAt(L[0], L[1], z, h), ez = nav.groundBelow(E[0], E[1], z + 1.5);
+      if (OECars.pushOut(E[0], E[1], ez, 0.6, boxes).hit) {
+        const a = h + doorA, d0 = Math.hypot(door.x, door.y);
+        for (let r = d0; r < d0 + 8; r += 0.25) {
+          const x = L[0] + Math.sin(a) * r, y = L[1] + Math.cos(a) * r, w = nav.walk(x, y, nav.groundBelow(x, y, z + 1.5), true);
+          if (w.ok && !OECars.pushOut(x, y, w.z, 0.6, boxes).hit) { sp.end.at = [x, y]; break; }
+        }
+      }
+    }
+    return { at: L, h, shots: ids, from };
+  }
+  // you stand outside the helicopter once a flight has let you go (or the film skipped with it low over you): pushed out of
+  // its hull to the nearest spot clear of it that can be stood on
+  function clearOfHeli() {
+    if (player.mode !== 'foot' || !heli.group.visible) return;
+    const boxes = heli.boxes();
+    if (!OECars.pushOut(player.x, player.y, player.z, 0.45, boxes).hit) return;
+    const p = placeNear(player.x, player.y, player.z + 0.5, boxes);
+    if (p) [player.x, player.y, player.z] = p;
+  }
   let heliWait = null; // (and before it: on its pad, seen, { then: E beside it gets you in, idle: its rotor turning over } (story ctx board)
   let storyMusic = null; // (the score under the story: music.js, started with the first scene)
   let joy = { x: 0, y: 0 }, touchLift = 0, uiOpen = () => (window.OEMetro && OEMetro.isOpen()) || !$('#g-menu').hidden || !$('#g-bigmap').hidden || !$('#g-pass').hidden || !$('#g-title').hidden || !!(life && life.open) || !!(fish && fish.api && fish.api.logOpen());
@@ -4274,7 +4373,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     cam.yawTo = heli.st.h - HALF_PI + 0.55; // look in at the door from behind it
   }
   function exitHeli() {
-    const d = heli.doorAt(), p = placeNear(d.x, d.y, heli.st.z + 0.5);
+    const d = heli.doorAt(), p = placeNear(d.x, d.y, heli.st.z + 0.5, heli.boxes()); // (beside its door, outside its hull)
     if (!p) { H.toast('Land somewhere you can step out.'); return; }
     // step down beside the door, or as near it as there is ground to stand on
     const out = heli.toLocal(...p), near = out.distanceTo(heli.way.stand) < 2;
