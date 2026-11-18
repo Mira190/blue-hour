@@ -112,6 +112,7 @@
 #g-story-frames { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); z-index: 6; display: grid; gap: 9px; pointer-events: auto; cursor: pointer; text-align: left; border: 0; background: none; padding: 0;
   opacity: 0; transition: opacity 0.9s ease; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000; }
 #g-story-frames.on { opacity: 1; }
+#g-story-frames:not(.on) { pointer-events: none; } /* (unseen, before the first frame and on the walk, it opened the roll to a tap at the foot of the street) */
 #g-story-frames b { font: 300 30px/0.9 var(--f-mono); letter-spacing: 0; color: var(--amber); font-variant-numeric: tabular-nums; margin-right: 10px; vertical-align: -3px; }
 #g-story-frames .strip { display: flex; gap: 3px; padding: 4px; background: rgba(4, 8, 18, 0.6); border-top: 2px dotted rgba(244, 239, 230, 0.35); border-bottom: 2px dotted rgba(244, 239, 230, 0.35); }
 #g-story-frames small { font: 300 13px/1 var(--f-mono); color: rgba(244, 239, 230, 0.45); margin: 0 10px 0 -6px; letter-spacing: 0.04em; }
@@ -594,6 +595,8 @@
 #g-story-mov button { position: absolute; right: max(16px, 3vw); top: calc(8.5vh + 10px); pointer-events: auto; /* (over the picture's top, under the bar: at the foot it met the words on a screen 800 wide) */ cursor: pointer; background: none; border: 0; padding: 10px 0;
   font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); opacity: 0; transition: opacity 0.8s ease 1.4s, color 0.3s; }
 #g-story-mov.on button { opacity: 1; }
+/* (and not there at all without a film: unseen, it took every tap and click at the top right of the street) */
+#g-story-mov:not(.on) button { pointer-events: none; }
 #g-story-mov button:is(:hover, :focus-visible) { color: var(--paper); }
 .game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
 @media (max-width: 640px) {
@@ -617,6 +620,102 @@
 @media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
 @media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }
 
+/* ---- the walk (walk.js): the title's second way in, and the street with no story in it.
+   The same card, type and amber as the story's; the walk's own words are fewer. On the title, beside the episode's
+   amber button, a paper one; pressed, the two ways in give way to one step: the hour and the sky, and Set out */
+#gt-walk-go { display: inline-flex; align-items: center; gap: 14px; min-width: 0; padding: 15px 20px; border: 1px solid rgba(244, 239, 230, 0.42); border-radius: 2px; background: transparent; color: var(--paper);
+  font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; transition: border-color 0.3s, background 0.3s; }
+#gt-walk-go small { font: inherit; letter-spacing: 0.24em; color: rgba(244, 239, 230, 0.55); }
+#gt-walk-go small::before { content: "·"; margin-right: 14px; color: rgba(244, 239, 230, 0.4); }
+#gt-walk-go:is(:hover, :focus-visible) { border-color: var(--paper); background: rgba(244, 239, 230, 0.06); outline: none; }
+.game-stage.story .gt-who.open ~ .gt-go #gt-walk-go { opacity: 0.42; }
+#g-title[data-walk] :is(.gt-go, #gt-back) { display: none !important; }
+.gt-walk { display: none; }
+.game-stage.story .gt-walk:not([hidden]) { display: grid; gap: 14px; justify-items: start; }
+.gt-walk .eyebrow { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+.gt-walk-row { display: grid; grid-template-columns: 76px auto; align-items: center; gap: 14px; }
+.gt-walk-row > span { font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+.gt-walk-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.gt-walk-seg button { display: inline-flex; align-items: baseline; gap: 10px; padding: 11px 14px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42); color: rgba(244, 239, 230, 0.78); cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, background 0.25s; }
+.gt-walk-seg b { font: 300 14px/1 var(--f-body); letter-spacing: 0.01em; }
+.gt-walk-seg small { font: 400 11px/1 var(--f-mono); letter-spacing: 0.04em; color: rgba(244, 239, 230, 0.5); font-variant-numeric: tabular-nums; }
+.gt-walk-seg small:empty { display: none; }
+.gt-walk-seg button:is(:hover, :focus-visible) { border-color: rgba(255, 207, 138, 0.7); color: var(--paper); outline: none; }
+.gt-walk-seg button[aria-checked="true"] { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber); background: rgba(255, 207, 138, 0.08); }
+.gt-walk-seg button[aria-checked="true"] small { color: var(--amber); }
+.gt-walk-acts { display: flex; gap: 10px; margin-top: 6px; }
+.game-stage.story .gt-walk-acts .btn { gap: 26px; padding: 15px 22px; border-radius: 2px; font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s, border-color 0.3s; }
+.game-stage.story .gt-walk-acts .btn.primary { min-width: 0; border: 1px solid var(--amber); background: transparent; color: var(--amber); }
+.game-stage.story .gt-walk-acts .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
+.game-stage.story .gt-walk-acts .btn:not(.primary) { border: 1px solid rgba(244, 239, 230, 0.32); background: transparent; color: rgba(244, 239, 230, 0.75); font-size: 10px; letter-spacing: 0.26em; }
+.game-stage.story .gt-walk-acts .btn:not(.primary):is(:hover, :focus-visible) { border-color: var(--paper); color: var(--paper); }
+.gt-walk-acts kbd { font: inherit; letter-spacing: 0.06em; opacity: 0.8; }
+
+/* out in the street: where and when, in the goal's corner (the walk has no goal); the hour moves on as you walk */
+#g-walk-where { position: absolute; left: 0; top: 0; z-index: 6; width: min(100%, 420px); box-sizing: border-box; padding: max(24px, env(safe-area-inset-top)) 24px 40px max(28px, env(safe-area-inset-left)); pointer-events: none;
+  opacity: 0; transition: opacity 0.9s ease; color: var(--paper); background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.5), transparent 75%); }
+#g-walk-where.on { opacity: 1; }
+#g-walk-where small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+#g-walk-where small::after { content: ""; display: block; width: 28px; height: 1px; margin: 11px 0 10px; background: rgba(255, 207, 138, 0.7); }
+#g-walk-where .t { display: block; font: 200 clamp(26px, 2.6vw, 34px)/1 var(--f-display); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 18px rgba(0, 0, 0, 0.85); }
+#g-walk-where em { display: block; margin-top: 9px; font: 400 9px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.7); text-shadow: 0 1px 10px #000; }
+#g-walk-where.new small { animation: g-story-goal-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+/* the camera and the menu, at the top right, small: what the walk has to change, named */
+#g-walk-acts { position: absolute; right: max(22px, env(safe-area-inset-right)); top: max(22px, env(safe-area-inset-top)); z-index: 6; display: flex; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
+#g-walk-acts.on { opacity: 1; pointer-events: auto; }
+#g-walk-acts button { display: inline-flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid rgba(244, 239, 230, 0.3); border-radius: 2px; background: rgba(4, 8, 18, 0.45); color: rgba(244, 239, 230, 0.86); cursor: pointer;
+  font: 400 9px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; text-shadow: 0 1px 8px #000; transition: border-color 0.25s, color 0.25s; }
+#g-walk-acts button:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); outline: none; }
+#g-walk-acts kbd { padding: 3px 5px; border: 1px solid rgba(244, 239, 230, 0.45); border-radius: 2px; font: inherit; letter-spacing: 0.04em; }
+#g-walk-acts i { position: relative; display: block; width: 14px; height: 10px; box-sizing: border-box; }
+#g-walk-acts i.cam { border: 1px solid currentColor; border-radius: 2px; }
+#g-walk-acts i.cam::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border: 1px solid currentColor; border-radius: 50%; }
+#g-walk-acts i.menu { height: 9px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+#g-walk-acts i.menu::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; border-top: 1px solid currentColor; }
+/* the keys, once, at the foot of the frame (the story's keys' line) */
+#g-walk-keys { position: absolute; left: 50%; bottom: max(40px, calc(env(safe-area-inset-bottom) + 40px)); transform: translateX(-50%); z-index: 6; pointer-events: none; opacity: 0; transition: opacity 0.8s ease;
+  display: flex; gap: 26px; white-space: nowrap; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
+#g-walk-keys.on { opacity: 1; }
+#g-walk-keys kbd { display: inline-block; min-width: 22px; padding: 5px 6px; margin-right: 5px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: inherit; letter-spacing: 0.06em; text-align: center; }
+#g-walk-keys kbd + kbd { margin-left: -1px; }
+/* (nothing of it over the title, a menu, the camera's own view in photo mode, or a film) */
+/* (each its own rule: a :has() inside :is() is dropped, and the corner was drawn over the menu) */
+.game-stage:has(#g-title:not([hidden])) :is(#g-walk-where, #g-walk-acts, #g-walk-keys),
+.game-stage:has(.g-overlay:not([hidden])) :is(#g-walk-where, #g-walk-acts, #g-walk-keys),
+.game-stage:is(.photo, .cine) :is(#g-walk-where, #g-walk-acts, #g-walk-keys) { opacity: 0 !important; pointer-events: none !important; }
+/* the panels the story's page still opens (the menu, photo mode) in its own tokens: the amber hairline, not the old game's filled button */
+.game-stage.story :is(.g-overlay, .g-photo) .btn.primary { background: transparent; border: 1px solid var(--amber); border-radius: 2px; color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; }
+.game-stage.story :is(.g-overlay, .g-photo) .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
+.game-stage.story :is(.g-overlay, .g-photo) :is(.btn, .chip-btn) { border-radius: 2px; }
+.game-stage.story :is(.g-overlay, .g-photo) :is(.seg button, .chip-btn)[aria-pressed="true"] { color: var(--amber); border-color: var(--amber); background: rgba(255, 207, 138, 0.08); }
+/* the menu on the walk: the way into the story first; the hour and the sky stay; the story's own and the old game's go */
+.gm-walk { display: none; }
+.game-stage.walk .gm-walk { display: grid; gap: 10px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.game-stage.walk .gm-walk .btn { justify-content: flex-start; flex-wrap: wrap; gap: 0 0.5em; padding: 15px 18px; white-space: normal; text-align: left; line-height: 1.6; }
+/* (and the panel held to the screen whatever is in it: on a phone the story's way in, set on one line, widened the menu past
+   the screen's edge, its close button with it, and the menu could not be shut) */
+.game-stage.walk .g-overlay { grid-template-columns: minmax(0, 1fr); }
+.game-stage.walk :is(#gm-overture, #gm-route) { display: none; }
+.game-stage.walk .field:has(#gm-route) { display: none; }
+/* (and in the story and on the walk alike, the old free game's: its tour of the map, the passport, the passport's fresh start, and its keys) */
+.game-stage.story :is(#gm-intro, #gm-reset, #gm-links, .gk-free) { display: none !important; }
+.game-stage:not(.story) .gk-story { display: none; }
+@media (pointer: coarse), (max-width: 640px) {
+  #g-walk-where { padding-right: 150px; }
+  #g-walk-where .t { font-size: 24px; }
+  #g-walk-acts { flex-direction: column; align-items: flex-end; }
+  #g-walk-acts button span { display: none; }
+  #g-walk-acts button { padding: 11px 12px; }
+  #g-walk-acts i { width: 18px; height: 13px; }
+  #g-walk-acts i.menu { height: 12px; }
+  #g-walk-acts i.menu::after { top: 4.5px; }
+  #g-walk-keys { flex-direction: column; align-items: center; gap: 10px; width: calc(100% - 48px); white-space: normal; text-align: center; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); letter-spacing: 0.12em; }
+  .gt-walk-row { grid-template-columns: 1fr; gap: 8px; }
+  .gt-walk-acts .btn { flex: 1; }
+  #gt-walk-go { flex: 1 1 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { #g-walk-where, #g-walk-acts, #g-walk-keys { transition: none; } #g-walk-where.new small { animation: none; } }
 /* ---- the camera taught (story.js teach; task.teach on the first frame): four steps in the order they are done, each
    saying what it does before it is done, ticked the moment it is. On the picture's left over a soft scrim, out of the
    finder's middle, where the thing of the other year comes up. The step to do now is lit, with its line under it; the

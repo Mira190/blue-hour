@@ -981,6 +981,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
     function tick(dt) {
       const ep = st.ep, fr = st.fr;
       if (st.gone) { st.gone.tick(dt); if (st.gone.state === 'away') st.gone = null; } // (a guide on his way off)
+      // (the case closed and the street walked on, release(): tonight's people go once the lens no longer has them, never in view)
+      if (st.released) for (const id in st.cast) { const f = st.cast[id], v = ctx.screen([f.x, f.y, (f.z || 0) + 1]); if (!v.front || v.x < -0.15 || v.x > 1.15 || v.y < -0.15 || v.y > 1.15 || v.dist > 80) { f.remove(); delete st.cast[id]; } }
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
       if (keys.classList.contains('on') && KEYS() !== keysAre) keysHint(true); // (the keys, or the pad's sticks, as the hand changes)
@@ -1113,6 +1115,14 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
+      // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
+      // evening's cast, each once out of the frame (tick); the dog is already on his way home
+      release() {
+        if (st.phase !== 'done') return false;
+        st.released = true; endEl.classList.remove('in'); later(1200, () => endEl.classList.remove('on')); ctx.beacon(null); // (the card fades off the street, as it came on) if (ctx.board) ctx.board(null);
+        if (document.activeElement && endEl.contains(document.activeElement)) document.activeElement.blur();
+        return true;
+      },
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
