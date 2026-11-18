@@ -72,7 +72,7 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
   const seen = new Set();
   for (let i = 0; i < 3000 && (await beat()) === 'flight'; i++) {
     const t = await p.evaluate(() => { const o = window.__game.overture(); return o && o.active ? o.t : null; });
-    if (t == null) break;
+    if (t == null) { await p.waitForTimeout(300); continue; } // (not begun yet: the helicopter's model is still coming; story ctx film)
     for (const s of shots) {
       for (const k of [0.15, 0.5, 0.9]) {
         const key = `${s.id}-${k}`;
