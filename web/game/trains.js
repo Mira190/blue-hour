@@ -661,7 +661,6 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
     const api = { tracks, services, kinds, models: false, live: [], t: o.t0 || 0, station: stations[0] || null, stations, said: [], voices: [0, 0, 0], run, plan, stopsNow, haltsNow, passAt };
     const state = { t: 0, x: 0, v: 0, a: 0, ph: '', T: 0, t1: 0, t2: 0, t3: 0 };
     const fwd = { x: 0, y: 0, z: 0 }, aft = { x: 0, y: 0, z: 0 };
-    let clackAt = [0, 0, 0];
 
     // the trains on the line at time t: [{ s, k (which departure), tau, x, v, a, ph }]
     function at(t) {
@@ -702,7 +701,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
           dummy.updateMatrix();
           for (const m of L.meshes) m.setMatrixAt(L.n, dummy.matrix);
           L.n++;
-          if (o.listener) { const l = o.listener(), dd = Math.hypot((fwd.x + aft.x) / 2 - l.x, (fwd.y + aft.y) / 2 - l.y, fwd.z + 1.5 - l.z); if (dd < tr.near) { tr.near = dd; tr.nx = (fwd.x + aft.x) / 2; tr.ny = (fwd.y + aft.y) / 2; } }
+          if (o.listener) { const l = o.listener(), dd = Math.hypot((fwd.x + aft.x) / 2 - l.x, (fwd.y + aft.y) / 2 - l.y, fwd.z + 1.5 - l.z); if (dd < tr.near) { tr.near = dd; tr.nx = (fwd.x + aft.x) / 2; tr.ny = (fwd.y + aft.y) / 2; tr.nz = (fwd.z + aft.z) / 2; } }
           if (i === 0 || i === s.cars - 1) { // white at the head, red at the tail
             const [ahead, side, up] = s.S.lamp || (s.S.shinkansen ? [10.2, 0.5, 1.0] : s.S.deck2 ? [9.85, 0.95, 1.5] : [9.85, 0.95, 1.25]);
             const e = i === 0 ? 1 : -1, hx = (fwd.x - aft.x) / (2 * half), hy = (fwd.y - aft.y) / (2 * half), ex = cx + hx * e * ahead, ey = cy + hy * e * ahead;
@@ -930,14 +929,12 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       api.voices = [0, 0, 0];
       if (A && A.train) for (let i = 0; i < 3; i++) {
         const tr = near[i];
-        if (!tr) { A.train(i, 0); continue; }
+        if (!tr) { if (A.trainAt) A.trainAt(i, null, dt); else A.train(i, 0); continue; }
         const level = Math.pow(Math.max(0, 1 - tr.near / HEAR), 2.2) * (1 + 0.6 * Math.max(0, 1 - tr.near / 30)), pan = panOf(tr.nx, tr.ny);
-        A.train(i, level, pan, tr.v, tr.a, !!tr.s.S.shinkansen); api.voices[i] = level;
-        // the wheels over a joint: a bogie's two axles, a car length apart, as the train's speed brings them
-        if (!tr.s.S.shinkansen && tr.v > 1.5) {
-          clackAt[i] -= dt;
-          if (clackAt[i] <= 0) { A.clack(level, pan, tr.v); clackAt[i] = tr.s.S.len / tr.v; }
-        }
+        api.voices[i] = level;
+        // (its rumble, its wheels a bogie at a time, and over a deck the deck: audio.js trainAt, from where it is)
+        if (A.trainAt) A.trainAt(i, { near: tr.near, above: (tr.nz ?? l.z) - l.z, v: tr.v, a: tr.a, len: tr.s.S.len, pan, fast: !!tr.s.S.shinkansen }, dt);
+        else A.train(i, level, pan, tr.v, tr.a, !!tr.s.S.shinkansen);
       }
       // the announcements, while you are in hearing of a station
       for (const st of stations) {

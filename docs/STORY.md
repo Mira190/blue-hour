@@ -1,6 +1,6 @@
 # Blue Hour: the story
 
-One evening at the Shibuya Scramble, 10 October, from the blue hour into the night. One camera with
+One evening at the Shibuya Scramble, Saturday 10 October 2026, from the blue hour into the night. One camera with
 seven frames left in it. One question that turns over with every frame: **why did he not cross the street?**
 
 This is the story bible: the premise and its rules, what was learned from the works it stands on,
@@ -15,7 +15,7 @@ real, and the story is built so that the real things are the clues.
 
 On 10 October, at 17:14, as the blue hour begins, the crossing fills and the world stops. Only you
 still move, and a young woman at the kerb dressed for 1964. She has waited on that corner at that
-hour for sixty years for a man who never came. She gives you his camera. There are seven frames
+hour for sixty-two years for a man who never came. She gives you his camera. There are seven frames
 left on a roll he began in 1964, and the twenty-nine frames before them were never developed.
 
 Every photograph you take in the stopped world, from the right place, brings up the picture that
@@ -141,7 +141,7 @@ a word.
 Sumiko heard the next day that Akira had confessed to killing Kanbara. She believed he had done it,
 for her, because of what she had told him about Kanbara. She kept silent so that it would not have
 been for nothing. Akira had told her once never to open a camera: light kills what is inside. She never opened it.
-So the one word he sent her she obeyed for sixty years without ever reading it.
+So the one word he sent her she obeyed for sixty-two years without ever reading it.
 
 So each of them believed the other guilty, and each kept the secret to protect the other.
 
@@ -149,11 +149,11 @@ So each of them believed the other guilty, and each kept the secret to protect t
 a room in Sangenjaya, fifteen minutes from the corner. Every 10 October he stood at the kerb where
 he had taken the photograph, and did not cross: she had a life, he thought, and he was the worst
 thing that had happened in it. Tatsuo told Sumiko the truth on his deathbed in 1989. She looked for
-a Mizuno and found nobody. She went on coming to her kerb every 10 October. For forty-eight years
-they stood on opposite kerbs of the same crossing for one hour a year and never saw each other
+a Mizuno and found nobody. She went on coming to her kerb every 10 October. For fifty years, 1976 to
+2025, they stood on opposite kerbs of the same crossing for one hour a year and never saw each other
 through it.
 
-Akira died in March of this year, aged 86. His will paid for one thing: somebody with a camera on
+Akira died in March of this year, 2026, aged 87. His will paid for one thing: somebody with a camera on
 her corner at 17:14 on 10 October, carrying the old plan of the kerb on which he had pencilled the
 same word. (The office reads it out in the first minute; Mr Tanaka says whose hand it is in frame 6;
 the ticket's back shows it on the last card.)
@@ -202,7 +202,7 @@ It was, until November 2026, a surveyor of the old map: a construction worker's 
 radio, a fair-haired woman or a dark-skinned man. That is a figure from a building site, not a person in this story.
 What Rocketbox's faces cannot do in a close shot (no blendshapes, no mouth) waits on issue 12, with everyone's.
 
-**Sumiko is alive.** She is 82. She is the old woman with the clear umbrella who is at the Hachiko
+**Sumiko is alive.** She is 84. She is the old woman with the clear umbrella who is at the Hachiko
 kerb in the opening shot of every episode. The girl of 22 is what she left there.
 
 This is the first 10 October on which both of them have an afterimage at the crossing. That is why
@@ -243,12 +243,12 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 | # | Hour | Where, and the picture | The living | Who moves in the Stop | What turns over |
 |---|---|---|---|---|---|
 | 1 | 17:14 | Her kerb, north-west of the Scramble: **the stopped crossing under its screens** | (the old woman with the clear umbrella is at the kerb) | Sumiko, 22 | She gives you his camera. A name under the base plate: 水野 |
-| 2 | 17:19 | Under the **Center Gai arch**, looking back across the crossing to the station kerb | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
-| 3 | 17:24 | **Hachiko**, with the station behind | (an old man by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
+| 2 | 17:19 | **The tram stop at the station kerb**, from the old man's stone cherry blossom in the square by Hachiko: the boy's box near, the tram behind it | Shun at the vintage shop reads the camera: 29 frames taken, never developed | Nobody: the one Stop that is empty | A shoeshine boy's pitch at the tram stop, and nobody on the stool. Somebody was seen at that kerb |
+| 3 | 17:24 | **Hachiko**, with the station behind | (an old man on a stone blossom by the statue is watching the camera) | The detective at the police box, who asks who you are and knows a lie | He came, between two policemen, and did not cross. He confessed within the hour. In the dead man's fist: a lift girl's glove. The player says whose, or will not |
 | 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man, in three lines and three | She left him alive. What came up the stair after her was nailed boots: his works wore them, and so did the lecturer. It was not her; the player names whose |
 | 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair. Each lover believed the other guilty and kept silent |
 | 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again. Across the road, in the held crowd, a clear umbrella turns | Mr Tanaka by Hachiko: he was the boy (he asks to be shown his pitch); the sentence he never delivered; Akira lived fifteen minutes away for 48 years; who hired you | Akira, new this year | What he could not carry across is under the camera's base plate, and cannot be looked at while there is film in it |
-| 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 82: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses. On the last card the camera is opened: her ticket, and one word |
+| 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 84: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses. On the last card the camera is opened: her ticket, and one word |
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
@@ -326,7 +326,7 @@ it is inside the lines.
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
 | 1 | her corner | the board for the planetarium's evening lecture | she waited under it, for a man who "counted stars for a living" |
-| 2 | the station kerb, from the arch | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
+| 2 | the station kerb, from the stone cherry blossom by Hachiko | a tram at its stop, a shoeshine boy's box and stool beside it | the boy's pitch, where the man sat and gave him the message and the camera |
 | 3 | Hachiko | the red lamp of the police box | where the man gave himself up |
 | 4 | east, from the roof | the planetarium's dome, inside Hikarie | where he lectured; the tickets were for its last show |
 | 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
@@ -355,16 +355,63 @@ stops. The title falls once more, in that Stop, and nowhere else in play (`order
 It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
 away for the card, and was then come down to again from the air. Out, for that reason.
 
-**Two places are found, not shown.** A light on the ground for every standpoint made the player the camera's operator:
-seven frames and never a choice of where to stand. In two frames the place is the deduction, and nothing stands on it:
+**Every place but the first is found, not shown, and a hint is the player's to ask for.** A light on the ground for
+every standpoint made the player the camera's operator: seven frames and never a choice of where to stand. The first frame
+has its light, because it teaches what a light is (where a picture is taken from) before it is taken away; the third
+has no standpoint, only a thing to find in the finder (the red lamp by Hachiko); in every other frame the place is the
+deduction, and nothing stands on it until the player asks:
 
-| Frame | What is withheld | What the player has instead |
+| Frame | Where the picture was taken from | What the player has to find it by |
 |---|---|---|
-| 2 | the light and the mark at the standpoint (`task.find`) | the goal says what the frame looks at and from under what; with the camera up, the rangefinder's patch warms within three times the standpoint's radius and is lit in it |
-| 6 | the ring at his kerb (`find` on the frame) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
+| 2 | a stone cherry blossom set in the paving of the square by Hachiko (one of four round its planters; `cities/shibuya/city.py` `HK_BLOSSOMS`) | Shun, just before: every year on this night an old man stands on one of them and looks at the crossing, because *somebody stood there once*. Stand where the man stood. The old man is the boy (frame 6), standing where the man who gave him the camera stood; the print is of his pitch, the box near, the tram for Sangenjaya behind it |
+| 4 | the glass of the roof beside Kanbara, where he looks down at where the dome stood | the dead man himself: he stands at the place, and looks where the picture looks |
+| 5 | the street a few steps from Tatsuo on Hikarie's side, where it opens straight ahead the way the water ran | the foreman himself, looking at where his river ran |
+| 6 | his kerb, across the crossing from her corner (`find` on the frame: the world stops there) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
+| 7 | no standpoint: any place that has both kerbs in one frame (`task.both`; the hints lead to the west corner, `hint_at`) | the goal: from the middle you can face only one of them |
 
-Nobody is left looking: after half a minute the goal says more (`find2`, `goal2`), and after `find_s` (80 s, 90 s) the
-light stands there as it does in the other frames. `tools/story_play.js` fails a found frame that has a mark on it.
+Tonight the old man stands on his blossom all evening, looking at the crossing, so what Shun says of him is seen.
+
+A place to be found is a thing in the street a player can walk up to and know (a stone flower in the paving, a man at
+the glass, a kerb in a print), and it is in the story for a reason of the story's: the old man's blossom is where the
+man stood who gave a boy a camera; the roof's glass is where the dead man looks; the kerb is where Akira stood for one
+minute between two policemen. The words say what to look for, never which way to walk.
+
+With the camera up, the line through the rangefinder's patch is cut in two, its halves as far apart as the place is far
+off, and they close as it comes near (a split-image finder's), at every distance, with what it measures under it (*the
+place · far, nearer, here*). Of four blossoms, the line closes on one.
+
+**A hint is asked for, never given.** A second line on a timer and a light after a minute and a half decided for the
+player when they were stuck, and gave the place away to one who was about to find it. Now nothing more is shown until
+they ask: H (a pad's d-pad up, or the button on the right, its three dots the three hints) gives the next of three, each
+saying more (`hints` on the frame or its task):
+
+1. a word that narrows it (the four blossoms, and that the line closes on his);
+2. the dog: he goes to the place and sits there, looking at what the picture is of (he is the one sign inside the story,
+   so he is the hint too; where the world stops, he leads there and nothing else shows the way);
+3. the light on it, as the other frames have.
+
+After 45 s of looking without one the button is offered once (*Stuck? H for a hint*) and pressed for nobody. The last card
+says which places were found alone and which with a hint, and which. `tools/story_play.js` asks for all three on each
+found frame and fails if they do not come in turn; it fails a found frame that has a mark on it before they are asked for.
+
+**A place to find is told by what can be found there, and answered at every distance.** The first wording of frame 2
+sent the player under the Center Gai arch, where the world stops; the standpoint had been moved 44 m off for the tram's
+framing, to the crossing's edge behind the boy's box, and nothing said so. The player stood where the words said, every
+release said *not from here*, and the patch warmed only within nine metres of a place nobody had named. From first
+principles, a place to be found has to be:
+
+- a thing in the street that can be walked up to and known, said in the story's words, never a name of the map that the
+  place does not have;
+- answered all the way there, so that a step nearer can be told from a step away: the split line;
+- one fact with its words: `tools/find_probe.js` plays the frame to its camera and takes stills from where the world
+  stops, from the standpoint and from points given, with what the finder says at each, and after a hint asked for.
+
+Learnt from games that hide a place in a picture or a word: the paintings of *Elden Ring*, found by standing where they
+were painted; the memories of *Breath of the Wild*, photographs matched to the land; the treasure maps of *Red Dead
+Redemption 2*, drawings of a view. And from games that trust the player to look before they are helped: *The Witness*
+and *Return of the Obra Dinn* give no hints at all, and the *Professor Layton* games give theirs only when asked, three
+to a puzzle, each saying more than the last. In each the clue is the place's own and the answer is given on the spot. Nothing of theirs is copied; the split-image line is a camera's own (the focusing screens of the 1950s
+and the rangefinders' coincident images).
 
 **The player's word decides what comes after.** Deduction that is recited to the player is not deduction. So what
 the player says is kept (`flags` in `web/game/story.js`, in the save) and answered later:
@@ -422,7 +469,7 @@ and the line is written on it in the file's hand and pen as it is said; a line t
 
 **The second frame's Stop is empty.** Seven frames had one shape (walk, the living, the Stop, the one who still moves,
 the camera). In the second nobody moves: a stool at a tram stop, and the place to find alone. The boy who sat on it is
-met alive, at seventy-four, in the sixth, and is not heard twice.
+met alive, at seventy-six, in the sixth, and is not heard twice.
 
 **It opens in the Stop, and the voice comes after.** The world stops a second after the player is given the street;
 the office rings only when time runs again: who you are (a photographer, late), why this kerb, the word pencilled on the
@@ -441,6 +488,12 @@ and *Death Stranding* (shape and colour first, words second; nothing copied from
 | `meet`, `ghost`: someone to talk to | a speech mark; paper for the living, blue for an afterimage | `Talk · 12 m` | pale column |
 | `stand`: where the picture is taken from | a camera, amber | `Stand here · 8 m` | amber column and ring |
 | `frame`: the thing the picture is of | a finder's corners, amber | `Frame this` (no metres) | none |
+
+**One light standing in the street at a time.** Whatever the step, the street has at most one column of light in it,
+the story's own, on the one thing to do now. The free game's quests went on under the story and their objective column
+stood beside it (over the Center Gai arch, then over SHIBUYA SKY's door, and in the finder over the picture being
+taken); while the story is on it is not drawn, and `tools/story_play.js` fails a beat's still that has it. A light is a
+promise that the next thing is there; two are a choice nobody asked for, and the picture is the poorer for each.
 
 A thing to photograph is turned to, never walked to, so it carries no distance: on the roof the dome's mark read
 "143 m" under an arrow and sent the player looking for a way off the edge. With the camera up the finder's own
@@ -468,6 +521,31 @@ said only that someone stood behind it. He rides a lift at the player's side, an
 found at the top. Learnt from *Ico*, *The Last Guardian* and *Firewatch*, where a companion or the place itself
 carries the way; nothing of theirs is copied. `tools/story_play.js` fails a frame in which he leads and the
 way is shown twice.
+
+**He keeps the player's pace.** A player runs at 6 m/s unless they choose to walk, and he led at a walk or a trot (1.2
+to 3 m/s): he was overtaken at every step, stood waiting for someone already ahead of him, and the arrow to him sat at
+the foot of the frame pointing at the floor ("Hachi", on SHIBUYA SKY's floor), or at a wall he was behind. He now keeps
+a gap in front of them that grows with their speed, at their speed, at a gallop when they run (a rotary gallop,
+`blender/build_dog.py` `run`); stops and looks back when they stop; and runs past them when they are further along the
+way than he is (`companion.js` `onAhead`). The arrow to him is shown only where he is in sight and in front of them: out
+of sight he is called back (`call`), and behind them on the way he is already running to be in front again. In a
+stopped world the crowd is a field of posts, and his way through it is planned once on a grid (A*, each person a disc
+he may not enter and a margin he would rather not, the way pulled straight where nothing stands in it): between them
+where there is room, round the edge of the crowd where there is not, never through a coat. Pushed off each person in
+turn he got nowhere in a crowd shoulder to shoulder, and after a second went through them. `tools/guide_meet.js`
+checks every frame of his way against every held person, and runs after him to see that he stays in front.
+
+**He is met, not found.** The first time the world stops the view turns once round you under the title, and then cuts
+to him: low among the held legs a dozen metres off, on his feet and looking at you; it backs away before him as he
+comes, swings round behind him as he nears you, and holds on the two of you as he sits at your feet and looks up,
+before it is eased round to behind you (`story.js` `meetGuide`, `guide.meet` on the episode; game.js draws its pose).
+Two lines go with him, at the foot of the frame between the bars: *A dog is walking through the stopped crowd. He is
+coming to you.*, and as he looks up, *He looks up at you, as if you were the one he had been waiting for.* The bronze by
+the station is of a dog who came to that station every evening for nearly ten years for a man who did not come back,
+and the story is about waiting. Space, Enter, Esc or the button end it with him beside you; with reduced motion asked
+for, he comes to you as before. Its grammar is film's: a subject walking into a lens that backs away at his own eye
+height, and a half turn round two figures that puts them in one frame. The owner asked for it: the crowd stopped, the
+camera given to the dog coming slowly, the words with him, and the camera with him all the way to your side.
 
 A flight between frames (frame 5's way down from the roof) is part of the telling: it is skipped only by Space,
 Enter or Esc, and not in its first second and a half. Any key used to skip it, so the E that closed the last line,
@@ -508,7 +586,7 @@ things are the evidence and the rest is testimony. Not yet: the old woman's clea
 | What the player must be able to work out | Shown first | Needed |
 |---|---|---|
 | Sumiko is alive: the old woman with the clear umbrella | The opening shot of every episode from 1; she is the only bystander who is at the kerb every evening, and in the Stop she is the only stopped person looking at the girl | 6 |
-| *You came late* was said by a living voice | Episode 1: the line is heard a beat before the girl turns | 6 |
+| *You came late* was said by a living voice | Episode 1: the line is heard in the old woman's voice, under no name (*A voice · tonight*), a beat before the girl turns (`{ by: 'old' }` on the line) | 7 |
 | An afterimage need not be dead | The empty stool (2): nobody was left there, because the boy walked on, and is met alive (6) | 6 |
 | An afterimage cannot see past its kerb, or a print | Her fifth line (1); Kanbara asks whether the dome is there (4); Tatsuo is told, not shown (5) | 6, 7 |
 | Sumiko ran a lift, and had one glove at 17:14 | Her third line (1): *straight from the lift at the store, one glove on* | 3 |
@@ -521,7 +599,40 @@ things are the evidence and the rest is testimony. Not yet: the old woman's clea
 | Akira lived, and where | The tram for Sangenjaya at its stop (2); Tanaka (6) | 6, 7 |
 | Who hired you, and the word on the plan | The office, when time first runs again (1): 待つ pencilled on that corner | 6, the last card |
 | He came, and did not cross | The detective walked him to the kerb, a constable on his other side (3) | 6 |
-| The crossing was not a scramble in 1964 | The 1964 prints: no diagonal stripes on the road (1, 2, 6) | 7 |
+| The crossing was not a scramble in 1964 | Said as the world runs on after the last frame (7). The prints are tonight's street with the things of 1964 in it, so their road has tonight's stripes, and cannot show it | 7 |
+
+### The words checked against the street (November 2026)
+
+Every line of the episode was read against where things stand and against the truth above, once every place but the
+first was to be found from the words. What was wrong, and is mended:
+
+- Frame 2 sent the player under the Center Gai arch for a standpoint 44 m off (the words and the place were written by
+  two hands); its old man stood by the statue, on none of the blossoms Shun says he stands on. Both now agree.
+- Frame 1's *You came late* was the girl's line in her own voice, so frame 7's *That was me, the first time, too* had
+  nothing under it. It is the old woman's, as this bible always had it.
+- Frame 4's lift girl at the store over the station could not have seen the Hayase girl go up the planetarium's roof; she
+  saw her go over to the planetarium and come back with one glove.
+- Frame 5 said to look north-east; the river is north of its standpoint.
+- The clear umbrella is not built (see *Built, and not yet*), and two lines described it in the held crowd and on the
+  crossing; they say an old woman until it is.
+- The pairs counted steps between places that have moved: forty steps from her corner to the tram stop's kerb,
+  twenty-five from the police box to the stool.
+- The fair-play row on the scramble's stripes could no longer hold (above).
+
+What is the owner's to decide, with the default taken until then:
+
+- **The year** (decided by the owner, November 2026). The story was written sixty years on (Sumiko 82, Mr Tanaka 74,
+  Akira dead at 86, his afterimage of 2023: 2024), and the street is the newest real one, which says 2026 (*AW 2026* and
+  *SHIBUYA 2026* on the screens, an arena tour of 2026, the Nishiguchi Sky Vision of May 2026, 令和八年 on the ema). The
+  street cannot go back, so the story came forward: tonight is Saturday 10 October 2026, sixty-two years on. Sumiko is
+  84, Mr Tanaka 76, Akira died in March aged 87 and his afterimage is of 2025 (his last tenth of October alive), and the
+  two of them stood on opposite kerbs for fifty years (1976 to 2025). *Sixty years* stays in what people say, as people
+  round a long time; what is counted (an age, a year, the pairs' years) is exact.
+- **Kanbara's afterimage is on SHIBUYA SKY's roof**, 200 m from where he was left (the planetarium's roof, on Hikarie's
+  site), and rule 4 says an afterimage stays within a few steps of where it was left. His lines suppose he is on his own
+  roof (*the lecturer photographs the sky from this roof*). Default: keep him there, and let rule 4 say what the story
+  does: one who fell is left at the height he fell from, and is met at the nearest place a living person can stand that
+  high and see the spot; until the owner says, the rule and the frame disagree.
 
 ## 8. What the game has to do to tell it
 

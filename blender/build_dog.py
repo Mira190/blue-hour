@@ -13,7 +13,8 @@ the legs and the underside of the tail. Hachiko's coat was a pale cream fawn (hi
 Museum of Nature and Science, Ueno); the fawn here is kept light for that.
 
 Clips, all on the spot (the page moves him): `idle` (standing, the tail moving), `walk` (a four-beat walk at
-WALK_SPEED), `trot` (diagonal pairs at TROT_SPEED) and `sit` (as the statue sits). The legs are placed by
+WALK_SPEED), `trot` (diagonal pairs at TROT_SPEED), `run` (a rotary gallop at RUN_SPEED, as a dog runs to keep ahead of
+someone running: hind, hind, fore, fore, and a moment with no paw down) and `sit` (as the statue sits). The legs are placed by
 inverse kinematics in his sagittal plane, so a paw on the ground stays on it and travels back at the clip's speed.
 
     pip install bpy==5.2.3
@@ -36,6 +37,7 @@ CELL = 0.011          # the sculpt's grid
 FPS = 30
 WALK_SPEED, WALK_T = 0.95, 0.74      # m/s over the ground, and one stride's seconds
 TROT_SPEED, TROT_T = 2.3, 0.44
+RUN_SPEED, RUN_T = 6.0, 0.32         # (about three strides a second: a dog's gallop)
 HEAD_AT = (0.47, 0.0, 0.83)          # the middle of his skull, standing
 LEG_Y, HIND_Y = 0.10, 0.11
 
@@ -196,8 +198,9 @@ def toe_turn(u, duty, amount):
     return -amount * (0.5 + 0.5 * math.sin(math.pi * w)) * (1 - w)
 
 
-def clip_gait(T, speed, duty, phases, lift, drop, bob, nod):
-    """A walking clip's frames: phases (LF, RF, LH, RH)."""
+def clip_gait(T, speed, duty, phases, lift, drop, bob, nod, beats=2, rock=0.8, rock_at=0.6, bob_at=0.0):
+    """A walking clip's frames: phases (LF, RF, LH, RH). beats: how often the trunk rocks and bobs in a stride (twice in
+    the walk and the trot, whose two halves are alike; once in the gallop); rock: how far it pitches, degrees."""
     n = int(round(T * FPS))
     sweep = speed * T * duty
     frames = []
@@ -205,9 +208,9 @@ def clip_gait(T, speed, duty, phases, lift, drop, bob, nod):
         u = f / n
         lf, rf, lh, rh = (step(u + p, duty, sweep, lift) for p in phases)
         w = 2 * math.pi * u
-        frames.append(pose(root=(0.0, -drop + bob * math.cos(2 * w)), pitch=math.radians(0.8) * math.sin(2 * w + 0.6),
+        frames.append(pose(root=(0.0, -drop + bob * math.cos(beats * w - bob_at)), pitch=math.radians(rock) * math.sin(beats * w + rock_at),
                            fore=(lf, rf), hind=(add(lh, (0.02, 0)), add(rh, (0.02, 0))), foot=(toe_turn(u + phases[2], duty, 0.9), toe_turn(u + phases[3], duty, 0.9)),
-                           neck=math.radians(nod) * math.sin(2 * w + 1.2) - math.radians(4), head=math.radians(3) + math.radians(nod * 0.5) * math.sin(2 * w + 2.0),
+                           neck=math.radians(nod) * math.sin(beats * w + 1.2) - math.radians(4), head=math.radians(3) + math.radians(nod * 0.5) * math.sin(beats * w + 2.0),
                            tail=math.radians(2) * math.sin(2 * w), wag=math.radians(5) * math.sin(w)))
     return frames
 
@@ -240,6 +243,9 @@ CLIPS = {
     "idle": clip_idle,
     "walk": lambda: clip_gait(WALK_T, WALK_SPEED, 0.62, (0.5, 0.0, 0.25, 0.75), 0.05, 0.022, 0.004, 2.5),
     "trot": lambda: clip_gait(TROT_T, TROT_SPEED, 0.44, (0.0, 0.5, 0.5, 0.0), 0.075, 0.03, 0.012, 1.5),
+    # (the hinds land at 0 and 0.1 of the stride, the fores at 0.35 and 0.45; off the ground from 0.72: the trunk nose up
+    # as the hinds drive, nose down on the fores, and highest in the air)
+    "run": lambda: clip_gait(RUN_T, RUN_SPEED, 0.27, (0.55, 0.65, 0.0, 0.9), 0.12, 0.05, 0.03, 5.0, beats=1, rock=5.0, rock_at=0.31, bob_at=2 * math.pi * 0.86),
     "sit": clip_sit,
 }
 

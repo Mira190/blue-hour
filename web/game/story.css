@@ -181,6 +181,19 @@
 #g-story-finder::after { transition: background 0.6s ease, box-shadow 0.6s ease; }
 #g-story-finder[data-fix="near"]::after { background: rgba(255, 207, 138, 0.3); box-shadow: inset 0 0 0 1px rgba(255, 207, 138, 0.7); }
 #g-story-finder[data-fix="on"]::after { background: rgba(255, 207, 138, 0.5); box-shadow: inset 0 0 0 1.5px var(--amber), 0 0 26px rgba(255, 207, 138, 0.5); }
+/* (and it is a split-image rangefinder's: a short upright line through the patch, cut at its waist, the upper half pushed
+   one way and the lower the other as far as the place is far off (--split, px, story.js); they close as you come to it
+   and are one line, amber, on it. Under the patch, in the camera's small type, what it measures) */
+#g-story-finder .rf { display: none; position: absolute; left: 50%; top: 50%; width: 74px; height: 50px; margin: -25px 0 0 -37px; }
+#g-story-finder[data-fix] .rf { display: block; }
+#g-story-finder[data-fix="far"]::after { background: rgba(4, 8, 18, 0.22); box-shadow: inset 0 0 0 1px rgba(244, 239, 230, 0.55); } /* (the patch a shade darker than the street, so that the line on it is read) */
+#g-story-finder .rf b { position: absolute; left: 50%; width: 3px; height: 21px; margin-left: -1.5px; border-radius: 1px; background: var(--paper); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 6px rgba(0, 0, 0, 0.6); transition: transform 0.3s linear, background 0.4s ease; }
+#g-story-finder .rf b:first-child { top: 4px; transform: translateX(calc(var(--split, 30) * -1px)); }
+#g-story-finder .rf b + b { bottom: 4px; transform: translateX(calc(var(--split, 30) * 1px)); }
+#g-story-finder[data-fix="on"] .rf b { background: var(--amber); }
+#g-story-finder .rf small { position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: rgba(244, 239, 230, 0.8); text-shadow: 0 1px 8px #000, 0 0 2px #000; }
+#g-story-finder .rf small { transition: opacity 0.6s ease, color 0.4s ease; }
+#g-story-finder[data-fix="on"] .rf small { color: var(--amber); opacity: 0; transition-delay: 1.4s; } /* (on the place, the joined line says it: the words go, and the picture is left as plain as it can be) */
 #g-story-shutter { position: absolute; left: 50%; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 16px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-shutter.on { display: flex; }
@@ -530,3 +543,36 @@
 
 /* an answer the hand is on (the arrows, a pad's d-pad): an outline as well as the amber, so it is seen without its colour */
 .game-stage.story .gd-choices button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* ---- the story's own film (story.js meetGuide: the guide coming to you through the stopped crowd): the bars of the
+   overture's film, its words at their foot as a film's are, in the story's display face, and a quiet way to end it.
+   While it plays nothing of the story's instruments is on the picture */
+#g-story-mov { position: absolute; inset: 0; z-index: 7; pointer-events: none; opacity: 0; transition: opacity 0.6s ease; }
+#g-story-mov.on { opacity: 1; }
+#g-story-mov p { position: absolute; left: 0; right: 0; bottom: calc(8.5vh + 26px); margin: 0 auto; width: min(760px, calc(100% - 48px)); text-align: center;
+  font: 300 clamp(15px, 1.45vw, 19px)/1.55 var(--f-display); letter-spacing: 0.02em; color: var(--paper); text-shadow: 0 1px 14px rgba(0, 0, 0, 0.75), 0 0 2px rgba(0, 0, 0, 0.6); opacity: 0; }
+#g-story-mov button { position: absolute; right: max(16px, 3vw); top: calc(8.5vh + 10px); pointer-events: auto; /* (over the picture's top, under the bar: at the foot it met the words on a screen 800 wide) */ cursor: pointer; background: none; border: 0; padding: 10px 0;
+  font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); opacity: 0; transition: opacity 0.8s ease 1.4s, color 0.3s; }
+#g-story-mov.on button { opacity: 1; }
+#g-story-mov button:is(:hover, :focus-visible) { color: var(--paper); }
+.game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
+@media (max-width: 640px) {
+  #g-story-mov p { bottom: calc(8.5vh + 18px); width: calc(100% - 32px); font-size: 15px; }
+  #g-story-mov button { right: 16px; }
+}
+
+/* ---- a hint, asked for (story.js hint): where a place is to be found, a quiet button on the right, the camera's small
+   type; its three dots are the three hints, filled as they are taken. It is offered once (.nudge) after a while of
+   looking, and never pressed for the player */
+#g-story-hint { position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px)); z-index: 8; display: none; align-items: center; gap: 10px;
+  padding: 9px 13px; border: 1px solid rgba(244, 239, 230, 0.35); border-radius: 2px; background: rgba(4, 8, 18, 0.55); color: rgba(244, 239, 230, 0.86); cursor: pointer;
+  font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; transition: border-color 0.3s, color 0.3s; }
+#g-story-hint.on { display: flex; }
+#g-story-hint i { font-style: normal; letter-spacing: 0.18em; color: var(--amber); }
+#g-story-hint kbd { min-width: 0; padding: 3px 6px; border: 1px solid rgba(244, 239, 230, 0.45); border-radius: 2px; font: inherit; letter-spacing: 0; }
+#g-story-hint:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); }
+#g-story-hint.nudge { animation: g-story-hint 1.4s ease-in-out 3; }
+@keyframes g-story-hint { 50% { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 18px rgba(255, 207, 138, 0.35); } }
+.game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
+@media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
+@media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }

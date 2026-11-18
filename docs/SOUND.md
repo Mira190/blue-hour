@@ -98,6 +98,33 @@ helicopter), `viaduct` on foot under a roof (`weather.covered()`), `open` otherw
 | inside (a lobby, a lift) | 0.7 s | −12 dB | 6 to 24 ms |
 | roof (230 m up) | 0.4 s | −26 dB | one, faint |
 
+## Trains
+
+A train going by is told from a jet by its wheels. What the ear takes for a train, from the way railway noise is made
+(D. Thompson, *Railway Noise and Vibration*, 2009: the impact of wheels at joints, the rolling noise of the wheels and
+rail, and a steel bridge's own sound, radiated low by its plates): a bogie at a time over the rail's joints and a
+deck's, its two axles a wheelbase (2.1 m) apart; a car's two bogies 0.69 of its length apart and the next car's front
+bogie close behind the last one's rear, so that at a joint it goes *ta-tan . . . ta-tan ta-tan . . . ta-tan*; the roll of
+the wheels swelling with each bogie as it passes, since the wheels are where it comes from; and overhead on a steel
+deck, the deck struck by every axle, a low boom under the clatter. Far off, only the rumble: the air takes the high
+sound first. The inverter's whine is heard while the motors work, pulling away or braking, and not while the train
+coasts.
+
+What it was: a bed of low noise with a hiss over it (a bandpass round 1.5 kHz, Q 0.5) swelling slowly from 240 m off
+and falling as slowly, the wheels once a car length and soft (a low-passed thud), and the whine left on at a fixed
+pitch as the train coasted, a thin steady tone at 1.2 kHz through the whole passage: a turbine. Under the bridge it was
+an aircraft going over, as the owner heard it (November 2026).
+
+So (`audio.js` `trainAt`, driven by `trains.js` with the distance to the nearest car, how far the rail is over your ears,
+the speed and a car's length): the bogies' rhythm, each a tick, the wheel's body and the axle's knock, with the roll
+swelling past under it; the roll's hiss only within 45 m; the deck's drum (50 to 80 Hz) and each axle's boom on it when
+the rail is more than 3 m over you within 30 m; and no whine while it coasts. `tools/train_sound.js` renders eleven
+cars at 54 km/h under the bridge and in the street beside the viaduct, offline, to WAV, and reads the rhythm (the
+envelope's autocorrelation while it is by: 0.48 and 0.50 as it was, 0.75 and 0.66 now), the share of the sound over
+1 kHz from 60 to 150 m off (10 to 11 %, now 5 %) and, under the bridge, the share under 110 Hz while it is overhead
+(35 %, now 59 %). Its loudest 400 ms is −28.6 LUFS under the bridge and −30.6 beside the viaduct, 2.7 and 1.6 dB over
+what it was: the rhythm, not the level, was what was missing.
+
 ## Levels
 
 `NODE_PATH=$(npm root -g) node tools/sound_render.js <dir>` renders each cue offline (Chromium's
