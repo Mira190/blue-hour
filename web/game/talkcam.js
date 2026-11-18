@@ -30,7 +30,7 @@ window.OETalkCam = (function () {
   const LENS = { two: 48, single: 40, close: 28, reverse: 46 };   // horizontal angle of view (40, 50, 75 mm on a full frame), degrees
   const PORTRAIT = { two: 50, single: 40, close: 30, reverse: 46 }; // a screen held upright: the vertical angle instead
   const BODY_R = 0.3, HEAD_TOP = 1.85;
-  const RING = 1.1; // (nobody of the crowd within this of the face a shot is on: a stranger at the shoulder of a close shot reads as one of the talk)
+  const RING = 1.6; // (nobody of the crowd within this of the face a shot is on: a stranger at the shoulder of a close shot reads as one of the talk)
   const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
   function create(o) {
     const walls = o.walls, trees = o.trees || (() => []), bodies = o.bodies || (() => []);

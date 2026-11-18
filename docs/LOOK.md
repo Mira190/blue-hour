@@ -290,7 +290,7 @@ A clear line is not a clear frame (issue 45): a held walker a shoulder's width o
 the summation's close shot, the old woman pushed to its edge and half hidden, and a stranger with an umbrella
 stood at her shoulder in the two-shot as though one of the talk. At each cut the shot is cleared of the crowd it
 would show in front of the face (everyone nearer the lens than a pace beyond the face whose body, or an open
-umbrella's canopy, comes into the frame) and of anyone within 1.1 m of the face: a walker among them is sent on
+umbrella's canopy, comes into the frame) and of anyone within 1.6 m of the face (an umbrella held over a stranger at her back stood over her head): a walker among them is sent on
 elsewhere, as one the crowd is done with, and someone waiting at a scramble's kerb is left undrawn until the
 next cut. A cut hides the change, in a Stop as in the running street. The street behind the face keeps its
 people: they are the life behind a talk.
