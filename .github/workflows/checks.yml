@@ -89,7 +89,9 @@ jobs:
         if: matrix.target != 'static'
         uses: actions/cache@v4
         with:
-          path: ~/.cache/mesa_shader_cache
+          path: |
+            ~/.cache/mesa_shader_cache
+            ~/.cache/mesa_shader_cache_db
           key: mesa-${{ matrix.target }}-${{ github.run_id }}
           restore-keys: mesa-${{ matrix.target }}-
       - name: Chromium, Xvfb and Mesa's software renderer
