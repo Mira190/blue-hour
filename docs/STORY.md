@@ -367,7 +367,7 @@ deduction, and nothing stands on it until the player asks:
 | 4 | the glass of the roof beside Kanbara, where he looks down at where the dome stood | the dead man himself: he stands at the place, and looks where the picture looks |
 | 5 | the street a few steps from Tatsuo on Hikarie's side, where it opens straight ahead the way the water ran | the foreman himself, looking at where his river ran |
 | 6 | his kerb, across the crossing from her corner (`find` on the frame: the world stops there) | Mr Tanaka has just been shown the second print, which is of that kerb: the roll is the map |
-| 7 | no standpoint: any place that has both kerbs in one frame (`task.both`; the hints lead to the west corner, `hint_at`) | the goal: from the middle you can face only one of them |
+| 7 | no standpoint: any place that has both kerbs in one frame (`task.both`; the hints lead to the south-west corner's plaza, `hint_at`) | the goal: from the middle you can face only one of them |
 
 Tonight the old man stands on his blossom all evening, looking at the crossing, so what Shun says of him is seen.
 
@@ -665,9 +665,12 @@ best detective games. What a detective story owes its player, in one line each, 
    the corner the hints lead to, two pale figures forty metres off stood among a held crowd of umbrellas. Now each must be
    in sight of the lens (`ctx.seen`) and within 60 m, and when the frame begins the held crowd steps out of the two ways
    from that corner to them (`ctx.clear`, the clearing a relic's sightline already had) and out of a ring round each
-   (`ctx.clearRound`), so that each stands alone on a kerb. The two are about 50 degrees apart from that corner, and in
-   the default finder they stood at its very edges: the frame has a wide lens of its own (`task.lens` 50), kept wide on a
-   phone held upright (a frame's own lens narrows a phone's view only where it is long, to read a thing of 1964).
+   (`ctx.clearRound`), so that each stands alone on a kerb. From the kerb at that corner the two are 50 degrees apart,
+   and a phone held upright saw no more than 53 across (its view capped at 95 degrees from top to bottom): no way to
+   finish the story on a phone. The hints' light is now ten metres back in the corner's plaza (44 degrees between them,
+   47 m to the further), the frame has a wide lens of its own (`task.lens` 50), and on a phone held upright a frame's own
+   lens narrows the view only where it is long (to read a thing of 1964) and a wide one may open to 105 degrees from top
+   to bottom, about 62 across.
    `tools/story_play.js` takes the last frame from the corner its hints lead to.
 8. **Nothing of ours in the print.** Where a frame has no standpoint (frame 3), the guide went to sit 2.2 m before the
    thing on the line from the player to it, and his head filled the foot of the print. He sits beside it now, off that

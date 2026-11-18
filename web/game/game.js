@@ -6644,7 +6644,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
         // narrow screen through about 0.7 of that angle across its width, so that on a phone the thing is near the size it
         // is in a desktop's finder, and its lettering can be read
-        const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lensWas != null && f0 < 45 ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a frame's wide lens, the last frame's two kerbs, keeps the film frame's width on a phone too)
+        const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(lensWas != null && f0 >= 45 ? 105 : 95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lensWas != null && f0 < 45 ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
         if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); }
         player.rig.root.visible = false; fpOn = true;
       }
