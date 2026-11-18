@@ -2166,10 +2166,30 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const end = {}, P = o.drv.path;
     P.at(o.drv.st.end, end);
     o.meter += o.drv.remaining();
-    // (it stands where it is while the view goes on ahead, and is set down there at the end: driven on under the hop, out of
-    // sight, it once went into the Scramble as its walk began and stood among the walkers)
+    // (it stands where it is while the view goes on ahead: driven on under the hop, out of sight, it once went into the
+    // Scramble as its walk began and stood among the walkers. At the top of the hop it is set down short of its stop, where
+    // its body stands clear of people and cars, and drives in under the view coming down onto it, braking for whoever is on
+    // its way: set down at the stop itself, by Hachiko, it landed on the people crossing there, and they walked through it)
     o.hold = true;
-    hopTo(end.x, end.y, end.z, o.dest.name, { cue: () => { o.hold = false; o.drv.finish(); }, quiet: true });
+    hopTo(end.x, end.y, end.z, o.dest.name, { cue: () => {
+      o.hold = false;
+      const s = setDown(o);
+      if (s == null || o.drv.st.end - s < 2) o.drv.finish(); else { o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
+    }, quiet: true });
+  }
+  // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
+  // where it is) at which its body, and a metre and a half round it, has nobody in it and no car near; null if there is none
+  const SET_DOWN = 30;
+  function setDown(o) {
+    const st = o.drv.st, P = o.drv.path, e = {}, r = o.C.half + 1.5;
+    const clear = (x, y, z) => {
+      const near = q => Math.abs(q.x - x) < r && Math.abs(q.y - y) < r && Math.hypot(q.x - x, q.y - y) < r && (q.z == null || Math.abs(q.z - z) < 3);
+      if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && near(q)) return false; }
+      if (npcs.some(near)) return false;
+      return !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - x, c.y - y) < (c.half || 2.4) + 3.5);
+    };
+    for (let s = st.end; s >= Math.max(st.s, st.end - SET_DOWN); s -= 1.5) { P.at(s, e); if (clear(e.x, e.y, e.z)) return s; }
+    return null;
   }
   // what a ride's driver looks out for (cars.js chauffeur): the traffic, your car, you on foot
   // (one stopped for good, your car left in the lane or a car stuck in a jam, is driven round).
