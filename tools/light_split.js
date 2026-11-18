@@ -72,7 +72,7 @@ const LIGHTS = {
     await shot(`${pre}all`);
     // WHO=1: what the clipped pixels are of. Up to 160 of them (a channel at 250 or more, on a grid), each traced through
     // the lens to the first thing it meets, and counted by material: the share of the frame each puts at white
-    if (process.env.WHO) {
+    const whoIs = async pre => { if (!process.env.WHO) return;
       const who = await p.evaluate(() => {
         const g = window.__game, T = window.THREE, c = document.getElementById('game-gl'), w = c.width, h = c.height;
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const x2 = cv.getContext('2d'); x2.drawImage(c, 0, 0); const d = x2.getImageData(0, 0, w, h).data;
@@ -94,7 +94,8 @@ const LIGHTS = {
         const [pc, what] = [parseFloat(line), line.replace(/^[\d.]+%\s+/, '')];
         if (pc > +process.env.FAIL && !/lamp|light|tube|chase|neon|aviation|bulb|lantern|Points|ShaderMaterial|the sky/i.test(what)) { failed.push(`${pre}: ${line}`); console.log(`FAIL ${pre}: ${line}`); }
       }
-    }
+    };
+    await whoIs(pre);
     for (const k of only.concat(only.length > 1 ? ['everything'] : [])) {
       await p.evaluate(k => {
         const g = window.__game, H = g.hero && g.hero(), W = g.Wd, NU = W.nightU || {};
@@ -108,11 +109,14 @@ const LIGHTS = {
       await shot(`${pre}without-${k}`);
       await p.evaluate(() => { for (const [o, key, was] of window.__pinned) { delete o[key]; o[key] = was; } });
     }
-    // CARD=0.4,0.6: the first light card's strength (its k) at each of these too, a still for each
+    // CARD=0.4,0.6: a light card's strength (its k; the card CARDI, the first by default) at each of these too, a still
+    // for each, and with WHO=1 what is at white in it
+    const ci = +(process.env.CARDI || 0);
     for (const k of (process.env.CARD || '').split(',').filter(Boolean).map(Number)) {
-      const was = await p.evaluate(k => { const C = window.__game.neon.cards[0], w = C.userData.k; C.userData.k = k; return w; }, k);
-      await shot(`${pre}card-${k}`);
-      await p.evaluate(w => { window.__game.neon.cards[0].userData.k = w; }, was);
+      const was = await p.evaluate(([k, i]) => { const C = window.__game.neon.cards[i], w = C.userData.k; C.userData.k = k; return w; }, [k, ci]);
+      await shot(`${pre}card${ci}-${k}`);
+      await whoIs(`${pre}card${ci}-${k}-`);
+      await p.evaluate(([w, i]) => { window.__game.neon.cards[i].userData.k = w; }, [was, ci]);
     }
   }
   await b.close();

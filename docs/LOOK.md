@@ -259,6 +259,12 @@ is (`tools/light_split.js`, a film's camera with the world held): with the card 
 13 % of it clipped; at 0.7, 0.39 and none; at 0.5, 0.35 and none; without it, 0.25. It is 0.5 now, in a neutral warm
 white (#fff0e2), the light of LED shopfronts rather than of sodium.
 
+A card stood 3.6 m over the paving under the Ginza Line station's slab (508, -1064; k 1.1), for the light the city's
+2.8 m underside left out. Frame 5's hero level (`miyamasu`, issue 33) raised the underside to 7 m and bakes its own
+linear lights onto that paving, and with the card still on the new paving went cream and 12 % of frame 5's view
+clipped at 17:39 (7 % at 20:00). Without it: 0.15 %, all of it lamps, and the paving's mean 0.50 at dusk and 0.45 at
+night in its own tones and joints (`tools/light_split.js` `CARDI=3 CARD=0,0.2`). It was taken out.
+
 ### Faces and lights: what may burn
 
 A photograph of Shibuya at night has one thing at white: the lights themselves (a lamp's head, a neon tube, the bulbs

@@ -573,8 +573,7 @@
       "neon": 1,
       "fill": [{ "at": [368.7, -1000.6], "z": 12, "w": 60, "h": 56, "colour": "#fff0e2", "k": 0.5 },
                { "at": [376.6, -1043.4], "z": 4.2, "w": 3.4, "h": 3.4, "colour": "#ffd0a0", "k": 8, "aim": [373.78, -1047.42, 2.2] },
-               {"at": [508.0, -1040.0], "z": 9, "w": 78, "h": 46, "colour": "#ffe2c0", "k": 1.0},
-               {"at": [508.0, -1064.0], "z": 3.6, "w": 80, "h": 42, "colour": "#fff0dc", "k": 1.1}],
+               {"at": [508.0, -1040.0], "z": 9, "w": 78, "h": 46, "colour": "#ffe2c0", "k": 1.0}],
       "sound": { "at": [368.7, -1000.6], "r": 170, "signal": "piyo", "station": [430.0, -1070.0] },
       "note": "neon: the screens' light on the street (web/neon.js); fill: after dark, the light the crossing's shopfronts, floodlights and signs put on the middle of the scramble, where no street lamp stands (a light card over it, medium and high tiers), the light the square's lamps and shopfronts put on Hachiko from his front (a small warm card aimed at him: the lamps are drawn as points, which do not light a bronze); both are estimates of the light, not luminaires that stand there; sound: the crossing's murmur, its screens' music, the walk signal's bird calls and the station's announcements (web/game/audio.js)"
     },
