@@ -24,6 +24,8 @@ to you passes within 0.42 m of a held person's middle or ends away from you, the
 and fails if he is behind the player more than a quarter of the time. A frame whose place is found (`task.find`):
 `tools/find_probe.js` plays it to its camera and takes stills, with what the finder says, from where the world stops,
 from the standpoint and from points given (`AT=x,y;x,y`), so that the words and the place are seen to agree.
+A train's sound (`web/game/audio.js` `trainAt`, `web/game/trains.js`): `tools/train_sound.js` renders one going by under
+the Yamanote bridge and beside its viaduct, offline, to WAV, and reads its rhythm, its hiss far off and its deck's boom.
 
 The static checks:
 
