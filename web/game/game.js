@@ -2200,7 +2200,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (nowhere clear in its last 30 m: further back along its way; and nowhere at all, it drives in from where it stands.
       // Finished at its stop all the same, it was set down on the people crossing there by Hachiko, #28)
       const s = setDown(o) ?? setDown(o, Infinity);
-      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 0.01) o.drv.finish(); else { // (finished at its stop only where the stop itself is clear: a point a step and a half short of it, clear, then set it down on the stop and on whoever stood there, the crowd round Hachiko)
+        o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
