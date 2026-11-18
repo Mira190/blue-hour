@@ -50,7 +50,12 @@ def main():
     M = L["materials"]
     pic = lambda m: bool(M.get(m["material"], {}).get("map")) or "screen" in m["material"] and "frame" not in m["material"]
     solid = [m for m in L["meshes"] if M.get(m["material"], {}).get("opacity", 1) >= 0.6 and not M.get(m["material"], {}).get("cutout")]
-    T_all = [(m["name"], tris(m)) for m in solid]
+    # (each solid's triangles with their boxes, worked out once: they were worked out again for every face checked)
+    T_all = []
+    for m in solid:
+        To = tris(m)
+        tl, th = To.min(1), To.max(1)
+        T_all.append((m["name"], To, tl, th, tl.min(0), th.max(0)))
     bad = []
     for m in L["meshes"]:
         if not pic(m):
@@ -77,10 +82,9 @@ def main():
             best = None
             for sgn in (1, -1):
                 cov, by = np.zeros(len(S), bool), {}
-                for name, To in T_all:
-                    if name == m["name"]:
+                for name, To, tl, th, ml, mh in T_all:
+                    if name == m["name"] or (mh < lo - REACH).any() or (ml > hi + REACH).any():
                         continue
-                    tl, th = To.min(1), To.max(1)
                     near = ((th >= lo - REACH) & (tl <= hi + REACH)).all(1)
                     if not near.any():
                         continue

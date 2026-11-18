@@ -1,10 +1,16 @@
-# Publishes web/ to GitHub Pages on every push to main, with a version number.
+# Publishes web/ to GitHub Pages once the checks have passed on main (.github/workflows/checks.yml), with a
+# version number, and moves the branch `live` to the commit published: Vercel's production deploys `live`
+# (vercel.json; its project's production branch). A main the checks fail is not published, and the site keeps the
+# last commit that passed; the next pass publishes. Run by hand (Actions, Deploy to Pages, Run workflow) it
+# publishes main as it is, checked or not.
 # The version is the major.minor in VERSION plus this workflow's run number (0.1.42), and
 # web/version.json carries it with the commit and the build time for the page to show.
 name: Deploy to Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [Checks]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -19,12 +25,18 @@ concurrency:
 
 jobs:
   deploy:
+    # (a pass of a push to main; a run of the checks by hand may have checked a few targets only)
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
 
       - name: Write the version
         id: version
@@ -32,7 +44,7 @@ jobs:
           base=$(tr -d '[:space:]' < VERSION)
           version="$base.${{ github.run_number }}"
           printf '{"version":"%s","commit":"%s","built":"%s"}\n' \
-            "$version" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > web/version.json
+            "$version" "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > web/version.json
           echo "version=$version" >> "$GITHUB_OUTPUT"
           cat web/version.json
 
@@ -45,8 +57,9 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Tag the release
+      - name: Tag the release, and move live to it
         run: |
           tag="v${{ steps.version.outputs.version }}"
-          git tag "$tag" "$GITHUB_SHA"
+          git tag "$tag" "$SHA"
           git push origin "$tag"
+          git push --force origin "$SHA:refs/heads/live"

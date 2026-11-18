@@ -2,7 +2,7 @@
 # The checks to pass before work lands on main, in one command (docs/CHECKS.md). The project is one story on
 # one map (Blue Hour, at the Shibuya Scramble), so there is one page to check. For what the branch changed
 # against origin/main (or for the targets named) it runs:
-#   static  the checks that open no browser, a minute or two together:
+#   static  the checks that open no browser, half a minute together:
 #           - what the characters and the story say (tools/voice_check.py: locals, not the map's credits);
 #           - the map's lines and quests played to the last stamp without a browser (tools/goals_check.js);
 #           - the packs (buildings, landmarks, game, terrain, places, scene .bin, vis.bin, skyvis.webp and the phone's
@@ -91,6 +91,13 @@ else
      && ! git merge-base --is-ancestor "$last" "$base"; then
     echo "checking what changed since the last pass, $(git log -1 --format='%h %s' "$last" | cut -c1-70) (CHECK_FULL=1 for the whole branch)" >&2
     base=$last
+    # all of it main's, as main has it (main merged in, nothing it changed touched here): main's own checks play it
+    # with this branch once it lands, and only a commit they pass is published (.github/workflows/pages.yml)
+    mainonly=1
+    [ -z "$(git status --porcelain)" ] || mainonly=0
+    for f in $(git diff --name-only "$last" HEAD); do
+      [ "$(git rev-parse -q --verify "HEAD:$f" 2>/dev/null)" = "$(git rev-parse -q --verify "origin/main:$f" 2>/dev/null)" ] || { mainonly=0; break; }
+    done
   fi
   page() { add story walk mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
@@ -110,6 +117,10 @@ else
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
     esac
   done
+  if [ "${mainonly:-0}" = 1 ] && [ -n "$want" ]; then
+    echo "all that changed since the last pass is main's, as main has it: the static checks only, and the rest on main (CHECK_FULL=1:$want too)" >&2
+    want=
+  fi
 fi
 
 if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to this script: a runner's shard

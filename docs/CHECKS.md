@@ -8,7 +8,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 
 | Target | What it does | Tool |
 |---|---|---|
-| `static` | Everything that needs no browser, a minute or two together (below) | several |
+| `static` | Everything that needs no browser, half a minute together (below) | several |
 | `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on, and its Walk Shibuya taken up in the same night (the card gone, the walk's corner up, the evening's people gone once the lens turns away). A still at each beat. Without a GPU one frame in thirty is drawn (`DRAW=30`) and the rest run the game without their draw calls, so that the story keeps its own time on a software renderer; the stills and the photographs are of frames drawn whole | `tools/story_play.js` |
 | `walk` | The title's second way in, on a desktop's page (800x500) and a phone's by touch (390x844): Walk Shibuya only after who you play, its hour and sky as the street behind the card, Back to the story's evening, out on the street with no goal, no light and nothing of the old free game (its keys open nothing), where and when in the corner, walking, the menu with the story in it, the camera; on the desktop also the last card's fresh-page way out. Stills of each beat | `tools/walk_play.js` |
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
@@ -67,7 +67,11 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 - a change to the page or the map (`web/`, `cities/`) runs `static`, `story` and `mem`, and a change to the sound `audio` too;
 - a change to one of the checks' own tools runs that check;
 - a change to the build or the plumbing (`pipeline/`, `blender/`, `tools/`, `.github/`) runs `static`;
-- a change to the docs alone runs nothing.
+- a change to the docs alone runs nothing;
+- after a pass, when all that changed since is main's as main has it (main merged in, and nothing main changed
+  touched on the branch), `static` only: main's full tier plays the two together once the branch lands, and a
+  commit it fails is not published. The branch's own change since the pass, or a file both sides changed, runs
+  what it would have. `CHECK_FULL=1` runs it all.
 
 **After landing: the full tier, on main, in GitHub Actions** (`.github/workflows/checks.yml`). Each
 push to main runs `CHECK_TIER=full tools/check.sh --plan` against the commit of the last run that
@@ -79,6 +83,14 @@ prints its own runner. Nobody waits for it.
 - A failure opens an issue labelled `main-red` (or comments on the open one) with the shards that
   failed, links to their logs and stills, and the commits since the last pass. The next pass closes it.
 - Reproduce a shard with its name: `tools/check.sh clip`.
+- **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
+  push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
+  `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
+  production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
+  hand publishes main as it is.
+- Each browser shard prints which renderer it got (`tools/gl_renderer.js`): llvmpipe, or SwiftShader when the GL
+  backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled are kept
+  from one run to the next (`actions/cache`).
 
 **By name only: `game`.** `tools/game_check.js` was written for the game before the story: some 260
 steps of one scenario, half an hour on a software renderer. Its steps for what was removed (fishing,
