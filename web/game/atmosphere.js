@@ -132,6 +132,9 @@ window.OEAtmos = (function () {
   // street going grey; at night the deepest contrast, with lens.js uNightTone taking the shadows to
   // blue and the lights to amber. A city can key its own (game.look.grade: {night, blue, golden, day}).
   const GRADE_KEYS = [['night', -12], ['blue', -4], ['golden', 3], ['day', 20]];
+  // the brightest a face that gives light may be before the tone curve (world.js faceCap): the curve takes 0.9 to
+  // about 0.75, under its shoulder's last stretch, so a sign's letters still stand off its face
+  const FACE_MAX = 0.9;
   const GRADE_DEF = {
     night: { ev: 1.1, tint: [1, 1, 1], sat: 1.06, contrast: 0.28 },
     blue: { ev: 1.18, tint: [0.98, 0.99, 1.03], sat: 1.08, contrast: 0.2 },
@@ -601,6 +604,7 @@ window.OEAtmos = (function () {
         M.material.uniforms.uOpacity.value = (0.25 + 0.75 * night) * (1 - 0.92 * ov);
         if (ao) ao.update(night);
         if (bloom) { const bt = (lens && lens.trim && lens.trim.bloom) || 1; bloom.threshold = (6.0 - 4.4 * night) / Math.sqrt(bt); bloom.strength = (0.15 + 0.15 * night) * bt; } // (a dreamier glow for a shot: overture.js)
+        if (!lens && Wd.U && Wd.U.uFaceCap) Wd.U.uFaceCap.value = FACE_MAX / Math.max(1e-3, renderer.toneMappingExposure); // (no post stack: three.js's own tone mapping, at the renderer's exposure)
         if (lens) {
           const L = lens.uniforms;
           const trim = lens.trim || null;                          // a shot's own exposure, saturation and tint on the hour's grade (overture.js)
@@ -613,6 +617,9 @@ window.OEAtmos = (function () {
           L.uContrast.value += 0.05 * ov;
           L.uTint.value.set(gr.tint[0] * (trim ? trim.tint[0] : 1), gr.tint[1] * (trim ? trim.tint[1] : 1), gr.tint[2] * (trim ? trim.tint[2] : 1));
           stormKey(L, night); // (a thunderstorm by day: darker, harder, colder)
+          // the ceiling for a face that gives light (a lit sign, a light box, a lit window: world.js faceCap), where the
+          // picture is: FACE_MAX after the exposure, whatever the hour's exposure is
+          if (Wd.U && Wd.U.uFaceCap) Wd.U.uFaceCap.value = FACE_MAX / Math.max(1e-3, L.uExposure.value);
           L.uTime.value = tSec;
           L.uShade.value.fromArray(gr.shade); L.uHiTint.value.fromArray(gr.hi); L.uVibrance.value = gr.vib * (1 - 0.5 * ov);
           L.uShadeLift.value.fromArray(gr.lift).multiplyScalar(1 - 0.6 * ov);

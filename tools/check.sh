@@ -19,12 +19,18 @@
 #             way (tools/flight_clear.py, tools/flight_frames.py);
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
+#           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
 #   walk    the title's second way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
-#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game;
+#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
+#           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
+#           (tools/reverb_check.js), and the opening and the story's own sound played as an iPhone, every convolver on
+#           the live context within WebKit's realtime limit, one context, no worklet (tools/phone_audio.js);
+#           when the sound changes;
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
 #   clip    what passes through what in the free game, ?walk=1 (tools/clip_check.js);
@@ -39,7 +45,7 @@
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static story ride mem clip gl touch astc
+#   tools/check.sh all                  # static story walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
@@ -51,8 +57,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story walk ride mem clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story walk ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story walk ride mem audio clip gl touch astc game"   # the browser checks, in the order they run
+ALL="story walk ride mem audio clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -86,6 +92,13 @@ else
      && ! git merge-base --is-ancestor "$last" "$base"; then
     echo "checking what changed since the last pass, $(git log -1 --format='%h %s' "$last" | cut -c1-70) (CHECK_FULL=1 for the whole branch)" >&2
     base=$last
+    # all of it main's, as main has it (main merged in, nothing it changed touched here): main's own checks play it
+    # with this branch once it lands, and only a commit they pass is published (.github/workflows/pages.yml)
+    mainonly=1
+    [ -z "$(git status --porcelain)" ] || mainonly=0
+    for f in $(git diff --name-only "$last" HEAD); do
+      [ "$(git rev-parse -q --verify "HEAD:$f" 2>/dev/null)" = "$(git rev-parse -q --verify "origin/main:$f" 2>/dev/null)" ] || { mainonly=0; break; }
+    done
   fi
   page() { add story walk mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
@@ -98,11 +111,17 @@ else
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_thread_check.py) static=1; add audio ;;
+      web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/*|cities/*) static=1; page ;;
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
     esac
   done
+  if [ "${mainonly:-0}" = 1 ] && [ -n "$want" ]; then
+    echo "all that changed since the last pass is main's, as main has it: the static checks only, and the rest on main (CHECK_FULL=1:$want too)" >&2
+    want=
+  fi
 fi
 
 if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to this script: a runner's shard
@@ -169,6 +188,18 @@ run_mem() {
   if timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+}
+# every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
+run_audio() {
+  if timeout 900 node tools/reverb_check.js >"$OUT/reverb.log" 2>&1; then echo "ok   audio  $(grep -c '^ok' "$OUT/reverb.log") reverbs as a phone hears them, each within its tolerance of the whole convolution"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/reverb.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/reverb.log)"; fi
+  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
+    echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
+  # (and touched first on the title: the opening's score with its own bed, and the loading cue let go)
+  if FIRST=title DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio_title.log" 2>&1; then
+    echo "ok   audio  as an iPhone touched first on the title: one piece of music at a time in the opening"
+  else echo "FAIL audio  touched first on the title: $(grep '^FAIL' "$OUT/phone_audio_title.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio_title.log)"; fi
 }
 run_clip() {
   if timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance"; return; fi
@@ -242,6 +273,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
+    st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
   fi
   for k in $KINDS; do is_in "$k" "$want" && "run_$k"; done
 } | tee "$OUT/summary.txt"

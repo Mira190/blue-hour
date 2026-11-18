@@ -28,6 +28,11 @@ This repository is Blue Hour by itself, split from the Open Earth 3D repository 
   episode played through), merge it into `main` with a merge commit, and tell the owner in one line: the commit, and
   what the checks covered.
 - Never rewrite `main`. Publishing (a remote, GitHub Pages, any host) waits for the owner's word.
+- Main is published only where its checks pass: `.github/workflows/pages.yml` runs after
+  `.github/workflows/checks.yml` passes on main and publishes that commit (GitHub Pages, and Vercel through the
+  branch `live`). A red main keeps the site on the last commit that passed. So when main moved on while your check
+  ran, merge it in and run `tools/check.sh` again: if nothing main changed was touched on your branch it runs the
+  static checks only, and main's own checks play the two together.
 - A failure `main` has without your change isn't yours to block on: fix it if it is small, otherwise say so.
 
 # One story, one map
@@ -149,6 +154,13 @@ The owner should not be the one who finds the bug.
   `tools/story_play.js` does. Stills force the desktop tier; a software renderer picks the low
   one for itself.
 - Say what you could not check: a real GPU, WebGPU, Safari or iOS.
+- On a phone every sound is made on the audio thread. iOS plays Web Audio in blocks of 2.7 ms, and anything the sound
+  waits on from another thread is starved by a busy page and heard as crackle: twice the owner's iPhone found it first
+  (the Stop's AudioWorklet, then the reverbs' long convolutions). No AudioWorklet, ScriptProcessorNode, second
+  AudioContext or media element's sound, and no ConvolverNode outside `audio.js` `reverb()`, which keeps a phone's
+  within WebKit's realtime limit (docs/SOUND.md, "Every sound on the audio thread"). `tools/check.sh` holds this
+  (`tools/audio_thread_check.py`, and the `audio` target); telemetry's `snd_stall` says when a phone's audio thread fell
+  behind.
 - A pose laid over an animation is taken off before the next frame. Twice a bone was turned after the mixer had posed
   it (an old woman's back, the guide dog's head to look at you), and wound round and round: the turn was added to the
   bone every frame, and the clip did not put the bone back (it does not key that bone, or the frame had no time in it:
@@ -177,7 +189,8 @@ Measured in November 2026 over twelve long turns of eight sessions: 81% of a tur
 waiting for Chromium on the software renderer, and 17% in the model writing. On a session's machine (four cores) the
 story plays through in about 22 minutes (its clock runs at a third to a half of the wall clock's pace there: a frame costs
 80 to 140 ms though only one in thirty is drawn), and `tools/check.sh` with the story and the phone's memory takes 25 to
-33. Sessions ran it five or six times each, two runs in five only because main had moved on meanwhile. So:
+33. Sessions ran it five or six times each, two runs in five only because main had moved on meanwhile (a merge
+of main that touches nothing of the branch's now runs the static checks only: "Landing work on main"). So:
 
 - **One browser at a time.** A software-rendered page takes two to three of the four cores. A check that shared them
   with two films ran 66 minutes instead of 25 and failed stuck: the slower a frame, the slower the story's clock. Stop
