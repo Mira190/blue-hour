@@ -126,7 +126,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       continue;
     }
     if (s.dlg) {
-      await mark(s, `said-${s.phase}-${s.beat}`);
+      { const who = await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
+      // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
         const slip = +process.env.SLIP === s.fi + 1 && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
