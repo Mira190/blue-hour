@@ -883,6 +883,11 @@ ${PAT_GLSL}`)
     // (which ones depends on the frame times: Tokyo's taxi driver under load, #392)
     const bent = [];
     const bendBack = () => { for (const [b, q] of bent) b.quaternion.copy(q); bent.length = 0; };
+    // ... and the head turned to look at something: the turn is laid over the clip's pose and taken off before the mixer
+    // runs. Laid over the head as the last frame left it, it was added again every frame the mixer wrote nothing (time held
+    // in a Stop, or a clip that does not key the head: Aoi's Present), and the head went round and round (tools/head_spin.js)
+    const headQ = new THREE.Quaternion(); let headLaid = false;
+    const headBack = () => { if (headLaid) { head.quaternion.copy(headQ); headLaid = false; } };
     const bend = b => { const q = (b.userData.clipQ = b.userData.clipQ || new THREE.Quaternion()).copy(b.quaternion); bent.push([b, q]); };
     function seat() {
       if (!seated) return;
@@ -928,6 +933,7 @@ ${PAT_GLSL}`)
       : thigh.getWorldPosition(out).add(sb.set(0, crown * model.getWorldScale(sa).y, 0)));
     // a view through this person's eyes: the head, and whatever is on it, shrinks out of the way
     rig.hideHead = on => { if (head) head.scale.setScalar(on ? 1e-3 : 1); };
+    rig.head = head; // (the bone the look is laid on: tools/head_spin.js reads it)
     // something held out in the right hand: rig.hold is where the fist goes (a point in the world, or null), and
     // rig.fist(out) where the wrist is as posed
     rig.hold = null;
@@ -951,6 +957,7 @@ ${PAT_GLSL}`)
       if (mode !== 'sit') feetBack();
       armBack();
       bendBack();
+      headBack();
       mixer.update(dt);
       if (mode === 'sit') seat();
       else if (rig.hold && reaches) holdUmbrella(rig.hold);
@@ -967,6 +974,7 @@ ${PAT_GLSL}`)
         head.getWorldPosition(hp);
         const tgt = rig.lookTarget || hp;
         tv.subVectors(tgt, hp);
+        headQ.copy(head.quaternion); headLaid = true;
         const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(root.getWorldQuaternion(tq2));
         let yaw = Math.atan2(tv.x, tv.z) - Math.atan2(fwd.x, fwd.z);
         yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
