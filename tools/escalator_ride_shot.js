@@ -62,7 +62,7 @@ const BODY = 0.3, GLASS = 0.6; // (half a body's width; the glass's distance fro
     const into = worstV + BODY - GLASS;
     console.log(`${name}, walked on ${off ? `${off} m off the middle` : 'at the middle'}:`);
     for (const r of rows) console.log(`  u ${r.u}  v ${r.v}  z ${r.z}  feet ${r.feet}  ${r.floor}`);
-    const ok = on.length > 0 && into <= 0.02;
+    const ok = on.length > 0 && into <= -0.05; // (a hand's width clear of the glass, at least)
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} (${off ? 'from the side' : 'from the middle'}): at most ${worstV.toFixed(2)} m off the middle, the body ${into > 0 ? `${into.toFixed(2)} m into the glass` : `${(-into).toFixed(2)} m clear of the glass`}`);
     if (!ok) bad++;
   }

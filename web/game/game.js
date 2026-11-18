@@ -6566,9 +6566,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       // (and on the steps you stand on a step, not half off it: the strip is the steps' whole width and the glass stands
       // just past it, so a body that stepped on at its side rode the whole way with a shoulder in the glass; drawn in,
-      // eased, to within 0.25 m of the middle)
+      // eased, to within 0.2 m of the middle, a hand's width clear of the glass)
       if (u >= esc.us[0] && u <= esc.us[esc.us.length - 1]) {
-        const [, v] = nav.stripUV(esc, player.x, player.y), keep = Math.max(0, Math.min(0.25, esc.half_width - 0.25)), dv = Math.max(-keep, Math.min(keep, v)) - v;
+        const [, v] = nav.stripUV(esc, player.x, player.y), keep = Math.max(0, Math.min(0.2, esc.half_width - 0.3)), dv = Math.max(-keep, Math.min(keep, v)) - v;
         if (Math.abs(dv) > 1e-4) { const e = 1 - Math.exp(-dt / 0.12); player.x += -esc.axis[1] * dv * e; player.y += esc.axis[0] * dv * e; }
       }
     } else player.escOff = null;
