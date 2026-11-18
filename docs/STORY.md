@@ -241,8 +241,12 @@ of motion interrupted, at every depth, that the viewer then moves through. So (`
 **Between places, the city is shown.** A frame can be reached by air (`flight` on the frame: an overture's
 spec played by `web/game/overture.js`, with the helicopter as its guide). The helicopter is seen before it is
 flown: it stands parked on the roof's pad through frame 4, starts up (its rotor turning over, heard) as that
-frame's picture is taken, and once what is said on the roof has been said the goal is to get in; the dog leads
-to it, and E beside it puts you in at once (`flight.board`; story ctx `board`). After the roof: three shots and
+frame's picture is taken, and once what is said on the roof has been said the office rings, in the voice of its
+first call, and says why: the kerb was the job and the light is going, the queue for the lifts down is half an hour
+at sunset (the hour the roof is busiest), and its own helicopter is up there on the pad for tonight's pictures from
+the air; the pilot will set you down by the station first (`flight.board.call`). A helicopter nobody explained was a
+convenience; the hour running out is the story's own clock. Then the goal is to get in; the dog leads to it, and E
+beside it puts you in at once (`flight.board`; story ctx `board`). After the roof: three shots and
 no orbit. Locked off low on the pad as it lifts out of the top of the frame; one unbroken take from behind and a
 little above it, off the roof, over the Scramble with every screen lit, a wide turn to the north and down to
 the east; locked off on the ground as it comes down into the frame, and a step nearer as you get out, the dog at
