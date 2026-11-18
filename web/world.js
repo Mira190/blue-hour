@@ -153,6 +153,30 @@ window.OEWorld = (function () {
   // widening and evening out as it rises, the scallops a floodlit facade shows in photographs at night.
   // Without "flood" a floodlit material glows evenly, as a sign or a screen does. prev: the
   // material's own pattern, if any.
+  // A face that gives light (a lit sign's image, a printed board lit from inside, a shop's light box, a lit window) is
+  // seen as a photograph shows one at night: bright, with its image still in it. Its glow was set in absolute numbers,
+  // and when the exposure rose with the evening a white sign's face went past what the screen can show: the lens's
+  // roll-off (lens.js) then took the face and its lettering to one white, and the bloom spread it over the letters
+  // (SHIBU HACHI BOX on Hachiko Square, the koban's sign, the shop fronts). So the light a face gives is held under a
+  // ceiling set where the picture is, not in the scene: uFaceCap, the exposure's own reciprocal times FACE_MAX
+  // (atmosphere.js), so that whatever the hour's exposure, the brightest part of a face lands at most about 0.9 before
+  // the tone curve, and what is darker on it (the letters, the frame) keeps its place. It eases in, as the lens's
+  // roll-off does, scaled as a whole so its hue holds. A light itself (a lamp's head, a neon tube, the bulbs of a
+  // marquee, the sun) is not a face and is not held: it is the one thing in the frame meant to burn. As HDRP's
+  // "exposure weight" on emission does: a sign's face follows the camera; a lamp is what the camera exposes against.
+  const FACE_CAP = `
+{ float oeFp = max(totalEmissiveRadiance.r, max(totalEmissiveRadiance.g, totalEmissiveRadiance.b)), oeFk = 0.6 * uFaceCap;
+  if (oeFp > oeFk) { float oeFr = uFaceCap - oeFk; totalEmissiveRadiance *= (oeFk + oeFr * (1.0 - exp(-(oeFp - oeFk) / oeFr))) / oeFp; } }`;
+  // faceCap(prev, cap): an onBeforeCompile that holds a face's light under the shared ceiling, after everything else
+  // its material adds to its emission (its pattern, a flood, a hero level's baked light)
+  function faceCap(prev, cap) {
+    return function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      sh.uniforms.uFaceCap = cap;
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uFaceCap;')
+        .replace('#include <lights_physical_fragment>', `${FACE_CAP}\n#include <lights_physical_fragment>`);
+    };
+  }
   function floodFrom(spec, prev) {
     if (!spec) return prev;
     const [z0, z1, roof = 0.5, top = 0.6, cone = 0] = spec;
@@ -1733,7 +1757,7 @@ float inH(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453
       }
       return c;
     };
-    const U = { uNight: { value: 0 }, uSel: { value: -1 }, uMode: { value: 0 }, uHour: { value: 12 },
+    const U = { uNight: { value: 0 }, uSel: { value: -1 }, uMode: { value: 0 }, uHour: { value: 12 }, uFaceCap: { value: 1e4 }, // (uFaceCap: faceCap below; atmosphere.js sets it from the exposure)
       uC0: { value: lin(css('--s1') || '#2a78d6') }, uC1: { value: lin(css('--s2') || '#eb6834') }, uC2: { value: lin(css('--s3') || '#1baf7a') } };
     // walls, LOD2 roofs, facades and rooftop plant (buildings.js); parts a parametric landmark
     // draws instead (scene.json hidden_solids) stay in B.s and the surface model, not on screen
@@ -2048,11 +2072,13 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       emissive: lin(LM.materials[k].emissive || (LM.materials[k].emissive_map ? '#ffffff' : '#ffe2b8')), emissiveIntensity: 0,
       emissiveMap: LM.materials[k].emissive_map ? lmMats[k].map : null,
       userData: { glow: LM.materials[k].glow || 0.32, day: LM.materials[k].glow_day || 0 }, // (glow_day: lit by day too, as stained glass seen from inside is)
-      onBeforeCompile: floodFrom(LM.materials[k].flood, lmMats[k].onBeforeCompile),
+      // (an image that glows, emissive_map, is a face: held under the shared ceiling, faceCap above)
+      onBeforeCompile: LM.materials[k].emissive_map ? faceCap(floodFrom(LM.materials[k].flood, lmMats[k].onBeforeCompile), U.uFaceCap) : floodFrom(LM.materials[k].flood, lmMats[k].onBeforeCompile),
       defines: Object.assign({}, lmMats[k].defines),
       // its own program: a floodlit copy of a patterned material, or one lit from below (which wraps
-      // the pattern, so the wrapper's text alone would not tell two programs apart)
-      customProgramCacheKey: LM.materials[k].flood ? () => `lm|${k}|flood` : lmMats[k].onBeforeCompile ? () => `lm|${k}|lit` : lmMats[k].customProgramCacheKey }));
+      // the pattern, so the wrapper's text alone would not tell two programs apart); a face with nothing else
+      // wrapped shares one program with every other such face
+      customProgramCacheKey: (f => (LM.materials[k].flood ? () => `lm|${k}|flood${f}` : lmMats[k].onBeforeCompile ? () => `lm|${k}|lit${f}` : f ? () => 'lm|face' : lmMats[k].customProgramCacheKey))(LM.materials[k].emissive_map ? '|face' : '') }));
     // a mesh under a slab or a canopy ("sky": the share of the sky it sees, landmarks.json) takes only
     // that share of the ambient light, which three.js spreads over every surface as if in the open:
     // without it a soffit and the columns under it read as pale as the paving in the sun (issue 84)
@@ -2392,7 +2418,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const api = {
       // the screens' faces and their programmes' clock, hour and night (neon.js lights the street from them)
       screens: { meshes: screenMeshes, clock: SCREEN, night: LM_NIGHT },
-      world, sky, su, sunLight, shCam, hemi, nightU: NU, pmrem, far, outposts, groundMeshes, skyLit, skyVis: SKYVIS, farSun: FARSUN ? farSun : null, groundPictures: pics, quayMeshes, quays: Q, inland, inlandWater: IN, inlandGlints: () => glints, gradePhoto, streetLit, tileGeometry, groundMesh, water, waterMat, sea, waterCover, trees, buildings, bGeo, gpuOnly, groundKeep, mapAt, mapStream: BLD.stream, U, SRC, extrude, bColour, floodMats, lmMats, night,
+      world, sky, su, sunLight, shCam, hemi, nightU: NU, faceCap: prev => faceCap(prev, U.uFaceCap), pmrem, far, outposts, groundMeshes, skyLit, skyVis: SKYVIS, farSun: FARSUN ? farSun : null, groundPictures: pics, quayMeshes, quays: Q, inland, inlandWater: IN, inlandGlints: () => glints, gradePhoto, streetLit, tileGeometry, groundMesh, water, waterMat, sea, waterCover, trees, buildings, bGeo, gpuOnly, groundKeep, mapAt, mapStream: BLD.stream, U, SRC, extrude, bColour, floodMats, lmMats, night,
       skyReady, // (its program compiled and checked: the game's shaders start compiling after it, game.js earlyWarm)
       hazeProbe: { cpu: az => { const c = hazeOf(az); return c && c.clone(); }, gpu: readHaze }, // (tools/haze_check.js)
       sunDir: new THREE.Vector3(0, 1, 0), day: 1, shadowStill, still, edgeFade, // the width of the haze at the model's edge, metres (edgeHaze)
