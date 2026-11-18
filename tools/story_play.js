@@ -246,6 +246,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         else console.log(`frame ${s.fi + 1}: spent`);
         await p.waitForTimeout(1500); await snap(`${s.fi + 1}-spent`); continue;
       }
+      // the camera taught (task.teach, the first frame; story.js teach): raised off the light, nothing of the other year forms
+      // in the lines, the year over them says so, and the card still has the light to stand in (the raise ticked); in the
+      // light, the ground there is lit and the card ticks it; raised there, the thing forms. For a day the board stood in
+      // the finder from anywhere while the goal said to step into the light, and the light meant nothing
+      if (T.stand && T.subject && !seen.has(`teach-${s.fi}`) && await p.evaluate(() => !!window.__game.story.state.teach)) {
+        seen.add(`teach-${s.fi}`);
+        const card = () => p.evaluate(() => { const g = window.__game, st = g.story.state, e = document.getElementById('g-story-teach'), L = [...e.querySelectorAll('li')]; return { on: e.classList.contains('on'), now: L.findIndex(l => l.classList.contains('now')), done: L.map(l => (l.classList.contains('done') ? 1 : 0)).join(''), formed: st.relic ? +st.relic.k.toFixed(2) : -1, off: 'off' in document.getElementById('g-story-finder').dataset, here: g.lights().here, ready: !!st.ready }; });
+        const side = await p.evaluate(([st, sub]) => { const g = window.__game, pl = g.player, dx = sub[0] - st[0], dy = sub[1] - st[1], l = Math.hypot(dx, dy) || 1, r = (g.story.state.fr.task.within_m || 4) * 2 + 1; pl.x = st[0] + dy / l * r; pl.y = st[1] - dx / l * r; return r; }, [T.stand, T.subject]);
+        await face(T.subject); await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1200);
+        const off = await card(); await snap(`${s.fi + 1}-teach-off-the-light`);
+        console.log(`frame ${s.fi + 1} taught, raised ${side} m off the light:`, JSON.stringify(off));
+        if (!off.on || off.now !== 0 || off.done !== '0100' || off.formed !== 0 || !off.off || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the card on its first step with the raise ticked, nothing of 1964 formed, the year saying not from here, no light underfoot)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(4);
+        await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
+        const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
+        console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
+        if (inL.now !== 1 || inL.done !== '1000' || !inL.here) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do, the ground lit)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1500);
+        const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
+        console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));
+        if (up.formed < 1 || up.off || !up.ready || up.done !== '1110' || up.now !== 3) { errors.push(`frame ${s.fi + 1}: raised in the light, ${JSON.stringify(up)} (the thing formed in the lines, ready, the card at its last step)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(4);
+      }
       if (T.stand) await goTo(T.stand, 0.6);
       // the camera raised as a player raises it, from wherever the view behind them looks (here 63 degrees off the thing
       // and pitched well down): it comes up onto the thing within half a second, and then holds still with no hand on it.

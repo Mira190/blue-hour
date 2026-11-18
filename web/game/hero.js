@@ -268,7 +268,7 @@ window.OEHero = (function () {
     }
 
     return {
-      group, levels, update, tier,
+      group, levels, update, tier, light: { bake: uBake, street: uStreet }, // (its baked light's gain and its share of the street lights, as update() sets them: tools/stop_grade.js)
       // (for the harnesses: whether each is loaded and shown, tools/game_check.js)
       state: () => levels.map(L => ({ id: L.h.id, state: L.state, shown: !!(L.root && L.root.visible), materials: L.mats.length,
         fine: L.fine, fineShown: L.fineMeshes.filter(o => o.visible).length, fineMeshes: L.fineMeshes.length })),
