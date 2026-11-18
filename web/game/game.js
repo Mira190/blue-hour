@@ -2182,14 +2182,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     o.hold = true;
     hopTo(end.x, end.y, end.z, o.dest.name, { cue: () => {
       o.hold = false;
-      const s = setDown(o);
-      if (s == null || o.drv.st.end - s < 2) o.drv.finish(); else { o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
+      // (nowhere clear in its last 30 m: further back along its way; and nowhere at all, it drives in from where it stands.
+      // Finished at its stop all the same, it was set down on the people crossing there by Hachiko, #28)
+      const s = setDown(o) ?? setDown(o, Infinity);
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
   // where it is) at which its body, and a metre and a half round it, has nobody in it and no car near; null if there is none
   const SET_DOWN = 30;
-  function setDown(o) {
+  function setDown(o, far = SET_DOWN) {
     const st = o.drv.st, P = o.drv.path, e = {}, r = o.C.half + 1.5;
     const clear = (x, y, z) => {
       const near = q => Math.abs(q.x - x) < r && Math.abs(q.y - y) < r && Math.hypot(q.x - x, q.y - y) < r && (q.z == null || Math.abs(q.z - z) < 3);
@@ -2197,7 +2199,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (npcs.some(near)) return false;
       return !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - x, c.y - y) < (c.half || 2.4) + 3.5);
     };
-    for (let s = st.end; s >= Math.max(st.s, st.end - SET_DOWN); s -= 1.5) { P.at(s, e); if (clear(e.x, e.y, e.z)) return s; }
+    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) { P.at(s, e); if (clear(e.x, e.y, e.z)) return s; }
     return null;
   }
   // what a ride's driver looks out for (cars.js chauffeur): the traffic, your car, you on foot
