@@ -151,6 +151,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (m.story && !m.intro && !m.reset && m.time && m.weather) ok(`the menu: "${(await p.textContent('#gm-story')).trim()}", the hour and the sky`);
     await shot('6-menu');
     await press('#g-menu-close'); await p.waitForTimeout(600);
+    if (await visible('#g-menu')) fail('the menu\'s close button does not shut it (off the screen, or under something)');
   }
   // the camera
   await press('#g-walk-acts [data-do="photo"]'); await p.waitForTimeout(1200);
@@ -162,7 +163,8 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!phone && !process.env.NO_END) {
     await p.evaluate(() => { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    const roll = await p.evaluate(() => (document.querySelector('#g-loader .roll-title span') || {}).textContent || '');
+    // (the loader's words are written once the page's boot has the map's list: waited for, not read at once)
+    const roll = await p.waitForFunction(() => { const e = document.querySelector('#g-loader .roll-title span'); return e && e.textContent; }, null, { timeout: 120000, polling: 100 }).then(h => h.jsonValue()).catch(() => '');
     if (!/walk/i.test(roll)) fail(`come from the last card, the loader does not say it is a walk ("${roll}")`);
     await p.waitForFunction(() => document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 900000, polling: 500 }).catch(() => fail('come from the last card, the walk never set out'));
     s = await state();

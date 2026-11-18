@@ -676,7 +676,10 @@
 /* the menu on the walk: the way into the story first; the hour and the sky stay; the story's own and the old game's go */
 .gm-walk { display: none; }
 .game-stage.walk .gm-walk { display: grid; gap: 10px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
-.game-stage.walk .gm-walk .btn { justify-content: flex-start; gap: 0.5em; padding: 15px 18px; }
+.game-stage.walk .gm-walk .btn { justify-content: flex-start; flex-wrap: wrap; gap: 0 0.5em; padding: 15px 18px; white-space: normal; text-align: left; line-height: 1.6; }
+/* (and the panel held to the screen whatever is in it: on a phone the story's way in, set on one line, widened the menu past
+   the screen's edge, its close button with it, and the menu could not be shut) */
+.game-stage.walk .g-overlay { grid-template-columns: minmax(0, 1fr); }
 .game-stage.walk :is(#gm-overture, #gm-route) { display: none; }
 .game-stage.walk .field:has(#gm-route) { display: none; }
 /* (and in the story and on the walk alike, the old free game's: its tour of the map, the passport, the passport's fresh start, and its keys) */
