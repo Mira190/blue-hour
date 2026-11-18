@@ -218,6 +218,10 @@
 #g-story-finder .rf small { position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: rgba(244, 239, 230, 0.8); text-shadow: 0 1px 8px #000, 0 0 2px #000; }
 #g-story-finder .rf small { transition: opacity 0.6s ease, color 0.4s ease; }
 #g-story-finder[data-fix="on"] .rf small { color: var(--amber); opacity: 0; transition-delay: 1.4s; } /* (on the place, the joined line says it: the words go, and the picture is left as plain as it can be) */
+/* (and the patch itself goes to a hairline a moment later: lit amber in the middle of the frame, it lay over the board's
+   lettering, the very thing the picture is of) */
+#g-story-finder.ready[data-fix="on"]::after { background: rgba(255, 207, 138, 0.06); box-shadow: inset 0 0 0 1px rgba(255, 207, 138, 0.45); transition-delay: 1.4s, 1.4s; }
+#g-story-finder.ready[data-fix="on"] .rf b { opacity: 0.35; transition: transform 0.3s linear, background 0.4s ease, opacity 0.6s ease 1.4s; }
 #g-story-shutter { position: absolute; left: 50%; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 16px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-shutter.on { display: flex; }
@@ -380,6 +384,9 @@
 #g-story-chip { position: absolute; left: 50%; top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); transform: translateX(-50%); z-index: 8; pointer-events: none; opacity: 0; white-space: nowrap; padding: 8px 16px; border-top: 1px solid rgba(255, 207, 138, 0.6); border-bottom: 1px solid rgba(255, 207, 138, 0.6);
   background: rgba(4, 8, 18, 0.55); color: var(--paper); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; }
 #g-story-chip.on { animation: g-story-chip 2.6s ease both; }
+/* (over the button that raises the camera while it is there, not on it: a word said as you step into the light lay across it) */
+.game-stage.story:has(#g-story-cam.on:not(.up)) #g-story-chip { bottom: max(212px, calc(env(safe-area-inset-bottom) + 212px)); }
+@media (pointer: coarse), (max-width: 640px) { .game-stage.story:has(#g-story-teach.on:not(.done)):has(#g-story-cam.on:not(.up)) #g-story-chip { bottom: max(330px, calc(env(safe-area-inset-bottom) + 330px)); } }
 @keyframes g-story-chip { 0% { opacity: 0; letter-spacing: 0.7em; } 14%, 72% { opacity: 1; letter-spacing: 0.4em; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #g-story-cam.on { animation: none; } }
 
@@ -600,3 +607,57 @@
 .game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
 @media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
 @media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }
+
+/* ---- the camera taught (story.js teach; task.teach on the first frame): four steps in the order they are done, each
+   saying what it does before it is done, ticked the moment it is. On the picture's left over a soft scrim, out of the
+   finder's middle, where the thing of the other year comes up. The step to do now is lit, with its line under it; the
+   ones done carry an amber tick; the ones to come wait, dim. A release pressed too early shakes the step not done */
+#g-story-teach { position: absolute; left: max(26px, env(safe-area-inset-left)); top: 50%; z-index: 6; width: 250px; transform: translateY(-46%); pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
+  color: var(--paper); text-shadow: 0 1px 10px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.8); }
+#g-story-teach::before { content: ""; position: absolute; inset: -34px -60px -34px calc(-1 * max(26px, env(safe-area-inset-left))); z-index: -1; background: radial-gradient(ellipse 85% 70% at 22% 50%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0.3) 55%, transparent 78%); }
+#g-story-teach.on { opacity: 1; }
+#g-story-teach.done { opacity: 0; transition: opacity 0.9s ease; }
+#g-story-teach small { display: block; font: 400 10px/1.3 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--amber); }
+#g-story-teach small::after { content: ""; display: block; width: 28px; height: 1px; margin: 11px 0 14px; background: rgba(255, 207, 138, 0.7); }
+#g-story-teach ol { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
+#g-story-teach li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 12px; align-items: start; opacity: 0.5; transition: opacity 0.35s ease; }
+#g-story-teach li b { display: grid; place-items: center; width: 20px; height: 20px; margin-top: -1px; border: 1px solid rgba(244, 239, 230, 0.55); border-radius: 50%; font: 500 10px/1 var(--f-mono); color: var(--paper); text-shadow: none; transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
+#g-story-teach li span { font: 400 14px/1.35 var(--f-body); letter-spacing: 0.005em; }
+#g-story-teach li kbd { display: inline-block; margin-left: 8px; padding: 2px 6px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: 400 10px/1.3 var(--f-mono); letter-spacing: 0.06em; vertical-align: 1px; }
+#g-story-teach li p { grid-column: 2; display: none; margin: 5px 0 2px; font: 300 12.5px/1.45 var(--f-body); color: rgba(244, 239, 230, 0.84); }
+#g-story-teach li.now { opacity: 1; }
+#g-story-teach li.now b { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 0 0 rgba(255, 207, 138, 0.5); animation: g-story-teach-now 1.6s ease-in-out infinite; }
+#g-story-teach li.now p { display: block; }
+#g-story-teach li.done { opacity: 0.72; }
+#g-story-teach li.done b { border-color: var(--amber); background: var(--amber); color: transparent; }
+#g-story-teach li.done b::before { content: ""; width: 8px; height: 4px; margin: -2px 0 0; border-left: 1.6px solid #0b1020; border-bottom: 1.6px solid #0b1020; transform: rotate(-45deg); }
+#g-story-teach li.ticked b { animation: g-story-teach-tick 0.5s cubic-bezier(0.2, 0.8, 0.2, 1.4) both; }
+#g-story-teach li.nudge { animation: g-story-teach-nudge 0.5s ease 2; }
+@keyframes g-story-teach-now { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 207, 138, 0.45); } 50% { box-shadow: 0 0 0 6px rgba(255, 207, 138, 0); } }
+@keyframes g-story-teach-tick { 0% { transform: scale(0.6); } 100% { transform: none; } }
+@keyframes g-story-teach-nudge { 0%, 100% { transform: none; } 25% { transform: translateX(6px); } 75% { transform: translateX(-4px); } }
+/* (while it teaches, it is the help: the goal's own plain line under it would say the same thing twice) */
+.game-stage.story:has(#g-story-teach.on:not(.done)) #g-story-goal em { display: none; }
+.game-stage.story:has(.g-dialog:not([hidden])) #g-story-teach, .game-stage.story:has(#g-story-mov.on) #g-story-teach { opacity: 0; }
+/* (on a phone the top of the frame has the goal and the button that lowers the camera, and its middle the thing itself:
+   the card is a strip low in the frame, over the thumbs' controls, with the four steps as four marks and only the step
+   to do now in words) */
+@media (pointer: coarse), (max-width: 640px) {
+  #g-story-teach { top: auto; bottom: max(204px, calc(env(safe-area-inset-bottom) + 204px)); left: max(16px, env(safe-area-inset-left)); right: max(88px, calc(env(safe-area-inset-right) + 88px)); width: auto; transform: none; } /* (clear of the run button on the right) */
+  #g-story-teach::before { inset: -16px calc(-1 * max(16px, env(safe-area-inset-right))) -14px calc(-1 * max(16px, env(safe-area-inset-left))); background: linear-gradient(to bottom, transparent, rgba(4, 8, 18, 0.6) 28%, rgba(4, 8, 18, 0.6) 78%, transparent); }
+  #g-story-teach small { font-size: 9px; letter-spacing: 0.24em; }
+  #g-story-teach small::after { display: none; }
+  #g-story-teach ol { display: grid; grid-template-columns: repeat(4, 20px) minmax(0, 1fr); column-gap: 7px; row-gap: 5px; margin-top: 8px; }
+  #g-story-teach li { display: contents; }
+  #g-story-teach li b { grid-row: 1; width: 18px; height: 18px; font-size: 9.5px; opacity: 0.55; }
+  #g-story-teach li:nth-child(2) b { grid-column: 2; } #g-story-teach li:nth-child(3) b { grid-column: 3; } #g-story-teach li:nth-child(4) b { grid-column: 4; } #g-story-teach li:nth-child(1) b { grid-column: 1; }
+  #g-story-teach li:is(.now, .done) b { opacity: 1; }
+  #g-story-teach li:not(.now) :is(span, p) { display: none; }
+  #g-story-teach li.now span { grid-row: 2; grid-column: 1 / -1; font-size: 14px; }
+  #g-story-teach li.now p { grid-row: 3; grid-column: 1 / -1; margin: 0; font-size: 12px; }
+  #g-story-teach li.nudge :is(b, span) { animation: g-story-teach-nudge 0.5s ease 2; } /* (an item laid out as its parts shakes by them) */
+}
+@media (prefers-reduced-motion: reduce) { #g-story-teach li.now b, #g-story-teach li.ticked b, #g-story-teach li.nudge { animation: none; } }
+/* ---- the camera raised off the place its year was seen from: the year over the frame says so, and nothing of that year
+   forms in the lines (past.js open) */
+#g-story-finder[data-off]::before { content: attr(data-year) "  ·  not from here"; color: rgba(244, 239, 230, 0.78); }

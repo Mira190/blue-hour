@@ -3209,7 +3209,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
-  let storyBeacon = null, lensWas = null, storySnapBase = null;
+  let storyBeacon = null, storyHere = null, lensWas = null, storySnapBase = null;
   // the lift lobby's two queue belts (blender/build_set.py lift: a post at (±1.5, -2.2) in the model, a belt from it to
   // the wall at y = 0) as a row of posts, so that nobody, the guide included, walks through a belt
   let guideMade = null; // (the story's guide as last made: tools/lobby_shot.js)
@@ -3387,7 +3387,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     story: G.story, stage, player, touch, reduced, log: storyLog, toast: t => { if (storyLog) storyLog.aside(t); H.toast(t); },
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
     // (kind 'stand', where a picture is taken from: the camera's amber, so that it is not taken for someone to go to)
-    beacon: (at, kind) => {
+    beacon: (at, kind, r) => {
       if (!storyBeacon) {
         const col = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.5, 26, 20, 1, true), new THREE.ShaderMaterial({
           transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: new THREE.Color(0.62, 0.78, 1.0) } },
@@ -3396,13 +3396,40 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         col.position.y = 13 + 2.6; // (from over a head upward: whoever stands under it is seen, not lost in it)
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
         ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
-        storyBeacon = new THREE.Group(); storyBeacon.add(col, ring); storyBeacon.userData = { col, ring };
+        // (and round a standpoint, the edge of where the picture can be taken from: a fine line at task.within_m, so that
+        // the light is a place with a size, and the player sees when they are inside it)
+        const edge = new THREE.Mesh(new THREE.RingGeometry(0.955, 1, 128), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        edge.rotation.x = -Math.PI / 2; edge.position.y = 0.05; edge.visible = false;
+        storyBeacon = new THREE.Group(); storyBeacon.add(col, ring, edge); storyBeacon.userData = { col, ring, edge };
         storyBeacon.traverse(o => { o.frustumCulled = false; o.renderOrder = 20; });
         world.add(storyBeacon);
       }
       storyBeacon.visible = !!at;
+      storyBeacon.userData.edge.visible = !!(at && kind === 'stand' && r > 1.2); if (r > 1.2) storyBeacon.userData.edge.scale.setScalar(r);
       if (at) { const amber = kind === 'stand'; storyBeacon.userData.col.material.uniforms.uC.value.setRGB(amber ? 1.0 : 0.62, amber ? 0.8 : 0.78, amber ? 0.52 : 1.0); storyBeacon.userData.ring.material.color.setHex(amber ? 0xffcf8a : 0x9fc4ff); }
       if (at) storyBeacon.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1])))); // (at[3]: the floor it stands on, a roof's)
+    },
+    // standing in the light (a frame's standpoint, reached): the column goes, the edge of the place is lit, the ground
+    // inside it is warmed a little, and a ring goes out once from your feet to its edge as you step in. What the camera
+    // sees from here is the other year; the light says, in the street, that this is where it is seen from
+    here: (at, r = 2.5) => {
+      if (!at) { if (storyHere) storyHere.visible = false; return; }
+      if (!storyHere) {
+        const amber = new THREE.Color(1.0, 0.8, 0.52);
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: amber } },
+          vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+          fragmentShader: 'uniform float uT; uniform vec3 uC; varying vec2 vP; void main() { float r = length(vP); float a = 0.11 * smoothstep(1.0, 0.2, r) * (0.85 + 0.15 * sin(uT * 2.2)) + 0.22 * smoothstep(0.7, 0.94, r) * smoothstep(1.0, 0.94, r) + 0.95 * smoothstep(0.925, 0.955, r) * smoothstep(1.0, 0.975, r); gl_FragColor = vec4(uC * a, a); }' }));
+        const wave = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 72), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        for (const m of [disc, wave]) { m.rotation.x = -Math.PI / 2; m.frustumCulled = false; m.renderOrder = 20; }
+        disc.position.y = 0.04; wave.position.y = 0.05;
+        storyHere = new THREE.Group(); storyHere.add(disc, wave); storyHere.userData = { disc, wave, t0: 0, key: '' };
+        world.add(storyHere);
+      }
+      const U = storyHere.userData, key = `${at[0].toFixed(1)},${at[1].toFixed(1)}`;
+      if (!storyHere.visible || U.key !== key) U.t0 = performance.now(); // (stepped in: the ring goes out)
+      U.key = key; U.r = r; storyHere.visible = true;
+      U.disc.scale.setScalar(r);
+      storyHere.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1]))));
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
     screen: at => { const v = W(at[0], at[1], at[2] ?? player.z + 1.2), d = Math.hypot(at[0] - player.x, at[1] - player.y), f = v.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera); return { x: v.x * 0.5 + 0.5, y: 0.5 - v.y * 0.5, front: f, dist: d }; },
@@ -3411,10 +3438,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (by the compass only: how far the lens must turn to face it; nobody is asked to tilt the camera up a tower)
     aim: at => { const v = W(at[0], at[1], 0).sub(camera.position), f = camera.getWorldDirection(new THREE.Vector3()); v.y = 0; f.y = 0; if (v.lengthSq() < 1e-6 || f.lengthSq() < 1e-6) return 0; return Math.acos(Math.max(-1, Math.min(1, v.normalize().dot(f.normalize())))) * 180 / Math.PI; },
     // the frame as it is drawn now, small, for the episode's print (drawn and read back in one task: the canvas keeps no copy)
-    snap: () => {
-      // (what the camera in your hands sees: not yourself, and not the goal's light)
-      const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible, gl = gold.mesh.visible;
-      player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false; gold.mesh.visible = false; // (nor the way's band on the ground)
+    snap: plain => {
+      // (what the camera in your hands sees: not yourself, and not the goal's light, nor the light you stand in)
+      const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible, gl = gold.mesh.visible, hc = storyHere && storyHere.visible;
+      player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false; gold.mesh.visible = false; if (storyHere) storyHere.visible = false; // (nor the way's band on the ground)
       mirrorTick();
       const out = document.createElement('canvas'), h = Math.min(480, canvas.height);
       out.height = h; out.width = Math.round(h * 1.5);
@@ -3423,10 +3450,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (tonight alone first, smaller: the print comes up as tonight, and the other year comes up in it, story.js showPrint)
       let base = null;
       if (past) { past.none(); try { base = take(0.7); } catch (e) { base = null; } }
-      if (past) past.whole(true); // (the photograph is the finder's picture, edge to edge)
+      if (past && !plain) past.whole(true); // (the photograph is the finder's picture, edge to edge; a frame spent from the wrong place has only tonight in it)
       const src = take(0.86);
       if (past) past.whole(false);
-      player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc; gold.mesh.visible = gl;
+      player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc; gold.mesh.visible = gl; if (storyHere) storyHere.visible = hc;
       storySnapBase = base;
       return src;
     },
@@ -3552,10 +3579,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
-    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
+    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); } }; }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1)
     clear: (a, b) => clearSight(a, b), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to)
     clearRound: (x, y, r) => clearRound(x, y, r), // (and out of a ring round someone the frame is of)
-    finder: q => { if (past) past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); },
+    finder: (q, open = true) => { if (past) { past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); past.open(open); } }, // (open: the lens stands where the other year was seen from; off it the finder has tonight only)
     lens: fov => { cam.distTo = 0; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(12, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below)
     // where to make for on the way to a place that is up a tower (or down from one): the nearer stop of the lift that
     // goes there, so that the mark is on a door that can be walked to and not on a roof 230 m overhead
@@ -6185,6 +6212,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (story && heli.group && !heli.st.on) { heli.group.visible = !!heliWait; heli.st.idle = heliWait && heliWait.idle && heli.loaded() ? HELI_IDLE : 0; } // (the story's helicopter is seen only on its pad before the flight it plays, and in that flight: story ctx board, film)
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
+    if (storyHere && storyHere.visible) { const U = storyHere.userData, t = (performance.now() - U.t0) / 900, e = 1 - Math.pow(1 - Math.min(1, t), 3); U.disc.material.uniforms.uT.value = performance.now() / 1000; U.wave.visible = t < 1; U.wave.scale.setScalar(U.r * (0.15 + 0.85 * e)); U.wave.material.opacity = 0.7 * (1 - Math.min(1, t)); }
     if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
     const ob = titleOn ? null : objective();
@@ -7610,7 +7638,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };

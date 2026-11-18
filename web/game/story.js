@@ -95,6 +95,9 @@ window.OEStory = (function () {
     // the story's own film (meetGuide): its words at the foot of the frame, over the bars, and how to end it
     // a hint, asked for (hint() below): the button, under the camera's own
     const hintBtn = el('g-story-hint', '', 'button');
+    // the camera taught, the first time it is in the hand (task.teach): what to do, in order, and what each step does,
+    // ticked as it is done (teachTick below)
+    const teachEl = el('g-story-teach', '');
     hintBtn.type = 'button'; hintBtn.addEventListener('click', e => { e.stopPropagation(); hint(); });
     const movEl = el('g-story-mov', `<p></p><button type="button">${ctx.touch ? 'Tap to skip' : 'Space to skip'}</button>`);
     movEl.querySelector('button').addEventListener('click', e => { e.stopPropagation(); movEnd(true); });
@@ -116,7 +119,8 @@ window.OEStory = (function () {
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? st.fr.task.lens : null); // (a frame taken through a long lens: task.lens, degrees)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
       // (the lens comes up onto the thing, at its height, unless it is behind you: game.js reads story.subject as it raises it)
-      say(on ? `Camera up${finder.dataset.year ? ` · it sees ${finder.dataset.year}` : ''}` : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
+      const from = on && st.fr.task.stand ? framed().placed : true; // (raised off the place: the finder has tonight only, and says so)
+      say(on ? (finder.dataset.year ? (from ? `Camera up · it sees ${finder.dataset.year}` : 'Camera up · not from here') : 'Camera up') : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
     camBtn.addEventListener('click', () => raise(!st.cam));
     // a print's postmark: struck on it when it is taken, as a letter's stamp is cancelled; the place round the top,
@@ -258,7 +262,8 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const MARKS = { meet: 'Talk', ghost: 'Talk', stand: 'Stand here' };
     function aimAt(at, turn, kind) { st.target = at; st.kind = kind || 'go'; mark.dataset.kind = st.kind; guideTo(at); light(null); if (!at) mark.classList.remove('on'); else { if (turn && ctx.look) ctx.look(at); markTick(0); } } // (turn: the view is brought round to it, so that a new goal is in front of you)
     // the light standing in the street, set only when it changes
-    function light(at, kind) { const k = at ? `${at}|${kind}` : ''; if (k === st.lightK) return; st.lightK = k; ctx.beacon(at, kind); }
+    // (a standpoint's light has the size of the place: its edge on the ground at task.within_m, so that inside it can be seen)
+    function light(at, kind) { const k = at ? `${at}|${kind}` : ''; if (k === st.lightK) return; st.lightK = k; const T = st.fr && st.fr.task, r = at && kind === 'stand' && T && T.stand && Math.hypot(at[0] - T.stand[0], at[1] - T.stand[1]) < 0.5 ? T.within_m || 4 : 0; ctx.beacon(at, kind, r); }
     // Who shows the way. A dog going ahead of you is the way, and anything else that says where to go is a second voice
     // saying it: a column of light over the street, a gold line on the paving, a ring at the edge of the frame with
     // its metres. Each draws the eye off him to a sign, and he becomes something walking beside the instructions. So
@@ -332,7 +337,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     // (with a controller in the hand: its sticks)
     const KEYS = () => (ctx.padOn && ctx.padOn() ? `<span><kbd class="pad">${K('Left stick')}</kbd>walk</span><span><kbd class="pad">${K('Right stick')}</kbd>look</span>` : ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>');
     let keysAre = '';
-    function hint(on) { if (on) { keysAre = KEYS(); keys.innerHTML = keysAre; } keys.classList.toggle('on', on); }
+    function keysHint(on) { if (on) { keysAre = KEYS(); keys.innerHTML = keysAre; } keys.classList.toggle('on', on); }
     const voiceOf = a => Object.assign(a.year ? { pitch: 170, past: 1 } : a.age >= 70 ? { pitch: 160, breath: 1 } : { pitch: 200 }, a.voice || {}); // (someone of another year is heard twice; the old have breath in it)
     const who = a => ({ name: a.name || '', role: a.year ? String(a.year) : [a.age ? `${a.age}` : '', a.role || ''].filter(Boolean).join(' · '), alive: !a.year, voice: voiceOf(a) }); // (the living: their age tonight; an afterimage: its year)
 
@@ -571,7 +576,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         if (st.dog && st.ghost) st.dog.lead([st.ghost.x, st.ghost.y], a.reach_m || 3.2);
         goal(a.seek || 'Someone is still moving. Go to them.');
         aimAt(spot([st.ghost.x, st.ghost.y, st.ghost.z]), true, 'ghost');
-        if (!st.hinted) { st.hinted = true; hint(true); }
+        if (!st.hinted) { st.hinted = true; keysHint(true); }
       };
     }
     // The guide's entrance, the first time the world stops (ep.guide, and `meet` on it: from_m, speed, hold_s, lines).
@@ -673,18 +678,49 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       }
       if (n === 3) { st.lit = true; if (H.go || H.only) aimAt(spot(H.at), false, H.only ? 'stand' : 'go'); if (H.only) st.hintLight = spot(H.at); if (text) say(text); }
     }
+    // The camera taught, the first time it is in the hand (task.teach: { title, steps: [{ is, do, say, key }] }; `is` is
+    // stand, raise, frame or shoot). A rule is learnt when the player is told what will happen, does it, and sees it
+    // happen at once: so each step says what it does before it is done, the world answers the moment it is (the light
+    // under your feet, the other year forming in the lines, the lines going amber, the print), and the card ticks it.
+    // The steps are live, not a list that only goes forward: with the camera up off the light, the first is not ticked
+    // and the second is, and the finder holds tonight only. A release pressed early shakes the step not yet done.
+    const TEACH_IS = { stand: f => f.placed, raise: () => !!st.cam, frame: f => f.placed && f.aimed && !!st.cam, shoot: () => st.beat === 'shown' };
+    function teach(T) {
+      st.teach = T && (T.steps || []).length ? T : null; st.teachK = ''; st.teachHand = KEYS();
+      if (!st.teach) { teachEl.classList.remove('on', 'done'); return; }
+      const bare = ctx.touch && !(ctx.padOn && ctx.padOn()), keyOf = k => (!k || bare ? '' : `<kbd>${esc(K(k))}</kbd>`);
+      teachEl.innerHTML = `<small>${esc(T.title || '')}</small><ol>${T.steps.map((q, i) => `<li data-is="${esc(q.is)}"><b>${i + 1}</b><span>${esc(bare && q.do_touch ? q.do_touch : q.do)}${keyOf(q.key)}</span><p>${esc(bare && q.say_touch ? q.say_touch : q.say || '')}</p></li>`).join('')}</ol>`;
+      teachEl.classList.remove('done'); teachEl.classList.add('on');
+    }
+    function teachTick(f) {
+      if (!st.teach) return;
+      if (KEYS() !== st.teachHand) { const T = st.teach; teach(T); } // (the keys, or the pad's signs, as the hand changes)
+      let now = -1, k = '';
+      st.teach.steps.forEach((q, i) => { const done = !!(TEACH_IS[q.is] && TEACH_IS[q.is](f)); if (!done && now < 0) now = i; k += done ? '1' : '0'; });
+      k += `|${now}`;
+      if (k === st.teachK) return;
+      st.teachK = k;
+      teachEl.querySelectorAll('li').forEach((e, i) => { const done = k[i] === '1'; if (done && !e.classList.contains('done')) { e.classList.remove('ticked'); void e.offsetWidth; e.classList.add('ticked'); } e.classList.toggle('done', done); e.classList.toggle('now', i === now); });
+    }
+    function teachNudge() { const e = st.teach && teachEl.querySelector('li.now'); if (e) { e.classList.remove('nudge'); void e.offsetWidth; e.classList.add('nudge'); } }
+    function teachDone() { // (the picture taken: the last step ticked, and the card goes a moment later)
+      if (!st.teach) return;
+      teachEl.querySelectorAll('li').forEach(e => { if (!e.classList.contains('done')) { e.classList.add('done', 'ticked'); } e.classList.remove('now'); });
+      st.teach = null; later(1800, () => teachEl.classList.add('done'));
+    }
     function movSay(text) { movEl.querySelector('p').textContent = text; if (ctx.log && ctx.log.aside) ctx.log.aside(esc(text)); } // (and in the log of the evening, as what was seen)
     // the photograph: of what, from where
     function task() {
       if (!st.fr.task) { resume(); return; }
       st.beat = 'shoot'; goalText = '';
-      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.spendT = 0; st.ready = false; huntFresh(); // (ready: not the last frame's, which was taken: the first H of the last frame went to nothing) // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
+      st.findT = 0; st.lit = !(st.fr.task.find || st.fr.task.hint_at); st.placedOnce = false; st.wasPlaced = false; st.outAt = null; st.spendT = 0; st.ready = false; huntFresh(); // (ready: not the last frame's, which was taken: the first H of the last frame went to nothing) // (find, or a picture found with no standpoint: no light stands for it, until the player asks for one)
       if (st.fr.task.both && ctx.clearRound) for (const g of [st.ghost, st.ghost2]) if (g) ctx.clearRound(g.x, g.y, 3.5); // (each alone on their kerb)
       if (st.fr.task.both && st.fr.task.hint_at && ctx.clear) for (const g of [st.ghost, st.ghost2]) if (g) ctx.clear(st.fr.task.hint_at, [g.x, g.y]); // (the held crowd out of the two ways from the corner the hints lead to: two figures among umbrellas forty metres off were not to be found in the print)
       { const T = st.fr.task, from = T.stand || [ctx.player.x, ctx.player.y]; if (ctx.clear) for (const c of T.clear || []) ctx.clear(from, c); if (T.clear_round && ctx.clearRound && T.relic) ctx.clearRound(T.relic.at[0], T.relic.at[1], T.clear_round); } // (task.clear: the way on past the thing kept clear too, to points beyond it; task.clear_round: a ring round it. Frame 2's stool had a held walker a metre off and the crowd standing on it from behind)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
       st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
+      teach(st.fr.task.teach);
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)
       if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand && !T.find ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1, ux = (px - R.at[0]) / l, uy = (py - R.at[1]) / l, q = [R.at[0] + ux * 1.2 - uy * 2.2, R.at[1] + uy * 1.2 + ux * 2.2]; to = (st.dog.free && st.dog.free(q[0], q[1], 1.5)) || q; } /* (beside it, off the line from the lens: on that line, 2.2 m before the lamp, his head filled the foot of the third print) */ if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
     }
@@ -712,11 +748,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // within a few seconds takes the picture as it is, a print of tonight and nothing under it, and the story goes on
       // without what stood here. Not the first frame, which teaches the camera, nor the last, which is the ending.
       const spare = st.fi > 0 && !T.both && !fr.finale, off = !f.placed || !f.aimed, spend = off && spare && st.spendT > 0;
-      if (off && !spend) { goal(`${!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'}${spare ? ' The release again spends the frame as it is.' : ''}`); st.miss = spare ? 5 : 2.5; st.spendT = spare ? 5 : 0; return; }
+      if (off && !spend) { teachNudge(); goal(`${!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'}${spare ? ' The release again spends the frame as it is.' : ''}`); st.miss = spare ? 5 : 2.5; st.spendT = spare ? 5 : 0; return; }
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
       light(null);
       let print = null;
-      try { print = ctx.snap(); } catch (e) { print = null; }
+      try { print = ctx.snap(spend); } catch (e) { print = null; } // (spent: only tonight in it, whatever was in the lines)
       if (spend) { st.prints.push({ src: print, stamp: fr.stamp || '', cap: 'Only tonight. Nothing of 1964 came up in it.', note: fr.lost ? `Spent. Not on the roll: ${fr.lost}` : 'Spent.', plain: true }); st.flags[`lost${st.fi + 1}`] = true; }
       else st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '', note: fr.note || '' }); // (note: what the frame settled, written under it in the roll)
       st.spendT = 0;
@@ -726,7 +762,8 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       frames.classList.remove('kept'); void frames.offsetWidth; frames.classList.add('kept'); // (the strip says the print is kept, and where the roll is)
       pulse(); sfx('shutter'); sfx('wind');
       st.left = Math.max(0, st.left - 1); show();
-      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; aimAt(null); goal('');
+      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; aimAt(null); goal(''); if (ctx.here) ctx.here(null);
+      teachDone();
       st.beat = 'shown';
       if (fr.finale) return finale();
       // (what the print shows is said, and what the player makes of it is asked: task.ask, task.then; a frame spent has
@@ -745,7 +782,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
     function retry() {
       failEl.classList.remove('on');
       veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
-      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; hint(false);
+      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; keysHint(false); teach(null); if (ctx.here) ctx.here(null);
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false }); if (ctx.held) ctx.held(false);
       for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
       if (ctx.finder) ctx.finder(null);
@@ -763,7 +800,8 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       const fr = st.fr;
       st.phase = 'after'; st.t = 0; st.beat = ''; st.late = !!late;
       veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
-      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; hint(false); aimAt(null); goal('');
+      shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; keysHint(false); aimAt(null); goal(''); if (ctx.here) ctx.here(null);
+      if (st.teach) teach(null); // (a Stop run out with the camera untaught: the card goes with it, and comes again with the frame)
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false });
       if (!late && fr.turn) later(1500, () => sting(fr.turn)); // (the case turned over, or the false solution: under the first line said after)
       say('Time runs again'); sfx('run'); if (ctx.held) ctx.held(false);
@@ -858,7 +896,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       if (st.gone) { st.gone.tick(dt); if (st.gone.state === 'away') st.gone = null; } // (a guide on his way off)
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
-      if (keys.classList.contains('on') && KEYS() !== keysAre) hint(true); // (the keys, or the pad's sticks, as the hand changes)
+      if (keys.classList.contains('on') && KEYS() !== keysAre) keysHint(true); // (the keys, or the pad's sticks, as the hand changes)
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
@@ -902,14 +940,17 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
         for (const q of [g, st.ghost2]) if (q) { q.animate(dt); if (!q.to) q.face(ctx.player.x, ctx.player.y); }
         if (st.beat === 'seek') {
           // the keys are put away once they have been used
-          if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; hint(false); }
+          if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; keysHint(false); }
           if (g && near([g.x, g.y, g.z], a.reach_m || 3.2)) {
-            st.beat = 'talk'; hint(false); aimAt(null); goal('');
+            st.beat = 'talk'; keysHint(false); aimAt(null); goal('');
             sfx('ghost'); hear(a, who(a), () => task());
           }
         }
         if (st.beat === 'guide') movTick(dt);
-        if (ctx.finder) ctx.finder(st.beat === 'shoot' && st.cam ? finderRect() : null);
+        // (the finder's lines, and whether the lens stands where the other year was seen from: off it, nothing of that year forms)
+        const inPlace = st.beat !== 'shoot' || !fr.task || framed().placed;
+        if (ctx.finder) ctx.finder(st.beat === 'shoot' && st.cam ? finderRect() : null, inPlace);
+        if (st.beat === 'shoot') { if (inPlace) delete finder.dataset.off; else finder.dataset.off = ''; }
         if (st.beat === 'shoot') { // the goal says where to stand, then when the lens is on it, and the button shows it
           const T = fr.task, G = T.goals || {}, f = framed(), on = f.placed && f.aimed;
           // (a frame whose place the player finds, task.find: the goal says what is known of it, a second line after
@@ -920,14 +961,19 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           // (and it reads at every distance, not only the last nine metres: a split-image rangefinder's line through the
           // patch, its two halves as far apart as the place is far off, closing as you come to it and one line on it; a
           // patch that only warmed within 9 m said nothing to a player 44 m off, and nothing about which way was nearer)
-          if (T.find && T.stand) {
+          // (every frame with a place, lit or found: the first frame's light teaches the line that the later frames are found by)
+          if (T.stand) {
             const w = T.within_m || 4, d = Math.hypot(T.stand[0] - ctx.player.x, T.stand[1] - ctx.player.y), fix = f.placed ? 'on' : d < Math.max(w * 3, 14) ? 'near' : 'far'; // (nearer within a stone's throw: from the wrong blossom of four, the right one is twelve metres off)
             const split = f.placed ? 0 : 30 * (1 - Math.exp(-Math.max(0, d - w) / 14));
             finder.style.setProperty('--split', split.toFixed(1));
             if (finder.dataset.fix !== fix) { finder.dataset.fix = fix; finder.querySelector('.rf small').textContent = fix === 'on' ? 'The place · here' : fix === 'near' ? 'The place · nearer' : 'The place · far'; }
             if (f.placed && !st.placedOnce) { st.placedOnce = true; if (!st.lit) { sfx('found'); say('This is the place'); } }
+            // (stepping into the light: said, and heard, each time it is come into after a while out of it)
+            if (f.placed !== st.wasPlaced) { if (f.placed && st.lit && st.t - (st.outAt ?? -9) > 2) { sfx('goal'); say('In the light'); } if (!f.placed) st.outAt = st.t; st.wasPlaced = f.placed; }
+            if (ctx.here) ctx.here(f.placed ? spot(T.stand) : null, w);
           }
           else if (finder.dataset.fix) delete finder.dataset.fix;
+          teachTick(f);
           const standGoal = hunt ? (st.hintText || G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
           const text = !st.cam ? (!f.placed ? standGoal : T.both && T.hint_at && !st.ready && G.shoot ? G.shoot : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);

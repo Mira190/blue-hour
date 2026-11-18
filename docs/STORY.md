@@ -638,7 +638,14 @@ find it in the finder, and it is what the frame's lines turn on. Each frame has 
 the ground) from which its thing fills about a third of the finder with nothing of tonight's crowd or the afterimage in
 the way (the crowd standing in that sightline is sent on when the frame begins: `clearSight` in `game.js`); the last
 of them is taken from his kerb through a long lens (`task.lens`, degrees). A thing forms in the finder the first time
-it is inside the lines.
+it is inside the lines, **and only from its stand point** (rule 5: *a frame taken there, facing as the day was seen*).
+Raised anywhere else, the finder holds tonight alone, the year over its lines says *1964 · not from here* and the
+word in the frame *Camera up · not from here*; stepped
+off the place with it formed, it goes back into the grain in under half a second, and forms again on the place
+(`past.js` `open`). For a day the board of frame 1 stood in the finder from wherever the camera was raised, while the
+goal said to step back into the light: the thing was already there, so the light meant nothing, and the release refused
+a picture the player could see (the owner, November 2026). A frame spent from the wrong place is tonight's alone too:
+its print had the thing in it under a caption saying nothing of 1964 had come up.
 
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
@@ -649,6 +656,36 @@ it is inside the lines.
 | 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
 | 6 | her corner, from his kerb | the pillar box, her umbrella against it, the board | the same corner as frame 1, as he saw it |
 | 7 | the crossing | the two of them | nothing else is needed |
+
+**The camera taught.** The first frame is where the camera is learnt, and what it does is the story's rule, so the
+rule is taught as a rule: the player is told what will happen, does it, and sees it happen at once. A card on the
+picture's left (on a phone, a strip low in the frame, the steps as four marks and the one to do in words) lists the four steps in the order they are done, each with
+what it does before it is done (`task.teach` on frame 1; `story.js` `teach`):
+
+| Step | What it says it does | How the world answers, the moment it is done |
+|---|---|---|
+| Stand in the light | the camera sees 1964 only from where it was seen; anywhere else, tonight | the column goes, the edge of the place is lit on the ground and a ring goes out to it from your feet (`game.js` `here`); *In the light*; the rangefinder's line joins |
+| Raise the camera (R, the button, LT) | from the light, what stood there comes up in the finder out of the grain | the board forms inside the lines in 0.8 s, with its glass |
+| Turn it into the frame lines | an arrow on their edge points to it while it is outside them | the lines go amber; *In the frame · the planetarium's board* |
+| Take the picture (F, the shutter, RT) | the print comes up as tonight, and 1964 through it; seven frames, no eighth | the print develops in the hand |
+
+The steps are live, not a list that only goes forward: raised off the light, the first is still to do and the second is
+ticked, and the finder says *not from here*, which is the rule seen from its wrong side. A release pressed too early
+shakes the step not yet done; the goal line says the same in the story's words. The keys are named on the card the
+first time they are needed (a pad's signs while a pad is in the hand, nothing on a touch screen, where the buttons are
+on the picture). The card goes a moment after the print, and never comes again: frames 2 to 7 have only the goal, the
+line through the patch, and hints asked for. The walking keys (W A S D, Shift, the mouse; the thumbs) are shown as the
+first Stop gives the street to the player; for a while they never were, because a second function took the name of
+the one that showed them (`keysHint`).
+
+What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
+old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose
+camera alone sees what is gone and whose first capture is taught one step at a time, with the finder answering each;
+the landmark photographs of *Marvel's Spider-Man* (2018), whose finder says when the thing is framed; the paintings of
+*Elden Ring*, whose reward stands only where the picture was painted; and the contextual prompts of *God of War*
+(2018) and *The Last of Us Part II*, shown when the action is possible and withdrawn once it is learnt. From first
+principles: a rule the world breaks once (the thing seen off the place) cannot be learnt from the world again, so the
+world keeps the rule before any card explains it.
 
 **It is heard.** Nobody is recorded: every sound is made in the page (`web/game/audio.js`). Each speaker has a
 voice of their own for the sound of their lines (a pitch, breath in it for the old, a second fainter syllable
@@ -695,7 +732,8 @@ minute between two policemen. The words say what to look for, never which way to
 
 With the camera up, the line through the rangefinder's patch is cut in two, its halves as far apart as the place is far
 off, and they close as it comes near (a split-image finder's), at every distance, with what it measures under it (*the
-place · far, nearer, here*). Of four blossoms, the line closes on one.
+place · far, nearer, here*). Of four blossoms, the line closes on one. Every frame with a stand point has the line, lit or found: the first frame's light teaches what the line
+says, so that the frames without one are found by an instrument already known.
 
 **A hint is asked for, never given.** A second line on a timer and a light after a minute and a half decided for the
 player when they were stuck, and gave the place away to one who was about to find it. Now nothing more is shown until
