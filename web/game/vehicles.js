@@ -332,11 +332,23 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
       }
       return g === -Infinity ? nav.groundBelow(x, y, z) : g;
     };
+    // where it is and how it sits, from st
+    function place() {
+      g.position.copy(W(st.x, st.y, st.z));
+      g.rotation.set(0, 0, 0);
+      g.rotateY(Math.PI - st.h);
+      g.rotateX(st.pitch);
+      g.rotateZ(st.roll);
+    }
     function update(dt, inp, events) {
       if (swap) swap();
       st.door += clamp(st.doorTo - st.door, -dt / 0.35, dt / 0.35); // a third of a second each way
       const spool = st.on ? 1 : st.idle || 0; // (idle: turning over on its pad, nobody flying it: a story's helicopter waiting for you)
       st.rotor += (spool - st.rotor) * Math.min(1, dt / 1.2);
+      // flown by a film (st.scripted: a story's flight sets where it is and how it sits, game.js story ctx film): its rotor,
+      // lights and downwash go on, and nothing else here touches it. The flight's physics once ran on under the film every
+      // frame as well, easing the pitch the film had set back towards level by however long the frame was
+      if (st.scripted) { place(); V.animate(dt, st, nav); return; }
       const ready = st.rotor > 0.9;
       // controls: forward thrust along the heading, yaw, climb; the assists do the rest (issue 335). The
       // flight is assisted, as the helicopters of open-world games fly (GTA V's, Just Cause's) and as a
@@ -405,13 +417,16 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
       st.accS = (st.accS || 0) + ((st.acc || 0) - (st.accS || 0)) * Math.min(1, dt * 4);
       st.pitch += ((st.landed ? 0 : clamp(st.accS * 0.022 + along * 0.0035, -0.32, 0.38)) - st.pitch) * Math.min(1, dt * 3);
       st.roll += ((st.landed ? 0 : -clamp(Math.atan(along * st.yawRate / 9.81), -0.5, 0.5) - st.yawRate * 0.06) - st.roll) * Math.min(1, dt * 3);
-      g.position.copy(W(st.x, st.y, st.z));
-      g.rotation.set(0, 0, 0);
-      g.rotateY(Math.PI - st.h);
-      g.rotateX(st.pitch);
-      g.rotateZ(st.roll);
+      place();
       V.animate(dt, st, nav);
     }
+    // its hull as boxes a walker is kept out of (cars.js boxOf, pushOut): the cabin with its skids, and the tail boom,
+    // standing at (x, y, z) facing h (by default where it is). Nothing kept anyone out of it: you were set down from a
+    // flight in its cabin, and the dog at your heels with you
+    const boxesAt = (x = st.x, y = st.y, z = st.z, h = st.h) => {
+      const fx = Math.sin(h), fy = Math.cos(h);
+      return (V.hull || []).map(q => ({ x: x + fx * q.c - fy * (q.cx || 0), y: y + fy * q.c + fx * (q.cx || 0), z: z + q.y0, h, hl: q.hl, hw: q.hw, top: q.y1 - q.y0, heli: true }));
+    };
     // the door in local coordinates, for walking up to it
     const doorAt = () => {
       const c = Math.cos(st.h), s = Math.sin(st.h), door = V.door;
@@ -429,8 +444,8 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // (the title screen: it would appear out of nowhere in the shot); want() then puts it there at once
     const prefetch = () => (ready && !asked ? ready() : Promise.resolve(null));
     const show = () => { g.visible = true; };
-    return { group: g, st, get seat() { return V.seat; }, update, doorAt, get way() { return V.way; }, toWorld, toLocal, want, prefetch, show,
-      loaded: () => !ready || V === real };
+    return { group: g, st, get seat() { return V.seat; }, update, place, doorAt, get door() { return V.door; }, get way() { return V.way; }, toWorld, toLocal, want, prefetch, show,
+      boxes: () => boxesAt(), boxesAt, loaded: () => !ready || V === real };
   }
 
   function heliModel(world, lib, cfg, opts) {
@@ -500,6 +515,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     }
     // the way in, in the model's frame: beside the door, up on the step and on the floor under the
     // pilot's hips (where a seated person's feet go); and the pilot's eyes, for the cockpit view
+    const hull = hullOf(lod1 || body, src);
     const seat = p('Seat_Pilot').clone(), dp = p('Door');
     const door = { x: -dp.x, y: dp.z };
     const way = { stand: dp.clone(), step: node('Step') ? p('Step').clone() : null, seat, eye: node('Eye_Pilot') ? p('Eye_Pilot').clone() : seat.clone().add(new THREE.Vector3(0, 1.1, 0.1)) };
@@ -591,7 +607,46 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
         if (water) onWake(r, opts); else r.layers.set(0);
       }
     }
-    return { group: g, seat, door, way, animate, extras: [spray.pts, ...rings] }; // (extras: what it put in the world itself)
+    return { group: g, seat, door, way, hull, animate, extras: [spray.pts, ...rings] }; // (extras: what it put in the world itself)
+  }
+  // a helicopter's hull in the model's frame (+z forward, +x left, +y up), from its body's own points: the length cut where
+  // the body narrows from the cabin (skids and all) to the tail boom, each part the box round its points:
+  // [{ c: its middle along the length, cx: across, hl, hw: half length and width, y0, y1: bottom and top }]
+  // (body: the node, a mesh or, where its model has several materials, a group of them)
+  function hullOf(body, root) {
+    if (!body) return [];
+    root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3();
+    const S = 0.25, slices = new Map();
+    body.traverse(mesh => {
+      if (!mesh.isMesh || !mesh.geometry || !mesh.geometry.attributes.position) return;
+      M.copy(inv).multiply(mesh.matrixWorld);
+      const pos = mesh.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(M);
+        const k = Math.floor(v.z / S);
+        let q = slices.get(k);
+        if (!q) slices.set(k, q = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity });
+        q.x0 = Math.min(q.x0, v.x); q.x1 = Math.max(q.x1, v.x); q.y0 = Math.min(q.y0, v.y); q.y1 = Math.max(q.y1, v.y);
+      }
+    });
+    const ks = [...slices.keys()].sort((a, b) => b - a); // nose first
+    if (!ks.length) return [];
+    // the cabin: from the nose back to where the body, once wider than 1.4 m (the skids), is narrower again; the boom: the
+    // rest (its fin and stabiliser too)
+    const wide = i => { const q = slices.get(ks[i]); return q.x1 - q.x0 >= 1.4; };
+    let cut = ks.length, i = 0;
+    while (i < ks.length && !wide(i)) i++;
+    while (i < ks.length && wide(i)) i++;
+    if (i < ks.length) cut = i;
+    const box = list => {
+      if (!list.length) return null;
+      const b = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+      for (const k of list) { const q = slices.get(k); b.x0 = Math.min(b.x0, q.x0); b.x1 = Math.max(b.x1, q.x1); b.y0 = Math.min(b.y0, q.y0); b.y1 = Math.max(b.y1, q.y1); }
+      const z1 = (list[0] + 1) * S, z0 = list[list.length - 1] * S;
+      return { c: (z0 + z1) / 2, cx: (b.x0 + b.x1) / 2, hl: (z1 - z0) / 2, hw: (b.x1 - b.x0) / 2, y0: b.y0, y1: b.y1 };
+    };
+    return [box(ks.slice(0, cut)), box(ks.slice(cut))].filter(Boolean);
   }
   // the helicopter's searchlight: a spot light and its target, in the world
   function searchlight(world) {
@@ -1400,12 +1455,14 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
   function kitHeli() {
     const { g, rotor, tail, blur, tailAxis } = helicopterModel();
     const seat = new THREE.Vector3(0.45, 0.9, 0.6);
-    return { group: g, seat, door: { x: 1.8, y: 0.3 }, way: { stand: new THREE.Vector3(-1.8, 0, 0.3), step: null, seat, eye: new THREE.Vector3(0.45, 1.95, 0.7) },
+    // (its hull, as helicopterModel draws it: the cabin on its skids, and the boom with its fin)
+    const hull = [{ c: -0.1, cx: 0, hl: 2.05, hw: 1.0, y0: 0, y1: 2.6 }, { c: -4.25, cx: 0, hl: 2.15, hw: 0.82, y0: 1.2, y1: 2.6 }];
+    return { group: g, seat, hull, door: { x: 1.8, y: 0.3 }, way: { stand: new THREE.Vector3(-1.8, 0, 0.3), step: null, seat, eye: new THREE.Vector3(0.45, 1.95, 0.7) },
       animate(dt, st) {
         rotor.rotation.y += st.rotor * dt * 42;
         tail.rotation[tailAxis] += st.rotor * dt * 60;
         blur.material.opacity = st.rotor;
-        for (const b of rotor.children) if (b !== blur) b.visible = st.rotor < 0.6 || Math.random() < 0.5;
+        for (const b of rotor.children) if (b !== blur) b.visible = st.rotor < 0.6; // (the blur disc alone at speed: blades shown at random every other frame flickered)
       } };
   }
   // a double-ended harbour ferry from the kit, at the dimensions and livery of the city's

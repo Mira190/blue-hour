@@ -2020,6 +2020,17 @@ quality tier runs a third of the cars.
     - the attitude comes from the flight: nose down to speed up and to hold
       speed against the drag, nose up (a flare) to brake, and banked by as much
       as the turn needs (tan bank = speed × turn rate / g, up to about 29°).
+      A story's flight (a film whose guide is the helicopter, story ctx `film`) has the same attitude read off its
+      path in the film's own time, a quarter of a second either side of now, and the flight's physics is off while
+      it is flown so (`st.scripted`). It was once worked out from the step since the last frame (pitch half the metres
+      per frame, the nose wherever that step pointed, a leaf's flutter in its path) with the physics easing it back
+      towards level under the film: at an uneven frame rate its tail shook. `tools/heli_flight.js` measures it.
+  - **Its hull is solid** (`heli.boxes()`: the cabin with its skids and the tail boom, boxes cut from the model's
+    own body by `hullOf`): you on foot, the guide dog, your car and the camera are kept out of it as out of a car
+    (game.js `carBoxes`), and you get out beside its door, never in it. Nothing kept anyone out of it before: a
+    story's flight came down facing wherever its path last pointed and set you, and the dog at your heels, in its
+    cabin. Now it comes down with its door towards your spot, and the spot is moved out from the door if the hull
+    would cover it.
   - **The chase camera in the air** rides on the helicopter, its climbs eased.
     Before, a lag behind it, eased frame by frame, grew with its speed and with
     the frame time: at speed with uneven frames the helicopter wobbled in the

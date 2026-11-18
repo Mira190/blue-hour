@@ -11,7 +11,13 @@
 //     move   {from, to, look | lookFrom + lookTo}
 //     chase  {dist, h, side}               behind the guide along its path, looking at it
 //     land   {via}                        from the last shot's end down to over the player's shoulder
-//   any shot: guide: [points] (its path, a Catmull-Rom curve), rest: k (the guide holds still until k),
+//     escort {az, dist, h, lag, lead_s}    a camera ship flying with the guide: dist metres from it, az degrees round
+//                                          from dead astern (+ to its right), h above it, in the way it has been
+//                                          going over the last lag seconds (never whipped round by a turn), looking
+//                                          where it will be lead_s seconds on (room ahead of it in the frame)
+//   move: aim (0..1, or [k0, k1]: from none at k0 to whole at k1) turns its look to the guide (lead_s on, aim_up above)
+//   any shot: guide: [points] (its path, a Catmull-Rom curve), or "path": the film's own path (spec.path) at the
+//     film's time: one flight, the same through every cut, which the shots only cover; rest: k (the guide holds still until k),
 //     fov (number or [from, to]), ease, lapse (minutes the clock runs through the shot: a time-lapse),
 //     drift (0..1, the petals in the air round the camera), fadeIn / fadeOut (seconds), title (the
 //     title drop over this shot: {at, until} in k), caption ({text, at, until}), cues: [[k, name]]
@@ -21,7 +27,9 @@
 //   labels, by the start of the name), or "end" (where you stand at the end), with z above the
 //   anchor's own height (a deck's, a statue's base, else the ground). {lerp: [A, B], m} is the point m
 //   metres from A towards B (negative: behind A).
-//   spec.end: {at, facing}: where you stand when control comes to you; spec.guides: [[kind, [m, d], [m, d]]]
+//   spec.path: [[x, y, z, t], ...]: the guide's way through the whole film, at t seconds from its start (a curve
+//   through them in time: its speed is what the points' spacing and times give, and it stops at the first and last
+//   and wherever a point is repeated); spec.end: {at, facing}: where you stand when control comes to you; spec.guides: [[kind, [m, d], [m, d]]]
 //   the guide by season (the first whose dates hold); spec.score: the score's plan (film-score.js);
 //   spec.title: {name, reading, line}; spec.signal: the point whose junction the cues change.
 'use strict';
@@ -259,11 +267,30 @@ window.OEOverture = (function () {
     let shots = [], total = 0;
     function cut() { let T = 0; shots = spec.shots.map(s => { const q = Object.assign({}, s, { t0: T }); T += s.dur; return q; }); total = T; }
     cut();
+    let path = null; // spec.path resolved: [{ p: [x, y, z], t, m: [vx, vy, vz] }]
     function resolve() { // the shots' points, once the player is placed (an "end" anchor depends on it)
+      path = spec.path && spec.path.length > 1 ? spec.path.map(q => ({ p: point(q.slice(0, 3)), t: q[3] })) : null;
+      if (path) path.forEach((q, i) => { // (its velocity at each point: from its neighbours, nought at an end and at a point repeated)
+        const a = path[i - 1], b = path[i + 1], same = (u, v) => u && v && Math.hypot(u.p[0] - v.p[0], u.p[1] - v.p[1], u.p[2] - v.p[2]) < 1e-3;
+        q.m = !a || !b || same(a, q) || same(q, b) ? [0, 0, 0] : [0, 1, 2].map(j => (b.p[j] - a.p[j]) / Math.max(1e-3, b.t - a.t));
+      });
       for (const s of shots) {
         for (const k of ['at', 'look', 'from', 'to', 'lookFrom', 'lookTo', 'via', 'focus']) if (s[k]) s['_' + k] = point(s[k]);
-        s._guide = (s.guide || []).map(point);
+        s._guide = s.guide === 'path' ? null : (s.guide || []).map(point);
       }
+    }
+    // the film's path at T seconds from its start ([x, y, z], local metres): a cubic in time through its points (Hermite,
+    // the velocities above), so position and velocity run on unbroken through every cut
+    function pathAt(T) {
+      if (!path) return null;
+      const n = path.length;
+      if (T <= path[0].t) return path[0].p.slice();
+      if (T >= path[n - 1].t) return path[n - 1].p.slice();
+      let i = 0;
+      while (i < n - 2 && T > path[i + 1].t) i++;
+      const a = path[i], b = path[i + 1], h = Math.max(1e-3, b.t - a.t), u = (T - a.t) / h, u2 = u * u, u3 = u2 * u;
+      const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+      return [0, 1, 2].map(j => h00 * a.p[j] + h10 * h * a.m[j] + h01 * b.p[j] + h11 * h * b.m[j]);
     }
 
     // ------------------------------------------------------------ the guide and the air
@@ -338,6 +365,7 @@ window.OEOverture = (function () {
     // the guide's path through a shot: a Catmull-Rom curve through its points, held at the first until `rest`
     const tmpA = new V3(), tmpB = new V3();
     function guideAt(s, k, out) {
+      if (s.guide === 'path') { const q = pathAt(s.t0 + clamp(k) * s.dur); return q ? out.copy(W(...q)) : null; }
       const P = s._guide;
       if (!P || !P.length) return null;
       if (s.gFrom != null || s.gTo != null) { const a = s.gFrom ?? 0, b = s.gTo ?? 1; if (k < a || k > b) return null; k = (k - a) / (b - a); }
@@ -353,7 +381,8 @@ window.OEOverture = (function () {
         z -= s.arc * L * 4 * q * (1 - q);
       }
       // a leaf's flutter: a lazy sway across its line and a bob, more as it moves
-      const t = (s.t0 + k * s.dur), amp = K.far ? 0 : (k < r ? 0.012 : 0.16) * (s.flutter ?? 1);
+      // (not a thing of the game's, ctx.guideAt: a helicopter does not flutter, and its attitude is read off this path)
+      const t = (s.t0 + k * s.dur), amp = K.far || ctx.guideAt ? 0 : (k < r ? 0.012 : 0.16) * (s.flutter ?? 1);
       out.copy(W(x + Math.sin(t * 1.9) * amp, y + Math.cos(t * 1.4) * amp, z + Math.sin(t * 2.6) * amp * 0.6));
       return out;
     }
@@ -371,6 +400,19 @@ window.OEOverture = (function () {
       } else if (s.type === 'move') {
         pose.pos.lerpVectors(W(...s._from), W(...s._to), e(k));
         if (s._look) pose.look.copy(W(...s._look)); else pose.look.lerpVectors(W(...s._lookFrom), W(...s._lookTo), e(k));
+        // (aim: the lens panning with the guide, as an operator follows it, from where the shot was framed)
+        const aim = !g || s.aim == null ? 0 : Array.isArray(s.aim) ? EASE.smooth(clamp((k - s.aim[0]) / Math.max(1e-3, s.aim[1] - s.aim[0]))) : s.aim;
+        if (aim > 0) { const q = ahead(s, k, s.lead_s || 0, tmpA); q.y += s.aim_up || 0; pose.look.lerp(q, aim); }
+      } else if (s.type === 'escort' && g) {
+        // a camera ship flying with it: astern and to a side of the way it has been going over the last `lag` seconds
+        // (an average, so a turn swings it round no faster than the turn goes and it never whips), looking where it will be
+        const T = s.t0 + k * s.dur, lag = s.lag ?? 1.2, hd = heading(s, T, lag, tmpB);
+        const az = ch(s.az ?? 25, k, e) * RAD, dist = ch(s.dist ?? 20, k, e), h = ch(s.h ?? 3, k, e);
+        // (game heading (hx, hy): astern is -(hx, hy), its right (hy, -hx); in the world's frame y is up and z is -north)
+        const bx = -hd.x * Math.cos(az) + hd.y * Math.sin(az), by = -hd.y * Math.cos(az) - hd.x * Math.sin(az);
+        pose.pos.set(g.x + bx * dist, g.y + h, g.z - by * dist);
+        const q = ahead(s, k, s.lead_s ?? 0.3, tmpA);
+        pose.look.copy(q); pose.look.y += s.aim_up || 0;
       } else if (s.type === 'chase' && g) {
         // behind the guide along the way it goes, a little above and to the side, looking past it
         const ahead = guideAt(s, Math.min(1, k + 0.02), tmpA), back = guideAt(s, Math.max(0, k - 0.02), tmpB);
@@ -395,6 +437,35 @@ window.OEOverture = (function () {
       return g;
     }
     function shotAt(t) { let s = shots[0]; for (const q of shots) if (t >= q.t0 - 1e-6) s = q; return s; }
+    // a lens chosen for a landscape frame keeps most of its width on a phone held upright: the vertical angle opened until
+    // the frame is 0.8 as wide as a 3:2 one, at most 90 degrees. At the vertical angle alone a phone saw a slice a third as
+    // wide as a desktop did, and a helicopter crossing the frame was out of it in a third of the time
+    function lensFor(v) { const a = (ctx.camera && ctx.camera.aspect) || 1.6, k = 1.2 / a; return k <= 1 ? v : Math.min(90, 2 * Math.atan(Math.tan(v * RAD / 2) * k) / RAD); }
+    // where the guide will be lead seconds on, at the height it is now (the film's path, or the shot's own beyond its end held
+    // at its last point): room ahead of it in the frame, not below it as it comes down
+    function ahead(s, k, lead, out) {
+      const y = gpos.y;
+      if (s.guide === 'path') out.copy(W(...pathAt(s.t0 + k * s.dur + lead)));
+      else if (!guideAt(s, Math.min(1, k + lead / s.dur), out)) out.copy(pose.look);
+      if (lead) out.y = y;
+      return out;
+    }
+    // the way it has been going over the last lag seconds, level: { x, y } a unit vector in game coordinates
+    const lastHd = { x: 0, y: 1 };
+    function heading(s, T, lag, out) {
+      let sx = 0, sy = 0;
+      const at = tt => (s.guide === 'path' ? pathAt(tt) : (() => { const q = guideAt(s, clamp((tt - s.t0) / s.dur), tmpB.clone()); return q ? [q.x, -q.z, q.y] : null; })());
+      for (let i = 0; i <= 8; i++) { // (eight steps over the window, the later ones weighed more)
+        const t1 = T - lag * (1 - i / 8), a = at(t1 - 0.15), b = at(t1 + 0.15);
+        if (!a || !b) continue;
+        const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), w = 0.5 + i / 8;
+        if (l > 0.05) { sx += dx / l * w * Math.min(1, l / 1.5); sy += dy / l * w * Math.min(1, l / 1.5); }
+      }
+      const l = Math.hypot(sx, sy);
+      if (l > 0.2) { lastHd.x = sx / l; lastHd.y = sy / l; } // (in a hover: the way it last went)
+      out.x = lastHd.x; out.y = lastHd.y;
+      return out;
+    }
 
     // ------------------------------------------------------------ the type: the title drop, captions, the bars, the skip hint
     const css = document.createElement('style');
@@ -815,9 +886,14 @@ window.OEOverture = (function () {
     }
     return {
       play, skip, update, prepareScore, prewarm, scorePlan, point, get shots() { return shots; }, get total() { return total; }, get variant() { return variant; },
-      get active() { return active; }, get fov() { return fov; }, get fx() { return active ? fx : null; }, get t() { return t; }, get kind() { return kind; }, get end() { return endAt.slice(); },
+      get active() { return active; }, get fov() { return lensFor(fov); }, get fx() { return active ? fx : null; }, get t() { return t; }, get kind() { return kind; }, get end() { return endAt.slice(); },
       // the guide's and the camera's path through each shot (for tools/overture_film.js's checks)
       sample(s, k) { const g = shotPose(s, k); return { pos: pose.pos.clone(), look: pose.look.clone(), guide: g ? g.clone() : null }; },
+      // the guide's path through a shot at k (0..1), as the camera's frame has it, without touching the camera: where a thing
+      // of the game's flown along it is, either side of now (game.js story ctx film: the helicopter's attitude)
+      path: (s, k) => guideAt(s, clamp(k), new V3()),
+      // (and the film's own path, at T seconds from its start: [x, y, z] in game coordinates, or null without one)
+      pathAt: T => pathAt(T), get pathEnd() { return path ? path[path.length - 1].t : null; }, get hasPath() { return !!path; },
       setFrom(f) { from = f; },
     };
   }

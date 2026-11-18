@@ -289,6 +289,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         seen.add(`fl-${s.fi}-${q.id}`); await snap(`${s.fi + 1}-flight-${q.id}`);
         console.log(`frame ${s.fi + 1} flight ${q.id} at ${f.t.toFixed(1)} s: helicopter ${f.heli ? 'seen' : 'not seen'}, you ${f.me ? 'seen' : 'not seen'}`);
         if (f.craft && q.id !== 'foot' && (!f.heli || f.me)) { errors.push(`frame ${s.fi + 1}: in the flight's ${q.id} shot the helicopter is ${f.heli ? 'seen' : 'not seen'} and you are ${f.me ? 'seen' : 'not seen'}`); console.log(errors[errors.length - 1]); }
+        // out of it, in the shot you are seen in: you and the dog at your heels stand outside its hull (both were once set
+        // down in its cabin; tools/heli_flight.js measures the flight itself)
+        if (f.craft && q.id === 'foot') {
+          await frames(3);
+          const o = await p.evaluate(() => { const g = window.__game, d = g.guideMade && g.guideMade(), B = g.heli.group.visible && g.heli.boxes ? g.heli.boxes() : [];
+            const inn = (x, y, z, r) => B.length > 0 && !!window.OECars.pushOut(x, y, z, r, B).hit;
+            return { heli: B.length, me: inn(g.player.x, g.player.y, g.player.z, 0.3), dog: d && d.ready ? inn(d.x, d.y, d.z, 0.35) : null, dogAt: d && d.ready ? [+d.x.toFixed(1), +d.y.toFixed(1)] : null }; });
+          console.log(`frame ${s.fi + 1}: out of the helicopter: ${JSON.stringify(o)}`);
+          if (!o.heli || o.me || o.dog) { errors.push(`frame ${s.fi + 1}: set down from the flight, ${!o.heli ? 'the helicopter is not on the ground beside you' : [o.me && 'you', o.dog && 'the dog'].filter(Boolean).join(' and ') + " in the helicopter's hull"}`); console.log(errors[errors.length - 1]); }
+          await snap(`${s.fi + 1}-flight-out`);
+        }
       }
     }
     else if (s.phase === 'after') await mark(s, 'after');
