@@ -806,6 +806,9 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         <h1 id="gt-title">Blue Hour</h1>
         <p id="gt-blurb"></p>
         <div class="gt-time"><span class="eyebrow">Start at</span><div class="seg" id="gt-timechoice"><button data-t="live" aria-pressed="true" id="gt-now">Now</button></div></div>
+        <div class="gt-who" id="gt-who" role="radiogroup" aria-labelledby="gt-who-l" hidden><span class="eyebrow" id="gt-who-l">Play as</span>
+          <div class="gt-who-row"><button type="button" role="radio" aria-checked="false" data-c="W"><img src="assets/story/late/kagami-w.webp" alt="" width="600" height="800" decoding="async"><b>Kagami</b><small>a woman</small></button><button type="button" role="radio" aria-checked="false" data-c="M"><img src="assets/story/late/kagami-m.webp" alt="" width="600" height="800" decoding="async"><b>Kagami</b><small>a man</small></button></div>
+          <p class="gt-who-ask" aria-live="polite"></p></div>
         <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button></div>
         <label class="gt-skip note" id="gt-skip" hidden><input type="checkbox" id="gt-skip-on" checked> Skip the intro: you have played before</label>
         <div class="gt-hints">
