@@ -56,6 +56,9 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
   }, +(process.env.SLOW || 0));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
+  // (the helicopter's model fetched and compiled first, as it is on the roof's pad before a flight boarded there: a software
+  // renderer takes longer than the film waits for it, and the plain stand-in would fly instead)
+  await p.evaluate(async () => { const g = window.__game; if (g.heli && g.heli.want) await g.heli.want(); });
   await p.waitForTimeout(1500);
   await p.evaluate(() => document.getElementById('gt-play').click());
   const beat = () => p.evaluate(() => { const g = window.__game, s = g && g.story && g.story.state; return s ? s.beat : ''; });
@@ -67,8 +70,10 @@ const [,, out = '/tmp/heli-flight', size = '1440x900'] = process.argv;
   if ((await beat()) !== 'flight') { console.log('the flight never began: beat', await beat()); await b.close(); process.exit(1); }
   await p.evaluate(() => { window.__rec = { f: [], last: null }; });
   console.log('the flight is on');
-  // a still in each shot, and the film played out
+  // a still in each shot, and the film played out (its shots read once it has begun: it may wait for its helicopter)
+  for (let i = 0; i < 200 && !(await p.evaluate(() => { const o = window.__game.overture(); return !!(o && o.active); })); i++) await p.waitForTimeout(300);
   const shots = await p.evaluate(() => { const o = window.__game.overture(); return o.shots.map(q => ({ id: q.id, t0: q.t0, dur: q.dur })); });
+  console.log('shots:', shots.map(q => `${q.id} ${q.dur} s`).join(', '));
   const seen = new Set();
   for (let i = 0; i < 3000 && (await beat()) === 'flight'; i++) {
     const t = await p.evaluate(() => { const o = window.__game.overture(); return o && o.active ? o.t : null; });
