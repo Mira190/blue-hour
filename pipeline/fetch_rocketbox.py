@@ -108,6 +108,7 @@ def main():
     listing = git("ls-tree", "-r", "--name-only", "HEAD", "Assets/Avatars").split("\n")
     cast = npc_cast(listing)
     avatars = {spec["avatar"]: spec["sex"] for spec in characters.values()}
+    avatars.update({spec["head"]: spec["sex"] for spec in characters.values() if spec.get("head")})   # (the head Kagami wears)
     for spec in cast.values():
         avatars[spec["avatar"]] = spec["sex"]
         if spec["head"]:
