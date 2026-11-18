@@ -56,7 +56,7 @@ studied, what makes each one work, and what Blue Hour adopts. Nothing of their l
 | *Return of the Obra Dinn* (2018) | Deduction from frozen moments; the game never tells you that you are right until several answers agree | The Stop is a frozen moment you read for evidence. A photograph is how you commit to an answer, and the double exposure is the confirmation |
 | *Her Story* (2015), *Immortality* (2022) | The player assembles the truth out of order; testimony that is sincere and still wrong | Each afterimage tells only what they knew at their hour. Nobody lies outright except one; the truth is in where the accounts do not fit |
 | *Outer Wilds* (2019) | A short fixed span; the only thing you carry forward is what you know | One evening, forty minutes. Nothing is levelled up; what you keep is the roll and the file |
-| *Ace Attorney* (2001–) | One contradiction per testimony, broken by presenting one piece of evidence; a reversal every case | Tatsuo's alibi is broken by a print (what the roof saw); Mr Tanaka trusts you only when shown his pitch. Every frame ends turned over |
+| *Ace Attorney* (2001–) | One contradiction per testimony, broken by presenting one piece of evidence; a reversal every case | Tatsuo is cross-examined: the player picks, from his own statements, the one the roll will not let stand and the print that breaks it, and neither is named for them; Mr Tanaka trusts you only when shown his pitch. Every frame ends turned over |
 | *Ghost Trick* (2010) | A last reveal about who someone is that makes every earlier scene mean something else, with every clue shown in plain sight | Sumiko is alive: revealed in frame 7, planted in the first Stop (*You came late*, in an old woman's voice) |
 | *Disco Elysium* (2019) | The detective's own reason for being there is part of the case | Who hired you, why at 17:14, and why you, of all people, take jobs on the tenth of October |
 | *Firewatch* (2016) | A voice on the radio carries a life the player has walked away from | Kagami's sister: the office's word in the first minute, a message in the middle, a call on the last card |
@@ -272,7 +272,8 @@ the cities' NPCs):
 
 | Who | Look | Why |
 |---|---|---|
-| Sumiko at 22 (the girl) | `R_Business_Female_03_f011`: Female_Adult_11's head, black hair up, on a jacket and knee-length skirt | The same head as Sumiko at 84 (`R_Female_Adult_09_f011_grey`), so the girl is visibly the old woman: the last reveal is in plain sight. The jacket and skirt are the nearest Rocketbox has to a lift girl's uniform of 1964 (her white gloves and little hat are not built). Until November 2026 she was a fair-haired woman in a leather jacket and combat trousers |
+| Sumiko at 22 (the girl) | `R_Business_Female_03_f011_glove_liftcap`: Female_Adult_11's head, black hair up, on a jacket and knee-length skirt; one white cotton glove, on her right hand, and the lift girls' little pillbox hat of the jacket's cloth, pinned on her crown (`blender/build_people.py` `glove`, `lift_cap`) | The same head as Sumiko at 84, so the girl is visibly the old woman: the last reveal is in plain sight. The jacket and skirt are the nearest Rocketbox has to a lift girl's uniform of 1964, and the hat makes it one. The one glove is the case's first clue, in the frame before anyone speaks of it (the other is in a dead man's fist; issue 46). Until November 2026 she was a fair-haired woman in a leather jacket and combat trousers |
+| Sumiko at 84 | `R_Female_Adult_09_f011_grey_handbag`: the same head, her hair grey, her brows a soft ash grey and her lashes her own; a black leather handbag with a brass frame in her left hand (`handbag`) | The bag has held his camera every tenth of October for sixty-two years, and on the last card she takes it out of it: it is in her hand from the first shot of the evening. Until November 2026 the grey tag whitened her brows and lashes as it did her hair, and round dark eyes they read as a mask, not as an old Japanese woman's face (issue 34). She is not in the street's crowd: a woman of the crowd in her clothes and with her face would be taken for her |
 | Tatsuo | `R_Construction_Male_05_m017_bare`: work clothes, bare-headed | Not the face of the man he passed on the stair. Until November 2026 he and Akira both wore m008 |
 | Akira at 87 | `R_Male_Adult_03_m008_grey` | As before |
 | Kanbara | `R_Business_Male_06_m024`: in his shirtsleeves | A Japanese section chief; until November 2026 a European face |
@@ -366,10 +367,12 @@ eighth.
 It has the movements a classical mystery has:
 
 - **A false solution at the midpoint** (frame 3): the glove points at Sumiko herself.
-- **A liar broken by evidence** (frame 5): Tatsuo's alibi against what the roof saw.
+- **A liar broken by evidence** (frame 5): Tatsuo cross-examined, his own statements against the roll.
 - **A witness who trusts only what he is shown** (frame 6): Mr Tanaka and his pitch.
-- **The challenge to the reader** (frame 7): the living Sumiko asks three questions, each answered with the print (or
-  the pair of prints) that proves it and then in words. A right sentence on the wrong print is not an answer.
+- **The challenge to the reader** (frame 7): the living Sumiko asks three questions, each answered with a name (one of
+  the case's people, from all of them) and then the print (or the pair of prints) that proves it. A right name on the
+  wrong print is not an answer. The second is the title's own question, and its answer is the one inference nobody
+  says aloud: whom Akira was keeping out of it. The player says it to her face.
 - **The last reveal** (frame 7, and the card): she is alive; the camera was hers all along; the word.
 
 | # | Hour | Where, and the picture | The living | Who moves in the Stop | What is learned | What the player does | It ends on |
@@ -380,7 +383,7 @@ It has the movements a classical mystery has:
 | 4 | 17:31 | SHIBUYA SKY: down on to the dome inside Hikarie | Yuna: one glove; the police at the store | Kanbara | The roll's danger; the match; she left him alive; the cut empty at three; boots on the stair while he watched the rings | Finds the place at the glass; names the boots, or will not | *Kanbara's works: the river* |
 | 5 | 17:39 | The tower's foot: the river open, and the works' board | (a message from the sister) | Tatsuo | The alibi, broken by the roof; Kudo Masao; the threat; the glove; the lecturer on the stair; the turn back | Shows Tatsuo what the roof saw; finds where the water ran | *What did the lecturer find at the top?* |
 | 6 | 17:46 | His kerb, through a long lens: her corner as he saw it | Mr Tanaka: the sentence, the lie, Hoshino, the bath-house, the minute a year, the will | Akira, of 2025 | The darkroom, the darn, the minute, the word *wait* | Shows Tanaka his pitch; finds his kerb from the roll | *Carry it over to her* |
-| 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Proves each answer; finds the corner that sees both kerbs; holds them in the frame while every light turns green and they walk to the middle; takes the last frame as they meet | She crosses |
+| 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Names each answer and proves it; finds the corner that sees both kerbs; holds them in the frame while every light turns green and they walk to the middle; takes the last frame as they meet | She crosses |
 
 **How each place is reasoned to.** No place is given by a line saying where to walk; each follows from the frame before.
 The board at her corner names the planetarium and Mizuno (1). A name on a camera goes to the shop where old cameras sit among the clothes, and Shun's
@@ -404,9 +407,9 @@ up the stair behind him*).
 | 3, the police box | says who they are to a detective of 1964. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | tells him what the roof saw. Two wrong prints and he knows a guess | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
 | 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
-| 7, Sumiko's three questions | shows the print or the pair that proves each (`proof`), then says it. Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it in words alone (`lost_q`) | failure, as above |
+| 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`). Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | failure, as above |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
 
 ## 9. Fair play: every clue, and where it is first shown
@@ -638,7 +641,14 @@ find it in the finder, and it is what the frame's lines turn on. Each frame has 
 the ground) from which its thing fills about a third of the finder with nothing of tonight's crowd or the afterimage in
 the way (the crowd standing in that sightline is sent on when the frame begins: `clearSight` in `game.js`); the last
 of them is taken from his kerb through a long lens (`task.lens`, degrees). A thing forms in the finder the first time
-it is inside the lines.
+it is inside the lines, **and only from its stand point** (rule 5: *a frame taken there, facing as the day was seen*).
+Raised anywhere else, the finder holds tonight alone, the year over its lines says *1964 · not from here* and the
+word in the frame *Camera up · not from here*; stepped
+off the place with it formed, it goes back into the grain in under half a second, and forms again on the place
+(`past.js` `open`). For a day the board of frame 1 stood in the finder from wherever the camera was raised, while the
+goal said to step back into the light: the thing was already there, so the light meant nothing, and the release refused
+a picture the player could see (the owner, November 2026). A frame spent from the wrong place is tonight's alone too:
+its print had the thing in it under a caption saying nothing of 1964 had come up.
 
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
@@ -649,6 +659,36 @@ it is inside the lines.
 | 5 | the tower's foot | the river open between its walls, and Miyamasu Bridge | Kanbara's works put it under the street |
 | 6 | her corner, from his kerb | the pillar box, her umbrella against it, the board | the same corner as frame 1, as he saw it |
 | 7 | the crossing, from a corner that sees both kerbs | the two of them meeting in the middle of it, every light green | nothing else is needed |
+
+**The camera taught.** The first frame is where the camera is learnt, and what it does is the story's rule, so the
+rule is taught as a rule: the player is told what will happen, does it, and sees it happen at once. A card on the
+picture's left (on a phone, a strip low in the frame, the steps as four marks and the one to do in words) lists the four steps in the order they are done, each with
+what it does before it is done (`task.teach` on frame 1; `story.js` `teach`):
+
+| Step | What it says it does | How the world answers, the moment it is done |
+|---|---|---|
+| Stand in the light | the camera sees 1964 only from where it was seen; anywhere else, tonight | the column goes, the edge of the place is lit on the ground and a ring goes out to it from your feet (`game.js` `here`); *In the light*; the rangefinder's line joins |
+| Raise the camera (R, the button, LT) | from the light, what stood there comes up in the finder out of the grain | the board forms inside the lines in 0.8 s, with its glass |
+| Turn it into the frame lines | an arrow on their edge points to it while it is outside them | the lines go amber; *In the frame · the planetarium's board* |
+| Take the picture (F, the shutter, RT) | the print comes up as tonight, and 1964 through it; seven frames, no eighth | the print develops in the hand |
+
+The steps are live, not a list that only goes forward: raised off the light, the first is still to do and the second is
+ticked, and the finder says *not from here*, which is the rule seen from its wrong side. A release pressed too early
+shakes the step not yet done; the goal line says the same in the story's words. The keys are named on the card the
+first time they are needed (a pad's signs while a pad is in the hand, nothing on a touch screen, where the buttons are
+on the picture). The card goes a moment after the print, and never comes again: frames 2 to 7 have only the goal, the
+line through the patch, and hints asked for. The walking keys (W A S D, Shift, the mouse; the thumbs) are shown as the
+first Stop gives the street to the player; for a while they never were, because a second function took the name of
+the one that showed them (`keysHint`).
+
+What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
+old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose
+camera alone sees what is gone and whose first capture is taught one step at a time, with the finder answering each;
+the landmark photographs of *Marvel's Spider-Man* (2018), whose finder says when the thing is framed; the paintings of
+*Elden Ring*, whose reward stands only where the picture was painted; and the contextual prompts of *God of War*
+(2018) and *The Last of Us Part II*, shown when the action is possible and withdrawn once it is learnt. From first
+principles: a rule the world breaks once (the thing seen off the place) cannot be learnt from the world again, so the
+world keeps the rule before any card explains it.
 
 **It is heard.** Nobody is recorded: every sound is made in the page (`web/game/audio.js`). Each speaker has a
 voice of their own for the sound of their lines (a pitch, breath in it for the old, a second fainter syllable
@@ -695,7 +735,8 @@ minute between two policemen. The words say what to look for, never which way to
 
 With the camera up, the line through the rangefinder's patch is cut in two, its halves as far apart as the place is far
 off, and they close as it comes near (a split-image finder's), at every distance, with what it measures under it (*the
-place · far, nearer, here*). Of four blossoms, the line closes on one.
+place · far, nearer, here*). Of four blossoms, the line closes on one. Every frame with a stand point has the line, lit or found: the first frame's light teaches what the line
+says, so that the frames without one are found by an instrument already known.
 
 **A hint is asked for, never given.** A second line on a timer and a light after a minute and a half decided for the
 player when they were stuck, and gave the place away to one who was about to find it. Now nothing more is shown until
@@ -887,6 +928,52 @@ sister's message as frame 5 begins (`call` on the frame: a message on the phone,
 The 1964 plates were given up for the things the camera sees (above), and with them every line that
 described a picture nobody could see: **a line may speak only of what is in the finder**, so the
 things are the evidence and the rest is testimony. Not yet: the old woman's clear umbrella, and voices.
+
+### The walk: the map with no story in it (November 2026)
+
+The owner asked for a way to be in Shibuya without the case: after who you play, the story or a walk of your own. Worked
+from what a player wants of it, not from the old free game this map once had:
+
+- **What it is for.** To be at the crossing at an hour you choose and move at your own pace; to look round before the
+  case, and to stay out in the night after it. The place is the whole of it: the hundred metres the hero level is, the
+  crowd, the screens, the rain. Nothing in it is owed: no goal, no light standing in the street, no clock running out.
+- **What it must not cost the story.** Nothing of the case is in it: no Stop, no afterimage, no 1964 in the finder, no
+  dog. Walked first, it spoils nothing; walked after, it undoes nothing.
+- **One world, not two games.** The same Kagami, the same evening's screens, the story's own card, type and amber. The
+  map's old free game (`?walk=1`, *Tokyo Pilgrimage*, its quests, survey lens, height guess, passport, map that sends you
+  anywhere, phone, taxi, car and helicopter) stays a tool for building and checking; none of it is reachable from the
+  story's page, in the story or on the walk (`game.js` `STORY_OFF`, the menu's old tour and passport put away), and
+  the story's last card no longer opens it.
+- **One decision before you go.** The hour and the sky: the blue hour of the story's evening (10 October), the night
+  after it, or the hour it is now in Tokyo; clear or rain. Whatever is chosen is the street behind the card at once, so
+  the choice is made by looking, not by reading. The rest (any hour, any weather, the clock's speed) is in the menu.
+- **What is not seen costs nothing.** It sets out where the story does, in the hero level, on foot, and offers nothing
+  that sends you to the map's unfinished far corners; the map round you loads as you walk, as in the story.
+- **Never stuck, never lost.** Where and when you are sits in the goal's corner (the area's name, the minute, the date
+  and the sky); the keys once at the foot of the frame; at the top right the camera (photo mode) and the menu, which
+  has the hour, the sky and the story.
+- **No page loaded again where one can be helped.** From the title the street on the card is the street walked. From
+  the last card the walk is taken up where the case ended: the card fades off the street, the score lets go into the
+  street's own sound over a few bars, the evening's people leave once the lens no longer has them (never in view), the
+  dog is already on his way home, and the same night goes on round you, at its hour and under its sky. Only the way from
+  the walk into the story opens the page again, straight into the first episode, as *Play it again* does.
+
+What the games that have one do, and what was taken. *Assassin's Creed Origins*' Discovery Tour (2018) is a way in of
+its own beside the campaign: the whole world to wander, with its quests, combat and time limits taken out. *Mafia:
+Definitive Edition*'s Free Ride (2020) is chosen from the main menu, and in it the hour and the weather are the
+player's, where the story's missions fix both. The *Yakuza* series' Premium Adventure (*Yakuza 0*, 2015, among others) is
+the city after the story, free to roam with the story's world left as it was. Flight simulators ask the hour and the
+weather before a free flight. And the long unnarrated walks through Tokyo filmed for the web, at night, in the rain, are
+what a walk here is for. Adopted: Discovery Tour's separate way in, with the story's goals and its clock taken out;
+Free Ride's hour and sky chosen before setting out and changed in the menu after; Premium Adventure's walk after the
+story, from the place the story ends, without a lock (Yakuza opens it only after the end; this walk has nothing of the
+case in it to keep back); the flight simulator's choice made over the live view. Nothing of those games' look or words is
+used.
+
+On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
+`walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of
+`web/game/story.css`. `tools/walk_play.js` plays it by mouse and keys on a desktop's page and by touch on a phone's;
+`tools/story_play.js` takes the last card's walk up in the same night.
 
 ## 11. The voice
 
@@ -1101,6 +1188,59 @@ The owner chose the issue's first way: the last frame is taken as they meet.
 `tools/story_play.js` takes the frame from the corner the hints lead to and fails it if the release while they walk takes
 a picture, if they do not meet a step apart near the middle of the print, or if anyone of the held crowd stands within
 8 m in front of the lens; it takes five stills while they walk and one as they meet.
+
+### The play rebuilt from first principles (18 November 2026)
+
+The owner asked whether the play could be raised without adding a system: the story has one verb, the camera, so the
+way up is for each act of it, and each answer, to carry more of the player's own judgement. The proposal put was to
+answer by presenting evidence against testimony, as *Ace Attorney* does, instead of choosing one of three sentences.
+It was tested against what a deduction owes its player. (The other, the last frame taken as the two meet, is the
+section above.)
+
+What a deduction owes the player, in four lines: the answer is made by the player, not picked out of a short list the
+author wrote; the space of answers is too large to guess in, or guessing costs something; the game confirms reasoning
+and a wrong answer points at what to look at again; and nothing on the screen gives the answer away. Read against them:
+
+| Where | What it asked | What failed |
+|---|---|---|
+| 5, Tatsuo | *He says he was in the cut all afternoon, minding the pumps. Tell him what the roof saw*, then a print | The question named both the lie and the evidence. The story's one liar, and the one place *Ace Attorney* was promised, asked nothing |
+| 7, Sumiko | a print, then one of three sentences, for each of three questions | The question named the print (*show me where it changed hands*), the print gave the sentence (the foreman's own frame, then *the foreman, her brother*), and the right sentence was the long, specific one. Two of the three were things a witness had said outright: a test of memory dressed as a deduction |
+
+**Evidence against testimony fits a liar, and the story has one.** Contradiction is the strongest deduction a game
+has: two things the player holds that cannot both be true, an answer space that is the product of statements and
+prints, and no answer text to give it away. But it needs a claim to break. Tatsuo makes four, in his own words (the
+river was put under the street in time; the gang was off for the ceremony; he was in the cut all afternoon minding the
+pumps; nobody from his gang went up on any roof). Three are true or are a dodge the roll cannot touch; one is broken by
+what Kanbara saw from the parapet at three, an empty cut. So frame 5 lays out his four statements; the player picks the
+one the roll will not let stand, then the print that breaks it, and both are judged together (`press`, `lie`, `frame`;
+`story.js` `cross`). A true statement pressed is answered as a true one (*Every man of them. The section chief sent
+them home himself*), which is itself a clue; the lie with the wrong print is shrugged off. Two wrong and he knows a
+guess, as before. Sixteen pairs and two tries: a guesser fails nearly always, and a player who heard Kanbara does not.
+
+**Sumiko is not lying, so she is not cross-examined.** Her questions are the challenge to the reader: who, why and
+who. Pressing her lines would have made the climax a trial of a woman who has waited sixty-two years. What the
+challenge needs is that the player name the answer. So each is answered by naming one of the case's seven people (the
+episode's `people`: what the player knows each of them as, and the drowned boy only if Tatsuo was made to say his name),
+and then showing the print or the pair that proves it (`who`, `answer`, `proof`; `story.js` `summation`). Name first, so
+the print cannot give the name away; and the question no longer says which print. A wrong name is answered for that
+name (`wrong_by`): *I tore free and ran, and left him on his feet*, said to a player who named her for the push. The
+second question is the title's: *Why did Akira not cross the street? Tell me whom he was keeping out of it.* Its answer
+is the one inference in the case that nobody says aloud, and the player says it to her face: Hayase Sumiko. The third
+asks who the boy was (Mr Tanaka, proved by his pitch), and then she asks whether there was nothing to say: the player
+gives her the sentence the boy never said, sixty-two years late. That is the evening's verb in one line: carrying across
+what he could not. Names are short enough to need no new interface on a phone (seven in two columns), and a pad moves
+through them as it moves through any answers.
+
+Not taken, and why: answering Sumiko with a line chosen from the log (*present a testimony*). It turns the challenge
+into finding a sentence in a hundred, and it loses the one inference: nobody says that Akira believed she had done it,
+so no line can be presented for it.
+
+Learnt from (design only; nothing of their look, characters or text is used): *Ace Attorney* (2001–), the
+cross-examination, a statement pressed and evidence presented, judged as a pair; *Return of the Obra Dinn* (2018) and
+*The Case of the Golden Idol* (2022), a conclusion made by naming people from a list of everyone rather than choosing
+an author's sentence. `tools/story_play.js` presses Tatsuo's statements and names Sumiko's answers as a player who knows
+them would (state `want`), with a still of each list; `SLIP=5` and `SLIP=7` answer them wrongly until the one asked sees
+through the player.
 
 ## 13. What is left, and the marks without colour
 

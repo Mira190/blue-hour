@@ -897,7 +897,44 @@ At about 150 ms a program, 37 fewer programs is about 5.5 s off the iPhone's 22 
 owner's device (the telemetry's `load` event: `build_ms` to `frame_ms`, and `pcompile`). Left as they were, on main as
 here: three people's programs (their characters arrive after the loader's compile and before `lib.warm` is set) are
 linked in the title's first frame, and on the desktop tier one instanced standard program is linked by a draw in the
-title and waited on in the tap (2 to 15 s on llvmpipe; issue 31).
+title and waited on in the tap (2 to 15 s on llvmpipe; issue 31, below).
+
+### What a draw still linked (issue 31)
+
+`tools/entry_cost.js` lists the programs a draw linked after the first frame (no warm-up made them: a hitch in their
+frame, and a wait on the GPU the first time three.js reads one back); with `DUMP=1` it now prints each one's three.js
+key beside the keys of the warmed programs of the same name, which is how each cause below was told from the others.
+On main, 1440×900 high tier: three, at the title and in the opening; 390×844 low tier: three, at the title. Each was a
+program the warm-ups did make, but in another variant, or made too late:
+
+- **The cast that came before a warm-up.** The crowd's near cast (and the story's people) are asked for while the
+  page loads. One that came after the loader's compile and before the title set `lib.warm` was shown unwarmed, and the
+  title's first frames linked its programs (`f018_body`, `f013_opacity` on a phone; `f017_body` on a desktop). The game
+  now gives its warm-up (`lib.setWarm`) the moment the loader's compile is done, and an NPC's character that comes
+  before then waits for it and is shown once warmed (people.js `ready`; the far crowd's copy stands in until then).
+  A main character, which the load itself waits for, does not wait.
+- **The crowd's change of clothes.** A walker of the crowd drawn in other clothes (people.js `rig.dress`) wears its own
+  copy of the body's material, a program of its own (`dress6`) that no warm-up made. It is now compiled once a library
+  with the first cast member to come (`warmDress`), and the copy takes the weather's patch as it is made
+  (`lib.dressNew`), as the warmed one had: drawn first without it, it was still another program.
+- **The trees' defines.** The trees' patch (trees.js `shader`) added its atlas's defines to the material's own
+  `defines` object in `onBeforeCompile`, so the next time three.js keyed the material it was another program with the
+  same text: every crown linked twice, the second time by a draw in the opening. It now patches a copy (as world.js's
+  floor map already did). And the near trees, which come behind the title (`loadNear`), take the weather's patch before
+  their first draw, as the umbrellas and the dressed walkers do.
+- **The umbrellas** were made at the first rain, and the story's evening rains at its title. They are made with the
+  crowd's renderer and compiled once the game gives its warm-up; nobody puts one up before.
+
+| `tools/entry_cost.js`, llvmpipe | main | after |
+|---|---|---|
+| 1440×900, high tier: programs a draw linked after the first frame | 3 (the trees twice, a dressed walker) | 0 |
+| 390×844, low tier: programs a draw linked after the first frame | 3 (two cast members' programs) | 0 |
+
+The desktop tier's tap, which waited 2 to 15 s on main on the instanced program a draw had linked (the trees' second variant), took 5.7 s in the last run
+here, none of it on a program (llvmpipe's taps vary by seconds from run to run). The warm-ups that a draw made before
+are now made at the loader's tail and behind the title, so the low tier links
+about seven more programs before its first frame (100 against 93): on an iPhone, at about 150 ms a program, a second
+more under the loader in place of the same second in the title's first frames. Not checked: a real GPU, Safari or iOS.
 
 ## The build stage (issue 327)
 
