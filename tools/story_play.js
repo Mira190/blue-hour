@@ -11,8 +11,9 @@
 // release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
 // The log (log.js): every line the dialogue shows is written down here as it is shown, and after frame 3 the log is opened
 // and must have the same lines in the same order; stills of it, and of the words at their largest with their backing.
-// The summation (the last frame's questions with `proof`): each is answered with a print or a pair first, then in words; SLIP=7
-// answers it wrongly until she is not answered. At the last card, how the case was worked must name a frame spent (SPEND=n).
+// The summation (the last frame's questions with `proof`): each is answered with a name (one of the case's people) first, then
+// a print or a pair; SLIP=7 answers it wrongly until she is not answered. Frame 5's liar is cross-examined: one of his
+// statements, then the print that breaks it (SLIP=5). At the last card, how the case was worked must name a frame spent (SPEND=n).
 // BACKTO=n: from the last card, frame n is gone back into, and played to its print.
 // LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
@@ -130,6 +131,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
+        for (const [cls, name] of [['said', 'press'], ['who', 'name']]) if (!seen.has(`${name}-${s.fi}`) && await p.evaluate(c => !!document.querySelector(`#gd-choices .${c}`), cls)) { seen.add(`${name}-${s.fi}`); await snap(`${s.fi + 1}-${name}`); } // (a statement to press, his own words; one of the case's people to name)
         const slip = +process.env.SLIP === s.fi + 1 && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
         if (slip) slipped = 1;
         { const pv = await p.evaluate(() => !!window.__game.story.state.proving); if (pv) proved++; const k = `summation-${pv ? 'evidence' : 'words'}`; if (s.fi === 6 && !seen.has(k)) { seen.add(k); await snap(`7-${k}`); } } // (the summation: the roll laid out with its pairs, then the words)

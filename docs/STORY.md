@@ -56,7 +56,7 @@ studied, what makes each one work, and what Blue Hour adopts. Nothing of their l
 | *Return of the Obra Dinn* (2018) | Deduction from frozen moments; the game never tells you that you are right until several answers agree | The Stop is a frozen moment you read for evidence. A photograph is how you commit to an answer, and the double exposure is the confirmation |
 | *Her Story* (2015), *Immortality* (2022) | The player assembles the truth out of order; testimony that is sincere and still wrong | Each afterimage tells only what they knew at their hour. Nobody lies outright except one; the truth is in where the accounts do not fit |
 | *Outer Wilds* (2019) | A short fixed span; the only thing you carry forward is what you know | One evening, forty minutes. Nothing is levelled up; what you keep is the roll and the file |
-| *Ace Attorney* (2001–) | One contradiction per testimony, broken by presenting one piece of evidence; a reversal every case | Tatsuo's alibi is broken by a print (what the roof saw); Mr Tanaka trusts you only when shown his pitch. Every frame ends turned over |
+| *Ace Attorney* (2001–) | One contradiction per testimony, broken by presenting one piece of evidence; a reversal every case | Tatsuo is cross-examined: the player picks, from his own statements, the one the roll will not let stand and the print that breaks it, and neither is named for them; Mr Tanaka trusts you only when shown his pitch. Every frame ends turned over |
 | *Ghost Trick* (2010) | A last reveal about who someone is that makes every earlier scene mean something else, with every clue shown in plain sight | Sumiko is alive: revealed in frame 7, planted in the first Stop (*You came late*, in an old woman's voice) |
 | *Disco Elysium* (2019) | The detective's own reason for being there is part of the case | Who hired you, why at 17:14, and why you, of all people, take jobs on the tenth of October |
 | *Firewatch* (2016) | A voice on the radio carries a life the player has walked away from | Kagami's sister: the office's word in the first minute, a message in the middle, a call on the last card |
@@ -366,10 +366,12 @@ eighth.
 It has the movements a classical mystery has:
 
 - **A false solution at the midpoint** (frame 3): the glove points at Sumiko herself.
-- **A liar broken by evidence** (frame 5): Tatsuo's alibi against what the roof saw.
+- **A liar broken by evidence** (frame 5): Tatsuo cross-examined, his own statements against the roll.
 - **A witness who trusts only what he is shown** (frame 6): Mr Tanaka and his pitch.
-- **The challenge to the reader** (frame 7): the living Sumiko asks three questions, each answered with the print (or
-  the pair of prints) that proves it and then in words. A right sentence on the wrong print is not an answer.
+- **The challenge to the reader** (frame 7): the living Sumiko asks three questions, each answered with a name (one of
+  the case's people, from all of them) and then the print (or the pair of prints) that proves it. A right name on the
+  wrong print is not an answer. The second is the title's own question, and its answer is the one inference nobody
+  says aloud: whom Akira was keeping out of it. The player says it to her face.
 - **The last reveal** (frame 7, and the card): she is alive; the camera was hers all along; the word.
 
 | # | Hour | Where, and the picture | The living | Who moves in the Stop | What is learned | What the player does | It ends on |
@@ -380,7 +382,7 @@ It has the movements a classical mystery has:
 | 4 | 17:31 | SHIBUYA SKY: down on to the dome inside Hikarie | Yuna: one glove; the police at the store | Kanbara | The roll's danger; the match; she left him alive; the cut empty at three; boots on the stair while he watched the rings | Finds the place at the glass; names the boots, or will not | *Kanbara's works: the river* |
 | 5 | 17:39 | The tower's foot: the river open, and the works' board | (a message from the sister) | Tatsuo | The alibi, broken by the roof; Kudo Masao; the threat; the glove; the lecturer on the stair; the turn back | Shows Tatsuo what the roof saw; finds where the water ran | *What did the lecturer find at the top?* |
 | 6 | 17:46 | His kerb, through a long lens: her corner as he saw it | Mr Tanaka: the sentence, the lie, Hoshino, the bath-house, the minute a year, the will | Akira, of 2025 | The darkroom, the darn, the minute, the word *wait* | Shows Tanaka his pitch; finds his kerb from the roll | *Carry it over to her* |
-| 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Proves each answer; finds the corner that sees both kerbs; holds them in the frame while every light turns green and they walk to the middle; takes the last frame as they meet | She crosses |
+| 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Names each answer and proves it; finds the corner that sees both kerbs; holds them in the frame while every light turns green and they walk to the middle; takes the last frame as they meet | She crosses |
 
 **How each place is reasoned to.** No place is given by a line saying where to walk; each follows from the frame before.
 The board at her corner names the planetarium and Mizuno (1). A name on a camera goes to the shop where old cameras sit among the clothes, and Shun's
@@ -404,9 +406,9 @@ up the stair behind him*).
 | 3, the police box | says who they are to a detective of 1964. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | tells him what the roof saw. Two wrong prints and he knows a guess | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
 | 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
-| 7, Sumiko's three questions | shows the print or the pair that proves each (`proof`), then says it. Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it in words alone (`lost_q`) | failure, as above |
+| 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`). Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | failure, as above |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
 
 ## 9. Fair play: every clue, and where it is first shown
@@ -1139,6 +1141,59 @@ The owner chose the issue's first way: the last frame is taken as they meet.
 `tools/story_play.js` takes the frame from the corner the hints lead to and fails it if the release while they walk takes
 a picture, if they do not meet a step apart near the middle of the print, or if anyone of the held crowd stands within
 8 m in front of the lens; it takes five stills while they walk and one as they meet.
+
+### The play rebuilt from first principles (18 November 2026)
+
+The owner asked whether the play could be raised without adding a system: the story has one verb, the camera, so the
+way up is for each act of it, and each answer, to carry more of the player's own judgement. The proposal put was to
+answer by presenting evidence against testimony, as *Ace Attorney* does, instead of choosing one of three sentences.
+It was tested against what a deduction owes its player. (The other, the last frame taken as the two meet, is the
+section above.)
+
+What a deduction owes the player, in four lines: the answer is made by the player, not picked out of a short list the
+author wrote; the space of answers is too large to guess in, or guessing costs something; the game confirms reasoning
+and a wrong answer points at what to look at again; and nothing on the screen gives the answer away. Read against them:
+
+| Where | What it asked | What failed |
+|---|---|---|
+| 5, Tatsuo | *He says he was in the cut all afternoon, minding the pumps. Tell him what the roof saw*, then a print | The question named both the lie and the evidence. The story's one liar, and the one place *Ace Attorney* was promised, asked nothing |
+| 7, Sumiko | a print, then one of three sentences, for each of three questions | The question named the print (*show me where it changed hands*), the print gave the sentence (the foreman's own frame, then *the foreman, her brother*), and the right sentence was the long, specific one. Two of the three were things a witness had said outright: a test of memory dressed as a deduction |
+
+**Evidence against testimony fits a liar, and the story has one.** Contradiction is the strongest deduction a game
+has: two things the player holds that cannot both be true, an answer space that is the product of statements and
+prints, and no answer text to give it away. But it needs a claim to break. Tatsuo makes four, in his own words (the
+river was put under the street in time; the gang was off for the ceremony; he was in the cut all afternoon minding the
+pumps; nobody from his gang went up on any roof). Three are true or are a dodge the roll cannot touch; one is broken by
+what Kanbara saw from the parapet at three, an empty cut. So frame 5 lays out his four statements; the player picks the
+one the roll will not let stand, then the print that breaks it, and both are judged together (`press`, `lie`, `frame`;
+`story.js` `cross`). A true statement pressed is answered as a true one (*Every man of them. The section chief sent
+them home himself*), which is itself a clue; the lie with the wrong print is shrugged off. Two wrong and he knows a
+guess, as before. Sixteen pairs and two tries: a guesser fails nearly always, and a player who heard Kanbara does not.
+
+**Sumiko is not lying, so she is not cross-examined.** Her questions are the challenge to the reader: who, why and
+who. Pressing her lines would have made the climax a trial of a woman who has waited sixty-two years. What the
+challenge needs is that the player name the answer. So each is answered by naming one of the case's seven people (the
+episode's `people`: what the player knows each of them as, and the drowned boy only if Tatsuo was made to say his name),
+and then showing the print or the pair that proves it (`who`, `answer`, `proof`; `story.js` `summation`). Name first, so
+the print cannot give the name away; and the question no longer says which print. A wrong name is answered for that
+name (`wrong_by`): *I tore free and ran, and left him on his feet*, said to a player who named her for the push. The
+second question is the title's: *Why did Akira not cross the street? Tell me whom he was keeping out of it.* Its answer
+is the one inference in the case that nobody says aloud, and the player says it to her face: Hayase Sumiko. The third
+asks who the boy was (Mr Tanaka, proved by his pitch), and then she asks whether there was nothing to say: the player
+gives her the sentence the boy never said, sixty-two years late. That is the evening's verb in one line: carrying across
+what he could not. Names are short enough to need no new interface on a phone (seven in two columns), and a pad moves
+through them as it moves through any answers.
+
+Not taken, and why: answering Sumiko with a line chosen from the log (*present a testimony*). It turns the challenge
+into finding a sentence in a hundred, and it loses the one inference: nobody says that Akira believed she had done it,
+so no line can be presented for it.
+
+Learnt from (design only; nothing of their look, characters or text is used): *Ace Attorney* (2001–), the
+cross-examination, a statement pressed and evidence presented, judged as a pair; *Return of the Obra Dinn* (2018) and
+*The Case of the Golden Idol* (2022), a conclusion made by naming people from a list of everyone rather than choosing
+an author's sentence. `tools/story_play.js` presses Tatsuo's statements and names Sumiko's answers as a player who knows
+them would (state `want`), with a still of each list; `SLIP=5` and `SLIP=7` answer them wrongly until the one asked sees
+through the player.
 
 ## 13. What is left, and the marks without colour
 

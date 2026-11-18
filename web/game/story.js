@@ -20,6 +20,8 @@
 //         "weather": "rain",                                   // the sky turns as the frame begins
 //         "meet": { "npc": "shun" | "cast": "old", "goal": "...", "lines": ["..."], // first, a word with the living
 //                   "ask": [{ "q": "...", "options": ["..."], "answer": 0, "wrong": "..." }] }, // and what they ask you
+//                   (or a print, "frame": n; a cross-examination, "press": [{ "say", "no" }], "lie", "frame"; the summation,
+//                   "who": true, "answer": a person's id from the episode's "people", then "proof": [n, "a-b"]: see ask())
 //         "goal": "...",                                       // then where to go: the line on screen
 //         "lead_s": 1,                                         // the world stops this long after (else: on coming near)
 //         "stop_r": 12, "stop_s": 420, "stop_at": [x, y],      // how near (to stop_at, else the afterimage); how long the Stop lasts
@@ -476,6 +478,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       let q = as || (m.ask || [])[st.asked];
       while (!as && q && ((q.if && !st.flags[q.if]) || (q.not && st.flags[q.not]) || (q.frame && st.prints[q.frame - 1] && st.prints[q.frame - 1].plain))) q = (m.ask || [])[++st.asked];
       if (!q || (q.frame && !st.prints[q.frame - 1])) { st.want = -1; return done(); } // (a print the roll does not have cannot be asked for)
+      if (q.press) return cross(m, w, q, done);
       if (q.proof) return summation(m, w, q, done);
       if (q.choice) {
         const opts = q.options.map((o, i) => ({ k: i, text: o.text }));
@@ -489,45 +492,74 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
           return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
         });
       }
-      const opts = q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: `<span class="pr">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>` })) : q.options.map((text, i) => ({ k: i, text })), right = q.frame || q.answer;
+      const opts = q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) })) : wordsOf(q), right = q.frame || q.answer;
       st.want = opts.findIndex(o => o.k === right); // (which answer is the right one: tools/story_play.js picks it)
       st.canFail = !!q.fail;
       ctx.ask(q.frame && !w.alive ? Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }) : w, [q.q], opts, c => { // (what an afterimage is told is yours to choose: the question is not in their mouth)
         if (!!c && c.k === right && q.frame) sting('turn'); // (a print that settles it: the case turns)
-        const ok = !!c && c.k === right, said = L((ok ? q.right : q.wrong) || (ok ? [] : ['No. Look at the prints again.']));
+        const ok = !!c && c.k === right, said = L((ok ? q.right : wrongFor(q, c && c.k)) || (ok ? [] : ['No. Look at the prints again.']));
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
         else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
         return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
       });
     }
-    // The summation (a question with `proof`): answered with evidence first and then in words. The roll is laid out as
-    // it is, with the pairs of prints the player has set side by side; the print (or the pair) that proves it is picked,
-    // then the sentence. A right sentence on the wrong print is not an answer: both are judged together, and a wrong one
-    // counts once toward `fail`. `proof` lists the frames (numbers) and the pairs ("a-b") that prove it; those spent, or
-    // a pair never set side by side, are not on the roll to be shown. Where none is left, the question is asked another
-    // way (`lost_q`), in words alone: the lost<n> flags have said which print is gone.
-    //   { q, say: the second line (the words), proof: [5, "4-5"], lost_q, options, answer, right, wrong, wrong_print, fail }
+    // A print as an answer (the roll laid out), and the answers that are not prints: one of the case's people (`who`:
+    // the episode's `people`, each with what the player knows them as), or one of the question's own sentences
+    const printOpt = (p, i) => `<span class="pr${p.plain ? ' spent' : ''}">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>`;
+    const wordsOf = q => (q.who ? (st.ep.people || []).filter(o => (!o.if || st.flags[o.if]) && (!o.not || !st.flags[o.not])).map(o => ({ k: o.id, text: `<span class="who"><b>${esc(o.name)}</b><small><i hidden> · </i>${esc(o.role || '')}</small></span>` })) : (q.options || []).map((text, i) => ({ k: i, text })));
+    const wrongFor = (q, k) => (q.wrong_by && k != null && q.wrong_by[k] != null ? q.wrong_by[k] : q.wrong); // (a wrong answer is answered for what was said: a hint at the print to look at again)
+    // The summation (a question with `proof`): the challenge to the reader. Answered in words first and then with the
+    // evidence: the one asked names it (`who`: one of the case's people, from all of them; else one of `options`), then
+    // shows the print or the pair that proves it. Both are judged together, and a wrong one counts once toward `fail`;
+    // what is said back says which was wrong. It was the other way round, the print first and then one of three
+    // sentences, and the print gave the sentence away (the foreman's own frame, then "the foreman, her brother"), and the
+    // question gave the print away ("show me where it changed hands"). `proof` lists the frames (numbers) and the pairs
+    // ("a-b") that prove it; those spent, or a pair never set side by side, are not on the roll to be shown. Where none
+    // is left, the question is asked another way (`lost_q`), in words alone: the lost<n> flags have said which is gone.
+    //   { q, who: true | options, answer: id | index, show: the second line, proof: [5, "4-5"], lost_q, right, wrong, wrong_by: { id: lines }, wrong_print, fail }
     const pairOf = k => String(k).split('-').map(Number);
     const proofOn = q => (q.proof || []).filter(p => (typeof p === 'number' ? !!st.prints[p - 1] && !st.prints[p - 1].plain : st.pairs.includes(p)));
+    const rollOpts = () => st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) }))
+      .concat(st.pairs.slice().sort().map(key => { const [a, b] = pairOf(key), th = i => { const p = st.prints[i - 1]; return p && p.src ? `<img alt="" src="${p.src}">` : '<i></i>'; }; return { k: key, text: `<span class="pr pair"><span class="pp">${th(a)}${th(b)}</span><b>${a} + ${b}</b><span>Side by side</span></span>` }; }));
+    function judged(m, w, q, ok, said, done) {
+      sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
+      if (ok) { sting('turn'); st.asked++; }
+      else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      const S2 = L(said);
+      return S2.length ? ctx.say(w, S2, () => ask(m, w, done)) : ask(m, w, done);
+    }
     function summation(m, w, q, done) {
       const proofs = proofOn(q);
       if (!proofs.length) return ask(m, w, done, Object.assign({}, q, { proof: null, q: q.lost_q || q.q })); // (asked another way: in words alone)
-      const thumb = i => { const p = st.prints[i - 1]; return p && p.src ? `<img alt="" src="${p.src}">` : '<i></i>'; };
-      const opts = st.prints.map((p, i) => ({ k: i + 1, text: `<span class="pr${p.plain ? ' spent' : ''}">${thumb(i + 1)}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>` }))
-        .concat(st.pairs.slice().sort().map(key => { const [a, b] = pairOf(key); return { k: key, text: `<span class="pr pair"><span class="pp">${thumb(a)}${thumb(b)}</span><b>${a} + ${b}</b><span>Side by side</span></span>` }; }));
-      st.want = opts.findIndex(o => proofs.includes(o.k)); st.canFail = !!q.fail; st.proving = true;
-      ctx.ask(w, [q.q], opts, c => {
-        const shown = c ? c.k : null;
-        const words = q.options.map((text, i) => ({ k: i, text }));
-        st.want = q.answer; st.proving = false;
-        ctx.ask(w, [q.say || 'And in words?'], words, c2 => {
-          const okP = proofs.includes(shown), okS = !!c2 && c2.k === q.answer, ok = okP && okS;
-          sfx(ok ? 'right' : 'wrong'); st.want = -1;
-          if (ok) { sting('turn'); st.asked++; }
-          else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
-          const said = L(ok ? q.right : okS ? (q.wrong_print || 'That is so. But that print does not say it. Show me the one that does.') : q.wrong);
-          return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
+      const words = wordsOf(q);
+      st.want = words.findIndex(o => o.k === q.answer); st.canFail = !!q.fail; st.proving = false;
+      ctx.ask(w, [q.q], words, c => {
+        const named = c ? c.k : null, opts = rollOpts();
+        st.want = opts.findIndex(o => proofs.includes(o.k)); st.proving = true;
+        ctx.ask(w, [q.show || 'Show me which of your prints says it.'], opts, c2 => {
+          const okS = named === q.answer, okP = !!c2 && proofs.includes(c2.k), ok = okS && okP;
+          judged(m, w, q, ok, ok ? q.right : okS ? (q.wrong_print || 'That is so. But that print does not say it. Show me the one that does.') : wrongFor(q, named), done);
+        });
+      });
+    }
+    // A cross-examination (a question with `press`): the one liar is caught the way a court catches one, by what he
+    // said set against what the roll has. His own statements are laid out (`press`), the player picks the one the roll
+    // will not let stand, then the print that breaks it (`frame`), and both are judged together. Neither the question
+    // nor the picker says which statement is the lie or which print breaks it: the question once said both ("He says he
+    // was in the cut all afternoon, minding the pumps. Tell him what the roof saw"). A true statement pressed is answered
+    // with its own `no`; the lie with the wrong print, with `wrong_print`; a wrong pair counts once toward `fail`. An
+    // afterimage cannot see a photograph: what the print shows is told him, from the roll.
+    //   { q, press: [{ say, no }], lie: index, show: the second line, frame: n, wrong_print, right, fail }
+    function cross(m, w, q, done) {
+      const said = q.press.map((o, i) => ({ k: i, text: `<span class="said">“${esc(o.say)}”</span>` }));
+      st.want = q.lie; st.canFail = !!q.fail; st.proving = false;
+      ctx.ask(Object.assign({}, w, { name: q.own || 'You', role: '', alive: true }), [q.q], said, c => { // (the question is the player's own, not in his mouth)
+        const k = c ? c.k : -1, opts = st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) }));
+        st.want = opts.findIndex(o => o.k === q.frame); st.proving = true;
+        ctx.ask(w.alive ? w : Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }), [q.show || 'And what does the roll have against it?'], opts, c2 => {
+          const okS = k === q.lie, okP = !!c2 && c2.k === q.frame, ok = okS && okP;
+          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done);
         });
       });
     }
