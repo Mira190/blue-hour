@@ -627,7 +627,10 @@ and held still six seconds at a red or in the queue to one (`STORY_HELD`) it goe
 takes it: the queue to the Scramble's arm under the viaduct waits out the walk and the other roads' turns, and one
 way back stood still 75 s of 127. A skip (F, or that cut) holds the car where it is while the view goes up, sets it
 down short of its stop where nobody stands in it, and lets it drive in under the view coming down: set down on the
-stop itself by Hachiko, it landed on the people crossing there. The frame goes on where it sets you down, or where you walk to
+stop itself by Hachiko, it landed on the people crossing there. Where nobody stands is judged where the car's body will
+stand (`clearAt`: pulled in to the kerb, metres off its way's line), against the crowd, the NPCs, you and the dog; judged
+on the line, it was set down on five people waiting by Hachiko (#50). A ride coming for you that hops on out of sight
+is put down by the same test. The frame goes on where it sets you down, or where you walk to
 (`tools/story_ride.js` takes it; `tools/ride_people.js` times it).
 
 **What is in the air is there before it stops.** Leaves come off the street's trees all evening, a page of an old
