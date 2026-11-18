@@ -3209,7 +3209,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
-  let storyBeacon = null, storyHere = null, lensWas = null, storySnapBase = null;
+  let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
   // the lift lobby's two queue belts (blender/build_set.py lift: a post at (±1.5, -2.2) in the model, a belt from it to
   // the wall at y = 0) as a row of posts, so that nobody, the guide included, walks through a belt
   let guideMade = null; // (the story's guide as last made: tools/lobby_shot.js)
@@ -3222,14 +3222,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // elsewhere (out of sight, as anyone the crowd is done with) and someone crossing a square or the Scramble steps to
   // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
   // person waiting at the kerb's edge filled the finder from where the last frame is taken)
-  const clearSight = (a, b) => {
+  // (half: a lane of that half-width along the whole way, not a sightline widening from a lens: the way someone walks)
+  const clearSight = (a, b, half = 0) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
-      const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = 1.4 + 0.15 * Math.max(0, t); // (wider as it goes: a tram's length at 24 m)
-      if (t < -2.5 || t > L - 0.6 || Math.abs(side) > (t < 3.5 ? 3.5 : w)) continue;
+      const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
+      if ((half ? t < -half || t > L + half : t < -2.5 || t > L - 0.6) || Math.abs(side) > w) continue;
       if (!p.pz) { p.line = -1; continue; }
-      const to = (Math.sign(side) || 1) * ((t < 3.5 ? 3.5 : w) + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
+      const to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
       p.x += -uy * to; p.y += ux * to;
     }
   };
@@ -3298,7 +3299,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     };
     dress(rig);
     const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
-    const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1) };
+    const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1), ghost: !a.alive };
     storyFigs.add(f);
     const put = () => rig.root.position.copy(W(f.x, f.y, f.z));
     put(); world.add(rig.root);
@@ -3438,7 +3439,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (by the compass only: how far the lens must turn to face it; nobody is asked to tilt the camera up a tower)
     aim: at => { const v = W(at[0], at[1], 0).sub(camera.position), f = camera.getWorldDirection(new THREE.Vector3()); v.y = 0; f.y = 0; if (v.lengthSq() < 1e-6 || f.lengthSq() < 1e-6) return 0; return Math.acos(Math.max(-1, Math.min(1, v.normalize().dot(f.normalize())))) * 180 / Math.PI; },
     // the frame as it is drawn now, small, for the episode's print (drawn and read back in one task: the canvas keeps no copy)
-    snap: plain => {
+    // (ghosts: the afterimages come up in the print as the thing of 1964 does, not in tonight's first image: the last
+    // frame is of them, and the print develops the crossing first and then the two of them in the middle of it)
+    // (plain: a frame spent from the wrong place, only tonight in it, whatever was in the finder's lines)
+    snap: ({ ghosts = false, plain = false } = {}) => {
       // (what the camera in your hands sees: not yourself, and not the goal's light, nor the light you stand in)
       const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible, gl = gold.mesh.visible, hc = storyHere && storyHere.visible;
       player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false; gold.mesh.visible = false; if (storyHere) storyHere.visible = false; // (nor the way's band on the ground)
@@ -3449,7 +3453,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, (canvas.width - sw) / 2, (canvas.height - sh) / 2, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
       // (tonight alone first, smaller: the print comes up as tonight, and the other year comes up in it, story.js showPrint)
       let base = null;
-      if (past) { past.none(); try { base = take(0.7); } catch (e) { base = null; } }
+      const later = ghosts ? [...storyFigs].filter(f => f.ghost && f.rig && f.rig.root.visible) : [];
+      if (past || later.length) { if (past) past.none(); for (const f of later) f.rig.root.visible = false; try { base = take(0.7); } catch (e) { base = null; } for (const f of later) f.rig.root.visible = true; }
       if (past && !plain) past.whole(true); // (the photograph is the finder's picture, edge to edge; a frame spent from the wrong place has only tonight in it)
       const src = take(0.86);
       if (past) past.whole(false);
@@ -3580,10 +3585,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
     relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); } }; }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1)
-    clear: (a, b) => clearSight(a, b), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to)
+    clear: (a, b, half) => clearSight(a, b, half), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to; half: a lane for someone to walk)
     clearRound: (x, y, r) => clearRound(x, y, r), // (and out of a ring round someone the frame is of)
     finder: (q, open = true) => { if (past) { past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); past.open(open); } }, // (open: the lens stands where the other year was seen from; off it the finder has tonight only)
-    lens: fov => { cam.distTo = 0; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(12, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below)
+    lens: (fov, wide = false) => { cam.distTo = 0; lensWide = !!wide && fov != null; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(12, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below; wide: kept the film frame's width on a narrow screen, however long)
     // where to make for on the way to a place that is up a tower (or down from one): the nearer stop of the lift that
     // goes there, so that the mark is on a door that can be walked to and not on a roof 230 m overhead
     via: at => {
@@ -3612,9 +3617,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       setClock(clock.y, m, d, S.presetTime(light, clock.y, m, d));
       if (wx && weather) weather.set(wx, { now: true }); // (as it has been for a while: the street already wet in the opening's first frame)
     },
-    walkIn: secs => {
+    // (lights: the signals only, as the last frame's two step off their kerbs in a held world, where cars cleared from
+    // the box and a crowd mustered at the kerbs would be seen to go and come; the street follows when time runs on)
+    walkIn: (secs, lights = false) => {
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
-      if (j) { junctions.walkIn(j, secs); cars.clearBox(j.x, j.y, 45); musterScramble(); }
+      if (!j) return;
+      junctions.walkIn(j, secs);
+      if (lights) { if (junctions.heads) junctions.heads.update(new Set([j])); return; }
+      cars.clearBox(j.x, j.y, 45); musterScramble();
     },
     figure: storyFigure,
     // one of the map's own people, lent to the story (where they stand, and their name for the line)
@@ -6856,6 +6866,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         fp.fov = null; fpOn = true;
       }
       cam.yawTo = cam.pitchTo = null;
+      // (the story's steer: the lens eased onto a point while it asks, as the last frame's two walk to the middle and the lens
+      // closes on them; the hand still turns it, and is pulled back gently)
+      const steer = story.steer;
+      if (steer) { const dx = steer[0] - player.x, dy = steer[1] - player.y, k = 1 - Math.exp(-dt / 0.6); cam.yaw += angDiff(Math.atan2(dx, dy), cam.yaw) * k; const pw = 0.3 - Math.atan2((steer[2] ?? player.z + 0.9) - fp.eyeZ, Math.hypot(dx, dy)); cam.pitch += (pw - cam.pitch) * k; }
       fp.yawT = cam.yaw; fp.pitchT = Math.max(-1.1, Math.min(0.9, 0.3 - cam.pitch));
       const e = 1 - Math.exp(-dt / 0.06); // (the hand's turn, eased over a few hundredths of a second: smooth, never behind it)
       fp.yaw += angDiff(fp.yawT, fp.yaw) * e; fp.pitch += (fp.pitchT - fp.pitch) * e;
@@ -6870,14 +6884,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
       // narrow screen through about 0.7 of that angle across its width, so that on a phone the thing is near the size it
       // is in a desktop's finder, and its lettering can be read
-      const lensOf = f0 => camera.aspect >= 1.5 ? f0 : Math.min(lensWas != null && f0 >= 45 ? 105 : 95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lensWas != null && f0 < 45 ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
+      const lensOf = (v, ring) => camera.aspect >= 1.5 ? v : Math.min(lensWas != null && (ring >= 45 || lensWide) ? 105 : 95, 2 * Math.atan(Math.tan(v * Math.PI / 360) * (lensWas != null && ring < 45 && !lensWide ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
       const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5));
       // (it comes up at an eye's own angle, 40 degrees, a 35 mm lens, and the ring is turned to the frame's lens once it is up)
       if (fp.fov == null) fp.fov = 40;
       fp.k = Math.min(1, fp.k + dt / (fp.dur || 0.28));
       const up = fp.k * fp.k * (3 - 2 * fp.k);
       if (fp.k >= 1) fp.fov += (f0 - fp.fov) * (1 - Math.exp(-dt / 0.3));
-      const f = lensOf(fp.fov);
+      const f = lensOf(fp.fov, f0); // (the narrow screen's rule from the ring's lens, not the angle easing to it: the last frame's 50 degrees came up from 40 through 45, and a phone's view jumped from narrow to wide in the raise)
       camera.up.set(0, 1, 0);
       camera.position.copy(eye); camera.lookAt(fpUp);
       if (up < 1 && fp.from) { // (the raise: from the view as it was to the eye, the lens swinging round onto its aim)
@@ -6889,7 +6903,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       player.rig.root.visible = up < 0.5; // (yourself, until the camera is at your face)
     } else if (fpOn) {
-      fpOn = false; player.rig.root.visible = true;
+      fpOn = false; player.rig.root.visible = true; lensWide = false;
       // (lowered: the view behind you looks where the lens did, and comes back from the eye in a third of a second)
       cam.yaw = fp.yaw; cam.pitch = Math.max(-0.25, Math.min(1.35, 0.3 - fp.pitch)); cam.yawTo = cam.pitchTo = null;
       if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); // (a frame's own lens is given back when the finder's view ends)
