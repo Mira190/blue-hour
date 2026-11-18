@@ -1782,6 +1782,35 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return d;
     }
+    // the walker (of the crowd, or you, or one of the map's people) whom car c's body in pose 1 would stand deeper in than
+    // in pose 0, and more than thr deep: its place among the blockers, or -1. Each walker on their own, not the sum of
+    // them: one stepping out of the body's back as another is driven into its front sums to less, and the step was let
+    // through (#28)
+    function walkerDeeper(c, x0, y0, hx0, hy0, x1, y1, hx1, hy1, thr) {
+      let best = -1, most = 0;
+      const c0 = Math.floor((x1 - c.half - 1) / CELL), c1 = Math.floor((x1 + c.half + 1) / CELL), r0 = Math.floor((y1 - c.half - 1) / CELL), r1 = Math.floor((y1 + c.half + 1) / CELL);
+      for (let a = c0; a <= c1; a++) for (let b = r0; b <= r1; b++) {
+        for (let j = bhead[bucket(a, b)]; j >= 0; j = bchain[j]) {
+          if (Math.abs(bz[j] - c.z) >= LEVEL) continue;
+          let dx = bx[j] - x1, dy = by[j] - y1, ea = c.half + br[j] - Math.abs(dx * hx1 + dy * hy1), eb = c.hw + br[j] - Math.abs(-dx * hy1 + dy * hx1);
+          const e1 = ea > 0 && eb > 0 ? Math.min(ea, eb) : 0;
+          if (e1 <= thr) continue;
+          dx = bx[j] - x0; dy = by[j] - y0; ea = c.half + br[j] - Math.abs(dx * hx0 + dy * hy0); eb = c.hw + br[j] - Math.abs(-dx * hy0 + dy * hx0);
+          const e0 = ea > 0 && eb > 0 ? Math.min(ea, eb) : 0;
+          if (e1 > e0 + 1e-3 && e1 - e0 > most) { most = e1 - e0; best = j; }
+        }
+      }
+      return best;
+    }
+    // where a bus's body will be drawn after a step to the lane's pose (x, y, h) (trail, which the step itself runs after it
+    // is taken), worked out on a copy: { x, y, h }
+    const trailProbe = { half: 0, hw: 0, h: 0, x: 0, y: 0, rx: null, ry: null };
+    function trailed(c, x, y, h, line, s, dir, off, prev, next) {
+      const T = trailProbe;
+      T.half = c.half; T.hw = c.hw; T.x = x; T.y = y; T.h = h; T.rx = c.rx; T.ry = c.ry;
+      trail(T, false, line, s, dir, off, prev, next);
+      return T;
+    }
     // someone of the crowd on a zebra's stripes, or about to step onto them from its kerb
     function onStripes(X) {
       const half = X.half, P = crowd.P;
@@ -3254,8 +3283,22 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (!held && (turn || moves)) {
           const d1 = peopleIn(c, tmp.x, tmp.y, hx1, hy1), who = inWho;
           const p1 = inPosts;
-          held = d1 > (c.pw > 5 ? 0.12 : 0.02) && d1 > peopleIn(c, c.x, c.y, hx0, hy0) + 1e-3; // (waited on a while, it edges up to them, not into them: they step aside, below)
+          const thr = c.pw > 5 ? 0.12 : 0.02;
+          held = d1 > thr && d1 > peopleIn(c, c.x, c.y, hx0, hy0) + 1e-3; // (waited on a while, it edges up to them, not into them: they step aside, below)
           if (held && who >= 0) walker = who; // (a walker against it: asked to turn back, below, if it waits on them)
+          // (and never deeper into any one walker, though the sum of them is less; nor, for a bus, with its body where it is
+          // drawn: the step below swings it after its front, up to 0.45 rad off the lane's heading, and that body, not the
+          // lane's pose tested above, went into a walker crossing the north scramble in the ride check, #28)
+          if (!held) {
+            let j = walkerDeeper(c, c.x, c.y, hx0, hy0, tmp.x, tmp.y, hx1, hy1, thr);
+            if (j < 0 && c.half > LONG_V && !back) {
+              const nxs = [], pl = turn ? (line !== c.line && c.plan && c.plan.length ? c.plan : null) : c.plan, nx0 = turn ? (pl ? pl[0] : null) : c.nx;
+              if (nx0 && (turn || c.dir === dir)) { nxs.push([nx0[0], nx0[1] === 0 ? 1 : -1]); if (pl) for (let k = turn ? 1 : 0; k < pl.length; k++) nxs.push([pl[k][0], pl[k][1] === 0 ? 1 : -1]); }
+              const T = trailed(c, tmp.x, tmp.y, h, line, s, dir, c.off + lo1 + sw, pvA, nxs);
+              j = walkerDeeper(c, c.x, c.y, hx0, hy0, T.x, T.y, Math.sin(T.h), Math.cos(T.h), thr);
+            }
+            if (j >= 0) { held = true; if (bi[j] >= 0) walker = bi[j]; }
+          }
           // (held by a post alone, its body's corner swinging over the kerb at a junction's corner: after 10 s it has
           // leave to edge past, as for a post ahead, above; a bus stood 106 s so in Tokyo's 689, the junction's queues behind)
           c.postHeld = held && who < 0 && p1 >= d1 - 1e-3 ? (c.postHeld || 0) + dt : 0;

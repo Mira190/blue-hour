@@ -25,7 +25,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   await p.waitForTimeout(2500);
   // the watch: each frame, each car (an oriented box) against each person (a body 0.22 m round), on one level
   await p.evaluate(() => {
-    const g = window.__game, W = window.__ridePeople = { frames: 0, hits: [], worst: {}, rideV: 0, rideT: 0, rideM: 0 };
+    const g = window.__game, W = window.__ridePeople = { frames: 0, hits: [], worst: {}, rideV: 0, rideT: 0, rideM: 0, was: new Map() };
     const inBox = (c, half, hw, x, y, r) => { const fx = Math.sin(c.h), fy = Math.cos(c.h), dx = x - c.x, dy = y - c.y; return Math.abs(dx * fx + dy * fy) < half + r && Math.abs(-dx * fy + dy * fx) < hw + r; };
     let last = performance.now();
     const tick = () => { requestAnimationFrame(tick); const now = performance.now(), dt = Math.min(0.5, (now - last) / 1000); last = now; check(dt); };
@@ -48,8 +48,14 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
         if (!inBox(c, half, hw, q.x, q.y, 0.05)) continue; // (a body's middle inside the car, with a little of its width)
         const k = `${kind}/${who}`;
         W.worst[k] = (W.worst[k] || 0) + 1;
-        if (W.hits.length < 40) W.hits.push({ kind, who, t: +g.t().toFixed(1), car: [+c.x.toFixed(1), +c.y.toFixed(1)], at: [+q.x.toFixed(1), +q.y.toFixed(1)], v: +(v || 0).toFixed(1), why: c.why || '', block: c.block ? (c.block.walker ? 'walker' : 'car') : '' });
+        // (and how it came about: the walker where it stood the step before against the car where it stands now, and the other way)
+        const c0 = W.was.get(c), q0 = W.was.get(q), how = !c0 || !q0 ? 'new' : inBox(c0, half, hw, q0.x, q0.y, 0.05) ? 'already in' : inBox(c, half, hw, q0.x, q0.y, 0.05) ? (inBox(c0, half, hw, q.x, q.y, 0.05) ? 'both moved' : 'car moved in') : inBox(c0, half, hw, q.x, q.y, 0.05) ? 'walker moved in' : 'both moved';
+        if (W.hits.length < 40) W.hits.push({ kind, who, t: +g.t().toFixed(1), car: [+c.x.toFixed(1), +c.y.toFixed(1)], at: [+q.x.toFixed(1), +q.y.toFixed(1)], v: +(v || 0).toFixed(1), why: c.why || '', block: c.block ? (c.block.walker ? 'walker' : 'car') : '', how,
+          was: c0 && q0 ? { car: [+c0.x.toFixed(2), +c0.y.toFixed(2), +c0.h.toFixed(3)], at: [+q0.x.toFixed(2), +q0.y.toFixed(2)] } : null, h: +(+c.h).toFixed(3), half: +(+half).toFixed(2), hw: +(+hw).toFixed(2),
+          held: c.heldBy || '', mv: !!c.mv, sq: !!c.squeezing, pw: +(c.pw || 0).toFixed(1), bus: !!c.bus, line: c.line, walker: { state: q.state || '', ph: q.ph || '', pz: !!q.pz, v: +(q.v || 0).toFixed(2), line: q.line, sq: +(q.squeeze || 0).toFixed(1), ej: !!q.ejected } });
       }
+      for (const [, c] of cars) W.was.set(c, { x: c.x, y: c.y, h: c.h });
+      for (const [, q] of people) W.was.set(q, { x: q.x, y: q.y });
     }
     requestAnimationFrame(tick);
   });
@@ -72,7 +78,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }
   }
-  const W = await p.evaluate(() => window.__ridePeople);
+  const W = await p.evaluate(() => { const W = window.__ridePeople; W.was = null; return W; });
   console.log('frames watched', W.frames, '| ride driving', W.rideT.toFixed(1), 's,', W.rideM.toFixed(0), 'm, mean', (W.rideM / Math.max(1, W.rideT) * 3.6).toFixed(1), 'km/h moving, top', (W.rideV * 3.6).toFixed(1), 'km/h');
   console.log('ride from boarding to setting down', (W.driveT || 0).toFixed(1), 's, stopped', (W.stopT || 0).toFixed(1), 's (not counting the cut on)', W.cut != null ? `; held still, cut on to its stop ${W.cut.toFixed(1)} s in` : '; never cut on');
   console.log('overlaps', JSON.stringify(W.worst));
