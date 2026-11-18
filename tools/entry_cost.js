@@ -106,6 +106,8 @@ const [,, out = '/tmp/entry-cost', size = '390x844'] = process.argv;
   // programs a draw linked (not a warm-up's: renderer.compile or compileAsync is not in its stack): each a hitch in its frame
   const drawn = await p.evaluate(([fr, t0]) => window.__programs.filter(g => g.draw && g.t > fr).map(g => `${((g.t - t0) / 1000).toFixed(1)}s ${g.name}`), [stages.frame, t0]);
   console.log(`programs linked by a draw after the first frame (s from the tap): ${drawn.length}${drawn.length ? `: ${drawn.join(', ')}` : ''}`);
+  // (and with DUMP=1, the three.js key of each: what made it another program than the one warmed)
+  if (process.env.DUMP && drawn.length) console.log(`  their keys:\n    ${(await p.evaluate(fr => { const r = window.__renderer, keys = new Map(); if (r) for (const q of r.info.programs) keys.set(q.program, q.cacheKey); const D = window.__programs.filter(g => g.draw && g.t > fr); return D.map(g => `${g.name}: ${keys.get(g.pr) || '(gone)'}`).concat(window.__programs.filter(g => !g.draw && D.some(d => d.name === g.name)).map(g => `(warmed) ${g.name}: ${keys.get(g.pr) || '(gone)'}`)); }, stages.frame)).join('\n    ')}`);
   console.log(`  not drawn by the title or the first shot:\n    ${use.idle.map(([k, v]) => `${k}${v > 1 ? ` x${v}` : ''}`).join('\n    ')}`);
   const { profile } = await cdp.send('Profiler.stop');
   const R = await p.evaluate(t0 => ({ programs: window.__programs.filter(g => g.t >= t0).map(g => [Math.round(g.t - t0), g.name]), before: window.__programs.filter(g => g.t < t0).length, frames: window.__frames.filter(t => t >= t0), loaf: window.__loaf.filter(e => e.start + e.dur >= t0), overture: !!(window.__game.overture() && window.__game.overture().active) }), t0);

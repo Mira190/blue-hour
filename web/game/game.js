@@ -703,7 +703,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let lib = null;
   const NPC_LOAD_M = 300;
   try {
-    lib = await OEPeople.load('assets/people/');
+    lib = await OEPeople.load('assets/people/', { warmLater: true }); // (its warm-up given once the loader has compiled: lib.setWarm, below)
     if ((G.crowd || {}).style) OEPeople.setStyle(G.crowd.style);
     if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark
   } catch (e) { console.warn('Realistic people unavailable, using simple figures:', e); lib = null; }
@@ -3234,7 +3234,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if ((half ? t < -half || t > L + half : t < -2.5 || t > L - 0.6) || Math.abs(side) > w) continue;
       if (!p.pz) { p.line = -1; continue; }
       const to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
-      p.x += -uy * to; p.y += ux * to;
+      p.x += -uy * to; p.y += ux * to; p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
     }
   };
   // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
@@ -3245,7 +3245,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const dx = p.x - x, dy = p.y - y, d = Math.hypot(dx, dy);
       if (d >= r) continue;
       if (!p.pz) { p.line = -1; continue; }
-      const k = (r + 0.4) / (d || 1); p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k;
+      const k = (r + 0.4) / (d || 1); p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null;
     }
   };
   // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
@@ -3258,7 +3258,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (const f of storyFigs) out.push({ id: f.id, x: f.x, y: f.y, z: f.z });
       for (const n of npcs) if (Math.abs(n.x - x) < r && Math.abs(n.y - y) < r) out.push({ id: `npc:${n.id}`, x: n.x, y: n.y, z: n.z });
       // (the crowd where each is drawn, rx: held in a Stop, that is not always where it is simulated)
-      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if (q.line >= 0 && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push({ id: `crowd:${i}`, crowd: i, x: qx, y: qy, z: q.rz ?? q.z ?? nav.terrain(qx, qy) }); }
+      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push({ id: `crowd:${i}`, crowd: i, x: qx, y: qy, z: q.rz ?? q.z ?? nav.terrain(qx, qy) }); } // (one at a scramble's kerb is drawn whatever its line)
       return out;
     } }) : null;
   let talkShot = null, talkPrint = false, talkTyped = '';
@@ -6088,9 +6088,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const warmRest = () => Promise.resolve(atmos && atmos.warm ? atmos.warm() : null)
     .then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, hold: () => playing && (!!arriving || cine.active || player.mode === 'lift') }))
     .catch(e => console.warn('warm the rest', e));
+  // (the characters that came while the loader compiled, and those to come, warmed from as soon as it is done: an NPC's
+  // waits for this, people.js ready, and is shown once its programs are made; issue 31)
+  { const give = () => { if (lib && !lib.warm) { lib.setWarm(warmFor); if (lib.warmPalette) lib.warmPalette(); } }; warm.then(give, give); }
+  if (lib && weather) lib.dressNew = o => weather.dress(o); // (a crowd walker's change of clothes, people.js rig.dress: the weather's patch on it before its first draw)
+  if (Wd.trees && weather) Wd.trees.dressNew = o => weather.dress(o); // (and the near trees, trees.js addNear)
   Promise.all([OEPlate.finish($('#g-loader')), warm.then(() => drawn).then(() => { warmRest().then(warmRain); })]).then(([flew]) => {
     if (flew) fromFlyover();
-    if (lib) { lib.warm = warmFor; if (lib.warmPalette) lib.warmPalette(); } // the characters that come from now on are warmed before they are shown (people.js)
+    if (lib && !lib.warm) { lib.setWarm(warmFor); if (lib.warmPalette) lib.warmPalette(); } // (as the loader's compile is done, below: the characters that come from now on are warmed before they are shown, people.js)
     setTimeout(afterPlayable, reduced ? 0 : 700); // (once the loader has faded)
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
@@ -6824,7 +6829,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (O.push && crowd) {
         crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
         // (nobody in the lens: at eye height in the crowd a passer-by a pace off filled half the poster)
-        if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
+        if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
       }
       live.pos.copy(camera.position);
       Wd.fitShadow(titleLook, 600);
@@ -6901,6 +6906,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect);
         if (t) {
           talkShot = t;
+          // (at the cut, the crowd in the frame before the face or at its shoulder: a walker among them is sent on
+          // elsewhere, as one the crowd is done with, and one at a scramble's kerb is left undrawn while the shot lasts.
+          // A cut hides the change, in a Stop as in the running street; issue 45)
+          if (cut && crowd && crowd.P) { const F = talkCam.framed(), keep = []; for (const i of F) { const q = crowd.P[i]; if (!q) continue; if (q.pz) keep.push(i); else { q.line = -1; if (crowdDraw) crowdDraw.hide(i); } } talkCam.talk.framed = keep; }
           // (whoever of the crowd still stands in the way is not drawn while the shot lasts: the title's way, which the
           // held crowd of a Stop allows where moving them aside would not be seen)
           if (crowdDraw) for (const i of talkCam.clearing()) crowdDraw.hide(i);
@@ -6914,8 +6923,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           player.rig.root.visible = t.shoulder !== null || t.kind === 'reverse' || Math.hypot(t.pos[0] - player.x, t.pos[1] - player.y) > 0.5; // (through the player's own eyes, the last resort: not their own head)
           if (cut) { // (what the shot cut to shows, for tools/talk_check.js: where the face is in the frame, what stands before it, and whether the lens is in a wall)
             const L = talkCam.log[talkCam.log.length - 1], v = W(t.subject[0], t.subject[1], t.subject[2]), P = camera.position, d = v.clone().sub(P);
+            const undrawn = new Set(); if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) if (!crowdDraw || !crowdDraw.shows(i)) undrawn.add(i);
             camera.updateMatrixWorld(); const front = d.dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera);
-            if (L) Object.assign(L, { x: +v.x.toFixed(3), y: +v.y.toFixed(3), front, block: talkCam.check(), inWall: nav.clearFraction(d.clone().normalize().multiplyScalar(Math.min(0.6, d.length() / 2)).add(P), P) < 0.999, aspect: +camera.aspect.toFixed(3) });
+            if (L) Object.assign(L, { x: +v.x.toFixed(3), y: +v.y.toFixed(3), front, block: talkCam.check(undrawn), crowd: talkCam.framing(undrawn), inWall: nav.clearFraction(d.clone().normalize().multiplyScalar(Math.min(0.6, d.length() / 2)).add(P), P) < 0.999, aspect: +camera.aspect.toFixed(3) });
           }
         }
       }
@@ -7019,7 +7029,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) if (n.rig && n.rig.root) near(n.rig.root, n.x, n.y, n.z, 1.95, 0.62); // (a body's reach from its middle, 0.3 m, and the near plane's, 0.3)
     for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, 0.62);
     const gd = guideMade; if (gd && gd.root && !film) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75); // (in a film of him, he is what it is of)
-    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y; if (q.line >= 0 && ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) || inShot(x, y))) crowdDraw.hide(i); }
+    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) || inShot(x, y))) crowdDraw.hide(i); }
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
