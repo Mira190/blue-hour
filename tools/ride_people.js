@@ -84,7 +84,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   });
   await p.evaluate(() => { const pl = window.__game.player; pl.x = 498; pl.y = -1046; }); // (where the flight sets you down)
   const t0 = Date.now();
-  let pinned = null, rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null;
+  let arrivedShot = false, pinned = null, rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null;
   while (Date.now() - t0 < (+process.env.LIMIT || 600) * 1000) {
     if (s0 && s0.ride && (s0.ride.phase === 'coming' || (s0.ride.phase === 'driving' && s0.mode === 'ride'))) await p.evaluate(n => window.__rpStep(n), s0.ride.v < 0.5 && s0.ride.phase === 'driving' ? 150 : 45); // (1.5 s of the world; 5 s stood at a light)
     await p.waitForTimeout(s0 && s0.dlg ? 400 : 1000);
@@ -98,6 +98,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       if (+process.env.PIN && !pinned && s.ride && s.ride.phase === 'driving') { pinned = await p.evaluate(n => window.__rpPin(n), +process.env.PIN); console.log('pinned', JSON.stringify(pinned)); await p.waitForTimeout(300); await p.keyboard.press('KeyF'); }
       if (!rode) { rode = true; await p.evaluate(() => { const g = window.__game; if (g.cam && g.cam.mode === 'cabin' && g.keys) {} }); }
       if (shots < 24 && s.ride && s.ride.phase === 'driving' && (++tick % (s.ride.v < 0.5 ? 6 : 3) === 1)) { try { await p.screenshot({ path: `${out}/ride-${String(shots).padStart(2, '0')}.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } shots++; }
+      if (s.ride && s.ride.phase === 'arrived' && !arrivedShot) { arrivedShot = true; try { await p.screenshot({ path: `${out}/arrived.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } } // (the car where it sets you down, at Hachiko)
       if (s.ride && s.ride.phase === 'arrived') await p.keyboard.press('KeyE'); // (out only where it sets you down: 'Get out here' is offered all the way)
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }

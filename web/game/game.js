@@ -2203,15 +2203,25 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // where it is) at which its body, and a metre and a half round it, has nobody in it and no car near; null if there is none
   const SET_DOWN = 30;
   function setDown(o, far = SET_DOWN) {
-    const st = o.drv.st, P = o.drv.path, e = {}, r = o.C.half + 1.5;
-    const clear = (x, y, z) => {
-      const near = q => Math.abs(q.x - x) < r && Math.abs(q.y - y) < r && Math.hypot(q.x - x, q.y - y) < r && (q.z == null || Math.abs(q.z - z) < 3);
-      if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && near(q)) return false; }
-      if (npcs.some(near)) return false;
-      return !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - x, c.y - y) < (c.half || 2.4) + 3.5);
-    };
-    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) { P.at(s, e); if (clear(e.x, e.y, e.z)) return s; }
+    const st = o.drv.st;
+    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) if (clearAt(o, s)) return s;
     return null;
+  }
+  // whether a ride put at s of its way (as jump and finish put it) stands clear: its body and pad metres round it with
+  // nobody in it (the crowd, the NPCs, you on foot, the dog) and no car of the traffic near. Tested where the car will
+  // stand, not on its way's line: near its stop it pulls in to the kerb, metres off that line towards the pavement, and
+  // judged on the line it was set down on five people waiting by Hachiko (#50)
+  const atSet = {};
+  function clearAt(o, s, pad = 1.5) {
+    const st = o.drv.st, sh = st.shift;
+    st.shift = 0; o.drv.poseAt(s, atSet); st.shift = sh; // (jump and finish put it back in its lane: st.shift 0)
+    const x = atSet.x, y = atSet.y, z = atSet.z, r = o.C.half + pad;
+    const near = q => q && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r && Math.hypot(q.x - x, q.y - y) < r && (q.z == null || z == null || Math.abs(q.z - z) < 3);
+    if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && near(q)) return false; }
+    if (npcs.some(near)) return false;
+    if (player.mode === 'foot' && near(player)) return false;
+    const gd = guideMade; if (gd && gd.root && gd.root.visible && gd.state !== 'away' && near(gd)) return false;
+    return !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - x, c.y - y) < (c.half || 2.4) + 3.5);
   }
   // what a ride's driver looks out for (cars.js chauffeur): the traffic, your car, you on foot
   // (one stopped for good, your car left in the lane or a car stuck in a jam, is driven round).
@@ -2532,7 +2542,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const P = o.drv.path, at = {};
       for (let s = Math.min(st.end - 0.5, st.s + 22); s > st.s + 6; s -= 4) {
         P.at(s, at);
-        if (!inView(at.x, at.y, at.z) && !cars.live.some(c => c.line >= 0 && Math.hypot(c.x - at.x, c.y - at.y) < (c.half || 2.4) + 3.5)) { o.drv.jump(s); break; }
+        if (!inView(at.x, at.y, at.z) && clearAt(o, s, 1)) { o.drv.jump(s); break; } // (and clear of people where it will stand, as a skipped ride is set down: #50)
       }
     }
     // coming for you up to a scramble whose walk is on, or about to start (its other road's amber or the all
