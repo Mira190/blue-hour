@@ -15,6 +15,8 @@
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
 #           - nothing standing in a lift's street lobby or through its portal (tools/lobby_check.py);
+#           - the story's flight clear of the buildings, and its helicopter in every frame of its shots from one side of its
+#             way (tools/flight_clear.py, tools/flight_frames.py);
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
@@ -223,6 +225,8 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby or through its portal" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
+    st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
+    st flight flight_frames "the story's flight in every frame of its shots, all from one side of it" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
