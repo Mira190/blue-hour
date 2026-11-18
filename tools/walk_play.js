@@ -179,13 +179,23 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!process.env.NO_RIDE) {
     const prompt = () => p.evaluate(() => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t ? t.textContent : ''; });
     const waitPrompt = re => p.waitForFunction(r => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t && new RegExp(r).test(t.textContent); }, re.source, { timeout: 120000, polling: 250 }).then(() => true, () => false);
-    const act = async () => { if (phone) await press('#gp-main'); else await p.keyboard.press('KeyE'); await p.waitForTimeout(400); };
+    // (on a phone, the prompt is tapped where it is: nothing may lie over it, as the car's buttons once did over Get out)
+    const act = async () => {
+      if (phone) {
+        const over = await p.evaluate(() => { const b = document.getElementById('gp-main'), r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && !b.contains(e) ? (e.id || e.className || e.tagName) : ''; });
+        if (over) fail(`on a phone, ${over} lies over the prompt ("${await prompt()}")`);
+        await press('#gp-main');
+      } else await p.keyboard.press('KeyE');
+      await p.waitForTimeout(400);
+    };
     const corner = () => p.evaluate(() => { const e = document.querySelector('#g-walk-where .g'); return e && !e.hidden ? e.textContent : ''; });
     const keyLine = () => p.evaluate(() => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on') ? e.textContent : ''; });
     const shown = sel => p.evaluate(s => [...document.querySelectorAll(s)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && getComputedStyle(e).display !== 'none'; }).map(e => e.textContent.trim()), sel);
     const mode = () => p.evaluate(() => window.__game.player.mode);
-    // (a key or a phone's button held for some seconds of the game's own time: a software renderer's frames are too slow to hold it for)
-    const hold = (key, s) => p.evaluate(([k, t]) => window.__game.advance(t, [k]), [key, s]);
+    // (a key or a phone's button held for some seconds of the game's own time, a twentieth of a second a frame with the
+    // camera following each, as a player's frames do: a software renderer's own frames are too slow to hold it for, and
+    // advance() moves the world without the camera, which was left tens of metres behind the car for the still)
+    const hold = (key, s) => p.evaluate(async ([k, t]) => { const g = window.__game; g.keys.add(k); try { for (let i = 0; i < Math.round(t / 0.05); i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } } finally { g.keys.delete(k); } }, [key, s]);
     const haveCar = await p.waitForFunction(() => !!window.__game.myCar(), null, { timeout: 300000, polling: 1000 }).then(() => true, () => false);
     if (!haveCar) fail('no car of your own on the walk (five minutes after setting out)');
     else {
@@ -201,9 +211,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           if (!(phone ? /drives/i.test(kl) : /steer/i.test(kl))) fail(`at the wheel, the foot of the frame does not show the car's keys ("${kl}")`);
           if (phone && !(btn.includes('Hand brake') && btn.includes('Horn') && btn.includes('View'))) fail(`at the wheel on a phone, the buttons are ${JSON.stringify(btn)} (want the hand brake, the horn and the view)`);
           const st0 = await p.evaluate(() => { const s = window.__game.myCar().D.st; return [s.x, s.y]; });
-          await hold('KeyW', 4); await p.waitForTimeout(1200);
+          await hold('KeyW', 2.5); await p.waitForTimeout(1200);
           const c = await p.evaluate(() => { const s = window.__game.myCar().D.st; return { xy: [s.x, s.y], v: s.speed }; }), drove = Math.hypot(c.xy[0] - st0[0], c.xy[1] - st0[1]), kmh = await corner();
-          if (drove < 3) fail(`at the wheel with W held for four seconds, the car moved ${drove.toFixed(1)} m`);
+          if (drove < 3) fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m`);
           else if (!/km\/h/.test(kmh)) fail(`driving, the corner does not say the speed ("${kmh}")`);
           else ok(`drove ${drove.toFixed(1)} m; the corner says "${kmh}"; the keys: "${kl.slice(0, 60)}"`);
           await shot('7a-car');

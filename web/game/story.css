@@ -706,9 +706,10 @@
 /* the car's and the helicopter's keys in the menu's list on the walk, not in the story */
 .gk-walk { display: none; }
 .game-stage.walk .gk-walk { display: table-row; }
-/* by touch at the wheel or the stick on the walk: the stick drives or flies, and beside it what each needs (the hand
-   brake, the horn and the view in a car; up, down and the view in the air); Run has nothing to do in either */
-.game-stage.story.walk:is(.at-car, .at-heli) .gt-btns { grid-template-columns: repeat(3, 56px); }
+/* by touch at the wheel or the stick on the walk: the stick drives or flies, and at the right edge what each needs (the
+   hand brake, the horn and the view in a car; up, down and the view in the air), one over another as the story's own
+   button stands, clear of the prompt in the middle (in three columns they lay over Get out, and a tap on it pulled the
+   hand brake); Run has nothing to do in either */
 .game-stage.story.walk:is(.at-car, .at-heli) .gt-btns :is(#gt-jump, #gt-down, #gt-cam) { display: block; }
 .game-stage.story.walk:is(.at-car, .at-heli) .gt-btns #gt-run { display: none; }
 /* (and in the story and on the walk alike, the old free game's: its tour of the map, the passport, the passport's fresh start, and its keys) */
@@ -724,6 +725,8 @@
   #g-walk-acts i.menu { height: 12px; }
   #g-walk-acts i.menu::after { top: 4.5px; }
   #g-walk-keys { flex-direction: column; align-items: center; gap: 10px; width: calc(100% - 48px); white-space: normal; text-align: center; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); letter-spacing: 0.12em; }
+  /* (at the wheel or the stick the right edge has the car's or the helicopter's buttons: the keys' lines keep to the left of them) */
+  .game-stage.walk:is(.at-car, .at-heli) #g-walk-keys { left: 24px; right: 92px; width: auto; transform: none; align-items: flex-start; text-align: left; }
   .gt-walk-row { grid-template-columns: 1fr; gap: 8px; }
   .gt-walk-acts .btn { flex: 1; }
   #gt-walk-go { flex: 1 1 100%; justify-content: space-between; }
