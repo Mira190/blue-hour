@@ -48,6 +48,7 @@ window.OELights = (function () {
     };
     let s0 = start;
     group.visible = false;
+    group.userData.warmFirst = true; // (hidden until the show, which the story's evening reaches in its opening: compiled with what is shown, world.js shown)
     world.add(group);
     const top = k => { const l = LM[k]; return l ? [l.at[0], l.at[1], l.published_top_m ? l.ground_m + l.published_top_m : l.top_m] : null; };
     // a landmark with its own searchlights ("beams": [[x, y, z], ...]) lights one beam from each; others two from the top

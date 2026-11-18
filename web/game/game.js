@@ -207,8 +207,8 @@ window.OpenEarthGame = async function game(cityId) {
   if (atmos) { const z = renderer.getSize(new THREE.Vector2()); atmos.setSize(z.x, z.y); }
   // shaders compiled before their first frame, in the variant the post stack draws with (world.js compile):
   // the scene behind the loader, and what comes once the game is open (the helicopter's model)
-  const compileFor = (obj, scene = world) => { if (weather && obj && obj.traverse) weather.dress(obj); return compileFor0(obj, scene); }; // (what has just loaded takes the weather's patch before its first compile)
-  const compileFor0 = (obj, scene = world) => OEWorld.compile(renderer, obj, camera, { scene, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null });
+  const compileFor = (obj, scene = world, o) => { if (weather && obj && obj.traverse) weather.dress(obj); return compileFor0(obj, scene, o); }; // (what has just loaded takes the weather's patch before its first compile)
+  const compileFor0 = (obj, scene = world, o) => OEWorld.compile(renderer, obj, camera, Object.assign({ scene, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null }, o));
   // a model that comes once the game is open: its textures sent in idle time, a texture a frame, then its
   // shaders compiled, before it is shown (issue 201; world.js upload)
   const uploadFor = obj => (OEWorld.upload ? OEWorld.upload(renderer, obj) : Promise.resolve());
@@ -456,7 +456,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
   // (earlyLamps); what joins the world later is compiled with the rest before the first frame (warm, below)
-  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, flight: 1 }));
+  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, flight: 1, only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
   // landmark solids (the Opera House shells) and walkable strips (the bridge deck) shade the ground too
   for (const [name, m] of Object.entries(nav.tops)) if ((G.shade_landmarks || []).some(p => name.startsWith(p))) for (const [k, z] of m) if (z > DSM.data[k]) DSM.data[k] = z;
   for (const s of nav.strips) for (let i = 0; i < s.us.length - 1; i++) {
@@ -5772,7 +5772,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (and the passes the title doesn't draw: the opening shot's depth of field and motion blur, atmosphere.js)
   try { performance.mark('oe:built', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the scene built (telemetry.js)
   loadMsg('Compiling the shaders for this view', 1);
-  const warm = Promise.all([earlyWarm.then(() => compileFor(world)), atmos && atmos.warm ? atmos.warm() : null, OEWorld.uploadSliced ? (window.OETex ? OETex.settled() : Promise.resolve()).then(() => OEWorld.uploadSliced(renderer, world)) : null, Wd.ready]) // (and its textures sent, in slices too, and the far trees' atlas drawn)
+  // (the loader's first set, issue 27: what is shown and the passes that are on; the rest behind the title, warmRest)
+  const warm = Promise.all([earlyWarm.then(() => compileFor(world, world, { only: OEWorld.shown })), atmos && atmos.warm ? atmos.warm({ first: true }) : null, OEWorld.uploadSliced ? (window.OETex ? OETex.settled() : Promise.resolve()).then(() => OEWorld.uploadSliced(renderer, world)) : null, Wd.ready]) // (and its textures sent, in slices too, and the far trees' atlas drawn)
     .then(() => OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })); // (then its vertex buffers, in slices)
   // and behind the loader the rain's passes are drawn once too (its streaks, the occlusion map from
   // above and the wet street's mirror), so that the first rain of a visit comes on without a stall; the
@@ -5786,7 +5787,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         .then(() => console.info(`rain warm-up: ${Math.round(performance.now() - t0)} ms`), e => console.warn('rain warm-up', e));
     } catch (e) { console.warn('rain warm-up', e); }
   };
-  Promise.all([OEPlate.finish($('#g-loader')), warm.then(() => drawn).then(() => { warmRain(); })]).then(([flew]) => {
+  // what the loader left out (issue 27: a third of its programs, on an iPhone a third of its 22 s): the passes that are off
+  // (the opening's depth of field and motion blur: first, for the tap), then what is hidden in the world (the rain, the
+  // stopped air's spares, a car's parts), compiled behind the title, a slice a frame, held through the opening's shots
+  const warmRest = () => Promise.resolve(atmos && atmos.warm ? atmos.warm() : null)
+    .then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, hold: () => playing && (!!arriving || cine.active || player.mode === 'lift') }))
+    .catch(e => console.warn('warm the rest', e));
+  Promise.all([OEPlate.finish($('#g-loader')), warm.then(() => drawn).then(() => { warmRest().then(warmRain); })]).then(([flew]) => {
     if (flew) fromFlyover();
     if (lib) { lib.warm = warmFor; if (lib.warmPalette) lib.warmPalette(); } // the characters that come from now on are warmed before they are shown (people.js)
     setTimeout(afterPlayable, reduced ? 0 : 700); // (once the loader has faded)
