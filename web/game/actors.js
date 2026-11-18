@@ -915,16 +915,24 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     function slotAt(g, q, out, road = null, fallback = true) {
       const W = SCR_HW + 1.4;
-      for (let r = 0; r < 10; r++) {
+      // (the front row the stripes' width and a little, each row behind a pace wider, fanning out: with every row as
+      // wide as the pavement allows, a dozen stood in one long file along the kerb, which no crowd waiting does)
+      // (and of the free places, the one nearest the way it comes, the front ones a little preferred: sent for a place
+      // in the front row from behind, a newcomer walked into the backs of those standing, was stopped there and stood
+      // in their pocket; those landing from the crossing take the front, those coming up the footway the back)
+      let bx = 0, by = 0, best = Infinity, found = 0;
+      for (let r = 0; r < 10 && found < 24; r++) {
         for (let k = 0; k < 8; k++) {
-          const lat = (k === 0 ? q.spread : rnd() * 2 - 1) * W + (rnd() - 0.5) * 0.25, d = 0.75 + r * 0.7 + (rnd() - 0.5) * 0.3;
+          const lat = (k === 0 ? q.spread : rnd() * 2 - 1) * Math.min(W, SCR_HW + 0.3 + r * 0.5) + (rnd() - 0.5) * 0.3, d = 0.75 + r * 0.7 + (rnd() - 0.5) * 0.4;
           const x = g.x + g.ox * d - g.oy * lat, y = g.y + g.oy * d + g.ox * lat;
           if ((road && road(x, y)) || (shut && shut(x, y)) || !slotFree(q, x, y)) continue;
           if (clear && ground) { ZAT.z = g.z; const z = ground(x, y, ZAT); if (z == null || Math.abs(z - g.z) > 1 || !clear(x, y, z)) continue; }
-          out.x = x; out.y = y; out.ok = true;
-          return out;
+          found++;
+          const sc = Math.hypot(x - q.x, y - q.y) + 0.8 * d;
+          if (sc < best) { best = sc; bx = x; by = y; }
         }
       }
+      if (found) { out.x = bx; out.y = by; out.ok = true; return out; }
       if (!fallback) return null;
       return spotAt(g, q.spread, 0.7 + rnd() * 1.6, out, road); // (no room left behind that kerb: in among them)
     }
@@ -960,7 +968,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (t >= 1 && seen(g.x, g.y, g.z)) continue; // (not put at a kerb the camera sees: those who walk up to it join, toPlaza)
           const was = [q.line, q.x, q.y, q.z];
           q.pz = pz; q.state = 'scr'; q.mode = 'ground'; q.line = Math.max(0, q.line); q.g = null; q.pause = 0;
-          const stand = rnd() < LINGER && (q.x = g.x, q.y = g.y, toLinger(q, g)); // (some standing about the square from the first frame)
+          q.x = g.x; q.y = g.y; // (put there at once: the front rows first)
+          const stand = rnd() < LINGER && toLinger(q, g); // (some standing about the square from the first frame)
           if (!stand && !toGate(q, g)) { uncount(q); q.pz = q.g = null; q.state = 'walk'; [q.line, q.x, q.y, q.z] = was; continue; } // (no room at that corner)
           q.x = q.T.x; q.y = q.T.y; q.z = g.z; q.v = q.vx = q.vy = 0;
           if (stand) { q.lst = true; q.h = rnd() * 6.28; } else { q.ph = 'wait'; q.h = Math.atan2(-g.ox, -g.oy); }
