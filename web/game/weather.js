@@ -295,7 +295,10 @@ roughnessFactor = mix(roughnessFactor, min(roughnessFactor, 0.1), smoothstep(0.0
     // material's own patch is kept in its place, so two materials with different patches never share a program)
     const plain = ownKey === THREE.Material.prototype.customProgramCacheKey, ownText = plain && own ? own.toString() : '';
     mat.onBeforeCompile = function (sh, r) { if (own) own.call(this, sh, r); patch(sh, o); };
-    mat.customProgramCacheKey = function () { return `${plain ? ownText : ownKey.call(this)}|oew|${key}`; };
+    // (keyed by the patch's options, which are all that write its text: keyed by the material's name, every paving and every
+    // pond was a program of its own for one shader, four at the Scramble alone, tools/entry_cost.js, issue 27)
+    const how = JSON.stringify(o);
+    mat.customProgramCacheKey = function () { return `${plain ? ownText : ownKey.call(this)}|oew|${how}`; };
     mat.needsUpdate = true;
   }
 

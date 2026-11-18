@@ -665,7 +665,7 @@ window.OEAtmos = (function () {
       },
       // every pass's programs, compiled behind the loader rather than by the first frame drawn through the post
       // stack, the camera's effects among them (they come on with the opening shot and photo mode): world.js warmPasses
-      warm() { return composer && window.OEWorld && OEWorld.warmPasses ? OEWorld.warmPasses(renderer, composer) : Promise.resolve(); },
+      warm(o) { return composer && window.OEWorld && OEWorld.warmPasses ? OEWorld.warmPasses(renderer, composer, o) : Promise.resolve(); }, // (o.first: the passes on now, world.js)
       render(scene, cam) {
         if (camFx) camFx.enabled = !!fx && (fx.aperture > 0 || fx.blur > 0) && !!rt.depthTexture;
         // the scene's depth resolved from the multisampled buffer while something reads it (the ambient occlusion, the camera's effects)

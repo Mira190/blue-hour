@@ -44,6 +44,9 @@ window.OEQuality = (function () {
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     c.renderer = String((dbg && gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || '');
     if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(c.renderer)) c.software = true;
+    // whether the GPU compiles shaders in parallel (KHR_parallel_shader_compile): the loader's warm-up can then overlap
+    // its own animation (world.js compile; issue 27 asks whether iOS Safari has it: telemetry.js reports it)
+    try { c.parallel = (gl.getSupportedExtensions() || []).indexOf('KHR_parallel_shader_compile') >= 0; } catch (e) { c.parallel = false; }
     // the post chain draws into RGBA16F: a texture for the passes, a multisampled renderbuffer for the scene
     gl.getExtension('EXT_color_buffer_float');
     gl.getExtension('EXT_color_buffer_half_float');
