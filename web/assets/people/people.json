@@ -653,17 +653,18 @@
    "Wrist.R": "Bip01_R_Hand"
   },
   "characters": {
-   "H_Surveyor_W": {
-    "file": "H_Surveyor_W.glb",
-    "label": "Surveyor (woman)",
-    "avatar": "Professions/Construction_Female_01",
+   "H_Kagami_W": {
+    "file": "H_Kagami_W.glb",
+    "label": "Kagami (woman)",
+    "avatar": "Professions/Business_Female_02",
+    "head": "Adults/Female_Adult_03",
     "ground_speed": {
      "Walk": 1.214,
      "Run": 5.379,
      "Sprint": 5.379
     },
-    "height_m": 1.772,
-    "triangles": 8662,
+    "height_m": 1.739,
+    "triangles": 10370,
     "clips": [
      "Idle",
      "Idle_Neutral",
@@ -675,19 +676,71 @@
      "Listen",
      "Nod",
      "Interact"
-    ]
+    ],
+    "neck_camera": {
+     "lugs": [
+      [
+       -0.074,
+       1.2209,
+       0.1902
+      ],
+      [
+       0.074,
+       1.2209,
+       0.1902
+      ]
+     ],
+     "lens": [
+      0.0,
+      -0.6157,
+      0.788
+     ],
+     "top": [
+      0.0,
+      0.788,
+      0.6157
+     ],
+     "centre": [
+      0.0,
+      1.1938,
+      0.1842
+     ],
+     "old": {
+      "centre": [
+       0.0,
+       1.2038,
+       0.1424
+      ],
+      "x": [
+       1.0,
+       -0.0,
+       -0.0
+      ],
+      "y": [
+       0.0,
+       0.9848,
+       0.1736
+      ],
+      "z": [
+       0.0,
+       -0.1736,
+       0.9848
+      ]
+     }
+    }
    },
-   "H_Surveyor_M": {
-    "file": "H_Surveyor_M.glb",
-    "label": "Surveyor (man)",
-    "avatar": "Professions/Construction_Male_08",
+   "H_Kagami_M": {
+    "file": "H_Kagami_M.glb",
+    "label": "Kagami (man)",
+    "avatar": "Adults/Male_Adult_07",
+    "head": "Adults/Male_Adult_10",
     "ground_speed": {
      "Walk": 1.012,
      "Run": 5.839,
      "Sprint": 5.839
     },
-    "height_m": 1.832,
-    "triangles": 8474,
+    "height_m": 1.829,
+    "triangles": 9544,
     "clips": [
      "Idle",
      "Idle_Neutral",
@@ -699,7 +752,58 @@
      "Listen",
      "Nod",
      "Interact"
-    ]
+    ],
+    "neck_camera": {
+     "lugs": [
+      [
+       -0.074,
+       1.2879,
+       0.218
+      ],
+      [
+       0.074,
+       1.2879,
+       0.218
+      ]
+     ],
+     "lens": [
+      0.0,
+      -0.6157,
+      0.788
+     ],
+     "top": [
+      0.0,
+      0.788,
+      0.6157
+     ],
+     "centre": [
+      0.0,
+      1.2608,
+      0.2121
+     ],
+     "old": {
+      "centre": [
+       0.0,
+       1.2708,
+       0.1708
+      ],
+      "x": [
+       1.0,
+       -0.0,
+       -0.0
+      ],
+      "y": [
+       0.0,
+       0.9848,
+       0.1736
+      ],
+      "z": [
+       0.0,
+       -0.1736,
+       0.9848
+      ]
+     }
+    }
    }
   }
  },
@@ -860,6 +964,19 @@
     "triangles": 8288,
     "cities": [
      "sydney"
+    ],
+    "mask": 0.0482
+   },
+   "R_Business_Female_04_f013": {
+    "file": "R_Business_Female_04_f013.glb",
+    "sex": "f",
+    "avatar": "Professions/Business_Female_04",
+    "head": "Professions/Sports_Female_02",
+    "tags": [],
+    "height_m": 1.733,
+    "triangles": 8150,
+    "cities": [
+     "shibuya"
     ],
     "mask": 0.0482
    },
@@ -1423,6 +1540,19 @@
     ],
     "mask": 0.261
    },
+   "R_Male_Adult_05_m008": {
+    "file": "R_Male_Adult_05_m008.glb",
+    "sex": "m",
+    "avatar": "Adults/Male_Adult_05",
+    "head": "Professions/Business_Male_02",
+    "tags": [],
+    "height_m": 1.822,
+    "triangles": 7586,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.261
+   },
    "R_Male_Adult_05_m024": {
     "file": "R_Male_Adult_05_m024.glb",
     "sex": "m",
@@ -1929,33 +2059,9 @@
    192
   ],
   "characters": {
-   "R_Business_Female_03": {
-    "triangles": 1298,
-    "height_m": 1.737
-   },
-   "R_Business_Female_04_f003": {
-    "triangles": 1620,
-    "height_m": 1.724
-   },
-   "R_Business_Female_04_f011": {
-    "triangles": 1202,
-    "height_m": 1.735
-   },
-   "R_Business_Male_02": {
-    "triangles": 1170,
-    "height_m": 1.818
-   },
-   "R_Business_Male_03": {
-    "triangles": 1194,
-    "height_m": 1.817
-   },
    "R_Business_Male_06_m017": {
     "triangles": 1070,
     "height_m": 1.814
-   },
-   "R_Female_Adult_04_f003": {
-    "triangles": 1626,
-    "height_m": 1.724
    },
    "R_Female_Adult_08": {
     "triangles": 1406,
@@ -1965,21 +2071,9 @@
     "triangles": 1288,
     "height_m": 1.737
    },
-   "R_Female_Adult_09_f011_grey": {
-    "triangles": 1210,
+   "R_Female_Adult_11": {
+    "triangles": 1390,
     "height_m": 1.735
-   },
-   "R_Female_Adult_13": {
-    "triangles": 1480,
-    "height_m": 1.741
-   },
-   "R_Female_Adult_13_f003_brown": {
-    "triangles": 1626,
-    "height_m": 1.724
-   },
-   "R_Female_Adult_14": {
-    "triangles": 1508,
-    "height_m": 1.737
    },
    "R_Female_Adult_14_f016": {
     "triangles": 1296,
@@ -1997,26 +2091,6 @@
     "triangles": 1212,
     "height_m": 1.735
    },
-   "R_Female_Party_02": {
-    "triangles": 1842,
-    "height_m": 1.787
-   },
-   "R_Male_Adult_03_m008_grey": {
-    "triangles": 1168,
-    "height_m": 1.818
-   },
-   "R_Male_Adult_05": {
-    "triangles": 1266,
-    "height_m": 1.809
-   },
-   "R_Male_Adult_05_m024": {
-    "triangles": 1072,
-    "height_m": 1.82
-   },
-   "R_Male_Adult_08_m024": {
-    "triangles": 1074,
-    "height_m": 1.82
-   },
    "R_Male_Adult_11": {
     "triangles": 1000,
     "height_m": 1.801
@@ -2033,17 +2107,9 @@
     "triangles": 1168,
     "height_m": 1.818
    },
-   "R_Male_Adult_14_m017_grey": {
-    "triangles": 1070,
-    "height_m": 1.814
-   },
    "R_Male_Adult_20_m008": {
     "triangles": 1168,
     "height_m": 1.811
-   },
-   "R_Sports_Male_04_m024": {
-    "triangles": 1074,
-    "height_m": 1.82
    }
   }
  }

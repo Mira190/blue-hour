@@ -394,7 +394,7 @@ Walking into a neighbourhood puts its name up on a station sign. <kbd>E</kbd> at
 spot (an ema, a vending machine, a shop front) reads it. Conversations come up in
 bubbles as you pass.
 
-The menu (<kbd>Esc</kbd>) lets you play as either surveyor.
+The menu (<kbd>Esc</kbd>) lets you play Kagami as a woman or as a man.
 
 **Photo mode** (<kbd>O</kbd>, or **Photo** on a phone) stops the world: the
 people, the traffic and the ferries hold still, and the HUD goes. You control the
@@ -404,7 +404,7 @@ camera and the shot:
 - **Time:** moves the sun for the picture, and the clock stays there when you leave.
 - **Lens:** the field of view, shown as a full-frame focal length.
 - **Extras:** Turntable circles slowly, Grid shows the thirds, and Show me hides
-  your surveyor.
+  yourself.
 
 **Save photo** (<kbd>Enter</kbd>) writes a PNG. Its caption gives the place, the
 date and time, the sun's height and the data credit.
@@ -2764,13 +2764,17 @@ python blender/build_vehicles.py --only cars  # one kind: helicopter, ferry, fer
 
 ## The main characters
 
-| The surveyors you play: standing, and mid-stride (Cycles) |
+| Kagami, whom you play, as a woman and as a man: standing, and mid-stride (Cycles) |
 |---|
-| ![](images/people/H_Surveyor_W_Idle.jpg) ![](images/people/H_Surveyor_W_Walk.jpg) ![](images/people/H_Surveyor_M_Idle.jpg) ![](images/people/H_Surveyor_M_Walk.jpg) |
+| ![](images/people/H_Kagami_W_Idle.jpg) ![](images/people/H_Kagami_W_Walk.jpg) ![](images/people/H_Kagami_M_Idle.jpg) ![](images/people/H_Kagami_M_Walk.jpg) |
 
-The two surveyors you play are Microsoft Rocketbox avatars (MIT, © 2020 Microsoft;
-`web/assets/people/LICENSE-Rocketbox.txt`): construction workers in hi-vis vests,
-hard hats, gloves and radios, made by artists and rigged on a 3ds Max Biped.
+Kagami, the photographer you play (docs/STORY.md, "Who you are, to look at"), is a
+Microsoft Rocketbox avatar (MIT, © 2020 Microsoft; `web/assets/people/LICENSE-Rocketbox.txt`),
+made by artists and rigged on a 3ds Max Biped, as a woman or a man: a Japanese face
+from another avatar (as the NPCs wear theirs), the clothes taken to Tokyo's October
+colours (`dress`: a part's cloth to a colour by its hue, its folds kept), and a camera
+round the neck, modelled with it (`neck_camera`). Until November 2026 the two were
+surveyors of the old map, in hard hats and hi-vis vests.
 `blender/build_people.py` builds them:
 - **Clips:** Rocketbox's own motion capture on the same skeleton: a neutral idle,
   walk, fast run, wave, talking and listening gestures, a nod, and checking
@@ -2786,8 +2790,8 @@ hard hats, gloves and radios, made by artists and rigged on a 3ds Max Biped.
   a bone's rest value (the face, and every translation but the hips') are
   dropped afterwards.
 
-The game loads the surveyor you play, and the other when you switch in the
-menu. If their files do not load, the earlier characters stand in.
+The game loads the Kagami you play, and the other when you switch in the
+menu. If their files do not load, the crowd's casual characters stand in.
 
 ```
 python pipeline/fetch_rocketbox.py               # the avatars and clips, into data/raw (once)

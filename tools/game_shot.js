@@ -19,6 +19,7 @@
 // "hide": [mesh names] leaves those landmark meshes out; "scramble": "walk" or "wait" runs on to that moment of the
 // nearest scramble's cycle; "eye": [x, y, z] looks from there at "look" instead of the chase camera; [x, y] from
 // "eyeUp" metres, 1.6 by default, over the ground where you stand; "lookUp": the point looked at that far over it,
+// ("me": true keeps you in an "eye" view, and "face": [x, y] turns you to face there: to look at the one you play),
 // as up a tower's side)
 // "plush": {kind, scarf, side, ...} the plush traveller (tools/plush.js) sat in an "eye" view on one side third
 // (-1 left, 1 right), in focus (see below);
@@ -48,6 +49,8 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (lean ? 'low' : 'high'));
   // LV=n: a phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest), with LEAN=1
   if (process.env.LV) await p.addInitScript(n => { try { localStorage.setItem('oe3d-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
+  // PLAYER=W or M: Kagami as a woman or a man (the menu's Play as; tools/kagami_views.json looks at them)
+  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   // a player who has been through the HUD tour (web/onboard.js), so that its card is not in the stills
   await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   await p.addInitScript(() => {
@@ -194,7 +197,7 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
       const [x, y] = v.at, f = g.nav.floorAt(x, y, v.z != null ? v.z + 0.5 : v.street ? g.nav.terrain(x, y) + 0.5 : 200); // (the roof there, the street under a canopy, or the floor nearest z)
       const place = () => {
         g.player.x = x; g.player.y = y; g.player.z = f ? f.z : 0;
-        g.player.h = Math.atan2(v.look[0] - x, v.look[1] - y);
+        g.player.h = v.face ? Math.atan2(v.face[0] - x, v.face[1] - y) : Math.atan2(v.look[0] - x, v.look[1] - y); // ("face": [x, y] the way you face, if not towards "look")
         Object.assign(g.cam, { mode: 'chase', yaw: g.player.h, pitch: v.pitch ?? 0.12, dist: v.dist ?? 5, distTo: 0, yawTo: null, lastInput: -10 });
       };
       // a frame 400 m off first: the chase camera eases after a short move and snaps after a long one
@@ -311,7 +314,7 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
         Object.assign(P, { az: Math.atan2(dx, dy), pitch: Math.atan2(h, d), dist: Math.hypot(d, h) });
         if (v.fov) P.fov = v.fov;
         P.fstop = v.fstop ?? 16; // (photo mode's depth of field: sharp unless a still asks for it)
-        g.player.rig.root.visible = false;
+        g.player.rig.root.visible = !!v.me; // ("me": true keeps the one you play in the picture, to look at them)
         g.advance(0.1);
         // "plush": the traveller in the picture (tools/plush.js). As in Travel Frog's photographs it is in the
         // place, not held up to the lens: sat on the surface drawn there a metre or two ahead, on one side third
