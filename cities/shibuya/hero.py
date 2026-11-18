@@ -276,8 +276,9 @@ FRONTS = {
 # ---------------------------------------------------------------- the level
 
 class Level:
-    def __init__(self, K):
+    def __init__(self, K, centre=CENTRE, r=R):
         from shapely.geometry import Point, Polygon, box
+        self.centre, self.r = tuple(centre), float(r)
         from shapely.ops import unary_union
         self.K = K
         K.TEXTURES.update(TEX)
@@ -298,7 +299,7 @@ class Level:
         self.D = D = S.Data("shibuya")
         # the junction's plan is the landmarks' own (scramble.Plan): one kerb line, one set of guard pipes
         L = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "landmarks.json")))
-        self.plan = P = S.Plan(D, [q["ring"] for q in L.get("clip", [])], CENTRE, R)
+        self.plan = P = S.Plan(D, [q["ring"] for q in L.get("clip", [])], self.centre, self.r, standing=self.standing)
         self.disc, self.solids, self.wells, self.junction, self.roads, self.walks, self.pave = P.disc, P.solids, P.wells, P.junction, P.roads, P.walks, P.pave
         # paint lies on the asphalt: inside the gutter's line, never over a kerb or a pavement
         self.paintable = self.roads.buffer(-(GUTTER_M + 0.12))
@@ -510,7 +511,7 @@ class Level:
         """Tall tapered steel posts with a flat LED head out over the road (the square's and the junction's own, from
         photographs), on the pavement 0.9 m behind the kerb, about 26 m apart; their light is the bake's."""
         from shapely.geometry import Point
-        centre = np.asarray(CENTRE)
+        centre, R = np.asarray(self.centre), self.r
         placed = []
         for co in self.lines(self.roads.buffer(KERB_M + 0.9).boundary.intersection(self.pave)):
             P = HP.Path(np.c_[co, np.zeros(len(co))])
@@ -550,7 +551,7 @@ class Level:
         from shapely.ops import unary_union
         from shapely.prepared import prep
         G, D = self.geo, self.D
-        c = np.asarray(CENTRE)
+        c = np.asarray(self.centre)
         # whole buildings scramble.py draws (QFRONT, 109, MAGNET, Seibu, the station) keep their own fronts
         whole = {"w136691386", "w55895868", "w55896465", "w136692137", "w136692134", "w904652357", "w116710254"}
         L = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "landmarks.json")))
@@ -578,7 +579,7 @@ class Level:
         n_faces = 0
         for poly, s in near:
             h = s["top"] - s.get("base", 0)
-            if s["osm"] in whole or h < 7 or h > 62 or poly.area < 25 or np.linalg.norm(np.asarray(poly.centroid.coords[0]) - c) > 115:
+            if s["osm"] in whole or h < 7 or h > 62 or poly.area < 25 or np.linalg.norm(np.asarray(poly.centroid.coords[0]) - c) > 115 or self.skip_front(s, poly):
                 continue
             rng = np.random.default_rng(sum(ord(ch) for ch in (s["osm"] or str(s["si"]))) * 7919 % (2 ** 31))
             wall = ("wall_white", "wall_cream", "wall_grey")[int(rng.integers(3))]
@@ -607,6 +608,13 @@ class Level:
                 G.walls.append((a + n * OUT, b + n * OUT, self.T(*mid), top))
                 n_faces += 1
         print(f"fronts: {n_faces} walls dressed, seen from {len(self.eyes)} places")
+
+    standing = None   # (scramble.Plan's test of what stands on the ground; a level under a deck gives its own)
+
+    def skip_front(self, s, poly):
+        """Whether a building's walls are another level's to dress (a second level, hero_miyamasu.py, leaves the
+        Scramble's own alone, so that no wall is drawn twice)."""
+        return False
 
     def qfront_base(self):
         """QFRONT's street floor under its canopy, which the landmark draws as one plain band: the shopfront line a

@@ -5,7 +5,7 @@
 // Each print is saved as the roll keeps it, too (n-print-own.jpg): the double exposure itself.
 //   python3 -m http.server 8800 --directory web &
 //   node tools/story_play.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
-// FROM=6: from the last frame only (FROM=5 UPTO=5: the fifth frame only). LIMIT=seconds: how long the whole play may take.
+// FROM=6: from the last frame only (FROM counts from 0 and UPTO from 1: FROM=4 UPTO=5 is the fifth frame only). LIMIT=seconds: how long the whole play may take.
 // SLIP=n: at frame n the first question that can be lost is answered wrongly until the one asked sees through the player; the
 // card must come up, and the frame is taken up again and played rightly. SPEND=n: frame n is spent from the wrong place (the
 // release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
