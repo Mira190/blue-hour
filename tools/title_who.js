@@ -40,11 +40,12 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
   console.log('first title:', JSON.stringify(s));
   if (!s.shown || s.tiles.length !== 2 || !s.tiles.every(t => t[2])) fail('the two portraits are not both shown');
   if (s.tiles.some(t => t[1] === 'true') || !s.choose) fail('the first time, a portrait is chosen for the player');
+  if (!/choose one/i.test(s.ask)) fail(`the first time, the title does not say to choose ("${s.ask}")`);
   await shot('1-first');
   await press('#gt-play'); await p.waitForTimeout(800);
   s = await state();
   if (!s.title) fail('the first press of the button began without asking who you play');
-  else if (!s.ask) fail('the first press of the button said nothing');
+  else if (!/then begin/i.test(s.ask)) fail(`the first press of the button did not ask who you play ("${s.ask}")`);
   await shot('2-asked');
   if (!phone) { await p.keyboard.press('Enter'); await p.waitForTimeout(600); if (!(await state()).title) fail('Enter began without asking who you play'); } // (the hand is on the first portrait: Enter chooses it, and only that)
   await press('#gt-who [data-c="M"]');
@@ -69,6 +70,16 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
   await shot('4-again');
   await press('#gt-play'); await p.waitForTimeout(1500);
   if ((await state()).title) fail('opened again, the button did not begin');
+  // a case left going by someone who never chose (before the title asked): the evening again and Continue wait too
+  await p.evaluate(() => { try { localStorage.setItem('oe3d-player', ''); localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: '17:14', cap: '' }, { src: null, stamp: '17:19', cap: '' }] })); } catch (e) { /* storage blocked */ } });
+  await title();
+  s = await state();
+  if (!s.choose) fail('a case going, never chosen: the title does not ask');
+  if (await p.locator('#gt-anew').count()) { await press('#gt-anew'); await p.waitForTimeout(800); if (!(await state()).title) fail('the evening again began without asking who you play'); }
+  else fail('a case going: no button for the evening again');
+  await press('#gt-play'); await p.waitForTimeout(800);
+  if (!(await state()).title) fail('a case going, never chosen: Continue began without asking');
+  await shot('5-going-asked');
   console.log(errors.length ? `FAIL ${errors.length}` : 'ok   who you play is asked the first time, kept, and changed on the title');
   await b.close();
   process.exit(errors.length ? 1 : 0);

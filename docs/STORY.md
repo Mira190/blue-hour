@@ -207,9 +207,11 @@ creator at that moment, which a fixed person like Kagami does not need; *Pokemon
 first scene. Adopted: Odyssey's moment and Valhalla's freedom, in the story's own interface. On the title, over its one
 button, two portraits of Kagami filmed in the game at the same kerb, light and lens (`tools/views/kagami.json`,
 `tools/key_shot.js` `who`), so that the choice is between the two people and nothing else. The first time nothing is
-chosen for the player: a press of the button, Enter, a tap or a pad's A asks first (*Choose who you play, then begin*),
-the arrows or the d-pad move between the two; after that the choice stands, marked on the title and in the menu, and
-either can change it. The story's words never needed it: Kagami is a surname and *you*. `tools/title_who.js` plays the
+chosen for the player, not even a cursor resting on one (as Odyssey's does, with a press to confirm): the title says
+*Choose one to begin*, the button is dimmed, and every way on from the title (the button, Enter, a tap, a pad's A,
+Continue, the evening again, a frame of a closed case gone back into) asks instead (*Choose who you play, then
+begin*), until one is chosen. The arrows or the d-pad move between the two; after that the choice stands, marked on
+the title and in the menu, and either can change it, so no warning that it is final is needed. The story's words never needed it: Kagami is a surname and *you*. `tools/title_who.js` plays the
 first visit by mouse or touch and fails a first press that begins without asking. Nothing of those games' look is used.
 
 It was, until November 2026, a surveyor of the old map: a construction worker's hard hat, hi-vis vest, gloves and

@@ -3531,6 +3531,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the hour of the light, by name ('blue': the blue hour), on the evening the story is dressed in
     light: kind => { const t = S.presetTime(kind, clock.y, clock.m, clock.d); if (t != null) setClock(clock.y, clock.m, clock.d, t); },
     floor: (x, y) => Math.max(0, nav.terrain(x, y)),
+    whoGate: () => whoGate(), // (every way on from the title waits for who you play: game.js whoGate)
     key: k => (gamepad ? gamepad.label(k) : k), padOn: () => !!(gamepad && gamepad.on), // (the prompts name the pad's buttons while it is in the hand: pad.js)
   }) : null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
@@ -5562,11 +5563,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const chosen = whoChosen();
     const k = (chosen && whoKept()) || playerChar; // (the choice as made, while its model may still be on its way)
     $$('#gt-who [data-c]').forEach(b => b.setAttribute('aria-checked', String(chosen && b.dataset.c === k)));
-    $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === k)));
+    $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(chosen && x.dataset.c === k)));
     whoEl.classList.toggle('open', !chosen);
+    $('#gt-play').toggleAttribute('aria-disabled', !chosen && !whoEl.hidden); // (said to a screen reader; it is still pressed, to be told why)
+    if (!chosen && !whoEl.hidden && !whoEl.classList.contains('ask')) whoEl.querySelector('.gt-who-ask').textContent = 'Choose one to begin.';
     $('#g-title').toggleAttribute('data-choose', !chosen && !whoEl.hidden); // (pad.js: A puts the hand on a portrait first)
     if (chosen) whoEl.querySelector('.gt-who-ask').textContent = '';
   }
+  // nothing goes on from the title until who you play is chosen: the button, Enter, a tap, a pad's A, and the title's
+  // other ways on (the evening again, a frame of a closed case gone back into) each ask instead, the first time
+  function whoGate() { if (whoNeeded()) { whoAsk(); return false; } return true; }
   function whoAsk() {
     whoEl.querySelector('.gt-who-ask').textContent = 'Choose who you play, then begin.';
     whoEl.classList.toggle('ask', false); void whoEl.offsetWidth; whoEl.classList.toggle('ask', true);
