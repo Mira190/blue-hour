@@ -888,6 +888,52 @@ The 1964 plates were given up for the things the camera sees (above), and with t
 described a picture nobody could see: **a line may speak only of what is in the finder**, so the
 things are the evidence and the rest is testimony. Not yet: the old woman's clear umbrella, and voices.
 
+### The walk: the map with no story in it (November 2026)
+
+The owner asked for a way to be in Shibuya without the case: after who you play, the story or a walk of your own. Worked
+from what a player wants of it, not from the old free game this map once had:
+
+- **What it is for.** To be at the crossing at an hour you choose and move at your own pace; to look round before the
+  case, and to stay out in the night after it. The place is the whole of it: the hundred metres the hero level is, the
+  crowd, the screens, the rain. Nothing in it is owed: no goal, no light standing in the street, no clock running out.
+- **What it must not cost the story.** Nothing of the case is in it: no Stop, no afterimage, no 1964 in the finder, no
+  dog. Walked first, it spoils nothing; walked after, it undoes nothing.
+- **One world, not two games.** The same Kagami, the same evening's screens, the story's own card, type and amber. The
+  map's old free game (`?walk=1`, *Tokyo Pilgrimage*, its quests, survey lens, height guess, passport, map that sends you
+  anywhere, phone, taxi, car and helicopter) stays a tool for building and checking; none of it is reachable from the
+  story's page, in the story or on the walk (`game.js` `STORY_OFF`, the menu's old tour and passport put away), and
+  the story's last card no longer opens it.
+- **One decision before you go.** The hour and the sky: the blue hour of the story's evening (10 October), the night
+  after it, or the hour it is now in Tokyo; clear or rain. Whatever is chosen is the street behind the card at once, so
+  the choice is made by looking, not by reading. The rest (any hour, any weather, the clock's speed) is in the menu.
+- **What is not seen costs nothing.** It sets out where the story does, in the hero level, on foot, and offers nothing
+  that sends you to the map's unfinished far corners; the map round you loads as you walk, as in the story.
+- **Never stuck, never lost.** Where and when you are sits in the goal's corner (the area's name, the minute, the date
+  and the sky); the keys once at the foot of the frame; at the top right the camera (photo mode) and the menu, which
+  has the hour, the sky and the story.
+- **No page loaded again where one can be helped.** From the title the street on the card is the street walked. From
+  the last card the walk is taken up where the case ended: the card fades off the street, the score lets go into the
+  street's own sound over a few bars, the evening's people leave once the lens no longer has them (never in view), the
+  dog is already on his way home, and the same night goes on round you, at its hour and under its sky. Only the way from
+  the walk into the story opens the page again, straight into the first episode, as *Play it again* does.
+
+What the games that have one do, and what was taken. *Assassin's Creed Origins*' Discovery Tour (2018) is a way in of
+its own beside the campaign: the whole world to wander, with its quests, combat and time limits taken out. *Mafia:
+Definitive Edition*'s Free Ride (2020) is chosen from the main menu, and in it the hour and the weather are the
+player's, where the story's missions fix both. The *Yakuza* series' Premium Adventure (*Yakuza 0*, 2015, among others) is
+the city after the story, free to roam with the story's world left as it was. Flight simulators ask the hour and the
+weather before a free flight. And the long unnarrated walks through Tokyo filmed for the web, at night, in the rain, are
+what a walk here is for. Adopted: Discovery Tour's separate way in, with the story's goals and its clock taken out;
+Free Ride's hour and sky chosen before setting out and changed in the menu after; Premium Adventure's walk after the
+story, from the place the story ends, without a lock (Yakuza opens it only after the end; this walk has nothing of the
+case in it to keep back); the flight simulator's choice made over the live view. Nothing of those games' look or words is
+used.
+
+On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
+`walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of
+`web/game/story.css`. `tools/walk_play.js` plays it by mouse and keys on a desktop's page and by touch on a phone's;
+`tools/story_play.js` takes the last card's walk up in the same night.
+
 ## 11. The voice
 
 - Short lines. Nobody explains the rules; they say what they saw and did, never what it means. The rules come as

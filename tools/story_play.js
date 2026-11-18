@@ -358,6 +358,26 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (+process.env.SPEND && !c.worked.includes(`Frame ${process.env.SPEND} spent`)) { errors.push(`the last card does not name frame ${process.env.SPEND}, spent`); console.log(errors[errors.length - 1]); }
     if (c.back < 7) { errors.push(`the last card offers ${c.back} frames to go back into`); console.log(errors[errors.length - 1]); }
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
+    if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
+      await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
+      await p.waitForTimeout(2500);
+      const look = () => p.evaluate(() => { const g = window.__game, s = document.getElementById('game-stage'), c = g.clock, pad = n => String(n).padStart(2, '0');
+        return { same: !!window.__samePage, on: s.classList.contains('walk-on'), card: document.getElementById('g-story-end').classList.contains('on'), title: !document.getElementById('g-title').hidden,
+          at: (document.querySelector('#g-walk-where .t') || {}).textContent || '', clock: `${pad(Math.floor(c.min / 60))}:${pad(Math.floor(c.min) % 60)}`, phase: g.story.state.phase, cast: Object.keys(g.story.state.cast).length, light: g.lights() }; });
+      const w = await look();
+      console.log('the last card\'s walk:', JSON.stringify(w));
+      if (!w.same) errors.push('the last card\'s Walk Shibuya opened the page again: the walk is to go on in the same night');
+      else if (!w.on || w.card || w.title) errors.push(`the last card's Walk Shibuya did not take up the walk where the case ended (walk ${w.on}, card ${w.card}, title ${w.title})`);
+      else if (w.at !== w.clock || w.light.story || w.light.objective) errors.push(`the walk after the case: the corner says ${w.at} at ${w.clock}, a light stands (${JSON.stringify(w.light)})`);
+      if (errors.length && /last card's|walk after the case/.test(errors[errors.length - 1])) console.log(errors[errors.length - 1]);
+      await snap('end-walk');
+      // the lens turned away from the evening's people and a few seconds given: they go once it no longer has them
+      await p.evaluate(async () => { const g = window.__game; g.cam.yaw += Math.PI; for (let i = 0; i < 60; i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } });
+      const w2 = await look();
+      console.log(`the walk after the case: the evening's cast ${w.cast} as it began, ${w2.cast} once the lens had turned away`);
+      if (w.cast && w2.cast >= w.cast) errors.push(`the walk after the case: the evening's ${w.cast} people still stand there with the lens turned away from them`);
+      await snap('end-walk-away');
+    }
     if (+process.env.BACKTO > 1) { // into a frame again from the last card: the roll as it was on arriving there, played to its print
       const n = +process.env.BACKTO;
       await p.evaluate(n => document.querySelector(`#g-story-end [data-back="${n - 1}"]`).click(), n);

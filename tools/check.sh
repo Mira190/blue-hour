@@ -20,7 +20,10 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
-#           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card;
+#           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
+#           taken up in the same night;
+#   walk    the title's second way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
+#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
@@ -48,8 +51,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story ride mem clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story walk ride mem clip gl touch astc game"   # the browser checks, in the order they run
+ALL="story walk ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -84,12 +87,13 @@ else
     echo "checking what changed since the last pass, $(git log -1 --format='%h %s' "$last" | cut -c1-70) (CHECK_FULL=1 for the whole branch)" >&2
     base=$last
   fi
-  page() { add story mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
+  page() { add story walk mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
       web/data/$MAP/d/*|pipeline/district.py|tools/mem_check.js) static=1; add mem ;;   # what a phone loads
       tools/story_play.js|tools/story_play.js|tools/start_play.js) static=1; add story ;;
+      tools/walk_play.js) static=1; add walk ;;
       tools/clip_check.js|tools/pin_clock.js) static=1; add clip ;;
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
@@ -146,6 +150,14 @@ run_story() {   # on a small page: a software renderer draws the stopped world's
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
   else echo "FAIL story  $(grep '^FAIL\|pageerror' "$OUT/story.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/story.log)"; fi
+}
+run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
+  local ok=1 d
+  for d in 800x500 390x844; do
+    if ! timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(grep '^FAIL\|pageerror' "$OUT/walk-$d.log" | head -2 | cut -c1-150 | paste -sd ';' -)   (see $OUT/walk-$d.log)"; fi
+  done
+  [ $ok -eq 1 ] && echo "ok   walk   $(grep -c '^ok' "$OUT/walk-800x500.log") beats on a desktop's page and $(grep -c '^ok' "$OUT/walk-390x844.log") on a phone's: two ways in, the hour and the sky, out with no story"
+  return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
   if LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"

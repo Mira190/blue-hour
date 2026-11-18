@@ -19,6 +19,9 @@ window.OpenEarthGame = async function game(cityId) {
   const touch = matchMedia('(pointer: coarse)').matches;
   const ac = new AbortController(), on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, Object.assign({ signal: ac.signal }, o));
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  // the old free game's keys, which open nothing on the story's map (in the story, or on the walk): the survey lens, the
+  // height guess, the route's walk and its line, the map, the passport, the phone, a taxi, the subway map, the diary
+  const STORY_OFF = new Set(['KeyQ', 'KeyG', 'KeyT', 'KeyL', 'KeyM', 'KeyP', 'KeyN', 'KeyY', 'KeyB', 'KeyJ']);
 
   // ------------------------------------------------------------ load
   // The score while the roll loads (music.js loop; docs/SOUND.md "Before the first frame"): the story's own, as much of
@@ -3432,7 +3435,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     snapBase: () => storySnapBase,
     again: () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
-    free: () => { const u = new URL(location.href); u.searchParams.set('walk', '1'); u.searchParams.delete('overture'); location.href = u.toString(); },
+    // the last card's "Walk Shibuya": the walk (walk.js), taken up where the case ended, in the same night (walkOnFromStory).
+    // Only where that cannot be, from a fresh page at the hour it ended in and under its sky. It was the map's old free
+    // game, under another game's name and with its quests
+    free: () => { if (walkOnFromStory()) return; try { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: sun && sun.altitude < -10 ? 'night' : 'blue', w: weather && /rain|drizzle|storm/.test(weather.state.kind) ? 'rain' : 'clear' })); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); location.href = u.toString(); },
     say: (who, lines, done) => (talkLine(who), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done)), // (log: kept in the evening's log)
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
@@ -3599,6 +3605,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     whoGate: () => whoGate(), // (every way on from the title waits for who you play: game.js whoGate)
     key: k => (gamepad ? gamepad.label(k) : k), padOn: () => !!(gamepad && gamepad.on), // (the prompts name the pad's buttons while it is in the hand: pad.js)
   }) : null;
+  // the walk (walk.js): the story's map with no story in it, the title's second way in. walk: the hour and the sky set
+  // out in ({ t, w }), null on the title and in the story; walkUi: its title step and its corner of the screen
+  let walk = null, walkUi = null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
   const padOpen = () => [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
@@ -3609,7 +3618,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     lens: d => zoom(d > 0 ? 0.89 : 1.12), // (the ring: RB longer, LB wider, a notch of the wheel each)
     log: () => { if (storyLog) storyLog.show(!storyLog.open); },
     back: () => { if (dlg.open) dlg.back(); },
-    close: el => { if (el.id === 'g-story-log' && storyLog) storyLog.show(false); else if (el.id === 'g-story-album' || el.id === 'g-menu') gamepad.key('Escape'); } }) : null;
+    close: el => { if (el.id === 'g-story-log' && storyLog) storyLog.show(false); else if (el.id === 'g-story-album' || el.id === 'g-menu') gamepad.key('Escape'); else if (el.id === 'g-title' && walkUi && walkUi.isOpen) walkUi.open(false); } }) : null; // (B on the walk's step: back to the two ways in)
   if (storyLog && gamepad) storyLog.gamepad = gamepad; // (the log's sheet has the trigger's setting while a pad is in the hand)
   let postCame = null; // the postcards asked for, once a visit (postcards.js brings nothing sooner than six hours after the last)
   function renderPassport() {
@@ -3932,6 +3941,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!$('#g-title').hidden) { // (the title: Enter begins once who you play is chosen, or presses the portrait the hand is on; the arrows choose)
       // (Enter is the title's own: the button's native press came after a choice had moved the hand to the button, and one
       // Enter chose who you play and began)
+      if (walkUi && walkUi.titleKey(c)) { e.preventDefault(); return; } // (the walk's step, while it is up: its own keys, walk.js)
       const f = document.activeElement, onBtn = f && f.tagName === 'BUTTON' && f.id !== 'gt-play' && f.closest('#g-title');
       if (c === 'Enter') { e.preventDefault(); if (onBtn) f.click(); else if (whoNeeded()) whoAsk(); else $('#gt-play').click(); }
       else if ((c === 'ArrowLeft' || c === 'ArrowRight') && whoEl && !whoEl.hidden) whoPick(c === 'ArrowLeft' ? 'W' : 'M');
@@ -3957,7 +3967,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (life && life.open) { life.key(c); return; } // (the diary and its pages have the keys while they are up)
     if (c === 'Escape') { if (!phone.el.hidden) phoneShow(false); else if (!$('#g-bigmap').hidden || !$('#g-pass').hidden) { $('#g-bigmap').hidden = $('#g-pass').hidden = true; } else toggleMenu(); return; }
     if (uiOpen()) {
-      if (c === 'KeyM') toggleMap();
+      if (c === 'KeyM' && !story) toggleMap(); // (not over the story's menu: STORY_OFF)
       else if (!$('#g-bigmap').hidden && /^(Equal|NumpadAdd|Minus|NumpadSubtract)$/.test(c)) zoomMap(/Equal|Add/.test(c) ? 1.6 : 1 / 1.6); // + and − zoom the map
       return;
     }
@@ -3973,6 +3983,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (!phone.el.hidden && /^Digit[1-9]$/.test(c) && phone.acts[+c.slice(5) - 1]) { phone.acts[+c.slice(5) - 1](); return; }
     if (fish && fish.api && fish.api.busy() && fish.api.key(c)) return; // the rod's own keys while a line is out
+    // (the story's map, in the story or on the walk: none of the old free game's instruments. Its survey lens, its
+    // height guess, its passport, its map that sent you anywhere at once, the phone, the taxi at the kerb and the route
+    // keys opened panels of a game the story is not, and the map's Travel here could take a player out of a case)
+    if (story && STORY_OFF.has(c)) return;
     if (c === 'KeyE' || c === 'KeyF' && !(player.mode === 'ferry' || player.mode === 'rail' || player.mode === 'ride')) interact();
     else if (c === 'KeyF' && (player.mode === 'ferry' || player.mode === 'rail')) skip = !skip;
     else if (c === 'KeyF' && player.mode === 'ride') skipRide();
@@ -4143,7 +4157,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // in a story, of everything the map offers (cars, the helicopter, a word with a passer-by) only what the story has a
   // part for is offered: a lift to ride, and getting out of what you are in
-  function currentAction() { const a = currentActionAny(); return story && story.on && a && a.act && !a.story ? null : a; }
+  // (and on the walk the same: the story's map with nothing of the old free game's in it, a lift and a way out of it)
+  function currentAction() { const a = currentActionAny(); return story && (story.on || walk) && a && a.act && !a.story ? null : a; }
   function currentActionAny() {
     if (closeup) return { key: 'E', text: 'Step back', act: closeupEnd };
     if (dlg.open || uiOpen() || cine.active || OEOnboard.active()) return null; // nothing to start while the tour is showing
@@ -5937,6 +5952,69 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return OEOnboard.tour(tourSteps(), { root: document.body, onEnd: () => { moreTray(was, false); OEOnboard.markDone(CITY.id); if (then) then(); } });
   }
   on($('#gt-play'), 'click', e => { if (e.isTrusted && whoNeeded()) { whoAsk(); return; } startGame(false); }); // (a player's own press, the first time: who they play is asked first)
+  // ---- the walk (walk.js, docs/STORY.md "The walk"): the title's second way in. The same Kagami on the same streets,
+  // at the hour and under the sky the player picks, with nothing of the story in it and nothing owed. Set out from this
+  // page as it stands: the street on the title is the street walked, nothing loaded again
+  const EP0 = G.story && G.story.episodes ? G.story.episodes[0] || {} : {};
+  const walkDate = () => EP0.date || [clock.m, clock.d]; // (the evening the story is set in: its screens, its season)
+  const walkHour = t => (t === 'live' ? S.utcToLocal(Date.now()).minutes : S.presetTime(t, clock.y, walkDate()[0], walkDate()[1]) ?? 18 * 60);
+  const AREA0 = (G.areas || []).find(a => Math.hypot(a.at[0] - G.start.at[0], a.at[1] - G.start.at[1]) < a.radius);
+  const walkPlace = { name: AREA0 ? AREA0.romaji : CITY.name, native: AREA0 ? AREA0.name : CITY.native || '' };
+  let walkWas = null; // (the title's own sky, put back when the walk's step is left: the story's evening sets no weather of its own)
+  const walkDress = sp => {
+    if (sp.t === 'live') presetTime('live');
+    else { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); }
+    if (weather) weather.set(sp.w, { now: true }); // (as it has been for a while: a rainy street already wet)
+  };
+  const startWalk = sp => {
+    if (playing) return;
+    A.start();
+    playing = true; walk = Object.assign({}, sp);
+    stage.classList.add('walk');
+    cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain)
+    walkDress(sp);
+    $('#g-title').hidden = true;
+    try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: sp.t, sky: sp.w } }); } catch (e) { /* no User Timing */ }
+    if (openingHere()) { // (down from the title's view to your shoulder, the scramble turning to walk as you come down, as the story's opening does without its film)
+      const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
+      if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
+    }
+    craneIn(() => walkUi.begin());
+  };
+  // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
+  // kerb, so that is where the walk begins. No page again, no title, no crane down from the air: the card fades off the
+  // street, the score lets go into the street's own sound over a few bars, the evening's people go once the lens has
+  // left them (story.js release), the dog is already on his way home, and the same night goes on round you, at its hour
+  // and under its sky. The menu has both to change from there.
+  function walkOnFromStory() {
+    if (!walkUi || walk || !story || !story.release || !story.release()) return false;
+    walk = { t: 'here', w: weather ? weather.state.kind : 'clear' };
+    stage.classList.add('walk'); stage.classList.remove('story-on');
+    if (storyMusic && A.ctx) { // (the score down over some eight seconds on the music's bus, then let go, and the bus up again for whatever comes)
+      const m = storyMusic, bus = A.musicBus(), c = A.ctx;
+      storyMusic = null;
+      try { bus.gain.cancelScheduledValues(c.currentTime); bus.gain.setTargetAtTime(0, c.currentTime, 2); } catch (e) { /* the context closed */ }
+      setTimeout(() => { m.stop(); try { bus.gain.cancelScheduledValues(c.currentTime); bus.gain.setTargetAtTime(1, c.currentTime + 0.8, 0.05); } catch (e) { /* the context closed */ } }, 8500);
+    }
+    try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: 'here', sky: walk.w, from: 'story' } }); } catch (e) { /* no User Timing */ }
+    { const gs = $('#gm-story'); if (gs && gs.firstChild) gs.firstChild.textContent = 'Play it again · '; } // (the case is closed: the menu's way back into it is the story again)
+    walkUi.takeUp();
+    return true;
+  }
+  if (story && window.OEWalk) {
+    walkUi = OEWalk.create({ stage, touch, place: walkPlace, date: walkDate(), hourAt: walkHour, fmt: fmtMin, whoGate: () => whoGate(),
+      preview: sp => { if (!walkWas) walkWas = { w: weather ? weather.state.mode : null }; walkDress(sp); },
+      restore: () => { story.dress(); if (weather && walkWas && walkWas.w) weather.set(walkWas.w, { now: true }); walkWas = null; },
+      start: startWalk,
+      clock: () => ({ m: clock.m, d: clock.d, min: clock.min }),
+      sky: () => (weather ? weather.state.kind : 'clear'),
+      where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
+      key: k => (gamepad ? gamepad.label(k) : k),
+      menu: () => toggleMenu(), photo: () => photoMode(true) });
+    // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
+    const gs = $('#gm-story');
+    if (gs) { gs.querySelector('span').textContent = `${EP0.no ? `Episode ${EP0.no} · ` : ''}${EP0.title || 'The story'}`; on(gs, 'click', () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); location.href = u.toString(); }); }
+  }
   on($('#gt-continue'), 'click', () => startGame(true));
   on($('#gt-timechoice'), 'click', e => { const b = e.target.closest('button'); if (b) $$('#gt-timechoice button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   const nowLoc = S.utcToLocal(Date.now());
@@ -5983,6 +6061,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // come from a story's link on the globe (title.js): no card to press, the story starts
     { let auto = false; try { auto = !!story && sessionStorage.getItem('oe-story-auto') === cityId; if (auto) sessionStorage.removeItem('oe-story-auto'); } catch (e) { /* storage blocked */ }
       if (auto) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
+    // come from the story's last card (its Walk Shibuya, story ctx free): no card to press, the walk sets out
+    { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('oe-walk-auto') || 'null') : null; sessionStorage.removeItem('oe-walk-auto'); } catch (e) { sp = null; }
+      if (sp && !playing) { stage.classList.add('story-auto'); setTimeout(() => walkUi.auto(sp), 0); } }
     $('#g-loader').classList.add('out');
     setTimeout(() => {
       $('#g-loader').hidden = true; OEPlate.stop($('#g-loader'));
@@ -6169,6 +6250,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
+    if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
     // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
@@ -6187,7 +6269,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
     if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
-    const ob = titleOn ? null : objective();
+    const ob = titleOn || walk ? null : objective(); // (the walk owes nobody anything: no objective, no line, no light)
     const target = waypoint || (ob && ob.at);
     // on foot with a ride on its way, the route leads to the pick-up first
     const toPickup = player.mode === 'foot' && ride && (ride.phase === 'coming' || ride.phase === 'waiting') && Math.hypot(ride.pickup.x - player.x, ride.pickup.y - player.y) > 40 ? [ride.pickup.x, ride.pickup.y] : null;
@@ -6196,7 +6278,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (one light standing in the street at a time: while the story is on, its own light is the only one. The free game's
     // objective went on under it, and its column stood over the Center Gai arch, then over SHIBUYA SKY's door, beside the
     // story's light, and in the finder over the picture being taken)
-    beam.visible = !(story && story.on) && !!target && !titleOn && Math.hypot(target[0] - (player.mode === 'heli' ? heli.st.x : player.x), target[1] - (player.mode === 'heli' ? heli.st.y : player.y)) > 45;
+    beam.visible = !(story && (story.on || walk)) && !!target && !titleOn && Math.hypot(target[0] - (player.mode === 'heli' ? heli.st.x : player.x), target[1] - (player.mode === 'heli' ? heli.st.y : player.y)) > 45;
     if (target) { const f = nav.floorAt(target[0], target[1], Math.max(300, nav.terrain(target[0], target[1]) + 1)); beam.position.copy(W(target[0], target[1], f ? f.z : 0)); beam.scale.set(1, player.mode === 'heli' ? 4 : 1, 1); }
     const me = player.mode === 'heli' ? heli.st : player.mode === 'ferry' ? player.vehicle : player;
     put('#gq-title', ob ? ob.title : (Q.length && goals.allDone() ? 'Free roam' : ''));
