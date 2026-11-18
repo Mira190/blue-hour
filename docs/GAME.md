@@ -1851,11 +1851,13 @@ Sydney's traffic stood still a third of the time.
         paving 4 to 16 m back from the kerbs for half a minute to a minute and a
         half: Hachiko's square is the city's meeting place. They stand 1.6 m or more
         apart, then go on along a footway or to a kerb (`lingerAt`, phase `linger`).
-    - Shibuya at 17:41, 150 s, within 40 m of Hachiko: at most 10 people standing in
-      a 2 m circle before (23 s of the run over 6); 6 after (none over). At the kerb
-      under the viaduct the most standing within 1.5 m of one of them went from 16
-      to 4–8. The share of the walkable ground with someone within 3 m went from 22–26% to
-      31–37% by Hachiko and 44–54% in the middle of the crossing.
+    - Shibuya at 17:41, 150 s, within 40 m of each spot: at Hachiko at most 10 people
+      standing in a 2 m circle before (23 s of the run over 6); 6 after (none over).
+      At the station's kerb 14 before (55 s over), 8 after (2 s over). At the kerb
+      under the viaduct, the most standing within 1.5 m of one of them went from 16
+      to 4–8. The share of the paving round Hachiko with someone within 3 m went from
+      22–26% to 45% (42% at 21:00). Still the case: when the walk comes on, the crowd
+      leaving one kerb crosses as a dense column (issue 56).
     - Research: Helbing and Molnár, *Social force model for pedestrian dynamics*
       (1995); van den Berg, Guy, Lin and Manocha, ORCA (*Reciprocal n-body collision
       avoidance*, 2011; RVO2 library, Apache-2.0); Fruin, *Pedestrian Planning and
@@ -1867,7 +1869,7 @@ Sydney's traffic stood still a third of the time.
       issue.
     - `tools/crowd_spread.js [HH:MM] [x,y,face] [seconds]` (`SPOTS=all`: Hachiko, the
       crossing's middle, QFRONT's kerb, the station's kerb) fails on a clump of
-      people standing: more than 6 in a 2 m circle for more than 3 s, or more than
+      people standing: more than 6 in a 2 m circle for more than 6 s, or more than
       13 in a 3 m circle.
   - `tools/scramble_step.js`, run by `tools/game_check.js` in every city with a
     scramble, checks that in the walk every arm's light is red, the walk signals

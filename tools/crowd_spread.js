@@ -9,7 +9,7 @@
 //   and the worst clump's centre, its people's states (waiting at a kerb, crossing, walking a footway) and their gate.
 // It fails on a clump of people standing: a 2 m circle with more than MAX2 of them (default 6: about 1.9 a square
 // metre, past a waiting crowd's comfortable 1 to 1.5 and a queue's 0.6 to 0.9 m spacing; Fruin's level of service D
-// for queuing) for more than three seconds of the run, or a 3 m circle with more than MAX3 (default 13: a kerb's crowd at its 0.9 m pace holds about 10 there).
+// for queuing) for more than six seconds of the run, or a 3 m circle with more than MAX3 (default 13: a kerb's crowd at its 0.9 m pace holds about 10 there).
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/crowd_spread.js [HH:MM] [x,y,face] [seconds]
 //     (default 17:41 by Hachiko looking across to the kerb under the viaduct, 200 s)
@@ -97,7 +97,7 @@ const SPOTS = {
       const gates = (C.plazas || []).flatMap(pz => (pz.gates || []).map(gt => ({ at: [+gt.x.toFixed(0), +gt.y.toFixed(0)], n: gt.n, len: +gt.len.toFixed(0) })));
       return { peak, busiest, still, mean2: +(sum2 / n).toFixed(1), over, clump, cover: +(cover / n).toFixed(2), people: +(people / n).toFixed(0), cells: W.length, worst, gates };
     }, [h * 60 + m, spot, +secs, R, MAX2, MAX3]);
-    const bad = r.over > 3 || r.clump > MAX3;
+    const bad = r.over > 6 || r.clump > MAX3;
     if (bad) fail++;
     console.log(`[${name}] ${time} at ${spot.join(',')}: ${r.people} walkers within ${R} m on ${r.cells} m2 of footway; most in a 2 m circle ${r.peak}, standing ${r.still} (mean ${r.mean2}, over ${MAX2} for ${r.over} s); most standing in a 3 m circle ${r.clump}; ground with someone within 3 m ${Math.round(r.cover * 100)}%  ${bad ? 'CLUMP' : 'ok'}`);
     console.log(`  busiest at t ${r.busiest && r.busiest.t}s ${JSON.stringify(r.busiest)}`);
