@@ -700,7 +700,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let lib = null;
   const NPC_LOAD_M = 300;
   try {
-    lib = await OEPeople.load('assets/people/');
+    lib = await OEPeople.load('assets/people/', { warmLater: true }); // (its warm-up given once the loader has compiled: lib.setWarm, below)
     if ((G.crowd || {}).style) OEPeople.setStyle(G.crowd.style);
     if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark
   } catch (e) { console.warn('Realistic people unavailable, using simple figures:', e); lib = null; }
@@ -5982,9 +5982,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const warmRest = () => Promise.resolve(atmos && atmos.warm ? atmos.warm() : null)
     .then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, hold: () => playing && (!!arriving || cine.active || player.mode === 'lift') }))
     .catch(e => console.warn('warm the rest', e));
+  // (the characters that came while the loader compiled, and those to come, warmed from as soon as it is done: an NPC's
+  // waits for this, people.js ready, and is shown once its programs are made; issue 31)
+  { const give = () => { if (lib && !lib.warm) { lib.setWarm(warmFor); if (lib.warmPalette) lib.warmPalette(); } }; warm.then(give, give); }
+  if (lib && weather) lib.dressNew = o => weather.dress(o); // (a crowd walker's change of clothes, people.js rig.dress: the weather's patch on it before its first draw)
+  if (Wd.trees && weather) Wd.trees.dressNew = o => weather.dress(o); // (and the near trees, trees.js addNear)
   Promise.all([OEPlate.finish($('#g-loader')), warm.then(() => drawn).then(() => { warmRest().then(warmRain); })]).then(([flew]) => {
     if (flew) fromFlyover();
-    if (lib) { lib.warm = warmFor; if (lib.warmPalette) lib.warmPalette(); } // the characters that come from now on are warmed before they are shown (people.js)
+    if (lib && !lib.warm) { lib.setWarm(warmFor); if (lib.warmPalette) lib.warmPalette(); } // (as the loader's compile is done, below: the characters that come from now on are warmed before they are shown, people.js)
     setTimeout(afterPlayable, reduced ? 0 : 700); // (once the loader has faded)
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
