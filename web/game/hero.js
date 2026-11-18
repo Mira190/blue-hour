@@ -155,6 +155,7 @@ window.OEHero = (function () {
           }
         });
         root.updateMatrixWorld(true);
+        if (opts.ground) opts.ground(L.h, root); // (where its paving is: game.js heroCover)
         if (Wd.still) Wd.still(root); // (its shadow cached with the city's: world.js shadowCache)
         root.visible = false;
         group.add(root);

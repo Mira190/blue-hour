@@ -78,6 +78,31 @@ window.OENav = (function () {
         return c >= 0 && r >= 0 && c < g.nx && r < g.ny && g.data[r * g.nx + c] > 0;
       };
     })();
+    // and the stair wells of the subway's entrances (the landmarks' ground clips marked "well": cities/shibuya/scramble.py
+    // entrance), with WELL_PAD round their mouths. The paving is not drawn over a well and the station under it is not
+    // built, so there is nothing there to stand on: the walking grid carried the street's level across the mouth, and
+    // the guide stood on his ring in the air over the Shibuchika stair by Hachiko, the player beside him. A walker stops
+    // at the head of the stair, as the crowd does (game.js WELLS); an entrance built through drops its mark
+    const WELL_PAD = 0.3;
+    const wells = ((D.LM && D.LM.clip) || []).filter(c => c.well && c.ring && c.ring.length >= 3).map(c => {
+      const r = c.ring; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [x, y] of r) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      return { r, x0: x0 - WELL_PAD, x1: x1 + WELL_PAD, y0: y0 - WELL_PAD, y1: y1 + WELL_PAD };
+    });
+    function inWell(x, y) {
+      for (const w of wells) {
+        if (x < w.x0 || x > w.x1 || y < w.y0 || y > w.y1) continue;
+        const r = w.r; let inside = false;
+        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+          const [ax, ay] = r[i], [bx, by] = r[j];
+          if ((ay > y) !== (by > y) && x < ax + (bx - ax) * (y - ay) / (by - ay)) inside = !inside;
+          const ex = bx - ax, ey = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey || 1)));
+          if (Math.hypot(x - ax - ex * t, y - ay - ey * t) < WELL_PAD) return true;
+        }
+        if (inside) return true;
+      }
+      return false;
+    }
     // ---------------------------------------------------------- strip surfaces (bridge decks, steps)
     const strips = window.OENavCells.strips(G);
     function stripUV(s, x, y) {
@@ -1003,11 +1028,13 @@ window.OENav = (function () {
     // which takes the expressways' decks too (a walker's does not: decks.js gives them walk false)
     // a hero level's ground (hero.js) is laid a few centimetres over the game's own, which is still drawn under it:
     // game.json hero[].lift, metres. Whoever stands inside the level stands on the paving drawn, not in it to the
-    // ankle; over the level's last 2 m it comes down to the ground outside
+    // ankle; over the level's last 2 m it comes down to the ground outside. Only where its paving is drawn, once its
+    // model has come (h.cover, game.js heroCover): within its circle are gaps in the paving where the game's own ground is
+    // what is drawn, and there the walker and the guide stood 5 cm in the air (by the station's east side)
     const lifts = (G.hero || []).filter(h => h.lift && h.at && h.r);
     function lift(x, y) {
       let l = 0;
-      for (const h of lifts) { const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]); if (d > 0) l = Math.max(l, h.lift * Math.min(1, d / 2)); }
+      for (const h of lifts) { const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]); if (d > 0 && (!h.cover || h.cover(x, y))) l = Math.max(l, h.lift * Math.min(1, d / 2)); }
       return l;
     }
     function floorAt(x, y, z, cars = false) {
@@ -1045,6 +1072,7 @@ window.OENav = (function () {
       if (f.z < z - DROP) return { ok: false, why: 'drop' };
       if (nogo && f.kind !== 'pier' && nogo.data[cellOf(x, y)] > 0) return { ok: false, why: 'nogo' };
       if (keepOff && f.kind === 'ground' && keepOff(x, y)) return { ok: false, why: 'keep_off' };
+      if (wells.length && (f.kind === 'ground' || f.kind === 'landmark') && inWell(x, y)) return { ok: false, why: 'well' }; // (nothing drawn to stand on: the stair down)
       if (inland && f.kind === 'ground' && inland.water(x, y)) return { ok: false, why: 'keep_off' }; // a channel's edge, a pond's (inland.js)
       if (f.kind === 'promenade' && f.z < z - STEP) return { ok: false, why: 'wall' }; // a promenade's railings: over its walls, beside its steps
       // off the side of a strip that holds its walkers (a platform with no doors along it: Kyoto's, game.json "hold"), down
@@ -1234,7 +1262,7 @@ window.OENav = (function () {
       }
       return f;
     }
-    const api = { lift, under, terrainBelow, ceilingAt, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    const api = { inWell, lift, under, terrainBelow, ceilingAt, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   return { create };
