@@ -3458,13 +3458,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // (you are in it: nobody stands on the ground it is coming down to; you are seen once it is down, in the shot the spec names, out of its door)
         player.rig.root.visible = !g || !!(s && s.id === (spec.out_shot || 'foot'));
         if (guideMade && guideMade.aboard) guideMade.aboard(!player.rig.root.visible); // (the dog in it with you, and out at your heels after you)
-        if (!g) { // set down: it lifts off again, turns for its roof and goes, and is put back on its pad once it is out of sight
-          let t = 0; const h0 = st.h;
+        if (!g) { // set down: it lifts off again and goes back the way it came, and is put back on its pad once it is out of sight
+          // (straight up 40 m over its spot, which it came down through, turning in a hover to face the way it came, then away
+          // along that way climbing: it had turned and flown off its nose, into whatever stood there, the tower south of it)
+          let t = 0; const z0 = st.z, away = set && set.away != null ? set.away : st.h;
           heliAway = dt => {
-            t += dt; const k = Math.min(1, t / 3), up = k * k * (3 - 2 * k), v = Math.max(0, t - 1.6) * 5.5;
-            st.z += (up * 5 + Math.max(0, t - 3) * 3.2) * dt; st.h = h0 + Math.min(1.2, Math.max(0, t - 1.2) * 0.35); st.x += Math.sin(st.h) * v * dt; st.y += Math.cos(st.h) * v * dt;
-            st.pitch += (Math.min(0.2, v * 0.02) - st.pitch) * (1 - Math.exp(-dt / 0.5)); st.roll *= Math.exp(-dt / 0.4); // (eased in the world's time, not set each frame)
-            st.vx = Math.sin(st.h) * v; st.vy = Math.cos(st.h) * v; st.vz = up * 5; st.on = true; st.landed = false; st.rotor = 1; st.scripted = true; heli.place(); heli.group.visible = true;
+            t += dt;
+            const climb = 40 * smoothK(1.2, 9, t), rise = 40 * (smoothK(1.2, 9, t + 0.05) - smoothK(1.2, 9, t - 0.05)) / 0.1, v = Math.min(25, Math.max(0, t - 8) * 3);
+            const zWas = st.z;
+            st.z = z0 + climb + Math.max(0, t - 9) * 4;
+            if (t > 1.6) st.h += Math.max(-0.5 * dt, Math.min(0.5 * dt, angDiff(away, st.h)));
+            st.x += Math.sin(st.h) * v * dt; st.y += Math.cos(st.h) * v * dt;
+            st.pitch += ((v > 0 && v < 25 ? 0.12 : 0) + v * 0.0035 - st.pitch) * (1 - Math.exp(-dt / 0.5)); st.roll *= Math.exp(-dt / 0.4); // (eased in the world's time, not set each frame)
+            st.vx = Math.sin(st.h) * v; st.vy = Math.cos(st.h) * v; st.vz = dt > 0 ? (st.z - zWas) / dt : rise; st.on = true; st.landed = false; st.rotor = 1; st.scripted = true; heli.place(); heli.group.visible = true;
             if (A.rotor) A.rotor(Math.max(0, 1 - t / 13), 0.4);
             if (t > 14) { heliAway = null; st.on = false; st.scripted = false; st.rotor = 0; st.landed = true; [st.x, st.y, st.z, st.h] = pad; st.pitch = st.roll = 0; st.vx = st.vy = st.vz = 0; heli.place(); heli.group.visible = false; }
           };
@@ -3890,7 +3896,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         }
       }
     }
-    return { at: L, h, shots: ids, from };
+    // the way it came in, reversed: where it goes once it has set you down (back along a way already flown)
+    let away = null;
+    const way = sp.path && sp.path.length > 1 ? sp.path.map(q => q.slice(0, 3)) : (shots.slice().reverse().find(sh => Array.isArray(sh.guide) && sh.guide.length > 1) || {}).guide;
+    if (way) for (let i = way.length - 1; i > 0 && away == null; i--) { const a = f.point(way[i - 1]), dx = L[0] - a[0], dy = L[1] - a[1]; if (Math.hypot(dx, dy) > 12) away = Math.atan2(-dx, -dy); }
+    return { at: L, h, shots: ids, from, away };
   }
   // you stand outside the helicopter once a flight has let you go (or the film skipped with it low over you): pushed out of
   // its hull to the nearest spot clear of it that can be stood on
