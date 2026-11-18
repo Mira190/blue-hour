@@ -17,6 +17,7 @@ browser on a phone.
 | Layered one-shots: transient, body, tail, each its own layer | Standard practice in AAA sound design (Rob Bridgett, *Game Audio Mixing*, 2021; GDC talks on Uncharted and The Last of Us) | Every story cue (`sfx`): a millisecond of filtered noise for the strike, a sine resonance for the body, the room or the mechanism for the tail |
 | Procedural sound from physical behaviour | Andy Farnell, *Designing Sound* (MIT Press, 2010) | The shutter as the mechanism's sequence, the strap's creak as stick-slip, the ratchet's teeth |
 | A convolution reverb per space, swapped as the player moves | Frostbite, Wwise's Reflect and convolution, Unreal's submix reverbs; the impulse response as exponentially decaying noise (J. A. Moorer, "About this reverberation business", 1979) | Four rooms (open crossing, the viaduct, inside, the deck at 230 m), impulse responses made at start from noise, crossfaded in 0.3 s. Tone.js (MIT) renders its reverb's IR the same way |
+| On a phone, algorithmic late reverb after a convolved head | Moorer 1979 (early reflections, then low-passed combs); M. R. Schroeder, "Natural sounding artificial reverberation" (1962); mobile game engines' algorithmic reverbs (Wwise RoomVerb, FMOD's) | `reverb()` on a touch screen: the head convolved, the tail from six combs a side fitted to the response (Every sound on the audio thread). A feedback delay network (Jot and Chaigne, 1991) and swaying delays (J. Dattorro, "Effect Design", 1997) were tried and measured, and dropped. The ideas only: no code was taken |
 | HRTF spatialisation of point sources | Wwise and FMOD's 3D panners, Steam Audio (Apache-2.0), Resonance Audio (Apache-2.0) | Web Audio's own HRTF `PannerNode` for the walk signals' calls with a mouse; a stereo pan on a touch screen. Resonance Audio and Omnitone (ambisonics, Apache-2.0) were considered and not adopted: a dependency and a cost a phone does not need for a handful of sources |
 | Ducking (sidechain) of ambience and score under dialogue | Wwise auto-ducking and HDR audio (DICE's Battlefield) | The street and the score step back 8 dB under each line of dialogue and the preface's type (25 ms in), released half a second after it. It was 5 dB, which left the ticks under the score: "Listened to", below |
 | Loudness targets | ITU-R BS.1770-4 (K-weighting, gating), EBU R128; the Audio Standards Working Group's ASWG-R001 for games (−24 LUFS ±2 at home, −18 on a phone) | `tools/sound_render.js` measures every cue's peak, its loudest 400 ms (momentary) and its gated integrated loudness, with BS.1770's filters |
@@ -24,8 +25,8 @@ browser on a phone.
 ## The mix
 
 ```
-street sources ─► master (the world's bus) ─► tape (AudioWorklet) ─┬─► duck ─► main (Sound switch) ─► out
-                                                                    └─► place's room (convolver) ─► duck
+street sources ─► master (the world's bus) ─► tape (AudioWorklet; the deck on a touch screen) ─┬─► duck ─► main (Sound switch) ─► out
+                                                                    └─► place's room (reverb(): convolver, or on a touch screen its head and combs) ─► duck
 score (music.js), the opening's score ─► musicBus ─────────────────────► duck
 story cues, dialogue ticks ─► storyBus ─────────────────────────────────────────────────────────────► out
 ```
@@ -97,6 +98,111 @@ helicopter), `viaduct` on foot under a roof (`weather.covered()`), `open` otherw
 | viaduct (concrete overhead) | 1.9 s | −9 dB | dense, 9 to 45 ms |
 | inside (a lobby, a lift) | 0.7 s | −12 dB | 6 to 24 ms |
 | roof (230 m up) | 0.4 s | −26 dB | one, faint |
+
+On a touch screen each room is the hybrid of "Every sound on the audio thread" (below): its first quarter of a second
+convolved as it is, which holds every early reflection in the table, and the rest from feedback combs fitted to it. The
+roof's response is 37 dB down by then: a phone hears its head alone.
+
+## Every sound on the audio thread
+
+**The principle.** iOS plays Web Audio in blocks of 128 frames, 2.7 ms at 48 kHz: whenever a page's Web Audio plays,
+WebKit asks the hardware for one render quantum at a time (`MediaSessionManagerCocoa.mm`: `if (webAudioCount) bufferSize =
+renderQuantumSize`), and a page's `latencyHint` is not used (`AudioContext.cpp`: "FIXME: Figure out where latencyHint
+should go"). A block the audio thread has not made in time is a click; a run of them is a phone that sounds broken. The
+context's own render thread is a real-time one (`RealtimeAudioThread.cpp`: time-constraint policy, priority 60); every
+other thread is not, and a busy page starves it, and the page is busiest exactly where the story is most a film: the
+opening over the crowd, the flight. So on a phone **nothing that sounds may wait on another thread**, and what runs on the
+audio thread must cost what it costs whatever the scene. Twice this was broken without anyone seeing it in the code, and
+both times the owner heard it on an iPhone first:
+
+1. *The Stop's tape as an AudioWorklet* (November 2026): a worklet takes the whole context's rendering onto a thread of its
+   own that is not real time (`AudioWorkletThread.cpp`: user-interactive at best). A touch screen brakes the street with
+   the deck instead (The Stop, above).
+2. *The reverbs as ConvolverNodes with long responses* (found the day after, when the owner heard the noise again at the
+   opening's shot of the crossing from above): WebKit convolves the first 12,288 frames of a response on the audio thread
+   and the rest on a "convolution background thread" of default priority (`ReverbConvolver.cpp`, `RealtimeFrameLimit`;
+   its own comment: "would be better to up the thread priority here"), whose part of the tail is written late into a
+   buffer the audio thread has already read when it is starved for more than a quarter of a second. Four rooms (1.6 to
+   2.1 s), the story's hall (4.2 s) and the score's own room (3.6 s, `music.js`, under the score from the first frame on)
+   all had such tails.
+
+**What a phone hears now** (`audio.js` `reverb()`, used by the rooms, the hall and the score). Cutting a response into
+pieces short enough for the audio thread is exact (tried: within −97 dB of the browser's own convolver) but costs that
+thread a pair of 2,048-point FFTs per 1,024 frames for every 1,024 frames of response, since WebKit gives each stage its
+own FFTs: the rooms, the hall and the score's room together came to most of a phone's core, which would miss blocks the
+other way. So on a touch screen a reverb is a hybrid, as Moorer's paper (the one the impulse responses come from) proposed:
+
+- its **head**, the first quarter of a second (11,025 frames at 44.1 kHz, 12,000 at 48), convolved as it is: every early
+  reflection in the rooms' table, at the cost the realtime part of the old convolver had;
+- its **tail** from six feedback combs a side (Schroeder 1962; Moorer's low-passed combs), each a delay of 67 to 132 ms
+  feeding back into itself, losing in one pass what the response loses below 1 kHz in that time, through a high shelf at
+  3 kHz for what it loses faster above (each band's rate a straight line through the first 30 dB of its energy decay
+  curve), fed with the response's own last tenth of a second (Hann-windowed) and set to the level of the response's own
+  tail. The level is found by running the combs in the page, sample by sample, once for each response (`tailOf`), and is
+  what the browser renders within 0.01 dB. Every other comb is fed upside down, so they sum flatter;
+- a response 30 dB down by the end of its head (the roof's) is its head alone.
+
+Its cost does not grow with the tail: 12 delays, up to 12 shelves and 12 gains a reverb, nothing off the audio thread.
+Fitting and building one takes the page 15 to 21 ms here, once for each response; handing the whole response to a
+ConvolverNode, as before, took it 12 to 31 ms (the browser prepares every stage's FFTs when its buffer is set).
+With a mouse the whole response is still convolved; `?verb=hybrid` or `?verb=whole` picks one on any device.
+
+Two things were tried and dropped, both measured: a feedback delay network (Jot and Chaigne, 1991; four delays mixed by a
+Hadamard matrix), which ran away in Chromium and in WebKit alike. Both engines add a render quantum to some of the edges
+of interlocking loops and not to others (a 2×2 rotation scaled by 0.9 grew by 9 dB a second), which at 187 Hz turns a
+negative entry of the matrix positive. Each comb is a loop of one delay of its own, and a loop of one delay goes round in
+its delay and one quantum more in both engines, which the page's run of the combs counts. And delays that sway by a
+fraction of a millisecond (Dattorro; Lexicon), so that no pass repeats the last: a delay read between samples dulls the
+tail a little on every pass, 19 dB above 3 kHz by the end of the hall's fifty. Unswayed, the tail repeats itself no more
+than 0.12 at any lag from 40 to 160 ms (the whole convolution's: up to 0.07).
+
+**How close it is** (`tools/reverb_check.js`, the impulse responses rendered offline both ways in Chromium, whose
+convolver is exact; WebKit's Linux build puts a Nyquist-rate pattern out of every FFT stage even for a silent response, so
+it cannot judge, and iOS's WebKit uses Apple's vDSP instead; the responses are noise made afresh, so a run moves these
+by a few tenths):
+
+| Reverb | Energy decay after the head, broadband (below 500 Hz, above 3 kHz) | Seam | Echo density (whole) | Left/right |
+|---|---|---|---|---|
+| open | within 0.6 dB (2.4, 1.5) | 1.6 dB | 1.04 (1.11) | 0.01 |
+| viaduct | 0.6 (2.1, 1.6) | 1.6 | 1.04 (1.12) | 0.02 |
+| inside | 1.3 (3.4, 1.4) | 2.1 | 1.03 (1.10) | 0.02 |
+| roof | its head alone: the whole's energy within 0.2 dB | | | |
+| hall | 3.7 (3.9, 3.7): its own envelope, (1 − t/4.2)^2.6, bends 3.3 dB away from any exponential, and a tail of loops is a sum of exponentials | 2.8 | 1.06 (1.33) | 0.00 |
+| score's room | 1.0 (1.3, 0.6) | 1.6 | 1.00 (1.02) | 0.05 |
+
+Echo density is Abel and Huang's (2006): the share of samples over one standard deviation in 20 ms windows against a
+Gaussian's; 1 is noise. The seam is the largest difference of 60 ms windows from 0.15 to 0.6 s.
+
+**The guards.** `tools/check.sh` runs both halves for a change to the sound (`audio`), and the static half always:
+
+- `tools/audio_thread_check.py` reads `web/` and fails on an AudioWorklet, a ScriptProcessorNode, a ConvolverNode, an
+  AudioContext made, or a media element's or stream's sound anywhere but the one place each is allowed, with the reason
+  it is allowed there (the desktop's tape; `reverb()`; the offline renders; the one context);
+- `tools/phone_audio.js` plays the page as an iPhone (its user agent, touch, a phone's viewport, the loading screen
+  touched for sound): the opening shot by shot, then a Stop and its choir, a frame found, every room and the live score,
+  and fails on a convolver on the live context longer than the realtime limit, a second context, a worklet, the deck or the
+  hybrid not chosen, or anything given to speechSynthesis in the opening. Played with `?verb=whole` (the reverbs as they
+  were) it fails: seven convolvers of 20,286 to 185,220 frames. Run again touched first on the title (`FIRST=title`), it
+  fails on two pieces of music at once in the opening (below);
+- `tools/reverb_check.js` holds the hybrid to the table above.
+
+**Seen from a phone.** A browser says nothing of the blocks it missed. What a page can see is the context's clock against
+the wall's: the context's time moves only as blocks are made, so while the audio thread is held up it falls behind and
+then jumps. `audio.js` `health()` keeps the gap ten times a second while the sound runs and the page is seen, takes the two
+clocks' drift out (a straight line through it), and gives telemetry.js, with each `time` event, `snd_late` (how far, in
+ms, the gap rose over its least) and `snd_stall` (how many readings were 25 ms or more behind), with `snd` (the tape, the
+reverb and the rate: `deck hybrid 48000`). So the next time a phone's sound breaks, PostHog says whether its audio thread
+fell behind, and where in the story. It reads a phone's hardware clock; on this machine's headless browser, whose audio
+device is a timer sharing the CPU with a software renderer, the same page read 1 stall in one run and 432 in the next, so
+it says nothing here, and its first true reading will be a phone's.
+
+**What the opening asks of the sound on a phone** (`tools/phone_audio.js`, shot by shot, the loading screen touched): the
+loading cue alone through the aerial shot; from the kerb a train on the viaduct about 100 m off (its rumble is what the
+room's reverb carries, −35 to −37 dBFS out of the convolver); the opening's own score silent until the title over the
+crossing from above (it leaves the bed to the loading cue), where it rises with the title's chord; nothing spoken, no
+walk calls until the green. The mix is quiet (its loudest second −24 dBFS RMS, its peak −14.7 dBFS) and mostly low: 50 to
+80% of its energy under 150 Hz, which a phone's speaker does not play. Not checked: a real iPhone's audio thread, its
+speaker, WebKit's real-time scheduling, its vDSP convolver.
 
 ## Trains
 
@@ -234,6 +340,14 @@ sits at -27. The owner heard it as a jolt. It is rearranged (`swell` on the plan
 When the game's score is already playing (the loading cue runs through the opening; the score itself through a
 flight), `game.js` sets `under` on the plan and the film's score leaves the bed and the two notes to it: one piece
 of music, with the title rising out of it.
+
+On an iPhone the context is made in the first touch, and the plan is decided when the page loads: a player who never
+touched the loading screen has no loading cue then, so the opening's score is rendered with its own bed, and the touch
+that makes the context (on the title, or Play itself) began the cue as well. Two pieces of music played through the
+opening, the cue's piano over the score's bed of low sines (its lowest at 35 Hz). Now the cue is let go as the opening
+starts, before it has sounded, whenever the opening's score has its own bed (`game.js` `open`). `FIRST=title
+tools/phone_audio.js` touches the title first and fails on two pieces at once (before: two from the first shot to the
+last; now: one).
 
 `tools/overture_levels.js` renders the opening's score and prints its level second by second; it fails on a rise
 of more than 8 dB from one second to the next, a 50 ms window more than 12 dB over the second before it, or a
