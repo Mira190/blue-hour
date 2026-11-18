@@ -20,6 +20,30 @@
 .game-stage.story .gt-go .btn.primary { min-width: 0; gap: 26px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber);
   font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s; }
 .game-stage.story .gt-go .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
+/* who you play: Kagami as a woman or a man, two portraits over the button (game.js whoPick; tools/views/kagami.json).
+   The same place, light and lens in each, so the choice is between the two people. Chosen: the amber hairline the
+   button has. The first time neither is, and the button waits, dimmed, until one is */
+.gt-who { display: none; }
+.game-stage.story .gt-who:not([hidden]) { display: grid; gap: 10px; justify-items: start; }
+.game-stage.story .gt-who .eyebrow { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+.gt-who-row { display: flex; gap: 12px; }
+.gt-who-row button { position: relative; width: clamp(96px, 9vw, 124px); aspect-ratio: 3 / 4; padding: 0; overflow: hidden; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px;
+  background: #0b1020; cursor: pointer; filter: saturate(0.8) brightness(0.78); transition: border-color 0.25s, box-shadow 0.25s, filter 0.25s; }
+.gt-who-row img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.45); transform-origin: 50% 16%; } /* (head to knee: at full length a face was a few pixels on a phone) */
+.gt-who-row button::after { content: ""; position: absolute; inset: 52% 0 0; background: linear-gradient(to top, rgba(4, 8, 18, 0.88), transparent); }
+.gt-who-row :is(b, small) { position: absolute; left: 10px; right: 8px; z-index: 1; text-align: left; white-space: nowrap; }
+.gt-who-row b { bottom: 25px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--paper); }
+.gt-who-row small { bottom: 10px; font: 300 12px/1 var(--f-body); color: rgba(244, 239, 230, 0.82); }
+.gt-who-row button:is(:hover, :focus-visible) { filter: none; border-color: rgba(255, 207, 138, 0.7); outline: none; }
+.gt-who-row button[aria-checked="true"] { filter: none; border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber), 0 12px 32px rgba(0, 0, 0, 0.45); }
+.gt-who-row button[aria-checked="true"] b { color: var(--amber); }
+.gt-who-ask { min-height: 1.4em; margin: 0; font: 400 10px/1.4 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--amber); }
+.gt-who-ask:empty { display: none; }
+.game-stage.story .gt-who.open ~ .gt-go .btn.primary { opacity: 0.42; }
+@media (prefers-reduced-motion: no-preference) {
+  .gt-who.ask .gt-who-row { animation: gt-who-ask 0.5s ease; }
+  @keyframes gt-who-ask { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+}
 
 /* ---- the goal: the one thing to do now, under the Stop's minutes */
 /* (top left, as a game's objective sits: the middle of the frame is the picture's, never the text's) */

@@ -163,7 +163,7 @@ crossing, not at the kerb, when it stopped.
 
 **Who you are, to look at.** Kagami photographs streets for a living and takes an office's jobs (a kerb as it stands
 before works); about thirty; late, and out on a job whenever the sister rings: the man who would not cross, sixty
-years on, in someone else. Played as a woman or a man (`blender/build_people.py` `CHARACTERS`, the menu's *Play as*).
+years on, in someone else. Played as a woman or a man (`blender/build_people.py` `CHARACTERS`), chosen on the title before the story begins (below).
 For most of the evening the player sees Kagami's back, at the chase camera's distance, in a crowd of thousands at
 dusk; the face comes only in a conversation's reverse shot. So the figure is made to be read by its outline, its
 colours and what it carries before its face, and to look like Tokyo in October:
@@ -197,6 +197,20 @@ colours and what it carries before its face, and to look like Tokyo in October:
   hair, long, which the camera's strap goes under; Male_Adult_10's) on bodies that are in neither the crowd's cast
   nor the story's. Yuna, who had the woman's face, now has her own (Sports_Female_02's), so the two are not twins at the
   lift.
+
+**Who you play is chosen before the story begins.** The choice was only in the pause menu, which a player opens
+after the story has begun, if at all: nearly everyone played the woman without knowing there was a choice. What the
+games that have one lead played as either sex do: *Assassin's Creed Odyssey* (2018) asks right after New Game, the two
+leads side by side at full length, and the choice is final; *Valhalla* (2020) asks there too, and lets it be changed at
+any time after; *Mass Effect* (2007), *Cyberpunk 2077* (2020) and *Hogwarts Legacy* (2023) open a full character
+creator at that moment, which a fixed person like Kagami does not need; *Pokemon* (1996) asks inside the fiction, in its
+first scene. Adopted: Odyssey's moment and Valhalla's freedom, in the story's own interface. On the title, over its one
+button, two portraits of Kagami filmed in the game at the same kerb, light and lens (`tools/views/kagami.json`,
+`tools/key_shot.js` `who`), so that the choice is between the two people and nothing else. The first time nothing is
+chosen for the player: a press of the button, Enter, a tap or a pad's A asks first (*Choose who you play, then begin*),
+the arrows or the d-pad move between the two; after that the choice stands, marked on the title and in the menu, and
+either can change it. The story's words never needed it: Kagami is a surname and *you*. `tools/title_who.js` plays the
+first visit by mouse or touch and fails a first press that begins without asking. Nothing of those games' look is used.
 
 It was, until November 2026, a surveyor of the old map: a construction worker's hard hat, hi-vis vest, gloves and
 radio, a fair-haired woman or a dark-skinned man. That is a figure from a building site, not a person in this story.

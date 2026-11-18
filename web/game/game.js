@@ -896,13 +896,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const player = { rig: makeRig(playerLook()),
     x: 0, y: 0, z: 0, h: 0, vz: 0, speed: 0, ground: true, floor: 'ground', mode: 'foot', vehicle: null, auto: null, walking: false };
   world.add(player.rig.root);
+  let wantChar = null;
   async function setPlayerCharacter(name) { // swap the player's character in place
     if (!lib || !PLAYER_LOOKS[name]) return;
+    // (the choice is kept at once, and the last one asked for is the one swapped in: a model still loading when the
+    // other was chosen came in after it and stood in its place, and the choice a player made was not the one kept)
+    wantChar = name;
+    try { localStorage.setItem(PLAYER_KEY, name); } catch (e) { /* storage blocked */ }
     const pl = PLAYER_LOOKS[name];
     if (pl.hero && pl.character !== pl.hero) await lib.require(pl.hero).then(() => Object.assign(pl, { character: pl.hero, scale: 1 })).catch(e => console.warn(`${pl.hero} unavailable:`, e));
     await lib.require(pl.character).catch(() => {});
+    if (wantChar !== name) return;
     playerChar = name;
-    try { localStorage.setItem(PLAYER_KEY, name); } catch (e) { /* storage blocked */ }
     const old = player.rig, parent = old.root.parent, rig = makeRig(playerLook());
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
     rig.legRake = old.legRake; rig.reach = old.reach; // in a seat, the same way
@@ -3814,7 +3819,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (e.repeat) { keys.add(c); return; }
     keys.add(c);
     if (preTitle) return; // the loader is still up
-    if (!$('#g-title').hidden) { if (c === 'Enter') $('#gt-play').click(); return; }
+    if (!$('#g-title').hidden) { // (the title: Enter begins once who you play is chosen, or presses the portrait the hand is on; the arrows choose)
+      // (Enter is the title's own: the button's native press came after a choice had moved the hand to the button, and one
+      // Enter chose who you play and began)
+      const f = document.activeElement, onBtn = f && f.tagName === 'BUTTON' && f.id !== 'gt-play' && f.closest('#g-title');
+      if (c === 'Enter') { e.preventDefault(); if (onBtn) f.click(); else if (whoNeeded()) whoAsk(); else $('#gt-play').click(); }
+      else if ((c === 'ArrowLeft' || c === 'ArrowRight') && whoEl && !whoEl.hidden) whoPick(c === 'ArrowLeft' ? 'W' : 'M');
+      return;
+    }
     if (photo.on) { // photo mode: move with WASD (read in photoCamera), Enter saves, Esc or O leaves
       if (c === 'Enter') snapPhoto(); else if (c === 'Escape' || c === 'KeyO') photoMode(false);
       return;
@@ -5534,9 +5546,45 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on($('#gm-who'), 'click', e => {
     const b = e.target.closest('button');
     if (!b) return;
-    setPlayerCharacter(b.dataset.c);
+    setPlayerCharacter(b.dataset.c).then(whoSync);
     $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
+  // ... and on the story's title, before it begins: Kagami as a woman or a man, two portraits over the button (tools/views/
+  // kagami.json). The first time nothing is chosen for the player: a press of the button, Enter or a pad's A asks for the
+  // choice first, as a game with one lead played as either asks it after New Game; after that the choice stands, shown
+  // there and in the menu, and either can change it. (A scripted press, a harness's, begins as before, as the woman.)
+  const whoEl = $('#gt-who');
+  const whoKept = () => { try { return localStorage.getItem(PLAYER_KEY); } catch (e) { return null; } };
+  const whoChosen = () => { try { return !!PLAYER_LOOKS[localStorage.getItem(PLAYER_KEY)]; } catch (e) { return true; } };
+  const whoNeeded = () => !!whoEl && !whoEl.hidden && !whoChosen();
+  function whoSync() {
+    if (!whoEl) return;
+    const chosen = whoChosen();
+    const k = (chosen && whoKept()) || playerChar; // (the choice as made, while its model may still be on its way)
+    $$('#gt-who [data-c]').forEach(b => b.setAttribute('aria-checked', String(chosen && b.dataset.c === k)));
+    $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === k)));
+    whoEl.classList.toggle('open', !chosen);
+    $('#g-title').toggleAttribute('data-choose', !chosen && !whoEl.hidden); // (pad.js: A puts the hand on a portrait first)
+    if (chosen) whoEl.querySelector('.gt-who-ask').textContent = '';
+  }
+  function whoAsk() {
+    whoEl.querySelector('.gt-who-ask').textContent = 'Choose who you play, then begin.';
+    whoEl.classList.toggle('ask', false); void whoEl.offsetWidth; whoEl.classList.toggle('ask', true);
+    const f = whoEl.querySelector('[data-c]'); if (f && !whoEl.contains(document.activeElement)) f.focus({ preventScroll: true });
+  }
+  async function whoPick(c) {
+    if (!PLAYER_LOOKS[c]) return;
+    const first = !whoChosen();
+    const done = setPlayerCharacter(c); // (kept at once; the model swapped in when it has come)
+    whoSync();
+    if (first) $('#gt-play').focus({ preventScroll: true }); // (chosen: the next press begins)
+    await done; whoSync();
+  }
+  if (whoEl) {
+    whoEl.hidden = !(lib && story);
+    on(whoEl, 'click', e => { const b = e.target.closest('[data-c]'); if (b) whoPick(b.dataset.c); });
+    whoSync();
+  }
   on($('#gm-sound'), 'change', e => A.setMuted(!e.target.checked));
   on($('#gm-intro'), 'click', () => { $('#g-menu').hidden = true; OEOnboard.forgetCoaches(); startTour(); }); // (and the first flight's coach again)
   // the map's overture again, from wherever you are: it ends where it always does (overture.js)
@@ -5773,7 +5821,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     moreTray(true, false); // (the tour points at the buttons behind "more")
     return OEOnboard.tour(tourSteps(), { root: document.body, onEnd: () => { moreTray(was, false); OEOnboard.markDone(CITY.id); if (then) then(); } });
   }
-  on($('#gt-play'), 'click', () => startGame(false));
+  on($('#gt-play'), 'click', e => { if (e.isTrusted && whoNeeded()) { whoAsk(); return; } startGame(false); }); // (a player's own press, the first time: who they play is asked first)
   on($('#gt-continue'), 'click', () => startGame(true));
   on($('#gt-timechoice'), 'click', e => { const b = e.target.closest('button'); if (b) $$('#gt-timechoice button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   const nowLoc = S.utcToLocal(Date.now());
@@ -7392,7 +7440,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible) }), storyFigure, talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
