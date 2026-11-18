@@ -1,0 +1,60 @@
+{
+ "_": "The title's two portraits of Kagami (web/index.html #gt-who; tools/key_shot.js \"who\"): the same place, light and lens for each, so that the choice is between the two people and nothing else. Kagami at the station kerb by Hachiko on the pavement, a quarter turned from the lens, the crossing and its screens behind at the blue hour of the first episode. SIZE=1200x1600, WEBP=1: the middle half of each is kept (crop), 600x800.",
+ "quality": 82,
+ "views": [
+  {
+   "name": "kagami-w",
+   "who": "W",
+   "stand": [
+    377.6,
+    -1017.2
+   ],
+   "turn": -18,
+   "eye": [
+    378.2,
+    -1020.9,
+    1.2
+   ],
+   "look": [
+    377.6,
+    -1017.2,
+    1.0
+   ],
+   "fov": 55,
+   "settle": 4,
+   "muster": true,
+   "clear": [
+    40,
+    14
+   ],
+   "crop": 0.5
+  },
+  {
+   "name": "kagami-m",
+   "who": "M",
+   "stand": [
+    377.6,
+    -1017.2
+   ],
+   "turn": -18,
+   "eye": [
+    378.2,
+    -1020.9,
+    1.2
+   ],
+   "look": [
+    377.6,
+    -1017.2,
+    1.0
+   ],
+   "fov": 55,
+   "settle": 4,
+   "muster": true,
+   "clear": [
+    40,
+    14
+   ],
+   "crop": 0.5
+  }
+ ]
+}

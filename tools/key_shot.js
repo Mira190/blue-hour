@@ -5,6 +5,7 @@
 // the ground, an NPC's "!"). Only the WebGL canvas is read, so no HUD, label, caption or letterbox bar reaches a still.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/key_shot.js [tools/views/key-art.json] [out_dir]
+// tools/views/kagami.json: the title's two portraits of Kagami ("who"), SIZE=1200x1600 halved (crop), to web/assets/story/late/kagami-w/m.webp.
 // Writes out_dir/key-N.png (1920x1080, or SIZE=WxH) and, with WEBP=1, web/assets/story/late/key-N.webp (Pillow, the
 // quality in the views file). ONLY=key-2 films one. MARKS=1 leaves the marks in (to see what the switches take out).
 // A view: {"name", "eye": [x, y, dz], "look": [x, y, dz], "fov", "floor"?, "people"?: [x, y], "crowd_r", "crowd_n",
@@ -92,6 +93,13 @@ const ROOT = path.join(__dirname, '..');
       const at = v.stand || v.eye;
       g.player.x = at[0]; g.player.y = at[1]; g.player.z = v.stand ? gz(at[0], at[1]) : Math.max(0, g.nav.terrain(at[0], at[1]));
       if (g.player.rig) g.player.rig.root.visible = false;
+      // "who": Kagami in the frame, as a woman or a man (W, M), standing at "stand" and facing "face" (or the lens), turned
+      // "turn" degrees from it: the title's two portraits
+      if (v.who && g.playAs) {
+        await g.playAs(v.who);
+        const f = v.face || v.eye; g.player.h = Math.atan2(f[0] - at[0], f[1] - at[1]) + (v.turn || 0) * Math.PI / 180;
+        g.player.rig.root.visible = true;
+      }
       g.cine.stop();
       g.cine.play(() => S.pose, 1e9, { label: 'film' });
       if (v.people) {
@@ -144,6 +152,9 @@ const ROOT = path.join(__dirname, '..');
     const png = await p.evaluate(() => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(() => res(document.getElementById('game-gl').toDataURL('image/png'))))));
     const file = path.join(outDir, `${v.name}.png`);
     fs.writeFileSync(file, Buffer.from(png.split(',')[1], 'base64'));
+    // "crop": the middle of the frame kept, that fraction of each side (a longer lens: the shot's own "fov" does not reach
+    // the picture, which is at the game's 55 degrees; filmed at twice the size and halved, the portraits are at 29)
+    if (v.crop) execFileSync('python3', ['-c', 'import sys; from PIL import Image; im = Image.open(sys.argv[1]); W, H = im.size; k = float(sys.argv[2]); w, h = int(W * k), int(H * k); im.crop(((W - w) // 2, (H - h) // 2, (W + w) // 2, (H + h) // 2)).save(sys.argv[1])', file, String(v.crop)]);
     // the title's band against the frame: mean luminance and detail (the mean absolute step between neighbours)
     const band = execFileSync('python3', ['-c', `
 import sys
@@ -155,7 +166,7 @@ def st(b):
 a, ae = st((0, 0, W, H)); t, te = st((0, int(H * .35), W, int(H * .60)))
 print(f"band: light {t:.0f} (frame {a:.0f}), detail {te:.1f} (frame {ae:.1f})")`, file]).toString().trim();
     console.log(`${v.name}\t${res.clock}\t${band}${res.marks.length ? `\tMARKS VISIBLE: ${res.marks.join(', ')}` : ''}`);
-    if (process.env.WEBP && /^key-\d$/.test(v.name)) {
+    if (process.env.WEBP && /^(key-\d|kagami-[wm])$/.test(v.name)) {
       const dst = path.join(ROOT, 'web/assets/story/late', `${v.name}.webp`);
       execFileSync('python3', ['-c', 'import sys; from PIL import Image; Image.open(sys.argv[1]).convert("RGB").save(sys.argv[2], "WEBP", quality=int(sys.argv[3]), method=6)', file, dst, String(spec.quality || 80)]);
       console.log(`  ${path.relative(ROOT, dst)}: ${(fs.statSync(dst).size / 1024).toFixed(0)} kB`);

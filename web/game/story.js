@@ -79,12 +79,12 @@ window.OEStory = (function () {
       if (shut && q('#gt-play') && !q('#gt-back')) {
         const n = document.createElement('nav'); n.id = 'gt-back'; n.setAttribute('aria-label', 'Go back into a frame');
         n.innerHTML = `<small>The case is closed · go back into a frame</small><span>${shut.stamps.map((t, i) => (shut.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span>`;
-        n.addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b) enterLater(+b.dataset.back); });
+        n.addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); });
         q('#gt-play').parentNode.after(n);
       }
       if (going && q('#gt-play') && !q('#gt-anew')) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'gt-anew'; b.textContent = 'Start the evening again';
-        b.addEventListener('click', () => { try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } q('#gt-play').click(); });
+        b.addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } q('#gt-play').click(); }); // (who you play chosen first)
         q('#gt-play').after(b);
       }
     }
@@ -929,7 +929,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           }
           else if (finder.dataset.fix) delete finder.dataset.fix;
           const standGoal = hunt ? (st.hintText || G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
-          const text = !st.cam ? (!f.placed ? standGoal : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
+          const text = !st.cam ? (!f.placed ? standGoal : T.both && T.hint_at && !st.ready && G.shoot ? G.shoot : G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`) : !f.placed ? standGoal : on ? G.ready || 'That is it. Take the picture.' : G.shoot || 'Raise the camera and take the picture.';
           if (text !== goalText && !st.miss) goal(text);
           if (st.miss) st.miss = Math.max(0, st.miss - dt);
           if (st.spendT > 0) st.spendT = Math.max(0, st.spendT - dt);

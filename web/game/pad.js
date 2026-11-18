@@ -68,7 +68,8 @@ window.OEPad = (function () {
       }
       if (b === 'A') {
         const f = document.activeElement;
-        if (open) { const l = usable(open); return (l.includes(f) ? f : open.querySelector('button.go, .btn.primary') || l[0] || { click() {} }).click(); }
+        if (open && open.hasAttribute('data-choose')) { const r = usable(open).filter(x => x.getAttribute('role') === 'radio'); return r.includes(f) ? f.click() : cycle(r, 1); } // (a card that asks for a choice first, the title's who you play: A presses only an answer, and the first press puts the hand on the first)
+        if (open) { const l = usable(open); if (l.includes(f)) return f.click(); return ([...open.querySelectorAll('button.go, .btn.primary')].find(x => x.offsetParent && !x.disabled) || l[0] || { click() {} }).click(); } // (a card that asks for a choice first, the title's who you play: the first press puts the hand on its first answer)
         if (choices && choices.length) { if (choices.includes(f)) return f.click(); return cycle(choices, 1); } // (the first press on a question puts the hand on its first answer)
         return key('KeyE', 'e');
       }
