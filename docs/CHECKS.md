@@ -109,6 +109,11 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   The roll's file (its kraft paper and hand) without playing the episode: `tools/file_shot.js`.
   The loading screen's three pictures, held at each and at two dissolves, checked to come up in order inside a
   desktop's load and never to let the frame dip: `tools/loader_roll.js`.
+  The pictures themselves are filmed by `tools/key_shot.js` (views in `tools/views/key-art.json`): the map
+  without the story at the episode's date and blue hour, every mark the game puts in the world held invisible
+  (the goal's beam, the story's beacon, the route, an NPC's "!"), only the WebGL canvas read (no HUD or bars),
+  the crowd mustered at the kerbs and cleared from the lens's wedge, so the title's band (35-60% of the height)
+  falls on sky or open street on a desktop and on a phone's middle quarter. It prints any mark left visible.
 
 ## How it came to this
 
