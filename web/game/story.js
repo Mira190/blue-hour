@@ -388,12 +388,17 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const tm = setTimeout(end, total + 14000); // (read at leisure; the Stop waits for it)
       addEventListener('keydown', key, true); pre.addEventListener('pointerdown', end);
     }
+    // tonight's own set dressing (a lift's doors at the back of SKY GATE's lobby, its sign over the way in): put up as the
+    // player is given the street, in the story or on the walk (game.js startWalk), once
+    function setDress(ep = st.ep) {
+      for (const [i, r] of ((ep && ep.set) || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r));
+    }
     // as the player is given the street
     function begin() {
       const ep = st.ep || dress();
       if (!ep) return;
       ctx.stage.classList.add('story-on');
-      for (const [i, r] of (ep.set || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r)); // (tonight's own set dressing: a lift's doors, a sign)
+      setDress(ep);
       for (const c of ep.cast || []) if (!st.cast[c.id]) { st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice }); if (c.face && st.cast[c.id].face) st.cast[c.id].face(c.face[0], c.face[1]); } // (face: where they look all evening, the old man at the crossing)
       const k = kept();
       if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; }
@@ -1117,6 +1122,9 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
       // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
       // evening's cast, each once out of the frame (tick); the dog is already on his way home
+      // (the walk from the title: the street as tonight has it, with the set dressing the story puts up, and no case)
+      dressSet() { setDress(st.ep || eps[0]); }, // (not dress(): that sets the story's own hour and sky over the walk's)
+      get setUp() { return Object.keys(st).filter(k => /^set\d+$/.test(k) && st[k]).length; }, // (how many pieces of it are up: tools/walk_play.js)
       release() {
         if (st.phase !== 'done') return false;
         st.released = true; endEl.classList.remove('in'); later(1200, () => endEl.classList.remove('on')); ctx.beacon(null); // (the card fades off the street, as it came on) if (ctx.board) ctx.board(null);

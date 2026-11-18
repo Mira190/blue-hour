@@ -774,7 +774,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
     </div>
     <div class="g-overlay" id="g-menu" hidden>
       <div class="g-panel"><header><h2>Paused</h2><button class="x" id="g-menu-close" aria-label="Resume">×</button></header>
-        <div class="gm-walk" id="gm-walk"><span class="note">Walking, with no story. Change the hour and the sky below, or begin the story from its first card.</span><button class="btn primary" id="gm-story">Begin the story · <span>Episode 1</span></button></div>
+        <div class="gm-walk" id="gm-walk"><span class="note">Walking, with no story. Your car waits at the kerb, and a helicopter on SHIBUYA SKY's roof, up the SKY GATE lift across the crossing. Change the hour and the sky below, or begin the story from its first card.</span><button class="btn primary" id="gm-story">Begin the story · <span>Episode 1</span></button><button class="btn" id="gm-car">Bring your car to the kerb</button></div>
         <div class="g-settings">
           <div class="field"><span class="note">Time of day</span><div class="seg wrap" id="gm-time"><button data-t="live">Now</button></div></div>
           <div class="field"><label for="gm-clock"><span>Any time</span><output class="num" id="gm-clock-v"></output></label><input type="range" id="gm-clock" min="0" max="1439" step="1" aria-label="Time of day, local clock time"></div>
@@ -792,6 +792,8 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
           <tr><td><kbd>Shift</kbd> · <kbd>X</kbd> · <kbd>Space</kbd></td><td>Sprint while held · switch between walking and running · jump</td></tr>
           <tr class="gk-free"><td><kbd>E</kbd></td><td>Talk, board, fly, drive your car, get in a taxi, get out</td></tr>
           <tr class="gk-story"><td><kbd>E</kbd></td><td>Talk to whoever is beside you, take a lift, get in or out</td></tr>
+          <tr class="gk-walk"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> hand brake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road, <kbd>E</kbd> get out once stopped</td></tr>
+          <tr class="gk-walk"><td>Helicopter</td><td><kbd>Space</kbd> climb, <kbd>Shift</kbd> or <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd> fly and slow, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> the view, <kbd>E</kbd> get out once landed</td></tr>
           <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>In a conversation: put the hand on an answer, then <kbd>E</kbd> or <kbd>↵</kbd> to give it (or its number)</td></tr>
           <tr class="gk-free"><td><kbd>Y</kbd> · <kbd>N</kbd></td><td>Raise your hand at the kerb for a taxi · the phone: order a ride, bring your car</td></tr>
           <tr class="gk-free"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road</td></tr>
