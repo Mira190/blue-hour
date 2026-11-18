@@ -2,7 +2,7 @@
 # The checks to pass before work lands on main, in one command (docs/CHECKS.md). The project is one story on
 # one map (Blue Hour, at the Shibuya Scramble), so there is one page to check. For what the branch changed
 # against origin/main (or for the targets named) it runs:
-#   static  the checks that open no browser, a minute or two together:
+#   static  the checks that open no browser, half a minute together:
 #           - what the characters and the story say (tools/voice_check.py: locals, not the map's credits);
 #           - the map's lines and quests played to the last stamp without a browser (tools/goals_check.js);
 #           - the packs (buildings, landmarks, game, terrain, places, scene .bin, vis.bin, skyvis.webp and the phone's
