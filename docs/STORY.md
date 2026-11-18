@@ -1,6 +1,6 @@
 # Blue Hour: the story
 
-One evening at the Shibuya Scramble, 10 October, from the blue hour into the night. One camera with
+One evening at the Shibuya Scramble, Saturday 10 October 2026, from the blue hour into the night. One camera with
 seven frames left in it. One question that turns over with every frame: **why did he not cross the street?**
 
 This is the story bible: the premise and its rules, what was learned from the works it stands on,
@@ -15,7 +15,7 @@ real, and the story is built so that the real things are the clues.
 
 On 10 October, at 17:14, as the blue hour begins, the crossing fills and the world stops. Only you
 still move, and a young woman at the kerb dressed for 1964. She has waited on that corner at that
-hour for sixty years for a man who never came. She gives you his camera. There are seven frames
+hour for sixty-two years for a man who never came. She gives you his camera. There are seven frames
 left on a roll he began in 1964, and the twenty-nine frames before them were never developed.
 
 Every photograph you take in the stopped world, from the right place, brings up the picture that
@@ -141,7 +141,7 @@ a word.
 Sumiko heard the next day that Akira had confessed to killing Kanbara. She believed he had done it,
 for her, because of what she had told him about Kanbara. She kept silent so that it would not have
 been for nothing. Akira had told her once never to open a camera: light kills what is inside. She never opened it.
-So the one word he sent her she obeyed for sixty years without ever reading it.
+So the one word he sent her she obeyed for sixty-two years without ever reading it.
 
 So each of them believed the other guilty, and each kept the secret to protect the other.
 
@@ -149,11 +149,11 @@ So each of them believed the other guilty, and each kept the secret to protect t
 a room in Sangenjaya, fifteen minutes from the corner. Every 10 October he stood at the kerb where
 he had taken the photograph, and did not cross: she had a life, he thought, and he was the worst
 thing that had happened in it. Tatsuo told Sumiko the truth on his deathbed in 1989. She looked for
-a Mizuno and found nobody. She went on coming to her kerb every 10 October. For forty-eight years
-they stood on opposite kerbs of the same crossing for one hour a year and never saw each other
+a Mizuno and found nobody. She went on coming to her kerb every 10 October. For fifty years, 1976 to
+2025, they stood on opposite kerbs of the same crossing for one hour a year and never saw each other
 through it.
 
-Akira died in March of this year, aged 86. His will paid for one thing: somebody with a camera on
+Akira died in March of this year, 2026, aged 87. His will paid for one thing: somebody with a camera on
 her corner at 17:14 on 10 October, carrying the old plan of the kerb on which he had pencilled the
 same word. (The office reads it out in the first minute; Mr Tanaka says whose hand it is in frame 6;
 the ticket's back shows it on the last card.)
@@ -161,7 +161,7 @@ the ticket's back shows it on the last card.)
 **You** are the survey photographer who took the job: Kagami 鏡 to the office, a surname and nothing more, so that whoever plays is the one called. You arrived at 17:15. You were on the
 crossing, not at the kerb, when it stopped.
 
-**Sumiko is alive.** She is 82. She is the old woman with the clear umbrella who is at the Hachiko
+**Sumiko is alive.** She is 84. She is the old woman with the clear umbrella who is at the Hachiko
 kerb in the opening shot of every episode. The girl of 22 is what she left there.
 
 This is the first 10 October on which both of them have an afterimage at the crossing. That is why
@@ -207,7 +207,7 @@ a visitor to Shibuya would want anyway, and the clue is in it.
 | 4 | 17:31 | **SHIBUYA SKY**, the compass at the top of the roof: down on to Hikarie, the city lit behind | Yuna at the lift: her grandmother's story of the girl who came down with one glove | Kanbara, the dead man, in three lines and three | She left him alive. What came up the stair after her was nailed boots: his works wore them, and so did the lecturer. It was not her; the player names whose |
 | 5 | 17:39 | The foot of the tower, where the river went under: **the tower from the street up to its lights** | | Tatsuo, her brother, who knows a man who is guessing | He lies; the roof's frame breaks it, and he says which of the two wore the boots: he passed the lecturer on the stair. Each lover believed the other guilty and kept silent |
 | 6 | 17:46 | **The Scramble from the station kerb**, where Akira stood: his own frame, taken again. Across the road, in the held crowd, a clear umbrella turns | Mr Tanaka by Hachiko: he was the boy (he asks to be shown his pitch); the sentence he never delivered; Akira lived fifteen minutes away for 48 years; who hired you | Akira, new this year | What he could not carry across is under the camera's base plate, and cannot be looked at while there is film in it |
-| 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 82: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses. On the last card the camera is opened: her ticket, and one word |
+| 7 | 17:53, rain | **Both kerbs in one frame**: the corner of the crossing that sees them both | Sumiko, 84: *You came late.* Her three questions | The girl of 1964 and Akira, one on each kerb, silent | Every light goes green. They meet in the middle. The living Sumiko crosses. On the last card the camera is opened: her ticket, and one word |
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
@@ -408,7 +408,7 @@ and the line is written on it in the file's hand and pen as it is said; a line t
 
 **The second frame's Stop is empty.** Seven frames had one shape (walk, the living, the Stop, the one who still moves,
 the camera). In the second nobody moves: a stool at a tram stop, and the place to find alone. The boy who sat on it is
-met alive, at seventy-four, in the sixth, and is not heard twice.
+met alive, at seventy-six, in the sixth, and is not heard twice.
 
 **It opens in the Stop, and the voice comes after.** The world stops a second after the player is given the street;
 the office rings only when time runs again: who you are (a surveyor, late), why this kerb, the word pencilled on the
@@ -560,12 +560,13 @@ first was to be found from the words. What was wrong, and is mended:
 
 What is the owner's to decide, with the default taken until then:
 
-- **The year.** The story is set sixty years on: Sumiko is 82, Mr Tanaka 74, Akira died at 86 and his afterimage is of
-  2023, which is 2024. The street is the newest real one, and says 2026 (*AW 2026* and *SHIBUYA 2026* on the screens, an
-  arena tour of 2026, the Nishiguchi Sky Vision of May 2026, 令和八年 on the ema). The street cannot go back, so the
-  default is that the story comes forward: *sixty years* stays as people say it, and the exact numbers move (Sumiko 84,
-  Mr Tanaka 76, Akira dead at 87, his afterimage of 2025, *fifty years* on opposite kerbs). Until then a sharp player can
-  see two years.
+- **The year** (decided by the owner, November 2026). The story was written sixty years on (Sumiko 82, Mr Tanaka 74,
+  Akira dead at 86, his afterimage of 2023: 2024), and the street is the newest real one, which says 2026 (*AW 2026* and
+  *SHIBUYA 2026* on the screens, an arena tour of 2026, the Nishiguchi Sky Vision of May 2026, 令和八年 on the ema). The
+  street cannot go back, so the story came forward: tonight is Saturday 10 October 2026, sixty-two years on. Sumiko is
+  84, Mr Tanaka 76, Akira died in March aged 87 and his afterimage is of 2025 (his last tenth of October alive), and the
+  two of them stood on opposite kerbs for fifty years (1976 to 2025). *Sixty years* stays in what people say, as people
+  round a long time; what is counted (an age, a year, the pairs' years) is exact.
 - **Kanbara's afterimage is on SHIBUYA SKY's roof**, 200 m from where he was left (the planetarium's roof, on Hikarie's
   site), and rule 4 says an afterimage stays within a few steps of where it was left. His lines suppose he is on his own
   roof (*the lecturer photographs the sky from this roof*). Default: keep him there, and let rule 4 say what the story
