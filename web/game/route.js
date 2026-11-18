@@ -175,7 +175,7 @@ window.OERoute = (function () {
     // itself) the road is not an edge, only what stands in it
     const ROOM_MAX = 6, ROOM_STEP = 0.25;
     function room(x, y, z, nx, ny) {
-      const road = inRoad(x, y, z), out = [ROOM_MAX, ROOM_MAX];
+      const road = crossing(x, y, z), out = [ROOM_MAX, ROOM_MAX];
       for (const [i, s] of [[0, 1], [1, -1]]) {
         let zl = z;
         for (let d = ROOM_STEP; d <= ROOM_MAX + 1e-6; d += ROOM_STEP) {
@@ -193,7 +193,11 @@ window.OERoute = (function () {
       return Number.isNaN(zz) || (nav.posts && nav.posts.pushOut(x, y, 0.2, zz).hit) || (!road && inRoad(x, y, zz)) ? null : zz;
     }
     // is (x, y) past the edge of the way for a walker at (fx, fy, z): the guide's own test (companion.js), the same as room's
-    const edge = (x, y, z, fx = x, fy = y) => beyond(x, y, z, inRoad(fx, fy, z)) === null;
+    const edge = (x, y, z, fx = x, fy = y) => beyond(x, y, z, crossing(fx, fy, z)) === null;
+    // out on a crossing: in the carriageway, and with it all round (the test of a carriageway is half a street's width from
+    // its line, and takes in the footway along a kerb where the street is narrower than its class: there the way ran
+    // along the kerb on the way to Center Gai, as if it were on the crossing)
+    const crossing = (x, y, z) => inRoad(x, y, z) && inRoad(x + 1.5, y, z) && inRoad(x - 1.5, y, z) && inRoad(x, y + 1.5, z) && inRoad(x, y - 1.5, z);
     // A guide leads down the middle of the way, not along its hoarding: the mapped footway lines run where the data put
     // them (along a building's front, round a kerb's corner), and a way pulled straight between them grazes the inside of
     // every turn. So the way is laid again, every CEN_STEP m: where it is narrower than twice CEN_KEEP, down its middle;
@@ -220,7 +224,7 @@ window.OERoute = (function () {
         const a = S[Math.max(0, k - 2)], b = S[Math.min(n - 1, k + 2)], tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
         nrm.push([nx, ny]);
         const [x, y, z] = S[k];
-        if (k === 0 || k === n - 1 || inRoad(x, y, z) || escDir(x, y, z, x + tx / tl * 0.5, y + ty / tl * 0.5, z)) continue;
+        if (k === 0 || k === n - 1 || crossing(x, y, z) || escDir(x, y, z, x + tx / tl * 0.5, y + ty / tl * 0.5, z)) continue;
         const [l, r] = room(x, y, z, nx, ny);
         if (l + r < 2 * CEN_KEEP) off[k] = (l - r) / 2;
         else if (l < CEN_KEEP) off[k] = l - CEN_KEEP;
