@@ -316,8 +316,9 @@ frame rate it shook and in a hover it turned this way and that. Now it is one fl
      small in the frame, the crossing filling it: "one thing, breathing in and out".
   4. `orbit` — inside its turn, from over the crossing: it goes round the station banked towards us, the lit tracks
      wheeling behind it, the lens drawn in as it goes away; under ten degrees a second of pan.
-  5. `home` — the camera ship again off its right rear quarter, high above the roofs by the station, as it rolls out
-     heading south and comes down towards its spot.
+  5. `home` — from a roof to the west, on its right: it comes down out of the lit towers to the north towards its spot,
+     the lens panning down with it. (A camera ship flying with it here was down among the towers by the station, a
+     sign or a wall filling the frame behind it.)
   6. `land` — locked off on the ground as it comes down into the frame, turns its door to your spot and settles.
   7. `foot` — a step nearer as you get out, the dog at your heels.
 - *A phone held upright* keeps most of each frame's width: an overture's lens is opened until the picture is 0.8 as
