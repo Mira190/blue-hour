@@ -401,7 +401,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (!proved) { errors.push('the summation was not answered with a print'); console.log(errors[errors.length - 1]); }
     if (!c.worked || !/side by side|Every pair/.test(c.worked)) { errors.push(`the last card does not say how the case was worked: "${c.worked.slice(0, 80)}"`); console.log(errors[errors.length - 1]); }
     if (+process.env.SPEND && !c.worked.includes(`Frame ${process.env.SPEND} spent`)) { errors.push(`the last card does not name frame ${process.env.SPEND}, spent`); console.log(errors[errors.length - 1]); }
-    if (c.back < 7) { errors.push(`the last card offers ${c.back} frames to go back into`); console.log(errors[errors.length - 1]); }
+    if (c.back < 7 && !process.env.FROM) { errors.push(`the last card offers ${c.back} frames to go back into`); console.log(errors[errors.length - 1]); } // (FROM: the frames before it have no prints to go back to)
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
     if (+process.env.BACKTO > 1) { // into a frame again from the last card: the roll as it was on arriving there, played to its print
       const n = +process.env.BACKTO;
