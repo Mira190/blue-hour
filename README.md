@@ -3,7 +3,8 @@
 One story, in episodes, on one map: the Shibuya Scramble, rebuilt from open data and played in a
 browser. Seven evenings at the crossing, one camera with seven frames left in it: the world stops,
 and someone who should not be there asks you for a photograph. [docs/STORY.md](docs/STORY.md) is the
-story bible; episode 1 is built.
+story bible; episode 1 is built. On the title, beside the episode, *Walk Shibuya* is the same map with no story in it,
+at an hour and under a sky you pick, and the story's last card takes it up in the night the case ends in.
 
 The map is Sangenjaya to Shibuya, Harajuku and Yoyogi Park: some 48,000 buildings at
 PLATEAU-surveyed heights, the scramble and Hachiko modelled finely as a hero level, SHIBUYA SKY's
@@ -34,8 +35,8 @@ The built map is in the repository:
 
 ```bash
 python3 -m http.server 8800 --directory web
-# http://localhost:8800/            the story
-# http://localhost:8800/?walk=1     the same map without the story: walk, drive, fly, ride the trains
+# http://localhost:8800/            the story, or Walk Shibuya on its title: the map with no story, at an hour and sky you pick
+# http://localhost:8800/?walk=1     the old free game, a tool for building and checking: walk, drive, fly, ride the trains
 ```
 
 It needs WebGL 2. A phone loads its own district of the map (`web/data/shibuya/d/`).

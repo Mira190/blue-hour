@@ -246,11 +246,22 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
   font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: rgba(236, 232, 225, 0.62); white-space: nowrap; }
 .roll-bar.top { top: 0; } .roll-bar.foot { bottom: 0; }
 .roll-bar b { font-weight: 500; color: var(--accent); }
-/* the score waits for a touch (a browser's rule): said on the upper bar until it sounds */
-.roll-sound { display: none; color: var(--accent); animation: roll-sound 2.4s ease-in-out infinite; }
-.loader.no-sound .roll-sound { display: inline; }
-@keyframes roll-sound { 50% { opacity: 0.35; } }
-@media (prefers-reduced-motion: reduce) { .roll-sound { animation: none; } }
+/* the score waits for a touch (a browser's rule, kept per site: a site the visitor has played media on may sound at
+   once, a new one waits). Said on the lower bar, in the bar's own type, as a game's loading screen says "press any
+   key": centred under the frame, on a phone beside the roll. A speaker beside the words, its waves breathing, so it
+   reads as a thing to do and not as a caption of the frame. It fades at the touch and keeps its place while it does */
+.roll-sound { display: inline-flex; align-items: center; gap: 10px; color: rgba(236, 232, 225, 0.86); opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s linear 0.6s; }
+.loader.no-sound .roll-sound { opacity: 1; visibility: visible; transition: opacity 0.6s ease; }
+.loader.err .roll-sound { display: none; }
+.roll-sound svg { flex: none; width: 12px; height: 12px; color: var(--accent); overflow: visible; }
+.roll-sound .w { animation: roll-wave 1.8s ease-in-out infinite; }
+.roll-sound .w + .w { animation-delay: 0.3s; }
+@keyframes roll-wave { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .roll-sound .w { animation: none; opacity: 0.8; } }
+@media (min-width: 641px) { .roll-bar .roll-sound { position: absolute; left: 50%; transform: translateX(-50%); } }
+@media (max-width: 640px) { .roll-sound { flex: none; gap: 8px; letter-spacing: 0.2em; } }
+@media (max-width: 400px) { .roll-bar.foot { gap: 12px; } .roll-bar .roll-frames s { width: clamp(15px, 5.2vw, 24px); } } /* (the roll a little smaller, so the ask fits beside it down to 320 px) */
+@media (max-width: 340px) { .roll-sound { letter-spacing: 0.12em; } }
 .roll-frames { display: flex; gap: 4px; padding: 5px 6px; border-top: 2px dotted rgba(236, 232, 225, 0.3); border-bottom: 2px dotted rgba(236, 232, 225, 0.3); }
 .roll-frames s { position: relative; width: clamp(24px, 3.2vw, 48px); aspect-ratio: 3 / 2; text-decoration: none; background: #0a0c12; outline: 1px solid rgba(236, 232, 225, 0.1); overflow: hidden; }
 .roll-frames s::after { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s ease; background: var(--img) center / cover no-repeat, linear-gradient(180deg, #0a1440, #24408f 60%, #b9794f); }
@@ -763,6 +774,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
     </div>
     <div class="g-overlay" id="g-menu" hidden>
       <div class="g-panel"><header><h2>Paused</h2><button class="x" id="g-menu-close" aria-label="Resume">×</button></header>
+        <div class="gm-walk" id="gm-walk"><span class="note">Walking, with no story. Change the hour and the sky below, or begin the story from its first card.</span><button class="btn primary" id="gm-story">Begin the story · <span>Episode 1</span></button></div>
         <div class="g-settings">
           <div class="field"><span class="note">Time of day</span><div class="seg wrap" id="gm-time"><button data-t="live">Now</button></div></div>
           <div class="field"><label for="gm-clock"><span>Any time</span><output class="num" id="gm-clock-v"></output></label><input type="range" id="gm-clock" min="0" max="1439" step="1" aria-label="Time of day, local clock time"></div>
@@ -778,20 +790,21 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         <table class="gt-keys"><tbody>
           <tr><td><kbd>W A S D</kbd> or arrows</td><td>Walk, relative to the camera; drag to look around, scroll to zoom</td></tr>
           <tr><td><kbd>Shift</kbd> · <kbd>X</kbd> · <kbd>Space</kbd></td><td>Sprint while held · switch between walking and running · jump</td></tr>
-          <tr><td><kbd>E</kbd></td><td>Talk, board, fly, drive your car, get in a taxi, get out</td></tr>
+          <tr class="gk-free"><td><kbd>E</kbd></td><td>Talk, board, fly, drive your car, get in a taxi, get out</td></tr>
+          <tr class="gk-story"><td><kbd>E</kbd></td><td>Talk to whoever is beside you, take a lift, get in or out</td></tr>
           <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>In a conversation: put the hand on an answer, then <kbd>E</kbd> or <kbd>↵</kbd> to give it (or its number)</td></tr>
-          <tr><td><kbd>Y</kbd> · <kbd>N</kbd></td><td>Raise your hand at the kerb for a taxi · the phone: order a ride, bring your car</td></tr>
-          <tr><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road</td></tr>
-          <tr><td>Taxi or ride</td><td><kbd>F</kbd> skip the trip, <kbd>V</kbd> from the back seat, <kbd>E</kbd> get out when it stops</td></tr>
-          <tr><td><kbd>Q</kbd></td><td>Survey lens: the building in front of you and where its height comes from</td></tr>
-          <tr><td><kbd>G</kbd></td><td>Height challenge: guess a building's height, then see how good the data is</td></tr>
-          <tr><td>△ on the map</td><td>Trig stations: stand at one and press <kbd>E</kbd> to survey the view</td></tr>
-          <tr><td>Helicopter</td><td><kbd>Space</kbd> climb, <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd>, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> bird's-eye view</td></tr>
-          <tr><td>Ferry</td><td><kbd>F</kbd> skip ahead, <kbd>H</kbd> take the helm into the next wharf</td></tr>
-          <tr><td><kbd>T</kbd></td><td>Switch the walk the route follows (or tap its name in the quest card)</td></tr>
-          <tr><td><kbd>L</kbd></td><td>Show the route line for a few seconds when it is set to Only when I ask or Off (or tap Show route in the quest card)</td></tr>
+          <tr class="gk-free"><td><kbd>Y</kbd> · <kbd>N</kbd></td><td>Raise your hand at the kerb for a taxi · the phone: order a ride, bring your car</td></tr>
+          <tr class="gk-free"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road</td></tr>
+          <tr class="gk-free"><td>Taxi or ride</td><td><kbd>F</kbd> skip the trip, <kbd>V</kbd> from the back seat, <kbd>E</kbd> get out when it stops</td></tr>
+          <tr class="gk-free"><td><kbd>Q</kbd></td><td>Survey lens: the building in front of you and where its height comes from</td></tr>
+          <tr class="gk-free"><td><kbd>G</kbd></td><td>Height challenge: guess a building's height, then see how good the data is</td></tr>
+          <tr class="gk-free"><td>△ on the map</td><td>Trig stations: stand at one and press <kbd>E</kbd> to survey the view</td></tr>
+          <tr class="gk-free"><td>Helicopter</td><td><kbd>Space</kbd> climb, <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd>, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> bird's-eye view</td></tr>
+          <tr class="gk-free"><td>Ferry</td><td><kbd>F</kbd> skip ahead, <kbd>H</kbd> take the helm into the next wharf</td></tr>
+          <tr class="gk-free"><td><kbd>T</kbd></td><td>Switch the walk the route follows (or tap its name in the quest card)</td></tr>
+          <tr class="gk-free"><td><kbd>L</kbd></td><td>Show the route line for a few seconds when it is set to Only when I ask or Off (or tap Show route in the quest card)</td></tr>
           <tr><td><kbd>O</kbd></td><td>Photo mode: the world holds still; set the sun, the lens and the angle, and save a picture</td></tr>
-          <tr><td><kbd>M</kbd> · <kbd>P</kbd> · <kbd>R</kbd></td><td>Map · passport · unstick yourself</td></tr>
+          <tr class="gk-free"><td><kbd>M</kbd> · <kbd>P</kbd> · <kbd>R</kbd></td><td>Map · passport · unstick yourself</td></tr>
           <tr class="g-metro-key" hidden><td><kbd>B</kbd></td><td>The subway map: go on to another district</td></tr>
         </tbody></table>
         <div class="row" id="gm-links"></div>
@@ -929,6 +942,7 @@ window.dispatchEvent(new Event('three-ready'));
 <script src="game/log.js"></script>
 <script src="game/pad.js"></script>
 <script src="game/story.js"></script>
+<script src="game/walk.js"></script>
 <script src="game/talkcam.js"></script>
 <script src="game/hero.js"></script>
 <script src="game/game.js"></script>
@@ -943,7 +957,9 @@ window.dispatchEvent(new Event('three-ready'));
   const city = cities.find(c => c.id === MAP);
   document.addEventListener('click', e => { if (e.target.closest('[data-reload]')) location.reload(); }); // a loader that failed
   if (!window.THREE) await new Promise(r => addEventListener('three-ready', r, { once: true })); // three.js loads as a module
-  const ep = (city && city.story_episode) || {};
+  // (come from the story's last card to walk the map with no story: the loader says so, not the episode's name)
+  let walking = false; try { walking = !!sessionStorage.getItem('oe-walk-auto'); } catch (e) { /* storage blocked */ }
+  const ep = walking ? { title: 'Walk Shibuya' } : (city && city.story_episode) || {};
   $('g-loader').querySelector('.ld-mode').textContent = ep.no != null ? `Episode ${ep.no}` : '';
   $('g-load-title').textContent = ep.title || 'Blue Hour';
   $('g-load-native').textContent = 'Shibuya 渋谷'; $('g-load-native').hidden = false;
@@ -956,9 +972,9 @@ window.dispatchEvent(new Event('three-ready'));
   $('g-loader').classList.add('has-roll');
   $('g-loader').insertAdjacentHTML('afterbegin', `<figure class="roll" aria-hidden="true">${[1, 2, 3].map(n => `<div class="roll-art" style="background-image:url(assets/story/late/key-${n}.webp)"></div>`).join('')}
     <div class="roll-grade"></div><div class="roll-flare"></div><div class="roll-grain"></div>
-    <div class="roll-title"><i lang="ja">ブルーアワー</i><b>Blue Hour</b><u></u><span>Episode ${ep.no != null ? ep.no : 1} <em>·</em> ${(ep.title || 'You came late').replace(/[<&]/g, '')}</span></div>
-    <div class="roll-bar top"><span>Survey order · <b>Shibuya 渋谷</b></span><span class="roll-sound">${matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} for sound</span><span class="wide">10 October · sunset 17:14</span></div>
-    <div class="roll-bar foot"><span class="roll-count wide">Loading the roll · frame <b>1</b> of 7</span><div class="roll-frames">${[1, 2, 3, 4, 5, 6, 7].map(n => `<s style="--img:url(assets/story/late/frame-${n}.webp)"></s>`).join('')}</div></div></figure>`);
+    <div class="roll-title"><i lang="ja">ブルーアワー</i><b>Blue Hour</b><u></u><span>${walking ? 'Walk Shibuya <em>·</em> no story' : `Episode ${ep.no != null ? ep.no : 1} <em>·</em> ${(ep.title || 'You came late').replace(/[<&]/g, '')}`}</span></div>
+    <div class="roll-bar top"><span>Survey order · <b>Shibuya 渋谷</b></span><span class="wide">10 October · sunset 17:14</span></div>
+    <div class="roll-bar foot"><span class="roll-count wide">Loading the roll · frame <b>1</b> of 7</span><div class="roll-frames">${[1, 2, 3, 4, 5, 6, 7].map(n => `<s style="--img:url(assets/story/late/frame-${n}.webp)"></s>`).join('')}</div><span class="roll-sound"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 6h2.8L8 2.8v10.4L4.3 10H1.5z" fill="currentColor"/><path class="w" d="M10.4 5.4a3.6 3.6 0 0 1 0 5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w" d="M12.4 3.4a6.4 6.4 0 0 1 0 9.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>${matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click'} for sound</span></div></figure>`);
   $('g-load-native').textContent = '“Hachiko corner, from the north-west kerb, 17:14.”';
   const frames = [...$('g-loader').querySelectorAll('.roll-frames s')], count = $('g-loader').querySelector('.roll-count b');
   const expose = () => { const k = Math.min(6, Math.floor((parseFloat($('g-load-bar').style.width) || 0) / 100 * 7)); frames.forEach((f, i) => { f.classList.toggle('on', i < k); f.classList.toggle('now', i === k); }); count.textContent = k + 1; };

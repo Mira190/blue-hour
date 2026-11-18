@@ -112,6 +112,7 @@
 #g-story-frames { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); z-index: 6; display: grid; gap: 9px; pointer-events: auto; cursor: pointer; text-align: left; border: 0; background: none; padding: 0;
   opacity: 0; transition: opacity 0.9s ease; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000; }
 #g-story-frames.on { opacity: 1; }
+#g-story-frames:not(.on) { pointer-events: none; } /* (unseen, before the first frame and on the walk, it opened the roll to a tap at the foot of the street) */
 #g-story-frames b { font: 300 30px/0.9 var(--f-mono); letter-spacing: 0; color: var(--amber); font-variant-numeric: tabular-nums; margin-right: 10px; vertical-align: -3px; }
 #g-story-frames .strip { display: flex; gap: 3px; padding: 4px; background: rgba(4, 8, 18, 0.6); border-top: 2px dotted rgba(244, 239, 230, 0.35); border-bottom: 2px dotted rgba(244, 239, 230, 0.35); }
 #g-story-frames small { font: 300 13px/1 var(--f-mono); color: rgba(244, 239, 230, 0.45); margin: 0 10px 0 -6px; letter-spacing: 0.04em; }
@@ -218,6 +219,10 @@
 #g-story-finder .rf small { position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: rgba(244, 239, 230, 0.8); text-shadow: 0 1px 8px #000, 0 0 2px #000; }
 #g-story-finder .rf small { transition: opacity 0.6s ease, color 0.4s ease; }
 #g-story-finder[data-fix="on"] .rf small { color: var(--amber); opacity: 0; transition-delay: 1.4s; } /* (on the place, the joined line says it: the words go, and the picture is left as plain as it can be) */
+/* (and the patch itself goes to a hairline a moment later: lit amber in the middle of the frame, it lay over the board's
+   lettering, the very thing the picture is of) */
+#g-story-finder.ready[data-fix="on"]::after { background: rgba(255, 207, 138, 0.06); box-shadow: inset 0 0 0 1px rgba(255, 207, 138, 0.45); transition-delay: 1.4s, 1.4s; }
+#g-story-finder.ready[data-fix="on"] .rf b { opacity: 0.35; transition: transform 0.3s linear, background 0.4s ease, opacity 0.6s ease 1.4s; }
 #g-story-shutter { position: absolute; left: 50%; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 16px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 #g-story-shutter.on { display: flex; }
@@ -233,6 +238,15 @@
 .game-stage.story .gd-choices { max-width: 34em; margin: 0 auto 10px; text-align: left; }
 .game-stage.story .gd-choices button { border-color: rgba(244, 239, 230, 0.3); background: rgba(4, 8, 18, 0.5); font: 300 16px/1.4 var(--f-body); color: var(--paper); border-radius: 2px; }
 .game-stage.story .gd-choices button:is(:hover, :focus-visible) { border-color: var(--amber); background: rgba(255, 207, 138, 0.1); }
+/* an answer that is one of the case's people (the summation): the name, and under it what you know them as; seven of
+   them in two columns where there is room. A statement pressed in a cross-examination: his own words, in 1964's face */
+.game-stage.story .gd-choices:has(.who) { grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); max-width: 40em; }
+.game-stage.story .gd-choices button:has(.who) { padding: 8px 12px; }
+.gd-choices .who { display: flex; flex-direction: column; gap: 1px; }
+.gd-choices .who b { font-weight: 500; letter-spacing: 0.01em; }
+.gd-choices .who small { font: 400 11px/1.3 var(--f-mono); letter-spacing: 0.04em; color: rgba(244, 239, 230, 0.62); }
+.gd-choices .said { font-family: var(--f-serif); font-size: 1.06em; }
+@media (max-width: 640px) { .game-stage.story .gd-choices:has(.who) { grid-template-columns: 1fr 1fr; gap: 5px; } .game-stage.story .gd-choices button:has(.who) { padding: 6px 9px; } .gd-choices .who b { font-size: 14px; } .gd-choices .who small { font-size: 10px; } }
 
 /* ---- what they say: a lower third on the picture, not a window over it */
 .game-stage.story .g-dialog { bottom: 0; width: 100%; max-width: none; transform: translateX(-50%); padding: 90px max(24px, calc(50% - 380px)) max(34px, calc(env(safe-area-inset-bottom) + 34px)); border: 0; border-radius: 0; box-shadow: none;
@@ -380,6 +394,9 @@
 #g-story-chip { position: absolute; left: 50%; top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); transform: translateX(-50%); z-index: 8; pointer-events: none; opacity: 0; white-space: nowrap; padding: 8px 16px; border-top: 1px solid rgba(255, 207, 138, 0.6); border-bottom: 1px solid rgba(255, 207, 138, 0.6);
   background: rgba(4, 8, 18, 0.55); color: var(--paper); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; }
 #g-story-chip.on { animation: g-story-chip 2.6s ease both; }
+/* (over the button that raises the camera while it is there, not on it: a word said as you step into the light lay across it) */
+.game-stage.story:has(#g-story-cam.on:not(.up)) #g-story-chip { bottom: max(212px, calc(env(safe-area-inset-bottom) + 212px)); }
+@media (pointer: coarse), (max-width: 640px) { .game-stage.story:has(#g-story-teach.on:not(.done)):has(#g-story-cam.on:not(.up)) #g-story-chip { bottom: max(330px, calc(env(safe-area-inset-bottom) + 330px)); } }
 @keyframes g-story-chip { 0% { opacity: 0; letter-spacing: 0.7em; } 14%, 72% { opacity: 1; letter-spacing: 0.4em; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #g-story-cam.on { animation: none; } }
 
@@ -578,6 +595,8 @@
 #g-story-mov button { position: absolute; right: max(16px, 3vw); top: calc(8.5vh + 10px); pointer-events: auto; /* (over the picture's top, under the bar: at the foot it met the words on a screen 800 wide) */ cursor: pointer; background: none; border: 0; padding: 10px 0;
   font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); opacity: 0; transition: opacity 0.8s ease 1.4s, color 0.3s; }
 #g-story-mov.on button { opacity: 1; }
+/* (and not there at all without a film: unseen, it took every tap and click at the top right of the street) */
+#g-story-mov:not(.on) button { pointer-events: none; }
 #g-story-mov button:is(:hover, :focus-visible) { color: var(--paper); }
 .game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
 @media (max-width: 640px) {
@@ -600,3 +619,153 @@
 .game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
 @media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
 @media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }
+
+/* ---- the walk (walk.js): the title's second way in, and the street with no story in it.
+   The same card, type and amber as the story's; the walk's own words are fewer. On the title, beside the episode's
+   amber button, a paper one; pressed, the two ways in give way to one step: the hour and the sky, and Set out */
+#gt-walk-go { display: inline-flex; align-items: center; gap: 14px; min-width: 0; padding: 15px 20px; border: 1px solid rgba(244, 239, 230, 0.42); border-radius: 2px; background: transparent; color: var(--paper);
+  font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; transition: border-color 0.3s, background 0.3s; }
+#gt-walk-go small { font: inherit; letter-spacing: 0.24em; color: rgba(244, 239, 230, 0.55); }
+#gt-walk-go small::before { content: "·"; margin-right: 14px; color: rgba(244, 239, 230, 0.4); }
+#gt-walk-go:is(:hover, :focus-visible) { border-color: var(--paper); background: rgba(244, 239, 230, 0.06); outline: none; }
+.game-stage.story .gt-who.open ~ .gt-go #gt-walk-go { opacity: 0.42; }
+#g-title[data-walk] :is(.gt-go, #gt-back) { display: none !important; }
+.gt-walk { display: none; }
+.game-stage.story .gt-walk:not([hidden]) { display: grid; gap: 14px; justify-items: start; }
+.gt-walk .eyebrow { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+.gt-walk-row { display: grid; grid-template-columns: 76px auto; align-items: center; gap: 14px; }
+.gt-walk-row > span { font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+.gt-walk-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.gt-walk-seg button { display: inline-flex; align-items: baseline; gap: 10px; padding: 11px 14px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42); color: rgba(244, 239, 230, 0.78); cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, background 0.25s; }
+.gt-walk-seg b { font: 300 14px/1 var(--f-body); letter-spacing: 0.01em; }
+.gt-walk-seg small { font: 400 11px/1 var(--f-mono); letter-spacing: 0.04em; color: rgba(244, 239, 230, 0.5); font-variant-numeric: tabular-nums; }
+.gt-walk-seg small:empty { display: none; }
+.gt-walk-seg button:is(:hover, :focus-visible) { border-color: rgba(255, 207, 138, 0.7); color: var(--paper); outline: none; }
+.gt-walk-seg button[aria-checked="true"] { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber); background: rgba(255, 207, 138, 0.08); }
+.gt-walk-seg button[aria-checked="true"] small { color: var(--amber); }
+.gt-walk-acts { display: flex; gap: 10px; margin-top: 6px; }
+.game-stage.story .gt-walk-acts .btn { gap: 26px; padding: 15px 22px; border-radius: 2px; font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s, border-color 0.3s; }
+.game-stage.story .gt-walk-acts .btn.primary { min-width: 0; border: 1px solid var(--amber); background: transparent; color: var(--amber); }
+.game-stage.story .gt-walk-acts .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
+.game-stage.story .gt-walk-acts .btn:not(.primary) { border: 1px solid rgba(244, 239, 230, 0.32); background: transparent; color: rgba(244, 239, 230, 0.75); font-size: 10px; letter-spacing: 0.26em; }
+.game-stage.story .gt-walk-acts .btn:not(.primary):is(:hover, :focus-visible) { border-color: var(--paper); color: var(--paper); }
+.gt-walk-acts kbd { font: inherit; letter-spacing: 0.06em; opacity: 0.8; }
+
+/* out in the street: where and when, in the goal's corner (the walk has no goal); the hour moves on as you walk */
+#g-walk-where { position: absolute; left: 0; top: 0; z-index: 6; width: min(100%, 420px); box-sizing: border-box; padding: max(24px, env(safe-area-inset-top)) 24px 40px max(28px, env(safe-area-inset-left)); pointer-events: none;
+  opacity: 0; transition: opacity 0.9s ease; color: var(--paper); background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.5), transparent 75%); }
+#g-walk-where.on { opacity: 1; }
+#g-walk-where small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+#g-walk-where small::after { content: ""; display: block; width: 28px; height: 1px; margin: 11px 0 10px; background: rgba(255, 207, 138, 0.7); }
+#g-walk-where .t { display: block; font: 200 clamp(26px, 2.6vw, 34px)/1 var(--f-display); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 18px rgba(0, 0, 0, 0.85); }
+#g-walk-where em { display: block; margin-top: 9px; font: 400 9px/1 var(--f-mono); font-style: normal; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.7); text-shadow: 0 1px 10px #000; }
+#g-walk-where.new small { animation: g-story-goal-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+/* the camera and the menu, at the top right, small: what the walk has to change, named */
+#g-walk-acts { position: absolute; right: max(22px, env(safe-area-inset-right)); top: max(22px, env(safe-area-inset-top)); z-index: 6; display: flex; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
+#g-walk-acts.on { opacity: 1; pointer-events: auto; }
+#g-walk-acts button { display: inline-flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid rgba(244, 239, 230, 0.3); border-radius: 2px; background: rgba(4, 8, 18, 0.45); color: rgba(244, 239, 230, 0.86); cursor: pointer;
+  font: 400 9px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; text-shadow: 0 1px 8px #000; transition: border-color 0.25s, color 0.25s; }
+#g-walk-acts button:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); outline: none; }
+#g-walk-acts kbd { padding: 3px 5px; border: 1px solid rgba(244, 239, 230, 0.45); border-radius: 2px; font: inherit; letter-spacing: 0.04em; }
+#g-walk-acts i { position: relative; display: block; width: 14px; height: 10px; box-sizing: border-box; }
+#g-walk-acts i.cam { border: 1px solid currentColor; border-radius: 2px; }
+#g-walk-acts i.cam::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border: 1px solid currentColor; border-radius: 50%; }
+#g-walk-acts i.menu { height: 9px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+#g-walk-acts i.menu::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; border-top: 1px solid currentColor; }
+/* the keys, once, at the foot of the frame (the story's keys' line) */
+#g-walk-keys { position: absolute; left: 50%; bottom: max(40px, calc(env(safe-area-inset-bottom) + 40px)); transform: translateX(-50%); z-index: 6; pointer-events: none; opacity: 0; transition: opacity 0.8s ease;
+  display: flex; gap: 26px; white-space: nowrap; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
+#g-walk-keys.on { opacity: 1; }
+#g-walk-keys kbd { display: inline-block; min-width: 22px; padding: 5px 6px; margin-right: 5px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: inherit; letter-spacing: 0.06em; text-align: center; }
+#g-walk-keys kbd + kbd { margin-left: -1px; }
+/* (nothing of it over the title, a menu, the camera's own view in photo mode, or a film) */
+/* (each its own rule: a :has() inside :is() is dropped, and the corner was drawn over the menu) */
+.game-stage:has(#g-title:not([hidden])) :is(#g-walk-where, #g-walk-acts, #g-walk-keys),
+.game-stage:has(.g-overlay:not([hidden])) :is(#g-walk-where, #g-walk-acts, #g-walk-keys),
+.game-stage:is(.photo, .cine) :is(#g-walk-where, #g-walk-acts, #g-walk-keys) { opacity: 0 !important; pointer-events: none !important; }
+/* the panels the story's page still opens (the menu, photo mode) in its own tokens: the amber hairline, not the old game's filled button */
+.game-stage.story :is(.g-overlay, .g-photo) .btn.primary { background: transparent; border: 1px solid var(--amber); border-radius: 2px; color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; }
+.game-stage.story :is(.g-overlay, .g-photo) .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
+.game-stage.story :is(.g-overlay, .g-photo) :is(.btn, .chip-btn) { border-radius: 2px; }
+.game-stage.story :is(.g-overlay, .g-photo) :is(.seg button, .chip-btn)[aria-pressed="true"] { color: var(--amber); border-color: var(--amber); background: rgba(255, 207, 138, 0.08); }
+/* the menu on the walk: the way into the story first; the hour and the sky stay; the story's own and the old game's go */
+.gm-walk { display: none; }
+.game-stage.walk .gm-walk { display: grid; gap: 10px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.game-stage.walk .gm-walk .btn { justify-content: flex-start; flex-wrap: wrap; gap: 0 0.5em; padding: 15px 18px; white-space: normal; text-align: left; line-height: 1.6; }
+/* (and the panel held to the screen whatever is in it: on a phone the story's way in, set on one line, widened the menu past
+   the screen's edge, its close button with it, and the menu could not be shut) */
+.game-stage.walk .g-overlay { grid-template-columns: minmax(0, 1fr); }
+.game-stage.walk :is(#gm-overture, #gm-route) { display: none; }
+.game-stage.walk .field:has(#gm-route) { display: none; }
+/* (and in the story and on the walk alike, the old free game's: its tour of the map, the passport, the passport's fresh start, and its keys) */
+.game-stage.story :is(#gm-intro, #gm-reset, #gm-links, .gk-free) { display: none !important; }
+.game-stage:not(.story) .gk-story { display: none; }
+@media (pointer: coarse), (max-width: 640px) {
+  #g-walk-where { padding-right: 150px; }
+  #g-walk-where .t { font-size: 24px; }
+  #g-walk-acts { flex-direction: column; align-items: flex-end; }
+  #g-walk-acts button span { display: none; }
+  #g-walk-acts button { padding: 11px 12px; }
+  #g-walk-acts i { width: 18px; height: 13px; }
+  #g-walk-acts i.menu { height: 12px; }
+  #g-walk-acts i.menu::after { top: 4.5px; }
+  #g-walk-keys { flex-direction: column; align-items: center; gap: 10px; width: calc(100% - 48px); white-space: normal; text-align: center; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); letter-spacing: 0.12em; }
+  .gt-walk-row { grid-template-columns: 1fr; gap: 8px; }
+  .gt-walk-acts .btn { flex: 1; }
+  #gt-walk-go { flex: 1 1 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { #g-walk-where, #g-walk-acts, #g-walk-keys { transition: none; } #g-walk-where.new small { animation: none; } }
+/* ---- the camera taught (story.js teach; task.teach on the first frame): four steps in the order they are done, each
+   saying what it does before it is done, ticked the moment it is. On the picture's left over a soft scrim, out of the
+   finder's middle, where the thing of the other year comes up. The step to do now is lit, with its line under it; the
+   ones done carry an amber tick; the ones to come wait, dim. A release pressed too early shakes the step not done */
+#g-story-teach { position: absolute; left: max(26px, env(safe-area-inset-left)); top: 50%; z-index: 6; width: 250px; transform: translateY(-46%); pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
+  color: var(--paper); text-shadow: 0 1px 10px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.8); }
+#g-story-teach::before { content: ""; position: absolute; inset: -34px -60px -34px calc(-1 * max(26px, env(safe-area-inset-left))); z-index: -1; background: radial-gradient(ellipse 85% 70% at 22% 50%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0.3) 55%, transparent 78%); }
+#g-story-teach.on { opacity: 1; }
+#g-story-teach.done { opacity: 0; transition: opacity 0.9s ease; }
+#g-story-teach small { display: block; font: 400 10px/1.3 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--amber); }
+#g-story-teach small::after { content: ""; display: block; width: 28px; height: 1px; margin: 11px 0 14px; background: rgba(255, 207, 138, 0.7); }
+#g-story-teach ol { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
+#g-story-teach li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 12px; align-items: start; opacity: 0.5; transition: opacity 0.35s ease; }
+#g-story-teach li b { display: grid; place-items: center; width: 20px; height: 20px; margin-top: -1px; border: 1px solid rgba(244, 239, 230, 0.55); border-radius: 50%; font: 500 10px/1 var(--f-mono); color: var(--paper); text-shadow: none; transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
+#g-story-teach li span { font: 400 14px/1.35 var(--f-body); letter-spacing: 0.005em; }
+#g-story-teach li kbd { display: inline-block; margin-left: 8px; padding: 2px 6px; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: 400 10px/1.3 var(--f-mono); letter-spacing: 0.06em; vertical-align: 1px; }
+#g-story-teach li p { grid-column: 2; display: none; margin: 5px 0 2px; font: 300 12.5px/1.45 var(--f-body); color: rgba(244, 239, 230, 0.84); }
+#g-story-teach li.now { opacity: 1; }
+#g-story-teach li.now b { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 0 0 rgba(255, 207, 138, 0.5); animation: g-story-teach-now 1.6s ease-in-out infinite; }
+#g-story-teach li.now p { display: block; }
+#g-story-teach li.done { opacity: 0.72; }
+#g-story-teach li.done b { border-color: var(--amber); background: var(--amber); color: transparent; }
+#g-story-teach li.done b::before { content: ""; width: 8px; height: 4px; margin: -2px 0 0; border-left: 1.6px solid #0b1020; border-bottom: 1.6px solid #0b1020; transform: rotate(-45deg); }
+#g-story-teach li.ticked b { animation: g-story-teach-tick 0.5s cubic-bezier(0.2, 0.8, 0.2, 1.4) both; }
+#g-story-teach li.nudge { animation: g-story-teach-nudge 0.5s ease 2; }
+@keyframes g-story-teach-now { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 207, 138, 0.45); } 50% { box-shadow: 0 0 0 6px rgba(255, 207, 138, 0); } }
+@keyframes g-story-teach-tick { 0% { transform: scale(0.6); } 100% { transform: none; } }
+@keyframes g-story-teach-nudge { 0%, 100% { transform: none; } 25% { transform: translateX(6px); } 75% { transform: translateX(-4px); } }
+/* (while it teaches, it is the help: the goal's own plain line under it would say the same thing twice) */
+.game-stage.story:has(#g-story-teach.on:not(.done)) #g-story-goal em { display: none; }
+.game-stage.story:has(.g-dialog:not([hidden])) #g-story-teach, .game-stage.story:has(#g-story-mov.on) #g-story-teach { opacity: 0; }
+/* (on a phone the top of the frame has the goal and the button that lowers the camera, and its middle the thing itself:
+   the card is a strip low in the frame, over the thumbs' controls, with the four steps as four marks and only the step
+   to do now in words) */
+@media (pointer: coarse), (max-width: 640px) {
+  #g-story-teach { top: auto; bottom: max(204px, calc(env(safe-area-inset-bottom) + 204px)); left: max(16px, env(safe-area-inset-left)); right: max(88px, calc(env(safe-area-inset-right) + 88px)); width: auto; transform: none; } /* (clear of the run button on the right) */
+  #g-story-teach::before { inset: -16px calc(-1 * max(16px, env(safe-area-inset-right))) -14px calc(-1 * max(16px, env(safe-area-inset-left))); background: linear-gradient(to bottom, transparent, rgba(4, 8, 18, 0.6) 28%, rgba(4, 8, 18, 0.6) 78%, transparent); }
+  #g-story-teach small { font-size: 9px; letter-spacing: 0.24em; }
+  #g-story-teach small::after { display: none; }
+  #g-story-teach ol { display: grid; grid-template-columns: repeat(4, 20px) minmax(0, 1fr); column-gap: 7px; row-gap: 5px; margin-top: 8px; }
+  #g-story-teach li { display: contents; }
+  #g-story-teach li b { grid-row: 1; width: 18px; height: 18px; font-size: 9.5px; opacity: 0.55; }
+  #g-story-teach li:nth-child(2) b { grid-column: 2; } #g-story-teach li:nth-child(3) b { grid-column: 3; } #g-story-teach li:nth-child(4) b { grid-column: 4; } #g-story-teach li:nth-child(1) b { grid-column: 1; }
+  #g-story-teach li:is(.now, .done) b { opacity: 1; }
+  #g-story-teach li:not(.now) :is(span, p) { display: none; }
+  #g-story-teach li.now span { grid-row: 2; grid-column: 1 / -1; font-size: 14px; }
+  #g-story-teach li.now p { grid-row: 3; grid-column: 1 / -1; margin: 0; font-size: 12px; }
+  #g-story-teach li.nudge :is(b, span) { animation: g-story-teach-nudge 0.5s ease 2; } /* (an item laid out as its parts shakes by them) */
+}
+@media (prefers-reduced-motion: reduce) { #g-story-teach li.now b, #g-story-teach li.ticked b, #g-story-teach li.nudge { animation: none; } }
+/* ---- the camera raised off the place its year was seen from: the year over the frame says so, and nothing of that year
+   forms in the lines (past.js open) */
+#g-story-finder[data-off]::before { content: attr(data-year) "  ·  not from here"; color: rgba(244, 239, 230, 0.78); }
