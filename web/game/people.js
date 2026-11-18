@@ -1405,7 +1405,9 @@ transformed = crowdPose(transformed, false);`);
       umbOn = on;
       for (const c of UMB_KEYS) { const m = umbMesh(c); m.visible = on; if (!on) m.count = 0; }
     }
-    return { begin, place, hide, end, setRain, meshes, active, umbrellas: umbMeshes };
+    // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
+    const shows = i => active.has(i) || !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count);
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };

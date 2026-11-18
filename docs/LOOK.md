@@ -284,8 +284,20 @@ camera's own probe, from the face to the lens), tree trunk, crown (from its lowe
 `clear_m`, `crown_r`), lamp post or body stands within reach of the line from the lens to the eyes. A shot that
 is not clear comes in along the same line; only when nothing on that side is clear is the line crossed. The
 crowd in a Stop is held and cannot be seen to step aside, so whoever of it still stands in the way is left
-undrawn while the shot lasts. `tools/talk_check.js` plays the episode and fails a shot whose face is off the
-screen or occluded, or whose lens is in a wall.
+undrawn while the shot lasts.
+
+A clear line is not a clear frame (issue 45): a held walker a shoulder's width off the line filled the middle of
+the summation's close shot, the old woman pushed to its edge and half hidden, and a stranger with an umbrella
+stood at her shoulder in the two-shot as though one of the talk. At each cut the shot is cleared of the crowd it
+would show in front of the face (everyone nearer the lens than a pace beyond the face whose body, or an open
+umbrella's canopy, comes into the frame) and of anyone within 1.1 m of the face: a walker among them is sent on
+elsewhere, as one the crowd is done with, and someone waiting at a scramble's kerb is left undrawn until the
+next cut. A cut hides the change, in a Stop as in the running street. The street behind the face keeps its
+people: they are the life behind a talk.
+
+`tools/talk_check.js` plays the episode and fails a shot whose face is off the screen or occluded, whose lens is
+in a wall, or which shows any of the crowd it should have cleared, judged by what the crowd's renderer draws
+(not by what the camera meant to clear).
 
 Learnt from, not copied: film grammar's coverage of a dialogue (master, singles, reverse; the line of action);
 the dialogue cameras of *Mass Effect* (2007) and *The Witcher 3* (2015), which cut between a small set of
