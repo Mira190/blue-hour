@@ -251,10 +251,11 @@ lamps lit under the stars.
 
 ### The living who help
 
-- **Shun 瞬**, at the vintage camera shop in Center Gai (frame 2). Reads the camera; his grandfather had the shop in '64
+- **Shun 駿**, at the vintage shop in Center Gai (古着屋), where old cameras sit among the clothes (frame 2). Reads the
+  camera; his grandfather had the shop in '64
   and said the things that are the story's rules (*people leave themselves behind…*; *a roll wakes one frame at a time,
-  if you stand where the man stood*). Thought he was drunk. On Monday the roll goes to him.
-- **Yuna 結菜**, at SHIBUYA SKY's lift (frame 4). Her grandmother ran the lift beside Sumiko's: saw the Hayase girl come
+  if you stand where the man stood*). Thought he was drunk.
+- **Yuna 優奈**, at SHIBUYA SKY's lift (frame 4). Her grandmother ran the lift beside Sumiko's: saw the Hayase girl come
   back from the planetarium with one glove, heard the floor manager tell the police every girl was at her post, said
   nothing, and was sorry for it all her life. *You take people up, and you do not ask them why.*
 - **The office 事務所**, a voice on the phone (the first minute; the helicopter). Sends Kagami, gives the job and its odd
@@ -365,7 +366,7 @@ It has the movements a classical mystery has:
 | 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Proves each answer; finds the corner; takes the last frame | Every light green. They meet. She crosses |
 
 **How each place is reasoned to.** No place is given by a line saying where to walk; each follows from the frame before.
-The board at her corner names the planetarium and Mizuno (1). A name on a camera goes to a camera shop, and Shun's
+The board at her corner names the planetarium and Mizuno (1). A name on a camera goes to the shop where old cameras sit among the clothes, and Shun's
 grandfather's saying and the old man on the blossom send you back out to stand where the man stood (2). A boy who ran
 from a pitch thirty steps from a police box was seen from it (3). The planetarium's roof is gone; it can be seen only
 from above (4). Kanbara's works were the river at the tower's foot (5). The old man on the blossom has been watching the
