@@ -2,7 +2,7 @@
 // levels, so that the cues sit together (docs/SOUND.md "Levels"): its true sample peak (dBFS), its loudest 400 ms
 // (momentary loudness, LUFS, ITU-R BS.1770 K-weighting) and its gated integrated loudness. Nothing is normalised: the
 // files are at the level the game plays them.
-//   NODE_PATH=$(npm root -g) node tools/sound_render.js [outdir] [cue ...]
+//   NODE_PATH=$(npm root -g) [TAPE=worklet|deck] node tools/sound_render.js [outdir] [cue ...]
 // The cues one by one; the Stop over the street (its murmur, the screens' song, the walk calls, footsteps), braked,
 // held five seconds and let go; and the same footsteps and a call in each place's room.
 const { chromium } = require('playwright');
@@ -17,7 +17,8 @@ async function render(browser, seconds, script) {
   p.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') errors.push(m.text()); });
   // (an https page, served here: an AudioWorklet, the tape, is made only in a secure context)
   await p.route('https://sound.test/**', r => r.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
-  await p.goto('https://sound.test/');
+  // (TAPE=worklet or TAPE=deck: the Stop's tape as a mouse's page or a touch screen's has it; unset, a phone's, the deck)
+  await p.goto(`https://sound.test/${process.env.TAPE ? `?tape=${process.env.TAPE}` : ''}`);
   // audio.js's context is an offline one, and its clock is the one this script sets (window.__t)
   // (as a phone hears it, with stereo pans: the HRTF panner's database loads lazily, and an offline render waiting on
   // it in headless Chromium could hang)
