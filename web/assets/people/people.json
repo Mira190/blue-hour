@@ -940,6 +940,19 @@
     ],
     "mask": 0.514
    },
+   "R_Business_Female_03_f011": {
+    "file": "R_Business_Female_03_f011.glb",
+    "sex": "f",
+    "avatar": "Professions/Business_Female_03",
+    "head": "Adults/Female_Adult_11",
+    "tags": [],
+    "height_m": 1.736,
+    "triangles": 9158,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.514
+   },
    "R_Business_Female_04_f003": {
     "file": "R_Business_Female_04_f003.glb",
     "sex": "f",
@@ -1072,6 +1085,21 @@
     "cities": [
      "hong-kong"
     ]
+   },
+   "R_Construction_Male_05_m017_bare": {
+    "file": "R_Construction_Male_05_m017_bare.glb",
+    "sex": "m",
+    "avatar": "Professions/Construction_Male_05",
+    "head": "Adults/Male_Adult_09",
+    "tags": [
+     "bare"
+    ],
+    "height_m": 1.821,
+    "triangles": 7602,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.0534
    },
    "R_Delivery_Male_01": {
     "file": "R_Delivery_Male_01.glb",

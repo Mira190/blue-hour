@@ -4022,7 +4022,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'heli' && cam.mode === 'cockpit') { cam.lookYaw = Math.max(-2.4, Math.min(2.4, cam.lookYaw - dx * 0.005)); cam.lookPitch = Math.max(-1.1, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
     else if (onTrain() && cam.mode !== 'chase') { cam.lookYaw = Math.max(-2.6, Math.min(2.6, cam.lookYaw + dx * 0.005)); cam.lookPitch = Math.max(-0.9, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
     else if (player.mode === 'seat') { cam.lookYaw = Math.max(-1.9, Math.min(1.9, cam.lookYaw + dx * 0.004)); cam.lookPitch = Math.max(-0.7, Math.min(0.9, cam.lookPitch - dy * 0.0035)); } // in a seat: you turn your head
-    else { cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + dy * 0.005)); }
+    else { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006 * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + dy * 0.005 * ls)); } // (through the lens, slower the longer it is, and up as far as the eye looks)
     cam.lastInput = clockT;
   });
   on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.open) dlg.next(false); drag = null; });
@@ -6060,7 +6060,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   // ------------------------------------------------------------ the loop
   let last = performance.now(), clockT = 0, sunTimer = 0, sunState = 'sun', stepPhase = 0, bumpT = -9, waterT = -99;
-  const fpDir = new THREE.Vector3(), fpUp = new THREE.Vector3(); let fpOn = false, filmOn = false, filmYaw = 0; // (the story's camera raised: the lens's view; the story's own film, and where it looked last)
+  const fpDir = new THREE.Vector3(), fpUp = new THREE.Vector3(), fpQ = new THREE.Quaternion(); let fpOn = false, filmOn = false, filmYaw = 0; // (the story's camera raised: the lens's view; the story's own film, and where it looked last)
+  const fp = { yaw: 0, pitch: 0, yawT: 0, pitchT: 0, k: 1, eyeZ: 0, fov: null, from: null, dur: 0.28 }; // (the lens's own aim, as it is and as the hand turns it; how far up it has come; its angle)
+  // (the hand turns a long lens less, by the ratio of its angle to the eye's: the same move of the mouse takes the same
+  // share of the picture whatever the lens, as Rainbow Six Siege scales its aim, not the same degrees)
+  const lensTurn = () => Math.tan((fp.fov || 40) * Math.PI / 360) / Math.tan(40 * Math.PI / 360);
   const camTarget = new THREE.Vector3(), camPos = new THREE.Vector3(), camSmooth = new THREE.Vector3(), camOff = new THREE.Vector3(), camWant = new THREE.Vector3();
   // What a device that can't keep up gives up, and gets back when it can (the governor, quality.js): resolution
   // first, a step at a time, which the lens's sharpened upscale hides; then the extras (the far rain and its
@@ -6174,7 +6178,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
-    if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot') cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
+    if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
     // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
     // case is closed and it is hers again; never in the free game (people.js camera1964, hung where the main
@@ -6318,7 +6322,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
-      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt)); cam.lastInput = clockT; }
+      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt * ls)); cam.lastInput = clockT; }
     }
     if (D.district && playing && (player.mode === 'foot' || player.mode === 'car') && !inFrame(player.x, player.y, 8)) districtEdge(); // (a phone's district: its edge, said)
     const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + joy.y + (gamepad ? gamepad.move.y : 0);
@@ -6421,8 +6425,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const stp = player.mode === 'foot' && player.ground ? nav.strips.find(q => q.name === player.floor && q.profile) : null;
       if (stp) {
         const u = (player.x - stp.origin[0]) * stp.axis[0] + (player.y - stp.origin[1]) * stp.axis[1], P = stp.profile, T = 0.4;
-        let k = 0;
-        for (let i = 0; i < P.length - 1; i++) if (u >= P[i][0] && u <= P[i + 1][0]) k = (P[i + 1][1] - P[i][1]) / Math.max(1e-3, P[i + 1][0] - P[i][0]);
+        const kAt = uu => { for (let i = 0; i < P.length - 1; i++) if (uu >= P[i][0] && uu <= P[i + 1][0]) return (P[i + 1][1] - P[i][1]) / Math.max(1e-3, P[i + 1][0] - P[i][0]); return 0; };
+        // (an escalator's: the steepest of the slope here and a step ahead, so the feet go up onto the first riser as it
+        // rises under them, not 0.23 m into it while the slope has yet to begin)
+        const k = stp.moving_ms ? [0, 0.1, 0.2, 0.3].map(d => kAt(u + d)).reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0) : kAt(u);
         if (Math.abs(k) > 0.25) player.rig.root.position.y += stp.moving_ms ? Math.abs(k) * T * 0.8 : Math.abs(k) * (k > 0 ? Math.ceil(u / T) * T - u : u - Math.floor(u / T) * T);
       }
     }
@@ -6542,7 +6548,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     const m = Math.min(1, Math.hypot(fwd, side));
     const run = k('ShiftLeft') || k('ShiftRight');
-    const target = m > 0.05 ? (run ? GAIT.sprint : player.walking ? GAIT.walk : GAIT.run) * m : 0; // run, walk (X) or sprint (hold Shift)
+    const target = m > 0.05 ? (fpOn ? GAIT.walk : run ? GAIT.sprint : player.walking ? GAIT.walk : GAIT.run) * m : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
     gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
     player.speed += (target - player.speed) * Math.min(1, dt * (target > player.speed ? 6 : 10));
     if (m > 0.05) {
@@ -6620,6 +6626,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           const w = nav.walk(nx, ny, player.z, true);
           if (w.ok && Math.abs(w.z - player.z) < 0.15) { player.x = nx; player.y = ny; } else player.escOff = null;
         }
+      }
+      // (and on the steps you stand on a step, not half off it: the strip is the steps' whole width and the glass stands
+      // just past it, so a body that stepped on at its side rode the whole way with a shoulder in the glass; drawn in,
+      // eased, to within 0.2 m of the middle, a hand's width clear of the glass)
+      if (u >= esc.us[0] && u <= esc.us[esc.us.length - 1]) {
+        const [, v] = nav.stripUV(esc, player.x, player.y), keep = Math.max(0, Math.min(0.2, esc.half_width - 0.3)), dv = Math.max(-keep, Math.min(keep, v)) - v;
+        if (Math.abs(dv) > 1e-4) { const e = 1 - Math.exp(-dt / 0.12); player.x += -esc.axis[1] * dv * e; player.y += esc.axis[0] * dv * e; }
       }
     } else player.escOff = null;
     const f = nav.floorAt(player.x, player.y, player.z);
@@ -6796,31 +6809,77 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         }
       }
     }
-    // the story's camera raised (story.js): the view is the lens's, from your own eye, not from behind you. The drag
-    // that turns the chase view turns your head (lower the view to look up), and the wheel that brings the chase view
-    // closer is the lens's ring: 12 degrees, a long lens, to 60, a wide one
+    // the story's camera raised (story.js): the view is the lens's, from your own eye, not from behind you. It has an aim of
+    // its own (fp: where the lens points, and where the hand turns it), so nothing that moves the view behind you moves it
+    // (that view's turn round you in the Stop, its swing round behind a walk, its ease towards the goal, its lift over a
+    // wall): it was read off that view every frame, and came up turning by itself, wherever that view had been pitched.
+    // It comes up as a camera is raised to the face, a third of a second from where the view was to the eye, onto what
+    // the frame is of (story.subject: the thing, at its height) unless that is behind you; then the lens's ring turns to
+    // the frame's own lens (task.lens) in about a second, as a hand would. The drag that turns the view behind you turns
+    // the lens, slower as the lens is longer; the wheel is the lens's ring: 12 degrees, a long lens, to 60, a wide one
     if (story && story.finder && player.mode === 'foot' && !shot) {
-      const h = fpDir.copy(live.look).sub(live.pos); h.y = 0;
-      if (h.lengthSq() > 1e-6) {
-        h.normalize();
-        const pt = Math.max(-1.1, Math.min(0.9, 0.3 - cam.pitch)), eye = W(player.x, player.y, player.z + 1.56);
-        // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
-        // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
-        const hold = story.hold;
-        if (hold) eye.y += hold[1];
-        camera.position.copy(eye).addScaledVector(h, hold ? hold[0] : 0.12);
-        camera.up.set(0, 1, 0);
-        camera.lookAt(eye.addScaledVector(h, 50 * Math.cos(pt)).add(fpUp.set(0, 50 * Math.sin(pt), 0)));
-        // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
-        // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it).
-        // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
-        // narrow screen through about 0.7 of that angle across its width, so that on a phone the thing is near the size it
-        // is in a desktop's finder, and its lettering can be read
-        const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), f = camera.aspect >= 1.5 ? f0 : Math.min(lensWas != null && f0 >= 45 ? 105 : 95, 2 * Math.atan(Math.tan(f0 * Math.PI / 360) * (lensWas != null && f0 < 45 && !lensWide ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
-        if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); }
-        player.rig.root.visible = false; fpOn = true;
+      const hold = story.hold, eyeZ = player.z + 1.56 + (hold ? hold[1] : 0);
+      if (!fpOn) {
+        // (from the view as it was: where it stood, which way it looked, its lens)
+        fp.from = { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
+        // (the way the view behind you faces, and its pitch as the eye's: 0.3 of it is level. Not that view's own downward
+        // look at you from over your shoulder, which brought the lens up 17 degrees low and the last frame's two kerbs out of it)
+        const yaw0 = cam.yaw, pitch0 = 0.3 - cam.pitch;
+        let yaw = yaw0, pitch = Math.max(-0.3, Math.min(0.3, pitch0)); // (raised to the eye, the lens is held about level)
+        const at = story.subject;
+        if (at) {
+          const dx = at[0] - player.x, dy = at[1] - player.y, ys = Math.atan2(dx, dy);
+          if (Math.abs(angDiff(ys, yaw0)) < 1.75) { yaw = ys; pitch = Math.max(-1.0, Math.min(0.8, Math.atan2((at[2] ?? player.z + 1.2) - eyeZ, Math.hypot(dx, dy)))); } // (within 100 degrees of where you looked; behind you, the view is not spun round: the arrow on the frame lines points there)
+        }
+        fp.yaw = fp.yawT = yaw; fp.pitch = fp.pitchT = pitch; fp.k = 0; fp.eyeZ = eyeZ;
+        fp.dur = 0.28 + 0.25 * Math.abs(angDiff(yaw, yaw0)) / (Math.PI / 2); // (a shooter's aim is 0.25 to 0.38 s; a turn onto the thing takes its time, never a whip)
+        cam.yaw = yaw; cam.pitch = Math.max(-0.6, Math.min(1.35, 0.3 - pitch)); cam.yawTo = cam.pitchTo = null; // (the hand turns it from there)
+        fp.fov = null; fpOn = true;
       }
-    } else if (fpOn) { fpOn = false; player.rig.root.visible = true; lensWide = false; if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); } // (a frame's own lens is given back when the finder's view ends)
+      cam.yawTo = cam.pitchTo = null;
+      // (the story's steer: the lens eased onto a point while it asks, as the last frame's two walk to the middle and the lens
+      // closes on them; the hand still turns it, and is pulled back gently)
+      const steer = story.steer;
+      if (steer) { const dx = steer[0] - player.x, dy = steer[1] - player.y, k = 1 - Math.exp(-dt / 0.6); cam.yaw += angDiff(Math.atan2(dx, dy), cam.yaw) * k; const pw = 0.3 - Math.atan2((steer[2] ?? player.z + 0.9) - fp.eyeZ, Math.hypot(dx, dy)); cam.pitch += (pw - cam.pitch) * k; }
+      fp.yawT = cam.yaw; fp.pitchT = Math.max(-1.1, Math.min(0.9, 0.3 - cam.pitch));
+      const e = 1 - Math.exp(-dt / 0.06); // (the hand's turn, eased over a few hundredths of a second: smooth, never behind it)
+      fp.yaw += angDiff(fp.yawT, fp.yaw) * e; fp.pitch += (fp.pitchT - fp.pitch) * e;
+      fp.eyeZ += (eyeZ - fp.eyeZ) * (1 - Math.exp(-dt / 0.08)); // (a step up or down is not a jolt in the finder)
+      const hx = Math.sin(fp.yaw), hy = Math.cos(fp.yaw), cp = Math.cos(fp.pitch);
+      // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
+      // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
+      const eye = W(player.x + hx * (hold ? hold[0] : 0.12), player.y + hy * (hold ? hold[0] : 0.12), fp.eyeZ);
+      fpUp.copy(eye).add(fpDir.set(hx * cp, Math.sin(fp.pitch), -hy * cp));
+      // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
+      // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it).
+      // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
+      // narrow screen through about 0.7 of that angle across its width, so that on a phone the thing is near the size it
+      // is in a desktop's finder, and its lettering can be read
+      const lensOf = (v, ring) => camera.aspect >= 1.5 ? v : Math.min(lensWas != null && (ring >= 45 || lensWide) ? 105 : 95, 2 * Math.atan(Math.tan(v * Math.PI / 360) * (lensWas != null && ring < 45 && !lensWide ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
+      const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5));
+      // (it comes up at an eye's own angle, 40 degrees, a 35 mm lens, and the ring is turned to the frame's lens once it is up)
+      if (fp.fov == null) fp.fov = 40;
+      fp.k = Math.min(1, fp.k + dt / (fp.dur || 0.28));
+      const up = fp.k * fp.k * (3 - 2 * fp.k);
+      if (fp.k >= 1) fp.fov += (f0 - fp.fov) * (1 - Math.exp(-dt / 0.3));
+      const f = lensOf(fp.fov, f0); // (the narrow screen's rule from the ring's lens, not the angle easing to it: the last frame's 50 degrees came up from 40 through 45, and a phone's view jumped from narrow to wide in the raise)
+      camera.up.set(0, 1, 0);
+      camera.position.copy(eye); camera.lookAt(fpUp);
+      if (up < 1 && fp.from) { // (the raise: from the view as it was to the eye, the lens swinging round onto its aim)
+        fpQ.copy(camera.quaternion);
+        camera.position.lerpVectors(fp.from.pos, eye, up);
+        camera.quaternion.copy(fp.from.quat).slerp(fpQ, up);
+      }
+      const fov = up < 1 && fp.from ? fp.from.fov + (f - fp.from.fov) * up : f;
+      if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+      player.rig.root.visible = up < 0.5; // (yourself, until the camera is at your face)
+    } else if (fpOn) {
+      fpOn = false; player.rig.root.visible = true; lensWide = false;
+      // (lowered: the view behind you looks where the lens did, and comes back from the eye in a third of a second)
+      cam.yaw = fp.yaw; cam.pitch = Math.max(-0.25, Math.min(1.35, 0.3 - fp.pitch)); cam.yawTo = cam.pitchTo = null;
+      if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); // (a frame's own lens is given back when the finder's view ends)
+      if (!shot) blendFrom(0.22);
+    }
     lensClear();
     Wd.fitShadow(live.look, live.half);
   }
@@ -6940,7 +6999,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // back towards it turned the walk with the camera and the view spun round and round at 150 degrees a second, and a
     // walk across it swung the view the moment the wait ran out
     const idle = clockT - cam.lastInput;
-    if (follow != null && idle > (veh || air ? 0.9 : 1.6) && moving) {
+    if (follow != null && idle > (veh || air ? 0.9 : 1.6) && moving && !fpOn) { // (not with the camera at your eye: the lens turns only with the hand)
       if (veh || air) cam.yaw += angDiff(follow, cam.yaw) * Math.min(1, dt * (veh ? 2.6 : 1.4 + Math.min(1.6, heli.st.speed * 0.04)));
       else cam.yaw += Math.sin(angDiff(follow, cam.yaw)) * 0.9 * Math.min(1, (idle - 1.6) / 1) * Math.min(1, player.speed / 2) * Math.min(dt, 0.1);
     }

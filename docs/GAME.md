@@ -2306,6 +2306,11 @@ quality tier runs a third of the cars.
     moving stretch (`moving_u`) along its axis, so a way down is a strip whose axis
     points down the flight (SHIBUYA SKY's west escalator). You can walk on it too.
     `tools/game_check.js` stands on each and checks that it carries you to its far end.
+    On the steps you stand on a step: the strip is the steps' whole width (SHIBUYA SKY's a metre) and their glass stands
+    a hand past it, so a body that stepped on at the side rode the whole way with a shoulder in the glass. The rider is
+    drawn in, eased, to within 0.2 m of the middle (a hand's width clear of the glass); and the feet go up onto the first riser as it rises under them, a
+    step ahead of the slope, not 0.23 m into it (`tools/escalator_ride_shot.js` rides each from the middle and from the
+    side, with stills from behind and beside).
   - **High floors:** a travel point with a height (`[x, y, z]`) lands you on a roof.
     `always: true` lists it on the map before you have been there.
 - **Sound** (`web/game/audio.js`): synthesised with Web Audio, with no files.

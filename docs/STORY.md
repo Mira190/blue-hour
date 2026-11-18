@@ -262,6 +262,23 @@ lamps lit under the stars.
   word, and keeps telling the sister *out on a job*. The client is *an estate: a Mr Hoshino, who printed for us before my
   time*.
 
+### How they are cast
+
+A face is evidence in a mystery: two people who share one are taken for one, and the person a player must recognise
+should be recognisable. Rocketbox has four East Asian women's heads and four men's (`docs/GAME.md`, *Heads*), one of
+each worn by Kagami, and two professions' bodies with Japanese faces of their own; the story's people are cast from those
+(`game.story`, each `character`; built by `blender/build_people.py --npcs`, which builds the story's people as it builds
+the cities' NPCs):
+
+| Who | Look | Why |
+|---|---|---|
+| Sumiko at 22 (the girl) | `R_Business_Female_03_f011`: Female_Adult_11's head, black hair up, on a jacket and knee-length skirt | The same head as Sumiko at 84 (`R_Female_Adult_09_f011_grey`), so the girl is visibly the old woman: the last reveal is in plain sight. The jacket and skirt are the nearest Rocketbox has to a lift girl's uniform of 1964 (her white gloves and little hat are not built). Until November 2026 she was a fair-haired woman in a leather jacket and combat trousers |
+| Tatsuo | `R_Construction_Male_05_m017_bare`: work clothes, bare-headed | Not the face of the man he passed on the stair. Until November 2026 he and Akira both wore m008 |
+| Akira at 87 | `R_Male_Adult_03_m008_grey` | As before |
+| Kanbara | `R_Business_Male_06_m024`: in his shirtsleeves | A Japanese section chief; until November 2026 a European face |
+| The detective | `R_Business_Male_02`: a dark suit and tie, a Japanese face of its own | A detective works in plain clothes; and a uniform on 10 October would have been the dark winter one (the change of dress is on 1 October), not the white naval-style uniform he wore until November 2026 |
+| Mr Tanaka | `R_Male_Adult_14_m017_grey` | As before. He shares m017 with Tatsuo (31 and dark; 76 and grey; never in one frame): with four heads to a sex, no cast of six men is without one shared face, and this pair is the one no deduction turns on |
+
 ## 6. The truth: what happened, minute by minute
 
 **Before.** 17 September 1964, night: the works pour at night to be done for the Games; the river comes down; Kudo
@@ -483,6 +500,29 @@ What Rocketbox's faces cannot do in a close shot (no blendshapes, no mouth) wait
 **Every frame is a place worth photographing.** The camera raised is the lens's own view, from the
 eye, with the wheel as the lens's ring (a long lens to a wide one). Each frame asks for a picture
 a visitor to Shibuya would want anyway, and the clue is in it.
+
+**Raising the camera** (game.js, the finder's view; story.js `raise`, `subject`). For a while the lens's view was read
+every frame off the view behind you, so everything that moves that view moved the lens: its turn round you in the Stop,
+its swing round behind a walk, its ease towards the goal, its lift over a wall. It came up drifting, and wherever that
+view had been pitched (a player saw a wall's upper floors, and no lamp). Now, as the photography games and the aim of
+third-person games do it:
+- the lens has an aim of its own, from your eye (taken at your feet, 1.56 m up, eased over steps, never the animated
+  head), and moves only with your hand: no sway, no breathing, no drift (Xbox accessibility guideline 117; The Last of
+  Us Part II's camera sway is an option to turn off; mouse smoothing and camera moves the player did not make are listed
+  causes of motion sickness, Game Accessibility Guidelines);
+- it comes up in 0.28 s (a shooter's aim is 0.25 to 0.38 s), the view swinging from where it was to the eye and you no
+  longer drawn once it is at your face; onto the thing the frame is of, at its height, when that is within 100 degrees of
+  where you were looking, a turn onto it taking a quarter second more for each quarter turn so that it is never a
+  whip; behind you, the view is not spun round, and the arrow on the frame lines points to it (Fatal Frame's filament
+  points the way to a ghost; aim assists snap only to what is near the aim);
+- it comes up at an eye's own angle, 40 degrees (a 35 mm lens), and the ring then turns to the frame's own lens
+  (`task.lens`) in about a second, as a hand would (Fatal Frame II's camera comes up at a neutral lens; zoom is the
+  player's, by the wheel);
+- the hand turns a long lens less, by the ratio of its angle to the eye's (Rainbow Six Siege scales its aim so); the
+  walk with the camera up is a walk;
+- lowered, the view behind you comes back from the eye in 0.22 s looking where the lens looked.
+`tools/story_play.js` raises it in every frame from 63 degrees off the thing with the view pitched down: the thing must
+be in the picture and the lens still to within 0.15 degrees a frame with no hand on it.
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
@@ -1046,7 +1086,7 @@ The owner chose the issue's first way: the last frame is taken as they meet.
   the ticket before the card shows it; the release while they walk takes nothing (*Not yet*).
 - **The lens closes on them.** As they come, the lens goes from the frame's 50 degrees to one that is 9 m from top to
   bottom where they meet (12 degrees, the lens's longest, from the corner the hints lead to), eased with how far they
-  have come, and the view is brought round to the middle, level (`meet.frame_m`): two people about a fifth of the
+  have come, and the lens is eased onto the middle while they walk (`meet.frame_m`; `story.steer`, the hand still turns it): two people about a fifth of the
   frame's height near its middle, the crossing round them and the held crowd parted either side. A narrow screen keeps the film frame's width at every length
   of that lens (`ctx.lens(fov, true)`), so a phone's print is the desktop's picture.
 - **The music meets them.** The score's phrase for it (`music.js` `meet`: her line and his in contrary motion to one note,
