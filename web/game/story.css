@@ -405,6 +405,15 @@
 /* ---- a case left unfinished: the second button on the title */
 .game-stage.story #gt-anew { margin-left: 12px; padding: 15px 20px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; cursor: pointer; }
 .game-stage.story #gt-anew:is(:hover, :focus-visible) { border-color: var(--paper); }
+/* the title's ways in (the episode, the evening again, the walk): each as wide as its words, side by side while they
+   fit and one under another when they don't, never squeezed so that their words run into the next; on the narrowest
+   screens the words wrap inside the button (tools/ui_fit.js) */
+.game-stage.story .gt-go { gap: 10px 12px; }
+.game-stage.story .gt-go > .btn { flex: 0 1 auto; min-width: 0; max-width: 100%; white-space: normal; text-align: left; line-height: 1.5; padding-top: 11px; padding-bottom: 11px; }
+.game-stage.story .gt-go > .btn > span { min-width: 0; }
+.game-stage.story #gt-anew { margin-left: 0; }
+#gt-walk-go { flex-wrap: wrap; row-gap: 2px; }
+@media (max-width: 860px) { .game-stage.story .gt-go > .btn { flex-grow: 1; justify-content: space-between; } }
 
 /* the street's own signs (the station's name card) are the free walk's: in the story only the story speaks */
 .game-stage.story .g-ekimei { display: none !important; }

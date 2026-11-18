@@ -23,6 +23,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
+const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number);
@@ -49,7 +50,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (a still is of frames drawn whole: every frame drawn from the one before it until it is taken)
   let whole = 0;
   const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(r)); }), whole > 0) : null; };
-  const snap = async name => { await drawAll(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await drawAll(false); };
+  const snap = async name => { await drawAll(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await drawAll(false); if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
