@@ -52,7 +52,8 @@ the deployed version. From version 4 also the device, coarsely: `gpu` (the GPU's
 browser names it, such as `apple m1 pro` or `intel iris xe graphics`, with the driver version, device id
 and API level cut away), `gpu_class` (apple, intel, amd, nvidia, adreno, mali, powervr, software, other),
 `cores` and `mem` (what the browser reports, itself rounded), `max_tex`, `os`, `browser` and its major
-version, and `net` (the connection's class, where the browser says). These group devices; they are not
+version, and `net` (the connection's class, where the browser says); and `pcompile`, whether WebGL 2 there compiles
+shaders in parallel (`KHR_parallel_shader_compile`: the loader's compile, docs/PERFORMANCE.md, issue 27). These group devices; they are not
 kept to tell one visitor from another, and no canvas, font or audio fingerprint is taken.
 
 Every event also carries where the visitor is in the view, once the view is ready: `spot`, `mode`, and in

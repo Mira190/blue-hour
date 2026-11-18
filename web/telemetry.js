@@ -97,7 +97,7 @@ window.OETelemetry = (function () {
     try {
       const t = Q.tier(), c = Q.probe();
       gpu = { tier: t.name, tier_chosen: t.chosen, gl2: !!c.gl2, software: !!c.software, gpu: gpuName(c.renderer) || undefined, gpu_class: gpuClass(c.renderer),
-        cores: c.cores || undefined, mem: c.memory || undefined, max_tex: c.maxTex || undefined };
+        cores: c.cores || undefined, mem: c.memory || undefined, max_tex: c.maxTex || undefined, pcompile: c.gl2 ? !!c.parallel : undefined };
     } catch (e) { gpu = {}; }
     return gpu;
   };

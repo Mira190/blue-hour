@@ -2651,11 +2651,14 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // frame that draws the caster's shadow (issue 266); not for a mirror's or other pass that draws no shadows.
   // flight: how many programs may be compiling at once (FLIGHT); fewer behind other work, whose own synchronous GL calls
   // wait for every program queued before them on a GPU that compiles one at a time (issue 327)
-  function compile(renderer, obj, camera, { scene = obj, target = null, clip = null, behind = false, hold = null, shadows = !clip, flight = FLIGHT } = {}) {
+  // only: which objects to compile (all of them without it); the loader's first set is those shown(), what the title can draw
+  // (issue 27: on an iPhone each program is about 150 ms that nothing overlaps; a third of the loader's were for things hidden)
+  function compile(renderer, obj, camera, { scene = obj, target = null, clip = null, behind = false, hold = null, shadows = !clip, flight = FLIGHT, only = null } = {}) {
     if (!renderer.compileAsync) return Promise.resolve();
     const objs = [], casters = [];
     obj.traverse(o => {
       if (!((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.material)) return;
+      if (only && !only(o)) return;
       objs.push(o);
       if (shadows && o.castShadow && !o.isSprite) casters.push(o);
     });
@@ -2663,7 +2666,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // the render target and the clipping planes, set for a compile and put back after it
     const bind = () => { const was = [renderer.getRenderTarget(), renderer.clippingPlanes]; renderer.setRenderTarget(target); if (clip) renderer.clippingPlanes = clip; return was; };
     const unbind = ([t, c]) => { renderer.setRenderTarget(t); renderer.clippingPlanes = c; };
-    if (objs.length < SLICED) {
+    if (objs.length < SLICED && !only) {
       const was = bind();
       let depth = [];
       try {
@@ -2733,9 +2736,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // pass draws in, so that the program is the one it looks up: no tone mapping and linear output (a render
   // target), no fog (it draws with an empty scene) and shadows on. Its lights are the ones the frame before
   // set up: three.js draws the shadow maps before it sets up the frame's lights, so its depth programs are
-  // keyed with the lights of the last frame drawn (the scene's), or none at all in the first frames. Both
-  // variants, then: with the scene's lights (the scene, its fog off), and with none (a scene holding only a
-  // bare THREE.Light that casts shadows: pushed as a shadow, counted as no kind of light).
+  // keyed with the lights the scene's render state last set up: the scene's, since a compile with the scene sets them
+  // up before the first frame is drawn. Its variant, then: with the scene's lights (the scene, its fog off). (The
+  // variant with no lights, which the loader also compiled, was never drawn with: tools/entry_cost.js counted ten of
+  // the loader's programs for it, issue 27.) A caster compiled with no scene of its own is keyed with none (a scene
+  // holding only a bare THREE.Light that casts shadows: pushed as a shadow, counted as no kind of light).
   const depthMats = new Map(), FLIP = {};
   let depthRT = null, depthScene = null;
   function depthOf(o, m) {
@@ -2767,7 +2772,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     renderer.setRenderTarget(depthRT);
     try {
       casters.forEach(o => { o.material = Array.isArray(o.material) ? o.material.map(m => depthOf(o, m)) : depthOf(o, o.material); });
-      for (const target of scene && scene.isScene ? [scene, depthScene] : [depthScene]) {
+      for (const target of scene && scene.isScene ? [scene] : [depthScene]) {
         if (target === scene) scene.fog = null;
         try { for (const m of renderer.compile(just, camera, target)) out.push(m); }
         catch (e) { /* compiled by the shadow pass instead */ }
@@ -2841,20 +2846,23 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // lists them in .materials and its quad's geometry in .quadGeometry) are compiled with compile() into the
   // composer's target, and those of the last few passes (the one that draws to the screen, whichever is on) for the
   // screen too: the two differ in output colour space and tone mapping, which pick the variant.
-  function warmPasses(renderer, composer) {
+  // first: only the passes on now (the opening's depth of field and motion blur, and the anime look, are off on the title),
+  // and for the screen only the last of them: the loader's first set (issue 27). Called again without it, the rest.
+  function warmPasses(renderer, composer, { first = false } = {}) {
     if (!composer || !composer.passes) return Promise.resolve();
     // (a stand-in for a pass's full-screen triangle, with its attributes, position and uv: they are part of the variant)
     const tri = new THREE.BufferGeometry();
     tri.setAttribute('position', new THREE.Float32BufferAttribute([-1, 3, 0, -1, -1, 0, 3, -1, 0], 3));
     tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 0, 0, 2, 0], 2));
-    const toTarget = new THREE.Group(), toScreen = new THREE.Group(), passes = composer.passes;
+    const toTarget = new THREE.Group(), toScreen = new THREE.Group(), all = composer.passes;
+    const passes = first ? all.filter(p => p.enabled !== false) : all;
     passes.forEach((p, i) => {
       const mats = new Set(), add = v => { if (v && v.isMaterial) mats.add(v); };
       for (const v of Object.values(p)) { add(v); if (Array.isArray(v)) v.forEach(add); }
       if (p.fsQuad) add(p.fsQuad.material);
       for (const m of mats) {
         toTarget.add(new THREE.Mesh(p.quadGeometry || tri, m));
-        if (i >= passes.length - 3) toScreen.add(new THREE.Mesh(p.quadGeometry || tri, m));
+        if (first ? i === passes.length - 1 : i >= passes.length - 3) toScreen.add(new THREE.Mesh(p.quadGeometry || tri, m));
       }
     });
     const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -3317,5 +3325,9 @@ if (dot(vRailT, vRailT) > 0.25) { vec3 oeT = normalize(vRailT), oeV = normalize(
     return g;
   }
 
-  return { load, loadLine, create, lin, smooth, compile, upload, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
+  // shown: drawn as things stand (it and every parent visible): the loader's first set (compile's only). A hidden thing the
+  // opening will show (the city's light show, which its evening reaches in the opening's first seconds) says so with
+  // userData.warmFirst, and is in the first set too
+  const shown = o => { for (let x = o; x; x = x.parent) if (!x.visible && !x.userData.warmFirst) return false; return true; };
+  return { load, loadLine, create, lin, smooth, compile, shown, upload, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
 })();
