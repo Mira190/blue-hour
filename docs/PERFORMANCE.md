@@ -936,6 +936,72 @@ are now made at the loader's tail and behind the title, so the low tier links
 about seven more programs before its first frame (100 against 93): on an iPhone, at about 150 ms a program, a second
 more under the loader in place of the same second in the title's first frames. Not checked: a real GPU, Safari or iOS.
 
+### The loader's compile, second round (issue 27)
+
+The owner's iPhone still spent 22 of its 33 s between "built" and the first frame. `tools/entry_cost.js` now prints the
+page's own `warm:` lines (when each part of the loader's wait was done, counted from "built", and how long the first frame
+waited for the GPU to draw it), and with `DUMP=1` the calls that linked each program (its `why`): which warm-up, or which
+draw. Measured with Mesa's shader cache off (`MESA_SHADER_CACHE_DISABLE=true`), as a first visit is: with it on, a second
+run here took half the time and hid what a first visit pays. What it found, and what was done:
+
+- **A program linked in the first frame.** The inland water's reflections of the street lights (inland.js `glints`) are
+  hidden until the lights come on, which the story's evening does in its first frame, so the loader's first set left them
+  out. Flagged `warmFirst` they were compiled, and still linked again in the first frame: the map builds them again when it
+  stands its lanterns (world.js `buildGlints`), and the new material was a new program. One material now serves every
+  build. On llvmpipe that draw was 11.7 of the first frame's 12.5 s.
+- **Programs made for nothing**, before the first frame:
+  - the sea's waves (water.js `FFT`, four programs) on a map with no sea: compiled only where the sea can be seen;
+  - the far trees' atlas (trees.js `bakeFar`, three): baked in the world's set-up, before the weather's patch was on the
+    trees' materials, so its compile made the variant without it and the atlas's draw made the right ones. Baked now when
+    the game first asks for it (world.js `ready`), after the weather;
+  - the ground and the far land without the light from the sky (two): compiled before the game's first `setSun` set the
+    scene's environment. The world now sets a first one once the sky's program is ready;
+  - PMREM's blur (one), which `fromScene` uses only with a sigma, never given here;
+  - the post passes' materials the frame does not draw (five): the bloom's fifth blur on the low tier, its merge, the
+    plain lens, and the lens's merged material into a target. A pass may say what its frame draws (`firstDraws`), and the
+    first set compiles that alone.
+- **Programs that were one shader.** The bloom's blurs were a program a level (three.js writes each level's kernel into
+  its shader: four on the low tier, five on the others); one now, each level reading its own taps up to its own count. A
+  cherry's bark bands were a define, two programs for the trees' solid parts and two more for the atlas; a uniform now.
+  A landmark under a canopy wrote its share of the sky into its shader as numbers; uniforms now.
+- **Work queued ahead of the first frame** that it does not draw: the crowd's palette and umbrellas (eight programs,
+  given with the game's warm-up as the loader finished) and the trains' cars (four, as their models arrived). On a GPU that
+  compiles one program at a time each was in the queue before the first frame's draws. Both start once the first frame is
+  drawn (game.js `firstFramed`); an NPC still waits to be shown until its programs are made (issue 31).
+- **The loader's compile, one at a time to the end.** The city's warm-up started behind the set-up with one program in
+  flight and a slice a frame, so that the set-up's own synchronous calls did not wait on a queue (issue 327), and kept that
+  pace after the set-up was done, with nothing else left to wait for. It now runs between the set-up's tasks rather than a
+  slice a frame, and takes up to six programs at once from "built".
+- **The periodic WebGL error check** (game.js `glCheck`, every 3 s) waits for the GPU, and behind the title for every
+  program queued: it is skipped while a sliced compile is under way (world.js `compiling()`) and asked once they are done.
+  The first frame's own check stays: it is what makes "frame" the time the GPU drew it.
+
+| `tools/entry_cost.js`, llvmpipe, Mesa's cache off | main | after |
+|---|---|---|
+| 390×844, low tier: programs linked before the first frame | 99 (68 drawn on the title, 26 not in the watch) | 69 (63 drawn on the title, 4 not in the watch) |
+| built to the first frame | 28.0 s, 27.9 s | 25.3 s, 23.2 s |
+| tap to the frame after it | 0.5 s, 1.0 s | 7.6 s, 0.4 s (see below) |
+| 1440×900, high tier: programs linked before the first frame | 110 (79 on the title, 24 not in the watch) | 79 (73 on the title, 4 not in the watch) |
+| built to the first frame | 65.0 s | 52.3 s |
+| tap to the frame after it | 9.3 s | 2.5 s |
+| programs a draw linked, title to 8 s into the opening | 0 | 0 |
+
+What is left on llvmpipe, by the `warm:` lines on the low tier: the programs are linked 10 to 12 s after "built", and the
+first frame then waits about 12 s for the GPU to draw it. That second wait is Mesa compiling each program's machine code
+at its first draw (with its cache on it is under a second), about 190 ms for each of the 63 programs the title draws; a
+draw behind the loader of each object into the post stack's target, tried, did not make the variants the frame then
+needed. An iPhone has the same two steps (ANGLE's Metal backend makes a pipeline for a program at its first draw), so the
+count of programs the first view draws is what to cut next: twelve landmark programs (each pattern writes its own shader;
+one pattern's numbers as uniforms would fold some), and the night's three kinds of light point. The opening's first
+seconds still hold one long frame (4.5 to 6 s here, on main as after): its first draws of what the title did not show,
+the same wait; it falls in the tap's frame or the one after it as the 3-second error check happens to fall, which is the
+7.6 s above.
+
+Not measured: an iPhone. At about 150 ms a program, 30 fewer before the first frame (the twelve moved behind it among
+them) would be about 4.5 s of its 22 s, and five fewer drawn on the title somewhat more at their first draw; the
+telemetry's `load` event (`build_ms` to `frame_ms`) on the owner's device is the number to read. Not checked either: a
+real GPU, Safari, WebGPU.
+
 ## The build stage (issue 327)
 
 The telemetry's desktop loads spent about 10 s between "decoded" and "built". `tools/start_profile.js LOAD=1

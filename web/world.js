@@ -798,7 +798,8 @@ vec3 steepRock(vec3 c, float k) {
         pmrem._setSize(256); // (fromScene's size)
         pmrem._allocateTargets().dispose();
         const g = new THREE.Group(), lod = pmrem._lodMeshes && pmrem._lodMeshes[0];
-        if (lod) for (const m of [pmrem._ggxMaterial, pmrem._blurMaterial]) if (m) g.add(new THREE.Mesh(lod.geometry, m));
+        // (not its blur: fromScene blurs only when given a sigma, which this never does; a program the phone's loader made for nothing, issue 27)
+        if (lod && pmrem._ggxMaterial) g.add(new THREE.Mesh(lod.geometry, pmrem._ggxMaterial));
         g.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false, depthTest: false })));
         if (pmrem._pingPongRenderTarget) compile(renderer, g, new THREE.PerspectiveCamera(90, 1, 0.1, 100), { target: pmrem._pingPongRenderTarget, shadows: false });
       }
@@ -1439,6 +1440,7 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
       for (let i = 0; i < seaT.data.length && !seaEver; i++) if (seaT.data[i] <= SEA_Z) seaEver = true;
       if (!seaEver) sea.mesh.visible = false;
     }
+    if (sea && seaEver && sea.fft.warm) sea.fft.warm(); // (the waves' programs only where the sea can be seen: water.js FFT)
     const seaAt = (x, z) => !seaT || !seaT.data || S.terrainAt(seaT, x, -z) <= SEA_Z;
     function seaInView(camera, t) {
       if (!seaEver) return false;
@@ -2061,16 +2063,19 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const skyMats = {}, sheltered = (base, key, sky, bounce) => {
       const id = `${key}|${sky}|${bounce || ''}`;
       if (skyMats[id]) return skyMats[id];
-      let tint = 'vec3(1.0)';
+      // (the share and the tint as uniforms, issue 27: written into the shader as numbers, every share a landmark used was a
+      // program of its own, under byText as before it; now the sheltered copies of one material share one)
+      const uSky = { value: +sky.toFixed(3) }, uTint = { value: new THREE.Vector3(1, 1, 1) };
       if (bounce) {
         const c = lin(bounce), l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b || 1, k = 1 - sky;
-        tint = `vec3(${[c.r, c.g, c.b].map(v => (1 + (v / l - 1) * k).toFixed(3)).join(', ')})`;
+        uTint.value.set(...[c.r, c.g, c.b].map(v => +(1 + (v / l - 1) * k).toFixed(3)));
       }
       return (skyMats[id] = follow(base, Object.assign(base.clone(), {
         onBeforeCompile: sh => {
           if (base.onBeforeCompile) base.onBeforeCompile(sh);
-          sh.fragmentShader = sh.fragmentShader.replace('#include <aomap_fragment>',
-            `#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= ${sky.toFixed(3)} * ${tint}; reflectedLight.indirectSpecular *= ${sky.toFixed(3)};`);
+          sh.uniforms.uLmSky = uSky; sh.uniforms.uLmTint = uTint;
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLmSky; uniform vec3 uLmTint;').replace('#include <aomap_fragment>',
+            '#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= uLmSky * uLmTint; reflectedLight.indirectSpecular *= uLmSky;');
         },
         defines: Object.assign({}, base.defines), userData: base.userData,
         customProgramCacheKey: () => `lm|${id}` })));
@@ -2188,7 +2193,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // the sky's program as the light from the sky (PMREM) draws it, with no lights and into a target, compiled now,
     // off the frame, rather than by the first new sky in the middle of the game's set-up (issue 299), where it would
     // also wait behind the city's shaders compiling then (issue 327)
-    const skyReady = renderer.capabilities.isWebGL2 ? compile(renderer, envScene, hazeCam, { target: hazeTarget(), shadows: false }) : Promise.resolve();
+    // Then a first light from the sky, for the scene's environment (issue 27): the city's shaders start compiling after this
+    // (game.js earlyWarm), and before the game's first setSun the ground's tiles and the far land were compiled with no
+    // environment, two programs of the phone loader's that were never drawn with. The first setSun draws it again for its hour
+    const skyReady = (renderer.capabilities.isWebGL2 ? compile(renderer, envScene, hazeCam, { target: hazeTarget(), shadows: false }) : Promise.resolve())
+      .then(() => { if (!world.environment && pmrem) try { envRT = pmrem.fromScene(envScene); world.environment = envRT.texture; } catch (e) { /* set by the first setSun */ } });
     // The pixels hazeOf works out, drawn and read back from the GPU (synchronously: it waits for the GPU's queue): only
     // for tools/haze_check.js (api.hazeProbe), which holds the CPU's sum to this one. The three views side by side in
     // one target. Returns the colour, or null.
@@ -2592,8 +2601,12 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       dispose() { if (farSun.dispose) farSun.dispose(); if (envRT) envRT.dispose(); if (hazeRT) hazeRT.dispose(); pmrem.dispose(); if (sea) sea.dispose(); if (night) night.dispose(); if (far) far.dispose(); },
     };
     if (trees && trees.shadowSun) trees.shadowSun(() => api.sunDir);
-    const farTrees = trees && trees.bakeFar && new URLSearchParams(location.search).get('impostors') !== 'off' ? trees.bakeFar(renderer) : null;
-    api.ready = Promise.resolve(farTrees); // (what the first draw waits for besides the shaders: the far trees' atlas, trees.js)
+    // what the first draw waits for besides the shaders: the far trees' atlas (trees.js), baked when the game first asks for it,
+    // once the weather's patch is on the trees' materials (issue 27: baked here, its compile made the variant without the
+    // patch, three programs of the phone loader's that were never drawn with, and the atlas's draw then made the right ones)
+    let farTrees = null;
+    Object.defineProperty(api, 'ready', { configurable: true, enumerable: true, get: () => farTrees || (farTrees = Promise.resolve(
+      trees && trees.bakeFar && new URLSearchParams(location.search).get('impostors') !== 'off' ? trees.bakeFar(renderer) : null)) });
     return api;
   }
 
@@ -2641,6 +2654,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // of 10 to 25 seconds. The caller holds its draws until this resolves, since a draw would compile the
   // rest in one frame again.
   const SLICE_MS = 50, SLICED = 40, FLIGHT = 6;
+  // how many sliced compiles are under way (compiling(), for the game's periodic WebGL error check, which waits for the GPU:
+  // behind the title it waited for every program queued, seconds in the frame after the tap on Play, issue 27)
+  let compiling = 0;
   // clip: the clipping planes it is drawn with (a mirror's), which also pick the variant. behind: it
   // compiles while the scene is on screen (behind the title), a short slice a frame, so frames keep coming.
   // hold: while it returns true, a compile behind the scene waits (a frame at a time) without compiling: a slice
@@ -2653,7 +2669,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // wait for every program queued before them on a GPU that compiles one at a time (issue 327)
   // only: which objects to compile (all of them without it); the loader's first set is those shown(), what the title can draw
   // (issue 27: on an iPhone each program is about 150 ms that nothing overlaps; a third of the loader's were for things hidden)
-  function compile(renderer, obj, camera, { scene = obj, target = null, clip = null, behind = false, hold = null, shadows = !clip, flight = FLIGHT, only = null } = {}) {
+  // behind and flight may be functions, read at each slice: the city's warm-up starts behind the rest of the set-up, one
+  // program at a time, and once the set-up is done (game.js built) nothing waits on it but the loader (issue 27)
+  function compile(renderer, obj, camera, { scene = obj, target = null, clip = null, behind: behind0 = false, hold = null, shadows = !clip, flight: flight0 = FLIGHT, only = null } = {}) {
+    const dyn = typeof behind0 === 'function' || typeof flight0 === 'function';
+    let behind = typeof behind0 === 'function' ? behind0() : behind0, flight = typeof flight0 === 'function' ? flight0() : flight0;
     if (!renderer.compileAsync) return Promise.resolve();
     const objs = [], casters = [];
     obj.traverse(o => {
@@ -2666,7 +2686,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // the render target and the clipping planes, set for a compile and put back after it
     const bind = () => { const was = [renderer.getRenderTarget(), renderer.clippingPlanes]; renderer.setRenderTarget(target); if (clip) renderer.clippingPlanes = clip; return was; };
     const unbind = ([t, c]) => { renderer.setRenderTarget(t); renderer.clippingPlanes = c; };
-    if (objs.length < SLICED && !only) {
+    if (objs.length < SLICED && !only && !dyn) {
       const was = bind();
       let depth = [];
       try {
@@ -2675,12 +2695,14 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       } catch (e) { return Promise.resolve(); }
       finally { unbind(was); if (casters.length) depth = compileDepth(renderer, casters, camera, scene); }
     }
+    compiling++;
     return (async () => {
       const props = renderer.properties, mats = new Set(), t0 = performance.now(), flying = new Set();
       const inFlight = () => { for (const p of flying) if (p.isReady()) flying.delete(p); return flying.size; };
       let slices = 0, longest = 0;
       const n = objs.length + casters.length;
       for (let i = 0; i < n;) {
+        if (dyn) { behind = typeof behind0 === 'function' ? behind0() : behind0; flight = typeof flight0 === 'function' ? flight0() : flight0; }
         while (behind && hold && hold()) await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
         const s0 = performance.now(), was = bind();
         try {
@@ -2711,7 +2733,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       });
       firstUse(renderer, all);
       console.info(`compile: ${objs.length} objects in ${slices} slices, the longest ${Math.round(longest)} ms, ready after ${Math.round(performance.now() - t0)} ms`);
-    })().catch(e => console.warn('compile', e));
+    })().catch(e => console.warn('compile', e)).finally(() => { compiling--; });
   }
 
   // A program's first use reads back its link status, info log, uniforms and attributes: synchronous
@@ -2857,6 +2879,15 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const toTarget = new THREE.Group(), toScreen = new THREE.Group(), all = composer.passes;
     const passes = first ? all.filter(p => p.enabled !== false) : all;
     passes.forEach((p, i) => {
+      // (a pass that says which of its materials the frame draws, and where: p.firstDraws() {target, screen}; the first set
+      // compiles those alone. The game's bloom draws four of its five blurs on the low tier, and its lens draws its merged
+      // material to the screen, its plain one only behind a camera effect: five of the phone loader's programs, issue 27)
+      const own = first && p.firstDraws ? p.firstDraws() : null;
+      if (own) {
+        for (const m of own.target || []) toTarget.add(new THREE.Mesh(p.quadGeometry || tri, m));
+        for (const m of own.screen || []) toScreen.add(new THREE.Mesh(p.quadGeometry || tri, m));
+        return;
+      }
       const mats = new Set(), add = v => { if (v && v.isMaterial) mats.add(v); };
       for (const v of Object.values(p)) { add(v); if (Array.isArray(v)) v.forEach(add); }
       if (p.fsQuad) add(p.fsQuad.material);
@@ -3329,5 +3360,5 @@ if (dot(vRailT, vRailT) > 0.25) { vec3 oeT = normalize(vRailT), oeV = normalize(
   // opening will show (the city's light show, which its evening reaches in the opening's first seconds) says so with
   // userData.warmFirst, and is in the first set too
   const shown = o => { for (let x = o; x; x = x.parent) if (!x.visible && !x.userData.warmFirst) return false; return true; };
-  return { load, loadLine, create, lin, smooth, compile, shown, upload, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
+  return { load, loadLine, create, lin, smooth, compile, compiling: () => compiling > 0, shown, upload, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
 })();
