@@ -231,6 +231,79 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
       M(geo('cup', () => new THREE.CylinderGeometry(0.042, 0.034, 0.11, 14)), '#f4f1ea', g.at(0.06, 0.01, 0.045 * g.palm), null, g.q),
       M(geo('lid', () => new THREE.CylinderGeometry(0.044, 0.044, 0.015, 14)), '#3a2a20', g.at(0.06, 0.07, 0.045 * g.palm), null, g.q)] : []) },
   });
+  // The camera of 1964 (docs/STORY.md: Mizuno Akira's, which Sumiko gives in the first frame): a 35 mm rangefinder of
+  // that time in no maker's shape. A body with rounded ends in black leatherette under a chrome top plate with the
+  // finder's three windows (the finder, the frosted one that lights its frame lines, the rangefinder's), a lens of
+  // chrome and black rings with its front glass, the speed dial, the release, the advance lever and the rewind knob,
+  // and a lug at each end. Made once, in metres: y up, z out of the lens, x to the left of whoever holds it to the eye
+  // (so the release, the speed dial and the advance lever are at -x, under the right hand, and the finder's eyepiece
+  // and the rewind knob at +x).
+  // Round Kagami's neck in place of their own camera, once Sumiko has given it (game.js; their own is put away, and the
+  // words say so): flat on the chest, nearly level, as a light camera hangs, its lens forward, on its own thin leather
+  // strap, which is in the main character's model and shown with it (look.neckcam: people.json "neck_camera" "old",
+  // where blender/build_people.py neck_camera rested it on the coat). (Carried in the hand first, it went into the
+  // thigh at the side, or leaned into the coat held out in front; hung at the other camera's strap ends, it stood
+  // off the chest in the air.)
+  let oldCam = null;
+  const oldCamera = () => {
+    if (oldCam) return oldCam;
+    const mat = (hex, rough, metal) => { const m = new THREE.MeshStandardMaterial({ color: lin(hex), roughness: rough, metalness: metal }); litMaterial(m); return m; };
+    const hide = mat('#141414', 0.82, 0), chrome = mat('#aeafad', 0.34, 1), black = mat('#0b0b0c', 0.5, 0.2),
+      glass = mat('#0d1622', 0.06, 0.4), frost = mat('#d9dcdc', 0.6, 0);
+    const W = 0.138, D = 0.032, R = 0.0145, BODY = 0.052, TOP = 0.024;
+    const stadium = (w, d, r) => {
+      const s = new THREE.Shape(), x = w / 2 - r, z = d / 2;
+      s.moveTo(-x, -z); s.lineTo(x, -z); s.absarc(x, -z + r, r, -Math.PI / 2, 0, false); s.lineTo(w / 2, z - r);
+      s.absarc(x, z - r, r, 0, Math.PI / 2, false); s.lineTo(-x, z); s.absarc(-x, z - r, r, Math.PI / 2, Math.PI, false);
+      s.lineTo(-w / 2, -z + r); s.absarc(-x, -z + r, r, Math.PI, Math.PI * 1.5, false);
+      return s;
+    };
+    const slab = (h, inset, m, y0) => { // the body's outline, h tall from y0, its edges eased
+      const b = 0.0012, g = new THREE.ExtrudeGeometry(stadium(W - 2 * inset - 2 * b, D - 2 * inset - 2 * b, R - inset - b),
+        { depth: h - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 10 });
+      g.rotateX(Math.PI / 2); g.translate(0, y0 + h - b, 0); // (the outline lies in x and z; it is drawn up the y axis)
+      return new THREE.Mesh(g, m);
+    };
+    const cyl = (r0, r1, len, m, at, axis = 'z') => {
+      const g = new THREE.CylinderGeometry(r1, r0, len, 28);
+      if (axis === 'z') g.rotateX(Math.PI / 2); else if (axis === 'x') g.rotateZ(-Math.PI / 2);
+      const o = new THREE.Mesh(g, m); o.position.set(...at); return o;
+    };
+    const box = (w, h, d, m, at) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(...at); return o; };
+    const y0 = -(BODY + TOP) / 2, top = y0 + BODY + TOP, front = D / 2, lensY = y0 + BODY * 0.5;
+    const g = new THREE.Group();
+    g.add(slab(BODY, 0, hide, y0), slab(TOP, 0.0006, chrome, y0 + BODY));
+    // the lens: mount, barrel, the focusing ring, the front, its glass
+    let z = front;
+    for (const [len, r0, r1, m] of [[0.004, 0.0215, 0.0215, chrome], [0.014, 0.0205, 0.0205, black], [0.006, 0.0212, 0.0212, chrome], [0.011, 0.0196, 0.0188, chrome]]) {
+      g.add(cyl(r0, r1, len, m, [0, lensY, z + len / 2])); z += len;
+    }
+    g.add(cyl(0.0142, 0.0142, 0.0016, glass, [0, lensY, z - 0.0005]));
+    g.add(box(0.004, 0.003, 0.004, chrome, [0.0, lensY - 0.021, front + 0.024])); // the focusing tab
+    // the finder's windows on the top plate's face
+    const wy = y0 + BODY + TOP * 0.52;
+    // (seen from the front: the finder's window at the holder's left, +x, its frosted one beside it, the rangefinder's
+    // at the other end)
+    g.add(box(0.019, 0.012, 0.0016, glass, [0.044, wy, front + 0.0004]), box(0.011, 0.009, 0.0016, frost, [0.021, wy, front + 0.0004]),
+      box(0.011, 0.009, 0.0016, glass, [-0.046, wy, front + 0.0004]));
+    // on top: the speed dial and the release under the right hand, the advance lever behind them, the rewind knob at the left
+    g.add(cyl(0.0105, 0.0105, 0.0055, chrome, [-0.034, top + 0.0028, 0.002], 'y'), cyl(0.004, 0.0038, 0.006, chrome, [-0.053, top + 0.003, 0.004], 'y'),
+      box(0.026, 0.0022, 0.0055, chrome, [-0.042, top + 0.0068, -0.008]), cyl(0.0095, 0.0095, 0.008, chrome, [0.048, top + 0.004, 0.0], 'y'),
+      cyl(0.005, 0.005, 0.004, black, [0.048, top + 0.010, 0.0], 'y'));
+    // a lug at each end, for its strap
+    for (const s of [-1, 1]) g.add(cyl(0.0028, 0.0028, 0.006, chrome, [s * (W / 2 + 0.002), y0 + BODY + 0.004, 0], 'x'));
+    g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    return (oldCam = g);
+  };
+  ACC.camera1964 = { bone: 'Chest', build: (M, h, g, look) => {
+    const L = look.neckcam && look.neckcam.old;
+    if (!L) return [];
+    const o = oldCamera().clone();
+    o.name = 'camera1964';
+    o.position.set(...L.centre);
+    o.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(V3(...L.x), V3(...L.y), V3(...L.z)));
+    return [o];
+  } };
 
   // ------------------------------------------------------------ loading
   // people.json, tried again twice if the request fails (as gltf.js does for the models)
@@ -714,6 +787,9 @@ ${PAT_GLSL}`)
       }
       // an open umbrella's handle, in the model's own space: the right hand goes to it (holdUmbrella)
       umbGrip = ids.includes('umbrella_open') && ref.Head && ref.Chest ? umbrellaHold(ref.Head.pos).grip : null;
+      // the camera of 1964 round the neck on its own strap, in place of Kagami's own, which is put away with its strap
+      const own = !ids.includes('camera1964');
+      model.traverse(o => { const n = (o.isMesh && o.material && o.material.name) || ''; if (/^camera_(camera|rubber|metal|glass|strap)$/.test(n)) o.visible = own; else if (n === 'camera_strap1964') o.visible = !own; });
     }
     // the right arm up to the umbrella's handle, over whatever the clip has it doing: a two-bone reach
     // from the shoulder, the elbow down and out by the side, the fist (a hand's length past the
