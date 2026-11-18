@@ -5931,7 +5931,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the map's overture (overture.js) the first time here, unless you continue or arrive at a district; else the opening shot
     // (a story opens on the overture every time, in the evening its first episode is set in; ?overture=0 goes straight to the street)
     const open = () => {
-      if (overture && !cont && !arrive && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id)) && overture.play(then)) { renderPassport(); return; }
+      const filmIt = overture && !cont && !arrive && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
+      // (on iOS the first touch may be Play itself: the loading cue is begun in that touch, after the opening's score was
+      // rendered with its own bed because there was no cue yet (film-score.js plan.under). One piece of music: the
+      // opening's own, and the cue let go before it sounds)
+      if (filmIt && cue && overture.scorePlan && !overture.scorePlan().under) cueOut();
+      if (filmIt && overture.play(then)) { renderPassport(); return; }
       if (openingHere()) { // (#110: the opening shot, the scramble's walk turning green as it comes down)
         const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
         if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }

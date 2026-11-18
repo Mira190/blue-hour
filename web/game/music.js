@@ -229,8 +229,12 @@ window.OEMusic = (function () {
       // everything goes through two low-passes in a row: nothing bright leaves the bus
       N.tone = lowpass(5000, 0.5); N.tone2 = lowpass(5000, 0.5); N.tone.connect(N.tone2); N.tone2.connect(N.duck);
       N.sum = g(TRIM); N.sum.connect(N.tone);
-      N.verb = c.createConvolver(); N.verb.buffer = impulse(c, 3.6);
-      N.wet = g(1.6); N.verb.connect(N.wet); N.wet.connect(N.sum);
+      // the room: live, through the sound's reverb on the audio thread (audio.js reverb, docs/SOUND.md: a convolver's tail
+      // past a quarter of a second is made on a thread a busy phone starves); offline, convolved whole
+      const ir = impulse(c, 3.6), A = window.OEAudio;
+      if (!offline && A && A.reverb) { const v = A.reverb(ir, A.normScale(ir), c); N.verb = v.input; N.verbOut = v.output; N.verbDone = v.dispose; }
+      else { N.verb = N.verbOut = c.createConvolver(); N.verb.buffer = ir; }
+      N.wet = g(1.6); N.verbOut.connect(N.wet); N.wet.connect(N.sum);
       const bus = (name, send, o = {}) => {
         const b = { in: g(o.level == null ? 0 : o.level), send: g(send) };
         let tail = b.in;
@@ -560,9 +564,9 @@ window.OEMusic = (function () {
       if (timer) clearInterval(timer);
       timer = null;
       if (ctx && N) {
-        const out = N.out, live = N.live, c = ctx, mine = own;
+        const out = N.out, live = N.live, c = ctx, mine = own, done = N.verbDone;
         try { out.gain.cancelScheduledValues(c.currentTime); out.gain.setTargetAtTime(0, c.currentTime, 0.08); } catch (e) { /* the context closed */ }
-        setTimeout(() => { try { for (const s of live) s.stop(); out.disconnect(); if (mine) c.close(); } catch (e) { /* the context closed */ } }, 600);
+        setTimeout(() => { try { for (const s of live) s.stop(); out.disconnect(); if (done) done(); if (mine) c.close(); } catch (e) { /* the context closed */ } }, 600);
       }
       ctx = null; N = null; P = null; own = false; queue = []; qi = 0;
     }
@@ -616,7 +620,7 @@ window.OEMusic = (function () {
       queue = [];
     }
     return {
-      start, stop, set, sting, volume, describe,
+      start, stop, set, sting, volume, describe, impulse, // (impulse: the score's room, for tools/reverb_check.js)
       get playing() { return !!ctx && !!timer; },
       get off() { return vol === 0; },
       get state() { return Object.assign({}, st); },
