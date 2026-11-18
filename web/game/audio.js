@@ -79,6 +79,7 @@ window.OEAudio = (function () {
     // (the street's beds, the rotor to the rain, are made the first time each is heard: bed() below. Made here, a dozen
     // sources and filters ran silent from the loading screen on, on a phone's audio thread while the page loaded)
     for (const fn of madeFns.splice(0)) { try { fn(); } catch (e) { console.warn('audio:', e); } }
+    if (!hRun) hRun = setInterval(healthPoll, 100);
   }
   // the street's continuous sounds, each made the first time it is asked to be heard (until then a call that would set
   // it to silence does nothing)
@@ -632,9 +633,9 @@ window.OEAudio = (function () {
   };
   let irs = {}, placeNow = null;
   const verbs = [];
-  function impulse(kind) {
-    if (irs[kind]) return irs[kind];
-    const P = PLACES[kind], sr = ctx.sampleRate, n = Math.floor(sr * (P.pre + P.rt * 1.1)), b = ctx.createBuffer(2, n, sr);
+  function impulse(kind, c0 = ctx) {
+    if (c0 === ctx && irs[kind]) return irs[kind];
+    const P = PLACES[kind], sr = c0.sampleRate, n = Math.floor(sr * (P.pre + P.rt * 1.1)), b = c0.createBuffer(2, n, sr);
     for (let c = 0; c < 2; c++) {
       const d = b.getChannelData(c);
       let lp = 0;
@@ -647,16 +648,176 @@ window.OEAudio = (function () {
     }
     let e = 0; for (let c = 0; c < 2; c++) for (const v of b.getChannelData(c)) e += v * v;
     for (let c = 0; c < 2; c++) { const d = b.getChannelData(c), k = 1 / Math.sqrt(e / 2); for (let i = 0; i < n; i++) d[i] *= k; }
-    return (irs[kind] = b);
+    if (c0 === ctx) irs[kind] = b;
+    return b;
   }
   function place(kind) {
     if (!ctx || kind === placeNow || !PLACES[kind]) return;
     placeNow = kind;
-    const t = ctx.currentTime, cv = ctx.createConvolver(), g = ctx.createGain();
-    cv.normalize = false; cv.buffer = impulse(kind); g.gain.value = 0; verbIn.connect(cv); cv.connect(g); g.connect(duck);
+    const t = ctx.currentTime, cv = reverb(impulse(kind)), g = ctx.createGain();
+    g.gain.value = 0; verbIn.connect(cv.input); cv.output.connect(g); g.connect(duck);
     g.gain.setTargetAtTime(PLACES[kind].wet, t, 0.1);
-    for (const v of verbs.splice(0)) { v.g.gain.setTargetAtTime(0, t, 0.1); setTimeout(() => { try { verbIn.disconnect(v.cv); v.g.disconnect(); } catch (e) { /* already gone */ } }, 1500); }
+    for (const v of verbs.splice(0)) { v.g.gain.setTargetAtTime(0, t, 0.1); setTimeout(() => { try { verbIn.disconnect(v.cv.input); v.cv.dispose(); v.g.disconnect(); } catch (e) { /* already gone */ } }, 1500); }
     verbs.push({ cv, g });
+  }
+  // ------------------------------------------------------------ every sound made on the audio thread (docs/SOUND.md)
+  // On a phone a context has one thread that is given real time: iOS plays Web Audio in blocks of 128 frames (2.7 ms at
+  // 48 kHz; WebKit's MediaSessionManagerCocoa asks for one render quantum), and a block not ready in time is a click, a
+  // run of them a phone that sounds broken. Anything the sound waits on from another thread is starved by a busy page
+  // (the opening over the crowd, the flight): the tape's AudioWorklet was one (the deck, above); a long reverb is the
+  // other. WebKit convolves the first 12,288 frames of an impulse response on the audio thread and the rest on a
+  // background thread of default priority (ReverbConvolver.cpp, RealtimeFrameLimit; "would be better to up the thread
+  // priority here"), whose part of the tail then comes late. Cutting the response into pieces short enough for the audio
+  // thread is exact but costs it a pair of FFTs per 1,024 frames for every 1,024 frames of response: the rooms, the
+  // story's hall and the score's room together would take most of a phone's core. So on a touch screen a reverb is a
+  // hybrid, as Moorer's paper proposed (1979, the impulse responses' own source): its first quarter of a second
+  // convolved as it is (the room's early reflections, which are its character, on the audio thread at the cost they had),
+  // and the rest made by feedback combs on the audio thread (Schroeder, 1962; Moorer's low-passed combs): six a side, each
+  // a delay of 67 to 132 ms feeding back into itself, losing what the response loses in that time, through a high shelf
+  // for what it loses faster above 3 kHz; fed with the response's own last tenth of a second and set to the level of its
+  // own tail (tailOf). Its cost does not grow with the tail. (Its delays do not sway, as Dattorro's do: a delay read
+  // between samples dulls the tail a little on every pass, and the hall's goes round fifty times.) Each loop has one delay of its own: loops that
+  // share delays (a feedback delay network's matrix) were tried and run away in both Chromium and WebKit, which add a
+  // render quantum to some edges of interlocking loops and not to others (tools/reverb_check.js). With a mouse the whole
+  // response is convolved, as before (?verb=hybrid or ?verb=whole picks one, for the tools).
+  const RT_FRAMES = 12288, HEAD = 0.25, SEED = 0.1, SHELF = 3000, Q128 = 128;
+  const COMBS = [[0.0673, 0.0791, 0.0899, 0.1013, 0.1137, 0.1279], [0.0719, 0.0833, 0.0947, 0.1071, 0.1193, 0.1319]];
+  const VERB = (/[?&]verb=(hybrid|whole)\b/.exec(location.search) || [])[1] || (TOUCH ? 'hybrid' : 'whole');
+  const hann = x => Math.sin(Math.PI * x) ** 2;
+  // a reverb from an impulse response: { input, output }. scale: what the browser's own normalising would multiply the
+  // response by (normScale), since no piece of it is normalised by the browser
+  function reverb(ir, scale = 1, c0 = ctx, how = VERB) {
+    const sr = ir.sampleRate, nc = ir.numberOfChannels, len = ir.length, input = c0.createGain(), output = c0.createGain();
+    const S = Math.min(Math.round(HEAD * sr), RT_FRAMES);
+    const piece = (a, b, w) => {
+      const n = b - a, buf = c0.createBuffer(nc, n, sr);
+      for (let c = 0; c < nc; c++) { const x = ir.getChannelData(c), d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] = x[a + i] * scale * (w ? w((i + 0.5) / n) : 1); }
+      const cv = c0.createConvolver(); cv.normalize = false; cv.buffer = buf; return cv;
+    };
+    if (how !== 'hybrid' || len <= S) { const cv = piece(0, len); input.connect(cv); cv.connect(output); return { input, output, how: 'whole', frames: len, dispose: () => input.disconnect() }; }
+    const t = tailOf(ir, scale, S), fade = x => (x > 1 - 64 / S ? (1 - x) * S / 64 : 1);
+    // (a response 30 dB down by the end of its head, the roof's: its head alone, the last 64 frames faded)
+    const head = piece(0, S, t.none ? fade : null); input.connect(head); head.connect(output);
+    if (t.none) return { input, output, how: 'head', frames: S, tail: t, dispose: () => input.disconnect() };
+    const seed = piece(S - t.W, S, hann), pre = c0.createDelay(HEAD);
+    pre.delayTime.value = t.P / sr; pre.channelCount = 2; pre.channelCountMode = 'explicit';
+    const split = c0.createChannelSplitter(2), merge = c0.createChannelMerger(2), out = c0.createGain();
+    input.connect(seed); seed.connect(pre); pre.connect(split); merge.connect(out); out.gain.value = t.gain; out.connect(output);
+    const loops = [];
+    for (let side = 0; side < 2; side++) {
+      const flip = c0.createGain(); flip.gain.value = -1; split.connect(flip, nc > 1 ? side : 0); // (every other comb fed the seed upside down: they sum flatter)
+      t.C[side].forEach((q, k) => {
+        const d = c0.createDelay(0.2); d.delayTime.value = q.D / sr; d.channelCount = 1; d.channelCountMode = 'explicit';
+        let o = d;
+        if (q.H < -0.05) { const f = c0.createBiquadFilter(); f.type = 'highshelf'; f.frequency.value = SHELF; f.gain.value = q.H; d.connect(f); o = f; }
+        const g = c0.createGain(); g.gain.value = q.g; o.connect(g); g.connect(d); loops.push(g);
+        if (k % 2) flip.connect(d); else split.connect(d, nc > 1 ? side : 0);
+        d.connect(merge, 0, side);
+      });
+    }
+    // (taken down when it is let go: its loops opened, since a loop of nodes left connected to itself is never freed where
+    // nodes are counted by reference, as WebKit's are)
+    const dispose = () => { for (const n of loops) n.disconnect(); input.disconnect(); };
+    return { input, output, how: 'hybrid', frames: S, tail: t, dispose };
+  }
+  // the biquads as the Web Audio spec has them (the Audio EQ Cookbook): a high shelf (gain in dB, slope 1), or a
+  // low-pass or high-pass of quality q
+  function biq(type, f, q, gain, sr) {
+    const w = 2 * Math.PI * f / sr, cs = Math.cos(w), sn = Math.sin(w);
+    let b0, b1, b2, a0, a1, a2;
+    if (type === 'highshelf') {
+      const A = Math.pow(10, gain / 40), al = sn / 2 * Math.SQRT2, k = 2 * Math.sqrt(A) * al;
+      b0 = A * ((A + 1) + (A - 1) * cs + k); b1 = -2 * A * ((A - 1) + (A + 1) * cs); b2 = A * ((A + 1) + (A - 1) * cs - k);
+      a0 = (A + 1) - (A - 1) * cs + k; a1 = 2 * ((A - 1) - (A + 1) * cs); a2 = (A + 1) - (A - 1) * cs - k;
+    } else if (type === 'lowpass') { const al = sn / (2 * q); b0 = (1 - cs) / 2; b1 = 1 - cs; b2 = (1 - cs) / 2; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; }
+    else { const al = sn / (2 * q); b0 = (1 + cs) / 2; b1 = -(1 + cs); b2 = (1 + cs) / 2; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; }
+    const B0 = b0 / a0, B1 = b1 / a0, B2 = b2 / a0, A1 = a1 / a0, A2 = a2 / a0;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    return v => { const y = B0 * v + B1 * x1 + B2 * x2 - A1 * y1 - A2 * y2; x2 = x1; x1 = v; y2 = y1; y1 = y; return y; };
+  }
+  // the same biquads' coefficients, for a loop that runs them inline: [b0, b1, b2, a1, a2] over a0
+  function coef(type, f, q, gain, sr) {
+    const w = 2 * Math.PI * f / sr, cs = Math.cos(w), sn = Math.sin(w), A = Math.pow(10, gain / 40), al = sn / 2 * Math.SQRT2, k = 2 * Math.sqrt(A) * al;
+    const a0 = (A + 1) - (A - 1) * cs + k;
+    return [A * ((A + 1) + (A - 1) * cs + k) / a0, -2 * A * ((A - 1) + (A + 1) * cs) / a0, A * ((A + 1) + (A - 1) * cs - k) / a0, 2 * ((A - 1) - (A + 1) * cs) / a0, ((A + 1) - (A - 1) * cs - k) / a0];
+  }
+  // the tail fitted to the response after its head: how fast it decays below 1 kHz and above 3 kHz (a line through the
+  // first 30 dB of each band's energy decay curve, Schroeder's backward integral: the rooms' responses darken as they
+  // die, so their low end lasts longer than their whole), and the combs' level, found by running the combs themselves
+  // here, sample by sample, and matching their energy to the response's (once for each response).
+  // A loop of one delay in Web Audio goes round in its delay and one render quantum more (Chromium and WebKit both)
+  const fits = new WeakMap();
+  function tailOf(ir, scale, S) {
+    const k = fits.get(ir);
+    if (k && k.scale === scale && k.S === S) return k;
+    const sr = ir.sampleRate, nc = ir.numberOfChannels, len = ir.length;
+    // (the three bands' energies after the head in one pass over the response, in blocks of 32 frames)
+    const B = Math.ceil((len - S) / 32), eb = [new Float64Array(B + 1), new Float64Array(B + 1), new Float64Array(B + 1)];
+    const pass = (type, f) => { const w = 2 * Math.PI * f / sr, cs = Math.cos(w), al = Math.sin(w) * Math.SQRT1_2, a0 = 1 + al, k = type === 'lowpass' ? (1 - cs) / 2 : (1 + cs) / 2; return [k / a0, (type === 'lowpass' ? 1 - cs : -(1 + cs)) / a0, k / a0, -2 * cs / a0, (1 - al) / a0]; };
+    const [l0, l1, l2, la1, la2] = pass('lowpass', 1000), [h0, h1, h2, ha1, ha2] = pass('highpass', SHELF);
+    for (let c = 0; c < nc; c++) {
+      const x = ir.getChannelData(c), e0 = eb[0], e1 = eb[1], e2 = eb[2];
+      let lx1 = 0, lx2 = 0, ly1 = 0, ly2 = 0, hx1 = 0, hx2 = 0, hy1 = 0, hy2 = 0;
+      for (let i = 0; i < len; i++) {
+        const v = x[i] * scale, l = l0 * v + l1 * lx1 + l2 * lx2 - la1 * ly1 - la2 * ly2, h = h0 * v + h1 * hx1 + h2 * hx2 - ha1 * hy1 - ha2 * hy2;
+        lx2 = lx1; lx1 = v; ly2 = ly1; ly1 = l; hx2 = hx1; hx1 = v; hy2 = hy1; hy1 = h;
+        if (i >= S) { const b = (i - S) >> 5; e0[b] += v * v; e1[b] += l * l; e2[b] += h * h; }
+      }
+    }
+    const decay = band => {
+      const e = eb[band === 'low' ? 1 : band === 'high' ? 2 : 0];
+      for (let i = e.length - 2; i >= 0; i--) e[i] += e[i + 1];
+      let n = 0, st = 0, sd = 0, stt = 0, std = 0;
+      for (let i = 0; i < e.length - 1 && e[0] > 0; i++) { const db = 10 * Math.log10(e[i] / e[0] + 1e-30); if (db < -30) break; const t = i * 32 / sr; n++; st += t; sd += db; stt += t * t; std += t * db; }
+      const slope = n > 2 ? (n * std - st * sd) / (n * stt - st * st) : -60;
+      return { rt: slope < 0 ? -60 / slope : 1, e: e[0] };
+    };
+    let total = 0;
+    for (let c = 0; c < nc; c++) for (const v of ir.getChannelData(c)) total += v * v * scale * scale;
+    const all = decay(), low = decay('low'), hi = decay('high'), rt = Math.max(0.1, low.rt), perS = -60 * Math.max(0, 1 / Math.max(0.05, hi.rt) - 1 / rt);
+    const W = Math.round(SEED * sr), P = Math.max(0, S - Math.round(W / 2) - Math.round(COMBS[0][0] * sr));
+    const C = COMBS.map(side => side.map(d => { const D = Math.round(d * sr), L = D + Q128; return { D, L, g: Math.pow(10, -3 * L / sr / rt), H: Math.max(-6, perS * L / sr) }; }));
+    // the combs run here, fed with the seed at P, for the energy they put out after the head: each side's six together,
+    // exactly, for three turns of the longest (while the seed's copies in them still overlap); then each comb alone for
+    // six turns more, and the rest as the series its turns are falling by (the shelf takes the high end first, so only
+    // its own turns say how fast)
+    let E = 0;
+    for (let side = 0; side < 2; side++) {
+      const x = ir.getChannelData(Math.min(side, nc - 1)), seed = new Float64Array(W);
+      for (let i = 0; i < W; i++) seed[i] = x[S - W + i] * scale * hann((i + 0.5) / W);
+      const T = P + Math.max(...C[side].map(q => q.D)) + W + 3 * Math.max(...C[side].map(q => q.L)), sum = new Float64Array(T);
+      C[side].forEach((q, k) => {
+        const L = q.L, g = q.g, ring = new Float64Array(L), cf = q.H < -0.05 ? coef('highshelf', SHELF, 0, q.H, sr) : [1, 0, 0, 0, 0], sg = k % 2 ? -1 : 1, j0 = P + q.D;
+        const [b0, b1, b2, a1, a2] = cf;
+        let x1 = 0, x2 = 0, y1 = 0, y2 = 0, n = 0, w = 0;
+        // (the delay's output o: the seed, and what went round; the shelf's output y is what goes round again)
+        for (; n < T; n++, w = w + 1 === L ? 0 : w + 1) {
+          const j = n - j0, o = (j >= 0 && j < W ? sg * seed[j] : 0) + g * ring[w], y = b0 * o + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+          x2 = x1; x1 = o; y2 = y1; y1 = y; ring[w] = y; sum[n] += o;
+        }
+        let last = 0, ratio = 0;
+        for (let turn = 0; turn < 6; turn++) {
+          let e = 0;
+          for (let i = 0; i < L; i++, w = w + 1 === L ? 0 : w + 1) { const o = g * ring[w], y = b0 * o + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = o; y2 = y1; y1 = y; ring[w] = y; e += o * o; }
+          E += e;
+          if (last > 0) ratio = Math.min(0.999, e / last);
+          last = e;
+        }
+        E += last * ratio / (1 - ratio); // (the turns after: each the last's share of the one before)
+      });
+      for (let n = S; n < T; n++) E += sum[n] * sum[n];
+    }
+    const fit = { scale, S, W, P, C, rt, rtHi: hi.rt, gain: E > 0 ? Math.sqrt(all.e / E) : 0, energy: all.e, none: all.e < total * 1e-3 };
+    fits.set(ir, fit);
+    return fit;
+  }
+  // the scale a ConvolverNode's normalize applies (WebKit's and Chromium's Reverb.cpp, calculateNormalizationScale): one
+  // over the response's RMS, calibrated by -58 dB, at 44.1 kHz
+  function normScale(ir) {
+    let p = 0;
+    for (let c = 0; c < ir.numberOfChannels; c++) for (const v of ir.getChannelData(c)) p += v * v;
+    const power = Math.max(0.000125, Math.sqrt(p / (ir.numberOfChannels * ir.length)) || 0);
+    return Math.fround(Math.fround(1 / power) * Math.pow(10, -58 * 0.05) * 44100 / ir.sampleRate) * (ir.numberOfChannels === 4 ? 0.5 : 1);
   }
   // under a line of dialogue (and the preface's type) the street and the score step back 8 dB, and come up again half a
   // second after it (5 dB left the type's ticks under the score in their own band: tools/sound_rec.js)
@@ -674,7 +835,39 @@ window.OEAudio = (function () {
     if (c && c.suspend) { if (m) setTimeout(() => { if (muted && ctx === c) c.suspend(); }, 150); else c.resume(); }
     else if (!c && !m && want) start(); // (sound turned on in a touch, where it was waiting for one)
   }
-  function stop() { want = false; if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  // ------------------------------------------------------------ how the audio thread keeps time (telemetry.js)
+  // A browser says nothing of the blocks its audio thread missed. What a page can see is the context's clock against the
+  // wall's: the context's time moves only as blocks are made, so while the thread is held up it falls behind the wall,
+  // and when it catches up it jumps. Ten times a second, while the sound runs and the page is seen, the gap between the
+  // two is kept; health() gives, for each "time" event, the most it rose over its least (the two clocks' drift, parts
+  // per million, taken out) and how many readings were 25 ms or more behind, and begins again.
+  let hs = [], hRun = null, hLate = 0, hStall = 0;
+  function healthPoll() {
+    if (!ctx || ctx.state !== 'running' || document.hidden || muted) { healthClose(); return; }
+    const w = performance.now() / 1000;
+    hs.push(w, w - ctx.currentTime);
+    if (hs.length >= 6000) healthClose();
+  }
+  function healthClose() {
+    const n = hs.length / 2;
+    if (n >= 10) {
+      let st = 0, sg = 0, stt = 0, stg = 0;
+      for (let i = 0; i < hs.length; i += 2) { st += hs[i]; sg += hs[i + 1]; stt += hs[i] * hs[i]; stg += hs[i] * hs[i + 1]; }
+      const m = (n * stg - st * sg) / (n * stt - st * st || 1), b = (sg - m * st) / n, r = [];
+      let lo = Infinity;
+      for (let i = 0; i < hs.length; i += 2) { const v = hs[i + 1] - (m * hs[i] + b); r.push(v); lo = Math.min(lo, v); }
+      for (const v of r) { hLate = Math.max(hLate, v - lo); if (v - lo > 0.025) hStall++; }
+    }
+    hs = [];
+  }
+  function health() {
+    if (!ctx) return null;
+    healthClose();
+    const h = { snd: `${deck ? 'deck' : tape ? 'worklet' : 'plain'} ${VERB} ${ctx.sampleRate}`, snd_late: Math.round(hLate * 1000), snd_stall: hStall };
+    hLate = 0; hStall = 0;
+    return h;
+  }
+  function stop() { want = false; if (hRun) { clearInterval(hRun); hRun = null; } hs = []; if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -831,11 +1024,17 @@ window.OEAudio = (function () {
   function hall() {
     const b = storyBus(); if (!b) return null;
     if (room && room.context === ctx) return room;
-    const len = Math.floor(ctx.sampleRate * 4.2), ir = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
-    room = ctx.createConvolver(); room.buffer = ir;
-    const g = ctx.createGain(); g.gain.value = 0.5; room.connect(g); g.connect(b);
+    // (on the audio thread: reverb(), above; normalised as the browser's own convolver did it)
+    const ir = hallIR(), cv = reverb(ir, normScale(ir));
+    room = cv.input;
+    const g = ctx.createGain(); g.gain.value = 0.5; cv.output.connect(g); g.connect(b);
     return room;
+  }
+  // the hall's response: four seconds and a fifth of noise dying away
+  function hallIR(c0 = ctx) {
+    const len = Math.floor(c0.sampleRate * 4.2), ir = c0.createBuffer(2, len, c0.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    return ir;
   }
   // a bell of glass: a note, and the partials over it that a struck bar has, each dying faster than the one below
   // (none over the ear's range); len shortens it (a grain of glass)
@@ -868,5 +1067,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
 })();
