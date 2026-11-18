@@ -67,6 +67,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (one light standing in the street at a time: at every beat's still, the story's own and no other; the free game's
   // objective column stood beside it over the Center Gai arch and SHIBUYA SKY's door)
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(1200); await snap(`${s.fi + 1}-${name}`);
+    if (s.phase === 'stop' && !seen.has(`heads-${s.fi}`)) { seen.add(`heads-${s.fi}`); // (time held: no head turns by itself; a look laid over a look wound Aoi's head round by the Center Gai arch)
+      const hs = await p.evaluate(() => new Promise(r => { const g = window.__game, T = window.THREE, rigs = (g.npcs || []).filter(n => n.rig && n.rig.head && n.rig.root.visible).map(n => [n.id, n.rig]).concat(g.player && g.player.rig && g.player.rig.head ? [['player', g.player.rig]] : []);
+        const was = rigs.map(([, q]) => q.head.getWorldQuaternion(new T.Quaternion())), worst = rigs.map(() => 0); let n = 12;
+        const f = () => { rigs.forEach(([, q], i) => { const now = q.head.getWorldQuaternion(new T.Quaternion()); worst[i] = Math.max(worst[i], was[i].angleTo(now)); was[i].copy(now); }); if (--n > 0) requestAnimationFrame(f); else r(rigs.map(([id], i) => [id, +worst[i].toFixed(3)])); };
+        requestAnimationFrame(f); }));
+      const spun = hs.filter(([, a]) => a > 0.05);
+      if (spun.length) { errors.push(`frame ${s.fi + 1} ${name}: with time held, a head turns by itself: ${JSON.stringify(spun)}`); console.log(errors[errors.length - 1]); } }
     const L = await p.evaluate(() => (window.__game.lights ? window.__game.lights() : null)); if (L && L.objective) { errors.push(`frame ${s.fi + 1} ${name}: a second light stands in the street (the free game's objective)`); console.log(errors[errors.length - 1]); } };
   let slipped = 0, spent = false, logged = !!process.env.FROM, logWas = null, big = 0;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
@@ -235,7 +242,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         await p.waitForTimeout(1500); await snap(`${s.fi + 1}-spent`); continue;
       }
       if (T.stand) await goTo(T.stand, 0.6);
-      if (T.both) { const m = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2], n = [-(T.b[1] - T.a[1]), T.b[0] - T.a[0]], l = Math.hypot(...n); await goTo([m[0] + n[0] / l * 30, m[1] + n[1] / l * 30], 0); await face(m); }
+      if (T.both) { const m = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2], n = [-(T.b[1] - T.a[1]), T.b[0] - T.a[0]], l = Math.hypot(...n); await goTo(T.hintAt || [m[0] + n[0] / l * 30, m[1] + n[1] / l * 30], 0); await face(m); } // (from the corner its hints lead to: 30 m off the middle, a kiosk filled half the last print)
       else if (T.subject) await face(T.subject);
       // the mark the player follows points at what the frame is judged on (it once pointed 21 m off, up a wall)
       if (T.subject && !T.both) { await frames(3); await p.waitForTimeout(300); const t = await p.evaluate(() => window.__game.story.state.target); const off = t ? Math.hypot(t[0] - T.subject[0], t[1] - T.subject[1]) : Infinity; if (off > 1.5) { errors.push(`frame ${s.fi + 1}: the mark is ${off.toFixed(1)} m from the subject`); console.log(errors[errors.length - 1]); } }
@@ -303,7 +310,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
   if (done && await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam))) { errors.push('the case is closed, and the camera of 1964 is still round Kagami\'s neck: it is hers again'); console.log(errors[errors.length - 1]); }
-  else console.log('FAIL the last card was not reached', JSON.stringify(await state()));
+  if (!done) console.log('FAIL the last card was not reached', JSON.stringify(await state())); // (its own test: as the camera's else, it was said of every case that closed rightly)
   if (done && !upto) { // the last card: how the case was worked, in the file's hand; and the frames to go back into
     const c = await p.evaluate(() => { const e = document.getElementById('g-story-end'), w = e.querySelector('.worked'); if (w) e.scrollTop = Math.max(0, w.offsetTop - e.clientHeight / 3); return { worked: w ? w.textContent : '', back: e.querySelectorAll('[data-back]').length }; });
     console.log('how the case was worked:', c.worked.slice(0, 400));

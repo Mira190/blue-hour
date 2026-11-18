@@ -78,7 +78,7 @@ about a third of the finder at 1440x900 and reads on a 390x844 phone: the board 
 broadside on the road at the crossing's edge, 三軒茶屋 経由 on its side, at 14 m through 50 from the stone cherry blossom
 nearest the crossing, the boy's box and stool seven metres off and turned to the lens (from the blossoms further south a
 lamp of the square stood in the middle of it); the building and its dome from the Scramble
-Square roof through 34; the river from the bridge through 50; her corner from his kerb through the longest lens, 22.
+Square roof through 34; the river from the bridge through 50; her corner from his kerb through the longest lens, 12. Her corner is the kerb: the board, the pillar box with her umbrella against it, the girl and the old woman stand on tonight's pavement a metre or two behind the kerb line at the Scramble's north-west corner (`cities/shibuya/scramble.py` `Plan`, its `pave`), never on the crossing's paint. Until November 2026 they stood out on the diagonal crosswalk, 3 to 10 m into the road, and the first photograph of the story was of a signboard on zebra stripes.
 The afterimage of each frame stands beside the sightline, not in it, and the crowd standing in it is sent on when the
 frame begins (`clearSight`, `web/game/game.js`). A phone's portrait finder takes in the tram's side, not its whole
 length.

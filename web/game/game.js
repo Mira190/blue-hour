@@ -3472,6 +3472,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
     relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()) }; }, // (r.with: other things that stand with it)
+    clear: (a, b) => clearSight(a, b), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to)
     finder: q => { if (past) past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); },
     lens: fov => { cam.distTo = 0; if (fov == null) { if (lensWas != null) cam.dist = lensWas; lensWas = null; return; } if (lensWas == null) lensWas = cam.dist; cam.dist = 2.5 + (Math.max(12, Math.min(60, fov)) - 22) / 5.5; }, // (the lens's ring set for a frame, and back as it was after: the wheel's, rig() below)
     // where to make for on the way to a place that is up a tower (or down from one): the nearer stop of the lift that

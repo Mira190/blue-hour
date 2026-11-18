@@ -592,7 +592,7 @@ things are the evidence and the rest is testimony. Not yet: the old woman's clea
 | Sumiko ran a lift, and had one glove at 17:14 | Her third line (1): *straight from the lift at the store, one glove on* | 3 |
 | The lecture was his, and he meant to be back for it | The board at her corner (1), again from his kerb (6) | 6 |
 | The time of the fall | Kanbara: the rings being drawn in the sky (4) | 5 |
-| Who came up the stair | Kanbara: nailed boots, which the works wore and the lecturer too (4): two men fit, and the player names one; Tatsuo's helmet and trade, and *I passed him on the iron, coming down* (5) | 5 |
+| Who came up the stair | Kanbara: nailed boots, which the works wore and the lecturer too (4): two men fit, and the player names one; Tatsuo's work clothes and trade, and *I passed him on the iron, coming down* (5) | 5 |
 | The glove was lost before the fall | Kanbara: *I was still on my feet*; Yuna's grandmother saw the girl come down (4) | 5 |
 | The camera opens from below | The base plate, in the first evening's last line (1); Shun: *it loads from below, this one: the whole plate comes off* (2) | 6, the last card |
 | They were leaving that night, and he had her ticket | Her fourth line (1): *after his lecture we were taking the night train to Osaka. He had both our tickets* | the last card, where the ticket under the base plate is hers |
@@ -652,6 +652,23 @@ best detective games. What a detective story owes its player, in one line each, 
    *nobody has made one in fifty years* (rangefinders are still made): *one like it*. Frame 7's goal asked the player to
    *tell her what was in the camera* before anyone had opened it: now *carry his camera across the road to her kerb*,
    what Akira could not do. Frame 2's last line claimed a police box *since before the war*, which no source checked: cut.
+   The goal and the line under it both said *no light marks this one*: said once now. Frame 5 looked for *a man in a
+   site helmet*, and Tatsuo is bare-headed: *a man in work clothes*.
+6. **Her kerb is a kerb.** The place the story is named for stood in the road: the girl, the old woman, the board, the
+   pillar box and the umbrella were 3 to 10 m out on the diagonal crosswalk, and frame 7's hints led to a light on the
+   paint. They stand on the pavement now, a metre or two behind the kerb line (the hero level's own plan of road and
+   pavement, `scramble.py` `Plan`), the board 6.5 m from frame 1's light as before, frame 6 through the longest lens (12
+   degrees) for the further corner, and the old woman faces the place where the girl stands, so that *the only stopped
+   person looking at the girl* (section 7) is so.
+7. **The last picture shows them.** Frame 7 was judged by whether both afterimages fell inside the screen, not whether
+   they could be seen: from 30 m off the middle a kiosk filled half the print and was taken as *both of them*, and from
+   the corner the hints lead to, two pale figures forty metres off stood among a held crowd of umbrellas. Now each must be
+   in sight of the lens (`ctx.seen`) and within 60 m, and when the frame begins the held crowd steps out of the two ways
+   from that corner to them (`ctx.clear`, the clearing a relic's sightline already had). `tools/story_play.js` takes the
+   last frame from the corner its hints lead to.
+8. **Nothing of ours in the print.** Where a frame has no standpoint (frame 3), the guide went to sit 2.2 m before the
+   thing on the line from the player to it, and his head filled the foot of the print. He sits beside it now, off that
+   line.
 5. **What held.** One question per frame, answered by a print and turned over (the false solution at frame 3, the boots
    at 4, the brother at 5); a liar broken by evidence presented (Tatsuo, the roof's print); failure that costs the minute
    and is seen; hints asked for, three, each saying more, the second inside the fiction (the dog), as *Professor Layton*
