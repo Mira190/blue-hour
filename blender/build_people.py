@@ -8,7 +8,7 @@ wears a Japanese face (another avatar's head, as the NPCs do), clothes taken to 
 wears in October (dress), and a camera round the neck (neck_camera).
 
 The NPCs (--npcs) are Rocketbox avatars too: every R_<avatar>[_<head>][_<tag>...] character a
-city's game.npcs names (pipeline/fetch_rocketbox.py, npc_cast). An avatar can wear another
+city's game.npcs, crowd or story names (pipeline/fetch_rocketbox.py, npc_cast). An avatar can wear another
 avatar's head (by its model code: R_Pilot_Female_01_f003 is the pilot with Female_Adult_03's
 head; every avatar of a sex has the same skeleton, so a head fits any body), and tags retouch
 it: HAIR recolours the hair, CLOTH the clothes, TOP the top, PATTERN prints a pattern over it, "bare"
@@ -1438,7 +1438,7 @@ def build_npcs(only=None, clips=True):
     path = os.path.join(out, "people.json")
     info = json.load(open(path))
     sec = info.get("npcs", {})
-    chars = {}
+    chars = dict(sec.get("characters", {})) if only else {}   # (--only: every other entry as it was, as its file is kept)
     for cid, spec in cast.items():
         if only and cid not in only:   # as built before
             chars[cid] = sec.get("characters", {}).get(cid)

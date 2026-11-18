@@ -262,6 +262,23 @@ lamps lit under the stars.
   word, and keeps telling the sister *out on a job*. The client is *an estate: a Mr Hoshino, who printed for us before my
   time*.
 
+### How they are cast
+
+A face is evidence in a mystery: two people who share one are taken for one, and the person a player must recognise
+should be recognisable. Rocketbox has four East Asian women's heads and four men's (`docs/GAME.md`, *Heads*), one of
+each worn by Kagami, and two professions' bodies with Japanese faces of their own; the story's people are cast from those
+(`game.story`, each `character`; built by `blender/build_people.py --npcs`, which builds the story's people as it builds
+the cities' NPCs):
+
+| Who | Look | Why |
+|---|---|---|
+| Sumiko at 22 (the girl) | `R_Business_Female_03_f011`: Female_Adult_11's head, black hair up, on a jacket and knee-length skirt | The same head as Sumiko at 84 (`R_Female_Adult_09_f011_grey`), so the girl is visibly the old woman: the last reveal is in plain sight. The jacket and skirt are the nearest Rocketbox has to a lift girl's uniform of 1964 (her white gloves and little hat are not built). Until November 2026 she was a fair-haired woman in a leather jacket and combat trousers |
+| Tatsuo | `R_Construction_Male_05_m017_bare`: work clothes, bare-headed | Not the face of the man he passed on the stair. Until November 2026 he and Akira both wore m008 |
+| Akira at 87 | `R_Male_Adult_03_m008_grey` | As before |
+| Kanbara | `R_Business_Male_06_m024`: in his shirtsleeves | A Japanese section chief; until November 2026 a European face |
+| The detective | `R_Business_Male_02`: a dark suit and tie, a Japanese face of its own | A detective works in plain clothes; and a uniform on 10 October would have been the dark winter one (the change of dress is on 1 October), not the white naval-style uniform he wore until November 2026 |
+| Mr Tanaka | `R_Male_Adult_14_m017_grey` | As before. He shares m017 with Tatsuo (31 and dark; 76 and grey; never in one frame): with four heads to a sex, no cast of six men is without one shared face, and this pair is the one no deduction turns on |
+
 ## 6. The truth: what happened, minute by minute
 
 **Before.** 17 September 1964, night: the works pour at night to be done for the Games; the river comes down; Kudo
