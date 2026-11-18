@@ -183,9 +183,10 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
-# an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone")
+# an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are
+# held at once (docs/HERO.md, "Miyamasu")
 run_mem() {
-  if timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
+  if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
 }

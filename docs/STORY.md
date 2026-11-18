@@ -1288,6 +1288,7 @@ The marks do not depend on colour: their kinds are told apart by shape and named
 mark is drawn in a broken line as well as in blue, so it is told from the living's without its colour. An answer the
 hand is on (the arrows on a keyboard, the d-pad on a pad) has an outline as well as its amber.
 
-What is left of the story's own, each with its issue: frame 5's place is plain boxes and haze round its print (issue 33);
-the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the old
-woman's clear umbrella is not built.
+What is left of the story's own, each with its issue: the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the old
+woman's clear umbrella is not built. Frame 5's place, plain boxes and haze round its print until November 2026 (issue
+33), is a hero level of its own: the Ginza line station's underside, piers and the east exit's ground (docs/HERO.md,
+"Miyamasu").
