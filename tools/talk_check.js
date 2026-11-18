@@ -40,6 +40,22 @@ async function poll() {
       seen.push(s);
       const why = judge(s);
       console.log(`talk shot ${seen.length}: ${s.name} ${s.kind} side ${s.side}${s.crossed ? ' (line crossed)' : ''}${s.k < 1 ? ` (in to ${s.k})` : ''} face at (${s.x}, ${s.y})${why.length ? ` FAIL ${why.join('; ')}` : ''}`);
+      // (who is drawn as a whole person within 2.5 m of the face now, and as what: the crowd's, a map's NPC, the story's)
+      const near = await page.evaluate(() => {
+        const g = window.__game, t = g.talkShot && g.talkShot(); if (!t) return null;
+        const cd = g.crowdDraw && g.crowdDraw(), crowdRoots = new Set(cd && cd.active ? [...cd.active.values()].map(r => r.root) : []);
+        const npcRoots = new Set((g.npcs || []).map(n => n.rig && n.rig.root)), out = [], seenR = new Set();
+        g.world.traverse(o => {
+          if (!o.isSkinnedMesh) return;
+          let r = o; while (r.parent && r.parent !== g.world) r = r.parent;
+          if (seenR.has(r)) return; seenR.add(r);
+          for (let q = o; q; q = q.parent) if (!q.visible) return;
+          const d = Math.hypot(r.position.x - t.subject[0], -r.position.z - t.subject[1]);
+          if (d < 2.5 && d > 0.05) out.push(`${r.name || '?'} ${crowdRoots.has(r) ? '(crowd)' : npcRoots.has(r) ? '(npc)' : r === g.player.rig.root ? '(you)' : '(other)'} ${d.toFixed(2)} m`);
+        });
+        return out;
+      }).catch(() => null);
+      if (near && near.length) console.log(`  near the face: ${near.join(', ')}`);
       if (why.length) bad.push(`${s.name} (${s.kind}): ${why.join('; ')}`);
     }
     const last = seen[seen.length - 1], now = await page.evaluate(() => { const g = window.__game; return !!(g && g.talkShot && g.talkShot()); });
