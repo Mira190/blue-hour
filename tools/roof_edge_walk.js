@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const { startPlay } = require('./start_play');
 const [,, out = '/tmp/roof-edge'] = process.argv;
-const DECK = 241.8, MID = [522, -1124];
+const DECK = 241.8, MID = [541, -1124]; // (on the open deck east of the compass and its pad, which stand 2 m higher)
 (async () => {
   fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch(process.env.DISPLAY
@@ -26,13 +26,13 @@ const DECK = 241.8, MID = [522, -1124];
   const res = await p.evaluate(([MID, DECK]) => {
     const g = window.__game, pl = g.player, nav = g.nav, out = [];
     nav.prefetch(MID[0], MID[1], 64, Infinity);
-    for (let i = 0; i < 36; i++) for (const walk of [false, true]) {
+    for (let i = 0; i < 36; i++) for (const walk of [false, true, 'jump']) {
       const a = i * Math.PI / 18;
-      [pl.x, pl.y, pl.z] = [MID[0], MID[1], DECK]; pl.mode = 'foot'; pl.ground = true; pl.vz = 0; pl.walking = walk; pl.floor = null;
+      [pl.x, pl.y, pl.z] = [MID[0], MID[1], DECK]; pl.mode = 'foot'; pl.ground = true; pl.vz = 0; pl.walking = walk === true; pl.floor = null;
       pl.h = a; g.cam.yaw = a;
-      let far = 0, low = DECK, where = null;
-      for (let t = 0; t < (walk ? 30 : 8); t += 0.25) {
-        g.cam.yaw = a; g.advance(0.25, ['KeyW']);
+      let far = 0, low = DECK, where = [+pl.x.toFixed(2), +pl.y.toFixed(2), +pl.z.toFixed(2)];
+      for (let t = 0; t < (walk === true ? 30 : 8); t += 0.25) {
+        g.cam.yaw = a; g.advance(0.25, walk === 'jump' && Math.round(t * 4) % 6 === 5 ? ['KeyW', 'Space'] : ['KeyW']); // (and running at it, jumping every second and a half)
         const d = Math.hypot(pl.x - MID[0], pl.y - MID[1]);
         if (d > far) { far = d; where = [+pl.x.toFixed(2), +pl.y.toFixed(2), +pl.z.toFixed(2)]; }
         low = Math.min(low, pl.z);
@@ -49,9 +49,9 @@ const DECK = 241.8, MID = [522, -1124];
   const edgeDist = (x, y) => { let best = Infinity; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [ax, ay] = ring[j], [bx, by] = ring[i], dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)); best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return best; };
   let bad = 0;
   for (const r of res) {
-    const [x, y] = r.where, inn = inside(x, y), e = edgeDist(x, y), fell = r.low < DECK - 0.5, out_ = !inn || e < 0.25;
+    const [x, y] = r.where, inn = inside(x, y), e = edgeDist(x, y), fell = r.low < DECK - 0.5, out_ = !inn; // (the glass stands half a metre past the outline here: the middle of a body may come to the outline, never past it)
     if (fell || out_) bad++;
-    console.log(`${fell || out_ ? 'FAIL' : 'ok  '} ${String(r.deg).padStart(3)} degrees${r.walk ? ', walking' : ', running'}: stopped ${inn ? `${e.toFixed(2)} m inside` : `${e.toFixed(2)} m OUTSIDE`} the tower's edge at ${r.where}${fell ? `, down to ${r.low} m` : ''}`);
+    console.log(`${fell || out_ ? 'FAIL' : 'ok  '} ${String(r.deg).padStart(3)} degrees${r.walk === 'jump' ? ', running and jumping' : r.walk ? ', walking' : ', running'}: stopped ${inn ? `${e.toFixed(2)} m inside` : `${e.toFixed(2)} m OUTSIDE`} the tower's edge at ${r.where}${fell ? `, down to ${r.low} m` : ''}`);
   }
   console.log(`${bad} of ${res.length} walks got into the glass or off the deck`);
   console.log(logs.join('\n'));
