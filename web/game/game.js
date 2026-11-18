@@ -2195,17 +2195,33 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       o.hold = false;
       // (nowhere clear in its last 30 m: further back along its way; and nowhere at all, it drives in from where it stands.
       // Finished at its stop all the same, it was set down on the people crossing there by Hachiko, #28)
+      // (and set down moving no faster than it can stop at short of the first person on its way in: put down at 5.5 m/s
+      // 6 m short, it braked for a woman waiting at the kerb by Hachiko and stopped with her in its bonnet, #50)
       const s = setDown(o) ?? setDown(o, Infinity);
-      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * (o.drv.st.end - s))); }
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
   // where it is) at which its body, and a metre and a half round it, has nobody in it and no car near; null if there is none
   const SET_DOWN = 30;
+  // (first choice, a point from which its way in to the stop has nobody on it either; else the furthest clear one)
   function setDown(o, far = SET_DOWN) {
     const st = o.drv.st;
-    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) if (clearAt(o, s)) return s;
-    return null;
+    let any = null;
+    for (let s = st.end; s >= Math.max(st.s, st.end - far); s -= 1.5) if (clearAt(o, s)) { if (wayIn(o, s) >= st.end - s) return s; any ??= s; }
+    return any;
+  }
+  // how far a ride put at s can drive on before the first person on its way (from its bumper, as its driver looks:
+  // cars.js look, game.js peopleOnWay), up to its stop; Infinity if nobody
+  const wayPts = new Float64Array(80), wayAt = {};
+  function wayIn(o, s) {
+    const st = o.drv.st, half = o.C.half, sh = st.shift;
+    let n = 0;
+    st.shift = 0;
+    for (let d = 0; s + half + d <= st.end + half && n < 40; d += 1.5) { o.drv.poseAt(Math.min(o.drv.path.len, s + half + d), wayAt); wayPts[2 * n] = wayAt.x; wayPts[2 * n + 1] = wayAt.y; n++; }
+    st.shift = sh;
+    o.drv.poseAt(s, wayAt);
+    return peopleOnWay(wayPts, n, 1.5, { z: wayAt.z, s, end: st.end }, o.C);
   }
   // whether a ride put at s of its way (as jump and finish put it) stands clear: its body and pad metres round it with
   // nobody in it (the crowd, the NPCs, you on foot, the dog) and no car of the traffic near. Tested where the car will
