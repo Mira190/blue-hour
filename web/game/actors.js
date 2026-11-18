@@ -842,6 +842,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // a place to wait at gate g, behind its kerb (u: across the stripes' width, -1 to 1), or to land at
     // it; drawn in towards the stripes' line, and nearer the kerb, where that would be in a road
     function spotAt(g, u, depth, out, road = null) {
+      // (first further back at the same place across: a crosswalk whose stripes end short of the kerb, Hachiko's under
+      // the viaduct 3.6 m short, drew every spot in to the stripes' line and then on to one point behind the kerb, and
+      // those landing there from the far side heaped on it, twenty in a few metres, tools/crowd_spread.js)
+      if (road) for (let e = 0; e <= 6; e += 0.5) {
+        out.x = g.x + g.ox * (depth + e) - g.oy * u * SCR_HW; out.y = g.y + g.oy * (depth + e) + g.ox * u * SCR_HW;
+        if (!road(out.x, out.y) && !(shut && shut(out.x, out.y))) { if (e > 0) { out.x += g.ox * 0.4; out.y += g.oy * 0.4; } return out; } // (a step up off the kerb's edge)
+      }
       for (let k = 0; k < 6; k++) {
         out.x = g.x + g.ox * depth - g.oy * u * SCR_HW; out.y = g.y + g.oy * depth + g.ox * u * SCR_HW;
         if ((!road || !road(out.x, out.y)) && !(shut && shut(out.x, out.y))) return out; // (on the pavement, and not in a shut stair well)
@@ -862,9 +869,75 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // (the counts went negative: a walker out crossing, no longer counted, was taken off again, #283)
     const count = (q, g) => { if (q.gc) q.gc.n--; q.gc = g; g.n++; };
     const uncount = q => { if (q.gc) { q.gc.n--; q.gc = null; } };
-    function toGate(q, g, depth) { // to wait at gate g
-      q.g = g; count(q, g); q.ph = 'stroll'; q.react = 0.2 + rnd() * 2.2;
-      spotAt(g, q.spread, depth != null ? depth : 0.7 + Math.max(0, Math.min(3.5, g.n * 0.07)) + rnd() * 1.6, q.T || (q.T = {}), q.pz && q.pz.road);
+    // a free place of its own to wait at gate g: the crowd at a kerb stands in loose rows along it, the front row the
+    // whole width of the stripes and a pace or more past either edge, each row behind it 0.7 m back, and each one a
+    // pace (0.9 m, centre to centre: about 1.4 people a square metre, Fruin's comfortable waiting) from every place taken at that corner, its own crowd's or a
+    // neighbouring gate's. Before, every walker of a gate was sent to one point drawn in towards the stripes' line
+    // (spotAt below, its depth in a road shrinking to the same spot behind the kerb), and twenty stood there in a heap
+    // a few metres across with the paving round them empty (Hachiko's corner under the viaduct, tools/crowd_spread.js).
+    const SLOT = 0.9;
+    function slotFree(q, x, y, r = SLOT) {
+      for (let k = 0; k < api.active; k++) {
+        const o = P[k];
+        if (o === q || !o.pz || !o.T || (o.ph !== 'wait' && o.ph !== 'stroll' && o.ph !== 'linger')) continue;
+        const ex = o.T.x - x, ey = o.T.y - y;
+        if (Math.abs(ex) < r && Math.abs(ey) < r && ex * ex + ey * ey < r * r) return false;
+      }
+      return true;
+    }
+    // a place to stand a while on the paving behind a landmark crossing's kerbs, 4 to 16 m back and 9 either side of
+    // its crosswalk, as Hachiko's square is used: the city's meeting place, people waiting for a friend, on the phone,
+    // looking about, each a couple of metres from the next, not walking and not waiting for the lights. Off the road,
+    // on its own level, and a straight walk from where q stands with no wall in the way (a scramble's walkers keep no
+    // footway): false where there is none
+    function lingerAt(g, q, out, road) {
+      for (let k = 0; k < 10; k++) {
+        const d = 4 + rnd() * 12, lat = (rnd() * 2 - 1) * 9, x = g.x + g.ox * d - g.oy * lat, y = g.y + g.oy * d + g.ox * lat;
+        if ((road && road(x, y)) || (shut && shut(x, y)) || !slotFree(q, x, y, 1.6)) continue;
+        let ok = true;
+        const n = Math.ceil(Math.hypot(x - q.x, y - q.y) / 0.5);
+        for (let m = 1; m <= n && ok; m++) {
+          const px = q.x + (x - q.x) * m / n, py = q.y + (y - q.y) * m / n;
+          if (shut && shut(px, py)) ok = false;
+          else if (clear && ground) { ZAT.z = g.z; const z = ground(px, py, ZAT); if (z == null || Math.abs(z - g.z) > 1 || !clear(px, py, z)) ok = false; }
+        }
+        if (!ok) continue;
+        out.x = x; out.y = y;
+        return true;
+      }
+      return false;
+    }
+    const LINGER = 0.22; // (the share of a landmark crossing's own crowd that stands about on its paving rather than wait at a kerb)
+    function toLinger(q, g) {
+      if (!q.pz || !(q.pz.weight > 1) || !lingerAt(g, q, q.T || (q.T = {}), q.pz.road)) return false;
+      uncount(q); q.g = g; q.ph = 'linger'; q.lst = false; q.lt = 25 + rnd() * 70;
+      return true;
+    }
+    function slotAt(g, q, out, road = null, fallback = true) {
+      const W = SCR_HW + 1.4;
+      for (let r = 0; r < 10; r++) {
+        for (let k = 0; k < 8; k++) {
+          const lat = (k === 0 ? q.spread : rnd() * 2 - 1) * W + (rnd() - 0.5) * 0.25, d = 0.75 + r * 0.7 + (rnd() - 0.5) * 0.3;
+          const x = g.x + g.ox * d - g.oy * lat, y = g.y + g.oy * d + g.ox * lat;
+          if ((road && road(x, y)) || (shut && shut(x, y)) || !slotFree(q, x, y)) continue;
+          if (clear && ground) { ZAT.z = g.z; const z = ground(x, y, ZAT); if (z == null || Math.abs(z - g.z) > 1 || !clear(x, y, z)) continue; }
+          out.x = x; out.y = y; out.ok = true;
+          return out;
+        }
+      }
+      if (!fallback) return null;
+      return spotAt(g, q.spread, 0.7 + rnd() * 1.6, out, road); // (no room left behind that kerb: in among them)
+    }
+    function toGate(q, g) { // to wait at gate g
+      q.g = g; count(q, g); q.ph = 'stroll'; q.lst = false; q.react = 0.2 + rnd() * 2.2;
+      const T = q.T || (q.T = {}), road = q.pz && q.pz.road;
+      if (slotAt(g, q, T, road, false)) return true;
+      // (no room left behind that kerb, a narrow corner's pavement between a wall and the road: a kerb of that corner
+      // with room, and else false, for the caller to send it on along a footway rather than in among those already
+      // there: the corner west of QFRONT heaped a dozen into a circle 3 m across)
+      for (const h of g.corner || []) if (slotAt(h, q, T, road, false)) { q.g = h; count(q, h); return true; }
+      spotAt(g, q.spread, 0.7 + rnd() * 1.6, T, road);
+      return false;
     }
     function plazas(t, cx, cy) {
       // (the share split between those near, a landmark's the most)
@@ -883,12 +956,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         for (let i = 0; i < api.active && have < want; i++) {
           const q = P[i];
           if (q.pz || q.state !== 'walk' || (t >= 1 && q.line >= 0 && Math.hypot(q.x - cx, q.y - cy) < 120)) continue;
-          const g = G[Math.floor(rnd() * G.length)];
+          const g1 = G[Math.floor(rnd() * G.length)], g2 = G[Math.floor(rnd() * G.length)], g = g1.n / g1.len <= g2.n / g2.len ? g1 : g2; // (the less crowded of two kerbs for its crosswalk's width: no one kerb heaped while the next stands empty)
           if (t >= 1 && seen(g.x, g.y, g.z)) continue; // (not put at a kerb the camera sees: those who walk up to it join, toPlaza)
           const was = [q.line, q.x, q.y, q.z];
           q.pz = pz; q.state = 'scr'; q.mode = 'ground'; q.line = Math.max(0, q.line); q.g = null; q.pause = 0;
-          toGate(q, g);
-          q.x = q.T.x; q.y = q.T.y; q.z = g.z; q.ph = 'wait'; q.v = q.vx = q.vy = 0; q.h = Math.atan2(-g.ox, -g.oy);
+          const stand = rnd() < LINGER && (q.x = g.x, q.y = g.y, toLinger(q, g)); // (some standing about the square from the first frame)
+          if (!stand && !toGate(q, g)) { uncount(q); q.pz = q.g = null; q.state = 'walk'; [q.line, q.x, q.y, q.z] = was; continue; } // (no room at that corner)
+          q.x = q.T.x; q.y = q.T.y; q.z = g.z; q.v = q.vx = q.vy = 0;
+          if (stand) { q.lst = true; q.h = rnd() * 6.28; } else { q.ph = 'wait'; q.h = Math.atan2(-g.ox, -g.oy); }
           gather(q.x, q.y, q, true, q.z);
           if (t >= 1 && seen(q.x, q.y, q.z)) { uncount(q); q.pz = q.g = null; q.state = 'walk'; [q.line, q.x, q.y, q.z] = was; continue; } // (its own spot along that kerb is in sight: it stays where it was)
           if (carDepth(q.x, q.y) > 0) { uncount(q); q.pz = q.g = null; q.state = 'walk'; q.line = -1; continue; } // (not put inside a car waiting there)
@@ -907,7 +982,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (!g) return false;
       release(p);
       p.pz = pz; p.state = 'scr'; p.mode = 'ground'; p.g = null; p.kerbNext = null; p.kerbBack = false;
-      toGate(p, g, 0.7 + rnd() * 1.5);
+      if (!toGate(p, g)) { uncount(p); p.pz = p.g = null; p.state = 'walk'; return false; } // (no room there: on along its footway)
       p.vx = p.vy = 0;
       return true;
     }
@@ -920,8 +995,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (!g) return false;
       release(p);
       p.pz = pz; p.state = 'scr'; p.mode = 'ground'; p.g = null; p.kerbNext = null; p.kerbBack = false;
-      toGate(p, g, 0.7);
-      p.T.x = p.x; p.T.y = p.y; p.ph = 'wait'; p.vx = p.vy = 0;
+      const room = toGate(p, g);
+      // (a place of its own if one is near, the next step or two; else where it stands, at the back of them)
+      if (!room || Math.hypot(p.T.x - p.x, p.T.y - p.y) > 3) { p.T.x = p.x; p.T.y = p.y; p.ph = 'wait'; }
+      p.vx = p.vy = 0;
       return true;
     }
     function toFootway(q) {
@@ -992,13 +1069,16 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           // queues do, each agent moving once the one ahead has): the front row on its reaction, each row behind
           // it later by how deep it stands and only once whoever stands in front of it has stepped off, rather
           // than every row at once walking into the backs of the row ahead. Never held more than 4 s by that
+          // (and across to the far kerb a little to its own left of the stripes, as the crowd sorts itself into lanes:
+          // each heading for the mirror of where it stood, the two kerbs' crowds met face to face across the whole width
+          // and stood in a knot in the middle of the road until the shoves sorted them, tools/crowd_spread.js)
           const depth = Math.max(0, (q.x - g.x) * g.ox + (q.y - g.y) * g.oy - 0.8);
-          if ((q.react -= dt) <= -0.35 * depth && (q.react < -4 || !aheadWaits(i, q, g))) { q.ph = 'cross'; spotAt(g.partner, -q.spread + (rnd() - 0.5) * 0.5, 0.6 + rnd() * 1.4, q.T, pz.road); uncount(q); }
+          if ((q.react -= dt) <= -0.35 * depth && (q.react < -4 || !aheadWaits(i, q, g))) { q.ph = 'cross'; spotAt(g.partner, -(q.spread * 0.7 - 0.3) + (rnd() - 0.5) * 0.4, 0.6 + rnd() * 1.4, q.T, pz.road); uncount(q); }
         }
       }
       else if (q.ph === 'cross') { // (still behind the kerb as the walk ends, or with too little of it left: back to wait)
         const P2 = g.partner, ex = P2.x - g.x, ey = P2.y - g.y, t = ((q.x - g.x) * ex + (q.y - g.y) * ey) / (ex * ex + ey * ey);
-        if (t < 0.03 && (!pz.walk() || pz.left() < g.len / (xSpeed(q) * 0.85))) { q.ph = 'wait'; count(q, g); spotAt(g, q.spread, 0.7 + rnd() * 1.6, q.T, pz.road); q.react = 0.2 + rnd() * 2.2; }
+        if (t < 0.03 && (!pz.walk() || pz.left() < g.len / (xSpeed(q) * 0.85))) { q.ph = 'wait'; count(q, g); slotAt(g, q, q.T, pz.road); q.react = 0.2 + rnd() * 2.2; }
       }
       const dx = q.T.x - q.x, dy = q.T.y - q.y, d = Math.hypot(dx, dy);
       if (q.ph === 'cross') { sp = xSpeed(q); pz.busy = (pz.busy || 0) + 1; } else if (q.ph === 'stroll') {
@@ -1021,6 +1101,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             else if (q.sTries === 3 && q.g && q.g.corner && q.g.corner.length) { const c = q.g.corner; toGate(q, c[Math.floor(rnd() * c.length)]); q.sTries = 3; }
           }
         } else q.sTries = 0;
+      } else if (q.ph === 'linger') {
+        sp = q.lst ? 0 : q.speed * 0.8;
+        // (stood its while: off along a footway, or to a kerb to cross)
+        if (q.lst && (q.lt -= dt) < 0) { if (!(rnd() < 0.5 && toFootway(q))) toGate(q, q.g); return; }
       } else sp = d > 0.6 ? 0.5 : 0;
       if (q.pause > 0) sp = 0;
       let vx = d > 1e-3 ? dx / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0, vy = d > 1e-3 ? dy / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0;
@@ -1037,7 +1121,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (k === i) continue;
           const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey);
           if (e > 2.4 || e < 1e-4) continue;
-          const keep = q.ph === 'wait' && sp === 0 ? 0.55 : 0.75; // (stood waiting: shoulder to shoulder, as a crowd at a kerb stands, not shoved about by every neighbour)
+          const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? 0.68 : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
@@ -1062,7 +1146,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       vx += fx; vy += fy;
       // (waiting: a nudge under a slow step is stood through, not shuffled to; a real push still moves them)
-      if (q.ph === 'wait' && sp === 0 && Math.hypot(vx, vy) < 0.35) vx = vy = 0;
+      if ((q.ph === 'wait' || q.lst) && sp === 0 && Math.hypot(vx, vy) < 0.35) vx = vy = 0;
       const m = Math.hypot(vx, vy), top = Math.max(sp, 0.6) * 1.15;
       if (m > top) { vx *= top / m; vy *= top / m; }
       // eased, as a body speeds up and turns
@@ -1085,7 +1169,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           for (let k = 1; k <= 8 && clear; k++) if (carDepth(q.x + (back.x - q.x) * k / 8, q.y + (back.y - q.y) * k / 8, 0.12) > 0) clear = false;
           if (clear) { best = h; bd = d; }
         }
-        if (best) { q.g = null; toGate(q, best, 0.8 + rnd()); q.jam = 0; return; }
+        if (best) { q.g = null; toGate(q, best); q.jam = 0; return; }
         q.jam = pz.walk() ? 3.5 : 1.5;
       }
       const was = carDepth(q.x, q.y, M), nx = q.x + q.vx * dt, ny = q.y + q.vy * dt;
@@ -1119,9 +1203,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // short of its spot at the kerb and getting nowhere for a second, the crowd there in its way: it stands where
       // it is, at the back of them, as people do on reaching a crowd, instead of walking on the spot into their
       // backs until someone gives way (Shibuya: some pressed so for 27 s; tools/crowd_press.js)
-      if ((q.ph === 'stroll' || q.ph === 'wait') && Math.hypot(q.T.x - q.x, q.T.y - q.y) > 0.6 && !(pz.road && pz.road(q.x, q.y))) {
+      if ((q.ph === 'stroll' || q.ph === 'wait' || (q.ph === 'linger' && !q.lst)) && Math.hypot(q.T.x - q.x, q.T.y - q.y) > 0.6 && !(pz.road && pz.road(q.x, q.y))) {
         q.held = (q.av ?? q.v) < 0.15 ? (q.held || 0) + dt : 0;
-        if (q.held > 1) { q.T.x = q.x; q.T.y = q.y; q.ph = 'wait'; q.held = 0; }
+        // (but where it stands is someone's place, a pace from it: another place of its own, twice at most, rather than
+        // stand in their pocket, which heaped the crowd at a kerb into a knot as each arrival stopped against the last)
+        if (q.held > 1 && q.ph === 'linger') { q.held = 0; q.T.x = q.x; q.T.y = q.y; q.lst = true; } // (held up on its way across the square: it stands about where it is)
+        else if (q.held > 1) { q.held = 0; if ((q.reslot || 0) < 2 && q.g && !slotFree(q, q.x, q.y)) { q.reslot = (q.reslot || 0) + 1; slotAt(q.g, q, q.T, pz.road); } else { q.T.x = q.x; q.T.y = q.y; q.ph = 'wait'; q.reslot = 0; } }
       } else q.held = 0;
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if (q.ph === 'wait' && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
@@ -1130,10 +1217,16 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       else if (q.v > (q.ph === 'wait' ? (Math.hypot(q.T.x - q.x, q.T.y - q.y) > 1.2 ? 0.45 : Infinity) : 0.15) && fw > 0.12) turnTo(q, dt, 6, fw); // (waiting, it turns only to walk back a way to its place: shoved about in the press it keeps facing the road, #283)
       else if (q.ph === 'wait') { const h = Math.atan2(-g.ox, -g.oy); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 0.8); } // (facing the road, settling round to it over a second or so, as one does in a crowd, not swung round)
       // there: on the far side, on to a kerb of that corner (or this one) to wait again
-      if (Math.hypot(q.T.x - q.x, q.T.y - q.y) < 0.5) {
+      // (over, off the road, within a couple of paces of where it was going and held there a second by those standing
+      // about: it has landed; walking on into them for its exact spot pressed a knot together on the far kerb)
+      q.landT = q.ph === 'cross' && q.v < 0.3 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 2.5 && !(pz.road && pz.road(q.x, q.y)) ? (q.landT || 0) + dt : 0;
+      if (Math.hypot(q.T.x - q.x, q.T.y - q.y) < 0.5 || q.landT > 1) {
+        q.landT = 0;
         if (q.ph === 'cross' && pz.owe > 0 && toFootway(q)) pz.owe--;
-        else if (q.ph === 'cross') { const c = g.partner.corner, n2 = rnd() < 0.55 && c.length ? c[Math.floor(rnd() * c.length)] : g.partner; q.g = null; toGate(q, n2); }
+        else if (q.ph === 'cross' && rnd() < LINGER && toLinger(q, g.partner)) { /* (over, and to stand about the square a while) */ }
+        else if (q.ph === 'cross') { const c = g.partner.corner, n2 = rnd() < 0.55 && c.length ? c[Math.floor(rnd() * c.length)] : g.partner; q.g = null; if (!toGate(q, n2) && toFootway(q)) return; }
         else if (q.ph === 'stroll') q.ph = 'wait';
+        else if (q.ph === 'linger' && !q.lst) { q.lst = true; q.vx = q.vy = 0; }
       }
     }
     // the way the body faces, out of where it is going: its velocity eased over a good part of a second,
