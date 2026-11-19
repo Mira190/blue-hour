@@ -46,7 +46,15 @@ const LEADS = [
     window.requestAnimationFrame = fn => raf(t => { D.on = D.all || D.frames++ % n === 0; fn(t); D.on = true; });
     for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
   }, DRAW);
-  const shoot = async path => { if (DRAW > 1) await p.evaluate(() => new Promise(r => { window.__draw.all = true; requestAnimationFrame(() => requestAnimationFrame(r)); })); await p.screenshot({ path }); if (DRAW > 1) await p.evaluate(() => { window.__draw.all = false; }); };
+  // (a still is for looking at, not a check: on a software renderer a whole frame drawn mid-lead took over Playwright's
+  // 30 s, and the timeout ended the run; it is given longer, and one that still fails is reported, not fatal)
+  const shoot = async path => {
+    try {
+      if (DRAW > 1) await p.evaluate(() => new Promise(r => { window.__draw.all = true; const t = setTimeout(r, 60000); requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(t); r(); })); }));
+      await p.screenshot({ path, timeout: 180000 });
+    } catch (e) { console.log('still missed:', path, String(e).split('\n')[0]); }
+    finally { if (DRAW > 1) await p.evaluate(() => { window.__draw.all = false; }).catch(() => {}); }
+  };
   // (as a case left at frame 4 and opened again: the dog is met, and the frame's goal is the lift)
   await p.addInitScript(() => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 3, left: 4, prints: [0, 1, 2].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
