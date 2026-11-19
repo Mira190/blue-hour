@@ -6721,7 +6721,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
     player.speed += (target - player.speed) * Math.min(1, dt * (target > player.speed ? 6 : 10));
     if (m > 0.05) {
-      const dir = cam.yaw + Math.atan2(side, fwd);
+      let dir = cam.yaw + Math.atan2(side, fwd);
+      // (pressed on slantwise into a wall or a glass, the body turns to the way the wall lets it go, as a person does: faced
+      // into it while the feet slid along, the hand on that side swung into it. For as long as the way pressed is the same)
+      if (player.along && clockT < player.along.until && Math.abs(angDiff(dir, player.along.dir)) < 0.3) dir = player.along.h;
       player.h += angDiff(dir, player.h) * Math.min(1, dt * 10);
     }
     // move as Unreal's CharacterMovementComponent does: sweep the capsule and slide along the
@@ -6754,6 +6757,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       } else if (w.why === 'nogo' && clockT - waterT > 20) { waterT = clockT; H.toast(colonies[0] ? colonies[0].colony.keep_off_note : 'Keep out.');
       } else if (w.why === 'water' && clockT - waterT > 20) { waterT = clockT; H.toast(`No swimming in ${G.water_name || 'the water'}.${G.wharves.length ? ' Ferries leave from the wharves marked F.' : ''}`); }
     }
+    // and a body comes to a wall or a glass with its stride ahead of it: the foot and hand that lead a walk reach a
+    // hand's width past the capsule, a run's a forearm, and the clip eases to a stand in 0.3 s. So the middle stops
+    // that much short of whatever is ahead along the way it goes (tools/glass_body.js: feet 0.2 m, hands 0.1 m into the
+    // escalator's glass and the walls, walked or run at); along a wall, only the part of it the wall takes away
+    if (moved > 0 && target > 0) {
+      const lead = Math.min(0.28, 0.08 + 0.03 * target), hx = Math.sin(player.h) * lead, hy = Math.cos(player.h) * lead;
+      const a = nav.slide(player.x, player.y, player.z, hx, hy), bx = player.x + hx - a.x, by = player.y + hy - a.y;
+      const bl = Math.hypot(bx, by);
+      if (a.hit && bl > 1e-3 && nav.walk(player.x - bx, player.y - by, player.z, true).ok) {
+        player.x -= bx; player.y -= by;
+        // (what was gained along the wall: the step into it and back out again is no walk, and counted as one the clip
+        // trod on the spot at a third of its pace)
+        const dx = player.x - x0, dy = player.y - y0, dn = (dx * bx + dy * by) / bl;
+        moved = Math.sqrt(Math.max(0, dx * dx + dy * dy - dn * dn));
+      }
+    }
     // cars are solid too: out of any the move went into, or one that drove into you (back where you
     // were if that is a wall), and then out of the lamp posts and trunks, which a car can't shove you into
     const boxes = carBoxes(player.x, player.y, 6);
@@ -6777,6 +6796,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       moved = Math.hypot(player.x - x0, player.y - y0);
     }
     if (dt > 0) player.speed = Math.min(player.speed, moved / dt); // the speed is what the move achieved, so the walk cycle slows against a wall
+    if (m > 0.05 && player.ground) { // (a wall slantwise across the way pressed: a short step that way slides off it, and the way it slides is the way faced)
+      const dir = cam.yaw + Math.atan2(side, fwd), q = nav.slide(player.x, player.y, player.z, Math.sin(dir) * 0.15, Math.cos(dir) * 0.15);
+      const dx = q.x - player.x, dy = q.y - player.y, went = Math.atan2(dx, dy);
+      if (q.hit && Math.hypot(dx, dy) > 0.02 && Math.abs(angDiff(went, dir)) > 0.1) player.along = { h: went, dir, until: clockT + 0.25 };
+    }
     // an escalator (a surface with moving_ms) carries whoever stands on its moving stretch along its axis; the
     // steps take you through whatever stands beside them (a well's rim, the floor you come up through). Where its
     // flat ends lie flush with a floor a hair higher than them (a landing's stone, a deck's boards), the floor is
@@ -6804,6 +6828,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (Math.abs(dv) > 1e-4) { const e = 1 - Math.exp(-dt / 0.12); player.x += -esc.axis[1] * dv * e; player.y += esc.axis[0] * dv * e; }
       }
     } else player.escOff = null;
+    // (and out of an escalator's glass when not moving too: put there, or stood still as the steps carry you)
+    if (player.ground) { const q = nav.paneOut(player.x, player.y, player.x, player.y, player.z); if (q && nav.walk(q[0], q[1], player.z, true).ok) { player.x = q[0]; player.y = q[1]; } }
     const f = nav.floorAt(player.x, player.y, player.z);
     const floorZ = f ? f.z : player.z;
     if (f) player.floor = f.kind;
