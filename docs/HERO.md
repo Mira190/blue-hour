@@ -510,10 +510,8 @@ a cream bib and a layer of tapered guard hairs.
 The coat follows the jaw down the cheeks, lies back along the saddle and turns around the tail.
 The relative coat lengths and the cream markings follow the
 [Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
-The two eye centres are about 55 pixels apart across a face roughly 205 pixels wide in
-the supplied 447-pixel portrait. That proportion sets the sockets in the sculpt.
-`blender/akita-coat.png` holds the cropped facial markings with the background masked.
-Their colour follows the face onto the cheeks and fades into the generated coat at the sides.
+The pale muzzle and orbital markings follow the surface around the head. The neck reaches forward at rest.
+The standing silhouette was compared with [Dog - Akita Inu](https://www.cgtrader.com/3d-models/animal/mammal/dog-akita-inu), a commercial visual reference. No assets from the pack are used.
 The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
 a tiled undercoat with directional relief. Both textures are generated at build time.
 The corneas and lid creases are sculpted into the same surface so the skin turns as one.

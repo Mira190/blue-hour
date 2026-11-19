@@ -350,7 +350,7 @@ window.OECompanion = (function () {
         let yaw = Math.atan2(lookAt[1] - s.y, lookAt[0] - s.x) - s.h; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
         const up = Math.atan2((lookAt[2] ?? s.z + 0.8) - (s.z + 0.8), Math.max(1, dist(lookAt[0], lookAt[1])));
         s.hy = (s.hy || 0) + (Math.max(-1.25, Math.min(1.25, yaw)) - (s.hy || 0)) * Math.min(1, dt * 5);
-        s.hp = (s.hp || 0) + (Math.max(-0.3, Math.min(0.6, up)) - (s.hp || 0)) * Math.min(1, dt * 4);
+        s.hp = (s.hp || 0) + (Math.max(-0.3, Math.min(0.21, up)) - (s.hp || 0)) * Math.min(1, dt * 4);
       } else { s.hy = (s.hy || 0) * Math.max(0, 1 - dt * 4); s.hp = (s.hp || 0) * Math.max(0, 1 - dt * 4); }
       if (head && (Math.abs(s.hy) > 0.01 || Math.abs(s.hp) > 0.01)) {
         const yAxis = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3(Math.sin(s.h), 0, Math.cos(s.h)); // (the axis a raised nose turns about)
