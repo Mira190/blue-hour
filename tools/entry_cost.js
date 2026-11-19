@@ -9,6 +9,9 @@
 // and every program linked before the first frame against when it was first drawn with (on the title, in the opening's
 // first SHOT=n seconds (6), later, or not in the watch), with the materials behind those it need not have made; and the
 // programs a draw linked after the first frame (no warm-up made them: a hitch in their frame).
+// The page's own "warm:" lines say when each part of the loader's wait was done, counted from "built", and how long the first
+// frame waited for the GPU to draw it. DUMP=1 also writes, for each program linked before the first frame, the calls that
+// linked it (its "why" in the JSON): which warm-up, or which draw, made it.
 // SECONDS=n: how much of the opening to watch (20). WAIT=n: seconds on the title before the tap (7). IOS=1: as an iPhone's Safari (its user agent). The page is
 // drawn by a software renderer here: what costs most is the thing to read, not the milliseconds.
 const { chromium } = require('playwright');
@@ -42,7 +45,7 @@ const [,, out = '/tmp/entry-cost', size = '390x844'] = process.argv;
       const ty = /#define SHADER_TYPE (\w+)/.exec(t), tn = ty ? ty[1].replace(/^Mesh|Material$/g, '') : '';
       if (m) att.set(pr, m[1]); else if (!att.has(pr) && /gl_Position/.test(t)) att.set(pr, `${tn}(${defs.filter(d => !/^(standard|physical|reversed_depth_buffer)$/.test(d)).join(' ') || (tn ? '' : 'raw')}${defs.length || tn ? '' : ` ${u.join(' ')}`})`);
       return as.call(this, pr, sh); };
-    const lp = P.linkProgram; P.linkProgram = function (pr) { const g = { t: performance.now(), name: att.get(pr) || '(unnamed)', used: null, pr, draw: !/compile/i.test(new Error().stack) }; G.push(g); linked.set(pr, g); return lp.call(this, pr); };
+    const lp = P.linkProgram; P.linkProgram = function (pr) { const st = new Error().stack, g = { t: performance.now(), name: att.get(pr) || '(unnamed)', used: null, pr, draw: !/compile/i.test(st), why: st.split('\n').filter(l => /\/(game\/)?\w+\.js/.test(l) && !/three|vendor|lib\//.test(l)).slice(0, 4).map(l => l.replace(/^\s*at\s+/, '').replace(/https?:\/\/[^/]+\//g, '').replace(/:\d+\)?$/, ')')).join(' < ') }; G.push(g); linked.set(pr, g); return lp.call(this, pr); };
     // when each program is first drawn with (useProgram): which of the loader's programs the title and the opening draw at all
     const linked = new Map(), up = P.useProgram; P.useProgram = function (pr) { const g = pr && linked.get(pr); if (g && g.used === null) g.used = performance.now(); return up.call(this, pr); };
     // whether this browser compiles in parallel (KHR_parallel_shader_compile), as the page sees it
@@ -98,7 +101,7 @@ const [,, out = '/tmp/entry-cost', size = '390x844'] = process.argv;
     // (every program in full for DUMP=1: its three.js cache key, the materials and objects that use it, and when it was first drawn)
     const keys = new Map(); if (r) for (const q of r.info.programs) keys.set(q.program, q.cacheKey);
     const objs = new Map(); if (r) window.__game.world.traverse(o => { for (const m of [].concat(o.material || [])) { const mp = r.properties.get(m); for (const q of mp.programs ? mp.programs.values() : []) { if (!objs.has(q.program)) objs.set(q.program, []); const l = objs.get(q.program); if (l.length < 6) { const n = []; for (let x = o; x && n.length < 4; x = x.parent) n.push(x.name || x.type); l.push(`${m.name || m.type} on ${n.join(' < ')}${o.visible ? '' : ' (hidden)'}`); } } } });
-    const dump = before.map(g => ({ name: g.name, t: Math.round(g.t), used: g.used === null ? null : Math.round(g.used - t0), key: keys.get(g.pr) || null, users: objs.get(g.pr) || [] }));
+    const dump = before.map(g => ({ name: g.name, t: Math.round(g.t), used: g.used === null ? null : Math.round(g.used - t0), key: keys.get(g.pr) || null, users: objs.get(g.pr) || [], why: g.why }));
     return { n: before.length, k, idle: [...idle].sort((a, b) => b[1] - a[1]), all: [...all].sort((a, b) => b[1] - a[1]), dump };
   }, [stages.frame, t0, SHOT]);
   console.log(`programs linked before the first frame: ${use.n}; first drawn on the title ${use.k.title}, in the opening's first ${SHOT} s ${use.k.shot}, later ${use.k.later}, not in the watch ${use.k.never}`);

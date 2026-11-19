@@ -140,7 +140,7 @@ if (vLit > 0.0) {
   totalEmissiveRadiance += diffuseColor.rgb * uYozCol * vLit * under * fall;
 }`);
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vAO; varying float vCell; varying float vTurn; varying vec3 vLocal; uniform float uAutumn; uniform vec3 uFall[ATLAS_CELLS];')
+        .replace('#include <common>', '#include <common>\nuniform float uBarkBands; varying float vAO; varying float vCell; varying float vTurn; varying vec3 vLocal; uniform float uAutumn; uniform vec3 uFall[ATLAS_CELLS];')
         .replace('#include <map_fragment>', `#include <map_fragment>
 #if defined(LEAVES) && defined(USE_MAP)
 // a leaf card's alpha, averaged down the mip chain, falls under the cut-out threshold and thin leaves (a
@@ -150,7 +150,8 @@ if (vLit > 0.0) {
   diffuseColor.a *= 1.0 + max(0.0, 0.5 * log2(d)) * 0.25; }
 #endif
 diffuseColor.rgb *= mix(0.5, 1.0, vAO);
-#ifdef BARK_BANDS
+#ifndef LEAVES
+if (uBarkBands > 0.5)
 // a cherry's bark: glossy, ringed by horizontal lenticels, short pale dashes a few centimetres apart, in broken
 // rows round the trunk and the limbs (in the tree's own frame: across a limb they lean with it); faded out where
 // a band would be finer than a pixel
@@ -276,8 +277,10 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
         const [kind, sp] = name.split('_'), S = I.species[sp];
         const bands = kind === 'Bark' && S.bark_bands;
         mats[name] = new THREE.MeshStandardMaterial({ color: kind === 'Bark' ? lin(S.bark) : lin(S.colour).multiplyScalar(0.8), roughness: bands ? 0.7 : kind === 'Bark' ? 0.92 : 0.88 });
-        if (bands) mats[name].defines = { BARK_BANDS: '' };
-        mats[name].onBeforeCompile = shader(U, false, false, A);
+        // (a cherry's bands by a uniform, not a define: one program for every species' bark and its other solid parts, where
+        // the define made two, and two again for the far trees' atlas, issue 27)
+        const base = shader(U, false, false, A), bandsU = { value: bands ? 1 : 0 };
+        mats[name].onBeforeCompile = function (sh, r) { base(sh, r); sh.uniforms.uBarkBands = bandsU; };
       }
       return mats[name];
     };

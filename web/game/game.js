@@ -216,6 +216,10 @@ window.OpenEarthGame = async function game(cityId) {
   // shaders compiled, before it is shown (issue 201; world.js upload)
   const uploadFor = obj => (OEWorld.upload ? OEWorld.upload(renderer, obj) : Promise.resolve());
   const warmFor = obj => uploadFor(obj).then(() => compileFor(obj));
+  // the first frame drawn (issue 27): what the loader need not wait for is compiled after it, not queued beside the loader's
+  // own programs, where a device that compiles one at a time (an iPhone) finished it before the first frame all the same
+  let firstFrame = null;
+  const firstFramed = new Promise(r => { firstFrame = r; });
   // a model that comes late, its vertex buffers sent in slices before its first draw (world.js uploadBuffers, as the
   // loader sends the city's): while they go, its meshes are on a layer of their own (30), seen by that pass alone and
   // not by the frames between the slices, and then put back as they were (a hero level: hero.js)
@@ -492,7 +496,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
   // (earlyLamps); what joins the world later is compiled with the rest before the first frame (warm, below)
-  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, flight: 1, only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
+  // (one program at a time while the set-up runs, between its tasks; once it is built (setUp), as many as the GPU takes: the
+  // loader is all that is left to wait on. Not a slice a frame, as behind the title: no frame is drawn under the loader, and the
+  // set-up's long tasks let a frame through so seldom that its compile all but stopped till the set-up was done, issue 27)
+  let setUp = false;
+  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, flight: () => (setUp ? 6 : 1), only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
   // landmark solids (the Opera House shells) and walkable strips (the bridge deck) shade the ground too
   for (const [name, m] of Object.entries(nav.tops)) if ((G.shade_landmarks || []).some(p => name.startsWith(p))) for (const [k, z] of m) if (z > DSM.data[k]) DSM.data[k] = z;
   for (const s of nav.strips) for (let i = 0; i < s.us.length - 1; i++) {
@@ -1102,7 +1110,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a railway's trains: the modelled stock in place of the stand-ins, when it has loaded
   if (rail && rail.useModels) new THREE.GLTFLoader().load('assets/vehicles/trains.glb', g => { try { rail.useModels(g.scene); } catch (e) { console.warn('Train models unavailable, using simple ones:', e); } }, undefined, e => console.warn('Train models unavailable, using simple ones:', e));
   // a main line's trains past its station, where the city has them (trains.js): heard from the camera
-  const trains = G.trains && window.OETrains ? OETrains.create(world, G, { hour: () => clock.min / 60, listener: () => ({ x: camera.position.x, y: -camera.position.z, z: camera.position.y }), warm: obj => warmFor(obj) }) : null;
+  const trains = G.trains && window.OETrains ? OETrains.create(world, G, { hour: () => clock.min / 60, listener: () => ({ x: camera.position.x, y: -camera.position.z, z: camera.position.y }), warm: obj => firstFramed.then(() => warmFor(obj)) }) : null; // (a train's cars after the first frame: none runs on the title's first frames)
   // ridden the way rail.js's trains are, where the city has no rail.js line (trains.js ride: its stations, the trains
   // standing at them, boarding, the next stop and getting off)
   if (!rail && trains && trains.ride) rail = trains.ride;
@@ -6204,10 +6212,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const drawn = new Promise(r => { firstDrawn = r; });
   // (and the passes the title doesn't draw: the opening shot's depth of field and motion blur, atmosphere.js)
   try { performance.mark('oe:built', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the scene built (telemetry.js)
+  setUp = true;
   loadMsg('Compiling the shaders for this view', 1);
   // (the loader's first set, issue 27: what is shown and the passes that are on; the rest behind the title, warmRest)
-  const warm = Promise.all([earlyWarm.then(() => compileFor(world, world, { only: OEWorld.shown })), atmos && atmos.warm ? atmos.warm({ first: true }) : null, OEWorld.uploadSliced ? (window.OETex ? OETex.settled() : Promise.resolve()).then(() => OEWorld.uploadSliced(renderer, world)) : null, Wd.ready]) // (and its textures sent, in slices too, and the far trees' atlas drawn)
-    .then(() => OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })); // (then its vertex buffers, in slices)
+  // (each part's time from "built", in the log as "warm: ...": what the loader waits for, tools/entry_cost.js)
+  const wt0 = performance.now(), wlog = [], wpart = (k, p) => Promise.resolve(p).then(r => { wlog.push(`${k} ${((performance.now() - wt0) / 1000).toFixed(1)} s`); return r; });
+  const warm = Promise.all([wpart('programs', earlyWarm.then(() => compileFor(world, world, { only: OEWorld.shown }))), wpart('passes', atmos && atmos.warm ? atmos.warm({ first: true }) : null), wpart('textures', OEWorld.uploadSliced ? (window.OETex ? OETex.settled() : Promise.resolve()).then(() => OEWorld.uploadSliced(renderer, world)) : null), wpart('far trees', Wd.ready)]) // (and its textures sent, in slices too, and the far trees' atlas drawn)
+    .then(() => OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })) // (then its vertex buffers, in slices)
+    .finally(() => console.info(`warm: from built, ${wlog.join(', ')}, buffers ${((performance.now() - wt0) / 1000).toFixed(1)} s`));
   // and behind the loader the rain's passes are drawn once too (its streaks, the occlusion map from
   // above and the wet street's mirror), so that the first rain of a visit comes on without a stall; the
   // mirror's variant of every shader compiles in slices behind the title, not holding the loader up
@@ -6228,7 +6240,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     .catch(e => console.warn('warm the rest', e));
   // (the characters that came while the loader compiled, and those to come, warmed from as soon as it is done: an NPC's
   // waits for this, people.js ready, and is shown once its programs are made; issue 31)
-  { const give = () => { if (lib && !lib.warm) { lib.setWarm(warmFor); if (lib.warmPalette) lib.warmPalette(); } }; warm.then(give, give); }
+  // (after the first frame, issue 27: given with the loader's last programs, the umbrellas and the palette's eight programs were
+  // queued ahead of the first frame's own, and on a device that compiles one at a time the first frame waited for them)
+  { const give = () => { if (lib && !lib.warm) { lib.setWarm(warmFor); if (lib.warmPalette) lib.warmPalette(); } }; warm.then(() => firstFramed).then(give, give); }
   if (lib && weather) lib.dressNew = o => weather.dress(o); // (a crowd walker's change of clothes, people.js rig.dress: the weather's patch on it before its first draw)
   if (Wd.trees && weather) Wd.trees.dressNew = o => weather.dress(o); // (and the near trees, trees.js addNear)
   Promise.all([OEPlate.finish($('#g-loader')), warm.then(() => drawn).then(() => { warmRest().then(warmRain); })]).then(([flew]) => {
@@ -6530,10 +6544,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
     if (window.OEVis) OEVis.at(camera); // what cannot be seen from here is left out (visibility.js)
     if (atmos) atmos.render(world, camera); else renderer.render(world, camera);
-    glCheck(now);
+    const gc0 = performance.now();
+    glCheck(now); // (on the first frame it waits for the GPU to draw it: the first draw of each program is where a driver finishes it)
+    if (!framesDrawn) console.info(`warm: the first frame ${((performance.now() - wt0) / 1000).toFixed(1)} s from built, ${((performance.now() - gc0) / 1000).toFixed(1)} s of it waiting for the GPU to draw it`);
     care.drawn();
     if (framesDrawn < 2 && ++framesDrawn === 2) firstDrawn();
     else if (framesDrawn === 1) try { performance.mark('oe:frame', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the load's first frame (telemetry.js)
+    if (framesDrawn === 1) firstFrame();
     updateLabels();
     requestAnimationFrame(frame);
   }
@@ -7913,6 +7930,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return;
     }
     if (now - glAsked < 3000 && framesDrawn !== 0) return;
+    if (framesDrawn !== 0 && OEWorld.compiling && OEWorld.compiling()) return; // (not while shaders compile behind the title: getError waits for them all; asked once they are done)
     glAsked = now;
     const e = gl.getError();
     if (!e || e === gl.CONTEXT_LOST_WEBGL) return;
