@@ -9,7 +9,10 @@
 //             "street": 0.4,                          // the share of the city's street lights it takes (its own are baked)
 //             "fill": 0.3,                            // the share of the night's fill light round the player it takes (game.js nightFill)
 //             "fine": "hero/kabukicho_fine.glb",      // its finest parts (blender/hero_kit.py Geo.fine): see below
-//             "fine_m": 70}]                          // how near the camera a square of them is drawn (m)
+//             "fine_m": 70,                           // how near the camera a square of them is drawn (m)
+//             "load_m": 60, "show_m": 300, "drop_m": 85}]  // fetched within r + load_m (260), shown within show_m (420),
+//                                                     // let go past r + drop_m (520): a level only one place uses comes later
+//                                                     // and goes sooner (Miyamasu, frame 5's place)
 // The model is built in the city's local frame (blender/build_hero.py: x east, y north, z up, which glTF
 // carries as three.js's x, z, -y, as the game draws every local point) and meshopt-compressed.
 //
@@ -48,7 +51,31 @@ window.OEHero = (function () {
     const group = new THREE.Group();
     group.name = 'hero';
     Wd.world.add(group);
-    const levels = list.map(h => ({ h, state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], hidden: [], fine: 'idle', fineRoot: null, fineMeshes: [] }));
+    const levels = list.map(h => ({ h, state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], hidden: [], fine: 'idle', fineRoot: null, fineMeshes: [], shared: new Set() }));
+    // a texture two levels both carry (the shared surfaces, by their picture's name: OEAsphalt031d_1K-JPG_Color, ...) is
+    // held once while either is loaded: at frame 5 a phone holds the Scramble's level and Miyamasu's side by side
+    // (tools/mem_check.js AT=521.9,-1074.1). A level's own atlas and its drawn sets ("Color", "NormalGL") are its own
+    const sharedTex = new Map();
+    const texKey = t => (t && t.name && /_1K/.test(t.name) ? `${t.name}|${t.flipY}|${t.wrapS}|${t.wrapT}` : null);
+    const MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'];
+    function share(L, m) {
+      for (const k of MAPS) {
+        const t = m[k], key = texKey(t);
+        if (!key) continue;
+        const s = sharedTex.get(key);
+        if (!s) sharedTex.set(key, { tex: t, n: 1 });
+        else if (s.tex !== t) { if (!L.shared.has(key)) s.n++; t.dispose(); m[k] = s.tex; }
+        L.shared.add(key);
+      }
+    }
+    function release(L) {
+      for (const key of L.shared) {
+        const s = sharedTex.get(key);
+        if (s && --s.n <= 0) { s.tex.dispose(); sharedTex.delete(key); }
+      }
+      L.shared = new Set();
+    }
+    const halving = new WeakMap(); // (a picture being made smaller, once whichever level asked first)
     const uBake = { value: 1 }, uStreet = { value: 1 }, uNight = U && U.uNight ? U.uNight : { value: 0 };
     const aniso = Math.min(tier === 'high' ? 8 : tier === 'medium' ? 4 : 2, renderer && renderer.capabilities ? renderer.capabilities.getMaxAnisotropy() : 1);
 
@@ -142,8 +169,9 @@ window.OEHero = (function () {
             if (!m || seen.has(m)) continue;
             seen.add(m); L.mats.push(m);
             // on the low tier (phones): no normal or roughness maps (the surface's own roughness instead), the rest halved
+            if (tier === 'low') for (const k of ['normalMap', 'roughnessMap', 'metalnessMap']) if (m[k]) { m[k].dispose(); m[k] = null; }
+            share(L, m);
             if (tier === 'low') {
-              for (const k of ['normalMap', 'roughnessMap', 'metalnessMap']) if (m[k]) { m[k].dispose(); m[k] = null; }
               for (const k of ['map', 'emissiveMap', 'aoMap']) if (m[k] && !shrunk.includes(m[k])) shrunk.push(m[k]);
             }
             // what you walk on and the walls beside you are seen at a grazing angle: without anisotropic filtering their
@@ -162,7 +190,7 @@ window.OEHero = (function () {
         root.visible = false;
         group.add(root);
         L.root = root;
-        const ready = Promise.all(shrunk.map((t, i, a) => shrink(t, a.done || (a.done = new Map()))))
+        const ready = Promise.all(shrunk.map(t => shrink(t, halving)))
           .then(() => (window.OETex && OETex.stats.on ? OETex.packObject(root) : null))
           .then(() => L.root === root && opts.warm ? opts.warm(root) : null)
           // (and its vertex buffers sent in slices: on its first draw they went in one, 0.7 s of the tap on Play)
@@ -203,7 +231,7 @@ window.OEHero = (function () {
         if (!o.isMesh) return;
         o.geometry.dispose();
         for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-          for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) if (m[k]) m[k].dispose();
+          for (const k of MAPS) if (m[k] && !(sharedTex.has(texKey(m[k])) && sharedTex.get(texKey(m[k])).tex === m[k])) m[k].dispose(); // (a shared one: release)
           m.dispose();
         }
       });
@@ -212,6 +240,7 @@ window.OEHero = (function () {
     function drop(L) {
       if (L.root) { group.remove(L.root); dispose(L.root); }
       if (L.fineRoot) { group.remove(L.fineRoot); dispose(L.fineRoot); }
+      release(L);
       showHidden(L, true);
       Object.assign(L, { state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], fine: 'idle', fineRoot: null, fineMeshes: [] });
     }
@@ -233,11 +262,13 @@ window.OEHero = (function () {
       for (const L of levels) {
         const d = Math.hypot(cx - L.h.at[0], cy - L.h.at[1]) - (L.h.r || 150);
         const near = anchor ? Math.min(d, Math.hypot(anchor[0] - L.h.at[0], anchor[1] - L.h.at[1]) - (L.h.r || 150)) : d;
-        if (L.state === 'idle' && near < LOAD_M) load(L);
-        else if ((L.state === 'ready' || L.state === 'loading') && near > DROP_M) drop(L);
-        else if (L.state === 'failed' && near > DROP_M) L.state = 'idle';
+        // (a level may be fetched nearer than the default: one that only a frame of the story is played in, h.load_m)
+        const loadM = L.h.load_m || LOAD_M, dropM = Math.max(L.h.drop_m || DROP_M, loadM + 20);
+        if (L.state === 'idle' && near < loadM) load(L);
+        else if ((L.state === 'ready' || L.state === 'loading') && near > dropM) drop(L);
+        else if (L.state === 'failed' && near > dropM) L.state = 'idle';
         if (L.state !== 'ready') continue;
-        const show = d < SHOW_M;
+        const show = d < (L.h.show_m || SHOW_M);
         if (L.root.visible !== show) { L.root.visible = show; showHidden(L, !show); }
         if (L.fineRoot) L.fineRoot.visible = show;
         if (!show) continue;
