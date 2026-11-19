@@ -511,6 +511,11 @@ The coat follows the jaw down the cheeks, lies back along the saddle and turns a
 The relative coat lengths and the cream markings follow the
 [Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
 The pale muzzle and orbital markings follow the surface around the head. The neck reaches forward at rest.
+The [Akita preservation society's description](https://akitainunosato.jp/publics/index/27/)
+informs the broad forehead, shallow central furrow, full cheeks and straight nasal bridge.
+The [Japanese Akitainu Club's illustrated guide](https://akita-inu.com/wp-content/uploads/securepdfs/2022/08/JACA-AKC-General-Guide-Electronic.pdf)
+shows the muzzle at about two fifths of the head length. The supplied dog's portrait sets
+the spacing of the eyes within the cheeks. These references inform the sculpt; no images are shipped from them.
 The standing silhouette was compared with [Dog - Akita Inu](https://www.cgtrader.com/3d-models/animal/mammal/dog-akita-inu), a commercial visual reference. No assets from the pack are used.
 The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
 a tiled undercoat with directional relief. Both textures are generated at build time.

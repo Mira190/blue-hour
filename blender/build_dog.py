@@ -65,30 +65,44 @@ def upright_ears(x, y, z):
 def orbit(v):
     """Position along the lid, and distance from its opening on the curved face."""
     x, y, z = (v - np.asarray(HEAD_AT)).T
-    along = (abs(y) - 0.052) * 0.88 - (x - 0.097) * 0.475
-    height = z - 0.024 - 0.18 * along
-    radius = np.hypot(along / 0.017, height / 0.008)
+    along = (abs(y) - 0.037) * 0.88 - (x - 0.104) * 0.475
+    height = z - 0.024 - 0.15 * along
+    radius = np.hypot(along / 0.016, height / 0.0085)
     return along, np.where(x > 0.064, radius, 100.0)
 
 
 def portrait_head():
     pair = sk.mirror_v
-    skull = sk.ellipsoid((-0.004, 0, 0.003), (0.117, 0.121, 0.111))
-    cheeks = pair(sk.ellipsoid((0.010, 0.075, -0.019), (0.094, 0.066, 0.077)))
+    vault = sk.ellipsoid((-0.009, 0, 0.003), (0.117, 0.124, 0.097))
+    # A shallow central furrow separates the frontal ridges above the stop.
+    def skull(x, y, z):
+        groove = 0.004 * np.exp(-(y / 0.012) ** 2 - ((x - 0.048) / 0.048) ** 2)
+        return vault(x, y, z + groove * np.clip(z / 0.055, 0, 1))
+    cheeks = pair(sk.ellipsoid((0.007, 0.079, -0.022), (0.095, 0.068, 0.076)))
     chin = sk.ellipsoid((0.043, 0, -0.070), (0.088, 0.089, 0.045))
-    brow = pair(sk.ellipsoid((0.089, 0.040, 0.038), (0.026, 0.033, 0.017)))
+    brow = pair(sk.ellipsoid((0.082, 0.039, 0.038), (0.027, 0.034, 0.016)))
     dome = sk.smooth_union(0.036, skull, cheeks, chin, brow)
-    bridge = sk.capsule((0.081, 0, 0.016), (0.145, 0, -0.001), 0.043, 0.031)
+    bridge = sk.capsule((0.068, 0, 0.012), (0.145, 0, 0.008), 0.046, 0.028)
     pads = pair(sk.ellipsoid((0.119, 0.026, -0.039), (0.054, 0.034, 0.033)))
     jaw = sk.ellipsoid((0.094, 0, -0.073), (0.066, 0.055, 0.026))
-    face = sk.smooth_union(0.024, dome, bridge, pads, jaw)
-    nose = sk.ellipsoid((0.163, 0, -0.005), (0.017, 0.024, 0.019))
+    mass = sk.smooth_union(0.024, dome, bridge, pads, jaw)
+    def face(x, y, z):
+        # Ease the forehead into a straight bridge. Leave the brows proud on either side.
+        u = np.clip((x + 0.012) / 0.080, 0, 1)
+        roof = 0.097 - 0.056 * u * u * (3 - 2 * u) - 0.065 * np.maximum(0, x - 0.068)
+        roof += 0.024 * (1 - np.exp(-(y / 0.036) ** 2))
+        a, b = mass(x, y, z), z - roof
+        return np.maximum(a, b) + np.maximum(0, 0.012 - abs(a - b)) ** 2 / 0.048
+    nose = sk.ellipsoid((0.163, 0, -0.005), (0.021, 0.026, 0.019))
     face = sk.smooth_union(0.005, face, nose)
-    nostrils = pair(sk.ellipsoid((0.176, 0.014, -0.003), (0.009, 0.006, 0.005)))
+    nostrils = pair(sk.ellipsoid((0.179, 0.015, -0.003), (0.011, 0.007, 0.0055)))
     mouth = pair(sk.path([(0.161, 0, -0.055), (0.157, 0.023, -0.062),
                           (0.143, 0.042, -0.063), (0.123, 0.054, -0.054)],
                          [0.004, 0.005, 0.004, 0.002]))
-    return sk.smooth_union(0.016, sk.subtract(0.003, face, sk.union(nostrils, mouth)), upright_ears)
+    head = sk.smooth_union(0.016, sk.subtract(0.003, face, sk.union(nostrils, mouth)), upright_ears)
+    for x, height in ((0.08, 0.040), (0.13, 0.036)):
+        assert head(x, 0, height - 0.004) < 0 < head(x, 0, height + 0.004), "check the nasal bridge in profile"
+    return head
 
 
 def body():
@@ -155,12 +169,15 @@ def coat(v, n):
     muzzle = s(hx, 0.063, 0.121) * (1 - s(hz - 0.26 * abs(hy), -0.014, 0.014))
     along, eye = orbit(v)
     brow = on_head * np.exp(-((along + 0.006) / 0.023) ** 2 - ((hz - 0.044) / 0.012) ** 2) * s(hx, 0.061, 0.094)
-    pale = np.maximum(muzzle, 0.60 * brow)
+    cheek = on_head * s(hx + 0.7 * abs(hy), 0.041, 0.085) * (1 - s(hz - 0.20 * abs(hy), -0.011, 0.015))
+    pale = np.maximum.reduce([muzzle, 0.65 * brow, cheek])
     c = c * (1 - pale[:, None]) + cream * pale[:, None]
-    nose = s(hx, 0.149, 0.161) * (1 - s((hy / 0.025) ** 2 + ((hz + 0.005) / 0.020) ** 2, 0.84, 1.22))
+    nose = s(hx, 0.149, 0.161) * (1 - s((hy / 0.027) ** 2 + ((hz + 0.005) / 0.020) ** 2, 0.84, 1.22))
     philtrum = (1 - s(abs(hy), 0.0018, 0.005)) * s(hz, -0.059, -0.049) * (1 - s(hz, -0.024, -0.016))
     seam = -0.056 - 0.008 * np.sin(np.pi * np.clip(abs(hy) / 0.055, 0, 1))
     lips = (1 - s(abs(hz - seam), 0.0025, 0.0065)) * (1 - s(abs(hy), 0.045, 0.058))
+    muzzle_shade = s(hx, 0.112, 0.148) * np.exp(-(hy / 0.044) ** 2 - ((hz + 0.047) / 0.022) ** 2)
+    c *= (1 - 0.52 * muzzle_shade[:, None])
     k = np.maximum(nose, np.maximum(lips, philtrum) * s(hx + 0.58 * abs(hy), 0.138, 0.155))
     lid = 1 - s(eye, 0.94, 1.26)
     k = np.maximum(k, lid)
@@ -322,8 +339,8 @@ BONES = [  # name, head, tail (x, z), y, parent
 ]]
 
 
-def sculpt_lids(bpy, v, t):
-    """Resolve the orbital crease and cornea on one continuous, skinned surface."""
+def sculpt_features(bpy, v, t):
+    """Resolve the lids, nostrils and lips while keeping the skin continuous."""
     import bmesh
     me = bpy.data.meshes.new("Face sculpt")
     me.from_pydata(v.tolist(), [], t.tolist())
@@ -331,7 +348,7 @@ def sculpt_lids(bpy, v, t):
     bm.from_mesh(me)
     bpy.data.meshes.remove(me)
     edges = [e for e in bm.edges if all(p.co.x > 0.54 and abs(p.co.y) < 0.075
-                                        and 0.82 < p.co.z < 0.89 for p in e.verts)]
+                                        and (0.82 < p.co.z < 0.89 or (p.co.x > 0.61 and 0.80 < p.co.z < 0.85)) for p in e.verts)]
     bmesh.ops.subdivide_edges(bm, edges=edges, cuts=3, use_grid_fill=True)
     bmesh.ops.triangulate(bm, faces=list(bm.faces))
     bm.verts.index_update()
@@ -548,7 +565,7 @@ def main():
     v, t = sk.mesh(body(), (-0.56, -0.24, -0.02), (0.76, 0.24, 1.02), CELL)
     v = sk.relax(v, t, 0.45, 2)
     v[:, 2] -= v[:, 2].min()   # (his paws on the ground)
-    v, t = sculpt_lids(bpy, v, t)
+    v, t = sculpt_features(bpy, v, t)
     fn = np.cross(v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]])
     vn = np.zeros_like(v)
     for k in range(3):
