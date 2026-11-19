@@ -33,7 +33,7 @@ import sculptkit as sk  # noqa: E402
 import hachiko as statue  # noqa: E402  (his head)
 
 OUT = os.path.join(ROOT, "web", "assets", "animals", "akita.glb")
-CELL = 0.011          # the sculpt's grid
+CELL = 0.0085         # resolves the eyelids, stop and interdigital clefts
 FPS = 30
 WALK_SPEED, WALK_T = 0.95, 0.74      # m/s over the ground, and one stride's seconds
 TROT_SPEED, TROT_T = 2.3, 0.44
@@ -50,6 +50,11 @@ SHOULDER, ELBOW, WRIST = (0.22, 0.46), (0.22, 0.25), (0.22, 0.04)
 HIP, STIFLE, HOCK, TOE = (-0.25, 0.44), (-0.20, 0.30), (-0.33, 0.16), (-0.30, 0.03)
 
 
+def muzzle_x(x):
+    # The living dog's muzzle tapers sooner than the long profile of the cast.
+    return x + 0.48 * np.maximum(0, x - 0.075)
+
+
 def body():
     """The dog standing, as a signed distance field: x forward, y to his left, z up from the ground."""
     L = sk.mirror_v
@@ -58,26 +63,34 @@ def body():
     rump = sk.ellipsoid((-0.27, 0.0, 0.49), (0.155, 0.148, 0.158))
     withers = sk.ellipsoid((0.17, 0.0, 0.60), (0.12, 0.10, 0.07))
     neck = sk.capsule((0.24, 0.0, 0.57), (0.41, 0.0, 0.79), 0.138, 0.115)
-    ruff = sk.ellipsoid((0.33, 0.0, 0.64), (0.10, 0.12, 0.12))
+    ruff = sk.ellipsoid((0.32, 0.0, 0.65), (0.133, 0.147, 0.15))
     shoulders = L(sk.ellipsoid((0.21, LEG_Y, 0.47), (0.085, 0.065, 0.14)))
     upper_f = L(sk.capsule((0.22, LEG_Y, 0.44), (0.22, LEG_Y, 0.25), 0.064, 0.05))
     lower_f = L(sk.capsule((0.22, LEG_Y, 0.25), (0.22, LEG_Y, 0.07), 0.05, 0.043))
-    paws_f = L(sk.ellipsoid((0.245, LEG_Y, 0.032), (0.062, 0.046, 0.032)))
+    def paw(x, y):
+        pad = sk.ellipsoid((x, y, 0.033), (0.049, 0.044, 0.03))
+        toes = [sk.ellipsoid((x + 0.048 - abs(i) * 0.007, y + i * 0.021, 0.021),
+                             (0.027, 0.014, 0.019)) for i in (-1.5, -0.5, 0.5, 1.5)]
+        return L(sk.smooth_union(0.006, pad, *toes))
+    paws_f = paw(0.236, LEG_Y)
     thighs = L(sk.ellipsoid((-0.25, HIND_Y, 0.40), (0.125, 0.078, 0.155)))
     shanks = L(sk.capsule((-0.21, HIND_Y, 0.31), (-0.33, HIND_Y, 0.165), 0.062, 0.04))
     hocks = L(sk.capsule((-0.33, HIND_Y, 0.165), (-0.315, HIND_Y, 0.06), 0.039, 0.036))
-    paws_h = L(sk.ellipsoid((-0.285, HIND_Y, 0.03), (0.06, 0.044, 0.03)))
+    paws_h = paw(-0.291, HIND_Y)
     tail = sk.path([(-0.39, 0.0, 0.55), (-0.46, 0.0, 0.66), (-0.44, 0.02, 0.77), (-0.35, 0.05, 0.82), (-0.26, 0.07, 0.78), (-0.25, 0.08, 0.70), (-0.30, 0.07, 0.66)],
-                   [0.055, 0.062, 0.064, 0.062, 0.056, 0.046, 0.034])
-    head = statue.posed(statue.head(), HEAD_AT, 0.0, -4.0)
-    eyes = statue.posed(sk.mirror_v(sk.ellipsoid((0.093, 0.057, 0.009), (0.013, 0.015, 0.013))), HEAD_AT, 0.0, -4.0)
+                   [0.055, 0.072, 0.077, 0.073, 0.065, 0.054, 0.035])
+    nostrils = L(sk.ellipsoid((0.253, 0.017, -0.032), (0.012, 0.008, 0.007)))
+    pads = L(sk.ellipsoid((0.173, 0.033, -0.054), (0.055, 0.031, 0.029)))
+    face = sk.smooth_union(0.009, statue.head(), pads)
+    eyes = L(sk.ellipsoid((0.095, 0.063, 0.01), (0.015, 0.017, 0.011)))
+    face = sk.union(sk.subtract(0.002, face, nostrils), eyes)
+    head = statue.posed(lambda x, y, z: face(muzzle_x(x), y, z), HEAD_AT, 0.0, -4.0)
     b = sk.smooth_union(0.05, chest, trunk, rump, withers, neck, ruff, shoulders, thighs)
     legs = sk.smooth_union(0.025, upper_f, lower_f, paws_f, shanks, hocks, paws_h)
     d = sk.smooth_union(0.035, b, legs)
     d = sk.smooth_union(0.045, d, head)
     d = sk.smooth_union(0.03, d, tail)
-    d = sk.roughen(d, 0.0025, 0.016, seed=1923)   # (the coat's lie: thick fur is never a smooth skin)
-    return sk.union(d, eyes)
+    return d
 
 
 def coat(v, n):
@@ -88,6 +101,7 @@ def coat(v, n):
     cp, sp = math.cos(math.radians(-4.0)), math.sin(math.radians(-4.0))
     hx0, hz0 = x - HEAD_AT[0], z - HEAD_AT[2]
     hx, hz, hy = hx0 * cp + hz0 * sp, -hx0 * sp + hz0 * cp, y
+    hx = muzzle_x(hx)
     on_head = s(x, 0.36, 0.42)
     on_tail = (x < -0.3) & (z > 0.56)
     white = np.maximum.reduce([
@@ -95,18 +109,20 @@ def coat(v, n):
         (1 - s(z, 0.2, 0.31)) * (1 - on_tail),                        # the legs' lower half
         s(x, 0.27, 0.36) * (1 - s(z, 0.5, 0.62)) * (1 - on_head),     # the breast
         s(np.abs(y) * 0 + (0.105 - np.abs(np.abs(y) - 0.02)), 0.0, 0.03) * (1 - s(z, 0.3, 0.42)) * (np.abs(y) < 0.085),  # the legs' inner faces
-        on_head * s(hx, 0.02, 0.07) * (1 - s(hz, -0.03, 0.0)),        # the muzzle's sides and the cheeks
+        on_head * s(hx + abs(hy) * 0.7, -0.065, 0.045) * (1 - s(hz + 0.15 * hx, -0.026, 0.013)),
+        s(x, 0.18, 0.37) * (1 - s(z + abs(y) * 0.9, 0.59, 0.82)),    # cream bib tapers between the cheeks
         on_head * (1 - s(hz, -0.085, -0.05)),                         # under the jaw
     ])
     red = np.array([0.46, 0.27, 0.125])
     cream = np.array([0.80, 0.72, 0.58])
     c = red[None] * (1 - white[:, None]) + cream[None] * white[:, None]
-    c *= (0.9 + 0.1 * s(n[:, 2], -0.2, 0.8))[:, None]                 # (a touch deeper where the coat turns under)
+    inner_ear = s(hz, 0.086, 0.12) * s(n[:, 0], 0.35, 0.85)
+    c = c * (1 - 0.55 * inner_ear[:, None]) + np.array([0.30, 0.145, 0.106]) * 0.55 * inner_ear[:, None]
     dark = np.array([0.012, 0.01, 0.01])
     nose = on_head * (1 - s(np.sqrt((hx - 0.238) ** 2 + hy ** 2 + (hz + 0.035) ** 2), 0.024, 0.034))
     eye = np.zeros(len(v))
     for sg in (-1, 1):
-        eye = np.maximum(eye, 1 - s(np.sqrt((hx - 0.093) ** 2 + (hy - sg * 0.057) ** 2 + (hz - 0.009) ** 2), 0.016, 0.022))
+        eye = np.maximum(eye, 1 - s(np.sqrt((hx - 0.095) ** 2 + (hy - sg * 0.063) ** 2 + (1.5 * (hz - 0.01)) ** 2), 0.018, 0.025))
     lips = on_head * (1 - s(np.abs(hz + 0.08), 0.004, 0.009)) * s(hx, 0.11, 0.14) * (1 - s(np.abs(hy), 0.03, 0.05))
     k = np.maximum.reduce([nose, eye * on_head, lips * 0.8])
     c = c * (1 - k[:, None]) + dark[None] * k[:, None]
@@ -265,6 +281,54 @@ BONES = [  # name, head, tail (x, z), y, parent
 ]]
 
 
+def guard_coat(bpy, skin, rig, v, normal, color, gloss):
+    """Tapered opaque locks follow the skin and inherit the weights at their roots."""
+    rng = np.random.default_rng(1923)
+    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < 0.55) & (gloss < 0.01))
+    roots = np.sort(rng.choice(eligible, min(10500, len(eligible)), replace=False))
+    p, n = v[roots], normal[roots]
+    x, y, z = p.T
+    # Sweep back over the saddle, down the cheeks and limbs, and around the tail curl.
+    plume = (x < -0.21) & (z > 0.64)
+    flow = np.column_stack((-np.ones_like(x), 0.12 * np.sign(y),
+                            -0.48 - 2.4 * ((x > 0.28) | (z < 0.36))))
+    flow[plume, 0] = z[plume] - 0.735
+    flow[plume, 2] = -x[plume] - 0.35
+    flow[plume, 1] = 0.03
+    flow -= np.sum(flow * n, axis=1)[:, None] * n
+    flow /= np.maximum(np.linalg.norm(flow, axis=1)[:, None], 1e-6)
+    side = np.cross(flow, n)
+    length = (0.017 + 0.013 * (z > 0.36) + 0.014 * plume) * rng.uniform(0.74, 1.22, len(p))
+    width = length * rng.uniform(0.075, 0.15, len(p))
+    along = flow * length[:, None]
+    across = side * width[:, None]
+    base = p - n * 0.0015
+    ridge = p + along * 0.45 + n * (length * 0.19)[:, None]
+    tip = p + along + n * (length * 0.22)[:, None]
+    vertices = np.stack([base - across, base + across, ridge, tip], axis=1).reshape(-1, 3)
+    faces = (4 * np.arange(len(p))[:, None, None] + np.array([[0, 1, 2], [0, 2, 3], [2, 1, 3]])).reshape(-1, 3)
+    me = bpy.data.meshes.new("Outer coat")
+    me.from_pydata(vertices.tolist(), [], faces.tolist())
+    me.update()
+    me.polygons.foreach_set("use_smooth", np.ones(len(faces), dtype=bool))
+    me.normals_split_custom_set_from_vertices(np.repeat(n, 4, axis=0).tolist())
+    tones = rng.uniform(0.93, 1.05, len(p))[:, None] * np.array([0.91, 0.91, 1.01, 1.10])
+    rgb = np.minimum(1, color[roots, None, :] * tones[:, :, None]).reshape(-1, 3)
+    ca = me.color_attributes.new("Color", "FLOAT_COLOR", "POINT")
+    ca.data.foreach_set("color", np.c_[rgb, np.ones(len(rgb))].ravel())
+    locks = bpy.data.objects.new("Guard hairs", me)
+    bpy.context.scene.collection.objects.link(locks)
+    me.materials.append(skin.data.materials[0])
+    groups = [locks.vertex_groups.new(name=g.name) for g in skin.vertex_groups]
+    for i, root in enumerate(roots):
+        indices = list(range(i * 4, i * 4 + 4))
+        for g in skin.data.vertices[int(root)].groups:
+            groups[g.group].add(indices, g.weight, "REPLACE")
+    locks.parent = rig
+    locks.modifiers.new("Skin", "ARMATURE").object = rig
+    return locks
+
+
 def main():
     import bpy
     from mathutils import Matrix, Vector
@@ -288,7 +352,7 @@ def main():
     for p in me.polygons:
         p.use_smooth = True
     ca = me.color_attributes.new("Color", "FLOAT_COLOR", "POINT")
-    ca.data.foreach_set("color", np.c_[col, 1 - 0.55 * gloss].ravel().tolist())   # (alpha: the roughness, lower on the nose and the eyes)
+    ca.data.foreach_set("color", np.c_[col, np.ones(len(v))].ravel().tolist())
     ob = bpy.data.objects.new("Akita", me)
     bpy.context.scene.collection.objects.link(ob)
 
@@ -301,6 +365,11 @@ def main():
     bsdf.inputs["Roughness"].default_value = 0.86
     bsdf.inputs["Metallic"].default_value = 0.0
     me.materials.append(mat)
+    wet = mat.copy()
+    wet.name = "Eyes and nose"
+    wet.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.28
+    me.materials.append(wet)
+    me.polygons.foreach_set("material_index", (gloss[t].mean(axis=1) > 0.48).astype(np.int32))
 
     arm = bpy.data.armatures.new("AkitaRig")
     rig = bpy.data.objects.new("AkitaRig", arm)
@@ -347,6 +416,7 @@ def main():
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.vertex_group_normalize_all(lock_active=False)
     bpy.ops.object.vertex_group_limit_total(limit=4)
+    locks = guard_coat(bpy, ob, rig, v, vn, col, gloss)
 
     # the clips
     rest = {b.name: b.matrix_local.to_3x3() for b in arm.bones}
@@ -397,6 +467,7 @@ def main():
     bpy.ops.object.select_all(action="DESELECT")
     rig.select_set(True)
     ob.select_set(True)
+    locks.select_set(True)
     bpy.context.view_layer.objects.active = rig
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_skins=True, export_animations=True,
                               export_animation_mode="NLA_TRACKS", export_optimize_animation_size=True, export_vertex_color="ACTIVE",

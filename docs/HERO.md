@@ -431,3 +431,13 @@ at every 3.6 m bay.
 While this was built, the floodlit copy of every landmark material was found to have lost its
 shader: its `onBeforeCompile` had ended up inside a comment. So since 8 November, every city's
 floodlit landmarks had lost their pattern and their fall-off after dark. It is code again.
+
+### The Akita who leads the player
+
+The guide has a short muzzle, compact toes, a cream bib and a layer of tapered guard hairs.
+The coat follows the jaw down the cheeks, lies back along the saddle and turns around the tail.
+The relative coat lengths and the cream markings follow the
+[Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
+The model, colours and groom are generated here. The reference supplies anatomy only.
+The hair roots share the skin's bone weights. The game draws the eyes and nose with the
+lower roughness authored in the model so they catch a different highlight from the coat.

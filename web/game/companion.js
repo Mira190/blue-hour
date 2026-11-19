@@ -55,7 +55,6 @@ window.OECompanion = (function () {
         if (o.isBone && o.name === 'neck') neck = o;
         if (!o.isMesh) return;
         o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false;
-        o.material.roughness = 0.9; o.material.metalness = 0;
         // (it carries a little light of its own, as whoever moves in a stopped world does: a dark coat on a wet night
         // street is not lost among the people standing in it)
         o.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * 0.3;'); };
