@@ -17,7 +17,8 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const [,, out = '/tmp/ui-fit', ...dirs] = process.argv;
-const ALL = { touch: ['320x568', '360x740', '390x844', '412x915', '844x390', '768x1024'], desk: ['1024x768', '1280x720', '1440x900', '1920x1080'] };
+// (a tablet's page of its own: a phone's page made that large stays zoomed out in Chromium's emulation, in its stills)
+const ALL = { touch: ['320x568', '360x740', '390x844', '412x915', '844x390'], tablet: ['768x1024'], desk: ['1024x768', '1280x720', '1440x900', '1920x1080'] };
 const pick = process.env.SIZES ? process.env.SIZES.split(',') : null;
 const SIZES = Object.fromEntries(Object.entries(ALL).map(([k, v]) => [k, pick ? v.filter(s => pick.includes(s)) : v]));
 const WORDS = process.env.WORDS != null ? process.env.WORDS.split(',').map(Number) : [0, 1, 2];
@@ -145,10 +146,11 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
     ['title-going', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }],
     ['title-closed', () => { localStorage.removeItem('oe-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('oe-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }],
   ];
-  for (const ctxName of ['touch', 'desk']) {
+  for (const ctxName of ['touch', 'tablet', 'desk']) {
+    const src = ctxName === 'tablet' ? 'touch' : ctxName; // (a tablet lays out a phone's recordings: both by touch)
     const sizes = SIZES[ctxName]; if (!sizes.length) continue;
-    const want = TITLES.length || dumps[ctxName].length; if (!want) continue;
-    const [w0, h0] = sizes[0].split('x').map(Number), touch = ctxName === 'touch';
+    const want = TITLES.length || dumps[src].length; if (!want) continue;
+    const [w0, h0] = sizes[0].split('x').map(Number), touch = ctxName !== 'desk';
     const ctx = await b.newContext({ viewport: { width: w0, height: h0 }, deviceScaleFactor: 1, hasTouch: touch, isMobile: touch });
     let p = null, prepNow = null;
     const open = async (prep, size) => {
@@ -166,7 +168,8 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
       await p.evaluate(() => { window.__hold = true; });
       await p.evaluate(() => document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } }));
     };
-    const still = async file => { await p.evaluate(() => window.__release()); await p.waitForTimeout(1500); await p.screenshot({ path: file, timeout: 120000 }).catch(() => console.log(`(no still ${file})`)); await p.evaluate(() => { window.__hold = true; }); };
+    const still = async file => { await p.evaluate(() => window.__release()); await p.waitForFunction(() => { const c = document.getElementById('game-gl'); return c && c.height > 0 && Math.abs(c.width / c.height - innerWidth / innerHeight) < 0.03; }, null, { timeout: 20000, polling: 200 }).catch(() => {}); await p.waitForTimeout(1500); // (the street drawn again at the new size first)
+      await p.screenshot({ path: file, timeout: 120000 }).catch(() => console.log(`(no still ${file})`)); await p.evaluate(() => { window.__hold = true; }); };
     const check = async (name, lay) => {
       for (const size of sizes) {
         const [w, h] = size.split('x').map(Number);
@@ -190,9 +193,9 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
       }
     };
     for (const [name, prep] of TITLES) { if (ONLY && !ONLY.test(name)) continue; await open(prep); await check(name, null); }
-    if (dumps[ctxName].length) {
+    if (dumps[src].length) {
       if (!p) await open(null);
-      for (const { name, d, then } of dumps[ctxName]) await check(name, async () => { await p.evaluate(lay, d); if (then) await p.evaluate(then); });
+      for (const { name, d, then } of dumps[src]) await check(name, async () => { await p.evaluate(lay, d); if (then) await p.evaluate(then); });
     }
     await ctx.close();
   }

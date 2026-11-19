@@ -854,3 +854,5 @@
   .gt-who-row button { width: 78px; }
   .gt-who-row b { bottom: 22px; letter-spacing: 0.2em; } .gt-who-row small { bottom: 8px; font-size: 11px; }
 }
+/* (the menu's hours: the name and its time set apart, not run together as "Sunrise05:52") */
+.seg button .num { margin-left: 8px; opacity: 0.7; font-size: 0.92em; }
