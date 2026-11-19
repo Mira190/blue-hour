@@ -166,6 +166,10 @@ window.OERoute = (function () {
     }
     // is (x, y) in a carriageway (half a street's width from its line, at the level z)?
     function inRoad(x, y, z) {
+      // (where a hero level draws its ground, its asphalt is the carriageway: the street's class gives only its width from
+      // its line, which takes in the footway along a kerb where the street is narrower; game.js heroCover)
+      const c = nav.carriageway ? nav.carriageway(x, y) : null;
+      if (c !== null) return c;
       const q = roadNet.nearest(x, y, 8, z, 2);
       return !!(q && RW[roadNet.L[q.line].c] && q.d < RW[roadNet.L[q.line].c] / 2);
     }
