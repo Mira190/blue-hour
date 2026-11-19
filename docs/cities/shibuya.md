@@ -140,6 +140,38 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   comb and it sets you down on the floor past the far end. The stairs are walked.
   CROSSING LIGHT's searchlights stand clear of the 6 m before each flight's head. The spot "The
   escalator down to SKY EDGE" is at the head of the way down.
+- **The way up, as it is** (researched November 2026, for the owner's question whether the tower's floors and the
+  station's way through it should be modelled). A visitor takes the SHIBUYA SKY lift from its own glass-doored hall at
+  the tower's north-east corner on 1F, beside the Hikarie-side entrance (it stops at 2F on weekdays), up to 14F, where
+  the entrance and the ticket counter are and the waiting hall, the SENSING HALL, is dark under an LED ceiling. SKY GATE
+  is the two cars (E16-1 and E16-2) that run only 14F to 45F at 360 m a minute, some 30 s, for 28 people: black finishes,
+  the whole ceiling one screen whose picture keeps pace with the car, slowing as it slows (Rhizomatiks), eight channels of
+  sound, lines of light that change as it moves, and the floor indicator dark until it stops. On 45F the LEADING LINE, a
+  black corridor framed in lines of light, leads to two escalators up to 46F (SKY GALLERY, the shop); from 46F the two
+  glass-sided escalators of 8.98 m rise run beside a broad stair onto the roof. The roof's helipad is raised one step on
+  the deck, artificial turf marked in yellow, and visitors walk on it. Below, the East urban core (東口アーバン・コア)
+  takes people from the subway gates on B2 up to 3F, where JR's and the Ginza Line's gates are, by glass lifts and
+  escalators, the longest a 13 m rise from B2 to 1F. Sources:
+  [SKY access](https://www.shibuya-scramble-square.com/sky/access/),
+  [SKY about](https://www.shibuya-scramble-square.com/sky/about/),
+  [floor guide](https://www.shibuya-scramble-square.com/floorguide/),
+  [Elevator Journal 28](https://www.n-elekyo.or.jp/about/elevatorjournal/pdf/Journal28_03.pdf) (the lift and escalator schedule),
+  [Hitachi](https://www.hitachi.com/ja-jp/press/articles/2019/10/1028/),
+  [Travel Watch's preview, 2019](https://travel.watch.impress.co.jp/docs/news/1214943.html),
+  [Tokyu, around the station](https://www.tokyu.co.jp/shibuya-redevelopment/redevelopment/around-shibuya-station/).
+- **What is modelled of it, and why** (from first principles: what a player sees from where they stand). The story's
+  fourth frame and the walk go from the street to the roof, and a player sees three things on the way: the way in from
+  the street, the lobby they stand in to call the lift, and the ride. The floors between (B2 to 45F: shops, restaurants,
+  offices) are never seen from the route and nothing happens in them, so they are not built (docs/PERFORMANCE.md: what
+  is not seen costs nothing); the 1F hall, the 14F counter and the 45F corridor are folded into one lobby and one ride,
+  as games fold a building's lifts. What is built is what is seen: the lobby cut into the north face (pipeline/lobby.py),
+  lined as a SKY lobby is (black-panelled walls to the ceiling, charcoal stone laid in courses, lines of light on the
+  ceiling leading to the doors and at the walls' foot; `blender/build_set.py` LOBBY), with the doors, the indicator and
+  the name over them, and the sign over the way in, on the walk as in the story; and the ride is SKY GATE's own, in the
+  dark (`game.json` lifts[].pod, `web/game/game.js` podRide), not the camera climbing the tower's face outside, which
+  read as a jump across the map and spent the view before the roof's escalator gives it. The station's way through the
+  building (the urban core from B2) is a real and fine space, but nobody in the story comes by subway and the walk sets
+  out on the street; it waits in an issue labelled `later`.
 - **Built.** `cities/shibuya/city.py` (`sky_flights`, `sky_channels`, `sky_doors`)
   draws the channels and cuts them into the roof when the scene is built;
   `cities/shibuya/sky_refit.py` cut them into the built roof of November 2026

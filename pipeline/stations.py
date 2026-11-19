@@ -30,6 +30,15 @@ from restorey import wall_height
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PANEL = ["#cfd2d2", "#c3c8cb", "#d8d8d3", "#b9bec2"]  # metal panel and fair-faced concrete
 GRID, INSET, PIER = 9.0, 1.0, 0.9                      # the piers' spacing, how far they stand in from the edge, a pier's side (m)
+# An underside the map's record gets wrong, by OpenStreetMap id: metres over the building's base. Shibuya's Ginza line
+# station (2020, over Meiji-dori and the east exit's bus terminal) is mapped from its first storey (building:min_level=1),
+# which a storey of 3.9 m put 2.8 m over the pavement at its south edge: a ceiling at head height across frame 5's view
+# (issue 33). Its concourse is at the second-floor deck's level, which the decks to Hikarie and Scramble Square meet
+# 6 to 7 m over the street; buses (3.3 m) stand under it. Estimated from photographs; no published figure was found.
+UNDERSIDE = {"w810356690": 7.0}
+# Piers further apart than the grid's 9 m where the record of the building says so: the same station stands on fewer,
+# heavier piers than the one it replaced (seven over Meiji-dori became three, Tokyo Metro, 2019)
+SPACING = {"w810356690": 18.0}
 HALF = {"motorway": 8.0, "trunk": 8.0, "primary": 7.0, "secondary": 6.0, "tertiary": 4.5}  # a carriageway's half-width where its lanes are not given
 
 
@@ -72,7 +81,7 @@ def piers(B, game):
         # its storeys start at its underside, not at a ground it does not touch: a row of windows was cut in half by the
         # slab's edge. One underside for the whole building (the lowest its solids have), the ground floor that high,
         # and the storeys above it shared out over what is left
-        low = min(B["s"][k][2] for k in ks)
+        low = max(min(B["s"][k][2] for k in ks), round(UNDERSIDE.get(B["b"][bi][6], 0) * 10))
         for k in ks:
             B["s"][k][2] = low
         m, wall = B["b"][bi], (max(B["s"][k][3] for k in ks) - low) / 10
@@ -92,7 +101,8 @@ def piers(B, game):
             if area.is_empty:
                 continue
             x0, y0, x1, y1 = polys[k].bounds
-            nx, ny = max(1, round((x1 - x0 - 2 * INSET) / GRID)), max(1, round((y1 - y0 - 2 * INSET) / GRID))
+            grid = SPACING.get(B["b"][bi][6], GRID)
+            nx, ny = max(1, round((x1 - x0 - 2 * INSET) / grid)), max(1, round((y1 - y0 - 2 * INSET) / grid))
             pts = []
             for i in range(nx + 1):
                 for j in range(ny + 1):

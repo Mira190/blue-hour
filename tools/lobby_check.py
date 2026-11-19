@@ -57,7 +57,7 @@ def main():
     sets = [r for e in (G.get("story") or {}).get("episodes", []) for r in e.get("set", []) if r.get("model") == "lift"]
     for r in sets:
         P, top = portal(r), PORTAL[4] * 10
-        hit = [(k, round(poly(s).intersection(P).area, 2)) for k, s in enumerate(B["s"]) if s[2] < top and near(s, *r["at"]) and poly(s).intersection(P).area > OVER]
+        hit = [(k, round(poly(s).intersection(P).area, 2)) for k, s in enumerate(B["s"]) if s[2] < top and near(s, *r["at"][:2]) and poly(s).intersection(P).area > OVER]  # (at: x, y and, for the lining, the floor's height)
         for k, a in hit:
             print(f"FAIL the lift portal at {r['at']}: solid {k} (building {B['s'][k][0]}) passes through it ({a} m²)")
         out = not any(q.contains(P) for q in rooms)

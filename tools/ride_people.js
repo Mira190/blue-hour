@@ -5,6 +5,9 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/ride_people.js out_dir [WxH]       (GPU=metal on a Mac)
 // LIMIT=seconds: how long the ride may take (default 600). TIER=low|medium|high (default high).
+// PIN=n: the skip's case (#50): once the ride is under way, n of the crowd are held standing where the car would stand at
+// its stop (pulled in to the kerb, off its way's line) and the trip is skipped (F); they are let go when it is set down.
+// A set-down on them fails as any overlap does.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
@@ -34,6 +37,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     function check(dt) {
       if (g.held && g.held()) return;
       W.frames++;
+      pin();
       const cars = [], pl = g.player, ride = g.ride(), my = g.myCar();
       if (ride) { const s = ride.drv.st; cars.push(['ride', s, ride.C.half, ride.C.hw, s.v]); if (ride.phase === 'driving') { W.driveT = (W.driveT || 0) + dt; if (s.v <= 0.3 && !g.cine.active) W.stopT = (W.stopT || 0) + dt; } if (ride.cut != null) W.cut = ride.cut; if (ride.phase === 'driving' && s.v > 0.1) { W.rideT += dt; W.rideM += s.v * dt; W.rideV = Math.max(W.rideV, s.v); } }
       if (my && my.D && my.D.st) { const s = my.D.st; cars.push(['your car', s, my.C.half, my.C.hw, s.v || s.speed || 0]); }
@@ -57,11 +61,30 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       for (const [, c] of cars) W.was.set(c, { x: c.x, y: c.y, h: c.h });
       for (const [, q] of people) W.was.set(q, { x: q.x, y: q.y });
     }
+    // (PIN: people held where the car will stand at its stop, until the skip sets it down: W.pinned, W.setAt)
+    function pin() {
+      const r = g.ride();
+      if (!W.pin || !r) return;
+      if (W.pin.skipped && !r.hold) { const st = r.drv.st; W.setAt = { at: [+st.x.toFixed(1), +st.y.toFixed(1)], short: +(st.end - st.s).toFixed(1), stop: W.pin.stop }; W.pin = null; return; }
+      if (r.hold) W.pin.skipped = true;
+      const cr = g.crowd;
+      for (const [i, x, y, z] of W.pin.at) { const q = cr.P[i]; if (q && q.line >= 0) { q.x = x; q.y = y; q.z = z; q.v = 0; } }
+    }
+    window.__rpPin = n => {
+      const r = g.ride(), st = r.drv.st, e = {}, sh = st.shift, cr = g.crowd;
+      st.shift = 0; r.drv.poseAt(st.end, e); st.shift = sh;
+      const line = {}; r.drv.path.at(st.end, line);
+      const fx = e.hx, fy = e.hy, spots = [[0, 0], [1.2, 0.3], [-1.2, -0.3], [2, -0.4], [-2, 0.4], [0.6, -0.5], [-0.6, 0.5]].slice(0, n);
+      const free = []; for (let i = 0; i < Math.min(cr.active, cr.P.length) && free.length < spots.length; i++) if (cr.P[i].line >= 0 && !cr.P[i].pz) free.push(i);
+      W.pin = { at: spots.slice(0, free.length).map(([a, b], k) => [free[k], e.x + fx * a + fy * b, e.y + fy * a - fx * b, e.z]), stop: [+e.x.toFixed(1), +e.y.toFixed(1)], offLine: +Math.hypot(e.x - line.x, e.y - line.y).toFixed(2) };
+      W.pinned = W.pin.at.length;
+      return { pinned: W.pinned, stop: W.pin.stop, offLine: W.pin.offLine };
+    };
     requestAnimationFrame(tick);
   });
   await p.evaluate(() => { const pl = window.__game.player; pl.x = 498; pl.y = -1046; }); // (where the flight sets you down)
   const t0 = Date.now();
-  let rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null;
+  let arrivedShot = false, pinned = null, rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null;
   while (Date.now() - t0 < (+process.env.LIMIT || 600) * 1000) {
     if (s0 && s0.ride && (s0.ride.phase === 'coming' || (s0.ride.phase === 'driving' && s0.mode === 'ride'))) await p.evaluate(n => window.__rpStep(n), s0.ride.v < 0.5 && s0.ride.phase === 'driving' ? 150 : 45); // (1.5 s of the world; 5 s stood at a light)
     await p.waitForTimeout(s0 && s0.dlg ? 400 : 1000);
@@ -72,8 +95,11 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     if (s.dlg) { await p.evaluate(() => { const st = window.__game.story.state, B = document.querySelectorAll('#gd-choices button'); if (B.length) (B[st.want] || B[0]).click(); }); if (!s.choices) await p.keyboard.press('KeyE'); continue; }
     if (s.mode === 'foot' && s.ride && (s.ride.phase === 'waiting') && !rode) { await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st; g.player.x = st.x + 2.4 * Math.cos(st.h); g.player.y = st.y - 2.4 * Math.sin(st.h); }); await p.waitForTimeout(600); await p.keyboard.press('KeyE'); }
     if (s.mode === 'ride') {
+      if (+process.env.PIN && !pinned && s.ride && s.ride.phase === 'driving') { pinned = await p.evaluate(n => window.__rpPin(n), +process.env.PIN); console.log('pinned', JSON.stringify(pinned)); await p.waitForTimeout(300); await p.keyboard.press('KeyF'); }
       if (!rode) { rode = true; await p.evaluate(() => { const g = window.__game; if (g.cam && g.cam.mode === 'cabin' && g.keys) {} }); }
       if (shots < 24 && s.ride && s.ride.phase === 'driving' && (++tick % (s.ride.v < 0.5 ? 6 : 3) === 1)) { try { await p.screenshot({ path: `${out}/ride-${String(shots).padStart(2, '0')}.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } shots++; }
+      if (s.ride && s.ride.phase === 'arrived' && !arrivedShot) { arrivedShot = true; const camAt = () => p.evaluate(() => { const g = window.__game, c = g.camera.position, st = g.ride().drv.st; return { t: +g.t().toFixed(1), cine: g.cine.active, camH: +c.y.toFixed(0), off: +Math.hypot(c.x - st.x, -c.z - st.y).toFixed(0) }; });
+        const was = await camAt(); let now = was; for (let k = 0; k < 60 && (now.cine || now.off > 15); k++) { await p.waitForTimeout(2000); now = await camAt(); } await p.waitForTimeout(4000); console.log('settle', JSON.stringify({ was, now })); try { await p.screenshot({ path: `${out}/arrived.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } } // (the car where it sets you down, at Hachiko, once the view has come down onto it: the page's own frames, which move the world's clock the hop runs on and the chase camera it hands over to; a step of the harness moves neither)
       if (s.ride && s.ride.phase === 'arrived') await p.keyboard.press('KeyE'); // (out only where it sets you down: 'Get out here' is offered all the way)
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }
@@ -81,10 +107,11 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   const W = await p.evaluate(() => { const W = window.__ridePeople; W.was = null; return W; });
   console.log('frames watched', W.frames, '| ride driving', W.rideT.toFixed(1), 's,', W.rideM.toFixed(0), 'm, mean', (W.rideM / Math.max(1, W.rideT) * 3.6).toFixed(1), 'km/h moving, top', (W.rideV * 3.6).toFixed(1), 'km/h');
   console.log('ride from boarding to setting down', (W.driveT || 0).toFixed(1), 's, stopped', (W.stopT || 0).toFixed(1), 's (not counting the cut on)', W.cut != null ? `; held still, cut on to its stop ${W.cut.toFixed(1)} s in` : '; never cut on');
+  if (process.env.PIN) console.log('pinned', W.pinned || 0, 'at the stop; set down', JSON.stringify(W.setAt || null));
   console.log('overlaps', JSON.stringify(W.worst));
   for (const x of W.hits) console.log('  ', JSON.stringify(x));
   console.log('ride', ended, errors.length ? `| ${errors.length} page errors` : '');
   await b.close();
-  const bad = Object.keys(W.worst).length > 0 || ended !== 'arrived' || errors.length > 0;
+  const bad = Object.keys(W.worst).length > 0 || ended !== 'arrived' || errors.length > 0 || (+process.env.PIN > 0 && !(W.pinned > 0 && W.setAt));
   process.exit(bad ? 1 : 0);
 })();
