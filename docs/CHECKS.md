@@ -9,10 +9,11 @@ the script is short: a set of checks that open no browser, and a handful that op
 | Target | What it does | Tool |
 |---|---|---|
 | `static` | Everything that needs no browser, half a minute together (below) | several |
-| `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on, and its Walk Shibuya taken up in the same night (the card gone, the walk's corner up, the evening's people gone once the lens turns away). A still at each beat. Without a GPU one frame in thirty is drawn (`DRAW=30`) and the rest run the game without their draw calls, so that the story keeps its own time on a software renderer; the stills and the photographs are of frames drawn whole | `tools/story_play.js` |
-| `walk` | The title's second way in, on a desktop's page (800x500) and a phone's by touch (390x844): Walk Shibuya only after who you play, its hour and sky as the street behind the card, Back to the story's evening, out on the street with no goal, no light and nothing of the old free game (its keys open nothing), where and when in the corner, walking, the menu with the story in it, the camera; on the desktop also the last card's fresh-page way out. Stills of each beat | `tools/walk_play.js` |
-| `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
+| `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on, and its Walk Shibuya taken up in the same night (the card gone, the walk's corner up, the evening's people gone once the lens turns away). A still at each beat. Without a GPU one frame in thirty is drawn (`DRAW=30`) and the rest run the game without their draw calls, their clears, their `renderer.render` (the world's matrices and every `onBeforeRender` still run) or a wait for the display's next frame, so that the story keeps its own time on a software renderer; the stills and the photographs are of frames drawn whole, and the page's frames are held while a still is taken of the frame drawn last (#51) | `tools/story_play.js` |
+| `walk` | The title's second way in, on a desktop's page (800x500) and a phone's by touch (390x844): Walk Shibuya only after who you play, its hour and sky as the street behind the card, Back to the story's evening, out on the street with no goal, no light and nothing of the old free game (its keys open nothing), where and when in the corner, walking, the menu with the story in it, the camera; tonight's set dressing up in SKY GATE's lobby; your car driven (its keys, its speed in the corner, out once stopped; on a phone its buttons) and brought to the kerb from the menu; SKY GATE's lift ridden in the dark to the top stop; the helicopter on the roof boarded, flown up (its keys, its height) and landed; on the desktop also the last card's fresh-page way out. Stills of each beat | `tools/walk_play.js` |
+| `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
+| `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right), then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/phone_audio.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
 | `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); then as a GPU with sixteen texture units, where every material must still be drawn | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
 | `touch` | Plays the free game by touch on a phone's page, where no key can be pressed | `tools/touch_check.js` |
@@ -31,6 +32,8 @@ the Yamanote bridge and beside its viaduct, offline, to WAV, and reads its rhyth
 The static checks:
 
 - what the characters and the story say (`tools/voice_check.py`): locals, not the map's credits;
+- nothing that sounds made off the audio thread (an AudioWorklet, a ScriptProcessorNode, a ConvolverNode, an
+  AudioContext, a media element's sound) outside the one place each is allowed (`tools/audio_thread_check.py`);
 - the map's lines and quests played to the last stamp without a browser (`tools/goals_check.js`);
 - the packs (`buildings.bin`, `landmarks.bin`, `game.bin`, terrain, places, scene, `vis.bin`,
   `skyvis.webp` and the phone's district under `d/`) made from their JSON as it is now, and decoded
@@ -61,7 +64,7 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 **Before landing: the fast tier.** Plain `tools/check.sh` looks at what the branch changed against
 `origin/main` (after a pass, at what changed since that pass):
 
-- a change to the page or the map (`web/`, `cities/`) runs `static`, `story` and `mem`;
+- a change to the page or the map (`web/`, `cities/`) runs `static`, `story` and `mem`, and a change to the sound `audio` too;
 - a change to one of the checks' own tools runs that check;
 - a change to the build or the plumbing (`pipeline/`, `blender/`, `tools/`, `.github/`) runs `static`;
 - a change to the docs alone runs nothing;
@@ -80,6 +83,12 @@ prints its own runner. Nobody waits for it.
 - A failure opens an issue labelled `main-red` (or comments on the open one) with the shards that
   failed, links to their logs and stills, and the commits since the last pass. The next pass closes it.
 - Reproduce a shard with its name: `tools/check.sh clip`.
+- The story is played in three parts there, one a runner (`CHECK_SPLIT=1` in the plan): `story1` from the title to
+  frame 4's print, where the log has been read; `story2` frames 5 and 6 from a case left at frame 5 (`FROM=4 UPTO=6`);
+  `story3` frame 7, its summation and the last card from a case left at frame 7 (`FROM=6`), where the frames offered to
+  go back into are the ones played and the first. Together they play every frame and every check of `story`; what they
+  do not see is a case carried in one page across frames 4 to 5 and 6 to 7, which `tools/check.sh story` (the whole
+  play, on a session's machine before landing) still plays. A runner played the whole story in 75 minutes (#51).
 - **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
   push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
   `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
@@ -102,7 +111,7 @@ tools/check.sh                      # the fast tier, for what this branch change
 tools/check.sh --plan               # the targets that would run, one a line
 tools/check.sh static               # the checks that open no browser
 tools/check.sh story                # one target; several: tools/check.sh story mem
-tools/check.sh all                  # static story mem clip gl touch astc
+tools/check.sh all                  # static story walk ride mem audio clip gl touch astc
 CHECK_TIER=full tools/check.sh      # as main runs it
 CHECK_BASE=<commit> tools/check.sh  # what changed since that commit
 CHECK_FULL=1 tools/check.sh         # the whole branch, not only what changed since the last pass
@@ -172,4 +181,10 @@ Three checks by name, each a minute in a browser (`GPU=metal` on a Mac, `PORT` f
   (`web/game/route.js`: a strip's landing joined over its floor, the network's edges and its ground search one-way along
   moving steps, a metre ridden costing half one walked). `tools/story_play.js` runs the same at frame 4 of the first
   episode, so `tools/check.sh` has it, and takes a still of the line from where the lift lets you out (`4-lift-way`).
+
+And one longer, about twelve minutes: `node tools/glass_body.js [out_dir]` walks, runs and stands the player into each
+escalator's glass and along it (pushed sideways on the steps, across both landings, slantwise past the newel) and into
+the roof's rim glass from eight directions, and measures every frame the skin of the rig as the clip poses it, part by
+part, against the glass's plane and the collision world's walls; it fails on any part more than a centimetre in. With
+an out dir, stills close and from the chase camera at each, and five with time held.
 

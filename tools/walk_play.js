@@ -10,6 +10,14 @@
 //     the passport, the lens);
 //   - the walk's menu does not offer the story, or still offers the old game's tour and passport;
 //   - the camera (photo mode) does not open from the walk's own button;
+//   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
+//     frame (on a phone: the hand brake, the horn and the view by the stick), it does not drive, the corner does not say
+//     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
+//   - in SKY GATE's lobby the lift is not offered, is not ridden in the dark (its doors shut, the car's ceiling and lines),
+//     or does not end at the top stop;
+//   - on SHIBUYA SKY's roof the helicopter does not stand on its pad, cannot be boarded, does not show its keys (on a
+//     phone: Up and Down), does not climb, the corner does not say its height, or landed, nothing lets you out
+//     (NO_RIDE=1 leaves the car and the helicopter out);
 //   - (on a desktop) the story's last card's Walk Shibuya does not set out on the walk from a fresh page, without the
 //     title, at the hour and under the sky it was given.
 // Stills of each beat in out_dir.
@@ -29,6 +37,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
+  p.on('crash', () => fail('the page crashed (the renderer died)'));
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
@@ -57,7 +66,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   let s = await state();
   const story0 = { eyebrow: s.eyebrow, clock: s.clock };
   if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya beside the episode');
-  else ok(`the title offers two ways in: "${(await p.textContent('#gt-play')).trim()}" and "${(await p.textContent('#gt-walk-go')).trim()}"`);
+  else ok(`the title offers two ways in: "${(await p.textContent('#gt-play', { timeout: 180000 })).trim()}" and "${(await p.textContent('#gt-walk-go', { timeout: 180000 })).trim()}"`); // (a software renderer can hold the page's thread for half a minute behind the title, compiling)
   await shot('1-title');
   await press('#gt-walk-go'); await p.waitForTimeout(800);
   s = await state();
@@ -108,6 +117,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (s.lights.objective) fail('the old free game\'s objective light stands in the walk');
   if (!s.where || s.at !== s.clock.hm) fail(`the corner does not say where and when you are ("${s.where}" "${s.at}", the clock ${s.clock.hm})`);
   else ok(`out in ${Math.round((Date.now() - t0) / 1000)} s: "${s.where}", ${s.at}, ${s.wx.kind}; no goal, no light`);
+  // (and tonight's set dressing, as the story puts it up: SKY GATE's lift doors and its sign over the way in; without it the
+  // lobby on the walk was a bare box cut into the tower, lined with its own windows)
+  const setUp = await p.evaluate(() => { const g = window.__game, n = (g.story.state.ep || {}).set; return { up: g.story.setUp, of: n ? n.length : 0 }; });
+  if (setUp.up < setUp.of) fail(`out on the walk, ${setUp.up} of the ${setUp.of} pieces of tonight's set dressing are up (SKY GATE's lift doors and sign)`);
+  else ok(`tonight's set dressing is up (${setUp.up} pieces: SKY GATE's lift doors and sign)`);
   // (nothing unseen over the walk's own buttons: the story's film's skip button, invisible, took the phone's taps there)
   const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
   if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
@@ -160,6 +174,110 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   else { ok('the camera opens photo mode'); await shot('7-photo'); }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
   await p.waitForTimeout(800);
+  // your car at the kerb and the helicopter on SHIBUYA SKY's roof (docs/STORY.md "The walk": a free ride's own car, a
+  // flight's own aircraft): in by E or a tap on the prompt, their keys at the foot of the frame the first time, the speed
+  // (and in the air the height) in the corner, the phone's buttons for each, out again once stopped or landed
+  if (!process.env.NO_RIDE) {
+    const prompt = () => p.evaluate(() => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t ? t.textContent : ''; });
+    const waitPrompt = re => p.waitForFunction(r => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t && new RegExp(r).test(t.textContent); }, re.source, { timeout: 120000, polling: 250 }).then(() => true, () => false);
+    // (on a phone, the prompt is tapped where it is: nothing may lie over it, as the car's buttons once did over Get out)
+    const act = async () => {
+      if (phone) {
+        const over = await p.evaluate(() => { const b = document.getElementById('gp-main'), r = b.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2; if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return `nothing: it is off the screen at (${Math.round(x)}, ${Math.round(y)})`; const e = document.elementFromPoint(x, y); return e && !b.contains(e) ? (e.id || e.className || e.tagName) : ''; });
+        if (over) fail(`on a phone, ${over} lies over the prompt ("${await prompt()}")`);
+        await press('#gp-main');
+      } else await p.keyboard.press('KeyE');
+      await p.waitForTimeout(400);
+    };
+    const corner = () => p.evaluate(() => { const e = document.querySelector('#g-walk-where .g'); return e && !e.hidden ? e.textContent : ''; });
+    const keyLine = () => p.evaluate(() => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on') ? e.textContent : ''; });
+    const shown = sel => p.evaluate(s => [...document.querySelectorAll(s)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && getComputedStyle(e).display !== 'none'; }).map(e => e.textContent.trim()), sel);
+    const mode = () => p.evaluate(() => window.__game.player.mode);
+    // (a key or a phone's button held for some seconds of the game's own time, a twentieth of a second a frame with the
+    // camera following each, as a player's frames do: a software renderer's own frames are too slow to hold it for, and
+    // advance() moves the world without the camera, which was left tens of metres behind the car for the still)
+    const hold = (key, s) => p.evaluate(async ([k, t]) => { const g = window.__game; g.keys.add(k); try { for (let i = 0; i < Math.round(t / 0.05); i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } } finally { g.keys.delete(k); } }, [key, s]);
+    const haveCar = await p.waitForFunction(() => !!window.__game.myCar(), null, { timeout: 300000, polling: 1000 }).then(() => true, () => false);
+    if (!haveCar) fail('no car of your own on the walk (five minutes after setting out)');
+    else {
+      // beside its driver's door, at the kerb it waits at
+      await p.evaluate(() => { const g = window.__game, st = g.myCar().D.st, fx = Math.sin(st.h), fy = Math.cos(st.h); g.player.x = st.x - fy * 2.1; g.player.y = st.y + fx * 2.1; g.player.z = st.z; g.player.speed = 0; });
+      if (!(await waitPrompt(/Drive your car/))) fail(`beside your car on the walk, nothing offers to drive it ("${await prompt()}")`);
+      else {
+        await act();
+        if ((await mode()) !== 'car') fail(`E (or a tap) by your car: not at the wheel (${await mode()})`);
+        else {
+          await p.waitForTimeout(1500);
+          const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [];
+          if (!(phone ? /drives/i.test(kl) : /steer/i.test(kl))) fail(`at the wheel, the foot of the frame does not show the car's keys ("${kl}")`);
+          if (phone && !(btn.includes('Hand brake') && btn.includes('Horn') && btn.includes('View'))) fail(`at the wheel on a phone, the buttons are ${JSON.stringify(btn)} (want the hand brake, the horn and the view)`);
+          const st0 = await p.evaluate(() => { const s = window.__game.myCar().D.st; return [s.x, s.y]; });
+          await hold('KeyW', 2.5); await p.waitForTimeout(1200);
+          const c = await p.evaluate(() => { const s = window.__game.myCar().D.st; return { xy: [s.x, s.y], v: s.speed }; }), drove = Math.hypot(c.xy[0] - st0[0], c.xy[1] - st0[1]), kmh = await corner();
+          if (drove < 3) fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m`);
+          else if (!/km\/h/.test(kmh)) fail(`driving, the corner does not say the speed ("${kmh}")`);
+          else ok(`drove ${drove.toFixed(1)} m; the corner says "${kmh}"; the keys: "${kl.slice(0, 60)}"`);
+          await shot('7a-car');
+          await hold('Space', 4); await hold('KeyS', 0.2); await p.waitForTimeout(800);
+          if (!(await waitPrompt(/Get out/))) fail(`stopped at the wheel, nothing offers to get out ("${await prompt()}"): stuck in the car`);
+          else { await act(); await p.evaluate(() => window.__game.advance(0.5)); if ((await mode()) !== 'foot') fail(`Get out: still ${await mode()}`); else ok('stopped and got out'); }
+        }
+      }
+      // the menu's Bring your car: to the kerb nearest you
+      await p.evaluate(() => { const g = window.__game; g.player.x += 40; g.spawn([g.player.x, g.player.y]); });
+      await p.waitForTimeout(800);
+      await press('#g-walk-acts [data-do="menu"]'); await p.waitForTimeout(800);
+      if (!(await visible('#gm-car'))) fail('the walk\'s menu does not offer to bring your car');
+      else {
+        await press('#gm-car'); await p.waitForTimeout(800);
+        const far = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return Math.hypot(s.x - g.player.x, s.y - g.player.y); });
+        if (await visible('#g-menu')) fail('Bring your car: the menu stayed up');
+        else if (far > 60) fail(`Bring your car: it is ${far.toFixed(0)} m away`);
+        else ok(`Bring your car: at the kerb ${far.toFixed(0)} m away`);
+      }
+    }
+    // SKY GATE: in its lobby (lined, with its doors and its name: the set dressing), E or a tap takes the lift, ridden in
+    // the dark as the real one is (the doors shut, the car's ceiling and its lines; game.js podRide), out at the top stop
+    const lobby = await p.evaluate(() => { const g = window.__game, l = (g.G.lifts || []).find(q => q.pod), s = l && l.stops[0]; if (!s) return null; const [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.player.x = ax - (ax - dx) / n * 1.2; g.player.y = ay - (ay - dy) / n * 1.2; g.player.z = az; g.player.h = Math.atan2(ax - dx, ay - dy); g.player.speed = 0; return { top: l.stops[l.stops.length - 1].at[2] }; });
+    if (!lobby) fail('no lift ridden in the dark (game.json lifts[].pod) on the map');
+    else if (!(await waitPrompt(/lift/i))) fail(`in SKY GATE's lobby on the walk, nothing offers the lift ("${await prompt()}")`);
+    else {
+      await act();
+      await p.evaluate(() => window.__game.advance(1.6));
+      const mid = await p.evaluate(() => { const e = document.getElementById('g-pod'); return e ? e.className : ''; });
+      await shot('7b-pod');
+      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40 && g.cine.active; i++) g.advance(0.25); });
+      const top = await p.evaluate(() => window.__game.player.z);
+      if (!/ride/.test(mid)) fail(`SKY GATE: mid-ride the car is not dark round you (the pod's "${mid}")`);
+      else if (top < lobby.top - 3) fail(`SKY GATE: the ride ended at ${top.toFixed(0)} m, not the top stop (${lobby.top.toFixed(0)} m)`);
+      else ok(`SKY GATE: ridden in the dark, out at ${top.toFixed(0)} m`);
+    }
+    // the helicopter: up on the roof beside it (as the SKY GATE lift and the escalator bring you), fetched and drawn there
+    const pad = await p.evaluate(() => { const g = window.__game, s = g.heli.st, d = g.heli.doorAt(); g.player.x = d.x + (d.x - s.x) * 0.8; g.player.y = d.y + (d.y - s.y) * 0.8; g.player.z = s.z; g.player.speed = 0; g.player.vz = 0; return { z: s.z }; });
+    const seen = await p.waitForFunction(() => window.__game.heli.loaded() && window.__game.heli.group.visible, null, { timeout: 240000, polling: 500 }).then(() => true, () => false);
+    if (!seen) fail(`up on the roof beside the helicopter's pad (${pad.z.toFixed(0)} m), it never stands there`);
+    else if (!(await waitPrompt(/Board the helicopter/))) fail(`beside the helicopter on the walk, nothing offers to board it ("${await prompt()}")`);
+    else {
+      await act();
+      await p.evaluate(() => window.__game.advance(4));
+      if ((await mode()) !== 'heli') fail(`E (or a tap) by the helicopter: not at the stick (${await mode()})`);
+      else {
+        await p.waitForTimeout(1500);
+        const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [], z0 = await p.evaluate(() => window.__game.heli.st.z);
+        if (!(phone ? /climb/i.test(kl) : /climb/i.test(kl) && /descend/i.test(kl))) fail(`at the stick, the foot of the frame does not show the helicopter's keys ("${kl}")`);
+        if (phone && !(btn.includes('Up') && btn.includes('Down'))) fail(`at the stick on a phone, the buttons are ${JSON.stringify(btn)} (want Up and Down)`);
+        await hold('Space', 10); await p.waitForTimeout(1200);
+        const z1 = await p.evaluate(() => window.__game.heli.st.z), up = await corner();
+        if (z1 - z0 < 10) fail(`at the stick with Space held for ten seconds, the helicopter climbed ${(z1 - z0).toFixed(1)} m`);
+        else if (!/m up/.test(up)) fail(`in the air, the corner does not say the height ("${up}")`);
+        else ok(`flew: climbed ${(z1 - z0).toFixed(0)} m off the roof; the corner says "${up}"`);
+        await shot('7c-heli');
+        await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && !g.heli.st.landed; i++) g.advance(0.5, ['KeyC']); g.advance(1); });
+        if (!(await waitPrompt(/Get out/))) fail(`landed, nothing offers to get out of the helicopter ("${await prompt()}")`);
+        else { await act(); await p.evaluate(() => window.__game.advance(3)); if ((await mode()) !== 'foot') fail(`out of the helicopter: still ${await mode()}`); else ok('landed and climbed out'); }
+      }
+    }
+  }
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {
     await p.evaluate(() => { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });

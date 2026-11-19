@@ -5,6 +5,7 @@ finest parts (geo.fine), when it has any, as <level>_fine.glb beside it.
 
     pip install bpy==5.2.3
     python blender/build_hero.py --city shinjuku
+    python blender/build_hero.py --city shibuya --level miyamasu     # a map's second level: cities/<id>/hero_<level>.py
 """
 import argparse
 import importlib.util
@@ -24,9 +25,10 @@ import hero_kit as K  # noqa: E402
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--city", required=True)
+    ap.add_argument("--level", default=None, help="a map's other level: cities/<id>/hero_<level>.py")
     ap.add_argument("--no-meshopt", action="store_true")
     a = ap.parse_args()
-    spec = importlib.util.spec_from_file_location("hero_level", os.path.join(ROOT, "cities", a.city, "hero.py"))
+    spec = importlib.util.spec_from_file_location("hero_level", os.path.join(ROOT, "cities", a.city, f"hero_{a.level}.py" if a.level else "hero.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     t0 = time.time()

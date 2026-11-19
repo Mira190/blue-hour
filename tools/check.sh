@@ -19,12 +19,18 @@
 #             way (tools/flight_clear.py, tools/flight_frames.py);
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
+#           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
 #   walk    the title's second way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
-#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game;
+#           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
+#           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
+#           (tools/reverb_check.js), and the opening and the story's own sound played as an iPhone, every convolver on
+#           the live context within WebKit's realtime limit, one context, no worklet (tools/phone_audio.js);
+#           when the sound changes;
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
 #   clip    what passes through what in the free game, ?walk=1 (tools/clip_check.js);
@@ -32,6 +38,8 @@
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
 #   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   story1, story2, story3  the story in three parts, each on its own runner (frames 1 to 4; 5 and 6 from a late start; 7
+#           and the last card from one): what "story" checks, in a third of the time; CHECK_SPLIT=1 --plan names them for "story"
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
 # Prints one line per check and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
@@ -39,7 +47,7 @@
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static story ride mem clip gl touch astc
+#   tools/check.sh all                  # static story walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
@@ -51,8 +59,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story walk ride mem clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story walk ride mem clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story story1 story2 story3 walk ride mem audio clip gl touch astc game"   # the browser checks, in the order they run
+ALL="story walk ride mem audio clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -105,6 +113,8 @@ else
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_thread_check.py) static=1; add audio ;;
+      web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/*|cities/*) static=1; page ;;
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
@@ -118,7 +128,10 @@ fi
 
 if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to this script: a runner's shard
   [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && echo static
-  for k in $want; do echo "$k"; done
+  for k in $want; do
+    # (a runner's plan: the story in three parts, one a runner, which together play every frame and the last card)
+    if [ "$k" = story ] && [ "${CHECK_SPLIT:-0}" = 1 ]; then echo story1; echo story2; echo story3; else echo "$k"; fi
+  done
   exit 0
 fi
 
@@ -156,11 +169,20 @@ twice() {   # <kind> <first log> <second log>: the verdict of the second run
   else echo "FAIL $1   (${same:-$(echo "$two" | head -2 | cut -c1-110 | paste -sd ';' -)}; see $3; the first run $2)"; fi
 }
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
+  story_part story "" "" "the episode plays through its seven frames to the last card"
+}
+# the story in parts, one a runner (CHECK_SPLIT=1 --plan): from the title to frame 4's print, where the log has been read;
+# frames 5 and 6 from a case left at frame 5; frame 7, its summation and the last card from one left at frame 7
+run_story1() { story_part story1 "" 4 "frames 1 to 4 played from the title to frame 4's print"; }
+run_story2() { story_part story2 4 6 "frames 5 and 6 played from a case left at frame 5"; }
+run_story3() { story_part story3 6 "" "frame 7 and the last card played from a case left at frame 7"; }
+story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # (and one frame in thirty drawn, without a GPU: the game moves a twentieth of a second a frame at most, so at a software
   # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
-  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/story" 800x500 >"$OUT/story.log" 2>&1; then echo "ok   story  the episode plays through its seven frames to the last card"
-  else echo "FAIL story  $(grep '^FAIL\|pageerror' "$OUT/story.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/story.log)"; fi
+  local n=$1 log="$OUT/$1.log"
+  if FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(grep '^FAIL\|pageerror\|^error:' "$log" | head -2 | cut -c1-160 | paste -sd ';' -)" "$log"; fi
 }
 run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
   local ok=1 d
@@ -175,11 +197,24 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
-# an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone")
+# an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are
+# held at once (docs/HERO.md, "Miyamasu")
 run_mem() {
-  if timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
+  if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+}
+# every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
+run_audio() {
+  if timeout 900 node tools/reverb_check.js >"$OUT/reverb.log" 2>&1; then echo "ok   audio  $(grep -c '^ok' "$OUT/reverb.log") reverbs as a phone hears them, each within its tolerance of the whole convolution"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/reverb.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/reverb.log)"; fi
+  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
+    echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
+  # (and touched first on the title: the opening's score with its own bed, and the loading cue let go)
+  if FIRST=title DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio_title.log" 2>&1; then
+    echo "ok   audio  as an iPhone touched first on the title: one piece of music at a time in the opening"
+  else echo "FAIL audio  touched first on the title: $(grep '^FAIL' "$OUT/phone_audio_title.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio_title.log)"; fi
 }
 run_clip() {
   if timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance"; return; fi
@@ -253,6 +288,7 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
+    st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
   fi
   for k in $KINDS; do is_in "$k" "$want" && "run_$k"; done
 } | tee "$OUT/summary.txt"

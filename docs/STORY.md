@@ -627,7 +627,10 @@ and held still six seconds at a red or in the queue to one (`STORY_HELD`) it goe
 takes it: the queue to the Scramble's arm under the viaduct waits out the walk and the other roads' turns, and one
 way back stood still 75 s of 127. A skip (F, or that cut) holds the car where it is while the view goes up, sets it
 down short of its stop where nobody stands in it, and lets it drive in under the view coming down: set down on the
-stop itself by Hachiko, it landed on the people crossing there. The frame goes on where it sets you down, or where you walk to
+stop itself by Hachiko, it landed on the people crossing there. Where nobody stands is judged where the car's body will
+stand (`clearAt`: pulled in to the kerb, metres off its way's line), against the crowd, the NPCs, you and the dog; judged
+on the line, it was set down on five people waiting by Hachiko (#50). A ride coming for you that hops on out of sight
+is put down by the same test. The frame goes on where it sets you down, or where you walk to
 (`tools/story_ride.js` takes it; `tools/ride_people.js` times it).
 
 **What is in the air is there before it stops.** Leaves come off the street's trees all evening, a page of an old
@@ -941,9 +944,10 @@ from what a player wants of it, not from the old free game this map once had:
   dog. Walked first, it spoils nothing; walked after, it undoes nothing.
 - **One world, not two games.** The same Kagami, the same evening's screens, the story's own card, type and amber. The
   map's old free game (`?walk=1`, *Tokyo Pilgrimage*, its quests, survey lens, height guess, passport, map that sends you
-  anywhere, phone, taxi, car and helicopter) stays a tool for building and checking; none of it is reachable from the
-  story's page, in the story or on the walk (`game.js` `STORY_OFF`, the menu's old tour and passport put away), and
-  the story's last card no longer opens it.
+  anywhere, phone and taxi) stays a tool for building and checking; none of it is reachable from the story's page, in
+  the story or on the walk (`game.js` `STORY_OFF`, the menu's old tour and passport put away), and the story's last card
+  no longer opens it. Your car and the helicopter came back to the walk at the owner's word, in the walk's own interface
+  (below, *Your car and the helicopter*).
 - **One decision before you go.** The hour and the sky: the blue hour of the story's evening (10 October), the night
   after it, or the hour it is now in Tokyo; clear or rain. Whatever is chosen is the street behind the card at once, so
   the choice is made by looking, not by reading. The rest (any hour, any weather, the clock's speed) is in the menu.
@@ -969,6 +973,38 @@ Free Ride's hour and sky chosen before setting out and changed in the menu after
 story, from the place the story ends, without a lock (Yakuza opens it only after the end; this walk has nothing of the
 case in it to keep back); the flight simulator's choice made over the live view. Nothing of those games' look or words is
 used.
+
+**Your car and the helicopter (November 2026).** The owner asked for the walk to drive and fly as well. Worked from first
+principles rather than from the old free game's panels:
+
+- *Each way of getting about is a scale of looking.* On foot the hundred metres of the hero level take minutes and every
+  kerb is seen; a car crosses them in seconds and shows the streets as a sequence; the helicopter shows the district as
+  a map. A free roam is richer for all three, as long as the map round you can be built as fast as you cross it: a car's
+  50 km/h is well within what the map loads round a walker, and from the air the far streets are the simplified middle
+  distance they are built as (docs/PERFORMANCE.md). On a phone both keep to its district, as walking does.
+- *The way in is a thing in the street, not a menu.* Your car waits at a kerb by the crossing (`game.start.car`); the
+  helicopter stands on the pad on SHIBUYA SKY's roof, up the SKY GATE lift, which makes the lift a way somewhere as well as
+  a view. E (or a tap on the prompt) gets in beside either, and out once it has stopped or landed. The car can be called to
+  the kerb nearest you from the menu (*Bring your car*), as a free ride's own car or a whistled horse comes; the
+  helicopter is not called (it has a place to stand, and finding it is part of having it), but left anywhere and walked
+  far from, it is back on the nearest pad when you come by one again (`heliToPad`).
+- *Nothing to fail.* No police, no damage, no fuel, no timer: a bump is said and forgotten, R puts the car back on the
+  road, and a person in the road stops the car rather than the car stopping them.
+- *One interface.* The keys for each are shown once at the foot of the frame, the first time you are in it on a walk, in
+  the walk's own line (not the old game's coach and dashboard); the corner under the hour gives the one number each
+  needs, the speed, and in the air the height over the ground to set it down by (and the rotor while it spools up). On a
+  phone the stick drives or flies, and beside it are the hand brake, the horn and the view in the car, up, down and the
+  view in the air.
+- *The story keeps none of it.* In an episode nothing but the story's own rides are offered (`currentAction`: an action
+  marked `walk` passes on the walk only).
+
+What the games that do this do, and what was taken (design only; nothing of their look, words or code): *Grand Theft
+Auto V*'s one key to get into whatever stands beside you and out again anywhere, and its aircraft that wait on pads and
+roofs (the pad on the roof, adopted; taking anyone else's car, not: this is a calm walk, and a camera's owner does not
+steal); *Mafia: Definitive Edition*'s Free Ride and *Cyberpunk 2077*'s own car called to you (adopted as Bring your car);
+*Red Dead Redemption 2*'s horse that comes when whistled but is otherwise where you left it (the car stays where it is
+parked); *Forza Horizon*'s and the flight simulators' instruments reduced to what the moment needs (one line under the
+hour); the contextual prompts already used by the story (shown when the action is possible).
 
 On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
 `walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of
@@ -1252,6 +1288,7 @@ The marks do not depend on colour: their kinds are told apart by shape and named
 mark is drawn in a broken line as well as in blue, so it is told from the living's without its colour. An answer the
 hand is on (the arrows on a keyboard, the d-pad on a pad) has an outline as well as its amber.
 
-What is left of the story's own, each with its issue: frame 5's place is plain boxes and haze round its print (issue 33);
-the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the old
-woman's clear umbrella is not built.
+What is left of the story's own, each with its issue: the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the old
+woman's clear umbrella is not built. Frame 5's place, plain boxes and haze round its print until November 2026 (issue
+33), is a hero level of its own: the Ginza line station's underside, piers and the east exit's ground (docs/HERO.md,
+"Miyamasu").
