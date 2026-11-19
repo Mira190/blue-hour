@@ -244,6 +244,8 @@ window.OERoute = (function () {
         for (let j = Math.max(0, k - 3); j <= Math.min(n - 1, k + 3); j++) { s += off[j]; c++; }
         sm[k] = s / c;
         const e = Math.min(cum[k], L - cum[k]);
+        // (never more than half a metre short of what this point needs: eased over a turn, the mean left the way along a kerb)
+        if (off[k] && (!sm[k] || Math.sign(sm[k]) === Math.sign(off[k])) && Math.abs(off[k]) - Math.abs(sm[k]) > 0.5) sm[k] = off[k] - Math.sign(off[k]) * 0.5;
         sm[k] *= Math.max(0, Math.min(1, (e - 1) / (CEN_EASE - 1)));
       }
       const Q = S.map((p, k) => {
