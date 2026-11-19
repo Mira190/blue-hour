@@ -23,6 +23,7 @@ inverse kinematics in his sagittal plane, so a paw on the ground stays on it and
 import math
 import os
 import sys
+import tempfile
 
 import numpy as np
 
@@ -281,10 +282,55 @@ BONES = [  # name, head, tail (x, z), y, parent
 ]]
 
 
+def eye_surfaces(bpy, skin, rig, wet):
+    """Fit the lids to the actual sculpt and dome each cornea above its socket."""
+    from mathutils import Vector
+    points, faces, colors = [], [], []
+    steps = 40
+    for side in (-1, 1):
+        outward = Vector((0.84, side * 0.54, 0.04)).normalized()
+        across = Vector((-0.54, side * 0.84, 0.12)).normalized()
+        up = outward.cross(across) * side
+        centre = Vector((0.558, side * 0.067, 0.835))
+        start = len(points)
+        for ring, radius in enumerate((0, 0.32, 0.39, 0.65, 0.82, 0.93, 1.0, 1.12)):
+            for j in range(1 if ring == 0 else steps):
+                a = 2 * math.pi * j / steps
+                u, z = radius * math.cos(a), radius * math.sin(a)
+                target = centre + across * (0.018 * u) + up * (0.011 * z * (1 - 0.33 * abs(u)))
+                hit, loc, _, _ = skin.ray_cast(target + outward * 0.07, -outward)
+                assert hit, "eye missed its socket"
+                depth = 0.0014 + 0.0046 * max(0, 1 - radius ** 2)
+                points.append(tuple(loc + outward * (depth if radius <= 1 else 0.0002)))
+                iris = math.hypot(u * 1.55, z)
+                amber = np.clip((iris - 0.39) / 0.16, 0, 1) * np.clip((1.02 - iris) / 0.19, 0, 1)
+                pigment = (0.009 + amber * 0.056, 0.006 + amber * 0.024, 0.005 + amber * 0.012)
+                colors.append((*pigment, 1))
+                if ring:
+                    i = start + 1 + (ring - 1) * steps
+                    k = (j + 1) % steps
+                    tris = [(start, i + j, i + k)] if ring == 1 else [
+                        (i - steps + j, i + j, i + k), (i - steps + j, i + k, i - steps + k)]
+                    faces.extend(tri if side > 0 else tri[::-1] for tri in tris)
+    me = bpy.data.meshes.new("Corneas and lid margins")
+    me.from_pydata(points, [], faces)
+    me.update()
+    for f in me.polygons:
+        f.use_smooth = True
+    me.color_attributes.new("Color", "FLOAT_COLOR", "POINT").data.foreach_set("color", np.ravel(colors))
+    eyes = bpy.data.objects.new("Eyes", me)
+    bpy.context.scene.collection.objects.link(eyes)
+    me.materials.append(wet)
+    eyes.vertex_groups.new(name="head").add(list(range(len(points))), 1, "REPLACE")
+    eyes.parent = rig
+    eyes.modifiers.new("Skin", "ARMATURE").object = rig
+    return eyes
+
+
 def guard_coat(bpy, skin, rig, v, normal, color, gloss):
-    """Tapered opaque locks follow the skin and inherit the weights at their roots."""
+    """Each tapered lock carries a fan of individual hairs and the weights at its root."""
     rng = np.random.default_rng(1923)
-    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < 0.55) & (gloss < 0.01))
+    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < 0.62) & (gloss < 0.01))
     roots = np.sort(rng.choice(eligible, min(10500, len(eligible)), replace=False))
     p, n = v[roots], normal[roots]
     x, y, z = p.T
@@ -299,7 +345,8 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     flow /= np.maximum(np.linalg.norm(flow, axis=1)[:, None], 1e-6)
     side = np.cross(flow, n)
     length = (0.017 + 0.013 * (z > 0.36) + 0.014 * plume) * rng.uniform(0.74, 1.22, len(p))
-    width = length * rng.uniform(0.075, 0.15, len(p))
+    length *= 1 - 0.7 * np.clip((x - 0.38) / 0.17, 0, 1)
+    width = length * rng.uniform(0.055, 0.10, len(p))
     along = flow * length[:, None]
     across = side * width[:, None]
     base = p - n * 0.0015
@@ -312,13 +359,52 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     me.update()
     me.polygons.foreach_set("use_smooth", np.ones(len(faces), dtype=bool))
     me.normals_split_custom_set_from_vertices(np.repeat(n, 4, axis=0).tolist())
-    tones = rng.uniform(0.93, 1.05, len(p))[:, None] * np.array([0.91, 0.91, 1.01, 1.10])
+    tones = rng.uniform(0.99, 1.03, len(p))[:, None] * np.array([0.98, 0.98, 1.02, 1.06])
     rgb = np.minimum(1, color[roots, None, :] * tones[:, :, None]).reshape(-1, 3)
     ca = me.color_attributes.new("Color", "FLOAT_COLOR", "POINT")
     ca.data.foreach_set("color", np.c_[rgb, np.ones(len(rgb))].ravel())
     locks = bpy.data.objects.new("Guard hairs", me)
     bpy.context.scene.collection.objects.link(locks)
-    me.materials.append(skin.data.materials[0])
+    uv = np.tile([[0, 0], [1, 0], [0.5, 0.45], [0.5, 1]], (len(p), 1))
+    me.uv_layers.new(name="Locks").data.foreach_set("uv", uv[faces.ravel()].astype(np.float32).ravel())
+    hair = skin.data.materials[0].copy()
+    hair.name = "Guard coat"
+    hair.use_backface_culling = True
+    nodes, links = hair.node_tree.nodes, hair.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    # At a distance mipmaps merge the filaments into the colour of the undercoat.
+    from PIL import Image, ImageDraw
+    image = Image.new("RGBA", (256, 512), (247, 242, 233, 0))
+    draw = ImageDraw.Draw(image)
+    for root in np.linspace(0.015, 0.985, 21):
+        end = rng.uniform(0.66, 1.0)
+        bend = rng.uniform(-0.019, 0.019)
+        tone = int(rng.uniform(235, 255))
+        def strand(t, side):
+            u = 0.5 + (root - 0.5) * (1 - t) + bend * np.sin(t * np.pi)
+            u += side * (0.015 * (1 - t / end) + 0.002)
+            return (u * 255, (1 - t) * 511)
+        steps = np.linspace(0, end, 18)
+        draw.polygon([strand(t, -1) for t in steps] + [strand(t, 1) for t in steps[::-1]],
+                     fill=(tone, tone, tone, 255))
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, "guard-hairs.png")
+        image.save(path)
+        tex = nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(path)
+        tex.image.pack()
+    mul = nodes.new("ShaderNodeMixRGB")
+    mul.blend_type = "MULTIPLY"
+    mul.inputs[0].default_value = 1
+    links.new(next(node for node in nodes if node.type == "VERTEX_COLOR").outputs["Color"], mul.inputs[1])
+    links.new(tex.outputs["Color"], mul.inputs[2])
+    links.new(mul.outputs[0], bsdf.inputs["Base Color"])
+    clip = nodes.new("ShaderNodeMath")
+    clip.operation = "GREATER_THAN"
+    clip.inputs[1].default_value = 0.30
+    links.new(tex.outputs["Alpha"], clip.inputs[0])
+    links.new(clip.outputs[0], bsdf.inputs["Alpha"])
+    me.materials.append(hair)
     groups = [locks.vertex_groups.new(name=g.name) for g in skin.vertex_groups]
     for i, root in enumerate(roots):
         indices = list(range(i * 4, i * 4 + 4))
@@ -327,6 +413,57 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     locks.parent = rig
     locks.modifiers.new("Skin", "ARMATURE").object = rig
     return locks
+
+
+def undercoat(me, mat, v, t, fn):
+    """Lay a tile of fine fibres along the limbs, back and face, in physical units."""
+    from PIL import Image
+    from scipy.ndimage import gaussian_filter, map_coordinates
+    import bpy
+    # Neighbouring triangles on a projection share UVs and stay welded on the GPU.
+    dominant = np.argmax(abs(fn), axis=1)
+    n = np.eye(3)[dominant] * np.sign(fn[np.arange(len(t)), dominant])[:, None]
+    p = v[t].mean(axis=1)
+    direction = np.tile([-1., 0., -0.32], (len(t), 1))
+    direction[p[:, 2] < 0.38] = [-0.14, 0., -1.]
+    direction[p[:, 0] > 0.34, 2] = -1.4
+    cross = np.cross(n, direction)
+    pole = np.linalg.norm(cross, axis=1) < 0.12
+    cross[pole] = np.cross(n[pole], [0., 1., 0.])
+    cross /= np.maximum(np.linalg.norm(cross, axis=1)[:, None], 1e-12)
+    along = np.cross(cross, n)
+    uv = np.stack([np.einsum("ijk,ik->ij", v[t], cross), np.einsum("ijk,ik->ij", v[t], along)], axis=2)
+    me.uv_layers.new(name="Undercoat").data.foreach_set("uv", (uv / 0.054).astype(np.float32).ravel())
+    rng = np.random.default_rng(1935)
+    height = gaussian_filter(rng.normal(size=(256, 256)), (15, 0.9), mode="wrap")
+    y, x = np.indices(height.shape)
+    height = map_coordinates(height, [y, x + 2.5 * np.sin(2 * np.pi * y / 256)], order=1, mode="grid-wrap")
+    height /= height.std()
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    with tempfile.TemporaryDirectory() as folder:
+        def tile(name, pixels):
+            path = os.path.join(folder, name + ".png")
+            Image.fromarray(np.uint8(np.clip(pixels, 0, 255))).save(path)
+            node = nodes.new("ShaderNodeTexImage")
+            node.image = bpy.data.images.load(path)
+            node.image.pack()
+            return node
+        albedo = tile("Underfur", 244 + 7 * height)
+        mul = nodes.new("ShaderNodeMixRGB")
+        mul.blend_type = "MULTIPLY"
+        mul.inputs[0].default_value = 1
+        links.new(next(node for node in nodes if node.type == "VERTEX_COLOR").outputs["Color"], mul.inputs[1])
+        links.new(albedo.outputs["Color"], mul.inputs[2])
+        links.new(mul.outputs[0], bsdf.inputs["Base Color"])
+        dy, dx = np.gradient(height)
+        normals = np.stack([-0.24 * dx, 0.24 * dy, np.ones_like(dx)], axis=2)
+        normals /= np.linalg.norm(normals, axis=2, keepdims=True)
+        relief = tile("Underfur relief", 127.5 * (1 + normals))
+        relief.image.colorspace_settings.name = "Non-Color"
+        bump = nodes.new("ShaderNodeNormalMap")
+        links.new(relief.outputs["Color"], bump.inputs["Color"])
+        links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
 
 def main():
@@ -417,6 +554,8 @@ def main():
     bpy.ops.object.vertex_group_normalize_all(lock_active=False)
     bpy.ops.object.vertex_group_limit_total(limit=4)
     locks = guard_coat(bpy, ob, rig, v, vn, col, gloss)
+    eyes = eye_surfaces(bpy, ob, rig, wet)
+    undercoat(me, mat, v, t, fn)
 
     # the clips
     rest = {b.name: b.matrix_local.to_3x3() for b in arm.bones}
@@ -468,6 +607,7 @@ def main():
     rig.select_set(True)
     ob.select_set(True)
     locks.select_set(True)
+    eyes.select_set(True)
     bpy.context.view_layer.objects.active = rig
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_skins=True, export_animations=True,
                               export_animation_mode="NLA_TRACKS", export_optimize_animation_size=True, export_vertex_color="ACTIVE",

@@ -439,5 +439,7 @@ The coat follows the jaw down the cheeks, lies back along the saddle and turns a
 The relative coat lengths and the cream markings follow the
 [Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
 The model, colours and groom are generated here. The reference supplies anatomy only.
-The hair roots share the skin's bone weights. The game draws the eyes and nose with the
-lower roughness authored in the model so they catch a different highlight from the coat.
+The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
+a tiled undercoat with directional relief. Both textures are generated at build time.
+Domed eyes follow the lids when the head turns. The eyes and nose use a lower roughness
+than the surrounding coat.
