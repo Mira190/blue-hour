@@ -1,6 +1,6 @@
 """The Akita who walks: web/assets/animals/akita.glb, a dog a story can give the player as a guide
-(web/game/companion.js). He shares the broad skull of the Hachiko Square bronze, with a shorter muzzle
-and a pair of upright, cupped ears shaped from the owner's portrait of a living Akita.
+(web/game/companion.js). His skull, muzzle, upright ears and facial markings follow the supplied
+front portrait of a living Akita. Depth is inferred from the anatomy of an adult Japanese Akita.
 
 Sizes: a male Akita Inu stands 64 to 70 cm at the withers (the Japan Kennel Club's standard: 67 cm, 3 cm either
 way) and is a little longer than tall (10:11); Hachiko himself was measured at 64 cm and 41 kg. This one stands
@@ -8,8 +8,7 @@ way) and is a little longer than tall (10:11); Hachiko himself was measured at 6
 
 Coat: red fawn over the back, the outer legs and the skull, with urajiro (the standard's word: whitish fur) on the
 sides of the muzzle, the cheeks, under the jaw and neck, the chest, the belly, the inside and the lower half of
-the legs and the underside of the tail. Hachiko's coat was a pale cream fawn (his mounted hide is in the National
-Museum of Nature and Science, Ueno); the fawn here is kept light for that.
+the legs and the underside of the tail. The face colour comes from the supplied Akita portrait.
 
 Clips, all on the spot (the page moves him): `idle` (standing, the tail moving), `walk` (a four-beat walk at
 WALK_SPEED), `trot` (diagonal pairs at TROT_SPEED), `run` (a rotary gallop at RUN_SPEED, as a dog runs to keep ahead of
@@ -28,9 +27,7 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "pipeline"))
-sys.path.insert(0, os.path.join(ROOT, "cities", "shibuya"))
 import sculptkit as sk  # noqa: E402
-import hachiko as statue  # noqa: E402  (his head)
 
 OUT = os.path.join(ROOT, "web", "assets", "animals", "akita.glb")
 CELL = 0.0085         # resolves the eyelids, stop and interdigital clefts
@@ -50,24 +47,53 @@ SHOULDER, ELBOW, WRIST = (0.22, 0.46), (0.22, 0.25), (0.22, 0.04)
 HIP, STIFLE, HOCK, TOE = (-0.25, 0.44), (-0.20, 0.30), (-0.33, 0.16), (-0.30, 0.03)
 
 
-def muzzle_x(x):
-    # The living dog's muzzle tapers sooner than the long profile of the cast.
-    return x + 0.48 * np.maximum(0, x - 0.075)
-
-
 def ear_frame(x, y, z):
     # The opening faces forward and slightly outward. Each tip leans away from the crown.
     height = (z - 0.047) * 1.18
     width = abs(y) - 0.093 - 0.40 * height
-    depth = x + 0.018 - 0.16 * height + 0.32 * width
-    return depth, width, height
+    depth = x + 0.012 - 0.16 * height + 0.24 * width
+    return depth, width / 1.15, height
 
 
 def upright_ears(x, y, z):
     depth, width, height = ear_frame(x, y, z)
-    outer = sk.capsule((0, 0, 0), (0, 0, 0.087), 0.052, 0.013)
+    outer = sk.capsule((0, 0, 0), (0, 0, 0.073), 0.054, 0.024)
     cup = sk.capsule((0.026, 0, 0.021), (0.016, 0, 0.073), 0.034, 0.009)
     return np.maximum(outer(depth * 1.65, width, height), -cup(depth, width, height))
+
+
+def portrait_uv(v):
+    x, y, z = (v - np.asarray(HEAD_AT)).T
+    return np.column_stack(((124 + 720 * y + 0.5) / 240, 1 - (97 - 690 * z + 100 * x + 0.5) / 240))
+
+
+def portrait_colors(v):
+    from PIL import Image
+    pixels = np.asarray(Image.open(os.path.join(ROOT, "blender", "akita-coat.png"))) / 255
+    uv = portrait_uv(v)
+    ij = np.clip((np.column_stack((uv[:, 0], 1 - uv[:, 1])) * 240).astype(int), 0, 239)
+    rgba = pixels[ij[:, 1], ij[:, 0]]
+    return np.minimum(1, 1.19 * ((rgba[:, :3] + 0.055) / 1.055) ** 2.4), rgba[:, 3]
+
+
+def portrait_head():
+    pair = sk.mirror_v
+    skull = sk.ellipsoid((-0.004, 0, 0.003), (0.117, 0.121, 0.111))
+    cheeks = pair(sk.ellipsoid((0.025, 0.079, -0.026), (0.097, 0.069, 0.086)))
+    chin = sk.ellipsoid((0.043, 0, -0.070), (0.097, 0.106, 0.054))
+    brow = pair(sk.ellipsoid((0.089, 0.040, 0.038), (0.026, 0.033, 0.017)))
+    dome = sk.smooth_union(0.036, skull, cheeks, chin, brow)
+    bridge = sk.capsule((0.081, 0, 0.016), (0.145, 0, -0.001), 0.045, 0.026)
+    pads = pair(sk.ellipsoid((0.119, 0.026, -0.039), (0.054, 0.034, 0.033)))
+    jaw = sk.ellipsoid((0.094, 0, -0.073), (0.066, 0.055, 0.026))
+    face = sk.smooth_union(0.024, dome, bridge, pads, jaw)
+    nose = sk.ellipsoid((0.163, 0, -0.005), (0.017, 0.024, 0.019))
+    face = sk.smooth_union(0.005, face, nose)
+    nostrils = pair(sk.ellipsoid((0.176, 0.014, -0.003), (0.009, 0.006, 0.005)))
+    mouth = pair(sk.path([(0.161, 0, -0.055), (0.157, 0.023, -0.062),
+                          (0.143, 0.042, -0.063), (0.123, 0.054, -0.054)],
+                         [0.004, 0.005, 0.004, 0.002]))
+    return sk.smooth_union(0.016, sk.subtract(0.003, face, sk.union(nostrils, mouth)), upright_ears)
 
 
 def body():
@@ -78,7 +104,7 @@ def body():
     rump = sk.ellipsoid((-0.27, 0.0, 0.49), (0.155, 0.148, 0.158))
     withers = sk.ellipsoid((0.17, 0.0, 0.60), (0.12, 0.10, 0.07))
     neck = sk.capsule((0.24, 0.0, 0.57), (0.41, 0.0, 0.79), 0.138, 0.115)
-    ruff = sk.ellipsoid((0.32, 0.0, 0.65), (0.133, 0.147, 0.15))
+    ruff = sk.ellipsoid((0.305, 0.0, 0.635), (0.144, 0.157, 0.165))
     shoulders = L(sk.ellipsoid((0.21, LEG_Y, 0.47), (0.085, 0.065, 0.14)))
     upper_f = L(sk.capsule((0.22, LEG_Y, 0.44), (0.22, LEG_Y, 0.25), 0.064, 0.05))
     lower_f = L(sk.capsule((0.22, LEG_Y, 0.25), (0.22, LEG_Y, 0.07), 0.05, 0.043))
@@ -94,12 +120,8 @@ def body():
     paws_h = paw(-0.291, HIND_Y)
     tail = sk.path([(-0.39, 0.0, 0.55), (-0.46, 0.0, 0.66), (-0.44, 0.02, 0.77), (-0.35, 0.05, 0.82), (-0.26, 0.07, 0.78), (-0.25, 0.08, 0.70), (-0.30, 0.07, 0.66)],
                    [0.055, 0.072, 0.077, 0.073, 0.065, 0.054, 0.035])
-    nostrils = L(sk.ellipsoid((0.253, 0.017, -0.032), (0.012, 0.008, 0.007)))
-    pads = L(sk.ellipsoid((0.173, 0.033, -0.054), (0.055, 0.031, 0.029)))
-    face = sk.smooth_union(0.009, statue.head(ears=(upright_ears,)), pads)
-    eyes = L(sk.ellipsoid((0.095, 0.063, 0.01), (0.015, 0.017, 0.011)))
-    face = sk.union(sk.subtract(0.002, face, nostrils), eyes)
-    head = statue.posed(lambda x, y, z: face(muzzle_x(x), y, z), HEAD_AT, 0.0, -4.0)
+    face = portrait_head()
+    head = lambda x, y, z: face(x - HEAD_AT[0], y, z - HEAD_AT[2])
     b = sk.smooth_union(0.05, chest, trunk, rump, withers, neck, ruff, shoulders, thighs)
     legs = sk.smooth_union(0.025, upper_f, lower_f, paws_f, shanks, hocks, paws_h)
     d = sk.smooth_union(0.035, b, legs)
@@ -112,11 +134,7 @@ def coat(v, n):
     """Each vertex's colour (linear RGB): red fawn, the urajiro, the black of the nose, the eyes and the lips."""
     s = lambda x, a, b: np.clip((x - a) / (b - a), 0.0, 1.0) ** 2 * (3 - 2 * np.clip((x - a) / (b - a), 0.0, 1.0))
     x, y, z = v[:, 0], v[:, 1], v[:, 2]
-    # the head's own frame (hachiko.posed: yaw 0, pitch -4)
-    cp, sp = math.cos(math.radians(-4.0)), math.sin(math.radians(-4.0))
-    hx0, hz0 = x - HEAD_AT[0], z - HEAD_AT[2]
-    hx, hz, hy = hx0 * cp + hz0 * sp, -hx0 * sp + hz0 * cp, y
-    hx = muzzle_x(hx)
+    hx, hy, hz = x - HEAD_AT[0], y, z - HEAD_AT[2]
     on_head = s(x, 0.36, 0.42)
     on_tail = (x < -0.3) & (z > 0.56)
     white = np.maximum.reduce([
@@ -128,8 +146,8 @@ def coat(v, n):
         s(x, 0.18, 0.37) * (1 - s(z + abs(y) * 0.9, 0.59, 0.82)),    # cream bib tapers between the cheeks
         on_head * (1 - s(hz, -0.085, -0.05)),                         # under the jaw
     ])
-    red = np.array([0.46, 0.27, 0.125])
-    cream = np.array([0.80, 0.72, 0.58])
+    red = np.array([0.40, 0.217, 0.112])
+    cream = np.array([0.83, 0.80, 0.74])
     c = red[None] * (1 - white[:, None]) + cream[None] * white[:, None]
     depth, width, height = ear_frame(hx, hy, hz)
     aperture = abs(width) / np.maximum(0.010, 0.047 - 0.39 * height)
@@ -137,17 +155,17 @@ def coat(v, n):
     rim = ear * (1 - s(aperture, 0.86, 1.08)) * (1 - 0.58 * s(height, 0.077, 0.092))
     c = c * (1 - rim[:, None]) + np.array([0.66, 0.50, 0.37]) * rim[:, None]
     cup = ear * (1 - s(aperture, 0.24, 0.73)) * (1 - s(height, 0.067, 0.082))
-    c = c * (1 - cup[:, None]) + np.array([0.087, 0.044, 0.034]) * cup[:, None]
-    dark = np.array([0.012, 0.01, 0.01])
-    nose = on_head * (1 - s(np.sqrt((hx - 0.238) ** 2 + hy ** 2 + (hz + 0.035) ** 2), 0.024, 0.034))
-    eye = np.zeros(len(v))
-    for sg in (-1, 1):
-        eye = np.maximum(eye, 1 - s(np.sqrt((hx - 0.095) ** 2 + (hy - sg * 0.063) ** 2 + (1.5 * (hz - 0.01)) ** 2), 0.018, 0.025))
-    lips = on_head * (1 - s(np.abs(hz + 0.08), 0.004, 0.009)) * s(hx, 0.11, 0.14) * (1 - s(np.abs(hy), 0.03, 0.05))
-    k = np.maximum.reduce([nose, eye * on_head, lips * 0.8])
-    c = c * (1 - k[:, None]) + dark[None] * k[:, None]
-    gloss = np.maximum(nose, eye * on_head)
-    return c, gloss
+    c = c * (1 - cup[:, None]) + np.array([0.139, 0.078, 0.060]) * cup[:, None]
+    # Sample only the fur from the front portrait. The nose, eyes and mouth are geometry.
+    rgb, mask = portrait_colors(v)
+    weight = mask * np.maximum(s(hx, -0.055, 0.03), 0.83 * ear) * s(n[:, 0], -0.38, 0.15)
+    c = c * (1 - weight[:, None]) + rgb * weight[:, None]
+    nose = s(hx, 0.149, 0.161) * (1 - s((hy / 0.025) ** 2 + ((hz + 0.005) / 0.020) ** 2, 0.84, 1.22))
+    philtrum = (1 - s(abs(hy), 0.0018, 0.005)) * s(hz, -0.059, -0.049) * (1 - s(hz, -0.024, -0.016))
+    seam = -0.056 - 0.008 * np.sin(np.pi * np.clip(abs(hy) / 0.055, 0, 1))
+    lips = (1 - s(abs(hz - seam), 0.0025, 0.0065)) * (1 - s(abs(hy), 0.045, 0.058))
+    k = (1 - 0.9 * weight) * np.maximum(nose, np.maximum(lips, philtrum) * s(hx + 0.58 * abs(hy), 0.138, 0.155))
+    return c * (1 - k[:, None]) + np.array([0.013, 0.010, 0.009]) * k[:, None], nose
 
 
 # ------------------------------------------------------------------ the poses
@@ -301,55 +319,86 @@ BONES = [  # name, head, tail (x, z), y, parent
 ]]
 
 
-def eye_surfaces(bpy, skin, rig, wet):
-    """Fit the lids to the actual sculpt and dome each cornea above its socket."""
+def eye_radius(px, py):
+    # Centres, tilt and openings measured on the 447-pixel portrait.
+    left = px < 222
+    dx = px - np.where(left, 194, 249)
+    dy = py - np.where(left, 125.5, 126.5) - np.where(left, 0.23, -0.17) * dx
+    return np.hypot(dx / 11.6, dy / 5.9)
+
+
+def sculpt_lids(bpy, v, t):
+    """Resolve the orbital crease and cornea on one continuous, skinned surface."""
+    import bmesh
+    me = bpy.data.meshes.new("Face sculpt")
+    me.from_pydata(v.tolist(), [], t.tolist())
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bpy.data.meshes.remove(me)
+    edges = [e for e in bm.edges if all(p.co.x > 0.54 and abs(p.co.y) < 0.075
+                                        and 0.82 < p.co.z < 0.89 for p in e.verts)]
+    bmesh.ops.subdivide_edges(bm, edges=edges, cuts=3, use_grid_fill=True)
+    bmesh.ops.triangulate(bm, faces=list(bm.faces))
+    bm.verts.index_update()
+    v = np.array([tuple(p.co) for p in bm.verts])
+    t = np.array([[p.index for p in f.verts] for f in bm.faces])
+    bm.free()
+    uv = portrait_uv(v)
+    r = eye_radius(100 + 240 * uv[:, 0] - 0.5, 40 + 240 * (1 - uv[:, 1]) - 0.5)
+    depth = -0.004 * np.exp(-(r / 1.2) ** 4) + 0.003 * np.maximum(0, 1 - r ** 2)
+    depth += 0.0014 * np.exp(-((r - 1.08) / 0.21) ** 2)
+    v[:, 0] += np.where(v[:, 0] > 0.54, depth, 0)
+    return v, t
+
+
+def muzzle_whiskers(bpy, skin, rig):
+    """Taper each whisker from its own follicle on the muzzle pad."""
     from mathutils import Vector
-    points, faces, colors = [], [], []
-    steps = 40
+    rng = np.random.default_rng(1948)
+    vertices, faces = [], []
     for side in (-1, 1):
-        outward = Vector((0.84, side * 0.54, 0.04)).normalized()
-        across = Vector((-0.54, side * 0.84, 0.12)).normalized()
-        up = outward.cross(across) * side
-        centre = Vector((0.558, side * 0.067, 0.835))
-        start = len(points)
-        for ring, radius in enumerate((0, 0.32, 0.39, 0.65, 0.82, 0.93, 1.0, 1.12)):
-            for j in range(1 if ring == 0 else steps):
-                a = 2 * math.pi * j / steps
-                u, z = radius * math.cos(a), radius * math.sin(a)
-                target = centre + across * (0.018 * u) + up * (0.011 * z * (1 - 0.33 * abs(u)))
-                hit, loc, _, _ = skin.ray_cast(target + outward * 0.07, -outward)
-                assert hit, "eye missed its socket"
-                depth = 0.0014 + 0.0046 * max(0, 1 - radius ** 2)
-                points.append(tuple(loc + outward * (depth if radius <= 1 else 0.0002)))
-                iris = math.hypot(u * 1.55, z)
-                amber = np.clip((iris - 0.39) / 0.16, 0, 1) * np.clip((1.02 - iris) / 0.19, 0, 1)
-                pigment = (0.009 + amber * 0.056, 0.006 + amber * 0.024, 0.005 + amber * 0.012)
-                colors.append((*pigment, 1))
-                if ring:
-                    i = start + 1 + (ring - 1) * steps
-                    k = (j + 1) % steps
-                    tris = [(start, i + j, i + k)] if ring == 1 else [
-                        (i - steps + j, i + j, i + k), (i - steps + j, i + k, i - steps + k)]
-                    faces.extend(tri if side > 0 else tri[::-1] for tri in tris)
-    me = bpy.data.meshes.new("Corneas and lid margins")
-    me.from_pydata(points, [], faces)
+        for row in range(3):
+            for j in range(5):
+                x = 0.578 + j * 0.008 + row * 0.002
+                z = 0.789 + row * 0.006 + rng.uniform(-0.0015, 0.0015)
+                hit, root, _, _ = skin.ray_cast(Vector((x, side * 0.15, z)), Vector((0, -side, 0)))
+                assert hit, "whisker missed the muzzle"
+                length = (0.047 - 0.004 * j) * rng.uniform(0.74, 1.12)
+                start = len(vertices)
+                for k in range(5):
+                    t = k / 4
+                    mid = root + Vector(((-0.024 + 0.006 * j) * t, side * length * t,
+                                         (row - 0.8) * 0.007 * t - 0.013 * t * t))
+                    radius = 0.00024 * (1 - t) + 0.000022
+                    for i in range(3):
+                        a = i * 2 * math.pi / 3
+                        vertices.append(tuple(mid + Vector((radius * math.cos(a), 0, radius * math.sin(a)))))
+                        if k:
+                            q = start + k * 3
+                            n = (i + 1) % 3
+                            tri = [(q - 3 + i, q + i, q + n), (q - 3 + i, q + n, q - 3 + n)]
+                            faces.extend(tri if side == 1 else [f[::-1] for f in tri])
+    me = bpy.data.meshes.new("Vibrissae")
+    me.from_pydata(vertices, [], faces)
     me.update()
-    for f in me.polygons:
-        f.use_smooth = True
-    me.color_attributes.new("Color", "FLOAT_COLOR", "POINT").data.foreach_set("color", np.ravel(colors))
-    eyes = bpy.data.objects.new("Eyes", me)
-    bpy.context.scene.collection.objects.link(eyes)
-    me.materials.append(wet)
-    eyes.vertex_groups.new(name="head").add(list(range(len(points))), 1, "REPLACE")
-    eyes.parent = rig
-    eyes.modifiers.new("Skin", "ARMATURE").object = rig
-    return eyes
+    ob = bpy.data.objects.new("Muzzle whiskers", me)
+    bpy.context.scene.collection.objects.link(ob)
+    mat = bpy.data.materials.new("Whisker keratin")
+    mat.diffuse_color = (0.21, 0.18, 0.16, 1)
+    mat.roughness = 0.68
+    me.materials.append(mat)
+    ob.vertex_groups.new(name="head").add(list(range(len(vertices))), 1, "REPLACE")
+    ob.parent = rig
+    ob.modifiers.new("Skin", "ARMATURE").object = rig
+    return ob
 
 
 def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     """Each tapered lock carries a fan of individual hairs and the weights at its root."""
     rng = np.random.default_rng(1923)
-    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < 0.62) & (gloss < 0.01))
+    uv = portrait_uv(v)
+    bare = (v[:, 0] > 0.535) & (eye_radius(99.5 + 240 * uv[:, 0], 39.5 + 240 * (1 - uv[:, 1])) < 2.2)
+    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < 0.62) & (gloss < 0.01) & ~bare)
     roots = np.sort(rng.choice(eligible, min(10500, len(eligible)), replace=False))
     p, n = v[roots], normal[roots]
     x, y, z = p.T
@@ -360,11 +409,20 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     flow[plume, 0] = z[plume] - 0.735
     flow[plume, 2] = -x[plume] - 0.35
     flow[plume, 1] = 0.03
+    cheek = (x > 0.43) & (x < 0.58) & (z > 0.70) & (z < 0.86) & (abs(y) > 0.055)
+    flow[cheek, 1] = 1.1 * np.sign(y[cheek])
+    flow[cheek, 2] = -0.72
     flow -= np.sum(flow * n, axis=1)[:, None] * n
     flow /= np.maximum(np.linalg.norm(flow, axis=1)[:, None], 1e-6)
     side = np.cross(flow, n)
     length = (0.017 + 0.013 * (z > 0.36) + 0.014 * plume) * rng.uniform(0.74, 1.22, len(p))
     length *= 1 - 0.7 * np.clip((x - 0.38) / 0.17, 0, 1)
+    # Short velvet at the ears leaves the rim and the opening readable in silhouette.
+    pinna = (x > 0.39) & (x < 0.51) & (abs(y) > 0.07) & (z > 0.90)
+    length[pinna] *= 0.27
+    length[cheek] = np.maximum(0.019, length[cheek])
+    bib = (x > 0.24) & (x < 0.43) & (z > 0.42) & (z < 0.75)
+    length[bib] *= 1.35
     width = length * rng.uniform(0.055, 0.10, len(p))
     along = flow * length[:, None]
     across = side * width[:, None]
@@ -446,6 +504,8 @@ def undercoat(me, mat, v, t, fn):
     direction = np.tile([-1., 0., -0.32], (len(t), 1))
     direction[p[:, 2] < 0.38] = [-0.14, 0., -1.]
     direction[p[:, 0] > 0.34, 2] = -1.4
+    face = (p[:, 0] > 0.43) & (p[:, 2] > 0.70)
+    direction[face, 1] = 1.25 * np.sign(p[face, 1])
     cross = np.cross(n, direction)
     pole = np.linalg.norm(cross, axis=1) < 0.12
     cross[pole] = np.cross(n[pole], [0., 1., 0.])
@@ -485,6 +545,58 @@ def undercoat(me, mat, v, t, fn):
         links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
 
+def face_material(me, mat, v, t, vn, col, gloss):
+    """Keep the fine markings between vertices on the forward-facing part of the sculpt."""
+    import bpy
+    from PIL import Image
+    uv = portrait_uv(v)
+    _, alpha = portrait_colors(v)
+    covered = (alpha > 0.97) & (v[:, 0] > 0.499) & (vn[:, 0] > 0.15)
+    front = covered[t].all(axis=1)
+    me.uv_layers.new(name="Face markings").data.foreach_set("uv", uv[t.ravel()].astype(np.float32).ravel())
+    face = mat.copy()
+    face.name = "Facial coat"
+    nodes, links = face.node_tree.nodes, face.node_tree.links
+    fibres = nodes.new("ShaderNodeUVMap")
+    fibres.uv_map = "Undercoat"
+    for node in list(nodes):
+        if node.type == "TEX_IMAGE":
+            links.new(fibres.outputs["UV"], node.inputs["Vector"])
+    face_uv = nodes.new("ShaderNodeUVMap")
+    face_uv.uv_map = "Face markings"
+    tex = nodes.new("ShaderNodeTexImage")
+    with Image.open(os.path.join(ROOT, "blender", "akita-coat.png")) as im:
+        # Match the linear exposure used for the colour at the edge of the projection.
+        lut = [min(255, round(255 * (1.19 ** (1 / 2.4) * (x / 255 + 0.055) - 0.055))) for x in range(256)]
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "Face markings.png")
+            im.convert("RGB").point(lut * 3).save(path)
+            tex.image = bpy.data.images.load(path)
+            tex.image.pack()
+            row, column = np.indices((240, 240))
+            eye = eye_radius(column + 100, row + 40)
+            nose = np.hypot((column - 124) / 16, (row - 115) / 12)
+            roughness = 0.89 - 0.55 * np.clip(1.6 - eye, 0, 1) - 0.42 * np.clip(2 - nose, 0, 1)
+            path = os.path.join(folder, "Face roughness.png")
+            Image.fromarray(np.uint8(roughness * 255)).save(path)
+            rough = nodes.new("ShaderNodeTexImage")
+            rough.image = bpy.data.images.load(path)
+            rough.image.colorspace_settings.name = "Non-Color"
+            rough.image.pack()
+    links.new(face_uv.outputs["UV"], tex.inputs["Vector"])
+    links.new(face_uv.outputs["UV"], rough.inputs["Vector"])
+    links.new(tex.outputs["Color"], nodes.get("Principled BSDF").inputs["Base Color"])
+    links.new(rough.outputs["Color"], nodes.get("Principled BSDF").inputs["Roughness"])
+    nodes.get("Normal Map").inputs["Strength"].default_value = 0.25
+    me.materials.append(face)
+    indices = (gloss[t].mean(axis=1) > 0.48).astype(np.int32)
+    indices[front] = 2
+    me.polygons.foreach_set("material_index", indices)
+    colors = col[t].copy()
+    colors[indices == 2] = 1
+    me.color_attributes["Color"].data.foreach_set("color", np.c_[colors.reshape(-1, 3), np.ones(t.size)].ravel())
+
+
 def main():
     import bpy
     from mathutils import Matrix, Vector
@@ -493,6 +605,7 @@ def main():
     v, t = sk.mesh(body(), (-0.56, -0.24, -0.02), (0.76, 0.24, 1.02), CELL)
     v = sk.relax(v, t, 0.45, 2)
     v[:, 2] -= v[:, 2].min()   # (his paws on the ground)
+    v, t = sculpt_lids(bpy, v, t)
     fn = np.cross(v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]])
     vn = np.zeros_like(v)
     for k in range(3):
@@ -507,8 +620,7 @@ def main():
     me.update()
     for p in me.polygons:
         p.use_smooth = True
-    ca = me.color_attributes.new("Color", "FLOAT_COLOR", "POINT")
-    ca.data.foreach_set("color", np.c_[col, np.ones(len(v))].ravel().tolist())
+    me.color_attributes.new("Color", "FLOAT_COLOR", "CORNER")
     ob = bpy.data.objects.new("Akita", me)
     bpy.context.scene.collection.objects.link(ob)
 
@@ -523,9 +635,8 @@ def main():
     me.materials.append(mat)
     wet = mat.copy()
     wet.name = "Eyes and nose"
-    wet.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.28
+    wet.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.39
     me.materials.append(wet)
-    me.polygons.foreach_set("material_index", (gloss[t].mean(axis=1) > 0.48).astype(np.int32))
 
     arm = bpy.data.armatures.new("AkitaRig")
     rig = bpy.data.objects.new("AkitaRig", arm)
@@ -573,8 +684,9 @@ def main():
     bpy.ops.object.vertex_group_normalize_all(lock_active=False)
     bpy.ops.object.vertex_group_limit_total(limit=4)
     locks = guard_coat(bpy, ob, rig, v, vn, col, gloss)
-    eyes = eye_surfaces(bpy, ob, rig, wet)
+    whiskers = muzzle_whiskers(bpy, ob, rig)
     undercoat(me, mat, v, t, fn)
+    face_material(me, mat, v, t, vn, col, gloss)
 
     # the clips
     rest = {b.name: b.matrix_local.to_3x3() for b in arm.bones}
@@ -626,7 +738,7 @@ def main():
     rig.select_set(True)
     ob.select_set(True)
     locks.select_set(True)
-    eyes.select_set(True)
+    whiskers.select_set(True)
     bpy.context.view_layer.objects.active = rig
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_skins=True, export_animations=True,
                               export_animation_mode="NLA_TRACKS", export_optimize_animation_size=True, export_vertex_color="ACTIVE",
