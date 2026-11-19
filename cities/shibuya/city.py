@@ -3402,7 +3402,9 @@ MATERIALS.update({
     # the channels: white steel frames, a net of fine wire over them, glass cladding on the deck's flank, the
     # escalator's grey steps edged in yellow, the stair's timber treads on white risers, white stone at 46F
     "frame_white": {"color": "#e3e5e6", "roughness": 0.4, "metalness": 0.25},
-    "frame_air": {"color": "#e3e5e6", "roughness": 0.4, "metalness": 0.25, "solid": False},
+    # (the beams over the flights: no floor or wall to a walker, but the chase camera stops at them, which went through
+    # the beam behind a rider and showed it as a slab across the whole picture)
+    "frame_air": {"color": "#e3e5e6", "roughness": 0.4, "metalness": 0.25, "solid": False, "camera": True},
     # (its own name: as "wire" it took over the power lines' dark wire; and it casts no shadow, being far finer than
     # a texel of the sun's shadow map, where its lines came and went as the map followed a walker: the flights flickered)
     "glass_clad": {"color": "#3a4856", "roughness": 0.32, "metalness": 0.08},
@@ -4068,7 +4070,9 @@ def landmark_glows(scene):
 
 def sky_surfaces(s):
     """SHIBUYA SKY: the escalators and stairs in the channels (an escalator carries you: up the north edge,
-    down the west), GEO COMPASS's top and its four flights of steps."""
+    down the west), GEO COMPASS's top and its four flights of steps. An escalator's "balustrade" is its glass, which
+    sky_channels draws: v from the middle of the steps either side, along u from newel to newel, h over the step; no
+    body goes into it (web/game/nav.js panes)."""
     out = []
     F = sky_flights(*s["half"])
     W2, _ = sky_uv(s)
@@ -4083,12 +4087,13 @@ def sky_surfaces(s):
         if f["up"]:
             out.append({"name": f"SHIBUYA SKY escalator, {name}", "type": "strip", "origin": r2(at(0.0, T["esc"])), "axis": ax,
                         "half_width": T["esc_hw"] - 0.1, "profile": prof, "thickness": 1.0, "mesh": "sky_esc" + f["id"],
-                        "moving_ms": s["escalator_ms"], "moving_u": [0.6, round(L - 0.4, 2)], "label": "the escalator to the roof"})
+                        "moving_ms": s["escalator_ms"], "moving_u": [0.6, round(L - 0.4, 2)], "label": "the escalator to the roof",
+                        "balustrade": {"v": T["esc_hw"], "u": [0.48, round(L - 0.33, 2)], "h": 1.05}})
         else:   # the way down: its axis points down the flight, from its head
             out.append({"name": f"SHIBUYA SKY escalator, {name}", "type": "strip", "origin": r2(at(L, T["esc"])), "axis": [-ax[0], -ax[1]],
                         "half_width": T["esc_hw"] - 0.1, "profile": [[round(L - p_[0], 2), p_[1]] for p_ in reversed(prof)],
                         "thickness": 1.0, "mesh": "sky_esc" + f["id"], "moving_ms": s["escalator_ms"], "moving_u": [0.4, round(L - 0.6, 2)],
-                        "label": "the escalator down to SKY EDGE"})
+                        "label": "the escalator down to SKY EDGE", "balustrade": {"v": T["esc_hw"], "u": [0.33, round(L - 0.48, 2)], "h": 1.05}})
         mid = (T["st0"] + T["st1"]) / 2
         out.append({"name": f"SHIBUYA SKY stair, {name}", "type": "strip", "origin": r2(at(0.0, mid)), "axis": ax,
                     "half_width": round((T["st1"] - T["st0"]) / 2, 2),

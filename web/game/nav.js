@@ -1089,6 +1089,32 @@ window.OENav = (function () {
       decksAt(x, y, (h, d) => { if (h > z + KNEE && h - (d.th || 1) < z + HEAD) low = true; });
       return low;
     }
+    // the glass along a strip's sides (its "balustrade": {v, u: [u0, u1], h}, an escalator's, from newel to newel, v
+    // either side of the middle, h over the step): no wall in the collision world, standing closer to the steps than a
+    // body is wide, so a walker stopped only at the steps' edge (0.13 m from it), and walked or ran on, the feet and
+    // hands of the stride went 0.3 m into it, and a body that stepped on at the side rode with a shoulder in it
+    // (tools/glass_body.js). A pane holds a walker's middle a body's radius and a hand's width from it, on the side the
+    // walker was on
+    const panes = strips.filter(s => s.balustrade).flatMap(s => [-1, 1].map(side => ({ s, side, v: s.balustrade.v, u: s.balustrade.u, h: s.balustrade.h })));
+    const PANE_R = 0.4; // (a body's radius and a hand's width: on the steps, within 0.2 m of their middle, as they hold a rider)
+    function paneOut(x0, y0, x, y, z, r = PANE_R) {
+      let out = null;
+      for (const q of panes) {
+        const s = q.s, [u0, v0] = stripUV(s, x0, y0);
+        if (u0 < q.u[0] - r - 1 || u0 > q.u[1] + r + 1) continue;
+        const [u, v] = stripUV(s, x, y), uc = Math.max(q.u[0], Math.min(q.u[1], u)), zb = interp(s.us, s.zs, uc);
+        if (z + HEAD < zb || z + 0.1 > zb + q.h) continue; // (the body from the ankle to the head, the glass from the step to the handrail)
+        // (inner: the walker was on the steps' side of this pane; d: how far the middle is now on that side of its plane)
+        const inner = q.side * v0 <= q.v, d = inner ? q.v - q.side * v : q.side * v - q.v, du = u - uc;
+        let nu = u, nd;
+        if (Math.abs(du) > 1e-6) { const dist = Math.hypot(du, d); if (dist >= r) continue; const k = r / Math.max(dist, 1e-6); nu = uc + du * k; nd = d * k; } // (round a newel's end)
+        else { if (d >= r) continue; nd = r; }
+        const nv = q.side * (inner ? q.v - nd : q.v + nd);
+        x = s.origin[0] + s.axis[0] * nu - s.axis[1] * nv; y = s.origin[1] + s.axis[1] * nu + s.axis[0] * nv;
+        out = [x, y];
+      }
+      return out;
+    }
     // move a walker whose feet are at z by (dx, dy), sliding along walls and round the cars
     // in `movers` (the traffic, which sets it) and the lamp posts and trunks in `posts`
     // (streets.js, which game.js sets): {x, y, hit}
@@ -1096,6 +1122,7 @@ window.OENav = (function () {
       const f = floorAt(x, y, z), skip = passes(z, !!f && isDeck(f.kind), !!f && f.kind === 'promenade');
       if (f && f.kind === 'landmark' && f.z > z) z = f.z; // stepping up onto a landmark's floor: the body clears its edge
       const m = col.slide(x, y, dx, dy, R, z + KNEE, z + HEAD, skip);
+      if (panes.length) { const q = paneOut(x, y, m.x, m.y, z); if (q) { m.x = q[0]; m.y = q[1]; m.hit = true; } }
       let o = m;
       if (api.movers) o = api.movers.pushOut(o.x, o.y, R, z); // (the cars on this level)
       if (api.posts && !(f && f.kind === 'promenade')) o = api.posts.pushOut(o.x, o.y, R, z); // (none stand in a sunken promenade: the street's over it)
@@ -1234,7 +1261,7 @@ window.OENav = (function () {
       }
       return f;
     }
-    const api = { lift, under, terrainBelow, ceilingAt, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    const api = { lift, under, terrainBelow, ceilingAt, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   return { create };
