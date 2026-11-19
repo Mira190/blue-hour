@@ -41,7 +41,10 @@ function audit() {
     for (let x = e; x && x.nodeType === 1; x = x.parentElement) { const c = getComputedStyle(x); if (c.display === 'none') return false; o *= +c.opacity; if (o < 0.08) return false; }
     const c = getComputedStyle(e); if (c.visibility !== 'visible') return false;
     // (wholly off the screen is put away there, as the order sheet waits under the foot of the frame: not seen)
-    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight;
+    const r = e.getBoundingClientRect(); if (!(r.width > 0 && r.height > 0)) return false;
+    if (r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight) return true;
+    for (let x = e.parentElement; x && x !== stage; x = x.parentElement) if (/(auto|scroll)/.test(getComputedStyle(x).overflowY)) return true; // (off the screen in a scroller: there to be reached, or lost)
+    return false;
   };
   const scroller = c => /(auto|scroll)/.test(c.overflowX + c.overflowY);
   const clips = c => c.overflowX !== 'visible' || c.overflowY !== 'visible';
@@ -66,6 +69,10 @@ function audit() {
     // off the screen
     if (tr.left < -T || tr.right > W + T + ls || tr.top < -T || tr.bottom > H + T) {
       let inScroll = false; for (let x = e.parentElement; x && x !== stage; x = x.parentElement) if (scroller(getComputedStyle(x))) { inScroll = true; break; }
+      if (inScroll) { // (in a scroller: only what scrolling can bring on: words above or left of where it starts are lost)
+        let sc = e.parentElement; while (sc && !scroller(getComputedStyle(sc))) sc = sc.parentElement;
+        const r = sc.getBoundingClientRect(); if (tr.top < r.top - sc.scrollTop - T || tr.left < r.left - sc.scrollLeft - T) bad.push(`out of reach above a scroller: ${what} in ${where(sc)}`);
+      }
       if (!inScroll && !covered(e)) bad.push(`off the screen: ${what} at ${Math.round(tr.left)}..${Math.round(tr.right)} x ${Math.round(tr.top)}..${Math.round(tr.bottom)} in ${W}x${H}`);
     }
     // out of its own box (sideways: the box is what the words are set in; downwards only where the box is drawn)
@@ -143,10 +150,12 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
     const want = TITLES.length || dumps[ctxName].length; if (!want) continue;
     const [w0, h0] = sizes[0].split('x').map(Number), touch = ctxName === 'touch';
     const ctx = await b.newContext({ viewport: { width: w0, height: h0 }, deviceScaleFactor: 1, hasTouch: touch, isMobile: touch });
-    let p = null;
-    const open = async prep => {
+    let p = null, prepNow = null;
+    const open = async (prep, size) => {
+      prepNow = prep;
       if (p) await p.close();
       p = await ctx.newPage();
+      if (size) await p.setViewportSize(size);
       p.on('pageerror', e => console.log(`pageerror (${ctxName}):`, String(e).slice(0, 200)));
       // (the street held still while the screens are measured, a frame of it drawn only for a still: window.__hold)
       await p.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window), q = []; window.__hold = false; window.requestAnimationFrame = fn => (window.__hold ? (q.push(fn), 0) : raf(fn)); window.__release = () => { window.__hold = false; q.splice(0).forEach(f => raf(f)); }; });
@@ -162,6 +171,9 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
       for (const size of sizes) {
         const [w, h] = size.split('x').map(Number);
         await p.setViewportSize({ width: w, height: h });
+        // (a phone's page made wider stays zoomed out in Chromium's emulation, as no phone does: opened again at the size)
+        const z = await p.evaluate(() => [innerWidth, visualViewport.scale]);
+        if (z[0] !== w || Math.abs(z[1] - 1) > 0.01) await open(prepNow, { width: w, height: h });
         if (lay) await lay();
         await p.waitForTimeout(60);
         for (const n of WORDS) {

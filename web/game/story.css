@@ -839,3 +839,18 @@
 /* (a tablet, or a phone on its side: the dialogue's own buttons, Back and the log, come down to the roll's corner; the
    roll is put away while anyone talks, as on an upright phone) */
 @media (pointer: coarse) { .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-frames, #g-story-keys) { opacity: 0; pointer-events: none; } }
+/* ---- the title taller than the screen (a 320 px phone, the closed case's frames, a phone on its side): the card sits
+   at the foot while it fits, and when it does not, its top stays on the screen and the rest scrolls up into view
+   (flex-end alone pushed the overflow above the top, where no scroll reaches: "Blue Hour" was cut off; ui_fit.js).
+   On a short phone the card is set tighter so that it fits at all */
+.game-stage.story .g-title { align-items: flex-start; }
+.game-stage.story .g-title > .gt-card { margin-top: auto; }
+@media (max-width: 640px) and (max-height: 700px), (max-height: 520px) {
+  .game-stage.story .g-title { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  .game-stage.story .gt-card { gap: 13px; }
+  .game-stage.story .gt-card h1 { font-size: clamp(30px, 10vw, 44px); }
+  .game-stage.story .gt-card h1 small:lang(ja) { margin-top: 10px; font-size: 14px; }
+  .game-stage.story .gt-card > p { font-size: 14px; line-height: 1.5; }
+  .gt-who-row button { width: 78px; }
+  .gt-who-row b { bottom: 22px; letter-spacing: 0.2em; } .gt-who-row small { bottom: 8px; font-size: 11px; }
+}
