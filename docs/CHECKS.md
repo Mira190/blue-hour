@@ -152,6 +152,17 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   (the goal's beam, the story's beacon, the route, an NPC's "!"), only the WebGL canvas read (no HUD or bars),
   the crowd mustered at the kerbs and cleared from the lens's wedge, so the title's band (35-60% of the height)
   falls on sky or open street on a desktop and on a phone's middle quarter. It prints any mark left visible.
+- Whether the interface fits every screen: `tools/ui_fit.js`, by hand after a change to the story's or the walk's
+  screens (it is not a target: it lays out recordings a story play made). The title in each of its states (first
+  visit, who you play chosen, a case going, a case closed) is opened for real; every other screen is laid in again from
+  what `tools/story_play.js` and `tools/walk_play.js` wrote down at their stills with `UI_DUMP=dir`
+  (`tools/ui_dump.js`): a desktop's play at 1024x768, 1280x720, 1440x900 and 1920x1080, a phone's (390x844, by touch)
+  at 320x568, 360x740, 390x844, 412x915, 844x390 and 768x1024, each at the log's three word sizes. It fails on words
+  out of their box or off the screen, words cut by a box that clips them or cut short with an ellipsis, words a
+  scroller cannot reach, the page scrolling sideways, and buttons over buttons, and takes stills of one screen of each
+  kind at every size (`STILLS=all` for all). In November 2026 it found the title's three buttons running into one
+  another at 690 px, the prints and the roll overlapping at 1024 px, a phone on its side with the dialogue off the top,
+  the hint over the camera's button, and the title's top out of reach on a 320 px phone.
 
 ## How it came to this
 
