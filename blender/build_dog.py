@@ -1,7 +1,6 @@
 """The Akita who walks: web/assets/animals/akita.glb, a dog a story can give the player as a guide
-(web/game/companion.js). He is the dog the bronze on Hachiko Square is of: his head is the statue's own sculpt
-(cities/shibuya/hachiko.py head(): broad skull, short blunt muzzle, the left ear bent forward as it was in
-life), on a standing body sculpted the same way (pipeline/sculptkit.py), then rigged and given his clips here.
+(web/game/companion.js). He shares the broad skull of the Hachiko Square bronze, with a shorter muzzle
+and a pair of upright, cupped ears shaped from the owner's portrait of a living Akita.
 
 Sizes: a male Akita Inu stands 64 to 70 cm at the withers (the Japan Kennel Club's standard: 67 cm, 3 cm either
 way) and is a little longer than tall (10:11); Hachiko himself was measured at 64 cm and 41 kg. This one stands
@@ -56,6 +55,21 @@ def muzzle_x(x):
     return x + 0.48 * np.maximum(0, x - 0.075)
 
 
+def ear_frame(x, y, z):
+    # The opening faces forward and slightly outward. Each tip leans away from the crown.
+    height = (z - 0.047) * 1.18
+    width = abs(y) - 0.093 - 0.40 * height
+    depth = x + 0.018 - 0.16 * height + 0.32 * width
+    return depth, width, height
+
+
+def upright_ears(x, y, z):
+    depth, width, height = ear_frame(x, y, z)
+    outer = sk.capsule((0, 0, 0), (0, 0, 0.087), 0.052, 0.013)
+    cup = sk.capsule((0.026, 0, 0.021), (0.016, 0, 0.073), 0.034, 0.009)
+    return np.maximum(outer(depth * 1.65, width, height), -cup(depth, width, height))
+
+
 def body():
     """The dog standing, as a signed distance field: x forward, y to his left, z up from the ground."""
     L = sk.mirror_v
@@ -82,7 +96,7 @@ def body():
                    [0.055, 0.072, 0.077, 0.073, 0.065, 0.054, 0.035])
     nostrils = L(sk.ellipsoid((0.253, 0.017, -0.032), (0.012, 0.008, 0.007)))
     pads = L(sk.ellipsoid((0.173, 0.033, -0.054), (0.055, 0.031, 0.029)))
-    face = sk.smooth_union(0.009, statue.head(), pads)
+    face = sk.smooth_union(0.009, statue.head(ears=(upright_ears,)), pads)
     eyes = L(sk.ellipsoid((0.095, 0.063, 0.01), (0.015, 0.017, 0.011)))
     face = sk.union(sk.subtract(0.002, face, nostrils), eyes)
     head = statue.posed(lambda x, y, z: face(muzzle_x(x), y, z), HEAD_AT, 0.0, -4.0)
@@ -117,8 +131,13 @@ def coat(v, n):
     red = np.array([0.46, 0.27, 0.125])
     cream = np.array([0.80, 0.72, 0.58])
     c = red[None] * (1 - white[:, None]) + cream[None] * white[:, None]
-    inner_ear = s(hz, 0.086, 0.12) * s(n[:, 0], 0.35, 0.85)
-    c = c * (1 - 0.55 * inner_ear[:, None]) + np.array([0.30, 0.145, 0.106]) * 0.55 * inner_ear[:, None]
+    depth, width, height = ear_frame(hx, hy, hz)
+    aperture = abs(width) / np.maximum(0.010, 0.047 - 0.39 * height)
+    ear = s(height, 0.003, 0.024) * s(depth, -0.019, -0.006) * (1 - s(hx, 0.012, 0.035))
+    rim = ear * (1 - s(aperture, 0.86, 1.08)) * (1 - 0.58 * s(height, 0.077, 0.092))
+    c = c * (1 - rim[:, None]) + np.array([0.66, 0.50, 0.37]) * rim[:, None]
+    cup = ear * (1 - s(aperture, 0.24, 0.73)) * (1 - s(height, 0.067, 0.082))
+    c = c * (1 - cup[:, None]) + np.array([0.087, 0.044, 0.034]) * cup[:, None]
     dark = np.array([0.012, 0.01, 0.01])
     nose = on_head * (1 - s(np.sqrt((hx - 0.238) ** 2 + hy ** 2 + (hz + 0.035) ** 2), 0.024, 0.034))
     eye = np.zeros(len(v))

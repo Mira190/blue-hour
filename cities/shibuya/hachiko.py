@@ -62,7 +62,7 @@ def strap(c, axis, R, width, thick):
     return f
 
 
-def head():
+def head(ears=None):
     """His head in its own frame, at the middle of the skull: broad and heavy, a short blunt muzzle, small
     thick ears set wide on the corners of the skull, the right one up and the left one bent forward (as his
     was in life and is on the statue)."""
@@ -76,12 +76,14 @@ def head():
     jaw = sk.ellipsoid((0.10, 0.0, -0.1), (0.075, 0.048, 0.028))
     nose = sk.ellipsoid((0.238, 0.0, -0.035), (0.022, 0.032, 0.024))
     brows = L(sk.ellipsoid((0.07, 0.046, 0.028), (0.038, 0.04, 0.03)))
-    ear_r = ear((-0.04, -0.1, 0.07), (-0.025, -0.145, 0.195), (0.95, -0.2, 0.2), 0.06, 0.02)
-    ear_l = ear((-0.035, 0.1, 0.068), (0.06, 0.185, 0.14), (0.5, 0.3, 0.8), 0.06, 0.02)
+    if ears is None:
+        ear_r = ear((-0.04, -0.1, 0.07), (-0.025, -0.145, 0.195), (0.95, -0.2, 0.2), 0.06, 0.02)
+        ear_l = ear((-0.035, 0.1, 0.068), (0.06, 0.185, 0.14), (0.5, 0.3, 0.8), 0.06, 0.02)
+        ears = (ear_r, ear_l)
     h = sk.smooth_union(0.035, skull, crown, cheeks, brows)
     h = sk.smooth_union(0.026, h, muzzle, bridge, lips, jaw)
     h = sk.smooth_union(0.012, h, nose)
-    h = sk.smooth_union(0.022, h, ear_r, ear_l)
+    h = sk.smooth_union(0.022, h, *ears)
     for s in (-1, 1):   # the eyes, small and deep under the brow, and the line of the mouth
         h = sk.subtract(0.006, h, sk.ellipsoid((0.088, s * 0.056, 0.01), (0.012, 0.018, 0.011)))
     h = sk.subtract(0.004, h, sk.capsule((0.225, 0.0, -0.075), (0.12, 0.0, -0.086), 0.006))

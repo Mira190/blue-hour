@@ -434,7 +434,10 @@ floodlit landmarks had lost their pattern and their fall-off after dark. It is c
 
 ### The Akita who leads the player
 
-The guide has a short muzzle, compact toes, a cream bib and a layer of tapered guard hairs.
+The guide has two upright ears above a broad skull. Each ear has a wide root, a rounded tip
+leaning slightly outward, a pale rim and a darker recessed opening. Their silhouette follows
+the front-facing portrait supplied for the guide. He has a short muzzle, compact toes,
+a cream bib and a layer of tapered guard hairs.
 The coat follows the jaw down the cheeks, lies back along the saddle and turns around the tail.
 The relative coat lengths and the cream markings follow the
 [Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
