@@ -3453,6 +3453,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
     story: G.story, stage, player, touch, reduced, log: storyLog, toast: t => { if (storyLog) storyLog.aside(t); H.toast(t); },
+    menu: () => toggleMenu(), // (the story's own menu button: a phone has no Esc, issue 48)
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
     // (kind 'stand', where a picture is taken from: the camera's amber, so that it is not taken for someone to go to)
     beacon: (at, kind, r) => {
