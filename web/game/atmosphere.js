@@ -132,6 +132,9 @@ window.OEAtmos = (function () {
   // street going grey; at night the deepest contrast, with lens.js uNightTone taking the shadows to
   // blue and the lights to amber. A city can key its own (game.look.grade: {night, blue, golden, day}).
   const GRADE_KEYS = [['night', -12], ['blue', -4], ['golden', 3], ['day', 20]];
+  // the brightest a face that gives light may be before the tone curve (world.js faceCap): the curve takes 0.9 to
+  // about 0.75, under its shoulder's last stretch, so a sign's letters still stand off its face
+  const FACE_MAX = 0.9;
   const GRADE_DEF = {
     night: { ev: 1.1, tint: [1, 1, 1], sat: 1.06, contrast: 0.28 },
     blue: { ev: 1.18, tint: [0.98, 0.99, 1.03], sat: 1.08, contrast: 0.2 },
@@ -421,6 +424,17 @@ window.OEAtmos = (function () {
       const lowBloom = QC.name === 'low';
       bloom = new THREE.UnrealBloomPass(lowBloom ? size.clone().multiplyScalar(0.5) : size.clone(), 0.15, 0.4, 6.0);
       bloom.levels = lowBloom ? 4 : bloom.nMips;
+      // its levels' blurs as one program (issue 27): three.js writes each level's kernel into its shader (KERNEL_PAIRS 3 to 11),
+      // five programs for one blur. Each keeps its own taps and weights, read up to its own count (uPairs), as before
+      { const B = bloom.separableBlurMaterials, MAX = Math.max(...B.map(m => +m.defines.KERNEL_PAIRS || 0)), loop = 'for ( int i = 0; i < KERNEL_PAIRS; i ++ ) {';
+        if (MAX && B.every(m => m.fragmentShader.includes(loop) && m.fragmentShader.includes('uniform float centerWeight;'))) for (const m of B) {
+          const n = +m.defines.KERNEL_PAIRS, pad = a => a.concat(new Array(MAX - a.length).fill(0));
+          m.uniforms.uPairs = { value: n };
+          m.uniforms.gaussianOffsets.value = pad(m.uniforms.gaussianOffsets.value); m.uniforms.gaussianWeights.value = pad(m.uniforms.gaussianWeights.value);
+          m.defines = Object.assign({}, m.defines, { KERNEL_PAIRS: MAX });
+          m.fragmentShader = m.fragmentShader.replace('uniform float centerWeight;', 'uniform float centerWeight;\nuniform int uPairs;').replace(loop, `${loop}\n  if ( i >= uPairs ) break;`);
+          m.needsUpdate = true;
+        } }
       if (lowBloom) bloom.compositeMaterial.uniforms.bloomFactors.value = [0.8, 0.6, 0.4, 0.2, 0.0]; // (the half-size level's share left out, the rest as they were)
       bloom.materialHighPassFilter.dispose(); bloom.blendMaterial.dispose(); bloom._basic.dispose();
       const brightSh = OELens.bright({ shade: shade.coarse });
@@ -481,6 +495,10 @@ window.OEAtmos = (function () {
       // with it the occlusion and the bloom, are drawn at scale times the canvas's size, and the lens, which
       // writes the canvas at its own size, brings them up with a sharpening (lens.js uSharp).
       let sceneScale = 1, sizedW = 0, sizedH = 0;
+      // (what the frame draws of the bloom and the lens when nothing follows the lens, for the loader's first set: world.js
+      // warmPasses. A camera effect after it draws the merge and the plain lens, compiled behind the title with the rest)
+      bloom.firstDraws = () => ({ target: [bloom.materialHighPassFilter, ...bloom.separableBlurMaterials.slice(0, bloom.levels), bloom.compositeMaterial] });
+      lens.firstDraws = () => ({ screen: [lens.merged] });
       const passes = [scenePass, ...(ao ? [ao.pass] : []), bloom, camFx, lens, anime];
       composer = {
         renderer, passes, renderTarget1: rt, renderTarget2: rt,
@@ -601,6 +619,7 @@ window.OEAtmos = (function () {
         M.material.uniforms.uOpacity.value = (0.25 + 0.75 * night) * (1 - 0.92 * ov);
         if (ao) ao.update(night);
         if (bloom) { const bt = (lens && lens.trim && lens.trim.bloom) || 1; bloom.threshold = (6.0 - 4.4 * night) / Math.sqrt(bt); bloom.strength = (0.15 + 0.15 * night) * bt; } // (a dreamier glow for a shot: overture.js)
+        if (!lens && Wd.U && Wd.U.uFaceCap) Wd.U.uFaceCap.value = FACE_MAX / Math.max(1e-3, renderer.toneMappingExposure); // (no post stack: three.js's own tone mapping, at the renderer's exposure)
         if (lens) {
           const L = lens.uniforms;
           const trim = lens.trim || null;                          // a shot's own exposure, saturation and tint on the hour's grade (overture.js)
@@ -613,6 +632,9 @@ window.OEAtmos = (function () {
           L.uContrast.value += 0.05 * ov;
           L.uTint.value.set(gr.tint[0] * (trim ? trim.tint[0] : 1), gr.tint[1] * (trim ? trim.tint[1] : 1), gr.tint[2] * (trim ? trim.tint[2] : 1));
           stormKey(L, night); // (a thunderstorm by day: darker, harder, colder)
+          // the ceiling for a face that gives light (a lit sign, a light box, a lit window: world.js faceCap), where the
+          // picture is: FACE_MAX after the exposure, whatever the hour's exposure is
+          if (Wd.U && Wd.U.uFaceCap) Wd.U.uFaceCap.value = FACE_MAX / Math.max(1e-3, L.uExposure.value);
           L.uTime.value = tSec;
           L.uShade.value.fromArray(gr.shade); L.uHiTint.value.fromArray(gr.hi); L.uVibrance.value = gr.vib * (1 - 0.5 * ov);
           L.uShadeLift.value.fromArray(gr.lift).multiplyScalar(1 - 0.6 * ov);

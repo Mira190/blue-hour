@@ -3,7 +3,8 @@ episode's `set` places it).
 
   lift      the lift's doors at the back of its lobby: a stone wall, a steel portal with its two leaves shut on a line
             of light, the floor indicator over them with its arrow, the lift's name in lit letters over that, the call
-            plate, a mat with a lit edge, two posts and a rope, and the lobby's downlights
+            plate, a mat with a lit edge, two posts and a rope; and the lobby round them, lined (LOBBY: its floor of
+            stone in courses, its panelled walls with a line of light at their foot, its ceiling of lines of light)
   skysign   the same name in larger lit letters with an arrow, for over the lobby's opening on the street
 
 Life size in metres; each stands at its origin on the floor and faces -Y (the way you come to it), +Z up. Colour is
@@ -52,6 +53,51 @@ def arrow(x, z, s, col, y=-0.02):
     return ob
 
 
+# The lobby the lift's doors stand at the back of: the opening cut into Scramble Square's north face (pipeline/lobby.py,
+# city.json game.lobbies "sky-gate": 10 m across, 8 m in, 6 m over the tower's base, which is 5.35 m over the street at the
+# doors), the doors 7.8 m in from its face. Lined, so that
+# what is round you in it is a lobby's and not the tower's own glazing seen from inside: the SKY lifts' black finishes and
+# lines of light (Elevator Journal 28; the 45F LEADING LINE), dark panelled walls to the ceiling, a floor of charcoal stone
+# laid in courses, and a ceiling of lines of light that lead from the street to the doors.
+LOBBY = {"half": 4.95, "in": 7.8, "h": 5.25, "panel": 1.2, "tile": (1.2, 0.6), "joint": 0.008}  # (h: under the cut's ceiling, 6 m over the tower's base, 5.35 m over the street at the doors)
+
+
+def lobby(stone, dark, lit):
+    L, parts = LOBBY, []
+    hw, d, h, j = L["half"], L["in"], L["h"], L["joint"]
+    floor, seam = hexc(0x45474c), hexc(0x24262a)
+    # the floor: a slab of the joints' colour and on it the stones, each the same, laid in courses across the way in,
+    # every other course half a stone over (a running bond); 1.2 by 0.6 m, the joints 8 mm
+    parts.append(box(-hw, -d, 0.0, hw, 0.0, 0.006, seam, "lobby"))
+    tw, td = L["tile"]
+    for r in range(int(math.ceil(d / td))):
+        y1, y0 = -r * td, max(-d, -(r + 1) * td)
+        x = -hw - (tw / 2 if r % 2 else 0.0)
+        while x < hw:
+            x0, x1 = max(-hw, x), min(hw, x + tw)
+            if x1 - x0 > 0.05:
+                parts.append(box(x0 + j / 2, y0 + j / 2, 0.0, x1 - j / 2, y1 - j / 2, 0.012, floor))
+            x += tw
+    # the side walls, panels of the stone floor to ceiling with a reveal between each (a cause for every line on them)
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * (hw - 0.04), sx * hw))
+        parts.append(box(x0, -d, 0.0, x1, 0.0, h, seam))
+        y = 0.0
+        while y > -d + 0.05:
+            y0 = max(-d, y - L["panel"])
+            parts.append(box(x0 - sx * 0.012, y0 + j / 2, 0.0, x1 - sx * 0.012, y - j / 2, h, stone))
+            y = y0
+        # a line of light along the foot of each wall, as the 45F corridor's
+        parts.append(box(x0 - sx * 0.02, -d + 0.2, 0.06, x1 - sx * 0.02, -0.25, 0.085, lit))
+    # the back wall round the doors, floor to ceiling
+    parts.append(box(-hw, 0.004, 0.0, hw, 0.14, h, stone))  # (a hair behind the portal's own wall, which it carries on round)
+    # the ceiling: dark, and five lines of light from over the way in to over the doors
+    parts.append(box(-hw, -d, h - 0.02, hw, 0.0, h, dark))
+    for x in (-3.2, -1.6, 0.0, 1.6, 3.2):
+        parts.append(box(x - 0.025, -d + 0.35, h - 0.045, x + 0.025, -0.35, h - 0.02, lit))
+    return parts
+
+
 def lift():
     stone, steel, leaf, dark, lit, amber, mat, rope = (hexc(h) for h in (0x2b2f36, 0xc3c8ce, 0x9aa0a8, 0x101216, 0xfff3d2, 0xffb45a, 0x1b1d22, 0x8a2f2a))
     parts = [box(-2.9, 0.0, 0.0, 2.9, 0.14, 3.3, stone, "lift")]
@@ -79,10 +125,8 @@ def lift():
     for x in (-1.5, 1.5):
         parts.append(lathe([(0.16, 0.0, steel), (0.16, 0.03, steel), (0.025, 0.05, steel), (0.025, 0.86, steel), (0.045, 0.86, steel), (0.045, 0.99, steel), (0.0, 1.0, steel)], seg=12, at=(x, -2.2, 0)))
         parts += [box(x - 0.006, -2.155, 0.87, x + 0.006, -0.04, 0.92, rope), box(x - 0.03, -0.04, 0.85, x + 0.03, 0.0, 0.94, steel)]
-    # the lobby's downlights, in the ceiling over the mat
-    for x in (-1.6, 0.0, 1.6):
-        for y in (-0.9, -2.6):
-            parts.append(lathe([(0.0, 3.28, lit), (0.14, 3.28, lit), (0.16, 3.3, steel)], seg=14, at=(x, y, 0)))
+    # (the lobby's light is its ceiling's lines, 5.25 m up: the downlights that hung at 3.3 m, under nothing, are gone)
+    parts += lobby(stone, dark, lit)
     parts.append(blob(2.6, 1.6, at=(0, -1.3), dark=0.35))
     return join("lift", parts)
 

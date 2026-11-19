@@ -106,6 +106,12 @@ window.OEStory = (function () {
     const movEl = el('g-story-mov', `<p></p><button type="button">${ctx.touch ? 'Tap to skip' : 'Space to skip'}</button>`);
     movEl.querySelector('button').addEventListener('click', e => { e.stopPropagation(); movEnd(true); });
     const pre = el('g-story-order', '');
+    // the menu (sound, who you play, the crowd, the frame rate), by touch or the mouse: Esc and a pad's own button open it
+    // too, but a phone has neither (issue 48). At the top right, as the walk's is; put away under a talk, a film, a card
+    const menuBtn = el('g-story-menu', `<i aria-hidden="true"></i><span>Menu</span>${ctx.touch ? '' : ' <kbd>Esc</kbd>'}`, 'button');
+    menuBtn.type = 'button'; menuBtn.setAttribute('aria-label', 'Menu');
+    menuBtn.addEventListener('click', e => { e.stopPropagation(); if (ctx.menu) ctx.menu(); });
+    menuBtn.addEventListener('pointerdown', e => e.stopPropagation());
     const shutter = el('g-story-shutter', `<i></i>Take the picture${ctx.touch ? '' : ' <kbd>F</kbd> · <kbd>Wheel</kbd> the lens'}`, 'button'), endEl = el('g-story-end', '');
     shutter.type = 'button';
     // the camera in the hand or at the eye: a button that says which, and what the key does; and a word in the middle of
@@ -296,7 +302,10 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       let q = ctx.screen(head);
       const talk = person && q.front && q.dist <= TALK_M && (!ctx.seen || ctx.seen(head)); // (near and in sight: a speech mark; else a place to walk to)
       // getting nearer? (the leg is the beat and the kind of goal: a car that moves is the same leg)
-      const leg = `${st.fi}|${st.phase}|${st.beat}|${st.kind}`, px = ctx.player.x, py = ctx.player.y, left = Math.hypot(to[0] - px, to[1] - py);
+      // (the way there, where it is a place to walk to: route.js ways.walk, as the gold line draws it and the dog follows it.
+      // Its metres are what "nearer" means: a way that first turns from the goal round a block is followed, not strayed from)
+      const wy = st.kind !== 'frame' && !st.cam && ctx.way ? ctx.way(st.target, !!via) : null;
+      const leg = `${st.fi}|${st.phase}|${st.beat}|${st.kind}`, px = ctx.player.x, py = ctx.player.y, left = wy ? wy.left : Math.hypot(to[0] - px, to[1] - py);
       if (leg !== st.leg) { st.leg = leg; st.best = left; st.idle = 0; st.lost = false; }
       if (left < st.best - 2) { st.best = left; st.idle = 0; } else st.idle += dt;
       const led = !st.lost && ledBy(st.target);
@@ -304,6 +313,17 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       st.guided = led && !st.lost;
       light((st.guided && !(st.hint >= 3)) || st.kind === 'frame' ? null : to, via ? 'go' : st.kind); // (the third hint is the light, his lead or not)
       let k = via || (person && !talk) ? 'go' : st.kind;
+      // Where the signs show the way (he is not leading), the mark is of the way, not of the goal as the crow flies: on
+      // the paving by the Shibuchika stair the arrow pointed up and right at the lift "127 m" off, over the station's
+      // works, while the way went round to the left, and whoever followed it walked into a dead end. So it points where
+      // the way turns next (the furthest point of it that can be walked to straight from here: ctx.way, the route the
+      // gold line draws and the dog follows, route.js ways.walk), and its metres are the way's. Where the way runs
+      // straight to the goal, it is the goal's own mark (docs/STORY.md "Who shows the way")
+      st.wayAim = null;
+      if (!st.guided && !talk && wy) {
+        if (wy.aim) { st.wayAim = wy.aim; q = ctx.screen([wy.aim[0], wy.aim[1], wy.aim[2] + 1.2]); k = 'go'; }
+        q.dist = wy.left;
+      }
       if (st.guided && !talk) {
         // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him. But only to him
         // where he can be seen from here and is in front of you on the way: on SHIBUYA SKY's floor the arrow said
@@ -388,12 +408,17 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const tm = setTimeout(end, total + 14000); // (read at leisure; the Stop waits for it)
       addEventListener('keydown', key, true); pre.addEventListener('pointerdown', end);
     }
+    // tonight's own set dressing (a lift's doors at the back of SKY GATE's lobby, its sign over the way in): put up as the
+    // player is given the street, in the story or on the walk (game.js startWalk), once
+    function setDress(ep = st.ep) {
+      for (const [i, r] of ((ep && ep.set) || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r));
+    }
     // as the player is given the street
     function begin() {
       const ep = st.ep || dress();
       if (!ep) return;
       ctx.stage.classList.add('story-on');
-      for (const [i, r] of (ep.set || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r)); // (tonight's own set dressing: a lift's doors, a sign)
+      setDress(ep);
       for (const c of ep.cast || []) if (!st.cast[c.id]) { st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice }); if (c.face && st.cast[c.id].face) st.cast[c.id].face(c.face[0], c.face[1]); } // (face: where they look all evening, the old man at the crossing)
       const k = kept();
       if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; }
@@ -1117,6 +1142,9 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
       // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
       // evening's cast, each once out of the frame (tick); the dog is already on his way home
+      // (the walk from the title: the street as tonight has it, with the set dressing the story puts up, and no case)
+      dressSet() { setDress(st.ep || eps[0]); }, // (not dress(): that sets the story's own hour and sky over the walk's)
+      get setUp() { return Object.keys(st).filter(k => /^set\d+$/.test(k) && st[k]).length; }, // (how many pieces of it are up: tools/walk_play.js)
       release() {
         if (st.phase !== 'done') return false;
         st.released = true; endEl.classList.remove('in'); later(1200, () => endEl.classList.remove('on')); ctx.beacon(null); // (the card fades off the street, as it came on) if (ctx.board) ctx.board(null);
@@ -1126,7 +1154,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       dispose() {
         timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
-        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip, movEl, hintBtn]) e.remove();
+        for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip, movEl, hintBtn, menuBtn]) e.remove();
         if (st.dogNext) st.dogNext.remove();
         for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();
         for (const id in st.cast) st.cast[id].remove();

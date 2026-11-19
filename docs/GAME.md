@@ -1815,6 +1815,62 @@ Sydney's traffic stood still a third of the time.
       went from 143 walker-seconds to 19 (the longest from 27 s to 2 s), and the
       footways' walkers from 19% of their time to 1.5% (the longest from 18 s to 2 s).
     - `tools/crowd_film.js` films the crowd massed nearest you, to see it move.
+  - *A crowd spread as the place is* (November 2026, the owner: "the crowd has bunched
+    up again" by Hachiko, twenty or thirty in a block at the kerb under the viaduct
+    with the paving round them empty). The causes, found with `tools/crowd_spread.js`:
+    - Every walker waiting at a kerb was sent to one point: across the stripes'
+      width and a little back, but where that point lay in a road it was drawn in
+      to the stripes' line and then to one spot behind the kerb. At Hachiko's kerb
+      the crosswalk ends 3.6 m short of the kerb, so all of them got the same spot.
+      Those landing there from the far side went for the same point too, and
+      pressed together, walking on into the backs of those already standing there.
+      Each one stopped by the crowd then stood where it was, in the next one's pocket.
+    - The share of the crowd that gathers round a scramble was split evenly
+      between the map's five scrambles. The landmark crossing got 3% of the crowd,
+      the same as a side street's, and the square between its kerbs stood empty.
+    - What it does now, from the research below (ideas only, no code):
+      - Each one waiting has a place of its own (`slotAt`). The crowd at a kerb stands
+        in loose rows: the front row is the stripes' width and a pace past either
+        edge, each row behind it 0.7 m further back. Every place is 0.9 m from any
+        other taken at that corner, about 1.4 people a square metre. That is Fruin's
+        comfortable waiting density (level of service C to D for queues: 0.7 to
+        1 m² a person); a line in a queue keeps 0.6 to 0.9 m. A spot in the road is
+        moved back from the kerb before it is moved sideways. A corner with no room
+        left sends the walker to the corner's other kerb, or on along a footway,
+        never in among those already there. One held up short of its place a pace
+        from someone else's takes another place, twice at most. The less crowded
+        of two kerbs takes each new one.
+      - Those crossing aim a little to their own left of the stripes, so the two
+        kerbs' crowds pass in lanes rather than meeting face to face across the
+        whole width. Lanes form in any crossing flow (Helbing and Molnár; the
+        crossing experiments above). One that has landed within two paces of its
+        place, held there a second by those standing about, has arrived.
+      - The gathering share goes by each scramble's weight: the landmark crossing
+        takes a fifth of the crowd within 90 m of it, the others share the rest.
+      - About a fifth of the landmark crossing's own crowd stands about on the
+        paving 4 to 16 m back from the kerbs for half a minute to a minute and a
+        half: Hachiko's square is the city's meeting place. They stand 1.6 m or more
+        apart, then go on along a footway or to a kerb (`lingerAt`, phase `linger`).
+    - Shibuya at 17:41, 150 s, within 40 m of each spot: at Hachiko at most 10 people
+      standing in a 2 m circle before (23 s of the run over 6); 6 after (none over).
+      At the station's kerb 14 before (55 s over), 8 after (2 s over). At the kerb
+      under the viaduct, the most standing within 1.5 m of one of them went from 16
+      to 4–8. The share of the paving round Hachiko with someone within 3 m went from
+      22–26% to 45% (42% at 21:00). Still the case: when the walk comes on, the crowd
+      leaving one kerb crosses as a dense column (issue 56).
+    - Research: Helbing and Molnár, *Social force model for pedestrian dynamics*
+      (1995); van den Berg, Guy, Lin and Manocha, ORCA (*Reciprocal n-body collision
+      avoidance*, 2011; RVO2 library, Apache-2.0); Fruin, *Pedestrian Planning and
+      Design* (1971), levels of service for walkways and queues; Moussaïd et al.
+      (PLoS ONE 2010) on walking groups of two to four; Unreal's Mass and
+      Recast/Detour (zlib) for standing agents with a place of their own. Ideas only,
+      no code or data from any of them. Not done: walking groups of two or three,
+      and people who stop at a shopfront or lean on a rail. Both are left to an
+      issue.
+    - `tools/crowd_spread.js [HH:MM] [x,y,face] [seconds]` (`SPOTS=all`: Hachiko, the
+      crossing's middle, QFRONT's kerb, the station's kerb) fails on a clump of
+      people standing: more than 6 in a 2 m circle for more than 6 s, or more than
+      13 in a 3 m circle.
   - `tools/scramble_step.js`, run by `tools/game_check.js` in every city with a
     scramble, checks that in the walk every arm's light is red, the walk signals
     are green and the crowd is out on the crosswalks and the diagonals; that in
@@ -2311,6 +2367,22 @@ quality tier runs a third of the cars.
     drawn in, eased, to within 0.2 m of the middle (a hand's width clear of the glass); and the feet go up onto the first riser as it rises under them, a
     step ahead of the slope, not 0.23 m into it (`tools/escalator_ride_shot.js` rides each from the middle and from the
     side, with stills from behind and beside).
+    That held a rider standing still, but the glass was no wall to a walker: pushed sideways on the steps, or walked
+    across a landing at it, the middle stopped only at the steps' edge, 0.13 m from the glass, and the stride's feet and
+    hands went 0.2 to 0.37 m into it (the owner's still: a shoulder, an arm and the torso in the glass). The glass is now
+    the surface's own `balustrade` (`{v, u, h}` in `game.surfaces`, from `cities/shibuya/city.py`, the same panes the
+    model draws), and `nav.slide` holds anyone's middle 0.4 m from a pane on the side they were on, round the newels'
+    ends too (`paneOut`). And a walker comes to any wall or glass with the stride ahead of the body: the foot and hand
+    that lead a walk reach 0.1 m past the capsule, a run's 0.25 m, while the clip eases to a stand in 0.3 s, so the
+    middle stops that much short of what is ahead along the way it goes (along a wall only the part the wall takes
+    away; and the step in and back out is not counted as walking, or the clip trod on the spot).
+    `tools/glass_body.js` measures it: on each escalator the player walked and run on and pushed into each balustrade,
+    stood at it, walked across both landings at it and come at it slantwise past the newel, and run and walked into
+    the roof's rim glass and along it from eight directions; every frame, the skin of the rig as the clip poses it
+    (each vertex named by the bone that bears it most: hands, forearms, shoulders, head, hips, knees, feet) and what it
+    carries, against the glass's plane and the collision world's walls. It fails on any part more than a centimetre in.
+    The white beams over the flights (`frame_air`) are no floor or wall but stop the chase camera (`camera` in their
+    material): it went through the one behind a rider, which then crossed the whole picture.
   - **High floors:** a travel point with a height (`[x, y, z]`) lands you on a roof.
     `always: true` lists it on the map before you have been there.
 - **Sound** (`web/game/audio.js`): synthesised with Web Audio, with no files.

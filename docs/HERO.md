@@ -288,6 +288,75 @@ are pruned clear of the people under them (Japan's road rules keep 2.5 m over a 
 `tools/hero_trees.js` lists the trees round the Scramble with where their leaves begin and exits 1 on one lower
 than 2.5 m within 60 m.
 
+## Miyamasu (Shibuya): frame 5's place (issue 33)
+
+The story's fifth frame is taken at the foot of Shibuya Scramble Square's north face, where Miyamasu Bridge (宮益橋)
+carried the old road over the Shibuya River, looking 21 degrees west of north up the line the water ran
+(`task.stand` [521.9, -1074.1], the river's `relic` at [519.4, -1067.7]). It lies 150 m from the Scramble, outside
+that level, and its print showed what the city draws where no level is: the Ginza line's station over the east exit
+as a flat slab 2.8 m over the pavement (the "pale lavender wall" of the issue), the piers under it as pale-blue
+boxes, and a bare floor. It is the second level on the Scramble's kit (`cities/shibuya/hero_miyamasu.py`, a
+subclass of `hero.py`'s `Level`; `python blender/build_hero.py --city shibuya --level miyamasu`).
+
+**The place, from the research** (November 2026; sources below). The Ginza line's Shibuya station was moved about
+130 m east in January 2020 onto a column-free box with an M-shaped arched roof over Meiji-dori and the east exit's
+bus terminal, on fewer, heavier piers (7 reduced to 3 over the road). The east exit's 2F decks to Hikarie and
+Scramble Square meet it 6 to 7 m over the street. Under it: the bus terminal's islands and lanes in the deck's shade,
+grey interlocking blocks, granite kerbs, neutral-white LED light. Looking up the street from the bridge's site:
+the station box overhead, then the plaza, then the mid-rise fronts of Miyamasuzaka-shita and Meiji-dori in tile and
+panel. Miyamasu Bridge itself (in the ward's 1959 photograph, looking downstream from above it) was a low flat
+concrete slab with a light rail; the river's walls there were cast concrete panels with pilasters (1929-31), not
+the coursed stone the relic draws (docs/PAST.md keeps that liberty).
+
+**What was built**, all of it what the frame's camera sees:
+
+- **The underside where the record put it wrong.** OpenStreetMap maps the station from its first storey
+  (`building:min_level=1`), which a storey of 3.9 m set 2.8 m over the pavement at the frame's standpoint.
+  `pipeline/stations.py` `UNDERSIDE` sets it at 7.0 m over its base, the decks' level (an estimate from the
+  photographs; no published clearance was found). The city's piers lengthen with it, and stand 18 m apart instead
+  of the grid's 9 (`SPACING`: the deck stands on fewer, heavier piers than the one it replaced, seven over the road
+  became three), which also took the pier that stood dead in the middle of the frame's view up the river.
+- **The deck seen from the street** (`underside`): a steel soffit painted a pale warm grey, cross girders every
+  3 m (a web and a bottom flange, 0.72 m deep), a linear 4000 K light in every second bay (a lit face the bake takes
+  as a light: 0.12 m wide at 30, about half a street lamp's light on the ground below), and the edge box girders
+  clad in white panels 1.8 m wide from 1.15 m under the deck to 1.4 m over it.
+- **The piers** (`piers`): each pier the city stands the deck on (buildings.json `piers`) as a round steel column
+  0.68 m in radius (over the city's 0.9 m square one, which stays the solid one walks round), on a granite collar
+  0.36 m high, flaring at its head to a bearing plate under the girders, with a shadow gap at each 3 m can.
+- **The ground of the east exit**: the Scramble's carriageway, gutter, kerb, blocks, tactile lines and guard pipes,
+  on the same plan (`scramble.Plan`, with `standing`: the ground under the deck is drawn, since the deck does not
+  stand on it), and its lamp posts on the kerbs out from under the deck.
+- **The fronts** up the street and round the plaza in the Scramble's grammar (41 walls), except buildings the
+  Scramble's level dresses itself (`skip_front`), so no wall is drawn twice; the two discs do not overlap.
+
+Its stills: `tools/views/shibuya-miyamasu.json` (the frame's view, the talk shot, up and back along the deck, from
+the air) with `tools/scramble_shot.js`; its beat is frame 5 of `tools/story_play.js` (`FROM=4 UPTO=5`).
+
+48,000 triangles, 4.0 MB; its fine model (the fronts' window frames and mullions, half of what was built: 4.5 cm of
+aluminium is under a pixel past 50 m) 49,000 triangles, 1.7 MB, drawn within 110 m of the camera and never fetched on
+a phone. It is **fetched only near it** (`game.hero[].load_m` 60, `drop_m` 85, `show_m` 300; hero.js): from frame
+4's roof and frame 5, never at the Scramble's spawn 90 m from its edge, and let go again before frame 6.
+
+**On a phone at frame 5** both levels are held, the Scramble's 70 m off. `tools/mem_check.js` now takes `AT=x,y` (the
+player put there before the heaviest hour). With the level as first built the GPU peak was 277 MB of the 270 budget
+(275 settled at the frame). Two things brought it under: the window frames went to the fine model, and **a texture
+two levels both carry is held once** (hero.js `share`: the shared surfaces by their picture's name, counted per
+level and freed with the last; on a phone nine colour maps, about 12 MB). Now 263 MB settled at the frame, 265 at
+the peak (the rain at ten at night), against 255 at the spawn before.
+
+Photographs looked at (Wikimedia Commons; none is reproduced, no texture is taken from one): View from
+Miyamasuzaka-Shita Crossroads (north), 2015-09 (そらみみ, CC BY-SA 4.0); 宮益坂下交差点, 2025-01-22 and 2026-02-19 19:04
+(ウィ貴公子, CC BY-SA 4.0); Miyamasuzaka District before redevelopment, 2023-02 (Sakura Torch, CC BY-SA 4.0);
+Pedestrian bridge construction in Shibuya, 2018-12 (Syced, CC0). Facts: trafficnews.jp/post/92628 (the station's
+move), Tokyo Metro news 2019-10-28 (the M-shaped arch frame), ja.wikipedia 宮益坂地区再開発, Shibuya Ward's history
+panels (上流から宮益橋を見る, 1959, all rights reserved: looked at, not used), Tokyo Metropolitan University's paper on
+the river's improvement works (akira.fpark.tmu.ac.jp, 263.pdf).
+
+Where it still falls short: the station's walls above the girders are the city's panel style, not its white box
+and glass; the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
+the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
+software renderer only.
+
 ## Only what the first frame sees (issue 358)
 
 The levels by a map's spawn (Kamakura's first) apply issue 358's rule to detail: memory and shading go to

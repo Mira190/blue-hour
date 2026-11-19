@@ -236,13 +236,18 @@ void main() {
       for (const m of [mSpec, mH, mV, mAs]) m.dispose();
       geo.dispose();
     }
-    // its programs compiled off the frame, rather than by its first step on the city's first frame (issue 299)
-    if (window.OEWorld && OEWorld.compile) {
+    // its programs compiled off the frame, rather than by its first step on the city's first frame (issue 299); called by
+    // the map once it knows the sea can be seen at all: a map with no sea (Shibuya) never steps it, and its four programs
+    // were four of the phone loader's (issue 27)
+    let warmed = false;
+    function warm() {
+      if (warmed || !(window.OEWorld && OEWorld.compile)) return;
+      warmed = true;
       const g = new THREE.Group();
       for (const m of [mSpec, mH, mV, mAs]) g.add(new THREE.Mesh(geo, m));
       OEWorld.compile(renderer, g, cam, { target: work[0], shadows: false });
     }
-    return { N, C, step, disp, deriv, dispose, cascades, float };
+    return { N, C, step, disp, deriv, dispose, cascades, float, warm };
   }
 
   // ---------------------------------------------------------------- surface grid

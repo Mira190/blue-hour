@@ -5,7 +5,7 @@
 // Each print is saved as the roll keeps it, too (n-print-own.jpg): the double exposure itself.
 //   python3 -m http.server 8800 --directory web &
 //   node tools/story_play.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
-// FROM=6: from the last frame only (FROM=5 UPTO=5: the fifth frame only). LIMIT=seconds: how long the whole play may take.
+// FROM=6: from the last frame only (FROM counts from 0 and UPTO from 1: FROM=4 UPTO=5 is the fifth frame only). LIMIT=seconds: how long the whole play may take.
 // SLIP=n: at frame n the first question that can be lost is answered wrongly until the one asked sees through the player; the
 // card must come up, and the frame is taken up again and played rightly. SPEND=n: frame n is spent from the wrong place (the
 // release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
@@ -20,9 +20,14 @@
 // The game moves a twentieth of a second a frame at most, so on a software renderer, at a frame a second or less, the
 // story's own clock ran twenty times slow, and the runner's 50 minutes ended in the first frame's first dialogue (#1).
 // A frame without its draws takes a few tens of ms: the story keeps its time, and every still is of drawn frames.
+// Where a frame's time goes (#51): PROFILE=still:seconds profiles the page's script after that still (the top functions to
+// the log); with TRACE=1, a trace of the browser's processes instead (trace.json); GLCOUNT=1 counts the WebGL calls made
+// in frames not drawn and outside the frames. TASKS=0: every frame waits for the display, as it did before; HOLD=0: the
+// frames run on, drawn whole, while a still is taken.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
+const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number);
@@ -36,11 +41,76 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const DRAW = +(process.env.DRAW || 0);
-  if (DRAW > 1) await p.addInitScript(n => {
-    const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0, drawn: 0 };
-    window.requestAnimationFrame = fn => raf(t => { D.on = D.all || D.frames++ % n === 0; if (D.on) D.drawn++; fn(t); D.on = true; }); // (outside a frame, the loader's slices and the prints: as they are)
-    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
-  }, DRAW);
+  if (DRAW > 1) await p.addInitScript(([n, tasks, glcount]) => {
+    const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0, drawn: 0, skipped: 0, steps: 0, js: 0, rendered: false, own: 0 };
+    // The page's frames are taken over here, as the display gives them: every callback asked for in one frame is called in
+    // the next, together, with one time (the harness's own counts of frames, and the raise's samples, are of the game's
+    // frames). One frame in n is drawn, and every one while a still is taken; outside a frame (the loader's slices, the
+    // prints) everything is drawn as it is.
+    // A frame that will not be drawn does not wait for the display either (#51): it runs as a task of its own as soon as
+    // the one before it is done (a tenth off the first frame's time on a session's machine). The frames still run on the
+    // page's clock (performance.now), a twentieth of a second at most; a frame to be drawn, and every frame while a still
+    // is taken, waits for the display as before. TASKS=0: every frame on the display's clock, as it was.
+    const mc = new MessageChannel(); let queue = new Map(), id = 0, due = false, last = 0;
+    const flush = t => {
+      due = false; if (D.hold) return; // (held while a still is taken: below)
+      const q = queue; queue = new Map();
+      last = Math.max(last, t || performance.now()); // (one clock, never back: a display's frame is stamped as it began)
+      D.frames++; D.on = D.all || D.steps % n === 0; // (n counts the game's frames: not those the frame-rate cap passes over, game.js gov.due)
+      const t0 = performance.now(); D.rendered = false; D.inFrame = true;
+      for (const fn of q.values()) { try { fn(last); } catch (e) { setTimeout(() => { throw e; }); } }
+      D.js += performance.now() - t0; if (D.rendered) { D.steps++; if (D.on) { D.drawn++; if (!D.all) D.own++; } }
+      D.on = true; D.inFrame = false;
+    };
+    mc.port1.onmessage = () => flush(performance.now());
+    window.requestAnimationFrame = fn => {
+      queue.set(++id, fn);
+      if (!due) { due = true; if (!tasks || D.all || D.steps % n === 0) raf(flush); else mc.port2.postMessage(0); }
+      return id;
+    };
+    window.cancelAnimationFrame = k => { queue.delete(k); };
+    // A still is taken of the frame drawn last, with the page's frames held until it is: on a software renderer a
+    // screenshot takes seconds, and the frames drawn whole meanwhile (six a still, a second of llvmpipe's each) were two
+    // thirds of all the frames drawn in a play (#51). The game's clock moves a twentieth of a second at most across it.
+    D.holdOn = () => { D.hold = true; };
+    D.holdOff = () => { D.hold = false; if (queue.size && !due) { due = true; raf(flush); } };
+    if (glcount) { D.glIn = {}; D.glOut = {}; for (const k of Object.getOwnPropertyNames(P)) { const d = Object.getOwnPropertyDescriptor(P, k); if (typeof d.value !== 'function' || k === 'constructor') continue; const f = d.value; P[k] = function (...a) { const w = !D.on ? D.glIn : D.inFrame ? null : D.glOut; if (w) w[k] = (w[k] || 0) + 1; return f.apply(this, a); }; } }
+    // (a clear is drawing too: a frame not drawn cleared its targets a dozen times, each a pass of llvmpipe's)
+    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+    // and on a frame not drawn, renderer.render itself is not run either (#51): without its draw calls it still cost a
+    // frame a third of its time, culling, sorting and setting the state of some sixteen passes. What it does that the
+    // game reads goes on: the world's matrices are brought up to date, and every onBeforeRender of a thing the camera's
+    // layers see is called as the render would have called it (past.js forms and fades a relic there, on its own clock;
+    // the cars' lamps turn their glows). A render called from one of those (a mirror's) is skipped whole.
+    addEventListener('three-ready', () => {
+      const T = window.THREE, W = T.WebGLRenderer, plain = T.Object3D.prototype.onBeforeRender;
+      let inside = false;
+      const replay = (r, scene, camera) => {
+        inside = true;
+        try {
+          scene.traverseVisible(o => {
+            if (o.onBeforeRender === plain || !o.onBeforeRender || !camera.layers.test(o.layers)) return;
+            const m = Array.isArray(o.material) ? o.material[0] : o.material;
+            o.onBeforeRender(r, scene, camera, o.geometry, m, null);
+          });
+        } finally { inside = false; }
+      };
+      T.WebGLRenderer = class extends W {
+        constructor(...a) {
+          super(...a);
+          const render = this.render;
+          this.render = (scene, camera) => {
+            D.rendered = true;
+            if (D.on || !scene || !camera) return render.call(this, scene, camera);
+            D.skipped++;
+            if (scene.matrixWorldAutoUpdate !== false) scene.updateMatrixWorld();
+            if (camera.parent === null && camera.matrixWorldAutoUpdate !== false) camera.updateMatrixWorld();
+            if (!inside) replay(this, scene, camera);
+          };
+        }
+      };
+    }, { once: true });
+  }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -49,7 +119,28 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (a still is of frames drawn whole: every frame drawn from the one before it until it is taken)
   let whole = 0;
   const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(r)); }), whole > 0) : null; };
-  const snap = async name => { await drawAll(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await drawAll(false); };
+  // PROFILE=still:seconds: the page's script profiled for that long after that still is taken (where a frame's time goes,
+  // #51); the functions that took the most of it, by their own time and with what they call, to the log (and profile.cpuprofile)
+  const [profAt, profS] = (process.env.PROFILE || '').split(':');
+  const profile = async () => {
+    if (process.env.TRACE) { // (TRACE=1: a trace of the browser's processes instead, to trace.json, for chrome://tracing or Perfetto)
+      await b.startTracing(p, { path: `${out}/trace.json`, categories: ['toplevel', 'gpu', 'cc', 'viz', 'benchmark', 'disabled-by-default-devtools.timeline', 'devtools.timeline', 'v8.execute'] });
+      await p.waitForTimeout(1000 * (+profS || 10)); await b.stopTracing(); console.log(`trace after ${profAt}: ${out}/trace.json`); return;
+    }
+    const c = await p.context().newCDPSession(p); await c.send('Profiler.enable'); await c.send('Profiler.setSamplingInterval', { interval: 500 }); await c.send('Profiler.start');
+    await p.waitForTimeout(1000 * (+profS || 20));
+    const { profile: P } = await c.send('Profiler.stop'); fs.writeFileSync(`${out}/profile.cpuprofile`, JSON.stringify(P));
+    const by = new Map(P.nodes.map(x => [x.id, x])), self = new Map(), dt = P.timeDeltas, total = dt.reduce((a, b) => a + b, 0) / 1000;
+    P.samples.forEach((id, i) => self.set(id, (self.get(id) || 0) + dt[i] / 1000));
+    const name = x => `${x.callFrame.functionName || '(anon)'} ${x.callFrame.url.split('/').pop()}:${x.callFrame.lineNumber + 1}`;
+    const own = new Map(), incl = new Map(), parent = new Map();
+    for (const x of P.nodes) for (const k of x.children || []) parent.set(k, x.id);
+    for (const [id, ms] of self) { const k = name(by.get(id)); own.set(k, (own.get(k) || 0) + ms); const seen = new Set(); for (let q = id; q != null; q = parent.get(q)) { const kk = name(by.get(q)); if (!seen.has(kk)) { seen.add(kk); incl.set(kk, (incl.get(kk) || 0) + ms); } } }
+    const top = (m, n) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, ms]) => `  ${(ms / 1000).toFixed(1)} s ${(100 * ms / total).toFixed(0)}%  ${k}`).join('\n');
+    console.log(`profile after ${profAt}, ${(total / 1000).toFixed(1)} s; by own time:\n${top(own, 25)}\nwith what they call:\n${top(incl, 40)}`);
+  };
+  const hold = on => (DRAW > 1 && process.env.HOLD !== '0' ? p.evaluate(on => (on ? window.__draw.holdOn() : window.__draw.holdOff()), on) : null); // (HOLD=0: the frames run on while a still is taken)
+  const snap = async name => { await drawAll(true); await hold(true); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } await hold(false); await drawAll(false); if (name === profAt) await profile();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
@@ -357,6 +448,22 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (read from what the page saw as the sheet came up, above: the sheet does not wait for the check or for the still)
       if (!seen.has('order')) { seen.add('order'); const t0 = Date.now(); await p.waitForTimeout(4000); const inHand = await p.evaluate(() => !!window.__orderOk); await snap('1-order'); console.log(`the order: ${inHand ? 'it came up in the hand' : 'it never came up in the hand'}; its still taken at ${((Date.now() - t0) / 1000).toFixed(1)} s`); if (!inHand) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
       await p.keyboard.press('KeyE');
+      // the menu from the story's own button, by touch on a phone (issue 48): it opens, and its close button shuts it
+      if (!seen.has('menu')) {
+        seen.add('menu');
+        const tap = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return false; const x = r.x + r.width / 2, y = r.y + r.height / 2; if (w < 500) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); return true; };
+        await p.waitForFunction(() => { const e = document.getElementById('g-story-menu'); return e && getComputedStyle(e).display !== 'none'; }, null, { timeout: 8000, polling: 200 }).catch(() => {});
+        if (!(await tap('#g-story-menu'))) { errors.push('the story has no menu button to press (issue 48)'); console.log(errors[errors.length - 1]); }
+        else {
+          await p.waitForTimeout(600);
+          const open = await p.evaluate(() => !document.getElementById('g-menu').hidden);
+          if (open) await snap('1-menu');
+          await tap('#g-menu-close'); await p.waitForTimeout(600);
+          const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
+          if (!open || !shut) { errors.push(`the story's menu button: ${open ? 'the menu opened and its close button did not shut it' : 'the menu did not open'}`); console.log(errors[errors.length - 1]); }
+          else console.log(`the menu: opened from the story's own button by ${w < 500 ? 'touch' : 'the mouse'}, and shut again`);
+        }
+      }
     }
     else if (s.phase === 'go' && s.beat === 'ride') { await mark(s, 'ride'); const to = await p.evaluate(() => window.__game.story.state.fr.ride.to); await goTo(to, 6); } // (a frame reached by car: this player walks; tools/story_ride.js takes the car)
     else if (s.phase === 'go' && s.beat === 'board') { // a flight boarded on its pad (flight.board): the helicopter is there to be seen, turning over;
@@ -426,7 +533,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (!proved) { errors.push('the summation was not answered with a print'); console.log(errors[errors.length - 1]); }
     if (!c.worked || !/side by side|Every pair/.test(c.worked)) { errors.push(`the last card does not say how the case was worked: "${c.worked.slice(0, 80)}"`); console.log(errors[errors.length - 1]); }
     if (+process.env.SPEND && !c.worked.includes(`Frame ${process.env.SPEND} spent`)) { errors.push(`the last card does not name frame ${process.env.SPEND}, spent`); console.log(errors[errors.length - 1]); }
-    if (c.back < 7 && !process.env.FROM) { errors.push(`the last card offers ${c.back} frames to go back into`); console.log(errors[errors.length - 1]); } // (FROM: the frames before it have no prints to go back to)
+    // (all seven from a play of the whole case; from a late start (FROM=n), the frames played here and the first, which is
+    // always offered: the frames before n were left with no print to go back to)
+    const from = +process.env.FROM || 0, backs = from ? 7 - from + 1 : 7;
+    if (c.back !== backs) { errors.push(`the last card offers ${c.back} frames to go back into, not ${backs}${from ? ` (a play from frame ${from + 1})` : ''}`); console.log(errors[errors.length - 1]); }
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
     if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
       await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
@@ -466,7 +576,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     }
   }
   for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
-  console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}${DRAW > 1 ? `; ${await p.evaluate(() => `${window.__draw.drawn} of ${window.__draw.frames} frames drawn`)}` : ''}`);
+  console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}${DRAW > 1 ? `; ${await p.evaluate(() => (D => `${D.drawn} of ${D.steps} frames drawn (${D.own} between the stills; ${D.frames} asked for), ${(D.js / Math.max(1, D.steps)).toFixed(1)} ms of script in each, ${D.skipped} renders skipped`)(window.__draw))}` : ''}`);
+  if (process.env.GLCOUNT) console.log('WebGL calls in frames not drawn:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glIn).sort((a, b) => b[1] - a[1]).slice(0, 30))), '\nand outside the frames:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glOut).sort((a, b) => b[1] - a[1]).slice(0, 40))));
   // PRINTS=dir: the photographs taken, as files (the loading screen's frames are made from them)
   if (process.env.PRINTS) { fs.mkdirSync(process.env.PRINTS, { recursive: true }); const pr = await p.evaluate(() => window.__game.story.state.prints.map(q => q.src)); pr.forEach((src, i) => { if (src) fs.writeFileSync(`${process.env.PRINTS}/frame-${i + 1}.jpg`, Buffer.from(src.split(',')[1], 'base64')); }); }
   await b.close();

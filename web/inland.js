@@ -578,6 +578,10 @@ window.OEInland = (function () {
     // every tier. Where the card runs past the water's edge it is under the bank, and the ground hides it.
     // groups: [{pos (three.js x, y, z triples, read once), colour (THREE.Color, or a function of the light's index
     // giving one), gain}], one intensity a group set per frame with set(i, k); returns {mesh, set(i, k), count} or null
+    // (one material for every build, fog or none: the map builds them again when it stands its lanterns, and a new material
+    // was a new program, linked in the first frame that drew it: 12 of the 26 s from "built" to the first frame on a
+    // software renderer, issue 27. Its intensities K go with it)
+    const glintMats = {};
     function glints(groups, { reach = 26, fog = true } = {}) {
       const P = [], WZ = [], C = [], G = [];
       groups.forEach((g, gi) => {
@@ -600,8 +604,9 @@ window.OEInland = (function () {
       geo.setAttribute('iCol', new THREE.InstancedBufferAttribute(new Float32Array(C), 3));
       geo.setAttribute('iGroup', new THREE.InstancedBufferAttribute(new Float32Array(G), 1));
       geo.instanceCount = n;
-      const K = [0, 0, 0, 0, 0, 0, 0, 0];
-      const mat = new THREE.ShaderMaterial({
+      const own = glintMats[fog] || (glintMats[fog] = { K: [0, 0, 0, 0, 0, 0, 0, 0] }), K = own.K;
+      K.fill(0);
+      const mat = own.mat || (own.mat = new THREE.ShaderMaterial({
         uniforms: Object.assign(THREE.UniformsUtils.merge([THREE.UniformsLib.fog]), { uK: { value: K }, uTime: { value: 0 } }),
         vertexShader: `attribute vec3 iLight, iCol; attribute float iWz, iGroup;
 uniform float uK[8], uTime;
@@ -658,15 +663,18 @@ void main() {
 #endif` : ''}
 }`,
         fog, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      });
+      }));
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = 'inland_glints'; mesh.frustumCulled = false; mesh.renderOrder = 3; mesh.visible = false;
+      // (hidden until the lights come on, which the story's evening does in its first frame: compiled with what is shown,
+      // world.js shown; left out, it was linked in that frame, 11.7 of the 12.5 s it took on a software renderer, issue 27)
+      mesh.userData.warmFirst = true;
       const t0 = performance.now();
       mesh.onBeforeRender = () => { mat.uniforms.uTime.value = ((performance.now() - t0) / 1000) % 1000; };
       return {
         mesh, count: n,
         set(i, k) { K[i] = k; mesh.visible = K.some(v => v > 0.001); },
-        dispose() { geo.dispose(); mat.dispose(); },
+        dispose() { geo.dispose(); }, // (the material is kept for the next build)
       };
     }
 

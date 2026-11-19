@@ -22,8 +22,12 @@ window.OECompanion = (function () {
   const LOST = 12;     // and after a while further than this, it comes back for them
   const CLEAR = 1.1;   // it keeps this far from someone standing in its way
   const CATCH = 35;    // left further behind than this (a ride, a lift), it is found at the player's heels again
+  const EDGE_KEEP = 0.9; // and where he leads, how far off the edge of the way he bears away from it
+  const PASS_ROOM = 0.9; // the room he wants beyond himself, on the side he passes the player on
   // route(x, y, z, tx, ty) -> [[x, y, z], ...] | null: the way on foot (route.js ways.walk), so that it leads along the
   // footways and over the crossings and not in a straight line into a wall
+  // edge(x, y, z, fromX, fromY): is that past the edge of the way (a wall, a drop, a well, the carriageway beyond a kerb,
+  // a post: route.js ways.edge), for him where he stands: where he passes the player, he keeps a body's width inside it
   // slide(x, y, z, dx, dy) -> {x, y}: a step as the walker takes it, along a wall and round a post (nav.slide), so that it
   // never goes through a fence, a rail or a belt; stand(x, y, z): may a walker stand there
   // The pace is the player's. A player runs at 6 m/s unless they choose to walk (game.js GAIT), and a guide that led at a
@@ -36,7 +40,7 @@ window.OECompanion = (function () {
   // between them where there is room and round the edge of the crowd where there is not. Pushing off each one in turn
   // got him nowhere in a crowd shoulder to shoulder, and after a second he went through their coats
   const GRID = 0.35, BODY = 0.5, ROOM = 1.15, SPAN = 26;
-  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
+  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
     const RUN = speeds.run || speeds.trot * 2.6;
     const root = new THREE.Group();
     root.visible = false;
@@ -89,6 +93,13 @@ window.OECompanion = (function () {
         if (od < 0.05 || od > CLEAR) continue;
         const k = (CLEAR - od) / CLEAR, side = Math.sign(ox * vy - oy * vx) || 1;
         vx += (ox / od) * k * 1.0 + (oy / od) * side * k * 1.3; vy += (oy / od) * k * 1.0 - (ox / od) * side * k * 1.3;
+      }
+      // (and off the edge of the way he is beside, leading: a wall, a kerb, a well within EDGE_KEEP of his flank, and none on
+      // the other, and he bears away from it; pushed round the crowd and the player he ran along the kerb at Hachiko)
+      if (edge && s.state === 'lead') {
+        const vl = Math.hypot(vx, vy) || 1, lx = -vy / vl, ly = vx / vl;
+        const L = edge(s.x + lx * EDGE_KEEP, s.y + ly * EDGE_KEEP, s.z, s.x, s.y), R = edge(s.x - lx * EDGE_KEEP, s.y - ly * EDGE_KEEP, s.z, s.x, s.y);
+        if (L !== R) { const k = L ? -0.8 : 0.8; vx = vx / vl + lx * k; vy = vy / vl + ly * k; }
       }
       const off = turn(Math.atan2(vy, vx), 5.5, dt);
       const v = speed * Math.max(0.25, 1 - off / 1.6);
@@ -283,7 +294,16 @@ window.OECompanion = (function () {
             // in front; aimed through them, he was pushed back off them as fast as he came, and ran at their heel)
             const ph = player.h || 0, fx = Math.sin(ph), fy = Math.cos(ph), rel = (s.x - px) * fx + (s.y - py) * fy, lat = (s.x - px) * fy - (s.y - py) * fx;
             const wl = Math.hypot(w[0] - px, w[1] - py) || 1, toward = ((w[0] - px) * fx + (w[1] - py) * fy) / wl > 0.4;
-            if (ps > 1 && rel < 1.5 && dp < gap && (on || toward)) { const sd = Math.sign(lat) || 1; w = [px + fx * 3.5 + fy * sd * 1.5, py + fy * 3.5 - fx * sd * 1.5]; }
+            // (on the side he is on where there is room for him there, a body's width clear of a wall, a kerb or a well;
+            // else on the other; else along the way, round them as round anyone: swung out blind, he ran along the kerb)
+            if (ps > 1 && rel < 1.5 && dp < gap && (on || toward)) {
+              const sd0 = Math.sign(lat) || 1;
+              for (const sd of [sd0, -sd0]) {
+                const qx = px + fx * 3.5 + fy * sd * 1.5, qy = py + fy * 3.5 - fx * sd * 1.5;
+                const ok = (x, y) => (!stand || stand(x, y, s.z)) && (!edge || !edge(x, y, s.z, s.x, s.y));
+                if (ok(qx, qy) && ok(qx + fy * sd * PASS_ROOM, qy - fx * sd * PASS_ROOM) && ok(px + fy * sd * 1.5, py - fx * sd * 1.5)) { w = [qx, qy]; break; }
+              }
+            }
             move(w[0], w[1], Math.max(speeds.walk * 0.7, s.v), dt); if (dp > gap * 1.3) lookAt = [px, py, player.z + 1.5];
           }
         }
