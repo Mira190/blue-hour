@@ -1028,13 +1028,14 @@ window.OENav = (function () {
     // which takes the expressways' decks too (a walker's does not: decks.js gives them walk false)
     // a hero level's ground (hero.js) is laid a few centimetres over the game's own, which is still drawn under it:
     // game.json hero[].lift, metres. Whoever stands inside the level stands on the paving drawn, not in it to the
-    // ankle; over the level's last 2 m it comes down to the ground outside. Only where its paving is drawn, once its
+    // ankle; over the level's last 2 m it comes down to the ground outside. Only while the level is shown (h.shown,
+    // hero.js: a level fetched as you near it lifted its whole circle before it was drawn), and only where its paving is drawn, once its
     // model has come (h.cover, game.js heroCover): within its circle are gaps in the paving where the game's own ground is
     // what is drawn, and there the walker and the guide stood 5 cm in the air (by the station's east side)
     const lifts = (G.hero || []).filter(h => h.lift && h.at && h.r);
     function lift(x, y) {
       let l = 0;
-      for (const h of lifts) { const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]); if (d > 0 && (!h.cover || h.cover(x, y))) l = Math.max(l, h.lift * Math.min(1, d / 2)); }
+      for (const h of lifts) { const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]); if (d > 0 && h.shown && (!h.cover || h.cover(x, y))) l = Math.max(l, h.lift * Math.min(1, d / 2)); }
       return l;
     }
     function floorAt(x, y, z, cars = false) {

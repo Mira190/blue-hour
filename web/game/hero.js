@@ -243,6 +243,7 @@ window.OEHero = (function () {
       if (L.fineRoot) { group.remove(L.fineRoot); dispose(L.fineRoot); }
       release(L);
       showHidden(L, true);
+      L.h.shown = false; // (let go: nobody stands on its paving)
       Object.assign(L, { state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], fine: 'idle', fineRoot: null, fineMeshes: [] });
     }
 
@@ -271,6 +272,7 @@ window.OEHero = (function () {
         if (L.state !== 'ready') continue;
         const show = d < (L.h.show_m || SHOW_M);
         if (L.root.visible !== show) { L.root.visible = show; showHidden(L, !show); }
+        L.h.shown = show; // (its paving walked on only while it is drawn: nav.js lift)
         if (L.fineRoot) L.fineRoot.visible = show;
         if (!show) continue;
         // its finest parts: fetched once the camera is in or by the level, each square drawn within fine_m of the camera

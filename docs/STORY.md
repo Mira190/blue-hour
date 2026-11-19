@@ -895,7 +895,9 @@ head of the stair, and the routes go round. A smaller one under the same rule: t
 over the game's own ground, and the walking grid lifted every walker by those 5 cm anywhere within its circle, so that
 over the gaps in it (by the station's east side, on the way to the lift) he and the player stood 5 cm in the air. The
 grid now lifts only where the level's paving is drawn over the ground (game.js `heroCover`, from the model as it
-comes: its ground's height every half metre). Along every frame's way the floor walked is now within 5 cm of what is
+comes: its ground's height every half metre), and only while the level is shown (frame 5's level, fetched as you near
+the lift, lifted its whole circle before it was drawn). Inside a level the routes also read the carriageway from its
+drawn asphalt, not from a street's nominal width, which took in the footway along a narrow street's kerb. Along every frame's way the floor walked is now within 5 cm of what is
 drawn, nearly all of it within 2. And the way he follows was laid along the mapped footway lines, pulled
 straight from corner to corner, so it ran along a building's front and grazed the inside of every turn. Route.js now
 lays every walking route again a metre at a time (`centre`): it measures the room either side across the way

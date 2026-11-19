@@ -55,7 +55,7 @@ const LEADS = [
   const t0 = Date.now();
   let live = null;
   while (Date.now() - t0 < 1200000) {
-    const s = await p.evaluate(() => { const st = window.__game.story.state, d = document.getElementById('gd'), pl = window.__game.player; return { dog: !!(st.dog && st.dog.ready), target: st.target, via: st.via, beat: st.beat, fi: st.fi, dlg: d && !d.hidden, at: [pl.x, pl.y, pl.z], ready: window.__game.ways.ready && (!window.__game.hero || !window.__game.hero() || window.__game.hero().levels.every(L => L.state === 'ready')) }; });
+    const s = await p.evaluate(() => { const st = window.__game.story.state, d = document.getElementById('gd'), pl = window.__game.player; return { dog: !!(st.dog && st.dog.ready), target: st.target, via: st.via, beat: st.beat, fi: st.fi, dlg: d && !d.hidden, at: [pl.x, pl.y, pl.z], ready: window.__game.ways.ready && (!window.__game.hero || !window.__game.hero() || window.__game.hero().levels.every(L => L.state === 'ready' || L.state === 'idle')) }; });
     // (a case opened again at frame 4 has not met him in this sitting: he is made and met as the story's hint makes him)
     if (!s.dog && s.target && s.ready && s.beat === 'meet') await p.evaluate(() => { const g = window.__game, st = g.story.state; if (st.dog) return; const d = g.makeGuide(st.ep.guide); if (d) { d.place(g.player.x + 1.2, g.player.y + 1.2, 0); d.met(); st.dog = d; } });
     if (s.dog && s.target && s.ready && s.beat === 'meet') { live = s; break; }
@@ -71,6 +71,9 @@ const LEADS = [
   for (const L of LEADS) {
     const lead = L.live ? { name: L.name, from: live.at, to: live.target, live: true } : L;
     if (L.live) await p.evaluate(({ at, target }) => { const g = window.__game, st = g.story.state, pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = at[2]; st.target = target; const d = st.dog, f = d.free(pl.x + 1.2, pl.y + 1.2, 2) || [pl.x, pl.y]; d.place(f[0], f[1], 0); d.met(); }, live);
+    // (no hero level half come: a level loading is not drawn yet, and the ground under him would read as the game's own; a
+    // second level, frame 5's place, comes as the way nears it)
+    await p.evaluate(L => new Promise(ok => { const g = window.__game, t0 = Date.now(); const f = () => (!g.hero || g.hero().levels.every(q => q.state !== 'loading') || Date.now() - t0 > 900000 ? ok() : setTimeout(f, 1000)); f(); }), L.live ? {} : L);
     let r = null;
     const run = p.evaluate(({ L, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M, DOG_RUN_M }) => new Promise(async done => {
       // (the story held off its own beat while a way it is not on is led: passing Yuna on the way to Tanaka began her talk,
