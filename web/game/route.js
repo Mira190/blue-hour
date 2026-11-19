@@ -164,6 +164,112 @@ window.OERoute = (function () {
       }
       return false;
     }
+    // is (x, y) in a carriageway (half a street's width from its line, at the level z)?
+    function inRoad(x, y, z) {
+      // (where a hero level draws its ground, its asphalt is the carriageway: the street's class gives only its width from
+      // its line, which takes in the footway along a kerb where the street is narrower; game.js heroCover)
+      const c = nav.carriageway ? nav.carriageway(x, y) : null;
+      if (c !== null) return c;
+      const q = roadNet.nearest(x, y, 8, z, 2);
+      return !!(q && RW[roadNet.L[q.line].c] && q.d < RW[roadNet.L[q.line].c] / 2);
+    }
+    // The room a walker has either side of (x, y, z), across the way (nx, ny) (its left, a unit vector): how far to
+    // the edge of the walkable way each side, up to ROOM_MAX. An edge is what a guide keeps off: a wall, a drop, a
+    // stair well, a kerb (the carriageway beyond it), a post, a trunk, a rail. On a crossing (out in the carriageway
+    // itself) the road is not an edge, only what stands in it
+    const ROOM_MAX = 6, ROOM_STEP = 0.25;
+    function room(x, y, z, nx, ny) {
+      const road = crossing(x, y, z, nx, ny), out = [ROOM_MAX, ROOM_MAX];
+      for (const [i, s] of [[0, 1], [1, -1]]) {
+        let zl = z;
+        for (let d = ROOM_STEP; d <= ROOM_MAX + 1e-6; d += ROOM_STEP) {
+          const px = x + nx * s * d, py = y + ny * s * d, zz = beyond(px, py, zl, road);
+          if (zz === null) { out[i] = d - ROOM_STEP / 2; break; }
+          zl = zz;
+        }
+      }
+      return out;
+    }
+    // past the edge of the way, for someone at the level z (road: they are out in a carriageway, on a crossing)? The floor
+    // there, or null where it is an edge
+    function beyond(x, y, z, road) {
+      const zz = standZ(x, y, z, 0.6);
+      return Number.isNaN(zz) || (nav.posts && nav.posts.pushOut(x, y, 0.2, zz).hit) || (!road && inRoad(x, y, zz)) ? null : zz;
+    }
+    // is (x, y) past the edge of the way for a walker at (fx, fy, z): the guide's own test (companion.js), the same as room's
+    const edge = (x, y, z, fx = x, fy = y) => beyond(x, y, z, crossing(fx, fy, z)) === null;
+    // out on a crossing: in the carriageway, and with it all round (the test of a carriageway is half a street's width from
+    // its line, and takes in the footway along a kerb where the street is narrower than its class: there the way ran
+    // along the kerb on the way to Center Gai, as if it were on the crossing)
+    // (across the way where it is known, (nx, ny): at a junction's corner the carriageways of two streets lie all round the
+    // footway's corner, and it was taken for a crossing)
+    const crossing = (x, y, z, nx, ny) => inRoad(x, y, z) && (nx != null ? inRoad(x + nx * 1.5, y + ny * 1.5, z) && inRoad(x - nx * 1.5, y - ny * 1.5, z)
+      : inRoad(x + 1.5, y, z) && inRoad(x - 1.5, y, z) && inRoad(x, y + 1.5, z) && inRoad(x, y - 1.5, z));
+    // A guide leads down the middle of the way, not along its hoarding: the mapped footway lines run where the data put
+    // them (along a building's front, round a kerb's corner), and a way pulled straight between them grazes the inside of
+    // every turn. So the way is laid again, every CEN_STEP m: where it is narrower than twice CEN_KEEP, down its middle;
+    // where it is wider, at least CEN_KEEP from either side (on a square, not dragged out to its middle). The shift is
+    // eased along the way (no zigzag round each post), comes in over the first and last few metres (the player's feet
+    // and the goal stay where they are), leaves a lift's stop, a crossing and an escalator as they are, and is kept only
+    // where the new line can be walked
+    const CEN_STEP = 1, CEN_KEEP = 2.2, CEN_EASE = 4;
+    function centre(P) {
+      if (P.length < 2) return P;
+      const cut = P.findIndex((p, i) => i && p[3]);
+      if (cut > 0) return centre(P.slice(0, cut)).concat(centre(P.slice(cut)));
+      // every CEN_STEP m along it
+      const S = [], cum = [];
+      let L = 0;
+      for (let i = 1; i < P.length; i++) {
+        const [ax, ay, az] = P[i - 1], [bx, by, bz] = P[i], d = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.round(d / CEN_STEP));
+        for (let k = i === 1 ? 0 : 1; k <= m; k++) { const t = k / m; S.push([ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t]); cum.push(L + d * t); }
+        L += d;
+      }
+      if (L < 2 * CEN_EASE) return P;
+      const n = S.length, off = new Float32Array(n), nrm = [];
+      for (let k = 0; k < n; k++) {
+        const a = S[Math.max(0, k - 2)], b = S[Math.min(n - 1, k + 2)], tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        nrm.push([nx, ny]);
+        const [x, y, z] = S[k];
+        if (k === 0 || k === n - 1 || crossing(x, y, z, nx, ny) || escDir(x, y, z, x + tx / tl * 0.5, y + ty / tl * 0.5, z)) continue;
+        const [l, r] = room(x, y, z, nx, ny);
+        if (l + r < 2 * CEN_KEEP) off[k] = (l - r) / 2;
+        else if (l < CEN_KEEP) off[k] = l - CEN_KEEP;
+        else if (r < CEN_KEEP) off[k] = CEN_KEEP - r;
+      }
+      // eased along the way (the mean over 3 m each side), then brought in over the ends
+      const sm = new Float32Array(n);
+      for (let k = 0; k < n; k++) {
+        let s = 0, c = 0;
+        for (let j = Math.max(0, k - 3); j <= Math.min(n - 1, k + 3); j++) { s += off[j]; c++; }
+        sm[k] = s / c;
+        const e = Math.min(cum[k], L - cum[k]);
+        // (never more than half a metre short of what this point needs: eased over a turn, the mean left the way along a kerb)
+        if (off[k] && (!sm[k] || Math.sign(sm[k]) === Math.sign(off[k])) && Math.abs(off[k]) - Math.abs(sm[k]) > 0.5) sm[k] = off[k] - Math.sign(off[k]) * 0.5;
+        sm[k] *= Math.max(0, Math.min(1, (e - 1) / (CEN_EASE - 1)));
+      }
+      const Q = S.map((p, k) => {
+        if (!sm[k]) return p;
+        const x = p[0] + nrm[k][0] * sm[k], y = p[1] + nrm[k][1] * sm[k], z = standZ(x, y, p[2], 0.6);
+        return Number.isNaN(z) ? p : [x, y, z];
+      });
+      // each stretch of the new line walked; where one cannot be, that stretch keeps its old points
+      for (let k = 1; k < n; k++) if (Q[k] !== S[k] && !segOK(Q[k - 1][0], Q[k - 1][1], Q[k - 1][2], Q[k][0], Q[k][1], Q[k][2], 0.4)) { Q[k] = S[k]; if (Q[k - 1] !== S[k - 1] && !segOK(Q[k - 1][0], Q[k - 1][1], Q[k - 1][2], S[k][0], S[k][1], S[k][2], 0.4)) Q[k - 1] = S[k - 1]; }
+      // fewer points again (within 0.2 m of the laid line: its middle kept), the first and last as they were
+      const keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+      const st = [[0, n - 1]];
+      while (st.length) {
+        const [i, j] = st.pop(); if (j - i < 2) continue;
+        const ax = Q[i][0], ay = Q[i][1], ex = Q[j][0] - ax, ey = Q[j][1] - ay, l = Math.hypot(ex, ey) || 1;
+        let worst = 0, wk = -1;
+        for (let k = i + 1; k < j; k++) { const d = Math.abs((Q[k][0] - ax) * ey - (Q[k][1] - ay) * ex) / l + Math.abs(Q[k][2] - (Q[i][2] + (Q[j][2] - Q[i][2]) * (k - i) / (j - i))) * 2; if (d > worst) { worst = d; wk = k; } }
+        if (worst < 0.2) continue;
+        keep[wk] = 1; st.push([i, wk], [wk, j]);
+      }
+      const out = Q.filter((q, k) => keep[k]);
+      out[0] = P[0]; out[out.length - 1] = P[P.length - 1];
+      return out;
+    }
     // a moving escalator (a strip with moving_ms) is walked only the way it runs, along its axis: the way up SHIBUYA
     // SKY is the north escalator, and the line once took the west one beside it, which runs down to SKY EDGE. escDir:
     // which way a step from a to b goes along the steps it is on, +1 with them, -1 against, 0 across or on none
@@ -836,7 +942,7 @@ window.OERoute = (function () {
         edgePts(q.e, EA[q.e] === plan.via ? 0 : lastOf(q.e), SK[q.t.j]);
         toEnd(q.t.cell);
       }
-      const out = pull(unhook(mend(simplify(pts))));
+      const out = centre(pull(unhook(mend(simplify(pts)))));
       let len = 0;
       for (let i = 1; i < out.length; i++) len += Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]);
       return { pts: out, len, end: [T.start.x, T.start.y, T.start.z] };
@@ -1117,7 +1223,7 @@ window.OERoute = (function () {
       return { of: n => find(n), size };
     }
     const debug = { pieces, flood, segOK, node: i => [NX[i], NY[i], NZ[i]], degree: i => ADJ0[i + 1] - ADJ0[i], near: (x, y, r) => { const o = []; near(x, y, r, (j, d) => o.push([j, SE[j], +d.toFixed(1)])); return o; }, edge: e => ({ a: EA[e], b: EB[e], pts: EP[e] }), SE: () => SE, SK: () => SK };
-    return { debug, build, get ready() { return ready; }, walk, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
+    return { debug, build, get ready() { return ready; }, walk, room, edge, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
   }
 
   // ------------------------------------------------------------ the gold line

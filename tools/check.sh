@@ -23,6 +23,9 @@
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
+#   guide   the story's guide led along each frame's way with a player behind him (tools/guide_way.js): his feet on what is
+#           drawn under them, down the middle of the way, and the mark pointing along the way, not as the crow flies;
+#           when the guide, the routes, the walking grid or the marks change;
 #   walk    the title's second way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
 #           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
 #           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
@@ -59,8 +62,8 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story story1 story2 story3 walk ride mem audio clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story walk ride mem audio clip gl touch astc"          # "all", and the most the full tier selects: not the game check (see above)
+KINDS="story story1 story2 story3 guide walk ride mem audio clip gl touch astc game"   # the browser checks, in the order they run
+ALL="story guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -116,6 +119,7 @@ else
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
+      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
       web/*|cities/*) static=1; page ;;
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
     esac
@@ -183,6 +187,10 @@ story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   local n=$1 log="$OUT/$1.log"
   if FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
   else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(grep '^FAIL\|pageerror\|^error:' "$log" | head -2 | cut -c1-160 | paste -sd ';' -)" "$log"; fi
+}
+run_guide() {   # the guide along each frame's way, on a small page
+  if timeout 3600 $X node tools/guide_way.js "$OUT/guide" 800x500 >"$OUT/guide.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide.log") ways led: his feet on the paving drawn, down the middle, and the mark along the way"
+  else echo "FAIL guide  $(grep '^FAIL\|pageerror' "$OUT/guide.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/guide.log)"; fi
 }
 run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
   local ok=1 d

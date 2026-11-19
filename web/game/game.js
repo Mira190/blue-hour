@@ -454,7 +454,40 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const [k, m] of Object.entries((D.LM && D.LM.materials) || {})) if (m.street_lit || m.decal || m.pattern === 'deck_zones') { mirror.patch(Wd.lmMats[k]); mirror.patch(Wd.floodMats[k]); }
   }
   // a hero level: a street modelled finely, loaded when the player comes near it and let go when they leave (hero.js)
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj), upload: sendBuffers }) : null;
+  // where a hero level's paving is drawn, from its model as it comes (its ground meshes: "<level>_ground_*"): a grid of
+  // HC m cells over its circle, each holding the paving's height at its middle (the highest triangle over it). The
+  // walking grid lifts a walker onto that paving (game.json hero[].lift) only where it is drawn over the game's own
+  // ground, and not over the gaps where the game's ground is what shows, nor where the level's ground lies under it
+  // (nav.js lift). Made once: the level let go and fetched again draws the same paving
+  const HC = 0.5;
+  function heroCover(h, root) {
+    if (h.cover || !h.at || !h.r) return;
+    const t0 = performance.now(), n = Math.ceil(2 * h.r / HC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, g = new Float32Array(n * n).fill(-1e9), road = new Uint8Array(n * n), v = new THREE.Vector3(), P = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    let tris = 0;
+    root.traverse(o => {
+      if (!o.isMesh || !/(^|_)ground_/.test(o.name)) return;
+      const asphalt = /_ground_(asphalt|paint)/.test(o.name) ? 1 : 0; // (the carriageway and what is painted on it: the crossings' stripes)
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
+      for (let t = 0; t + 2 < m; t += 3) {
+        for (let k = 0; k < 3; k++) { v.fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld); P[k][0] = (v.x - x0) / HC; P[k][1] = (-v.z - y0) / HC; P[k][2] = v.y; }
+        const [[ax, ay, az], [bx, by, bz], [cx, cy, cz]] = P, den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+        if (Math.abs(den) < 1e-9) continue;
+        tris++;
+        const i0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), i1 = Math.min(n - 1, Math.ceil(Math.max(ax, bx, cx))), j0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), j1 = Math.min(n - 1, Math.ceil(Math.max(ay, by, cy)));
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const px = i + 0.5, py = j + 0.5, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
+          if (l1 >= -0.02 && l2 >= -0.02 && l1 + l2 <= 1.02) { const z = l1 * az + l2 * bz + (1 - l1 - l2) * cz, c = j * n + i; if (z > g[c]) { g[c] = z; road[c] = asphalt; } }
+        }
+      }
+    });
+    if (!tris) return;
+    h.coverMs = Math.round(performance.now() - t0); // (for tools/guide_way.js)
+    // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)
+    h.road = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : road[j * n + i] === 1; };
+    nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
+    h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
+  }
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj), upload: sendBuffers, ground: heroCover }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -3404,6 +3437,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // walker may not stand on, so that it goes round a fence and not through it
   const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
+    edge: (x, y, z, fx, fy) => ways.edge(x, y, z, fx, fy),
     // (and its body kept off every post, belt and trunk: the walker's circle is at its middle, and its nose and rump
     // reach GUIDE_BODY from there whichever way it turns; a queue belt passed through it at the lift's doors)
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
@@ -3468,6 +3502,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
     screen: at => { const v = W(at[0], at[1], at[2] ?? player.z + 1.2), d = Math.hypot(at[0] - player.x, at[1] - player.y), f = v.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera); return { x: v.x * 0.5 + 0.5, y: 0.5 - v.y * 0.5, front: f, dist: d }; },
+    // the way on foot to a story's goal (story.js markTick): the metres left along it, and `aim`, where it turns next,
+    // or null where it runs straight to the goal (toDoor: to the lift's door, where the way's ride up begins)
+    way: (at, toDoor) => wayOnFoot(at, toDoor),
     // whether nothing solid (a wall, a roof, a landmark's stone) stands between the lens and a point of the map
     seen: at => { const c = camera.position; return !nav.col.pick(c.x, -c.z, c.y, at[0], at[1], at[2] ?? player.z + 1.2); },
     // (by the compass only: how far the lens must turn to face it; nobody is asked to tilt the camera up a tower)
@@ -3784,6 +3821,61 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // and (a ride, a ferry) as the trip goes on.
   const guide = { key: '', at: -9, pts: null, fail: false, n: 0 };
   ways.build().then(() => { guide.key = ''; }).catch(e => console.warn('Routes unavailable:', e));
+  // The way on foot from you to a story's goal, for its mark: the gold line's own points while it is drawn to that goal,
+  // else the same route worked out here (route.js ways.walk, which the dog follows too), again only when the goal moves or
+  // you are 4 m off it (where you are along it is found every frame: a way worked out again as you walk hitched a phone's
+  // frame every few seconds). Returns the metres left along it (to the lift's door, toDoor: the
+  // way breaks at the stop it rides to) and `aim`: the furthest point along it you can walk to in a straight line, the
+  // way never more than WAY_BEND m off that line on the way there, within WAY_AHEAD m; null where that is the goal
+  const WAY_BEND = 1.0, WAY_AHEAD = 60, wayMemo = { key: '', pts: null };
+  function wayOnFoot(at, toDoor) {
+    if (player.mode !== 'foot' || !ways.ready || !at) return null;
+    const key = `${Math.round(at[0])},${Math.round(at[1])},${Math.round(at[3] ?? 0)}`;
+    const near = P => { // (where you are on a way: the stretch nearest you, the point on it, and how far off it you are)
+      let bd = Infinity, bi = 0, bt = 0;
+      for (let i = 1; i < P.length; i++) {
+        if (P[i][3]) continue;
+        const [ax, ay] = P[i - 1], [bx, by] = P[i], ux = bx - ax, uy = by - ay, t = Math.max(0, Math.min(1, ((player.x - ax) * ux + (player.y - ay) * uy) / (ux * ux + uy * uy || 1e-9)));
+        const d = Math.hypot(ax + ux * t - player.x, ay + uy * t - player.y) + (Math.abs(P[i - 1][2] - player.z) > 3 ? 50 : 0);
+        if (d < bd) { bd = d; bi = i; bt = t; }
+      }
+      return { d: bd, i: bi, t: bt };
+    };
+    let P = guide.pts && guide.key.includes(`|${Math.round(at[0])},${Math.round(at[1])}|waypoint`) ? guide.pts : null;
+    if (!P) {
+      P = wayMemo.key === key ? wayMemo.pts : null;
+      if ((!P && wayMemo.key !== key) || (P && near(P).d > 4)) {
+        const r = ways.walk({ x: player.x, y: player.y, z: player.z }, { x: at[0], y: at[1], z: at[3] ?? null });
+        Object.assign(wayMemo, { key, pts: r ? r.pts : null });
+        P = wayMemo.pts;
+      }
+    }
+    if (!P || P.length < 2) return null;
+    const { i: i0, t: t0 } = near(P), [ax, ay, az] = P[i0 - 1], cx = ax + (P[i0][0] - ax) * t0, cy = ay + (P[i0][1] - ay) * t0, cz = az + (P[i0][2] - az) * t0;
+    // the metres left: from the point nearest you to the way's end (or its first ride up)
+    let left = Math.hypot(P[i0][0] - cx, P[i0][1] - cy), end = P.length - 1;
+    for (let i = i0 + 1; i < P.length; i++) { if (P[i][3]) { if (toDoor) { end = i - 1; break; } continue; } left += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); }
+    if (toDoor) { left = Math.hypot(P[i0][0] - cx, P[i0][1] - cy); for (let i = i0 + 1; i <= end; i++) left += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); }
+    left += Math.hypot(cx - player.x, cy - player.y);
+    // the next turn: along the way a metre at a time, while every point passed lies within WAY_BEND of the line to it
+    const S = [[cx, cy, cz]];
+    let L = 0;
+    for (let i = i0; i <= end && L < WAY_AHEAD; i++) {
+      const [px, py, pz] = S[S.length - 1], [qx, qy, qz] = P[i], d = Math.hypot(qx - px, qy - py), m = Math.max(1, Math.round(d));
+      if (i > i0 && P[i][3]) break;
+      for (let k = 1; k <= m; k++) S.push([px + (qx - px) * k / m, py + (qy - py) * k / m, pz + (qz - pz) * k / m]);
+      L += d;
+    }
+    let aim = S.length - 1;
+    for (let j = 1; j < S.length; j++) {
+      const ex = S[j][0] - player.x, ey = S[j][1] - player.y, l = Math.hypot(ex, ey) || 1;
+      let ok = true;
+      for (let k = 1; k < j && ok; k++) if (Math.abs((S[k][0] - player.x) * ey - (S[k][1] - player.y) * ex) / l > WAY_BEND) ok = false;
+      if (!ok) { aim = j - 1; break; }
+    }
+    const straight = aim === S.length - 1 && L < WAY_AHEAD; // (it runs straight to the goal, or the door)
+    return { left, aim: straight ? null : S[Math.max(1, aim)], pts: P };
+  }
   function routeGoal(target, ob) {
     const s = ob && !waypoint ? stepOf(ob.line) : null;
     if (s && (s.type === 'land' || s.type === 'under_bridge') && player.mode !== 'heli') { const d = heli.doorAt(); return { x: d.x, y: d.y, z: heli.st.z, kind: 'heli' }; }

@@ -885,6 +885,60 @@ where there is room, round the edge of the crowd where there is not, never throu
 turn he got nowhere in a crowd shoulder to shoulder, and after a second went through them. `tools/guide_meet.js`
 checks every frame of his way against every held person, and runs after him to see that he stays in front.
 
+**He leads down the middle, on what is drawn.** The owner found him standing on his ring in the air over the stair
+well of the Shibuchika entrance by Hachiko, beside the station works' hoarding, and leading along walls and edges
+rather than down the walkway. Two causes, both under every place he and the player stand. The walking grid carried
+the street's level across the mouth of every subway stair, where the paving is not drawn and the station below is not
+built: the crowd was already kept out of the wells (game.js `WELLS`), the player and the guide were not. A well and a
+margin round its mouth are now ground nobody stands on (`nav.js` `inWell`, `why: 'well'`): the walker stops at the
+head of the stair, and the routes go round. A smaller one under the same rule: the hero level's paving is drawn 5 cm
+over the game's own ground, and the walking grid lifted every walker by those 5 cm anywhere within its circle, so that
+over the gaps in it (by the station's east side, on the way to the lift) he and the player stood 5 cm in the air. The
+grid now lifts only where the level's paving is drawn over the ground (game.js `heroCover`, from the model as it
+comes: its ground's height every half metre), and only while the level is shown (frame 5's level, fetched as you near
+the lift, lifted its whole circle before it was drawn). Inside a level the routes also read the carriageway from its
+drawn asphalt, not from a street's nominal width, which took in the footway along a narrow street's kerb. Along every frame's way the floor walked is now within 5 cm of what is
+drawn, nearly all of it within 2. And the way he follows was laid along the mapped footway lines, pulled
+straight from corner to corner, so it ran along a building's front and grazed the inside of every turn. Route.js now
+lays every walking route again a metre at a time (`centre`): it measures the room either side across the way
+(`ways.room`: a wall, a drop, a well, the carriageway beyond a kerb, a post, a rail), puts the way down the middle where
+it is narrower than 4.4 m and at least 2.2 m from either side where it is wider (a square is crossed, not walked round
+its middle), eases the shift along the way, leaves crossings, lifts and escalators as they are, and keeps it only
+where the new line can be walked. The dog, the gold line and the mark all follow that one route.
+`tools/guide_way.js` leads him along each frame's way with a player behind him and casts a ray down onto the drawn
+scene under his feet every quarter second: more than 6 cm above it or 8 cm into it is a fault, and so is running
+within 0.8 m of an edge for more than 1.5 m where the way is wider than 3.2 m (for him, and for the way he plans).
+
+**The mark points the way, not the crow's line.** The owner, on the paving east of Hachiko in frame 4: the arrow said
+"127 m" at the top right of the frame, where the lift is as the crow flies, over the station's works; the way goes
+round to the left, and whoever followed the arrow walked into a dead end. What the games that do this well do, from
+play and their makers' accounts (what is adopted is in the last column; nothing of their look is copied):
+
+| Work | How the way is shown | Taken |
+|---|---|---|
+| *Dead Space* (2008, 2023) | The locator: a line along the floor down the navigation mesh's path to the goal, on a button | The way is the walkable route, never the straight line |
+| *Fable II* | A golden trail of breadcrumbs along the path, always on | The gold line on the paving, and that it is the same route as everything else |
+| *Red Dead Redemption 2*, *Marvel's Spider-Man* | A waypoint, and a GPS route along the roads on the minimap; the distance shown is the route's | Metres along the way, not as the crow flies |
+| *The Last of Us Part II* | No marker; companions lead, light and paint lead; *navigation assistance* turns the camera along the critical path, not at the goal | The companion leads; any pointer points down the path |
+| *Uncharted 4* | Environmental leading (light, colour, a climbable edge); a hint turns the camera to the next step | The next step, not the end |
+| *Ghost of Tsushima* | The guiding wind toward the goal; foxes and birds that lead to a place | A creature that leads (Hachi); a straight pointer only where the land is open |
+| *Death Stranding* | The scanner reads the ground; the route is planned on the map and shown as a line | A way that knows the ground |
+| *Horizon* | A compass marker and its distance, straight-line | Its fault in a city: a straight pointer is wrong wherever a block stands between |
+
+From first principles: a sign answers the question the player is asking at that moment, which is *which way do I go
+now?*, and the true answer is the direction of the next turn of the walkable way, not the bearing of the goal. In open
+country the two agree; in a city they part at every block, and a straight pointer becomes a lie that is believed. So
+the mark (`story.js` `markTick`, `ctx.way`, game.js `wayOnFoot`) takes the route the gold line draws and the dog
+follows (`ways.walk`), finds where the player is on it, and points at the furthest point along it that can be walked to
+in a straight line (the way never more than a metre off that line, within 60 m): the next corner, a breadcrumb that
+moves on as it is reached. Where the way runs straight to the goal, the mark is the goal's own. Its metres are the
+way's, and so is the test of whether the player is getting nearer (the net under him that brings the signs back after
+thirty seconds): a way that first turns away from the goal round a block is being followed, not strayed from. The way
+is worked out once for a goal and again only when the player is 4 m off it. While Hachi leads he alone shows the way, as before, and the arrow at the frame's edge points to him, who is on
+the same route; the mark, the gold line and the dog cannot disagree, because there is only one way. `tools/guide_way.js`
+puts the signs out as for a lost player at the start of each frame's lead, turns the view four ways, and fails a mark
+whose point is off the way or cannot be walked to straight, or whose metres are not the way's.
+
 **He is met, not found.** The first time the world stops the view turns once round you under the title, and then cuts
 to him: low among the held legs a dozen metres off, on his feet and looking at you; it backs away before him as he
 comes, swings round behind him as he nears you, and holds on the two of you as he sits at your feet and looks up,

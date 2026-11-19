@@ -302,7 +302,10 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       let q = ctx.screen(head);
       const talk = person && q.front && q.dist <= TALK_M && (!ctx.seen || ctx.seen(head)); // (near and in sight: a speech mark; else a place to walk to)
       // getting nearer? (the leg is the beat and the kind of goal: a car that moves is the same leg)
-      const leg = `${st.fi}|${st.phase}|${st.beat}|${st.kind}`, px = ctx.player.x, py = ctx.player.y, left = Math.hypot(to[0] - px, to[1] - py);
+      // (the way there, where it is a place to walk to: route.js ways.walk, as the gold line draws it and the dog follows it.
+      // Its metres are what "nearer" means: a way that first turns from the goal round a block is followed, not strayed from)
+      const wy = st.kind !== 'frame' && !st.cam && ctx.way ? ctx.way(st.target, !!via) : null;
+      const leg = `${st.fi}|${st.phase}|${st.beat}|${st.kind}`, px = ctx.player.x, py = ctx.player.y, left = wy ? wy.left : Math.hypot(to[0] - px, to[1] - py);
       if (leg !== st.leg) { st.leg = leg; st.best = left; st.idle = 0; st.lost = false; }
       if (left < st.best - 2) { st.best = left; st.idle = 0; } else st.idle += dt;
       const led = !st.lost && ledBy(st.target);
@@ -310,6 +313,17 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       st.guided = led && !st.lost;
       light((st.guided && !(st.hint >= 3)) || st.kind === 'frame' ? null : to, via ? 'go' : st.kind); // (the third hint is the light, his lead or not)
       let k = via || (person && !talk) ? 'go' : st.kind;
+      // Where the signs show the way (he is not leading), the mark is of the way, not of the goal as the crow flies: on
+      // the paving by the Shibuchika stair the arrow pointed up and right at the lift "127 m" off, over the station's
+      // works, while the way went round to the left, and whoever followed it walked into a dead end. So it points where
+      // the way turns next (the furthest point of it that can be walked to straight from here: ctx.way, the route the
+      // gold line draws and the dog follows, route.js ways.walk), and its metres are the way's. Where the way runs
+      // straight to the goal, it is the goal's own mark (docs/STORY.md "Who shows the way")
+      st.wayAim = null;
+      if (!st.guided && !talk && wy) {
+        if (wy.aim) { st.wayAim = wy.aim; q = ctx.screen([wy.aim[0], wy.aim[1], wy.aim[2] + 1.2]); k = 'go'; }
+        q.dist = wy.left;
+      }
       if (st.guided && !talk) {
         // he is the way: nothing marked while he is in the frame; out of it, an arrow at its edge to him. But only to him
         // where he can be seen from here and is in front of you on the way: on SHIBUYA SKY's floor the arrow said
