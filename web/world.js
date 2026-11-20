@@ -8,6 +8,9 @@
 window.OEWorld = (function () {
   const S = window.Sun, RAD = Math.PI / 180;
   const lin = hex => new THREE.Color(hex).convertSRGBToLinear();
+  // one white texel, for a material with no picture to share the program of one with a picture (issue 60)
+  let white = null;
+  const WHITE = () => white || (white = Object.assign(new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1), { colorSpace: THREE.SRGBColorSpace, needsUpdate: true }));
   let TWILIGHT_HORIZON = null; // (made at its first use: THREE is not there when this file loads)
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -231,18 +234,20 @@ window.OEWorld = (function () {
     // reconstituted granite (u, v metres): the aggregate's speckle and the joints between slabs
     // every joints_m [across, along] (0: none). On a stair, "tread" pales the worn nosing at its
     // front (v = 0), and "riser" (v from its foot, 0, to its top, 1) darkens the shadow under the
-    // nosing above and the line where it meets the tread below, so steps read as steps from any side
+    // nosing above and the line where it meets the tread below, so steps read as steps from any side.
+    // speck: the aggregate's share (1; 0 with no joints is the material's own colour, untouched: what a landmark material
+    // with no pattern is given, so that it shares the granite's program, issue 60)
     granite(mat, m) {
       mat.defines = Object.assign(mat.defines || {}, { USE_UV: '' });
       const [ju, jv] = m.joints_m || [0, 0];
       mat.onBeforeCompile = sh => {
-        Object.assign(sh.uniforms, { uJoint: { value: new THREE.Vector2(ju, jv) }, uStair: { value: { tread: 1, riser: 2 }[m.stair] || 0 } });
+        Object.assign(sh.uniforms, { uJoint: { value: new THREE.Vector2(ju, jv) }, uStair: { value: { tread: 1, riser: 2 }[m.stair] || 0 }, uSpeck: { value: m.speck ?? 1 } });
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-uniform vec2 uJoint; uniform float uStair;
+uniform vec2 uJoint; uniform float uStair, uSpeck;
 float gnH(vec2 p) { p = fract(p * vec2(234.34, 435.345)); p += dot(p, p + 34.23); return fract(p.x * p.y); }`)
           .replace('#include <color_fragment>', `#include <color_fragment>
   { vec2 q = vUv; float fw = max(fwidth(q.x), fwidth(q.y));
-    float k = 1.0 + (gnH(floor(q * 40.0)) - 0.5) * 0.1 * (1.0 - smoothstep(0.004, 0.014, fw)); // aggregate a few cm across
+    float k = 1.0 + (gnH(floor(q * 40.0)) - 0.5) * 0.1 * uSpeck * (1.0 - smoothstep(0.004, 0.014, fw)); // aggregate a few cm across
     float jn = 1.0 - smoothstep(0.03, 0.15, fw), joint = 0.0;
     if (uJoint.x > 0.0) joint = max(joint, 1.0 - smoothstep(0.004, 0.012 + fw, abs(fract(q.x / uJoint.x + 0.5) - 0.5) * uJoint.x));
     if (uJoint.y > 0.0 && uStair < 0.5) joint = max(joint, 1.0 - smoothstep(0.004, 0.012 + fw, abs(fract(q.y / uJoint.y + 0.5) - 0.5) * uJoint.y));
@@ -1653,6 +1658,7 @@ float inH(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453
       mats.lawn.onBeforeCompile = streetLit;
       mats.foam = new THREE.MeshStandardMaterial({ color: lin('#e9eef0'), roughness: 0.4, metalness: 0, transparent: true, opacity: 0.32, depthWrite: false });
       PATTERNS.railing(mats.rail, { bar_m: 0.14, rails_m: [0.06, 1.05] });
+      mats.rail.map = WHITE(); byText(mats.rail); // (the landmarks' railings write the same shader, with a white texel for a picture: one program, issue 60)
       mats.coping.onBeforeCompile = mats.slab.onBeforeCompile = streetLit;
       mats.bed().onBeforeCompile = streetLit;
       const built = IN.build(mats);
@@ -2053,12 +2059,18 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     for (const [k, m] of Object.entries(LM.materials || {})) {
       lmMats[k] = new THREE.MeshStandardMaterial({ color: lin(m.color), roughness: m.roughness, metalness: m.metalness, side: THREE.DoubleSide });
       if (m.pattern && PATTERNS[m.pattern]) PATTERNS[m.pattern](lmMats[k], m);
+      // A material with no pattern takes the granite's with no speckle and no joints, which leaves its colour as it was, and one
+      // with no picture a white texel for one: a landmark's plain stone, bronze and steel, its paving and its images then write
+      // the same shader as the granite beside them (byText), one program where the first view drew three or four (issue 60:
+      // an iPhone builds a pipeline for every program at its first draw, about 150 ms each)
+      else if (!m.pattern && !m.pbr && !m.interior && !(m.opacity < 1)) PATTERNS.granite(lmMats[k], { speck: 0 });
       // a bridge's deck, or paving ("street_lit"), under the street lights and the screens' glow
       // (and "lamp_lit": what stands in that light without being ground, a platform's doors and its canopy's posts)
       if ((m.pattern === 'deck_zones' || m.street_lit || m.lamp_lit) && NU) { const own = lmMats[k].onBeforeCompile; lmMats[k].onBeforeCompile = sh => { if (own) own(sh); streetLit(sh); }; }
       if (m.pattern === 'deck_zones' || m.street_lit) lmMats[k].userData.paving = true; // ground you walk on: it gets wet in the rain (weather.js)
       if (m.decal) Object.assign(lmMats[k], { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); // laid over a roof: in front of it
       if (m.map) Object.assign(lmMats[k], { map: imageTex(m.map), alphaTest: m.cutout ? 0.5 : 0 }); // cutout: its clear pixels are holes
+      else if (!m.pbr && !m.interior && !(m.opacity < 1)) lmMats[k].map = WHITE(); // (the program of one with a picture)
       if (m.opacity < 1) Object.assign(lmMats[k], { transparent: true, opacity: m.opacity, depthWrite: false }); // glass, nets
       // three.js caches a program by the text of onBeforeCompile, and wrappers (streetLit) read alike
       // across patterns: each patterned material keys its own
