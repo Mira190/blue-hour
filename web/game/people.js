@@ -1532,6 +1532,11 @@ transformed = crowdPose(transformed, false);`);
     const worn = {}; // (the last of DRESS each cast member was dealt)
     P.forEach((p, i) => {
       p.look = randomLook(lib, pickCharacter(lib, style), style);
+      // (three in ten, the right hand free, look at a phone when they stand: the cast's Phone clip, texting, a phone in the
+      // hand. A kerb's crowd all in Idle and square to the road read as a parade, issue 75. Chosen by its place, not by
+      // rnd: the looks dealt after it as they were)
+      let ph = Math.imul(i + 1, 2654435761) >>> 0; ph = Math.imul(ph ^ (ph >>> 15), 2246822519) >>> 0;
+      if (((ph ^ (ph >>> 13)) >>> 0) % 100 < 30 && !(p.look.acc || []).some(a => ACC[a] && ACC[a].bone === 'WristR')) p.look.clip = 'Phone';
       const gs = lib.info.ground_speed[lib.info.characters[p.look.character].pack].Walk;
       p.speed = gs * p.look.scale * (0.95 + rnd() * 0.25);
       // (the clothes they wear, far and near: DRESS. Dealt round each cast member's walkers in turn, from a start of
@@ -1685,7 +1690,7 @@ transformed = crowdPose(transformed, false);`);
         if (rn && !lib.tpl[name]) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
         if (!lib.tpl[name]) { lib.require(name); continue; }
         const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look));
-        r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null }, look));
+        r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null, clip: null }, look)); // (clip: a person taken from the pool keeps none of the last one's phone)
         if (rn) r.dress(p.dress);
         r.standFor = rn && name !== rn ? rn : null;
         r.umbOn = false;
@@ -1708,7 +1713,7 @@ transformed = crowdPose(transformed, false);`);
       const ut = umbStep(p);
       if (r) {
         const u = ut > 0;
-        if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null }); }
+        if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null, clip: u ? null : p.look.clip || null }); } // (the phone put away while the umbrella's hand holds it up)
         if (u && r.umbOpen) r.umbOpen(ut);
         unshow(p);
         r.root.position.set(p.rx, p.rz, -p.ry);
