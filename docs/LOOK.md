@@ -528,6 +528,17 @@ argyle sweater vest ten times or more, and women in aqua, mint, lime and sky blu
   and the list goes dark and light by turns (near black, then a light grey or sand), so one person's walkers one
   after another are not two shades of one colour, and two in one change are as rare as a cast of twelve allows.
 
+**Eight more in the cast** (issue 77). With twelve, a view of two hundred people at the Scramble still saw one body
+twenty times, told apart only by its change of clothes. Eight bodies no one had worn were built for the crowd
+(`python blender/build_people.py --npcs --no-clips --only ...`, each with its skin mask): `R_Business_Female_01_f011`
+black suit and white blouse, `R_Female_Adult_02_f013` light knit and denim skirt, `R_Female_Adult_13_f016` grey vest
+and jeans, `R_Female_Adult_05_f011` short jacket and jeans (its pink drawn to a dusty brown by the change of clothes),
+`R_Male_Adult_02_m017` beige knit and brown trousers, `R_Male_Adult_18_m008` grey hoodie, `R_Male_Adult_04_m017` dark
+jacket, `R_Male_Adult_12` denim jacket. Passed over: the robes and the headscarves (Female_Adult_06, 10 and 16,
+Male_Adult_19 and 21), the track jacket in royal blue and white (Male_Adult_17), and the bodies the story's people
+wear. A desktop or a tablet draws ten of each sex (`game.js` `HIGH_CAST` 20); a phone keeps its four and four. The far
+copies of twenty are 0.70 MB (`crowd_cast.glb`, from 0.42).
+
 The palette's sources (facts only, nothing copied): no count of what a Tokyo street wears was found. Web Japan,
 "Goodbye Black, Hello Gray" (2007: black, grey, navy, brown and beige the basic colours), Highsnobiety's Tokyo
 street style report (December 2019: black, brown and grey), Oggi's ranking of the colours working women in their

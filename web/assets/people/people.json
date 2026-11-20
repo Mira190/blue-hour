@@ -913,6 +913,19 @@
      "melbourne"
     ]
    },
+   "R_Business_Female_01_f011": {
+    "file": "R_Business_Female_01_f011.glb",
+    "sex": "f",
+    "avatar": "Professions/Business_Female_01",
+    "head": "Adults/Female_Adult_11",
+    "tags": [],
+    "height_m": 1.736,
+    "triangles": 9122,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.0512
+   },
    "R_Business_Female_02": {
     "file": "R_Business_Female_02.glb",
     "sex": "f",
@@ -1144,6 +1157,19 @@
     ],
     "mask": 0.1272
    },
+   "R_Female_Adult_02_f013": {
+    "file": "R_Female_Adult_02_f013.glb",
+    "sex": "f",
+    "avatar": "Adults/Female_Adult_02",
+    "head": "Professions/Sports_Female_02",
+    "tags": [],
+    "height_m": 1.733,
+    "triangles": 8686,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.1272
+   },
    "R_Female_Adult_03": {
     "file": "R_Female_Adult_03.glb",
     "sex": "f",
@@ -1186,6 +1212,19 @@
      "tsukishima"
     ],
     "mask": 0.0959
+   },
+   "R_Female_Adult_05_f011": {
+    "file": "R_Female_Adult_05_f011.glb",
+    "sex": "f",
+    "avatar": "Adults/Female_Adult_05",
+    "head": "Adults/Female_Adult_11",
+    "tags": [],
+    "height_m": 1.736,
+    "triangles": 8610,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.1244
    },
    "R_Female_Adult_06": {
     "file": "R_Female_Adult_06.glb",
@@ -1361,6 +1400,19 @@
     ],
     "mask": 0.1307
    },
+   "R_Female_Adult_13_f016": {
+    "file": "R_Female_Adult_13_f016.glb",
+    "sex": "f",
+    "avatar": "Adults/Female_Adult_13",
+    "head": "Professions/Business_Female_03",
+    "tags": [],
+    "height_m": 1.743,
+    "triangles": 7978,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.1307
+   },
    "R_Female_Adult_14": {
     "file": "R_Female_Adult_14.glb",
     "sex": "f",
@@ -1509,6 +1561,19 @@
      "reef"
     ]
    },
+   "R_Male_Adult_02_m017": {
+    "file": "R_Male_Adult_02_m017.glb",
+    "sex": "m",
+    "avatar": "Adults/Male_Adult_02",
+    "head": "Adults/Male_Adult_09",
+    "tags": [],
+    "height_m": 1.821,
+    "triangles": 7138,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.2163
+   },
    "R_Male_Adult_03": {
     "file": "R_Male_Adult_03.glb",
     "sex": "m",
@@ -1535,6 +1600,19 @@
      "shibuya"
     ],
     "mask": 0.0368
+   },
+   "R_Male_Adult_04_m017": {
+    "file": "R_Male_Adult_04_m017.glb",
+    "sex": "m",
+    "avatar": "Adults/Male_Adult_04",
+    "head": "Adults/Male_Adult_09",
+    "tags": [],
+    "height_m": 1.821,
+    "triangles": 8372,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.0352
    },
    "R_Male_Adult_05": {
     "file": "R_Male_Adult_05.glb",
@@ -1682,6 +1760,19 @@
     ],
     "mask": 0.151
    },
+   "R_Male_Adult_12": {
+    "file": "R_Male_Adult_12.glb",
+    "sex": "m",
+    "avatar": "Adults/Male_Adult_12",
+    "head": null,
+    "tags": [],
+    "height_m": 1.806,
+    "triangles": 6722,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.0352
+   },
    "R_Male_Adult_13": {
     "file": "R_Male_Adult_13.glb",
     "sex": "m",
@@ -1771,6 +1862,19 @@
      "shibuya"
     ],
     "mask": 0.0532
+   },
+   "R_Male_Adult_18_m008": {
+    "file": "R_Male_Adult_18_m008.glb",
+    "sex": "m",
+    "avatar": "Adults/Male_Adult_18",
+    "head": "Professions/Business_Male_02",
+    "tags": [],
+    "height_m": 1.822,
+    "triangles": 7562,
+    "cities": [
+     "shibuya"
+    ],
+    "mask": 0.0342
    },
    "R_Male_Adult_20_m008": {
     "file": "R_Male_Adult_20_m008.glb",
@@ -2064,6 +2168,11 @@
    192
   ],
   "characters": {
+   "R_Business_Female_01_f011": {
+    "triangles": 1214,
+    "coarse_triangles": 334,
+    "height_m": 1.735
+   },
    "R_Business_Female_04_f013": {
     "triangles": 1352,
     "coarse_triangles": 341,
@@ -2079,6 +2188,16 @@
     "coarse_triangles": 319,
     "height_m": 1.814
    },
+   "R_Female_Adult_02_f013": {
+    "triangles": 1358,
+    "coarse_triangles": 343,
+    "height_m": 1.732
+   },
+   "R_Female_Adult_05_f011": {
+    "triangles": 1210,
+    "coarse_triangles": 330,
+    "height_m": 1.735
+   },
    "R_Female_Adult_08_f016": {
     "triangles": 1288,
     "coarse_triangles": 358,
@@ -2088,6 +2207,11 @@
     "triangles": 1390,
     "coarse_triangles": 334,
     "height_m": 1.735
+   },
+   "R_Female_Adult_13_f016": {
+    "triangles": 1296,
+    "coarse_triangles": 360,
+    "height_m": 1.737
    },
    "R_Female_Adult_14_f016": {
     "triangles": 1296,
@@ -2104,6 +2228,16 @@
     "coarse_triangles": 334,
     "height_m": 1.735
    },
+   "R_Male_Adult_02_m017": {
+    "triangles": 1070,
+    "coarse_triangles": 319,
+    "height_m": 1.814
+   },
+   "R_Male_Adult_04_m017": {
+    "triangles": 1074,
+    "coarse_triangles": 322,
+    "height_m": 1.814
+   },
    "R_Male_Adult_05_m008": {
     "triangles": 1168,
     "coarse_triangles": 339,
@@ -2118,6 +2252,16 @@
     "triangles": 1069,
     "coarse_triangles": 321,
     "height_m": 1.814
+   },
+   "R_Male_Adult_12": {
+    "triangles": 1000,
+    "coarse_triangles": 297,
+    "height_m": 1.804
+   },
+   "R_Male_Adult_18_m008": {
+    "triangles": 1170,
+    "coarse_triangles": 338,
+    "height_m": 1.818
    },
    "R_Male_Adult_20_m008": {
     "triangles": 1168,

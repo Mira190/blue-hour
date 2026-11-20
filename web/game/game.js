@@ -787,8 +787,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // what the owner saw first at the Scramble. A phone has a cast of LOW_CAST, half of them women (each is two or
   // three pictures at 512 px, 256 on the lighter sets: about 4 MB of the GPU a character, quality.js budget)
   // The far crowd is the same cast (people.js lib.far, issue 475), one instanced draw a cast member in the view and
-  // again in each shadow pass, so the other tiers' cast is held to HIGH_CAST, below the dolls' thirteen it replaces.
-  const LOW_CAST = 8, HIGH_CAST = 12;
+  // again in each shadow pass, so the other tiers' cast is held to HIGH_CAST: twenty (issue 77: with twelve, a view of two
+  // hundred people at the Scramble saw one body twenty times; the far copies of twenty are 0.7 MB, in one draw each)
+  const LOW_CAST = 8, HIGH_CAST = 20;
   const realCast = () => {
     if (!lib || !lib.npcs || CR.real === false || /[?&]realcrowd=off/.test(location.search)) return null;
     const tier = QC.name !== 'low' ? HIGH_CAST : QC.budget && QC.budget.cast ? Math.min(LOW_CAST, QC.budget.cast) : LOW_CAST;
