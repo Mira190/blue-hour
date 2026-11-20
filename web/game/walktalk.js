@@ -1,11 +1,13 @@
 // People with something to say, on the walk (docs/STORY.md "The walk", "People with something to say"). The walk has
 // no case and owes nothing, but a street with nobody to talk to is a set, not a city. So a few people of this evening
-// stand where they would (a girl waiting at Hachiko, a retired taxi driver with his can of coffee, the vintage shop's owner, the lift's
-// attendant), each with a small story told in two or three parts, and each part asks one thing the walk can do: cross
-// on the green, drive your car, take a photograph, ride the lift to the roof. Nothing of the case is in any of them.
+// stand where they would (a girl waiting at Hachiko, a retired taxi driver with his can of coffee, the vintage shop's
+// owner, the lift's attendant, a photographer on the roof), each with a small story told in two or three parts, and each
+// part asks one thing the walk can do: cross on the green, drive your car, take a photograph, ride the lift to the roof,
+// fly the helicopter. The stories are one night's line, told one at a time in their order, each ending on the person
+// the next is with, from the street to the air. Nothing of the case is in any of them.
 //
 // How a player finds them, as the open-world games that do this best (design only, below in the docs): a speech mark
-// over whoever has something to say, amber while they have a part of a story for you and pale for a word in passing,
+// over the one person with a part of the story for you, amber, and pale over someone with a word in passing,
 // seen from about forty metres and named once you are close; E (or a tap) beside them opens the talk in the story's own
 // box and camera; what you were asked sits under the hour in the walk's corner with the metres to it; and the story
 // is put away with its name when its last part is said. Where each story has got to is kept in this browser.
@@ -35,34 +37,35 @@ window.OEWalkTalk = (function () {
     try { st = JSON.parse(localStorage.getItem(KEEP) || '{}') || {}; } catch (e) { st = {}; }
     const keep = () => { try { localStorage.setItem(KEEP, JSON.stringify(st)); } catch (e) { /* storage blocked */ } };
     const of = s => st[s.id] || (st[s.id] = { part: 0, met: false, done: false });
-    let lastAsked = null; // (the story whose errand the corner shows: the one asked last)
     let on = false, busy = false;
     // the parts' speakers: the story's own unless a part names another
     const speaker = (s, i) => (s.parts[i] && s.parts[i].npc) || s.npc;
-    // what someone has to say now: a part of a story ('story'), or a word in passing ('chat'), or nothing
+    // One story at a time, in the walk's order (game.json walk.people), as one night's line: the one under way, else the
+    // first not yet told. Several begun at once (the owner talked to everyone and could not keep what each had asked) was
+    // a list to remember, not a story; now there is always one thing to do and one person with the amber mark
+    function current() {
+      return people.find(s => { const k = of(s); return !k.done && k.part > 0; }) || people.find(s => !of(s).done) || null;
+    }
+    // what someone has to say now: a part of the story under way ('story'), a word in passing ('chat': a mark of its
+    // own, pale), the word of someone whose story is still to come ('wait': no mark, but E has it), or nothing
     function want(id) {
-      for (const s of people) {
-        const k = of(s);
-        if (k.done || speaker(s, k.part) !== id) continue;
-        const gate = k.part === 0 || k.met;
-        if (gate) return { kind: 'story', s, k };
-      }
-      if (chat[id] && chat[id].length) return { kind: 'chat' };
-      for (const s of people) if (of(s).done && s.npc === id && s.after) return { kind: 'chat', after: s };
+      const s = current();
+      if (s) { const k = of(s); if (speaker(s, k.part) === id && (k.part === 0 || k.met)) return { kind: 'story', s, k }; }
+      if (chat[id] && chat[id].length) return { kind: 'chat', lines: chat[id] };
+      for (const q of people) if (of(q).done && q.npc === id && q.after) return { kind: 'chat', lines: q.after };
+      for (const q of people) if (!of(q).done && q.npc === id && q.wait) return { kind: 'wait', lines: q.wait };
       return null;
     }
-    // the errand still open: the one asked last, else any
-    function open() {
-      const list = people.filter(s => { const k = of(s); return !k.done && k.part > 0; });
-      return list.find(s => s.id === lastAsked) || list[0] || null;
-    }
+    // the corner's line: what the story under way asks, with the metres to it; before a story is begun, who has it
     function errand() {
-      const s = open();
+      const s = current();
       if (!s) return null;
-      const k = of(s), then = s.parts[k.part - 1].then || {}, me = ctx.here();
-      const who = ctx.npc(speaker(s, k.part));
+      const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part)), to = who ? Math.hypot(who.x - me.x, who.y - me.y) : null;
+      if (k.part === 0) return who ? { text: `${first(who.name)} has something to say`, m: to, key: '', next: true } : null;
+      const then = s.parts[k.part - 1].then || {};
       // (sent on to someone, or what was asked done: the metres are to the one who speaks next)
-      if ((then.talk || k.met) && who) return { text: then.talk ? then.goal : `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: Math.hypot(who.x - me.x, who.y - me.y), key: '' };
+      if (then.talk && who) return { text: then.goal, m: to, key: '' };
+      if (k.met && who) return { text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: to, key: '' };
       const at = then.go || then.drive || then.photo;
       return { text: then.goal || '', m: at ? Math.hypot(at[0] - me.x, at[1] - me.y) : null, key: then.key || '' };
     }
@@ -70,7 +73,6 @@ window.OEWalkTalk = (function () {
     function said(s) {
       const k = of(s), part = s.parts[k.part], then = part.then;
       k.part++; k.met = !!(then && then.talk);
-      lastAsked = s.id;
       if (k.part >= s.parts.length) {
         k.done = true; k.met = false;
         const n = people.filter(q => of(q).done).length;
@@ -93,7 +95,7 @@ window.OEWalkTalk = (function () {
         ctx.say(runs, () => { said(w.s); done(); });
         return true;
       }
-      const lines = w.after ? w.after.after : chat[n.id];
+      const lines = w.lines; // (a word in passing, or the word of someone whose story is to come: one after another)
       const k = (st._chat = st._chat || {});
       const i = (k[n.id] = ((k[n.id] ?? -1) + 1) % lines.length);
       keep();
@@ -111,7 +113,7 @@ window.OEWalkTalk = (function () {
         if (then.go) met = Math.hypot(then.go[0] - me.x, then.go[1] - me.y) < (then.r || 15);
         else if (then.drive) met = me.mode === 'car' && Math.hypot(then.drive[0] - me.x, then.drive[1] - me.y) < (then.r || 30);
         else if (then.up != null) met = me.z > then.up;
-        if (met) { k.met = true; lastAsked = s.id; keep(); if (ctx.met) ctx.met(s, ctx.npc(speaker(s, k.part))); }
+        if (met) { k.met = true; keep(); if (ctx.met) ctx.met(s, ctx.npc(speaker(s, k.part))); }
       }
       // someone sent to stand by another: there before you are back, never seen going
       for (const s of people) {
@@ -138,7 +140,7 @@ window.OEWalkTalk = (function () {
         const near = Math.hypot(x - me.x, y - me.y) < (then.r || 25), high = then.above != null && cam.z - z > then.above;
         // (from the helicopter: over the place, within r of it, and that high; otherwise from in it or from up high)
         const ok = then.from === 'heli' ? me.mode === 'heli' && near && high : near || high;
-        if (ok && cam.sees(x, y, z)) { k.met = true; hit = s; lastAsked = s.id; }
+        if (ok && cam.sees(x, y, z)) { k.met = true; hit = s; }
       }
       if (hit) { keep(); if (ctx.met) ctx.met(hit, ctx.npc(speaker(hit, of(hit).part))); }
       return !!hit;
@@ -164,7 +166,7 @@ window.OEWalkTalk = (function () {
         if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
         const far = w && w.kind === 'story' ? SEE_M : 18;
-        if (!w || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; }
+        if (!w || w.kind === 'wait' || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; }
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
         if (!p) { fade(e, '0'); continue; }
@@ -193,17 +195,21 @@ window.OEWalkTalk = (function () {
       get busy() { return busy; },
       // where each story has got to, for the checks; and from the start again
       state: () => JSON.parse(JSON.stringify(st)),
-      reset() { st = {}; lastAsked = null; keep(); },
+      reset() { st = {}; keep(); },
+      // (for the checks: every story before this one told, so that it is the one under way)
+      startAt(id) { st = {}; for (const s of people) { if (s.id === id) break; Object.assign(of(s), { part: s.parts.length, met: false, done: true }); } keep(); },
       count: () => ({ done: people.filter(s => of(s).done).length, of: people.length }),
       // the walk's stories for its menu, as a game's list of side stories: told, under way (what was asked), or not yet met
       // (where to look: the story's hint, never its giver on a map)
+      // (one under way, or the next with where to look; the rest later tonight, in their order)
       list() {
-        const now = open();
+        const cur = current();
         return people.map(s => {
           const k = of(s);
           if (k.done) return { title: s.title, state: 'told', text: 'Told' };
-          if (k.part > 0) { const e = s === now ? errand() : null; return { title: s.title, state: 'asked', text: (e && e.text) || (s.parts[k.part - 1].then || {}).goal || '' }; }
-          return { title: s.title, state: 'new', text: s.hint || '' };
+          if (s !== cur) return { title: s.title, state: 'later', text: 'Later tonight' };
+          if (k.part > 0) { const e = errand(); return { title: s.title, state: 'asked', text: (e && e.text) || '' }; }
+          return { title: s.title, state: 'next', text: s.hint || '' };
         });
       },
       people,

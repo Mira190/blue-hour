@@ -31,7 +31,10 @@ the landmarks' paving change. The tactile blocks' places (`cities/shibuya/scramb
 in stills: `tools/game_shot.js shibuya tools/views/tactile.json out [390x844 with LEAN=1]`, from the air over Hachiko
 Square and on foot at the start, at dusk and by day.
 
-The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
+The walk's storyline without a browser: `node tools/walk_story_unit.js` plays its five stories through in their order
+from `game.json` and fails on two people with a part at once, two stories begun at once, an empty corner, a photograph
+from the roof on foot taken for the helicopter's, or a story left untold. Run it when `walktalk.js` or `game.walk`
+changes. The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
 stills: `tools/walk_people.js out [WxH] [hour] [sky]` sets out on the walk, waits for each to be drawn, and takes each from
 twelve metres with their speech mark and from three in front, printing where each stands and whether that is in a road.
 The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness

@@ -903,13 +903,13 @@
       }
     ],
     "walk": {
-      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): a few of this evening's locals, each with a small story in parts, each part asking one thing the walk can do. Nothing of the case is in any of them. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it); meet: someone who, unseen, goes to stand by the next part's speaker.",
+      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): one storyline of a night's small stories, told one at a time in this order, each ending on the person the next is with. Only the story under way (else the first not yet told) has a part for you; its speaker has the amber mark, and the others say their \"wait\" line until their turn. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it; from \"heli\": from the helicopter, within r and above); meet: someone who, unseen, goes to stand by the next part's speaker; next: the words once it is done, when the next part is someone else's. Nothing of the case is in any of them.",
       "people": [
         {
           "id": "hachiko",
-          "hint": "By Hachiko, someone is looking for a friend who is late.",
           "npc": "mei",
           "title": "Which Hachiko",
+          "hint": "By Hachiko, someone is looking for a friend who is late.",
           "parts": [
             {
               "lines": [
@@ -947,7 +947,8 @@
                   "npc": "riko",
                   "text": "Three years in Tokyo, and I still wait at the wrong one."
                 },
-                "Thank you. We'd have stood all night on two sides of one name."
+                "Thank you. We'd have stood all night on two sides of one name.",
+                "The old man with the coffee by the station watched all of it. I think he wants a word with you."
               ]
             }
           ],
@@ -958,12 +959,16 @@
         },
         {
           "id": "taxi",
-          "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
           "npc": "oda",
           "title": "Once round by car",
+          "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
+          "wait": [
+            "Thirty years I drove these streets. I still come down at night with a hot can of coffee."
+          ],
           "parts": [
             {
               "lines": [
+                "I watched you go back and forth across that crossing.",
                 "Thirty years I drove these streets. On foot you only see the bottoms of the signs.",
                 "Take your car up to 109 once, where Dogenzaka forks. At night it's another town.",
                 "Yours is at a kerb somewhere, isn't it? It'll come to you."
@@ -982,7 +987,8 @@
               "lines": [
                 "Well?",
                 "109 lit up at the fork, the two roads going up either side of it like a ship's wake.",
-                "On the way back, mind the scramble. Green there means the people, not you."
+                "On the way back, mind the scramble. Green there means the people, not you.",
+                "You've a camera on you, too. Go and see Shun at the old-clothes shop in Center Gai. He'll tell you what to shoot."
               ]
             }
           ],
@@ -993,13 +999,17 @@
         },
         {
           "id": "shot",
-          "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
           "npc": "shun",
           "title": "The shot everyone takes",
+          "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
+          "wait": [
+            "Center Gai never sleeps. It does get quieter around five in the morning."
+          ],
           "parts": [
             {
               "lines": [
-                "That's a working camera on your chest. Not a phone on a strap.",
+                "Mr Oda sent you? He sends me everyone with a camera.",
+                "That's a working one on your chest. Not a phone on a strap.",
                 "Everybody shoots the crossing from the café upstairs. The same picture, ten thousand times a day.",
                 "Bring me a different one. From right in it, on the green. Or from somewhere higher than the café."
               ],
@@ -1019,7 +1029,8 @@
               "lines": [
                 "Let me see.",
                 "Huh. Nobody in it is looking at the camera.",
-                "That's the one. Everyone else's has somebody doing a peace sign."
+                "That's the one. Everyone else's has somebody doing a peace sign.",
+                "Want higher than the café? Yuna runs the lift at SKY GATE. Tell her I sent you."
               ]
             }
           ],
@@ -1030,25 +1041,30 @@
         },
         {
           "id": "roof",
-          "hint": "The lift at SKY GATE, east of the station.",
           "npc": "yuna",
           "title": "Forty-five floors",
+          "hint": "The lift at SKY GATE, east of the station.",
+          "wait": [
+            "SHIBUYA SKY's lift is behind me. The roof is open late tonight."
+          ],
           "parts": [
             {
               "lines": [
-                "Going up? The roof is open tonight.",
+                "Shun sent you? Then you'll want the roof.",
                 "Forty-five floors in the lift, then an escalator out into the air.",
-                "Mind your hat at the edge. Come and tell me what you saw."
+                "Taro's up there most nights with his tripod, by SKY EDGE. Say hello from me."
               ],
               "then": {
                 "up": 200,
-                "goal": "Up to the roof: the lift is behind Yuna"
+                "goal": "Up to the roof: the lift is behind Yuna",
+                "next": "Find Taro on the roof, by SKY EDGE"
               }
             },
             {
+              "npc": "taro",
               "lines": [
-                "You're back. People always come down quieter than they went up.",
-                "What I like is the crossing from up there. All those people, and not a sound."
+                "Yuna rang up to say you were coming.",
+                "She says people come down quieter than they went up. Stand at the edge a minute and you'll see why."
               ]
             }
           ],
@@ -1059,9 +1075,12 @@
         },
         {
           "id": "air",
-          "hint": "A photographer on SHIBUYA SKY's roof, by SKY EDGE.",
           "npc": "taro",
           "title": "Above the crossing",
+          "hint": "A photographer on SHIBUYA SKY's roof, by SKY EDGE.",
+          "wait": [
+            "From up here the scramble is a clock face: everyone waits, then everyone goes."
+          ],
           "parts": [
             {
               "lines": [
@@ -1087,7 +1106,8 @@
               "lines": [
                 "Let me see.",
                 "All four ways at once, from above. The white lines like the spokes of a wheel.",
-                "That's the one I could never take. Next time I'm coming with you."
+                "That's the one I could never take.",
+                "On foot, from a car, off a roof, from the air. You've had the crossing at every height tonight."
               ]
             }
           ],

@@ -1230,20 +1230,32 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   again to show him: it takes only a photograph taken from the helicopter, over the crossing and sixty metres up or
   more, never one from the roof on foot. So the side stories are how the walk's ways about are found, as an open
   world's first side quests teach its systems.
+- *One night's line, one story at a time (the owner's word, November 2026).* At first every one of them could be begun
+  at once, and the owner, having talked to everyone, could not keep what each had asked: five errands to remember is a
+  list, not a story. Now they are one line in a fixed order, on foot, by car, through the lens, up the tower, into the
+  air: *Which Hachiko*, *Once round by car*, *The shot everyone takes*, *Forty-five floors*, *Above the crossing*. Only
+  the story under way (else the first not yet told) has a part for you; the amber mark is over that one person, and
+  everyone whose story is still to come has a word for you if you stop (`wait`) but no mark and nothing to do. Each
+  story ends on the person the next is with: Mei sends you to the old man with the coffee who watched the two of you,
+  Mr Oda to Shun because you carry a camera, Shun to Yuna for somewhere higher than the café, Yuna up to Taro on the
+  roof (her last part is his to say, and his own story follows it), and Taro closes the night: *on foot, from a car,
+  off a roof, from the air*. Before a story is begun the corner says who has it (*Mr Oda has something to say · 40
+  m*), so there is always one thing to do and the metres to it. A browser that began several before this keeps them
+  and goes on with the first of them in the order.
 - *Nothing of the case in any of them.* Walked before the story they spoil nothing; walked after, they undo nothing.
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
-- *Found, never owed.* A speech mark over the head of whoever has something to say: amber, its dots breathing, while they
-  have a part of a story for you (seen from about forty metres), pale for a word in passing (from eighteen); their name
+- *Found, never owed.* A speech mark over the head of the one person with a part of the story for you: amber, its dots
+  breathing (seen from about forty metres), and pale over someone with a word in passing (from eighteen); their name
   and what they are under it once you are within eleven metres. E (or a tap on the prompt) beside them opens the talk in
   the story's own box, with the story's conversation camera cutting between you. What they asked sits under the hour in
   the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
   sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
   the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
-  1 of 5*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
-  them as a game's journal lists its side stories: each by its name, ticked when told, with what was asked while it is
-  under way, and for one not yet met a word on where to look (*By Hachiko, someone is looking for a friend who is
-  late*), never a pin on a map.
+  1 of 5*; the last, *Every story of the walk told*). Where each has got to is kept in this browser; no story has a
+  clock, a fail or a reward. The walk's menu lists them in their order as a game's journal lists its side stories: each
+  by its name, ticked when told, the one under way with what was asked, the next with a word on where to look (*By
+  Hachiko, someone is looking for a friend who is late*), the rest *later tonight*; never a pin on a map.
 - *The street talks too.* The overheard lines of the crossing (`game.json` `chatter`: *Meet at Hachiko? Everyone says
   that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles.
 
@@ -1259,7 +1271,8 @@ the crowd. Not adopted: a map of marks, rewards, or a mark over every passer-by 
 and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
-`game.walk` (the people's parts, their lines and what each asks: `talk`, `go`, `drive`, `up`, `photo`, `meet`), the
+`game.walk` (the stories in their order, the people's parts, their lines and what each asks: `talk`, `go`, `drive`,
+`up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn), the
 walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither drawn nor loaded nor in the crowd's
 way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
 its end, takes Taro's photograph from the helicopter over the crossing, and calls the car from the corner.

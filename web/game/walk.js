@@ -171,7 +171,7 @@ window.OEWalk = (function () {
       if (carBtn && carBtn.hidden !== (r.mode !== 'foot')) carBtn.hidden = r.mode !== 'foot';
       const er = ctx.errand ? ctx.errand() : null;
       const q = er && er.text ? `<span>${esc(er.text)}</span>${er.m != null ? `<i>${er.m < 950 ? `${Math.max(5, Math.round(er.m / 5) * 5)} m` : `${(er.m / 1000).toFixed(1)} km`}</i>` : ''}${er.key && !ctx.touch ? `<kbd>${esc(ctx.key(er.key))}</kbd>` : ''}` : '';
-      if (force || q !== shown.q) { const e = hud.querySelector('.q'); e.innerHTML = q; e.hidden = !q; }
+      if (force || q !== shown.q) { const e = hud.querySelector('.q'); e.innerHTML = q; e.hidden = !q; e.classList.toggle('next', !!(er && er.next)); } // (next: who has the story to come, before it is begun)
       shown = { where, t, em, g, q };
       if (keys.classList.contains('on')) {
         keysT += dt;
@@ -185,7 +185,7 @@ window.OEWalk = (function () {
     ctx.stage.append(told);
     let toldT = 0; // (the seconds its name has left over the street: the walk's own frames count them, tick)
     function tell(title, n, of) {
-      told.innerHTML = `<small>A story of the walk · ${n} of ${of}</small><b>${esc(title)}</b>`;
+      told.innerHTML = `<small>${n >= of ? 'Every story of the walk told' : `A story of the walk · ${n} of ${of}`}</small><b>${esc(title)}</b>`;
       told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
       toldT = 5.2;
     }
