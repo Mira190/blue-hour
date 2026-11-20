@@ -556,6 +556,58 @@ The material stays opaque; only the crowd's shader reads the alpha (`OE_SKIN_MAS
 it with its head and hair marked too (`pipeline/crowd_cast.py`), so hair keeps its built colour. A character built
 before has no `mask` in `people.json` and is read by colour as it was.
 
+### Hair: strands, not a shell (`web/game/people.js`, issue 74)
+
+Every conversation is shot over Kagami's shoulder, so the back of Kagami's head is the asset the player sees most.
+A Rocketbox head of hair is two things: hair cards (the `*_opacity` material: strips cut from a 1024 px picture of
+strands) and, under them, hair painted on the head's own mesh; a long head of hair falls down the back as part of
+the head. Both were drawn as any other surface, the cards cut at one alpha and everything lit as a matte skin: one
+near-black shell, its hem cut in teeth, with no sheen from the street. They are drawn now as real-time hair is
+drawn on cards, on the hero characters and every NPC alike (`strandHair`, `hairMaterial`), with no new picture: a
+phone's memory is unchanged.
+
+- **The strands.** Each vertex of the cards and of the head's hair carries the strand's way (from the crown down
+  over the skull, laid along the hair's surface), how far it is off the skull, and its way round the head
+  (`hairTR`, `hairSK`, worked out once a character from its rig: the pelvis, the head and the eyes). The way round
+  the head, in clumps of about 4 mm at the skull, gives each clump its own shade and a finer grain over it; both
+  fade where a pixel spans several clumps, so a head far off does not shimmer. On the head's mesh, a vertex is hair
+  where its picture is dark or without the warmth of skin, above the brows or behind the ears; the face is left as
+  it was.
+- **The light.** Kajiya-Kay's strand highlight, in Scheuermann's two-lobe form: a narrow white lobe shifted toward
+  the root and a broader one tinted by the hair shifted toward the tip, both jittered by the clumps. It is taken from
+  every light three.js has (the moon or sun, the street lights' fill, a car's lamps; `RE_Direct` wrapped, so their
+  shadows hold), and from the street round the head: the hemisphere's sky and the street lights' and screens' own
+  light where the head is (world.js `streetLight`), coming from above and behind the lens as the lit fronts round a
+  crossing light it. The same light comes through the thin strands and the outline in the warm brown of hair's
+  pigment, as a backlit head of hair glows at its rim. A wrap of the diffuse lets light into the hair.
+- **The tone.** The root is darker (0.55 at the scalp), the ends a little lighter.
+- **The edge.** With MSAA (a desktop's composer) the cards use alpha to coverage: each strand cut at its own alpha
+  (a third of the old cut to one and a quarter of it, by its clump's shade), so where the picture's strands thin out
+  they end one by one at their own lengths, and the cut sharpened across a pixel (Golus) so that coverage is whole
+  or none except at the cut: a GPU's dither pattern is never seen. Between strands a card lets the hair under it
+  through, and a card takes the normal of the head's hair under it, so its straight top edge is not a ledge. The
+  card's alpha is kept up in its smaller mips. The head's painted hair opens between its strands toward its
+  outline, the same way. Without MSAA (a phone, the low tier) the cards are cut at the old alpha and the head stays
+  whole: the same pixels, with the new light and tone. An afterimage (`exposure`) is cut as without MSAA.
+- **Cost.** One more program for the head and one for the cards (they had their own already); two vertex
+  attributes a hair vertex; a few dozen instructions in the hair's fragments. No texture.
+
+`tools/hair_shot.js` sets a character's head before a lit shop front over the shoulder of another, with and
+without MSAA, and from the front (the lashes and brows are cards too), with the game's own people.
+
+**What was surveyed** (November 2026). Hair cards in three.js are drawn opaque with an alpha test or alpha hash, and
+alpha to coverage where MSAA is on (three.js forum threads on hair cards and `alphaToCoverage`; three.js's own
+`ALPHA_TO_COVERAGE` path does `smoothstep(alphaTest, alphaTest + fwidth(a), a)`, MIT). Ben Golus, "Anti-aliased
+Alpha Test: The Esoteric Alpha To Coverage" (2017): the sharpened coverage and keeping alpha in the mips; adopted,
+written here from the article. Kajiya and Kay, "Rendering fur with three dimensional textures" (SIGGRAPH 1989) and
+Thorsten Scheuermann, "Practical Real-Time Hair Rendering and Shading" (ATI, SIGGRAPH 2004 sketch): the strand
+highlight and its two shifted lobes; adopted, written from the papers. Marschner et al., "Light Scattering from Human
+Hair Fibers" (2003), and Karis's UE4 approximation of it, model the R, TT and TRT lobes physically: here R and TRT
+are Scheuermann's two lobes and TT the rim's warm transmission, a fraction of the cost. three.js's
+`MeshPhysicalMaterial.anisotropy` (KHR_materials_anisotropy) stretches a GGX lobe along a tangent; it costs the
+physical material's whole program on every person and has no second lobe or transmission, so it was not used. No
+code was copied from any of them.
+
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 
 The constant beds are off in play: the crowd's murmur and the screens' music were too loud and
