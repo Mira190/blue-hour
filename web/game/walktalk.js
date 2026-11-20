@@ -121,7 +121,7 @@ window.OEWalkTalk = (function () {
         if (Math.hypot(m.x - to.x, m.y - to.y) < 2.5) { delete k.meet; keep(); continue; }
         if (Math.hypot(m.x - me.x, m.y - me.y) > 30 && Math.hypot(to.x - me.x, to.y - me.y) > 22 && ctx.unseen(m) && ctx.unseen(to)) {
           ctx.move(m, to, k.meet);
-          delete k.meet; keep();
+          k.moved = k.meet; delete k.meet; keep();
         }
       }
     }
@@ -151,30 +151,39 @@ window.OEWalkTalk = (function () {
       if (!el) { el = document.createElement('div'); el.className = 'g-walk-mark'; el.innerHTML = '<i><b></b><b></b><b></b></i><span></span>'; layer.appendChild(el); marks.set(id, el); el._k = ''; el._n = ''; }
       return el;
     }
+    const fade = (el, v) => { if (el && el._o !== v) { el._o = v; el.style.opacity = v; } }; // (written only when it changes: a style set each frame is a style pass each frame)
     function draw(hide) {
       const me = ctx.here(), ids = new Set();
       for (const s of people) { ids.add(s.npc); for (const p of s.parts) if (p.npc) ids.add(p.npc); }
       for (const id of Object.keys(chat)) ids.add(id);
       for (const id of ids) {
         const n = ctx.npc(id), el = marks.get(id);
-        if (!n || hide || !n.rig || !n.rig.root.visible || n.talking) { if (el) el.style.opacity = '0'; continue; }
+        if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
         const far = w && w.kind === 'story' ? SEE_M : 18;
-        if (!w || d > far || dz > 12 || me.mode !== 'foot') { if (el) el.style.opacity = '0'; continue; }
+        if (!w || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; }
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
-        if (!p) { e.style.opacity = '0'; continue; }
+        if (!p) { fade(e, '0'); continue; }
         const k = w.kind;
         if (e._k !== k) { e._k = k; e.dataset.k = k; }
         const name = d < NAME_M ? `${first(n.name)}${n.role ? ` · ${String(n.role).replace(/\s*[　-鿿＀-￯].*$/, '')}` : ''}` : '';
         if (e._n !== name) { e._n = name; e.querySelector('span').textContent = name; e.classList.toggle('named', !!name); }
-        e.style.opacity = String(Math.max(0, Math.min(1, (far - d) / 8)));
+        fade(e, String(Math.round(Math.max(0, Math.min(1, (far - d) / 8)) * 20) / 20));
         e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 14 / Math.max(1, d))).toFixed(3)})`;
       }
     }
     return {
       // on the walk (game.js startWalk, walkOnFromStory): the marks are drawn
-      begin() { on = true; layer.classList.add('on'); },
+      begin() {
+        on = true; layer.classList.add('on');
+        // (a walk taken up again in this browser: whoever went to meet someone is with them already, as they were left)
+        for (const s of people) {
+          const k = of(s), id = k.moved || k.meet, m = id && ctx.npc(id), to = ctx.npc(speaker(s, k.part));
+          if (m && to) { ctx.move(m, to, id); k.moved = id; delete k.meet; }
+        }
+        keep();
+      },
       want, talk, photo, errand,
       // each frame on the walk: what was asked met, and the marks drawn (hide: a talk, a menu, the camera up)
       tick(dt, hide) { if (!on) return; check(); draw(hide); },
@@ -183,6 +192,17 @@ window.OEWalkTalk = (function () {
       state: () => JSON.parse(JSON.stringify(st)),
       reset() { st = {}; lastAsked = null; keep(); },
       count: () => ({ done: people.filter(s => of(s).done).length, of: people.length }),
+      // the walk's stories for its menu, as a game's list of side stories: told, under way (what was asked), or not yet met
+      // (where to look: the story's hint, never its giver on a map)
+      list() {
+        const now = open();
+        return people.map(s => {
+          const k = of(s);
+          if (k.done) return { title: s.title, state: 'told', text: 'Told' };
+          if (k.part > 0) { const e = s === now ? errand() : null; return { title: s.title, state: 'asked', text: (e && e.text) || (s.parts[k.part - 1].then || {}).goal || '' }; }
+          return { title: s.title, state: 'new', text: s.hint || '' };
+        });
+      },
       people,
     };
   }

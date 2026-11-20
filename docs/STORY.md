@@ -1230,7 +1230,10 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
   sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
   the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
-  1 of 4*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward.
+  1 of 4*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
+  them as a game's journal lists its side stories: each by its name, ticked when told, with what was asked while it is
+  under way, and for one not yet met a word on where to look (*By Hachiko, someone is looking for a friend who is
+  late*), never a pin on a map.
 - *The street talks too.* The overheard lines of the crossing (`game.json` `chatter`: *Meet at Hachiko? Everyone says
   that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles.
 
@@ -1240,8 +1243,9 @@ teach the city's pastimes; *Red Dead Redemption 2*'s strangers, met where they l
 back; *The Witcher 3*'s and *Ghost of Tsushima*'s marks over whoever has something for you, which appear as you near
 them rather than on a map; *Persona 5*'s and *The World Ends with You*'s Shibuya, where the crowd's own words float over
 it as you pass. Adopted: a story in parts met in the street, each part one thing to do with what the walk already has;
-a mark that shows only near and fades by distance; the corner's one line for what was asked; the overheard words over
-the crowd. Not adopted: a map of marks, a quest log, rewards, or a mark over every passer-by (the crossing has hundreds,
+a mark that shows only near and fades by distance; the corner's one line for what was asked; the menu's list of the
+stories with a word on where to look (*Yakuza*'s substory list, *Ghost of Tsushima*'s Tales); the overheard words over
+the crowd. Not adopted: a map of marks, rewards, or a mark over every passer-by (the crossing has hundreds,
 and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`

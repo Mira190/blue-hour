@@ -906,6 +906,7 @@
       "people": [
         {
           "id": "hachiko",
+        "hint": "By Hachiko, someone is looking for a friend who is late.",
           "npc": "mei",
           "title": "Which Hachiko",
           "parts": [
@@ -956,6 +957,7 @@
         },
         {
           "id": "taxi",
+        "hint": "A taxi driver on his break, on the station side of the crossing.",
           "npc": "oda",
           "title": "Once round by car",
           "parts": [
@@ -990,6 +992,7 @@
         },
         {
           "id": "shot",
+        "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
           "npc": "shun",
           "title": "The shot everyone takes",
           "parts": [
@@ -1026,6 +1029,7 @@
         },
         {
           "id": "roof",
+        "hint": "The lift at SKY GATE, east of the station.",
           "npc": "yuna",
           "title": "Forty-five floors",
           "parts": [

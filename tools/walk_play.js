@@ -14,7 +14,8 @@
 //   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
 //     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
-//   - on foot the corner has no Your car button, or pressed, the car does not pull in at a kerb near you;
+//   - on foot the corner has no Your car button, or pressed, the car does not pull in at a kerb near you; the walk's menu
+//     does not list the walk's stories;
 //   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
 //     frame (on a phone: the hand brake, the horn and the view by the stick), it does not drive, the corner does not say
 //     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
@@ -197,6 +198,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (m.intro || m.reset) fail(`the walk's menu still offers the old game's ${m.intro ? 'tour' : ''} ${m.reset ? 'passport' : ''}`);
     if (!m.time || !m.weather) fail('the walk\'s menu does not offer the hour and the sky');
     if (m.story && !m.intro && !m.reset && m.time && m.weather) ok(`the menu: "${(await p.textContent('#gm-story')).trim()}", the hour and the sky`);
+    // (and the walk's stories, as a game's list of side stories: each by its name, with where to look for the ones not met)
+    const tales = await p.evaluate(() => { const e = document.getElementById('gm-tales'); return e && !e.hidden ? [...e.querySelectorAll('li')].map(l => `${l.dataset.s}:${l.querySelector('b').textContent}`) : []; });
+    if (tales.length < 4) fail(`the walk's menu does not list its stories (${JSON.stringify(tales)})`);
+    else ok(`the menu lists the walk's stories: ${tales.join(', ')}`);
     await shot('6-menu');
     await press('#g-menu-close'); await gone('#g-menu');
     if (await visible('#g-menu')) fail('the menu\'s close button does not shut it (off the screen, or under something)');
@@ -241,6 +246,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // (the corner and the marks are the page's own frames' to draw: waited for, a software renderer's frame being seconds long)
       const errandIs = re => p.waitForFunction(r => { const e = document.querySelector('#g-walk-where .q'); return e && !e.hidden && new RegExp(r).test(e.textContent); }, re.source, { timeout: 90000, polling: 500 }).then(() => true, () => false);
       await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+      // (Mei and Riko drawn first: a character's pictures go to the GPU a frame at a time, minutes on a software renderer)
+      const drawn = await p.waitForFunction(() => window.__game.npcs.filter(n => n.id === 'mei' || n.id === 'riko').every(n => !n.rig.pending), null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
+      if (!drawn) fail('Mei and Riko are not drawn ten minutes after setting out');
       if (!(await talk('mei', 14))) fail('no Mei on the walk (game.json npcs: mei)');
       else {
         await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 8; i++) g.frame(0.05); });
@@ -287,6 +295,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               if (n.done !== 1) fail(`Mei's story told to its end, but ${n.done} of ${n.of} are put away`);
               else if (!/Which Hachiko/.test(told)) fail(`Mei's story told, but its name is not put up ("${told}")`);
               else ok(`told: "${told}"`);
+              await p.waitForTimeout(1500); // (its name fades in over the street)
               await shot('4e-told');
             }
           }
@@ -321,18 +330,23 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         }
       }
       // the corner's Your car (C on a desktop): it pulls in at the kerb nearest you, up the kerb's lane, and stops there
-      await p.evaluate(() => { const g = window.__game; g.player.x += 60; g.spawn([g.player.x, g.player.y]); });
+      // (from Hachiko's side of the crossing, where the car is called from most; then back where the menu's step expects you)
+      const here0 = await p.evaluate(() => { const g = window.__game, at = [g.player.x, g.player.y]; g.spawn([395, -1052]); return at; });
       await p.waitForTimeout(800);
       if (!(await visible('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
       else {
         await press('#g-walk-acts [data-do="car"]');
         const c0 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return [s.x, s.y]; });
-        await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 80; i++) g.frame(0.05); });
+        await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 120; i++) g.frame(0.05); });
+        if (await p.evaluate(() => window.__game.carComing())) fail('Your car: still pulling in after six seconds');
         const c1 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return { xy: [s.x, s.y], d: Math.hypot(s.x - g.player.x, s.y - g.player.y) }; });
         if (c1.d > 30) fail(`Your car: it stopped ${c1.d.toFixed(0)} m away`);
-        else ok(`Your car: pulled in ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]).toFixed(0)} m up the kerb, ${c1.d.toFixed(0)} m from you`);
+        else ok(`Your car: ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]) > 3 ? `pulled in ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]).toFixed(0)} m up the kerb` : 'at the kerb (no room to come from)'}, ${c1.d.toFixed(0)} m from you`);
+        await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; g.cam.yaw = Math.atan2(s.x - g.player.x, s.y - g.player.y); for (let i = 0; i < 6; i++) g.frame(0.05); }); // (the still looks at it)
+        await p.waitForTimeout(1500);
         await shot('7b-car-called');
       }
+      await p.evaluate(at => window.__game.spawn(at), here0);
       // the menu's Bring your car: to the kerb nearest you
       await p.evaluate(() => { const g = window.__game; g.player.x += 40; g.spawn([g.player.x, g.player.y]); });
       await p.waitForTimeout(800);
@@ -340,6 +354,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!(await visible('#gm-car'))) fail('the walk\'s menu does not offer to bring your car');
       else {
         await press('#gm-car'); await gone('#g-menu'); await p.waitForTimeout(800);
+        await p.evaluate(() => window.__game.advance(6)); // (it pulls in over a few seconds of the game's own time)
         const far = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return Math.hypot(s.x - g.player.x, s.y - g.player.y); });
         if (await visible('#g-menu')) fail('Bring your car: the menu stayed up');
         else if (far > 60) fail(`Bring your car: it is ${far.toFixed(0)} m away`);
