@@ -10,6 +10,7 @@ What it reads, for the map:
                          lines (title, on_open), quests (title, stamp, talk, choices, steps' text),
                          areas, travel, spots, chatter, regulars, the funicular's note
                          and every string of the story (game.story: the episodes' cards, lines and goals)
+                         and of the walk's people (game.walk: their parts, what each asks, their words in passing)
   web/data/<id>/game.json  the same, as the game loads it (with what city.py's game_extras adds)
 
     python3 tools/voice_check.py            # prints one line per problem; exit 1 if any
@@ -103,7 +104,7 @@ def main():
         if os.path.exists(built):
             sources.append((f'web/data/{cid}/game.json', json.load(open(built, encoding='utf8'))))
         for name, gg in sources:
-            for where, text in list(game_texts(gg)) + story_texts(gg.get('story')):
+            for where, text in list(game_texts(gg)) + story_texts(gg.get('story')) + story_texts(gg.get('walk'), 'walk'):
                 seen += 1
                 m = RX_CITY.search(text)
                 if m:
