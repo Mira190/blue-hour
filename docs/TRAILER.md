@@ -114,6 +114,5 @@ beside each asset; the people are Microsoft Rocketbox, MIT, `web/assets/people/L
 ## What is not checked
 
 The films are drawn by Mesa's llvmpipe, not a GPU: what a real GPU draws (its antialiasing, its precision) can differ a
-little. They are filmed at the desktop tier. The story's dog is the model of the branch that was newest when the film
-was made (`claude/gallant-faraday-uaxuru`, November 2026), laid into the served page for the film and not committed
-with it.
+little. They are filmed at the desktop tier. The story's dog is the remodelled Akita (`web/assets/animals/akita.glb`,
+November 2026), filmed from its branch before it reached main; main now has the same model.
