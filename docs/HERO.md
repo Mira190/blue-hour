@@ -418,6 +418,29 @@ ground with the place's name, `渋谷`, and a hairline running out the wait), at
 is put at the player's shoulder under the veil and the veil lifts. Past 6 s the way in goes on without it. While it waits
 the level is fetched round the player, as behind the title. `tools/level_wait.js` checks it (docs/CHECKS.md).
 
+### The camera on foot: at a shoulder, not a first-floor window (issue 71)
+
+The chase camera on foot stood 7.5 m behind the head at 0.36 rad, its eye 4.3 m over the street: in every walk
+the paving filled two thirds of the picture, and the fronts' signs and screens and the deep blue sky over them, what
+makes the Scramble at 17:14 itself, were cut off at the top. Third-person games set in a dense street keep the eye
+near the shoulder with the horizon in the upper third (Like a Dragon's Kamurocho, Marvel's Spider-Man on foot, The
+Last of Us Part II); a crowd reads from inside it. Taken from them is the framing only, nothing of their look.
+
+- `web/game/game.js` `FOOT`: 5.5 m back at 0.17 rad, the eye about 2.5 m up. 0.17 rad is the angle that puts the
+  horizon on the upper third of a 55 degree frame (`atan(tan(27.5)/3)`); every place that set the camera on foot (the
+  start, the arrival, a hop, out of a seat, a train, the helicopter, the story's `look`) now sets `FOOT`.
+- Where the crowd closes round it: the rig's lifts over a wall (`CAM_LIFTS`) are also tried against the people within
+  its reach (`folkNear`, `folkAcross`: a body 0.28 m round and 1.75 m tall across the line from the lens to the head),
+  up to `CROWD_LIFT` (0.3 rad, about the old view); past that the view waits a moment for them to pass rather than
+  climb again, and it is never pulled in for them. Never over a wall for them either.
+- Measured (`tools/frame_cost.js` `POSE=7.5/0.36,5.5/0.17,...`, both poses in one sitting at the start, 17:38 in the
+  rain): on a phone's tier at 390x844 the new pose draws 411 to 412 calls and 1.14 M triangles against the old pose's
+  420 and 1.16 M, in the same time within the software renderer's noise; on the desktop tier 1451 and 1465 ms in two
+  sittings (the crowd differs between sittings by more than the pose does: compare poses within one).
+- Stills: `tools/foot_cam.js` walks each frame's way at its hour and takes the same moment with the camera as it is
+  and as it was, on a desktop and a phone. Frame 3's walk from Center Gai had climbed to 8 m over a wall at the old
+  pose; at the new one someone crossed the line to the head for 0.6 s of a 4 s walk, and the lift went to 0.15.
+
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
 The story's fifth frame is taken at the foot of Shibuya Scramble Square's north face, where Miyamasu Bridge (宮益橋)

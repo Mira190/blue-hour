@@ -11,6 +11,11 @@
 //     the passport, the lens);
 //   - the walk's menu does not offer the story, or still offers the old game's tour and passport;
 //   - the camera (photo mode) does not open from the walk's own button;
+//   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
+//     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
+//     part, or back with Mei the story is not put away with its name (walktalk.js);
+//   - on foot the corner has no Your car button, or pressed, the car does not pull in at a kerb near you; the walk's menu
+//     does not list the walk's stories;
 //   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
 //     frame (on a phone: the hand brake, the horn and the view by the stick), it does not drive, the corner does not say
 //     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
@@ -188,6 +193,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (m.intro || m.reset) fail(`the walk's menu still offers the old game's ${m.intro ? 'tour' : ''} ${m.reset ? 'passport' : ''}`);
     if (!m.time || !m.weather) fail('the walk\'s menu does not offer the hour and the sky');
     if (m.story && !m.intro && !m.reset && m.time && m.weather) ok(`the menu: "${(await p.textContent('#gm-story')).trim()}", the hour and the sky`);
+    // (and the walk's stories, as a game's list of side stories: each by its name, with where to look for the ones not met)
+    const tales = await p.evaluate(() => { const e = document.getElementById('gm-tales'); return e && !e.hidden ? [...e.querySelectorAll('li')].map(l => `${l.dataset.s}:${l.querySelector('b').textContent}`) : []; });
+    if (tales.length < 4) fail(`the walk's menu does not list its stories (${JSON.stringify(tales)})`);
+    else ok(`the menu lists the walk's stories: ${tales.join(', ')}`);
     await shot('6-menu');
     await press('#g-menu-close'); await gone('#g-menu');
     if (await visible('#g-menu')) fail('the menu\'s close button does not shut it (off the screen, or under something)');
@@ -223,6 +232,74 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     // camera following each, as a player's frames do: a software renderer's own frames are too slow to hold it for, and
     // advance() moves the world without the camera, which was left tens of metres behind the car for the still)
     const hold = (key, s) => p.evaluate(async ([k, t]) => { const g = window.__game; g.keys.add(k); try { for (let i = 0; i < Math.round(t / 0.05); i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } } finally { g.keys.delete(k); } }, [key, s]);
+    // someone with something to say (walktalk.js; docs/STORY.md "People with something to say"): Mei at Hachiko, with a
+    // part of a story, has an amber speech mark over her head from across the plaza and her name under it close to; E (or a
+    // tap) beside her opens her talk in the story's box; what she asks is under the hour with the metres to it; Riko, across
+    // the crossing, has her part; back with Mei (Riko there already, never seen going), the story is put away with its name
+    {
+      const talk = (id, near = 2) => p.evaluate(([id, near]) => { const g = window.__game, n = g.npcs.find(q => q.id === id); if (!n) return false; const a = Math.atan2(g.player.x - n.x, g.player.y - n.y) || 0; g.player.x = n.x + Math.sin(a) * near; g.player.y = n.y + Math.cos(a) * near; g.player.z = n.z; g.player.h = a + Math.PI; g.player.speed = 0; g.advance(0.3); return true; }, [id, near]);
+      const through = () => p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false); return g.dlg.open; });
+      const errandNow = () => p.evaluate(() => { const e = document.querySelector('#g-walk-where .q'); return e && !e.hidden ? e.textContent : ''; });
+      // (the corner and the marks are the page's own frames' to draw: waited for, a software renderer's frame being seconds long)
+      const errandIs = re => p.waitForFunction(r => { const e = document.querySelector('#g-walk-where .q'); return e && !e.hidden && new RegExp(r).test(e.textContent); }, re.source, { timeout: 90000, polling: 500 }).then(() => true, () => false);
+      await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+      // (Mei and Riko drawn first: a character's pictures go to the GPU a frame at a time, minutes on a software renderer)
+      const drawn = await p.waitForFunction(() => window.__game.npcs.filter(n => n.id === 'mei' || n.id === 'riko').every(n => !n.rig.pending), null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
+      if (!drawn) fail('Mei and Riko are not drawn ten minutes after setting out');
+      if (!(await talk('mei', 14))) fail('no Mei on the walk (game.json npcs: mei)');
+      else {
+        await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 8; i++) g.frame(0.05); });
+        await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3), null, { timeout: 90000, polling: 500 }).catch(() => {});
+        const mk = await p.evaluate(() => [...document.querySelectorAll('.g-walk-mark')].filter(e => +e.style.opacity > 0.3).map(e => e.dataset.k));
+        if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (${JSON.stringify(mk)})`);
+        else ok(`speech marks from fourteen metres: ${mk.join(', ')}`);
+        await shot('4b-marks');
+        await talk('mei', 1.6);
+        if (!(await waitPrompt(/Talk to Mei/))) fail(`beside Mei, nothing offers to talk ("${await prompt()}")`);
+        else {
+          await act();
+          await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
+          const box = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? document.getElementById('gd-name').textContent : ''; });
+          if (!/Mei/.test(box)) fail(`E beside Mei: no talk in the box ("${box}")`);
+          else ok(`E beside Mei: "${box}" in the story's box`);
+          await shot('4c-talk');
+          if (await through()) fail('Mei\'s talk does not end');
+          await errandIs(/Riko/);
+          const e1 = await errandNow();
+          if (!/Riko/.test(e1)) fail(`after Mei's talk, the corner does not say what she asked ("${e1}")`);
+          else ok(`the corner: "${e1}"`);
+          await shot('4d-asked');
+          await talk('riko', 1.6);
+          if (!(await waitPrompt(/Talk to Riko/))) fail(`beside Riko, nothing offers to talk ("${await prompt()}")`);
+          else {
+            await act(); await through();
+            await errandIs(/Mei/);
+            const e2 = await errandNow();
+            if (!/Mei/.test(e2)) fail(`after Riko's talk, the corner does not send you back to Mei ("${e2}")`);
+            // back across: Riko goes ahead unseen (the camera turned from her as you walk away)
+            await talk('mei', 6);
+            await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 6; i++) g.frame(0.05); });
+            const met = await p.evaluate(() => { const g = window.__game, a = g.npcs.find(q => q.id === 'mei'), b = g.npcs.find(q => q.id === 'riko'); return Math.hypot(a.x - b.x, a.y - b.y); });
+            if (met > 4) console.log(`(Riko is ${met.toFixed(0)} m from Mei: she goes only when nobody sees her)`);
+            else ok(`Riko waits by Mei (${met.toFixed(1)} m), never seen going`);
+            await talk('mei', 1.6);
+            if (!(await waitPrompt(/Talk to Mei/))) fail(`back beside Mei, nothing offers to talk ("${await prompt()}")`);
+            else {
+              await act(); await through();
+              await p.waitForFunction(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on'); }, null, { timeout: 30000, polling: 250 }).catch(() => {});
+              const told = await p.evaluate(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on') ? e.textContent : ''; });
+              const n = await p.evaluate(() => window.__game.walkTalk().count());
+              if (n.done !== 1) fail(`Mei's story told to its end, but ${n.done} of ${n.of} are put away`);
+              else if (!/Which Hachiko/.test(told)) fail(`Mei's story told, but its name is not put up ("${told}")`);
+              else ok(`told: "${told}"`);
+              await p.addStyleTag({ content: '#g-walk-told { transition: none !important; }' }); // (its fade is the compositor's, and a software renderer's page has no frame to give it)
+              await shot('4e-told');
+            }
+          }
+        }
+      }
+      await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+    }
     const haveCar = await p.waitForFunction(() => !!window.__game.myCar(), null, { timeout: 300000, polling: 1000 }).then(() => true, () => false);
     if (!haveCar) fail('no car of your own on the walk (five minutes after setting out)');
     else {
@@ -249,6 +326,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           else { await act(); await p.evaluate(() => window.__game.advance(0.5)); if ((await mode()) !== 'foot') fail(`Get out: still ${await mode()}`); else ok('stopped and got out'); }
         }
       }
+      // the corner's Your car (C on a desktop): it pulls in at the kerb nearest you, up the kerb's lane, and stops there
+      // (from Hachiko's side of the crossing, where the car is called from most; then back where the menu's step expects you)
+      const here0 = await p.evaluate(() => { const g = window.__game, at = [g.player.x, g.player.y]; g.spawn([395, -1052]); return at; });
+      await p.waitForTimeout(800);
+      if (!(await visible('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
+      else {
+        await press('#g-walk-acts [data-do="car"]');
+        const c0 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return [s.x, s.y]; });
+        await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 120; i++) g.frame(0.05); });
+        if (await p.evaluate(() => window.__game.carComing())) fail('Your car: still pulling in after six seconds');
+        const c1 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return { xy: [s.x, s.y], d: Math.hypot(s.x - g.player.x, s.y - g.player.y) }; });
+        if (c1.d > 45) fail(`Your car: it stopped ${c1.d.toFixed(0)} m away`);
+        else ok(`Your car: ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]) > 3 ? `pulled in ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]).toFixed(0)} m up the kerb` : 'at the kerb (no room to come from)'}, ${c1.d.toFixed(0)} m from you`);
+        await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; g.cam.yaw = Math.atan2(s.x - g.player.x, s.y - g.player.y); for (let i = 0; i < 6; i++) g.frame(0.05); }); // (the still looks at it)
+        await p.waitForTimeout(1500);
+        await shot('7b-car-called');
+      }
+      await p.evaluate(at => window.__game.spawn(at), here0);
       // the menu's Bring your car: to the kerb nearest you
       await p.evaluate(() => { const g = window.__game; g.player.x += 40; g.spawn([g.player.x, g.player.y]); });
       await p.waitForTimeout(800);
@@ -256,6 +351,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!(await visible('#gm-car'))) fail('the walk\'s menu does not offer to bring your car');
       else {
         await press('#gm-car'); await gone('#g-menu'); await p.waitForTimeout(800);
+        await p.evaluate(() => window.__game.advance(6)); // (it pulls in over a few seconds of the game's own time)
         const far = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return Math.hypot(s.x - g.player.x, s.y - g.player.y); });
         if (await visible('#g-menu')) fail('Bring your car: the menu stayed up');
         else if (far > 60) fail(`Bring your car: it is ${far.toFixed(0)} m away`);
