@@ -1959,8 +1959,10 @@ are cut to the largest of them. `tools/crowd_tris.js` counts what the cast's cop
 | on foot at the Scramble (`?walk=1`, 229 walkers, 10 to 18 past 60 m) | 276,000 | 265,000 | 1,050,000 | 1,037,000 |
 
 On foot at the crossing most of the far crowd is between 32 and 60 m, where the copy stays. The file is 90 kB larger
-(445 kB). The swap was checked in stills and a film at the distance it happens (below); the iPhone's own frame time
-waits for `?perf` on the device. The ground's fine tiles lie under the hero level's paving within its circle, where the paving hides them. Only
+(445 kB). `tools/coarse_film.js` films a walk across the crossing's diagonal, eye high, with the crowd staged ahead,
+so that walkers come in from past 60 m to under it (desktop and phone, at dusk): frame by frame a walker keeps its
+clothes, hair and height through the step, and no pop shows; stills from the helicopter's height, where every walker is the
+coarser copy, read as the crowd did. The iPhone's own frame time waits for `?perf` on the device. The ground's fine tiles lie under the hero level's paving within its circle, where the paving hides them. Only
 `?perf` on the phone itself (above) says which of these its GPU spends the frame on: not measured on a real iPhone.
 
 Also found on the way: on the low tier the hero level's asphalt, crossings' paint, pavers and setts were drawn as a
