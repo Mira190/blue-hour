@@ -3,7 +3,8 @@
 // speaker's face is in the frame, what stands between it and the lens, whether the lens is in a wall). It fails a talk
 // whose face is off the screen or has a wall, a tree's trunk or leaves, a body or the crowd in front of it (or the crowd
 // anywhere in the frame before the face, or at its shoulder: what the renderer draws, issue 45), a lens in a
-// wall, or no clear shot at all; it writes a still of every talk's opening shot (talk-NN-*.png), and five seconds of
+// wall, a face behind the head of the one whose shoulder the shot is over, a face under the dialogue's words or low over
+// them (the eyes belong on the upper third of what the words leave: issue 76), or no clear shot at all; it writes a still of every talk's opening shot (talk-NN-*.png), and five seconds of
 // stills across the episode's first cut with time held (cut-NN.png: the world stepped half a second a still, the line
 // moved on after the fourth, so that the two-shot gives way to the single). FILM=0: not those.
 //   python3 -m http.server 8800 --directory web &
@@ -24,7 +25,11 @@ const still = async file => {
 };
 const judge = s => [
   (!s.front || Math.abs(s.x) > 0.92 || Math.abs(s.y) > 0.92) && `face off the screen (${s.x}, ${s.y})`,
-  s.block && `${s.block} between the lens and the face`,
+  s.block === 'shoulder' ? 'the face behind the head of the one whose shoulder the shot is over' : s.block === 'frame' ? 'the face out of the frame as composed' : s.block && `${s.block} between the lens and the face`,
+  // (the eyes on the upper third of what the dialogue's words leave above them: issue 76, Yuna under the words at their
+  // largest; failed below the middle of that, or under the words themselves)
+  s.front && s.panel != null && (1 - s.y) / 2 > 1 - s.panel && `face under the dialogue's words (${((1 - s.y) / 2).toFixed(2)} of the frame from its top, the words from ${(1 - s.panel).toFixed(2)})`,
+  s.front && s.panel != null && (1 - s.y) / 2 <= 1 - s.panel && (1 - s.y) / 2 > (1 - s.panel) / 2 && `face low over the words (${((1 - s.y) / 2).toFixed(2)} of the frame from its top; their top at ${(1 - s.panel).toFixed(2)})`,
   s.crowd > 0 && `${s.crowd} of the crowd drawn in the frame before the face or at its shoulder`, // (issue 45)
   s.inWall && 'the lens in a wall',
   s.why === 'eyes' && 'no clear shot on either side: through the eyes',
@@ -39,7 +44,7 @@ async function poll() {
       if (s.x == null) break; // (cut to, not yet drawn: next look)
       seen.push(s);
       const why = judge(s);
-      console.log(`talk shot ${seen.length}: ${s.name} ${s.kind} side ${s.side}${s.crossed ? ' (line crossed)' : ''}${s.k < 1 ? ` (in to ${s.k})` : ''} face at (${s.x}, ${s.y})${why.length ? ` FAIL ${why.join('; ')}` : ''}`);
+      console.log(`talk shot ${seen.length}: ${s.name} ${s.kind} side ${s.side}${s.crossed ? ' (line crossed)' : ''}${s.k < 1 ? ` (in to ${s.k})` : ''} face at (${s.x}, ${s.y})${s.panel != null ? ` words ${s.panel}` : ''}${why.length ? ` FAIL ${why.join('; ')}` : ''}`);
       // (who is drawn as a whole person within 2.5 m of the face now, and as what: the crowd's, a map's NPC, the story's)
       const near = await page.evaluate(() => {
         const g = window.__game, t = g.talkShot && g.talkShot(); if (!t) return null;

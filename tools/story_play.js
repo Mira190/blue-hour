@@ -15,7 +15,7 @@
 // a print or a pair; SLIP=7 answers it wrongly until she is not answered. Frame 5's liar is cross-examined: one of his
 // statements, then the print that breaks it (SLIP=5). At the last card, how the case was worked must name a frame spent (SPEND=n).
 // BACKTO=n: from the last card, frame n is gone back into, and played to its print.
-// LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
+// WORDS=n: the dialogue's words at size n (2: the largest) from the start. LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
 // The game moves a twentieth of a second a frame at most, so on a software renderer, at a frame a second or less, the
 // story's own clock ran twenty times slow, and the runner's 50 minutes ended in the first frame's first dialogue (#1).
@@ -152,6 +152,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (the job sheet in the hand, seen by the page itself the moment it comes up with its ink: it goes away on the wall clock,
   // 14 s after the ink, and a loop that first saw its beat late, or a still that took longer than that, found it already gone)
   await p.evaluate(() => { const e = document.getElementById('g-story-order'); if (!e) return; const o = new MutationObserver(() => { if (e.classList.contains('on') && e.querySelectorAll('i').length > 80) { window.__orderOk = true; o.disconnect(); } }); o.observe(e, { attributes: true, attributeFilter: ['class'], childList: true }); });
+  // WORDS=2: the dialogue's words at that size (log.js setWords: 0 as they come, 2 the largest) from the start, on their
+  // backing, for a late start's talk shots at their largest (issue 76)
+  if (process.env.WORDS) await p.evaluate(n => window.__game.storyLog && window.__game.storyLog.setWords({ size: n, solid: n > 0 }), +process.env.WORDS);
   await p.evaluate(() => document.getElementById('gt-play').click());
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it, on the side they come from, however far (a fixed east beyond 60 m

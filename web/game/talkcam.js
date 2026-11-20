@@ -18,7 +18,12 @@
 //            bodies(x, y, r) -> [{ x, y, z, h, id, crowd }] people round a point (the crowd's with crowd: its index) })
 //   open(speaker, player, kind)    a line is said: speaker { id, x, y, z, eye } (eye: the eye's height over z) or null
 //                                  for the player's own; player { x, y, z, eye }; kind as above, or null for the default
-//   shot(player, aspect) -> { pos: [x, y, z], look: [x, y, z], fov (vertical, degrees), focus (m), subject } | null
+//   shot(player, aspect, panel) -> { pos: [x, y, z], look: [x, y, z], fov (vertical, degrees), focus (m), subject, shift }
+//                                  | null. panel: the share of the frame's height the dialogue's words cover, from its
+//                                  foot (0: none). The face is composed on the upper third of what is above them, by a
+//                                  lens shift (shift: the share of the frame's height the picture is moved up, for
+//                                  camera.setViewOffset), so that the shot's perspective is the same at every size of the
+//                                  words (issue 76: at their largest Yuna's body was under them)
 //   line()                         the next line of the same speech (the two-shot gives way to the single)
 //   close()                        the talk is over
 //   framed()      -> the crowd's indices the shot cut to would show in front of the face, or at its shoulder (the game
@@ -31,6 +36,8 @@ window.OETalkCam = (function () {
   const PORTRAIT = { two: 50, single: 40, close: 30, reverse: 46 }; // a screen held upright: the vertical angle instead
   const BODY_R = 0.3, HEAD_TOP = 1.85;
   const RING = 1.6; // (nobody of the crowd within this of the face a shot is on: a stranger at the shoulder of a close shot reads as one of the talk)
+  const HEAD_R = 0.16, FACE_R = 0.1; // (a head over the shoulder, hair and all, from the eye's height; and a face, round its eyes)
+  const EYE_TOP = 0.2; // (the eyes no nearer the frame's top than this, whatever the words leave: the head's top in the frame)
   const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
   function create(o) {
     const walls = o.walls, trees = o.trees || (() => []), bodies = o.bodies || (() => []);
@@ -84,7 +91,7 @@ window.OETalkCam = (function () {
     function fit(kind, P, S, s, ids, lenient) {
       for (const k of [1, 0.8, 0.6, 0.42]) {
         const q = place(kind, P, S, s, k);
-        const why = blocked(q.c, q.at, kind === 'reverse' ? ['player'] : [ids.speaker], q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? ids.speaker : null);
+        const why = blocked(q.c, q.at, kind === 'reverse' ? ['player'] : [ids.speaker], q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? ids.speaker : null) || unseen(kind, q, P, S);
         if (!why) return Object.assign(q, { k, why: null });
         if (lenient && why === 'crowd') return Object.assign(q, { k, why, crowd: true });
       }
@@ -101,6 +108,42 @@ window.OETalkCam = (function () {
       return best.s;
     }
     const head = q => [q.x, q.y, q.z + (q.eye || 1.58)];
+    // how a shot is framed from the lens at c on the face sub, the other one at other (the frame's aspect and the
+    // words' share of its height as the talk last gave them): which way it looks (yw, pitch), its vertical angle of view,
+    // the lens shift, and where the face lands in the frame (x, y: -1..1, y up, as three.js projects it)
+    function compose(kind, c, sub, other) {
+      const aspect = talk && talk.aspect || 16 / 9, panel = talk && talk.panel || 0;
+      const lens = (aspect >= 1 ? LENS : PORTRAIT)[kind] || 50, vfov = aspect >= 1 ? 2 * Math.atan(Math.tan(lens * Math.PI / 360) / aspect) * 180 / Math.PI : lens;
+      const tv = Math.tan(vfov * Math.PI / 360), hfov = 2 * Math.atan(tv * aspect);
+      const vx = sub[0] - c[0], vy = sub[1] - c[1], dz = sub[2] - c[2], h = Math.hypot(vx, vy);
+      // (which way the other one is from the subject, across the frame: the subject goes to the opposite third)
+      const yaw = Math.atan2(vx, vy), ox = other[0] - c[0], oy = other[1] - c[1], across = Math.sin(Math.atan2(ox, oy) - yaw) >= 0 ? 1 : -1;
+      const third = aspect >= 1 ? 1 / 3 : 0.16, off = -across * Math.atan(third * Math.tan(hfov / 2));
+      const yw = yaw - off, pitch = Math.atan2(dz, h);
+      // (the face in the frame before the shift: the lens looks level at the eye's height, turned off it by the third)
+      const fx = Math.sin(yw) * Math.cos(pitch), fy = Math.cos(yw) * Math.cos(pitch), fz = Math.sin(pitch);
+      const zc = vx * fx + vy * fy + dz * fz, xc = vx * Math.cos(yw) - vy * Math.sin(yw);
+      const yc = -vx * Math.sin(yw) * Math.sin(pitch) - vy * Math.cos(yw) * Math.sin(pitch) + dz * Math.cos(pitch);
+      const nx = xc / (Math.max(zc, 1e-3) * tv * aspect), ny = yc / (Math.max(zc, 1e-3) * tv);
+      // the eyes on the upper third of what the words leave above them (from the frame's top, as a share of its height)
+      const want = Math.max(EYE_TOP, (1 - panel) / 3), shift = (1 - ny) / 2 - want;
+      return { yw, pitch, vfov, hfov, shift, x: nx, y: ny + 2 * shift, front: zc > 0 };
+    }
+    // a face the frame does not show: off it (the eye outside the frame as composed, or under the words), or behind the
+    // head of the one whose shoulder the shot is over (issue 76: Yuna behind Kagami's head, at SKY GATE). null when seen
+    function unseen(kind, q, P, S) {
+      const sub = q.at, other = sub === P ? S : P, f = compose(kind, q.c, sub, other);
+      if (!f.front || Math.abs(f.x) > 0.9 || f.y > 0.9 || f.y < -1 + 2 * ((talk && talk.panel) || 0) + 0.1) return 'frame';
+      if (q.shoulder) {
+        const o = other, ax = sub[0] - q.c[0], ay = sub[1] - q.c[1], az = sub[2] - q.c[2], bx = o[0] - q.c[0], by = o[1] - q.c[1], bz = o[2] + 0.06 - q.c[2];
+        const da = Math.hypot(ax, ay, az), db = Math.hypot(bx, by, bz);
+        if (db < da) {
+          const ang = Math.acos(Math.max(-1, Math.min(1, (ax * bx + ay * by + az * bz) / (da * db))));
+          if (ang < Math.atan(HEAD_R / db) + Math.atan(FACE_R / da)) return 'shoulder';
+        }
+      }
+      return null;
+    }
     function open(speaker, player, kind) {
       const fresh = !talk;
       if (!talk) talk = { speaker: null, s: 0, n: 0, kind: null };
@@ -116,8 +159,9 @@ window.OETalkCam = (function () {
     }
     // the shot now; the place of the lens is fixed at a cut and kept until the next (a cut, never a move), but where it
     // looks follows the face a little, as an operator's hand does
-    function shot(player, aspect) {
+    function shot(player, aspect, panel = 0) {
       if (!talk || !talk.kind || !talk.speaker) return null;
+      talk.aspect = aspect; talk.panel = Math.max(0, Math.min(0.7, panel || 0));
       const sp = talk.speaker, P = head(player), S = head(sp), ids = { speaker: sp.id }, cutNow = talk.cut;
       if (talk.cut) {
         talk.cut = false;
@@ -128,23 +172,18 @@ window.OETalkCam = (function () {
         // (nothing clear on either side: through the player's eyes, a little in front of their face)
         if (!q && talk.kind !== 'reverse') { const dx = S[0] - P[0], dy = S[1] - P[1], L = Math.hypot(dx, dy) || 1; q = { c: [P[0] + dx / L * 0.25, P[1] + dy / L * 0.25, P[2]], at: S, shoulder: null, k: 0, why: 'eyes' }; }
         if (!q) { const dx = P[0] - S[0], dy = P[1] - S[1], L = Math.hypot(dx, dy) || 1; q = { c: [S[0] + dx / L * 0.25, S[1] + dy / L * 0.25, S[2]], at: P, shoulder: null, k: 0, why: 'eyes' }; }
-        talk.q = q; talk.at = q.at === P ? 'player' : 'speaker';
+        talk.q = q; talk.at = q.at === P ? 'player' : 'speaker'; talk.P = P; talk.S = S; // (as the shot was found: check() asks again of these)
         log.push({ name: sp.name || sp.id, kind: talk.kind, side: talk.s, crossed, k: q.k, why: q.why, fresh: talk.fresh, t: Date.now() });
         talk.fresh = false;
       }
       const q = talk.q, sub = talk.at === 'player' ? P : S, other = talk.at === 'player' ? S : P;
       // where it looks: the subject's eye on a third of the frame, the side away from the other one (a two-shot has
       // the speaker on one third and the shoulder on the other); a single looks into the space the speaker talks into
-      const lens = (aspect >= 1 ? LENS : PORTRAIT)[talk.kind] || 50, vfov = aspect >= 1 ? 2 * Math.atan(Math.tan(lens * Math.PI / 360) / aspect) * 180 / Math.PI : lens;
-      const hfov = 2 * Math.atan(Math.tan(vfov * Math.PI / 360) * aspect);
-      const vx = sub[0] - q.c[0], vy = sub[1] - q.c[1], dist = Math.hypot(vx, vy, sub[2] - q.c[2]) || 1;
-      // (which way the other one is from the subject, across the frame: the subject goes to the opposite third)
-      const yaw = Math.atan2(vx, vy), ox = other[0] - q.c[0], oy = other[1] - q.c[1], across = Math.sin(Math.atan2(ox, oy) - yaw) >= 0 ? 1 : -1;
-      const third = aspect >= 1 ? 1 / 3 : 0.16, off = -across * Math.atan(third * Math.tan(hfov / 2));
-      const yw = yaw - off, h = Math.hypot(vx, vy), pitch = Math.atan2(sub[2] - q.c[2], h) + Math.atan(0.12 * Math.tan(vfov * Math.PI / 360)); // (the eyes a little over the middle: headroom)
+      // (and the eyes on the upper third of what the words leave: the lens looks level at them and is shifted)
+      const F = compose(talk.kind, q.c, sub, other), { yw, pitch, vfov, hfov } = F, dist = Math.hypot(sub[0] - q.c[0], sub[1] - q.c[1], sub[2] - q.c[2]) || 1;
       const look = [q.c[0] + Math.sin(yw) * Math.cos(pitch) * 10, q.c[1] + Math.cos(yw) * Math.cos(pitch) * 10, q.c[2] + Math.sin(pitch) * 10];
       if (cutNow) { talk.view = [q.c, sub, yw, hfov]; talk.framed = framedBy(q.c, sub, yw, hfov); }
-      return { pos: q.c.slice(), look, fov: vfov, focus: dist, subject: sub, kind: talk.kind, side: talk.s, shoulder: q.shoulder };
+      return { pos: q.c.slice(), look, fov: vfov, focus: dist, subject: sub, kind: talk.kind, side: talk.s, shoulder: q.shoulder, shift: F.shift };
     }
     // the crowd's people a shot shows in front of the face it is on, or at its shoulder: everyone nearer the lens than a
     // pace beyond the face whose body comes into the frame (its reach at its distance: 0.75 m, an open umbrella's), and anyone within RING of
@@ -185,7 +224,8 @@ window.OETalkCam = (function () {
     function check(undrawn = true) {
       if (!talk || !talk.q) return null;
       const q = talk.q, skip = talk.at === 'player' ? ['player'] : [talk.speaker.id];
-      return blocked(q.c, q.at, skip, q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? talk.speaker.id : null, undrawn);
+      return blocked(q.c, q.at, skip, q.shoulder === 'player' ? 'player' : q.shoulder === 'speaker' ? talk.speaker.id : null, undrawn)
+        || (q.why === 'eyes' ? null : unseen(talk.kind, q, talk.P || q.at, talk.S || q.at));
     }
     // the next line of the same speech: from the opening two-shot to the speaker's single, a cut; after that the
     // lines run on in the single (a cut to the same framing is a jump, not a cut)

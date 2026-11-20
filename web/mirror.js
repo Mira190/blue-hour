@@ -157,7 +157,9 @@ ${/oePuddle\s*\(/.test(sh.fragmentShader) ? '' : puddle}`)
         // to its highest that still meets the ground (lo..hi); and the film's grain smears a light down from a good way
         // above that (the streaks: patch, above), which is where a street's signs and screens are when one looks along
         // it. So the picture is taken from lo to hi and some 30 degrees more, whatever the screen's camera does.
-        const half = Math.atan(Math.tan(camera.fov * Math.PI / 360) / (camera.zoom || 1)), pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+        // (a lens shift, the talk's camera's: the frame shows lower than the way it looks, by the shift's share of its height)
+        const V = camera.view && camera.view.enabled ? camera.view : null; if (cam.view) cam.view.enabled = false;
+        const half = Math.atan(Math.tan(camera.fov * Math.PI / 360) / (camera.zoom || 1)), pitch = Math.asin(Math.max(-1, Math.min(1, dir.y))) - (V ? Math.atan(2 * V.offsetY / V.fullHeight * Math.tan(half)) : 0);
         const lo = Math.max(0, -(pitch + half)), hi = Math.max(lo + 0.35, Math.min(1.36, -(pitch - half) + 0.52));
         const el = (lo + hi) / 2, hv = (hi - lo) / 2 + 0.05;
         let hx = dir.x, hz = dir.z, hl = Math.hypot(hx, hz);
