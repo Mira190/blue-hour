@@ -198,11 +198,10 @@
   {
    "id": "s_meet",
    "dur": 3.0,
-   "from": "meet@0.38",
-   "cx": 0.44,
-   "zoom": [
-    1.0,
-    1.12
+   "from": "meet@0.45",
+   "cx": [
+    0.2,
+    0.48
    ],
    "head": {
     "eyebrow": "One frame left",

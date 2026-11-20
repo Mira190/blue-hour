@@ -87,7 +87,7 @@ node tools/trailer_short.js tools/views/short-story.json --film-frames <the film
 | A line on screen over every picture | A hook line above the picture for each segment, held over the next while it is the same thought (`head`) |
 | Cut on the beat | Every segment a multiple of half a second at 120 bpm, a hit or a shutter on each cut, a push in on the hit (`punch`) |
 | Faster, not slower | A stretch of a shot played at its own pace or faster (`speed`): a time-lapse at three times, a crowd at one and a half; never slower, which would show a frame twice |
-| The screen filled | A 4:5 window of the film, cropped round its subject (`cx`), over the same picture blurred to the edges; the cards drawn again for the upright frame |
+| The screen filled | A 4:5 window of the film, cropped round its subject (`cx`, or a pair of them to follow it across the frame: the two of the story's meeting walk in from the edges), over the same picture blurred to the edges; the cards drawn again for the upright frame |
 | The app's own buttons | No type in the right edge or the bottom of the screen, where the feed puts its buttons and caption |
 | A drop on the title | A riser into the last frame's flash, a beat of nothing, the title on the biggest hit |
 

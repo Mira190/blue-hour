@@ -113,7 +113,9 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
       // the window: cropped round cx (0..1 of the film's width), pushed in by zoom and the punches on the hits
       let z = Array.isArray(s.zoom) ? s.zoom[0] + (s.zoom[1] - s.zoom[0]) * k : (s.zoom || 1);
       for (const hk of [].concat(s.punch || [])) { const d = ts - hk * s.dur; if (d >= 0 && d < 0.5) z *= 1 + 0.07 * Math.pow(1 - d / 0.5, 3); }
-      const sc = SCALE * z, iw = 1920 * sc, ih = 804 * sc, cx = s.cx ?? 0.5;
+      // (cx a pair: the window pans from one to the other over the segment, easing in and out, following a subject across the frame)
+      const cx = Array.isArray(s.cx) ? s.cx[0] + (s.cx[1] - s.cx[0]) * k * k * (3 - 2 * k) : (s.cx ?? 0.5);
+      const sc = SCALE * z, iw = 1920 * sc, ih = 804 * sc;
       st.x = Math.max(win[2] - iw, Math.min(0, win[2] / 2 - cx * iw));
       st.y = (win[3] - ih) / 2;
       st.z = sc;
