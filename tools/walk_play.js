@@ -1,7 +1,8 @@
-// The walk (web/game/walk.js; docs/STORY.md "The walk"), played as a person would: the title's second way in, by the
+// The walk (web/game/walk.js; docs/STORY.md "The walk"), played as a person would: the title's first way in, by the
 // mouse and keys on a desktop's page or by touch on a phone's. Opens the page as someone who has never played (nothing
 // kept in this browser), and fails if:
-//   - the title has no Walk Shibuya beside the episode's button, or it opens before who you play is chosen;
+//   - the title does not open on its press, or a key or a tap there does not open the menu; the menu has no Walk
+//     Shibuya over the episode's button, or it opens before who you play is chosen and confirmed on a screen of its own;
 //   - its step does not ask the hour and the sky, or what is chosen there is not the street behind the card (the clock
 //     at the hour on the story's evening, the rain falling), or Back does not give the title its own evening again;
 //   - set out, the title is still up, the story has begun (its goal, its light, a phase past dressed), the old free
@@ -66,7 +67,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const g = window.__game, c = g.clock, wx = g.weather ? g.weather.state : {};
     const pad = n => String(n).padStart(2, '0'), hm = m => `${pad(Math.floor(m / 60) % 24)}:${pad(Math.floor(m) % 60)}`;
     return { title: !document.getElementById('g-title').hidden, step: !!document.getElementById('gt-walk') && !document.getElementById('gt-walk').hidden,
-      ask: (document.querySelector('#gt-who .gt-who-ask') || {}).textContent || '', clock: { m: c.m, d: c.d, min: Math.floor(c.min), hm: hm(c.min) }, wx: { mode: wx.mode, kind: wx.kind, rain: +(wx.rain || 0).toFixed(2) },
+      ask: (document.querySelector('#gt-who .gt-who-ask') || {}).textContent || '', screen: window.__game.screen ? window.__game.screen() : null, clock: { m: c.m, d: c.d, min: Math.floor(c.min), hm: hm(c.min) }, wx: { mode: wx.mode, kind: wx.kind, rain: +(wx.rain || 0).toFixed(2) },
       phase: g.story ? g.story.state.phase : null, lights: g.lights(), eyebrow: document.getElementById('gt-city').textContent,
       walkOn: document.getElementById('game-stage').classList.contains('walk-on'), where: (document.querySelector('#g-walk-where small') || {}).textContent || '', at: (document.querySelector('#g-walk-where .t') || {}).textContent || '',
       goal: !!document.querySelector('#g-story-goal.on'), xy: [g.player.x, g.player.y] };
@@ -76,19 +77,35 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   await title();
   let s = await state();
   const story0 = { eyebrow: s.eyebrow, clock: s.clock };
-  if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya beside the episode');
-  else ok(`the title offers two ways in: "${(await p.textContent('#gt-play', { timeout: 180000 })).trim()}" and "${(await p.textContent('#gt-walk-go', { timeout: 180000 })).trim()}"`); // (a software renderer can hold the page's thread for half a minute behind the title, compiling)
+  // the press: the street and the name, nothing to choose; a key (on a phone a tap anywhere) opens the menu
+  if (s.screen !== 'press') fail(`the title does not open on its press (on "${s.screen}")`);
+  else ok('the title opens on its press: the street and the name');
+  await shot('0-press');
+  if (phone) await p.touchscreen.tap(w / 2, h / 2); else await p.keyboard.press('Space');
+  await p.waitForTimeout(1600);
+  s = await state();
+  if (s.screen !== 'menu') fail(`a ${phone ? 'tap' : 'key'} on the press did not open the menu (on "${s.screen}")`);
+  else ok(`a ${phone ? 'tap' : 'key'} on the press opens the menu`);
+  if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya over the episode');
+  else ok(`the title offers two ways in: "${(await p.textContent('#gt-walk-go', { timeout: 180000 })).trim()}" and "${(await p.textContent('#gt-play', { timeout: 180000 })).trim()}"`); // (a software renderer can hold the page's thread for half a minute behind the title, compiling)
+  // (the ways in are one list: the walk first and the one Enter takes, while the episodes are being finished; every row
+  // the same width and height, none bigger than another, on a desktop and a phone alike)
+  { const rows = await p.$$eval('#g-title .gt-go > .btn', bs => bs.filter(b => b.offsetParent).map(b => { const r = b.getBoundingClientRect(); return { id: b.id, w: Math.round(r.width), h: Math.round(r.height), lead: b.classList.contains('primary') }; }));
+    if (!rows.length || rows[0].id !== 'gt-walk-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1) fail(`the title's list does not lead with the walk: ${JSON.stringify(rows)}`);
+    else if (rows.some(r => Math.abs(r.w - rows[0].w) > 1 || Math.abs(r.h - rows[0].h) > 1)) fail(`the title's ways in are not all one size: ${JSON.stringify(rows)}`);
+    else ok(`the title's ways in, one list led by the walk, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
   await shot('1-title');
-  await press('#gt-walk-go'); await p.waitForTimeout(800);
+  await press('#gt-walk-go'); await until(() => window.__game.screen() === 'who');
   s = await state();
   if (s.step) fail('the walk opened before who you play was chosen');
-  else if (!/choose who you play/i.test(s.ask)) fail(`Walk Shibuya, pressed before who you play is chosen, did not ask ("${s.ask}")`);
-  else ok('the walk waits for who you play, as the story does');
-  await press('#gt-who [data-c="M"]'); await p.waitForTimeout(600);
-  await press('#gt-walk-go'); await until(stepUp);
+  else if (s.screen !== 'who') fail(`Walk Shibuya, pressed before who you play is chosen, did not bring who you play up (on "${s.screen}")`);
+  else ok('the walk waits for who you play, on a screen of its own, as the story does');
+  await shot('1-who');
+  await press('#gt-who .gt-who-row [data-c="M"]'); await p.waitForTimeout(800);
+  await press('#gt-who-go'); await until(stepUp);
   s = await state();
-  if (!s.step) fail('who you play chosen, Walk Shibuya does not open its step');
-  else if (await visible('#gt-play')) fail('the walk\'s step is up, and the episode\'s button still shows');
+  if (!s.step) fail('who you play chosen and confirmed, the walk does not go on to its step');
+  else if (await visible('#gt-story-go')) fail('the walk\'s step is up, and the menu\'s other ways in still show');
   const hours = await p.$$eval('#gt-walk [data-k="t"] button', bs => bs.map(x => [x.dataset.v, x.querySelector('small').textContent]));
   const skies = await p.$$eval('#gt-walk [data-k="w"] button', bs => bs.map(x => x.dataset.v));
   if (hours.length < 3 || hours.some(x => !/^\d\d:\d\d$/.test(x[1])) || !skies.includes('rain')) fail(`the step's hours and skies: ${JSON.stringify(hours)} ${JSON.stringify(skies)}`);
@@ -107,9 +124,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!s.eyebrow.includes(s.clock.hm)) fail(`the card's line over the title does not say the hour chosen ("${s.eyebrow}")`);
   await shot('3-chosen');
   // back, and the title's own evening again; then the step again, as it was left
-  await pressFor('#gt-walk-back', () => { const w = document.getElementById('gt-walk'), b = document.getElementById('gt-play'); return (!w || w.hidden) && b && !b.hidden && b.getBoundingClientRect().width > 0; }); await p.waitForTimeout(2500);
+  await pressFor('#gt-walk-back', () => { const w = document.getElementById('gt-walk'), b = document.getElementById('gt-story-go'); return (!w || w.hidden) && b && !b.hidden && b.getBoundingClientRect().width > 0; }); await p.waitForTimeout(2500);
   s = await state();
-  if (s.step || !(await visible('#gt-play'))) fail('Back did not give the title its two ways in again');
+  if (s.step || !(await visible('#gt-story-go'))) fail('Back did not give the menu its ways in again');
   else if (s.eyebrow !== story0.eyebrow || s.clock.hm !== story0.clock.hm) fail(`Back: the title is not the story's evening again ("${s.eyebrow}", ${s.clock.hm}; was ${story0.clock.hm})`);
   else if (sky === 'rain' && s.wx.mode === 'rain') fail('Back: the rain the walk was offered in still falls on the story\'s title');
   else ok(`Back: the story's evening again (${s.clock.hm}, ${s.wx.mode})`);

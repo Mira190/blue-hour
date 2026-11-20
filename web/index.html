@@ -827,10 +827,8 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         <h1 id="gt-title">Blue Hour</h1>
         <p id="gt-blurb"></p>
         <div class="gt-time"><span class="eyebrow">Start at</span><div class="seg" id="gt-timechoice"><button data-t="live" aria-pressed="true" id="gt-now">Now</button></div></div>
-        <div class="gt-who" id="gt-who" role="radiogroup" aria-labelledby="gt-who-l" hidden><span class="eyebrow" id="gt-who-l">Play as</span>
-          <div class="gt-who-row"><button type="button" role="radio" aria-checked="false" data-c="W"><img src="assets/story/late/kagami-w.webp" alt="" width="600" height="800" decoding="async"><b>Kagami</b><small>a woman</small></button><button type="button" role="radio" aria-checked="false" data-c="M"><img src="assets/story/late/kagami-m.webp" alt="" width="600" height="800" decoding="async"><b>Kagami</b><small>a man</small></button></div>
-          <p class="gt-who-ask" aria-live="polite"></p></div>
-        <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button></div>
+        <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button><button type="button" class="btn" id="gt-cont-go" hidden><span>Continue</span><small></small><img alt="" hidden><kbd>↵</kbd></button><button type="button" class="btn" id="gt-story-go"><span>The story</span><small></small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-opts-go"><span>Options</span><small>Sound · crowds and traffic · frame rate</small><kbd>↵</kbd></button></div>
+        <button type="button" class="gt-who-line" id="gt-who-line" hidden><span>Playing as</span><b>Kagami</b><small></small><em>Change</em></button>
         <label class="gt-skip note" id="gt-skip" hidden><input type="checkbox" id="gt-skip-on" checked> Skip the intro: you have played before</label>
         <div class="gt-hints">
           <span><kbd>W A S D</kbd> walk · drag to look around</span>
@@ -840,6 +838,44 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         </div>
         
       </div>
+      <!-- the story's title in three screens (story.css "the title in three screens"; game.js titleScreen): the press, over
+           the street with nothing but the name; the menu, the card above; who you play, a screen of its own -->
+      <div class="gt-press" id="gt-press"><i class="bar" aria-hidden="true"></i><i class="bar" aria-hidden="true"></i>
+        <button type="button" class="go" id="gt-press-go"><span class="k">Press <kbd>Any key</kbd></span><span class="t">Tap to begin</span></button></div>
+      <section class="gt-who" id="gt-who" aria-labelledby="gt-who-l" tabindex="-1" hidden>
+        <div class="gt-who-row" role="radiogroup" aria-labelledby="gt-who-l"><button type="button" role="radio" aria-checked="false" data-c="W"><img src="assets/story/late/kagami-w.webp" alt="" width="831" height="1108" decoding="async"><span><b>Kagami</b><small>a woman</small></span></button><button type="button" role="radio" aria-checked="false" data-c="M"><img src="assets/story/late/kagami-m.webp" alt="" width="831" height="1108" decoding="async"><span><b>Kagami</b><small>a man</small></span></button></div>
+        <div class="gt-who-file">
+          <span class="eyebrow" id="gt-who-l">Who you play</span>
+          <h2><span lang="ja" class="jp"></span><span class="nm">Kagami</span></h2>
+          <p class="sub"></p>
+          <p class="line"></p>
+          <dl class="facts"></dl>
+          <p class="note"></p>
+          <p class="gt-who-ask" aria-live="polite"></p>
+          <div class="gt-who-acts"><button type="button" class="btn primary" id="gt-who-go"><span>Confirm</span><kbd>↵</kbd></button><button type="button" class="btn" id="gt-who-back"><span>Back</span><kbd>Esc</kbd></button></div>
+        </div>
+      </section>
+      <!-- the story: its episode, how far this browser has got in it, and the ways into it (story.js fills it) -->
+      <section class="gt-eps" id="gt-eps" aria-labelledby="gt-eps-l" tabindex="-1">
+        <button type="button" class="gt-scr-back" id="gt-eps-back"><i aria-hidden="true"></i><span>Back</span><kbd>Esc</kbd></button>
+        <span class="eyebrow" id="gt-eps-l">The story</span>
+        <article class="gt-ep">
+          <div class="gt-ep-art"><img src="assets/story/late/key-1.webp" alt="" width="1920" height="1080" decoding="async" loading="lazy"><div class="cap"><small class="no"></small><h3></h3><span class="when"></span></div></div>
+          <div class="gt-ep-body">
+            <p class="line"></p>
+            <p class="state"></p>
+            <ol class="gt-roll" aria-label="The roll"></ol>
+            <div class="gt-go gt-ep-acts"><button type="button" class="btn" id="gt-anew" hidden><span>Start the evening again</span><small>From its first frame</small><kbd>↵</kbd></button></div>
+            <div class="gt-ep-sure" role="alertdialog" aria-labelledby="gt-ep-sure-l"><p id="gt-ep-sure-l">Start the evening again? The frames taken tonight are lost.</p>
+              <div class="gt-go"><button type="button" class="btn" id="gt-anew-no"><span>Keep the case</span><small>Back to the episode</small><kbd>Esc</kbd></button><button type="button" class="btn" id="gt-anew-yes"><span>Start again</span><small>From 17:14, the first frame</small><kbd>↵</kbd></button></div></div>
+          </div>
+        </article>
+      </section>
+      <!-- options before play: the pause menu's own controls, lent while this screen is up (game.js titleScreen) -->
+      <section class="gt-opts" id="gt-opts" aria-labelledby="gt-opts-l" tabindex="-1">
+        <button type="button" class="gt-scr-back" id="gt-opts-back"><i aria-hidden="true"></i><span>Back</span><kbd>Esc</kbd></button>
+        <div class="gt-opts-in"><span class="eyebrow" id="gt-opts-l">Options</span><div class="gt-opts-list"></div><p class="gt-opts-more">The hour, the sky and the rest are in the menu during play</p></div>
+      </section>
     </div>
 
     <div class="g-touch" id="g-touch" hidden>
