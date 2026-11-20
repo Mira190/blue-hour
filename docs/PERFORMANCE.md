@@ -1002,6 +1002,44 @@ them) would be about 4.5 s of its 22 s, and five fewer drawn on the title somewh
 telemetry's `load` event (`build_ms` to `frame_ms`) on the owner's device is the number to read. Not checked either: a
 real GPU, Safari, WebGPU.
 
+### The first view's programs (issue 60)
+
+After the second round the first frame still waited about 12 s on llvmpipe for the GPU to make machine code for each of
+the 63 programs the title draws, the step an iPhone's ANGLE takes too (a Metal pipeline a program, at its first draw). So
+the count of distinct programs the first view draws was cut, without changing what any of them draws. What
+`tools/entry_cost.js DUMP=1` showed, and what was done:
+
+- **Landmark materials that differed only in having a picture, or a pattern that does nothing.** A landmark's plain
+  stone, bronze and steel, its painted bands and its images wrote the shader the granite beside them writes, less the
+  granite's few lines, or the same shader without a map: four programs for two shaders, on the Hachiko square and the
+  Scramble alone. A material with no pattern now takes the granite's with no speckle (`uSpeck` 0) and no joints, which
+  multiplies its colour by exactly one, and one with no picture a white texel for its map (world.js `WHITE`), which
+  does the same; byText then keys them all to one program, the paving's to another. The inland water's railing takes
+  the white texel and byText too, and shares the Scramble fence's railing program.
+- **The night's points of light** (night.js): the street lamps, the traffic's moving lights and the aircraft warning
+  lights shared their fragment shader and had three vertex shaders. One shader now, each kind its own branch as its own
+  shader was (`uKind`).
+- **The signals' lenses and arrows** (junctions.js): the same unlit instanced program, one drawn from both sides and
+  one from the front. A lens is drawn from both sides now (its back faces into its housing).
+
+Left as they are: the leaf's cut-out (alpha test, which costs every fragment of the shared program if added to it),
+the glass's two passes (front and back), and programs of different shaders (the screens, the lit signs, a curtain wall, the
+ashlar wall). Four depth programs are still linked and not drawn in the watch.
+
+| `tools/entry_cost.js`, llvmpipe, Mesa's cache off | main | after |
+|---|---|---|
+| 390×844, low tier: programs linked before the first frame | 69 (63 drawn on the title) | 63 (57 drawn on the title) |
+| built to the first frame | 29.9 s (13.9 s of it waiting for the GPU) | 27.4 s, 30.7 s (12.4 s, 13.8 s) |
+| 1440×900, high tier: programs linked before the first frame | 79 (73 drawn on the title) | 73 (67 drawn on the title) |
+| built to the first frame | 68.7 s (20.8 s of it waiting for the GPU) | 67.9 s (18.4 s) |
+| programs a draw linked, title to 8 s into the opening | 0 | 0 |
+
+Six fewer programs at about 190 ms each on llvmpipe is a little over a second of the GPU's wait, inside what the
+software renderer varies by from run to run (the times above); the counts do not vary. On an iPhone, at about 150 ms a
+pipeline, it is about a second of the first frame; the telemetry's `load` event (`build_ms` to `frame_ms`) on the
+owner's device is the number to read. Stills of the Hachiko square, the Q-Front side and the Scramble from the air, at
+dusk and at night, on a desktop and a phone, were taken on main and here and compared. Not checked: a real GPU, Safari, iOS.
+
 ## The build stage (issue 327)
 
 The telemetry's desktop loads spent about 10 s between "decoded" and "built". `tools/start_profile.js LOAD=1
@@ -1905,9 +1943,24 @@ iPhone's own count was 1.27 million):
 | the rest (the night's lights, the trees, the props, the near people) | 378,000 | 217 |
 
 The far crowd is the largest: a walker 60 m off is some 35 device pixels tall on that screen (about 400 pixels in
-all) and drawn in 1,300 triangles, a triangle for every three pixels, which a phone's GPU shades in quads of four. A second, coarser copy of
-each of the cast past 60 m (some 300 triangles; `blender/build_people.py` makes the far copies) is the next thing to
-try. The ground's fine tiles lie under the hero level's paving within its circle, where the paving hides them. Only
+all) and drawn in 1,300 triangles, a triangle for every three pixels, which a phone's GPU shades in quads of four.
+
+**The coarser copy (issue 61).** Each of the cast now has a second, coarser far copy (`pipeline/crowd_cast.py`
+`COARSE`: 298 to 366 triangles against 1,000 to 1,406), drawn past 60 m from the camera as the lens counts it
+(people.js `COARSE_M`, 4 m of slack either way) on the same picture and the same material, so the same program: a
+second instanced mesh a cast member, each walker with a slot in both. The body is simplified across its texture seams
+(meshoptimizer's `Permissive`), the head keeps its seams, and the hair cards, loose quads the simplifier cannot merge,
+are cut to the largest of them. `tools/crowd_tris.js` counts what the cast's copies draw on a phone's set
+(`?farcoarse=off` draws them all as the copy, as before):
+
+| 390×844, low tier, 30 s | far crowd, before | after | the frame, before | after |
+|---|---|---|---|---|
+| the story's opening (467 walkers, all past 60 m) | 561,000 | 156,000 | 1,564,000 | 1,156,000 |
+| on foot at the Scramble (`?walk=1`, 229 walkers, 10 to 18 past 60 m) | 276,000 | 265,000 | 1,050,000 | 1,037,000 |
+
+On foot at the crossing most of the far crowd is between 32 and 60 m, where the copy stays. The file is 90 kB larger
+(445 kB). The swap was checked in stills and a film at the distance it happens (below); the iPhone's own frame time
+waits for `?perf` on the device. The ground's fine tiles lie under the hero level's paving within its circle, where the paving hides them. Only
 `?perf` on the phone itself (above) says which of these its GPU spends the frame on: not measured on a real iPhone.
 
 Also found on the way: on the low tier the hero level's asphalt, crossings' paint, pavers and setts were drawn as a
