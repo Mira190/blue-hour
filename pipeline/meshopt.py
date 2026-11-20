@@ -19,7 +19,7 @@ SPLIT_MJS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "split_glb.
 # cars, the trees' mid and far models with the leaf atlas) and the rest after (actors.js, trees.js)
 PARTS = {
     "cars.glb": [("cars_far.glb", "_LOD2$", ["--near-box"])],
-    "trees.glb": [("trees_far.glb", "_LOD[12]$", []), ("trees_near.glb", "_LOD0$", ["--no-images"])],
+    "trees.glb": [("trees_far.glb", "_LOD[12]$", []), ("trees_near.glb", "_LOD0$", ["--no-images"]), ("trees_hero.glb", "_LODH$", ["--no-images"])],
 }
 
 
