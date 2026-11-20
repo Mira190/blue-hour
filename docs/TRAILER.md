@@ -11,7 +11,8 @@ same shot list, so each hit falls on its cut.
 | Shot lists | `tools/views/trailer-story.json`, `tools/views/trailer-walk.json` (the shots, their type and the score's cues) |
 | Director | `tools/trailer/director.js`, run inside the game page: the camera, the clock, the world's pace, the grade, the cast, the type |
 | Score | `tools/trailer/score.js`, an OfflineAudioContext in a blank page: every instrument synthesised, no samples |
-| Runner | `tools/trailer.js`: stills, the film, the score and the cut (ffmpeg) |
+| Runner | `tools/trailer.js`: stills, the film, the score and the cut (ffmpeg); `tools/trailer/render_score.js` renders a score to a wav |
+| Short cuts | `tools/trailer_short.js` and `tools/views/short-*.json`: the films cut again for a phone held upright, from their frames |
 
 ```bash
 python3 -m http.server 8800 --directory web &
@@ -69,6 +70,29 @@ Before a shot is filmed its set is built: the world is simulated for its `prerol
 already given), and frames are run without being drawn until the hero level and the characters it needs have come (a
 texture goes up a frame, and a drawn frame takes seconds here). A frame is read through the DevTools protocol
 (Playwright's own screenshot waits for the page to settle: two seconds a frame).
+
+## The short cuts
+
+For a phone held upright (a short-video feed: 9:16, 20 to 30 seconds), each film has a short cut made from its frames
+already on disk, with no filming: `tools/trailer_short.js` and the cut lists `tools/views/short-story.json` (28.5 s)
+and `tools/views/short-walk.json` (23 s).
+
+```bash
+node tools/trailer_short.js tools/views/short-story.json --film-frames <the film's frames> [--stills 0.5,9.6]
+```
+
+| Craft of the feed | Here |
+|---|---|
+| The first second decides | The story opens on the Stop itself (the crowd crossing, the shutter, time held); the walk on the drop from SHIBUYA SKY's edge |
+| A line on screen over every picture | A hook line above the picture for each segment, held over the next while it is the same thought (`head`) |
+| Cut on the beat | Every segment a multiple of half a second at 120 bpm, a hit or a shutter on each cut, a push in on the hit (`punch`) |
+| Faster, not slower | A stretch of a shot played at its own pace or faster (`speed`): a time-lapse at three times, a crowd at one and a half; never slower, which would show a frame twice |
+| The screen filled | A 4:5 window of the film, cropped round its subject (`cx`), over the same picture blurred to the edges; the cards drawn again for the upright frame |
+| The app's own buttons | No type in the right edge or the bottom of the screen, where the feed puts its buttons and caption |
+| A drop on the title | A riser into the last frame's flash, a beat of nothing, the title on the biggest hit |
+
+The film's own type is in its frames (its subtitles, centred, stay inside the window; a card over a picture is not
+used, its words would be cut), so the short cut takes its stretches where the film has none or only a centred line.
 
 ## The score
 

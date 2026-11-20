@@ -1,0 +1,571 @@
+{
+ "_": "Blue Hour's short cut for a phone held upright (docs/TRAILER.md): 28.5 s cut from the story trailer's frames on a 120 bpm grid. The hook is the Stop itself in the first second; every cut lands on a beat; the title on the biggest hit. tools/trailer_short.js makes it.",
+ "name": "blue-hour-short",
+ "film": "tools/views/trailer-story.json",
+ "size": "1080x1920",
+ "fps": 24,
+ "grain": 4,
+ "window": [
+  0,
+  330,
+  1080,
+  1350
+ ],
+ "brand": {
+  "name": "Blue Hour",
+  "line": "Episode 1 · in your browser"
+ },
+ "segments": [
+  {
+   "id": "s_stop",
+   "dur": 2.0,
+   "from": "raise@0.36",
+   "cx": 0.5,
+   "zoom": [
+    1.0,
+    1.06
+   ],
+   "punch": [
+    0.45
+   ],
+   "head": {
+    "eyebrow": "Shibuya · 17:14",
+    "text": "Time stops"
+   }
+  },
+  {
+   "id": "s_held",
+   "dur": 1.5,
+   "from": "held@0.12",
+   "speed": 2.0,
+   "cx": 0.45,
+   "head": {
+    "eyebrow": "Up to 3,000 people",
+    "text": "Every one held"
+   }
+  },
+  {
+   "id": "s_girl",
+   "dur": 2.5,
+   "from": "girl@0.36",
+   "cx": 0.5,
+   "zoom": [
+    1.04,
+    1.1
+   ],
+   "head": {
+    "eyebrow": "Every one but her",
+    "text": "She is from 1964"
+   }
+  },
+  {
+   "id": "s_relic",
+   "dur": 1.5,
+   "from": "relic@0.26",
+   "cx": 0.5,
+   "punch": [
+    0.0
+   ],
+   "flash": [
+    [
+     0.0,
+     0.18
+    ]
+   ],
+   "head": {
+    "eyebrow": "His camera",
+    "text": "It sees the past"
+   }
+  },
+  {
+   "id": "s_seven",
+   "dur": 0.5,
+   "card": {
+    "kind": "counter",
+    "text": "7",
+    "line": "frames left",
+    "fadeIn": 0.02,
+    "fadeOut": 0.04
+   }
+  },
+  {
+   "id": "s_dog",
+   "dur": 1.5,
+   "from": "dog@0.18",
+   "cx": 0.5,
+   "punch": [
+    0.0
+   ],
+   "head": {
+    "eyebrow": "Hachi",
+    "text": "Follow the dog"
+   }
+  },
+  {
+   "id": "s_green",
+   "dur": 1.0,
+   "from": "green@0.15",
+   "speed": 1.5,
+   "cx": 0.5,
+   "punch": [
+    0.0
+   ],
+   "head": {
+    "eyebrow": "Seven frames",
+    "text": "Seven clues"
+   }
+  },
+  {
+   "id": "s_heli",
+   "dur": 1.0,
+   "from": "heli@0.3",
+   "cx": 0.62,
+   "punch": [
+    0.0
+   ],
+   "head": {
+    "eyebrow": "Seven frames",
+    "text": "Seven clues"
+   }
+  },
+  {
+   "id": "s_storm",
+   "dur": 1.0,
+   "from": "storm@0.25",
+   "cx": 0.55,
+   "punch": [
+    0.0
+   ],
+   "head": {
+    "eyebrow": "Seven frames",
+    "text": "Seven clues"
+   }
+  },
+  {
+   "id": "s_above",
+   "dur": 1.0,
+   "from": "above@0.2",
+   "cx": 0.5,
+   "punch": [
+    0.0
+   ],
+   "head": {
+    "eyebrow": "Seven frames",
+    "text": "Seven clues"
+   }
+  },
+  {
+   "id": "s_pitch",
+   "dur": 1.0,
+   "from": "pitch@0.2",
+   "cx": 0.5,
+   "punch": [
+    0.0
+   ],
+   "head": {
+    "eyebrow": "Seven frames",
+    "text": "Seven clues"
+   }
+  },
+  {
+   "id": "s_akira",
+   "dur": 2.0,
+   "from": "akira@0.3",
+   "cx": 0.5,
+   "zoom": [
+    1.0,
+    1.05
+   ],
+   "head": {
+    "eyebrow": "10 October 1964",
+    "text": "He never crossed"
+   }
+  },
+  {
+   "id": "s_why",
+   "dur": 1.5,
+   "card": {
+    "kind": "card",
+    "text": [
+     "Why",
+     "did he not",
+     "cross?"
+    ],
+    "fadeIn": 0.05,
+    "fadeOut": 0.1
+   }
+  },
+  {
+   "id": "s_meet",
+   "dur": 3.0,
+   "from": "meet@0.38",
+   "cx": 0.5,
+   "zoom": [
+    1.0,
+    1.12
+   ],
+   "head": {
+    "eyebrow": "One frame left",
+    "text": "Take it"
+   }
+  },
+  {
+   "id": "s_title",
+   "dur": 3.0,
+   "card": {
+    "kind": "title",
+    "text": [
+     "Blue",
+     "Hour"
+    ],
+    "jp": "遅かったね",
+    "line": "Episode 1",
+    "fadeIn": 0.04,
+    "fadeOut": 0.4
+   }
+  },
+  {
+   "id": "s_sting",
+   "dur": 2.0,
+   "from": "stinger@0.52",
+   "cx": 0.5,
+   "zoom": [
+    1.06,
+    1.12
+   ]
+  },
+  {
+   "id": "s_end",
+   "dur": 2.5,
+   "card": {
+    "kind": "card",
+    "eyebrow": "Blue Hour · Episode 1",
+    "text": "Play it now",
+    "lines": [
+     "In your browser, on a phone or a desktop"
+    ],
+    "fadeIn": 0.2,
+    "fadeOut": 0.5
+   }
+  }
+ ],
+ "score": {
+  "root": 49,
+  "scale": [
+   0,
+   2,
+   3,
+   5,
+   7,
+   8,
+   10
+  ],
+  "events": [
+   {
+    "at": "s_stop",
+    "kind": "hit",
+    "gain": 0.55
+   },
+   {
+    "at": "s_stop",
+    "kind": "drums",
+    "until": "s_stop+0.9",
+    "bpm": 120,
+    "gain": 0.8,
+    "from": 0.8,
+    "pattern": "TtTt"
+   },
+   {
+    "at": "s_stop",
+    "kind": "pulse",
+    "until": "s_stop+0.9",
+    "bpm": 120,
+    "gain": 0.16,
+    "cut": 900,
+    "open": 2600
+   },
+   {
+    "at": "s_stop+0.1",
+    "kind": "riser",
+    "until": "s_stop+0.9",
+    "gain": 0.3
+   },
+   {
+    "at": "s_stop+0.9",
+    "kind": "shutter",
+    "gain": 0.8
+   },
+   {
+    "at": "s_stop+0.9",
+    "kind": "stop",
+    "until": "s_relic",
+    "gain": 0.9,
+    "shimmer": 0.05
+   },
+   {
+    "at": "s_held+0.2",
+    "kind": "heart",
+    "until": "s_relic",
+    "bpm": 60,
+    "gain": 0.32
+   },
+   {
+    "at": "s_held+0.3",
+    "kind": "motif",
+    "every": 0.55,
+    "oct": 2,
+    "vel": 0.32,
+    "len": 4
+   },
+   {
+    "at": "s_girl+0.2",
+    "kind": "choir",
+    "dur": 2.6,
+    "gain": 0.2,
+    "notes": [
+     49,
+     56,
+     64
+    ]
+   },
+   {
+    "at": "s_girl+1.4",
+    "kind": "reverse",
+    "until": "s_relic",
+    "gain": 0.25
+   },
+   {
+    "at": "s_relic",
+    "kind": "braam",
+    "dur": 1.6,
+    "gain": 0.6
+   },
+   {
+    "at": "s_relic",
+    "kind": "hit",
+    "gain": 0.8
+   },
+   {
+    "at": "s_relic",
+    "kind": "shutter",
+    "gain": 0.5
+   },
+   {
+    "at": "s_seven",
+    "kind": "shutter",
+    "gain": 0.6
+   },
+   {
+    "at": "s_seven",
+    "kind": "hit",
+    "gain": 0.7
+   },
+   {
+    "at": "s_dog",
+    "kind": "drums",
+    "until": "s_why",
+    "bpm": 120,
+    "gain": 1.0,
+    "from": 0.6,
+    "snare": true
+   },
+   {
+    "at": "s_dog",
+    "kind": "pulse",
+    "until": "s_why",
+    "bpm": 120,
+    "gain": 0.24,
+    "cut": 600,
+    "open": 3800
+   },
+   {
+    "at": "s_dog",
+    "kind": "strings",
+    "dur": 7.0,
+    "gain": 0.14,
+    "notes": [
+     37,
+     44,
+     52,
+     56
+    ],
+    "attack": 2
+   },
+   {
+    "at": "s_green",
+    "kind": "shutter",
+    "gain": 0.45
+   },
+   {
+    "at": "s_green",
+    "kind": "braam",
+    "dur": 0.9,
+    "gain": 0.32
+   },
+   {
+    "at": "s_heli",
+    "kind": "shutter",
+    "gain": 0.45
+   },
+   {
+    "at": "s_heli",
+    "kind": "whoosh",
+    "dur": 0.8,
+    "gain": 0.25,
+    "pan": 0.3
+   },
+   {
+    "at": "s_storm",
+    "kind": "shutter",
+    "gain": 0.45
+   },
+   {
+    "at": "s_storm+0.2",
+    "kind": "thunder",
+    "gain": 0.7
+   },
+   {
+    "at": "s_above",
+    "kind": "shutter",
+    "gain": 0.45
+   },
+   {
+    "at": "s_above",
+    "kind": "braam",
+    "dur": 0.9,
+    "gain": 0.32
+   },
+   {
+    "at": "s_pitch",
+    "kind": "shutter",
+    "gain": 0.45
+   },
+   {
+    "at": "s_pitch",
+    "kind": "hit",
+    "gain": 0.5
+   },
+   {
+    "at": "s_akira",
+    "kind": "strings",
+    "dur": 2.2,
+    "gain": 0.24,
+    "notes": [
+     33,
+     45,
+     52
+    ],
+    "attack": 0.4
+   },
+   {
+    "at": "s_akira+0.3",
+    "kind": "riser",
+    "until": "s_why",
+    "gain": 0.3
+   },
+   {
+    "at": "s_why",
+    "kind": "braam",
+    "dur": 1.8,
+    "gain": 0.85,
+    "bright": 2000
+   },
+   {
+    "at": "s_why",
+    "kind": "hit",
+    "gain": 0.95
+   },
+   {
+    "at": "s_meet",
+    "kind": "drums",
+    "until": "s_meet+2.9",
+    "bpm": 120,
+    "gain": 1.0,
+    "from": 0.8,
+    "pattern": "T.Tt T.Tt TTTt TTTT",
+    "snare": true
+   },
+   {
+    "at": "s_meet",
+    "kind": "choir",
+    "dur": 3.0,
+    "gain": 0.3,
+    "notes": [
+     52,
+     57,
+     64
+    ],
+    "attack": 0.8
+   },
+   {
+    "at": "s_meet",
+    "kind": "strings",
+    "dur": 3.0,
+    "gain": 0.28,
+    "notes": [
+     33,
+     45,
+     52,
+     57
+    ],
+    "attack": 0.6
+   },
+   {
+    "at": "s_meet+0.4",
+    "kind": "riser",
+    "until": "s_meet+2.9",
+    "gain": 0.4
+   },
+   {
+    "at": "s_meet+2.9",
+    "kind": "shutter",
+    "gain": 0.9
+   },
+   {
+    "at": "s_title",
+    "kind": "hit",
+    "gain": 1.0,
+    "metal": 55
+   },
+   {
+    "at": "s_title",
+    "kind": "braam",
+    "dur": 3.2,
+    "gain": 0.9,
+    "bright": 1800,
+    "peak": 0.4
+   },
+   {
+    "at": "s_title+0.4",
+    "kind": "shimmer",
+    "until": "s_sting+1.5",
+    "gain": 0.035
+   },
+   {
+    "at": "s_sting+0.2",
+    "kind": "motif",
+    "every": 0.42,
+    "oct": 2,
+    "vel": 0.28,
+    "len": 4
+   },
+   {
+    "at": "s_end",
+    "kind": "boom",
+    "gain": 0.55
+   },
+   {
+    "at": "s_end+0.1",
+    "kind": "piano",
+    "notes": [
+     37,
+     44,
+     52
+    ],
+    "every": 0.04,
+    "vel": 0.4,
+    "len": 4
+   }
+  ]
+ }
+}
