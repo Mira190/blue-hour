@@ -20,6 +20,7 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
@@ -373,6 +374,7 @@ run_one() {
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st vendor vendor "three.js carries its fixes (an ImageBitmap made smaller sent unturned)" '^FAIL|Error' python3 pipeline/fetch_vendor.py --check
     echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"
   fi
   for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done
