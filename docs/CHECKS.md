@@ -292,6 +292,14 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   line, a roll of seven, the hand on Begin; with a case going, how far, the frames on the roll, Continue and the evening
   again) or not left back to its row, the evening again that does not ask first or loses the case by asking, and the
   options not lent the pause menu's controls or not giving them back. Stills of each screen.
+- The title's marks, a camera for each of its screens: `tools/title_marks.js`, by hand after a change to the title's
+  camera (`game.js` `titleMarks`, `MARK`; docs/STORY.md "A mark for each screen"). On a desktop's page (1440x900) and a
+  phone's (390x844, by touch): the press framed as it opens; pressed, the move to the menu's mark (it fails a menu framed
+  as the press is, a move that overshoots or turns back on itself); options, the story and who you play each taking the
+  camera further in and Back bringing it out; Esc giving the press its frame again; and the walk set out from the menu's
+  mark with no jump where the crane down to the shoulder takes over. `TUNES='[{...}]'` lays each object over `MARK` for
+  a still of the menu's frame with it, to try framings in one load. On a software renderer the move takes a minute of
+  the wall clock (a frame in two seconds, each a twentieth of a second of the move at most).
 
 ## How it came to this
 
