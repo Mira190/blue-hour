@@ -564,7 +564,9 @@ preferably with a distinct furrow extending from the stop to the top of the skul
 that is "a slightly rounded octagon" from the front, and the Akitainu Hozonkai's text on the same page has the top
 of the head somewhat flat and the groove distinct. So the forehead is now flat across and falls gently forward,
 a 2 mm furrow runs up its middle from the stop to the crown, and the brows rise only where the stop is, between
-the eyes (`portrait_head`, the roof in `face`). The same page gives the eyes as deep-set, almond-shaped (the
+the eyes, and there gently: 6 to 7 mm above the middle where they had stood 15 to 16, two ridges with a dark
+trough between them read from the front as a hollow above the eyes (`portrait_head`: the brows and the roof in
+`face`; the bridge still drops from the forehead as the profile check in `portrait_head` asks). The same page gives the eyes as deep-set, almond-shaped (the
 Hozonkai: somewhat triangular), relatively small and raised at the outer corners; the sculpt's had been round,
 level with the lids and staring. They are smaller now, three-cornered, with a nearly straight lower lid rising to
 the outer corner, set about 3 mm back under lids whose upper edge overhangs a little (`orbit`, `sculpt_features`).

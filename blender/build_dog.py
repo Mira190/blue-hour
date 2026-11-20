@@ -81,7 +81,7 @@ def portrait_head():
     skull = sk.ellipsoid((-0.009, 0, 0.003), (0.117, 0.124, 0.097))
     cheeks = pair(sk.ellipsoid((0.007, 0.079, -0.022), (0.095, 0.068, 0.076)))
     chin = sk.ellipsoid((0.043, 0, -0.070), (0.088, 0.089, 0.045))
-    brow = pair(sk.ellipsoid((0.082, 0.039, 0.038), (0.027, 0.034, 0.016)))
+    brow = pair(sk.ellipsoid((0.082, 0.039, 0.033), (0.027, 0.034, 0.014)))
     arch = pair(sk.capsule((-0.030, 0.113, -0.010), (0.066, 0.087, 0.002), 0.030, 0.020))
     dome = sk.smooth_union(0.022, skull, cheeks, arch, chin, brow)
     bridge = sk.capsule((0.068, 0, 0.012), (0.145, 0, 0.008), 0.046, 0.028)
@@ -96,9 +96,9 @@ def portrait_head():
         u = np.clip((x - 0.025) / 0.06, 0, 1)
         stop = u * u * (3 - 2 * u)
         forehead = 0.097 - 4.5 * np.maximum(0, x + 0.01) ** 2
-        bridge = 0.041 - 0.065 * np.maximum(0, x - 0.068)
+        bridge = 0.043 - 0.065 * np.maximum(0, x - 0.068)
         roof = forehead + (bridge - forehead) * stop
-        roof += 0.018 * stop * (1 - np.exp(-(y / 0.024) ** 2))     # the brows either side of the stop
+        roof += 0.007 * stop * (1 - np.exp(-(y / 0.024) ** 2))     # the brows either side of the stop
         roof -= 0.003 * np.exp(-(y / 0.008) ** 2 - ((x - 0.02) / 0.06) ** 2)   # the furrow, the stop to the crown
         a, b = mass(x, y, z), z - roof
         return np.maximum(a, b) + np.maximum(0, 0.012 - abs(a - b)) ** 2 / 0.048
