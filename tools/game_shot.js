@@ -123,6 +123,7 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     }
     fs.writeFileSync(path.join(outDir, `${name}.png`), Buffer.from(png.split(',')[1], 'base64'));
     console.log(name + (tries ? ` (black at first: taken again ${tries}x)` : ''));
+    if (process.env.COUNT) console.log(`  ${await require('./crowd_count').count(p, +process.env.COUNT || 60)}`); // (COUNT=R: the same person seen how often in this view, issue 64)
   };
   // from the air, over the title screen (its scripted camera drives only the title's view)
   const air = views.filter(v => v.cam), foot = views.filter(v => !v.cam);
@@ -416,6 +417,8 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     // the plush traveller, once photo mode has the camera where the still is taken from (a few frames on)
     await p.evaluate(async () => { await window.__mapWait; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
     await p.evaluate(async () => { if (!window.__plushPlace) return; for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r)); window.__plushPlace(); window.__plushPlace = null; });
+    // (a hero level near the stand, fetched as the player was put there: loaded and shown first, as scramble_shot waits)
+    await p.evaluate(async () => { const g = window.__game; if (g.hero && g.hero()) for (let i = 0; i < 1200; i++) { await new Promise(r => requestAnimationFrame(r)); if (i > 3 && !g.hero().state().some(h => h.state === 'loading')) break; } });
     await (v.closer || v.page ? grabPage : grab)(v.name); // ("page": the page with its HUD, not the canvas alone)
     // "pick": [[u, v], ...] points on the frame (0..1 from its top left): what the camera sees there, printed
     // (the mesh's name, its material's, and where it is hit), to find which surface draws a fault in the still

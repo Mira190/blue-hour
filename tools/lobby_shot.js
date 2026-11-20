@@ -37,16 +37,17 @@ const [,, out = '/tmp/lobby-shot', size = '1440x900'] = process.argv;
   }
   const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   const lobbies = await p.evaluate(() => {
-    const g = window.__game, set = (g.G.story.episodes || []).flatMap(e => e.set || []).filter(r => r.model === 'lift');
+    const g = window.__game, levels = (g.G.hero || []).filter(h => h.belts && h.belts.length);
     return g.lifts.map(l => l.stops[0]).filter(s => s.door).map(s => {
-      const r = set.find(q => Math.hypot(q.at[0] - s.at[0], q.at[1] - s.at[1]) < 6) || null;
-      return { name: s.name, at: s.at, door: s.door, set: r };
+      const h = levels.find(q => Math.hypot(q.at[0] - s.at[0], q.at[1] - s.at[1]) < q.r + 4) || null; // (the hall's level: cities/shibuya/hero_skylobby.py)
+      return { name: s.name, at: s.at, door: s.door, belts: h ? h.belts : null, level: h ? h.id : null };
     });
   });
   console.log('lobbies', JSON.stringify(lobbies));
   // the player stood at (x, y) looking at (tx, ty, tz), the camera behind them at a distance
+  // (on the floor nearest the lobby's own: the street's, not the station deck over SKY's forecourt)
   const view = (x, y, tx, ty, tz, back = 3.2) => p.evaluate(([x, y, tx, ty, tz, back]) => {
-    const g = window.__game, pl = g.player, nav = g.nav, f = nav.floorAt(x, y, pl.z + 3);
+    const g = window.__game, pl = g.player, nav = g.nav, f = nav.floorAt(x, y, tz - 1.4);
     pl.x = x; pl.y = y; pl.z = f ? f.z : Math.max(0, nav.terrain(x, y));
     const d = Math.hypot(tx - x, ty - y);
     pl.h = Math.atan2(tx - x, ty - y);
@@ -56,17 +57,19 @@ const [,, out = '/tmp/lobby-shot', size = '1440x900'] = process.argv;
   for (const [i, L] of lobbies.entries()) {
     const nx0 = L.at[0] - L.door[0], ny0 = L.at[1] - L.door[1], n = Math.hypot(nx0, ny0), nx = nx0 / n, ny = ny0 / n, ux = ny, uy = -nx;
     const z = L.at[2] || 0, P = (u, v) => [L.door[0] + ux * u + nx * v, L.door[1] + uy * u + ny * v];
-    const shots = { street: [P(0, -7), 0], left: [P(-3.6, -6.5), 0], right: [P(3.6, -6.5), 0], inside: [P(-3.2, 3.2), 0] };
+    const shots = { street: [P(0, -9), 0], left: [P(-3.6, -8.5), 0], right: [P(3.6, -8.5), 0], threshold: [P(-0.8, 1.2), 0], inside: [P(-2.8, 3.6), 0] };
     for (const [k, [q]] of Object.entries(shots)) {
       await view(q[0], q[1], L.at[0] + nx * 1.2, L.at[1] + ny * 1.2, z + 2.6);
-      await frames(4); await p.waitForTimeout(1200);
+      await frames(4);
+      // (the hall is a hero level, fetched as the player comes near: loaded and shown before the still, as scramble_shot waits)
+      await p.evaluate(async () => { const g = window.__game; if (g.hero && g.hero()) for (let i = 0; i < 1200; i++) { await new Promise(r => requestAnimationFrame(r)); if (i > 3 && !g.hero().state().some(h => h.state === 'loading')) break; } });
+      await p.waitForTimeout(1200);
       await p.screenshot({ path: `${out}/lobby${i}-${k}-${tag}.png` });
     }
-    // the dog at heel by the belts: the player stands beside the queue, then in it
-    if (!L.set) continue;
-    const hd = (L.set.h || 0) * Math.PI / 180, c = Math.cos(hd), s = Math.sin(hd), M = (lx, ly) => [L.set.at[0] + lx * c - ly * s, L.set.at[1] + lx * s + ly * c];
-    const belts = [];
-    for (const lx of [-1.5, 1.5]) for (let ly = -2.2; ly <= 0.01; ly += 0.1) belts.push(M(lx, ly));
+    // the dog at heel by the belts (the level's, game.json hero[].belts: points along each, from its post to the wall):
+    // the player stands beside the queue, then in it
+    if (!L.belts) continue;
+    const belts = L.belts, half = belts.length / 2, A = belts.slice(0, half), Bt = belts.slice(half);
     // (the frame's word with the living first, Yuna at the lift's door: her talk would start in the middle of the dog's)
     for (let i = 0; i < 80; i++) {
       const m = await p.evaluate(() => { const g = window.__game, st = g.story.state, d = document.getElementById('gd'), t = st.target; return { beat: st.beat, dlg: d && !d.hidden, t: t ? [t[0], t[1]] : null }; });
@@ -76,8 +79,8 @@ const [,, out = '/tmp/lobby-shot', size = '1440x900'] = process.argv;
       await p.waitForTimeout(600);
     }
     // (where his place at heel falls on a belt: he is sent there from two metres out, and must stop short of it)
-    for (const [k, [lx, ly]] of Object.entries({ left: [-1.5, -1.2], right: [1.5, -0.7], end: [-1.5, -2.1] })) {
-      const q = M(lx, ly), front = M(lx, ly - 2);
+    for (const [k, q] of Object.entries({ left: A[Math.floor(A.length / 2)], right: Bt[Math.floor(Bt.length * 0.7)], end: A[1] })) {
+      const front = [q[0] - nx * 2, q[1] - ny * 2];
       const r = await p.evaluate(async ([q, front, belts]) => {
         const g = window.__game, pl = g.player, nav = g.nav;
         // (a case taken up at this frame has no guide yet: he joins at a Stop. He is made as the story makes him)
