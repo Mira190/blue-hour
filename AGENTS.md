@@ -31,8 +31,8 @@ This repository is Blue Hour by itself, split from the Open Earth 3D repository 
 - Main is published only where its checks pass: `.github/workflows/pages.yml` runs after
   `.github/workflows/checks.yml` passes on main and publishes that commit (GitHub Pages, and Vercel through the
   branch `live`). A red main keeps the site on the last commit that passed. So when main moved on while your check
-  ran, merge it in and run `tools/check.sh` again: if nothing main changed was touched on your branch it runs the
-  static checks only, and main's own checks play the two together.
+  ran, merge it in and run `tools/check.sh` again: what main changed and your branch did not touch runs the static
+  checks only (main's own checks play the two together), and only what your branch changed is routed further.
 - A failure `main` has without your change isn't yours to block on: fix it if it is small, otherwise say so.
 
 # One story, one map

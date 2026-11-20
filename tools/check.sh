@@ -108,15 +108,14 @@ else
      && ! git merge-base --is-ancestor "$last" "$base"; then
     echo "checking what changed since the last pass, $(git log -1 --format='%h %s' "$last" | cut -c1-70) (CHECK_FULL=1 for the whole branch)" >&2
     base=$last
-    # all of it main's, as main has it (main merged in, nothing it changed touched here): main's own checks play it
-    # with this branch once it lands, and only a commit they pass is published (.github/workflows/pages.yml)
-    mainonly=1
-    [ -z "$(git status --porcelain)" ] || mainonly=0
-    for f in $(git diff --name-only "$last" HEAD); do
-      case "$f" in docs/*|*.md) continue ;; esac   # (the docs, both sides' words merged: no check reads them)
-      [ "$(git rev-parse -q --verify "HEAD:$f" 2>/dev/null)" = "$(git rev-parse -q --verify "origin/main:$f" 2>/dev/null)" ] || { mainonly=0; break; }
-    done
+    # A file that is main's, as main has it (main merged in, and nothing done to it here since), is left to main's own
+    # checks, which play it with this branch once it lands; only a commit they pass is published
+    # (.github/workflows/pages.yml). What this branch changed since the pass, or a file both sides changed, is routed
+    # as it would have been, file by file.
+    frommain=1
   fi
+  mains() { [ "$(git rev-parse -q --verify "HEAD:$1" 2>/dev/null)" = "$(git rev-parse -q --verify "origin/main:$1" 2>/dev/null)" ] && git diff --quiet HEAD -- "$1" 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard -- "$1")" ]; }
+  skipped=0
   page() { add story walk mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
@@ -137,6 +136,7 @@ else
     for k in $KINDS; do is_in "$k" "$u" && { add "$k"; return 0; }; done
   }
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
+    if [ "${frommain:-0}" = 1 ] && mains "$f"; then static=1; skipped=$((skipped + 1)); continue; fi
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
       web/data/$MAP/d/*|pipeline/district.py|tools/mem_check.js) static=1; add mem ;;   # what a phone loads
@@ -160,10 +160,7 @@ else
       page
     elif ! is_in story "$want"; then echo "the models changed keep their names, flags and attributes ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
-  if [ "${mainonly:-0}" = 1 ] && [ -n "$want" ]; then
-    echo "all that changed since the last pass is main's, as main has it: the static checks only, and the rest on main (CHECK_FULL=1:$want too)" >&2
-    want=
-  fi
+  [ "$skipped" -gt 0 ] && echo "$skipped files changed since the last pass are main's, as main has it: the static checks for them, the rest on main (CHECK_FULL=1 plays them here)" >&2
 fi
 
 if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to this script: a runner's shard

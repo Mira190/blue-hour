@@ -100,10 +100,11 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 - a change to the build or the plumbing (`pipeline/`, `blender/`, the builders' sources under `cities/`, `tools/`,
   `.github/`) runs `static`: the page sees only what a build writes under `web/`, which is in the diff once it is built;
 - a change to the docs alone runs nothing;
-- after a pass, when all that changed since is main's as main has it (main merged in, and nothing main changed
-  touched on the branch), `static` only: main's full tier plays the two together once the branch lands, and a
-  commit it fails is not published. The branch's own change since the pass, or a file both sides changed (but for
-  the docs, which no check reads), runs what it would have. `CHECK_FULL=1` runs it all.
+- after a pass, a file changed since that is main's as main has it (main merged in, nothing done to it on the
+  branch) runs `static` only: main's full tier plays the two together once the branch lands, and a commit it fails
+  is not published. The branch's own change since the pass, or a file both sides changed, is routed as it would
+  have been, file by file (until November 2026 one such file, even a doc, sent all of main's change through the
+  story and the walk again). `CHECK_FULL=1` runs it all.
 - a browser check whose last pass in this clone read nothing that has changed since is not played again: its line says
   `kept from its pass at <commit>` ("The router and the cache", below). After a fix to one check, a run plays that
   check and whatever the fix touched, not the rest again.
