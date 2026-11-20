@@ -138,45 +138,157 @@ window.OEBuildings = (function () {
       mesh.castShadow = mesh.receiveShadow = true;
     }
 
-    // ------------------------------------------------------------ rooftop plant (instanced)
+    // ------------------------------------------------------------ the rooftop kit (instanced)
+    // What a Tokyo roof carries, from the air most of a roofscape (issue 73): plant boxes with their fans, plant
+    // rooms, panel water tanks on steel stands (build_scene.py rooftop), stair huts with their doors, rows of
+    // air-conditioning condensers along a parapet, and the fire service's R and H on the towers (pipeline/roofkit.py).
+    // Each a small shared model, vertex-coloured, one instanced mesh a kind; the instance's colour is the paint (a
+    // hut and a plant room take their building's wall). A phone draws the kit only on the roofs round where its map
+    // was built, where the flight and the hero level are: what is not seen costs nothing.
     const props = new THREE.Group();
     const PR = B.p || [];
-    if (PR.length && !small) {
-      const kinds = [
-        { colour: '#a3a7a8', rough: 0.55, metal: 0.35 }, // plant boxes: galvanised steel
-        { colour: '#b9b6ae', rough: 0.8, metal: 0.0 },   // plant room / lift overrun
-        { colour: '#cfd6d8', rough: 0.6, metal: 0.1 },   // water tank (FRP panels)
-      ];
-      const box = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-      const dummy = new THREE.Object3D(), col = new THREE.Color();
-      kinds.forEach((kd, kind) => {
-        const rows = PR.filter(p => p[1] === kind && deckZ.has(p[0]));
-        if (!rows.length) return;
-        const im = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: kd.rough, metalness: kd.metal }), rows.length);
-        rows.forEach((p, i) => {
-          const z = deckZ.get(p[0]), lift = kind === 2 ? 1.0 : 0;
-          dummy.position.set(p[2] / 10, z + lift, -p[3] / 10);
-          dummy.rotation.set(0, p[7] / 100 * Math.PI / 180, 0);
-          dummy.scale.set(p[4] / 10, p[6] / 10, p[5] / 10);
-          dummy.updateMatrix();
-          im.setMatrixAt(i, dummy.matrix);
-          const v = 0.85 + 0.3 * hash1(p[2] * 31 + p[3]);
-          im.setColorAt(i, col.copy(lin(kind === 1 ? meta[B.s[p[0]][0]][7] : kd.colour)).multiplyScalar(kind === 1 ? 0.92 * v : v));
-        });
-        im.castShadow = im.receiveShadow = true;
-        props.add(im);
-        if (kind === 2) { // the stand under each tank
-          const legs = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ color: lin('#5d6264'), roughness: 0.7, metalness: 0.4 }), rows.length);
-          rows.forEach((p, i) => {
-            dummy.position.set(p[2] / 10, deckZ.get(p[0]), -p[3] / 10);
-            dummy.rotation.set(0, p[7] / 100 * Math.PI / 180, 0);
-            dummy.scale.set(p[4] / 10 * 0.9, 1.0, p[5] / 10 * 0.9);
-            dummy.updateMatrix();
-            legs.setMatrixAt(i, dummy.matrix);
-          });
-          props.add(legs);
+    const kitAt = cells && cells.at, kitR2 = small ? 420 * 420 : Infinity;
+    const kitNear = p => kitR2 === Infinity || !kitAt || (p[2] / 10 - kitAt[0]) ** 2 + (p[3] / 10 - kitAt[1]) ** 2 < kitR2;
+    if (PR.length) {
+      const L3 = h => { const c = lin(h); return [c.r, c.g, c.b]; }, grey = v => [v, v, v];
+      // a model from parts: [geometry, rgb] (each part's own colour, multiplied by the instance's)
+      const model = parts => {
+        const P = [], N = [], C = [];
+        for (const [g0, rgb] of parts) {
+          const g = g0.index ? g0.toNonIndexed() : g0, n = g.attributes.position.count;
+          P.push(...g.attributes.position.array); N.push(...g.attributes.normal.array);
+          for (let i = 0; i < n; i++) C.push(rgb[0], rgb[1], rgb[2]);
         }
-      });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+        g.computeBoundingSphere();
+        return g;
+      };
+      const bx = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+      // flat shapes on a roof, drawn in (u right, v up) and laid on it: u to +x, v to -z
+      const flat = (pts, y) => {
+        const g = new THREE.BufferGeometry(), P = [];
+        for (const i of [0, 1, 2, 0, 2, 3]) P.push(pts[i][0], y, -pts[i][1]);
+        g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+        return g;
+      };
+      const rc = (u0, v0, u1, v1, y) => flat([[u0, v0], [u1, v0], [u1, v1], [u0, v1]], y);
+      const ring = (u, v, r0, r1, y, a0 = 0, al = Math.PI * 2) => new THREE.RingGeometry(r0, r1, 40, 1, a0, al).rotateX(-Math.PI / 2).translate(u, y, -v);
+      const stroke = (a, b, w, y) => { // a bar from a to b, w wide
+        const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l * w / 2, ny = dx / l * w / 2;
+        return flat([[a[0] + nx, a[1] + ny], [a[0] - nx, a[1] - ny], [b[0] - nx, b[1] - ny], [b[0] + nx, b[1] + ny]], y);
+      };
+      const dark = grey(0.07), galv = L3('#a3a7a8'), yellow = L3('#e8b51c'), white = grey(0.86);
+      const fanTop = (r, y) => [[new THREE.CircleGeometry(r, 20).rotateX(-Math.PI / 2).translate(0, y, 0), dark],
+        [new THREE.RingGeometry(r * 0.92, r * 1.05, 20).rotateX(-Math.PI / 2).translate(0, y + 0.004, 0), grey(0.5)]];
+      const M = {
+        // a packaged unit: its casing, a louvred band round the top, the fan's guard on its lid
+        0: model([[bx(1, 0.78, 1, 0, 0.39, 0), grey(1)], [bx(1.012, 0.2, 1.012, 0, 0.88, 0), grey(0.55)], [bx(0.98, 0.02, 0.98, 0, 0.99, 0), grey(0.9)],
+          ...fanTop(0.3, 1.002)]),
+        // a plant room: the building's render, a slab over it, a louvre and a steel door
+        1: model([[bx(1, 1, 1, 0, 0.5, 0), grey(1)], [bx(1.03, 0.05, 1.03, 0, 1.0, 0), grey(0.86)],
+          [bx(0.42, 0.28, 1.006, 0.18, 0.62, 0), grey(0.42)], [bx(0.16, 0.7, 1.006, -0.3, 0.35, 0), grey(0.3)]]),
+        // a panel tank: square FRP panels with their ribs, the hatch on its lid
+        2: model([[bx(1, 1, 1, 0, 0.5, 0), grey(1)],
+          ...[0.34, 0.67].map(y => [bx(1.02, 0.025, 1.02, 0, y, 0), grey(0.86)]),
+          ...[-0.25, 0, 0.25].map(x => [bx(0.025, 1, 1.02, x, 0.5, 0), grey(0.86)]),
+          ...[-0.25, 0, 0.25].map(z => [bx(1.02, 1, 0.025, 0, 0.5, z), grey(0.86)]),
+          [bx(0.22, 0.05, 0.22, 0.2, 1.02, 0.2), grey(0.7)]]),
+        // a stair hut: the building's render, its slab, its steel door to the roof (on -z) and the lamp over it
+        6: model([[bx(1, 1, 1, 0, 0.5, 0), grey(1)], [bx(1.05, 0.05, 1.08, 0, 1.0, 0), grey(0.88)],
+          [bx(0.3, 0.72, 0.03, 0.18, 0.36, -0.5), grey(0.32)], [bx(0.4, 0.04, 0.12, 0.18, 0.02, -0.55), grey(0.8)]]),
+        // a condenser: the enamelled casing, its fan behind a black guard, the steel frame it stands on
+        7: model([[bx(0.84, 0.6, 0.3, 0, 0.42, 0), grey(1)], [new THREE.CircleGeometry(0.21, 18).translate(-0.12, 0.43, 0.152), dark],
+          [bx(0.2, 0.42, 0.005, 0.25, 0.43, 0.152), grey(0.6)], [bx(0.86, 0.12, 0.36, 0, 0.06, 0), grey(0.25)]]),
+      };
+      // the fire service's marks: an R in a square for a rescue space, an H in a circle on a pad (size 1: a mark's width)
+      const R = [[rc(-0.5, -0.5, 0.5, -0.47, 0.06), yellow], [rc(-0.5, 0.47, 0.5, 0.5, 0.06), yellow],
+        [rc(-0.5, -0.47, -0.47, 0.47, 0.06), yellow], [rc(0.47, -0.47, 0.5, 0.47, 0.06), yellow],
+        [rc(-0.17, -0.27, -0.1, 0.27, 0.06), yellow], [rc(-0.1, 0.2, 0.03, 0.27, 0.06), yellow], [rc(-0.1, -0.03, 0.03, 0.04, 0.06), yellow],
+        [ring(0.03, 0.115, 0.085, 0.155, 0.06, -Math.PI / 2, Math.PI), yellow], [stroke([-0.01, -0.0], [0.17, -0.27], 0.075, 0.06), yellow]];
+      const H = [[rc(-0.5, -0.5, 0.5, 0.5, 0.05), L3('#4a5a50')], [rc(-0.48, -0.48, 0.48, -0.46, 0.07), white], [rc(-0.48, 0.46, 0.48, 0.48, 0.07), white],
+        [rc(-0.48, -0.46, -0.46, 0.46, 0.07), white], [rc(0.46, -0.46, 0.48, 0.46, 0.07), white], [ring(0, 0, 0.38, 0.41, 0.07), yellow],
+        [rc(-0.16, -0.22, -0.1, 0.22, 0.08), white], [rc(0.1, -0.22, 0.16, 0.22, 0.08), white], [rc(-0.1, -0.03, 0.1, 0.03, 0.08), white]];
+      M[8] = [model(R), model(H)];
+      const kinds = {
+        0: { colour: '#a3a7a8', rough: 0.55, metal: 0.35, shadow: true },
+        1: { wall: true, rough: 0.85, metal: 0, shadow: true },
+        2: { colour: '#cfd6d8', rough: 0.6, metal: 0.05, shadow: true },
+        6: { wall: true, rough: 0.85, metal: 0, shadow: true },
+        7: { colour: '#dcdbd3', rough: 0.45, metal: 0.1, shadow: false },
+        8: { colour: '#ffffff', rough: 0.75, metal: 0, shadow: false },
+      };
+      const mats = new Map(), matOf = (r, m, mark) => {
+        const key = `${r}/${m}/${mark ? 1 : 0}`;
+        if (!mats.has(key)) mats.set(key, new THREE.MeshStandardMaterial(Object.assign({ color: 0xffffff, vertexColors: true, roughness: r, metalness: m },
+          mark ? { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 } : {})));
+        return mats.get(key);
+      };
+      // a lamp's light: an unlit warm colour that comes on with the street lights (U.uNight, as night.js), and the pool
+      // under it, added to the deck in a disc fading from its middle
+      const lampMat = (k, add = false) => {
+        const m = new THREE.MeshBasicMaterial(Object.assign({ color: new THREE.Color(1.0, 0.78, 0.52).multiplyScalar(k), vertexColors: true, fog: true },
+          add ? { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 } : {}));
+        const night = (U && U.uNight) || { value: 0 };
+        m.onBeforeCompile = sh => {
+          sh.uniforms.uKitNight = night;
+          sh.fragmentShader = 'uniform float uKitNight;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );',
+            'vec4 diffuseColor = vec4( diffuse * smoothstep( 0.06, 0.32, uKitNight ), opacity );');
+        };
+        return m;
+      };
+      const pool = (u, v) => {
+        const g = new THREE.CircleGeometry(0.75, 20).rotateX(-Math.PI / 2).translate(u, 0.02, v), n = g.attributes.position.count, C = [];
+        for (let i = 0; i < n; i++) { const x = g.attributes.position.getX(i) - u, z = g.attributes.position.getZ(i) - v, f = Math.max(0, 1 - Math.hypot(x, z) / 0.75); C.push(f * f, f * f, f * f); }
+        g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+        return g;
+      };
+      const dummy = new THREE.Object3D(), col = new THREE.Color();
+      // instances: [x, z, y (world), angle, sx, sy, sz, colour]
+      const draw = (geo, kd, list, mark = false, mat = null) => {
+        if (!list.length) return;
+        const im = new THREE.InstancedMesh(geo, mat || matOf(kd.rough, kd.metal, mark), list.length);
+        list.forEach(([x, y, z, a, sx, sy, sz, c], i) => {
+          dummy.position.set(x, y, z); dummy.rotation.set(0, a, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix();
+          im.setMatrixAt(i, dummy.matrix); im.setColorAt(i, c);
+        });
+        im.castShadow = kd.shadow; im.receiveShadow = !mark && !mat; im.name = 'roof-kit';
+        props.add(im);
+      };
+      for (const [kind, kd] of Object.entries(kinds).map(([k, v]) => [+k, v])) {
+        if (small && kind === 7) continue; // (a condenser is under a phone's pixel from the air: most of the instances, none of the picture)
+        const rows = PR.filter(p => p[1] === kind && p.length <= 8 && deckZ.has(p[0]) && !hidden.has(p[0]) && kitNear(p));
+        if (!rows.length) continue;
+        const list = kind === 8 ? [[], []] : [], legs = [];
+        for (const p of rows) {
+          const z = deckZ.get(p[0]), a = p[7] / 100 * Math.PI / 180, x = p[2] / 10, y = -p[3] / 10;
+          const v = 0.96 + 0.08 * hash1(p[2] * 31 + p[3]); // (a unit's paint a shade from the next one's, no more)
+          const c = kd.wall ? new THREE.Color().copy(lin(meta[B.s[p[0]][0]][7])).multiplyScalar(0.94 * v) : new THREE.Color().copy(lin(kd.colour)).multiplyScalar(kind === 8 ? 1 : v);
+          if (kind === 7) { // a row: a unit every 0.95 m along it
+            const n = Math.max(1, Math.round(p[4] / 10 / 0.95)), ca = Math.cos(a), sa = Math.sin(a);
+            for (let i = 0; i < n; i++) { const d = (i + 0.5) * 0.95 - n * 0.95 / 2; list.push([x + d * ca, z, y - d * sa, a, 1, 1, 1, c]); }
+          } else if (kind === 8) list[p[6] ? 1 : 0].push([x, z, y, a, p[4] / 10, 1, p[5] / 10, c]);
+          else {
+            list.push([x, z + (kind === 2 ? 1.0 : 0), y, a, p[4] / 10, p[6] / 10, p[5] / 10, c]);
+            if (kind === 2) legs.push([x, z, y, a, p[4] / 10 * 0.9, 1.0, p[5] / 10 * 0.9, col.set(1, 1, 1)]);
+          }
+        }
+        if (kind === 8) { draw(M[8][0], kd, list[0], true); draw(M[8][1], kd, list[1], true); continue; }
+        draw(M[kind], kd, list);
+        // after dark, the bulkhead lamp over a stair hut's door and the pool of light it throws on the deck in front:
+        // from the air at night a roof is read by these (a lamp a door, warm, as fitted)
+        if (kind === 6) {
+          const ux = 0.18, wl = list.map(q => { const c = q.slice(); c[7] = col.set(1, 1, 1); return c; });
+          draw(model([[bx(0.09, 0.045, 0.05, ux, 0.8, -0.52), [1, 1, 1]]]), { shadow: false }, wl, false, lampMat(2.4));
+          draw(pool(ux, -1.05), { shadow: false }, wl, false, lampMat(0.3, true));
+        }
+        // the steel stand under each tank: four legs and the beams they carry
+        if (legs.length) draw(model([...[[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]].map(([u, w]) => [bx(0.06, 1, 0.06, u, 0.5, w), L3('#4d5254')]),
+          [bx(1, 0.08, 0.08, 0, 0.94, -0.45), L3('#4d5254')], [bx(1, 0.08, 0.08, 0, 0.94, 0.45), L3('#4d5254')]]), { rough: 0.7, metal: 0.4, shadow: true }, legs);
+      }
     }
 
     // ------------------------------------------------------------ Paris mansards: dormers and chimney stacks
@@ -637,11 +749,17 @@ window.OEBuildings = (function () {
     float sign = 0.0; vec3 signC = vec3(0.0);
     if (style > 10.5 && style < 11.5 && uSigns > 0.0 && fl > 0.5) {
       float sr = h21(vec2(fl, floor(bay / 2.0)) + bidH * 1.7);
-      // a panel spans two bays and only where both are in the run, never into its margins; the
-      // vertical sign takes the first bay of the one run the building gives it (flag 4)
-      float pane = step(sr, 0.22 * uSigns) * band(fy, 0.12, 0.88, fw.y) * band(fract(bay / 2.0) * 2.0 + fx, 0.08, 1.92, fw.x)
+      // signs hang where the shops are: only on a street face (a shopfront or an awning below it), in a band
+      // down it, a tenant's panel a floor in one column of two bays (two on a wide front), some floors to let;
+      // never scattered over a building's sides and back (issue 73: colour the eye cannot explain is noise)
+      float street = step(0.5, mod(flags, 4.0));
+      float pairs = max(floor(nb / 2.0), 1.0), pc = floor(bay / 2.0);
+      float colA = floor(h21(vec2(bidH * 2.9, 1.3)) * min(pairs, 2.0)), colB = pairs - 1.0 - colA;
+      float inCol = max(step(abs(pc - colA), 0.1), step(5.5, nb) * step(abs(pc - colB), 0.1));
+      float pane = street * inCol * step(sr, 0.55 + 0.4 * min(uSigns, 1.0)) * band(fy, 0.12, 0.88, fw.y) * band(fract(bay / 2.0) * 2.0 + fx, 0.08, 1.92, fw.x)
                  * step(-0.5, bay) * step(2.0 * floor(bay / 2.0) + 2.0, nb + 0.5);
-      float vert = step(0.45, seed) * step(-0.5, bay) * step(bay, 0.5) * step(0.5, nb) * step(0.5, mod(floor(flags / 4.0), 2.0))
+      // the vertical sign takes the first bay of the one run the building gives it (flag 4), on a street face
+      float vert = street * step(0.45, seed) * step(-0.5, bay) * step(bay, 0.5) * step(0.5, nb) * step(0.5, mod(floor(flags / 4.0), 2.0))
                  * band(fx, 0.18, 0.82, fw.x);
       float hue = h21(vec2(floor(bay / 2.0), fl) * 1.3 + bidH);
       signC = hue < 0.3 ? vec3(0.85, 0.12, 0.1) : hue < 0.5 ? vec3(0.95, 0.8, 0.15) : hue < 0.7 ? vec3(0.92, 0.92, 0.9) : hue < 0.85 ? vec3(0.1, 0.35, 0.8) : vec3(0.1, 0.6, 0.3);
@@ -674,7 +792,7 @@ window.OEBuildings = (function () {
       txt = mix(txt, 0.3 * max(pane, vert), smoothstep(0.35, 1.0, max(fw.x / sub, fw.y * storey / (gm / 5.0))));
       signC = mix(signC, dot(signC, vec3(0.3, 0.5, 0.2)) > 0.5 ? vec3(0.07, 0.06, 0.06) : vec3(0.97, 0.96, 0.92), txt * (1.0 - far));
       // far off: the signs' share of the wall in their mean colour
-      sign = mix(max(pane, vert), 0.15 * uSigns, far);
+      sign = mix(max(pane, vert), 0.12 * min(uSigns, 1.0) * street, far);
       signC = mix(signC, vec3(0.66, 0.52, 0.41), far);
       win *= 1.0 - sign;
       frame *= 1.0 - sign;
