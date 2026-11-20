@@ -16,7 +16,8 @@ its rooms lit after dark) on a drawn tile 12 m across and eight office storeys h
   * the colour: a blue-green glass, each 1.5 m pane its own tone within a few percent (each reflects at its own angle);
   * the normal map: each pane tilted by its own small angle (a pane's tilt is the cause of its tone), the mullions as
     fine ribs and the slab's spandrel as a recessed band;
-  * the frit: white dots on the outer face, dense at the spandrel and thinning up the pane;
+  * the frit: white on the outer face, dense at the spandrel and thinning up the pane (its millimetre dots drawn as
+    what they add up to);
   * the joints: every pane's mullion, and every second one heavier, stepping 0.75 m along at each floor;
   * after dark, the offices behind: a ceiling's light in each lit bay, floors lit or dark as a working evening leaves them.
 
@@ -78,12 +79,13 @@ def _tile():
         # the spandrel at the slab: 0.55 m, recessed, fritted white, no light
         sp = int(round(0.55 * py_m))
         col[y1 - sp:y1] = np.array([70, 92, 98.0]); height[y1 - sp:y1] -= 1.0; lit[y1 - sp:y1] = 0; rough[y1 - sp:y1] = 0.35
-        # the frit: dots on the outer face, dense over the spandrel, thinning up the pane
-        g = np.clip(((y1 - sp) - np.arange(y0, y1 - sp)) / (1.4 * py_m), 0, 1)
-        dots = ((xx[y0:y1 - sp] % 4 < 2) & (yy[y0:y1 - sp] % 4 < 2)) & (rng.random((y1 - sp - y0, W)) > g[:, None] ** 0.6)
-        col[y0:y1 - sp][dots] = col[y0:y1 - sp][dots] * 0.4 + np.array([225, 228, 226.0]) * 0.6
-        rough[y0:y1 - sp][dots] = 0.4
-        lit[y0:y1 - sp][dots] *= 0.25
+        # the frit: printed on the outer face, dense over the spandrel and thinning up the pane. Its dots are a few
+        # millimetres, under a texel at any distance: drawn as what they add up to, the pane paler and duller toward its foot
+        g = np.clip(((y1 - sp) - np.arange(y0, y1 - sp)) / (1.4 * py_m), 0, 1)[:, None]
+        k = (1 - g) ** 1.6 * 0.45
+        col[y0:y1 - sp] = col[y0:y1 - sp] * (1 - k[..., None]) + np.array([214, 220, 218.0]) * k[..., None]
+        rough[y0:y1 - sp] = rough[y0:y1 - sp] * (1 - k) + 0.4 * k
+        lit[y0:y1 - sp] *= (1 - 0.7 * k)[..., None]
         # the joints: every pane's mullion, and every second one heavier, stepping at each floor
         for k in range(int(TILE_W / PANE) + 1):
             xm = ((k * PANE + shift) % TILE_W) * px_m
