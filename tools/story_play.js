@@ -560,7 +560,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
     if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
       await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
-      await p.waitForTimeout(2500);
+      // (the card goes 1.2 s after the walk is taken up, by the page's own timer; on a software renderer the walk's first
+      // frames can hold the page's thread past a fixed wait, so wait for the card to go, ten seconds at most)
+      await p.waitForFunction(() => { const e = document.getElementById('g-story-end'), s = document.getElementById('game-stage'); return !e.classList.contains('on') && s.classList.contains('walk-on'); }, null, { timeout: 10000, polling: 250 }).catch(() => {});
+      await p.waitForTimeout(500);
       const look = () => p.evaluate(() => { const g = window.__game, s = document.getElementById('game-stage'), c = g.clock, pad = n => String(n).padStart(2, '0');
         return { same: !!window.__samePage, on: s.classList.contains('walk-on'), card: document.getElementById('g-story-end').classList.contains('on'), title: !document.getElementById('g-title').hidden,
           at: (document.querySelector('#g-walk-where .t') || {}).textContent || '', clock: `${pad(Math.floor(c.min / 60))}:${pad(Math.floor(c.min) % 60)}`, phase: g.story.state.phase, cast: Object.keys(g.story.state.cast).length, light: g.lights() }; });
