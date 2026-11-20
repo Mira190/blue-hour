@@ -81,11 +81,13 @@ def portrait_head():
     cheeks = pair(sk.ellipsoid((0.007, 0.079, -0.022), (0.095, 0.068, 0.076)))
     chin = sk.ellipsoid((0.043, 0, -0.070), (0.088, 0.089, 0.045))
     brow = pair(sk.ellipsoid((0.082, 0.039, 0.038), (0.027, 0.034, 0.016)))
-    dome = sk.smooth_union(0.036, skull, cheeks, chin, brow)
+    arch = pair(sk.capsule((-0.030, 0.113, -0.010), (0.066, 0.087, 0.002), 0.030, 0.020))
+    dome = sk.smooth_union(0.022, skull, cheeks, arch, chin, brow)
     bridge = sk.capsule((0.068, 0, 0.012), (0.145, 0, 0.008), 0.046, 0.028)
     pads = pair(sk.ellipsoid((0.119, 0.026, -0.039), (0.054, 0.034, 0.033)))
-    jaw = sk.ellipsoid((0.094, 0, -0.073), (0.066, 0.055, 0.026))
-    mass = sk.smooth_union(0.024, dome, bridge, pads, jaw)
+    jawline = pair(sk.capsule((-0.010, 0.083, -0.052), (0.133, 0.028, -0.076), 0.041, 0.019))
+    jaw = sk.ellipsoid((0.109, 0, -0.075), (0.054, 0.048, 0.023))
+    mass = sk.smooth_union(0.017, dome, bridge, pads, jawline, jaw)
     def face(x, y, z):
         # Ease the forehead into a straight bridge. Leave the brows proud on either side.
         u = np.clip((x + 0.012) / 0.080, 0, 1)
@@ -97,8 +99,9 @@ def portrait_head():
     face = sk.smooth_union(0.005, face, nose)
     nostrils = pair(sk.ellipsoid((0.179, 0.015, -0.003), (0.011, 0.007, 0.0055)))
     mouth = pair(sk.path([(0.161, 0, -0.055), (0.157, 0.023, -0.062),
-                          (0.143, 0.042, -0.063), (0.123, 0.054, -0.054)],
-                         [0.004, 0.005, 0.004, 0.002]))
+                          (0.143, 0.042, -0.063), (0.123, 0.054, -0.058),
+                          (0.102, 0.055, -0.052)],
+                         [0.005, 0.006, 0.005, 0.004, 0.002]))
     head = sk.smooth_union(0.016, sk.subtract(0.003, face, sk.union(nostrils, mouth)), upright_ears)
     for x, height in ((0.08, 0.040), (0.13, 0.036)):
         assert head(x, 0, height - 0.004) < 0 < head(x, 0, height + 0.004), "check the nasal bridge in profile"
