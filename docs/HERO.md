@@ -554,3 +554,19 @@ The hair roots share the skin's bone weights. Each lock carries a cutout of fine
 a tiled undercoat with directional relief. Both textures are generated at build time.
 The corneas and lid creases are sculpted into the same surface so the skin turns as one.
 The eyes and nose use a lower roughness than the surrounding coat.
+
+**The forehead and the eyes, measured again (20 November 2026).** In review the forehead looked pressed in.
+Sampling the sculpt's distance field across the head showed why: above the eyes the brows stood 16 to 20 mm
+higher than the middle of the forehead, a trough some 9 cm wide running back from the stop, because the roof
+that shapes the stop was lifted at the sides across the whole forehead. The standards say otherwise: the
+[Japanese Akitainu Club's page of standards](https://akita-inu.com/?p=333) gives "the forehead is broad and flat,
+preferably with a distinct furrow extending from the stop to the top of the skull", a moderate stop and a head
+that is "a slightly rounded octagon" from the front, and the Akitainu Hozonkai's text on the same page has the top
+of the head somewhat flat and the groove distinct. So the forehead is now flat across and falls gently forward,
+a 2 mm furrow runs up its middle from the stop to the crown, and the brows rise only where the stop is, between
+the eyes (`portrait_head`, the roof in `face`). The same page gives the eyes as deep-set, almond-shaped (the
+Hozonkai: somewhat triangular), relatively small and raised at the outer corners; the sculpt's had been round,
+level with the lids and staring. They are smaller now, three-cornered, with a nearly straight lower lid rising to
+the outer corner, set about 3 mm back under lids whose upper edge overhangs a little (`orbit`, `sculpt_features`).
+The whiskers' dark keratin is set on their shader, since the exporter of Blender 5.2.3 (the version the
+builds use) reads the shader rather than the viewport colour, and they had come out white.

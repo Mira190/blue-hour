@@ -62,22 +62,23 @@ def upright_ears(x, y, z):
     return np.maximum(outer(depth * 1.65, width, height), -cup(depth, width, height))
 
 
-def orbit(v):
-    """Position along the lid, and distance from its opening on the curved face."""
+def orbit(v, lift=False):
+    """Position along the lid, and distance from its opening on the curved face (1 on the lid's edge);
+    with `lift`, also the height above the lids' axis. The opening is small and three-cornered, as the
+    breed's eyes are: the lower lid nearly straight up to a raised outer corner, the upper lid highest
+    a third of the way out from the inner one."""
     x, y, z = (v - np.asarray(HEAD_AT)).T
     along = (abs(y) - 0.037) * 0.88 - (x - 0.104) * 0.475
-    height = z - 0.024 - 0.15 * along
-    radius = np.hypot(along / 0.016, height / 0.0085)
-    return along, np.where(x > 0.064, radius, 100.0)
+    height = z - 0.024 - 0.26 * along
+    a = along / 0.0145
+    lid = np.where(height > 0, 0.0080 * (1 - 0.3 * np.clip(a, -1, 1)), 0.0050)
+    radius = np.where(x > 0.064, np.hypot(a, height / lid), 100.0)
+    return (along, radius, height) if lift else (along, radius)
 
 
 def portrait_head():
     pair = sk.mirror_v
-    vault = sk.ellipsoid((-0.009, 0, 0.003), (0.117, 0.124, 0.097))
-    # A shallow central furrow separates the frontal ridges above the stop.
-    def skull(x, y, z):
-        groove = 0.004 * np.exp(-(y / 0.012) ** 2 - ((x - 0.048) / 0.048) ** 2)
-        return vault(x, y, z + groove * np.clip(z / 0.055, 0, 1))
+    skull = sk.ellipsoid((-0.009, 0, 0.003), (0.117, 0.124, 0.097))
     cheeks = pair(sk.ellipsoid((0.007, 0.079, -0.022), (0.095, 0.068, 0.076)))
     chin = sk.ellipsoid((0.043, 0, -0.070), (0.088, 0.089, 0.045))
     brow = pair(sk.ellipsoid((0.082, 0.039, 0.038), (0.027, 0.034, 0.016)))
@@ -89,10 +90,16 @@ def portrait_head():
     jaw = sk.ellipsoid((0.109, 0, -0.075), (0.054, 0.048, 0.023))
     mass = sk.smooth_union(0.017, dome, bridge, pads, jawline, jaw)
     def face(x, y, z):
-        # Ease the forehead into a straight bridge. Leave the brows proud on either side.
-        u = np.clip((x + 0.012) / 0.080, 0, 1)
-        roof = 0.097 - 0.056 * u * u * (3 - 2 * u) - 0.065 * np.maximum(0, x - 0.068)
-        roof += 0.024 * (1 - np.exp(-(y / 0.036) ** 2))
+        # The skull is flat and broad between the ears, falling gently forward, and a shallow furrow
+        # runs up its middle. The stop is defined between the brows; from it the bridge runs straight.
+        # (The brows once stood 2 cm above the middle of the forehead, as if it had been pressed in.)
+        u = np.clip((x - 0.025) / 0.06, 0, 1)
+        stop = u * u * (3 - 2 * u)
+        forehead = 0.097 - 4.5 * np.maximum(0, x + 0.01) ** 2
+        bridge = 0.041 - 0.065 * np.maximum(0, x - 0.068)
+        roof = forehead + (bridge - forehead) * stop
+        roof += 0.018 * stop * (1 - np.exp(-(y / 0.024) ** 2))     # the brows either side of the stop
+        roof -= 0.003 * np.exp(-(y / 0.008) ** 2 - ((x - 0.02) / 0.06) ** 2)   # the furrow, the stop to the crown
         a, b = mass(x, y, z), z - roof
         return np.maximum(a, b) + np.maximum(0, 0.012 - abs(a - b)) ** 2 / 0.048
     nose = sk.ellipsoid((0.163, 0, -0.005), (0.021, 0.026, 0.019))
@@ -358,9 +365,12 @@ def sculpt_features(bpy, v, t):
     v = np.array([tuple(p.co) for p in bm.verts])
     t = np.array([[p.index for p in f.verts] for f in bm.faces])
     bm.free()
-    _, r = orbit(v)
-    depth = -0.006 * np.exp(-(r / 1.3) ** 4) + 0.005 * np.maximum(0, 1 - r ** 2)
-    depth += 0.0025 * np.exp(-((r - 1.12) / 0.24) ** 2)
+    _, r, height = orbit(v, lift=True)
+    # The eye sits a few millimetres back under its lids, and the upper lid overhangs it a little.
+    # (It once stood level with them, round and staring.)
+    hood = np.clip(height / 0.006 + 0.5, 0, 1)
+    depth = -0.007 * np.exp(-(r / 1.3) ** 4) + 0.0035 * np.maximum(0, 1 - r ** 2)
+    depth += (0.0025 + 0.0015 * hood * hood * (3 - 2 * hood)) * np.exp(-((r - 1.12) / 0.24) ** 2)
     v[:, 0] += 0.88 * depth
     v[:, 1] += np.sign(v[:, 1]) * 0.475 * depth
     return v, t
@@ -399,8 +409,11 @@ def muzzle_whiskers(bpy, skin, rig):
     ob = bpy.data.objects.new("Muzzle whiskers", me)
     bpy.context.scene.collection.objects.link(ob)
     mat = bpy.data.materials.new("Whisker keratin")
-    mat.diffuse_color = (0.21, 0.18, 0.16, 1)
-    mat.roughness = 0.68
+    mat.use_nodes = True   # (the exporter reads the shader, not the viewport colour: without it they came out white)
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (0.21, 0.18, 0.16, 1)
+    bsdf.inputs["Roughness"].default_value = 0.68
+    bsdf.inputs["Metallic"].default_value = 0.0
     me.materials.append(mat)
     ob.vertex_groups.new(name="head").add(list(range(len(vertices))), 1, "REPLACE")
     ob.parent = rig
