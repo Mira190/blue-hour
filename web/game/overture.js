@@ -871,6 +871,9 @@ window.OEOverture = (function () {
       if (drift) drift.count = 0;
       if (hero) hero.visible = false;
       if (glow) glow.visible = false;
+      // the level the player stands in not drawn yet (a phone, a skip in the first seconds): the shot held behind the game's
+      // veil until it is, and then the camera at the player's shoulder at once, under it (game.js holdForLevel, issue 62)
+      if (ctx.holdForLevel && ctx.holdForLevel(() => ctx.cine.play(() => ctx.live, 0, { label: 'crane', onEnd: () => finish(true) }))) { ctx.cine.play(() => a, 60, { label: 'crane' }); return; }
       ctx.cine.play(OECine.mix(() => a, () => ctx.live, k => OECine.ease.smooth(k)), ctx.reduced ? 0 : 0.9, { label: 'crane', onEnd: () => finish(true) });
     }
     function finish(skipped) {

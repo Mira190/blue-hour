@@ -312,6 +312,37 @@ are pruned clear of the people under them (Japan's road rules keep 2.5 m over a 
 `tools/hero_trees.js` lists the trees round the Scramble with where their leaves begin and exits 1 on one lower
 than 2.5 m within 60 m.
 
+### A phone after dark, and the level coming in (issue 62)
+
+**The screens' light on the low tier.** A desktop lights the Scramble after dark with the screens' area lights
+(`web/neon.js`, eight on high, four on medium) and the plaza's light cards (`game.look.fill`); the low tier has none of
+them, and at dusk Hachiko's corner was lit by the sky's blue alone, the tactile blocks and the pavers dull. Now the low
+tier works out, once, the light those emitters would put on the ground of the hero levels (`neon.js` `pooled`): every
+screen within 160 m in the mean colour of its whole programme (its sheet's keyframes, read once the sheet has come; the
+mean of Shibuya's sheet where it cannot be read) and the cards, by the same closed form the area lights use towards a
+ground facing up, into one texture a metre a texel over the levels (314 by 220, 280 KB, baked a few rows a frame). A
+hero material on the low tier adds it to what it gives back, as it does its baked light (`hero.js` `POOL_F`): one texture
+read a pixel, no light in its shader. The pools follow the dusk, the screens' hours and the cards' night as the area
+lights do, but not the picture playing; the city's static glow (`night.js` `uGlowMap`) is drawn at the share it has
+beside the area lights. Matched on stills of the corner, the low tier beside the high (`tools/views/corner-night-62.json`,
+`POOL_K` 0.6): at night the blocks (161, 109, 3) on a phone where the desktop has (143, 100, 4) and a phone had
+(118, 86, 3) before, the pavers (94, 62, 61) against (98, 62, 68), before (69, 46, 50). The reference photograph of the
+corner at night: "Shibuya 10pm" (Hachiko Square at 22:10, 17 April 2020, the paving under the station's fronts and the
+screens a warm grey, the blocks yellow), by nagi usano, CC BY-SA 2.0,
+https://commons.wikimedia.org/wiki/File:Shibuya_10pm_(49785559552).jpg; and the crossing's paint under the screens,
+"Shibuya Crossing" (30 September 2023, 19:25) by Dick Thomas Johnson, CC BY 2.0,
+https://commons.wikimedia.org/wiki/File:Shibuya_Crossing_(53331011301).jpg. Compared, not copied: neither is in the
+repository. Not lit by the pools: the crowd and the fronts' walls, which on the low tier keep the hemisphere light and
+the night fill.
+
+**The level coming in.** On a phone the Scramble's level is ready seconds after the game opens (the owner's iPhone: in
+frame 1 six seconds after the load, having skipped the opening); until then the city's own Scramble is drawn, and the
+level took its place in view. The way in now waits for it (`game.js` `holdForLevel`): the opening's skip, the crane down
+from the title (reduced motion, `?overture=0`) and a story taken up again hold their shot behind a veil (the loader's
+ground with the place's name, `渋谷`, and a hairline running out the wait), at most 6 s; once the level is ready the camera
+is put at the player's shoulder under the veil and the veil lifts. Past 6 s the way in goes on without it. While it waits
+the level is fetched round the player, as behind the title. `tools/level_wait.js` checks it (docs/CHECKS.md).
+
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
 The story's fifth frame is taken at the foot of Shibuya Scramble Square's north face, where Miyamasu Bridge (宮益橋)
