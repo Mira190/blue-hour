@@ -1,5 +1,6 @@
 // The title's ways in, as one list (story.css "the title's ways in", walk.js, game.js titleLead): on a desktop's page and
-// a phone's, for a player who has chosen who they play, with no case going and with one going. It fails a list not led
+// a phone's, for a player who has chosen who they play, with no case going and with one going, the menu opened from the
+// title's press by a key or a tap (a press that does not open it fails; game.js titleScreen). It fails a list not led
 // by the walk, rows not all one width and height, the Enter key shown on a row Enter does not take, up and down that do
 // not move the hand along the list (the desktop), and a press of the walk's row that does not open its step or a step
 // left that does not give the list back. Stills of each state go to out_dir.
@@ -30,6 +31,19 @@ const ok = m => console.log(`ok   ${m}`);
       await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden && document.getElementById('gt-walk-go'); }, null, { timeout: 900000, polling: 500 });
       await p.waitForTimeout(3000);
+      await p.evaluate(() => document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } }));
+      // (the title opens on its press: a key, or on a phone a tap anywhere, opens the menu)
+      if (!going) await shot('0-press');
+      if (touch) await p.touchscreen.tap(size.width / 2, size.height / 2); else await p.keyboard.press('Space');
+      // (the name's flight from the press to the menu's corner, held at three moments of it: lockupFlip)
+      if (!going) for (const [i, t] of [[1, 0.15], [2, 0.4], [3, 0.7]]) {
+        await p.evaluate(t => { const a = document.getElementById('gt-title').getAnimations().find(x => x instanceof Animation && x.effect && x.effect.getKeyframes().some(k => /translate/.test(k.transform || ''))); if (a) { a.pause(); a.currentTime = a.effect.getTiming().duration * t; } }, t);
+        await shot(`0-flight-${i}`);
+      }
+      await p.evaluate(() => document.getElementById('gt-title').getAnimations().forEach(a => a.play()));
+      await p.waitForTimeout(1600);
+      const at = await p.evaluate(() => window.__game.screen());
+      if (at !== 'menu') fail(`${screen}: the press did not open the menu (on "${at}")`);
       await p.evaluate(() => document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } }));
     };
     // the list as it is laid out: each row's id, size, whether it leads, whether its Enter key shows, and where the hand is

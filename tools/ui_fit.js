@@ -141,10 +141,13 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
   const report = [];
   let fails = 0, checked = 0;
   const TITLES = process.env.TITLE === '0' ? [] : [
-    ['title-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }],
-    ['title-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', 'M'); }],
-    ['title-going', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }],
-    ['title-closed', () => { localStorage.removeItem('oe-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('oe-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }],
+    ['title-press', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }],
+    ['title-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }, 'menu'],
+    ['title-who-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }, 'who'],
+    ['title-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', 'M'); }, 'menu'],
+    ['title-who-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', 'M'); }, 'who'],
+    ['title-going', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'menu'],
+    ['title-closed', () => { localStorage.removeItem('oe-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('oe-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }, 'menu'],
   ];
   for (const ctxName of ['touch', 'tablet', 'desk']) {
     const src = ctxName === 'tablet' ? 'touch' : ctxName; // (a tablet lays out a phone's recordings: both by touch)
@@ -192,7 +195,9 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
         await p.evaluate(setWords, 0);
       }
     };
-    for (const [name, prep] of TITLES) { if (ONLY && !ONLY.test(name)) continue; await open(prep); await check(name, null); }
+    // (each state on the screen it is about: the press as the title opens, else the menu or who you play, game.js titleScreen)
+    const toScreen = scr => async () => { await p.evaluate(s => { window.__game.titleScreen(s); }, scr); await p.waitForTimeout(400); await p.evaluate(() => document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } })); };
+    for (const [name, prep, scr] of TITLES) { if (ONLY && !ONLY.test(name)) continue; await open(prep); await check(name, scr ? toScreen(scr) : null); }
     if (dumps[src].length) {
       if (!p) await open(null);
       for (const { name, d, then } of dumps[src]) await check(name, async () => { await p.evaluate(lay, d); if (then) await p.evaluate(then); });

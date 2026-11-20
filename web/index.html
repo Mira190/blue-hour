@@ -827,10 +827,8 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         <h1 id="gt-title">Blue Hour</h1>
         <p id="gt-blurb"></p>
         <div class="gt-time"><span class="eyebrow">Start at</span><div class="seg" id="gt-timechoice"><button data-t="live" aria-pressed="true" id="gt-now">Now</button></div></div>
-        <div class="gt-who" id="gt-who" role="radiogroup" aria-labelledby="gt-who-l" hidden><span class="eyebrow" id="gt-who-l">Play as</span>
-          <div class="gt-who-row"><button type="button" role="radio" aria-checked="false" data-c="W"><img src="assets/story/late/kagami-w.webp" alt="" width="600" height="800" decoding="async"><b>Kagami</b><small>a woman</small></button><button type="button" role="radio" aria-checked="false" data-c="M"><img src="assets/story/late/kagami-m.webp" alt="" width="600" height="800" decoding="async"><b>Kagami</b><small>a man</small></button></div>
-          <p class="gt-who-ask" aria-live="polite"></p></div>
         <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button></div>
+        <button type="button" class="gt-who-line" id="gt-who-line" hidden><span>Playing as</span><b>Kagami</b><small></small><em>Change</em></button>
         <label class="gt-skip note" id="gt-skip" hidden><input type="checkbox" id="gt-skip-on" checked> Skip the intro: you have played before</label>
         <div class="gt-hints">
           <span><kbd>W A S D</kbd> walk · drag to look around</span>
@@ -840,6 +838,23 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         </div>
         
       </div>
+      <!-- the story's title in three screens (story.css "the title in three screens"; game.js titleScreen): the press, over
+           the street with nothing but the name; the menu, the card above; who you play, a screen of its own -->
+      <div class="gt-press" id="gt-press"><i class="bar" aria-hidden="true"></i><i class="bar" aria-hidden="true"></i>
+        <button type="button" class="go" id="gt-press-go"><span class="k">Press <kbd>Any key</kbd></span><span class="t">Tap to begin</span></button></div>
+      <section class="gt-who" id="gt-who" aria-labelledby="gt-who-l" hidden>
+        <div class="gt-who-row" role="radiogroup" aria-labelledby="gt-who-l"><button type="button" role="radio" aria-checked="false" data-c="W"><img src="assets/story/late/kagami-w.webp" alt="" width="831" height="1108" decoding="async"><span><b>Kagami</b><small>a woman</small></span></button><button type="button" role="radio" aria-checked="false" data-c="M"><img src="assets/story/late/kagami-m.webp" alt="" width="831" height="1108" decoding="async"><span><b>Kagami</b><small>a man</small></span></button></div>
+        <div class="gt-who-file">
+          <span class="eyebrow" id="gt-who-l">Who you play</span>
+          <h2><span lang="ja" class="jp"></span><span class="nm">Kagami</span></h2>
+          <p class="sub"></p>
+          <p class="line"></p>
+          <dl class="facts"></dl>
+          <p class="note"></p>
+          <p class="gt-who-ask" aria-live="polite"></p>
+          <div class="gt-who-acts"><button type="button" class="btn primary" id="gt-who-go"><span>Confirm</span><kbd>↵</kbd></button><button type="button" class="btn" id="gt-who-back"><span>Back</span><kbd>Esc</kbd></button></div>
+        </div>
+      </section>
     </div>
 
     <div class="g-touch" id="g-touch" hidden>

@@ -72,6 +72,22 @@ window.OEStory = (function () {
       if (q('#gt-city')) q('#gt-city').textContent = T.eyebrow || '';
       if (q('#gt-title')) q('#gt-title').innerHTML = `${esc(S.title || '')}${T.native ? `<small lang="ja">${esc(T.native)}</small>` : ''}`;
       if (q('#gt-blurb')) q('#gt-blurb').textContent = T.line || '';
+      // who you play, on a screen of its own (game.js whoAsk): the file on Kagami, what anyone who met them tonight could
+      // know and nothing of the case; the lines that differ between the two (data-c) shown for the one the hand is on, or
+      // the one chosen (story.css "who you play")
+      const who = T.who, file = q('#gt-who .gt-who-file');
+      if (who && file) {
+        const both = f => ['W', 'M'].filter(c => who[c]).map(c => f(c, who[c])).join('');
+        file.querySelector('.eyebrow').textContent = who.eyebrow || 'Who you play';
+        file.querySelector('.jp').textContent = who.native || '';
+        file.querySelector('.nm').textContent = who.name || '';
+        file.querySelector('.sub').innerHTML = `${esc(who.age || '')}${both((c, v) => `<span data-c="${c}"> · ${esc(v.sub)}</span>`)}`;
+        file.querySelector('.line').textContent = who.line || '';
+        file.querySelector('.facts').innerHTML = (who.facts || []).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')
+          + both((c, v) => (v.wears ? `<div data-c="${c}"><dt>${esc(who.wears || 'Wears')}</dt><dd>${esc(v.wears)}</dd></div>` : ''));
+        file.querySelector('.note').textContent = who.note_line || '';
+        for (const b of q('#gt-who').querySelectorAll('.gt-who-row [data-c]')) { const v = who[b.dataset.c]; b.querySelector('b').textContent = who.name || ''; if (v) b.querySelector('small').textContent = v.sub; }
+      }
       // a case left unfinished in this browser: the button says so (which frame it takes up at), and a second one starts
       // the evening again from its first frame; nobody opens the page into the rain of the last frame without being told
       let left = null;

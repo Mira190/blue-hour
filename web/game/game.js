@@ -3731,7 +3731,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     lens: d => zoom(d > 0 ? 0.89 : 1.12), // (the ring: RB longer, LB wider, a notch of the wheel each)
     log: () => { if (storyLog) storyLog.show(!storyLog.open); },
     back: () => { if (dlg.open) dlg.back(); },
-    close: el => { if (el.id === 'g-story-log' && storyLog) storyLog.show(false); else if (el.id === 'g-story-album' || el.id === 'g-menu') gamepad.key('Escape'); else if (el.id === 'g-title' && walkUi && walkUi.isOpen) walkUi.open(false); } }) : null; // (B on the walk's step: back to the two ways in)
+    close: el => { if (el.id === 'g-story-log' && storyLog) storyLog.show(false); else if (el.id === 'g-story-album' || el.id === 'g-menu') gamepad.key('Escape'); else if (el.id === 'g-title') gamepad.key('Escape'); } }) : null; // (B on the title: one screen back, as Esc, the title's keys below: the walk's step to the menu, who you play to the menu, the menu to the press)
   if (storyLog && gamepad) storyLog.gamepad = gamepad; // (the log's sheet has the trigger's setting while a pad is in the hand)
   let postCame = null; // the postcards asked for, once a visit (postcards.js brings nothing sooner than six hours after the last)
   function renderPassport() {
@@ -4106,17 +4106,30 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (e.repeat) { keys.add(c); return; }
     keys.add(c);
     if (preTitle) return; // the loader is still up
-    if (!$('#g-title').hidden) { // (the title: Enter begins once who you play is chosen, or presses the portrait the hand is on; the arrows choose)
+    if (!$('#g-title').hidden) { // (the title's keys, by its screen: the press, the menu, who you play; titleScreen)
       // (Enter is the title's own: the button's native press came after a choice had moved the hand to the button, and one
       // Enter chose who you play and began)
+      const scr = screenOf();
+      if (scr === 'press') { // (any key but a modifier opens the menu; the same key starts the score, the loader's cue above)
+        if (!/^(Shift|Control|Alt|Meta|OS|Tab|Fn)/.test(c)) { e.preventDefault(); titleScreen('menu'); }
+        return;
+      }
       if (walkUi && walkUi.titleKey(c)) { e.preventDefault(); return; } // (the walk's step, while it is up: its own keys, walk.js)
-      // (Enter presses the button the hand is on, else the list's first way in; the episode's own press, a script's, would
-      // not ask who you play, so it asks here first. Up and down move the hand along the list, from the first way in)
-      const f = document.activeElement, onBtn = f && f.tagName === 'BUTTON' && f.closest('#g-title') ? f : null, go = onBtn || titleLead();
-      if (c === 'Enter') { e.preventDefault(); if (go.id === 'gt-play' && whoNeeded()) whoAsk(); else go.click(); }
-      else if ((c === 'ArrowLeft' || c === 'ArrowRight') && whoEl && !whoEl.hidden) whoPick(c === 'ArrowLeft' ? 'W' : 'M');
+      const f = document.activeElement, onBtn = f && f.tagName === 'BUTTON' && f.closest('#g-title') ? f : null;
+      if (scr === 'who') { // (left and right choose, Enter presses what the hand is on or confirms, Esc goes back)
+        if (c === 'Enter') { e.preventDefault(); if (onBtn) onBtn.click(); else whoDone(); }
+        else if (c === 'Escape' || c === 'Backspace') whoBack();
+        else if (c === 'ArrowLeft' || c === 'ArrowRight') whoPick(c === 'ArrowLeft' ? 'W' : 'M');
+        return;
+      }
+      // (the menu: Enter presses the button the hand is on, else the list's first way in; the episode's own press, a
+      // script's, would not ask who you play, so it asks here first. Up and down move the hand along the list, from the
+      // first way in, and on to who you play under it; Esc goes back to the press)
+      const go = onBtn || titleLead();
+      if (c === 'Enter') { e.preventDefault(); if (go.id === 'gt-play' && whoNeeded()) whoAsk(go); else go.click(); }
+      else if (c === 'Escape') titleScreen('press');
       else if (c === 'ArrowUp' || c === 'ArrowDown') {
-        const list = $$('#g-title .gt-go > .btn').filter(b => b.offsetParent), i = list.indexOf(onBtn) >= 0 ? list.indexOf(onBtn) : Math.max(0, list.indexOf(titleLead()));
+        const list = [...$$('#g-title .gt-go > .btn'), $('#gt-who-line')].filter(b => b && b.offsetParent), i = list.indexOf(onBtn) >= 0 ? list.indexOf(onBtn) : Math.max(0, list.indexOf(titleLead()));
         const to = list[Math.min(list.length - 1, Math.max(0, i + (c === 'ArrowDown' ? 1 : -1)))]; if (to) to.focus({ preventScroll: true });
       }
       return;
@@ -5852,49 +5865,111 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     setPlayerCharacter(b.dataset.c).then(whoSync);
     $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
-  // ... and on the story's title, before it begins: Kagami as a woman or a man, two portraits over the button (tools/views/
-  // kagami.json). The first time nothing is chosen for the player: a press of the button, Enter or a pad's A asks for the
-  // choice first, as a game with one lead played as either asks it after New Game; after that the choice stands, shown
-  // there and in the menu, and either can change it. (A scripted press, a harness's, begins as before, as the woman.)
-  const whoEl = $('#gt-who');
+  // ... and on the story's title (docs/STORY.md "The title, as a game opens"): the title in three screens. The press:
+  // the street and the name, nothing to choose, until a key, a tap or a pad's button (the press a browser waits for
+  // before it plays a sound, so the score comes in with it). The menu: the ways in. And who you play, a screen of its
+  // own: Kagami as a woman or a man, the two portraits (tools/views/kagami.json) beside the file on them (city.json
+  // story.card.who). It comes up the first time a way in is taken, as a game with one lead played as either asks after
+  // New Game, and that way in goes on once one is chosen and confirmed; after that the choice stands, named under the
+  // menu's list and in the pause menu, and either changes it. Nothing is chosen for the player the first time.
+  // (A scripted press, a harness's, begins as before, as the woman.)
+  const whoEl = $('#gt-who'), titleEl = $('#g-title');
   const whoKept = () => { try { return localStorage.getItem(PLAYER_KEY); } catch (e) { return null; } };
   const whoChosen = () => { try { return !!PLAYER_LOOKS[localStorage.getItem(PLAYER_KEY)]; } catch (e) { return true; } };
   const whoNeeded = () => !!whoEl && !whoEl.hidden && !whoChosen();
   // (the title's first way in, the one Enter and a pad's A take: the walk's while the episodes are being finished, walk.js)
   const titleLead = () => [...document.querySelectorAll('#g-title .gt-go > .btn.primary')].find(b => b.offsetParent) || $('#gt-play');
+  let whoThen = null, wayLast = null; // (the way in that brought who you play up, taken again once one is confirmed)
+  const screenOf = () => titleEl.dataset.screen || 'menu';
+  // the name carried from the middle of the press to the menu's corner, by where it stood and where it now stands (FLIP)
+  function lockupFlip() {
+    const h = $('#gt-title'), r0 = h.getBoundingClientRect();
+    return () => {
+      const r1 = h.getBoundingClientRect();
+      if (!r0.width || !r1.width || !h.animate) return;
+      h.animate([{ transformOrigin: '0 0', transform: `translate(${r0.left - r1.left}px, ${r0.top - r1.top}px) scale(${r0.width / r1.width})` }, { transformOrigin: '0 0', transform: 'none' }],
+        { duration: 1100, easing: 'cubic-bezier(0.22, 0.8, 0.12, 1)' });
+    };
+  }
+  function titleScreen(s) {
+    if (!story) s = 'menu';
+    const was = titleEl.dataset.screen;
+    if (s === was) return;
+    const flip = was === 'press' && s === 'menu' && !reduced ? lockupFlip() : null;
+    titleEl.dataset.screen = s;
+    if (flip) flip();
+    if (s !== 'who' && whoEl) whoEl.dataset.hand = '';
+    whoSync();
+    if (s === 'menu' && was !== 'who') titleLead().focus({ preventScroll: true }); // (the hand on the first way in, as a menu opens)
+    if (s === 'who' && whoEl) {
+      const k = whoEl.querySelector(whoChosen() ? '.gt-who-row [aria-checked="true"]' : '.gt-who-row [data-c]');
+      if (k) k.focus({ preventScroll: true });
+    }
+  }
   function whoSync() {
     if (!whoEl) return;
-    const chosen = whoChosen();
+    const chosen = whoChosen(), s = screenOf();
     const k = (chosen && whoKept()) || playerChar; // (the choice as made, while its model may still be on its way)
-    $$('#gt-who [data-c]').forEach(b => b.setAttribute('aria-checked', String(chosen && b.dataset.c === k)));
+    $$('#gt-who .gt-who-row [data-c]').forEach(b => b.setAttribute('aria-checked', String(chosen && b.dataset.c === k)));
     $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(chosen && x.dataset.c === k)));
     whoEl.classList.toggle('open', !chosen);
-    $$('#g-title .gt-go > .btn').forEach(b => b.toggleAttribute('aria-disabled', !chosen && !whoEl.hidden)); // (said to a screen reader; each is still pressed, to be told why)
-    if (!chosen && !whoEl.hidden && !whoEl.classList.contains('ask')) whoEl.querySelector('.gt-who-ask').textContent = 'Choose one to begin.';
-    $('#g-title').toggleAttribute('data-choose', !chosen && !whoEl.hidden); // (pad.js: A puts the hand on a portrait first)
-    if (chosen) whoEl.querySelector('.gt-who-ask').textContent = '';
+    whoEl.dataset.show = whoEl.dataset.hand || (chosen ? k : ''); // (the file's lines for the one the hand is on, else the one chosen)
+    const ask = whoEl.querySelector('.gt-who-ask');
+    if (chosen) ask.textContent = ''; else if (!whoEl.classList.contains('ask')) ask.textContent = 'Choose one, then confirm.';
+    $('#gt-who-go').setAttribute('aria-disabled', String(!chosen));
+    titleEl.toggleAttribute('data-choose', !chosen && !whoEl.hidden && s === 'who'); // (pad.js: A puts the hand on a portrait first)
+    const line = $('#gt-who-line'); // (under the menu's list: who you play, and the way to change it)
+    if (line) {
+      line.hidden = whoEl.hidden || !chosen;
+      const t = whoEl.querySelector(`.gt-who-row [data-c="${k}"] small`);
+      line.querySelector('small').textContent = t ? t.textContent : '';
+    }
   }
   // nothing goes on from the title until who you play is chosen: the button, Enter, a tap, a pad's A, and the title's
-  // other ways on (the evening again, a frame of a closed case gone back into) each ask instead, the first time
+  // other ways on (the evening again, a frame of a closed case gone back into) each bring who you play up instead, the
+  // first time, and are taken again once one is confirmed
   function whoGate() { if (whoNeeded()) { whoAsk(); return false; } return true; }
-  function whoAsk() {
-    whoEl.querySelector('.gt-who-ask').textContent = 'Choose who you play, then begin.';
+  function whoAsk(then) {
+    if (screenOf() !== 'who') { whoThen = then || wayLast || null; titleScreen('who'); return; }
+    whoEl.querySelector('.gt-who-ask').textContent = 'Choose who you play first.'; // (Confirm with none chosen: the two shake)
     whoEl.classList.toggle('ask', false); void whoEl.offsetWidth; whoEl.classList.toggle('ask', true);
-    const f = whoEl.querySelector('[data-c]'); if (f && !whoEl.contains(document.activeElement)) f.focus({ preventScroll: true });
+    const f = whoEl.querySelector('.gt-who-row [data-c]');
+    if (f && !whoEl.querySelector('.gt-who-row').contains(document.activeElement)) f.focus({ preventScroll: true });
+  }
+  function whoDone() {
+    if (!whoChosen()) { whoAsk(); return; }
+    const then = whoThen; whoThen = null;
+    titleScreen('menu');
+    if (then && then.isConnected) then.click(); else titleLead().focus({ preventScroll: true });
+  }
+  function whoBack() {
+    whoThen = null; titleScreen('menu');
+    const l = $('#gt-who-line'); (l && !l.hidden ? l : titleLead()).focus({ preventScroll: true });
   }
   async function whoPick(c) {
     if (!PLAYER_LOOKS[c]) return;
     const first = !whoChosen();
     const done = setPlayerCharacter(c); // (kept at once; the model swapped in when it has come)
     whoSync();
-    if (first) titleLead().focus({ preventScroll: true }); // (chosen: the next press goes in, by the first way)
+    if (first && screenOf() === 'who') $('#gt-who-go').focus({ preventScroll: true }); // (chosen: the next press confirms)
     await done; whoSync();
   }
   if (whoEl) {
     whoEl.hidden = !(lib && story);
-    on(whoEl, 'click', e => { const b = e.target.closest('[data-c]'); if (b) whoPick(b.dataset.c); });
+    on(whoEl, 'click', e => { const b = e.target.closest('.gt-who-row [data-c]'); if (b) whoPick(b.dataset.c); });
+    // (the hand on a portrait, the pointer's or the keys', shows that one's lines in the file before it is chosen)
+    const hand = c => { if (whoEl.dataset.hand !== c) { whoEl.dataset.hand = c; whoSync(); } };
+    on(whoEl, 'pointerover', e => { const b = e.target.closest('.gt-who-row [data-c]'); hand(b ? b.dataset.c : ''); });
+    on(whoEl, 'pointerleave', () => hand(''));
+    on(whoEl, 'focusin', e => { const b = e.target.closest('.gt-who-row [data-c]'); hand(b && b.matches(':focus-visible') ? b.dataset.c : ''); });
+    on($('#gt-who-go'), 'click', whoDone);
+    on($('#gt-who-back'), 'click', whoBack);
+    on($('#gt-who-line'), 'click', () => { whoThen = null; titleScreen('who'); });
+    on(titleEl, 'click', e => { const b = e.target.closest('.gt-go > .btn, #gt-back button[data-back]'); if (b) wayLast = b; }, { capture: true }); // (before the way's own press asks)
     whoSync();
   }
+  // the press: a tap anywhere on it, or its prompt pressed (a pad's A presses it: button.go, pad.js), opens the menu
+  on($('#gt-press'), 'click', () => titleScreen('menu'));
   on($('#gm-sound'), 'change', e => A.setMuted(!e.target.checked));
   on($('#gm-intro'), 'click', () => { $('#g-menu').hidden = true; OEOnboard.forgetCoaches(); startTour(); }); // (and the first flight's coach again)
   // the map's overture again, from wherever you are: it ends where it always does (overture.js)
@@ -6136,7 +6211,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     moreTray(true, false); // (the tour points at the buttons behind "more")
     return OEOnboard.tour(tourSteps(), { root: document.body, onEnd: () => { moreTray(was, false); OEOnboard.markDone(CITY.id); if (then) then(); } });
   }
-  on($('#gt-play'), 'click', e => { if (e.isTrusted && whoNeeded()) { whoAsk(); return; } startGame(false); }); // (a player's own press, the first time: who they play is asked first)
+  on($('#gt-play'), 'click', e => { if ((e.isTrusted || (gamepad && gamepad.pressing)) && whoNeeded()) { whoAsk(); return; } startGame(false); }); // (a player's own press, the mouse's, a tap or a pad's, the first time: who they play is asked first)
   // ---- the walk (walk.js, docs/STORY.md "The walk"): the title's first way in. The same Kagami on the same streets,
   // at the hour and under the sky the player picks, with nothing of the story in it and nothing owed. Set out from this
   // page as it stands: the street on the title is the street walked, nothing loaded again
@@ -6260,6 +6335,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     setTimeout(afterPlayable, reduced ? 0 : 700); // (once the loader has faded)
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
+    titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
     $('#g-title').hidden = false;
     // come from a story's link on the globe (title.js): no card to press, the story starts
     { let auto = false; try { auto = !!story && sessionStorage.getItem('oe-story-auto') === cityId; if (auto) sessionStorage.removeItem('oe-story-auto'); } catch (e) { /* storage blocked */ }
@@ -7991,7 +8067,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };

@@ -27,7 +27,7 @@ to you passes within 0.42 m of a held person's middle or ends away from you, the
 and fails if he is behind the player more than a quarter of the time. A frame whose place is found (`task.find`):
 `tools/find_probe.js` plays it to its camera and takes stills, with what the finder says, from where the world stops,
 from the standpoint and from points given (`AT=x,y;x,y`), so that the words and the place are seen to agree.
-Who you play (the title's portraits, `web/game/game.js` `whoPick`): `tools/title_who.js` opens the page as someone who has never played and presses as a hand does (mouse or touch, Enter, the arrows), and fails a first press that begins without asking, a choice that is not who you then are or is not kept, and a page opened again that asks again. A rig's look (`web/game/people.js` `rig.animate`, the head turned to what an NPC or the player looks at): `tools/head_spin.js` holds every NPC's rig and the player's looking beside them, with time running and then held, and fails a head that goes on turning (a look laid over the last frame's look wound Aoi's head round by the Center Gai arch, on a phone, November 2026); `tools/story_play.js` reads every head at the first beat of each Stop as well. A train's sound (`web/game/audio.js` `trainAt`, `web/game/trains.js`): `tools/train_sound.js` renders one going by under
+The title in three screens and who you play (`web/game/game.js` `titleScreen`, `whoAsk`, `whoPick`; docs/STORY.md *The title, as a game opens*): `tools/title_who.js` opens the page as someone who has never played and presses as a hand does (a key or a tap past the press, mouse or touch, Enter, the arrows), and fails a title that does not open on its press, a first press of a way in that begins without bringing who you play up, portraits or a file on Kagami not shown whole, a Confirm with none chosen that goes on, a choice that is not who you then are, is not kept or does not set the file's lines, a Confirm that does not take the way in asked for, and a page opened again that asks again or does not name the choice under the menu. A rig's look (`web/game/people.js` `rig.animate`, the head turned to what an NPC or the player looks at): `tools/head_spin.js` holds every NPC's rig and the player's looking beside them, with time running and then held, and fails a head that goes on turning (a look laid over the last frame's look wound Aoi's head round by the Center Gai arch, on a phone, November 2026); `tools/story_play.js` reads every head at the first beat of each Stop as well. A train's sound (`web/game/audio.js` `trainAt`, `web/game/trains.js`): `tools/train_sound.js` renders one going by under
 the Yamanote bridge and beside its viaduct, offline, to WAV, and reads its rhythm, its hiss far off and its deck's boom.
 
 The static checks:
@@ -155,7 +155,8 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   falls on sky or open street on a desktop and on a phone's middle quarter. It prints any mark left visible.
 - Whether the interface fits every screen: `tools/ui_fit.js`, by hand after a change to the story's or the walk's
   screens (it is not a target: it lays out recordings a story play made). The title in each of its states (first
-  visit, who you play chosen, a case going, a case closed) is opened for real; every other screen is laid in again from
+  visit, who you play chosen, a case going, a case closed) is opened for real, on the screen it is about (the press as
+  the page opens, the menu, who you play: `window.__game.titleScreen`); every other screen is laid in again from
   what `tools/story_play.js` and `tools/walk_play.js` wrote down at their stills with `UI_DUMP=dir`
   (`tools/ui_dump.js`): a desktop's play at 1024x768, 1280x720, 1440x900 and 1920x1080, a phone's (390x844, by touch)
   at 320x568, 360x740, 390x844, 412x915, 844x390 and 768x1024, each at the log's three word sizes. It fails on words
@@ -168,7 +169,7 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   title it opened still asked who you play; it stores `M` now.
 - The title's ways in as one list: `tools/title_menu.js`, by hand after a change to the title's buttons (`story.css`
   "the title's ways in", `walk.js`, `game.js` `titleLead`). On a desktop's page (1440x900) and a phone's (390x844, by
-  touch), as a player who has chosen, with no case going and with one: it fails a list not led by the walk, rows not all
+  touch), as a player who has chosen, with no case going and with one, the menu opened from the press by a key or a tap: it fails a list not led by the walk, rows not all
   one width and height (or under 48 px on a phone), the Enter key on a row Enter does not take, up and down that do not
   move the hand along the list, and the walk's step not opened by Enter or a tap and not left by Esc or Back. Stills of
   each state.
