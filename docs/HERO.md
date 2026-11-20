@@ -30,6 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 
 ## How it works
 
@@ -476,6 +477,134 @@ Where it still falls short: the station's walls above the girders are the city's
 and glass; the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
 the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
 software renderer only.
+
+## SKY's street entrance (Shibuya): frame 4's way up (issue 53)
+
+Frame 4 and the walk send the player from the crossing to the lift at Shibuya Scramble Square that goes up to SHIBUYA
+SKY. Its lobby was set dressing in the story's flat, self-lit material (the old `blender/build_set.py`): stone, steel
+and the lift's doors read as flat colour, nothing reflected its lines of light, the indicator said 46F, and the way in
+was an open 10 m mouth in the tower's generic wall, 17 m west of where the real entrance is. It is now a small hero
+level of its own, `cities/shibuya/hero_skylobby.py` (`python blender/build_hero.py --city shibuya --level skylobby`),
+and the set dressing is gone.
+
+**The place, from the research** (November 2026; sources below). The street lift is "館外1階": a lift hall of its own,
+outside the building's doors, at the far east end of the tower's north face, practically at its north-east corner and
+a few metres east of the Hikarie-side entrance, under the overhang of the station deck over the east exit (the 1F
+plan, `access_entrance_floormap_1f.png`, marks it "SHIBUYA SKY エレベーター 14Fへ", entered from the west; the section
+drawing shows its shaft as glass outside the tower's east face). It goes to 14F, stopping at 2F on weekdays when it is
+not busy. Elevator Journal 28's schedule has one bank that fits: E3-1 and E3-2, two Fujitec scenic cars, 24 people,
+150 m a minute, 1F to 14F. In the photographs (2019 to 2020): a glass wall in stainless frames, its lower lites
+fritted white, with two single framed doors about 2 m apart; over it a dark metal soffit with one line of round
+downlights; in front of it pale square tiles of about 600 mm, then the forecourt's striped planks; to its west a
+free-standing square pillar in light warm grey panels with the lit SKY disc and the name over a portrait screen;
+retractable belts in front at busy times. No photograph of the hall's inside, its lift doors or its indicator was
+found.
+
+**How it is entered, read again** (the owner's question, November 2026: "you queue inside, and face the outside as you
+board"). The official plan draws the SKY lift as its own small box *outside* the shop's outline at its north-east corner,
+east of the east wall's line and mostly north of the north face's, with its entrance marker (▷) on its **west** side;
+the section drawing has the shaft as glass outside the tower's east face; the schedule's E3 cars are scenic. So the hall
+is entered from the west, the queue faces east, and a visitor boards a car whose back is glass onto Meiji-dori and
+Hikarie. A first pass had cut the lobby 8 m into the tower with its glass to the north and the cars on its back wall:
+wrong, and redone.
+
+**What was built**:
+
+- **The hall where it is.** `pipeline/lobby.py` takes a lobby that stands outside its building (city.json
+  `game.lobbies` `"outside": {"door", "at"}`): the lobby once cut into the tower is filled back (each solid keeps its
+  index; the ground floor's two solids take their passages' feet again) and the stop put at the hall's doors and before
+  its cars. scene.json's `shibuya_sky.door` moved with it, and Yuna stands by the pillar.
+- **The hall**: 6.2 m north to south, 4.2 m west to east, under the station deck (its ceiling 2.65 m up, under the
+  deck's underside). Its west front glass in stainless frames, fritted to a metre, with two doorways 1.2 m clear under a
+  transom whose sliding leaves stand open behind the lites outside them (a door that is always open is what a player
+  walking up to an automatic one sees); its north side glass onto the forecourt; its roof carried 1.6 m out over the
+  doors as a canopy with a line of round downlights (the photographs'); its south side dark metal against the tower.
+  All of it solid (`game.hero[].posts`), the doorways open.
+- **Inside**: SKY's own black and lines of light (SKY GATE's cars, the 45F LEADING LINE), since its finishes are in no
+  photograph. A floor of polished charcoal granite in 1.2 by 0.6 m slabs, each its own part of the stone; black
+  lacquered panels with an 8 mm reveal, a line of light at the south wall's foot; a matt black ceiling with four lines
+  of light running east from over the doors to the cars, baked onto the floor and walls, and their reflections in the
+  polished floor (`refl*`: light added over the stone, without depth, dimmed by day as a glow is). The environment map
+  is the sky's, which inside a hall is wrong, so its surfaces take little of it.
+- **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
+  each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
+  behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
+  to 14F; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts run east to the
+  cars (`game.hero[].belts`, solid).
+- **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
+  hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
+  (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
+  name printed on its panels and an invented screen; and the forecourt's planks out along the tower's north face and
+  round the hall's north side.
+- **Its floor is walked on.** The ground rises half a metre to the north under the hall, and a hall is level. A level
+  with `"floor": true` is stood on where its model draws a floor (game.js `heroCover` reads its `room_floor_*` and
+  `ground_*` meshes into a height grid, `h.height`; nav.js `lift` returns that height less the ground's, under it or
+  over it).
+
+3,600 triangles, 0.67 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
+within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
+`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
+entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
+
+Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY access (shibuya-scramble-square.com/sky/access/,
+its 1F and 2F plans and the section drawing of the lift); Elevator Journal 28 (n-elekyo.or.jp, the lift schedule);
+Shibuya Scramble Square Level 1 Entrance, 2019-12-23 (Wpcpey, Wikimedia Commons, CC BY 4.0: the forecourt, the pillar
+and the soffit at dusk); SHIBUYA SKY Logo, 2022-12 (稲妻ノ歯鯨, Commons, CC BY-SA 4.0: the disc's colours, which are not
+drawn); and, all rights reserved, compared only: eki-kara-access.tokyo/shibuya-sky-ikikata/ (2019, twelve views of the
+entrance and the pillar), 1rankup.jp/shibuya/sky.html (the doors at night, the belts), skyticket.jp/guide/405506/.
+
+Where it still falls short: the hall's inside, its lift doors and its indicator are designed, not seen, and its size is
+the plan's, read at its scale; the doors do not slide as you come; the hall's height is the station deck's here, which
+is lower than the real 2F deck (7.7 m over 1F); the forecourt's striped planks with lights in their joints and its faceted mirror ceiling are
+the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
+renderer only.
+
+## Scramble Square's curtain wall (Shibuya)
+
+The owner's ask (November 2026): the building the story climbs should be the real one. The city drew Shibuya Scramble
+Square as every tower is drawn: PLATEAU's 227 m on OpenStreetMap's footprint, the generic curtain wall in a grey-blue.
+What the research found (sources below):
+
+- **Massing.** GL+229.7 m, 47 floors over 7 below and two on the roof (Nikken Sekkei; Komaihaltec's report). Shops
+  B2 to 14F (12F and 13F restaurants), SHIBUYA SKY's counter on 14F, SHIBUYA QWS on 15F, the sky lobby on 17F, offices
+  17F to 45F, SKY GALLERY on 45F and 46F, SKY STAGE on the roof. Floor to floor, from the escalators' rises
+  (Elevator Journal 28): 1F to 2F 7.7 m, 2F to 3F 5.6, 3F to 4F 6.0, then 5.0 to 5.7 to 14F (14F about 71 m over 1F),
+  17F about 84 m, the offices about 4.55 m. A standard office floor 2,815 m², ceilings 2.9 m (CASBEE). The footprint is
+  OpenStreetMap's (way 617560918), about 60 by 68 m, its long sides NNW-SSE.
+- **The skin.** The tower by Nikken Sekkei, the lower part by Kengo Kuma & Associates (Shinkenchiku 2019-12). Low-E
+  panes over 4 m tall, a white ceramic frit printed on their outer face that thins toward the corners, mullions that
+  shift with the cut-and-expanded form (KKAA, designboom, gooood); in the photographs a blue-green glass whose joints
+  step across each face in diagonals, every pane giving back the sky in its own tone.
+- **The base.** The official floor plans show the north edge changing floor by floor (1F straight with a shallow kink,
+  3F curved round the Ginza line's concourse, 4F an undulating S-curve reaching further north over the Urban Core); in
+  the photographs from the crossing and from Hikarie the north face is carved below 15F by a concave glass sweep either
+  side of the 550 m² LED screen that faces the crossing (Panasonic). No elevation or dimension of it is published.
+
+**What was built** (`cities/shibuya/hero_scramblesq.py`, `python blender/build_hero.py --city shibuya --level
+scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 92 triangles in one
+material (`win_scrsq`: hero.js win*, the glass mirroring the sky by day, the offices lit after dark) on a tile drawn
+here, 12 m across and eight office storeys high: each 1.5 m pane its own tone within a few percent and its own small
+tilt in the normal map (the tilt is the cause of the tone), the mullions as ribs, every second heavier, the joints
+stepping 0.75 m at each floor, the spandrel recessed and fritted, the frit thinning up each pane; after dark a ceiling's
+light in each lit bay, floors lit or dark as a working evening leaves them. The shop floors take the same tile at
+their 5.4 m storeys. Fetched anywhere in the story's streets (load_m 900): 0.21 MB, three 512 by 1536 pictures (two on
+a phone, halved). The ground floor round SKY's lobby is left to the lobby's own level.
+
+**Not built, and why**: the north face's concave sweep, the LED screen and the overhang over the Urban Core (with its
+faceted mirror-metal ceiling and lit slots over the forecourt) need the tower's solids cut below 15F to a measured
+shape, which nobody publishes; drawn from the photographs alone it would be a guess at the largest thing in the frame.
+It waits in issue 66 with the plans and photographs gathered here.
+
+Sources: nikken.co.jp (Shibuya Scramble Square, first phase), kkaa.co.jp (the project page), data.shinkenchiku.online
+(SK 2019-12), designboom 2021-05-04, gooood.cn, komaihaltec.co.jp (vol10_2-2.pdf), ibecs.or.jp (CASBEE
+RE_DAIWA-F-00241), n-elekyo.or.jp (Elevator Journal 28), panasonic.biz (Shibuya SS Vision), the official floor guide's
+1F to 4F plans (shibuya-scramble-square.com/floorguide/, all rights reserved: looked at). Photographs (Wikimedia
+Commons, looked at, none reproduced): SHIBUYA SCRAMBLE SQUARE East Tower, 2023-05 (Sakura Torch, CC BY-SA 4.0);
+Shibuya Station 191129a (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Scramble Square, seen from Hikarie, 2025-03 (Syced,
+CC0); Hikarie and Shibuya scramble square buildings, 2025-06 (Nesnad, CC BY 4.0); Shibuya Scramble Square building,
+taken from Shibuya Stream, 2022-06 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance, 2019-12 (Wpcpey, CC BY 4.0);
+Shibuya Scramble Square 191101a1 (江戸村のとくぞう, CC BY-SA 4.0).
 
 ## Only what the first frame sees (issue 358)
 

@@ -30,9 +30,10 @@ window.OEPast = (function () {
     const U = { uPast: { value: new THREE.Vector4(1, 1, -1, -1) }, uT: { value: 0 } }, keep = new THREE.Vector4(1, 1, -1, -1);
     const waiting = [], live = new Set();
     let isOpen = true, full = false;
-    // (two files: the things of the other year, and tonight's own set dressing, which is always seen: `set`)
-    let pending = 2; const got = {};
-    for (const file of ['assets/past/past.glb', 'assets/story/set.glb']) new THREE.GLTFLoader().load(file, gl => {
+    // (the things of the other year; tonight's own set dressing, which is always seen (`set`), would be models of the same
+    // file. SKY GATE's lobby was one until it became a hero level of its own: cities/shibuya/hero_skylobby.py, issue 53)
+    let pending = 1; const got = {};
+    for (const file of ['assets/past/past.glb']) new THREE.GLTFLoader().load(file, gl => {
       gl.scene.updateMatrixWorld(true);
       gl.scene.traverse(o => { if (o.isMesh) { got[o.name] = o.geometry.clone().applyMatrix4(o.matrixWorld); got[o.name].computeBoundingSphere(); } });
       if (!--pending) { kit = got; waiting.splice(0).forEach(f => f()); }
