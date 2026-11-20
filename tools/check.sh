@@ -31,8 +31,10 @@
 #           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
 #   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
-#           (tools/reverb_check.js), and the opening and the story's own sound played as an iPhone, every convolver on
-#           the live context within WebKit's realtime limit, one context, no worklet (tools/phone_audio.js);
+#           (tools/reverb_check.js), the graph as small after every one-shot has sounded as before, and no sound begun
+#           before the audio thread can take it up (tools/audio_graph_check.js), and the opening and the story's own sound
+#           played as an iPhone, every convolver on the live context within WebKit's realtime limit, one context, no
+#           worklet (tools/phone_audio.js);
 #           when the sound changes;
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
@@ -116,7 +118,7 @@ else
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
@@ -216,6 +218,8 @@ run_mem() {
 run_audio() {
   if timeout 900 node tools/reverb_check.js >"$OUT/reverb.log" 2>&1; then echo "ok   audio  $(grep -c '^ok' "$OUT/reverb.log") reverbs as a phone hears them, each within its tolerance of the whole convolution"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/reverb.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/reverb.log)"; fi
+  if timeout 600 node tools/audio_graph_check.js >"$OUT/audio_graph.log" 2>&1; then echo "ok   audio  the graph as small once every one-shot has sounded as before ($(grep -o '[0-9]* once they have ended' "$OUT/audio_graph.log" | head -1) nodes), none begun before the audio thread can take it up"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_graph.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_graph.log)"; fi
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
