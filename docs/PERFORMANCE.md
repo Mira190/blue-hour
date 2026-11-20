@@ -1875,3 +1875,40 @@ that is off returns at once. Under the software renderer the lights' share of a 
 went from 57 ms of 381 to 28 of 349, and stills of the scramble at 19:30 in rain differ by 5 levels in 255 on
 average (`?arealight=ltc` brings three.js's own back). The two LTC tables are no longer bound either, which leaves
 two more of an Apple or a phone GPU's sixteen texture units to a material's own layers. Not measured on a real GPU.
+
+## A phone in the hand: thirty even frames (November 2026)
+
+The owner's iPhone grew hot after a few minutes of the story. Its telemetry (version `0.1+b8aba51`, Safari 27, an
+"apple gpu" reporting four cores): 34 to 43 frames a second over the opening, 17 to 20 in frames 1 to 3, every
+piece `bound: gpu?` (slow, and not for the script's time); 13 to 28 ms of script a frame; 270 to 390 draw calls and
+1.2 to 1.3 million triangles; the canvas 786 x 1390 (two device pixels to the point) and the governor at 0.65 to 0.95
+of it with every extra shed. Its frame-rate cap was 60, so the governor asked for 60 until it gave up and asked for 30,
+and the frames came as fast as the GPU could draw them: the GPU never idle, the CPU busy three quarters of each frame.
+
+**A phone's cap is 30** (`game.js` `PHONE_FPS`: a touch device on a phone's set, quality.js `lean`), unless the
+player picked one in the menu (Frame rate: 30, 60, the display's). Every second display frame is passed over at
+once (`governor.due`), the governor aims at 33 ms from the start, and what a frame does not need of its 33 ms is
+left idle: over the opening, a third to a quarter of the GPU's time. Where the frame takes longer than 33 ms the
+cap changes nothing; what is drawn then decides.
+
+What is drawn, at the story's first walk on a phone's set (here, the same view, triangles by top-level group; the
+iPhone's own count was 1.27 million):
+
+| What | Triangles | Draws |
+|---|---|---|
+| the far crowd, four of the scanned cast instanced (289 people, 1,000 to 1,360 triangles each) | 350,000 | 4 |
+| the game's ground near the player, two fine tiles of the 5 m grid and two coarse | 240,000 | 4 |
+| the hero level, in the squares in view | 116,000 | 17 |
+| the district's buildings | 52,000 | 18 |
+| the far land | 32,000 | 1 |
+| the trains on the tracks beside the station | 73,000 | 5 |
+| the rest (the night's lights, the trees, the props, the near people) | 378,000 | 217 |
+
+The far crowd is the largest: a walker 60 m off is some 35 device pixels tall on that screen (about 400 pixels in
+all) and drawn in 1,300 triangles, a triangle for every three pixels, which a phone's GPU shades in quads of four. A second, coarser copy of
+each of the cast past 60 m (some 300 triangles; `blender/build_people.py` makes the far copies) is the next thing to
+try. The ground's fine tiles lie under the hero level's paving within its circle, where the paving hides them. Only
+`?perf` on the phone itself (above) says which of these its GPU spends the frame on: not measured on a real iPhone.
+
+Also found on the way: on the low tier the hero level's asphalt, crossings' paint, pavers and setts were drawn as a
+rough metal (docs/HERO.md, "Streamed"), lit by the sky's reflection and not by a lamp; fixed.
