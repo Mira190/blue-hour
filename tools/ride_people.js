@@ -99,7 +99,24 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       if (!rode) { rode = true; await p.evaluate(() => { const g = window.__game; if (g.cam && g.cam.mode === 'cabin' && g.keys) {} }); }
       if (shots < 24 && s.ride && s.ride.phase === 'driving' && (++tick % (s.ride.v < 0.5 ? 6 : 3) === 1)) { try { await p.screenshot({ path: `${out}/ride-${String(shots).padStart(2, '0')}.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } shots++; }
       if (s.ride && s.ride.phase === 'arrived' && !arrivedShot) { arrivedShot = true; const camAt = () => p.evaluate(() => { const g = window.__game, c = g.camera.position, st = g.ride().drv.st; return { t: +g.t().toFixed(1), cine: g.cine.active, camH: +c.y.toFixed(0), off: +Math.hypot(c.x - st.x, -c.z - st.y).toFixed(0) }; });
-        const was = await camAt(); let now = was; for (let k = 0; k < 60 && (now.cine || now.off > 15); k++) { await p.waitForTimeout(2000); now = await camAt(); } await p.waitForTimeout(4000); console.log('settle', JSON.stringify({ was, now })); try { await p.screenshot({ path: `${out}/arrived.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } } // (the car where it sets you down, at Hachiko, once the view has come down onto it: the page's own frames, which move the world's clock the hop runs on and the chase camera it hands over to; a step of the harness moves neither)
+        const was = await camAt(); let now = was; for (let k = 0; k < 60 && (now.cine || now.off > 15); k++) { await p.waitForTimeout(2000); now = await camAt(); } await p.waitForTimeout(4000); console.log('settle', JSON.stringify({ was, now })); try { await p.screenshot({ path: `${out}/arrived.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); }
+        // (#54: at its stop the car stands on the carriageway the hero level draws, not over the kerb on a square's paving; and the
+        // goal line says to get out, no longer to skip a ride that has arrived)
+        const stop = await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st, C = r.C, hx = Math.sin(st.h), hy = Math.cos(st.h), cw = g.nav.carriageway, off = [];
+          if (cw) for (const a of [-C.half, C.half]) for (const l of [-C.hw, C.hw]) { const x = st.x + hx * a - hy * l, y = st.y + hy * a + hx * l; if (cw(x, y) === false) off.push([+x.toFixed(1), +y.toFixed(1)]); }
+          return { at: [+st.x.toFixed(1), +st.y.toFixed(1)], lat: +(st.lat || 0).toFixed(2), off, how: (document.querySelector('#g-story-goal em') || {}).textContent || '' }; });
+        console.log('stop', JSON.stringify(stop));
+        // (and the car at its stop from above behind it and from across the square, the film's camera held there for the still)
+        for (const [n, back, side, up] of [['stop-above', -9, 0, 7], ['stop-side', 2, -10, 3]]) {
+          await p.evaluate(([back, side, up]) => { const g = window.__game, st = g.ride().drv.st, hx = Math.sin(st.h), hy = Math.cos(st.h), W = (x, y, z) => new THREE.Vector3(x, z, -y);
+            const k = Math.sign(st.lat || 1), pose = { pos: W(st.x + hx * back - hy * side * k, st.y + hy * back + hx * side * k, st.z + up), look: W(st.x, st.y, st.z + 0.6) };
+            g.cine.stop(); g.cine.play(() => pose, 1e9, { label: 'film' }); }, [back, side, up]);
+          await p.waitForTimeout(3000);
+          try { await p.screenshot({ path: `${out}/${n}.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); }
+        }
+        await p.evaluate(() => window.__game.cine.stop());
+        if (stop.off.length) errors.push(`the car at its stop has ${stop.off.length} corners off the carriageway: ${JSON.stringify(stop.off)}`);
+        if (/to be there now/.test(stop.how) || !/You are there/.test(stop.how)) errors.push(`arrived, the goal line still says "${stop.how}"`); } // (the car where it sets you down, at Hachiko, once the view has come down onto it: the page's own frames, which move the world's clock the hop runs on and the chase camera it hands over to; a step of the harness moves neither)
       if (s.ride && s.ride.phase === 'arrived') await p.keyboard.press('KeyE'); // (out only where it sets you down: 'Get out here' is offered all the way)
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }
