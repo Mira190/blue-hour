@@ -684,6 +684,8 @@
 #g-walk-where .q kbd { display: inline-block; margin-top: 8px; padding: 3px 6px; border: 1px solid rgba(244, 239, 230, 0.5); border-radius: 2px; background: rgba(4, 8, 18, 0.45); font: 400 9px/1 var(--f-mono); letter-spacing: 0.06em; }
 #g-walk-where .q.new { animation: g-walk-q 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @keyframes g-walk-q { 0% { border-left-color: var(--amber); color: var(--amber); transform: translateX(-10px); opacity: 0; } 30% { opacity: 1; transform: none; } 100% { border-left-color: rgba(255, 207, 138, 0.7); color: var(--paper); } }
+/* (and so does a station's announcement, trains.js, whose caption stood over the talk's own words) */
+body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 /* (the keys' line gives way to a talk: the box stands where it is, at the foot of the frame) */
 .game-stage:has(#gd:not([hidden])) #g-walk-keys { opacity: 0 !important; }
 /* a story of the walk put away: its name over the street, under the upper third, a few seconds */

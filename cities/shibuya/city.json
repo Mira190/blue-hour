@@ -881,7 +881,7 @@
       {
         "id": "oda",
         "name": "Mr Oda 小田さん",
-        "role": "Taxi driver, on his break タクシー運転手",
+        "role": "Retired taxi driver 元タクシー運転手",
         "at": [
           389.0,
           -1058.0
@@ -898,7 +898,7 @@
           "clip": "Drink"
         },
         "idle": [
-          "Twenty-two years on these streets. Canned coffee, hot, from the machine. That's the rule."
+          "Thirty years I drove these streets. I still come down at night with a hot can of coffee."
         ]
       }
     ],
@@ -913,13 +913,13 @@
           "parts": [
             {
               "lines": [
-                "Sorry, have you seen a girl in a mustard coat? Riko. Short hair, a bag from 109.",
+                "Sorry, have you seen a girl in a green top? Riko. Her hair tied back, always on her phone.",
                 "She said Hachiko. My phone died on the Ginza Line.",
                 "If you see her across the crossing, tell her I'm by the dog. The bronze one."
               ],
               "then": {
                 "talk": "riko",
-                "goal": "Find Riko across the crossing, in a mustard coat"
+                "goal": "Find Riko across the crossing, in a green top"
               }
             },
             {
@@ -958,13 +958,13 @@
         },
         {
           "id": "taxi",
-        "hint": "A taxi driver on his break, on the station side of the crossing.",
+        "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
           "npc": "oda",
           "title": "Once round by car",
           "parts": [
             {
               "lines": [
-                "Twenty-two years on these streets. On foot you only see the bottoms of the signs.",
+                "Thirty years I drove these streets. On foot you only see the bottoms of the signs.",
                 "Take your car up to 109 once, where Dogenzaka forks. At night it's another town.",
                 "Yours is at a kerb somewhere, isn't it? It'll come to you."
               ],
@@ -987,8 +987,8 @@
             }
           ],
           "after": [
-            "Drivers here wait for the scramble like everyone else. Four ways at once, then us.",
-            "The rank's quiet till the last trains. Then everyone wants to go to Setagaya."
+            "The drivers here wait for the scramble like everyone else. Four ways at once, then us.",
+            "The rank was quiet till the last trains. Then everyone wanted to go to Setagaya."
           ]
         },
         {

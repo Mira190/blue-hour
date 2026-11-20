@@ -1,7 +1,7 @@
 // Stills of the walk's people (web/game/walktalk.js; game.json walk), to look at each as a player meets them: set out on
 // the walk at an hour and under a sky, wait for each to be drawn (a character's pictures go to the GPU a frame at a time,
 // minutes on a software renderer), then for each a still from about twelve metres with the speech mark over them and one
-// from three metres in front at eye height. Prints where each stands and what is under their feet.
+// of their talk as a player sees it (E beside them: the conversation's camera on its first line). Prints where each stands and what is under their feet.
 //   cd web && python3 -m http.server 8800 &
 //   xvfb-run -a node tools/walk_people.js out_dir [WxH] [night|blue] [clear|rain]
 // WHO=mei,riko picks some of them.
@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 8800;
     await p.evaluate(id => { const g = window.__game, n = g.npcs.find(q => q.id === id); if (n) g.spawn([n.x + 8, n.y - 8]); }, id);
     const ok = await p.waitForFunction(id => { const n = window.__game.npcs.find(q => q.id === id); return n && !n.rig.pending; }, id, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
     if (!ok) { console.log(`${id}: not drawn in ten minutes`); continue; }
-    for (const [name, dist, pitch] of [['far', 12, 0.3], ['near', 3, 0.08]]) {
+    for (const [name, dist, pitch] of [['far', 12, 0.3]]) {
       const at = await p.evaluate(([id, dist, pitch]) => {
         const g = window.__game, n = g.npcs.find(q => q.id === id), a = n.h; // (in front of them, as they face)
         const x = n.x + Math.sin(a) * dist, y = n.y + Math.cos(a) * dist;
@@ -39,7 +39,16 @@ const PORT = process.env.PORT || 8800;
       await p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${id}-${name}.png` });
       if (name === 'far') console.log(`${id}: at ${JSON.stringify(at.at)} on ${at.floor}${at.road ? ', in a road' : ''}`);
     }
+    // close to, as a player sees them: E beside them, and the talk's own camera (talkcam.js) on its first line
+    const talked = await p.evaluate(id => { const g = window.__game, n = g.npcs.find(q => q.id === id), a = n.h; g.spawn([n.x + Math.sin(a) * 1.6, n.y + Math.cos(a) * 1.6]); g.player.h = Math.atan2(n.x - g.player.x, n.y - g.player.y); g.advance(0.3); return g.walkTalk().talk(n); }, id);
+    if (talked) {
+      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60; i++) g.frame(0.05); });
+      await p.waitForTimeout(3000);
+      await p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${id}-talk.png` });
+      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false); });
+    } else console.log(`${id}: nothing to say`);
   }
+  await p.evaluate(() => window.__game.walkTalk().reset()); // (this browser's walk as it was: nobody's story moved on by the stills)
   await b.close().catch(() => {});
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

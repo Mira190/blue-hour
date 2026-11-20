@@ -1219,8 +1219,8 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
 
 - *A street with nobody to talk to is a set.* What makes a crossing a place is its people, and the walk had only the
   crowd going by. So a few people of this evening stand where they would: Mei, waiting at Hachiko for a friend who is
-  late; Riko, the friend, waiting at the station's Hachiko exit across the crossing; Mr Oda, a taxi driver on his break
-  with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; and on the roof Taro, and Aoi at the
+  late; Riko, the friend, waiting at the station's Hachiko exit across the crossing; Mr Oda, a retired taxi driver who
+  still comes down at night with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; and on the roof Taro, and Aoi at the
   arch, with a word in passing.
 - *Small stories in parts, each asking one thing the walk can do.* Mei's (*Which Hachiko*) crosses the scramble on the
   green, twice; Mr Oda's (*Once round by car*) drives your car to 109; Shun's (*The shot everyone takes*) is a photograph
