@@ -51,7 +51,7 @@
   }
 
   // LM: landmarks.json as decoded; strips: game.json's strip surfaces with their profiles' us and zs (nav.js);
-  // DSM: the grid ({ nx, ny, cell, x0, y1 }); unwalked: the names of the ground meshes a hero level hides (unwalkedOf). Returns { solid0, tops, solidMeshes, solidAt, paving }
+  // DSM: the grid ({ nx, ny, cell, x0, y1 }); unwalked: the names of the ground meshes a hero level hides (unwalkedOf). Returns { solid0, tops, solidMeshes, solidAt, paving, pavingHid }
   function raster(LM, strips, DSM, unwalked) {
     const hidden = new Set(unwalked || []);
     const x0 = DSM.x0, y1 = DSM.y1;
@@ -64,7 +64,10 @@
     // 1 m ground, which the game's 5 m ground runs under by up to a metre where a lane is cut into the slope): its
     // highest point in each PAVE cell, which floorAt stands a walker on, not on the ground hidden under it
     const paving = new Map();
-    function pave(m) {
+    // ... and apart, the paving a hero level draws again and hides (game.json hero[].hide): drawn wherever the level is
+    // not shown (from afar, and on a phone in the seconds before it has come), and stood on there (nav.js floorAt)
+    const pavingHid = new Map();
+    function pave(m, into = paving) {
       const p = m.position, idx = m.index;
       for (let t = 0; t < idx.length; t += 3) {
         const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
@@ -72,8 +75,8 @@
         const n = Math.max(1, Math.ceil(e / (PAVE * 0.7)));
         for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) {
           const u = i / n, v = j / n, w = 1 - u - v, k = paveKey(p[a] * w + p[b] * u + p[c] * v, p[a + 1] * w + p[b + 1] * u + p[c + 1] * v);
-          const z = p[a + 2] * w + p[b + 2] * u + p[c + 2] * v, q = paving.get(k);
-          if (q === undefined || z > q) paving.set(k, z);
+          const z = p[a + 2] * w + p[b + 2] * u + p[c + 2] * v, q = into.get(k);
+          if (q === undefined || z > q) into.set(k, z);
         }
       }
     }
@@ -92,7 +95,7 @@
       if (claim.length && !(m = beyondStrips(m, claim))) continue;
       // (not what a hero level draws again and hides, game.json hero[].hide: it is not drawn where the level is, and a
       // walker inside the level would stand at the height of paving that is not there)
-      if (mat.decal) { if (!hidden.has(m.name)) pave(m); continue; } // paving laid over a roof, which is the solid (or on the ground: floorAt)
+      if (mat.decal) { pave(m, hidden.has(m.name) ? pavingHid : paving); continue; } // paving laid over a roof, which is the solid (or on the ground: floorAt)
       if (mat.pave) pave(m); // (and what a city lays on the ground to be walked on as drawn, solid or not: Kamakura's revetment)
       if (mat.solid === false) continue; // walls a city's fine walking levels hold walkers back at instead (game.json "patches")
       solidMeshes.push(m);
@@ -115,7 +118,7 @@
       tops[m.name] = new Map([...mine].map(([k, q]) => [k, q[1]]));
       for (const [k, q] of mine) { const l = solid0.get(k); if (l) l.push(q[0] - 0.3, q[1] + 0.3); else solid0.set(k, [q[0] - 0.3, q[1] + 0.3]); }
     }
-    return { solid0, tops, solidMeshes, solidAt, paving };
+    return { solid0, tops, solidMeshes, solidAt, paving, pavingHid };
   }
 
   // raster()'s result as typed arrays a Worker hands over, and back: the meshes cut by a strip travel as their
@@ -128,7 +131,7 @@
       for (const k of ks) { const v = M.get(k); if (Array.isArray(v)) vals.push(...v); else vals.push(v); off[++i] = vals.length; }
       return { keys, off, vals: Float64Array.from(vals) };
     };
-    return { solid0: flat(R.solid0), paving: flat(R.paving), tops: Object.entries(R.tops).map(([name, M]) => [name, flat(M)]),
+    return { solid0: flat(R.solid0), paving: flat(R.paving), pavingHid: flat(R.pavingHid || new Map()), tops: Object.entries(R.tops).map(([name, M]) => [name, flat(M)]),
       solid: R.solidMeshes.map((m, i) => ({ at: R.solidAt[i], cut: m.claim ? { position: m.position, index: m.index, claim: m.claim.map(s => strips.indexOf(s)) } : null })) };
   }
   // a packed map read in place (issue 406: as Maps of arrays, Tokyo's took 30 MB of the heap): get(k) by a binary
@@ -156,7 +159,7 @@
     const tops = {};
     for (const [name, F] of P.tops) tops[name] = map(F, false);
     const solidMeshes = P.solid.map(s => s.cut ? Object.assign({}, LM.meshes[s.at], { position: s.cut.position, index: s.cut.index, claim: s.cut.claim.map(j => strips[j]) }) : LM.meshes[s.at]);
-    return { solid0: map(P.solid0, true), paving: map(P.paving, false), tops, solidMeshes, solidAt: P.solid.map(s => s.at) };
+    return { solid0: map(P.solid0, true), paving: map(P.paving, false), pavingHid: P.pavingHid ? map(P.pavingHid, false) : new Map(), tops, solidMeshes, solidAt: P.solid.map(s => s.at) };
   }
 
   // game.json's strip surfaces as nav.js walks them: each with its profile's distances (us) and heights (zs)

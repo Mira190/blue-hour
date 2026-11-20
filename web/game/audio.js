@@ -19,6 +19,15 @@ window.OEAudio = (function () {
   // The Stop's tape: an AudioWorklet with a mouse, the deck of the browser's own nodes on a touch screen (deckOf, below).
   // ?tape=worklet or ?tape=deck picks one, for the tools.
   const TAPE = (/[?&]tape=(worklet|deck)\b/.exec(location.search) || [])[1] || (TOUCH ? 'deck' : 'worklet');
+  // Every sound begun "now" is begun a little later than now: LEAD, about four blocks. A page's audio thread takes up what
+  // the page has made only between blocks, and only when the page is not changing the graph at that moment; a sound whose
+  // start it took up a block or two late came in part way up its attack, a click, and on a busy phone a run of them. And
+  // every sound that has ended is taken off the bus it played into (free): a node left connected is visited by the audio
+  // thread in every block, silent or not, until the page lets go of it, and WebKit's sound has crackled once a page had
+  // left a couple of thousand of them there (WebKit bug 222098; its fix's own advice: take nodes out of the graph once
+  // they are no longer useful). The screens' kick alone left one a beat, two a second, for as long as you stood there.
+  const LEAD = 0.012;
+  const free = (src, ...nodes) => { src.onended = () => { for (const n of nodes) { try { n.disconnect(); } catch (e) { /* already gone */ } } }; };
   function noiseSource() {
     const s = ctx.createBufferSource();
     s.buffer = noise;
@@ -40,6 +49,9 @@ window.OEAudio = (function () {
     if (!muted && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
   };
   for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, wake, { capture: true, passive: true });
+  // (and while the page is seen, every two seconds: an interruption that has ended leaves the context 'interrupted' until
+  // it is asked, and a story's long beat may have no touch in it)
+  setInterval(() => { if (ctx && !muted && !document.hidden && ctx.state === 'interrupted') wake(); }, 2000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
   // fn() once the context is made (now, if it is): the loading cue waits on this where the context waits on a touch
   function made(fn) { if (ctx) fn(); else madeFns.push(fn); }
@@ -165,7 +177,7 @@ window.OEAudio = (function () {
   // thunder from dist metres: near, a crack and a long roll; far, only the low rumble, later and softer
   function thunder(dist = 2000, inside = false) {
     if (!ctx || muted) return;
-    const near = Math.max(0, 1 - dist / 2500), far = Math.max(0.12, 1 - dist / 16000), t = ctx.currentTime, len = 3.5 + 5 * (1 - near);
+    const near = Math.max(0, 1 - dist / 2500), far = Math.max(0.12, 1 - dist / 16000), t = ctx.currentTime + LEAD, len = 3.5 + 5 * (1 - near);
     const src = noiseSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
     lp.type = 'lowpass'; lp.frequency.setValueAtTime(inside ? 300 : 180 + 2600 * near * near, t); lp.frequency.exponentialRampToValueAtTime(70, t + len * 0.8);
     g.gain.setValueAtTime(0.0001, t);
@@ -204,18 +216,19 @@ window.OEAudio = (function () {
   }
   function blip(freq, dur, type = 'square', vol = 0.05) {
     if (!ctx || muted) return;
-    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
+    o.type = type; o.frequency.value = freq; g.gain.value = 0;
+    // (up in 2 ms: it began at its full level in the first sample, a click of its own under the note)
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02); free(o, g);
   }
   function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035); }
   function step() {
     if (!ctx || muted) return;
-    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime;
-    s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 900;
-    g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.08);
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
+    s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.08); free(s, g);
   }
   function horn() { blip(196, 1.3, 'sawtooth', 0.06); blip(247, 1.3, 'sawtooth', 0.04); }
   // your horn; another driver's at a gain (its distance) and a pitch (a bus's is lower)
@@ -224,15 +237,15 @@ window.OEAudio = (function () {
   function thump() { // a rubber stamp on paper: a short low knock and a slap of noise
     if (!ctx || muted) return;
     blip(95, 0.18, 'sine', 0.22);
-    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime;
-    s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 1400;
-    g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.14);
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
+    s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 1400; g.gain.value = 0;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.14); free(s, g);
   }
   // a little penguin's bray: a run of nasal pulses, rising and falling; level 0..1 with distance
   function penguin(level = 1) {
     if (!ctx || muted || level <= 0) return;
-    const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime, n = 4 + Math.floor(Math.random() * 5), f0 = 700 + Math.random() * 300;
+    const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD, n = 4 + Math.floor(Math.random() * 5), f0 = 700 + Math.random() * 300;
     o.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 3;
     g.gain.value = 0;
     for (let k = 0; k < n; k++) {
@@ -240,18 +253,18 @@ window.OEAudio = (function () {
       o.frequency.setValueAtTime(f0 * (up ? 1 + k * 0.08 : 1.3 - (k - n / 2) * 0.1), a);
       g.gain.setValueAtTime(0.0001, a); g.gain.linearRampToValueAtTime(0.05 * level, a + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, a + 0.13);
     }
-    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + n * 0.16 + 0.05);
+    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + n * 0.16 + 0.05); free(o, g);
   }
   // a silver gull's call: a harsh, falling "kee-ar", sometimes two; level 0..1 with distance
   function gull(level = 1) {
     if (!ctx || muted || level <= 0) return;
-    const t = ctx.currentTime, n = Math.random() < 0.4 ? 2 : 1, f0 = 1500 + Math.random() * 500;
+    const t = ctx.currentTime + LEAD, n = Math.random() < 0.4 ? 2 : 1, f0 = 1500 + Math.random() * 500;
     for (let k = 0; k < n; k++) {
       const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), a = t + k * 0.32;
       o.type = 'square'; f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 2.5;
       o.frequency.setValueAtTime(f0, a); o.frequency.linearRampToValueAtTime(f0 * 1.15, a + 0.05); o.frequency.exponentialRampToValueAtTime(f0 * 0.62, a + 0.26);
       g.gain.setValueAtTime(0.0001, a); g.gain.linearRampToValueAtTime(0.045 * level, a + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, a + 0.28);
-      o.connect(f); f.connect(g); g.connect(master); o.start(a); o.stop(a + 0.3);
+      o.connect(f); f.connect(g); g.connect(master); o.start(a); o.stop(a + 0.3); free(o, g);
     }
   }
   function chime() { [660, 880, 1320].forEach((f, i) => setTimeout(() => blip(f, 0.35, 'sine', 0.07), i * 110)); }
@@ -290,13 +303,13 @@ window.OEAudio = (function () {
     // the beat and the changes, scheduled a little ahead (122 bpm, a chord every bar)
     const t = ctx.currentTime, beat = 60 / 122;
     if (level > 0.02 && beatAt < t + 0.3) {
-      if (beatAt < t) beatAt = t + 0.05;
+      if (beatAt < t + LEAD) beatAt = t + 0.05;
       const CH = [[220, 277.2, 329.6], [196, 246.9, 293.7], [174.6, 220, 261.6], [196, 246.9, 311.1]];
       for (let k = 0; k < 4; k++) {
         const at = beatAt + k * beat, o = ctx.createOscillator(), g = ctx.createGain();
         o.type = 'sine'; o.frequency.setValueAtTime(120, at); o.frequency.exponentialRampToValueAtTime(45, at + 0.12);
         g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.5, at + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
-        o.connect(g); g.connect(screenBed.out); o.start(at); o.stop(at + 0.25);
+        o.connect(g); g.connect(screenBed.out); o.start(at); o.stop(at + 0.25); free(o, g);
       }
       CH[chord % 4].forEach((f, i) => screenBed.oscs[i].frequency.setValueAtTime(f, beatAt));
       chord++; beatAt += 4 * beat;
@@ -309,8 +322,9 @@ window.OEAudio = (function () {
   // box's locator tick (slow, on red) and its walk tick (fast, on green): Australia's with its
   // falling "zap" as the walk comes on, Hong Kong's hard pips, the Netherlands' rateltikker.
   // level 0..1 (with distance); pan -1 (left) to 1 (right)
-  function out(level, pan) {
+  function out(level, pan, life = 2) {
     const g = ctx.createGain();
+    let last = g;
     g.gain.value = level;
     pan = Math.max(-1, Math.min(1, pan || 0));
     // (with a mouse, a head-related panner, which places a call in front of you or off to a side as ears do; a touch
@@ -319,9 +333,11 @@ window.OEAudio = (function () {
       const p = ctx.createPanner(), az = pan * Math.PI / 2;
       p.panningModel = 'HRTF'; p.rolloffFactor = 0;
       if (p.positionX) { p.positionX.value = Math.sin(az); p.positionZ.value = -Math.cos(az); } else p.setPosition(Math.sin(az), 0, -Math.cos(az));
-      g.connect(p); p.connect(master);
-    } else if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); }
+      g.connect(p); p.connect(master); last = p;
+    } else if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); last = p; }
     else g.connect(master);
+    // (taken off the bus once the call has sounded: life, its length; its notes go with it)
+    const c = ctx; setTimeout(() => { if (ctx === c) { try { last.disconnect(); } catch (e) { /* already gone */ } } }, (life + 0.5) * 1000);
     return g;
   }
   function tone(dst, at, dur, type, f0, f1, vol, attack = 0.008) {
@@ -329,7 +345,7 @@ window.OEAudio = (function () {
     g.gain.value = 0; // (silent until its envelope starts, as the score's voices are: music.js gain())
     o.type = type; o.frequency.value = f0; o.frequency.setValueAtTime(f0, at); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, at + dur * 0.9);
     g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + attack); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    o.connect(g); g.connect(dst); o.start(at); o.stop(at + dur + 0.02);
+    o.connect(g); g.connect(dst); o.start(at); o.stop(at + dur + 0.02); free(o, g);
     return o;
   }
   // a chick's chirp: a quick rise and a longer fall ("pi-yo"), a touch of its octave for the edge
@@ -350,7 +366,7 @@ window.OEAudio = (function () {
   };
   function walkCall(kind, level = 1, pan = 0) {
     if (!ctx || muted || level <= 0.002 || !CALLS[kind]) return false;
-    CALLS[kind](out(0.09 * Math.min(1, level), pan), ctx.currentTime + 0.01);
+    CALLS[kind](out(0.09 * Math.min(1, level), pan, 1), ctx.currentTime + LEAD);
     return true;
   }
   function piyo(side = 0, level = 1) { walkCall(side ? 'piyopiyo' : 'piyo', level); }
@@ -359,17 +375,17 @@ window.OEAudio = (function () {
   // off to make out (noise through moving vowel formants)
   function announce(level = 1) {
     if (!ctx || muted || level <= 0) return;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + LEAD;
     [[0, 1046.5], [0.32, 784]].forEach(([d, f]) => { const o = ctx.createOscillator(), g = ctx.createGain(), a = t + d;
       o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, a); g.gain.linearRampToValueAtTime(0.05 * level, a + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, a + 0.9);
-      o.connect(g); g.connect(master); o.start(a); o.stop(a + 1); });
+      o.connect(g); g.connect(master); o.start(a); o.stop(a + 1); free(o, g); });
     const s = ctx.createBufferSource(), f1 = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter(), g = ctx.createGain(), a = t + 1.3, dur = 3.6;
     s.buffer = noise; s.loop = true; f1.type = 'bandpass'; f1.Q.value = 6; f2.type = 'bandpass'; f2.Q.value = 8;
     for (let k = 0; k < 18; k++) { const at = a + k * dur / 18; f1.frequency.setValueAtTime(350 + Math.random() * 500, at); f2.frequency.setValueAtTime(1000 + Math.random() * 1300, at); }
     g.gain.setValueAtTime(0.0001, a);
     for (let k = 0; k < 14; k++) { const at = a + k * dur / 14; g.gain.linearRampToValueAtTime((0.04 + Math.random() * 0.05) * level, at + 0.05); g.gain.linearRampToValueAtTime(0.008 * level, at + dur / 14); }
     g.gain.linearRampToValueAtTime(0.0001, a + dur);
-    s.connect(f1); s.connect(f2); f1.connect(g); f2.connect(g); g.connect(master); s.start(a); s.stop(a + dur + 0.1);
+    s.connect(f1); s.connect(f2); f1.connect(g); f2.connect(g); g.connect(master); s.start(a); s.stop(a + dur + 0.1); free(s, g);
   }
   // ---------------------------------------------------------------- the railway (trains.js)
   // A train near the camera, one of three voices: the wheels' rumble on the rail (low noise, louder and
@@ -437,8 +453,10 @@ window.OEAudio = (function () {
   // steel deck the deck itself, boomed by each axle and ringing a little
   function clack(level, pan = 0, v = 10, bridge = 0, close = 1) {
     if (!ctx || muted || level <= 0.004) return;
-    const d = out(Math.min(1, level) * 0.3, pan), t = ctx.currentTime + 0.01, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
-    const nz = (at, type, f, q, vol, a, rel) => { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noise; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + a); g.gain.exponentialRampToValueAtTime(0.0001, at + a + rel); s.connect(fl); fl.connect(g); g.connect(d); s.start(at, Math.random() * 1.5); s.stop(at + a + rel + 0.05); };
+    // (t: the first axle, after the roll has begun to swell, at now and LEAD: begun 0.12 s before the axle at now, the
+    // roll started in the past, part way up its swell, in a single sample)
+    const d = out(Math.min(1, level) * 0.3, pan, 1.3), t = ctx.currentTime + LEAD + 0.12, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
+    const nz = (at, type, f, q, vol, a, rel) => { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noise; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + a); g.gain.exponentialRampToValueAtTime(0.0001, at + a + rel); s.connect(fl); fl.connect(g); g.connect(d); s.start(at, Math.random() * 1.5); s.stop(at + a + rel + 0.05); free(s, g); };
     for (const [at, k] of [[t, 1], [t + gap, 0.8]]) {
       nz(at, 'bandpass', 2600, 1.4, 0.3 * k * close, 0.001, 0.012);  // (the tick: wheel on the joint's edge)
       nz(at, 'lowpass', 900, 1.0, 0.85 * k, 0.003, 0.08);            // (the wheel's body)
@@ -454,13 +472,13 @@ window.OEAudio = (function () {
   // before an announcement: four notes rising
   function platformChime(level = 1, pan = 0) {
     if (!ctx || muted || level <= 0) return;
-    const d = out(0.11 * Math.min(1, level), pan), t = ctx.currentTime + 0.02;
+    const d = out(0.11 * Math.min(1, level), pan, 1.8), t = ctx.currentTime + LEAD;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => bar(d, t + i * 0.2, f, 0.9, 0.8));
   }
   // the doors: two notes falling, three times
   function doorChime(level = 1, pan = 0) {
     if (!ctx || muted || level <= 0) return;
-    const d = out(0.07 * Math.min(1, level), pan), t = ctx.currentTime + 0.02;
+    const d = out(0.07 * Math.min(1, level), pan, 2.6), t = ctx.currentTime + LEAD;
     for (let k = 0; k < 3; k++) { bar(d, t + k * 0.62, 1318.5, 0.3, 0.8); bar(d, t + k * 0.62 + 0.24, 1046.5, 0.4, 0.8); }
   }
   // a departure melody of this game's own (seven seconds, two of them: one for each direction), on struck
@@ -472,7 +490,7 @@ window.OEAudio = (function () {
   const BASS = [[[0, 48], [1.2, 53], [2.4, 55], [3.6, 53], [4.8, 48]], [[0, 43], [1.0, 48], [2.0, 50], [3.0, 55], [4.0, 50], [5.0, 48]]];
   function melody(level = 1, pan = 0, which = 0) {
     if (!ctx || muted || level <= 0) return;
-    const d = out(0.085 * Math.min(1, level), pan), t = ctx.currentTime + 0.03, hz = n => 440 * Math.pow(2, (n - 69) / 12), w = which ? 1 : 0;
+    const d = out(0.085 * Math.min(1, level), pan, 8.3), t = ctx.currentTime + LEAD, hz = n => 440 * Math.pow(2, (n - 69) / 12), w = which ? 1 : 0;
     for (const [at, n] of MELODY[w]) bar(d, t + at, hz(n), 1.1, 0.75);
     for (const [at, n] of BASS[w]) tone(d, t + at, 1.3, 'triangle', hz(n), 0, 0.5, 0.02);
     bar(d, t + 5.9, hz(MELODY[w][MELODY[w].length - 1][1] + (w ? 5 : 0)), 2.2, 0.7);
@@ -603,7 +621,7 @@ window.OEAudio = (function () {
       }
     }
     function set(on) {
-      const t = ctx.currentTime + 0.005, q = at(t);
+      const t = ctx.currentTime + LEAD, q = at(t);
       // held: from the live street, or from a spin up (from its speed; crossing into the street, from the full speed)
       if (on) { if (ph.kind !== 'brake') lay('brake', t, q.live || q.crossing ? 1 : q.k, q.live ? 0 : q.d, q); }
       else if (ph.kind === 'brake') lay('spin', t, q.k, q.d, q);
@@ -836,38 +854,81 @@ window.OEAudio = (function () {
     else if (!c && !m && want) start(); // (sound turned on in a touch, where it was waiting for one)
   }
   // ------------------------------------------------------------ how the audio thread keeps time (telemetry.js)
-  // A browser says nothing of the blocks its audio thread missed. What a page can see is the context's clock against the
-  // wall's: the context's time moves only as blocks are made, so while the thread is held up it falls behind the wall,
-  // and when it catches up it jumps. Ten times a second, while the sound runs and the page is seen, the gap between the
-  // two is kept; health() gives, for each "time" event, the most it rose over its least (the two clocks' drift, parts
-  // per million, taken out) and how many readings were 25 ms or more behind, and begins again.
-  let hs = [], hRun = null, hLate = 0, hStall = 0;
-  function healthPoll() {
-    if (!ctx || ctx.state !== 'running' || document.hidden || muted) { healthClose(); return; }
-    const w = performance.now() / 1000;
-    hs.push(w, w - ctx.currentTime);
-    if (hs.length >= 6000) healthClose();
+  // A browser says nothing of the blocks its audio thread missed. Ten times a second, while the sound runs and the page
+  // is seen, two clocks are read against the wall's:
+  // - the context's own (currentTime), which moves only as blocks are made: while the thread is held up it falls behind
+  //   the wall, and when it catches up it jumps. health() gives the most it rose over its least, the two clocks' drift
+  //   (parts per million) taken out (snd_late, ms), how many readings were 25 ms or more behind (snd_stall) and where the
+  //   worst was (snd_at: the opening's shot or the story's beat);
+  // - the output's (getOutputTimestamp: the frame at the speaker and when it is heard there). WebKit's own clock counts the
+  //   frames the page's thread has made, not the ones heard, so a block made too late for the output leaves currentTime as
+  //   it was; the output plays it late, and everything after it with it ("underruns in the WebContent process's audio
+  //   thread lead to extra latency", WebKit bug 293296). The gap between the output's clock and the wall's steps up and
+  //   stays: each step of 2 ms or more is a click, a run of them a crackle. snd_xrun counts them, snd_gap is their ms in
+  //   all, snd_xat where most were;
+  // and snd_off, the seconds the context was not running while sound was wanted and the page seen (iOS leaves it
+  // 'interrupted' after a call or another app's sound), snd_mute when the Sound switch is off.
+  // A reading from the last second before the page is hidden or the context stops is dropped: iOS stops the sound as you
+  // leave the page before it says the page is hidden, and the clock that had stopped read as a stall (the owner's
+  // iPhone, 19 November 2026: 58, 158 and 258 ms behind in the three readings before it was hidden, "snd_late 258").
+  let hs = [], hRun = null, hLate = 0, hStall = 0, hAt = '', hOff = 0, oBase = null, o3 = [], xr = [], hXr = [];
+  const XRUN = 0.002, DROP = 1.0;
+  function spotNow() { // where the player is, as telemetry.js names it: the opening's shot, the story's frame and beat
+    try {
+      const g = window.__game; if (!g) return '';
+      const o = g.overture && g.overture();
+      if (o && o.active) { const s = o.shots.find(q => o.t >= q.t0 && o.t < q.t0 + q.dur); return `opening ${s ? s.id : ''}`; }
+      const S = g.story && g.story.state;
+      if (S && S.phase && S.phase !== 'idle' && S.phase !== 'dressed') return S.phase === 'done' ? 'the last card' : `frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`.slice(0, 40);
+      const t = document.getElementById('g-title');
+      return t && !t.hidden ? 'title screen' : '';
+    } catch (e) { return ''; }
   }
-  function healthClose() {
-    const n = hs.length / 2;
+  function healthPoll() {
+    if (!ctx) return;
+    if (!muted && !document.hidden && ctx.state !== 'running' && ctx.state !== 'closed') hOff += 0.1;
+    if (ctx.state !== 'running' || document.hidden || muted) { healthClose(true); return; }
+    const w = performance.now() / 1000, sp = spotNow();
+    hs.push([w, w - ctx.currentTime, sp]);
+    const ot = ctx.getOutputTimestamp ? ctx.getOutputTimestamp() : null;
+    if (ot && ot.performanceTime > 0 && ot.contextTime > 0) {
+      // (the median of the last three readings: a step stays, a reading's jitter does not)
+      o3.push(ot.performanceTime / 1000 - ot.contextTime); if (o3.length > 3) o3.shift();
+      const ol = o3.length < 3 ? null : o3.slice().sort((a, b) => a - b)[1];
+      if (ol === null) { /* not three readings yet */ } else if (oBase === null || ol < oBase) oBase = ol;
+      else if (ol - oBase >= XRUN) { xr.push([w, ol - oBase, sp]); oBase = ol; }
+    }
+    if (hs.length >= 3000) healthClose(false);
+  }
+  // the readings so far taken into the tallies; dropping (the page hidden or the context stopped): the last second's not
+  function healthClose(dropping) {
+    if (dropping && hs.length) { const end = hs[hs.length - 1][0] - DROP; hs = hs.filter(r => r[0] < end); xr = xr.filter(r => r[0] < end); }
+    const n = hs.length;
     if (n >= 10) {
       let st = 0, sg = 0, stt = 0, stg = 0;
-      for (let i = 0; i < hs.length; i += 2) { st += hs[i]; sg += hs[i + 1]; stt += hs[i] * hs[i]; stg += hs[i] * hs[i + 1]; }
-      const m = (n * stg - st * sg) / (n * stt - st * st || 1), b = (sg - m * st) / n, r = [];
-      let lo = Infinity;
-      for (let i = 0; i < hs.length; i += 2) { const v = hs[i + 1] - (m * hs[i] + b); r.push(v); lo = Math.min(lo, v); }
-      for (const v of r) { hLate = Math.max(hLate, v - lo); if (v - lo > 0.025) hStall++; }
+      for (const [t, g] of hs) { st += t; sg += g; stt += t * t; stg += t * g; }
+      const m = (n * stg - st * sg) / (n * stt - st * st || 1), b = (sg - m * st) / n, r = hs.map(([t, g]) => g - (m * t + b)), lo = Math.min(...r);
+      r.forEach((v, i) => { if (v - lo > hLate) { hLate = v - lo; hAt = hs[i][2]; } if (v - lo > 0.025) hStall++; });
     }
-    hs = [];
+    hXr.push(...xr);
+    hs = []; xr = [];
+    if (dropping) { oBase = null; o3 = []; } // (the output's clock begins again from wherever it is when the sound does)
   }
   function health() {
     if (!ctx) return null;
-    healthClose();
+    healthClose(false);
     const h = { snd: `${deck ? 'deck' : tape ? 'worklet' : 'plain'} ${VERB} ${ctx.sampleRate}`, snd_late: Math.round(hLate * 1000), snd_stall: hStall };
-    hLate = 0; hStall = 0;
+    if (hStall) h.snd_at = hAt;
+    if (ctx.getOutputTimestamp) {
+      h.snd_xrun = hXr.length; h.snd_gap = Math.round(hXr.reduce((a, r) => a + r[1], 0) * 1000);
+      if (hXr.length) { const by = {}; for (const r of hXr) by[r[2]] = (by[r[2]] || 0) + 1; h.snd_xat = Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 3).map(k => `${k} ${by[k]}`).join(', '); }
+    }
+    if (hOff >= 1) h.snd_off = Math.round(hOff);
+    if (muted) h.snd_mute = true;
+    hLate = 0; hStall = 0; hAt = ''; hOff = 0; hXr = [];
     return h;
   }
-  function stop() { want = false; if (hRun) { clearInterval(hRun); hRun = null; } hs = []; if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  function stop() { want = false; if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -885,19 +946,19 @@ window.OEAudio = (function () {
     if (!sbus || sbus.context !== ctx) { sbus = ctx.createGain(); sbus.gain.value = muted ? 0 : 0.5; sbus.connect(ctx.destination); pad = null; }
     return sbus;
   }
-  const sTone = (at, dur, type, f0, f1, vol, attack = 0.006) => { const b = storyBus(); if (b && !muted) tone(b, ctx.currentTime + at, dur, type, f0, f1, vol * lv, attack); };
+  const sTone = (at, dur, type, f0, f1, vol, attack = 0.006) => { const b = storyBus(); if (b && !muted) tone(b, ctx.currentTime + LEAD + at, dur, type, f0, f1, vol * lv, attack); };
   function sNoise(at, dur, freq, q, vol, kind = 'bandpass') { burst(at, { dur, f: freq, q, vol, type: kind, att: Math.min(0.01, dur / 3) }); }
   // a burst of noise through a filter: the stuff of every mechanism here (a transient with att ~1 ms, a body with a
   // longer one); f1 sweeps the filter over its length
   function burst(at, { dur, f, f1 = 0, q = 1, vol, type = 'bandpass', att = 0.001 }) {
     const b = storyBus(); if (!b || muted) return;
-    const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + at;
+    const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD + at;
     // (silent, and at its frequency, from the moment it is made, not only from its start: a recording heard a single
     // sample's tick where a burst began a little after it was made, the goal's second breath; tools/sound_rec.js)
     g.gain.value = 0; fl.frequency.value = f;
     s.buffer = noise; fl.type = type; fl.frequency.setValueAtTime(f, t); if (f1) fl.frequency.exponentialRampToValueAtTime(f1, t + dur); fl.Q.value = q;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * lv, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(fl); fl.connect(g); g.connect(b); s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.03);
+    s.connect(fl); fl.connect(g); g.connect(b); s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.03); free(s, g);
   }
   // a short knock of a body: its resonance (a sine falling a little) and the click that excites it
   const knock = (at, f, vol, dur = 0.06) => { sTone(at, dur, 'sine', f, f * 0.8, vol, 0.0015); burst(at, { dur: dur * 0.5, f: f * 4, q: 1.2, vol: vol * 0.7 }); };
@@ -1040,7 +1101,7 @@ window.OEAudio = (function () {
   // (none over the ear's range); len shortens it (a grain of glass)
   function glass(at, f, vol, len = 1) {
     const r = hall(); if (!r || muted) return;
-    const t = ctx.currentTime + at, out = ctx.createGain(); out.gain.value = 1; out.connect(r); out.connect(storyBus());
+    const t = ctx.currentTime + LEAD + at, out = ctx.createGain(); out.gain.value = 1; out.connect(r); out.connect(storyBus());
     for (const [k, a, d] of [[1, 1, 3.2], [2.76, 0.42, 1.6], [5.4, 0.2, 0.8], [8.93, 0.08, 0.4]]) if (f * k < 16000) tone(out, t, d * len, 'sine', f * k, 0, vol * a * lv, 0.003);
     setTimeout(() => { try { out.disconnect(); } catch (e) { /* already gone */ } }, (at + 4) * 1000);
   }

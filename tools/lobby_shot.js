@@ -94,7 +94,7 @@ const [,, out = '/tmp/lobby-shot', size = '1440x900'] = process.argv;
         const own = !g.story.state.dog; // (a guide this made is ticked here: the story ticks only its own)
         for (let i = 0; i < 90; i++) { await new Promise(r => requestAnimationFrame(r)); if (own) dog.tick(1 / 30); for (const b of belts) worst = Math.min(worst, Math.hypot(b[0] - dog.x, b[1] - dog.y)); }
         let now = 9; for (const b of belts) now = Math.min(now, Math.hypot(b[0] - dog.x, b[1] - dog.y));
-        return { dog: [+dog.x.toFixed(2), +dog.y.toFixed(2)], state: dog.state, nearest: +now.toFixed(2), worst: +worst.toFixed(2), body: g.GUIDE_BODY || 0.7 };
+        return { dog: [+dog.x.toFixed(2), +dog.y.toFixed(2)], state: dog.state, nearest: +now.toFixed(2), worst: +worst.toFixed(2), body: dog.reach || g.GUIDE_BODY || 0.7 };
       }, [q, front, belts]);
       if (!r) { console.log('no dog in this frame'); break; }
       const body = r.body || 0.7, ok = r.worst >= body - 0.04;
