@@ -1198,7 +1198,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     return changed ? Object.assign({}, route, { pts, nodes, mids, len: pts.reduce((s, q, i) => s + (i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0), 0) }) : route;
   }
   const WALKER = { walker: true, x: 0, y: 0, v: 0 }; // (what a chauffeur stops for when it is a person on its way)
-  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null, callFrom = 0, pace = 1 } = {}) {
+  function chauffeur(C, route, { keep = 1, from = 'lane', v = 0, cruise = 15, hurry = null, solid = null, makeWay = null, wedge = WEDGE_GIVE, lights = null, priority = false, now = null, strict = false, id = 'ride', people = null, callFrom = 0, pace = 1, kerbFit = null } = {}) {
     // (strict: the autopilot of your own car, always in your sight: its guard against stepping into a car reads its
     // body as it is turned, not only as its way is, so that creeping on out of a tangle it never clips one on a bend.
     // id: its name among the traffic's blockers, game.js: a car that stands for it is not one stopped for good)
@@ -1242,7 +1242,10 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     const q = {}, q2 = {};
     const end = route.end !== false; // pull in at the end (a car driving off just runs out of road)
     const kerbStart = kerbOf(P.pos(0, q2).c, q2.cw);
-    let kerbEnd = kerbOf(P.pos(P.len, q2).c, q2.cw);
+    // (kerbFit(x, y, hx, hy, k, keep): the kerb as the ground drawn there has it, where it is nearer the line than its
+    // street's class says: a car pulls in beside the kerb, not over it onto a square's paving, #54)
+    const pk = {}, fitKerb = (s, k) => { if (!kerbFit) return k; P.at(s, pk, 3); return kerbFit(pk.x, pk.y, pk.hx, pk.hy, k, keep); };
+    let kerbEnd = fitKerb(P.len, kerbOf(P.pos(P.len, q2).c, q2.cw));
     // the way it keeps off the centre line at s: the lane, easing in to the kerb at the end and out of it at the start
     // (the lane's place on each piece of road on the way: LANE off the line, or on it along a one-way
     // road of one lane, as the traffic drives it (junctions.js shiftOf, #177); eased over 6 m either side
@@ -1286,7 +1289,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     // the end, brought forward (behind a car at the kerb it was to pull in at)
     function endAt(e) {
       st.end = clamp(e, st.s, P.len);
-      kerbEnd = kerbOf(P.pos(st.end, q2).c, q2.cw);
+      kerbEnd = fitKerb(st.end, kerbOf(P.pos(st.end, q2).c, q2.cw));
     }
     st.lat = lat(0);
     pose(0, q, st.lat);
