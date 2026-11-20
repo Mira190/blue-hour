@@ -304,7 +304,7 @@ class Level:
         self.K = K
         K.register("hairline", 0.6, hairline)
         self.geo = K.Geo()
-        self.A = K.Atlas(1024, 1024)
+        self.A = K.Atlas(1024, 768)
         self.F = Frame()
         self.posts, self.belts = [], []
 

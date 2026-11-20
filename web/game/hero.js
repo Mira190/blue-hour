@@ -144,12 +144,14 @@ vec3 heroPool(vec3 wp, vec3 nv) {
     // side over 1024. Resized by createImageBitmap where it can (no full-size canvas copy, which is tens of MB of
     // passing CPU memory on a phone), else through a canvas that is shrunk to nothing once it is uploaded.
     const lean = () => { try { const q = window.OEQuality && OEQuality.city && OEQuality.city(); return !!(q && q.lean); } catch (e) { return false; } };
-    async function shrink(tex, done) {
+    // (lowK: a level's own share on the low tier, game.json hero[].low_k: a small level whose pictures are text and a
+    // facade's tile, read at a phone's few pixels, takes a quarter: SKY's hall and Scramble Square's skin at frame 5)
+    async function shrink(tex, done, lowK = 0.5) {
       const img = tex && tex.image;
       if (!img || !img.width || img.width <= 256 || tex.userData.heroHalved) return;
       if (done.has(img)) { const o = await done.get(img); if (o) { tex.image = o; tex.userData.heroHalved = true; tex.needsUpdate = true; } return; }
       let fin; done.set(img, new Promise(r => { fin = r; }));
-      const k = lean() ? Math.min(0.5, 1024 / Math.max(img.width, img.height)) : 0.5;
+      const k = Math.min(lowK, lean() ? Math.min(0.5, 1024 / Math.max(img.width, img.height)) : 0.5);
       const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
       let out = null;
       if (window.createImageBitmap) {
@@ -216,7 +218,7 @@ vec3 heroPool(vec3 wp, vec3 nv) {
         root.visible = false;
         group.add(root);
         L.root = root;
-        const ready = Promise.all(shrunk.map(t => shrink(t, halving)))
+        const ready = Promise.all(shrunk.map(t => shrink(t, halving, L.h.low_k || 0.5)))
           .then(() => (window.OETex && OETex.stats.on ? OETex.packObject(root) : null))
           .then(() => L.root === root && opts.warm ? opts.warm(root) : null)
           // (and its vertex buffers sent in slices: on its first draw they went in one, 0.7 s of the tap on Play)
