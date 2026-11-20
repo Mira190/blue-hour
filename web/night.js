@@ -86,6 +86,47 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
+  // the three kinds of point (uKind): 0 a street lamp, 1 a car's lights moving along its road, 2 an aircraft warning light.
+  // One shader for the three, each kind's branch as its own shader was: three programs were three pipelines for a phone's GPU
+  // to build at the first frame after dark (issue 60)
+  const POINT_VERT = `attribute vec3 color; attribute vec2 info; attribute vec3 aB; attribute vec4 aInfo;
+uniform float uKind, uOn, uScale, uMinPx, uTime, uDensity, uNear, uFlash; varying vec3 vC;
+#include <common>
+#include <fog_pars_vertex>
+void main() {
+  vec3 P = position;
+  if (uKind > 0.5 && uKind < 1.5) P = mix(position, aB, fract(aInfo.x + uTime * aInfo.y));
+  vec4 mvPosition = modelViewMatrix * vec4(P, 1.0);
+  float d = max(-mvPosition.z, 1.0);
+  if (uKind < 0.5) {
+    // a lens seen from the side is brighter than its dark housing seen from straight above
+    float side = 1.0 - 0.55 * smoothstep(0.75, 0.98, normalize(cameraPosition - position).y);
+    // farther is dimmer, more slowly than the inverse square so the far city still sparkles
+    float k = pow(clamp(320.0 / d, 0.04, 2.5), 0.85) * side;
+    float tw = 1.0 + 0.06 * sin(uTime * (2.0 + 3.0 * info.y) + info.y * 40.0) * smoothstep(600.0, 2000.0, d);
+    vC = color * uOn * k * tw * 0.9;
+    gl_PointSize = clamp(2.2 * uScale / d, uMinPx, 48.0);
+  } else if (uKind < 1.5) {
+    float f = fract(aInfo.x + uTime * aInfo.y);
+    vec3 dir = normalize(aB - position), toCam = normalize(cameraPosition - P);
+    // headlights towards the camera, tail lights away from it; from straight above a little of each
+    float face = dot(dir, toCam), head = smoothstep(-0.2, 0.5, face), tail = 1.0 - smoothstep(-0.5, 0.15, face);
+    float on = uOn * step(aInfo.z, uDensity) * smoothstep(0.0, 0.05, f) * (1.0 - smoothstep(0.95, 1.0, f))
+      * smoothstep(uNear, uNear + 150.0, length(cameraPosition - P));
+    float k = pow(clamp(320.0 / d, 0.04, 2.5), 0.85);
+    vC = (vec3(1.0, 0.9, 0.76) * head * 3.0 + vec3(1.0, 0.06, 0.02) * tail * 2.4 + vec3(0.45, 0.3, 0.2) * 0.4) * on * k;
+    gl_PointSize = clamp(2.2 * uScale / d, uMinPx * 1.1, 26.0);
+  } else {
+    // flashing ones together, 40 a minute, with a quick rise and a slower fall
+    float t = fract(uTime / 1.5), flash = smoothstep(0.0, 0.06, t) * (1.0 - smoothstep(0.18, 0.45, t));
+    float k = pow(clamp(500.0 / d, 0.15, 2.5), 0.7);
+    vC = vec3(1.0, 0.06, 0.02) * 2.6 * uOn * k * mix(1.0, flash * 1.4, uFlash);
+    gl_PointSize = clamp(1.4 * uScale / d, uMinPx * 1.2, 12.0);
+  }
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`;
+
   // Wd: the world (world.js); D: the city's data (world.js load), with D.N its night.json
   // opts: small (the light tier: a coarser light map), game (the game: the real cars near the
   // camera, nearCars metres round it, take over from the traffic's lights; the game draws the
@@ -305,23 +346,7 @@ void main() {
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       g.setAttribute('info', new THREE.BufferAttribute(inf, 2));
-      const m = lightMaterial(common, `attribute vec3 color; attribute vec2 info;
-uniform float uOn, uScale, uMinPx, uTime; varying vec3 vC;
-#include <common>
-#include <fog_pars_vertex>
-void main() {
-  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  float d = max(-mvPosition.z, 1.0);
-  // a lens seen from the side is brighter than its dark housing seen from straight above
-  float side = 1.0 - 0.55 * smoothstep(0.75, 0.98, normalize(cameraPosition - position).y);
-  // farther is dimmer, more slowly than the inverse square so the far city still sparkles
-  float k = pow(clamp(320.0 / d, 0.04, 2.5), 0.85) * side;
-  float tw = 1.0 + 0.06 * sin(uTime * (2.0 + 3.0 * info.y) + info.y * 40.0) * smoothstep(600.0, 2000.0, d);
-  vC = color * uOn * k * tw * 0.9;
-  gl_PointSize = clamp(2.2 * uScale / d, uMinPx, 48.0);
-  gl_Position = projectionMatrix * mvPosition;
-  #include <fog_vertex>
-}`, POINT_FRAG);
+      const m = lightMaterial(Object.assign({ uKind: { value: 0 } }, common), POINT_VERT, POINT_FRAG);
       const pts = new THREE.Points(g, m);
       pts.frustumCulled = false;
       pts.renderOrder = 20;
@@ -393,25 +418,7 @@ void main() {
       g.setAttribute('position', new THREE.Float32BufferAttribute(tA, 3));
       g.setAttribute('aB', new THREE.Float32BufferAttribute(tB, 3));
       g.setAttribute('aInfo', new THREE.Float32BufferAttribute(tI, 4));
-      const m = lightMaterial(Object.assign({}, common, traffic), `attribute vec3 aB; attribute vec4 aInfo;
-uniform float uOn, uScale, uMinPx, uTime, uDensity, uNear; varying vec3 vC;
-#include <common>
-#include <fog_pars_vertex>
-void main() {
-  float f = fract(aInfo.x + uTime * aInfo.y);
-  vec3 P = mix(position, aB, f), dir = normalize(aB - position), toCam = normalize(cameraPosition - P);
-  vec4 mvPosition = modelViewMatrix * vec4(P, 1.0);
-  float d = max(-mvPosition.z, 1.0);
-  // headlights towards the camera, tail lights away from it; from straight above a little of each
-  float face = dot(dir, toCam), head = smoothstep(-0.2, 0.5, face), tail = 1.0 - smoothstep(-0.5, 0.15, face);
-  float on = uOn * step(aInfo.z, uDensity) * smoothstep(0.0, 0.05, f) * (1.0 - smoothstep(0.95, 1.0, f))
-    * smoothstep(uNear, uNear + 150.0, length(cameraPosition - P));
-  float k = pow(clamp(320.0 / d, 0.04, 2.5), 0.85);
-  vC = (vec3(1.0, 0.9, 0.76) * head * 3.0 + vec3(1.0, 0.06, 0.02) * tail * 2.4 + vec3(0.45, 0.3, 0.2) * 0.4) * on * k;
-  gl_PointSize = clamp(2.2 * uScale / d, uMinPx * 1.1, 26.0);
-  gl_Position = projectionMatrix * mvPosition;
-  #include <fog_vertex>
-}`, POINT_FRAG);
+      const m = lightMaterial(Object.assign({ uKind: { value: 1 } }, common, traffic), POINT_VERT, POINT_FRAG);
       const pts = new THREE.Points(g, m);
       pts.frustumCulled = false;
       pts.renderOrder = 21;
@@ -442,20 +449,7 @@ void main() {
     if (aPos.length) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(aPos, 3));
-      const m = lightMaterial(Object.assign({}, common, aviation), `uniform float uOn, uScale, uMinPx, uTime, uFlash; varying vec3 vC;
-#include <common>
-#include <fog_pars_vertex>
-void main() {
-  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  float d = max(-mvPosition.z, 1.0);
-  // flashing ones together, 40 a minute, with a quick rise and a slower fall
-  float t = fract(uTime / 1.5), flash = smoothstep(0.0, 0.06, t) * (1.0 - smoothstep(0.18, 0.45, t));
-  float k = pow(clamp(500.0 / d, 0.15, 2.5), 0.7);
-  vC = vec3(1.0, 0.06, 0.02) * 2.6 * uOn * k * mix(1.0, flash * 1.4, uFlash);
-  gl_PointSize = clamp(1.4 * uScale / d, uMinPx * 1.2, 12.0);
-  gl_Position = projectionMatrix * mvPosition;
-  #include <fog_vertex>
-}`, POINT_FRAG);
+      const m = lightMaterial(Object.assign({ uKind: { value: 2 } }, common, aviation), POINT_VERT, POINT_FRAG);
       const pts = new THREE.Points(g, m);
       pts.frustumCulled = false;
       pts.renderOrder = 22;
