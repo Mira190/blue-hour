@@ -1138,9 +1138,10 @@ transformed = crowdPose(transformed, false);`);
       w2 = S2.z * exp(7.0 * (dot(h, S2.xy) - 1.0)), w3 = S3.z * exp(7.0 * (dot(h, S3.xy) - 1.0)), ws = w0 + w1 + w2 + w3;
     vec2 hs = normalize(w0 * S0.xy + w1 * S1.xy + w2 * S2.xy + w3 * S3.xy + 1e-5 * h);
     // (how much colour that hue has on the street at this lightness: navy 0.8 dark to 0.12 light, brown 0.75 to 0.22,
-    // olive 0.35 to 0.12, wine 0.6 to 0.12)
+    // olive 0.35 to 0.12, wine 0.6 to 0.12. A blue is a navy only while it is dark: a mid blue at the navy's
+    // strength was a royal blue shirt, the brightest thing at the kerb)
     float L = smoothstep(0.03, 0.5, Y);
-    float rmax = (w0 * mix(0.8, 0.12, L) + w1 * mix(0.75, 0.22, L) + w2 * mix(0.35, 0.12, L) + w3 * mix(0.6, 0.12, L)) / ws;
+    float rmax = (w0 * mix(0.8, 0.12, smoothstep(0.02, 0.2, Y)) + w1 * mix(0.75, 0.22, L) + w2 * mix(0.35, 0.12, L) + w3 * mix(0.6, 0.12, L)) / ws;
     vec2 iq = hs * min(ch * keep, rmax * Y * keep);
     float neutral = (1.0 - smoothstep(0.3, 0.62, sat)) * (1.0 - smoothstep(0.42, 0.7, Y));
     // (the walker's colours lighter or darker, all but a white: the neutrals fully, a coloured cloth most of the way)
