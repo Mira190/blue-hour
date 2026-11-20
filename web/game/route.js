@@ -209,10 +209,21 @@ window.OERoute = (function () {
     // them (along a building's front, round a kerb's corner), and a way pulled straight between them grazes the inside of
     // every turn. So the way is laid again, every CEN_STEP m: where it is narrower than twice CEN_KEEP, down its middle;
     // where it is wider, at least CEN_KEEP from either side (on a square, not dragged out to its middle). The shift is
-    // eased along the way (no zigzag round each post), comes in over the first and last few metres (the player's feet
-    // and the goal stay where they are), leaves a lift's stop, a crossing and an escalator as they are, and is kept only
+    // eased along the way (no zigzag round each post), comes in over the first two metres and the last four (the
+    // feet of whoever walks it and the goal stay where they are), leaves a lift's stop, a crossing and an escalator as they are, and is kept only
     // where the new line can be walked
     const CEN_STEP = 1, CEN_KEEP = 2.2, CEN_EASE = 4;
+    // from a point in a carriageway's edge, across the way (nx, ny), to the nearer footway within 3 m: the shift that
+    // puts it on that footway CEN_KEEP from the kerb (or down its middle where it is narrower), or 0 where none is near
+    function kerbOff(x, y, z, nx, ny) {
+      for (let d = ROOM_STEP; d <= 3 + 1e-6; d += ROOM_STEP) for (const s of [1, -1]) {
+        const px = x + nx * s * d, py = y + ny * s * d, zz = standZ(px, py, z, 0.6);
+        if (Number.isNaN(zz) || inRoad(px, py, zz)) continue;
+        const [l, r] = room(px, py, zz, nx, ny);
+        return s * (d + Math.min(CEN_KEEP, (s > 0 ? l : r) / 2));
+      }
+      return 0;
+    }
     function centre(P) {
       if (P.length < 2) return P;
       const cut = P.findIndex((p, i) => i && p[3]);
@@ -233,20 +244,39 @@ window.OERoute = (function () {
         const [x, y, z] = S[k];
         if (k === 0 || k === n - 1 || crossing(x, y, z, nx, ny) || escDir(x, y, z, x + tx / tl * 0.5, y + ty / tl * 0.5, z)) continue;
         const [l, r] = room(x, y, z, nx, ny);
+        // (a way laid down the gutter: the mapped line along a kerb's corner runs in the carriageway's edge, where the room
+        // either side is nothing, and it stayed there; frame 2's way round the scramble's north-west corner to Shun, as the
+        // guide planned it from some starts and not others, issue 63. It is moved onto the footway beside it,
+        // where it is not the end of a crossing)
+        if (l + r < 2 * CEN_KEEP && inRoad(x, y, z) && !crossing(x + tx / tl * 1.5, y + ty / tl * 1.5, z, nx, ny) && !crossing(x - tx / tl * 1.5, y - ty / tl * 1.5, z, nx, ny)) { const o = kerbOff(x, y, z, nx, ny); if (o) { off[k] = o; continue; } }
         if (l + r < 2 * CEN_KEEP) off[k] = (l - r) / 2;
         else if (l < CEN_KEEP) off[k] = l - CEN_KEEP;
         else if (r < CEN_KEEP) off[k] = CEN_KEEP - r;
       }
       // eased along the way (the mean over 3 m each side), then brought in over the ends
-      const sm = new Float32Array(n);
+      const sm = new Float32Array(n), short = new Float32Array(n);
       for (let k = 0; k < n; k++) {
         let s = 0, c = 0;
         for (let j = Math.max(0, k - 3); j <= Math.min(n - 1, k + 3); j++) { s += off[j]; c++; }
         sm[k] = s / c;
-        const e = Math.min(cum[k], L - cum[k]);
-        // (never more than half a metre short of what this point needs: eased over a turn, the mean left the way along a kerb)
-        if (off[k] && (!sm[k] || Math.sign(sm[k]) === Math.sign(off[k])) && Math.abs(off[k]) - Math.abs(sm[k]) > 0.5) sm[k] = off[k] - Math.sign(off[k]) * 0.5;
-        sm[k] *= Math.max(0, Math.min(1, (e - 1) / (CEN_EASE - 1)));
+        // (never more than half a metre short of what this point needs: eased over a turn, the mean left the way along a kerb.
+        // And where the mean is nearly nothing the other way: a post by the way at Shun's corner, the one point that needed
+        // moving among points that needed none, was left 0.25 m from it, issue 63)
+        if (off[k] && (Math.sign(sm[k]) === Math.sign(off[k]) || Math.abs(sm[k]) < 0.5) && Math.abs(off[k]) - Math.abs(sm[k]) > 0.5) short[k] = off[k] - Math.sign(off[k]) * 0.5;
+      }
+      // (and round it over two metres either side, not in a jog at one point)
+      for (let k = 0; k < n; k++) {
+        if (!short[k]) continue;
+        for (let j = Math.max(0, k - 2); j <= Math.min(n - 1, k + 2); j++) {
+          const v = short[k] * (1 - Math.abs(j - k) / 3);
+          if ((Math.sign(sm[j]) === Math.sign(v) || Math.abs(sm[j]) < 0.5) && Math.abs(v) > Math.abs(sm[j]) && !(off[j] && Math.sign(off[j]) !== Math.sign(v))) sm[j] = v; // (never against what that point needs itself)
+        }
+      }
+      for (let k = 0; k < n; k++) {
+        // (the goal stays where it is, the line brought to it over CEN_EASE m; the start comes off an edge within 2 m: it is
+        // whoever walks the way, the player or the guide planning again from where the crowd pushed him to a kerb, and
+        // eased over 4 m the new way held him along the kerb for two or three metres, issue 63)
+        sm[k] *= Math.max(0, Math.min(1, (cum[k] - 0.5) / 1.5, (L - cum[k] - 1) / (CEN_EASE - 1)));
       }
       const Q = S.map((p, k) => {
         if (!sm[k]) return p;
@@ -1223,7 +1253,7 @@ window.OERoute = (function () {
       return { of: n => find(n), size };
     }
     const debug = { pieces, flood, segOK, node: i => [NX[i], NY[i], NZ[i]], degree: i => ADJ0[i + 1] - ADJ0[i], near: (x, y, r) => { const o = []; near(x, y, r, (j, d) => o.push([j, SE[j], +d.toFixed(1)])); return o; }, edge: e => ({ a: EA[e], b: EB[e], pts: EP[e] }), SE: () => SE, SK: () => SK };
-    return { debug, build, get ready() { return ready; }, walk, room, edge, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
+    return { debug, build, get ready() { return ready; }, walk, room, edge, crossing, against, flight, landing, underSpan, blockedMetres, drive, stats: () => ({ ms: Math.round(busy), nodes: NX.length, edges: EA.length, points: SE ? SE.length : 0, phases, undrivable: drive.reduce((a, b) => a + b, 0), roads: roadNet.L.length }) };
   }
 
   // ------------------------------------------------------------ the gold line
