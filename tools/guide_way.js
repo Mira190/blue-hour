@@ -154,7 +154,10 @@ const LEADS = [
         { const k = heroKey(); if (k !== heroSeen) { heroSeen = k; listMeshes(); } }
         o.set(x, z + 0.9, -y); ray.set(o, down); ray.far = 4;
         const over = meshes.filter(q => x >= q.b.min.x && x <= q.b.max.x && -y >= q.b.min.z && -y <= q.b.max.z && q.b.min.y <= z + 0.9 && q.b.max.y >= z - 3.1).map(q => q.m);
-        const hits = ray.intersectObjects(over, false).filter(h => solidMesh(h.object));
+        // (and the hero levels' own meshes as they are now, whatever came or went since the list: they are small)
+        const H = g.hero && g.hero(), hm = [];
+        if (H && H.group) H.group.traverse(m => { if (m.isMesh && !over.includes(m)) hm.push(m); });
+        const hits = ray.intersectObjects(over.concat(hm), false).filter(h => solidMesh(h.object)).sort((a, b) => a.distance - b.distance);
         return hits.length ? hits[0].point.y : null; // (the scene's y is the map's height: game.js W)
       };
       const arrows = await signs();
