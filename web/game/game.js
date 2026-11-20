@@ -6548,6 +6548,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const p = W(v.x, v.y, z + 3), dx = camera.position.x - p.x, dz = camera.position.z - p.z, d = Math.hypot(dx, dz) || 1, k = Math.min(2.5, d * 0.4) / d;
     nightFill.position.set(p.x + dx * k, p.y, p.z + dz * k);
   }
+  // A frame a check runs without drawing it (tools/story_play.js DRAW=n: one in n drawn on a software renderer, #51): what
+  // only a drawn frame shows is left to the next one drawn (#70). Never on a player's page, where every frame is drawn
+  const unseenFrame = () => !!window.__draw && window.__draw.on === false;
   function frame(now) {
     if (!running) return;
     if (care.lost) { last = now; requestAnimationFrame(frame); return; } // the game holds still until the picture is back
@@ -6708,7 +6711,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (framesDrawn < 2 && ++framesDrawn === 2) firstDrawn();
     else if (framesDrawn === 1) try { performance.mark('oe:frame', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the load's first frame (telemetry.js)
     if (framesDrawn === 1) firstFrame();
-    updateLabels();
+    if (!unseenFrame()) updateLabels(); // (the names over the street are placed for the frame drawn: none in a check's frame not drawn)
     requestAnimationFrame(frame);
   }
 
