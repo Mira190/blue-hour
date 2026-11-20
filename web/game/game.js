@@ -3314,6 +3314,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
   // person waiting at the kerb's edge filled the finder from where the last frame is taken)
   // (half: a lane of that half-width along the whole way, not a sightline widening from a lens: the way someone walks)
+  // (whether one of the crowd moved aside to (x, y) stands clear there of the player, the story's people and the guide)
+  const roomAt = (x, y) => {
+    if (Math.hypot(player.x - x, player.y - y) < 0.75) return false;
+    for (const f of storyFigs) if (Math.hypot(f.x - x, f.y - y) < 0.75) return false;
+    const g = guideSeg && guideSeg();
+    if (g) { const dx = g[2] - g[0], dy = g[3] - g[1], L2 = dx * dx + dy * dy, t = L2 > 1e-9 ? Math.max(0, Math.min(1, ((x - g[0]) * dx + (y - g[1]) * dy) / L2)) : 0; if (Math.hypot(g[0] + dx * t - x, g[1] + dy * t - y) < g[4] + 0.6) return false; }
+    return true;
+  };
   const clearSight = (a, b, half = 0) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     for (const p of crowd.P.slice(0, crowd.active)) {
@@ -3321,7 +3329,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
       if ((half ? t < -half || t > L + half : t < -2.5 || t > L - 0.6) || Math.abs(side) > w) continue;
       if (!p.pz) { p.line = -1; continue; }
-      const to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
+      let to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
+      for (let k = 0; k < 4 && !roomAt(p.x - uy * to, p.y + ux * to); k++) to += (Math.sign(side) || 1) * 0.5; // (not onto someone not of the crowd, issue 65)
       p.x += -uy * to; p.y += ux * to; p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
     }
   };
@@ -3334,7 +3343,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const dx = p.x - x, dy = p.y - y, d = Math.hypot(dx, dy);
       if (d >= r) continue;
       if (!p.pz) { p.line = -1; if (crowdDraw) crowdDraw.hide(i); continue; } // (and not drawn there this frame either)
-      const k = (r + 0.4) / (d || 1); p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null;
+      let k = (r + 0.4) / (d || 1);
+      for (let j = 0; j < 4 && !roomAt(x + (d ? dx : 1) * k, y + (d ? dy : 0) * k); j++) k += 0.5 / (d || 1); // (not onto someone not of the crowd, issue 65)
+      p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null;
     }
   };
   // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
@@ -3351,22 +3362,37 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return out;
     } }) : null;
   // those standing among the crowd who are not of it, for the crowd to keep clear of as it keeps clear of the player
-  // (actors.js api.keep, issue 65): the story's people while they are drawn, the guide along his spine, the map's NPCs.
+  // (actors.js api.bodies, issue 65): the story's people while they are drawn, the guide along his spine, the map's NPCs.
   // The one a talk is with is given the room of the talk camera's ring (talkcam.js RING), so that nobody of the crowd
   // comes to stand at the shoulder of a long shot such as the summation
   const keepList = [];
   // (you: the player as one of them, where the crowd is stepped without the player: under the title and the opening shots,
   // where a waiter at Sumiko's kerb stood inside Kagami)
-  const crowdKeep = (cx, cy, you = false) => {
+  // (one on the move is kept clear of a half second ahead too: the crowd steps aside for them before they get there)
+  const keepWas = new Map();
+  const crowdKeep = (cx, cy, you = false, dt = 0) => {
     let n = 0;
     const put = (ax, ay, bx, by, r) => { const k = keepList[n] || (keepList[n] = {}); k.ax = ax; k.ay = ay; k.bx = bx; k.by = by; k.r = r; n++; };
     if (you && player.mode === 'foot' && player.rig.root.visible) put(player.x, player.y, player.x, player.y, 0.15);
     const near = (x, y) => Math.abs(x - cx) < 150 && Math.abs(y - cy) < 150;
     const sp = talkCam && talkCam.on ? talkCam.talk.speaker.id : null;
-    for (const f of storyFigs) if (near(f.x, f.y) && !(f.rig && f.rig.root && !f.rig.root.visible)) put(f.x, f.y, f.x, f.y, sp === f.id ? 1.0 : 0.15);
+    // (an afterimage too before it is drawn: it is drawn in the Stop, where the held crowd cannot step out of it)
+    for (const f of storyFigs) if (near(f.x, f.y)) {
+      put(f.x, f.y, f.x, f.y, sp === f.id ? 1.0 : 0.15);
+      if (f.to) { const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy) || 1, a = Math.min(d, f.to[2] * 0.6); put(f.x, f.y, f.x + dx / d * a, f.y + dy / d * a, 0.15); }
+    }
     for (const q of npcs) if (near(q.x, q.y)) put(q.x, q.y, q.x, q.y, sp === `npc:${q.id}` ? 1.0 : 0.15);
     const g = guideSeg();
-    if (g && near(g[0], g[1])) put(g[0], g[1], g[2], g[3], g[4]);
+    if (g && near(g[0], g[1])) {
+      put(g[0], g[1], g[2], g[3], g[4] + 0.15); // (and a hand's width more: he moves among them, and they step aside after he has)
+      // (and where he is going: the end of his spine that leads, carried on a half second at the pace he goes)
+      const mx = (g[0] + g[2]) / 2, my = (g[1] + g[3]) / 2, w = keepWas.get('guide');
+      if (w && dt > 0) {
+        const vx = (mx - w[0]) / dt, vy = (my - w[1]) / dt, v = Math.hypot(vx, vy);
+        if (v > 0.2 && v < 8) { const e = (g[0] - mx) * vx + (g[1] - my) * vy > 0 ? [g[0], g[1]] : [g[2], g[3]]; put(e[0], e[1], e[0] + vx * 0.5, e[1] + vy * 0.5, g[4]); }
+      }
+      keepWas.set('guide', [mx, my]);
+    }
     keepList.length = n;
     return keepList;
   };
@@ -3534,7 +3560,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
     slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), r = guideReach(g), c = OECars.pushOut(m.x, m.y, z, r, carBoxes(m.x, m.y, 4)), o = posts.pushOut(c.x, c.y, r, z); return nav.walk(o.x, o.y, z, true).ok ? o : { x, y }; },
     stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, guideReach(g), z).hit && !OECars.pushOut(x, y, z, guideReach(g), carBoxes(x, y, 4)).hit,
-    people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i]; if (q.line >= 0 && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r) out.push([q.x, q.y]); } return out; },
+    // (the Scramble's own crowd too, q.pz: waiting at its kerbs, out crossing, standing about the square. They are kept on
+    // no footway line, and he walked into the waiters at Sumiko's kerb as if nobody stood there, issue 65)
+    people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push([qx, qy]); } return out; },
     held: () => !!(story && story.stopped && story.scale === 0) }) : null); // (the world held still: its people are planned round, not pushed off)
   // the story's people, asked for as the game opens, so that each is themselves when they are first seen
   if (lib && G.story && !new URLSearchParams(location.search).has('walk')) {
@@ -6809,7 +6837,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.rig.lookTarget = gaze;
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
     npcStream(dt, cx, cy);
-    crowd.keep = crowdKeep(cx, cy);
+    crowd.bodies = crowdKeep(cx, cy, false, dt);
     crowd.update(dt, cx, cy, clockT, player.mode === 'foot' ? player : player.mode === 'car' ? { x: player.x, y: player.y, h: player.h, speed: myCar.D.st.v, r: 1.1 } : null);
     if (colonies.length) {
       const L = dayLimits();
@@ -7108,7 +7136,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (the title is paused, so nothing is simulated under it; the crowd is stepped here, gathered once at the scramble's
       // kerbs, and waits there under the screens, not an empty crossing)
       if (O.push && crowd) {
-        crowd.keep = crowdKeep(player.x, player.y, true); crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
+        crowd.bodies = crowdKeep(player.x, player.y, true, dt); crowd.update(dt, player.x, player.y, clockT, null); if (!titleMustered && crowd.crossings) { titleMustered = true; musterScramble(); }
         // (nobody in the lens: at eye height in the crowd a passer-by a pace off filled half the poster)
         if (crowdDraw) { const ex = camera.position.x, ey = -camera.position.z; for (let i = 0; i < crowd.active; i++) { const q = crowd.P[i]; if ((q.line >= 0 || q.pz) && Math.abs(q.x - ex) < 4.5 && Math.abs(q.y - ey) < 4.5) crowdDraw.hide(i); } }
       }

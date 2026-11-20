@@ -566,7 +566,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return false;
     }
     let opened = false, stepNo = 0; // (stepNo: the update under way, for the neighbours' hash) // (has the crowd taken its first step: update)
-    const api = { R, P, active: n, benches: BN, cars: null, sitChance: () => 0, crossings: null, kerbWait: 0, kerbWaits: [], fresh: 0, hot: null, plazas: null, muster, keep: null };
+    const api = { R, P, active: n, benches: BN, cars: null, sitChance: () => 0, crossings: null, kerbWait: 0, kerbWaits: [], fresh: 0, hot: null, plazas: null, muster, bodies: null };
     // where footway li steps off the kerb onto a road with no crossing marked there, each way along it
     // ({ s, dir, x, y }): found the first time a walker is on it, a metre at a time (crossings.road, from
     // game.js, says what is carriageway; crossings.zebra, a zebra's stripes, where the cars give way instead)
@@ -755,7 +755,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let k = 0; k < nn; k++) { const o = P[nbr[k]], dx = o.x - x, dy = o.y - y; if (Math.abs(dx) < best && Math.abs(dy) < best) best = Math.min(best, Math.hypot(dx, dy)); }
       return keepRoom(x, y, best);
     }
-    // those standing among the crowd who are not of it (api.keep, set by game.js each frame: the story's people, the
+    // those standing among the crowd who are not of it (api.bodies, set by game.js each frame: the story's people, the
     // living and the afterimages, the guide as the length of his spine, the map's NPCs): each a segment
     // { ax, ay, bx, by, r }, r the room it needs past what one of the crowd gives another. The crowd keeps clear of them
     // as it keeps clear of the player and of each other: no place to wait is given on one, no walker steers into one,
@@ -1348,7 +1348,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // out of sight and 270 m off, or 45 m off where the crowd gathers. Nobody stood within 32 m of the player at
       // any map's opening (issue 494), whatever the map's numbers.
       const fresh = api.fresh > 0 || !opened; opened = true; if (api.fresh > 0) api.fresh -= dt;
-      K = api.keep || [];
+      K = api.bodies || [];
       const pvx = player ? Math.sin(player.h) * player.speed : 0, pvy = player ? Math.cos(player.h) * player.speed : 0;
       for (let i = 0; i < n; i++) {
         p = P[i];
