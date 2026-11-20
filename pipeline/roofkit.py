@@ -64,47 +64,60 @@ def unit(seed, k):
     return ((seed * 2654435761 + k * 40503) & 0xFFFFFFFF) / 2 ** 32
 
 
-def place(k, s, p, seed, taken, out):
-    top = s[3] / 10
-    inner = largest(p.buffer(-0.7, join_style=2))
-    if inner is None or inner.area < 12:
-        return
-    ang = long_axis(p)
-    a = math.radians(ang)
-    ax, perp = np.array([math.cos(a), math.sin(a)]), np.array([-math.sin(a), math.cos(a)])
-    c = inner.centroid
-    C = np.asarray(inner.exterior.coords)
-    L, W = C @ ax, C @ perp
-    free = lambda q: inner.contains(q) and not q.intersects(taken)
+class Roof:
+    """A flat roof's frame: its inner outline (inside the parapet), its long axis and the extents along and across it."""
 
-    def at(u, v):  # a point from coordinates along and across the roof
-        o = ax * u + perp * v
+    def __init__(self, p):
+        self.inner = largest(p.buffer(-0.7, join_style=2))
+        if self.inner is None:
+            return
+        self.ang = long_axis(p)
+        a = math.radians(self.ang)
+        self.ax, self.perp = np.array([math.cos(a), math.sin(a)]), np.array([-math.sin(a), math.cos(a)])
+        C = np.asarray(self.inner.exterior.coords)
+        self.L, self.W = C @ self.ax, C @ self.perp
+
+    def at(self, u, v):  # a point from coordinates along and across the roof
+        o = self.ax * u + self.perp * v
         return o[0], o[1]
 
-    # the fire service's mark: as near the middle of the roof as the plant leaves a square of it open
-    if top >= R_FROM:
-        typ = 1 if top >= H_FROM else 0
-        size = H_SIZE if typ else R_SIZE
+
+def mark(k, s, roof, taken):
+    """The fire service's mark on a roof, as near its middle as the plant rooms and tanks leave a square open: a row, or
+    None. A pad from 100 m (18 m square, else 15), a rescue space from 31 m (10 m)."""
+    top = s[3] / 10
+    if top < R_FROM or roof.inner is None:
+        return None
+    typ = 1 if top >= H_FROM else 0
+    L, W = roof.L, roof.W
+    for size in ((H_SIZE, 15.0) if typ else (R_SIZE,)):
         best = None
-        for du in np.linspace(-0.35, 0.35, 15):
-            for dv in np.linspace(-0.35, 0.35, 9):
-                u, v = (L.min() + L.max()) / 2 + du * np.ptp(L), (W.min() + W.max()) / 2 + dv * np.ptp(W)
-                x, y = at(u, v)
-                q = rect(x, y, size + 1.0, size + 1.0, ang)
-                if free(q):
+        for du in np.linspace(-0.45, 0.45, 19):
+            for dv in np.linspace(-0.45, 0.45, 11):
+                x, y = roof.at((L.min() + L.max()) / 2 + du * np.ptp(L), (W.min() + W.max()) / 2 + dv * np.ptp(W))
+                q = rect(x, y, size + 1.0, size + 1.0, roof.ang)
+                if roof.inner.contains(q) and not q.intersects(taken):
                     dd = du * du + dv * dv
                     if best is None or dd < best[0]:
                         best = (dd, x, y, q)
         if best:
             _, x, y, q = best
-            out.append([k, 8, round(x * 10), round(y * 10), round(size * 10), round(size * 10), typ, round(ang * 100)])
-            taken = taken.union(q)
-    if top < HUT_FROM:
+            return [k, 8, round(x * 10), round(y * 10), round(size * 10), round(size * 10), typ, round(roof.ang * 100)], q
+    return None
+
+
+def place(k, s, roof, seed, taken, out, hut_ok=True):
+    """A stair hut against the roof's long edge and a row of condensers across from it."""
+    top = s[3] / 10
+    inner = roof.inner
+    if inner is None or inner.area < 12 or top < HUT_FROM:
         return
+    ang, L, W, at = roof.ang, roof.L, roof.W, roof.at
+    free = lambda q: inner.contains(q) and not q.intersects(taken)
     # the stair hut, against the roof's edge: a corner of the longer side, its door facing in
     w, d, h = 2.6 + 1.0 * unit(seed, 1), 2.4 + 0.8 * unit(seed, 2), 2.7 + 0.4 * unit(seed, 3)
     hut = None
-    for side in ((1, -1) if unit(seed, 4) < 0.5 else (-1, 1)):
+    for side in ((1, -1) if unit(seed, 4) < 0.5 else (-1, 1)) if hut_ok else ():
         for f in (0.3, 0.0, 0.6, -0.3):
             u = (L.min() + L.max()) / 2 + f * side * np.ptp(L) / 2
             v = W.min() + d / 2 + 0.15 if side > 0 else W.max() - d / 2 - 0.15
@@ -159,32 +172,47 @@ def main():
     for p in rows:
         if p[1] <= 2:
             by.setdefault(p[0], []).append(p)
-    out = []
+    box_of = lambda q: rect(q[2] / 10, q[3] / 10, q[4] / 10, q[5] / 10, q[7] / 100)
+    # the flat roofs, by building
+    bld = {}
     for k, s in enumerate(B["s"]):
         b = B["b"][s[0]]
-        if k in pitched or k in hidden or b[6] in skip or styles[b[10]] not in flat_styles:
+        if k in pitched or k in hidden or b[6] in skip or styles[b[10]] not in flat_styles or s[3] < 60:
             continue
-        if s[3] < 60:
+        p = largest(poly(s))
+        if p is None or p.area < 25:
             continue
-        p = poly(s)
-        if p.is_empty or p.area < 25 or p.geom_type != "Polygon":
-            p = largest(p)
-            if p is None or p.area < 25:
-                continue
-        taken = unary_union([rect(q[2] / 10, q[3] / 10, q[4] / 10, q[5] / 10, q[7] / 100).buffer(0.6) for q in by.get(k, [])]) \
-            if k in by else Polygon()
-        if any(q[1] == 1 for q in by.get(k, [])):  # a plant room holds the stair already: the marks and condensers only
-            before = len(out)
-            place(k, s, p, b[14], taken, out)
-            out[before:] = [q for q in out[before:] if q[1] != 6]
-        else:
-            place(k, s, p, b[14], taken, out)
-    B["p"] = rows + out
+        bld.setdefault(s[0], []).append((k, s, p))
+    out, moved = [], set()
+    for bi, solids in bld.items():
+        seed = B["b"][bi][14]
+        roofs_ = {k: Roof(p) for k, s, p in solids}
+        taken = {k: unary_union([box_of(q).buffer(0.6) for q in by.get(k, []) if q[1] != 0] + [Polygon()]) for k, s, p in solids}
+        # one mark a building, on the highest roof that has room for it; the loose plant boxes on that square are
+        # moved off it (a pad is kept clear), the plant rooms and tanks are not
+        for k, s, p in sorted(solids, key=lambda t: (-t[1][3], -t[2].area)):
+            m = mark(k, s, roofs_[k], taken[k])
+            if m:
+                row, q = m
+                out.append(row)
+                for r in by.get(k, []):
+                    if r[1] == 0 and box_of(r).intersects(q.buffer(1.0)):
+                        moved.add(id(r))
+                taken[k] = taken[k].union(q)
+                break
+        # stair huts on the two largest roofs that have no plant room (which holds the stair already)
+        huts = {k for k, s, p in sorted(solids, key=lambda t: -t[2].area) if p.area >= 40
+                and not any(q[1] == 1 for q in by.get(k, []))}
+        huts = set(list(sorted(huts, key=lambda k: -roofs_[k].inner.area if roofs_[k].inner else 0))[:2])
+        for k, s, p in solids:
+            t = taken[k].union(unary_union([box_of(q).buffer(0.6) for q in by.get(k, []) if q[1] == 0 and id(q) not in moved] + [Polygon()]))
+            place(k, s, roofs_[k], seed + k, t, out, hut_ok=k in huts)
+    B["p"] = [p for p in rows if id(p) not in moved] + out
     f = B["p_fields"]
     f[1] = "kind (0 plant box, 1 plant room, 2 water tank, 3 dormers, 4 chimney stack, 5 gable, 6 stair hut, 7 condenser row, 8 rescue mark: h 0 R, 1 H)"
     json.dump(B, open(path, "w"), separators=(",", ":"))
     from collections import Counter
-    print("roofkit:", dict(Counter(q[1] for q in out)))
+    print("roofkit:", dict(Counter(q[1] for q in out)), f"({len(moved)} plant boxes moved off a mark's square)")
 
 
 if __name__ == "__main__":
