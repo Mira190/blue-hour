@@ -122,6 +122,7 @@ window.OENeon = (function () {
 	}
 `;
   let leaned = null;
+  let lowPool = null; // (the low tier's pool, once pooled() has made it: { uniforms, glsl, lit })
   // three.js's shader chunks with the rectangle's closed form in place of the LTC one (once; before the lights exist,
   // so no program has been built with the other)
   function lean() {
@@ -149,6 +150,34 @@ window.OENeon = (function () {
   // the pools' strength against the area lights': matched on the stills of Hachiko's corner at dusk and at night, the low
   // tier beside the high (issue 62). (The area lights reach only the eight nearest screens, and a phone's grade is its own)
   const POOL_K = 0.6; // the mean linear colour of Shibuya's sheet, for a screen whose sheet cannot be read
+  // The pool on a surface (issue 69): the texture holds the light on a ground facing up, and a wall, a shop front's lower
+  // storey or a person standing there got none of it, and stayed blue against the warm paving. Each takes the pool at
+  // the point under it (a person's, at their feet), weighted by the hemisphere's share facing up: the ground all of it,
+  // a wall half, a soffit nothing, as a sky light lights them. Still one texture read a pixel and no light in the shader.
+  // oePoolAt(wp): the pool on the ground under a world position (three.js frame); oePool(wp, n): on a surface there.
+  // A wall takes it on its lower storeys, fading up from 3 m over the next dozen (uPoolZ: the levels' mean ground), as the
+  // street lights' light fades up the city's walls (buildings.js): the ground's pool says nothing of a wall's tenth floor.
+  const POOL_F = `uniform sampler2D uPoolMap; uniform vec4 uPoolXf; uniform float uPoolScr, uPoolCardK, uPoolZ; uniform vec3 uPoolCard;
+vec3 oePoolAt(vec3 wp) {
+  vec2 uv = vec2((wp.x - uPoolXf.x) * uPoolXf.z, (-wp.z - uPoolXf.y) * uPoolXf.w);
+  if (uPoolScr + uPoolCardK <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec3(0.0);
+  vec4 p = texture2D(uPoolMap, uv); p *= p;
+  return p.rgb * uPoolScr + uPoolCard * (p.a * uPoolCardK);
+}
+vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(nv, viewMatrix[1].xyz)) * exp(-max(wp.y - uPoolZ - 3.0, 0.0) / 12.0); }`;
+  // patch(sh): a lit standard material's shader takes the pool (after its emissive, as a baked light is added). It is
+  // given through world.js streetLit, which every lit thing at street level takes (the ground, the landmarks' fronts, a
+  // hero level, every person: people.js setLight); a shader marked sh.oePool = false beforehand (a room behind its
+  // windows, hero.js) is left without it. The city's walls read it in their own shader (buildings.js, lowPool.glsl)
+  function poolPatch(NU) {
+    return sh => {
+      if (sh.oePool !== undefined || !sh.fragmentShader.includes('#include <emissivemap_fragment>')) return;
+      sh.oePool = true;
+      Object.assign(sh.uniforms, NU);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${POOL_F}`)
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * oePool(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz), normal);');
+    };
+  }
   function pooled(Wd, info, { gain = 1, fill = [], ground = () => 0, pool }) {
     const x0 = Math.min(...pool.map(c => c[0] - c[2])) - 10, x1 = Math.max(...pool.map(c => c[0] + c[2])) + 10;
     const y0 = Math.min(...pool.map(c => c[1] - c[2])) - 10, y1 = Math.max(...pool.map(c => c[1] + c[2])) + 10;
@@ -194,7 +223,7 @@ window.OENeon = (function () {
       }
     }
     const NU = { uPoolMap: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uPoolXf: { value: new THREE.Vector4(x0, y0, 1 / W, 1 / H) },
-      uPoolScr: { value: 0 }, uPoolCardK: { value: 0 }, uPoolCard: { value: new THREE.Vector3(card.r, card.g, card.b) } };
+      uPoolScr: { value: 0 }, uPoolCardK: { value: 0 }, uPoolZ: { value: zs.reduce((a, z) => a + z, 0) / zs.length }, uPoolCard: { value: new THREE.Vector3(card.r, card.g, card.b) } };
     let t0 = null, colours = null, jNext = 0, done = false, gainK = 0;
     // each screen's colour: the mean of every keyframe of every clip on its playlist, at its brightness (as colourOf at full night)
     const means = new Map();
@@ -216,6 +245,7 @@ window.OENeon = (function () {
       }
       return all;
     }
+    lowPool = { uniforms: NU, glsl: POOL_F, lit: poolPatch(NU) }; // (read by world.js streetLit and buildings.js as they compile)
     const api = {
       lights: [], screens, cards: [], count: 0, pool: NU,
       get poolState() { return { done, gainK, night: info.night.value, hour: info.clock.hour.value, emitters: em.length }; }, // (for the harnesses)
@@ -346,5 +376,5 @@ window.OENeon = (function () {
     };
     return api;
   }
-  return { create, COUNT };
+  return { create, COUNT, get lowPool() { return lowPool; } };
 })();

@@ -1295,6 +1295,9 @@ if (uBounceK > 0.0 && uSkyVisK > 0.0 && 0.5 - 0.5 * dot(normal, hemisphereLights
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${NIGHT}`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz));`);
+      // on the low tier, the screens' and the plaza cards' light round the hero levels (neon.js pooled, issue 69)
+      const pool = window.OENeon && OENeon.lowPool;
+      if (pool) pool.lit(sh);
     };
     // a ground tile draped on terrain grid Tg (the viewer's 10 m grid, or the game's 5 m one near the player)
     // Drawn only within the frame: the tiles' grid overhangs it by up to 800 m, which past the frame is
@@ -2067,6 +2070,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       // a bridge's deck, or paving ("street_lit"), under the street lights and the screens' glow
       // (and "lamp_lit": what stands in that light without being ground, a platform's doors and its canopy's posts)
       if ((m.pattern === 'deck_zones' || m.street_lit || m.lamp_lit) && NU) { const own = lmMats[k].onBeforeCompile; lmMats[k].onBeforeCompile = sh => { if (own) own(sh); streetLit(sh); }; }
+      // on the low tier (a phone) the rest of a landmark, its walls and shop fronts, takes the screens' pool where it stands
+      // (neon.js pooled, made once the game has the screens, read as it compiles: issue 69), not its glass or its rooms
+      else if (small && game && !m.interior && !(m.opacity < 1)) { const own = lmMats[k].onBeforeCompile; lmMats[k].onBeforeCompile = sh => { if (own) own(sh); const P = window.OENeon && OENeon.lowPool; if (P) P.lit(sh); }; }
       if (m.pattern === 'deck_zones' || m.street_lit) lmMats[k].userData.paving = true; // ground you walk on: it gets wet in the rain (weather.js)
       if (m.decal) Object.assign(lmMats[k], { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); // laid over a roof: in front of it
       if (m.map) Object.assign(lmMats[k], { map: imageTex(m.map), alphaTest: m.cutout ? 0.5 : 0 }); // cutout: its clear pixels are holes
@@ -2850,7 +2856,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // the first frame that draws it. One texture a frame, in the frame's idle time (requestIdleCallback,
   // at the latest after 250 ms), from one queue that every caller shares, so two models arriving together
   // still cost a frame one texture. Resolves when the last of obj's is up; a texture already sent (or
-  // queued by another object) is not sent twice.
+  // queued by another object) is not sent twice. first: obj's go to the head of the queue, ahead of what is waiting
+  // (the hero level the player starts in, issue 69: behind the title its pictures queued after the NPCs', the cars' and
+  // the trees', a frame each, and on a software renderer's frames of a second or two the level waited 100 s).
   const sent = new WeakSet(), queue = [];
   let pumping = false;
   const later = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 250 }) : setTimeout(f, 16));
@@ -2871,17 +2879,23 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     });
     return [...out];
   }
-  function upload(renderer, obj) {
+  function upload(renderer, obj, opts) {
     if (!renderer || !renderer.initTexture || !obj) return Promise.resolve();
-    const waits = [];
+    const first = !!(opts && opts.first);
+    const waits = [], head = [];
     for (const tex of textures(obj)) {
-      if (sent.has(tex)) { const j = queue.find(q => q.tex === tex); if (j) waits.push(j.p); continue; } // (up, or on its way)
+      if (sent.has(tex)) { // (up, or on its way: moved up with the rest, if first)
+        const k = queue.findIndex(q => q.tex === tex);
+        if (k >= 0) { waits.push(queue[k].p); if (first) head.push(queue.splice(k, 1)[0]); }
+        continue;
+      }
       sent.add(tex);
       const job = { renderer, tex };
       job.p = new Promise(r => { job.done = r; });
-      queue.push(job);
+      (first ? head : queue).push(job);
       waits.push(job.p);
     }
+    if (head.length) queue.unshift(...head);
     if (!pumping) pump();
     return Promise.all(waits).then(() => {});
   }

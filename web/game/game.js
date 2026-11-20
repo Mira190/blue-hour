@@ -218,8 +218,8 @@ window.OpenEarthGame = async function game(cityId) {
   const compileFor0 = (obj, scene = world, o) => OEWorld.compile(renderer, obj, camera, Object.assign({ scene, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null }, o));
   // a model that comes once the game is open: its textures sent in idle time, a texture a frame, then its
   // shaders compiled, before it is shown (issue 201; world.js upload)
-  const uploadFor = obj => (OEWorld.upload ? OEWorld.upload(renderer, obj) : Promise.resolve());
-  const warmFor = obj => uploadFor(obj).then(() => compileFor(obj));
+  const uploadFor = (obj, o) => (OEWorld.upload ? OEWorld.upload(renderer, obj, o) : Promise.resolve());
+  const warmFor = (obj, o) => uploadFor(obj, o).then(() => compileFor(obj));
   // the first frame drawn (issue 27): what the loader need not wait for is compiled after it, not queued beside the loader's
   // own programs, where a device that compiles one at a time (an iPhone) finished it before the first frame all the same
   let firstFrame = null;
@@ -495,7 +495,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
     h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
   }
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, pool: neon && neon.pool, warm: obj => warmFor(obj), upload: sendBuffers, ground: heroCover }) : null;
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: heroCover }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -750,7 +750,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   try {
     lib = await OEPeople.load('assets/people/', { warmLater: true }); // (its warm-up given once the loader has compiled: lib.setWarm, below)
     if ((G.crowd || {}).style) OEPeople.setStyle(G.crowd.style);
-    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark
+    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
   } catch (e) { console.warn('Realistic people unavailable, using simple figures:', e); lib = null; }
   // the box-built figures are the last resort, for a device that could load none of the people's
   // files: one character that fails to load (after its retries, gltf.js) leaves the rest of the
@@ -6367,8 +6367,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // what the loader left out (issue 27: a third of its programs, on an iPhone a third of its 22 s): the passes that are off
   // (the opening's depth of field and motion blur: first, for the tap), then what is hidden in the world (the rain, the
   // stopped air's spares, a car's parts), compiled behind the title, a slice a frame, held through the opening's shots
+  // The level the story starts in comes first (issue 69). Behind the title it was queued with the city's rest, the opening's
+  // own things and the stopped air, and on a software renderer, which compiles and uploads one thing at a time, its warm-up
+  // (its pictures sent, then its programs) waited behind theirs: 107 s, and the way in's veil ran out on the city's own
+  // Scramble. While the level round the player's start is still coming in (at most LEVEL_FIRST_S from the title), the rest
+  // waits for it: the city's rest compiles no slice, and the stopped air's warm-up starts once it is ready (the opening's own
+  // things do not wait: a tap on Play soon after the title would compile them in its first frame, 4.4 s on an iPhone)
+  const LEVEL_FIRST_S = 30;
+  const levelComing = () => !!hero && hero.levels.some(L => (L.state === 'loading' || L.state === 'idle') && Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) <= (L.h.r || 100));
+  let levelFirstT = null;
+  const levelFirst = () => { if (levelFirstT == null) levelFirstT = performance.now(); return levelComing() && performance.now() - levelFirstT < LEVEL_FIRST_S * 1000; };
+  const afterLevel = () => new Promise(r => { const t = () => (levelFirst() ? setTimeout(t, 250) : r()); t(); });
   const warmRest = () => Promise.resolve(atmos && atmos.warm ? atmos.warm() : null)
-    .then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, hold: () => playing && (!!arriving || cine.active || player.mode === 'lift') }))
+    .then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, hold: () => levelFirst() || (playing && (!!arriving || cine.active || player.mode === 'lift')) }))
     .catch(e => console.warn('warm the rest', e));
   // (the characters that came while the loader compiled, and those to come, warmed from as soon as it is done: an NPC's
   // waits for this, people.js ready, and is shown once its programs are made; issue 31)
@@ -6404,7 +6415,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
     if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
     // and the story's stopped air: its leaves, birds and motes, made at the first beat after the tap (stopfx.js warm)
-    if (story && stopFx && stopFx.warm) setTimeout(() => stopFx.warm(warmFor), reduced ? 0 : 1000);
+    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => stopFx.warm(warmFor)), reduced ? 0 : 1000);
     setTimeout(() => { if (QC.lean) afterPlayable().then(heliIn); else heliIn(); }, reduced ? 0 : 900);
   });
   // What the first frame doesn't need, fetched once the game can be played, as the helicopter's model is (issue 335):
@@ -6417,6 +6428,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let lateOn = null;
   function afterPlayable() {
     if (lateOn) return lateOn;
+    if (levelFirst()) return (lateOn = afterLevel().then(() => { lateOn = null; return afterPlayable(); })); // (the level first, above)
     const near = () => (lib ? npcs.filter(n => n.rig.pending && Math.hypot(n.x - player.x, n.y - player.y) < NPC_LOAD_M)
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y)) : []);
     const carsIn = () => (vlib && vlib.loadCars && !vlib.carsFull ? Promise.all([vlib.loadCars().then(g => { if (g && vlib.carsFull && cars.upgrade) cars.upgrade(g); }), parkWait ? parkLater() : null]) : null);
@@ -7674,8 +7686,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const levelReady = () => !hero || hero.levels.every(L => L.state === 'ready' || L.state === 'failed' || Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) > (L.h.r || 100));
   let levelHold = null;
   // done: what the way in does once the level is ready (or the wait is over); false when there is nothing to wait for
+  // telemetry's level_wait (issue 69): how long a way in waited, whether the level came, and its warm-up's steps so far (hero.js
+  // load: ms from the level being asked for to its file, shrunk, packed, compiled, uploaded), the real phone's numbers
+  const levelSay = (s, ready) => {
+    if (!(window.OETelemetry && OETelemetry.track)) return;
+    const L = hero && hero.levels.find(L => Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) <= (L.h.r || 100));
+    OETelemetry.track('level_wait', Object.assign({ s: +s.toFixed(1), ready, tier: QC.name, level: L ? L.h.id : undefined, state: L ? L.state : undefined }, L && L.steps ? Object.fromEntries(Object.entries(L.steps).map(([k, v]) => [`${k}_ms`, v])) : {}));
+  };
   function holdForLevel(done) {
-    if (levelReady()) return false;
+    if (levelReady()) { levelSay(0, true); return false; }
     const v = document.createElement('div'), t0 = performance.now();
     v.className = 'g-veil'; v.setAttribute('aria-hidden', 'true');
     v.innerHTML = `<b>${((G.overture || {}).title || {}).name || CITY.native || CITY.name}</b><i style="animation-duration:${LEVEL_WAIT_S}s"></i>`;
@@ -7686,6 +7705,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (t < 0.5 || (!levelReady() && t < LEVEL_WAIT_S)) { setTimeout(tick, 100); return; } // (the veil up first: the level never comes in half seen)
       levelHold = null;
       console.info(`the way in waited ${t.toFixed(1)} s for the level${levelReady() ? '' : ', and went on without it'}`);
+      levelSay(t, levelReady());
       done();
       setTimeout(() => { v.classList.remove('on'); setTimeout(() => v.remove(), 700); }, 300); // (a few frames for it to be drawn under the veil)
     };

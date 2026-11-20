@@ -388,12 +388,30 @@ screens a warm grey, the blocks yellow), by nagi usano, CC BY-SA 2.0,
 https://commons.wikimedia.org/wiki/File:Shibuya_10pm_(49785559552).jpg; and the crossing's paint under the screens,
 "Shibuya Crossing" (30 September 2023, 19:25) by Dick Thomas Johnson, CC BY 2.0,
 https://commons.wikimedia.org/wiki/File:Shibuya_Crossing_(53331011301).jpg. Compared, not copied: neither is in the
-repository. Not lit by the pools: the crowd and the fronts' walls, which on the low tier keep the hemisphere light and
-the night fill.
+repository.
+
+**The pool on the crowd and the walls (issue 69).** The pool texture is the light on a ground facing up, and at first only
+what faced up took it: the crowd and the shop fronts kept the sky's blue against the warm paving. Now every lit surface
+round the levels takes it on the low tier, read where it stands (`neon.js` `lowPool`): the texel under the point, which for
+a person is the ground at their feet, weighted by the hemisphere's share facing up in place of the up-facing term (the
+ground all of it, a wall or a figure's side half, a soffit none, as a sky light lights them), and on a wall fading up from
+3 m over the next dozen, as the street lights' light fades up the city's walls. It comes the way the street lights do:
+`world.js` `streetLit` gives it to the ground, a hero level's materials (not its windows or rooms) and every person
+(`people.js` `setLight`); a landmark's walls and shop fronts take it on the low set (the Q-front and the station's fronts are
+landmarks, not drawn by the hero level); the city's walls read it in their own shader (`buildings.js`), at the pavement in
+front of them. Still one texture read a pixel, no light in a shader; a desktop keeps its area lights and has none of it.
+A diagnostic run with the pool twelve times as strong showed which surfaces take it before it was set back.
 
 **The level coming in.** On a phone the Scramble's level is ready seconds after the game opens (the owner's iPhone: in
 frame 1 six seconds after the load, having skipped the opening); until then the city's own Scramble is drawn, and the
-level took its place in view. The way in now waits for it (`game.js` `holdForLevel`): the opening's skip, the crane down
+level took its place in view. The level is put first behind the title (issue 69): its pictures go to the head of the
+upload queue (`world.js` `upload`, `first`), and while it is coming in round the player's start (at most 30 s,
+`game.js` `levelFirst`) the city's rest compiles no slice and the late fetches (the NPCs, the cars, the near trees) and the
+stopped air's warm-up wait for it; the opening's own things do not, since a tap on Play would otherwise compile them in its
+first frame. On llvmpipe, where its warm-up had waited behind the others' (a texture a frame, frames of a second or two),
+it went from 132 to 145 s after it was asked for to 24 s, ready before the opening's skip (`tools/level_wait.js`
+`DELAY=0 LOG=1`); on a phone, telemetry's `level_wait` gives each way in's wait and the level's steps (docs/OBSERVABILITY.md).
+The way in now waits for it (`game.js` `holdForLevel`): the opening's skip, the crane down
 from the title (reduced motion, `?overture=0`) and a story taken up again hold their shot behind a veil (the loader's
 ground with the place's name, `渋谷`, and a hairline running out the wait), at most 6 s; once the level is ready the camera
 is put at the player's shoulder under the veil and the veil lifts. Past 6 s the way in goes on without it. While it waits

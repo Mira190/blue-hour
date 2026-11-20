@@ -423,6 +423,9 @@ window.OEBuildings = (function () {
     mat.extensions = Object.assign(mat.extensions || {}, { derivatives: true });
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, U);
+      // the low tier's pool of the screens' light round the hero levels (neon.js pooled, issue 69), if it has one by now
+      const pool = window.OENeon && OENeon.lowPool;
+      if (pool) Object.assign(sh.uniforms, pool.uniforms);
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', `#include <common>
   attribute vec2 fac; attribute vec4 inf; attribute vec3 ext; attribute float bid; attribute float srcCode;
@@ -451,6 +454,7 @@ window.OEBuildings = (function () {
   varying vec3 vWPos; varying vec3 vWNrm; varying vec4 vGrid; varying vec4 vLook;
   ${photoGrade || 'vec3 photoGrade(vec3 c) { return c; }'}
   ${night || 'vec3 streetLight(vec3 wp) { return vec3(0.0); }'}
+  ${pool ? `#define OE_POOL\n${pool.glsl}` : ''}
   // a pixel's footprint along a coordinate: the length of its screen gradient (fwidth's sum of
   // the two runs up to 1.4 times wider and would blur the windows more than they need)
   float footprint(float x) { return max(length(vec2(dFdx(x), dFdy(x))), 1e-4); }
@@ -879,6 +883,10 @@ window.OEBuildings = (function () {
   // the street lights on the lower floors: the light on the pavement in front of the wall, fading
   // up the facade from the lamps' height, less on glass, which shows the room behind it instead
   if (kind < 1.5) emitB += diffuseColor.rgb * streetLight(vWPos + vec3(N.x, 0.0, N.z) * 2.5) * exp(-max(vFac.y - 2.0, 0.0) / 9.0) * (1.0 - 0.6 * glass);
+#ifdef OE_POOL
+  // and on the low tier the screens' pool on that pavement, half of it on a wall (the hemisphere's share), as the lamps' fades
+  if (kind < 1.5) emitB += diffuseColor.rgb * oePoolAt(vWPos + vec3(N.x, 0.0, N.z) * 2.5) * 0.5 * exp(-max(vFac.y - 2.0, 0.0) / 9.0) * (1.0 - 0.6 * glass);
+#endif
   float win = glass;
   if (uMode > 0.0) { // colour by height source; the viewer fades it in and out (0..1)
     diffuseColor.rgb = mix(diffuseColor.rgb, vSrc < 0.5 ? uC0 : (vSrc < 1.5 ? uC1 : (vSrc < 2.5 ? uC2 : vec3(0.8))), uMode);
@@ -896,7 +904,7 @@ window.OEBuildings = (function () {
   reflectedLight.indirectSpecular *= mix(aoW, 1.0, glass * 0.5);
   reflectedLight.directDiffuse *= mix(1.0, aoW, 0.35);`);
     };
-    mat.customProgramCacheKey = () => `oe-facade-9${night ? '-night' : ''}`;
+    mat.customProgramCacheKey = () => `oe-facade-9${night ? '-night' : ''}${window.OENeon && OENeon.lowPool ? '-pool' : ''}`;
     return mat;
   }
 

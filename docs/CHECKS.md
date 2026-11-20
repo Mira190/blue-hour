@@ -36,8 +36,8 @@ The way in waits for the level the player stands in (`web/game/game.js` `holdFor
 it can, and reads the veil, the level and the camera every fifth of a second; it fails if the camera reaches the player
 before the level is drawn while the veil is down, or if the wait runs past its bound (6 s). `CRANE=1` takes the crane
 down from the title instead (`?overture=0`, reduced motion); `BOUND=200` gives the page a bound longer than a software
-renderer takes to make the level ready (it is queued behind the opening's own shaders here, some 80 s), to see the veil
-lift once the level is drawn. Run when the way into the story or a hero level's loading changes. A phone's light on the
+renderer takes to make the level ready (before issue 69 it was queued behind the title's other warm-ups here, some 100 s), to see the veil
+lift once the level is drawn; `DELAY=0 LOG=1` prints the page's compiles and the level's warm-up steps as they finish (with the level put first, issue 69, it is ready before the skip here and no veil comes up). Run when the way into the story or a hero level's loading changes. A phone's light on the
 corner after dark (`web/neon.js` `pooled`) is looked at in stills: `tools/game_shot.js shibuya
 tools/views/corner-night-62.json out [390x844 with LEAN=1]`, beside the desktop's; `game_shot.js` now waits for a hero
 level that is loading before a still, which on the low tier here is half a minute (before, a phone's stills of the
