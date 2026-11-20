@@ -10,7 +10,7 @@
   {"id": "w_open", "dur": 3.0, "type": "card",
    "text": [{"kind": "card", "at": 0.1, "until": 0.92, "eyebrow": "Tokyo · 35.66° N 139.70° E", "text": "Shibuya", "big": true, "fade": 0.7}]},
 
-  {"id": "w_air", "dur": 6.5, "type": "move", "from": [250.0, -1300.0, 360.0, "abs"], "to": [330.0, -1235.0, 330.0, "abs"], "look": [500.0, -1080.0, 40.0, "abs"], "fov": 38, "ease": "inOut",
+  {"id": "w_air", "dur": 6.5, "type": "move", "from": [290.0, -1335.0, 300.0, "abs"], "to": [370.0, -1275.0, 278.0, "abs"], "look": [530.0, -1050.0, 110.0, "abs"], "fov": 40, "ease": "inOut", "grade": {"ev": 0.35},
    "time": {"light": "night", "plus": 10}, "fadeIn": 1.2, "stand": [372.0, -1002.0, 0],
    "text": [{"kind": "stamp", "at": 0.2, "until": 0.9, "text": "Shibuya, Tokyo", "line": "after dark"}]},
 
@@ -41,16 +41,16 @@
   {"id": "w_rain", "dur": 4.5, "type": "move", "from": [388.0, -1020.0, 9.0], "to": [386.5, -1018.0, 8.0], "look": [355.0, -978.0, 4.0], "fov": 40, "ease": "linear", "time": {"light": "night", "plus": 15},
    "weather": "rain", "crowd": "muster", "signal": [[0, "green"]], "preroll": 3.0, "stand": [372.0, -1002.0, 0], "clear": [30, 10, 3.0], "blur": 0.2},
 
-  {"id": "w_storm", "dur": 4.0, "type": "move", "from": [364.0, -990.0, 84.0], "to": [367.0, -994.0, 82.0], "look": [580.0, -1150.0, 140.0, "abs"], "fov": 44, "time": {"light": "night", "plus": 20},
+  {"id": "w_storm", "dur": 4.0, "type": "move", "from": [364.0, -990.0, 84.0], "to": [367.0, -994.0, 82.0], "look": [580.0, -1150.0, 140.0, "abs"], "fov": 44, "time": {"light": "night", "plus": 20}, "grade": {"ev": 0.3},
    "weather": "storm", "strikes": [[0.22, {"dist": 1500, "bearing": 128, "ground": true}], [0.7, {"dist": 2600, "bearing": 112, "ground": false}]], "stand": [372.0, -1002.0, 0]},
 
   {"id": "w_heli", "dur": 4.0, "type": "move", "from": [330.0, -1210.0, 212.0, "abs"], "to": [400.0, -1176.0, 216.0, "abs"], "fov": 34, "ease": "linear", "time": {"light": "night", "plus": 25},
    "heli": {"from": [330.0, -1168.0, 214.0, 62, 6, -6], "to": [440.0, -1110.0, 220.0, 62, 6, -6]}, "lookHeli": true, "stand": [372.0, -1002.0, 0], "blur": 0.4},
 
-  {"id": "w_sky", "dur": 6.5, "type": "move", "from": ["@shibuya_sky", -8.0, 18.0, 1.7], "to": ["@shibuya_sky", -26.0, 42.0, 5.0], "lookFrom": ["@scramble", -500, 420, 140], "lookTo": ["@scramble", 0, 0, 0], "fov": [44, 52], "ease": "inOut", "time": {"light": "night", "plus": 30},
+  {"id": "w_sky", "dur": 6.5, "type": "move", "from": ["@shibuya_sky", -8.0, 18.0, 1.7], "to": ["@shibuya_sky", -26.0, 42.0, 5.0], "lookFrom": ["@scramble", -500, 420, 140], "lookTo": ["@scramble", 0, 0, 0], "fov": [44, 52], "ease": "inOut", "time": {"light": "night", "plus": 30}, "grade": {"ev": 0.3},
    "stand": ["@shibuya_sky", -8.0, 20.0, 0]},
 
-  {"id": "w_finale", "dur": 9.5, "type": "orbit", "at": ["@scramble", 0, 0, 0], "az": [150, 206], "dist": [80, 820], "h": [52, 600], "fov": [42, 36], "ease": "inOut", "time": {"light": "night", "plus": 35},
+  {"id": "w_finale", "dur": 9.5, "type": "orbit", "at": ["@scramble", 0, 0, 0], "az": [150, 206], "dist": [80, 820], "h": [52, 600], "fov": [42, 36], "ease": "inOut", "time": {"light": "night", "plus": 35}, "grade": {"ev": [[0, 0.1], [1, 0.35]]},
    "crowd": "muster", "signal": [[0, "green"]], "preroll": 3.0, "fadeOut": 0.6},
 
   {"id": "w_hush", "dur": 0.8, "type": "card", "text": []},
