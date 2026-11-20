@@ -8,6 +8,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/guide_body.js out_dir [WxH]
 const { chromium } = require('playwright');
+const { watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { startPlay } = require('./start_play');
 const [,, out = '/tmp/guide-body', size = '1440x900'] = process.argv;
@@ -15,6 +16,7 @@ const [,, out = '/tmp/guide-body', size = '1440x900'] = process.argv;
   const [w, h] = size.split('x').map(Number), phone = w < 600;
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
+  watchPage(p);
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });

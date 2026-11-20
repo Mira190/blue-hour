@@ -107,6 +107,17 @@ prints its own runner. Nobody waits for it.
 - Each browser shard prints which renderer it got (`tools/gl_renderer.js`): llvmpipe, or SwiftShader when the GL
   backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled are kept
   from one run to the next (`actions/cache`).
+- The browser shards run on `ubuntu-24.04`, whose Mesa (25.2) is a session's machine's, where each check's waits were
+  measured. `ubuntu-latest` became Ubuntu 26.04 in November 2026 (Mesa 26.0, LLVM 21), and main went red for a day
+  and a half without a step named (issue 49): there the desktop page's walk at night in the rain had not set out in
+  ten minutes against three, and the clip check's page lost its WebGL context in its first half minute, run after
+  run. Moving to a newer image is a change of its own, with every shard run on it by hand first
+  (`workflow_dispatch` with the targets `all guide`).
+- A browser check's log says what the browser said (`tools/browser_watch.js`): `gl:` the page's lost and restored
+  contexts, `page:` the page loading again by itself or glcare's note, and `gpu:` what Chromium and its GPU process
+  wrote in their own log about the GPU (kept whole as `<check>-chrome.log` beside the check's log, in the run's
+  artifacts). A click or a still waits three minutes for the page, not Playwright's thirty seconds. When a harness
+  dies with no step named, check.sh's line gives the error it died of.
 
 **By name only: `game`.** `tools/game_check.js` was written for the game before the story: some 260
 steps of one scenario, half an hour on a software renderer. Its steps for what was removed (fishing,
@@ -141,6 +152,10 @@ fails, it is run a second time, and the run fails only on a step that failed bot
 that ended without naming a step (a crash, a timeout). Two runs with no failed step in common print
 `FLAKY` and pass. On main, each `FLAKY` line is added to the issue labelled `check-flaky`: a step
 that is named there often is the one to make steady.
+
+A step that acts and then reads waits for what it reads, not for a fixed time (`tools/walk_play.js` `until`,
+`pressFor`): on a slow runner the desktop walk read Back's state 2.5 s after the press, a frame before Back was
+drawn, and every beat after it failed (issue 49). A press whose state has not come in 20 s is measured and made again.
 
 The free game plays the same game in every run: the traffic's trips, the dispatch's tie-breaks and
 the talk draw from seeded runs, the date is pinned (the weather is a hash of it), and nothing a held
