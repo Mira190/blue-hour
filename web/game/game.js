@@ -7409,7 +7409,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const hx = Math.sin(fp.yaw), hy = Math.cos(fp.yaw), cp = Math.cos(fp.pitch);
       // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
       // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
-      const eye = W(player.x + hx * (hold ? hold[0] : 0.12), player.y + hy * (hold ? hold[0] : 0.12), fp.eyeZ);
+      // (and held out as a photographer presses the lens to the glass: to the roof's edge along its heading and a hand's
+      // breadth past it, never nearer than hold's own reach. From that reach alone, a player standing a pace back from
+      // the glass had the parapet's ledge and the light along its foot under the lens, and frame 4's dome came out with a
+      // white veil over the lower half of the finder and of the print)
+      let reach = hold ? hold[0] : 0.12;
+      if (hold) for (let d = hold[0]; d <= hold[0] + 2.5; d += 0.1) if (nav.groundBelow(player.x + hx * d, player.y + hy * d, player.z + 0.6) < player.z - 2) { reach = d + 0.15; break; }
+      fp.reach = hold && fp.reach != null ? fp.reach + (reach - fp.reach) * (1 - Math.exp(-dt / 0.12)) : reach;
+      const eye = W(player.x + hx * fp.reach, player.y + hy * fp.reach, fp.eyeZ);
       fpUp.copy(eye).add(fpDir.set(hx * cp, Math.sin(fp.pitch), -hy * cp));
       // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
       // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it).

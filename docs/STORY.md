@@ -810,6 +810,12 @@ deduction, and nothing stands on it until the player asks:
 
 Tonight the old man stands on his blossom all evening, looking at the crossing, so what Shun says of him is seen.
 
+Frame 4's camera is held out over the glass (`task.hold`), as a photographer presses the lens to it and points it down:
+the lens goes to the roof's edge along its heading and a hand's breadth past it (`web/game/game.js`, the finder's
+`reach`), never nearer than the hold's own 0.9 m. With the 0.9 m alone, a player who stood a pace back from the glass had
+the parapet's ledge and the light along its foot under the lens, and the frame (and its print) came out with a white veil
+over its lower half (November 2026).
+
 A place to be found is a thing in the street a player can walk up to and know (a stone flower in the paving, a man at
 the glass, a kerb in a print), and it is in the story for a reason of the story's: the old man's blossom is where the
 man stood who gave a boy a camera; the roof's glass is where the dead man looks; the kerb is where Akira stood for one
