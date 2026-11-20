@@ -6,7 +6,7 @@
 // marks "phone": true. A second or so.
 //   node tools/goals_check.js [--strict] [city ...]
 'use strict';
-const fs = require('fs'), path = require('path'), { execSync } = require('child_process');
+const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const GOALS = require('../web/game/goals.js');
 const ROOT = path.join(__dirname, '..');
 const args = process.argv.slice(2), strict = args.includes('--strict'), named = args.filter(a => !a.startsWith('--'));
@@ -82,7 +82,7 @@ const world = o => Object.assign({ mode: 'foot', x: 0, y: 0, floor: null, sunSta
 }
 
 // ---- every live map's own goals
-const live = named.length ? named : execSync('tools/live_cities.sh', { cwd: ROOT }).toString().split('\n').filter(Boolean);
+const live = named.length ? named : execFileSync('bash', ['tools/live_cities.sh'], { cwd: ROOT, encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
 for (const id of live) {
   const G = JSON.parse(fs.readFileSync(path.join(ROOT, 'web/data', id, 'game.json'), 'utf8'));
   const city = JSON.parse(fs.readFileSync(path.join(ROOT, 'cities', id, 'city.json'), 'utf8'));

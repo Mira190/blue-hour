@@ -1,0 +1,5 @@
+[
+ {"name": "owner-dusk", "at": [376.9, -1013.1], "look": [368.0, -1000.0], "time": "sunset+40", "dist": 9, "pitch": 0.8},
+ {"name": "owner-night", "at": [376.9, -1013.1], "look": [368.0, -1000.0], "time": "21:00", "dist": 9, "pitch": 0.8},
+ {"name": "qfront-night", "at": [376.9, -1013.1], "look": [358.8, -985.5], "time": "21:00", "dist": 7, "pitch": 0.25}
+]
