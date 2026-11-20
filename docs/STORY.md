@@ -933,6 +933,22 @@ where there is room, round the edge of the crowd where there is not, never throu
 turn he got nowhere in a crowd shoulder to shoulder, and after a second went through them. `tools/guide_meet.js`
 checks every frame of his way against every held person, and runs after him to see that he stays in front.
 
+**His body and yours never share ground.** The owner saw him in the player's legs. He was steered round the player
+only while he led or kept at heel, as a pull on his way, and never held off them otherwise; and the player's own
+collision (walls, posts, cars, the crowd) did not count him at all, so they walked through him where he sat beside the
+camera's light. Now, in every state, each frame, if the player's circle (0.35 m, their arms' swing in it) reaches his
+body he is moved off it along the way out from them, as a walker steps, never into a wall (`companion.js` `keepOff`);
+sitting, he gets up, walks a pace aside out of the way they are going and sits again looking where he looked. The player
+has the right of way: only where a wall holds him and he cannot move do they stop at his flank (`game.js`, `jammed`).
+His body is a capsule along his length, and it is measured from the model as it loads (its bounds in its own frame at
+its scale), as is his reach for posts and belts (`reach`, which game.js's `GUIDE_BODY` stood for): another dog, or
+another animal, is held off the player by its own size, and nothing in the code names the Akita's. `tools/guide_body.js`
+(the `guide` target of `tools/check.sh`, which runs when `companion.js` or a model in `web/assets/animals/` changes)
+walks, runs and sprints the player into him from four sides while he sits, circles and turns with him at heel, runs past
+him while he leads and pushes him against a wall, and judges every step twice: his capsule against the player's circle,
+and his model as the frame's clip poses it (every third vertex) against their torso, so that a new model or a clip that
+throws a leg out is judged by its geometry.
+
 **He leads down the middle, on what is drawn.** The owner found him standing on his ring in the air over the stair
 well of the Shibuchika entrance by Hachiko, beside the station works' hoarding, and leading along walls and edges
 rather than down the walkway. Two causes, both under every place he and the player stand. The walking grid carried
