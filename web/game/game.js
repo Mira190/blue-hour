@@ -3406,6 +3406,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const b = gd.body;
     return [a[0][0], a[0][1], a[1][0], a[1][1], (b && b.flank) || 0.2, gd.z];
   };
+  // whether the guide moved from (x0, y0) to (x1, y1) keeps his spine clear of the crowd as it is drawn: a step that comes
+  // within his flank and a shoulder of someone, closer than he was, is not taken (one away from them always is)
+  const guideClear = (x0, y0, x1, y1) => {
+    const g = guideSeg();
+    if (!g || !crowd || !crowd.P || (x0 === x1 && y0 === y1)) return true;
+    const ox = x1 - x0, oy = y1 - y0, need = g[4] + 0.3;
+    const room = (ax, ay, bx, by, x, y) => { const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, t = L2 > 1e-9 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)) : 0; return Math.hypot(ax + dx * t - x, ay + dy * t - y); };
+    for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+      const q = crowd.P[i];
+      if (!(q.line >= 0 || q.pz) || (crowdDraw && !crowdDraw.shows(i))) continue;
+      const x = q.rx ?? q.x, y = q.ry ?? q.y;
+      if (Math.abs(x - x1) > 2.5 || Math.abs(y - y1) > 2.5 || Math.abs((q.rz ?? q.z ?? g[5]) - g[5]) > 1.5) continue;
+      const after = room(g[0] + ox, g[1] + oy, g[2] + ox, g[3] + oy, x, y);
+      if (after < need && after < room(g[0], g[1], g[2], g[3], x, y) - 1e-4) return false;
+    }
+    return true;
+  };
   // for tools/story_play.js, which sets window.__bodies to an array: each time one of the crowd is drawn (near or far
   // copy) within 0.45 m of one of the story's people, the player or the guide (no: an NPC), on the same level, who and where
   // and when, once while it lasts with the closest it came (issue 65)
@@ -3415,7 +3432,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!crowd || !crowd.P || B.length > 300) return;
     const who = [];
     if (player.mode === 'foot' && player.rig.root.visible) who.push(['you', player.x, player.y, player.x, player.y, player.z, 0]);
-    for (const f of storyFigs) if (!(f.rig && f.rig.root && !f.rig.root.visible)) who.push([f.name || f.id, f.x, f.y, f.x, f.y, f.z, 0]);
+    for (const f of storyFigs) { f.seen = (f.seen || 0) + 1; if (!(f.rig && f.rig.root && !f.rig.root.visible)) who.push([`${f.name || f.id}${f.seen < 30 ? ` (put there ${f.seen} frames before)` : ''}`, f.x, f.y, f.x, f.y, f.z, 0]); }
     const g = guideSeg();
     if (g) who.push(['guide', g[0], g[1], g[2], g[3], g[5], g[4] - 0.2]); // (from his spine less the flank a person's own centre to its edge is held to)
     for (const q of npcs) if (!(q.rig && q.rig.root && !q.rig.root.visible)) who.push([`npc ${q.name || q.id}`, q.x, q.y, q.x, q.y, q.z, 0]);
@@ -3430,10 +3447,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const dx = w[3] - w[1], dy = w[4] - w[2], L2 = dx * dx + dy * dy, t = L2 > 1e-9 ? Math.max(0, Math.min(1, ((x - w[1]) * dx + (y - w[2]) * dy) / L2)) : 0;
         const d = Math.hypot(w[1] + dx * t - x, w[2] + dy * t - y) - w[6];
         if (d >= 0.45) continue;
-        const key = `${w[0]}|${i}`; now.add(key);
+        const key = `${w[0].replace(/ \(put there.*$/, '')}|${i}`; now.add(key);
         const e = bodiesOn.get(key);
         if (e) { if (d < e.d) e.d = +d.toFixed(3); e.n++; }
-        else { const r = { who: w[0], crowd: i, d: +d.toFixed(3), at, x: +x.toFixed(2), y: +y.toFixed(2), ph: q.pz ? q.ph : 'footway', n: 1 }; bodiesOn.set(key, r); B.push(r); }
+        else { const r = { who: w[0], crowd: i, d: +d.toFixed(3), at, x: +x.toFixed(2), y: +y.toFixed(2), ph: `${q.pz ? q.ph : 'footway'}${Math.hypot(q.x - x, q.y - y) > 0.05 ? `, drawn ${Math.hypot(q.x - x, q.y - y).toFixed(2)} m behind` : ''}`, n: 1 }; bodiesOn.set(key, r); B.push(r); }
       }
     }
     for (const k of bodiesOn.keys()) if (!now.has(k)) bodiesOn.delete(k);
@@ -3558,7 +3575,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and its body kept off every post, belt and trunk: the walker's circle is at its middle, and its nose and rump
     // reach GUIDE_BODY from there whichever way it turns; a queue belt passed through it at the lift's doors)
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
-    slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), r = guideReach(g), c = OECars.pushOut(m.x, m.y, z, r, carBoxes(m.x, m.y, 4)), o = posts.pushOut(c.x, c.y, r, z); return nav.walk(o.x, o.y, z, true).ok ? o : { x, y }; },
+    // (and never a step that takes his body into one of the crowd, issue 65: he waits, and they step aside for him, crowdKeep)
+    slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), r = guideReach(g), c = OECars.pushOut(m.x, m.y, z, r, carBoxes(m.x, m.y, 4)), o = posts.pushOut(c.x, c.y, r, z); return nav.walk(o.x, o.y, z, true).ok && guideClear(x, y, o.x, o.y) ? o : { x, y }; },
     stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, guideReach(g), z).hit && !OECars.pushOut(x, y, z, guideReach(g), carBoxes(x, y, 4)).hit,
     // (the Scramble's own crowd too, q.pz: waiting at its kerbs, out crossing, standing about the square. They are kept on
     // no footway line, and he walked into the waiters at Sumiko's kerb as if nobody stood there, issue 65)
