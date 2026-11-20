@@ -72,10 +72,10 @@ window.OETrailerScore = (function () {
       // the city's air: a low rumble of traffic, a murmur of the crowd, a lift of the screens' hum
       city(t, e) {
         const dur = T(e.until) - t, g = gainNode(0);
-        const r = src(brown, t, dur), lp = filt('lowpass', 420), lh = filt('highpass', 70), rg = gainNode(0.35); r.connect(lh); lh.connect(lp); lp.connect(rg); rg.connect(g);
+        const r = src(brown, t, dur), lp = filt('lowpass', 420), lh = filt('highpass', 80), rg = gainNode(0.2); r.connect(lh); lh.connect(lp); lp.connect(rg); rg.connect(g);
         const m = src(pink, t, dur), bp = filt('bandpass', 650, 0.6), am = gainNode(0.5), lfo = osc('sine', 0.23, t, dur); const lg = gainNode(0.3); lfo.connect(lg); lg.connect(am.gain);
         m.connect(bp); bp.connect(am); am.connect(g);
-        const hp = src(white, t, dur), hf = filt('bandpass', 5200, 0.8), hg = gainNode(0.05); hp.connect(hf); hf.connect(hg); hg.connect(g);
+        const hp = src(white, t, dur), hf = filt('bandpass', 5200, 0.8), hg = gainNode(0.11); hp.connect(hf); hf.connect(hg); hg.connect(g);
         env(g, t, [[0, 0], [e.fade ?? 2, e.gain ?? 0.22], [dur - (e.fadeOut ?? 1), e.gain ?? 0.22], [dur, 0]]);
         out(g, { to: cityGain, room: 0.15 });
       },

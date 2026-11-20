@@ -121,12 +121,12 @@ window.OETrailer = (function () {
 .tr-card span { display: block; font: 200 4.6em/1.12 "Zalando Sans Expanded", sans-serif; letter-spacing: var(--ls, 0.3em); margin-right: calc(-1 * var(--ls, 0.3em)); text-transform: uppercase; text-shadow: 0 0 2.4em rgba(120, 150, 255, 0.25), 0 0.2em 3em rgba(0, 0, 0, 0.8); }
 .tr-card span.big { font-size: 6.4em; }
 .tr-card span.jp { font: 500 3.4em/1.3 "Shippori Mincho", serif; letter-spacing: 0.4em; margin-right: -0.4em; text-transform: none; }
-.tr-card em { display: block; margin-top: 1.8em; font: italic 300 2.2em/1.3 "Newsreader", serif; color: rgba(244, 241, 234, 0.82); letter-spacing: 0.02em; }
+.tr-card em { display: block; margin-top: 1.8em; font: 400 2.2em/1.3 "Newsreader", serif; font-style: normal; color: rgba(244, 241, 234, 0.82); letter-spacing: 0.02em; }
 .tr-over { background: radial-gradient(ellipse 55% 40% at 50% 50%, rgba(2, 4, 12, 0.55), rgba(2, 4, 12, 0) 100%); }
 .tr-sub { place-items: end center !important; padding-bottom: 9vh; text-align: center; }
 .tr-sub div { color: var(--paper); text-shadow: 0 0.1em 1.2em #000, 0 0 0.25em rgba(0,0,0,0.9); }
 .tr-sub b { display: block; font: 500 2.9em/1.3 "Shippori Mincho", serif; letter-spacing: 0.24em; margin-right: -0.24em; color: var(--cold); }
-.tr-sub i { display: block; margin-top: 0.4em; font: italic 300 2.9em/1.3 "Newsreader", serif; }
+.tr-sub i { display: block; margin-top: 0.4em; font: 400 2.9em/1.3 "Newsreader", serif; font-style: normal; letter-spacing: 0.01em; }
 .tr-sub i.warm { color: var(--amber); }
 .tr-sub i.cold { color: #9fc4ff; }
 .tr-stamp { place-items: end start !important; padding: 0 0 7vh 5.5vw; }
@@ -152,13 +152,13 @@ window.OETrailer = (function () {
 .tr-end { text-align: center; color: var(--paper); }
 .tr-end .t { font: 200 6.4em/1 "Zalando Sans Expanded", sans-serif; letter-spacing: 0.36em; margin-right: -0.36em; text-transform: uppercase; text-shadow: 0 0 1em rgba(120, 150, 255, 0.35); }
 .tr-end small { display: block; margin-top: 3em; font: 400 1.3em/1 "JetBrains Mono", monospace; letter-spacing: 0.5em; margin-right: -0.5em; text-transform: uppercase; color: var(--amber); }
-.tr-end p { margin: 1.6em 0 0; font: 300 1.9em/1.5 "Inter Tight", sans-serif; letter-spacing: 0.08em; color: rgba(244, 241, 234, 0.78); }
+.tr-end p { margin: 1.6em 0 0; font: 400 1.9em/1.5 "Inter Tight", sans-serif; letter-spacing: 0.08em; color: rgba(244, 241, 234, 0.78); }
 .tr-end p.url { margin-top: 2.4em; font: 400 1.35em/1 "JetBrains Mono", monospace; letter-spacing: 0.3em; color: rgba(244, 241, 234, 0.9); }
 `;
     document.head.appendChild(st);
     ov = document.createElement('div');
     ov.id = 'tr-ov';
-    ov.innerHTML = '<div id="tr-vig"></div><div id="tr-text"></div><div id="tr-white"></div><div id="tr-black"></div>';
+    ov.innerHTML = '<div id="tr-vig"></div><div id="tr-black"></div><div id="tr-text"></div><div id="tr-white"></div>'; // (the type over the black of a card)
     // (the Stop's veil multiplies the picture under it: it must be in the page's own stacking context, beside the
     // stage, not inside the overlay's, where it had only the overlay's empty backdrop and laid a pale blue fog over all)
     const veil = document.createElement('div');
@@ -268,6 +268,7 @@ window.OETrailer = (function () {
     throw new Error(`trailer: nobody called ${who}`);
   }
   function clearStage() {
+    for (const q of hiddenNpcs.splice(0)) if (q.rig && q.rig.root) q.rig.root.visible = true;
     for (const f of staged) f.remove();
     staged = [];
     if (relic) { relic.remove(); relic = null; }
@@ -359,6 +360,20 @@ window.OETrailer = (function () {
       let da = Math.atan2(dx, dy) - ax; da = Math.atan2(Math.sin(da), Math.cos(da));
       if (d < near || (d < R && Math.abs(da) < ha * RAD)) { q.x = ex - Math.sin(ax) * (40 + n); q.y = ey - Math.cos(ax) * (40 + n); n += 1.5; }
     }
+    // and the map's own people standing there (game.npcs, not the crowd): out of sight for the shot
+    for (const q of G.npcs || []) {
+      if (!q.rig || !q.rig.root) continue;
+      const dx = q.x - ex, dy = q.y - ey, d = Math.hypot(dx, dy);
+      let da = Math.atan2(dx, dy) - ax; da = Math.atan2(Math.sin(da), Math.cos(da));
+      if (d < near || (d < R && Math.abs(da) < ha * RAD)) { q.rig.root.visible = false; hiddenNpcs.push(q); }
+    }
+  }
+  const hiddenNpcs = [];
+  // "clearAround": [point, r]: nobody of the crowd within r of there (round someone the shot is of)
+  function clearAround([p, r]) {
+    const c = point(p), ex = pose.pos.x, ey = -pose.pos.z, ax = Math.atan2(pose.look.x - ex, -pose.look.z - ey);
+    let n = 0;
+    for (const q of G.crowd.P.slice(0, G.crowd.active)) if (Math.hypot(q.x - c[0], q.y - c[1]) < r) { q.x = ex - Math.sin(ax) * (60 + n); q.y = ey - Math.cos(ax) * (60 + n); n += 1.5; }
   }
   // a shot begins: the clock, the weather, the player (out of sight, where the map is to be built), the crowd, the cast
   function enter(s) {
@@ -375,6 +390,7 @@ window.OETrailer = (function () {
     if (s.crowd) placeCrowd(s.crowd, [pose.pos.x, -pose.pos.z]);
     else if (G.crowd) G.crowd.active = G.crowd.P.length;
     if (s.clear) clearWedge(s.clear);
+    if (s.clearAround) clearAround(s.clearAround);
     if (s.clear_cars && G.cars && G.cars.clearBox) { const c = point(s.clear_cars); G.cars.clearBox(c[0], c[1], s.clear_cars[3] || 30); }
     if (s.train && G.rail && G.rail.cue) G.rail.cue(G.rail.sNear(s.train.at[0], s.train.at[1]), s.train.in ?? 6, s.train.dir || 0);
     if (G.heli) { if (s.heli) { G.heli.want(); G.heli.show(); heliPut(s.heli); } }
@@ -395,7 +411,7 @@ window.OETrailer = (function () {
     } else if (s.type === 'move') {
       pose.pos.lerpVectors(Wp(point(s.from)), Wp(point(s.to)), e(k));
       if (s.look) pose.look.copy(Wp(point(s.look)));
-      else pose.look.lerpVectors(Wp(point(s.lookFrom)), Wp(point(s.lookTo)), e(k));
+      else if (s.lookFrom) pose.look.lerpVectors(Wp(point(s.lookFrom)), Wp(point(s.lookTo)), e(k));
     } else if (s.type === 'path') {
       const P = s.path.map(point), u = e(k);
       pose.pos.copy(Wp(curve(P, u)));
@@ -539,8 +555,13 @@ window.OETrailer = (function () {
   function restage() { if (cur && cur.type !== 'card') { stage(cur); } }
 
   function setDt(fps) { frameDt = 1 / fps; }
+  // the type's faces loaded before the first card (a face is fetched when first used: the card's first frames were the fallback's)
+  function fonts() {
+    const want = ['200 40px "Zalando Sans Expanded"', '400 20px "JetBrains Mono"', '400 30px "Newsreader"', '500 30px "Shippori Mincho"', '400 20px "Inter Tight"'];
+    return Promise.all(want.map(f => document.fonts.load(f, 'BLUE HOUR 遅かったね 渋谷 忠犬ハチ公 センター街').catch(() => null))).then(r => r.map(x => (x ? x.length : 0)));
+  }
   // after the world's moment to settle (tools/trailer.js settle): the lens's wedge cleared again, of whoever walked in
-  function settled() { if (cur && cur.clear && cur.type !== 'card') { shotPose(cur, 0); clearWedge(cur.clear); } }
+  function settled() { if (cur && cur.type !== 'card') { shotPose(cur, 0); if (cur.clear) clearWedge(cur.clear); if (cur.clearAround) clearAround(cur.clearAround); } }
   // the next apply() begins its shot afresh
   function reset() { cur = null; clearStage(); stopOn = false; if (sfx) sfx.release(); G.hold(false); }
   // on to film time t within the shot begun, the frames between not drawn: their cues fired, the cast moved on and
@@ -553,5 +574,5 @@ window.OETrailer = (function () {
     catchUp();
     return apply(t);
   }
-  return { setup, apply, seek, reset, ready, waiting, settled, draw: on => { drawing = on !== false; }, restage, setDt, point, get total() { return total; }, get shots() { return shots; }, EASE };
+  return { setup, apply, seek, reset, ready, waiting, settled, fonts, draw: on => { drawing = on !== false; }, restage, setDt, point, get total() { return total; }, get shots() { return shots; }, EASE };
 })();

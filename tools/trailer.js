@@ -63,6 +63,7 @@ async function open() {
   await p.addScriptTag({ path: path.join(__dirname, 'trailer', 'director.js') });
   const info = await p.evaluate(s => window.OETrailer.setup(s), spec);
   await p.evaluate(fps => window.OETrailer.setDt(fps), FPS);
+  console.log(`  type faces: ${JSON.stringify(await p.evaluate(() => window.OETrailer.fonts()))}`);
   await p.evaluate(() => window.__vt.start());
   console.log(`${spec.name}: ${info.total.toFixed(1)} s, ${info.shots.length} shots`);
   return { b, p, errs };
