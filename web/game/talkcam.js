@@ -178,6 +178,9 @@ window.OETalkCam = (function () {
         const [d, t] = toAxis(q.c, q.at, b.x, b.y);
         if (d < BODY_R + 0.35 && t > -0.05 && t < 0.98) out.push(b.crowd);
       }
+      // (and whoever of the crowd has come within RING of the face since the cut: the crowd keeps clear of the one a talk
+      // is with, game.js crowdKeep, but one pressed there by others in a long shot was left drawn at her shoulder, issue 65)
+      for (const b of bodies(q.at[0], q.at[1], RING + 0.5)) if (b.crowd != null && Math.hypot(b.x - q.at[0], b.y - q.at[1]) < RING) out.push(b.crowd);
       return out;
     }
     // what stands between the lens and the face now, for the harness: null when clear. undrawn: the crowd's people not

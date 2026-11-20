@@ -25,6 +25,10 @@
 // the log); with TRACE=1, a trace of the browser's processes instead (trace.json); GLCOUNT=1 counts the WebGL calls made
 // in frames not drawn and outside the frames; GPUCOST=still times a frame drawn whole after that still (#70). TASKS=0: every frame waits for the display, as it did before; HOLD=0: the
 // frames run on, drawn whole, while a still is taken.
+// Bodies (issue 65): every frame of the play, the game notes each of the crowd drawn (near or far copy) within 0.45 m of one
+// of the story's people, the player or the guide (game.js bodiesCheck); any one fails the play. One within that of a map's
+// NPC is printed, not failed; and so is each time the game's last guard (game.js bodiesGuard) had to move one of the crowd
+// out of someone and leave it undrawn for a frame, where its steering had not kept it clear.
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
@@ -43,6 +47,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   const DRAW = +(process.env.DRAW || 0);
   if (DRAW > 1) await p.addInitScript(([n, tasks, glcount]) => {
     const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0, drawn: 0, skipped: 0, steps: 0, js: 0, rendered: false, own: 0 };
@@ -625,6 +630,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (!done || q !== n) { errors.push(`frame ${n} entered again did not play to its print (${q} prints)`); console.log(errors[errors.length - 1]); }
       else { console.log(`frame ${n} entered again: played to its print`); await snap(`again-${n}-print`); }
     }
+  }
+  { // the crowd inside the story's people, the player or the guide, as the game noted it every frame (issue 65)
+    const B = await p.evaluate(() => window.__game ? window.__bodies || [] : []).catch(() => []);
+    const Gd = await p.evaluate(() => window.__guarded || []).catch(() => []);
+    for (const r of Gd.slice(0, 40)) console.log(`note guard: one of the crowd (${r.crowd}, ${r.ph}) moved out of ${r.who}, ${r.d} m from them, at ${r.at}, (${r.x}, ${r.y})`);
+    console.log(`guard: the last guard moved ${Gd.length} of the crowd out of someone not of it${Gd.length ? ` (${[...new Set(Gd.map(r => r.at))].slice(0, 6).join('; ')})` : ''}`);
+    for (const r of B) console.log(`${r.who.startsWith('npc ') ? 'note' : 'FAIL'} bodies: one of the crowd (${r.crowd}, ${r.ph}) ${r.d} m from ${r.who} at ${r.at}, (${r.x}, ${r.y}), ${r.n} frames`);
+    const hard = B.filter(r => !r.who.startsWith('npc '));
+    if (hard.length) errors.push(`bodies: ${hard.length} times one of the crowd was drawn inside someone not of it (${[...new Set(hard.map(r => r.who))].join(', ')})`);
+    else console.log(`bodies: nobody of the crowd drawn within 0.45 m of the story's people, the player or the guide${B.length ? ` (${B.length} near a map's NPC)` : ''}`);
   }
   for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`stills: ${ST.n}, ${(ST.whole / 1000).toFixed(0)} s drawing their frames whole, ${(ST.shot / 1000).toFixed(0)} s taking them`);
