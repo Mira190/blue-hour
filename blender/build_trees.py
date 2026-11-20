@@ -1243,19 +1243,22 @@ def bark_tint(tid, srgb_hex):
 
 def export_barks(ids):
     """Each bark scan the trees wear, for the page (web/assets/trees/bark/): its colour and its normal map (OpenGL's
-    green up, as three.js reads one) as WebP, at the scan's own size (1024 texels, Bark001 512 x 1024) and at half
-    it (_h) for a lighter tier. The page loads them after it can be played (trees.js loadNear)."""
+    green up, as three.js reads one) as WebP, at the scan's own size (1024 texels, Bark001 512 x 1024), and the
+    colour at a quarter of it (_q) for the light tier: a phone's trunk 3 m off is some 130 pixels across, a repeat of
+    its bark some 110, and 256 texels a repeat is still twice that. The light tier wears no normal map: in shade its
+    crevices' shade in the colour (bark_colour) shows the relief, and on a phone's screen that is most of what shows.
+    The page loads them after it can be played (trees.js loadNear)."""
     import hero_kit
     d = os.path.join(OUT, "bark")
     os.makedirs(d, exist_ok=True)
     for f in os.listdir(d):
-        if f.endswith(".webp") and f.split("_")[0].split(".")[0] not in ids:
+        if f.endswith(".webp") and (f.split("_")[0].split(".")[0] not in ids or f.endswith(("_h.webp", "_n_q.webp"))):
             os.remove(os.path.join(d, f))
     for tid in sorted(ids):
         hero_kit.TEXTURES.setdefault(f"tree_{tid}", (tid, BARKS[tid]["m"]))
         src = hero_kit.fetch_texture(f"tree_{tid}")
         for kind, im, q in (("", bark_colour(tid), 80), ("_n", Image.open(src["NormalGL"]).convert("RGB"), 88)):
-            for tag, k in (("", 1), ("_h", 2)):
+            for tag, k in (("", 1), ("_q", 4)) if kind == "" else (("", 1),):
                 out = im if k == 1 else im.resize((im.width // k, im.height // k), Image.LANCZOS)
                 out.save(os.path.join(d, f"{tid}{kind}{tag}.webp"), "WEBP", quality=q, method=6)
 
@@ -1429,7 +1432,7 @@ def main():
         "file": "trees.glb", "parts": {"far": "trees_far.glb", "near": "trees_near.glb", "hero": "trees_hero.glb"}, "lod_m": [130, 520],
         # the hero models (<species>_LODH) within this many metres of the camera, the light tier's within the second
         "hero_m": [42, 24],
-        "bark": {"dir": "bark/", "files": "<id>.webp colour, <id>_n.webp normal (OpenGL), _h at half size", "ids": barks,
+        "bark": {"dir": "bark/", "files": "<id>.webp colour, <id>_n.webp normal (OpenGL), <id>_q.webp the colour at a quarter size (the light tier's, without a normal map)", "ids": barks,
                  "tile": {k: [BARKS[k]["m"], BARKS[k]["aspect"]] for k in barks},
                  "source": "ambientCG (https://ambientcg.com), CC0 1.0"},
         "atlas": {"cells": CELLS, "columns": COLS, "rows": ROWS,

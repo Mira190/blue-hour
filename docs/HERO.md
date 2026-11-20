@@ -346,11 +346,18 @@ thing a real tree's make explains:
 - Limbs leave from inside the trunk's top metre, so that it forks into them: up to 40 cm of a limb's start was above
   the trunk before, a gap a close camera could see through.
 
-What it costs: the hero part (2.2 MB) and the bark scans (4.1 MB, 1.1 MB at half size on the light tier) come after the
-game can be played (`trees.js` `loadNear`, with the near models); until they do, the near model stands in and a texel
-of each scan's mean colour stands in for the scan, so the bark's program is the one compiled behind the loader and
-nothing is compiled when they come. On a phone the colour scans are packed for the GPU (`tex.js`) before they are
-worn; the normal maps stay as they are. `trees.js` `hero()` says how far the hero models are drawn, how many trees
+What it costs: the hero part (2.2 MB) and the bark scans (4.1 MB; on the light tier the colour alone at a quarter size,
+0.1 MB: a trunk 3 m off is some 130 pixels across and 256 texels a repeat of its bark are still twice what it shows,
+and in shade the crevices' shade in the colour shows its relief) come after
+the game can be played (`trees.js` `loadNear`, with the near models); until they do, the near model stands in and a
+texel of each scan's mean colour stands in for the scan, so the bark's program is the one compiled behind the loader
+and nothing is compiled when they come. On a phone the colour scans are packed for the GPU (`tex.js`) before they are
+worn; the normal maps stay as they are. A species' hero model holds only as many trees as stand within its reach (160,
+40 on the light tier; the rest are drawn as the near model), not every tree of the species as the other levels do, and
+is shown only while it draws one, so its model goes up to the GPU when one of its trees is first near. On the phone's
+memory check (`tools/mem_check.js`) the first build, with half-size scans and a hero model holding every tree, put the
+GPU's peak 22 MB higher, over the budget (287 MB of 270; main 265); with these, 270, and 268 without the light
+tier's normal maps. `trees.js` `hero()` says how far the hero models are drawn, how many trees
 draw them and whether the scans are in.
 
 Learned from, never copied:

@@ -345,7 +345,7 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
     const standIn = names.map(sp => !nodeOf(lib.gltf, sp, 0));
     // (the fourth, the hero models within a few tens of metres, empty until they come: loadNear, addHero)
     const meshes = names.map((sp, k) => [0, 1, 2].map(lod => parts(k, lod, nodeOf(lib.gltf, sp, lod) || (lod === 0 && nodeOf(lib.gltf, sp, 1)))).concat([[]]));
-    function parts(k, lod, node) {
+    function parts(k, lod, node, cap = count[k]) {
       const out = [];
       if (!node || !count[k]) return out;
       node.traverse(o => {
@@ -354,10 +354,10 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
         g.setAttribute('tc', g.getAttribute('color'));
         g.deleteAttribute('color');
         const mat = matFor(o.material.name), leaves = mat === leafMat;
-        const im = new THREE.InstancedMesh(g, mat, count[k]);
+        const im = new THREE.InstancedMesh(g, mat, cap);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count[k] * 3), 3);
-        g.setAttribute('aLit', new THREE.InstancedBufferAttribute(new Float32Array(count[k]), 1)); // (yozakura: lit or not)
+        im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
+        g.setAttribute('aLit', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1)); // (yozakura: lit or not)
         im.customDepthMaterial = leaves ? leafDepth : solidDepth;
         // the far crown hulls stand 200-900 m off, mostly past the sun's shadow map: they would only be drawn into it
         // for nothing (on Hong Kong's wooded hill they are half the trees' triangles), so they cast none
@@ -608,14 +608,19 @@ vec3 nonPerturbedNormal = normal;`)
       if (swapped) last.set(1e9, 0, 0);
       return swapped;
     }
-    // the hero models, come (loadNear): a fourth set of meshes per species, drawn within HERO_M of the camera
+    // the hero models, come (loadNear): a fourth set of meshes per species, drawn within HERO_M of the camera. Each holds
+    // as many trees as can stand within that reach (HERO_N, the rest of them the near model), not every tree of its
+    // species in the city as the other levels' do, and is shown only while it draws one, so that a species' model
+    // goes up to the GPU when one of its trees is first near (on a phone, 2 to 3 MB of instances and 5 of models)
+    const HERO_N = small ? 40 : 160, heroN = new Int32Array(names.length);
     function addHero(gltf) {
       if (!gltf) return 0;
       let added = 0;
       names.forEach((sp, k) => {
         const node = count[k] && !meshes[k][3].length && nodeOf(gltf, sp, 'H');
         if (!node) return;
-        const fresh = parts(k, 0, node);
+        const fresh = parts(k, 0, node, Math.min(count[k], HERO_N));
+        for (const im of fresh) im.visible = false;
         fresh.forEach(shadowHooks);
         if (dressNew) fresh.forEach(dressNew);
         meshes[k][3] = fresh; added++;
@@ -623,18 +628,19 @@ vec3 nonPerturbedNormal = normal;`)
       if (added) last.set(1e9, 0, 0);
       return added;
     }
-    // the bark scans, in place of the texels that stood in for them: half size on the light tier, and on a phone
-    // the colour packed for the GPU first (tex.js), so nothing is drawn black while it is
+    // the bark scans, in place of the texels that stood in for them: on the light tier the colour alone at a quarter
+    // size, and on a phone packed for the GPU first (tex.js), so nothing is drawn black while it is
     function barksIn() {
       if (!BK || !lib.base || !Object.keys(barks).length) return Promise.resolve(0);
-      const loader = new THREE.TextureLoader(), tag = small ? '_h' : '';
+      const loader = new THREE.TextureLoader(), tag = small ? (BK.files && /_q/.test(BK.files) ? '_q' : '_h') : '';
       const get = f => new Promise(res => loader.load(lib.base + (BK.dir || 'bark/') + f + '.webp', res, null, () => res(null)));
       return Promise.all(Object.entries(barks).map(async ([id, B]) => {
-        const [c, nm] = await Promise.all([get(id + tag), get(id + '_n' + tag)]);
+        // (the light tier wears the colour alone: its crevices' shade shows the relief, build_trees.py export_barks)
+        const [c, nm] = await Promise.all([get(id + tag), tag === '_q' ? null : get(id + '_n' + tag)]);
         for (const t of [c, nm]) if (t) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = small ? 1 : 4; t.name = 'bark ' + id; }
         if (c) { c.colorSpace = THREE.SRGBColorSpace; if (window.OETex && OETex.stats && OETex.stats.on) await OETex.pack(c); }
         for (const m of B.mats) { if (c) m.map = c; if (nm) m.normalMap = nm; }
-        return c && nm ? 1 : 0;
+        return c && (nm || tag === '_q') ? 1 : 0;
       })).then(r => r.reduce((a, b) => a + b, 0));
     }
     function sort(eye) {
@@ -649,6 +655,7 @@ vec3 nonPerturbedNormal = normal;`)
       }
       if (PT) PT.gather(eye);
       const n0 = L[0] * L[0], n1 = L[1] * L[1], nH = HERO_M * HERO_M;
+      heroN.fill(0);
       // from higher up a wood is seen further, and only as crowns: its reach grows with the camera's height
       const WM = Math.min(keep < 1 ? 1200 : 2200, WOOD_M + (keep < 1 ? 1 : 2) * Math.max(0, eye.y - 60));
       for (let i = 0; i < n; i++) {
@@ -657,7 +664,7 @@ vec3 nonPerturbedNormal = normal;`)
         // beyond WOOD_M a wood is the photo's canopy (world.js woodsFloor): its trees thin out towards it
         if (f < 1 && e2 > WM * WM * (0.55 + 45 * (f - 0.55)) ** 2) continue;
         let lod = e2 < n0 * f * f ? 0 : e2 < n1 * (f < 1 ? 0.15 : 1) ? 1 : 2;
-        if (lod === 0 && e2 < nH * f * f && meshes[which[i]][3].length) lod = 3; // (the hero model, where it has come)
+        if (lod === 0 && e2 < nH * f * f && meshes[which[i]][3].length && heroN[which[i]] < HERO_N) { lod = 3; heroN[which[i]]++; } // (the hero model, where it has come)
         if (lod === 2 && half[i] >= farCut) continue; // past 200 m half a wood's crowns stand for all (they overlap), fewer on a lighter tier
         if (lod !== 2 && shB.on) { // (written below, nearest the shadow's centre first)
           const b = shB.bucket[which[i]][lod];
@@ -667,6 +674,7 @@ vec3 nonPerturbedNormal = normal;`)
         put(meshes[which[i]][lod], i);
       }
       if (shB.on) shadowOrder();
+      for (const per of meshes) for (const im of per[3]) im.visible = im.count > 0; // (a hero model is sent to the GPU when it first draws)
       // only the instances drawn go up to the GPU, not each mesh's whole buffer (all of them, 8 MB in a city with
       // many trees, went up at every re-sort, and a fast move such as the opening shot re-sorts on most frames)
       for (const per of meshes) for (const parts of per) for (const im of parts) for (const a of [im.instanceMatrix, im.instanceColor, im.geometry.attributes.aLit]) {

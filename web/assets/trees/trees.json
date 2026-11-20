@@ -16,7 +16,7 @@
  ],
  "bark": {
   "dir": "bark/",
-  "files": "<id>.webp colour, <id>_n.webp normal (OpenGL), _h at half size",
+  "files": "<id>.webp colour, <id>_n.webp normal (OpenGL), <id>_q.webp the colour at a quarter size (the light tier's, without a normal map)",
   "ids": [
    "Bark001",
    "Bark003",

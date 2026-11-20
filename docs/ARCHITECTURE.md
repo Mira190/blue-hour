@@ -1687,7 +1687,7 @@ the loader starts to fade), as the helicopter does:
   `traffic.review()` puts each car back in the mesh for its distance from the camera as it is now.
 - **Trees.** `trees_far.glb` (the mid and far models and the leaf atlas, 1.5 MB) loads with the city;
   `trees_near.glb` (the near models, 1.1 MB, no atlas), `trees_hero.glb` (the hero models drawn within 42 m, 24 m
-  on the light tier: 2.2 MB) and the bark scans (`assets/trees/bark/`, 0.5 to 0.9 MB each kind of bark, a quarter
+  on the light tier: 2.2 MB) and the bark scans (`assets/trees/bark/`, 0.5 to 0.9 MB each kind of bark, a sixteenth
   on the light tier) after, through `trees.js` `loadNear()` (the game and the city viewer call it); the mid model
   stands in for the near one until then, the near one for the hero one, and a texel of each scan's mean colour for
   the scan. `trees.json` `parts` names them (docs/HERO.md, "The trees up close").
