@@ -63,6 +63,7 @@ JOINT = 0.004
 PANEL = 1.2             # the hall's wall panels
 CARS = (-1.45, 1.45)    # the two cars' middles across the back wall
 CAR_W, CAR_H = 1.1, 2.35  # a car's doorway
+FORECOURT = (-6.5, 15.0, -10.5)   # the forecourt's planks: u from, u to, out to v (the deck's line over the bus terminal)
 BELTS = (-2.7, 2.7)     # the queue's two belts, from a post 3 m out to a catch on the back wall
 PILLAR = (3.55, 0.9, 1.1, 3.7)    # the sign pillar: u, v of its middle (u is west: to the right going in), its side, its height
 LINES_U = (-3.2, -1.6, 0.0, 1.6, 3.2)   # the hall's lines of light
@@ -76,6 +77,12 @@ def materials(K):
         # the tiles in front: pale beige, a fine-grained stone's speckle, honed (wet in the rain: ground*)
         "ground_tile": {"tex": "granite", "maps": "cn", "rough": 0.45, "tint": granite((196, 188, 172))},
         "ground_tile_joint": {"color": (0.36, 0.34, 0.31), "rough": 0.9},
+        # the forecourt beyond: long planks of honed stone in three close greys laid in stripes (the Urban Core's floor),
+        # a line of light in a joint here and there
+        "ground_plank": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((150, 150, 150))},
+        "ground_plank_dark": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((104, 105, 107))},
+        "ground_plank_pale": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((184, 183, 180))},
+        "glow_strip": {"color": (0.8, 0.82, 0.95), "emissive": (0.62, 0.66, 1.0), "glow": 1.4},
         # the hall's floor: polished granite, charcoal; under it the joints' slab
         "room_floor_stone": {"tex": "granite", "maps": "cn", "rough": 0.14, "tint": granite((30, 30, 32)), "sky": 0.12},
         "room_floor_joint": {"color": (0.008, 0.008, 0.009), "rough": 0.7},
@@ -331,6 +338,7 @@ class Level:
     def build(self):
         self.atlas()
         self.apron()
+        self.forecourt()
         self.floor()
         self.front()
         self.pillar()
@@ -366,11 +374,11 @@ class Level:
         F, G, rep = self.F, self.G, self.K.TEXTURES["granite"][1]
         rng = np.random.default_rng(7)
         def z(u, v):
-            out = F.ground(u, min(v, 0.0)) + 0.06
+            out = F.ground(u, min(v, 0.0)) + 0.075   # (over the Miyamasu level's paving, laid 5 cm over the ground: clear of it at any distance)
             if v <= 0:
                 return out
             k = min(1.0, v / G)
-            return F.ground(u, v) + 0.06 * (1 - k) + (F.floor - F.ground(u, G)) * k
+            return F.ground(u, v) + 0.075 * (1 - k) + (F.floor - F.ground(u, G)) * k
         j = 0.0025
         us = self.courses(-F.half, F.half, TILE, off=(F.half % TILE) / 2)
         vs = self.courses(APRON_V, G, TILE)
@@ -388,6 +396,37 @@ class Level:
             self.q("ground_tile_joint", (u, a, z(u, a) - 0.004), (u, b, z(u, b) - 0.004), (u, b, z(u, b) - 0.07), (u, a, z(u, a) - 0.07))
         self.q("ground_tile_joint", (F.half, APRON_V, z(F.half, APRON_V) - 0.004), (-F.half, APRON_V, z(-F.half, APRON_V) - 0.004),
                (-F.half, APRON_V, z(-F.half, APRON_V) - 0.07), (F.half, APRON_V, z(F.half, APRON_V) - 0.07))
+
+    def forecourt(self):
+        """In front of the tiles: the forecourt's planks, 0.3 m wide and 1.2 to 3 m long, in courses along the face, each
+        plank one of three close greys (the floor's own stripes, in the photographs five tones from white to charcoal: kept
+        to three, close, so that it reads as a laid floor and not a patchwork), each its own part of the stone; in one joint
+        in seven a line of light. Out to the station deck's line, and from the tower's corner to the west."""
+        F, rep = self.F, self.K.TEXTURES["granite"][1]
+        rng = np.random.default_rng(1101)
+        z = lambda u, v: F.ground(u, v) + 0.075
+        mats = ("ground_plank", "ground_plank_dark", "ground_plank_pale")
+        j = 0.003
+        v = APRON_V
+        k = 0
+        while v > FORECOURT[2] + 1e-6:
+            va = max(FORECOURT[2], v - 0.3)
+            u = FORECOURT[0] - rng.random() * 2.0
+            while u < FORECOURT[1] - 1e-6:
+                ub = min(FORECOURT[1], u + 1.2 + rng.random() * 1.8)
+                ua = max(FORECOURT[0], u)
+                if ub - ua > 0.1 and not (-F.half - 0.05 < (ua + ub) / 2 < F.half + 0.05 and va > APRON_V - 0.01):
+                    m = mats[int(rng.choice(3, p=(0.5, 0.25, 0.25)))]
+                    pts = [(ua + j, va + j), (ub - j, va + j), (ub - j, v - j), (ua + j, v - j)]
+                    ou, ov = rng.random(2) * 3
+                    self.q(m, *[(a, b, z(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
+                u = ub
+            if k % 7 == 3:
+                self.q("glow_strip", (FORECOURT[0] + 1.0, va - 0.006, z(0, va) + 0.002), (FORECOURT[1] - 1.0, va - 0.006, z(0, va) + 0.002),
+                       (FORECOURT[1] - 1.0, va + 0.006, z(0, va) + 0.002), (FORECOURT[0] + 1.0, va + 0.006, z(0, va) + 0.002), sub=(8, 1))
+            pts = [(FORECOURT[0], va), (FORECOURT[1], va), (FORECOURT[1], v), (FORECOURT[0], v)]
+            self.q("ground_tile_joint", *[(a, b, z(a, b) - 0.004) for a, b in pts], sub=(12, 1))
+            v, k = va, k + 1
 
     def floor(self):
         """The hall's floor: polished granite slabs 1.2 m by 0.6 m in courses across the way in, every other course half a
@@ -588,7 +627,7 @@ def build(K):
     geo, atlas = L.build()
     F = L.F
     mid = F.xy(0.0, (BACK_V + APRON_V) / 2)
-    meta = {"id": ID, "at": [round(float(mid[0]), 2), round(float(mid[1]), 2)], "r": 9.0, "z": round(F.floor, 2), "glb": f"hero/{ID}.glb", "bake_gain": 1.0,
+    meta = {"id": ID, "at": [round(float(mid[0]), 2), round(float(mid[1]), 2)], "r": 21.0, "z": round(F.floor, 2), "glb": f"hero/{ID}.glb", "bake_gain": 1.0,
             "floor": True, "lift": 0.012, "posts": L.posts, "belts": L.belts}
     print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z", "floor", "lift")}), f"{len(L.posts)} posts, {len(L.belts)} belt points")
     return geo, atlas, materials(K), meta

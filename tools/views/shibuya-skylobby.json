@@ -156,5 +156,74 @@
   ],
   "street": true,
   "weather": "rain"
+ },
+ {
+  "name": "tower-from-hachiko-dusk",
+  "at": [
+   376.0,
+   -1040.0
+  ],
+  "eye": [
+   376.0,
+   -1040.0
+  ],
+  "eyeUp": 1.6,
+  "look": [
+   520.5,
+   -1125.6
+  ],
+  "lookUp": 95,
+  "time": "17:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "tower-from-hachiko-night",
+  "at": [
+   376.0,
+   -1040.0
+  ],
+  "eye": [
+   376.0,
+   -1040.0
+  ],
+  "eyeUp": 1.6,
+  "look": [
+   520.5,
+   -1125.6
+  ],
+  "lookUp": 95,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "tower-from-miyamasu-night",
+  "at": [
+   521.9,
+   -1060.0
+  ],
+  "eye": [
+   521.9,
+   -1060.0
+  ],
+  "eyeUp": 1.6,
+  "look": [
+   520.5,
+   -1110.6
+  ],
+  "lookUp": 60,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
  }
 ]

@@ -426,6 +426,9 @@ found.
   dark grey metal panels with seven round downlights over the doors (a light the bake takes: their pool on the tiles
   after dark); the pillar to the west with its disc (an opal face lit from behind, sky blue over warm white: the
   hall's mark as a disc of light, not its logo drawn), its name printed on the panels, and an invented screen.
+- **The forecourt**: beyond the tiles, the Urban Core's floor as the 2019 photograph shows it: long planks 0.3 m wide in
+  courses along the face, in three close greys of the honed stone (the photograph's five tones from white to charcoal,
+  kept close so that it reads as a laid floor), and in one joint in seven a line of light, out to the station deck's line.
 - **The glass wall**: dark-tinted glass in stainless frames (transparent: the hall is seen through it), the fixed
   lites fritted to a metre, a transom at 2.5 m, two doorways 1 m clear whose sliding leaves stand open behind the
   lites beside them (a door that is always open is what a player walking up to an automatic one sees). The lites and
@@ -462,6 +465,52 @@ Where it still falls short: the hall's inside, its lift doors and its indicator 
 not slide as you come; the forecourt's striped planks with lights in their joints and its faceted mirror ceiling are
 the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
 renderer only.
+
+## Scramble Square's curtain wall (Shibuya)
+
+The owner's ask (November 2026): the building the story climbs should be the real one. The city drew Shibuya Scramble
+Square as every tower is drawn: PLATEAU's 227 m on OpenStreetMap's footprint, the generic curtain wall in a grey-blue.
+What the research found (sources below):
+
+- **Massing.** GL+229.7 m, 47 floors over 7 below and two on the roof (Nikken Sekkei; Komaihaltec's report). Shops
+  B2 to 14F (12F and 13F restaurants), SHIBUYA SKY's counter on 14F, SHIBUYA QWS on 15F, the sky lobby on 17F, offices
+  17F to 45F, SKY GALLERY on 45F and 46F, SKY STAGE on the roof. Floor to floor, from the escalators' rises
+  (Elevator Journal 28): 1F to 2F 7.7 m, 2F to 3F 5.6, 3F to 4F 6.0, then 5.0 to 5.7 to 14F (14F about 71 m over 1F),
+  17F about 84 m, the offices about 4.55 m. A standard office floor 2,815 m², ceilings 2.9 m (CASBEE). The footprint is
+  OpenStreetMap's (way 617560918), about 60 by 68 m, its long sides NNW-SSE.
+- **The skin.** The tower by Nikken Sekkei, the lower part by Kengo Kuma & Associates (Shinkenchiku 2019-12). Low-E
+  panes over 4 m tall, a white ceramic frit printed on their outer face that thins toward the corners, mullions that
+  shift with the cut-and-expanded form (KKAA, designboom, gooood); in the photographs a blue-green glass whose joints
+  step across each face in diagonals, every pane giving back the sky in its own tone.
+- **The base.** The official floor plans show the north edge changing floor by floor (1F straight with a shallow kink,
+  3F curved round the Ginza line's concourse, 4F an undulating S-curve reaching further north over the Urban Core); in
+  the photographs from the crossing and from Hikarie the north face is carved below 15F by a concave glass sweep either
+  side of the 550 m² LED screen that faces the crossing (Panasonic). No elevation or dimension of it is published.
+
+**What was built** (`cities/shibuya/hero_scramblesq.py`, `python blender/build_hero.py --city shibuya --level
+scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 92 triangles in one
+material (`win_scrsq`: hero.js win*, the glass mirroring the sky by day, the offices lit after dark) on a tile drawn
+here, 12 m across and eight office storeys high: each 1.5 m pane its own tone within a few percent and its own small
+tilt in the normal map (the tilt is the cause of the tone), the mullions as ribs, every second heavier, the joints
+stepping 0.75 m at each floor, the spandrel recessed and fritted, the frit thinning up each pane; after dark a ceiling's
+light in each lit bay, floors lit or dark as a working evening leaves them. The shop floors take the same tile at
+their 5.4 m storeys. Fetched anywhere in the story's streets (load_m 900): 0.21 MB, three 512 by 1536 pictures (two on
+a phone, halved). The ground floor round SKY's lobby is left to the lobby's own level.
+
+**Not built, and why**: the north face's concave sweep, the LED screen and the overhang over the Urban Core (with its
+faceted mirror-metal ceiling and lit slots over the forecourt) need the tower's solids cut below 15F to a measured
+shape, which nobody publishes; drawn from the photographs alone it would be a guess at the largest thing in the frame.
+It waits in issue 66 with the plans and photographs gathered here.
+
+Sources: nikken.co.jp (Shibuya Scramble Square, first phase), kkaa.co.jp (the project page), data.shinkenchiku.online
+(SK 2019-12), designboom 2021-05-04, gooood.cn, komaihaltec.co.jp (vol10_2-2.pdf), ibecs.or.jp (CASBEE
+RE_DAIWA-F-00241), n-elekyo.or.jp (Elevator Journal 28), panasonic.biz (Shibuya SS Vision), the official floor guide's
+1F to 4F plans (shibuya-scramble-square.com/floorguide/, all rights reserved: looked at). Photographs (Wikimedia
+Commons, looked at, none reproduced): SHIBUYA SCRAMBLE SQUARE East Tower, 2023-05 (Sakura Torch, CC BY-SA 4.0);
+Shibuya Station 191129a (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Scramble Square, seen from Hikarie, 2025-03 (Syced,
+CC0); Hikarie and Shibuya scramble square buildings, 2025-06 (Nesnad, CC BY 4.0); Shibuya Scramble Square building,
+taken from Shibuya Stream, 2022-06 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance, 2019-12 (Wpcpey, CC BY 4.0);
+Shibuya Scramble Square 191101a1 (江戸村のとくぞう, CC BY-SA 4.0).
 
 ## Only what the first frame sees (issue 358)
 
