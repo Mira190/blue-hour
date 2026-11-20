@@ -62,7 +62,9 @@ game's weather eases every field frame by frame (`update`); readers only read.
   0..1, and the metres of air that have gone by, which is what a swaying or drifting thing should
   multiply rather than time, so that a gust speeds it up without a jump).
 - The game sets it: `__game.weather.set('snow')`, or exact amounts for a still or a film,
-  `set({rain, snow, fog, storm, cloud, wet, snowDepth, temp, wind, windFrom, now})`.
+  `set({rain, snow, fog, storm, cloud, wet, snowDepth, temp, wind, windFrom, now})`. A second argument
+  `{ now }` sets it at once, `{ pace }` eases it in slower (the story's last frame: its cloud at 0.45,
+  its rain at 0.3, so that a shower comes on over half a minute rather than a few seconds).
 
 How each field moves: cloud eases in over a few seconds and rain or snow waits for its cloud; thunder
 waits for its rain; the wind is the season's mean (the climate's `wind_ms`, or the wind the city's waves
@@ -169,7 +171,7 @@ quest's `choices`) into `web/data/<id>/game.json`. `pipeline/game_data.py` passe
 | Wet ground | Darker where porous, roughness down to 0.38, puddles in the low spots of a noise on roads and paving (0.035 roughness, flat, rippled), filling as the wetness rises and drying slowly after | all |
 | Ripples | Expanding rings, one drop per cell in three offset grids, on puddles, ponds (`sk_pond`, any landmark water), rivers and the sea | all |
 | Overcast light | Sun ×0.18 at full cloud, sky light up and greyer, a closer grey-blue haze (warm at night with the city in it), the sky's clouds up to 0.97 and its blue down, no stars or moon, the lens a little cooler with a touch more contrast and exposure lifted so it never goes grey | all |
-| Umbrellas | The crowd puts them up as the rain comes on (fewer in a drizzle): Tokyo, Kyoto and Osaka mostly clear vinyl, elsewhere black, navy and a few colours; on the skinned people near you and the instanced crowd further off | all |
+| Umbrellas | The crowd puts them up as the rain comes on (fewer in a drizzle), each in their own moment: a few at the first drops and most once the street is wet (the state's `wet` says how long it has rained), the arm coming up and the canopy opening from furled about its tip over 1.1 s (`people.js` `umbOpening`); all up at once only when the page opens into rain that has been falling a while. Tokyo, Kyoto and Osaka mostly clear vinyl, elsewhere black, navy and a few colours; on the skinned people near you and the instanced crowd further off | all |
 | Sound | Rain hiss and patter (synthesised noise), a drumming roof and drips under one, muffled in a car or the helicopter; the wind from a fresh breeze up, rising in the gusts; thunder, a crack and a roll near and a rumble far, after the flash by the distance at 343 m/s; cicadas on a hot day (25° and up, by daylight, not in the rain) | all |
 | Wind | The state's wind sways the trees faster and wider and leans their crowns down the wind (`web/trees.js` `uGale`), raises and lowers the sea the spectrum was made for (`web/water.js` `uSea`: height with the wind's speed, eased over a minute), slants the rain and carries the flakes, petals and leaves | all |
 | Snowflakes | The rain's two shells and the same instances, drawn as soft dots that fall at about a metre a second, ride the wind's run and flutter, kept out from under cover by the same occlusion map | as the rain's streaks; light: the near shell only |

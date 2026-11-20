@@ -3711,7 +3711,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     figure: storyFigure,
     // one of the map's own people, lent to the story (where they stand, and their name for the line)
     person: id => { const n = npcs.find(q => q.id === id); return n ? { x: n.x, y: n.y, z: n.z, name: n.name, role: n.role, color: n.color } : null; },
-    weather: (kind, now) => { if (weather) weather.set(kind, now ? { now: true } : undefined); }, // (now: as if it had been so for a while, the street already wet)
+    weather: (kind, now, pace) => { if (weather) weather.set(kind, now ? { now: true } : { pace: pace || 1 }); }, // (now: as if it had been so for a while, the street already wet; pace: slower than the menu's, a sky that lowers over half a minute)
     // the hour of the light, by name ('blue': the blue hour), on the evening the story is dressed in
     light: kind => { const t = S.presetTime(kind, clock.y, clock.m, clock.d); if (t != null) setClock(clock.y, clock.m, clock.d, t); },
     floor: (x, y) => Math.max(0, nav.terrain(x, y)),
@@ -6589,7 +6589,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the room the street's sound rings in (audio.js place): a lift or a room, high in the open air (a deck, the
     // helicopter), under a roof outside (the viaduct, an arcade), or the open crossing
     if (A.place) A.place(player.mode === 'lift' || room ? 'inside' : fz - Math.max(0, nav.terrain(fx, fy) || 0) > 40 ? 'roof' : weather.covered() && player.mode === 'foot' ? 'viaduct' : 'open');
-    if (crowdDraw && crowdDraw.setRain) { const wet = Math.max(wS.rain, wS.snow * 0.7); crowdDraw.setRain(wet < 0.4 ? 0 : wet); } // (nobody puts an umbrella up before the rain can be seen) // (umbrellas go up in the snow too)
+    if (crowdDraw && crowdDraw.setRain) crowdDraw.setRain(Math.max(wS.rain, wS.snow * 0.7), wS.snow > wS.rain ? Math.min(1, wS.snow * 2) : wS.wet); // (umbrellas go up in the snow too; one by one as it has rained a while: the street's wetness says how long, people.js wantUmb)
     if (A.rain) A.rain(titleOn ? 0 : wS.rain, weather.covered() && player.mode === 'foot', inside);
     // the cicadas of a hot day: from 25 degrees up, by daylight, silent in the rain
     if (A.cicadas) A.cicadas(titleOn ? 0 : Math.max(0, Math.min(1, (wS.temp - 24.5) / 4)) * wS.day * (1 - Math.min(1, wS.rate * 4)) * (inside ? 0.2 : 1));

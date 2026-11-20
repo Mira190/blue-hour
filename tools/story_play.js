@@ -217,8 +217,26 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
       continue;
     }
+    // The last frame's rain (story.js rain(), the frame's rain_on): the cloud lowers while the player crosses to her, the
+    // first drops come on her first word, and the crowd's umbrellas go up one by one behind her as she speaks. Stills as
+    // it comes on, by the world's own clock. It fails rain before she spoke, umbrellas up in the moment it began, most of
+    // them up within five seconds (the switch it was until November 2026: nine in ten in one frame), or few after twenty
+    if (s.dlg && s.fi === 6 && s.phase === 'go' && s.beat === 'talk' && !seen.has('rain-on')) {
+      seen.add('rain-on');
+      const W = () => p.evaluate(() => { const g = window.__game, S = window.OEWeather.S; let up = 0, opening = 0, n = 0;
+        for (const q of g.crowd.P) if (q.umbAt != null && Math.abs(q.umbAt - S.t) < 0.5) { n++; if (q.umbT > 0) up++; if (q.umbT > 0 && q.umbT < 1) opening++; }
+        return { t: S.t, rain: S.rain, cloud: S.cover, wet: S.wet, up, opening, n }; });
+      const row = (at, q) => console.log(`frame 7, rain at ${at} s: rain ${q.rain.toFixed(2)}, cloud ${q.cloud.toFixed(2)}, street wet ${q.wet.toFixed(2)}, umbrellas ${q.up} up (${q.opening} opening) of ${q.n} people`);
+      const w0 = await W(); row(0, w0); await snap('7-rain-0s');
+      if (w0.rain > 0.1 || w0.up > 0) { errors.push(`frame 7: it rained before she spoke (rain ${w0.rain.toFixed(2)}, ${w0.up} umbrellas up)`); console.log(errors[errors.length - 1]); }
+      const R = {};
+      for (const at of [5, 10, 20]) { await p.waitForFunction(t => window.OEWeather.S.t >= t, w0.t + at, { timeout: 900000, polling: 250 }); R[at] = await W(); row(at, R[at]); await snap(`7-rain-${at}s`); }
+      if (R[20].rain < 0.5 || R[20].up < 0.6 * R[20].n) { errors.push(`frame 7: twenty seconds after her first word the rain is ${R[20].rain.toFixed(2)} and ${R[20].up} of ${R[20].n} umbrellas are up`); console.log(errors[errors.length - 1]); }
+      if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
+      continue;
+    }
     if (s.dlg) {
-      { const who = await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
+      { const who =await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
       // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
