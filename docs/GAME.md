@@ -1931,7 +1931,17 @@ Sydney's traffic stood still a third of the time.
       a second later a metre it stands back (it was 0.35).
     - Measured with `tools/crowd_spread.js`, which now also reports the share in
       groups, how many stand stopped along the way, and the most crossers in a 2 m
-      circle round one of them: RESULTS.
+      circle round one of them. At 17:41 at its four spots, 200 s each: before,
+      nobody in a group and nobody stopped; crossers at most 2.2 to 3.2 a square
+      metre round one of them, 1.1 to 1.7 on average of each second's most. After
+      (the last of five runs): 44 to 56% in groups; 0.3 to 1.7 within 40 m stood
+      at a window or a rail or leaning at any moment; crossers at most 2.5 to 2.9
+      a square metre, 1.2 to 1.3 on average, the column the issue asked for. Its
+      clump test (more than six standing in a 2 m circle for more than six
+      seconds) failed one spot of four on main (QFRONT's footway, 39 s) and fails
+      one spot of four in most runs here, a different one each time: a footway
+      jammed where two flows meet at a kerb, or a kerb's waiting crowd at a long
+      red (issue 75 reworks how that crowd stands).
     - Research (ideas only, no code or data): Moussaïd, Perozo, Garnier, Helbing
       and Theraulaz, *The walking behaviour of pedestrian social groups and its
       impact on crowd dynamics*, PLoS ONE 5(4) e10047, 2010 (CC BY 4.0): the
