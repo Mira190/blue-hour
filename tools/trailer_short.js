@@ -149,7 +149,7 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
   if (only) return;
   const wav = await renderScore(cut.score, segs.map(s => ({ id: s.id, t0: s.t0, dur: s.dur })), TOTAL, path.join(FRAMES, 'score.wav'));
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(FRAMES, 's%05d.jpg'), '-i', wav,
-    '-vf', `noise=c0s=${cut.grain ?? 4}:c0f=t,format=yuv420p`, '-t', TOTAL.toFixed(3), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-tune', 'film', '-profile:v', 'high',
+    '-vf', `noise=c0s=${cut.grain ?? 3}:c0f=t,format=yuv420p`, '-t', TOTAL.toFixed(3), '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-maxrate', '10M', '-bufsize', '20M', '-tune', 'film', '-profile:v', 'high',
     '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', OUT]);
   console.log(`${OUT}: ${TOTAL.toFixed(1)} s, ${(fs.statSync(OUT).size / 1e6).toFixed(1)} MB`);
 })().catch(e => { console.error(e); process.exit(1); });

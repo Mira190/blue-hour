@@ -4,7 +4,7 @@
  "film": "tools/views/trailer-story.json",
  "size": "1080x1920",
  "fps": 24,
- "grain": 4,
+ "grain": 3,
  "window": [
   0,
   330,

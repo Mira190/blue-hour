@@ -151,9 +151,11 @@ function cut() {
   for (let i = 0; i < n; i++) if (!fs.existsSync(frameOf(i))) missing.push(i);
   if (missing.length) throw new Error(`${missing.length} frames missing (first ${missing[0]})`);
   const wav = path.join(FRAMES, 'score.wav');
-  const vf = `scale=1920:-2:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,noise=c0s=${spec.grain ?? 5}:c0f=t,format=yuv420p`;
+  // (a grain that moves is noise the encoder cannot predict: at CRF 17 with no cap the story's 109 s came to 700 MB, so
+  // the grain is light and the rate capped at 12 Mbit/s, a streaming service's own for 1080p)
+  const vf = `scale=1920:-2:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,noise=c0s=${spec.grain ?? 3}:c0f=t,format=yuv420p`;
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(FRAMES, 'f%05d.jpg'), '-i', wav,
-    '-vf', vf, '-t', TOTAL.toFixed(3), '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-tune', 'film', '-profile:v', 'high',
+    '-vf', vf, '-t', TOTAL.toFixed(3), '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-maxrate', '12M', '-bufsize', '24M', '-tune', 'film', '-profile:v', 'high',
     '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', OUT]);
   const lite = OUT.replace(/\.mp4$/, '-720p.mp4');
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', OUT, '-vf', 'scale=1280:720:flags=lanczos', '-c:v', 'libx264', '-preset', 'slow', '-crf', '23',
