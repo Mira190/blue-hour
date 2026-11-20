@@ -29,7 +29,9 @@ const { startPlay } = require('./start_play');
     // stand by the place and let the trees sort round the camera
     g.player.x = at[0] - 4; g.player.y = at[1] - 6;
     for (let i = 0; i < 20; i++) { g.advance(0.1); await new Promise(r => requestAnimationFrame(r)); }
-    return { late: +late.toFixed(1), near: T.nearReady(), hero: T.hero ? T.hero() : null, tier: window.OEQuality && OEQuality.city().name };
+    return { late: +late.toFixed(1), near: T.nearReady(), hero: T.hero ? T.hero() : null, tier: window.OEQuality && OEQuality.city().name,
+      date: [g.clock.m, g.clock.d, Math.round(g.clock.min)], season: T.season ? T.season() : null,
+      tex: window.OETex ? { on: OETex.stats.on, packed: OETex.stats.packed, kept: OETex.stats.kept, log: OETex.stats.log.filter(l => /tree|leaf|Leaves|bark/i.test(l.name) || l.w === 1024 && l.h === 3584) } : null };
   }, at);
   console.log(JSON.stringify(out, null, 1));
   for (const l of logs.filter(l => /tree|bark|hero/i.test(l))) console.log(l);

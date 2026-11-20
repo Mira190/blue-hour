@@ -984,7 +984,8 @@ diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.62, 0.11, 0.05), vec3(0.9, 0
       // scans in place (for the tools)
       hero: () => ({ m: HERO_M, species: meshes.filter(per => per[3].length).length, drawn: meshes.reduce((a, per) => a + (per[3][0] ? per[3][0].count : 0), 0),
         barks: Object.values(barks).filter(B => B.mats[0] && !B.mats[0].map.isDataTexture).length, of: Object.keys(barks).length,
-        scans: Object.fromEntries(Object.entries(barks).map(([id, B]) => [id, B.mats[0] && B.mats[0].map.isDataTexture ? 'stand-in' : `${(B.mats[0].map.image || {}).width}`])) }),
+        scans: Object.fromEntries(Object.entries(barks).map(([id, B]) => [id, B.mats[0] && B.mats[0].map.isDataTexture ? 'stand-in' : `${(B.mats[0].map.image || {}).width}`])),
+        atlas: atlas ? { w: (atlas.image || {}).width, h: (atlas.image || {}).height, packed: !!atlas.isCompressedTexture, format: atlas.format } : null }),
       set dressNew(f) { dressNew = f; },
       // the yozakura lights (#162): how many trees are lit and how many lanterns stand, for the tools
       // the lit lanterns, for the inland water's reflections: {heads, lit, placed} or null
