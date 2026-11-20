@@ -1222,7 +1222,10 @@ void main() {
         snowCol.value.copy(fc).multiplyScalar(1.4 + 1.2 * day).add(new THREE.Color(0.07, 0.065, 0.06).multiplyScalar(1 - day)); // flakes: lighter than the air behind them; at night only as the city's glow lights them
         fFar.material.uniforms.uAlpha.value = 0.25 + 0.35 * day; // (far flakes against a night sky read as stars: held down after dark) // flakes: lighter than the air behind them
         // the occlusion map, when the camera has moved or a little time has passed
-        if (occRT && ((falling && tSec - occT > (light ? 2 : 0.5)) || occOn.value < 0.5 || tSec < occT || camera.position.distanceTo(occAt) > (!falling ? 14 : light ? 8 : 4))) {
+        // (not in a check's frame not drawn, tools/story_play.js DRAW=n: its render is not run there, #51, and the read back
+        // after it waited for the GPU to finish the frame drawn before, a quarter of frame 7's time on a software renderer, #70.
+        // The map is drawn and read in the next frame drawn, which then shows the rain kept from under cover as it is)
+        if (occRT && !(window.__draw && window.__draw.on === false) && ((falling && tSec - occT > (light ? 2 : 0.5)) || occOn.value < 0.5 || tSec < occT || camera.position.distanceTo(occAt) > (!falling ? 14 : light ? 8 : 4))) {
           occT = tSec; occAt.copy(camera.position);
           renderOcc(tSec);
         }
