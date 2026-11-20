@@ -81,8 +81,8 @@ def materials(K):
         # the forecourt beyond: long planks of honed stone in three close greys laid in stripes (the Urban Core's floor),
         # a line of light in a joint here and there
         "ground_plank": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((150, 150, 150))},
-        "ground_plank_dark": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((104, 105, 107))},
-        "ground_plank_pale": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((184, 183, 180))},
+        "ground_plank_dark": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((128, 129, 131))},
+        "ground_plank_pale": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((168, 167, 165))},
         "glow_strip": {"color": (0.8, 0.82, 0.95), "emissive": (0.62, 0.66, 1.0), "glow": 1.4},
         # the hall's floor: polished granite, charcoal; under it the joints' slab
         "room_floor_stone": {"tex": "granite", "maps": "cn", "rough": 0.14, "tint": granite((30, 30, 32)), "sky": 0.12},
