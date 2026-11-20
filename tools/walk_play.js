@@ -24,15 +24,17 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_play.js out_dir [WxH] [hour] [sky]     (390x844: a phone, by touch; hour blue|night|live, sky clear|rain)
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), phone = w < 500;
   const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
+  watchPage(p);
   const errors = [];
   const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);
@@ -43,6 +45,15 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['oe3d-player', 'oe-walk', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
   const PORT = process.env.PORT || 8800;
+  // (a beat waits for what it tests, up to a minute, not for a fixed time: on a slow runner the desktop page took the press
+  // and read Back's state 2.5 s later, a frame before Back had been drawn, and every beat after failed with it; issue 49)
+  const until = (fn, arg, ms = 60000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 250 }).then(() => true, () => false);
+  const stepUp = () => { const e = document.getElementById('gt-walk'); return !!e && !e.hidden; };
+  const seen = s => { const e = document.querySelector(s); if (!e || e.hidden) return false; const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden'; };
+  // (pressed again, measured again, when what the press brings has not come in 20 s: a click taken where the button was
+  // before the page laid it out again)
+  const pressFor = async (sel, fn, arg) => { await press(sel); if (!(await until(fn, arg, 20000))) { await press(sel); await until(fn, arg, 40000); } };
+  const shown = (sel, ms = 20000) => until(seen, sel, ms), gone = (sel, ms = 20000) => until(new Function('s', `return !(${seen})(s)`), sel, ms);
   const title = async () => {
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden && getComputedStyle(t).opacity > 0.9; }, null, { timeout: 900000, polling: 500 });
@@ -74,7 +85,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   else if (!/choose who you play/i.test(s.ask)) fail(`Walk Shibuya, pressed before who you play is chosen, did not ask ("${s.ask}")`);
   else ok('the walk waits for who you play, as the story does');
   await press('#gt-who [data-c="M"]'); await p.waitForTimeout(600);
-  await press('#gt-walk-go'); await p.waitForTimeout(1200);
+  await press('#gt-walk-go'); await until(stepUp);
   s = await state();
   if (!s.step) fail('who you play chosen, Walk Shibuya does not open its step');
   else if (await visible('#gt-play')) fail('the walk\'s step is up, and the episode\'s button still shows');
@@ -85,9 +96,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   await shot('2-step');
   // the hour and the sky chosen are the street behind the card
   await press(`#gt-walk [data-k="t"] [data-v="${hour}"]`); await press(`#gt-walk [data-k="w"] [data-v="${sky}"]`);
+  const want = hours.find(x => x[0] === hour);
+  await until(([hm, rain]) => { const g = window.__game, w = g.weather ? g.weather.state : {}; return (!hm || document.getElementById('gt-city').textContent.includes(hm)) && (!rain || (w.mode === 'rain' && w.rain > 0.3)); }, [hour !== 'live' && want ? want[1] : '', sky === 'rain']);
   await p.waitForTimeout(3000);
   s = await state();
-  const want = hours.find(x => x[0] === hour);
   if (want && s.clock.hm !== want[1] && hour !== 'live') fail(`chose ${hour} (${want[1]}), and the street behind the title is at ${s.clock.hm}`);
   else if (hour !== 'live' && (s.clock.m !== story0.clock.m || s.clock.d !== story0.clock.d)) fail(`chose ${hour}, and the walk is not on the story's evening (${s.clock.d}/${s.clock.m})`);
   else if (sky === 'rain' && !(s.wx.mode === 'rain' && s.wx.rain > 0.3)) fail(`chose the rain, and it is not raining behind the title (${JSON.stringify(s.wx)})`);
@@ -95,13 +107,13 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!s.eyebrow.includes(s.clock.hm)) fail(`the card's line over the title does not say the hour chosen ("${s.eyebrow}")`);
   await shot('3-chosen');
   // back, and the title's own evening again; then the step again, as it was left
-  await press('#gt-walk-back'); await p.waitForTimeout(2500);
+  await pressFor('#gt-walk-back', () => { const w = document.getElementById('gt-walk'), b = document.getElementById('gt-play'); return (!w || w.hidden) && b && !b.hidden && b.getBoundingClientRect().width > 0; }); await p.waitForTimeout(2500);
   s = await state();
   if (s.step || !(await visible('#gt-play'))) fail('Back did not give the title its two ways in again');
   else if (s.eyebrow !== story0.eyebrow || s.clock.hm !== story0.clock.hm) fail(`Back: the title is not the story's evening again ("${s.eyebrow}", ${s.clock.hm}; was ${story0.clock.hm})`);
   else if (sky === 'rain' && s.wx.mode === 'rain') fail('Back: the rain the walk was offered in still falls on the story\'s title');
   else ok(`Back: the story's evening again (${s.clock.hm}, ${s.wx.mode})`);
-  await press('#gt-walk-go'); await p.waitForTimeout(1500);
+  await pressFor('#gt-walk-go', stepUp); await p.waitForTimeout(1500);
   s = await state();
   const kept = await p.$$eval('#gt-walk [aria-checked="true"]', bs => bs.map(x => x.dataset.v));
   if (!s.step || !kept.includes(hour) || !kept.includes(sky)) fail(`the step opened again does not keep what was chosen (${kept})`);
@@ -156,7 +168,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await p.evaluate(() => ['g-bigmap', 'g-pass', 'g-lens'].forEach(id => { const e = document.getElementById(id); if (e) e.hidden = true; }));
   }
   // the menu, from the walk's own button: the story offered, the old game's tour and passport not
-  await press('#g-walk-acts [data-do="menu"]'); await p.waitForTimeout(800);
+  await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
   if (!(await visible('#g-menu'))) fail('the walk\'s menu button does not open the menu');
   else {
     const m = { story: await visible('#gm-story'), intro: await visible('#gm-intro'), reset: await visible('#gm-reset'), time: await visible('#gm-time'), weather: await visible('#gm-weather') };
@@ -165,11 +177,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (!m.time || !m.weather) fail('the walk\'s menu does not offer the hour and the sky');
     if (m.story && !m.intro && !m.reset && m.time && m.weather) ok(`the menu: "${(await p.textContent('#gm-story')).trim()}", the hour and the sky`);
     await shot('6-menu');
-    await press('#g-menu-close'); await p.waitForTimeout(600);
+    await press('#g-menu-close'); await gone('#g-menu');
     if (await visible('#g-menu')) fail('the menu\'s close button does not shut it (off the screen, or under something)');
   }
   // the camera
-  await press('#g-walk-acts [data-do="photo"]'); await p.waitForTimeout(1200);
+  await press('#g-walk-acts [data-do="photo"]'); await until(() => document.getElementById('game-stage').classList.contains('photo'), undefined, 20000);
   if (!(await p.evaluate(() => document.getElementById('game-stage').classList.contains('photo')))) fail('the walk\'s camera button does not open photo mode');
   else { ok('the camera opens photo mode'); await shot('7-photo'); }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
@@ -226,10 +238,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // the menu's Bring your car: to the kerb nearest you
       await p.evaluate(() => { const g = window.__game; g.player.x += 40; g.spawn([g.player.x, g.player.y]); });
       await p.waitForTimeout(800);
-      await press('#g-walk-acts [data-do="menu"]'); await p.waitForTimeout(800);
+      await press('#g-walk-acts [data-do="menu"]'); await shown('#gm-car');
       if (!(await visible('#gm-car'))) fail('the walk\'s menu does not offer to bring your car');
       else {
-        await press('#gm-car'); await p.waitForTimeout(800);
+        await press('#gm-car'); await gone('#g-menu'); await p.waitForTimeout(800);
         const far = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return Math.hypot(s.x - g.player.x, s.y - g.player.y); });
         if (await visible('#g-menu')) fail('Bring your car: the menu stayed up');
         else if (far > 60) fail(`Bring your car: it is ${far.toFixed(0)} m away`);

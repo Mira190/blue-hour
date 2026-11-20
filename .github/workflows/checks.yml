@@ -67,7 +67,11 @@ jobs:
   shard:
     needs: plan
     if: needs.plan.outputs.shards != '[]'
-    runs-on: ubuntu-latest
+    # (Ubuntu 24.04's Mesa, 25.2, as a session's machine has it, where each check's waits were measured. ubuntu-latest
+    # became 26.04 in November 2026, Mesa 26.0 with LLVM 21: there the desktop page's walk at night in the rain had not
+    # set out in ten minutes, against two here, and the clip check's page lost its WebGL context in its first half
+    # minute, run after run; issue 49)
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     strategy:
       fail-fast: false
@@ -94,8 +98,8 @@ jobs:
           path: |
             ~/.cache/mesa_shader_cache
             ~/.cache/mesa_shader_cache_db
-          key: mesa-${{ matrix.target }}-${{ github.run_id }}
-          restore-keys: mesa-${{ matrix.target }}-
+          key: mesa-2404-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: mesa-2404-${{ matrix.target }}-
       - name: Chromium, Xvfb and Mesa's software renderer
         if: matrix.target != 'static'
         run: |

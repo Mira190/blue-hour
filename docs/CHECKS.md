@@ -14,12 +14,21 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `guide` | Leads the story's guide along each frame's way (frame 4's as the story gives it, and four others from the story's data) with a player behind him on his trail: every quarter second a ray down onto the drawn scene under his feet (a fault more than 6 cm above it or 8 cm into it), his room either side across the way (`ways.room`: a fault where the way is wider than 3.2 m and he, or the way he plans, runs within 0.8 m of a wall, a drop, a well, a kerb or a post for more than 1.5 m), and the mark with the signs out as for a lost player, the view turned four ways: what it points at must be on the way and walkable to in a straight line, its metres the way's. Stills behind the player. Run when the guide, the routes, the walking grid or the marks change (`companion.js`, `route.js`, `nav.js`, `story.js`) | `tools/guide_way.js` |
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
-| `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right), then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/phone_audio.js` |
+| `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right); every one-shot the street and the story make played many times over, failing on a graph that is larger once they have ended than before them (a node left on the mix is visited in every block) or a sound begun at or before the context's time; then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/audio_graph_check.js`, `tools/phone_audio.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
 | `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); then as a GPU with sixteen texture units, where every material must still be drawn | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
 | `touch` | Plays the free game by touch on a phone's page, where no key can be pressed | `tools/touch_check.js` |
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder | `tools/astc_check.js` |
 | `game` | The free game's long scenario: walk, talk, the helicopter, your car, a taxi, the trains | `tools/game_check.js` |
+
+Feet on the ground (`web/game/nav.js` `lift`, a hero level's paving and the city's own under it): `tools/feet_check.js [out]
+[WxH]` plays the story to its first walk and measures every sole within 25 m against the ground drawn under it (the
+lowest vertex of each foot as the skin poses it, a ray down onto whatever is drawn), failing a sole more than 2.5 cm
+in or 5 cm over it; `HERO=off` holds the hero levels back, as a phone shows the street before its level has come (at
+a desktop's size, where the city's buffers are kept to cast a ray at). Run when the walking heights, a hero level or
+the landmarks' paving change. The tactile blocks' places (`cities/shibuya/scramble.py` `tactile_layout`) are looked at
+in stills: `tools/game_shot.js shibuya tools/views/tactile.json out [390x844 with LEAN=1]`, from the air over Hachiko
+Square and on foot at the start, at dusk and by day.
 
 Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
 film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
@@ -98,6 +107,17 @@ prints its own runner. Nobody waits for it.
 - Each browser shard prints which renderer it got (`tools/gl_renderer.js`): llvmpipe, or SwiftShader when the GL
   backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled are kept
   from one run to the next (`actions/cache`).
+- The browser shards run on `ubuntu-24.04`, whose Mesa (25.2) is a session's machine's, where each check's waits were
+  measured. `ubuntu-latest` became Ubuntu 26.04 in November 2026 (Mesa 26.0, LLVM 21), and main went red for a day
+  and a half without a step named (issue 49): there the desktop page's walk at night in the rain had not set out in
+  ten minutes against three, and the clip check's page lost its WebGL context in its first half minute, run after
+  run. Moving to a newer image is a change of its own, with every shard run on it by hand first
+  (`workflow_dispatch` with the targets `all guide`).
+- A browser check's log says what the browser said (`tools/browser_watch.js`): `gl:` the page's lost and restored
+  contexts, `page:` the page loading again by itself or glcare's note, and `gpu:` what Chromium and its GPU process
+  wrote in their own log about the GPU (kept whole as `<check>-chrome.log` beside the check's log, in the run's
+  artifacts). A click or a still waits three minutes for the page, not Playwright's thirty seconds. When a harness
+  dies with no step named, check.sh's line gives the error it died of.
 
 **By name only: `game`.** `tools/game_check.js` was written for the game before the story: some 260
 steps of one scenario, half an hour on a software renderer. Its steps for what was removed (fishing,
@@ -132,6 +152,10 @@ fails, it is run a second time, and the run fails only on a step that failed bot
 that ended without naming a step (a crash, a timeout). Two runs with no failed step in common print
 `FLAKY` and pass. On main, each `FLAKY` line is added to the issue labelled `check-flaky`: a step
 that is named there often is the one to make steady.
+
+A step that acts and then reads waits for what it reads, not for a fixed time (`tools/walk_play.js` `until`,
+`pressFor`): on a slow runner the desktop walk read Back's state 2.5 s after the press, a frame before Back was
+drawn, and every beat after it failed (issue 49). A press whose state has not come in 20 s is measured and made again.
 
 The free game plays the same game in every run: the traffic's trips, the dispatch's tie-breaks and
 the talk draw from seeded runs, the date is pinned (the weather is a hash of it), and nothing a held

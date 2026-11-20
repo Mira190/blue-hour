@@ -9,14 +9,16 @@
 // its stop (pulled in to the kerb, off its way's line) and the trip is skipped (F); they are let go when it is set down.
 // A set-down on them fails as any overlap does.
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500, isMobile: w < 500 });
+  watchPage(p);
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });

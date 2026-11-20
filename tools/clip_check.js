@@ -18,6 +18,7 @@
 // GAME_TIME (HH:MM, or YYYY-MM-DDTHH:MM) pins the page's clock to that wall time in the city's own
 // time zone (tools/pin_clock.js), as tools/check.sh does; unset or "live", the real clock
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const { startPlay } = require('./start_play');
 const { pinClock } = require('./pin_clock');
 const fs = require('fs');
@@ -42,10 +43,11 @@ const TOL = {
 };
 
 (async () => {
-  const b = await chromium.launch(process.env.GPU === 'metal' ? { args: ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] } : process.env.DISPLAY
+  const b = await chromium.launch(Object.assign({ logger: browserLog() }, process.env.GPU === 'metal' ? { args: ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] } : process.env.DISPLAY
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
-    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }));
   const p = await b.newPage({ viewport: { width: 800, height: 500 } });
+  watchPage(p);
   if (process.env.TIER) await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER); // (TIER=low: the tier a software renderer picks)
   const pinned = await pinClock(p, city); // (GAME_TIME)
   if (pinned) console.log(`clock pinned to ${pinned.spec} in ${pinned.tz} (${pinned.utc})`);

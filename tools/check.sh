@@ -31,8 +31,10 @@
 #           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
 #   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
-#           (tools/reverb_check.js), and the opening and the story's own sound played as an iPhone, every convolver on
-#           the live context within WebKit's realtime limit, one context, no worklet (tools/phone_audio.js);
+#           (tools/reverb_check.js), the graph as small after every one-shot has sounded as before, and no sound begun
+#           before the audio thread can take it up (tools/audio_graph_check.js), and the opening and the story's own sound
+#           played as an iPhone, every convolver on the live context within WebKit's realtime limit, one context, no
+#           worklet (tools/phone_audio.js);
 #           when the sound changes;
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
@@ -116,10 +118,10 @@ else
       tools/ride_people.js) static=1; add ride ;;
       tools/touch_check.js) static=1; add touch ;;
       tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
-      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
+      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
       web/*|cities/*) static=1; page ;;
       tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
     esac
@@ -164,13 +166,16 @@ X=; command -v xvfb-run >/dev/null && X="xvfb-run -a"
 # .github/workflows/checks.yml adds them to the issue labelled check-flaky)
 : >"$OUT/flaky.txt"
 fails_of() { grep '^FAIL' "$1" 2>/dev/null | cut -c6- | sed 's/ *[(:].*//' | sort -u; }   # the failed steps' names, without their numbers
+# why a run failed, in a line: its failed steps, and what the browser said (tools/browser_watch.js: the GPU process, a lost
+# context, the page loaded again); or, from a harness that died with no step named, the error it died of (issue 49)
+why() { { grep '^FAIL\|pageerror\|^error:\|^gpu:\|^gl: \|^page:' "$1" 2>/dev/null || grep -E '^[A-Za-z]+(\.[A-Za-z]+)+: |^[A-Za-z]*Error: ' "$1" 2>/dev/null | tail -1; } | head -${2:-2} | cut -c1-160 | paste -sd ';' -; }
 twice() {   # <kind> <first log> <second log>: the verdict of the second run
   local same one two
   one=$(fails_of "$2"); two=$(fails_of "$3")
   same=$(comm -12 <(echo "$one") <(echo "$two") | grep . | head -3 | cut -c1-110 | paste -sd ';' -)
   if [ -n "$one" ] && [ -n "$two" ] && [ -z "$same" ]; then
     echo "FLAKY $1   (no step failed twice; first: $(echo "$one" | head -2 | cut -c1-90 | paste -sd ';' -); then: $(echo "$two" | head -2 | cut -c1-90 | paste -sd ';' -))" | tee -a "$OUT/flaky.txt"
-  else echo "FAIL $1   (${same:-$(echo "$two" | head -2 | cut -c1-110 | paste -sd ';' -)}; see $3; the first run $2)"; fi
+  else echo "FAIL $1   (${same:-$( [ -n "$two" ] && echo "$two" | head -2 | cut -c1-110 | paste -sd ';' - || why "$3")}; see $3; the first run $2)"; fi
 }
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
   story_part story "" "" "the episode plays through its seven frames to the last card"
@@ -185,23 +190,25 @@ story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
   local n=$1 log="$OUT/$1.log"
-  if FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
-  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(grep '^FAIL\|pageerror\|^error:' "$log" | head -2 | cut -c1-160 | paste -sd ';' -)" "$log"; fi
+  if CHROME_LOG="$OUT/$n-chrome.log" FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
 }
-run_guide() {   # the guide along each frame's way, on a small page
-  if timeout 3600 $X node tools/guide_way.js "$OUT/guide" 800x500 >"$OUT/guide.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide.log") ways led: his feet on the paving drawn, down the middle, and the mark along the way"
-  else echo "FAIL guide  $(grep '^FAIL\|pageerror' "$OUT/guide.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/guide.log)"; fi
+run_guide() {   # the guide along each frame's way, on a small page; and his body and the player's never in each other
+  if CHROME_LOG="$OUT/guide-chrome.log" timeout 3600 $X node tools/guide_way.js "$OUT/guide" 800x500 >"$OUT/guide.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide.log") ways led: his feet on the paving drawn, down the middle, and the mark along the way"
+  else echo "FAIL guide  $(why "$OUT/guide.log")   (see $OUT/guide.log)"; fi
+  if CHROME_LOG="$OUT/guide-body-chrome.log" timeout 1800 $X node tools/guide_body.js "$OUT/guide-body" 800x500 >"$OUT/guide-body.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide-body.log") ways of meeting him (sitting, at heel, leading, against a wall): his model never in the player, measured by its own vertices"
+  else echo "FAIL guide  body: $(why "$OUT/guide-body.log")   (see $OUT/guide-body.log)"; fi
 }
 run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
   local ok=1 d
   for d in 800x500 390x844; do
-    if ! timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(grep '^FAIL\|pageerror' "$OUT/walk-$d.log" | head -2 | cut -c1-150 | paste -sd ';' -)   (see $OUT/walk-$d.log)"; fi
+    if ! CHROME_LOG="$OUT/walk-$d-chrome.log" timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
   done
   [ $ok -eq 1 ] && echo "ok   walk   $(grep -c '^ok' "$OUT/walk-800x500.log") beats on a desktop's page and $(grep -c '^ok' "$OUT/walk-390x844.log") on a phone's: two ways in, the hour and the sky, out with no story"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
-  if LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
+  if CHROME_LOG="$OUT/ride-chrome.log" LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
@@ -216,6 +223,8 @@ run_mem() {
 run_audio() {
   if timeout 900 node tools/reverb_check.js >"$OUT/reverb.log" 2>&1; then echo "ok   audio  $(grep -c '^ok' "$OUT/reverb.log") reverbs as a phone hears them, each within its tolerance of the whole convolution"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/reverb.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/reverb.log)"; fi
+  if timeout 600 node tools/audio_graph_check.js >"$OUT/audio_graph.log" 2>&1; then echo "ok   audio  the graph as small once every one-shot has sounded as before ($(grep -o '[0-9]* once they have ended' "$OUT/audio_graph.log" | head -1 | grep -o '^[0-9]*') nodes), none begun before the audio thread can take it up"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_graph.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_graph.log)"; fi
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
@@ -225,9 +234,9 @@ run_audio() {
   else echo "FAIL audio  touched first on the title: $(grep '^FAIL' "$OUT/phone_audio_title.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio_title.log)"; fi
 }
 run_clip() {
-  if timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance"; return; fi
-  cp "$OUT/clip.log" "$OUT/clip-first.log"
-  if timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance   (the second run; the first: $OUT/clip-first.log)"
+  if CHROME_LOG="$OUT/clip-chrome.log" timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance"; return; fi
+  cp "$OUT/clip.log" "$OUT/clip-first.log"; cp "$OUT/clip-chrome.log" "$OUT/clip-first-chrome.log" 2>/dev/null
+  if CHROME_LOG="$OUT/clip-chrome.log" timeout 1800 $X node tools/clip_check.js "$MAP" 40 "$OUT/clip.json" >"$OUT/clip.log" 2>&1; then echo "ok   clip   $(grep -c '^ok' "$OUT/clip.log") measures within tolerance   (the second run; the first: $OUT/clip-first.log)"
   else twice clip "$OUT/clip-first.log" "$OUT/clip.log"; fi
 }
 run_game() {   # (every step takes about half an hour on a software renderer)
