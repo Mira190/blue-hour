@@ -312,6 +312,62 @@ are pruned clear of the people under them (Japan's road rules keep 2.5 m over a 
 `tools/hero_trees.js` lists the trees round the Scramble with where their leaves begin and exits 1 on one lower
 than 2.5 m within 60 m.
 
+### The trees up close (November 2026)
+
+The owner's still by the koban at Hachiko: a street tree next to the player was a smooth dark cone a metre and a half
+through, with no bark, and a pillar where a zelkova stood beside the camera. Three things were wrong, and each is a
+thing a real tree's make explains:
+
+- **Its girth.** `r0` in `blender/build_trees.py` now means what a street-tree survey measures: the trunk's radius at
+  breast height. A Tokyo street zelkova or ginkgo of 15 to 20 m stands on a trunk 40 to 60 cm through, a camphor's
+  near a metre; before, the trunk tapered linearly from 1.35 `r0` at its foot and a zelkova was 1.4 m through at
+  eye height. Below breast height it flares into its roots (`trunk_rad`: half as wide again at the ground, gone in
+  half a metre), and above it tapers to the crown. Every model, near and far, has it, and the game's posts
+  (`trees.json` `trunk_r`) follow.
+- **Its bark.** Every trunk, limb and twig carries a bark uv in metres (`branch`: round the ring a whole number of
+  repeats nearest its girth, no seam; along it the same metres), and wears a CC0 scan from ambientCG with its normal
+  map (`BARKS`: Bark004, an old zelkova's grey scales over warmer under-bark; Bark001, the ginkgo's and the pine's
+  corky ridges; Bark009, the plane's shed patches; Bark012, the camphor's long fissures; Bark003, the smooth bark of
+  the evergreen oaks, the maple and the cherries, whose lenticel bands `trees.js` draws over it; Bark015, the sugi's
+  strips). One scan stands for each kind of bark: the page tints it to the species' own colour (`bark_map.tint`), so
+  the bark's mean is the colour the trees had, and only its relief and its grain are new. A thin branch's bark is
+  finer than a trunk's, as a young branch's is.
+- **Its making near the camera.** Within 42 m (24 m on the light tier) each tree is its hero model (`<species>_LODH`,
+  `trees_hero.glb`, 8 to 16 thousand triangles where the near model has two): grown from the same seed through the
+  same steps as the near model, so its limbs, twigs and crown are where the near model's are and the switch shows no
+  jump, but finer. A trunk of twenty sides on four to six root spurs that fade over its first half metre (`BUTTRESS`:
+  a zelkova and a camphor stand on spurs, a ginkgo and a cherry flare round), a slight oval and a slow lump winding up
+  it; limbs of ten sides with a collar where they leave the trunk, tapering fastest where their twigs leave them;
+  twigs of five sides down to a centimetre; and the leaves at their own size. The atlas's sprays were drawn about
+  twice a real leaf's size for the near model's big cards; the hero model lays each card as three cards a little over
+  half its size over the same place, each tipped its own way and half of them mirrored, so the one spray per species
+  repeats far less, and gives each spray within 90 cm of its twig a short stalk from the nearest point along it, so no
+  leaf hangs in the air (stalks from each twig's tip to every spray of it fanned out against the sky like wires).
+- Limbs leave from inside the trunk's top metre, so that it forks into them: up to 40 cm of a limb's start was above
+  the trunk before, a gap a close camera could see through.
+
+What it costs: the hero part (2.2 MB) and the bark scans (4.1 MB; on the light tier the colour alone at a quarter size,
+0.1 MB: a trunk 3 m off is some 130 pixels across and 256 texels a repeat of its bark are still twice what it shows,
+and in shade the crevices' shade in the colour shows its relief) come after
+the game can be played (`trees.js` `loadNear`, with the near models); until they do, the near model stands in and a
+texel of each scan's mean colour stands in for the scan, so the bark's program is the one compiled behind the loader
+and nothing is compiled when they come. On a phone the colour scans are packed for the GPU (`tex.js`) before they are
+worn; the normal maps stay as they are. A species' hero model holds only as many trees as stand within its reach (160,
+40 on the light tier; the rest are drawn as the near model), not every tree of the species as the other levels do, and
+is shown only while it draws one, so its model goes up to the GPU when one of its trees is first near. On the phone's
+memory check (`tools/mem_check.js`) the first build, with half-size scans and a hero model holding every tree, put the
+GPU's peak 22 MB higher, over the budget (287 MB of 270; main 265); with these, 270, and 268 without the light
+tier's normal maps. `trees.js` `hero()` says how far the hero models are drawn, how many trees
+draw them and whether the scans are in.
+
+Learned from, never copied:
+
+| Work | What it does | Adopted here |
+|---|---|---|
+| SpeedTree in games ([SpeedTree's blog](https://blog.speedtree.com), [Unity's tree LODs](https://docs.unity3d.com/Manual/terrain-Tree-LOD.html)) | A hero tree of more than 15,000 triangles where few trees are close; three discrete levels below it and a billboard last; branch seams welded; bark as a tiling photographed texture with its normal map | A fourth level near the camera over the three there were and the far impostors; limbs started inside the trunk rather than welded; scanned bark and its normal map |
+| ez-tree (Dan Greenheck, three.js, [MIT](https://github.com/dgreenheck/ez-tree)) | A tree grown from parameters in the browser: tapered branch tubes with bark uv in world units, leaves as cards, levels of detail | Bark uv in metres round and along each tube; the growth stays this script's own (Weber and Penn's way, in Blender) |
+| ambientCG ([CC0 1.0](https://ambientcg.com)) | Scanned PBR materials | Six bark scans (1K, WebP; the colour at a quarter size for the light tier) |
+
 ### A phone after dark, and the level coming in (issue 62)
 
 **The screens' light on the low tier.** A desktop lights the Scramble after dark with the screens' area lights
@@ -564,3 +620,74 @@ at every 3.6 m bay.
 While this was built, the floodlit copy of every landmark material was found to have lost its
 shader: its `onBeforeCompile` had ended up inside a comment. So since 8 November, every city's
 floodlit landmarks had lost their pattern and their fall-off after dark. It is code again.
+
+### The Akita who leads the player
+
+The guide has two upright ears above a broad skull. Each ear has a wide root, a rounded tip
+leaning slightly outward, a pale rim and a darker recessed opening. Their silhouette follows
+the front-facing portrait supplied for the guide. He has a short muzzle, compact toes,
+a cream bib and a layer of tapered guard hairs.
+The coat follows the jaw down the cheeks, lies back along the saddle and turns around the tail.
+The relative coat lengths and the cream markings follow the
+[Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
+The pale muzzle and orbital markings follow the surface around the head. The neck reaches forward at rest.
+The [Akita preservation society's description](https://akitainunosato.jp/publics/index/27/)
+informs the broad forehead, shallow central furrow, full cheeks and straight nasal bridge.
+The [Japanese Akitainu Club's illustrated guide](https://akita-inu.com/wp-content/uploads/securepdfs/2022/08/JACA-AKC-General-Guide-Electronic.pdf)
+shows the muzzle at about two fifths of the head length. These references inform the sculpt; no images are
+shipped from them.
+The standing silhouette was compared with [Dog - Akita Inu](https://www.cgtrader.com/3d-models/animal/mammal/dog-akita-inu), a commercial visual reference. No assets from the pack are used.
+The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
+a tiled undercoat with directional relief. Both textures are generated at build time.
+The corneas and lid creases are sculpted into the same surface so the skin turns as one.
+The eyes and nose use a lower roughness than the surrounding coat.
+
+**The head, measured again and set beside photographs (20 November 2026).** In review the forehead looked
+pressed in, and the owner asked for the head to match photographs of the breed from the front and the side.
+
+*What was wrong, measured.* Sampling the sculpt's distance field across the head: above the eyes the brows stood
+16 to 20 mm higher than the middle of the forehead, a trough some 9 cm wide running back from the stop (the roof
+that shapes the stop was lifted at the sides across the whole forehead), and between the eyes they still stood
+15 to 16 mm above it, two ridges with a dark trough between them that read from the front as a hollow. And the
+skull's front, the cheeks and the brows reached so far forward that the eyes sat on a flat face some 4 cm in front
+of the stop, on the muzzle: from the side the muzzle looked short and the head like a seal's.
+
+*What the breed is.* The [Japanese Akitainu Club's page of standards](https://akita-inu.com/?p=333) (it carries
+the AKC's Japanese Akitainu standard and the Akitainu Hozonkai's): "the forehead is broad and flat, preferably
+with a distinct furrow extending from the stop to the top of the skull"; a moderate stop; a head that is "a
+slightly rounded octagon" from the front; the muzzle 40 percent of the head's length; the eyes deep-set,
+almond-shaped (the Hozonkai: somewhat triangular), relatively small, raised at the outer corners, with black
+rims; the ears small, thick, triangular, wide-set and tilted forward, "at a 75 to 90 degree angle to a line drawn
+along the bridge of the muzzle". Three photographs on Wikimedia Commons were the models for the views, all
+red Japanese Akitas: a head from the front, [Akita Tête](https://commons.wikimedia.org/wiki/File:Akita_T%C3%AAte.jpg)
+(Azurfrog, CC BY 4.0); one standing in profile, [Japanese Akita red 2](https://commons.wikimedia.org/wiki/File:Japanese_Akita_red_2.jpg),
+and one at three-quarters, [Japaneseakita-red](https://commons.wikimedia.org/wiki/File:Japaneseakita-red.jpg)
+(both Canarian, CC BY-SA 4.0). They are looked at, not shipped: `tools/head_shot.js` films the model from the
+angles they were taken from, with a long lens, and with `REFS=` a folder holding them as `front.jpg`,
+`profile.jpg` and `three.jpg` sets each still beside its photograph (`HIDE=` leaves meshes out, to tell what a
+mark in a still is made of).
+
+*What changed* (`blender/build_dog.py`). The forehead is flat across and falls gently forward, with a 2 mm furrow
+from the stop to the crown; between the eyes the brows stand 2 to 4 mm above the middle (`portrait_head`, the roof
+in `face`). The skull's front and the cheeks are drawn back so that the eyes sit at the stop, and the brows sit over
+the eyes rather than out past their corners (there they overhung the temple, and the skin beneath, facing down,
+showed from a few metres as a black streak running back from each eye). The muzzle is sculpted short and drawn out
+forward of the eyes by 1.45 (`sculpted()`, `built()`: the markings, the lips, the eyes' frame, the whiskers and where
+the coat stops all go through it): from the eye to the nose it is now about the height of the ear above the eye, as
+in the photograph in profile (it was 0.86 of it, and half the depth of the head at the eye), the muzzle 44 percent
+of the head's length against the standard's 40, and the lower jaw is shallower and rises to the chin. The eyes are
+almond to three-cornered, the lower lid nearly straight up to a raised outer corner, set some 2.5 mm back under a
+slightly overhanging upper lid, a third of the head's width apart; the sculpt presses them in along each vertex's
+own normal, with a thin black rim (it had been a quarter of the eye wide and read as black fur), in a ring of pale
+fur, and on a wet material of their own (roughness 0.1) that holds a point of the sky (`orbit`, `sculpt_features`,
+the material "Eyes"). The upper lips sit back under the nose, so that from the side the nose stands in front of
+the muzzle, and the seam of the lips falls a little all the way back to the corner of the mouth (`MOUTH`), black its
+whole length: it had turned up at its ends into a smile. The ears are longer, lean forward over the eyes and splay
+out, so that from the front they carry on the lines of the cheeks (`EAR`, `ear_frame`). The cheeks are fuller, the
+head widest below the eyes. The coat's markings follow the photographs: the red comes down the forehead to a point
+between the eyes and wraps the outer corner of each eye and the temple; the whole muzzle is white, its bridge too;
+the cheeks are white below a line from under the eye back to the angle of the jaw, and above it the side of the
+head is red out to the ear; a pale patch sits over the inner half of each eye; the throat is white and the sides of
+the neck red. The red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the
+exporter of Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they
+had come out white.
