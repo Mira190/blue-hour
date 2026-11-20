@@ -30,6 +30,12 @@ the landmarks' paving change. The tactile blocks' places (`cities/shibuya/scramb
 in stills: `tools/game_shot.js shibuya tools/views/tactile.json out [390x844 with LEAN=1]`, from the air over Hachiko
 Square and on foot at the start, at dusk and by day.
 
+The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
+stills: `tools/walk_people.js out [WxH] [hour] [sky]` sets out on the walk, waits for each to be drawn, and takes each from
+twelve metres with their speech mark and from three in front, printing where each stands and whether that is in a road.
+The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
+(shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
+
 Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
 film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
 to you passes within 0.42 m of a held person's middle or ends away from you, then runs after him at the game's own run
