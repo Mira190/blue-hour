@@ -48,7 +48,7 @@ COARSE = (300, 0.5, 0.06)          # target triangles, error, the hair cards' le
 BODY, HEAD = 128, 64
 CELL = (BODY, BODY + HEAD)          # w, h: the body over the head and the hair cards side by side
 KEEP = 204   # (as blender/build_people.py KEEP)
-HIGH_CAST = 16   # (as web/game/game.js HIGH_CAST)
+HIGH_CAST = 20   # (as web/game/game.js HIGH_CAST)
 UNIFORM = re.compile(r"Police|Pilot|Security|Construction|Delivery|Gardener|Worker|Nurse|Chef")   # (as game.js realCast)
 
 

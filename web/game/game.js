@@ -798,8 +798,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // what the owner saw first at the Scramble. A phone has a cast of LOW_CAST, half of them women (each is two or
   // three pictures at 512 px, 256 on the lighter sets: about 4 MB of the GPU a character, quality.js budget)
   // The far crowd is the same cast (people.js lib.far, issue 475), one instanced draw a cast member in the view and
-  // again in each shadow pass, so the other tiers' cast is held to HIGH_CAST, below the dolls' thirteen it replaces.
-  const LOW_CAST = 8, HIGH_CAST = 12;
+  // again in each shadow pass, so the other tiers' cast is held to HIGH_CAST: twenty (issue 77: with twelve, a view of two
+  // hundred people at the Scramble saw one body twenty times; the far copies of twenty are 0.7 MB, in one draw each)
+  const LOW_CAST = 8, HIGH_CAST = 20;
   const realCast = () => {
     if (!lib || !lib.npcs || CR.real === false || /[?&]realcrowd=off/.test(location.search)) return null;
     const tier = QC.name !== 'low' ? HIGH_CAST : QC.budget && QC.budget.cast ? Math.min(LOW_CAST, QC.budget.cast) : LOW_CAST;
@@ -3366,6 +3367,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   };
   const clearSight = (a, b, half = 0) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    if (crowd.keep) crowd.keep(a[0], a[1], b[0], b[1], (half || 1.4 + 0.15 * L) + 1); // (and nobody begins to stop or stand about in it while it lasts)
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
       // (where it is drawn: in a Stop the drawn place does not catch up with the simulated one, and one drawn in the way
@@ -3382,6 +3384,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
   // forty metres off among a held crowd of umbrellas, neither could be found in the print)
   const clearRound = (x, y, r) => {
+    if (crowd.keep) crowd.keep(x, y, x, y, r + 1);
     for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
       const p = crowd.P[i];
       if (p.line < 0 && !p.pz) continue;
@@ -7552,6 +7555,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect, talkPanel());
         if (t) {
           talkShot = t;
+          { const sp = talkCam.talk.speaker; if (crowd.keep) crowd.keep(player.x, player.y, sp ? sp.x : player.x, sp ? sp.y : player.y, 7); } // (nobody begins to stop along the way in the conversation's shot)
           // (at the cut, the crowd in the frame before the face or at its shoulder: a walker among them is sent on
           // elsewhere, as one the crowd is done with, and one at a scramble's kerb is left undrawn while the shot lasts.
           // A cut hides the change, in a Stop as in the running street; issue 45)

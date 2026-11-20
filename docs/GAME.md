@@ -1864,13 +1864,96 @@ Sydney's traffic stood still a third of the time.
       Design* (1971), levels of service for walkways and queues; Moussaïd et al.
       (PLoS ONE 2010) on walking groups of two to four; Unreal's Mass and
       Recast/Detour (zlib) for standing agents with a place of their own. Ideas only,
-      no code or data from any of them. Not done: walking groups of two or three,
-      and people who stop at a shopfront or lean on a rail. Both are left to an
-      issue.
+      no code or data from any of them. Walking groups and stops along the way
+      followed (issue 56, below).
     - `tools/crowd_spread.js [HH:MM] [x,y,face] [seconds]` (`SPOTS=all`: Hachiko, the
       crossing's middle, QFRONT's kerb, the station's kerb) fails on a clump of
       people standing: more than 6 in a 2 m circle for more than 6 s, or more than
       13 in a 3 m circle.
+  - *Groups, stops along the way, and the crossing wave* (November 2026, issue 56:
+    the Scramble's crowd beside a photograph of the place at 17:40, where every
+    walker here walked alone, nobody stopped on the way anywhere, and the crowd
+    leaving a kerb crossed as one dense column).
+    - **Groups.** About a third of the walkers put out on the street lead a group:
+      one more (seven in ten), two more (two in ten) or three; with their mates
+      about half the crowd walks in groups, as Moussaïd et al. counted on a weekday
+      street (55%; 70% at the weekend). A group walks abreast at ease, 0.75 m
+      apart; as the crowd round it thickens the line closes to 0.62 m and bends
+      forward into a V, the middle ones half a metre back, so that they can still
+      talk (the paper's finding); on a footway too narrow for them abreast, two by
+      two; in a press, or held up by people coming the other way, single file
+      behind the leader, each out of their way as anyone alone would step (a group
+      abreast met head on at a kerb had blocked a footway for a minute). It walks 5% slower a member. The leader walks as anyone does; each mate
+      keeps its place by it: across the footway at its offset, along it by its pace
+      (a little quicker behind, slower ahead), the way its leader went at a corner,
+      turned back when it turns, and stopped when it stops. A leader holds back
+      for a mate more than 2.5 m behind, unless the crowd round it is thick: then
+      it goes on with the flow, and a mate in a crowd never stands still in the
+      way to keep its place. Mates do not see one another as in their
+      way. At a scramble a mate waits beside its leader along the kerb, 0.85 m
+      off (else a step behind), steps out when it does, crosses beside it, waits for it on the far
+      side if over first, and stands about the square with it in a ring, each
+      turned to the others. Whichever of them reaches a scramble's kerb first
+      brings the rest; the leader going off along a footway takes them along. A
+      group parts only where it would: one of them sent elsewhere (out of sight,
+      by the story's clearing, into a bus, too far apart); a leader's mates then go
+      on as a group of their own. Groups made only where people come out sank
+      from half the crowd to a quarter in three minutes, so a few times a second
+      someone walking alone out of sight may be joined by others walking alone
+      out of sight (`formGroup`, `mateSlot`, `mateSpot`, `groupSync`
+      in `web/game/actors.js`).
+    - **Stops along the way.** Every two to four minutes of walking, someone alone
+      or leading a group may stop: found from the footway itself, out to either
+      side of it, the first solid thing within its edge and a step and a half past
+      it. Solid with more of it a metre beyond is a building's front: a shop
+      window, faced for 10 to 40 s. Solid with the road beyond is the guard pipes
+      along a kerb (the Scramble's are solid in the level): leaned on 20 to 70 s,
+      with the back to them or facing the street. Anything else solid is a pier of
+      the viaduct or a post: leaned on, the back to it. It goes over slowly, stands
+      0.42 m off it, and is gone round as anyone standing is. Not near a crossing,
+      on steps, on a footway under 3 m wide or with ten people round (a stop
+      there pinched a counterflow into a jam; one stopped cuts it short when the
+      way round it fills up), within a metre of anyone or by a car or a bench,
+      and not where the
+      story keeps the crowd out of: `clearSight`, `clearRound` and the talk
+      camera's shot now tell the crowd (`crowd.keep`, for three seconds after the last call),
+      and nobody begins to stop or to stand about the square there
+      (`stopAt`, `keptOut`). A group stops with its leader, along the window either
+      side of it. On the square itself half of those standing about alone lean on
+      something within two and a half metres instead (the guard pipes, a planter,
+      a pier), facing away from it. The station's map board is not in the level,
+      so nobody stops at it yet.
+    - **The crossing wave.** Each crosser now heads for the far kerb across from
+      where it stands along its own, in the stripes' half-widths (0.8 of it, and
+      0.3 of one to its left so that lanes still form), rather than from a number
+      drawn for it squeezed into 0.7 of the width: the whole kerb's crowd had been
+      funnelled into a lane under 5 m wide. And each row at the back steps off half
+      a second later a metre it stands back (it was 0.35).
+    - Measured with `tools/crowd_spread.js`, which now also reports the share in
+      groups, how many stand stopped along the way, and the most crossers in a 2 m
+      circle round one of them. At 17:41 at its four spots, 200 s each: before,
+      nobody in a group and nobody stopped; crossers at most 2.2 to 3.2 a square
+      metre round one of them, 1.1 to 1.7 on average of each second's most. After
+      (the last of five runs): 44 to 56% in groups; 0.3 to 1.7 within 40 m stood
+      at a window or a rail or leaning at any moment; crossers at most 2.5 to 2.9
+      a square metre, 1.2 to 1.3 on average, the column the issue asked for. Its
+      clump test (more than six standing in a 2 m circle for more than six
+      seconds) failed one spot of four on main (QFRONT's footway, 39 s) and fails
+      one spot of four in most runs here, a different one each time: a footway
+      jammed where two flows meet at a kerb, or a kerb's waiting crowd at a long
+      red (issue 75 reworks how that crowd stands).
+    - Research (ideas only, no code or data): Moussaïd, Perozo, Garnier, Helbing
+      and Theraulaz, *The walking behaviour of pedestrian social groups and its
+      impact on crowd dynamics*, PLoS ONE 5(4) e10047, 2010 (CC BY 4.0): the
+      share in groups, the sizes, abreast at low density and the V at higher; the
+      group model in Menge (Apache-2.0) and the crowds of Unreal's Mass (its
+      formations: a leader and offsets); for the browser, recast-navigation-js
+      (MIT, Detour's crowd: agents with no groups), the RVO2 JavaScript ports
+      (Apache-2.0) and crowdedjs (MIT, Detour in a worker under three.js), none
+      with groups that keep a formation through a city's signals, so none is
+      taken. Lingering and leaning as a street's people do: Whyte, *The Social
+      Life of Small Urban Spaces* (1980), on people standing at edges and at
+      objects rather than in the open.
   - `tools/scramble_step.js`, run by `tools/game_check.js` in every city with a
     scramble, checks that in the walk every arm's light is red, the walk signals
     are green and the crowd is out on the crosswalks and the diagonals; that in
