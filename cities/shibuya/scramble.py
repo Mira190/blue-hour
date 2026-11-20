@@ -266,7 +266,6 @@ def crosswalks(K, D, node):
     gz = lambda p: D.ground(*p)
     area = junction_area(D)
     ground_polygon(asphalt, area, gz, 0.03)
-    tactile(K, D, np.asarray(node, float), area)
     centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in CROSSWALKS], axis=0) / 2
     for cw in CROSSWALKS:
         mode = STOPS.get(cw["id"])
@@ -442,49 +441,255 @@ def guard_rails(K, D, plan, near=40.0):
 
 # ---------------------------------------------------------------- tactile paving
 
-def tactile(K, D, node, road, radius=125.0):
-    """The yellow tactile blocks (点字ブロック, 30 cm square) along the footways OSM tags tactile_paving=yes
-    round the scramble: guide blocks along the line, warning blocks (dots) where it meets a kerb or turns,
-    on the pavement only (not on the road, not under a building)."""
-    from shapely.ops import unary_union
-    from shapely import STRtree
-    blds = [Polygon(s["ring"]) for s in D.solids if len(s["ring"]) >= 3 and np.linalg.norm(np.asarray(s["ring"][0]) - node) < radius + 60]
-    blocked = unary_union([b.buffer(0.3) for b in blds if b.is_valid] + [road.buffer(0.2)])
-    m = K["x_tactile"]
-    gz = lambda p: D.ground(*p)
-    ends = []
+TACT = 0.3          # a block (JIS T 9251): 30 cm square
+TACT_TURN = 25.0    # a bend (degrees) that gets a warning block at its corner; under it the line runs on, angled
+TACT_SNAP = 14.0    # a mapped leg within this of the paving's grid is laid straight along it as it is
+TACT_SIMPLIFY = 2.0 # how far (m) a run may stand off the mapped line it is laid along
+TACT_CORNER_M = 1e9 # a mapped leg longer than this, 30 degrees and more across the grid, turns a corner instead
+
+
+def tactile_ways(D, near, radius):
+    """The footways OpenStreetMap tags tactile_paving=yes on the ground within radius of near: each as its points."""
     for w in D.ways:
         t = w["tags"]
         if t.get("tactile_paving") != "yes" or not t.get("highway") or t.get("highway") in ("steps", "elevator"):
             continue
         if str(t.get("layer", "0")) != "0" or str(t.get("level", "0"))[:1] in "-123" or t.get("bridge"):
             continue
-        pts = [p for p in w["xy"]]
-        if min(np.linalg.norm(p - node) for p in pts) > radius:
-            continue
-        line = LineString([tuple(p) for p in pts]).difference(blocked)
-        for piece in getattr(line, "geoms", [line]):
-            if piece.geom_type != "LineString" or piece.length < 0.6:
-                continue
-            cs = np.asarray(piece.coords)
-            for a, b in zip(cs[:-1], cs[1:]):
+        pts = np.asarray(w["xy"], float)
+        if len(pts) >= 2 and np.min(np.linalg.norm(pts - near, axis=1)) <= radius:
+            yield pts
+
+
+def tactile_layout(D, plan, radius=None):
+    """Where the yellow blocks lie round the scramble, as they are laid in Japan, from where OpenStreetMap says a
+    footway has them (tactile_paving=yes). A mapped footway is the walkers' line, not the blocks': it cuts across
+    Hachiko Square on the diagonal and follows a kerb's curve point by point, and drawn as it is mapped it was a
+    tangle of yellow arcs (the owner's iPhone, November 2026). Blocks are 30 cm squares laid in straight rows:
+    guide blocks (bars along the way) in runs along the paving's own grid, the kerbs and the building lines round
+    them, a turn at a corner, never a curve; a warning block (domes) at each bend and branch; and where a line meets a
+    kerb, a row of warning blocks along it, two deep, 30 cm back from its edge, which the guide line runs into square
+    (国土交通省, 道路の移動等円滑化に関するガイドライン: the warning row parallel to the road, set back about 30 cm).
+    So each mapped leg that runs along the grid (within TACT_SNAP) is kept; one that runs across it becomes two legs
+    along it, turning at the corner that keeps both on the paving; and a line's last leg to a kerb comes in square.
+    Returns {"runs": [(a, b)], "dots": [(centre, along, n_along, n_deep)]}: guide runs from a to b (30 cm wide,
+    each end at a block's edge), and warning blocks, n_along by n_deep of them, centred, laid with their rows along
+    `along` (a unit vector)."""
+    from shapely.geometry import MultiLineString, box as sbox
+    from shapely.ops import linemerge, nearest_points, unary_union
+    near = np.asarray(plan.centre, float)
+    radius = radius or float(plan.disc.exterior.distance(Point(*near)))
+    ok = plan.pave.buffer(-0.2)
+    kerb = plan.roads.boundary
+    # the grid the paving keeps near a point: the kerbs' and the building lines' directions round it, by length and
+    # nearness (each edge's angle taken four times over, so that along and across are one direction)
+    edges = []
+    big = unary_union([q for q in getattr(plan.solids, "geoms", [plan.solids]) if q.area > 150.0])   # (not a kiosk turned its own way)
+    for g in (kerb, big.boundary):
+        for co in lines_of(g.intersection(plan.disc.buffer(30))):
+            for a, b in zip(co[:-1], co[1:]):
                 L = float(np.linalg.norm(b - a))
-                if L < 0.05:
-                    continue
-                f = (b - a) / L
-                l = np.array([-f[1], f[0]]) * 0.15
-                for k in range(max(1, int(L // 2.0) + 1)):
-                    p, q = a + f * L * k / max(1, int(L // 2.0) + 1), a + f * L * (k + 1) / max(1, int(L // 2.0) + 1)
-                    u0, u1 = L * k / max(1, int(L // 2.0) + 1), L * (k + 1) / max(1, int(L // 2.0) + 1)
-                    m.quad(*[np.array([*x, gz(x) + 0.12]) for x in (p - l, q - l, q + l, p + l)], [[u0, 0], [u1, 0], [u1, 0.3], [u0, 0.3]])
-            ends += [cs[0], cs[-1]]
-    dots = K["x_tactile_dot"]
-    for e in ends:
-        if road.distance(Point(*e)) < 1.5 or blocked.distance(Point(*e)) > 0.8:   # at a kerb, or at a door
-            for i in (-1, 0):
-                for j in (-1, 0):
-                    q = [e + np.array([i * 0.3 + a, j * 0.3 + b]) for a, b in ((0, 0), (0.3, 0), (0.3, 0.3), (0, 0.3))]
-                    dots.quad(*[np.array([*x, gz(x) + 0.125]) for x in q], [list(x) for x in q])
+                if L > 0.8:
+                    edges.append((a, b, L, math.atan2(b[1] - a[1], b[0] - a[0])))
+    E = np.array([[a[0], a[1], b[0], b[1], L, th] for a, b, L, th in edges]) if edges else np.zeros((0, 6))
+
+    def axis_at(p, fallback):
+        if not len(E):
+            return fallback
+        a, b = E[:, 0:2], E[:, 2:4]
+        ab = b - a
+        t = np.clip(((p - a) * ab).sum(1) / np.maximum((ab * ab).sum(1), 1e-9), 0, 1)
+        d = np.linalg.norm(a + ab * t[:, None] - p, axis=1)
+        w = np.minimum(E[:, 4], 6.0) * np.exp(-d / 2.5)   # (the nearest edge rules: a corner's two kerbs are not averaged)
+        c, s = (w * np.cos(4 * E[:, 5])).sum(), (w * np.sin(4 * E[:, 5])).sum()
+        return fallback if math.hypot(c, s) < 0.05 else math.atan2(s, c) / 4
+
+    def dev(th, ax):   # how far a direction is off the grid (radians, 0 to 45 degrees)
+        return abs(((th - ax + math.pi / 4) % (math.pi / 2)) - math.pi / 4)
+
+    def outside(pts):
+        return LineString(pts).difference(ok).length if len(pts) > 1 else 0.0
+
+    back = 0.18 + 0.3                       # a row's near edge: the kerb's top, then 30 cm of paving
+    # each crosswalk's two ends: where its middle line meets the kerb, and the way onto the paving there. Every line
+    # that comes to a crosswalk comes to the middle of its end, so that the lines of a corner share one way in
+    ends = []
+    for cw in CROSSWALKS:
+        A, B = np.asarray(cw["a"], float), np.asarray(cw["b"], float)
+        f = unit(B - A)
+        for e, out_ in ((A, -f), (B, f)):
+            ln = LineString([tuple(e - out_ * 3.0), tuple(e + out_ * 6.0)]).intersection(plan.roads.buffer(0.01))
+            k = None
+            for co in lines_of(ln):   # (the kerb: where the line through the crosswalk leaves the carriageway)
+                q = max((np.asarray(co[0]), np.asarray(co[-1])), key=lambda q: (q - e) @ out_)
+                k = q if k is None or (q - e) @ out_ > (k - e) @ out_ else k
+            if k is not None and plan.disc.contains(Point(*k)):
+                ends.append({"k": k, "n": out_, "w": cw["width"]})
+    pads, legs, used, fixed = [], [], set(), []
+
+    def approach(q, end):
+        """The way from q on the paving square in to a crosswalk's end: along the kerb to its middle, then across."""
+        k, n = end["k"], end["n"]
+        tip = k + n * (back + 2 * TACT)
+        depth = max((q - k) @ n, back + 2 * TACT + 1.2)
+        c = k + n * depth
+        return [c, tip] if np.linalg.norm(q - c) > 0.5 else [tip]
+
+    for raw in tactile_ways(D, near, radius):
+        line = LineString(raw)
+        # the ends a line comes to a crosswalk at: cut back 4 m from its kerb, and come in square from there
+        heads = []
+        for which in (0, -1):
+            e = np.asarray(line.coords[which])
+            end = min(ends, key=lambda q: np.linalg.norm(q["k"] - e), default=None)
+            if end is not None and np.linalg.norm(end["k"] - e) < 0.6 * end["w"] + 2.0:
+                heads.append(end)
+                used.add(id(end))
+                cut = line.difference(Point(*end["k"]).buffer(4.0))
+                parts = [g for g in getattr(cut, "geoms", [cut]) if g.geom_type == "LineString" and g.length > 0.5]
+                if not parts:
+                    line = None
+                    break
+                line = max(parts, key=lambda g: g.length)
+            else:
+                heads.append(None)
+        if line is None:
+            continue
+        pts = [np.asarray(q) for q in np.asarray(line.simplify(TACT_SIMPLIFY).coords)]
+        out = [pts[0]]
+        for a, b in zip(pts[:-1], pts[1:]):
+            d = b - a
+            L = float(np.linalg.norm(d))
+            if L < 0.3:
+                continue
+            th = math.atan2(d[1], d[0])
+            ax = axis_at((a + b) / 2, th)
+            # (a leg near the grid, or a short one, runs straight as it is; a long one across the grid turns a corner)
+            if L < TACT_CORNER_M or dev(th, ax) < math.radians(30.0):
+                out.append(b)
+                continue
+            u, v = np.array([math.cos(ax), math.sin(ax)]), np.array([-math.sin(ax), math.cos(ax)])
+            c1, c2 = a + u * (d @ u), a + v * (d @ v)
+            prev = out[-1] - out[-2] if len(out) > 1 else None
+            def cost(c):
+                k = 10 * outside([a, c, b])
+                if prev is not None and np.linalg.norm(c - a) > 1e-6:   # (a turn saved where the leg before runs on)
+                    k += 0.0 if abs(np.dot(prev / np.linalg.norm(prev), (c - a) / np.linalg.norm(c - a))) > 0.97 else 0.5
+                return k
+            out += [min((c1, c2), key=cost), b]
+        if len(out) < 2 and not any(heads):
+            continue
+        if heads[0] is not None:
+            out = approach(out[0], heads[0])[::-1] + out
+        if heads[-1] is not None:
+            out = out + approach(out[-1], heads[-1])
+        # a line's end at a kerb that is not a crosswalk's (a path's end, a crossing OSM maps that is not painted):
+        # a row of four warning blocks, the line in to it square
+        for which in (0, -1):
+            e = out[which]
+            if heads[which] is not None or len(out) < 2 or plan.roads.distance(Point(*e)) > 2.0:
+                continue
+            k = np.asarray(nearest_points(kerb, Point(*e))[0].coords[0])
+            n = unit(e - k) if np.linalg.norm(e - k) > 0.05 else unit((out[1] if which == 0 else out[-2]) - e)
+            if plan.roads.contains(Point(*(k + n * 0.5))):
+                n = -n
+            pads.append((k + n * (back + TACT), np.array([-n[1], n[0]]), 4, 2))
+            tip = k + n * (back + 2 * TACT)
+            if which == 0:
+                out = [tip] + out[1:]
+            else:
+                out = out[:-1] + [tip]
+        fixed += [out[0], out[-1]] if heads[0] is not None or heads[-1] is not None else []
+        legs.append([np.asarray(q, float) for q in out])
+    # the corners and branches of all the lines as one set of nodes: the points of different lines within a metre of
+    # each other made one (the mapped lines meet near each other, not at one point, and a jog of half a metre between
+    # two runs left a gap with a warning block either side of it); a line's end at a warning row stays where it is
+    nodes = []
+    for co in legs:
+        for q in co:
+            hit = next((n for n in nodes if np.linalg.norm(n["sum"] / n["k"] - q) < 1.0), None)
+            if hit is None:
+                nodes.append({"sum": q.copy(), "k": 1, "pin": None})
+            else:
+                hit["sum"] += q; hit["k"] += 1
+    for co in legs:
+        for q in co:
+            if any(np.linalg.norm(q - f) < 1e-6 for f in fixed):
+                n = next(n for n in nodes if np.linalg.norm(n["sum"] / n["k"] - q) < 1.0 + 1e-6)
+                n["pin"] = q
+    at = lambda q: next(((n["pin"] if n["pin"] is not None else n["sum"] / n["k"]) for n in nodes if np.linalg.norm(n["sum"] / n["k"] - q) < 1.0 + 1e-6), q)
+    legs = [LineString([tuple(at(a)), tuple(at(b))]) for co in legs for a, b in zip(co[:-1], co[1:]) if np.linalg.norm(at(b) - at(a)) > 0.05]
+    for end in ends:   # each crosswalk end a line comes to: its row, as wide as six blocks, centred on the crosswalk
+        if id(end) in used:
+            pads.append((end["k"] + end["n"] * (back + TACT), np.array([-end["n"][1], end["n"][0]]), 6, 2))
+    if not legs:
+        return {"runs": [], "dots": []}
+    # one network: the legs two lines share laid once (noded and merged), kept to the paving and off the warning rows
+    rows = unary_union([Polygon([tuple(c + f * s * w * TACT / 2 + np.array([-f[1], f[0]]) * t * dd * TACT / 2) for s, t in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+                        for c, f, w, dd in pads]) if pads else None
+    net = unary_union(legs)
+    net = linemerge(net) if net.geom_type != "LineString" else net
+    keep = ok.difference(rows.buffer(0.01)) if rows is not None else ok
+    lines = [np.asarray(co) for co in lines_of(net.intersection(keep))]
+    # the network's nodes: where three legs or more meet (a branch), counted at the merged lines' ends
+    key = lambda q: (round(q[0] / 0.1), round(q[1] / 0.1))
+    count = {}
+    for co in lines:
+        for q in (co[0], co[-1]):
+            count[key(q)] = count.get(key(q), 0) + 1
+    runs, dots, seen = [], [], set()
+    def dot(q, f):
+        if key(q) not in seen and (rows is None or not rows.contains(Point(*q))):
+            seen.add(key(q))
+            dots.append((np.asarray(q, float), f, 1, 1))
+    for co in lines:
+        co = np.asarray(LineString(co).simplify(0.3).coords)
+        cuts = [0]
+        for i in range(1, len(co) - 1):
+            f0, f1 = unit(co[i] - co[i - 1]), unit(co[i + 1] - co[i])
+            if math.degrees(math.acos(np.clip(f0 @ f1, -1, 1))) >= TACT_TURN:
+                cuts.append(i)
+        cuts.append(len(co) - 1)
+        for i0, i1 in zip(cuts[:-1], cuts[1:]):
+            a, b = co[i0], co[i1]
+            f = unit(b - a)
+            # (a corner or a branch is a warning block: the bars stop half a block short of it either side)
+            ca = i0 > 0 or count.get(key(a), 0) >= 3
+            cb = i1 < len(co) - 1 or count.get(key(b), 0) >= 3
+            if ca:
+                dot(a, f)
+            if cb:
+                dot(b, f)
+            a2, b2 = a + f * (TACT / 2 if ca else 0), b - f * (TACT / 2 if cb else 0)
+            if np.linalg.norm(b2 - a2) >= TACT:
+                runs.append((a2, b2))
+    return {"runs": runs, "dots": pads + dots}
+
+
+def tactile(K, D, plan, top=None):
+    """The yellow blocks round the scramble in the city's own model (drawn where the hero level is not shown: from
+    afar, and on a phone in the seconds before the level has come), as tactile_layout lays them, flush on what they
+    lie on: the ground, or what the city lays over it there (top(x, y): Hachiko Square's setts; city.py), 6 mm over it.
+    They were 12 cm over the ground, along the mapped lines, and stood over the feet of whoever stood on them."""
+    lay = tactile_layout(D, plan, radius=125.0)
+    def z(q):
+        g = D.ground(*q) + 0.02
+        t = top(*q) if top else None
+        return max(g, t + 0.006) if t is not None else g
+    m, dots = K["x_tactile"], K["x_tactile_dot"]
+    for a, b in lay["runs"]:
+        L = float(np.linalg.norm(b - a))
+        f = (b - a) / L
+        l = np.array([-f[1], f[0]]) * TACT / 2
+        n = max(1, int(round(L / 2.4)))
+        for k in range(n):
+            p, q = a + f * L * k / n, a + f * L * (k + 1) / n
+            u0, u1 = L * k / n, L * (k + 1) / n
+            m.quad(*[np.array([*x, z(x)]) for x in (p - l, q - l, q + l, p + l)], [[u0, 0], [u1, 0], [u1, TACT], [u0, TACT]])
+    for c, f, nw, nd in lay["dots"]:
+        l = np.array([-f[1], f[0]])
+        q = [c + f * s * nw * TACT / 2 + l * t * nd * TACT / 2 for s, t in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        dots.quad(*[np.array([*x, z(x) + 0.002]) for x in q], [[0, 0], [nw * TACT, 0], [nw * TACT, nd * TACT], [0, nd * TACT]])
 
 
 # ---------------------------------------------------------------- the underground's entrances
@@ -1688,8 +1893,9 @@ def draw_koban(img, rects):
 class Build:
     """What the scramble adds to the Shibuya map's landmarks: meshes, solids it draws instead, ground clips."""
 
-    def __init__(self, city_id, node, lm=None, openings=None):
+    def __init__(self, city_id, node, lm=None, openings=None, top=None):
         self.lm = lm or {}
+        self.top = top                   # what the city lays over the ground at (x, y), its height, or None (Hachiko Square's setts: city.py)
         self.openings = openings or []   # QFRONT's screens and prints: (foot's middle, along, width, z0, z1), which its fins leave clear
         self.D = Data(city_id)
         self.node = np.asarray(node, float)
@@ -1725,7 +1931,9 @@ class Build:
         for e in self.entrances:
             clip.append({"ring": entrance(K, self.A, e), "well": True})   # (a stair well the crowd keeps out of while the station below is not built: game.js WELLS; drop the mark when it opens)
             hidden.append(e["si"])
-        guard_rails(K, self.D, Plan(self.D, [c["ring"] for c in clip]))
+        plan = Plan(self.D, [c["ring"] for c in clip])
+        tactile(K, self.D, Plan(self.D, [c["ring"] for c in clip], r=125.0), top=self.top)   # (round the scramble a little wider than the hero level)
+        guard_rails(K, self.D, plan)
         return K.out(), hidden, clip, getattr(self.D, "props", [])
 
     def draw(self, out_dir):
