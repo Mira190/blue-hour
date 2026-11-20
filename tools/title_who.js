@@ -51,6 +51,9 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
   if (s.shown) fail('who you play is up on the menu before a way in is taken');
   if (!(await p.evaluate(() => document.getElementById('gt-who-line').hidden))) fail('the menu names who you play before one is chosen');
   await shot('1-menu');
+  // (the story's row opens its screen; its Begin is the episode's first press)
+  await press('#gt-story-go'); await p.waitForTimeout(1500);
+  if ((await screen()) !== 'story') fail(`the story's row did not open the story's screen (on "${await screen()}")`);
   await press('#gt-play'); await p.waitForTimeout(1500);
   s = await state();
   if (!s.title) fail('the first press of the episode began without asking who you play');
@@ -97,20 +100,33 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
   if (s.kept !== 'M' || s.choose || !s.tiles.some(t => t[0] === 'M' && t[1] === 'true')) fail('opened again, the choice does not stand');
   if (!line || !/a man/i.test(line)) fail(`opened again, the menu does not name who you play ("${line}")`);
   await shot('4-again');
+  await press('#gt-story-go'); await p.waitForTimeout(1500);
   await press('#gt-play'); await p.waitForTimeout(1500);
   if ((await state()).title) fail('opened again, the episode did not begin at once');
   // a case left going by someone who never chose (before the title asked): the evening again and Continue wait too
   await p.evaluate(() => { try { localStorage.setItem('oe3d-player', ''); localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: '17:14', cap: '' }, { src: null, stamp: '17:19', cap: '' }] })); } catch (e) { /* storage blocked */ } });
   await title();
   await toMenu();
-  if (await p.locator('#gt-anew').count()) {
-    await press('#gt-anew'); await p.waitForTimeout(1200);
+  // (the menu's Continue, first while a case is going, asks too, and Back gives the menu again)
+  if (!(await p.evaluate(() => { const c = document.getElementById('gt-cont-go'); return c && !c.hidden && c.offsetParent && c.classList.contains('primary'); }))) fail('a case going: the menu does not lead with Continue');
+  await press('#gt-cont-go'); await p.waitForTimeout(1200);
+  if (!(await state()).title || (await screen()) !== 'who') fail("a case going, never chosen: the menu's Continue began without asking");
+  await press('#gt-who-back'); await p.waitForTimeout(1000);
+  if (!(await state()).title || (await screen()) !== 'menu') fail('Back on who you play did not give the menu back');
+  await press('#gt-story-go'); await p.waitForTimeout(1500);
+  if (await p.evaluate(() => { const a = document.getElementById('gt-anew'); return !!a && !a.hidden && !!a.offsetParent; })) {
+    await press('#gt-anew'); await p.waitForTimeout(800);
+    if (!(await p.evaluate(() => document.getElementById('gt-eps').classList.contains('sure')))) fail('the evening again did not ask first, before what was taken is lost');
+    await press('#gt-anew-yes'); await p.waitForTimeout(1200);
     if (!(await state()).title || (await screen()) !== 'who') fail('the evening again began without asking who you play');
     await press('#gt-who-back'); await p.waitForTimeout(1000);
-    if (!(await state()).title || (await screen()) !== 'menu') fail('Back on who you play did not give the menu back');
-  } else fail('a case going: no button for the evening again');
+    if (!(await state()).title || (await screen()) !== 'story') fail("Back on who you play did not give the story's screen back");
+    if (!(await p.evaluate(() => { try { return !!localStorage.getItem('oe-story-late'); } catch (e) { return false; } }))) fail('the case was lost before who you play was chosen');
+  } else fail("a case going: no way on the story's screen to the evening again");
+  if (await p.evaluate(() => document.getElementById('gt-eps').classList.contains('sure'))) await press('#gt-anew-no');
+  await p.waitForTimeout(500);
   await press('#gt-play'); await p.waitForTimeout(1200);
-  if (!(await state()).title || (await screen()) !== 'who') fail('a case going, never chosen: Continue began without asking');
+  if (!(await state()).title || (await screen()) !== 'who') fail("a case going, never chosen: the story's Continue began without asking");
   await shot('5-going-asked');
   console.log(errors.length ? `FAIL ${errors.length}` : 'ok   who you play is asked on its own screen the first time, kept, named under the menu, and changed there');
   await b.close();

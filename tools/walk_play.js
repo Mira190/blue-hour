@@ -94,7 +94,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   await press('#gt-who-go'); await p.waitForTimeout(1500);
   s = await state();
   if (!s.step) fail('who you play chosen and confirmed, the walk does not go on to its step');
-  else if (await visible('#gt-play')) fail('the walk\'s step is up, and the episode\'s button still shows');
+  else if (await visible('#gt-story-go')) fail('the walk\'s step is up, and the menu\'s other ways in still show');
   const hours = await p.$$eval('#gt-walk [data-k="t"] button', bs => bs.map(x => [x.dataset.v, x.querySelector('small').textContent]));
   const skies = await p.$$eval('#gt-walk [data-k="w"] button', bs => bs.map(x => x.dataset.v));
   if (hours.length < 3 || hours.some(x => !/^\d\d:\d\d$/.test(x[1])) || !skies.includes('rain')) fail(`the step's hours and skies: ${JSON.stringify(hours)} ${JSON.stringify(skies)}`);
@@ -114,7 +114,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // back, and the title's own evening again; then the step again, as it was left
   await press('#gt-walk-back'); await p.waitForTimeout(2500);
   s = await state();
-  if (s.step || !(await visible('#gt-play'))) fail('Back did not give the title its two ways in again');
+  if (s.step || !(await visible('#gt-story-go'))) fail('Back did not give the menu its ways in again');
   else if (s.eyebrow !== story0.eyebrow || s.clock.hm !== story0.clock.hm) fail(`Back: the title is not the story's evening again ("${s.eyebrow}", ${s.clock.hm}; was ${story0.clock.hm})`);
   else if (sky === 'rain' && s.wx.mode === 'rain') fail('Back: the rain the walk was offered in still falls on the story\'s title');
   else ok(`Back: the story's evening again (${s.clock.hm}, ${s.wx.mode})`);

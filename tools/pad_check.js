@@ -54,10 +54,12 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   await press('A'); await p.waitForTimeout(1200);
   if ((await p.evaluate(() => window.__game.screen())) !== 'menu') fail(`A on the press did not open the menu (on "${await p.evaluate(() => window.__game.screen())}")`);
   // (the walk leads the menu's list while the episodes are being finished, and A takes it: down moves the hand from it,
-  // whether it is on it or on none, to the episode)
+  // whether it is on it or on none, to the story; A opens the story's screen with the hand on its Begin, and A again begins)
   if (await p.evaluate(() => !!document.getElementById('gt-walk-go'))) {
     await press('DOWN'); await p.waitForTimeout(200);
-    if (!(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-play'))) fail(`down on the menu did not move the hand from the walk to the episode (${await p.evaluate(() => (document.activeElement || {}).id)})`);
+    if (!(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-story-go'))) fail(`down on the menu did not move the hand from the walk to the story (${await p.evaluate(() => (document.activeElement || {}).id)})`);
+    await press('A'); await p.waitForTimeout(1200);
+    if ((await p.evaluate(() => window.__game.screen())) !== 'story' || !(await p.evaluate(() => (document.activeElement || {}).id === 'gt-play'))) fail("A on the story's row did not open its screen with the hand on Begin");
   }
   await press('A'); await p.waitForTimeout(1200);
   // (the first time, who you play comes up on its own screen: A puts the hand on the first portrait, the d-pad moves it,

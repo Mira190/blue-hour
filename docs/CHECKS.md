@@ -169,10 +169,13 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   title it opened still asked who you play; it stores `M` now.
 - The title's ways in as one list: `tools/title_menu.js`, by hand after a change to the title's buttons (`story.css`
   "the title's ways in", `walk.js`, `game.js` `titleLead`). On a desktop's page (1440x900) and a phone's (390x844, by
-  touch), as a player who has chosen, with no case going and with one, the menu opened from the press by a key or a tap: it fails a list not led by the walk, rows not all
-  one width and height (or under 48 px on a phone), the Enter key on a row Enter does not take, up and down that do not
-  move the hand along the list, and the walk's step not opened by Enter or a tap and not left by Esc or Back. Stills of
-  each state.
+  touch), as a player who has chosen, with no case going and with one, the menu opened from the press by a key or a tap: it fails a menu that is not the walk, the story and the
+  options (with a case going, Continue first and in the amber), rows not all one width and height (or under 48 px on a
+  phone), the Enter key on a row Enter does not take, up and down that do not move the hand along the list, the walk's
+  step not opened by Enter or a tap and not left by Esc or Back, the story's screen not opened whole (its episode, its
+  line, a roll of seven, the hand on Begin; with a case going, how far, the frames on the roll, Continue and the evening
+  again) or not left back to its row, the evening again that does not ask first or loses the case by asking, and the
+  options not lent the pause menu's controls or not giving them back. Stills of each screen.
 
 ## How it came to this
 

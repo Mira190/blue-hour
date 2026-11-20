@@ -544,6 +544,37 @@ side at the moment of New Game; a dossier beside the picture; and the film's let
 begins. Nothing of those games' look, words or assets is used; the screens are the story's own (its viewfinder's type,
 the sodium amber of a street lamp against the blue hour, `story.css` "the title in three screens").
 
+**The menu, by what this browser has done (November 2026).** The owner asked for the choices after the press (the walk
+or the story, continuing a case, the evening again) to be thought through as a AAA game's menu is. From first principles:
+a player arrives at the menu in one of a few states, and the menu's first row is the thing that player most likely came
+back to do; everything else is one row each, in the same order every time, so the hand learns it.
+
+- **Nothing played yet:** *Walk Shibuya* (first, while the episodes are being finished: the owner's word), *The story*,
+  *Options*.
+- **A case going:** *Continue* first, with the last photograph taken in that case at the end of its row and the frame it
+  takes up at (*Episode 1 · You came late · frame 3 of 7 · 17:19*), as a game's menu puts its last save first with a
+  picture of where it was left; then the walk, the story, the options. (A case going is a story the player has already
+  chosen, so the walk's place at the top, which keeps a newcomer out of an unfinished episode, does not apply to it.)
+- **A case closed:** the story's row says so, and its screen offers every frame again.
+
+*The story* opens a screen of its own, as a game's chapter select does, rather than starting at once: the episode as a
+card (its picture, `key-1`, its number, name and evening laid on it, its line from `city.json` `episodes[].line`); how far
+this browser has got, said in words (*In progress · 2 of 7 frames taken · the last at 17:19*) and shown on the roll, a cell
+a frame with the player's own photograph in each one taken and the next one outlined; and the ways in: *Begin*,
+*Continue* or *Play it again*, and *Start the evening again* while a case is going. What cannot be undone asks first:
+starting again loses the photographs taken tonight, so it asks (*Keep the case* is where the hand rests; Esc or B keeps it),
+as a game asks before a new game overwrites a save. A closed case's cells are each a way back into that frame.
+
+*Options* is the few settings that matter before play, on a screen of their own: the sound, the crowd and the traffic, the
+frame rate. They are the pause menu's own controls, lent to the screen while it is up and given back as it goes
+(`game.js` `optsLend`), so each has one home, one handler and one state; the rest (the hour, the sky) belong to play and
+stay in the pause menu. Every screen has its Back at the top left and on Esc or B, and the hand comes back to the row that
+opened it. Who you play, asked from the story's screen, returns to it.
+
+Taken from story games of that kind (the *Uncharted* and *The Last of Us* games among them): Continue first when there is
+something to continue, a chapter select opened from the menu with each chapter named and its progress shown, and a
+question before a new game overwrites a save. Nothing of their look or words is used.
+
 It was, until November 2026, a surveyor of the old map: a construction worker's hard hat, hi-vis vest, gloves and
 radio, a fair-haired woman or a dark-skinned man. That is a figure from a building site, not a person in this story.
 What Rocketbox's faces cannot do in a close shot (no blendshapes, no mouth) waits on issue 12, with everyone's.
@@ -1101,7 +1132,8 @@ selection the only thing lit, moved by the arrows or the d-pad and pressed by En
 title's ways in", `walk.js`, `game.js` `titleLead`): the ways in are one list, every row the same width and height and
 each in two lines, its name and a word on it (*Walk Shibuya · No story, any hour, any sky*; *Episode 1 · You came late ·
 The story, 7 frames, one evening*). The walk is the first row and the one Enter and a pad's A take, with the amber
-hairline and the Enter key on it; the episode is under it, then *Start the evening again* when a case is going. The
+hairline and the Enter key on it; the story and the options are under it, and while a case is going *Continue* stands over
+it (since: *The menu, by what this browser has done*, under *The title, as a game opens*). The
 hand put on another row (the mouse, Tab, up and down, the d-pad, which moves on from the first row rather than from the
 portraits) fills that row with the amber and takes the key with it. On a phone the rows run the card's width, 64 px
 high, over the 44 points and 48 dp a touch target asks (Apple's and Google's guidelines); on a phone on its side they

@@ -30,15 +30,14 @@ window.OEWalk = (function () {
     try { const k = JSON.parse(localStorage.getItem(KEEP) || 'null'); if (k && HOURS.some(h => h[0] === k.t) && SKIES.some(s => s[0] === k.w)) spec = { t: k.t, w: k.w }; } catch (e) { /* storage blocked */ }
     let isOpen = false, walking = false;
 
-    // ---- on the title: the first way in, and the step that asks the hour and the sky. First, and the one Enter and a
-    // pad's A take, while the episodes are being finished (the owner's word, November 2026): the episode's button
-    // comes under it and gives up its amber. Each way in is one row of the title's list, the same as the others: its
-    // name, a word on it, and the Enter key (story.css "the title's ways in")
-    const go = document.createElement('button');
-    go.type = 'button'; go.className = 'btn primary'; go.id = 'gt-walk-go';
+    // ---- on the menu: a way in, and the step that asks the hour and the sky. The first, and the one Enter and a pad's A
+    // take, while the episodes are being finished (the owner's word, November 2026), unless a case is going: then the
+    // menu's Continue stands over it, as a game's last save does, and keeps the amber (story.js). Each way in is one row of
+    // the menu's list, the same as the others: its name, a word on it, and the Enter key (story.css "the title's ways in")
+    const go = document.createElement('button'), row = q('.gt-go'), cont = row && row.querySelector('#gt-cont-go:not([hidden])');
+    go.type = 'button'; go.className = cont ? 'btn' : 'btn primary'; go.id = 'gt-walk-go';
     go.innerHTML = '<span>Walk Shibuya</span><small>No story · any hour, any sky</small><kbd>↵</kbd>';
-    const row = q('.gt-go');
-    if (row) { row.prepend(go); const play = row.querySelector('#gt-play'); if (play) play.classList.remove('primary'); }
+    if (cont) cont.after(go); else if (row) { const s = row.querySelector('#gt-story-go'); if (s) s.before(go); else row.prepend(go); }
     const step = document.createElement('div');
     step.className = 'gt-walk'; step.id = 'gt-walk'; step.hidden = true;
     step.setAttribute('role', 'group'); step.setAttribute('aria-labelledby', 'gt-walk-l');
