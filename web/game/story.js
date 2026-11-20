@@ -732,6 +732,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (!S) S = [P[0] + ux * Math.min(M.from_m, ul), P[1] + uy * Math.min(M.from_m, ul)];
       // where he sits: a pace in front of you and a little to one side, so that the two of you are seen together
       const sx = P[0] + ux * 1.05 - uy * 0.4, sy = P[1] + uy * 1.05 + ux * 0.4, side = d.free(sx, sy, 0.6) || [sx, sy];
+      // (and nobody of the crowd there: at a kerb thick with the held crowd no place was free, and he sat down inside a woman
+      // waiting there for the rest of the Stop. Moved aside at the cut into his film, where it is not seen; issue 65)
+      if (ctx.clearRound) ctx.clearRound(side[0], side[1], 1.0);
       const f0 = [P[0] - S[0], P[1] - S[1]], fl = Math.hypot(f0[0], f0[1]) || 1; f0[0] /= fl; f0[1] /= fl;
       pl.h = Math.atan2(S[0] - P[0], S[1] - P[1]); // (you are turned to see him come)
       st.beat = 'guide';
@@ -805,7 +808,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (n === 1 && text) { st.hintText = text; goal(text); }
       if (n === 2) { // (the dog: to the place, and he sits there; one who has not met him yet is met now)
         const gd = st.ep.guide;
-        if (!st.dog && gd && ctx.guide) { const d = ctx.guide(gd); if (d) { d.place(ctx.player.x + 1.2, ctx.player.y + 1.2, 0); d.met(); st.dog = d; } }
+        if (!st.dog && gd && ctx.guide) { const d = ctx.guide(gd); if (d) { d.place(ctx.player.x + 1.2, ctx.player.y + 1.2, 0); if (ctx.clearRound) ctx.clearRound(ctx.player.x + 1.2, ctx.player.y + 1.2, 1.0); d.met(); st.dog = d; } } // (and nobody of the crowd where he is put, issue 65)
         if (H.go) aimAt(spot(H.at), false); // (where the world stops: he leads there, and nothing else shows the way)
         else if (st.dog) st.dog.go([H.at[0], H.at[1]], H.look || null, 3.4);
         if (text) { st.hintText = text; goal(text); }
