@@ -11,8 +11,8 @@
 // reflection in a wet street (wet.js) is the screen's own rectangle. A light moving from one screen
 // to another fades out and in. (The rectangle is evaluated in closed form, not with three.js's tables: lean(), below.) The number of lights is the tier's (high 8, medium 4, low none,
 // web/quality.js): it is fixed for the session, so no material recompiles as the camera moves.
-// The street's static pools of the screens' light (night.js uGlowMap) stay for the far city and
-// the low tier.
+// The street's static pools of the screens' light (night.js uGlowMap) stay for the far city; the low
+// tier has the screens' light on the hero levels' ground worked out once instead (pooled(), below).
 'use strict';
 window.OENeon = (function () {
   const COUNT = { high: 8, medium: 4, low: 0 };
@@ -135,9 +135,130 @@ window.OENeon = (function () {
     return (leaned = true);
   }
 
-  async function create(Wd, renderer, { tier = 'low', gain = 1, fill = [], ground = () => 0 } = {}) {
+  // The low tier's stand-in (issue 62). A phone has none of the area lights, and at dusk Hachiko's corner was lit by the
+  // sky's blue alone: the yellow tactile blocks read olive, (68, 63, 22) where a desktop showed (154, 110, 12). So the light
+  // the screens and the plaza's cards (game.look.fill) would put on the ground of the hero levels is worked out once, on
+  // the CPU, with the same closed form the area lights use (LEAN's diffuse, towards a ground that faces up), and kept in
+  // one small texture over the levels (a metre a texel): the screens' light in its rgb, each in the mean colour of its
+  // whole programme, and the cards' in its alpha. A hero material on the low tier adds it to what it gives back, as it
+  // does its baked light (hero.js): one texture read a pixel, no light in the shaders. The pools do not change with the
+  // picture on the screens, as the area lights do on a desktop; they follow the dusk, the screens' hours and the cards'
+  // night as the lights do. pool: [[x, y, r], ...] the hero levels it covers.
+  const POOL_CARD = '#ffe6cc'; // (the cards' light, warm white, as theirs are)
+  const MEAN = [0.327, 0.211, 0.282];
+  // the pools' strength against the area lights': matched on the stills of Hachiko's corner at dusk and at night, the low
+  // tier beside the high (issue 62). (The area lights reach only the eight nearest screens, and a phone's grade is its own)
+  const POOL_K = 0.6; // the mean linear colour of Shibuya's sheet, for a screen whose sheet cannot be read
+  function pooled(Wd, info, { gain = 1, fill = [], ground = () => 0, pool }) {
+    const x0 = Math.min(...pool.map(c => c[0] - c[2])) - 10, x1 = Math.max(...pool.map(c => c[0] + c[2])) + 10;
+    const y0 = Math.min(...pool.map(c => c[1] - c[2])) - 10, y1 = Math.max(...pool.map(c => c[1] + c[2])) + 10;
+    const W = Math.ceil(x1 - x0), H = Math.ceil(y1 - y0); // (a metre a texel)
+    const near = (x, y, m) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
+    const screens = [];
+    for (const e of info.meshes) { e.mesh.updateMatrixWorld(true); screens.push(...screensOf(e).filter(s => near(s.c.x, -s.c.z, 160))); }
+    const card = new THREE.Color(POOL_CARD).convertSRGBToLinear(), cl = 0.2126 * card.r + 0.7152 * card.g + 0.0722 * card.b;
+    card.multiplyScalar(1 / cl);
+    // each emitter: centre, its two half axes, its outward normal, its colour (rgb, or the card channel)
+    const em = [];
+    const V3 = THREE.Vector3, up = new V3(0, 1, 0), o = new THREE.Object3D();
+    for (const s of screens) {
+      const u = new V3().crossVectors(up, s.n).normalize();
+      em.push({ s, c: s.c.clone().addScaledVector(s.n, 0.25), u, v: up.clone(), lw: s.w / 2, lh: s.h / 2, n: s.n.clone(), rgb: [0, 0, 0], a: 0 });
+    }
+    for (const f of fill) {
+      const gz = ground(f.at[0], f.at[1]), c = new THREE.Color(f.colour || '#ffd9b0').convertSRGBToLinear();
+      o.position.set(f.at[0], gz + (f.z || 30), -f.at[1]);
+      if (f.aim) o.lookAt(f.aim[0], gz + (f.aim[2] || 0), -f.aim[1]); else o.lookAt(f.at[0], gz - 10, -f.at[1]);
+      o.updateMatrixWorld(true);
+      const q = o.quaternion;
+      em.push({ c: o.position.clone(), u: new V3(1, 0, 0).applyQuaternion(q), v: new V3(0, 1, 0).applyQuaternion(q), lw: (f.w || 60) / 2, lh: (f.h || 60) / 2,
+        n: new V3(0, 0, 1).applyQuaternion(q), rgb: null, a: (f.k ?? 1) * (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) });
+    }
+    const acc = new Float32Array(W * H * 4), D = new V3(), P = new V3(), L = new V3();
+    const zs = new Float32Array(W * H);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) zs[j * W + i] = ground(x0 + i + 0.5, y0 + j + 0.5) + 0.05;
+    // the light at one texel from one emitter: LEAN's form factor towards a ground facing up
+    function row(j, e) {
+      for (let i = 0; i < W; i++) {
+        const k = j * W + i;
+        D.set(x0 + i + 0.5, zs[k], -(y0 + j + 0.5)).sub(e.c);
+        const side = D.dot(e.n);
+        if (side <= 0) continue;
+        P.copy(e.c).addScaledVector(e.u, Math.max(-e.lw, Math.min(e.lw, D.dot(e.u))) * 0.75).addScaledVector(e.v, Math.max(-e.lh, Math.min(e.lh, D.dot(e.v))) * 0.75);
+        L.copy(P).sub(D.add(e.c)); // (the point on the emitter, from the texel)
+        const d2 = L.lengthSq(), A = 4 * e.lw * e.lh;
+        L.multiplyScalar(1 / Math.sqrt(d2));
+        const w = A * Math.max(0, -L.dot(e.n)) / (Math.PI * d2 + A) * Math.max(0, L.y);
+        if (w <= 0) continue;
+        if (e.rgb) { acc[k * 4] += e.rgb[0] * w; acc[k * 4 + 1] += e.rgb[1] * w; acc[k * 4 + 2] += e.rgb[2] * w; } else acc[k * 4 + 3] += e.a * w;
+      }
+    }
+    const NU = { uPoolMap: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uPoolXf: { value: new THREE.Vector4(x0, y0, 1 / W, 1 / H) },
+      uPoolScr: { value: 0 }, uPoolCardK: { value: 0 }, uPoolCard: { value: new THREE.Vector3(card.r, card.g, card.b) } };
+    let t0 = null, colours = null, jNext = 0, done = false, gainK = 0;
+    // each screen's colour: the mean of every keyframe of every clip on its playlist, at its brightness (as colourOf at full night)
+    const means = new Map();
+    function colour() {
+      let all = true;
+      for (const e of em) {
+        if (!e.rgb) continue;
+        const s = e.s, m = s.entry.m, img = s.entry.mat.map && s.entry.mat.map.image;
+        let cm = means.get(m);
+        if (!cm && img && img.width > 0 && img.complete !== false) try { means.set(m, cm = cellMeans(m, img)); } catch (er) { cm = null; }
+        if (!cm) { all = false; continue; }
+        const F = m.frames || 1, c = [0, 0, 0];
+        let n = 0;
+        for (let q = 0; q < s.clips; q++) {
+          const clip = scrClip(s.mask, q);
+          for (let f = 0; f < F; f++) { const v = cm[clip * F + f]; if (v) { c[0] += v.r; c[1] += v.g; c[2] += v.b; n++; } }
+        }
+        if (n) e.rgb = c.map(v => v / n * s.bright); else all = false;
+      }
+      return all;
+    }
+    const api = {
+      lights: [], screens, cards: [], count: 0, pool: NU,
+      get poolState() { return { done, gainK, night: info.night.value, hour: info.clock.hour.value, emitters: em.length }; }, // (for the harnesses)
+      update(camera, dt) {
+        const night = info.night.value, hour = info.clock.hour.value;
+        if (!done) {
+          if (t0 == null) t0 = performance.now();
+          // (the sheets read once they have come: a sheet that cannot be read, a phone's packed one, is given the mean colour)
+          if (!colours) { if (colour() || performance.now() - t0 > 12000) { colours = true; for (const e of em) if (e.rgb && !e.rgb.some(v => v > 0)) e.rgb = MEAN.map(v => v * e.s.bright); } else return; }
+          // the texture, a few rows a frame (some 60 thousand texels by a few dozen emitters: a few milliseconds a frame)
+          const j1 = Math.min(H, jNext + 24);
+          for (let j = jNext; j < j1; j++) for (const e of em) if (e.rgb ? e.rgb.some(v => v > 0) : e.a > 0) row(j, e);
+          jNext = j1;
+          if (jNext < H) return;
+          let max = 1e-6;
+          for (let k = 0; k < acc.length; k++) max = Math.max(max, acc[k]);
+          const px = new Uint8Array(W * H * 4);
+          for (let k = 0; k < acc.length; k++) px[k] = Math.round(255 * Math.sqrt(acc[k] / max)); // (fine steps in the dark, as night.js's map)
+          const map = new THREE.DataTexture(px, W, H, THREE.RGBAFormat);
+          Object.assign(map, { magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, needsUpdate: true });
+          NU.uPoolMap.value = map; NU.uPoolXf.value.w = 1 / H;
+          gainK = max; done = true;
+          if (screens.length && Wd.night && Wd.night.setGlowScale) Wd.night.setGlowScale(0.3); // (its share of the static glow, as with the area lights)
+        }
+        // as the area lights would be: a screen's light scaled by the dusk (update(), below) and whether its hours have it on,
+        // and the cards' by the night
+        let on = 0, all = 0;
+        for (const e of em) if (e.rgb) {
+          const s = e.s, w = s.area * s.bright, lit = s.on < s.off ? hour >= s.on && hour <= s.off : hour >= s.on || hour <= s.off;
+          all += w; if (lit) on += w;
+        }
+        const dusk = (0.06 * Math.min(1, night / 0.05) + 0.94 * night) * (2.4 + (1 - 2.4) * night);
+        NU.uPoolScr.value = POOL_K * gainK * gain * SPILL * dusk * (all ? on / all : 0);
+        NU.uPoolCardK.value = POOL_K * gainK * night;
+      },
+    };
+    return api;
+  }
+
+  async function create(Wd, renderer, { tier = 'low', gain = 1, fill = [], ground = () => 0, pool = null } = {}) {
     const n = COUNT[tier] || 0, info = Wd.screens;
     const none = { lights: [], screens: [], cards: [], update() {}, count: 0 };
+    if (!n && pool && pool.length && info) return pooled(Wd, info, { gain, fill, ground, pool });
     if (!n || !info || (!info.meshes.length && !fill.length)) return none;
     if (LTC) {
       try {

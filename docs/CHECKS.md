@@ -31,6 +31,18 @@ the landmarks' paving change. The tactile blocks' places (`cities/shibuya/scramb
 in stills: `tools/game_shot.js shibuya tools/views/tactile.json out [390x844 with LEAN=1]`, from the air over Hachiko
 Square and on foot at the start, at dusk and by day.
 
+The way in waits for the level the player stands in (`web/game/game.js` `holdForLevel`, issue 62): `tools/level_wait.js
+[out] [WxH]` begins the story with the Scramble's level held back (`DELAY`, 12 s by default), skips the opening as soon as
+it can, and reads the veil, the level and the camera every fifth of a second; it fails if the camera reaches the player
+before the level is drawn while the veil is down, or if the wait runs past its bound (6 s). `CRANE=1` takes the crane
+down from the title instead (`?overture=0`, reduced motion); `BOUND=200` gives the page a bound longer than a software
+renderer takes to make the level ready (it is queued behind the opening's own shaders here, some 80 s), to see the veil
+lift once the level is drawn. Run when the way into the story or a hero level's loading changes. A phone's light on the
+corner after dark (`web/neon.js` `pooled`) is looked at in stills: `tools/game_shot.js shibuya
+tools/views/corner-night-62.json out [390x844 with LEAN=1]`, beside the desktop's; `game_shot.js` now waits for a hero
+level that is loading before a still, which on the low tier here is half a minute (before, a phone's stills of the
+Scramble were of the city's own model).
+
 Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
 film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
 to you passes within 0.42 m of a held person's middle or ends away from you, then runs after him at the game's own run
