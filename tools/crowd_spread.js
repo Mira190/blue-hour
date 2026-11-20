@@ -66,10 +66,14 @@ const SPOTS = {
       }
       const W = [...cells].map(k => [Math.round(k / 100000), k - Math.round(k / 100000) * 100000]);
       let peak = 0, busiest = null, still = 0, sum2 = 0, n = 0, over = 0, clump = 0, cover = 0, worst = null, people = 0;
+      let grouped = 0, stops = 0, xpeak = 0, xsum = 0, xn = 0; // (walking in a group; stopped along the way; crossers in a 2 m circle round one)
       for (let t = 0; t < secs; t += 1) {
         for (let k = 0; k < 30; k++) { g.advance(1 / 30); put(); }
         const A = C.P.slice(0, C.active).filter(q => q.line >= 0 && Math.hypot(q.x - x, q.y - y) < R && Math.abs(q.z - me.z) < 2);
         people += A.length;
+        grouped += A.filter(q => q.lead >= 0 || (q.mates && q.mates.length)).length;
+        stops += A.filter(q => (q.stop && q.pause > 0) || (q.pz && q.ph === 'linger' && q.lst && q.lface != null)).length; // (at a window or a rail on the way, or leaning on something at the square)
+        { const X = A.filter(q => q.pz && q.ph === 'cross'); let m = 0; for (const q of X) { let a = 0; for (const o of X) if (Math.hypot(o.x - q.x, o.y - q.y) < 1) a++; if (a > m) m = a; } if (X.length > 4) { xpeak = Math.max(xpeak, m); xsum += m; xn++; } }
         let m2 = 0, s2 = 0, m3 = 0, c3 = null;
         const St = A.filter(q => (q.v ?? 0) < 0.3);
         let c2 = null;
@@ -95,11 +99,12 @@ const SPOTS = {
         }
       }
       const gates = (C.plazas || []).flatMap(pz => (pz.gates || []).map(gt => ({ at: [+gt.x.toFixed(0), +gt.y.toFixed(0)], n: gt.n, len: +gt.len.toFixed(0) })));
-      return { peak, busiest, still, mean2: +(sum2 / n).toFixed(1), over, clump, cover: +(cover / n).toFixed(2), people: +(people / n).toFixed(0), cells: W.length, worst, gates };
+      return { grouped: people ? +(grouped / people).toFixed(2) : 0, stops: +(stops / n).toFixed(1), xpeak, xmean: xn ? +(xsum / xn).toFixed(1) : 0, peak, busiest, still, mean2: +(sum2 / n).toFixed(1), over, clump, cover: +(cover / n).toFixed(2), people: +(people / n).toFixed(0), cells: W.length, worst, gates };
     }, [h * 60 + m, spot, +secs, R, MAX2, MAX3]);
     const bad = r.over > 6 || r.clump > MAX3;
     if (bad) fail++;
     console.log(`[${name}] ${time} at ${spot.join(',')}: ${r.people} walkers within ${R} m on ${r.cells} m2 of footway; most in a 2 m circle ${r.peak}, standing ${r.still} (mean ${r.mean2}, over ${MAX2} for ${r.over} s); most standing in a 3 m circle ${r.clump}; ground with someone within 3 m ${Math.round(r.cover * 100)}%  ${bad ? 'CLUMP' : 'ok'}`);
+    console.log(`  in groups ${Math.round(r.grouped * 100)}% of them; stopped along the way ${r.stops} at a time; crossing, most in a 2 m circle ${r.xpeak} (${(r.xpeak / Math.PI).toFixed(1)} a m2), mean of each second's most ${r.xmean} (${(r.xmean / Math.PI).toFixed(1)} a m2)`);
     console.log(`  busiest at t ${r.busiest && r.busiest.t}s ${JSON.stringify(r.busiest)}`);
     console.log(`  worst standing at t ${r.worst && r.worst.t}s ${JSON.stringify(r.worst)}`);
     console.log(`  gates ${JSON.stringify(r.gates)}`);

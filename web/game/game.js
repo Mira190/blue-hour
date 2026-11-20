@@ -3316,6 +3316,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (half: a lane of that half-width along the whole way, not a sightline widening from a lens: the way someone walks)
   const clearSight = (a, b, half = 0) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    if (crowd.keep) crowd.keep(a[0], a[1], b[0], b[1], (half || 1.4 + 0.15 * L) + 1); // (and nobody begins to stop or stand about in it while it lasts)
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
       const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
@@ -3328,6 +3329,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
   // forty metres off among a held crowd of umbrellas, neither could be found in the print)
   const clearRound = (x, y, r) => {
+    if (crowd.keep) crowd.keep(x, y, x, y, r + 1);
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
       const dx = p.x - x, dy = p.y - y, d = Math.hypot(dx, dy);
@@ -7119,6 +7121,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect);
         if (t) {
           talkShot = t;
+          { const sp = talkCam.talk.speaker; if (crowd.keep) crowd.keep(player.x, player.y, sp ? sp.x : player.x, sp ? sp.y : player.y, 7); } // (nobody begins to stop along the way in the conversation's shot)
           // (at the cut, the crowd in the frame before the face or at its shoulder: a walker among them is sent on
           // elsewhere, as one the crowd is done with, and one at a scramble's kerb is left undrawn while the shot lasts.
           // A cut hides the change, in a Stop as in the running street; issue 45)

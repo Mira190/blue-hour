@@ -107,5 +107,49 @@
    10
   ],
   "scramble": "wait"
+ },
+ {
+  "name": "above-walk-dusk",
+  "at": [
+   381,
+   -1032
+  ],
+  "eye": [
+   400,
+   -1048,
+   36
+  ],
+  "look": [
+   368,
+   -1008
+  ],
+  "lookUp": 0,
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "walk"
+ },
+ {
+  "name": "square-dusk",
+  "at": [
+   371,
+   -1024
+  ],
+  "eye": [
+   371,
+   -1024
+  ],
+  "look": [
+   385,
+   -1044
+  ],
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
  }
 ]
