@@ -464,35 +464,28 @@ class Level:
                 X.decal("ground_iron", self.Gp(*n["xy"]), (1, 0), 1.3, 1.3, uv=A.uv("tree_grate"), h=LIFT + 0.02)
 
     def tactile(self):
-        """The yellow blocks along the footways OpenStreetMap tags tactile_paving=yes: guide blocks along the
-        line, a pad of warning blocks two deep where it meets a kerb."""
-        from shapely.geometry import LineString, Point
-        ok = self.pave.buffer(-0.2)
-        ends = []
-        for w in self.D.ways:
-            t = w["tags"]
-            if t.get("tactile_paving") != "yes" or not t.get("highway") or t.get("highway") in ("steps", "elevator"):
-                continue
-            if str(t.get("layer", "0")) != "0" or str(t.get("level", "0"))[:1] in "-123" or t.get("bridge"):
-                continue
-            ln = LineString([tuple(p) for p in w["xy"]]).intersection(ok)
-            for co in self.lines(ln):
-                P = HP.Path(np.c_[co, np.zeros(len(co))])
-                fn = lambda d, o, h, P=P: self.Gp(*P.xy(d, o), h)
-                n = max(1, int(round(P.L / 0.3)))
-                # (uv: across the block along u, so that the bars run along the line)
-                for i0 in range(0, n, 8):
-                    d0, d1 = P.L * i0 / n, P.L * min(n, i0 + 8) / n
-                    a, b = fn(d0, -0.15, LIFT + 0.022), fn(d0, 0.15, LIFT + 0.022)
-                    c, d = fn(d1, 0.15, LIFT + 0.022), fn(d1, -0.15, LIFT + 0.022)
-                    self.geo.quad("ground_tact_bar", a, b, c, d, uv=[(0, i0), (1, i0), (1, min(n, i0 + 8)), (0, min(n, i0 + 8))], n=UP)
-                ends += [(co[0], unit(co[1] - co[0])), (co[-1], unit(co[-2] - co[-1]))]
-        for e, back in ends:
-            if self.roads.distance(Point(*e)) > 1.6:
-                continue
-            r = np.array([back[1], -back[0]])
-            q = [e + r * -0.6, e + r * 0.6, e + r * 0.6 + back * 0.6, e + r * -0.6 + back * 0.6]
-            self.geo.quad("ground_tact_dot", *[self.Gp(*p, LIFT + 0.024) for p in q], uv=[(0, 0), (4, 0), (4, 2), (0, 2)], n=UP)
+        """The yellow blocks as Japan lays them (scramble.tactile_layout, from the footways OpenStreetMap tags
+        tactile_paving=yes): guide blocks in straight runs along the paving's grid, their bars along the way; a
+        warning block at each bend and branch; a row of warning blocks two deep where a line meets a kerb."""
+        lay = self.S.tactile_layout(self.D, self.plan)
+        T = self.S.TACT
+        for a, b in lay["runs"]:
+            a, b = np.asarray(a, float), np.asarray(b, float)
+            L = float(np.linalg.norm(b - a))
+            f = (b - a) / L
+            r = np.array([f[1], -f[0]])
+            n = max(1, int(round(L / T)))
+            # (uv: across the block along u, so that the bars run along the line; a block a unit of v)
+            for i0 in range(0, n, 8):
+                d0, d1 = L * i0 / n, L * min(n, i0 + 8) / n
+                p0, p1 = a + f * d0, a + f * d1
+                q = [self.Gp(*(p0 - r * T / 2), LIFT + 0.022), self.Gp(*(p0 + r * T / 2), LIFT + 0.022), self.Gp(*(p1 + r * T / 2), LIFT + 0.022), self.Gp(*(p1 - r * T / 2), LIFT + 0.022)]
+                self.geo.quad("ground_tact_bar", *q, uv=[(0, i0), (1, i0), (1, min(n, i0 + 8)), (0, min(n, i0 + 8))], n=UP)
+        for c, f, nw, nd in lay["dots"]:
+            c, f = np.asarray(c, float), np.asarray(f, float)
+            l = np.array([-f[1], f[0]])
+            q = [c + f * s * nw * T / 2 + l * t * nd * T / 2 for s, t in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+            self.geo.quad("ground_tact_dot", *[self.Gp(*p, LIFT + 0.024) for p in q], uv=[(0, 0), (nw, 0), (nw, nd), (0, nd)], n=UP)
 
     # -- what stands on the kerbs
     def guards(self):
