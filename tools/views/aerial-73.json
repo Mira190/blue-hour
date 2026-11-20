@@ -1,0 +1,80 @@
+{
+ "_": "Issue 73: the flight's roofscape (frame 5, cities/shibuya/city.json flight shots scramble, orbit, home and a wide one over the station) at the hour it is flown, as fixed cameras at each shot's midpoint. dz is over the ground, about 15 m here.",
+ "times": {
+  "dusk": "17:39",
+  "day": "13:00",
+  "night": "19:30"
+ },
+ "views": [
+  {
+   "name": "scramble",
+   "eye": [
+    435,
+    -1002,
+    291
+   ],
+   "look": [
+    369,
+    -1000,
+    0
+   ],
+   "fov": 28
+  },
+  {
+   "name": "orbit",
+   "eye": [
+    397,
+    -1012,
+    105
+   ],
+   "look": [
+    470,
+    -950,
+    70
+   ],
+   "fov": 20
+  },
+  {
+   "name": "home",
+   "eye": [
+    455.7,
+    -1004,
+    28.5
+   ],
+   "look": [
+    507,
+    -1005,
+    35
+   ],
+   "fov": 28
+  },
+  {
+   "name": "wide",
+   "eye": [
+    300,
+    -1180,
+    180
+   ],
+   "look": [
+    440,
+    -980,
+    40
+   ],
+   "fov": 46
+  },
+  {
+   "name": "roofs",
+   "eye": [
+    330,
+    -1060,
+    75
+   ],
+   "look": [
+    400,
+    -1000,
+    20
+   ],
+   "fov": 40
+  }
+ ]
+}
