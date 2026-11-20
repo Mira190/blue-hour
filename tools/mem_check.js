@@ -26,6 +26,7 @@
 // AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1).
 // TIER=low|medium|high (default low). QUERY=?a=b adds a query to the page's address. LV=n: the phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest). SNAP=file (%c for the city) writes a heap snapshot at the end (tools/heap_owners.js). JSON=1 prints the result as JSON. TOP=n lists n largest (default 8).
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const { startPlay } = require('./start_play');
 const { pinClock } = require('./pin_clock');
 const fs = require('fs');
@@ -161,6 +162,7 @@ async function measure(b, city) {
     };
   });
   const p = await ctx.newPage();
+  watchPage(p);
   await pinClock(p, city, process.env.GAME_TIME || '2026-11-02T10:00');
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Performance.enable');
@@ -373,6 +375,7 @@ async function desktop(b, city) {
     P.deleteBuffer = function (x) { M.sum -= M.buf.get(x) || 0; M.buf.delete(x); return del.call(this, x); };
   });
   const p = await ctx.newPage();
+  watchPage(p);
   await pinClock(p, city, process.env.GAME_TIME || '2026-11-02T10:00');
   const lines = [], errors = [];
   p.on('console', m => { const t = m.text(); if (/^(buffers|buildings):/.test(t)) lines.push(t); });
@@ -406,9 +409,9 @@ async function desktop(b, city) {
 }
 
 (async () => {
-  const b = await chromium.launch(process.env.DISPLAY
+  const b = await chromium.launch(Object.assign({ logger: browserLog() }, process.env.DISPLAY
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--enable-precise-memory-info'] }
-    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-precise-memory-info'] });
+    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-precise-memory-info'] }));
   const out = [];
   let fail = false;
   for (const city of cities) {

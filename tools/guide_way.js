@@ -14,6 +14,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/guide_way.js out_dir [WxH]       (LEADS=f4,f6: only those)
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const [,, out = '/tmp/guide-way', size = '1440x900'] = process.argv;
 // (RUN_M for the way planned; DOG_RUN_M for him, who steps round the people waiting at a kerb and the player he passes)
@@ -32,8 +33,9 @@ const LEADS = [
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500, isMobile: w < 500 });
+  watchPage(p);
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });
