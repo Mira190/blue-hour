@@ -237,6 +237,9 @@ window.OETrailer = (function () {
     atm.camFx = () => camFx(fx);
     atm.render = (scene, c) => {
       if (!drawing) return undefined; // (a shot's set waiting for what it loads: the frames run, nothing is drawn)
+      // the player stands where the map is to be built round the shot, out of sight: the game shows them again each
+      // frame (a shot that put them a step in front of the lens had their back filling a third of the picture)
+      if (G.player.rig) G.player.rig.root.visible = false;
       c.position.copy(pose.pos); c.up.set(0, 1, 0); c.lookAt(pose.look);
       if (pose.roll) c.rotateZ(pose.roll * RAD);
       if (c.fov !== pose.fov) { c.fov = pose.fov; c.updateProjectionMatrix(); }
