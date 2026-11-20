@@ -59,6 +59,12 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
       return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts);
     };
   });
+  // the game's renderer as window.__R, for a view's "js" (three.js makes a renderer's methods in its constructor, so the
+  // class is wrapped, not its prototype)
+  await p.addInitScript(() => addEventListener('three-ready', () => {
+    const W = THREE.WebGLRenderer;
+    THREE.WebGLRenderer = class extends W { constructor(...a) { super(...a); window.__R = this; } };
+  }));
   const logs = [];
   p.on('console', m => { if (m.text().startsWith('[clear]')) console.log(m.text()); else if (['error', 'warning'].includes(m.type())) logs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
@@ -411,6 +417,8 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     // the plush traveller, once photo mode has the camera where the still is taken from (a few frames on)
     await p.evaluate(async () => { await window.__mapWait; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
     await p.evaluate(async () => { if (!window.__plushPlace) return; for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r)); window.__plushPlace(); window.__plushPlace = null; });
+    // (a hero level near the stand, fetched as the player was put there: loaded and shown first, as scramble_shot waits)
+    await p.evaluate(async () => { const g = window.__game; if (g.hero && g.hero()) for (let i = 0; i < 1200; i++) { await new Promise(r => requestAnimationFrame(r)); if (i > 3 && !g.hero().state().some(h => h.state === 'loading')) break; } });
     await (v.closer || v.page ? grabPage : grab)(v.name); // ("page": the page with its HUD, not the canvas alone)
     // "pick": [[u, v], ...] points on the frame (0..1 from its top left): what the camera sees there, printed
     // (the mesh's name, its material's, and where it is hit), to find which surface draws a fault in the still
