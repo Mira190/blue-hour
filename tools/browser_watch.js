@@ -7,8 +7,8 @@
 //   page: ...     the page loaded again by itself, or showed glcare's note
 //   const { logger, watch } = require('./browser_watch');
 //   const b = await chromium.launch({ ..., logger: logger() }); ... watch(page);
-const GPU = /gpu process|gpu_process|watchdog|gpu.*(hung|crash|exit|lost|terminat)|context.?lost|lost.?context|SIGSEGV|SIGABRT|Received signal/i;
-const NOISE = /ProduceSkia|CreatePlatformSocket|gcm\/engine|ssl_client_socket|dbus|fontconfig/i;
+const GPU = /gpu|watchdog|context.?lost|lost.?context|SIGSEGV|SIGABRT|SIGILL|Received signal|mesa|llvmpipe|angle|egl|glx|disk_cache|shader_cache/i;
+const NOISE = /<launching>|--ignore-gpu-blocklist|ProduceSkia|CreatePlatformSocket|gcm\/engine|ssl_client_socket|dbus|fontconfig/i;
 
 function logger() {
   return {
