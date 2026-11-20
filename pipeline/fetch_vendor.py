@@ -6,6 +6,8 @@ render-blocking stylesheet that never arrives holds the first paint), sends no v
 address to them, and works offline.
 
     python3 pipeline/fetch_vendor.py
+    python3 pipeline/fetch_vendor.py --check   # the fixes to three.js (PATCHES) in the vendored files
+    python3 pipeline/fetch_vendor.py --patch   # the fixes made to the vendored files as they are
 
 Writes web/vendor/three/{three.module.min.js, three.core.min.js, addons/...},
 web/vendor/three-mesh-bvh/index.module.min.js, web/assets/fonts/*.woff2 and web/fonts.css.
@@ -76,13 +78,57 @@ def save(path, data):
         f.write(data)
 
 
+# Fixes to three.js r186's minified module, made on every fetch and held by `--check` (tools/check.sh static): each
+# (file, the text as published, the text as fixed, why). The published text must occur once.
+PATCHES = [
+    # A texture over the renderer's texture cap is drawn smaller into a canvas before it is sent (WebGLTextures
+    # resizeImage). The flags a canvas is sent with (UNPACK_FLIP_Y, UNPACK_PREMULTIPLY_ALPHA, UNPACK_COLORSPACE_CONVERSION)
+    # are set only when the texture's image is not an ImageBitmap, which ignores them; so an ImageBitmap that is made
+    # smaller went up as a canvas with whatever flags the texture sent before it left. Every glTF model's pictures are
+    # ImageBitmaps (GLTFLoader), and a phone's cap (quality.js tex, 1024) or the low tier's (2048) makes them smaller:
+    # after a texture with flipY, the trees' leaf atlas went up upside down and the zelkovas and the camphors wore the
+    # cherries' blossom (issue 68). Sent as an ImageBitmap is: unturned, its alpha as it is, its colours as they are.
+    ("three.module.min.js",
+     "a)}n.pixelStorei(e.UNPACK_ALIGNMENT,o.unpackAlignment);let t=h(o.image,!1,a.maxTextureSize)",
+     "a)}else Math.max(o.image.width,o.image.height)>a.maxTextureSize&&(n.pixelStorei(e.UNPACK_FLIP_Y_WEBGL,!1),"
+     "n.pixelStorei(e.UNPACK_PREMULTIPLY_ALPHA_WEBGL,!1),n.pixelStorei(e.UNPACK_COLORSPACE_CONVERSION_WEBGL,e.NONE));"
+     "n.pixelStorei(e.UNPACK_ALIGNMENT,o.unpackAlignment);let t=h(o.image,!1,a.maxTextureSize)",
+     "an ImageBitmap made smaller than the texture cap is sent with the flags an ImageBitmap is (issue 68)"),
+]
+
+
+def patch(name, data):
+    """the vendored file with its fixes (PATCHES) made"""
+    for f, old, new, why in PATCHES:
+        if f != name:
+            continue
+        n = data.count(old.encode())
+        if n != 1:
+            sys.exit(f"FAIL {f}: the text to fix occurs {n} times ({why}): three.js has changed, see PATCHES")
+        data = data.replace(old.encode(), new.encode())
+    return data
+
+
+def check():
+    """FAIL for each fix not in the vendored file"""
+    bad = 0
+    for f, old, new, why in PATCHES:
+        with open(os.path.join(WEB, "vendor", "three", f), "rb") as fh:
+            data = fh.read()
+        if data.count(new.encode()) != 1 or old.encode() in data:
+            print(f"FAIL {f}: {why} is not made (python3 pipeline/fetch_vendor.py)")
+            bad += 1
+    print(f"{len(PATCHES) - bad} of {len(PATCHES)} fixes to three.js in place")
+    return bad
+
+
 def three():
     base = f"{NPM}/three@{THREE}"
     out = os.path.join(WEB, "vendor", "three")
     for f in ["three.module.min.js", "three.core.min.js"]:
         data = get(f"{base}/build/{f}")
         # the minified module imports the full-size core (1.5 MB): point it at the minified one (0.4 MB)
-        save(os.path.join(out, f), data.replace(b'from"./three.core.js"', b'from"./three.core.min.js"'))
+        save(os.path.join(out, f), patch(f, data.replace(b'from"./three.core.js"', b'from"./three.core.min.js"')))
     todo, done = list(ADDONS), set()
     while todo:
         rel = todo.pop()
@@ -117,6 +163,17 @@ def fonts():
 
 
 if __name__ == "__main__":
+    if "--check" in sys.argv:  # (the fixes to three.js in the vendored files: tools/check.sh static)
+        sys.exit(1 if check() else 0)
+    if "--patch" in sys.argv:  # (the fixes made to the vendored files as they are, without fetching them again)
+        for f in sorted({p[0] for p in PATCHES}):
+            path = os.path.join(WEB, "vendor", "three", f)
+            with open(path, "rb") as fh:
+                data = fh.read()
+            if all(data.count(p[2].encode()) == 1 for p in PATCHES if p[0] == f):
+                continue
+            save(path, patch(f, data))
+        sys.exit(check())
     if "--fonts" not in sys.argv:  # (--fonts: the fonts only, as after a new overture title)
         three()
     fonts()
