@@ -97,6 +97,9 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     let png = null, dark = 1, tries = 0;
     // the sun's far shadow field for this view's hour, where the page makes one in a Worker (world.js farSun): wait for it
     await p.waitForFunction(() => { const f = window.__game && window.__game.Wd && window.__game.Wd.farSun; return !f || (!f.pending && !f.want); }, null, { timeout: 60000 }).catch(() => {});
+    // and a hero level that is on its way (hero.js): a still taken before it is ready shows the city's own model there,
+    // which on a phone's tier and this renderer is half a minute (issue 62)
+    await p.waitForFunction(() => { const h = window.__game && window.__game.hero && window.__game.hero(); return !h || !h.state().some(s => s.state === 'loading'); }, null, { timeout: 120000, polling: 500 }).catch(() => console.log(`${name}: a hero level still loading`));
     for (; tries < 12; tries++) {
       ({ png, dark } = await p.evaluate(async n => {
         for (let i = 0; i < n; i++) await new Promise(r => requestAnimationFrame(r));
@@ -114,6 +117,7 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     }
     fs.writeFileSync(path.join(outDir, `${name}.png`), Buffer.from(png.split(',')[1], 'base64'));
     console.log(name + (tries ? ` (black at first: taken again ${tries}x)` : ''));
+    if (process.env.COUNT) console.log(`  ${await require('./crowd_count').count(p, +process.env.COUNT || 60)}`); // (COUNT=R: the same person seen how often in this view, issue 64)
   };
   // from the air, over the title screen (its scripted camera drives only the title's view)
   const air = views.filter(v => v.cam), foot = views.filter(v => !v.cam);
@@ -147,6 +151,11 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     });
     // and no first-time tour over the view
     await p.evaluate(() => { const O = window.OEOnboard, t = O && O.current && O.current(); if (t) t.skip(); });
+    // what comes after the game can be played (the near and hero trees and their bark, the near cars, the people near):
+    // in place before the first view, as a player who has stood a minute sees it (two minutes at most)
+    // (the trees' own first: on a software renderer the whole batch takes minutes, its people the longest)
+    await p.evaluate(() => { const g = window.__game, T = g.Wd && g.Wd.trees, cap = ms => new Promise(r => setTimeout(r, ms));
+      return Promise.all([T && T.loadNear ? Promise.race([T.loadNear(), cap(300000)]) : null, g.lateReady ? Promise.race([g.lateReady(), cap(120000)]) : null]); });
   }
   for (const v of foot) {
     await p.evaluate(async v => {

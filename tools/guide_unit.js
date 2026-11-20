@@ -37,4 +37,23 @@ player.y = dog.y + 6; let back = 0;
 for (let i = 0; i < 30 * 10; i++) { player.speed = 6; player.y += 0.2; dog.tick(1 / 30); if (i === 30 * 4) console.log("  after 4 s: gap", (dog.y - player.y).toFixed(1), "x", dog.x.toFixed(1)); }
 console.log('overtaken then:', 'gap', (dog.y - player.y).toFixed(1), dog.state, 'behind', dog.behind);
 if (dog.y < player.y) { console.log('FAIL overtake'); process.exitCode = 1; }
-if (!process.exitCode) console.log('ok');
+// A player standing at the muzzle should get a glance. Holding time must hold that pose too.
+(async () => {
+  const three = await import('../web/vendor/three/three.core.min.js');
+  const neck = new three.Bone(), head = new three.Bone();
+  neck.name = 'neck'; head.name = 'head'; neck.add(head);
+  class Loader { load(url, ready) { ready({ scene: new three.Group().add(neck), animations: [] }); } }
+  ctx.THREE = { ...three, GLTFLoader: Loader };
+  const guide = C.create({ url: '', world: new three.Group(), W: (x, y, z) => new three.Vector3(x, z, -y),
+    ground: () => 0, player: { x: 0.5, y: 0, z: 0, mode: 'foot' } });
+  guide.place(0, 0, 0, true);
+  for (let i = 0; i < 150; i++) guide.tick(1 / 30);
+  const rotation = head.getWorldQuaternion(new three.Quaternion());
+  const angle = new three.Vector3(1, 0, 0).applyQuaternion(rotation);
+  const pitch = three.MathUtils.radToDeg(Math.asin(angle.y));
+  for (let i = 0; i < 150; i++) guide.tick(0);
+  if (pitch < 5 || pitch > 13 || rotation.angleTo(head.getWorldQuaternion(new three.Quaternion())) > 1e-6)
+    throw new Error('close gaze or held pose: ' + pitch.toFixed(1) + ' degrees');
+  console.log('close gaze:', pitch.toFixed(1), 'degrees, steady with time held');
+  if (!process.exitCode) console.log('ok');
+})().catch(e => { console.error('FAIL', e); process.exitCode = 1; });

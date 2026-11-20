@@ -44,6 +44,52 @@
   "scramble": "wait"
  },
  {
+  "name": "nw-kerb-down-dusk",
+  "at": [
+   381,
+   -1032
+  ],
+  "eye": [
+   392,
+   -1040,
+   24.5
+  ],
+  "look": [
+   372,
+   -1014
+  ],
+  "lookUp": 0,
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
+ },
+ {
+  "name": "nw-kerb-down-night",
+  "at": [
+   381,
+   -1032
+  ],
+  "eye": [
+   392,
+   -1040,
+   24.5
+  ],
+  "look": [
+   372,
+   -1014
+  ],
+  "lookUp": 0,
+  "time": "21:00",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
+ },
+ {
   "name": "hachiko-kerb-night",
   "at": [
    381,
