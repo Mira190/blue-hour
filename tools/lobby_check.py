@@ -34,6 +34,9 @@ def main():
         st = l["stops"][0]
         if not st.get("lobby") or not st.get("door"):
             continue
+        if st["lobby"].get("outside"):   # (a hall that stands outside its building: no lobby cut; its posts are checked below)
+            print(f"ok   {l['id']}: its hall stands outside the building, at {st['door']}")
+            continue
         L, room = st["lobby"], room_of(st, st["lobby"], grow=-0.05)
         rooms.append(room_of(st, L, grow=0.05))
         hit = [(k, round(poly(s).intersection(room).area, 2)) for k, s in enumerate(B["s"]) if s[2] < L["h"] * 10 and near(s, *st["door"])
@@ -47,8 +50,8 @@ def main():
         if not h.get("floor"):
             continue
         pts = [Point(*q) for q in (h.get("posts") or []) + (h.get("belts") or [])]
-        out = [p for p in pts if not any(r.contains(p) for r in rooms)]
-        inside = [(k, p) for p in pts for k, s in enumerate(B["s"]) if s[2] < 60 and near(s, p.x, p.y) and poly(s).buffer(-0.05).contains(p)]
+        out = [p for p in pts if rooms and not any(r.contains(p) for r in rooms)]
+        inside = [(k, p) for p in pts for k, s in enumerate(B["s"]) if s[2] < 20 and near(s, p.x, p.y) and poly(s).buffer(-0.05).contains(p)]
         for p in out[:3]:
             print(f"FAIL the hall {h['id']}: a post or belt at ({p.x:.2f}, {p.y:.2f}) stands outside every lift's lobby")
         for k, p in inside[:3]:

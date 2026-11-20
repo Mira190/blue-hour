@@ -147,7 +147,7 @@ def build(K):
     T = HP.Ground("shibuya")
     G = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "game.json")))
     stop = next(l for l in G["lifts"] if l["id"] == "sky-gate")["stops"][0]
-    room = room_of(stop, stop["lobby"], grow=0.3)
+    room = None if stop["lobby"].get("outside") else room_of(stop, stop["lobby"], grow=0.3)   # (a lobby cut into it is the lobby level's to draw)
     solids = _rings()
     # the tower: the largest solid that reaches the top; its lower part: the solid of the same foot under it
     tower = max((s for s in solids if s[3] > 200), key=lambda s: s[0].area)

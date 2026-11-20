@@ -12,7 +12,9 @@ the lift's doors would be. Roofs, plant and frontages stay with the solid they w
 stands in the lobby below its ceiling (a building's ground floor in several solids) is cut back round it the same
 way, so that nothing passes through the lift's portal (tools/lobby_check.py fails on one that does).
 
-A lobby given a "door" ([x, y], the way in on the face) whose stop's door is elsewhere is moved: the old lobby is filled
+A lobby given "outside" ({"door", "at"}) stands outside its building: a lobby once cut is filled back and the stop is
+put there (SHIBUYA SKY's street hall, just off Scramble Square's north-east corner). A lobby given a "door" ([x, y], the
+way in on the face) whose stop's door is elsewhere is moved: the old lobby is filled
 back and the new one cut there (SHIBUYA SKY's street lift stands at the tower's north-east corner, issue 53).
 
 Rewrites web/data/<city>/buildings.json and game.json; a lift whose stop is already under a passage is left alone, so running it again changes nothing.
@@ -130,8 +132,26 @@ def move(B, stop, L, ground):
     clear(B, stop, L)
 
 
+def outside(B, stop, L, ground):
+    """A lift whose street hall stands outside its building (city.json game.lobbies {id: {..., "outside": {"door", "at"}}}:
+    SHIBUYA SKY's, just off Scramble Square's north-east corner): a lobby once cut for it is filled back, and the stop
+    put where the hall's way in and its cars are (hero_skylobby.py builds the hall round them). Returns whether anything
+    changed."""
+    o = L["outside"]
+    door, at = [round(float(v), 2) for v in o["door"]], [round(float(v), 2) for v in o["at"]]
+    z = round(ground(*at) + 0.01, 2) if ground else (stop["at"][2] if len(stop["at"]) > 2 else 0.0)
+    if stop.get("door") == door and stop["at"][:2] == at:
+        return False
+    if stop.get("door"):
+        refill(B, stop, L)
+    stop["door"], stop["at"] = door, at + [z]
+    return True
+
+
 def cut(B, lift, ground=None):
     stop, L = lift["stops"][0], lift["stops"][0]["lobby"]
+    if L.get("outside"):
+        return outside(B, stop, L, ground)
     if L.get("door") and stop.get("door") and Point(*L["door"]).distance(Point(*stop["door"])) > 0.5:
         move(B, stop, L, ground)
         return True

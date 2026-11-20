@@ -1,39 +1,36 @@
-"""SHIBUYA SKY's street entrance and lift hall, a small hero level of its own (blender/build_hero.py --city shibuya
---level skylobby; docs/HERO.md, "SKY's street entrance"; docs/cities/shibuya.md, "The way up, as it is").
+"""SHIBUYA SKY's street lift hall, a small hero level of its own (blender/build_hero.py --city shibuya --level
+skylobby; docs/HERO.md, "SKY's street entrance"; docs/cities/shibuya.md, "The way up, as it is").
 
 Why: the story's fourth frame and the walk send the player from the crossing to the lift at Shibuya Scramble Square
-that goes up to SHIBUYA SKY. Until November 2026 its lobby was set dressing drawn with the story's own flat, self-lit
-material (blender/build_set.py LOBBY and `lift`): stone, steel and the lift's doors read as flat colour, nothing
-reflected the lines of light, and the way in was an open mouth in the tower's generic wall, 17 m west of where the
-real one is (issue 53).
+that goes up to SHIBUYA SKY. Until November 2026 its lobby was set dressing in the story's flat, self-lit material
+(blender/build_set.py), an open mouth cut 8 m into the tower's north face 17 m west of where the real hall is (issue 53).
 
-The real one (docs/HERO.md, "SKY's street entrance", its sources): a lift hall of its own at the far east end of the
-tower's north face, practically at its north-east corner, a few metres east of the Hikarie-side entrance, under the
-station deck's overhang. A glass wall in stainless frames, its lower lites fritted, with two single framed doors in it
-about 2 m apart; a dark metal soffit over it with one line of round downlights; pale square tiles in front of it; and to
-its west, free-standing, a square pillar in light grey panels carrying SHIBUYA SKY's lit disc and name over a portrait
-screen. Behind the glass the lifts (two glass-shafted cars, 1F to 14F: Elevator Journal 28's E3 bank).
+The real one (docs/HERO.md, "SKY's street entrance", its sources): the official 1F plan draws the SKY lift as a small
+hall of its own, "館外1階", standing just outside the tower's north-east corner, east of its east wall's line and mostly
+north of its north face's, entered from the west (the plan's ▷ on its west side). The section drawing has its shaft
+of glass outside the tower's east face, 1F to 14F, and the lift schedule has the bank as two scenic cars (展望用,
+Elevator Journal 28's E3). So a visitor walks east along the forecourt, goes in through the glass doors on the hall's
+west side, queues facing east, toward the outside, and boards a car whose back is glass onto Meiji-dori and Hikarie.
+In the photographs: a glass front in stainless frames, its lower lites fritted, two framed doors, a dark soffit with a
+line of round downlights; pale square tiles in front; to the doors' north-west a free-standing pillar in light grey
+panels with SKY's lit disc and name over a portrait screen; the forecourt's striped planks beyond.
 
-What is built, in the frame of the lobby pipeline/lobby.py cut into the tower (game.json lifts "sky-gate", its first
-stop's `door` on the face and `at` inside; city.json game.lobbies gives where the way in is and where the glass stands):
+What is built, in the frame of the lift's first stop (game.json lifts "sky-gate": its `door` in the hall's west front,
+its `at` before the cars; city.json game.lobbies "sky-gate" "outside" places them):
 
-  * in front: the tiles from the street to the glass, meeting the street's slope; the cut's sides lined in dark granite;
-    the soffit in dark metal with its line of downlights; the pillar with its disc, its name and its screen;
-  * the glass wall: dark-tinted, in stainless frames, its lower lites fritted; the two doors, automatic sliding leaves
-    standing open behind the fixed lites beside them (a door that is always open is what a player walking up to an
-    automatic one sees); solid where it is glass (game.json hero[].posts), open in the doorways;
-  * the hall behind it (its finishes are not in any photograph found: they are SKY's own, the black and the lines of
-    light of SKY GATE's cars and the 45F LEADING LINE): a floor of polished charcoal granite in slabs laid in courses,
-    each slab cut from its own part of the block; black panelled walls with a reveal between each panel and a line of
-    light at their foot; a black ceiling with five lines of light leading to the lifts, and their reflections in the
-    polished floor;
-  * the lifts: two cars side by side in stainless portals with hairline-brushed leaves, each with its indicator (the
-    arrow and 14F, where the street lift goes: SKY GATE runs on from 14F to 45F) and its call plate, the name over
-    them in lit letters; a queue's two belts on stainless posts (game.json hero[].belts: solid).
+  * the hall: a box 6.2 m north to south and 4.2 m west to east under the station deck, its west front glass with the
+    two doors (automatic sliding leaves standing open behind the lites beside them), its north side glass onto the
+    forecourt, its roof carried out over the doors as a canopy with its downlights; inside, SKY's black and lines of
+    light (the 45F LEADING LINE's grammar, since no photograph of the inside was found): a polished charcoal granite
+    floor in slabs, black panelled walls, lines of light in the ceiling leading east to the cars and their reflections
+    in the floor; the queue's two belts running east;
+  * the lifts: two cars on the east wall in stainless portals, hairline-brushed leaves, each with its indicator (the
+    arrow and 14F: the street lift's top, SKY GATE runs on from 14F to 45F) and call plate, the name over them; behind
+    them the glass shaft outside the tower's east face, up to 14F, the cars' lit cabins standing at the street;
+  * in front: the tiles, the pillar, and the forecourt's planks out along the tower's north face.
 
-The hall's floor is level (a real hall is), while the game's ground under it falls half a metre from the street to the
-back wall: the level says so (meta "floor": its walking surface is its own drawn floor, nav.js lift), so that whoever
-stands in it stands on the stone and not in it or over it.
+The hall's floor is level while the ground under it rises to the north (meta "floor": its own floor is stood on,
+nav.js lift). Solid where it is glass and wall (game.json hero[].posts), and the belts (hero[].belts); the doorways open.
 """
 import json
 import math
@@ -50,25 +47,29 @@ import hero_open as HP  # noqa: E402
 ID = "skylobby"
 LIFT_ID = "sky-gate"
 
-# the lobby's measures (metres, in its own frame: u across to the right as you go in, v in from the face, z up)
-BACK_V = 7.8            # the lifts' wall, from the face (the cut goes 8 m in; its lining stands in front of the cut's wall)
-LINE = 0.04             # a wall's lining stands this far in front of the cut's own wall
-APRON_V = -1.8          # the tiles reach this far out from the face
-DOORS = (-1.0, 1.0)     # the two doors' middles across the glass
-DOOR_W = 1.0            # a door's clear width
-TRANSOM = 2.5           # the doors' head, over the floor
-TILE = 0.6              # the tiles in front: 600 mm square, laid square
-SLAB = (1.2, 0.6)       # the hall's slabs (across, in), in courses across the way in, every other course half a slab over
+# the hall's measures (metres, in its own frame: v east from its west front, the way in; u south across it, to the
+# right going in; z up)
+HALL_U = (-3.1, 3.1)     # its north and south walls
+HALL_V = 4.2             # its east wall, the lifts'
+SHAFT_V = 2.4            # the lifts' glass shaft outside it, up the tower's east face
+SHAFT_TOP = 74.0         # to 14F (about 71 m over 1F) and the machine over it
+APRON_V = -2.4           # the tiles reach this far out in front
+CANOPY_V = -1.6          # the roof carried out over the doors
+DOORS = (-0.9, 0.9)      # the two doors' middles across the west front
+DOOR_W = 1.2             # a door's clear width
+TRANSOM = 2.4            # the doors' head, over the floor
+TILE = 0.6               # the tiles in front: 600 mm square, laid square
+SLAB = (1.2, 0.6)        # the hall's slabs (across, in), in courses across the way in, every other course half a slab over
 JOINT = 0.004
-PANEL = 1.2             # the hall's wall panels
-CARS = (-1.45, 1.45)    # the two cars' middles across the back wall
-CAR_W, CAR_H = 1.1, 2.35  # a car's doorway
-FORECOURT = (-6.5, 15.0, -10.5)   # the forecourt's planks: u from, u to, out to v (the deck's line over the bus terminal)
-BELTS = (-2.7, 2.7)     # the queue's two belts, from a post 3 m out to a catch on the back wall
-PILLAR = (3.55, 0.9, 1.1, 3.7)    # the sign pillar: u, v of its middle (u is west: to the right going in), its side, its height
-LINES_U = (-3.2, -1.6, 0.0, 1.6, 3.2)   # the hall's lines of light
+PANEL = 1.2              # the hall's wall panels
+CARS = (-1.4, 1.4)       # the two cars' middles across the east wall
+CAR_W, CAR_H = 1.1, 2.1  # a car's doorway (the hall is 2.65 m high under the station deck)
+BELTS = (-2.3, 2.3)      # the queue's two belts, from a post 2.9 m out to a catch on the east wall
+FORECOURT = ((-8.0, 2.5, -14.0, APRON_V), (-8.0, HALL_U[0] - 0.1, APRON_V, HALL_V + SHAFT_V))   # (u0, u1, v0, v1): the planks
+PILLAR = (-2.4, -1.9, 1.1, 3.6)    # the sign pillar: u, v of its middle (north-west of the doors), its side, its height
+LINES_U = (-2.2, -0.75, 0.75, 2.2)  # the hall's lines of light, running east
 WARM = (1.0, 0.93, 0.82)                # 3500 K, the lines' light
-DOWN = (1.0, 0.95, 0.88)                # the soffit's downlights, 4000 K
+DOWN = (1.0, 0.95, 0.88)                # the canopy's downlights, 4000 K
 
 
 def materials(K):
@@ -260,30 +261,32 @@ def draw_refl(img, r):
 
 # ---------------------------------------------------------------- the frame of the lobby
 
+
+
+# ---------------------------------------------------------------- the frame of the hall
+
 class Frame:
-    """The lobby's frame from its lift's first stop (game.json): the door on the tower's face, the stop inside."""
+    """The hall's frame from its lift's first stop (game.json): `door` in the middle of its west front, `at` before the
+    cars; v runs from the one to the other (east), u to the right of it (south)."""
 
     def __init__(self):
-        from shapely.geometry import Point, Polygon
+        from shapely.geometry import Polygon
         G = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "game.json")))
-        C = json.load(open(os.path.join(ROOT, "cities", "shibuya", "city.json")))
         s = next(l for l in G["lifts"] if l["id"] == LIFT_ID)["stops"][0]
         self.door, self.at = np.array(s["door"], float), np.array(s["at"][:2], float)
-        self.lobby = s["lobby"]
-        self.glass = C["game"]["lobbies"][LIFT_ID].get("glass", 2.4)
         n = self.at - self.door
         self.n = n / np.linalg.norm(n)
-        self.u = np.array([self.n[1], -self.n[0]])       # to the right as you go in
-        self.half = self.lobby["w"] / 2 - LINE
+        self.u = np.array([self.n[1], -self.n[0]])
         self.T = HP.Ground("shibuya")
-        # the cut's ceiling: the underside of the tower over the lobby (buildings.json passages), less a hair
+        # the hall's floor: level, at the ground's mean height under it; its ceiling under whatever stands over it (the
+        # station deck's underside), at most 3.3 m up
+        self.floor = round(float(np.mean([self.ground(u, v) for u in HALL_U for v in (0.0, HALL_V)])) + 0.012, 3)
         B = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "buildings.json")))
-        mid = Point(*(self.door + self.n * 4.0))
         ring = lambda r: [(r[i] / 10, r[i + 1] / 10) for i in range(0, len(r), 2)]
-        unders = [(q[1] + q[2]) / 10 for q in (B["s"][k] for k in B.get("passages", [])) if q[2] > 0 and Polygon(ring(q[4])).buffer(0).contains(mid)]
-        self.ceil = min(unders) - 0.02 if unders else self.ground(0, 0) + 5.35
-        # the hall's floor: level, at the street's height where the doorway meets the glass (the stop's own: lobby.py)
-        self.floor = round(self.ground(0.0, self.glass) + 0.012, 3)
+        hall = Polygon([self.xy(HALL_U[0], CANOPY_V), self.xy(HALL_U[1], CANOPY_V), self.xy(HALL_U[1], HALL_V), self.xy(HALL_U[0], HALL_V)])
+        over = [(q[1] + q[2]) / 10 for q in B["s"] if q[2] > 0 and (q[1] + q[2]) / 10 > self.floor + 2.6 and abs(q[4][0] / 10 - self.door[0]) < 200
+                and abs(q[4][1] / 10 - self.door[1]) < 200 and Polygon(ring(q[4])).buffer(0).intersects(hall)]
+        self.ceil = round(min([self.floor + 3.3] + [z - 0.32 for z in over]), 3)
 
     def xy(self, u, v):
         return self.door + self.u * u + self.n * v
@@ -296,8 +299,6 @@ class Frame:
         return self.T(*self.xy(u, v))
 
 
-# ---------------------------------------------------------------- the level
-
 class Level:
     def __init__(self, K):
         self.K = K
@@ -305,7 +306,6 @@ class Level:
         self.geo = K.Geo()
         self.A = K.Atlas(1024, 1024)
         self.F = Frame()
-        self.G = self.F.glass
         self.posts, self.belts = [], []
 
     # a quad in the frame: corners as (u, v, z), counter-clockwise from its front
@@ -335,20 +335,6 @@ class Level:
         if emit:
             geo.emitters.append((P[0] + nn * 0.05, nn, math.pi * r * r, np.asarray(emit[0]) * emit[1]))
 
-    def build(self):
-        self.atlas()
-        self.apron()
-        self.forecourt()
-        self.floor()
-        self.front()
-        self.pillar()
-        self.screen()
-        self.walls()
-        self.ceiling()
-        self.lifts()
-        self.queue()
-        return self.geo, self.A
-
     def atlas(self):
         A = self.A
         A.cell("name_big", 1000, 150, draw_name("SHIBUYA SKY", 104, 0.2))
@@ -367,217 +353,226 @@ class Level:
             x += w
         return out
 
+
+    def build(self):
+        self.atlas()
+        self.apron()
+        self.forecourt()
+        self.floor()
+        self.canopy()
+        self.pillar()
+        self.front()
+        self.north()
+        self.walls()
+        self.ceiling()
+        self.lifts()
+        self.shaft()
+        self.queue()
+        return self.geo, self.A
+
+    def post_line(self, u0, v0, u1, v1, skip=()):
+        """posts every 0.25 m along a wall, but in a doorway (skip: (u0, u1) ranges along the west front)"""
+        F, n = self.F, max(2, int(math.hypot(u1 - u0, v1 - v0) / 0.25) + 1)
+        for t in np.linspace(0, 1, n):
+            u, v = u0 + (u1 - u0) * t, v0 + (v1 - v0) * t
+            if any(a - 0.12 < u < b + 0.12 for a, b in skip):
+                continue
+            x, y = F.xy(u, v)
+            self.posts.append([round(float(x), 2), round(float(y), 2)])
+
+    def ztile(self, u, v):
+        """the tiles' and planks' height: on the street (over the Miyamasu level's paving, 5 cm over the ground), coming
+        to the hall's floor over the last 1.2 m before its doors"""
+        F = self.F
+        out = F.ground(u, v) + 0.075
+        if v < -1.2 or not (HALL_U[0] <= u <= HALL_U[1]):
+            return out
+        k = min(1.0, (v + 1.2) / 1.2)
+        return out * (1 - k) + F.floor * k
+
     def apron(self):
-        """The tiles from the street to the glass: 600 mm square, pale, laid square, 5 mm joints. Out in front of the face
-        they lie on the street (over the paving the Miyamasu level draws there), and from the face to the glass they come
-        to the hall's level floor."""
-        F, G, rep = self.F, self.G, self.K.TEXTURES["granite"][1]
+        """The tiles before the doors: 600 mm square, pale, laid square, their joints a slab of grout under them."""
+        F, rep = self.F, self.K.TEXTURES["granite"][1]
         rng = np.random.default_rng(7)
-        def z(u, v):
-            out = F.ground(u, min(v, 0.0)) + 0.075   # (over the Miyamasu level's paving, laid 5 cm over the ground: clear of it at any distance)
-            if v <= 0:
-                return out
-            k = min(1.0, v / G)
-            return F.ground(u, v) + 0.075 * (1 - k) + (F.floor - F.ground(u, G)) * k
-        j = 0.0025
-        us = self.courses(-F.half, F.half, TILE, off=(F.half % TILE) / 2)
-        vs = self.courses(APRON_V, G, TILE)
-        for v0, v1 in vs:
-            for u0, u1 in us:
-                pts = [(u0 + j, v0 + j), (u1 - j, v0 + j), (u1 - j, v1 - j), (u0 + j, v1 - j)]
+        j, u1 = 0.0025, 2.5
+        for v0, v1 in self.courses(APRON_V, 0.0, TILE):
+            for ua, ub in self.courses(HALL_U[0], u1, TILE):
+                pts = [(ua + j, v0 + j), (ub - j, v0 + j), (ub - j, v1 - j), (ua + j, v1 - j)]
                 ou, ov = rng.random(2) * 3
-                self.q("ground_tile", *[(a, b, z(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
-        # the joints: a slab of grout just under the tiles, its edges down to the street
-        pts = [(-F.half, APRON_V), (F.half, APRON_V), (F.half, G), (-F.half, G)]
-        self.q("ground_tile_joint", *[(a, b, z(a, b) - 0.004) for a, b in pts], sub=(8, 6))
-        for s in (-1, 1):
-            u = s * F.half
-            a, b = (APRON_V, 0.0) if s > 0 else (0.0, APRON_V)
-            self.q("ground_tile_joint", (u, a, z(u, a) - 0.004), (u, b, z(u, b) - 0.004), (u, b, z(u, b) - 0.07), (u, a, z(u, a) - 0.07))
-        self.q("ground_tile_joint", (F.half, APRON_V, z(F.half, APRON_V) - 0.004), (-F.half, APRON_V, z(-F.half, APRON_V) - 0.004),
-               (-F.half, APRON_V, z(-F.half, APRON_V) - 0.07), (F.half, APRON_V, z(F.half, APRON_V) - 0.07))
+                self.q("ground_tile", *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
+        pts = [(HALL_U[0], APRON_V), (u1, APRON_V), (u1, 0.0), (HALL_U[0], 0.0)]
+        self.q("ground_tile_joint", *[(a, b, self.ztile(a, b) - 0.004) for a, b in pts], sub=(8, 4))
 
     def forecourt(self):
-        """In front of the tiles: the forecourt's planks, 0.3 m wide and 1.2 to 3 m long, in courses along the face, each
-        plank one of three close greys (the floor's own stripes, in the photographs five tones from white to charcoal: kept
-        to three, close, so that it reads as a laid floor and not a patchwork), each its own part of the stone; in one joint
-        in seven a line of light. Out to the station deck's line, and from the tower's corner to the west."""
+        """The forecourt's planks out along the tower's north face and round the hall's north side: 0.3 m wide, 1.2 to 3 m
+        long, in courses running east to west, each one of three close greys of the honed stone (the photograph's five
+        tones from white to charcoal kept close, so that it reads as a laid floor), each its own part of the stone; in one
+        joint in seven a line of light."""
         F, rep = self.F, self.K.TEXTURES["granite"][1]
         rng = np.random.default_rng(1101)
-        z = lambda u, v: F.ground(u, v) + 0.075
         mats = ("ground_plank", "ground_plank_dark", "ground_plank_pale")
         j = 0.003
-        v = APRON_V
-        k = 0
-        while v > FORECOURT[2] + 1e-6:
-            va = max(FORECOURT[2], v - 0.3)
-            u = FORECOURT[0] - rng.random() * 2.0
-            while u < FORECOURT[1] - 1e-6:
-                ub = min(FORECOURT[1], u + 1.2 + rng.random() * 1.8)
-                ua = max(FORECOURT[0], u)
-                if ub - ua > 0.1 and not (-F.half - 0.05 < (ua + ub) / 2 < F.half + 0.05 and va > APRON_V - 0.01):
-                    m = mats[int(rng.choice(3, p=(0.5, 0.25, 0.25)))]
-                    pts = [(ua + j, va + j), (ub - j, va + j), (ub - j, v - j), (ua + j, v - j)]
-                    ou, ov = rng.random(2) * 3
-                    self.q(m, *[(a, b, z(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
-                u = ub
-            if k % 7 == 3:
-                self.q("glow_strip", (FORECOURT[0] + 1.0, va - 0.006, z(0, va) + 0.002), (FORECOURT[1] - 1.0, va - 0.006, z(0, va) + 0.002),
-                       (FORECOURT[1] - 1.0, va + 0.006, z(0, va) + 0.002), (FORECOURT[0] + 1.0, va + 0.006, z(0, va) + 0.002), sub=(8, 1))
-            pts = [(FORECOURT[0], va), (FORECOURT[1], va), (FORECOURT[1], v), (FORECOURT[0], v)]
-            self.q("ground_tile_joint", *[(a, b, z(a, b) - 0.004) for a, b in pts], sub=(12, 1))
-            v, k = va, k + 1
+        for u0, u1, v0, v1 in FORECOURT:
+            for k, (ua, ub) in enumerate(self.courses(u0, u1, 0.3)):
+                v = v0 - rng.random() * 2.0
+                while v < v1 - 1e-6:
+                    vb, va = min(v1, v + 1.2 + rng.random() * 1.8), max(v0, v)
+                    if vb - va > 0.1:
+                        m = mats[int(rng.choice(3, p=(0.5, 0.25, 0.25)))]
+                        pts = [(ua + j, va + j), (ub - j, va + j), (ub - j, vb - j), (ua + j, vb - j)]
+                        ou, ov = rng.random(2) * 3
+                        self.q(m, *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
+                    v = vb
+                if k % 7 == 3:
+                    self.q("glow_strip", (ua - 0.006, v0 + 0.6, self.ztile(ua, v0) + 0.002), (ua + 0.006, v0 + 0.6, self.ztile(ua, v0) + 0.002),
+                           (ua + 0.006, v1 - 0.6, self.ztile(ua, v1) + 0.002), (ua - 0.006, v1 - 0.6, self.ztile(ua, v1) + 0.002), sub=(1, 10))
+            pts = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            self.q("ground_tile_joint", *[(a, b, self.ztile(a, b) - 0.004) for a, b in pts], sub=(6, 12))
 
     def floor(self):
         """The hall's floor: polished granite slabs 1.2 m by 0.6 m in courses across the way in, every other course half a
-        slab over, joints 4 mm. Each slab shows its own part of the stone (the texture's offset is the slab's own), so a
-        slab differs from its neighbour as cut stone does, and nothing else changes across the floor."""
-        F, G, rep, z = self.F, self.G, self.K.TEXTURES["granite"][1], self.F.floor
+        slab over, joints 4 mm, each slab its own part of the stone; a mat inside each door; the lines' reflections."""
+        F, rep, z = self.F, self.K.TEXTURES["granite"][1], self.F.floor
         rng = np.random.default_rng(53)
         sw, sd = SLAB
-        v0 = G + 0.08
-        self.q("room_floor_joint", (-F.half, v0, z - 0.003), (F.half, v0, z - 0.003), (F.half, BACK_V, z - 0.003), (-F.half, BACK_V, z - 0.003))
-        for row, (va, vb) in enumerate(self.courses(v0, BACK_V, sd)):
-            for u0, u1 in self.courses(-F.half, F.half, sw, off=sw / 2 if row % 2 else 0.0):
+        u0, u1, v0 = HALL_U[0] + 0.02, HALL_U[1] - 0.02, 0.08
+        self.q("room_floor_joint", (u0, v0, z - 0.003), (u1, v0, z - 0.003), (u1, HALL_V, z - 0.003), (u0, HALL_V, z - 0.003))
+        for row, (va, vb) in enumerate(self.courses(v0, HALL_V, sd)):
+            for ua, ub in self.courses(u0, u1, sw, off=sw / 2 if row % 2 else 0.0):
                 ou, ov = rng.random(2) * 4
-                pts = [(u0 + JOINT / 2, va + JOINT / 2), (u1 - JOINT / 2, va + JOINT / 2), (u1 - JOINT / 2, vb - JOINT / 2), (u0 + JOINT / 2, vb - JOINT / 2)]
+                pts = [(ua + JOINT / 2, va + JOINT / 2), (ub - JOINT / 2, va + JOINT / 2), (ub - JOINT / 2, vb - JOINT / 2), (ua + JOINT / 2, vb - JOINT / 2)]
                 self.q("room_floor_stone", *[(a, b, z) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts], sub=(2, 1))
-        # the doors' track in the threshold, and a mat inside each door, sunk flush in a stainless frame
-        self.box("room_steel", -F.half + 0.1, F.half - 0.1, G - 0.04, G + 0.08, z - 0.01, z + 0.002, faces=("top",))
+        self.box("room_steel", HALL_U[0] + 0.1, HALL_U[1] - 0.1, -0.04, 0.08, z - 0.01, z + 0.002, faces=("top",))
         for du in DOORS:
-            self.box("room_steel", du - 0.75, du + 0.75, G + 0.12, G + 1.5, z - 0.01, z + 0.002, faces=("top",))
-            self.box("room_mat", du - 0.72, du + 0.72, G + 0.15, G + 1.47, z - 0.01, z + 0.004, faces=("top",))
-        # the lines' reflections in the polished floor, under each line, from inside the doors to the lifts' threshold
+            self.box("room_steel", du - 0.75, du + 0.75, 0.12, 1.3, z - 0.01, z + 0.002, faces=("top",))
+            self.box("room_mat", du - 0.72, du + 0.72, 0.15, 1.27, z - 0.01, z + 0.004, faces=("top",))
         q = self.A.uv("refl")
         for lu in LINES_U:
-            self.q("refl_floor", (lu - 0.32, G + 0.6, z + 0.003), (lu + 0.32, G + 0.6, z + 0.003), (lu + 0.32, BACK_V - 0.5, z + 0.003), (lu - 0.32, BACK_V - 0.5, z + 0.003), uv=q)
+            self.q("refl_floor", (lu - 0.3, 1.4, z + 0.003), (lu + 0.3, 1.4, z + 0.003), (lu + 0.3, HALL_V - 0.4, z + 0.003), (lu - 0.3, HALL_V - 0.4, z + 0.003), uv=q)
 
-    def front(self):
-        """In front of the glass: the cut's sides lined in dark granite, the soffit in dark metal with its line of round
-        downlights over the doors."""
-        F, G, h, z1 = self.F, self.G, self.F.half, self.F.ceil
-        z0 = F.floor - 0.6
-        for s in (-1, 1):
-            u = s * h
-            a, b = (APRON_V * 0 - 0.02, G) if s < 0 else (G, -0.02)
-            self.q("wall_jamb", (u, a, z0), (u, b, z0), (u, b, z1), (u, a, z1))
-        self.q("metal_soffit", (-h, G, z1), (h, G, z1), (h, -0.02, z1), (-h, -0.02, z1))
-        # (the soffit's panel joints: a dark line every 1.2 m across)
-        for v in np.arange(0.6, G - 0.1, 0.6):
-            self.q("room_reveal", (-h, v + 0.006, z1 - 0.003), (h, v + 0.006, z1 - 0.003), (h, v - 0.006, z1 - 0.003), (-h, v - 0.006, z1 - 0.003))
-        for u in np.arange(-4.2, 4.21, 1.4):
-            self.disc("room_steel", u, G - 0.75, z1 - 0.004, 0.09, normal="down")
-            self.disc("glow_down", u, G - 0.75, z1 - 0.008, 0.07, normal="down", emit=(DOWN, 26.0))
+    def canopy(self):
+        """The hall's roof, a slab of dark metal 0.3 m deep, carried out west over the doors; its soffit outside with a
+        line of round downlights over the doors (the photographs'), its edge a fascia."""
+        F, z = self.F, self.F.ceil
+        u0, u1 = HALL_U[0] - 0.05, HALL_U[1] + 0.05
+        self.box("metal_soffit", u0, u1, CANOPY_V, HALL_V + 0.05, z, z + 0.32, faces=("top", "-v", "+u", "-u", "+v"))
+        self.q("metal_soffit", (u0, 0.0, z), (u1, 0.0, z), (u1, CANOPY_V, z), (u0, CANOPY_V, z))
+        for v in np.arange(-1.2, -0.05, 0.6):
+            self.q("room_reveal", (u0, v + 0.006, z - 0.002), (u1, v + 0.006, z - 0.002), (u1, v - 0.006, z - 0.002), (u0, v - 0.006, z - 0.002))
+        for u in np.arange(-2.4, 2.41, 1.2):
+            self.disc("room_steel", u, CANOPY_V / 2, z - 0.004, 0.09, normal="down")
+            self.disc("glow_down", u, CANOPY_V / 2, z - 0.008, 0.07, normal="down", emit=(DOWN, 26.0))
 
     def pillar(self):
-        """The sign pillar, free-standing in front of the glass to the west of the doors: light grey panels with a reveal
-        between them; on its face and its west side the lit disc and the name, and on its face the portrait screen."""
-        F = self.F
+        """The sign pillar, free-standing north-west of the doors: light grey panels with a reveal between them; on its
+        face to the west (-v) and its side to the north (-u) the lit disc over the name, and on its face the screen."""
+        F, A = self.F, self.A
         pu, pv, side, ht = PILLAR
-        z0, s2 = F.ground(pu, min(pv, 0)) - 0.1, side / 2
-        A = self.A
-        self.box("wall_pillar", pu - s2, pu + s2, pv - s2, pv + s2, z0, F.floor + ht)
-        # its panels' reveals: a band round it every 0.9 m
-        for zz in np.arange(F.floor + 0.9, F.floor + ht - 0.1, 0.9):
+        s2 = side / 2
+        z0 = min(F.ground(pu + a, pv + b) for a in (-s2, s2) for b in (-s2, s2)) - 0.1
+        top = self.ztile(pu, pv) + ht
+        self.box("wall_pillar", pu - s2, pu + s2, pv - s2, pv + s2, z0, top)
+        for zz in np.arange(self.ztile(pu, pv) + 0.9, top - 0.1, 0.9):
             self.box("room_reveal", pu - s2 - 0.003, pu + s2 + 0.003, pv - s2 - 0.003, pv + s2 + 0.003, zz - 0.005, zz + 0.005)
-        # the face (toward the street, -v) and the west side (+u): the disc over the name
-        dz, nz = F.floor + ht - 0.62, F.floor + ht - 1.18
-        self.disc("glow_sign", pu, pv - s2 - 0.006, dz, 0.36, segs=40, normal="out", uv=A.uv("disc"), emit=((0.95, 0.97, 1.0), 2.5))
-        self.q("wall_pillar_sign", (pu - 0.5, pv - s2 - 0.004, nz), (pu + 0.5, pv - s2 - 0.004, nz), (pu + 0.5, pv - s2 - 0.004, nz + 0.19), (pu - 0.5, pv - s2 - 0.004, nz + 0.19), uv=A.uv("name_pillar"))
-        # (on the west side, the same, facing +u: seen from there, +v is to the right)
-        wu = pu + s2 + 0.006
-        c = F.P(wu, pv, dz)
-        P = [c] + [F.P(wu, pv + 0.36 * math.cos(t), dz + 0.36 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 40, endpoint=False)]
-        (u0, v0), (u1, _), (_, v1), _ = A.uv("disc")
-        UV = [((u0 + u1) / 2, (v0 + v1) / 2)] + [((u0 + u1) / 2 + (u1 - u0) / 2 * math.cos(t), (v0 + v1) / 2 + (v1 - v0) / 2 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 40, endpoint=False)]
-        self.geo.mesh("glow_sign", P, [(0, 1 + k, 1 + (k + 1) % 40) for k in range(40)], n=np.r_[F.u, 0.0], uv=UV)
-        self.q("wall_pillar_sign", (wu - 0.002, pv - 0.5, nz), (wu - 0.002, pv + 0.5, nz), (wu - 0.002, pv + 0.5, nz + 0.19), (wu - 0.002, pv - 0.5, nz + 0.19), uv=A.uv("name_pillar"))
-        # the screen, sunk in a frame on the face
-        sz = F.floor + 0.55
-        self.box("metal_frame", pu - 0.42, pu + 0.42, pv - s2 - 0.03, pv - s2, sz - 0.04, sz + 1.38, faces=("-v", "+u", "-u", "top", "bot"))
-        self.q("glow_sign", (pu - 0.37, pv - s2 - 0.031, sz), (pu + 0.37, pv - s2 - 0.031, sz), (pu + 0.37, pv - s2 - 0.031, sz + 1.3), (pu - 0.37, pv - s2 - 0.031, sz + 1.3),
-               uv=A.uv("screen"), emit=((0.55, 0.5, 0.6), 1.2))
-        x, y = F.xy(pu, pv)
-        for a in (-1, 1):     # (solid: its corners and middle as posts)
+        dz, nz = top - 0.62, top - 1.18
+        (c0, d0), (c1, _), (_, d1), _ = A.uv("disc")
+        ring = lambda t: ((c0 + c1) / 2 + (c1 - c0) / 2 * math.cos(t), (d0 + d1) / 2 + (d1 - d0) / 2 * math.sin(t))
+        ts = np.linspace(0, 2 * math.pi, 40, endpoint=False)
+        # the west face (-v): seen from there, +u (south) is to the right
+        wv = pv - s2 - 0.006
+        P = [F.P(pu, wv, dz)] + [F.P(pu + 0.36 * math.cos(t), wv, dz + 0.36 * math.sin(t)) for t in ts]
+        self.geo.mesh("glow_sign", P, [(0, 1 + k, 1 + (k + 1) % 40) for k in range(40)], n=-np.r_[F.n, 0.0], uv=[((c0 + c1) / 2, (d0 + d1) / 2)] + [ring(t) for t in ts])
+        self.geo.emitters.append((P[0] - np.r_[F.n, 0.0] * 0.05, -np.r_[F.n, 0.0], math.pi * 0.13, np.array([0.95, 0.97, 1.0]) * 2.5))
+        self.q("wall_pillar_sign", (pu - 0.5, wv + 0.002, nz), (pu + 0.5, wv + 0.002, nz), (pu + 0.5, wv + 0.002, nz + 0.19), (pu - 0.5, wv + 0.002, nz + 0.19), uv=A.uv("name_pillar"))
+        # the north side (-u): seen from there, -v (west) is to the right
+        nu = pu - s2 - 0.006
+        P = [F.P(nu, pv, dz)] + [F.P(nu, pv - 0.36 * math.cos(t), dz + 0.36 * math.sin(t)) for t in ts]
+        self.geo.mesh("glow_sign", P, [(0, 1 + k, 1 + (k + 1) % 40) for k in range(40)], n=-np.r_[F.u, 0.0], uv=[((c0 + c1) / 2, (d0 + d1) / 2)] + [ring(t) for t in ts])
+        self.q("wall_pillar_sign", (nu + 0.002, pv + 0.5, nz), (nu + 0.002, pv - 0.5, nz), (nu + 0.002, pv - 0.5, nz + 0.19), (nu + 0.002, pv + 0.5, nz + 0.19), uv=A.uv("name_pillar"))
+        # the screen, sunk in a frame on the west face
+        sz = self.ztile(pu, pv) + 0.55
+        self.box("metal_frame", pu - 0.42, pu + 0.42, wv - 0.03, wv + 0.006, sz - 0.04, sz + 1.38, faces=("-v", "+u", "-u", "top", "bot"))
+        self.q("glow_sign", (pu - 0.37, wv - 0.031, sz), (pu + 0.37, wv - 0.031, sz), (pu + 0.37, wv - 0.031, sz + 1.3), (pu - 0.37, wv - 0.031, sz + 1.3), uv=A.uv("screen"),
+               emit=((0.55, 0.5, 0.6), 1.2))
+        for a in (-1, 1):
             for b in (-1, 1):
-                xx, yy = F.xy(pu + a * (s2 - 0.14), pv + b * (s2 - 0.14))
-                self.posts.append([round(float(xx), 2), round(float(yy), 2)])
-        self.geo.walls.append((F.P(pu - s2, pv - s2, z0), F.P(pu + s2, pv - s2, z0), z0, F.floor + ht))
+                x, y = F.xy(pu + a * (s2 - 0.14), pv + b * (s2 - 0.14))
+                self.posts.append([round(float(x), 2), round(float(y), 2)])
 
-    def screen(self):
-        """The glass wall across the cut, set back under the soffit: stainless frames, fixed lites with a fritted band
-        low, two doorways with a transom over them, lites to the soffit over that; each door's sliding leaf standing
-        open behind the fixed lite beside it, outward. Solid where it is glass (posts), open in the doorways."""
-        F, G, z0, z1, h = self.F, self.G, self.F.floor, self.F.ceil, self.F.half
-        m, dm = 0.05, 0.12
-        frame = lambda u0, u1, za, zb: self.box("metal_frame", u0, u1, G - dm / 2, G + dm / 2, za, zb)
-        hw = DOOR_W / 2
-        cuts = sorted({-h, h} | {d + s * hw for d in DOORS for s in (-1, 1)} | {d + s * (DOOR_W + hw) for d in DOORS for s in (-1, 1)})
-        cuts = [c for c in cuts if -h <= c <= h]
+    def pane(self, u0, u1, v, z0, z1):
+        if u1 - u0 > 0.05 and z1 - z0 > 0.05:
+            self.q("glass_front", (u0, v, z0), (u1, v, z0), (u1, v, z1), (u0, v, z1))
+
+    def front(self):
+        """The west front: stainless frames, fixed lites fritted to a metre, two doorways under a transom, lites to the
+        roof over them; each door's sliding leaf standing open behind the lite outside it. Solid where it is glass."""
+        F, z0, z1 = self.F, self.F.floor, self.F.ceil
+        m, dm, hw = 0.05, 0.12, DOOR_W / 2
+        frame = lambda u0, u1, za, zb: self.box("metal_frame", u0, u1, -dm / 2, dm / 2, za, zb)
         doors = [(d - hw, d + hw) for d in DOORS]
+        cuts = sorted({HALL_U[0], HALL_U[1]} | {e for d in doors for e in d} | {d - hw - DOOR_W for d in DOORS if d < 0} | {d + hw + DOOR_W for d in DOORS if d > 0})
         for u in cuts:
-            a, b = (-h, -h + m) if u == -h else (h - m, h) if u == h else (u - m / 2, u + m / 2)
-            frame(a, b, z0, z1)
-        frame(-h, h, z1 - 0.08, z1)
+            a, b = (u, u + m) if u == HALL_U[0] else (u - m, u) if u == HALL_U[1] else (u - m / 2, u + m / 2)
+            frame(a, b, z0 - 0.3, z1)
+        frame(HALL_U[0], HALL_U[1], z1 - 0.08, z1)
         for a, b in zip(cuts[:-1], cuts[1:]):
             door = any(abs(a - d0) < 1e-6 and abs(b - d1) < 1e-6 for d0, d1 in doors)
             frame(a, b, z0 + TRANSOM, z0 + TRANSOM + 0.1)
-            self.pane(a + m / 2, b - m / 2, G, z0 + TRANSOM + 0.1, z1 - 0.08)
+            self.pane(a + m / 2, b - m / 2, 0.0, z0 + TRANSOM + 0.1, z1 - 0.08)
             if door:
                 continue
-            frame(a, b, z0, z0 + 0.08)
-            self.pane(a + m / 2, b - m / 2, G, z0 + 0.08, z0 + TRANSOM)
-            self.q("glass_frit", (a + m / 2, G - 0.004, z0 + 0.08), (b - m / 2, G - 0.004, z0 + 0.08), (b - m / 2, G - 0.004, z0 + 1.0), (a + m / 2, G - 0.004, z0 + 1.0))
-            for t in np.linspace(a, b, max(2, int(abs(b - a) / 0.25) + 1)):
-                if all(t < d0 - 0.1 or t > d1 + 0.1 for d0, d1 in doors):
-                    x, y = F.xy(t, G)
-                    self.posts.append([round(float(x), 2), round(float(y), 2)])
-        # the leaves, open: each slid outward behind its neighbouring lite, 0.09 m inside it, in a stainless frame
+            frame(a, b, z0 - 0.3, z0 + 0.08)
+            self.pane(a + m / 2, b - m / 2, 0.0, z0 + 0.08, z0 + TRANSOM)
+            self.q("glass_frit", (a + m / 2, -0.004, z0 + 0.08), (b - m / 2, -0.004, z0 + 0.08), (b - m / 2, -0.004, z0 + 1.0), (a + m / 2, -0.004, z0 + 1.0))
+        self.post_line(HALL_U[0], 0.0, HALL_U[1], 0.0, skip=doors)
         for d in DOORS:
             s = 1 if d > 0 else -1
             a, b = sorted((d + s * (hw + 0.02), d + s * (hw + DOOR_W + 0.02)))
-            vv = G + 0.1
+            vv = 0.1
             for za, zb in ((z0 + 0.012, z0 + 0.1), (z0 + TRANSOM - 0.09, z0 + TRANSOM - 0.01)):
                 self.box("metal_frame", a, b, vv - 0.02, vv + 0.02, za, zb)
             for e in (a, b):
                 self.box("metal_frame", e - 0.025, e + 0.025, vv - 0.02, vv + 0.02, z0 + 0.012, z0 + TRANSOM - 0.01)
             self.pane(a + 0.025, b - 0.025, vv, z0 + 0.1, z0 + TRANSOM - 0.09)
-            # its operator over the doorway, inside the transom
-            self.box("metal_frame", min(a, d - hw) - 0.05, max(b, d + hw) + 0.05, G + 0.07, G + 0.22, z0 + TRANSOM, z0 + TRANSOM + 0.18)
+            self.box("metal_frame", min(a, d - hw) - 0.05, max(b, d + hw) + 0.05, 0.07, 0.22, z0 + TRANSOM, z0 + TRANSOM + 0.18)
 
-    def pane(self, u0, u1, v, z0, z1):
-        if u1 - u0 < 0.05 or z1 - z0 < 0.05:
-            return
-        self.q("glass_front", (u0, v, z0), (u1, v, z0), (u1, v, z1), (u0, v, z1))
+    def north(self):
+        """The north side, onto the forecourt: lites to the roof in stainless frames, fritted to a metre. Solid."""
+        F, z0, z1, u = self.F, self.F.floor, self.F.ceil, HALL_U[0]
+        cuts = list(np.linspace(0.0, HALL_V, 4))
+        for v in cuts:
+            self.box("metal_frame", u - 0.06, u + 0.06, v - 0.025, v + 0.025, z0 - 0.4, z1)
+        self.box("metal_frame", u - 0.06, u + 0.06, 0.0, HALL_V, z0 - 0.4, z0 + 0.08)
+        for a, b in zip(cuts[:-1], cuts[1:]):
+            # (seen from the north, +v is to the left: a quad facing -u)
+            self.q("glass_front", (u, b - 0.025, z0 + 0.08), (u, a + 0.025, z0 + 0.08), (u, a + 0.025, z1 - 0.02), (u, b - 0.025, z1 - 0.02))
+            self.q("glass_frit", (u - 0.004, b - 0.025, z0 + 0.08), (u - 0.004, a + 0.025, z0 + 0.08), (u - 0.004, a + 0.025, z0 + 1.0), (u - 0.004, b - 0.025, z0 + 1.0))
+        self.post_line(u, 0.0, u, HALL_V)
 
     def walls(self):
-        """The hall's sides and back: black lacquered panels 1.2 m wide, floor to ceiling, an 8 mm reveal between each;
-        along each side's foot a line of light in a slot."""
-        F, G, z0, z1, h = self.F, self.G, self.F.floor, self.F.ceil, self.F.half
-        for s in (-1, 1):
-            u = s * h
-            a, b = (G, BACK_V) if s < 0 else (BACK_V, G)
-            self.q("room_reveal", (u, a, z0), (u, b, z0), (u, b, z1), (u, a, z1))
-            for va, vb in self.courses(G + 0.06, BACK_V, PANEL):
-                pa, pb = (va + 0.004, vb - 0.004) if s < 0 else (vb - 0.004, va + 0.004)
-                uu = u - s * 0.012
-                self.q("room_panel", (uu, pa, z0 + 0.1), (uu, pb, z0 + 0.1), (uu, pb, z1), (uu, pa, z1))
-            uu = u - s * 0.006
-            a, b = (G + 0.3, BACK_V - 0.25) if s < 0 else (BACK_V - 0.25, G + 0.3)
-            self.q("glow_line", (uu, a, z0 + 0.03), (uu, b, z0 + 0.03), (uu, b, z0 + 0.07), (uu, a, z0 + 0.07), emit=(WARM, 4.0))
-            self.geo.walls.append((F.P(u, G, z0), F.P(u, BACK_V, z0), z0, z1))
-        v = BACK_V
-        self.q("room_reveal", (-h, v, z0), (h, v, z0), (h, v, z1), (-h, v, z1))
-        for ua, ub in self.courses(-h, h, PANEL):
+        """The south wall (against the tower) and the east wall round the cars: black lacquered panels 1.2 m wide, an
+        8 mm reveal between them; a line of light at the south wall's foot. Outside, the south wall is dark metal."""
+        F, z0, z1 = self.F, self.F.floor, self.F.ceil
+        u = HALL_U[1]
+        self.q("room_reveal", (u, HALL_V, z0), (u, 0.06, z0), (u, 0.06, z1), (u, HALL_V, z1))
+        for va, vb in self.courses(0.06, HALL_V, PANEL):
+            self.q("room_panel", (u - 0.012, vb - 0.004, z0 + 0.1), (u - 0.012, va + 0.004, z0 + 0.1), (u - 0.012, va + 0.004, z1), (u - 0.012, vb - 0.004, z1))
+        self.q("glow_line", (u - 0.006, HALL_V - 0.25, z0 + 0.03), (u - 0.006, 0.3, z0 + 0.03), (u - 0.006, 0.3, z0 + 0.07), (u - 0.006, HALL_V - 0.25, z0 + 0.07), emit=(WARM, 4.0))
+        self.box("metal_soffit", u, u + 0.1, 0.0, HALL_V, z0 - 0.4, z1, faces=("+u",))
+        self.post_line(u, 0.0, u, HALL_V)
+        v = HALL_V
+        self.q("room_reveal", (HALL_U[0], v, z0), (HALL_U[1], v, z0), (HALL_U[1], v, z1), (HALL_U[0], v, z1))
+        for ua, ub in self.courses(HALL_U[0], HALL_U[1], PANEL):
             self.q("room_panel", (ua + 0.004, v - 0.012, z0), (ub - 0.004, v - 0.012, z0), (ub - 0.004, v - 0.012, z1), (ua + 0.004, v - 0.012, z1))
-        self.geo.walls.append((F.P(-h, v, z0), F.P(h, v, z0), z0, z1))
+        self.post_line(HALL_U[0], v, HALL_U[1], v)
+        self.geo.walls.append((F.P(HALL_U[1], 0.0, z0), F.P(HALL_U[1], HALL_V, z0), z0, z1))
+        self.geo.walls.append((F.P(HALL_U[0], HALL_V, z0), F.P(HALL_U[1], HALL_V, z0), z0, z1))
 
     def ceiling(self):
-        """The hall's ceiling, matt black, and five lines of light in it from the glass to the lifts (the 45F LEADING
-        LINE's grammar: lines of light in black)."""
-        F, G, z, h = self.F, self.G, self.F.ceil, self.F.half
-        self.q("room_ceiling", (-h, BACK_V, z), (h, BACK_V, z), (h, G, z), (-h, G, z))
-        a, b = G + 0.35, BACK_V - 0.35
+        """The hall's ceiling, matt black, and four lines of light in it running east from over the doors to the cars."""
+        F, z = self.F, self.F.ceil
+        self.q("room_ceiling", (HALL_U[0], HALL_V, z), (HALL_U[1], HALL_V, z), (HALL_U[1], 0.0, z), (HALL_U[0], 0.0, z))
+        a, b = 0.3, HALL_V - 0.3
         for lu in LINES_U:
             for s in (-1, 1):
                 uu = lu + s * 0.04
@@ -586,9 +581,9 @@ class Level:
             self.q("glow_line", (lu - 0.03, b, z + 0.055), (lu + 0.03, b, z + 0.055), (lu + 0.03, a, z + 0.055), (lu - 0.03, a, z + 0.055), emit=(WARM, 12.0))
 
     def lifts(self):
-        """The two cars at the back: each a stainless portal standing proud of the wall, the two leaves shut on their
-        meeting line; over each its indicator (the arrow and 14F); beside each its call plate; the name over both."""
-        F, z0, v, A = self.F, self.F.floor, BACK_V - 0.012, self.A
+        """The two cars on the east wall: stainless portals proud of it, the leaves shut on their meeting line; over each
+        its indicator (the arrow and 14F); beside each its call plate; the name over both."""
+        F, z0, v, A = self.F, self.F.floor, HALL_V - 0.012, self.A
         for cu in CARS:
             hw = CAR_W / 2
             self.box("room_steel", cu - hw - 0.12, cu - hw, v - 0.1, v, z0, z0 + CAR_H + 0.12)
@@ -598,25 +593,55 @@ class Level:
                 a, b = sorted((cu + s * 0.003, cu + s * hw))
                 self.box("room_steel", a, b, v - 0.04, v, z0 + 0.012, z0 + CAR_H, faces=("-v",))
             self.box("room_steel", cu - hw - 0.12, cu + hw + 0.12, v - 0.16, v, z0 - 0.01, z0 + 0.003, faces=("top",))
-            iz = z0 + CAR_H + 0.3
+            iz = z0 + CAR_H + 0.2
             self.q("glow_sign", (cu - 0.3, v - 0.015, iz), (cu + 0.3, v - 0.015, iz), (cu + 0.3, v - 0.015, iz + 0.225), (cu - 0.3, v - 0.015, iz + 0.225), uv=A.uv("indicator"),
                    emit=((1.0, 0.6, 0.2), 1.5))
-            pu = cu + (-1 if cu < 0 else 1) * (hw + 0.35)
+            pu = cu + (-1 if cu < 0 else 1) * (hw + 0.3)
             self.box("room_steel", pu - 0.07, pu + 0.07, v - 0.02, v, z0 + 1.0, z0 + 1.3)
             self.q("glow_sign", (pu - 0.05, v - 0.021, z0 + 1.1), (pu + 0.05, v - 0.021, z0 + 1.1), (pu + 0.05, v - 0.021, z0 + 1.2), (pu - 0.05, v - 0.021, z0 + 1.2), uv=A.uv("button"))
-        nz = z0 + CAR_H + 0.95
-        self.q("glow_sign", (-2.6, v - 0.02, nz), (2.6, v - 0.02, nz), (2.6, v - 0.02, nz + 0.78), (-2.6, v - 0.02, nz + 0.78), uv=A.uv("name_big"), emit=((1.0, 0.95, 0.86), 1.2))
+        # (the hall is low under the station deck: the name between the cars, at the eye's height)
+        nz = z0 + 1.62
+        self.q("glow_sign", (-0.66, v - 0.02, nz), (0.66, v - 0.02, nz), (0.66, v - 0.02, nz + 0.198), (-0.66, v - 0.02, nz + 0.198), uv=A.uv("name_big"), emit=((1.0, 0.95, 0.86), 0.6))
+
+    def shaft(self):
+        """The lifts' shaft outside the hall, up the tower's east face to 14F: glass in stainless frames, a transom at each
+        shop floor; at its foot the two cars standing at the street, their cabins lit, seen through it."""
+        F, z0 = self.F, self.F.floor
+        v0, v1, top = HALL_V, HALL_V + SHAFT_V, z0 + SHAFT_TOP
+        u0, u1 = HALL_U[0], HALL_U[1]
+        faces = [((u1, v1), (u0, v1)), ((u0, v1), (u0, v0)), ((u1, v0), (u1, v1))]   # east, north, south: anticlockwise from outside
+        for (ua, va), (ub, vb) in faces:
+            self.q("glass_front", (ua, va, z0 - 0.3), (ub, vb, z0 - 0.3), (ub, vb, top), (ua, va, top), sub=(1, 6))
+        for z in list(np.arange(z0 + 3.4, top, 5.4)) + [top]:
+            self.box("metal_frame", u0 - 0.05, u1 + 0.05, v1 - 0.05, v1 + 0.05, z - 0.08, z + 0.08)
+            self.box("metal_frame", u0 - 0.05, u0 + 0.05, v0, v1, z - 0.08, z + 0.08)
+            self.box("metal_frame", u1 - 0.05, u1 + 0.05, v0, v1, z - 0.08, z + 0.08)
+        for u in (u0, 0.0, u1):
+            self.box("metal_frame", u - 0.04, u + 0.04, v1 - 0.04, v1 + 0.04, z0 - 0.3, top)
+        for u in (u0, u1):
+            self.box("metal_frame", u - 0.04, u + 0.04, v0 + SHAFT_V / 2 - 0.04, v0 + SHAFT_V / 2 + 0.04, z0 - 0.3, top)
+        self.box("metal_soffit", u0 - 0.06, u1 + 0.06, v0, v1 + 0.06, top, top + 1.2, faces=("top", "+v", "+u", "-u"))
+        # the cars at the street: a dark cabin each, its ceiling lit, its back glass
+        for cu in CARS:
+            self.box("room_panel", cu - 0.95, cu + 0.95, v0 + 0.15, v1 - 0.25, z0, z0 + 0.012, faces=("top",))
+            self.box("room_panel", cu - 0.95, cu + 0.95, v0 + 0.15, v1 - 0.25, z0 + 2.6, z0 + 2.75)
+            self.q("glow_line", (cu - 0.8, v1 - 0.4, z0 + 2.598), (cu + 0.8, v1 - 0.4, z0 + 2.598), (cu + 0.8, v0 + 0.3, z0 + 2.598), (cu - 0.8, v0 + 0.3, z0 + 2.598), emit=(WARM, 3.0))
+            for s in (-1, 1):
+                self.box("room_panel", cu + s * 0.95 - 0.02, cu + s * 0.95 + 0.02, v0 + 0.15, v1 - 0.25, z0, z0 + 2.6)
+        self.post_line(u0, v1, u1, v1)
+        self.post_line(u0, v0, u0, v1)
+        self.post_line(u1, v0, u1, v1)
 
     def queue(self):
-        """The queue: two stainless posts 3 m out from the lifts' wall, outside the portals, a black belt from each drawn
-        taut to its catch on the wall (a hall's retractable queue belt). The belts are solid (game.json hero[].belts)."""
+        """The queue: two stainless posts 2.9 m out from the cars' wall, a black belt from each drawn taut east to its
+        catch on the wall, the queue facing the cars between them. Solid (game.json hero[].belts)."""
         F, z0 = self.F, self.F.floor
-        vv = BACK_V - 3.0
+        vv = HALL_V - 2.9
         for su in BELTS:
             self.geo.lathe("room_steel", F.P(su, vv, z0), [(0.16, 0.0), (0.16, 0.025), (0.03, 0.045), (0.025, 0.86), (0.04, 0.88), (0.04, 0.99), (0.0, 1.0)], segs=20)
-            self.box("room_belt", su - 0.005, su + 0.005, vv, BACK_V - 0.05, z0 + 0.87, z0 + 0.92)
-            self.box("room_steel", su - 0.03, su + 0.03, BACK_V - 0.05, BACK_V - 0.012, z0 + 0.85, z0 + 0.94)
-            for t in np.arange(vv, BACK_V - 0.01, 0.2):
+            self.box("room_belt", su - 0.005, su + 0.005, vv, HALL_V - 0.05, z0 + 0.87, z0 + 0.92)
+            self.box("room_steel", su - 0.03, su + 0.03, HALL_V - 0.05, HALL_V - 0.012, z0 + 0.85, z0 + 0.94)
+            for t in np.arange(vv, HALL_V - 0.01, 0.2):
                 x, y = F.xy(su, t)
                 self.belts.append([round(float(x), 2), round(float(y), 2)])
 
@@ -626,8 +651,9 @@ def build(K):
     L = Level(K)
     geo, atlas = L.build()
     F = L.F
-    mid = F.xy(0.0, (BACK_V + APRON_V) / 2)
-    meta = {"id": ID, "at": [round(float(mid[0]), 2), round(float(mid[1]), 2)], "r": 21.0, "z": round(F.floor, 2), "glb": f"hero/{ID}.glb", "bake_gain": 1.0,
+    mid = F.xy(-2.5, (HALL_V + SHAFT_V + APRON_V - 6.0) / 2)
+    meta = {"id": ID, "at": [round(float(mid[0]), 2), round(float(mid[1]), 2)], "r": 16.0, "z": round(F.floor, 2), "glb": f"hero/{ID}.glb", "bake_gain": 1.0,
             "floor": True, "lift": 0.012, "posts": L.posts, "belts": L.belts}
-    print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z", "floor", "lift")}), f"{len(L.posts)} posts, {len(L.belts)} belt points")
+    print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z", "floor", "lift")}), f"{len(L.posts)} posts, {len(L.belts)} belt points",
+          f"floor {F.floor}, ceiling {F.ceil}")
     return geo, atlas, materials(K), meta
