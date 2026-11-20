@@ -13,6 +13,9 @@ sides of the step:
   (the dolls are 1,350 to 2,250), its texture seams, picture borders and swung body parts kept
   (pipeline/crowd_cast.mjs, meshoptimizer's simplifier). The hair cards are lit as one head of hair and drawn
   from both sides, as people.js roundHair does for the near walker.
+- a coarser copy of each (<name>~coarse, about 300 to 370 triangles, COARSE), which people.js draws past its COARSE_M
+  (60 m) on the same picture: the body simplified across its seams (meshoptimizer's Permissive), the head's seams kept,
+  and the largest of the hair cards (issue 61).
 - the picture: the avatar's own colour maps, the body's at BODY px and the head's and hair cards' at HEAD px, laid
   out in one CELL picture a character (WebP, the hair cards' cut-out in its alpha), the cards' tone matched to
   the hair painted on the head under them (people.js matchHair). A walker 30 m off is about 55 px tall on a
@@ -38,6 +41,10 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PEOPLE = os.path.join(ROOT, "web", "assets", "people")
 TRIANGLES = 1000
+# the coarser copy past COARSE_M (people.js crowdRenderer): a walker 60 m off is about 35 px tall on a phone, and its 1,000 to
+# 1,400 triangles were one for every three pixels (issue 61). The simplifier's error is let up to half the figure's size, and
+# the hair cards, loose quads it cannot merge, are cut to the largest of them (crowd_cast.mjs largestCards)
+COARSE = (300, 0.5, 0.06)          # target triangles, error, the hair cards' least share
 BODY, HEAD = 128, 64
 CELL = (BODY, BODY + HEAD)          # w, h: the body over the head and the hair cards side by side
 KEEP = 204   # (as blender/build_people.py KEEP)
@@ -112,9 +119,9 @@ def sample(im, uv):
     return a[y, x]
 
 
-def far_copy(name, sex):
+def far_copy(name, sex, coarse=False):
     g = json.loads(subprocess.run(["node", os.path.join(ROOT, "pipeline", "crowd_cast.mjs"), os.path.join(PEOPLE, f"{name}.glb"),
-                                   os.path.join(PEOPLE, f"R_clips_{sex}.glb"), str(TRIANGLES)],
+                                   os.path.join(PEOPLE, f"R_clips_{sex}.glb"), *map(str, COARSE if coarse else (TRIANGLES,))],
                                   check=True, capture_output=True, text=True).stdout)
     ims = images(os.path.join(PEOPLE, f"{name}.glb"))
     by = {p["kind"]: p for p in g["parts"]}
@@ -230,26 +237,28 @@ def main():
     glb, nodes, meshes, mats, texs, imgs, chars = GLB(), [], [], [], [], [], {}
     for name in names:
         c = info["npcs"]["characters"][name]
-        f = far_copy(name, c["sex"])
-        n4 = np.zeros((len(f["nrm"]), 4), np.int8)
-        n4[:, :3] = np.round(f["nrm"] * 127)
-        p4 = np.zeros((len(f["part"]), 4), np.uint8)
-        p4[:, 0] = f["part"]
-        attrs = {"POSITION": glb.add(f["pos"].astype("<f4"), 5126, "VEC3", 34962, minmax=True),
-                 "NORMAL": glb.add(n4, 5120, "VEC3", 34962, normalized=True, stride=4),
-                 "TEXCOORD_0": glb.add(np.round(f["uv"] * 65535).astype("<u2"), 5123, "VEC2", 34962, normalized=True),
-                 "_PART": glb.add(p4, 5121, "SCALAR", 34962, stride=4)}
-        ind = glb.add(f["idx"].astype("<u2").ravel(), 5123, "SCALAR", 34963)
+        f, g = far_copy(name, c["sex"]), far_copy(name, c["sex"], coarse=True)
         imgs.append({"bufferView": glb.image(f["cell"]), "mimeType": "image/webp", "name": name})
         texs.append({"sampler": 0, "extensions": {"EXT_texture_webp": {"source": len(imgs) - 1}}})
         mats.append({"name": name, "pbrMetallicRoughness": {"baseColorTexture": {"index": len(texs) - 1}, "metallicFactor": 0, "roughnessFactor": 0.7},
                      "alphaMode": "MASK", "alphaCutoff": 0.4})
         h = float(f["pos"][:, 1].max())
-        meshes.append({"name": name, "primitives": [{"attributes": attrs, "indices": ind, "material": len(mats) - 1}],
-                       "extras": {**f["pivots"], "height_m": round(h, 3)}})
-        nodes.append({"name": name, "mesh": len(meshes) - 1, "extras": {**f["pivots"], "height_m": round(h, 3)}})
-        chars[name] = {"triangles": len(f["idx"]), "height_m": round(h, 3)}
-        print(f"{name:34s} {c['triangles']:6d} -> {len(f['idx']):5d} triangles, {h:.2f} m")
+        # the copy, and its coarser copy (name~coarse) on the same material: its corners keep their places in the one picture
+        for mesh_name, m in ((name, f), (name + "~coarse", g)):
+            n4 = np.zeros((len(m["nrm"]), 4), np.int8)
+            n4[:, :3] = np.round(m["nrm"] * 127)
+            p4 = np.zeros((len(m["part"]), 4), np.uint8)
+            p4[:, 0] = m["part"]
+            attrs = {"POSITION": glb.add(m["pos"].astype("<f4"), 5126, "VEC3", 34962, minmax=True),
+                     "NORMAL": glb.add(n4, 5120, "VEC3", 34962, normalized=True, stride=4),
+                     "TEXCOORD_0": glb.add(np.round(m["uv"] * 65535).astype("<u2"), 5123, "VEC2", 34962, normalized=True),
+                     "_PART": glb.add(p4, 5121, "SCALAR", 34962, stride=4)}
+            ind = glb.add(m["idx"].astype("<u2").ravel(), 5123, "SCALAR", 34963)
+            meshes.append({"name": mesh_name, "primitives": [{"attributes": attrs, "indices": ind, "material": len(mats) - 1}],
+                           "extras": {**f["pivots"], "height_m": round(h, 3)}})
+            nodes.append({"name": mesh_name, "mesh": len(meshes) - 1, "extras": {**f["pivots"], "height_m": round(h, 3)}})
+        chars[name] = {"triangles": len(f["idx"]), "coarse_triangles": len(g["idx"]), "height_m": round(h, 3)}
+        print(f"{name:34s} {c['triangles']:6d} -> {len(f['idx']):5d} triangles, {len(g['idx']):4d} coarse, {h:.2f} m")
     out = os.path.join(PEOPLE, "crowd_cast.glb")
     glb.write(out, {"asset": {"version": "2.0", "generator": "open-earth-3d pipeline/crowd_cast.py"},
                     "extensionsUsed": ["EXT_texture_webp"], "extensionsRequired": ["EXT_texture_webp"],
@@ -258,7 +267,8 @@ def main():
                     "samplers": [{"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071}]})
     subprocess.run(["node", os.path.join(ROOT, "pipeline", "meshopt_glb.mjs"), out], check=True)
     info["crowd_cast"] = {
-        "note": "The far crowd: a simplified copy of each NPC the live cities' crowds cast, stood in Idle_Neutral, with one "
+        "note": "The far crowd: a simplified copy of each NPC the live cities' crowds cast, stood in Idle_Neutral, and a coarser one "
+                "past people.js COARSE_M (<name>~coarse), with one "
                 f"{CELL[0]}x{CELL[1]} picture a character (pipeline/crowd_cast.py; people.js crowdRenderer). Pivots: [height, forward], m.",
         "file": "crowd_cast.glb", "cell": list(CELL), "characters": chars}
     json.dump(info, open(path, "w"), indent=1)

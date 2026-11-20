@@ -68,29 +68,84 @@ window.OEStory = (function () {
     let enterLater = () => {}; // (going back into a frame from the title: set once the case's functions exist, below)
     // the story's own interface (story.css): the map's instruments are put away for as long as the story is here
     ctx.stage.classList.add('story');
-    { // the title: the story's name, the evening, and one button
+    { // the title (story.css "the title in three screens"; docs/STORY.md "The title, as a game opens"): the story's name and
+      // evening over the street; the menu's ways in, as this browser left them; and the story's own screen, its episode
       const q = sel => ctx.stage.querySelector(sel), ep0 = eps[0] || {}, T = S.card || {};
       if (q('#gt-city')) q('#gt-city').textContent = T.eyebrow || '';
       if (q('#gt-title')) q('#gt-title').innerHTML = `${esc(S.title || '')}${T.native ? `<small lang="ja">${esc(T.native)}</small>` : ''}`;
       if (q('#gt-blurb')) q('#gt-blurb').textContent = T.line || '';
-      // a case left unfinished in this browser: the button says so (which frame it takes up at), and a second one starts
-      // the evening again from its first frame; nobody opens the page into the rain of the last frame without being told
+      // who you play, on a screen of its own (game.js whoAsk): the file on Kagami, what anyone who met them tonight could
+      // know and nothing of the case; the lines that differ between the two (data-c) shown for the one the hand is on, or
+      // the one chosen (story.css "who you play")
+      const who = T.who, file = q('#gt-who .gt-who-file');
+      if (who && file) {
+        const both = f => ['W', 'M'].filter(c => who[c]).map(c => f(c, who[c])).join('');
+        file.querySelector('.eyebrow').textContent = who.eyebrow || 'Who you play';
+        file.querySelector('.jp').textContent = who.native || '';
+        file.querySelector('.nm').textContent = who.name || '';
+        file.querySelector('.sub').innerHTML = `${esc(who.age || '')}${both((c, v) => `<span data-c="${c}"> · ${esc(v.sub)}</span>`)}`;
+        file.querySelector('.line').textContent = who.line || '';
+        file.querySelector('.facts').innerHTML = (who.facts || []).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')
+          + both((c, v) => (v.wears ? `<div data-c="${c}"><dt>${esc(who.wears || 'Wears')}</dt><dd>${esc(v.wears)}</dd></div>` : ''));
+        file.querySelector('.note').textContent = who.note_line || '';
+        for (const b of q('#gt-who').querySelectorAll('.gt-who-row [data-c]')) { const v = who[b.dataset.c]; b.querySelector('b').textContent = who.name || ''; if (v) b.querySelector('small').textContent = v.sub; }
+      }
+      // how far this browser has got: a case left going (the frame it takes up at; nobody opens the page into the rain of
+      // the last frame without being told), or a case closed, any of whose frames can be gone back into
       let left = null;
       try { left = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
-      const going = left && left.fi > 0 && left.fi < (ep0.frames || []).length;
-      if (q('#gt-play')) q('#gt-play').innerHTML = `<span>${going ? `Continue · frame ${left.fi + 1} of ${N}` : `${ep0.no ? `Episode ${esc(ep0.no)} · ` : ''}${esc(ep0.title || 'Begin')}`}</span><kbd>↵</kbd>`;
-      // (a case closed in this browser, and none going: any of its frames can be gone back into, from here too)
+      const going = !!(left && left.fi > 0 && left.fi < (ep0.frames || []).length);
       const shut = !going && (() => { try { const c = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? c : null; } catch (e) { return null; } })();
-      if (shut && q('#gt-play') && !q('#gt-back')) {
-        const n = document.createElement('nav'); n.id = 'gt-back'; n.setAttribute('aria-label', 'Go back into a frame');
-        n.innerHTML = `<small>The case is closed · go back into a frame</small><span>${shut.stamps.map((t, i) => (shut.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span>`;
-        n.addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); });
-        q('#gt-play').parentNode.after(n);
+      const name = `${ep0.no ? `Episode ${ep0.no} · ` : ''}${ep0.title || ''}`, taken = going ? left.prints || [] : shut ? shut.prints || [] : [];
+      const photoOf = p => (p && typeof p.src === 'string' && /^data:image\//.test(p.src) ? p.src : null); // (a photograph the player took, kept with the case)
+      const lastAt = going ? ((left.prints || [])[left.prints.length - 1] || {}).stamp || '' : '';
+      // the menu: Continue first while a case is going, with the last photograph taken in it, as a game's menu puts its last
+      // save first with a picture of where it was left (walk.js puts the walk under it); the story's row says how far
+      const cont = q('#gt-cont-go');
+      if (cont) {
+        cont.hidden = !going;
+        cont.classList.toggle('primary', going);
+        if (going) {
+          cont.querySelector('small').textContent = `${ep0.no ? `Episode ${ep0.no} · ` : ''}frame ${left.fi + 1} of ${N}${lastAt ? ` · ${lastAt}` : ''}`; // (short, so that the row holds one line beside the photograph on a phone)
+          const ph = [...taken].reverse().map(photoOf).find(Boolean), im = cont.querySelector('img');
+          if (ph && im) { im.src = ph; im.hidden = false; }
+        }
       }
-      if (going && q('#gt-play') && !q('#gt-anew')) {
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'gt-anew'; b.textContent = 'Start the evening again';
-        b.addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } q('#gt-play').click(); }); // (who you play chosen first)
-        q('#gt-play').after(b);
+      const sg = q('#gt-story-go');
+      const epNo = ep0.no ? `Episode ${ep0.no}` : ep0.title || ''; // (short, so that the row holds one line on a phone)
+      if (sg) sg.querySelector('small').textContent = going ? `${epNo} · ${left.fi} of ${N} frames taken` : shut ? `${epNo} · the case is closed` : name;
+      // the story's screen: the episode, its picture and its line; how far, on the roll (a cell a frame, the photograph in
+      // each one taken); Begin, Continue or Play it again; the evening again, asked twice, since what was taken tonight is
+      // lost; and a closed case's frames, each a way back in
+      const E = q('#gt-eps');
+      if (E) {
+        E.querySelector('.cap .no').textContent = ep0.no ? `Episode ${ep0.no}` : '';
+        E.querySelector('.cap h3').textContent = ep0.title || '';
+        E.querySelector('.cap .when').textContent = T.eyebrow || '';
+        E.querySelector('.line').textContent = ep0.line || T.line || '';
+        E.querySelector('.state').textContent = going ? `In progress · ${left.fi} of ${N} frames taken${lastAt ? ` · the last at ${lastAt}` : ''}`
+          : shut ? `The case is closed · go back into any frame` : `Not begun · ${N} frames, one evening`;
+        E.querySelector('.gt-roll').innerHTML = Array.from({ length: N }, (_, i) => {
+          const p = taken[i], src = photoOf(p), back = shut && (shut.snaps[i] || i === 0);
+          const inner = `${src ? `<img src="${src}" alt="">` : ''}<b>${i + 1}</b>${shut && shut.stamps[i] ? `<small>${esc(shut.stamps[i])}</small>` : ''}`;
+          return `<li class="${p ? 'got' : ''}${going && i === left.fi ? ' now' : ''}">${back ? `<button type="button" data-back="${i}" aria-label="Go back into frame ${i + 1}${shut.stamps[i] ? `, ${esc(shut.stamps[i])}` : ''}">${inner}</button>` : inner}</li>`;
+        }).join('');
+        E.classList.toggle('shut', !!shut);
+        const play = q('#gt-play'), acts = E.querySelector('.gt-ep-acts'), anew = q('#gt-anew');
+        if (play && acts) {
+          acts.prepend(play); play.type = 'button'; play.classList.add('primary');
+          play.innerHTML = going ? `<span>Continue</span><small>Frame ${left.fi + 1} of ${N}${lastAt ? `, after ${lastAt}` : ''}</small><kbd>↵</kbd>`
+            : shut ? '<span>Play it again</span><small>The evening from its first frame</small><kbd>↵</kbd>' : `<span>Begin</span><small>${esc(name)}</small><kbd>↵</kbd>`;
+        }
+        if (anew) {
+          anew.hidden = !going;
+          const sure = on => { E.classList.toggle('sure', on); const f = q(on ? '#gt-anew-no' : '#gt-anew'); if (f) f.focus({ preventScroll: true }); };
+          anew.addEventListener('click', () => sure(true));
+          q('#gt-anew-no').addEventListener('click', () => sure(false));
+          q('#gt-anew-yes').addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }); // (who you play chosen first)
+          E.sure = () => E.classList.contains('sure') && (sure(false), true); // (Esc or B on the question: keep the case; game.js)
+        }
+        E.querySelector('.gt-roll').addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); });
       }
     }
     const el = (id, html, tag = 'div') => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; ctx.stage.appendChild(e); return e; };

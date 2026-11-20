@@ -26,7 +26,7 @@
 #   guide   the story's guide led along each frame's way with a player behind him (tools/guide_way.js): his feet on what is
 #           drawn under them, down the middle of the way, and the mark pointing along the way, not as the crow flies;
 #           when the guide, the routes, the walking grid or the marks change;
-#   walk    the title's second way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
+#   walk    the title's first way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
 #           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
 #           tonight's set up in SKY GATE's lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);

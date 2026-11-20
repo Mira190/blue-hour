@@ -17,33 +17,39 @@
 .game-stage.story .gt-card h1 { font: 200 clamp(44px, 8vw, 104px)/0.96 var(--f-display); letter-spacing: 0.16em; color: var(--paper); text-shadow: 0 0 60px rgba(120, 150, 255, 0.28); }
 .game-stage.story .gt-card h1 small:lang(ja) { margin-top: 20px; font: 500 18px/1 var(--f-jp); letter-spacing: 0.5em; color: var(--amber); opacity: 1; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8); }
 .game-stage.story .gt-card > p { font: 300 clamp(15px, 1.5vw, 18px)/1.6 var(--f-body); color: rgba(244, 239, 230, 0.86); max-width: 46ch; }
-.game-stage.story .gt-go .btn.primary { min-width: 0; gap: 26px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber);
-  font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s; }
-.game-stage.story .gt-go .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
-/* who you play: Kagami as a woman or a man, two portraits over the button (game.js whoPick; tools/views/kagami.json).
-   The same place, light and lens in each, so the choice is between the two people. Chosen: the amber hairline the
-   button has. The first time neither is, and the button waits, dimmed, until one is */
-.gt-who { display: none; }
-.game-stage.story .gt-who:not([hidden]) { display: grid; gap: 10px; justify-items: start; }
-.game-stage.story .gt-who .eyebrow { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
-.gt-who-row { display: flex; gap: 12px; }
-.gt-who-row button { position: relative; width: clamp(96px, 9vw, 124px); aspect-ratio: 3 / 4; padding: 0; overflow: hidden; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px;
-  background: #0b1020; cursor: pointer; filter: saturate(0.8) brightness(0.78); transition: border-color 0.25s, box-shadow 0.25s, filter 0.25s; }
-.gt-who-row img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.45); transform-origin: 50% 16%; } /* (head to knee: at full length a face was a few pixels on a phone) */
-.gt-who-row button::after { content: ""; position: absolute; inset: 52% 0 0; background: linear-gradient(to top, rgba(4, 8, 18, 0.88), transparent); }
-.gt-who-row :is(b, small) { position: absolute; left: 10px; right: 8px; z-index: 1; text-align: left; white-space: nowrap; }
-.gt-who-row b { bottom: 25px; font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--paper); }
-.gt-who-row small { bottom: 10px; font: 300 12px/1 var(--f-body); color: rgba(244, 239, 230, 0.82); }
-.gt-who-row button:is(:hover, :focus-visible) { filter: none; border-color: rgba(255, 207, 138, 0.7); outline: none; }
-.gt-who-row button[aria-checked="true"] { filter: none; border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber), 0 12px 32px rgba(0, 0, 0, 0.45); }
-.gt-who-row button[aria-checked="true"] b { color: var(--amber); }
-.gt-who-ask { min-height: 1.4em; margin: 0; font: 400 10px/1.4 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--amber); }
-.gt-who-ask:empty { display: none; }
-.game-stage.story .gt-who.open ~ .gt-go .btn.primary { opacity: 0.42; }
-@media (prefers-reduced-motion: no-preference) {
-  .gt-who.ask .gt-who-row { animation: gt-who-ask 0.5s ease; }
-  @keyframes gt-who-ask { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+/* ---- the title's ways in (the walk, the episode, the evening again): one list, as a game's main menu is. Every row is
+   the same: one width, one height, one type, two lines (what it is; a word on it), so that no way in looks bigger than
+   another and the order alone says which comes first. The first is the one Enter and a pad's A take: it carries the
+   amber hairline and the Enter key. The hand put on another row (the mouse, Tab, the arrows, a pad) fills that one
+   with the amber instead, and the key goes with it. On a phone the rows run the card's width, each a thumb's height;
+   longer words wrap inside a row and every row grows with it (tools/ui_fit.js, tools/walk_play.js) */
+.game-stage.story .gt-go { display: grid; grid-auto-rows: 1fr; gap: 8px; width: min(420px, 100%); }
+.game-stage.story .gt-go > .btn { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; align-items: center; gap: 6px 16px;
+  min-width: 0; min-height: 64px; margin: 0; padding: 12px 18px 12px 20px; border: 1px solid rgba(244, 239, 230, 0.3); border-radius: 2px; background: rgba(4, 8, 18, 0.34);
+  color: var(--paper); text-align: left; white-space: normal; font: 400 11px/1.3 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer;
+  transition: border-color 0.3s, background 0.3s, color 0.3s, opacity 0.3s; }
+.game-stage.story .gt-go > .btn > span { grid-column: 1; min-width: 0; }
+.game-stage.story .gt-go > .btn > small { grid-column: 1; min-width: 0; font: 300 13px/1.35 var(--f-body); letter-spacing: 0.01em; text-transform: none; color: rgba(244, 239, 230, 0.62); transition: color 0.3s; }
+.game-stage.story .gt-go > .btn > kbd { grid-column: 2; grid-row: 1 / span 2; min-width: 28px; padding: 4px 6px 3px !important; border: 1px solid currentColor !important; border-radius: 2px;
+  font: 400 15px/1 var(--f-mono) !important; letter-spacing: 0; text-align: center; opacity: 0.8; visibility: hidden; }
+.game-stage.story .gt-go > .btn.primary { border-color: rgba(255, 207, 138, 0.9); color: var(--amber); }
+.game-stage.story .gt-go > .btn:focus-visible { border-color: var(--amber); background: var(--amber); color: #0b1020; outline: none; }
+.game-stage.story .gt-go > .btn:focus-visible > small { color: rgba(11, 16, 32, 0.72); }
+.game-stage.story .gt-go:has(> .btn:focus-visible) > .btn.primary:not(:focus-visible) { border-color: rgba(244, 239, 230, 0.3); color: var(--paper); }
+@media (hover: hover) {
+  .game-stage.story .gt-go > .btn:hover { border-color: var(--amber); background: var(--amber); color: #0b1020; }
+  .game-stage.story .gt-go > .btn:hover > small { color: rgba(11, 16, 32, 0.72); }
+  .game-stage.story .gt-go:has(> .btn:hover) > .btn.primary:not(:hover, :focus-visible) { border-color: rgba(244, 239, 230, 0.3); color: var(--paper); }
 }
+.game-stage.story .gt-go > .btn:active { background: rgba(255, 207, 138, 0.16); }
+/* (the key on the row Enter takes: the one the hand is on, else the first; none on a phone, a pad's sign with a pad) */
+.game-stage.story .gt-go > .btn:focus > kbd, .game-stage.story .gt-go:not(:has(> .btn:focus)) > .btn.primary > kbd { visibility: visible; }
+@media (hover: none) and (pointer: coarse) { .game-stage.story:not(.pad) .gt-go > .btn > kbd { display: none; } }
+.game-stage.story.pad .gt-go > .btn > kbd.pad { border-radius: 999px; } /* (a pad's A, round as its button is) */
+@media (max-width: 640px) { .game-stage.story .gt-go { width: 100%; } }
+/* (a screen too short for the list stood up, a phone on its side: the same rows side by side, still one size, so that
+   every way in is on the screen without scrolling) */
+@media (max-height: 520px) and (min-width: 560px) { .game-stage.story .gt-go { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; } .game-stage.story .gt-go > .btn { min-height: 56px; } }
 
 /* ---- the goal: the one thing to do now, under the Stop's minutes */
 /* (top left, as a game's objective sits: the middle of the frame is the picture's, never the text's) */
@@ -402,18 +408,6 @@
 
 /* ---- it is in the frame: the bright lines go amber */
 #g-story-finder.ready { --l: var(--amber); }
-/* ---- a case left unfinished: the second button on the title */
-.game-stage.story #gt-anew { margin-left: 12px; padding: 15px 20px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; cursor: pointer; }
-.game-stage.story #gt-anew:is(:hover, :focus-visible) { border-color: var(--paper); }
-/* the title's ways in (the episode, the evening again, the walk): each as wide as its words, side by side while they
-   fit and one under another when they don't, never squeezed so that their words run into the next; on the narrowest
-   screens the words wrap inside the button (tools/ui_fit.js) */
-.game-stage.story .gt-go { gap: 10px 12px; }
-.game-stage.story .gt-go > .btn { flex: 0 1 auto; min-width: 0; max-width: 100%; white-space: normal; text-align: left; line-height: 1.5; padding-top: 11px; padding-bottom: 11px; }
-.game-stage.story .gt-go > .btn > span { min-width: 0; }
-.game-stage.story #gt-anew { margin-left: 0; }
-#gt-walk-go { flex-wrap: wrap; row-gap: 2px; }
-@media (max-width: 860px) { .game-stage.story .gt-go > .btn { flex-grow: 1; justify-content: space-between; } }
 
 /* the street's own signs (the station's name card) are the free walk's: in the story only the story speaks */
 .game-stage.story .g-ekimei { display: none !important; }
@@ -581,8 +575,11 @@
 :is(#g-story-end nav.back, #gt-back) button { display: grid; gap: 5px; justify-items: center; min-width: 52px; padding: 9px 8px; border: 1px solid rgba(244, 239, 230, 0.32); border-radius: 2px; background: rgba(4, 8, 18, 0.4); color: rgba(244, 239, 230, 0.7); font: 400 9px/1 var(--f-mono); letter-spacing: 0.12em; cursor: pointer; }
 :is(#g-story-end nav.back, #gt-back) button b { font: 300 18px/1 var(--f-mono); color: var(--amber); }
 :is(#g-story-end nav.back, #gt-back) button:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); }
-#gt-back { justify-items: start; margin-top: 4px; }
-#gt-back span { justify-content: flex-start; }
+/* (on the title, under its list and as wide: the frames in two even columns, read left to right, as the list is set) */
+#g-title #gt-back { justify-items: stretch; width: min(420px, 100%); margin-top: 4px; }
+#g-title #gt-back span { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 6px; }
+#g-title #gt-back button { grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start; gap: 10px; padding: 9px 10px; text-align: left; }
+#g-title #gt-back small { justify-self: start; margin-right: 0; }
 @media (max-width: 640px) { #g-story-end .worked { padding: 14px 14px 16px; } #g-story-end .worked li { grid-template-columns: 1fr; gap: 0; font-size: 18px; } :is(#g-story-end nav.back, #gt-back) button { min-width: 40px; padding: 8px 5px; } }
 
 /* ---- the summation: a pair of prints set side by side is shown as one piece of evidence; a spent print is only tonight */
@@ -638,23 +635,20 @@
 @media (max-width: 640px) { #g-story-hint { right: auto; left: 50%; transform: translateX(-50%); bottom: max(222px, calc(env(safe-area-inset-bottom) + 222px)); white-space: nowrap; } }
 @media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; border-color: var(--amber); } }
 
-/* ---- the walk (walk.js): the title's second way in, and the street with no story in it.
-   The same card, type and amber as the story's; the walk's own words are fewer. On the title, beside the episode's
-   amber button, a paper one; pressed, the two ways in give way to one step: the hour and the sky, and Set out */
-#gt-walk-go { display: inline-flex; align-items: center; gap: 14px; min-width: 0; padding: 15px 20px; border: 1px solid rgba(244, 239, 230, 0.42); border-radius: 2px; background: transparent; color: var(--paper);
-  font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; transition: border-color 0.3s, background 0.3s; }
-#gt-walk-go small { font: inherit; letter-spacing: 0.24em; color: rgba(244, 239, 230, 0.55); }
-#gt-walk-go small::before { content: "·"; margin-right: 14px; color: rgba(244, 239, 230, 0.4); }
-#gt-walk-go:is(:hover, :focus-visible) { border-color: var(--paper); background: rgba(244, 239, 230, 0.06); outline: none; }
-.game-stage.story .gt-who.open ~ .gt-go #gt-walk-go { opacity: 0.42; }
+/* ---- the walk (walk.js): the title's first way in, and the street with no story in it.
+   The same card, type and amber as the story's; the walk's own words are fewer. On the title, the first row of its
+   list ("the title's ways in", above); pressed, the ways in give way to one step: the hour and the sky, and Set out */
 #g-title[data-walk] :is(.gt-go, #gt-back) { display: none !important; }
 .gt-walk { display: none; }
-.game-stage.story .gt-walk:not([hidden]) { display: grid; gap: 14px; justify-items: start; }
+/* (set as the list it stands in for: as wide, its choices even tiles in one row each, the name over its hour, and Set out
+   and Back one row of two halves, the same height as a choice) */
+.game-stage.story .gt-walk:not([hidden]) { display: grid; gap: 14px; justify-items: stretch; width: min(420px, 100%); }
+.game-stage.story .gt-walk .eyebrow { justify-self: start; }
 .gt-walk .eyebrow { font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
-.gt-walk-row { display: grid; grid-template-columns: 76px auto; align-items: center; gap: 14px; }
+.gt-walk-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 14px; }
 .gt-walk-row > span { font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
-.gt-walk-seg { display: flex; flex-wrap: wrap; gap: 6px; }
-.gt-walk-seg button { display: inline-flex; align-items: baseline; gap: 10px; padding: 11px 14px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42); color: rgba(244, 239, 230, 0.78); cursor: pointer;
+.gt-walk-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.gt-walk-seg button { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 7px; min-width: 0; min-height: 54px; padding: 10px 14px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42); color: rgba(244, 239, 230, 0.78); cursor: pointer;
   transition: border-color 0.25s, color 0.25s, background 0.25s; }
 .gt-walk-seg b { font: 300 14px/1 var(--f-body); letter-spacing: 0.01em; }
 .gt-walk-seg small { font: 400 11px/1 var(--f-mono); letter-spacing: 0.04em; color: rgba(244, 239, 230, 0.5); font-variant-numeric: tabular-nums; }
@@ -662,10 +656,10 @@
 .gt-walk-seg button:is(:hover, :focus-visible) { border-color: rgba(255, 207, 138, 0.7); color: var(--paper); outline: none; }
 .gt-walk-seg button[aria-checked="true"] { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber); background: rgba(255, 207, 138, 0.08); }
 .gt-walk-seg button[aria-checked="true"] small { color: var(--amber); }
-.gt-walk-acts { display: flex; gap: 10px; margin-top: 6px; }
-.game-stage.story .gt-walk-acts .btn { gap: 26px; padding: 15px 22px; border-radius: 2px; font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s, border-color 0.3s; }
+.gt-walk-acts { display: flex; gap: 8px; margin-top: 6px; }
+.game-stage.story .gt-walk-acts .btn { flex: 1 1 0; justify-content: space-between; min-width: 0; min-height: 54px; gap: 16px; padding: 15px 20px; border-radius: 2px; font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s, border-color 0.3s; }
 .game-stage.story .gt-walk-acts .btn.primary { min-width: 0; border: 1px solid var(--amber); background: transparent; color: var(--amber); }
-.game-stage.story .gt-walk-acts .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
+.game-stage.story .gt-walk-acts .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; outline: none; } /* (filled is the hand on it: no ring round the fill) */
 .game-stage.story .gt-walk-acts .btn:not(.primary) { border: 1px solid rgba(244, 239, 230, 0.32); background: transparent; color: rgba(244, 239, 230, 0.75); font-size: 10px; letter-spacing: 0.26em; }
 .game-stage.story .gt-walk-acts .btn:not(.primary):is(:hover, :focus-visible) { border-color: var(--paper); color: var(--paper); }
 .gt-walk-acts kbd { font: inherit; letter-spacing: 0.06em; opacity: 0.8; }
@@ -748,8 +742,6 @@
   /* (at the wheel or the stick the right edge has the car's or the helicopter's buttons: the keys' lines keep to the left of them) */
   .game-stage.walk:is(.at-car, .at-heli) #g-walk-keys { left: 24px; right: 92px; width: auto; transform: none; align-items: flex-start; text-align: left; }
   .gt-walk-row { grid-template-columns: 1fr; gap: 8px; }
-  .gt-walk-acts .btn { flex: 1; }
-  #gt-walk-go { flex: 1 1 100%; justify-content: space-between; }
 }
 @media (prefers-reduced-motion: reduce) { #g-walk-where, #g-walk-acts, #g-walk-keys { transition: none; } #g-walk-where.new small { animation: none; } }
 /* ---- the camera taught (story.js teach; task.teach on the first frame): four steps in the order they are done, each
@@ -869,8 +861,6 @@
   .game-stage.story .gt-card h1 { font-size: clamp(30px, 10vw, 44px); }
   .game-stage.story .gt-card h1 small:lang(ja) { margin-top: 10px; font-size: 14px; }
   .game-stage.story .gt-card > p { font-size: 14px; line-height: 1.5; }
-  .gt-who-row button { width: 78px; }
-  .gt-who-row b { bottom: 22px; letter-spacing: 0.2em; } .gt-who-row small { bottom: 8px; font-size: 11px; }
 }
 /* (the menu's hours: the name and its time set apart, not run together as "Sunrise05:52") */
 .seg button .num { margin-left: 8px; opacity: 0.7; font-size: 0.92em; }
@@ -921,3 +911,266 @@
 #g-pod.open .leaf { transform: translateX(-101%); background: #050608; transition-delay: 0.15s; }
 #g-pod.open .leaf.r { transform: translateX(101%); }
 @media (prefers-reduced-motion: reduce) { #g-pod .leaf, #g-pod :is(.ceil, .lines, .say) { transition: none; } #g-pod.ride :is(.ceil, .lines) { animation: none; } }
+
+/* ---- the title in three screens (game.js titleScreen; docs/STORY.md "The title, as a game opens"). One decision a
+   screen, as a game's opening asks them: the press (are you here?), the menu (which way in?), who you play (who are
+   you?), each over the living street at the blue hour, in the story's own type and amber */
+
+/* the press: the street and the name, and nothing to choose. The frame letterboxed as a film's; the name in the middle
+   of the lower third, coming up out of a blur as its letters close in; the prompt last, breathing. A key, a tap or a
+   pad's button opens the menu, and the name flies to its corner (lockupFlip) as the bars draw back */
+.gt-press { display: none; }
+.game-stage.story .gt-press { display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.game-stage.story #g-title[data-screen="press"] .gt-press { pointer-events: auto; cursor: pointer; }
+.gt-press .bar { position: absolute; left: 0; right: 0; height: max(7vh, 34px); background: #02040a; transform: scaleY(0); transition: transform 0.9s cubic-bezier(0.6, 0, 0.2, 1); }
+.gt-press .bar:first-child { top: 0; transform-origin: 50% 0; }
+.gt-press .bar:nth-child(2) { bottom: 0; transform-origin: 50% 100%; }
+#g-title[data-screen="press"] .gt-press .bar { transform: none; }
+.gt-press .go { position: absolute; left: 50%; bottom: calc(max(7vh, 34px) + max(4vh, 26px)); transform: translateX(-50%); display: flex; align-items: center; gap: 18px; padding: 10px 6px; border: 0; background: none;
+  color: var(--paper); font: 400 11.5px/1 var(--f-mono); letter-spacing: 0.5em; text-transform: uppercase; white-space: nowrap; opacity: 0; transition: opacity 0.5s; cursor: pointer;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.9); }
+.gt-press .go::before, .gt-press .go::after { content: ""; width: 44px; height: 1px; background: currentColor; opacity: 0.45; }
+.gt-press .go:focus-visible { outline: none; color: var(--amber); }
+.gt-press .go kbd { font: inherit !important; letter-spacing: inherit; border: 0; padding: 0; background: none; color: inherit; }
+.game-stage.pad .gt-press .go kbd.pad { color: var(--amber); }
+.gt-press .go .t { display: none; }
+@media (hover: none) and (pointer: coarse) { .game-stage:not(.pad) .gt-press .go .k { display: none; } .game-stage:not(.pad) .gt-press .go .t { display: inline; } }
+#g-title[data-screen="press"] .gt-press .go { opacity: 1; }
+.game-stage.story #g-title[data-screen="press"] { justify-content: center; padding-bottom: calc(max(7vh, 34px) + max(4vh, 26px) + 64px);
+  overflow-x: hidden; background: radial-gradient(130% 72% at 50% 100%, rgba(4, 8, 18, 0.92), rgba(4, 8, 18, 0.55) 46%, rgba(4, 8, 18, 0) 80%); }
+.game-stage.story #g-title[data-screen="press"] .gt-card { width: min(980px, 100%); justify-items: center; text-align: center; gap: 22px; }
+.game-stage.story #g-title[data-screen="press"] .gt-card > :not(.gt-eb, h1, #gt-blurb) { display: none !important; }
+.game-stage.story #g-title[data-screen="press"] .gt-card .gt-eb::after { display: none; }
+.game-stage.story #g-title[data-screen="press"] .gt-card .gt-eb { letter-spacing: 0.5em; margin-right: -0.5em; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.95); }
+.game-stage.story #g-title[data-screen="press"] .gt-card > p { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9); }
+.game-stage.story #g-title[data-screen="press"] .gt-card h1 { font-size: clamp(48px, 7.4vw, 150px); letter-spacing: 0.2em; margin-right: -0.2em; white-space: nowrap;
+  text-shadow: 0 0 80px rgba(120, 150, 255, 0.34), 0 2px 30px rgba(0, 0, 0, 0.5); }
+.game-stage.story #g-title[data-screen="press"] .gt-card h1 small:lang(ja) { margin-top: 26px; font-size: clamp(16px, 1.5vw, 22px); letter-spacing: 0.7em; margin-right: -0.7em; }
+.game-stage.story #g-title[data-screen="press"] .gt-card > p { max-width: 40ch; font-size: clamp(15px, 1.4vw, 19px); }
+.game-stage.story .gt-card > h1 { justify-self: start; } /* (as wide as its letters, so that its flight to the corner keeps their size: lockupFlip) */
+.game-stage.story #g-title[data-screen="press"] .gt-card > h1 { justify-self: center; }
+.game-stage.story #g-title:not([data-screen="press"]) .gt-card h1 { font-size: clamp(30px, 5.4vw, 84px); white-space: nowrap; }
+@media (prefers-reduced-motion: no-preference) {
+  .game-stage.story #g-title[data-screen="press"]:not([hidden]) .gt-card > .gt-eb { animation: gt-press-fade 1.4s ease 0.5s both; }
+  .game-stage.story #g-title[data-screen="press"]:not([hidden]) .gt-card > h1 { animation: gt-press-name 2.6s cubic-bezier(0.16, 0.8, 0.2, 1) 0.2s both; }
+  .game-stage.story #g-title[data-screen="press"]:not([hidden]) .gt-card > p { animation: gt-press-fade 1.6s ease 1.5s both; }
+  .game-stage.story #g-title[data-screen="press"]:not([hidden]) .gt-press .go { animation: gt-press-fade 1.2s ease 2.6s both, gt-press-breathe 3.2s ease-in-out 3.8s infinite; }
+  .game-stage.story #g-title:not([data-screen="press"]) .gt-card > h1 { animation: none; } /* (flown there from the press: lockupFlip, not slid in) */
+  @keyframes gt-press-fade { from { opacity: 0; } }
+  @keyframes gt-press-name { from { opacity: 0; letter-spacing: 0.62em; margin-right: -0.62em; filter: blur(14px); } 60% { filter: blur(0); } }
+  @keyframes gt-press-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.38; } }
+}
+
+/* the menu: the card at the foot of the frame, its name smaller, its list, and under the list who you play */
+.gt-who-line { display: none; }
+.game-stage.story #g-title:not([data-screen="press"]) .gt-who-line:not([hidden]) { display: inline-flex; }
+.gt-who-line { justify-self: start; align-items: baseline; gap: 10px; margin-top: -4px; padding: 6px 2px; border: 0; background: none; cursor: pointer;
+  color: rgba(244, 239, 230, 0.6); font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.28em; text-transform: uppercase; }
+.gt-who-line b { font-weight: 400; color: var(--paper); }
+.gt-who-line small { font: 300 13px/1 var(--f-body); letter-spacing: 0.01em; text-transform: none; color: rgba(244, 239, 230, 0.78); }
+.gt-who-line em { margin-left: 6px; padding-bottom: 3px; border-bottom: 1px solid rgba(255, 207, 138, 0.45); font-style: normal; color: var(--amber); }
+.gt-who-line:is(:hover, :focus-visible) em { border-bottom-color: var(--amber); }
+.gt-who-line:focus-visible { outline-offset: 4px; }
+
+/* who you play: a screen of its own. The two portraits at full height side by side, the same place, light and lens in
+   each (tools/views/kagami.json), so the choice is between the two people; beside them the file on Kagami (city.json
+   story.card.who): the name in its two scripts, the age, the trade, tonight, what they wear and carry, and a note. The
+   lines that differ between the two follow the hand on a portrait, else the one chosen. Chosen: the amber hairline, the
+   other stepping back into the dusk. The first time neither is, and Confirm waits, dimmed, until one is */
+.gt-who { display: none; }
+.game-stage.story #g-title[data-screen="who"] .gt-who:not([hidden]) { display: grid; }
+.game-stage.story #g-title[data-screen="who"] .gt-card { display: none; }
+.game-stage.story #g-title[data-screen="who"] { background: linear-gradient(90deg, rgba(4, 8, 18, 0.62) 0%, rgba(4, 8, 18, 0.5) 48%, rgba(4, 8, 18, 0.9) 70%, rgba(4, 8, 18, 0.94) 100%),
+  linear-gradient(0deg, rgba(4, 8, 18, 0.7), rgba(4, 8, 18, 0) 40%); }
+.gt-who { position: absolute; inset: 0; z-index: 3; grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); align-items: center; gap: clamp(24px, 3.4vw, 64px);
+  padding: max(6vh, 32px) max(4vw, 28px, env(safe-area-inset-right, 0px)) max(6vh, 32px) max(4vw, 28px, env(safe-area-inset-left, 0px)); overflow: auto; }
+.gt-who-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(10px, 1.3vw, 20px); width: min(100%, calc(78vh * 1.5)); justify-self: end; }
+.gt-who-row button { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; padding: 0; overflow: hidden; border: 1px solid rgba(244, 239, 230, 0.22); border-radius: 2px;
+  background: #0b1020; cursor: pointer; filter: saturate(0.85) brightness(0.84); transition: border-color 0.35s, box-shadow 0.35s, filter 0.5s; }
+.gt-who-row img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.02); transform-origin: 50% 22%; transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.1, 1); }
+.gt-who-row button::after { content: ""; position: absolute; inset: 55% 0 0; background: linear-gradient(to top, rgba(4, 8, 18, 0.92), rgba(4, 8, 18, 0)); }
+.gt-who-row button > span { position: absolute; left: clamp(14px, 1.6vw, 22px); right: 12px; bottom: clamp(14px, 1.6vw, 22px); z-index: 1; display: grid; gap: 8px; text-align: left; }
+.gt-who-row b { font: 400 10px/1 var(--f-mono); letter-spacing: 0.36em; text-transform: uppercase; color: var(--paper); }
+.gt-who-row small { font: 300 clamp(14px, 1.3vw, 17px)/1 var(--f-body); color: rgba(244, 239, 230, 0.86); }
+.gt-who-row button:is(:hover, :focus-visible) { filter: none; border-color: rgba(255, 207, 138, 0.7); outline: none; }
+.gt-who-row button:is(:hover, :focus-visible) img { transform: scale(1.06); }
+.gt-who-row button[aria-checked="true"] { filter: none; border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber), 0 28px 70px rgba(0, 0, 0, 0.55); }
+.gt-who-row button[aria-checked="true"] b { color: var(--amber); }
+.gt-who-row:has([aria-checked="true"]) button:not([aria-checked="true"]):not(:hover, :focus-visible) { filter: grayscale(0.75) brightness(0.5); }
+.gt-who-file { display: grid; gap: 14px; align-content: center; max-width: clamp(420px, 32vw, 640px); color: var(--paper); }
+.gt-who-file .eyebrow { display: flex; gap: 14px; align-items: center; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+.gt-who-file .eyebrow::after { content: ""; flex: 1; height: 1px; background: rgba(244, 239, 230, 0.18); }
+.gt-who-file h2 { margin: 8px 0 0; display: flex; align-items: baseline; gap: clamp(14px, 1.4vw, 22px); font-weight: 200; }
+.gt-who-file h2 .jp { font: 500 clamp(38px, 4.2vw, 62px)/1 var(--f-jp); color: var(--amber); text-shadow: 0 0 40px rgba(255, 190, 120, 0.25); }
+.gt-who-file h2 .nm { font: 200 clamp(36px, 4.4vw, 68px)/1 var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; text-shadow: 0 0 50px rgba(120, 150, 255, 0.25); }
+.gt-who-file .sub { margin: 0; font: 400 clamp(11px, 0.72vw, 13px)/1.4 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.72); }
+.gt-who-file .line { margin: 0; max-width: 44ch; font: 300 clamp(15px, 1.12vw, 20px)/1.62 var(--f-body); color: rgba(244, 239, 230, 0.9); }
+.gt-who-file .facts { margin: 2px 0 0; padding-top: 14px; display: grid; gap: 11px; border-top: 1px solid rgba(244, 239, 230, 0.16); }
+.gt-who-file .facts > div { display: grid; grid-template-columns: clamp(84px, 6vw, 110px) minmax(0, 1fr); gap: 14px; align-items: baseline; }
+.gt-who-file dt { font: 400 clamp(9px, 0.6vw, 11px)/1.3 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.52); }
+.gt-who-file dd { margin: 0; font: 300 clamp(14px, 0.95vw, 17px)/1.5 var(--f-body); color: rgba(244, 239, 230, 0.88); }
+.gt-who-file .note { margin: 2px 0 0; font: 300 italic clamp(15px, 1vw, 18px)/1.5 var(--f-body); color: rgba(255, 207, 138, 0.86); }
+.gt-who-file .note:empty { display: none; }
+.gt-who:not([data-show="W"]) .gt-who-file [data-c="W"], .gt-who:not([data-show="M"]) .gt-who-file [data-c="M"] { display: none; }
+.gt-who:focus { outline: none; }
+.gt-who-ask { min-height: 1.4em; margin: 0; font: 400 10px/1.4 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--amber); }
+.gt-who-ask:empty { display: none; }
+.gt-who-acts { display: flex; gap: 8px; margin-top: 4px; }
+.game-stage.story .gt-who-acts .btn { flex: 1 1 0; justify-content: space-between; min-width: 0; min-height: 54px; gap: 16px; padding: 15px 20px; border-radius: 2px;
+  font: 400 11px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; transition: background 0.3s, color 0.3s, border-color 0.3s, opacity 0.3s; }
+.game-stage.story .gt-who-acts .btn.primary { border: 1px solid var(--amber); background: transparent; color: var(--amber); }
+.game-stage.story .gt-who-acts .btn.primary:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; outline: none; }
+.game-stage.story .gt-who-acts .btn.primary[aria-disabled="true"] { opacity: 0.42; }
+.game-stage.story .gt-who-acts .btn:not(.primary) { border: 1px solid rgba(244, 239, 230, 0.32); background: transparent; color: rgba(244, 239, 230, 0.75); font-size: 10px; letter-spacing: 0.26em; }
+.game-stage.story .gt-who-acts .btn:not(.primary):is(:hover, :focus-visible) { border-color: var(--paper); color: var(--paper); }
+.gt-who-acts kbd { font: inherit !important; letter-spacing: 0.06em; opacity: 0.8; }
+@media (hover: none) and (pointer: coarse) { .game-stage:not(.pad) .gt-who-acts kbd { display: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .game-stage.story #g-title[data-screen="who"]:not([hidden]) .gt-who-row button { animation: gt-who-in 1s cubic-bezier(0.2, 0.7, 0.1, 1) both; }
+  .game-stage.story #g-title[data-screen="who"]:not([hidden]) .gt-who-row button + button { animation-delay: 0.08s; }
+  .game-stage.story #g-title[data-screen="who"]:not([hidden]) .gt-who-file > * { animation: gt-in 0.9s var(--ease) both; }
+  .game-stage.story #g-title[data-screen="who"]:not([hidden]) .gt-who-file > :nth-child(n+3) { animation-delay: 0.12s; }
+  .game-stage.story #g-title[data-screen="who"]:not([hidden]) .gt-who-file > :nth-child(n+5) { animation-delay: 0.22s; }
+  .gt-who.ask .gt-who-row { animation: gt-who-ask 0.5s ease; }
+  @keyframes gt-who-in { from { opacity: 0; transform: translateY(18px); } }
+  @keyframes gt-who-ask { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+}
+/* (a phone or a tablet upright: one column, the name over the two portraits and the file under them; Confirm and Back
+   kept at the foot of the screen while the file scrolls) */
+@media (max-width: 900px) and (min-height: 521px) {
+  .gt-who { grid-template-columns: minmax(0, 1fr); align-items: start; align-content: start; gap: 14px;
+    padding: max(20px, env(safe-area-inset-top)) 20px 0; }
+  .gt-who-file { display: contents; }
+  .gt-who-file .eyebrow { order: 0; }
+  .gt-who-row { order: 1; width: 100%; justify-self: stretch; gap: 10px; }
+  .gt-who-file > :not(.eyebrow) { order: 2; }
+  .gt-who-file h2 { margin-top: 4px; }
+  .gt-who-file h2 .jp { font-size: 34px; } .gt-who-file h2 .nm { font-size: 32px; }
+  .gt-who-file .line { font-size: 14.5px; line-height: 1.55; }
+  .gt-who-file .facts > div { grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
+  .gt-who-file dd { font-size: 13.5px; }
+  .gt-who-acts { position: sticky; bottom: 0; z-index: 2; margin: 0 -20px; padding: 18px 20px max(18px, env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(4, 8, 18, 0.97) 70%, rgba(4, 8, 18, 0)); }
+  .game-stage.story #g-title[data-screen="who"] { background: rgba(4, 8, 18, 0.72); }
+}
+/* (a short screen, a phone on its side: the portraits and the file side by side, the portraits the screen's height) */
+@media (max-height: 520px) {
+  .gt-who { gap: 22px; padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: max(14px, env(safe-area-inset-bottom)); align-items: start; }
+  .gt-who-row { width: min(100%, calc((100vh - 32px) * 1.5)); align-self: center; }
+  .gt-who-file { gap: 9px; }
+  .gt-who-file .note { display: none; }
+  .gt-who-file h2 { margin-top: 0; } .gt-who-file h2 .jp { font-size: 30px; } .gt-who-file h2 .nm { font-size: 28px; }
+  .gt-who-file .line { font-size: 13.5px; line-height: 1.45; }
+  .gt-who-file .facts { gap: 6px; padding-top: 8px; } .gt-who-file dd { font-size: 12.5px; }
+  .gt-who-acts .btn { min-height: 46px; }
+}
+/* the press on a phone: the name one line across, the prompt over the lower bar and clear of the home indicator */
+@media (max-width: 640px) {
+  .game-stage.story #g-title[data-screen="press"] .gt-card h1 { font-size: clamp(30px, 9.6vw, 56px); letter-spacing: 0.14em; margin-right: -0.14em; }
+  .game-stage.story #g-title[data-screen="press"] .gt-card .gt-eb { letter-spacing: 0.3em; margin-right: -0.3em; font-size: 9.5px; }
+  .gt-press .go { bottom: calc(max(7vh, 34px) + max(3vh, 18px) + env(safe-area-inset-bottom, 0px)); letter-spacing: 0.4em; }
+  .gt-press .go::before, .gt-press .go::after { width: 28px; }
+}
+/* (off the press, its prompt is not a button to move the hand to, and in the walk's step who you play gives way too) */
+#g-title:not([data-screen="press"]) .gt-press .go { display: none; }
+#g-title[data-walk] .gt-who-line { display: none !important; }
+
+/* ---- the menu's ways in, by what this browser has done (docs/STORY.md "The title, as a game opens"): Continue first
+   while a case is going, with the last photograph taken in it at the row's end, as a game's last save shows where it was
+   left; the walk; the story, which opens its own screen; the options. Every row the same size, as above */
+.game-stage.story .gt-go > .btn[hidden] { display: none !important; }
+.game-stage:not(.story) :is(#gt-cont-go, #gt-story-go, #gt-opts-go) { display: none !important; }
+.game-stage.story #gt-cont-go { grid-template-columns: minmax(0, 1fr) auto auto; }
+.game-stage.story #gt-cont-go > img { grid-column: 2; grid-row: 1 / span 2; width: 60px; height: 40px; object-fit: cover; border: 1px solid rgba(244, 239, 230, 0.3); border-radius: 1px; }
+.game-stage.story #gt-cont-go > img[hidden] { display: none; }
+.game-stage.story #gt-cont-go > kbd { grid-column: 3; }
+
+/* each screen's way back, at its top left, as a game's prompt for B: the mouse's, a tap's, Esc's */
+.gt-scr-back { position: absolute; top: max(22px, env(safe-area-inset-top, 0px)); left: max(4vw, 24px, env(safe-area-inset-left, 0px)); z-index: 2; display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 2px; border: 0; background: none; cursor: pointer; color: rgba(244, 239, 230, 0.72); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; }
+.gt-scr-back i { width: 7px; height: 7px; border-left: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); }
+.gt-scr-back kbd { font: inherit !important; letter-spacing: 0.06em; border: 0 !important; padding: 0 !important; background: none !important; color: rgba(244, 239, 230, 0.45) !important; }
+.gt-scr-back:is(:hover, :focus-visible) { color: var(--amber); outline: none; }
+@media (hover: none) and (pointer: coarse) { .game-stage:not(.pad) .gt-scr-back kbd { display: none; } }
+
+/* the story: its own screen, as a game's chapter select is. The episode as a card: its picture at full width with its
+   number, its name and its evening laid on it; beside it the line, how far this browser has got, the roll (a cell a
+   frame, the photograph in each one taken, the one to come outlined; a closed case's cells each a way back in), and the
+   ways into it: Begin, Continue or Play it again, and the evening again, which asks first, since what was taken is lost */
+.gt-eps, .gt-opts { display: none; }
+.game-stage.story #g-title[data-screen="story"] .gt-eps, .game-stage.story #g-title[data-screen="opts"] .gt-opts { display: grid; }
+.game-stage.story #g-title:is([data-screen="story"], [data-screen="opts"]) .gt-card { display: none; }
+.game-stage.story #g-title:is([data-screen="story"], [data-screen="opts"]) { background: linear-gradient(90deg, rgba(4, 8, 18, 0.9), rgba(4, 8, 18, 0.72) 50%, rgba(4, 8, 18, 0.9)); }
+.gt-eps, .gt-opts { position: absolute; inset: 0; z-index: 3; overflow: auto; color: var(--paper); }
+.gt-eps:focus, .gt-opts:focus { outline: none; }
+.gt-eps { align-content: center; justify-items: center; gap: 18px; padding: max(9vh, 70px) max(4vw, 24px, env(safe-area-inset-right, 0px)) max(6vh, 28px) max(4vw, 24px, env(safe-area-inset-left, 0px)); }
+.gt-eps > .eyebrow, .gt-opts-in > .eyebrow { display: flex; gap: 14px; align-items: center; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+.gt-eps > .eyebrow { width: min(1240px, 100%); }
+.gt-eps > .eyebrow::after, .gt-opts-in > .eyebrow::after { content: ""; flex: 1; height: 1px; background: rgba(244, 239, 230, 0.18); }
+.gt-ep { width: min(1240px, 100%); display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: clamp(22px, 3vw, 52px); align-items: center; }
+.gt-ep-art { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid rgba(244, 239, 230, 0.22); border-radius: 2px; background: #0b1020; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }
+.gt-ep-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.08) contrast(1.06) brightness(0.92); transform: scale(1.04); }
+.gt-ep-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(20deg, rgba(4, 8, 18, 0.92) 0%, rgba(4, 8, 18, 0.5) 38%, rgba(4, 8, 18, 0) 66%); }
+.gt-ep-art .cap { position: absolute; left: clamp(18px, 2.2vw, 34px); right: 18px; bottom: clamp(16px, 2vw, 30px); z-index: 1; display: grid; gap: 12px; text-shadow: 0 1px 14px rgba(0, 0, 0, 0.8); }
+.gt-ep-art .no { font: 400 10px/1 var(--f-mono); letter-spacing: 0.42em; text-transform: uppercase; color: var(--amber); }
+.gt-ep-art h3 { margin: 0; font: 200 clamp(30px, 3.6vw, 60px)/1 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--paper); }
+.gt-ep-art .when { font: 400 10px/1.3 var(--f-mono); letter-spacing: 0.28em; text-transform: uppercase; color: rgba(244, 239, 230, 0.72); }
+.gt-ep-body { display: grid; gap: 16px; align-content: center; min-width: 0; }
+.gt-ep-body .line { margin: 0; max-width: 46ch; font: 300 clamp(15px, 1.12vw, 19px)/1.62 var(--f-body); color: rgba(244, 239, 230, 0.9); }
+.gt-ep-body .state { margin: 0; font: 400 10px/1.5 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--amber); }
+.gt-ep-body .gt-roll { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.gt-ep-body .gt-roll li { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border: 1px solid rgba(244, 239, 230, 0.18); border-radius: 1px; background: rgba(4, 8, 18, 0.55); }
+.gt-ep-body .gt-roll li.got { border-color: rgba(255, 207, 138, 0.55); background: rgba(255, 207, 138, 0.08); }
+.gt-ep-body .gt-roll li.now { border: 1px dashed var(--amber); }
+.gt-ep-body .gt-roll img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.gt-ep-body .gt-roll b { position: absolute; left: 5px; top: 4px; z-index: 1; font: 400 9px/1 var(--f-mono); color: rgba(244, 239, 230, 0.8); text-shadow: 0 1px 4px #000; }
+.gt-ep-body .gt-roll small { display: none; }
+.gt-ep-body .gt-roll button { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; }
+.gt-ep-body .gt-roll li:has(button:is(:hover, :focus-visible)) { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+.gt-ep-body .gt-roll button:focus-visible { outline: none; }
+.game-stage.story .gt-ep .gt-go { width: 100%; }
+.gt-ep-sure { display: none; }
+.gt-eps.sure .gt-ep-acts { display: none; }
+.gt-eps.sure .gt-ep-sure { display: grid; gap: 12px; }
+.gt-ep-sure p { margin: 0; font: 300 clamp(15px, 1.1vw, 18px)/1.5 var(--f-body); color: var(--paper); }
+.game-stage.story .gt-ep-sure #gt-anew-yes { border-color: rgba(255, 140, 110, 0.7); }
+@media (prefers-reduced-motion: no-preference) {
+  .game-stage.story #g-title[data-screen="story"]:not([hidden]) .gt-ep-art { animation: gt-who-in 1s cubic-bezier(0.2, 0.7, 0.1, 1) both; }
+  .game-stage.story #g-title[data-screen="story"]:not([hidden]) .gt-ep-art img { animation: gt-ep-push 18s ease-out both; }
+  .game-stage.story #g-title[data-screen="story"]:not([hidden]) .gt-ep-body > :not(.gt-ep-sure) { animation: gt-in 0.9s var(--ease) both; }
+  .game-stage.story #g-title[data-screen="story"]:not([hidden]) .gt-ep-body > :nth-child(n+3) { animation-delay: 0.12s; }
+  @keyframes gt-ep-push { from { transform: scale(1.1); } }
+}
+
+/* the options: the pause menu's controls for the sound, the crowd and the frame rate, lent (game.js optsLend) */
+.gt-opts { align-content: center; justify-items: start; padding: max(10vh, 70px) max(5.5vw, 24px, env(safe-area-inset-right, 0px)) max(6vh, 28px) max(5.5vw, 24px, env(safe-area-inset-left, 0px)); }
+.gt-opts-in { width: min(560px, 100%); display: grid; gap: 22px; }
+.gt-opts-list { display: grid; gap: 20px; }
+.gt-opts-list .field { display: grid; gap: 10px; }
+.gt-opts-list .field > .note { font: 400 9.5px/1.2 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.62); }
+.gt-opts-list .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.gt-opts-list .seg button { min-height: 48px; padding: 10px 14px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42); color: rgba(244, 239, 230, 0.8); font: 300 15px/1 var(--f-body); cursor: pointer; }
+.gt-opts-list .seg button:is(:hover, :focus-visible) { border-color: rgba(255, 207, 138, 0.7); color: var(--paper); outline: none; }
+.gt-opts-list .seg button[aria-pressed="true"] { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber); background: rgba(255, 207, 138, 0.08); }
+.gt-opts-list > label { display: flex !important; align-items: center; gap: 14px !important; min-height: 48px; padding: 0 16px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42);
+  color: var(--paper) !important; font: 300 15px/1 var(--f-body) !important; letter-spacing: 0 !important; text-transform: none !important; cursor: pointer; }
+.gt-opts-list > label input { width: 18px; height: 18px; accent-color: var(--amber); }
+.gt-opts-more { margin: 0; font: 400 9.5px/1.5 var(--f-mono); letter-spacing: 0.22em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); }
+
+/* (a phone or a tablet upright: the episode's picture over its words, the roll and the ways in under them) */
+@media (max-width: 900px) and (min-height: 521px) {
+  .gt-eps { align-content: start; padding-top: max(64px, calc(env(safe-area-inset-top, 0px) + 54px)); gap: 14px; }
+  .gt-ep { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .gt-ep-art h3 { font-size: clamp(22px, 6.6vw, 40px); }
+  .gt-ep-body .line { font-size: 14.5px; line-height: 1.55; }
+  .gt-opts { align-content: start; padding-top: max(70px, calc(env(safe-area-inset-top, 0px) + 60px)); }
+}
+/* (a short screen, a phone on its side: the picture and the words side by side, both inside the screen's height) */
+@media (max-height: 520px) {
+  .gt-eps { padding-top: max(46px, calc(env(safe-area-inset-top, 0px) + 40px)); padding-bottom: 12px; gap: 10px; align-content: start; }
+  .gt-ep { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+  .gt-ep-body { gap: 10px; }
+  .gt-ep-body .line { font-size: 13px; line-height: 1.45; }
+  .game-stage.story .gt-ep .gt-go > .btn { min-height: 50px; padding-top: 8px; padding-bottom: 8px; }
+  .gt-scr-back { top: max(8px, env(safe-area-inset-top, 0px)); }
+  .gt-opts { padding-top: 48px; } .gt-opts-in { gap: 14px; } .gt-opts-list { gap: 12px; }
+}

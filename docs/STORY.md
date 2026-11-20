@@ -495,6 +495,85 @@ Continue, the evening again, a frame of a closed case gone back into) asks inste
 begin*), until one is chosen. The arrows or the d-pad move between the two; after that the choice stands, marked on
 the title and in the menu, and either can change it, so no warning that it is final is needed. The story's words never needed it: Kagami is a surname and *you*. `tools/title_who.js` plays the
 first visit by mouse or touch and fails a first press that begins without asking. Nothing of those games' look is used.
+(Since *The title, as a game opens*, below, the two portraits stand on a screen of their own, which comes up the first
+time a way in is taken.)
+
+### The title, as a game opens (November 2026)
+
+The owner asked for the opening to be rebuilt as a AAA game's is, to stun at a glance, with who you play on a screen of
+its own and a short life of the character. The old title put everything on one card at the foot of the frame: the
+evening, the name, its line, two thumbnail portraits, two or three ways in and a closed case's seven frames, all at
+once, all the size of a card. Worked from first principles rather than from any one game's look:
+
+- **What a title is for, in order.** To make the promise before a word is read: this place, this hour, this mood (a
+  crossing at dusk and the people in it). To get the one press a browser waits for before it plays a sound, so the
+  score can come in. And to ask what has to be asked, each thing at the moment it has to be, not before.
+- **Attention is one thing at a time.** Everything on a screen competes with everything else on it, so a screen asks
+  one question: the press, *are you here?*; the menu, *which way in?*; who you play, *who are you?*; the walk's step,
+  *when?* The old card asked three of them at once.
+- **The image makes the promise, not the type.** The press is the living street at the blue hour with only the name
+  over it: the frame letterboxed, which is how a film says *a story begins*; the name arriving rather than being there
+  (its letters close in out of a blur); the line under it; the prompt last, breathing, so the eye has time for the
+  picture before it is asked for anything.
+- **Continuity says it is one world.** Pressed, the bars draw back and the name flies to the menu's corner instead of
+  cutting to another screen (`game.js` `lockupFlip`): the film becomes the game.
+- **Ask at the moment of commitment, and big enough to see.** Who you play comes up the first time a way in is taken,
+  as a game with one lead played as either asks after New Game, and that way in goes on once Kagami is chosen and
+  confirmed. The choice is between two people, so they are shown as people: the two portraits at the screen's height,
+  side by side, the hand on one bringing it forward and the other stepping back into the dusk, filmed in the game from
+  mid-thigh up with the lens a little below the eyes, as a film's portrait of its lead is taken (`tools/views/kagami.json`).
+- **A life that sells the character without spending the story.** Beside them the file on Kagami (`city.json`
+  `story.card.who`): the name in its two scripts, about thirty, the trade (streets for a living, a small office's jobs),
+  tonight (Shibuya, 10 October, 17:14, a kerb at the Scramble, a minute late), what each of the two wears and what both
+  carry, and the name's meaning (*鏡: a mirror; the office uses no other name*). Only what anyone who met Kagami tonight
+  could know: the mother, the sister and the camera of 1964 are the story's to tell. One line withholds instead (*out on
+  a job, whenever anyone rings*), a question the evening answers.
+- **Every hand, the same paths.** Keys, mouse, touch and a pad move through the same screens: any key, a tap or a pad's
+  button passes the press; up and down, the d-pad or the pointer move along the menu; left and right choose on who you
+  play; Enter or A presses; Esc or B goes back one screen (the step to the menu, who you play to the menu, the menu to
+  the press). A pad's press asks who you play as a click does (`pad.js` `pressing`).
+- **A player who has been here before is not asked again.** The choice stands, named under the menu's list (*Playing as
+  Kagami, a man · Change*), and the press is one key.
+
+What the games that do this well do, and what was taken. *Death Stranding* (2019) and *Ghost of Tsushima* (2020) open on
+their world alive behind the name and one prompt to press, nothing else; *The Last of Us Part II* (2020) keeps its menu a
+short list of type over a live scene. *Assassin's Creed Odyssey* (2018) shows its two leads side by side at full length
+right after New Game. *Mass Effect 2* (2010) introduces each of its people by a dossier: a picture beside a short file.
+Adopted: the live world with only the name and a prompt; the menu as a list over the scene; Odyssey's two leads side by
+side at the moment of New Game; a dossier beside the picture; and the film's letterbox at the start, drawn back as play
+begins. Nothing of those games' look, words or assets is used; the screens are the story's own (its viewfinder's type,
+the sodium amber of a street lamp against the blue hour, `story.css` "the title in three screens").
+
+**The menu, by what this browser has done (November 2026).** The owner asked for the choices after the press (the walk
+or the story, continuing a case, the evening again) to be thought through as a AAA game's menu is. From first principles:
+a player arrives at the menu in one of a few states, and the menu's first row is the thing that player most likely came
+back to do; everything else is one row each, in the same order every time, so the hand learns it.
+
+- **Nothing played yet:** *Walk Shibuya* (first, while the episodes are being finished: the owner's word), *The story*,
+  *Options*.
+- **A case going:** *Continue* first, with the last photograph taken in that case at the end of its row and the frame it
+  takes up at (*Episode 1 · You came late · frame 3 of 7 · 17:19*), as a game's menu puts its last save first with a
+  picture of where it was left; then the walk, the story, the options. (A case going is a story the player has already
+  chosen, so the walk's place at the top, which keeps a newcomer out of an unfinished episode, does not apply to it.)
+- **A case closed:** the story's row says so, and its screen offers every frame again.
+
+*The story* opens a screen of its own, as a game's chapter select does, rather than starting at once: the episode as a
+card (its picture, `key-1`, its number, name and evening laid on it, its line from `city.json` `episodes[].line`); how far
+this browser has got, said in words (*In progress · 2 of 7 frames taken · the last at 17:19*) and shown on the roll, a cell
+a frame with the player's own photograph in each one taken and the next one outlined; and the ways in: *Begin*,
+*Continue* or *Play it again*, and *Start the evening again* while a case is going. What cannot be undone asks first:
+starting again loses the photographs taken tonight, so it asks (*Keep the case* is where the hand rests; Esc or B keeps it),
+as a game asks before a new game overwrites a save. A closed case's cells are each a way back into that frame.
+
+*Options* is the few settings that matter before play, on a screen of their own: the sound, the crowd and the traffic, the
+frame rate. They are the pause menu's own controls, lent to the screen while it is up and given back as it goes
+(`game.js` `optsLend`), so each has one home, one handler and one state; the rest (the hour, the sky) belong to play and
+stay in the pause menu. Every screen has its Back at the top left and on Esc or B, and the hand comes back to the row that
+opened it. Who you play, asked from the story's screen, returns to it.
+
+Taken from story games of that kind (the *Uncharted* and *The Last of Us* games among them): Continue first when there is
+something to continue, a chapter select opened from the menu with each chapter named and its progress shown, and a
+question before a new game overwrites a save. Nothing of their look or words is used.
 
 It was, until November 2026, a surveyor of the old map: a construction worker's hard hat, hi-vis vest, gloves and
 radio, a fair-haired woman or a dark-skinned man. That is a figure from a building site, not a person in this story.
@@ -1067,6 +1146,26 @@ Free Ride's hour and sky chosen before setting out and changed in the menu after
 story, from the place the story ends, without a lock (Yakuza opens it only after the end; this walk has nothing of the
 case in it to keep back); the flight simulator's choice made over the live view. Nothing of those games' look or words is
 used.
+
+**The title's ways in, one list (November 2026).** On a phone the walk's button stood taller than the episode's (its
+second line wrapped under it), and on a desktop the title's ways in were three widths and three looks: an amber one, a
+paper one, a grey one. The owner asked how a AAA game sets this, and for the walk first while the episodes are being
+finished. A main menu in a game of that kind (*The Last of Us Part II*, *Ghost of Tsushima*, among others) is one list
+over the live scene: every entry in one type and size, one under another, one entry selected from the start and the
+selection the only thing lit, moved by the arrows or the d-pad and pressed by Enter or A. Adopted (`story.css` "the
+title's ways in", `walk.js`, `game.js` `titleLead`): the ways in are one list, every row the same width and height and
+each in two lines, its name and a word on it (*Walk Shibuya · No story, any hour, any sky*; *Episode 1 · You came late ·
+The story, 7 frames, one evening*). The walk is the first row and the one Enter and a pad's A take, with the amber
+hairline and the Enter key on it; the story and the options are under it, and while a case is going *Continue* stands over
+it (since: *The menu, by what this browser has done*, under *The title, as a game opens*). The
+hand put on another row (the mouse, Tab, up and down, the d-pad, which moves on from the first row rather than from the
+portraits) fills that row with the amber and takes the key with it. On a phone the rows run the card's width, 64 px
+high, over the 44 points and 48 dp a touch target asks (Apple's and Google's guidelines); on a phone on its side they
+stand side by side, still one size, so that every way in is on the screen. What the list opens is set the same way:
+the walk's step (its hours and skies even tiles, the name over the hour, Set out and Back two halves of one row) and a
+closed case's frames (two even columns), each as wide as the list. `tools/walk_play.js` and `tools/title_menu.js` fail
+a list not led by the walk or rows not all one size. To put the episode first again, `walk.js` appends its button instead
+of prepending it and leaves the episode its `primary`.
 
 **Your car and the helicopter (November 2026).** The owner asked for the walk to drive and fly as well. Worked from first
 principles rather than from the old free game's panels:
