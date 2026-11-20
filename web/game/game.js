@@ -3705,7 +3705,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the air of the scene (stopfx.js): leaves coming down and birds going over, there before time stops and held when it does
     air: opts => { if (stopFx) stopFx.air(W(player.x, player.y, player.z), opts || {}); },
     // a car sent for you (a frame's `ride`: {to: [x, y], name}): it comes to the kerb, E gets in, and it drives you there
-    ride: spec => player.mode === 'foot' && orderRide({ id: 'story', name: spec.name || 'there', at: spec.to.slice(0, 2) }),
+    // ('wait' while the cars' near models are still coming: the story asks again, rather than go on without its car)
+    ride: spec => (player.mode !== 'foot' ? false : vlib && vlib.loadCars && !vlib.carsFull ? (carsNow(), 'wait') : orderRide({ id: 'story', name: spec.name || 'there', at: spec.to.slice(0, 2) })),
     rideOff: () => { if (ride && player.mode !== 'ride') rideAway(); }, // (walked there instead: the car goes on its way, and is not left at the kerb in the next frame's shot)
     // where that car is and what it is doing: {at: [x, y, z], state: 'coming' | 'waiting' | 'in'}, or null once it has gone
     rideNow: () => (!ride || ride.phase === 'leaving' ? null : { at: [ride.drv.st.x, ride.drv.st.y, ride.drv.st.z], state: player.mode === 'ride' ? 'in' : ride.phase === 'coming' ? 'coming' : 'waiting', arrived: ride.phase === 'arrived' }),
@@ -6426,12 +6427,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // frame (issue 443: the telemetry's load reported the frame, then nothing). In turn, the most held at once is one
   // step's; the far models stand in a few seconds longer.
   let lateOn = null;
+  // the cars' near models, fetched and laid over the far ones once (afterPlayable, or sooner where the story sends a car)
+  function carsNow() { return carsNow.p || (carsNow.p = vlib.loadCars().then(g => { if (g && vlib.carsFull && cars.upgrade) cars.upgrade(g); })); }
   function afterPlayable() {
     if (lateOn) return lateOn;
     if (levelFirst()) return (lateOn = afterLevel().then(() => { lateOn = null; return afterPlayable(); })); // (the level first, above)
     const near = () => (lib ? npcs.filter(n => n.rig.pending && Math.hypot(n.x - player.x, n.y - player.y) < NPC_LOAD_M)
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y)) : []);
-    const carsIn = () => (vlib && vlib.loadCars && !vlib.carsFull ? Promise.all([vlib.loadCars().then(g => { if (g && vlib.carsFull && cars.upgrade) cars.upgrade(g); }), parkWait ? parkLater() : null]) : null);
+    const carsIn = () => (vlib && vlib.loadCars && !vlib.carsFull ? Promise.all([carsNow(), parkWait ? parkLater() : null]) : null);
     const treesIn = () => (Wd.trees && Wd.trees.loadNear && !(QC.budget && QC.budget.extras === false) ? Wd.trees.loadNear() : null); // (the lightest set keeps the mid trees: quality.js level)
     const pictures = () => { if (Wd.groundPictures) Wd.groundPictures.release(); }; // the aerial tiles further out (world.js groundPictures)
     if (!QC.lean) {
