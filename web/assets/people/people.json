@@ -2064,13 +2064,17 @@
    192
   ],
   "characters": {
+   "R_Business_Female_04_f013": {
+    "triangles": 1352,
+    "height_m": 1.732
+   },
+   "R_Business_Male_03": {
+    "triangles": 1194,
+    "height_m": 1.817
+   },
    "R_Business_Male_06_m017": {
     "triangles": 1070,
     "height_m": 1.814
-   },
-   "R_Female_Adult_08": {
-    "triangles": 1406,
-    "height_m": 1.734
    },
    "R_Female_Adult_08_f016": {
     "triangles": 1288,
@@ -2088,29 +2092,21 @@
     "triangles": 1208,
     "height_m": 1.735
    },
-   "R_Female_Adult_15_f013": {
-    "triangles": 1358,
-    "height_m": 1.732
-   },
    "R_Female_Adult_17_f011": {
     "triangles": 1212,
     "height_m": 1.735
    },
-   "R_Male_Adult_11": {
-    "triangles": 1000,
-    "height_m": 1.801
+   "R_Male_Adult_05_m008": {
+    "triangles": 1168,
+    "height_m": 1.818
+   },
+   "R_Male_Adult_06": {
+    "triangles": 1172,
+    "height_m": 1.829
    },
    "R_Male_Adult_11_m017": {
     "triangles": 1069,
     "height_m": 1.814
-   },
-   "R_Male_Adult_13": {
-    "triangles": 1000,
-    "height_m": 1.804
-   },
-   "R_Male_Adult_13_m008_grey": {
-    "triangles": 1168,
-    "height_m": 1.818
    },
    "R_Male_Adult_20_m008": {
     "triangles": 1168,

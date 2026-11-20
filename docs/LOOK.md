@@ -499,6 +499,42 @@ charcoal: the first pass put a crossing in green and purple suits), a neutral on
 dye (navy, sand, brown, grey), as Tokyo dresses. The same far and near; the skin is left as scanned, and the head has its own material. No new pictures and no new programs
 beyond one.
 
+**A Tokyo street's colours** (issue 64). The owner, from the opening's still of the north-west kerb at dusk: some
+clothes were too bright, and one look told the models were the same. The still had one man in a black-and-white
+argyle sweater vest ten times or more, and women in aqua, mint, lime and sky blue. Three causes:
+
+- *The cast.* Of the six men a desktop draws, two were the one body, Male_Adult_13's argyle vest, under two heads
+  (`_13`, `_13_m008_grey`), and two more were Male_Adult_11's shirt under two heads; the women were three bodies
+  twice. A turn of the hue does nothing to a black-and-white print, so a third of the men at a kerb were that vest.
+  `game.crowd.cast` now names six bodies of each sex, no two alike (`R_Female_Adult_14_f016` the beige trench,
+  `R_Business_Female_04_f013` the dark pinstripe suit, `R_Female_Adult_08_f016` grey T-shirt and jeans,
+  `R_Female_Adult_11` the brown dress, `R_Female_Adult_15_f011_brown` the shirt, `R_Female_Adult_17_f011` the
+  T-shirt; `R_Male_Adult_20_m008` brown jacket, `R_Male_Adult_11_m017` dark shirt and jeans,
+  `R_Business_Male_06_m017` white shirt, `R_Male_Adult_06` jacket, `R_Male_Adult_05_m008` camel jacket and olive
+  trousers, `R_Business_Male_03` black suit), every one built with its skin mask, with no new build. The argyle
+  vest is out of the crowd. A phone's four and four are the first of each list.
+- *The colours.* The change of clothes turned a cloth round the hue wheel and quietened it, so a green T-shirt
+  became aqua or lime and a blue blouse a sky blue. Now every change, the first too, draws the turned hue to the
+  nearest of four street hues (navy, brown to camel and beige, olive, a dark wine; their directions measured from
+  sRGB navy 35,45,75, brown 120,80,50, olive 95,95,60, wine 95,35,45, made linear) and holds its colour to what
+  that hue has at its lightness (chroma over luminance: dark navy 0.8 down to 0.12 for a light one, brown 0.75 to
+  0.22, olive 0.35 to 0.12, wine 0.6 to 0.12), so a light colour is a greyish blue or a beige, never a pastel. Twelve
+  changes instead of eight, four of them near grey or black, and a walker's colours lighter or darker as a whole.
+  Still one program, the same far and near, no new pictures or attributes (the colour kept rides in the length of
+  the turn's vector).
+- *Who wears what.* A walker's change of clothes was drawn at random, so the same man in the same clothes stood
+  three times at one kerb. Now each cast member's walkers are dealt the twelve in turn (a stride of five from a
+  start of its own), so two of one person in one change are as rare as a cast of twelve allows.
+
+The palette's sources (facts only, nothing copied): no count of what a Tokyo street wears was found. Web Japan,
+"Goodbye Black, Hello Gray" (2007: black, grey, navy, brown and beige the basic colours), Highsnobiety's Tokyo
+street style report (December 2019: black, brown and grey), Oggi's ranking of the colours working women in their
+thirties wear in autumn (2022: beige second, black and navy third) and FASHIONSNAP on Japanese brands' colour ranges
+(2024: the cheaper ones black and three or four colours) agree with photographs of the Scramble at a weekday
+evening: black, charcoal, navy, grey and white most, beige, camel and brown next, some olive, few saturated colours
+and almost no loud prints. Measured in one view with `tools/crowd_count.js` (COUNT=80 on `tools/game_shot.js`
+and `tools/story_play.js`): the numbers are in issue 64.
+
 **A mask for the skin** (issue 505). The change found skin by its colour, so a tan waistcoat or a beige coat was
 taken for skin and stayed as scanned, and a dark hand could be read as cloth. `blender/build_people.py`
 `skin_mask` now marks each cast member's bare skin in its body picture's alpha (204; cloth 255): the hue of that

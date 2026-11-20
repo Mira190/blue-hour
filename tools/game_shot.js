@@ -114,6 +114,7 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     }
     fs.writeFileSync(path.join(outDir, `${name}.png`), Buffer.from(png.split(',')[1], 'base64'));
     console.log(name + (tries ? ` (black at first: taken again ${tries}x)` : ''));
+    if (process.env.COUNT) console.log(`  ${await require('./crowd_count').count(p, +process.env.COUNT || 60)}`); // (COUNT=R: the same person seen how often in this view, issue 64)
   };
   // from the air, over the title screen (its scripted camera drives only the title's view)
   const air = views.filter(v => v.cam), foot = views.filter(v => !v.cam);

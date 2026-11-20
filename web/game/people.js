@@ -880,7 +880,7 @@ ${PAT_GLSL}`)
     // copies the first time, sharing their pictures and their program
     let dressMats = null;
     rig.dress = k => {
-      if (!T.textured || (!dressMats && !k)) return;
+      if (!T.textured) return; // (the first of DRESS too: every one is the street's colours, issue 64)
       if (!dressMats) {
         dressMats = [];
         model.traverse(o => {
@@ -1097,19 +1097,28 @@ transformed = crowdPose(transformed, false);`);
 
   // The same scanned person in other clothes. A cast of a dozen fills a crossing, so two of one character meet, and
   // side by side in the one red shirt, or three in the one taupe suit, they read as copies (the owner's review).
-  // Each walker wears one of DRESS: a coloured cloth turned round the wheel (a red shirt is green, blue or plum on
-  // the next), and a neutral one, a suit, a skirt, a coat, taken lighter or darker and dyed a little (navy,
-  // charcoal, olive, wine, sand), since a turn of the wheel does nothing to a grey. White stays white. The skin is
-  // left as it is, found by its colour and its lightness (red over green over blue in a skin's ratios, and light:
-  // the cast's hands and forearms; a brown as dark as a suit is cloth), and the head has its own material.
-  // [turn in radians, tone of the neutrals, dye: I and Q of the cast it takes]; the first is the character as scanned.
-  // (the dyes are what a street wears: navy, sand, brown, charcoal, grey; no green, which a turned navy gives enough of. A first pass at five times these
-  // strengths put the crossing in green and purple suits)
-  const DRESS = [[0, 1, 0, 0], [2.3, 0.62, -0.022, 0.008], [-1.7, 1.6, 0.014, 0.0], [1.0, 0.85, 0.02, 0.0], [3.1, 0.5, 0, 0],
-    [-0.75, 1.25, -0.016, 0.006], [1.7, 0.75, 0.012, 0.0], [-2.5, 1.5, 0, 0]];
+  // Each walker wears one of DRESS, and every one of them, the first too, is a Tokyo street's colours (issue 64:
+  // the hue wheel turned a green T-shirt into aqua, mint and lime, and a blue blouse into sky blue, and the owner saw
+  // them first at the Scramble's kerb). The cloth's colour is turned as before, which picks where it lands, and then
+  // drawn to the nearest of the street's hues (STREET below: navy, brown to camel and beige, olive, a dark wine),
+  // its colour held to what that hue has on the street at its lightness: a dark navy or a brown may be deep, a light
+  // one is a greyish blue or a beige, never a pastel or a bright. A neutral, a suit, a skirt, a coat, is taken
+  // lighter or darker and dyed a little (navy, charcoal, sand), since a turn does nothing to a grey; and a walker's
+  // colours as a whole lighter or darker. White stays white. The skin is left as it is (its mask, or else its
+  // colour and lightness: red over green over blue in a skin's ratios), and the head has its own material.
+  // [turn in radians, colour kept (0 grey to 1 the street's most), tone, dye: I and Q of the cast it takes].
+  // (most of a Tokyo evening crowd is black, charcoal, navy and grey with white, beige, camel and brown, some olive;
+  // docs/LOOK.md "A Tokyo street's colours". Four in twelve are near grey or black: the turn hardly matters there)
+  const DRESS = [[0, 1, 1, 0, 0], [2.3, 0.6, 0.62, -0.022, 0.008], [-1.7, 0.8, 1.45, 0.014, 0.0], [1.0, 0.7, 0.85, 0.02, 0.0],
+    [3.1, 0.12, 0.5, 0, 0], [-0.75, 0.7, 1.25, -0.016, 0.006], [1.7, 0.6, 0.72, 0.012, 0.0], [-2.5, 0.18, 1.45, 0, 0],
+    [0.5, 0.55, 0.45, -0.018, 0.01], [-1.2, 0.22, 0.68, 0.006, 0.0], [2.8, 0.9, 1.1, 0.016, -0.004], [-3.0, 0.4, 0.55, 0.01, -0.006]];
   const dressOf = i => (Math.imul(i + 7, 2246822519) >>> 16) % DRESS.length;
-  const dressVec = (k, out, dye) => { out.set(Math.cos(DRESS[k][0]), Math.sin(DRESS[k][0]), DRESS[k][1]); if (dye) dye.set(DRESS[k][2], DRESS[k][3]); return out; };
-  // (dress: vec3 cos, sin of the turn and the tone; dye: vec2; after the picture is read into diffuseColor)
+  // (the colour kept is the length of the turn's vector: no new attribute or uniform)
+  const dressVec = (k, out, dye) => { const D = DRESS[k]; out.set(Math.cos(D[0]) * D[1], Math.sin(D[0]) * D[1], D[2]); if (dye) dye.set(D[3], D[4]); return out; };
+  // (dress: vec3 the turn's cos and sin times the colour kept, and the tone; dye: vec2; after the picture is read into
+  // diffuseColor, which is linear. STREET: each hue's direction in YIQ (from sRGB navy 35,45,75; brown 120,80,50;
+  // olive 95,95,60; wine 95,35,45, made linear), how often it pulls, and how much colour it may have for its lightness,
+  // dark and light: chroma / Y, as navy 0.81, denim 0.61, camel 0.48, beige 0.20, khaki 0.27, wine 1.27 measure)
   const DRESS_GLSL = `{
     vec3 c = diffuseColor.rgb; float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
     float gr = c.g / max(c.r, 1e-4), bg = c.b / max(c.g, 1e-4), sat = (mx - mn) / max(mx, 1e-4);
@@ -1121,12 +1130,21 @@ transformed = crowdPose(transformed, false);`);
     float skin = step(c.g, c.r) * step(c.b, c.g) * smoothstep(0.3, 0.38, gr) * (1.0 - smoothstep(0.78, 0.86, gr)) * smoothstep(0.3, 0.4, bg) * smoothstep(0.26, 0.36, mx);
     #endif
     float Y = dot(c, vec3(0.299, 0.587, 0.114)), I = dot(c, vec3(0.596, -0.274, -0.322)), Q = dot(c, vec3(0.211, -0.523, 0.312));
-    vec2 iq = vec2(I * dress.x - Q * dress.y, I * dress.y + Q * dress.x);
+    float ch = length(vec2(I, Q)), keep = length(dress.xy);
+    vec2 t = dress.xy / max(keep, 1e-4), h = vec2(I * t.x - Q * t.y, I * t.y + Q * t.x) / max(ch, 1e-5);
+    // (drawn to the street's hues: each pulls as it is near, the nearest most)
+    vec4 S0 = vec4(-0.860, 0.511, 1.0, 0.0), S1 = vec4(0.995, 0.095, 1.0, 0.0), S2 = vec4(0.718, -0.696, 0.55, 0.0), S3 = vec4(0.920, 0.393, 0.3, 0.0);
+    float w0 = S0.z * exp(7.0 * (dot(h, S0.xy) - 1.0)), w1 = S1.z * exp(7.0 * (dot(h, S1.xy) - 1.0)),
+      w2 = S2.z * exp(7.0 * (dot(h, S2.xy) - 1.0)), w3 = S3.z * exp(7.0 * (dot(h, S3.xy) - 1.0)), ws = w0 + w1 + w2 + w3;
+    vec2 hs = normalize(w0 * S0.xy + w1 * S1.xy + w2 * S2.xy + w3 * S3.xy + 1e-5 * h);
+    // (how much colour that hue has on the street at this lightness: navy 0.8 dark to 0.12 light, brown 0.75 to 0.22,
+    // olive 0.35 to 0.12, wine 0.6 to 0.12)
+    float L = smoothstep(0.03, 0.5, Y);
+    float rmax = (w0 * mix(0.8, 0.12, L) + w1 * mix(0.75, 0.22, L) + w2 * mix(0.35, 0.12, L) + w3 * mix(0.6, 0.12, L)) / ws;
+    vec2 iq = hs * min(ch * keep, rmax * Y * keep);
     float neutral = (1.0 - smoothstep(0.3, 0.62, sat)) * (1.0 - smoothstep(0.42, 0.7, Y));
-    Y *= mix(1.0, dress.z, neutral);
-    // (a turned colour is quieter than the scan's own, and a dark one, a suit, nearly a charcoal with a cast: a navy
-    // suit turned a third of the wheel was a green suit, and a crossing had five of them)
-    iq *= 1.0 - abs(dress.y) * mix(0.9, 0.45, smoothstep(0.06, 0.26, Y));
+    // (the walker's colours lighter or darker, all but a white: the neutrals fully, a coloured cloth most of the way)
+    Y = min(Y * mix(1.0, dress.z, mix(0.7, 1.0, neutral) * (1.0 - smoothstep(0.42, 0.7, Y))), max(Y, 0.8));
     iq += dye * neutral * (0.5 + Y * 3.0);
     vec3 d = max(vec3(0.0), vec3(Y + 0.956 * iq.x + 0.621 * iq.y, Y - 0.272 * iq.x - 0.647 * iq.y, Y - 1.106 * iq.x + 1.703 * iq.y));
     diffuseColor.rgb = mix(d, c, skin);
@@ -1163,7 +1181,7 @@ transformed = crowdPose(transformed, false);`);
         .replace('#include <map_fragment>', `#include <map_fragment>\n{ vec3 dress = uDress; vec2 dye = uDye;\n${DRESS_GLSL} }`);
     };
     if (masked) m.defines = Object.assign({}, m.defines, { OE_SKIN_MASK: '' });
-    m.customProgramCacheKey = () => `dress6${masked ? 'm' : ''}|${key ? key.call(m) : ''}`;
+    m.customProgramCacheKey = () => `dress7${masked ? 'm' : ''}|${key ? key.call(m) : ''}`;
   }
 
   // A scanned cast member's far copy (lib.far, pipeline/crowd_cast.py): its own picture, swung as the dolls are. Lit as
@@ -1187,7 +1205,7 @@ vDress = iDress; vDye = iDye;`)
         .replace('#include <map_fragment>', `#include <map_fragment>\n{ vec3 dress = vDress; vec2 dye = vDye;\n${DRESS_GLSL} }`); // (the clothes this walker wears: DRESS)
     };
     if (ex.mask) mat.defines = { OE_SKIN_MASK: '' };
-    mat.customProgramCacheKey = () => `crowd-cast-dress6${ex.mask ? 'm' : ''}`;
+    mat.customProgramCacheKey = () => `crowd-cast-dress7${ex.mask ? 'm' : ''}`;
     const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: L.map, alphaTest: 0.4 });
     depth.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, uni, { uTime: U.uTime });
@@ -1264,11 +1282,16 @@ transformed = crowdPose(transformed, false);`);
     // into the drawn range, or out of it
     function show(p) { const m = p.mesh; if (p.slot >= m.count) { if (p.slot !== m.count) swap(m, p.slot, m.count); m.count++; } }
     function unshow(p) { const m = p.mesh; if (p.slot < m.count) { if (p.slot !== m.count - 1) swap(m, p.slot, m.count - 1); m.count--; } }
+    const worn = {}; // (the last of DRESS each cast member was dealt)
     P.forEach((p, i) => {
       p.look = randomLook(lib, pickCharacter(lib, style), style);
       const gs = lib.info.ground_speed[lib.info.characters[p.look.character].pack].Walk;
       p.speed = gs * p.look.scale * (0.95 + rnd() * 0.25);
-      p.dress = dressOf(i); // (the clothes they wear, far and near: DRESS)
+      // (the clothes they wear, far and near: DRESS. Dealt round each cast member's walkers in turn, from a start of
+      // its own, so that two of one person in the one change of clothes are as rare as the cast allows: drawn at
+      // random, a kerb of forty had the same man in the same clothes three times over, issue 64)
+      const rn = realOf(i, p.look);
+      if (rn) { worn[rn] = (worn[rn] === undefined ? dressOf(rn.length * 31 + rn.charCodeAt(rn.length - 1)) : worn[rn] + 5) % DRESS.length; p.dress = worn[rn]; } else p.dress = dressOf(i);
       p.far = farOf(i, p.look);
       p.fscale = p.far ? realScale(p.far, p.look) : p.look.scale; // (the near walker's own height)
       const ex = p.far ? lib.far[p.far].extras : lib.lod[p.look.character].extras, key = p.far ? '@' + p.far : p.look.character;
