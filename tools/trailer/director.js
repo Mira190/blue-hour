@@ -283,6 +283,8 @@ window.OETrailer = (function () {
     for (const q of s.figures || []) {
       const at = point(q.at), a = castOf(q.who), f = G.storyFigure(a, at);
       f._q = q;
+      // (made before their model has come, they are a stand-in until it does: the player's own body, in their place)
+      f._standin = !!(G.peopleLib && !G.peopleLib.tpl[a.character]);
       if (q.face) { const fc = q.face === 'cam' ? [pose.pos.x, -pose.pos.z] : point(q.face); f.face(fc[0], fc[1]); f.face(fc[0], fc[1]); }
       for (let i = 0; i < 20; i++) f.animate(1 / 30);
       staged.push(f);
@@ -551,6 +553,9 @@ window.OETrailer = (function () {
     const cast = staged.every(f => !f.rig || !f.rig.root || f.rig.root.children.length > 0);
     const lib = G.peopleLib, want = (cur && cur.figures || []).map(q => castOf(q.who).character);
     const chars = !lib || want.every(c => lib.tpl[c]);
+    // a figure made as a stand-in is made again once its model has come (a shot filmed first in a run showed the
+    // player's body where the girl stands for its first two seconds)
+    if (chars && staged.some(f => f._standin)) { stage(cur); return false; }
     return lvl && cast && chars && (!dog || !dog._on || dog.ready);
   }
   // after a shot's characters have come, the stage is made again with them (a figure made before its model came is a
@@ -564,7 +569,13 @@ window.OETrailer = (function () {
     return Promise.all(want.map(f => document.fonts.load(f, 'BLUE HOUR 遅かったね 渋谷 忠犬ハチ公 センター街').catch(() => null))).then(r => r.map(x => (x ? x.length : 0)));
   }
   // after the world's moment to settle (tools/trailer.js settle): the lens's wedge cleared again, of whoever walked in
-  function settled() { if (cur && cur.type !== 'card') { shotPose(cur, 0); if (cur.clear) clearWedge(cur.clear); if (cur.clearAround) clearAround(cur.clearAround); } }
+  function settled() {
+    if (!cur || cur.type === 'card') return;
+    shotPose(cur, 0);
+    if (cur.clear) clearWedge(cur.clear);
+    if (cur.clearAround) clearAround(cur.clearAround);
+    if (cur.clear_cars && G.cars && G.cars.clearBox) { const c = point(cur.clear_cars); G.cars.clearBox(c[0], c[1], cur.clear_cars[3] || 30); } // (and of a car that drove in)
+  }
   // the next apply() begins its shot afresh
   function reset() { cur = null; clearStage(); stopOn = false; if (sfx) sfx.release(); G.hold(false); }
   // on to film time t within the shot begun, the frames between not drawn: their cues fired, the cast moved on and
