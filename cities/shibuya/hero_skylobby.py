@@ -23,7 +23,7 @@ its `at` before the cars; city.json game.lobbies "sky-gate" "outside" places the
     forecourt, its roof carried out over the doors as a canopy with its downlights; inside, SKY's black and lines of
     light (the 45F LEADING LINE's grammar, since no photograph of the inside was found): a polished charcoal granite
     floor in slabs, black panelled walls, lines of light in the ceiling leading east to the cars and their reflections
-    in the floor; the queue's two belts running east;
+    in the floor; the queue's two belts running east, and outside a belt along the front where the line forms;
   * the lifts: two cars on the east wall in stainless portals, hairline-brushed leaves, each with its indicator (the
     arrow and 14F: the street lift's top, SKY GATE runs on from 14F to 45F) and call plate, the name over them; behind
     them the glass shaft outside the tower's east face, up to 14F, the cars' lit cabins standing at the street;
@@ -644,6 +644,16 @@ class Level:
             for t in np.arange(vv, HALL_V - 0.01, 0.2):
                 x, y = F.xy(su, t)
                 self.belts.append([round(float(x), 2), round(float(y), 2)])
+        # and outside, where the line forms (the owner's memory and the photographs of 2019-20): a belt along the west
+        # front 1.5 m out, from beside the pillar to a post south of the doors, the line between it and the glass, come
+        # into from the south. Solid (its points are posts)
+        u0, u1, vb = PILLAR[0] + PILLAR[2] / 2 + 0.25, 2.4, -1.5
+        for su in (u0, u1):
+            self.geo.lathe("room_steel", F.P(su, vb, self.ztile(su, vb)), [(0.16, 0.0), (0.16, 0.025), (0.03, 0.045), (0.025, 0.86), (0.04, 0.88), (0.04, 0.99), (0.0, 1.0)], segs=20)
+        za, zb = self.ztile(u0, vb), self.ztile(u1, vb)
+        self.q("room_belt", (u0, vb, za + 0.87), (u1, vb, zb + 0.87), (u1, vb, zb + 0.92), (u0, vb, za + 0.92))
+        self.q("room_belt", (u1, vb, zb + 0.87), (u0, vb, za + 0.87), (u0, vb, za + 0.92), (u1, vb, zb + 0.92))
+        self.post_line(u0, vb, u1, vb)
 
 
 def build(K):
