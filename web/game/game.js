@@ -461,7 +461,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   console.info(`nav: ${Math.round(performance.now() - tNav)} ms (the collision world ${nav.col.count} solids; the landmarks' fine cells sorted ${Math.round(nav.startMs)} ms)`);
   if (window.OESurface) OESurface.load(renderer); // the street's scanned surfaces, which the shaders take when they come (surface.js)
   // the big screens light the street, the crowd and the buildings across from them (neon.js)
-  const neon = window.OENeon ? await OENeon.create(Wd, renderer, { tier: QC.name, gain: (G.look || {}).neon ?? 1, fill: (G.look || {}).fill || [], ground: (x, y) => Math.max(0, nav.terrain(x, y)) }) : null;
+  const neon = window.OENeon ? await OENeon.create(Wd, renderer, { tier: QC.name, gain: (G.look || {}).neon ?? 1, fill: (G.look || {}).fill || [], ground: (x, y) => Math.max(0, nav.terrain(x, y)), pool: (G.hero || []).map(h => [h.at[0], h.at[1], h.r || 100]) }) : null;
   // a wet street mirrors the city (mirror.js, high tier): the ground, the paving and the road markings take it
   if (window.OEMirror) {
     mirror = OEMirror.create(Wd, renderer, camera, { tier: QC.name, ground: (x, y) => { const z = Math.max(0, nav.terrain(x, y)), f = nav.floorAt(x, y, z + 0.5); return f ? f.z : z; } });
@@ -502,7 +502,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
     h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
   }
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj), upload: sendBuffers, ground: heroCover }) : null;
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, pool: neon && neon.pool, warm: obj => warmFor(obj), upload: sendBuffers, ground: heroCover }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -6223,7 +6223,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // own score then leaves the bed to that one: film-score.js plan.under)
   makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
-    walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } } });
+    walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
   if (overture && (story || OEOverture.due(CITY.id))) overture.prepareScore();
   if (overture) $('#gm-overture').hidden = false;
@@ -6676,7 +6676,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Wd.tick(now, camera);
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
-    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
+    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
     weatherTick(simHold ? 0 : dt * (story ? story.scale : 1), titleOn, titleOn || paused || photo.on); // (held by a harness: the weather eases on only with advance(), which ticks it; stepped by the frames too, it eased by however many the machine drew, #420)
@@ -7775,7 +7775,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     fn.early = early;
     return fn;
   }
-  function craneIn(onDone = null) {
+  // The level the player stands in (hero.js) comes seconds after the game opens on a phone: until it is ready the city's
+  // own Scramble is drawn there (its plaza, flat asphalt and paint), and the level then took its place in view. The owner's
+  // iPhone skipped the opening and saw it in frame 1, six seconds after the load (issue 62). So the way in (the opening's
+  // skip, the crane down from the title, a story taken up again) waits for it behind a veil, the loader's ground with the
+  // place's name on it, at most LEVEL_WAIT_S; the shot is held under it, and the camera reaches the player once the level is drawn.
+  const LEVEL_WAIT_S = +((location.search.match(/[?&]levelwait=(\d+)/) || [])[1] || 6); // (?levelwait=s: a harness's own bound, tools/level_wait.js)
+  const levelReady = () => !hero || hero.levels.every(L => L.state === 'ready' || L.state === 'failed' || Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) > (L.h.r || 100));
+  let levelHold = null;
+  // done: what the way in does once the level is ready (or the wait is over); false when there is nothing to wait for
+  function holdForLevel(done) {
+    if (levelReady()) return false;
+    const v = document.createElement('div'), t0 = performance.now();
+    v.className = 'g-veil'; v.setAttribute('aria-hidden', 'true');
+    v.innerHTML = `<b>${((G.overture || {}).title || {}).name || CITY.native || CITY.name}</b><i style="animation-duration:${LEVEL_WAIT_S}s"></i>`;
+    stage.appendChild(v); void v.offsetWidth; v.classList.add('on');
+    levelHold = { t0 };
+    const tick = () => {
+      const t = (performance.now() - t0) / 1000;
+      if (t < 0.5 || (!levelReady() && t < LEVEL_WAIT_S)) { setTimeout(tick, 100); return; } // (the veil up first: the level never comes in half seen)
+      levelHold = null;
+      console.info(`the way in waited ${t.toFixed(1)} s for the level${levelReady() ? '' : ', and went on without it'}`);
+      done();
+      setTimeout(() => { v.classList.remove('on'); setTimeout(() => v.remove(), 700); }, 300); // (a few frames for it to be drawn under the veil)
+    };
+    setTimeout(tick, 100);
+    return true;
+  }
+  function craneIn(onDone = null, waited = false) {
+    // (held on the title's view behind the veil until the level is ready, or the wait is over; a tap meanwhile does not end it)
+    if (!waited && holdForLevel(() => craneIn(onDone, true))) { const pos = camera.position.clone(), look = titleLook.clone(); arriving = { onDone: null, settling: true }; cine.play(() => ({ pos, look }), 60, { label: 'crane' }); return; }
     const H0 = head(), lk0 = titleLook.clone().sub(H0), p0 = OECine.polar(H0, camera.position);
     const shot = openingHere(), dur = shot ? OPENING.dur : ARRIVE.dur;
     if (shot) player.h = OPENING.face; // (the start's own view: the shot was framed behind it)

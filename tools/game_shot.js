@@ -97,6 +97,9 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     let png = null, dark = 1, tries = 0;
     // the sun's far shadow field for this view's hour, where the page makes one in a Worker (world.js farSun): wait for it
     await p.waitForFunction(() => { const f = window.__game && window.__game.Wd && window.__game.Wd.farSun; return !f || (!f.pending && !f.want); }, null, { timeout: 60000 }).catch(() => {});
+    // and a hero level that is on its way (hero.js): a still taken before it is ready shows the city's own model there,
+    // which on a phone's tier and this renderer is half a minute (issue 62)
+    await p.waitForFunction(() => { const h = window.__game && window.__game.hero && window.__game.hero(); return !h || !h.state().some(s => s.state === 'loading'); }, null, { timeout: 120000, polling: 500 }).catch(() => console.log(`${name}: a hero level still loading`));
     for (; tries < 12; tries++) {
       ({ png, dark } = await p.evaluate(async n => {
         for (let i = 0; i < n; i++) await new Promise(r => requestAnimationFrame(r));
