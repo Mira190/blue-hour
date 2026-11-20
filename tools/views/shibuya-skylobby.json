@@ -1,0 +1,174 @@
+[
+ {
+  "name": "approach-night",
+  "at": [
+   521.64,
+   -1082.05
+  ],
+  "look": [
+   535.04,
+   -1077.89
+  ],
+  "dist": 5.5,
+  "pitch": 0.12,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "threshold-night",
+  "at": [
+   531.83,
+   -1080.11
+  ],
+  "look": [
+   536.67,
+   -1078.76
+  ],
+  "dist": 2.6,
+  "pitch": 0.06,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "queue-night",
+  "at": [
+   533.46,
+   -1078.51
+  ],
+  "look": [
+   536.16,
+   -1077.45
+  ],
+  "dist": 2.2,
+  "pitch": 0.05,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "approach-dusk",
+  "at": [
+   521.64,
+   -1082.05
+  ],
+  "look": [
+   535.04,
+   -1077.89
+  ],
+  "dist": 5.5,
+  "pitch": 0.12,
+  "time": "17:31",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "threshold-dusk",
+  "at": [
+   531.83,
+   -1080.11
+  ],
+  "look": [
+   536.67,
+   -1078.76
+  ],
+  "dist": 2.6,
+  "pitch": 0.06,
+  "time": "17:31",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "queue-dusk",
+  "at": [
+   533.46,
+   -1078.51
+  ],
+  "look": [
+   536.16,
+   -1077.45
+  ],
+  "dist": 2.2,
+  "pitch": 0.05,
+  "time": "17:31",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "shaft-night",
+  "at": [
+   536.14,
+   -1068.33
+  ],
+  "look": [
+   537.28,
+   -1077.01
+  ],
+  "dist": 6,
+  "pitch": -0.35,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ },
+ {
+  "name": "approach-rain",
+  "at": [
+   521.64,
+   -1082.05
+  ],
+  "look": [
+   535.04,
+   -1077.89
+  ],
+  "dist": 5.5,
+  "pitch": 0.12,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true,
+  "weather": "rain"
+ },
+ {
+  "name": "tower-from-miyamasuzaka-night",
+  "at": [
+   527.0,
+   -1028.0
+  ],
+  "look": [
+   520.5,
+   -1125.6
+  ],
+  "dist": 4,
+  "pitch": -0.45,
+  "time": "19:20",
+  "date": [
+   10,
+   10
+  ],
+  "street": true
+ }
+]

@@ -22,7 +22,7 @@ It is three.js in one page, with no build step.
 | `cities/shibuya/city.json` | the map's settings and, under `game.story`, the episode as data: every frame, line and place |
 | `web/data/shibuya/` | the built map (packs made by `pipeline/pack.py`; `d/` is the phone's district) |
 | `web/assets/` | models: people, vehicles, trees, `past/` (1964), `story/` (the lift, key art), `stop/`, `animals/` |
-| `blender/` | the scripts that build the models (`build_past.py`, `build_set.py`, `build_stop.py`, `build_dog.py`, ...) |
+| `blender/` | the scripts that build the models (`build_past.py`, `build_stop.py`, `build_dog.py`, ...) |
 | `pipeline/` | the scripts that build the map from open data |
 | `tools/` | checks and harnesses: `story_play.js` plays the whole case, `story_ride.js` takes the car, `key_shot.js` films the loader's pictures |
 | `docs/STORY.md` | the story bible |
