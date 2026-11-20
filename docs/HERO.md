@@ -352,6 +352,15 @@ the coursed stone the relic draws (docs/PAST.md keeps that liberty).
   stand on it), and its lamp posts on the kerbs out from under the deck.
 - **The fronts** up the street and round the plaza in the Scramble's grammar (41 walls), except buildings the
   Scramble's level dresses itself (`skip_front`), so no wall is drawn twice; the two discs do not overlap.
+- **The street's signs** (`signs`, issue 57), on the faces the frame looks at (`SIGNED`): tall tenant signs standing
+  0.9 m out from an end of a face, from over the shops' band to up to 16 m above it, a tenant to each panel set
+  vertically and read from up and down the street (Shibuya's 袖看板, the tenants of city.py's stacks round the
+  crossing); lit boxes on the band over the shops; and Toei Plaza's name, 渋谷東映プラザ, in lit letters on a dark band
+  high on its face (the building's own name in an open font, not its logo; the trades are typical and the tenants
+  invented). Toei Plaza carries three tall signs, three boxes and its name, FPG links SHIBUYA (closing the view) one
+  tall sign, its neighbour one of each. Their faces are on the atlas's last shelf, after the shops, so a phone holds no
+  bigger an atlas at frame 5. The west side's fronts up the street (渋谷パークサイド共同ビル and the towers beyond it) are
+  dressed by the Scramble's level, and their signs are that level's to hang.
 
 Its stills: `tools/views/shibuya-miyamasu.json` (the frame's view, the talk shot, up and back along the deck, from
 the air) with `tools/scramble_shot.js`; its beat is frame 5 of `tools/story_play.js` (`FROM=4 UPTO=5`).

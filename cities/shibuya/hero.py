@@ -574,6 +574,7 @@ class Level:
             h = s["top"] - s.get("base", 0)
             if s["osm"] in whole or h < 7 or h > 62 or poly.area < 25 or np.linalg.norm(np.asarray(poly.centroid.coords[0]) - c) > 115 or self.skip_front(s, poly):
                 continue
+            self.cur = s                                   # (whose walls these are, for a level that dresses some itself)
             rng = np.random.default_rng(sum(ord(ch) for ch in (s["osm"] or str(s["si"]))) * 7919 % (2 ** 31))
             wall = ("wall_white", "wall_cream", "wall_grey")[int(rng.integers(3))]
             ribbon = rng.random() < 0.4                    # an office floor's ribbon windows, or punched ones
@@ -603,6 +604,7 @@ class Level:
         print(f"fronts: {n_faces} walls dressed, seen from {len(self.eyes)} places")
 
     standing = None   # (scramble.Plan's test of what stands on the ground; a level under a deck gives its own)
+    cur = None        # the building whose walls fronts() is dressing
 
     def skip_front(self, s, poly):
         """Whether a building's walls are another level's to dress (a second level, hero_miyamasu.py, leaves the
