@@ -1150,7 +1150,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     seatTouch(false);
     const p = (f && nav.stand(f.x, f.y, f.z + 0.5, { rMax: 3 })) || nav.stand(player.x, player.y, player.z + 0.5, { rMax: 4 }) || f || player;
     Object.assign(player, { mode: 'foot', x: p.x, y: p.y, z: p.z, h: st ? st.h : player.h, speed: 0, ground: true, vz: 0 });
-    cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = 0.3; cam.dist = 5.5;
+    cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
     blendFrom(0.7, true); // (from the seat's eyes out to over your shoulder, not a cut)
     player.rig.root.visible = true;
   }
@@ -3701,7 +3701,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the view turned towards a place (gently, and never against the player's own hand on it)
     // (level: and up from looking down, or down from looking up, to the chase camera's own height: the roof's picture is taken
     // looking straight down at the street, and the helicopter to get into after it was out of a view still pointed down)
-    look: (at, level = false) => { if (player.mode !== 'foot') return; cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); if (level) cam.pitchTo = 0.3; },
+    look: (at, level = false) => { if (player.mode !== 'foot') return; cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); if (level) cam.pitchTo = FOOT.pitch; },
     // the air of the scene (stopfx.js): leaves coming down and birds going over, there before time stops and held when it does
     air: opts => { if (stopFx) stopFx.air(W(player.x, player.y, player.z), opts || {}); },
     // a car sent for you (a frame's `ride`: {to: [x, y], name}): it comes to the kerb, E gets in, and it drives you there
@@ -4062,7 +4062,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd); }
   // mode: 'chase', 'bird' (the helicopter's bird's-eye view) or 'cockpit' (the pilot's eyes, looking lookYaw left and lookPitch up)
   // distTo and yawTo, when set, ease the chase camera somewhere (out to the helicopter's view, round to its door)
-  const cam = { yaw: 0, pitch: 0.36, tilt: 0, dist: 7.5, distTo: 0, yawTo: null, lastInput: -10, mode: 'chase', birdAlt: 320, lookYaw: 0, lookPitch: -0.1, lift: 0, liftHold: 0, pull: 1, floor: null, snap: false };
+  // on foot the chase camera rests 5.5 m behind the head at 0.17 rad (issue 71): its eye about 2.5 m over the street, at
+  // a tall man's shoulder, and the horizon on the upper third of the frame (BASE_FOV's 55 degrees: atan(tan(27.5)/3) is
+  // 0.17). From 7.5 m at 0.36 it stood at a first-floor window, the paving filled two thirds of the picture, and the
+  // fronts' signs and screens and the blue sky over them were cut off at the top: a crowd reads from inside it
+  const FOOT = { dist: 5.5, pitch: 0.17 };
+  const cam = { yaw: 0, pitch: FOOT.pitch, tilt: 0, dist: FOOT.dist, distTo: 0, yawTo: null, lastInput: -10, mode: 'chase', birdAlt: 320, lookYaw: 0, lookPitch: -0.1, lift: 0, liftHold: 0, pull: 1, floor: null, snap: false };
   const cine = OECine.director({ reduced }); // camera shots, on the game clock (clockT)
   let overture = null; // the map's opening film (overture.js), made once the player is placed
   let makeFilm = null; // (overture.js's films, made on this map)
@@ -4555,7 +4560,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.rig.root.visible = true;
     player.mode = 'foot'; player.vehicle = null;
     [player.x, player.y, player.z] = p;
-    cam.distTo = 7.5; blendFrom(0.8, true); // (in from the train's 30 m to over your shoulder, eased: on foot it was left out there)
+    cam.distTo = FOOT.dist; cam.pitchTo = FOOT.pitch; blendFrom(0.8, true); // (in from the train's 30 m to over your shoulder, eased: on foot it was left out there)
     if (life && car.moved) life.emit('ride', { kind: 'rail', from: car.from, to: here.id, name: here.name, route: car.line || railRide().name || '', m: car.fromAt ? Math.hypot(here.x - car.fromAt[0], here.y - car.fromAt[1]) : 0 });
     goals.railed(car.from, here.id);
     save();
@@ -4578,7 +4583,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (v.helm) fer.finishHelm(v);
     player.mode = 'foot'; player.vehicle = null;
     [player.x, player.y, player.z] = p;
-    cam.distTo = 7.5; blendFrom(0.8, true); // (in from the ferry's 42 m to over your shoulder, eased: on foot it was left out there)
+    cam.distTo = FOOT.dist; cam.pitchTo = FOOT.pitch; blendFrom(0.8, true); // (in from the ferry's 42 m to over your shoulder, eased: on foot it was left out there)
     qs.visited[here] = true;
     if (life && lastBoard && lastBoard !== here) { const w0 = wharfById(lastBoard); life.emit('ride', { kind: 'ferry', from: lastBoard, to: here, name: w.name, route: v.route, m: w0 ? Math.hypot(w.berth[0] - w0.berth[0], w.berth[1] - w0.berth[1]) : 0 }); }
     goals.landedAt(here);
@@ -4638,7 +4643,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       cam.mode = 'chase'; camera.up.set(0, 1, 0);
       cine.play(OECine.mix(() => from, () => live, k => OECine.ease.smooth(k)), 0.9, { label: 'crane' });
     }
-    cam.dist = Math.max(14, cam.dist); cam.distTo = 7.5; cam.yawTo = heli.st.h - HALF_PI + 0.55; // and in close by the door as you climb out
+    cam.dist = Math.max(14, cam.dist); cam.distTo = FOOT.dist; cam.yawTo = heli.st.h - HALF_PI + 0.55; // and in close by the door as you climb out
   }
   function boardStep(dt) {
     const b = boarding, w = heli.way, root = player.rig.root, step = w.step || w.stand;
@@ -5455,7 +5460,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (to.face != null) player.h = to.face;
       cam.mode = 'chase'; cam.dist = 7.5;
       // the landmark a little left of the player rather than behind their head
-      if (to.face != null) { cam.yaw = to.face + 0.12; cam.pitch = to.pitch ?? 0.3; cam.tilt = to.tilt || 0; } else { cam.yaw = player.h; cam.pitch = 0.36; cam.tilt = 0; }
+      if (to.face != null) { cam.yaw = to.face + 0.12; cam.pitch = to.pitch ?? 0.3; cam.tilt = to.tilt || 0; } else { cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist; cam.tilt = 0; }
       groundLod(to.x, to.y); save();
     };
     hopTo(kerb ? kerb.pose.x : to.x, kerb ? kerb.pose.y : to.y, kerb ? kerb.pose.z : to.z, name,
@@ -6107,7 +6112,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.x = p ? p.x : at[0]; player.y = p ? p.y : at[1]; player.z = p ? p.z : z0;
     player.vz = 0; player.ground = true;
     player.h = Math.atan2(fa[0] - player.x, fa[1] - player.y);
-    cam.yaw = player.h; cam.pitch = 0.36; cam.dist = 7.5;
+    cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
     if (typeof groundLod === 'function' && Wd.groundMeshes[0].material.userData.street) groundLod(player.x, player.y);
   }
   spawn();
@@ -6805,7 +6810,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (ev.type === 'arrive' && car.moved) {
           const st = rail.stationOf(car.id);
           skip = false;
-          if (st && st.under) { alightRail(); viewBlend.t = 1; cam.distTo = 0; cam.mode = 'chase'; cam.dist = 6.5; cam.pitch = 0.3; cam.yaw = player.h; H.toast(`${st.name}. ${st.under.text || 'Up the stairs to the street.'}`); } // (out of sight under the ground: up to its street at once)
+          if (st && st.under) { alightRail(); viewBlend.t = 1; cam.distTo = 0; cam.mode = 'chase'; cam.dist = FOOT.dist; cam.pitch = FOOT.pitch; cam.yaw = player.h; H.toast(`${st.name}. ${st.under.text || 'Up the stairs to the street.'}`); } // (out of sight under the ground: up to its street at once)
           else H.toast(`${st.name}. <kbd>E</kbd> to get off.`);
         }
       }
@@ -7363,6 +7368,33 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
+  const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
+  // the people standing or walking within the camera's reach of your head (the crowd's near people, the named cast, the
+  // story's figures), as [x, y, z] in the game's ground plan, for folkAcross below
+  const folkBuf = [];
+  function folkNear(at, dist) {
+    const ax = at.x, ay = -at.z, r = dist + 1;
+    let n = 0;
+    const add = (x, y, z) => { if (Math.abs(x - ax) > r || Math.abs(y - ay) > r) return; const k = n++ * 3; folkBuf[k] = x; folkBuf[k + 1] = y; folkBuf[k + 2] = z || 0; };
+    if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i]; if (q.line >= 0 || q.pz) add(q.rx ?? q.x, q.ry ?? q.y, q.rz ?? q.z); }
+    for (const q of npcs) if (q.rig && q.rig.root && q.rig.root.visible) add(q.x, q.y, q.z);
+    for (const q of storyFigs) if (q.rig && q.rig.root && q.rig.root.visible) add(q.x, q.y, q.z);
+    return { n, b: folkBuf };
+  }
+  // whether one of them stands across the line from the camera (c) to the head (a): a body 0.28 m round and 1.75 m tall,
+  // met between a pace from the lens (whom the lens is inside is not drawn: lensClear) and a pace short of the head
+  function folkAcross(folk, a, c) {
+    const ax = a.x, ay = -a.z, az = a.y, dx = c.x - ax, dy = -c.z - ay, dz = c.y - az, L2 = dx * dx + dy * dy;
+    if (L2 < 1) return false;
+    const L = Math.sqrt(L2), t0 = 0.6 / L, t1 = 1 - 0.6 / L, b = folk.b;
+    for (let i = 0; i < folk.n; i++) {
+      const px = b[i * 3], py = b[i * 3 + 1], pz = b[i * 3 + 2], t = ((px - ax) * dx + (py - ay) * dy) / L2;
+      if (t < t0 || t > t1) continue;
+      const ex = ax + dx * t - px, ey = ay + dy * t - py;
+      if (ex * ex + ey * ey < 0.28 * 0.28 && az + dz * t < pz + 1.75) return true;
+    }
+    return false;
+  }
   function rig(dt) {
     const k2 = Math.min(1, dt * 6);
     cockpitGlass(player.mode === 'heli' && cam.mode === 'cockpit' && !photo.on);
@@ -7508,12 +7540,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (riding a glass lift, the camera holds outside it, looking in through its glass: not pulled in by the shaft)
     const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && thin(a, b) ? 1 : f, g); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
-    let want = null;
+    // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
+    // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
+    // pass, as they do in a second or two, rather than climb to a first-floor window again. Not pulled in for them)
+    const folk = close && player.mode === 'foot' && !fpOn ? folkNear(camTarget, dist) : null;
+    let want = null, open = null;
     for (const lift of CAM_LIFTS) {
       const f = clear(camTarget, orbit(lift, camProbe));
       if (!want || f > want.f + 0.05) want = { f, lift };
-      if (f >= 0.97) break;
+      if (f >= 0.97) {
+        if (!open) open = { f, lift }; else if (lift > CROWD_LIFT) break; // (not over a wall for them: the lowest clear of it)
+        const by = !!(folk && folk.n && lift < CROWD_LIFT && folkAcross(folk, camTarget, camProbe));
+        if (by) open.by = true; // (for cam.trace: someone stood across a lift clear of the walls)
+        else { want = { f, lift, by: !!open.by }; open = null; break; }
+      }
     }
+    if (open) want = open; // (no lift clear of them: the lowest clear of the walls, as before)
     const jumped = cam.snap || camSmooth.lengthSq() === 0 || camSmooth.distanceTo(orbit(cam.lift, camProbe)) > 60; // after a teleport, or a stretch of advance()
     cam.snap = false;
     if (jumped) { cam.lift = want.lift; cam.liftHold = 0; }
@@ -7559,7 +7601,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (f < 1) camPos.lerpVectors(camTarget, camPos.clone(), Math.max(0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
-    if (cam.trace) Object.assign(cam.trace, { jumped, f, pullWant: pull, wantLift: want.lift, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
+    if (cam.trace) Object.assign(cam.trace, { jumped, f, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
     live.pos.copy(camPos);
     live.look.copy(camTarget);
     // looking up at a landmark on arrival (cam.tilt): over your head, until you move, steer or drag the view
@@ -7700,7 +7742,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (shot) player.h = OPENING.face; // (the start's own view: the shot was framed behind it)
     const best = calmBearing(p0.az, player.h + Math.PI);
     player.h = best - Math.PI;
-    cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = 0.36; cam.dist = 7.5; cam.tilt = 0;
+    cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist; cam.tilt = 0;
     camSmooth.set(0, 0, 0);
     const p1 = livePolar(), az1 = p0.az + OECine.turn(p0.az, p1.az);
     const r0 = Math.max(10, Math.hypot(p0.dist, p0.h)), r1 = Math.hypot(p1.dist, p1.h), e0 = Math.atan2(p0.h, p0.dist), e1 = Math.atan2(p1.h, p1.dist);
@@ -7749,7 +7791,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         [player.x, player.y, player.z] = b.at;
         if (b.face) player.h = Math.atan2(b.face[0], b.face[1]);
         player.speed = 0; player.vz = 0; player.ground = true;
-        cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = 0.3; cam.dist = 6.5;
+        cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
         groundLod(player.x, player.y);
         save();
       }]],
@@ -7789,7 +7831,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           [player.x, player.y, player.z] = b.at;
           if (b.face) player.h = Math.atan2(b.face[0], b.face[1]);
           player.speed = 0; player.vz = 0; player.ground = true;
-          cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = 0.3; cam.dist = 6.5;
+          cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
           groundLod(player.x, player.y);
           save();
         }],
@@ -7877,7 +7919,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       liftRide = null;
       if (R.b.face) player.h = Math.atan2(R.b.face[0], R.b.face[1]);
       player.mode = 'foot'; player.speed = 0; player.vz = 0; player.ground = true;
-      cam.distTo = 6.5; cam.yawTo = player.h;
+      cam.distTo = FOOT.dist; cam.yawTo = player.h;
       groundLod(player.x, player.y);
       H.toast(`${R.b.name}.`);
       save();
@@ -7902,7 +7944,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the camera's bearing about the player turns once, evenly over the whole hop, and never faster than
     // HOP_TURN_RATE at its peak (#89): to frame a landmark (opts.yaw) the hop takes longer if it must; otherwise
     // it comes down only as far round towards the way you flew as that rate allows in the time
-    const pe = opts.pitch ?? 0.36;
+    const pe = opts.pitch ?? FOOT.pitch;
     let dur = Math.min(4.6, 3.2 + span / 2000), turnBy = OECine.turn(p0.az, opts.yaw != null ? opts.yaw + Math.PI : az);
     const peak = t => 1.875 * Math.abs(t) / dur; // the smootherstep's top speed
     if (opts.yaw != null) dur = Math.min(6.5, Math.max(dur, 1.875 * Math.abs(turnBy) / HOP_TURN_RATE));
@@ -7912,7 +7954,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the chase camera's, raised over the roofs on the way down (calmElevation): no plunge at the end
     const pos = new THREE.Vector3(), lk = new THREE.Vector3(), E = OECine.ease, L = OECine.lerp;
     const r0 = Math.max(2, Math.hypot(p0.dist, p0.h)), e0 = Math.atan2(p0.h, p0.dist), rT = Math.hypot(top.dist, top.h), eT = Math.atan2(top.h, top.dist);
-    let r1 = 7.5; // (the chase camera's range on landing: set again at the top of the climb from where it really is)
+    let r1 = FOOT.dist; // (the chase camera's range on landing: set again at the top of the climb from where it really is)
     const a = 0.26, b = 0.6, km = 0.45;
     // (out of the street it cranes up over the player's head before it pulls back: the range grows late in the rise)
     const rAt = k => (k < a ? r0 * Math.pow(rT / r0, E.in(OECine.span(k, 0, a))) : k < b ? rT : rT * Math.pow(r1 / rT, E.smooth(OECine.span(k, b, 1 - 0.2 * (1 - b))))); // (in to the chase camera's range by 92%: the rest is for tilting back level)
@@ -7941,7 +7983,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       cues: [[a, opts.cue ? () => { opts.cue(); if (opts.yaw == null) cam.yaw = yawEnd; if (peL > pe + 0.01) cam.pitch = peL; groundLod(x, y); } : () => {
         [player.x, player.y, player.z] = [x, y, z];
         player.h = yawEnd; player.speed = 0; player.vz = 0; player.ground = true;
-        cam.mode = 'chase'; cam.yaw = yawEnd; cam.pitch = peL; cam.dist = 7.5;
+        cam.mode = 'chase'; cam.yaw = yawEnd; cam.pitch = peL; cam.dist = FOOT.dist;
         groundLod(x, y);
         const pl = livePolar(); // (lifted over a wall behind, or pulled in: the way down lands where it will be)
         r1 = Math.max(2, Math.hypot(pl.dist, pl.h)); peL = Math.atan2(pl.h, pl.dist);
