@@ -224,6 +224,8 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     };
     const corner = () => p.evaluate(() => { const e = document.querySelector('#g-walk-where .g'); return e && !e.hidden ? e.textContent : ''; });
     const keyLine = () => p.evaluate(() => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on') ? e.textContent : ''; });
+    // (the line changes on the page's next frame drawn, which on a software renderer can be seconds after the step: waited for, up to a minute)
+    const keysFor = re => p.waitForFunction(r => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on') && new RegExp(r, 'i').test(e.textContent); }, re.source, { timeout: 60000, polling: 250 }).then(() => true, () => false);
     const shown = sel => p.evaluate(s => [...document.querySelectorAll(s)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && getComputedStyle(e).display !== 'none'; }).map(e => e.textContent.trim()), sel);
     const mode = () => p.evaluate(() => window.__game.player.mode);
     // (a key or a phone's button held for some seconds of the game's own time, a twentieth of a second a frame with the
@@ -308,7 +310,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         await act();
         if ((await mode()) !== 'car') fail(`E (or a tap) by your car: not at the wheel (${await mode()})`);
         else {
-          await p.waitForFunction(() => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on'); }, null, { timeout: 30000, polling: 250 }).catch(() => {}); // (the keys' line is the page's own frame's to put up: waited for, a software renderer's frame being seconds long)
+          await keysFor(phone ? /drives/i : /steer/i);
           const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [];
           if (!(phone ? /drives/i.test(kl) : /steer/i.test(kl))) fail(`at the wheel, the foot of the frame does not show the car's keys ("${kl}")`);
           if (phone && !(btn.includes('Hand brake') && btn.includes('Horn') && btn.includes('View'))) fail(`at the wheel on a phone, the buttons are ${JSON.stringify(btn)} (want the hand brake, the horn and the view)`);
@@ -388,7 +390,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       await p.evaluate(() => window.__game.advance(4));
       if ((await mode()) !== 'heli') fail(`E (or a tap) by the helicopter: not at the stick (${await mode()})`);
       else {
-        await p.waitForFunction(() => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on'); }, null, { timeout: 30000, polling: 250 }).catch(() => {}); // (the keys' line is the page's own frame's to put up: waited for, a software renderer's frame being seconds long)
+        await keysFor(/climb/i);
         const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [], z0 = await p.evaluate(() => window.__game.heli.st.z);
         if (!(phone ? /climb/i.test(kl) : /climb/i.test(kl) && /descend/i.test(kl))) fail(`at the stick, the foot of the frame does not show the helicopter's keys ("${kl}")`);
         if (phone && !(btn.includes('Up') && btn.includes('Down'))) fail(`at the stick on a phone, the buttons are ${JSON.stringify(btn)} (want Up and Down)`);

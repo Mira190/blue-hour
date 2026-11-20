@@ -525,7 +525,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         if (st.fr !== fr) return;
         // a frame reached by car: one is sent, the goal is the car until you are in it, and the frame goes on where it sets you down
         // (or where you walk to: nobody has to take it)
-        if (fr.ride && ctx.ride && !st.rode && ctx.ride(fr.ride)) { st.rode = true; st.beat = 'ride'; st.rideGo = go; goal(fr.ride.line || 'A car is coming for you.'); return; }
+        const sent = fr.ride && ctx.ride && !st.rode ? ctx.ride(fr.ride) : false;
+        if (sent === 'wait' && (st.rideAsk = (st.rideAsk || 0) + 1) < 240) { goal(fr.ride.line || 'A car is coming for you.'); setTimeout(go, 500); return; } // (the cars still coming in: asked again, for up to two minutes)
+        st.rideAsk = 0;
+        if (sent && sent !== 'wait') { st.rode = true; st.beat = 'ride'; st.rideGo = go; goal(fr.ride.line || 'A car is coming for you.'); return; }
         st.rode = false;
         // a message on the phone (fr.call: { who, voice, lines }): heard once as the frame begins, before anything is
         // asked of the player; a frame taken up again after a slip does not ring twice

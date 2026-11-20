@@ -44,18 +44,10 @@ window.OEHero = (function () {
   // the baked light (_BAKE) and the glow's hum, in every material of a hero model
   const BAKE_V = `attribute vec4 _bake;\nvarying vec4 vHeroBake;\n`;
   const BAKE_F = `varying vec4 vHeroBake;\nuniform float uHeroBake, uHeroNight;\n`;
-  // the low tier's pools of the screens' and the plaza cards' light (neon.js pooled), on a surface as it faces up
-  const POOL_F = `uniform sampler2D uPoolMap; uniform vec4 uPoolXf; uniform float uPoolScr, uPoolCardK; uniform vec3 uPoolCard;
-vec3 heroPool(vec3 wp, vec3 nv) {
-  vec2 uv = vec2((wp.x - uPoolXf.x) * uPoolXf.z, (-wp.z - uPoolXf.y) * uPoolXf.w);
-  if (uPoolScr + uPoolCardK <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec3(0.0);
-  vec4 p = texture2D(uPoolMap, uv); p *= p;
-  return (p.rgb * uPoolScr + uPoolCard * (p.a * uPoolCardK)) * saturate(dot(nv, viewMatrix[1].xyz));
-}`;
 
   function create(Wd, renderer, opts) {
     const THREE = window.THREE, list = Array.isArray(opts.hero) ? opts.hero : opts.hero ? [opts.hero] : [];
-    const tier = opts.tier || 'high', base = opts.base || '', U = Wd.U, pool = opts.pool || null;
+    const tier = opts.tier || 'high', base = opts.base || '', U = Wd.U;
     const group = new THREE.Group();
     group.name = 'hero';
     Wd.world.add(group);
@@ -106,12 +98,9 @@ vec3 heroPool(vec3 wp, vec3 nv) {
           .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n  reflectedLight.indirectDiffuse *= mix(1.0, vHeroBake.a, 0.85); reflectedLight.indirectSpecular *= vHeroBake.a;')
           // the signs' and shop fronts' light on it after dark, in its own colour (an irradiance, baked)
           .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * vHeroBake.rgb * uHeroBake * uHeroNight;');
-        // on the low tier, the screens' and the plaza's light on what faces up (neon.js pooled: the area lights' stand-in)
-        if (pool && !/^(glow|tube|chase|paper|lamp|win|room)/.test(name)) {
-          Object.assign(sh.uniforms, pool);
-          sh.fragmentShader = sh.fragmentShader.replace('uniform float uHeroBake, uHeroNight;', `uniform float uHeroBake, uHeroNight;\n${POOL_F}`)
-            .replace('uHeroBake * uHeroNight;', `uHeroBake * uHeroNight;\n  totalEmissiveRadiance += diffuseColor.rgb * heroPool(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz), normal);`);
-        }
+        // on the low tier, the screens' and the plaza's light comes with the street lights' (neon.js pooled: the area lights'
+        // stand-in, on the ground and the walls), except in the rooms behind the windows and on the windows themselves
+        if (/^(win|room|refl)/.test(name)) sh.oePool = false;
         // a room (room*: a hall inside a building) is lit by its own lamps by day too, and takes a share of the sky's
         // light through its windows, not all of it as a street does. Its lamps are no brighter at night: the eye is,
         // and the exposure with it, so the baked light's share falls as night comes or the room burns out
@@ -218,15 +207,18 @@ vec3 heroPool(vec3 wp, vec3 nv) {
         root.visible = false;
         group.add(root);
         L.root = root;
-        const ready = Promise.all(shrunk.map(t => shrink(t, halving, L.h.low_k || 0.5)))
-          .then(() => (window.OETex && OETex.stats.on ? OETex.packObject(root) : null))
-          .then(() => L.root === root && opts.warm ? opts.warm(root) : null)
+        // (each step's time kept, for the console and telemetry's level event: game.js holdForLevel)
+        const at = { fetch: Math.round(performance.now() - t0) }, step = k => v => { at[k] = Math.round(performance.now() - t0); return v; };
+        L.steps = at;
+        const ready = Promise.all(shrunk.map(t => shrink(t, halving, L.h.low_k || 0.5))).then(step('shrink'))
+          .then(() => (window.OETex && OETex.stats.on ? OETex.packObject(root) : null)).then(step('pack'))
+          .then(() => L.root === root && opts.warm ? opts.warm(root) : null).then(step('warm'))
           // (and its vertex buffers sent in slices: on its first draw they went in one, 0.7 s of the tap on Play)
-          .then(() => L.root === root && opts.upload ? opts.upload(root) : null);
+          .then(() => L.root === root && opts.upload ? opts.upload(root) : null).then(step('upload'));
         Promise.resolve(ready).catch(e => console.warn('hero warm-up:', e)).then(() => {
           if (L.root !== root) return;
           L.state = 'ready';
-          console.info(`hero ${L.h.id}: ${L.mats.length} materials, ready in ${Math.round(performance.now() - t0)} ms`);
+          console.info(`hero ${L.h.id}: ${L.mats.length} materials, ready in ${Math.round(performance.now() - t0)} ms (${Object.entries(at).map(([k, v]) => `${k} ${v}`).join(', ')})`);
         });
       }, undefined, e => { console.warn(`hero ${L.h.id} unavailable:`, e); L.state = 'failed'; });
     }
