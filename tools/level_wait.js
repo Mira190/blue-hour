@@ -10,12 +10,13 @@
 // DELAY=s holds the level's file back that long (the default 12: a phone's wait, on any machine; 0 leaves it as it comes;
 // more than the level takes tests the bound: the veil lifts at 6 s without it). BOUND=s gives the page a bound of its own
 // (?levelwait=s), longer than a software renderer takes to make the level ready, to see the veil lift once it is drawn.
+// LOG=1 prints the page's compiles and warm-ups as they finish, with the time since the page was opened.
 // CRANE=1: no opening (?overture=0, as reduced motion and a story continued have): the crane down from the title waits.
 // A width under 600 is a phone (low tier, an iPhone's memory path).
 const { chromium } = require('playwright');
 const fs = require('fs');
 const [,, out = 'level_wait', size = '390x844'] = process.argv;
-const DELAY = +(process.env.DELAY ?? 12), BOUND = +(process.env.BOUND || 6), CRANE = !!process.env.CRANE;
+const DELAY = +(process.env.DELAY ?? 12), BOUND = +(process.env.BOUND || 6), CRANE = !!process.env.CRANE, LOG = !!process.env.LOG;
 (async () => {
   const [w, h] = size.split('x').map(Number), phone = w < 600;
   fs.mkdirSync(out, { recursive: true });
@@ -29,21 +30,22 @@ const DELAY = +(process.env.DELAY ?? 12), BOUND = +(process.env.BOUND || 6), CRA
   const errors = [];
   p.on('pageerror', e => errors.push(String(e).slice(0, 300)));
   let waited = null;
-  p.on('console', m => { const t = m.text(), w = t.match(/the way in waited ([\d.]+) s/); if (w) waited = +w[1]; if (/the way in waited|hero scramble/.test(t)) console.log(`  page: ${t}`); });
+  const T0 = Date.now();
+  p.on('console', m => { const t = m.text(), w = t.match(/the way in waited ([\d.]+) s/); if (w) waited = +w[1]; if (/the way in waited|hero scramble/.test(t) || (LOG && /compile|warm|hero|overture/i.test(t))) console.log(`  page ${((Date.now() - T0) / 1000).toFixed(1)} s: ${t.slice(0, 200)}`); });
   // the level's file held back DELAY seconds from the moment it is asked for
   let asked = null;
   if (DELAY > 0) await p.route(/hero\/scramble\.glb$/, async r => { asked = Date.now(); await new Promise(k => setTimeout(k, DELAY * 1000)); await r.continue(); });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?${[process.env.BOUND ? `levelwait=${BOUND}` : '', CRANE ? 'overture=0' : ''].filter(Boolean).join('&')}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   const level = () => p.evaluate(() => { const s = window.__game.hero(); return s ? s.state()[0] : null; });
-  console.log(`title up; the level: ${JSON.stringify(await level())}${asked ? `, asked for ${((Date.now() - asked) / 1000).toFixed(1)} s ago` : ''}`);
+  console.log(`${((Date.now() - T0) / 1000).toFixed(1)} s: title up; the level: ${JSON.stringify(await level())}${asked ? `, asked for ${((Date.now() - asked) / 1000).toFixed(1)} s ago` : ''}`);
   await p.evaluate(() => document.getElementById('gt-play').click());
   // the opening's skip, as soon as it is taken (a story's: 1.5 s in, Space)
   if (!CRANE) await p.waitForFunction(() => { const o = window.__game.overture(); return o && o.active && o.t > 1.8; }, null, { timeout: 300000, polling: 100 });
   const pre = await level();
   if (!CRANE) await p.keyboard.press('Space');
   const t0 = Date.now();
-  console.log(`${CRANE ? 'played' : 'skipped'}; the level then: ${pre.state}`);
+  console.log(`${((Date.now() - T0) / 1000).toFixed(1)} s: ${CRANE ? 'played' : 'skipped'}; the level then: ${pre.state}`);
   const rows = [];
   let veilShot = false, afterShot = false, veilSeen = false, veilGoneAt = null;
   const shoot = async name => { try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 60000 }); } catch (e) { console.log(`(no still ${name})`); } };
