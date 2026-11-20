@@ -151,6 +151,7 @@ window.OEWalk = (function () {
     // each frame: the clock's minute, the area's name, the sky's word; the keys' line goes once you have walked a little
     function tick(dt, at, force = false) {
       if (!walking) return;
+      if (toldT > 0 && (toldT -= dt) <= 0) told.classList.remove('on');
       const c = ctx.clock(), w = ctx.where(), sky = SKY_WORD[ctx.sky()] || '';
       const where = `${w.name} ${w.native || ''}`.trim(), t = ctx.fmt(c.min), em = `${c.d} ${MONTHS[c.m - 1]}${sky ? ` · ${sky}` : ''}`;
       if (force || where !== shown.where) { hud.querySelector('small').textContent = where; if (!force) { hud.classList.remove('new'); void hud.offsetWidth; hud.classList.add('new'); } }
@@ -182,11 +183,11 @@ window.OEWalk = (function () {
     const told = document.createElement('div');
     told.id = 'g-walk-told'; told.setAttribute('role', 'status');
     ctx.stage.append(told);
-    let toldT = 0;
+    let toldT = 0; // (the seconds its name has left over the street: the walk's own frames count them, tick)
     function tell(title, n, of) {
       told.innerHTML = `<small>A story of the walk · ${n} of ${of}</small><b>${esc(title)}</b>`;
       told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
-      clearTimeout(toldT); toldT = setTimeout(() => told.classList.remove('on'), 5200);
+      toldT = 5.2;
     }
     // what was asked done: the corner's line says so with a turn of its amber
     function flash() { const e = hud.querySelector('.q'); e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
