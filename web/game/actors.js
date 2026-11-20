@@ -1102,6 +1102,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // walker L, just put out on a footway, may lead a group: one to three others taken from where nobody sees them (or
     // from those not yet out), put beside or behind it at their places
+    function grouped() { // the share of those out on the footways walking in a group
+      let n = 0, m = 0;
+      for (let i = 0; i < api.active; i++) { const q = P[i]; if (q.line < 0) continue; n++; if (q.lead >= 0 || q.mates) m++; }
+      return n ? m / n : 0;
+    }
     function formGroup(L, unseen) {
       if (L.line < 0 || L.pz || L.state !== 'walk' || rnd() >= GROUP) return;
       const l = net.L[L.line], hw = Math.max(1, (FOOTW[l.c] || 3) / 2), r = rnd(), want = r < 0.7 ? 1 : r < 0.92 ? 2 : 3;
@@ -1538,7 +1543,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // groups part (a leader turns off, a mate falls behind) and were only made where someone comes out, so over a few
       // minutes their share sank from half to a quarter: now and then someone walking alone is joined, out of sight, by
       // people who were walking alone out of sight (formGroup puts none of them where the camera sees)
-      if (frame % 20 === 7 && api.active > 8) for (let k = 0; k < 2; k++) {
+      if (frame % 20 === 7 && api.active > 8 && grouped() < 0.5) for (let k = 0; k < 2; k++) { // (to about half, as counted on a weekday street)
         const L = P[Math.floor(rnd() * api.active)];
         if (L.lead < 0 && !L.mates && !L.seat && !L.stop && L.line >= 0) formGroup(L, true);
       }
