@@ -577,23 +577,30 @@ red Japanese Akitas: a head from the front, [Akita Tête](https://commons.wikime
 and one at three-quarters, [Japaneseakita-red](https://commons.wikimedia.org/wiki/File:Japaneseakita-red.jpg)
 (both Canarian, CC BY-SA 4.0). They are looked at, not shipped: `tools/head_shot.js` films the model from the
 angles they were taken from, with a long lens, and with `REFS=` a folder holding them as `front.jpg`,
-`profile.jpg` and `three.jpg` sets each still beside its photograph.
+`profile.jpg` and `three.jpg` sets each still beside its photograph (`HIDE=` leaves meshes out, to tell what a
+mark in a still is made of).
 
 *What changed* (`blender/build_dog.py`). The forehead is flat across and falls gently forward, with a 2 mm furrow
-from the stop to the crown; between the eyes the brows now stand 2 to 4 mm above the middle (`portrait_head`, the
-roof in `face`). The skull's front, the cheeks and the brows are drawn back, so that the eyes sit at the stop and
-the muzzle runs forward of them, straight-bridged, 37 percent of the head's length; the stop moved 1.3 cm forward with
-them and the profile check in `portrait_head` with it. The eyes are almond to three-cornered, the lower lid nearly
-straight up to a raised outer corner, set some 2.5 mm back under a slightly overhanging upper lid, a third of the
-head's width apart as in the photograph from the front (`orbit`, `sculpt_features`). The upper lips sit back under
-the nose, so that from the side the nose stands in front of the muzzle and the lips fall back under it, and the
-seam of the lips falls a little all the way back to the corner of the mouth below the eye (`MOUTH`), black its whole
-length: it had turned up at its ends into a smile. The ears are a third longer, lean forward over the eyes and
-splay out, so that from the front they carry on the lines of the cheeks (`EAR`, `ear_frame`). The cheeks are fuller,
-the head widest below the eyes. The coat's markings follow the photographs: the red comes down the forehead to a
-point between the eyes and wraps the outer corner of each eye and the temple; the whole muzzle is white, its bridge
-too; the cheeks are white below a line from under the eye back to the angle of the jaw, and above it the side of the
-head is red out to the ear; a pale patch sits over each eye; the throat is white and the sides of the neck red. The
-red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the exporter of
-Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they had come out
-white.
+from the stop to the crown; between the eyes the brows stand 2 to 4 mm above the middle (`portrait_head`, the roof
+in `face`). The skull's front and the cheeks are drawn back so that the eyes sit at the stop, and the brows sit over
+the eyes rather than out past their corners (there they overhung the temple, and the skin beneath, facing down,
+showed from a few metres as a black streak running back from each eye). The muzzle is sculpted short and drawn out
+forward of the eyes by 1.45 (`sculpted()`, `built()`: the markings, the lips, the eyes' frame, the whiskers and where
+the coat stops all go through it): from the eye to the nose it is now about the height of the ear above the eye, as
+in the photograph in profile (it was 0.86 of it, and half the depth of the head at the eye), the muzzle 44 percent
+of the head's length against the standard's 40, and the lower jaw is shallower and rises to the chin. The eyes are
+almond to three-cornered, the lower lid nearly straight up to a raised outer corner, set some 2.5 mm back under a
+slightly overhanging upper lid, a third of the head's width apart; the sculpt presses them in along each vertex's
+own normal, with a thin black rim (it had been a quarter of the eye wide and read as black fur), in a ring of pale
+fur, and on a wet material of their own (roughness 0.1) that holds a point of the sky (`orbit`, `sculpt_features`,
+the material "Eyes"). The upper lips sit back under the nose, so that from the side the nose stands in front of
+the muzzle, and the seam of the lips falls a little all the way back to the corner of the mouth (`MOUTH`), black its
+whole length: it had turned up at its ends into a smile. The ears are longer, lean forward over the eyes and splay
+out, so that from the front they carry on the lines of the cheeks (`EAR`, `ear_frame`). The cheeks are fuller, the
+head widest below the eyes. The coat's markings follow the photographs: the red comes down the forehead to a point
+between the eyes and wraps the outer corner of each eye and the temple; the whole muzzle is white, its bridge too;
+the cheeks are white below a line from under the eye back to the angle of the jaw, and above it the side of the
+head is red out to the ear; a pale patch sits over the inner half of each eye; the throat is white and the sides of
+the neck red. The red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the
+exporter of Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they
+had come out white.

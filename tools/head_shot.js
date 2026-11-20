@@ -2,7 +2,8 @@
 // (front, profile, three-quarter), under a soft daylight, each still the size of the head in its photograph.
 //   xvfb-run -a node tools/head_shot.js [model.glb] out.png      (stills in out.png.d/, the sheet in out.png)
 // The photographs are not in the repository (docs/HERO.md names them and their licences); with REFS=dir holding
-// front.jpg, profile.jpg and three.jpg, each still is set beside its photograph.
+// front.jpg, profile.jpg and three.jpg, each still is set beside its photograph. HIDE=name,name leaves out the meshes so
+// named ("Outer coat": the skin under the guard hairs), to tell what a mark in a still is made of.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const [,, model = 'assets/animals/akita.glb', out = '/tmp/head_shot.png'] = process.argv;
@@ -20,7 +21,9 @@ Object.assign(sun.shadow.camera, { left: -1.5, right: 1.5, top: 1.5, bottom: -1.
 scene.add(sun, new THREE.HemisphereLight(0xd6dde6, 0x5d6a4a, 1.6));
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ color: 0x6f8a52, roughness: 0.95 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 const g = await new Promise((res, rej) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(${JSON.stringify(model)}, res, null, rej));
+const HIDE = ${JSON.stringify((process.env.HIDE || '').split(',').filter(Boolean))};
 g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false;
+  if (HIDE.some(h => o.name === h || (o.parent && o.parent.name === h))) o.visible = false;
   // (as web/game/companion.js lights him)
   o.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\\n\\ttotalEmissiveRadiance += diffuseColor.rgb * 0.3;'); }; } });
 scene.add(g.scene);
@@ -31,7 +34,7 @@ const head = new THREE.Vector3(); g.scene.traverse(o => { if (o.isBone && o.name
 const cam = new THREE.PerspectiveCamera(14, 1, 0.05, 50);
 // (a photographer a few metres off with a long lens: little perspective, as in the photographs)
 const at = new THREE.Vector3(head.x + 0.07, head.y - 0.01, 0);
-const VIEWS = { front: [1, 0.06, 0], profile: [0, 0.03, -1], three: [0.75, 0.22, -0.62] };
+const VIEWS = { front: [1, 0.06, 0], profile: [0, 0.03, -1], three: [0.75, 0.22, -0.62], high: [0.79, 0.15, 0.61] };   // (high: tools/model_shot.js's front view)
 window.views = Object.keys(VIEWS);
 window.shot = v => {
   const d = new THREE.Vector3(...VIEWS[v]).normalize();

@@ -56,7 +56,7 @@ def ear_frame(x, y, z):
     return depth, width / 1.15, height
 
 
-EAR = 0.095   # the ear's length in its frame: in photographs of the breed it stands above the crown about as far
+EAR = 0.090   # the ear's length in its frame: in photographs of the breed it stands above the crown about as far
               # as the crown stands above the eyes (it was 0.073, half that)
 
 
@@ -70,8 +70,27 @@ def upright_ears(x, y, z):
 # The lips' seam, from under the nose back to the corner of the mouth below the eye (the head's frame, one side).
 # It falls a little all the way back, as a closed mouth does under the flews: from the front the line turns down
 # at its ends, never up into a smile.
-MOUTH = [(0.161, 0, -0.055), (0.157, 0.023, -0.059), (0.143, 0.042, -0.063), (0.123, 0.052, -0.067), (0.100, 0.054, -0.070)]
+MOUTH = [(0.161, 0, -0.055), (0.157, 0.023, -0.059), (0.143, 0.042, -0.065), (0.123, 0.052, -0.071), (0.100, 0.054, -0.076)]
 MOUTH_R = [0.005, 0.006, 0.005, 0.004, 0.002]
+
+# The muzzle is sculpted short and drawn out forward of the eyes: beside photographs of the breed in profile it
+# was too short for the depth of the head (from the eye to the nose, 0.7 of the head's depth at the eye in the
+# photographs; it was half that). Every place that is set on the muzzle in the head's
+# frame (the markings, the lips, the eyes' frame, the whiskers, where the coat stops) goes through sculpted().
+MUZZLE_FROM, MUZZLE_DRAWN = 0.08, 1.45
+MUZZLE_TIP = 0.08 + (0.14 - 0.08) * 1.45   # (where the nose and lips begin, as built)
+
+
+def sculpted(hx):
+    """From the head's frame as built (x forward of HEAD_AT) to the frame the head is sculpted in."""
+    d, w = np.asarray(hx, dtype=float) - MUZZLE_FROM, 0.008
+    return MUZZLE_FROM + d - (1 - 1 / MUZZLE_DRAWN) * w * np.logaddexp(0, d / w)
+
+
+def built(hx):
+    """The inverse of sculpted(): where a point of the sculpt ends up."""
+    grid = np.linspace(-0.3, 0.4, 7001)
+    return np.interp(hx, sculpted(grid), grid)
 
 
 def orbit(v, lift=False):
@@ -80,6 +99,7 @@ def orbit(v, lift=False):
     breed's eyes are: the lower lid nearly straight up to a raised outer corner, the upper lid highest
     a third of the way out from the inner one."""
     x, y, z = (v - np.asarray(HEAD_AT)).T
+    x = sculpted(x)
     along = (abs(y) - 0.048) * 0.83 - (x - 0.085) * 0.56   # (the eye at the stop, looking 34 degrees out)
     height = z - 0.024 - 0.26 * along
     a = along / 0.0165
@@ -92,14 +112,14 @@ def portrait_head():
     pair = sk.mirror_v
     skull = sk.ellipsoid((-0.021, 0, 0.003), (0.105, 0.124, 0.097))
     cheeks = pair(sk.ellipsoid((-0.020, 0.081, -0.030), (0.095, 0.072, 0.082)))   # (the full cheeks: the head is widest below the eyes)
-    chin = sk.ellipsoid((0.043, 0, -0.070), (0.088, 0.089, 0.045))
-    brow = pair(sk.ellipsoid((0.071, 0.051, 0.037), (0.027, 0.034, 0.014)))
+    chin = sk.ellipsoid((0.036, 0, -0.068), (0.080, 0.087, 0.040))
+    brow = pair(sk.ellipsoid((0.066, 0.044, 0.042), (0.024, 0.026, 0.012)))   # (over the eye, not out past its corner: there it overhung the temple and shaded it dark)
     arch = pair(sk.capsule((-0.030, 0.113, -0.010), (0.040, 0.090, 0.002), 0.030, 0.020))
     dome = sk.smooth_union(0.022, skull, cheeks, arch, chin, brow)
     bridge = sk.capsule((0.072, 0, 0.012), (0.145, 0, 0.008), 0.039, 0.027)
     pads = pair(sk.ellipsoid((0.110, 0.027, -0.041), (0.052, 0.034, 0.032)))   # (the upper lips, behind the nose)
-    jawline = pair(sk.capsule((-0.010, 0.083, -0.052), (0.133, 0.028, -0.076), 0.041, 0.019))
-    jaw = sk.ellipsoid((0.100, 0, -0.076), (0.054, 0.046, 0.023))
+    jawline = pair(sk.capsule((-0.010, 0.083, -0.052), (0.140, 0.026, -0.067), 0.041, 0.015))
+    jaw = sk.capsule((0.060, 0, -0.082), (0.148, 0, -0.065), 0.024, 0.013)   # (the lower jaw, rising to the chin)
     mass = sk.smooth_union(0.017, dome, bridge, pads, jawline, jaw)
     def face(x, y, z):
         # The skull is flat and broad between the ears, falling gently forward, and a shallow furrow
@@ -121,7 +141,7 @@ def portrait_head():
     head = sk.smooth_union(0.016, sk.subtract(0.003, face, sk.union(nostrils, mouth)), upright_ears)
     for x, height in ((0.095, 0.042), (0.14, 0.036)):
         assert head(x, 0, height - 0.004) < 0 < head(x, 0, height + 0.004), "check the nasal bridge in profile"
-    return head
+    return lambda x, y, z: head(sculpted(x), y, z)
 
 
 def body():
@@ -162,7 +182,7 @@ def coat(v, n):
     """Each vertex's colour (linear RGB): red fawn, the urajiro, the black of the nose, the eyes and the lips."""
     s = lambda x, a, b: np.clip((x - a) / (b - a), 0.0, 1.0) ** 2 * (3 - 2 * np.clip((x - a) / (b - a), 0.0, 1.0))
     x, y, z = v[:, 0], v[:, 1], v[:, 2]
-    hx, hy, hz = x - HEAD_AT[0], y, z - HEAD_AT[2]
+    hx, hy, hz = sculpted(x - HEAD_AT[0]), y, z - HEAD_AT[2]
     on_head = s(x, 0.36, 0.42)
     on_tail = (x < -0.3) & (z > 0.56)
     white = np.maximum.reduce([
@@ -193,9 +213,12 @@ def coat(v, n):
     muzzle = np.maximum(muzzle, s(hx, 0.098, 0.112))   # (the red's point between the eyes, the bridge white in front of them)
     muzzle *= 1 - s(abs(hy), 0.044, 0.060)   # (round the inner corner and under the eye; the outer corner and the temple stay red)
     along, eye = orbit(v)
-    brow = on_head * np.exp(-((along + 0.006) / 0.023) ** 2 - ((hz - 0.046) / 0.012) ** 2) * s(hx, 0.045, 0.078)
-    cheek = on_head * s(hx, -0.07, -0.03) * (1 - s(hz - (0.019 + 0.3 * (hx - 0.085)), -0.010, 0.010))
-    pale = np.maximum.reduce([muzzle * on_head, 0.65 * brow, cheek])
+    brow = on_head * np.exp(-((along + 0.010) / 0.015) ** 2 - ((hz - 0.046) / 0.012) ** 2) * s(hx, 0.045, 0.078)
+    cheek = on_head * s(hx, -0.07, -0.03) * (1 - s(hz - (0.019 + 0.45 * (hx - 0.085)), -0.010, 0.010))
+    # pale fur round each eye, as the photographs show it: without it the red met the eye's upper lid and ran back
+    # from its corner, and at a few metres read as a black streak beside the eye
+    ring = on_head * (1 - s(eye, 1.3, 2.3))
+    pale = np.maximum.reduce([muzzle * on_head, 0.65 * brow, cheek, 0.8 * ring])
     c = c * (1 - pale[:, None]) + cream * pale[:, None]
     nose = s(hx, 0.149, 0.161) * (1 - s((hy / 0.029) ** 2 + ((hz + 0.004) / 0.022) ** 2, 0.84, 1.22))
     philtrum = (1 - s(abs(hy), 0.0018, 0.005)) * s(hz, -0.059, -0.049) * (1 - s(hz, -0.024, -0.016))
@@ -205,7 +228,7 @@ def coat(v, n):
     muzzle_shade = s(hx, 0.112, 0.148) * np.exp(-(hy / 0.044) ** 2 - ((hz + 0.047) / 0.022) ** 2)
     c *= (1 - 0.52 * muzzle_shade[:, None])
     k = np.maximum.reduce([nose, lips, philtrum * s(hx + 0.58 * abs(hy), 0.138, 0.155)])
-    lid = 1 - s(eye, 0.94, 1.26)
+    lid = 1 - s(eye, 0.97, 1.09)   # (a thin black rim, as the breed's are: wider, it read as black fur round the eye)
     k = np.maximum(k, lid)
     c = c * (1 - k[:, None]) + np.array([0.016, 0.011, 0.009]) * k[:, None]
     iris = (1 - s(eye, 0.70, 0.96)) * s(abs(along), 0.003, 0.008)
@@ -374,7 +397,7 @@ def sculpt_features(bpy, v, t):
     bm.from_mesh(me)
     bpy.data.meshes.remove(me)
     edges = [e for e in bm.edges if all(p.co.x > 0.525 and abs(p.co.y) < 0.085
-                                        and (0.82 < p.co.z < 0.89 or (p.co.x > 0.61 and 0.80 < p.co.z < 0.85)) for p in e.verts)]
+                                        and (0.82 < p.co.z < 0.89 or (p.co.x > HEAD_AT[0] + MUZZLE_TIP and 0.80 < p.co.z < 0.85)) for p in e.verts)]
     bmesh.ops.subdivide_edges(bm, edges=edges, cuts=3, use_grid_fill=True)
     bmesh.ops.triangulate(bm, faces=list(bm.faces))
     bm.verts.index_update()
@@ -385,10 +408,18 @@ def sculpt_features(bpy, v, t):
     # The eye sits a few millimetres back under its lids, and the upper lid overhangs it a little.
     # (It once stood level with them, round and staring.)
     hood = np.clip(height / 0.006 + 0.5, 0, 1)
-    depth = -0.007 * np.exp(-(r / 1.3) ** 4) + 0.0045 * np.maximum(0, 1 - r ** 2)
-    depth += (0.0025 + 0.0015 * hood * hood * (3 - 2 * hood)) * np.exp(-((r - 1.12) / 0.24) ** 2)
-    v[:, 0] += 0.88 * depth
-    v[:, 1] += np.sign(v[:, 1]) * 0.475 * depth
+    depth = -0.007 * np.exp(-(r / 1.15) ** 6) + 0.0045 * np.maximum(0, 1 - r ** 2)   # (the socket no wider than the lids: wider, it ran back from the outer corner as a groove that shaded dark)
+    depth += (0.0025 + 0.001 * hood * hood * (3 - 2 * hood)) * np.exp(-((r - 1.12) / 0.24) ** 2)
+    # along each vertex's own normal: pushed along one fixed direction, the skin at the eye's outer corner (which
+    # faces sideways now the eye sits at the stop) slid over itself, folded, and showed as a grey smear
+    fn = np.cross(v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]])
+    n = np.zeros_like(v)
+    for k in range(3):
+        np.add.at(n, t[:, k], fn)
+    n /= np.maximum(np.linalg.norm(n, axis=1)[:, None], 1e-12)
+    near = r < 2
+    assert n[near, 0].mean() > 0.3, "the eyes' normals should face forward"
+    v += n * depth[:, None]
     return v, t
 
 
@@ -400,7 +431,7 @@ def muzzle_whiskers(bpy, skin, rig):
     for side in (-1, 1):
         for row in range(3):
             for j in range(5):
-                x = 0.578 + j * 0.008 + row * 0.002
+                x = HEAD_AT[0] + float(built(0.108 + j * 0.008 + row * 0.002))
                 z = 0.789 + row * 0.006 + rng.uniform(-0.0015, 0.0015)
                 hit, root, _, _ = skin.ray_cast(Vector((x, side * 0.15, z)), Vector((0, -side, 0)))
                 assert hit, "whisker missed the muzzle"
@@ -442,7 +473,7 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     rng = np.random.default_rng(1923)
     _, eye = orbit(v)
     bare = eye < 1.6
-    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < 0.62) & (gloss < 0.01) & ~bare)
+    eligible = np.flatnonzero((v[:, 2] > 0.09) & (v[:, 0] < HEAD_AT[0] + float(built(0.15))) & (gloss < 0.01) & ~bare)
     roots = np.sort(rng.choice(eligible, min(10500, len(eligible)), replace=False))
     p, n = v[roots], normal[roots]
     x, y, z = p.T
@@ -453,7 +484,7 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     flow[plume, 0] = z[plume] - 0.735
     flow[plume, 2] = -x[plume] - 0.35
     flow[plume, 1] = 0.03
-    cheek = (x > 0.43) & (x < 0.58) & (z > 0.70) & (z < 0.86) & (abs(y) > 0.055)
+    cheek = (x > 0.43) & (x < HEAD_AT[0] + float(built(0.11))) & (z > 0.70) & (z < 0.86) & (abs(y) > 0.055)
     flow[cheek, 1] = 1.1 * np.sign(y[cheek])
     flow[cheek, 2] = -0.72
     flow -= np.sum(flow * n, axis=1)[:, None] * n
@@ -626,9 +657,13 @@ def main():
     bsdf.inputs["Metallic"].default_value = 0.0
     me.materials.append(mat)
     wet = mat.copy()
-    wet.name = "Eyes and nose"
+    wet.name = "Nose"
     wet.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.39
     me.materials.append(wet)
+    cornea = mat.copy()   # (an eye is wet glass over the iris: it holds a point of the sky, which says it is an eye)
+    cornea.name = "Eyes"
+    cornea.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.1
+    me.materials.append(cornea)
 
     arm = bpy.data.armatures.new("AkitaRig")
     rig = bpy.data.objects.new("AkitaRig", arm)
@@ -678,7 +713,9 @@ def main():
     locks = guard_coat(bpy, ob, rig, v, vn, col, gloss)
     whiskers = muzzle_whiskers(bpy, ob, rig)
     undercoat(me, mat, v, t, fn)
-    me.polygons.foreach_set("material_index", (gloss[t].mean(axis=1) > 0.45).astype(np.int32))
+    _, eye = orbit(v)
+    on_eye = (eye[t] < 0.95).all(axis=1)
+    me.polygons.foreach_set("material_index", np.where(on_eye, 2, gloss[t].mean(axis=1) > 0.45).astype(np.int32))
     me.color_attributes["Color"].data.foreach_set("color", np.c_[col[t.ravel()], np.ones(t.size)].ravel())
 
     # the clips
