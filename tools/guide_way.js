@@ -162,11 +162,20 @@ const LEADS = [
       };
       // (each mesh's box in the scene once, and a ray tried only on those over him: the whole world's meshes, every quarter
       // second, held the page for seconds a time)
-      const meshes = []; (g.world || g.scene).traverse(m => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.geometry.attributes.position) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.updateMatrixWorld(); meshes.push({ m, b: m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld) }); } });
+      // (and listed again when a hero level comes or goes on the way: a level fetched as the dog nears it, SKY's hall and its
+      // forecourt on the way from Hachiko, was not in a list made at the start, and what he stood on read as the game's ground)
+      let meshes = [], heroSeen = '';
+      const listMeshes = () => { meshes = []; (g.world || g.scene).traverse(m => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.geometry.attributes.position) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.updateMatrixWorld(); meshes.push({ m, b: m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld) }); } }); };
+      const heroKey = () => (g.hero && g.hero() ? g.hero().state().map(q => q.id + q.state + q.shown).join() : '');
+      listMeshes(); heroSeen = heroKey();
       const surface = (x, y, z) => {
+        { const k = heroKey(); if (k !== heroSeen) { heroSeen = k; listMeshes(); } }
         o.set(x, z + 0.9, -y); ray.set(o, down); ray.far = 4;
         const over = meshes.filter(q => x >= q.b.min.x && x <= q.b.max.x && -y >= q.b.min.z && -y <= q.b.max.z && q.b.min.y <= z + 0.9 && q.b.max.y >= z - 3.1).map(q => q.m);
-        const hits = ray.intersectObjects(over, false).filter(h => solidMesh(h.object));
+        // (and the hero levels' own meshes as they are now, whatever came or went since the list: they are small)
+        const H = g.hero && g.hero(), hm = [];
+        if (H && H.group) H.group.traverse(m => { if (m.isMesh && !over.includes(m)) hm.push(m); });
+        const hits = ray.intersectObjects(over.concat(hm), false).filter(h => solidMesh(h.object)).sort((a, b) => a.distance - b.distance);
         return hits.length ? hits[0].point.y : null; // (the scene's y is the map's height: game.js W)
       };
       const arrows = await signs();
