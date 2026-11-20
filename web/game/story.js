@@ -77,7 +77,10 @@ window.OEStory = (function () {
       let left = null;
       try { left = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
       const going = left && left.fi > 0 && left.fi < (ep0.frames || []).length;
-      if (q('#gt-play')) q('#gt-play').innerHTML = `<span>${going ? `Continue · frame ${left.fi + 1} of ${N}` : `${ep0.no ? `Episode ${esc(ep0.no)} · ` : ''}${esc(ep0.title || 'Begin')}`}</span><kbd>↵</kbd>`;
+      // (a row of the title's list, as the walk's is: its name, a word on it, the Enter key; story.css "the title's ways in")
+      const epName = `${ep0.no ? `Episode ${esc(ep0.no)} · ` : ''}${esc(ep0.title || 'Begin')}`;
+      if (q('#gt-play')) q('#gt-play').innerHTML = going ? `<span>Continue · frame ${left.fi + 1} of ${N}</span><small>${epName}</small><kbd>↵</kbd>`
+        : `<span>${epName}</span><small>The story · ${N} frames, one evening</small><kbd>↵</kbd>`;
       // (a case closed in this browser, and none going: any of its frames can be gone back into, from here too)
       const shut = !going && (() => { try { const c = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? c : null; } catch (e) { return null; } })();
       if (shut && q('#gt-play') && !q('#gt-back')) {
@@ -87,7 +90,7 @@ window.OEStory = (function () {
         q('#gt-play').parentNode.after(n);
       }
       if (going && q('#gt-play') && !q('#gt-anew')) {
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'gt-anew'; b.textContent = 'Start the evening again';
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.id = 'gt-anew'; b.innerHTML = `<span>Start the evening again</span><small>${epName} · from its first frame</small><kbd>↵</kbd>`;
         b.addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } q('#gt-play').click(); }); // (who you play chosen first)
         q('#gt-play').after(b);
       }

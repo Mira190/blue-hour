@@ -1,5 +1,5 @@
-// The walk: the story's map with no story in it (docs/STORY.md "The walk"). On the title, beside the episode's
-// button, a second way in: Kagami, whoever you chose, out on the same streets at an hour and under a sky you pick,
+// The walk: the story's map with no story in it (docs/STORY.md "The walk"). On the title, over the episode's
+// button, a way in of its own: Kagami, whoever you chose, out on the same streets at an hour and under a sky you pick,
 // for as long as you like. Nothing stops, nobody asks for a photograph, nothing is owed: the city is all there is.
 //
 // It is the story's own interface, not a second game's: the title's card and type, the goal's corner for where and
@@ -30,12 +30,15 @@ window.OEWalk = (function () {
     try { const k = JSON.parse(localStorage.getItem(KEEP) || 'null'); if (k && HOURS.some(h => h[0] === k.t) && SKIES.some(s => s[0] === k.w)) spec = { t: k.t, w: k.w }; } catch (e) { /* storage blocked */ }
     let isOpen = false, walking = false;
 
-    // ---- on the title: the second way in, and the step that asks the hour and the sky
+    // ---- on the title: the first way in, and the step that asks the hour and the sky. First, and the one Enter and a
+    // pad's A take, while the episodes are being finished (the owner's word, November 2026): the episode's button
+    // comes under it and gives up its amber. Each way in is one row of the title's list, the same as the others: its
+    // name, a word on it, and the Enter key (story.css "the title's ways in")
     const go = document.createElement('button');
-    go.type = 'button'; go.className = 'btn'; go.id = 'gt-walk-go';
-    go.innerHTML = '<span>Walk Shibuya</span><small>No story · your hour</small>';
+    go.type = 'button'; go.className = 'btn primary'; go.id = 'gt-walk-go';
+    go.innerHTML = '<span>Walk Shibuya</span><small>No story · any hour, any sky</small><kbd>↵</kbd>';
     const row = q('.gt-go');
-    if (row) row.appendChild(go);
+    if (row) { row.prepend(go); const play = row.querySelector('#gt-play'); if (play) play.classList.remove('primary'); }
     const step = document.createElement('div');
     step.className = 'gt-walk'; step.id = 'gt-walk'; step.hidden = true;
     step.setAttribute('role', 'group'); step.setAttribute('aria-labelledby', 'gt-walk-l');

@@ -59,6 +59,12 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
     await p.waitForFunction(() => { try { return localStorage.getItem('oe3d-player') === 'M'; } catch (e) { return false; } }, null, { timeout: 120000 }).catch(() => fail('the pad did not choose the second portrait'));
     await snap('0-title-chosen');
   }
+  // (the walk leads the title's list while the episodes are being finished, and A takes it: down moves the hand from it,
+  // whether it is on it or on none, to the episode)
+  if (await p.evaluate(() => !!document.getElementById('gt-walk-go'))) {
+    await press('DOWN'); await p.waitForTimeout(200);
+    if (!(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-play'))) fail(`down on the title did not move the hand from the walk to the episode (${await p.evaluate(() => (document.activeElement || {}).id)})`);
+  }
   await press('A');
   if (!(await p.waitForFunction(() => document.getElementById('g-title').hidden, null, { timeout: 30000 }).catch(() => null))) fail('A did not start from the title');
   // the order in the hand: A puts it away

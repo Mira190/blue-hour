@@ -50,18 +50,21 @@ window.OEPad = (function () {
     const human = e => { if (e.isTrusted) mode(false); };
     addEventListener('keydown', human, true); addEventListener('mousemove', e => { if (e.isTrusted && (Math.abs(e.movementX) + Math.abs(e.movementY) > 3)) mode(false); }, true);
     addEventListener('pointerdown', e => { if (e.isTrusted && e.pointerType !== 'mouse') mode(false); }, true);
-    // focus moves through the buttons of what is open; A presses the one it is on
-    function cycle(list, dir) {
+    // focus moves through the buttons of what is open; A presses the one it is on. With the hand on none, A presses the
+    // card's first way (lead, below), so the d-pad moves on from that one: down from the title's first way in is the second
+    function cycle(list, dir, from) {
       if (!list.length) return;
-      const i = list.indexOf(document.activeElement), n = i < 0 ? (dir > 0 ? 0 : list.length - 1) : (i + dir + list.length) % list.length;
+      let i = list.indexOf(document.activeElement); if (i < 0 && from) i = list.indexOf(from);
+      const n = i < 0 ? (dir > 0 ? 0 : list.length - 1) : (i + dir + list.length) % list.length;
       list[n].focus({ preventScroll: false }); if (list[n].scrollIntoView) list[n].scrollIntoView({ block: 'nearest' });
     }
     const usable = root => [...root.querySelectorAll('button, a[href]')].filter(b => b.offsetParent && !b.disabled);
+    const lead = root => [...root.querySelectorAll('button.go, .btn.primary')].find(x => x.offsetParent && !x.disabled);
     function press(b) {
       const choices = ctx.dialogue ? ctx.dialogue() : null, open = ctx.open ? ctx.open() : null;
       if (b === 'UP' || b === 'DOWN' || b === 'LEFT' || b === 'RIGHT') {
         const dir = b === 'DOWN' || b === 'RIGHT' ? 1 : -1;
-        if (open) return cycle(usable(open), dir);
+        if (open) return cycle(usable(open), dir, lead(open));
         if (choices && choices.length) return cycle(choices, dir);
         if (b === 'UP') return key('KeyH', 'h'); // (nothing open: up on the d-pad asks for a hint, where a place is to be found)
         return;
@@ -69,7 +72,7 @@ window.OEPad = (function () {
       if (b === 'A') {
         const f = document.activeElement;
         if (open && open.hasAttribute('data-choose')) { const r = usable(open).filter(x => x.getAttribute('role') === 'radio'); return r.includes(f) ? f.click() : cycle(r, 1); } // (a card that asks for a choice first, the title's who you play: A presses only an answer, and the first press puts the hand on the first)
-        if (open) { const l = usable(open); if (l.includes(f)) return f.click(); return ([...open.querySelectorAll('button.go, .btn.primary')].find(x => x.offsetParent && !x.disabled) || l[0] || { click() {} }).click(); } // (a card that asks for a choice first, the title's who you play: the first press puts the hand on its first answer)
+        if (open) { const l = usable(open); if (l.includes(f)) return f.click(); return (lead(open) || l[0] || { click() {} }).click(); } // (a card that asks for a choice first, the title's who you play: the first press puts the hand on its first answer)
         if (choices && choices.length) { if (choices.includes(f)) return f.click(); return cycle(choices, 1); } // (the first press on a question puts the hand on its first answer)
         return key('KeyE', 'e');
       }

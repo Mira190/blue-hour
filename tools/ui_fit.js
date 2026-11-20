@@ -142,7 +142,7 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
   let fails = 0, checked = 0;
   const TITLES = process.env.TITLE === '0' ? [] : [
     ['title-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }],
-    ['title-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', JSON.stringify('M')); }],
+    ['title-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', 'M'); }],
     ['title-going', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }],
     ['title-closed', () => { localStorage.removeItem('oe-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('oe-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }],
   ];

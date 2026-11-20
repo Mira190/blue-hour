@@ -3718,7 +3718,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     whoGate: () => whoGate(), // (every way on from the title waits for who you play: game.js whoGate)
     key: k => (gamepad ? gamepad.label(k) : k), padOn: () => !!(gamepad && gamepad.on), // (the prompts name the pad's buttons while it is in the hand: pad.js)
   }) : null;
-  // the walk (walk.js): the story's map with no story in it, the title's second way in. walk: the hour and the sky set
+  // the walk (walk.js): the story's map with no story in it, the title's first way in. walk: the hour and the sky set
   // out in ({ t, w }), null on the title and in the story; walkUi: its title step and its corner of the screen
   let walk = null, walkUi = null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
@@ -4110,9 +4110,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (Enter is the title's own: the button's native press came after a choice had moved the hand to the button, and one
       // Enter chose who you play and began)
       if (walkUi && walkUi.titleKey(c)) { e.preventDefault(); return; } // (the walk's step, while it is up: its own keys, walk.js)
-      const f = document.activeElement, onBtn = f && f.tagName === 'BUTTON' && f.id !== 'gt-play' && f.closest('#g-title');
-      if (c === 'Enter') { e.preventDefault(); if (onBtn) f.click(); else if (whoNeeded()) whoAsk(); else $('#gt-play').click(); }
+      // (Enter presses the button the hand is on, else the list's first way in; the episode's own press, a script's, would
+      // not ask who you play, so it asks here first. Up and down move the hand along the list, from the first way in)
+      const f = document.activeElement, onBtn = f && f.tagName === 'BUTTON' && f.closest('#g-title') ? f : null, go = onBtn || titleLead();
+      if (c === 'Enter') { e.preventDefault(); if (go.id === 'gt-play' && whoNeeded()) whoAsk(); else go.click(); }
       else if ((c === 'ArrowLeft' || c === 'ArrowRight') && whoEl && !whoEl.hidden) whoPick(c === 'ArrowLeft' ? 'W' : 'M');
+      else if (c === 'ArrowUp' || c === 'ArrowDown') {
+        const list = $$('#g-title .gt-go > .btn').filter(b => b.offsetParent), i = list.indexOf(onBtn) >= 0 ? list.indexOf(onBtn) : Math.max(0, list.indexOf(titleLead()));
+        const to = list[Math.min(list.length - 1, Math.max(0, i + (c === 'ArrowDown' ? 1 : -1)))]; if (to) to.focus({ preventScroll: true });
+      }
       return;
     }
     if (photo.on) { // photo mode: move with WASD (read in photoCamera), Enter saves, Esc or O leaves
@@ -5854,6 +5860,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const whoKept = () => { try { return localStorage.getItem(PLAYER_KEY); } catch (e) { return null; } };
   const whoChosen = () => { try { return !!PLAYER_LOOKS[localStorage.getItem(PLAYER_KEY)]; } catch (e) { return true; } };
   const whoNeeded = () => !!whoEl && !whoEl.hidden && !whoChosen();
+  // (the title's first way in, the one Enter and a pad's A take: the walk's while the episodes are being finished, walk.js)
+  const titleLead = () => [...document.querySelectorAll('#g-title .gt-go > .btn.primary')].find(b => b.offsetParent) || $('#gt-play');
   function whoSync() {
     if (!whoEl) return;
     const chosen = whoChosen();
@@ -5861,7 +5869,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     $$('#gt-who [data-c]').forEach(b => b.setAttribute('aria-checked', String(chosen && b.dataset.c === k)));
     $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(chosen && x.dataset.c === k)));
     whoEl.classList.toggle('open', !chosen);
-    $('#gt-play').toggleAttribute('aria-disabled', !chosen && !whoEl.hidden); // (said to a screen reader; it is still pressed, to be told why)
+    $$('#g-title .gt-go > .btn').forEach(b => b.toggleAttribute('aria-disabled', !chosen && !whoEl.hidden)); // (said to a screen reader; each is still pressed, to be told why)
     if (!chosen && !whoEl.hidden && !whoEl.classList.contains('ask')) whoEl.querySelector('.gt-who-ask').textContent = 'Choose one to begin.';
     $('#g-title').toggleAttribute('data-choose', !chosen && !whoEl.hidden); // (pad.js: A puts the hand on a portrait first)
     if (chosen) whoEl.querySelector('.gt-who-ask').textContent = '';
@@ -5879,7 +5887,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const first = !whoChosen();
     const done = setPlayerCharacter(c); // (kept at once; the model swapped in when it has come)
     whoSync();
-    if (first) $('#gt-play').focus({ preventScroll: true }); // (chosen: the next press begins)
+    if (first) titleLead().focus({ preventScroll: true }); // (chosen: the next press goes in, by the first way)
     await done; whoSync();
   }
   if (whoEl) {
@@ -6129,7 +6137,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return OEOnboard.tour(tourSteps(), { root: document.body, onEnd: () => { moreTray(was, false); OEOnboard.markDone(CITY.id); if (then) then(); } });
   }
   on($('#gt-play'), 'click', e => { if (e.isTrusted && whoNeeded()) { whoAsk(); return; } startGame(false); }); // (a player's own press, the first time: who they play is asked first)
-  // ---- the walk (walk.js, docs/STORY.md "The walk"): the title's second way in. The same Kagami on the same streets,
+  // ---- the walk (walk.js, docs/STORY.md "The walk"): the title's first way in. The same Kagami on the same streets,
   // at the hour and under the sky the player picks, with nothing of the story in it and nothing owed. Set out from this
   // page as it stands: the street on the title is the street walked, nothing loaded again
   const EP0 = G.story && G.story.episodes ? G.story.episodes[0] || {} : {};
@@ -6192,6 +6200,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
           : { mode: player.mode }) });
+    whoSync(); // (the walk's way in waits for who you play, as the episode's does)
     // the menu's Bring your car: to the kerb nearest you, as a free ride's own car is called (and the menu put away to see it)
     { const gc = $('#gm-car'); if (gc) on(gc, 'click', () => { toggleMenu(); bringCar(); }); }
     // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
