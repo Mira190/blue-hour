@@ -54,8 +54,10 @@ window.OETrees = (function () {
     const get = f => new Promise((res, rej) => new THREE.GLTFLoader().load(base + f, res, null, rej));
     const parts = info.parts && info.parts.far && info.parts.near ? info.parts : null;
     const gltf = await get(parts ? parts.far : info.file);
-    let nearP = null;
-    return { info, gltf, near: () => (parts ? nearP || (nearP = get(parts.near)) : Promise.resolve(null)) };
+    let nearP = null, heroP = null;
+    // (the hero models, parts.hero: fetched with the near ones, drawn within trees.json hero_m of the camera)
+    return { info, gltf, base, near: () => (parts ? nearP || (nearP = get(parts.near)) : Promise.resolve(null)),
+      hero: () => (parts && parts.hero ? heroP || (heroP = get(parts.hero)) : Promise.resolve(null)) };
   }
 
   // the colour attribute carries ambient occlusion (r), how far the wind moves a vertex (g)
@@ -68,7 +70,9 @@ attribute float aLit; uniform float uYoz; varying float vLit; varying float vUpH
   // cell swaps to its leaf cell, one to the left, out of season, and each cherry's bloom cell (SAKURA_N of them
   // from CELL_SAKURA, one per variety) to the cherry's leaf cell (CELL_CHERRY); the cells that turn in
   // autumn are coloured in the fragment shader (uAutumn)
+  // (the leaves' only: a trunk's and a limb's uv is its bark's, in repeats of the scan, trees.json bark)
   const VERT_UV = `vec2 tuv = uv;
+#ifdef LEAVES
 float cell = floor(tuv.x * ATLAS_COLS) + floor(tuv.y * ATLAS_ROWS) * ATLAS_COLS;
 vCell = cell;
 if (uBloom < 0.5 && abs(cell - CELL_BLOOM) < 0.5) tuv.x -= 1.0 / ATLAS_COLS;
@@ -81,6 +85,9 @@ float sv = cell - CELL_SAKURA;
 bool sakura = sv > -0.5 && sv < float(SAKURA_N) - 0.5;
 vPetal = (sakura && fract(tc.b * 7.13 + turn0 * 0.37) < uSakuraV[int(clamp(sv + 0.5, 0.0, float(SAKURA_N) - 0.5))] * (0.85 + 0.3 * turn0)) ? 1.0 : 0.0;
 if (vPetal < 0.5 && sakura) tuv += vec2(mod(CELL_CHERRY, ATLAS_COLS) - mod(cell, ATLAS_COLS), floor(CELL_CHERRY / ATLAS_COLS) - floor(cell / ATLAS_COLS)) / vec2(ATLAS_COLS, ATLAS_ROWS);
+#else
+vCell = -1.0; vPetal = 0.0;
+#endif
 #define uv tuv
 #include <uv_vertex>
 #undef uv`;
@@ -271,12 +278,31 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
     const solidDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
     solidDepth.onBeforeCompile = shader(U, false, true, A);
     const mats = {};
+    // The bark (trees.json bark, blender/build_trees.py BARKS): a scanned picture and its normal map per kind of bark,
+    // shared by the species that wear it, each tinted to its own bark colour (bark_map.tint, a linear factor over the
+    // scan's own colour). Every model's trunks and limbs carry the uv for it, in repeats of the scan. Until the scans
+    // come (loadNear, after the page can be played) a texel of the scan's mean colour and a flat normal stand in, so the
+    // bark looks as it did before and its program, compiled behind the loader, is the one it keeps.
+    const barks = {}, BK = I.bark || null;
+    const px = (r, g, b, srgb) => { const t = new THREE.DataTexture(new Uint8Array([r, g, b, 255]), 1, 1); t.wrapS = t.wrapT = THREE.RepeatWrapping; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; return t; };
+    const barkOf = (id, mean) => {
+      if (!barks[id]) {
+        const c = mean.clone().convertLinearToSRGB(), b = v => Math.round(255 * Math.max(0, Math.min(1, v)));
+        barks[id] = { map: px(b(c.r), b(c.g), b(c.b), true), normal: px(128, 128, 255, false), mats: [] };
+      }
+      return barks[id];
+    };
     const matFor = name => {
       if (name === 'Leaves') return leafMat;
       if (!mats[name]) {
-        const [kind, sp] = name.split('_'), S = I.species[sp];
-        const bands = kind === 'Bark' && S.bark_bands;
+        const kind = name.slice(0, name.indexOf('_')), sp = name.slice(name.indexOf('_') + 1), S = I.species[sp];
+        const bands = kind === 'Bark' && S.bark_bands, bm = kind === 'Bark' && BK && S.bark_map;
         mats[name] = new THREE.MeshStandardMaterial({ color: kind === 'Bark' ? lin(S.bark) : lin(S.colour).multiplyScalar(0.8), roughness: bands ? 0.7 : kind === 'Bark' ? 0.92 : 0.88 });
+        if (bm) {
+          const tint = new THREE.Color(bm.tint[0], bm.tint[1], bm.tint[2]), B = barkOf(bm.id, lin(S.bark).multiply(new THREE.Color(1 / tint.r, 1 / tint.g, 1 / tint.b)));
+          Object.assign(mats[name], { color: tint, map: B.map, normalMap: B.normal });
+          B.mats.push(mats[name]);
+        }
         // (a cherry's bands by a uniform, not a define: one program for every species' bark and its other solid parts, where
         // the define made two, and two again for the far trees' atlas, issue 27)
         const base = shader(U, false, false, A), bandsU = { value: bands ? 1 : 0 };
@@ -317,7 +343,8 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
     // per species and distance, one instanced mesh per material; the near model the mid one until it comes (loadNear)
     const nodeOf = (gltf, sp, lod) => gltf.scene.getObjectByName(`${sp}_LOD${lod}`);
     const standIn = names.map(sp => !nodeOf(lib.gltf, sp, 0));
-    const meshes = names.map((sp, k) => [0, 1, 2].map(lod => parts(k, lod, nodeOf(lib.gltf, sp, lod) || (lod === 0 && nodeOf(lib.gltf, sp, 1)))));
+    // (the fourth, the hero models within a few tens of metres, empty until they come: loadNear, addHero)
+    const meshes = names.map((sp, k) => [0, 1, 2].map(lod => parts(k, lod, nodeOf(lib.gltf, sp, lod) || (lod === 0 && nodeOf(lib.gltf, sp, 1)))).concat([[]]));
     function parts(k, lod, node) {
       const out = [];
       if (!node || !count[k]) return out;
@@ -506,6 +533,9 @@ vec3 nonPerturbedNormal = normal;`)
     const PT = petals();
     const farCut = 1 + 127 * Math.min(1, Math.max(0, farKeep)); // (half[] is 1..254 for a wood's trees, 0 for the rest: never cut)
     const WOOD_M = keep < 1 ? 600 : 900, L = I.lod_m || [130, 520], last = new THREE.Vector3(1e9, 0, 0), cam = new THREE.Vector3();
+    // the hero models (trees.json hero_m: the full tier's reach and the light tier's): the trunk on its root spurs in
+    // its scanned bark, the limbs' collars, the twigs, and the leaves at their own size on stalks (build_trees.py grow)
+    const HERO_M = (I.hero_m || [0, 0])[small ? 1 : 0];
     let sortedAt = -1e9;
     // re-sort the trees into near, mid and far when the camera has moved far enough
     // The near and mid trees cast the sun's shadow, but they are instanced meshes the GPU draws whole (frustum
@@ -515,7 +545,7 @@ vec3 nonPerturbedNormal = normal;`)
     // the two axes, the box's own measure), and the shadow pass draws only as many of them as can reach the
     // shadow camera's box (shadowCount), with room for a crown, the wind and the sun's turn since the sort. The
     // view draws them all, as before.
-    const shB = { on: false, x: new THREE.Vector3(), y: new THREE.Vector3(), dir: new THREE.Vector3(), eye: new THREE.Vector3(), bucket: names.map(() => [[], []]) };
+    const shB = { on: false, x: new THREE.Vector3(), y: new THREE.Vector3(), dir: new THREE.Vector3(), eye: new THREE.Vector3(), bucket: names.map(() => [[], [], [], []]) };
     let sunOf = null;
     function put(parts, i) {
       for (const im of parts) {
@@ -578,6 +608,35 @@ vec3 nonPerturbedNormal = normal;`)
       if (swapped) last.set(1e9, 0, 0);
       return swapped;
     }
+    // the hero models, come (loadNear): a fourth set of meshes per species, drawn within HERO_M of the camera
+    function addHero(gltf) {
+      if (!gltf) return 0;
+      let added = 0;
+      names.forEach((sp, k) => {
+        const node = count[k] && !meshes[k][3].length && nodeOf(gltf, sp, 'H');
+        if (!node) return;
+        const fresh = parts(k, 0, node);
+        fresh.forEach(shadowHooks);
+        if (dressNew) fresh.forEach(dressNew);
+        meshes[k][3] = fresh; added++;
+      });
+      if (added) last.set(1e9, 0, 0);
+      return added;
+    }
+    // the bark scans, in place of the texels that stood in for them: half size on the light tier, and on a phone
+    // the colour packed for the GPU first (tex.js), so nothing is drawn black while it is
+    function barksIn() {
+      if (!BK || !lib.base || !Object.keys(barks).length) return Promise.resolve(0);
+      const loader = new THREE.TextureLoader(), tag = small ? '_h' : '';
+      const get = f => new Promise(res => loader.load(lib.base + (BK.dir || 'bark/') + f + '.webp', res, null, () => res(null)));
+      return Promise.all(Object.entries(barks).map(async ([id, B]) => {
+        const [c, nm] = await Promise.all([get(id + tag), get(id + '_n' + tag)]);
+        for (const t of [c, nm]) if (t) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = small ? 1 : 4; t.name = 'bark ' + id; }
+        if (c) { c.colorSpace = THREE.SRGBColorSpace; if (window.OETex && OETex.stats && OETex.stats.on) await OETex.pack(c); }
+        for (const m of B.mats) { if (c) m.map = c; if (nm) m.normalMap = nm; }
+        return c && nm ? 1 : 0;
+      })).then(r => r.reduce((a, b) => a + b, 0));
+    }
     function sort(eye) {
       for (const per of meshes) for (const parts of per) for (const im of parts) im.count = 0;
       const sd = sunOf && sunOf();
@@ -589,7 +648,7 @@ vec3 nonPerturbedNormal = normal;`)
         shB.x.normalize(); shB.y.crossVectors(shB.dir, shB.x);
       }
       if (PT) PT.gather(eye);
-      const n0 = L[0] * L[0], n1 = L[1] * L[1];
+      const n0 = L[0] * L[0], n1 = L[1] * L[1], nH = HERO_M * HERO_M;
       // from higher up a wood is seen further, and only as crowns: its reach grows with the camera's height
       const WM = Math.min(keep < 1 ? 1200 : 2200, WOOD_M + (keep < 1 ? 1 : 2) * Math.max(0, eye.y - 60));
       for (let i = 0; i < n; i++) {
@@ -597,9 +656,10 @@ vec3 nonPerturbedNormal = normal;`)
         const dx = pos[3 * i] - eye.x, dy = pos[3 * i + 1] - eye.y, dz = pos[3 * i + 2] - eye.z, e2 = dx * dx + dy * dy + dz * dz, f = far[i];
         // beyond WOOD_M a wood is the photo's canopy (world.js woodsFloor): its trees thin out towards it
         if (f < 1 && e2 > WM * WM * (0.55 + 45 * (f - 0.55)) ** 2) continue;
-        const lod = e2 < n0 * f * f ? 0 : e2 < n1 * (f < 1 ? 0.15 : 1) ? 1 : 2;
+        let lod = e2 < n0 * f * f ? 0 : e2 < n1 * (f < 1 ? 0.15 : 1) ? 1 : 2;
+        if (lod === 0 && e2 < nH * f * f && meshes[which[i]][3].length) lod = 3; // (the hero model, where it has come)
         if (lod === 2 && half[i] >= farCut) continue; // past 200 m half a wood's crowns stand for all (they overlap), fewer on a lighter tier
-        if (lod < 2 && shB.on) { // (written below, nearest the shadow's centre first)
+        if (lod !== 2 && shB.on) { // (written below, nearest the shadow's centre first)
           const b = shB.bucket[which[i]][lod];
           b.push(i, Math.max(Math.abs(dx * shB.x.x + dy * shB.x.y + dz * shB.x.z), Math.abs(dx * shB.y.x + dy * shB.y.y + dz * shB.y.z)));
           continue;
@@ -911,11 +971,20 @@ diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.62, 0.11, 0.05), vec3(0.9, 0
       n, species: names, count,
       // the near models, after the page can be played (issue 335): resolves with how many species took theirs. They
       // take the stand-ins' materials, whose programs are compiled already
+      // With them the hero models and the bark scans (resolved once all are in place)
       loadNear() {
-        return nearP || (nearP = (lib.near ? lib.near() : Promise.resolve(null)).then(addNear)
-          .catch(e => { console.warn('Near tree models unavailable:', e); return 0; }));
+        return nearP || (nearP = Promise.all([
+          (lib.near ? lib.near() : Promise.resolve(null)).then(addNear).catch(e => { console.warn('Near tree models unavailable:', e); return 0; }),
+          HERO_M > 0 && lib.hero ? lib.hero().then(addHero).catch(e => { console.warn('Hero tree models unavailable:', e); return 0; }) : 0,
+          barksIn().catch(e => { console.warn('Bark unavailable:', e); return 0; }),
+        ]).then(([n]) => n));
       },
       nearReady: () => !standIn.some((v, k) => v && count[k]),
+      // the hero models: how far they are drawn, how many species have theirs, how many trees draw them now; the bark
+      // scans in place (for the tools)
+      hero: () => ({ m: HERO_M, species: meshes.filter(per => per[3].length).length, drawn: meshes.reduce((a, per) => a + (per[3][0] ? per[3][0].count : 0), 0),
+        barks: Object.values(barks).filter(B => B.mats[0] && !B.mats[0].map.isDataTexture).length, of: Object.keys(barks).length,
+        scans: Object.fromEntries(Object.entries(barks).map(([id, B]) => [id, B.mats[0] && B.mats[0].map.isDataTexture ? 'stand-in' : `${(B.mats[0].map.image || {}).width}`])) }),
       set dressNew(f) { dressNew = f; },
       // the yozakura lights (#162): how many trees are lit and how many lanterns stand, for the tools
       // the lit lanterns, for the inland water's reflections: {heads, lit, placed} or null
@@ -1033,7 +1102,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.62, 0.11, 0.05), vec3(0.9, 0
           U.uCherryBareV.value[v] = ct < -45 || ct > 17 ? U.uBare.value : ct < 12 ? 1 : 1 - (1 - U.uBare.value) * (ct - 12) / 5;
         }
         for (const [name, m] of Object.entries(mats)) {
-          const S = I.species[name.split('_')[1]];
+          const S = I.species[name.slice(name.indexOf('_') + 1)];
           if (!name.startsWith('Crown_') || !S) continue;
           if (S.autumn_colour) m.color.copy(lin(S.colour).lerp(lin(S.autumn_colour), U.uAutumn.value).multiplyScalar(0.8));
           // a deciduous tree's far crown goes when half its leaves have (its trunk stays); a cherry's is its

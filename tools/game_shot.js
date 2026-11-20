@@ -147,6 +147,11 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     });
     // and no first-time tour over the view
     await p.evaluate(() => { const O = window.OEOnboard, t = O && O.current && O.current(); if (t) t.skip(); });
+    // what comes after the game can be played (the near and hero trees and their bark, the near cars, the people near):
+    // in place before the first view, as a player who has stood a minute sees it (two minutes at most)
+    // (the trees' own first: on a software renderer the whole batch takes minutes, its people the longest)
+    await p.evaluate(() => { const g = window.__game, T = g.Wd && g.Wd.trees, cap = ms => new Promise(r => setTimeout(r, ms));
+      return Promise.all([T && T.loadNear ? Promise.race([T.loadNear(), cap(300000)]) : null, g.lateReady ? Promise.race([g.lateReady(), cap(120000)]) : null]); });
   }
   for (const v of foot) {
     await p.evaluate(async v => {

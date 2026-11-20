@@ -312,6 +312,55 @@ are pruned clear of the people under them (Japan's road rules keep 2.5 m over a 
 `tools/hero_trees.js` lists the trees round the Scramble with where their leaves begin and exits 1 on one lower
 than 2.5 m within 60 m.
 
+### The trees up close (November 2026)
+
+The owner's still by the koban at Hachiko: a street tree next to the player was a smooth dark cone a metre and a half
+through, with no bark, and a pillar where a zelkova stood beside the camera. Three things were wrong, and each is a
+thing a real tree's make explains:
+
+- **Its girth.** `r0` in `blender/build_trees.py` now means what a street-tree survey measures: the trunk's radius at
+  breast height. A Tokyo street zelkova or ginkgo of 15 to 20 m stands on a trunk 40 to 60 cm through, a camphor's
+  near a metre; before, the trunk tapered linearly from 1.35 `r0` at its foot and a zelkova was 1.4 m through at
+  eye height. Below breast height it flares into its roots (`trunk_rad`: half as wide again at the ground, gone in
+  half a metre), and above it tapers to the crown. Every model, near and far, has it, and the game's posts
+  (`trees.json` `trunk_r`) follow.
+- **Its bark.** Every trunk, limb and twig carries a bark uv in metres (`branch`: round the ring a whole number of
+  repeats nearest its girth, no seam; along it the same metres), and wears a CC0 scan from ambientCG with its normal
+  map (`BARKS`: Bark004, an old zelkova's grey scales over warmer under-bark; Bark001, the ginkgo's and the pine's
+  corky ridges; Bark009, the plane's shed patches; Bark012, the camphor's long fissures; Bark003, the smooth bark of
+  the evergreen oaks, the maple and the cherries, whose lenticel bands `trees.js` draws over it; Bark015, the sugi's
+  strips). One scan stands for each kind of bark: the page tints it to the species' own colour (`bark_map.tint`), so
+  the bark's mean is the colour the trees had, and only its relief and its grain are new. A thin branch's bark is
+  finer than a trunk's, as a young branch's is.
+- **Its making near the camera.** Within 42 m (24 m on the light tier) each tree is its hero model (`<species>_LODH`,
+  `trees_hero.glb`, 8 to 16 thousand triangles where the near model has two): grown from the same seed through the
+  same steps as the near model, so its limbs, twigs and crown are where the near model's are and the switch shows no
+  jump, but finer. A trunk of twenty sides on four to six root spurs that fade over its first half metre (`BUTTRESS`:
+  a zelkova and a camphor stand on spurs, a ginkgo and a cherry flare round), a slight oval and a slow lump winding up
+  it; limbs of ten sides with a collar where they leave the trunk, tapering fastest where their twigs leave them;
+  twigs of five sides down to a centimetre; and the leaves at their own size. The atlas's sprays were drawn about
+  twice a real leaf's size for the near model's big cards; the hero model lays each card as three cards a little over
+  half its size over the same place, each tipped its own way and half of them mirrored, so the one spray per species
+  repeats far less, and gives each spray within 90 cm of its twig a short stalk from the nearest point along it, so no
+  leaf hangs in the air (stalks from each twig's tip to every spray of it fanned out against the sky like wires).
+- Limbs leave from inside the trunk's top metre, so that it forks into them: up to 40 cm of a limb's start was above
+  the trunk before, a gap a close camera could see through.
+
+What it costs: the hero part (2.2 MB) and the bark scans (4.1 MB, 1.1 MB at half size on the light tier) come after the
+game can be played (`trees.js` `loadNear`, with the near models); until they do, the near model stands in and a texel
+of each scan's mean colour stands in for the scan, so the bark's program is the one compiled behind the loader and
+nothing is compiled when they come. On a phone the colour scans are packed for the GPU (`tex.js`) before they are
+worn; the normal maps stay as they are. `trees.js` `hero()` says how far the hero models are drawn, how many trees
+draw them and whether the scans are in.
+
+Learned from, never copied:
+
+| Work | What it does | Adopted here |
+|---|---|---|
+| SpeedTree in games ([SpeedTree's blog](https://blog.speedtree.com), [Unity's tree LODs](https://docs.unity3d.com/Manual/terrain-Tree-LOD.html)) | A hero tree of more than 15,000 triangles where few trees are close; three discrete levels below it and a billboard last; branch seams welded; bark as a tiling photographed texture with its normal map | A fourth level near the camera over the three there were and the far impostors; limbs started inside the trunk rather than welded; scanned bark and its normal map |
+| ez-tree (Dan Greenheck, three.js, [MIT](https://github.com/dgreenheck/ez-tree)) | A tree grown from parameters in the browser: tapered branch tubes with bark uv in world units, leaves as cards, levels of detail | Bark uv in metres round and along each tube; the growth stays this script's own (Weber and Penn's way, in Blender) |
+| ambientCG ([CC0 1.0](https://ambientcg.com)) | Scanned PBR materials | Six bark scans (1K, WebP, half size for the light tier) |
+
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
 The story's fifth frame is taken at the foot of Shibuya Scramble Square's north face, where Miyamasu Bridge (宮益橋)
