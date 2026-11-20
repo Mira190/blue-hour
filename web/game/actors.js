@@ -1676,8 +1676,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         for (const j of p.mates) { const o = P[j]; if (o.lead !== p.id || o.pz) continue; const lag = (p.x - o.x) * hx + (p.y - o.y) * hy; if (lag > 2.5) gcap = Math.min(gcap, Math.max(0.3, p.speed * (lag > 5 ? 0.3 : 0.6))); }
       }
       // a stop along the way (stopAt): over to the window or the rail, slowly, and there stood a while
-      if (!G && !p.stop && (p.browse -= dt) <= 0) { p.browse = 60 + rnd() * 120; if (p.v > 0.5 && p.pause <= 0) stopAt(p, l, X, hw); }
-      if (p.stop) { want = p.stop.lat; if (!p.stop.on) gcap = Math.min(gcap, 0.55); }
+      if (!G && !p.stop && (p.browse -= dt) <= 0) { p.browse = 60 + rnd() * 120; if (p.v > 0.5 && p.pause <= 0 && nn < 10 && hw >= 1.5) stopAt(p, l, X, hw); } // (not in a crowd, nor where a footway is too narrow to stand aside on)
+      if (p.stop) { want = p.stop.lat; if (!p.stop.on) gcap = Math.min(gcap, 0.55); else if (nn > 12 && p.pause > 1) p.pause = 1; } // (the way filling up round it: it moves on)
       // someone stood in its way (it has slowed right down for them): after a moment, a detour round
       // them, as people do, to the side of them that is clear of the walls and inside the footway (its
       // own side first), wide enough to pass a body's width clear. Of two face to face the first takes
