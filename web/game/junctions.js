@@ -1260,7 +1260,8 @@ window.OEJunctions = (function () {
     const poleM = inst(pole, mat(S.pole), list.length), arms = list.filter(o => o.mast), armM = arms.length ? inst(armG, mat(S.pole), arms.length) : null;
     const housM = inst(geo.housing, mat(S.housing), lanterns.length);
     const boardM = geo.board ? inst(geo.board, mat(S.board), lanterns.length) : null, borderM = geo.border ? inst(geo.border, new THREE.MeshStandardMaterial({ color: lin(S.border), roughness: 0.4 }), lanterns.length) : null;
-    const lensM = [0, 1, 2].map(() => { const M = inst(geo.lens, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: true }), lanterns.length); M.castShadow = false; return M; });
+    // (both sides, as the arrows' lights are: one program for the two, issue 60; a lens's back is inside its housing)
+    const lensM = [0, 1, 2].map(() => { const M = inst(geo.lens, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: true, side: THREE.DoubleSide }), lanterns.length); M.castShadow = false; return M; });
     let ai = 0;
     list.forEach((o, i) => {
       q.setFromAxisAngle(up, Math.PI - o.h);

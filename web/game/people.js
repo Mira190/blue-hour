@@ -349,13 +349,17 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
       g.setAttribute('part', g.getAttribute('_part'));
       lib.lod[o.name] = { geometry: g, extras: o.userData };
     });
+    // (and each one's coarser copy past COARSE_M, <name>~coarse on the same picture, issue 61)
+    const coarse = {};
     if (fc) fc.scene.traverse(o => {
       if (!o.isMesh || !o.material.map) return;
       const g = o.geometry;
       g.setAttribute('part', g.getAttribute('_part'));
       g.deleteAttribute('_part');
+      if (/~coarse$/.test(o.name)) { coarse[o.name.slice(0, -7)] = g; return; }
       lib.far[o.name] = { geometry: g, map: o.material.map, extras: o.userData };
     });
+    for (const [n, g] of Object.entries(coarse)) if (lib.far[n] && !/[?&]farcoarse=off/.test(location.search)) lib.far[n].coarse = g;
     // on a phone (quality.js lean) a far copy's picture goes up at half its size: past the nearest walkers a figure
     // is under 50 px tall on a phone's canvas, and the cast's pictures then hold no more of its memory than the dolls'
     // palettes did (a quarter of a megabyte for a cast of eight)
@@ -1247,10 +1251,23 @@ transformed = crowdPose(transformed, false);`);
     const groups = {}, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
     const UP = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), frustum = new THREE.Frustum(), vp = new THREE.Matrix4(), ball = new THREE.Sphere(at, 30), camAt = new THREE.Vector3(1e9, 0, 0);
     let culling = false;
+    // past COARSE_M (by the lens, as near is counted below) a cast member's walker is drawn as its coarser copy: a walker 60 m
+    // off is about 35 px tall on a phone, and its copy's 1,000 to 1,400 triangles were one for every three pixels (issue 61);
+    // the step has 4 m of slack either way, so a walker at the edge does not change back and forth
+    let COARSE_M = 60;
+    { const m = /[?&]coarsem=(\d+)/.exec(location.search); if (m) COARSE_M = +m[1]; } // (to look at the coarser copies close up: QUERY=?crowdnear=0&coarsem=0)
+    let lodX = 0, lodY = 0, lodZoom = 1;
     const SWAP = ['iSkin', 'iHair', 'iTop', 'iLegs', 'iPat', 'aAnim', 'iUmb', 'iDress', 'iDye'], tmpDress = new THREE.Vector3(), tmpDye = new THREE.Vector2();
+    // (a cast member's walkers have a slot in each of its two meshes, the copy and the coarser copy: p.sl, by the mesh's
+    // userData.k; p.mesh and p.slot are the one they are drawn in)
     function swap(mesh, a, b) {
-      const who = mesh.userData.who, pa = who[a], pb = who[b];
-      who[a] = pb; who[b] = pa; pa.slot = b; pb.slot = a;
+      const who = mesh.userData.who, pa = who[a], pb = who[b], k = mesh.userData.k;
+      who[a] = pb; who[b] = pa;
+      if (k === undefined) { pa.slot = b; pb.slot = a; } else {
+        pa.sl[k] = b; pb.sl[k] = a;
+        if (pa.mesh === mesh) pa.slot = b;
+        if (pb.mesh === mesh) pb.slot = a;
+      }
       const M = mesh.instanceMatrix.array;
       for (let k = 0; k < 16; k++) { const t = M[a * 16 + k]; M[a * 16 + k] = M[b * 16 + k]; M[b * 16 + k] = t; }
       for (const name of SWAP) {
@@ -1277,32 +1294,42 @@ transformed = crowdPose(transformed, false);`);
     });
     const meshes = [];
     for (const [name, ps] of Object.entries(groups)) {
-      const cast = name[0] === '@', L = cast ? lib.far[name.slice(1)] : lib.lod[name], geo = L.geometry.clone(), n = ps.length;
-      for (const a of cast ? ['aAnim'] : ['iSkin', 'iHair', 'iTop', 'iLegs', 'aAnim']) geo.setAttribute(a, new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
-      if (!cast) geo.setAttribute('iPat', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
-      if (cast) { geo.setAttribute('iDress', new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3)); geo.setAttribute('iDye', new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2)); }
-      geo.setAttribute('iUmb', new THREE.InstancedBufferAttribute(new Float32Array(n), 1).setUsage(THREE.DynamicDrawUsage));
+      const cast = name[0] === '@', L = cast ? lib.far[name.slice(1)] : lib.lod[name], n = ps.length;
       const { mat, depth } = cast ? castMaterial(L, U) : crowdMaterial(L.extras, U);
       litMaterial(mat);
-      const mesh = noCover(new THREE.InstancedMesh(geo, mat, n));
-      mesh.customDepthMaterial = depth;
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      geo.attributes.aAnim.setUsage(THREE.DynamicDrawUsage);
-      mesh.castShadow = mesh.receiveShadow = true;
-      mesh.frustumCulled = false;
-      mesh.userData.who = ps.slice(); // the walker in each slot
-      mesh.userData.slots = n;
-      mesh.count = 0;                 // (none drawn until placed)
-      ps.forEach((p, k) => {
-        p.mesh = mesh; p.slot = k;
-        if (cast) { dressVec(p.dress, tmpDress, tmpDye); geo.attributes.iDress.setXYZ(k, tmpDress.x, tmpDress.y, tmpDress.z); geo.attributes.iDye.setXY(k, tmpDye.x, tmpDye.y); return; }
-        geo.attributes.iPat.setX(k, PAT[p.look.pattern] || 0);
-        for (const [a, key] of [['iSkin', 'skin'], ['iHair', 'hair'], ['iTop', 'top'], ['iLegs', 'legs']]) { const c = lin(p.look[key]); geo.attributes[a].setXYZ(k, c.r, c.g, c.b); }
+      // a cast member's walkers are drawn as its copy, and past COARSE_M as its coarser copy (L.coarse): a second mesh with
+      // the same material, so the same program, and its own slots (issue 61)
+      const made = [L.geometry].concat(cast && L.coarse ? [L.coarse] : []).map((src, lod) => {
+        const geo = src.clone();
+        for (const a of cast ? ['aAnim'] : ['iSkin', 'iHair', 'iTop', 'iLegs', 'aAnim']) geo.setAttribute(a, new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
+        if (!cast) geo.setAttribute('iPat', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
+        if (cast) { geo.setAttribute('iDress', new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3)); geo.setAttribute('iDye', new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2)); }
+        geo.setAttribute('iUmb', new THREE.InstancedBufferAttribute(new Float32Array(n), 1).setUsage(THREE.DynamicDrawUsage));
+        const mesh = noCover(new THREE.InstancedMesh(geo, mat, n));
+        mesh.customDepthMaterial = depth;
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        geo.attributes.aAnim.setUsage(THREE.DynamicDrawUsage);
+        mesh.castShadow = mesh.receiveShadow = true;
+        mesh.frustumCulled = false;
+        mesh.userData.who = ps.slice(); // the walker in each slot
+        mesh.userData.slots = n;
+        if (cast) mesh.userData.k = lod;
+        mesh.count = 0;                 // (none drawn until placed)
+        ps.forEach((p, k) => {
+          if (cast) { dressVec(p.dress, tmpDress, tmpDye); geo.attributes.iDress.setXYZ(k, tmpDress.x, tmpDress.y, tmpDress.z); geo.attributes.iDye.setXY(k, tmpDye.x, tmpDye.y); return; }
+          geo.attributes.iPat.setX(k, PAT[p.look.pattern] || 0);
+          for (const [a, key] of [['iSkin', 'skin'], ['iHair', 'hair'], ['iTop', 'top'], ['iLegs', 'legs']]) { const c = lin(p.look[key]); geo.attributes[a].setXYZ(k, c.r, c.g, c.b); }
+        });
+        mesh.userData.noRefl = true; // (out of the sea's reflection: water.js)
+        mesh.onAfterRender = () => { mesh.userData.drawn = true; };
+        world.add(mesh);
+        meshes.push(mesh);
+        return mesh;
       });
-      mesh.userData.noRefl = true; // (out of the sea's reflection: water.js)
-      mesh.onAfterRender = () => { mesh.userData.drawn = true; };
-      world.add(mesh);
-      meshes.push(mesh);
+      ps.forEach((p, k) => {
+        p.mesh = made[0]; p.slot = k;
+        if (cast) { p.ms = made; p.sl = made.map(() => k); p.lod = 0; }
+      });
     }
     // umbrellas for the rain: each person's own colour (Tokyo carries clear vinyl), and whether they
     // put one up in a drizzle (some don't bother) or only when it really rains
@@ -1382,6 +1409,7 @@ transformed = crowdPose(transformed, false);`);
       // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
       const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = Math.round(near * Math.min(1.5, zoom));
       const want = [], ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
+      lodX = ex; lodY = ey; lodZoom = zoom;
       for (let i = 0; i < nActive; i++) {
         const p = P[i]; if (p.line < 0) continue;
         const d = Math.hypot(p.x - ex, p.y - ey) / zoom;
@@ -1441,6 +1469,10 @@ transformed = crowdPose(transformed, false);`);
       at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
       if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 2.3, 2.3)))) { unshow(p); return; } // (or behind the street wall: visibility.js)
+      if (p.ms && p.ms.length > 1) {
+        const d = Math.hypot(p.rx - lodX, p.ry - lodY) / lodZoom, lod = d > COARSE_M + (p.lod ? -4 : 4) ? 1 : 0;
+        if (lod !== p.lod) { unshow(p); p.lod = lod; p.mesh = p.ms[lod]; p.slot = p.sl[lod]; }
+      }
       show(p);
       q.setFromAxisAngle(UP, Math.PI - p.h);
       sc.setScalar(p.fscale);
