@@ -563,8 +563,11 @@ window.OEOverture = (function () {
         audio = bus ? A.ctx : audio || new AC();
         let b = scoreBuf;
         if (Array.isArray(b)) { b = audio.createBuffer(2, scoreBuf[0].length, 24000); b.copyToChannel(scoreBuf[0], 0); b.copyToChannel(scoreBuf[1], 1); }
-        const g = audio.createGain(); g.gain.value = bus ? 0.8 / 0.55 : 0.8; g.connect(bus || audio.destination); // (the bus goes out at main's 0.55: the same level as before)
-        scoreSrc = audio.createBufferSource(); scoreSrc.buffer = b; scoreSrc.connect(g); scoreSrc.start(0, offset);
+        // (the bus goes out at main's 0.55: the same level as before. Begun a little after now, up in 40 ms: joined late,
+        // where the picture is, it came in part way through a note, in one sample)
+        const g = audio.createGain(), lv = bus ? 0.8 / 0.55 : 0.8, at = audio.currentTime + 0.012; g.connect(bus || audio.destination);
+        g.gain.value = 0; g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(lv, at + 0.04);
+        scoreSrc = audio.createBufferSource(); scoreSrc.buffer = b; scoreSrc.connect(g); scoreSrc.start(at, offset);
         scoreSrc.gainNode = g;
       } catch (e) { scoreSrc = null; }
     }

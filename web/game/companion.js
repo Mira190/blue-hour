@@ -24,6 +24,12 @@ window.OECompanion = (function () {
   const CATCH = 35;    // left further behind than this (a ride, a lift), it is found at the player's heels again
   const EDGE_KEEP = 0.9; // and where he leads, how far off the edge of the way he bears away from it
   const PASS_ROOM = 0.9; // the room he wants beyond himself, on the side he passes the player on
+  // His body and the player's never share ground. He is a spine along his length and half his width either side of it
+  // (a capsule); the player a walker's circle with their arms' swing in it (game.js: 0.35). The capsule is measured from
+  // the model itself as it loads (its bounds in its own frame, at its scale: it looks along +x), so another dog, or any
+  // animal, is held off the player by its own size. Until then, the Akita's (blender/build_dog.py: 0.52 m behind where
+  // he stands to 0.72 m in front)
+  const SPINE = [-0.33, 0.53], FLANK = 0.19, PLAYER_R = 0.35;
   // route(x, y, z, tx, ty) -> [[x, y, z], ...] | null: the way on foot (route.js ways.walk), so that it leads along the
   // footways and over the crossings and not in a straight line into a wall
   // edge(x, y, z, fromX, fromY): is that past the edge of the way (a wall, a drop, a well, the carriageway beyond a kerb,
@@ -51,10 +57,15 @@ window.OECompanion = (function () {
     root.add(ring);
     const s = { x: 0, y: 0, z: 0, h: 0, state: 'away', ready: false, to: null, reach: 3, look: null, done: null, t: 0, speed: 0, fade: 1, greeted: false };
     let mixer = null, acts = {}, cur = '', head = null, neck = null, mats = [];
+    const bones = [];
+    // his body as the model has it: the capsule's spine (metres along his heading from where he stands), its radius, and
+    // how far any of him reaches from where he stands (what game.js keeps off posts, belts and cars)
+    const body = { spine: [SPINE[0] * height, SPINE[1] * height], flank: FLANK * height, reach: Math.max(0.52, 0.72) * height };
     new THREE.GLTFLoader().load(url, g => {
       const m = g.scene;
       m.scale.setScalar(height);
       m.traverse(o => {
+        if (o.isBone) bones.push(o); // (every bone of him: keepOff holds each off the player as the clip and his look pose it)
         if (o.isBone && o.name === 'head') head = o;
         if (o.isBone && o.name === 'neck') neck = o;
         if (!o.isMesh) return;
@@ -64,6 +75,14 @@ window.OECompanion = (function () {
         o.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * 0.3;'); };
         mats.push(o.material);
       });
+      // (his size from the model's own bounds: the length along +x, the width across it; the head and the tail are the
+      // capsule's rounded ends)
+      m.updateMatrixWorld(true);
+      const bb = new THREE.Box3().setFromObject(m);
+      if (!bb.isEmpty() && bb.max.x - bb.min.x > 0.1) {
+        const half = Math.max(0.05, (bb.max.z - bb.min.z) / 2), a0 = bb.min.x + half, a1 = Math.max(a0, bb.max.x - half);
+        Object.assign(body, { spine: [a0, a1], flank: half, reach: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), half) });
+      }
       root.add(m);
       mixer = new THREE.AnimationMixer(m);
       for (const c of g.animations) acts[c.name] = mixer.clipAction(c);
@@ -115,6 +134,68 @@ window.OECompanion = (function () {
       return d - step;
     }
     const face = (x, y, dt) => turn(Math.atan2(y - s.y, x - s.x), 4, dt);
+    // The player's body has the right of way over his. Each frame, whatever he is doing (leading, at heel, sitting
+    // where the picture is taken from, standing where he was put), if the player's circle reaches his spine he is moved
+    // off it at once, along the way out from them (as a walker steps, never into a wall); and when he was sitting or
+    // standing he gets up, walks a pace aside, out of the way they are going, and sits again looking where he looked.
+    // He was steered round the player only while he led or kept at heel, as a pull on his way, and never stood off
+    // them at all: the player walked through him where he sat beside the camera's light, and he through their legs.
+    // Where a wall holds him and he cannot go, `jammed` says so, and the player stops at his flank (game.js).
+    function spineNear(px, py) {
+      const hx = Math.cos(s.h), hy = Math.sin(s.h), a0 = body.spine[0], a1 = body.spine[1];
+      const t = Math.max(a0, Math.min(a1, (px - s.x) * hx + (py - s.y) * hy));
+      return [s.x + hx * t, s.y + hy * t];
+    }
+    // (and each bone of him, as the last frame posed it, against the player's circle and the flesh round a bone: his
+    // head turned to look at them reached out of the capsule's side, and his nose went into their legs. Any skinned
+    // model has bones, so this holds for whatever animal stands in for the Akita. True where a wall held him there)
+    const v3 = new THREE.Vector3();
+    function bonesOff(px, py) {
+      if (!bones.length) return false;
+      const re = root.matrixWorld.elements, flesh = Math.max(0.08, Math.min(0.15, body.flank * 0.6)), need = PLAYER_R + flesh;
+      let worst = 0, wx = 0, wy = 0;
+      for (const b of bones) {
+        const e = b.matrixWorld.elements, ox = e[12] - re[12], oy = -(e[14] - re[14]);
+        if (e[13] - re[13] > 1.7) continue;
+        const dx = s.x + ox - px, dy = s.y + oy - py, d = Math.hypot(dx, dy) || 1e-3;
+        if (need - d > worst) { worst = need - d; wx = dx / d; wy = dy / d; }
+      }
+      if (worst <= 0) return false;
+      const mx = wx * (worst + 0.01), my = wy * (worst + 0.01), x0 = s.x, y0 = s.y;
+      if (slide) { const m = slide(s.x, s.y, s.z, mx, my); s.x = m.x; s.y = m.y; } else { s.x += mx; s.y += my; }
+      return Math.hypot(s.x - x0, s.y - y0) < 0.5 * Math.hypot(mx, my);
+    }
+    function keepOff(dt) {
+      s.jam = false;
+      if (player.mode && player.mode !== 'foot') return;
+      if (player.z != null && Math.abs((s.z ?? player.z) - player.z) > 1.5) return; // (a floor above or below)
+      const px = player.x, py = player.y, need = PLAYER_R + body.flank;
+      const [cx, cy] = spineNear(px, py);
+      let dx = cx - px, dy = cy - py, d = Math.hypot(dx, dy);
+      if (d >= need) { s.jam = bonesOff(px, py); return; } // (his capsule clear of them: his bones, a turned head, may not be)
+      if (d < 1e-3) { const h = player.h || 0; dx = Math.cos(h); dy = -Math.sin(h); d = 1; } // (right on them: off to their right)
+      const k = (need - d + 0.01) / d, mx = dx * k, my = dy * k, x0 = s.x, y0 = s.y;
+      if (slide) { const m = slide(s.x, s.y, s.z, mx, my); s.x = m.x; s.y = m.y; } else { s.x += mx; s.y += my; }
+      // (along a wall that holds him: round the player's other side of him, then nothing more)
+      if (Math.hypot(s.x - x0, s.y - y0) < 0.5 * Math.hypot(mx, my)) {
+        const sx = -my, sy = mx;
+        for (const g of [1, -1]) { if (!slide) break; const m = slide(s.x, s.y, s.z, sx * g, sy * g); if (Math.hypot(m.x - s.x, m.y - s.y) > 0.5 * Math.hypot(mx, my)) { s.x = m.x; s.y = m.y; break; } }
+      }
+      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - 0.03;
+      if (bonesOff(px, py)) s.jam = true;
+      // (sitting, standing or waiting where he was: up, a pace aside out of the way they are going, and down again)
+      // (not for a brush, where he only shifts: the film of him coming sits him close beside you)
+      if ((s.state === 'sit' || (s.state === 'go' && s.to && dist(s.to[0], s.to[1]) < 0.4)) && !s.jam && need - d > 0.08) {
+        const h = player.h || 0, fx = Math.sin(h), fy = Math.cos(h), side = Math.sign((s.x - px) * fy - (s.y - py) * fx) || 1;
+        for (const r of [1.1, 1.5, 0.8]) for (const sd of [side, -side]) {
+          const qx2 = px + fy * sd * r + fx * 0.3, qy2 = py - fx * sd * r + fy * 0.3;
+          if (stand && !stand(qx2, qy2, s.z)) continue;
+          const keep = s.look || [px, py, (player.z || 0) + 1.5];
+          s.to = [qx2, qy2]; s.look = keep; s.goV = speeds.walk; s.state = 'go'; s.t = 0; s.det = null; s.yielded = (s.yielded || 0) + 1;
+          return;
+        }
+      }
+    }
     // the way to s.to, and the next point along it to make for (the place itself when there is no way)
     function replan() { s.path = route && s.to ? route(s.x, s.y, s.z, s.to[0], s.to[1]) : null; s.pi = 0; s.det = null; }
     // the next point to make for, along the way, and round whoever stands still in it
@@ -328,6 +409,7 @@ window.OECompanion = (function () {
         shade(s.fade);
         if (left < 0.3 || s.fade <= 0) { s.state = 'away'; root.visible = false; if (s.done) { const d = s.done; s.done = null; d(); } return; }
       }
+      keepOff(dt);
       s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)
@@ -387,6 +469,8 @@ window.OECompanion = (function () {
       call() { if (s.state === 'lead' || s.state === 'wait') { s.state = 'fetch'; s.t = 0; } return api; },
       met() { s.greeted = true; if (s.state === 'greet') { s.state = 'lead'; s.t = 0; } return api; },
       get speed() { return s.speed; }, get h() { return s.h; }, get detour() { return s.det ? s.det.pts : null; },
+      // (makeWay: game.js, at once after the player has moved: off them, or jammed, in the same frame)
+      get jammed() { return !!s.jam; }, makeWay() { if (s.ready && s.state !== 'away') keepOff(0); return api; }, get clearance() { return PLAYER_R + body.flank; }, get reach() { return body.reach; }, get body() { return { spine: body.spine.slice(), flank: body.flank, reach: body.reach }; }, get yielded() { return s.yielded || 0; }, spineNear, // (game.js: the player stops at his flank where a wall holds him; tools/guide_body.js)
       get behind() { return (s.state === 'lead' || s.state === 'fetch') && onAhead(); }, // (the player further along the way than he is)
       leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; return api; },
       tick,

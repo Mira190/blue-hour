@@ -120,6 +120,16 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     const dir = V3(...UMB_D).normalize(), grip = hd.clone().add(V3(-0.1, -0.32, 0.17));
     return { grip, dir, top: grip.clone().addScaledVector(dir, UMB_LEN), q: new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), dir) };
   };
+  // An umbrella put up (k: 0 still furled, 1 open), as a person does it: the arm comes up to the handle in the first
+  // third of a second, then the canopy opens from furled round its shaft (an eighth as wide, two and a half times as
+  // long) to its spread, about its tip, a little past it as the ribs lock. Over UMB_OPEN_S, each person in their own
+  // moment (wantUmb), so that the crowd's umbrellas go up one by one as the rain comes on and not in one frame: the
+  // canopy's scale across and along, and the arm's share of the hold
+  const UMB_OPEN_S = 1.1, UMB_TIP = 0.12; // (the cone's tip, half its height above its middle: canopyGeo)
+  const umbOpening = k => {
+    const c = x => Math.max(0, Math.min(1, x)), u = c(k / 0.3), e = c((k - 0.25) / 0.75) - 1, o = 1 + 2 * e * e * e + e * e; // (easeOutBack)
+    return { arm: u * u * (3 - 2 * u), r: 0.12 + 0.88 * o, a: 2.4 - 1.4 * Math.min(1, o) };
+  };
   // Everything is built in the model's own space (y up, +z forward, metres) around anchors read from the
   // reference pose, so one set of numbers fits every character; attach() then hangs it on a bone. A
   // Rocketbox body (real: the main characters and the NPCs) is slimmer and its spine sits further back,
@@ -188,7 +198,9 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     // joint (r: the reference pose), so it fits every body
     umbrella_open: { bone: 'Chest', build: (M, h, c, look, real, r) => {
       const u = umbrellaHold(r && r.Head ? r.Head.pos : h.clone().add(V3(0, 0.3, 0)));
-      return [M(geo('umbC', canopyGeo), look.umbrella || '#1d1f26', u.top, null, u.q),
+      const canopy = M(geo('umbC', canopyGeo), look.umbrella || '#1d1f26', u.top, null, u.q);
+      canopy.userData.canopy = { pos: u.top.clone(), dir: u.dir.clone() }; // (opened by rig.umbOpen)
+      return [canopy,
         M(geo('umbT', () => new THREE.SphereGeometry(0.012, 6, 4)), '#2a2a2e', u.top.clone().addScaledVector(u.dir, 0.11)),
         M(geo('umbS', () => new THREE.CylinderGeometry(0.008, 0.008, UMB_LEN, 6).translate(0, -UMB_LEN / 2, 0)), '#2a2a2e', u.top, null, u.q),
         M(geo('umbH', () => new THREE.CylinderGeometry(0.016, 0.016, 0.13, 6)), '#3a2a1e', u.grip, null, u.q)]; } },
@@ -797,6 +809,8 @@ ${PAT_GLSL}`)
       }
       // an open umbrella's handle, in the model's own space: the right hand goes to it (holdUmbrella)
       umbGrip = ids.includes('umbrella_open') && ref.Head && ref.Chest ? umbrellaHold(ref.Head.pos).grip : null;
+      canopy = null; umbW = 1;
+      for (const g of accObjs) for (const m of g.children) if (m.userData.canopy) canopy = m;
       // the camera of 1964 round the neck on its own strap, in place of Kagami's own, which is put away with its strap
       const own = !ids.includes('camera1964');
       model.traverse(o => { const n = (o.isMesh && o.material && o.material.name) || ''; if (/^camera_(camera|rubber|metal|glass|strap)$/.test(n)) o.visible = own; else if (n === 'camera_strap1964') o.visible = !own; });
@@ -804,7 +818,15 @@ ${PAT_GLSL}`)
     // the right arm up to the umbrella's handle, over whatever the clip has it doing: a two-bone reach
     // from the shoulder, the elbow down and out by the side, the fist (a hand's length past the
     // wrist) round the handle. The clip's arm is kept to be put back before the next frame.
-    let umbGrip = null, armHeld = null;
+    let umbGrip = null, armHeld = null, canopy = null, umbW = 1;
+    // an open umbrella part of the way up (umbOpening): its canopy furled or spread about its tip, and the arm's share
+    rig.umbOpen = k => {
+      if (!canopy) return;
+      const o = umbOpening(k), C = canopy.userData.canopy;
+      canopy.scale.set(o.r, o.a, o.r);
+      canopy.position.copy(C.pos).addScaledVector(C.dir, UMB_TIP * (1 - o.a));
+      umbW = o.arm;
+    };
     const armBack = () => { if (armHeld) { const a = arms[1]; a.ua.quaternion.copy(armHeld[0]); a.la.quaternion.copy(armHeld[1]); armHeld = null; } };
     // (at: a point in the world for the fist instead, rig.hold: a fishing rod's grip, game/fishing.js)
     function holdUmbrella(at) {
@@ -825,6 +847,8 @@ ${PAT_GLSL}`)
       const elbow = r4.copy(sh).addScaledVector(to, along).addScaledVector(pole, off);
       aim(a.ua, a.la, elbow.clone().sub(sh).normalize());
       aim(a.la, a.wr, fist.sub(elbow).normalize());
+      // (an umbrella still coming up: the arm part of the way from the clip's pose to the handle)
+      if (!at && umbW < 1) { a.ua.quaternion.slerpQuaternions(armHeld[0], a.ua.quaternion.clone(), umbW); a.la.quaternion.slerpQuaternions(armHeld[1], a.la.quaternion.clone(), umbW); }
     }
     function play(name, fade = 0.25, once = false) {
       // (a clip this character's rig was not built with, a sitting or a running one: its idle instead, or any it has.
@@ -1018,11 +1042,14 @@ vec3 crowdPose(vec3 p, bool isNormal) {
   if (leg) { float a = sit ? -1.5708 : sw * side; piv = vec3(0.0, uHip); p = isNormal ? rx(a) * p : rx(a) * (p - piv) + piv; }
   // the right arm holding an umbrella up (iUmb): the upper arm back by the side, the forearm folded up
   // to the handle under the chin (umbrellaHold)
-  if (arm && side < 0.0 && iUmb > 0.5 && !sit) {
+  // (iUmb its share: 0 swinging, 1 held up, between as the umbrella is put up or down)
+  if (arm && side < 0.0 && iUmb > 0.0 && !sit) {
+    float u = min(iUmb, 1.0);
     vec3 el = vec3(0.0, uShoulder.x - 0.27, uShoulder.y);
     float lo = smoothstep(el.y + 0.05, el.y - 0.03, position.y);
-    float a = -2.3 * lo; p = isNormal ? rx(a) * p : rx(a) * (p - el) + el;
-    piv = vec3(0.0, uShoulder); p = isNormal ? rx(0.5) * p : rx(0.5) * (p - piv) + piv;
+    float a = -2.3 * lo * u; p = isNormal ? rx(a) * p : rx(a) * (p - el) + el;
+    float b = 0.5 * u - sw * side * 0.8 * (1.0 - u);
+    piv = vec3(0.0, uShoulder); p = isNormal ? rx(b) * p : rx(b) * (p - piv) + piv;
   } else if (arm) { piv = vec3(0.0, uShoulder); p = isNormal ? rx(-sw * side * 0.8) * p : rx(-sw * side * 0.8) * (p - piv) + piv; }
   if (!isNormal) p.y += abs(cos(ph)) * 0.035 * amp;
   return p;
@@ -1290,6 +1317,14 @@ transformed = crowdPose(transformed, false);`);
     const hold = umbrellaHold(V3(0, shoulder[0] + 0.16, shoulder[1]));
     const umbGeo = canopyGeo().applyQuaternion(hold.q).translate(hold.top.x, hold.top.y, hold.top.z);
     const shaftGeo = new THREE.CylinderGeometry(0.01, 0.01, UMB_LEN, 5).translate(0, -UMB_LEN / 2, 0).applyQuaternion(hold.q).translate(hold.top.x, hold.top.y, hold.top.z);
+    // (an umbrella part of the way up: its canopy scaled about its tip along the shaft, umbOpening; m4 then the body's)
+    const umbTip = hold.top.clone().addScaledVector(hold.dir, UMB_TIP), umbRot = new THREE.Matrix4().makeRotationFromQuaternion(hold.q), umbRotI = umbRot.clone().invert();
+    const om = new THREE.Matrix4(), om2 = new THREE.Matrix4(), om3 = new THREE.Matrix4();
+    const opened = (k, body) => {
+      const o = umbOpening(k);
+      om.makeTranslation(umbTip.x, umbTip.y, umbTip.z).multiply(umbRot).multiply(om2.makeScale(o.r, o.a, o.r)).multiply(umbRotI).multiply(om2.makeTranslation(-umbTip.x, -umbTip.y, -umbTip.z));
+      return om3.multiplyMatrices(body, om);
+    };
     const umbMeshes = {}, umbN = { true: 0, false: 0, shaft: 0 };
     const umbCol = P.map(p => lin(p.look.umbrella === 'clear' ? '#1d1f26' : p.look.umbrella));
     const umbMesh = clear => umbMeshes[clear] || (umbMeshes[clear] = (() => {
@@ -1305,7 +1340,7 @@ transformed = crowdPose(transformed, false);`);
       return m;
     })());
     const UMB_KEYS = [true, false, 'shaft'];
-    let rain = 0, umbOn = false;
+    let rain = 0, umbOn = false, umbFrac = 0, umbSnap = 0, soaked = 0;
     // (the umbrellas' instanced meshes made now and their programs compiled as soon as the game gives a warm-up, not made
     // at the first rain: the story's evening rains at its title, and the title's frame linked the canopies' program in a
     // draw, a wait of seconds on the desktop tier in the tap, issue 31. Nobody puts one up before)
@@ -1313,14 +1348,24 @@ transformed = crowdPose(transformed, false);`);
     if (UMBRELLAS) {
       for (const c of UMB_KEYS) umbMesh(c);
       (lib.warmLater && !lib.warm ? lib.warmed : Promise.resolve(lib.warm)).then(w => (w ? Promise.all(UMB_KEYS.map(c => w(umbMeshes[c]))) : null))
-        .catch(() => {}).then(() => { umbWarm = true; const r = rain; rain = -1; setRain(r); });
+        .catch(() => {}).then(() => { umbWarm = true; const r = rain; rain = -1; setRain(r, soaked); });
     }
-    const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < 0.3 + 0.62 * Math.min(1, (rain - 0.06) / 0.5);
+    const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < umbFrac;
+    // how far up this person's umbrella is (p.umbT, 0..1): each goes up over UMB_OPEN_S once they want it, and down a
+    // little faster; one not drawn a moment ago, or a rain that came in at once (umbSnap), as it is by now
+    function umbStep(p) {
+      const want = umbOn && wantUmb(p) ? 1 : 0;
+      if (p.umbAt == null || tNow - p.umbAt > 0.3 || umbSnap) p.umbT = want;
+      else if (p.umbT !== want) p.umbT = want ? Math.min(1, p.umbT + dtNow / UMB_OPEN_S) : Math.max(0, p.umbT - dtNow / (0.8 * UMB_OPEN_S));
+      p.umbAt = tNow;
+      return p.umbT;
+    }
     const free = {}, active = new Map();
     let dtNow = 0, tNow = 0;
     function begin(dt, cx, cy, t, nActive) {
       dtNow = dt; tNow = t;
       umbN.true = umbN.false = umbN.shaft = 0;
+      if (umbSnap) umbSnap--;
       // the camera's frustum as it was last drawn, for this frame's culling; not across a cut (the camera somewhere else)
       culling = false;
       if (camera) {
@@ -1379,9 +1424,11 @@ transformed = crowdPose(transformed, false);`);
     function place(i, p, moving) {
       const r = active.get(i);
       drawn(p);
+      const ut = umbStep(p);
       if (r) {
-        const u = wantUmb(p);
+        const u = ut > 0;
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null }); }
+        if (u && r.umbOpen) r.umbOpen(ut);
         unshow(p);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
@@ -1399,15 +1446,15 @@ transformed = crowdPose(transformed, false);`);
       sc.setScalar(p.fscale);
       m4.compose(at, q, sc);
       p.mesh.setMatrixAt(p.slot, m4);
-      const held = umbOn && wantUmb(p);
+      const held = umbOn && ut > 0, share = held ? (ut < 1 ? umbOpening(ut).arm : 1) : 0;
       if (held) {
         const clear = p.look.umbrella === 'clear', c = umbMesh(clear), k = umbN[clear]++;
-        c.setMatrixAt(k, m4);
+        c.setMatrixAt(k, ut < 1 ? opened(ut, m4) : m4);
         if (!clear) c.setColorAt(k, umbCol[i]);
         umbMesh('shaft').setMatrixAt(umbN.shaft++, m4);
       }
       const ua = p.mesh.geometry.attributes.iUmb;
-      if (ua.getX(p.slot) !== (held ? 1 : 0)) { ua.setX(p.slot, held ? 1 : 0); ua.needsUpdate = true; }
+      if (ua.getX(p.slot) !== share) { ua.setX(p.slot, share); ua.needsUpdate = true; }
       // the cadence follows the speed; when it changes, shift the phase so the stride doesn't jump
       const f = moving ? 4.5 * Math.max(0.2, p.av ?? p.v ?? p.speed) / p.look.scale : p.animF ?? 4.5 * p.speed / p.look.scale;
       if (p.animF == null) { p.animF = f; p.animO = p.phase; }
@@ -1439,11 +1486,17 @@ transformed = crowdPose(transformed, false);`);
         if (m.count) { range(m.instanceMatrix, m.count); if (m.instanceColor) range(m.instanceColor, m.count); }
       }
     }
-    // the rain, 0..1 (weather.js): umbrellas go up as it comes on
-    function setRain(r) {
-      rain = r;
+    // the rain, 0..1 (weather.js), and how long it has rained (soak: the street's wetness, 0..1): umbrellas go up as it
+    // comes on, a few at the first drops and most once the street is wet, fewer in a drizzle (some don't bother). Until
+    // November 2026 a third of the crowd put theirs up in the frame the rain began, and the story's last frame snapped
+    // the rain on with nine in ten up at once: a switch, not a shower
+    function setRain(r, soak = 1) {
+      rain = r; soaked = soak;
+      const sm = (a, b, x) => { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
+      umbFrac = 0.92 * sm(0.06, 0.6, r) * sm(0.05, 1, soak);
       const on = UMBRELLAS && umbWarm && r > 0.06;
       if (on === umbOn) return;
+      if (on && soak > 0.85) umbSnap = 2; // (raining a while already: the page opened into it, or the weather set at once)
       umbOn = on;
       for (const c of UMB_KEYS) { const m = umbMesh(c); m.visible = on; if (!on) m.count = 0; }
     }

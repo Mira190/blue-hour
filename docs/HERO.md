@@ -45,7 +45,11 @@ shown (`game.hero[].hide`).
 (geometry and textures freed) past 520 m. On the low tier (phones) every texture is halved before it is
 sent to the GPU, a quarter of the memory, and on a phone's lean sub-tier no side is over 1024; it is resized by
 `createImageBitmap`, not through a full-size canvas. Its shaders are compiled and its textures sent in idle time
-before it is first shown (`world.js` `upload`, `compile`), so it does not stall a frame.
+before it is first shown (`world.js` `upload`, `compile`), so it does not stall a frame. The low tier draws it without
+normal and roughness maps; the paving's roughness came in glTF's one metallic-roughness picture (its metalness 0 in
+it) with the factors beside it at glTF's default of 1, so without the picture the asphalt, the crossings' paint, the
+pavers and the setts were a rough metal on every phone, lit by the sky's reflection and by no lamp, until November
+2026: `hero.js` now sets what the picture said (no metal, a paving's roughness) as it lets it go.
 
 **What cannot be seen costs nothing** (issue 358, from first principles). A level is paid for in four
 currencies: bytes fetched, memory held, triangles drawn and pixels shaded. Each is spent only where the eye is:
@@ -105,9 +109,9 @@ junction, and its first part is what fills most of the frame from eye level: the
   (`scramble.CROSSWALKS`), stop lines, the diamonds before them and centre lines, in an even off-white
   thermoplastic with the grain of its glass beads (`paint_texture`).
 - **The pavements**: grey blocks (`PavingStones136`), and Hachiko Square in the red-brown block the 2024
-  photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks on
-  OpenStreetMap's lines with their bars and domes in relief (JIS T 9251's pattern, `tactile_texture`); a
-  cast-iron grate round each mapped tree.
+  photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks
+  with their bars and domes in relief (JIS T 9251's pattern, `tactile_texture`), laid as Japan lays them
+  (`scramble.tactile_layout`, below); a cast-iron grate round each mapped tree.
 - **On the kerbs**: white guard pipes between the crosswalks, and steel lamp posts whose light is baked.
 - **The fronts** (`Level.fronts`, `front`): each wall a player can see from the junction's roads and pavements
   (eye points on a 7 m grid within 70 m, no building between), of the buildings the landmarks do not draw whole
@@ -236,9 +240,29 @@ landmarks' meshes, which went on being solid and being stood on where they had b
 - Paint lies on the asphalt only (`Level.paint`): a stop line measured to a straight kerb ran on over a kerb
   that bulges, onto the square's paving.
 - Whoever stands in a level stands on its paving: `game.hero[].lift` (metres over the game's ground;
-  `web/game/nav.js` `lift`), and the ground meshes a level hides are not stood on (`navcells.js` `unwalkedOf`):
-  at the spawn the hidden tactile strip had the player 20 cm up, and elsewhere the crowd's soles were 5 cm under
-  the paving drawn.
+  `web/game/nav.js` `lift`), and the ground meshes a level hides are not stood on while it is shown (`navcells.js`
+  `unwalkedOf`): at the spawn the hidden tactile strip had the player 20 cm up, and elsewhere the crowd's soles were
+  5 cm under the paving drawn. Where the level is not shown, what it hides is drawn, and stood on: the hidden meshes'
+  paving is kept apart (`navcells.js` `pavingHid`) and `lift` reads it there, between its half-metre cells. On a phone
+  the level comes some seconds after the game opens (the opening skipped and the story taken up again at once:
+  November 2026, the owner's iPhone, six seconds from the load to the first beat), and all that time the one you
+  play and the crowd round her stood 6 to 19 cm deep in the city's own Hachiko Square, its setts and its tactile
+  strips over their shoes. `tools/feet_check.js` measures every sole against the ground drawn under it, at the
+  story's first walk; `HERO=off` holds the level back to measure the city's own (at a desktop's size: a phone lets
+  go of the city's buffers once they are on the GPU).
+- **The tactile blocks** (`scramble.tactile_layout`, the level's and the city's alike). OpenStreetMap's
+  `tactile_paving=yes` says which footways have them, not where the blocks lie: a mapped footway is the walkers'
+  line, across Hachiko Square on the diagonal and round a kerb's curve point by point, and laid along it the
+  blocks were a tangle of yellow arcs across the square and onto the carriageway (the owner's iPhone, November
+  2026). Blocks are 30 cm squares in straight rows (MLIT's 道路の移動等円滑化整備ガイドライン and the municipal
+  guides after it): each mapped line is pulled straight to within 2 m of its points, the points of different lines
+  within a metre of each other are one node, and a warning block (domes) lies at each bend of 25 degrees or more
+  and at each branch; where a line comes to one of the five crosswalks it is cut back 4 m from the kerb and comes
+  in along the kerb to the crosswalk's middle, then square across to a row of warning blocks along the kerb, six
+  wide and two deep, 30 cm back from its edge (the guideline: the row parallel to the road); every line of a corner
+  shares that way in. A line's end at a kerb that is not a crosswalk's has a row four wide. The city's own copy,
+  drawn until the level comes, is laid the same and flush on what it lies on (the ground, or Hachiko Square's
+  setts, 6 mm over them): it was 12 cm over the ground.
 - And on the ground it draws, where its builder laid its own levels: the level's drawn ground (its `ground*`
   materials) is sampled every metre in the game (`tools/hero_ground_probe.js <city> 1 export
   cities/<id>/hero_floor.json`) and walked as one smooth patch (`pipeline/hero_floor.py`, game.json `patches` with
@@ -328,6 +352,15 @@ the coursed stone the relic draws (docs/PAST.md keeps that liberty).
   stand on it), and its lamp posts on the kerbs out from under the deck.
 - **The fronts** up the street and round the plaza in the Scramble's grammar (41 walls), except buildings the
   Scramble's level dresses itself (`skip_front`), so no wall is drawn twice; the two discs do not overlap.
+- **The street's signs** (`signs`, issue 57), on the faces the frame looks at (`SIGNED`): tall tenant signs standing
+  0.9 m out from an end of a face, from over the shops' band to up to 16 m above it, a tenant to each panel set
+  vertically and read from up and down the street (Shibuya's 袖看板, the tenants of city.py's stacks round the
+  crossing); lit boxes on the band over the shops; and Toei Plaza's name, 渋谷東映プラザ, in lit letters on a dark band
+  high on its face (the building's own name in an open font, not its logo; the trades are typical and the tenants
+  invented). Toei Plaza carries three tall signs, three boxes and its name, FPG links SHIBUYA (closing the view) one
+  tall sign, its neighbour one of each. Their faces are on the atlas's last shelf, after the shops, so a phone holds no
+  bigger an atlas at frame 5. The west side's fronts up the street (渋谷パークサイド共同ビル and the towers beyond it) are
+  dressed by the Scramble's level, and their signs are that level's to hang.
 
 Its stills: `tools/views/shibuya-miyamasu.json` (the frame's view, the talk shot, up and back along the deck, from
 the air) with `tools/scramble_shot.js`; its beat is frame 5 of `tools/story_play.js` (`FROM=4 UPTO=5`).

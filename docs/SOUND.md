@@ -158,8 +158,10 @@ than 0.12 at any lag from 40 to 160 ms (the whole convolution's: up to 0.07).
 
 **How close it is** (`tools/reverb_check.js`, the impulse responses rendered offline both ways in Chromium, whose
 convolver is exact; WebKit's Linux build puts a Nyquist-rate pattern out of every FFT stage even for a silent response, so
-it cannot judge, and iOS's WebKit uses Apple's vDSP instead; the responses are noise made afresh, so a run moves these
-by a few tenths):
+it cannot judge, and iOS's WebKit uses Apple's vDSP instead; the four rooms' and the hall's noise comes from a fixed seed
+for each room and channel since November 2026, so every page hears the room that was measured and a run gives the same
+figures; the score's room is still drawn afresh and moves by a few tenths. Drawn afresh, the inside's low band at 48 kHz
+once came out at 3.9 dB, past its 3.7):
 
 | Reverb | Energy decay after the head, broadband (below 500 Hz, above 3 kHz) | Seam | Echo density (whole) | Left/right |
 |---|---|---|---|---|
@@ -186,15 +188,60 @@ Gaussian's; 1 is noise. The seam is the largest difference of 60 ms windows from
   fails on two pieces of music at once in the opening (below);
 - `tools/reverb_check.js` holds the hybrid to the table above.
 
-**Seen from a phone.** A browser says nothing of the blocks it missed. What a page can see is the context's clock against
-the wall's: the context's time moves only as blocks are made, so while the audio thread is held up it falls behind and
-then jumps. `audio.js` `health()` keeps the gap ten times a second while the sound runs and the page is seen, takes the two
-clocks' drift out (a straight line through it), and gives telemetry.js, with each `time` event, `snd_late` (how far, in
-ms, the gap rose over its least) and `snd_stall` (how many readings were 25 ms or more behind), with `snd` (the tape, the
-reverb and the rate: `deck hybrid 48000`). So the next time a phone's sound breaks, PostHog says whether its audio thread
-fell behind, and where in the story. It reads a phone's hardware clock; on this machine's headless browser, whose audio
-device is a timer sharing the CPU with a software renderer, the same page read 1 stall in one run and 432 in the next, so
-it says nothing here, and its first true reading will be a phone's.
+**Seen from a phone.** A browser says nothing of the blocks it missed. What a page can see is two clocks against the
+wall's, read ten times a second while the sound runs and the page is seen (`audio.js` `health()`, given to telemetry.js with
+each `time` event):
+
+- *the context's own* (`currentTime`), which moves only as blocks are made: while the audio thread is held up it falls
+  behind and then jumps. `snd_late` is how far, in ms, the gap rose over its least (the two clocks' drift taken out by a
+  straight line through it), `snd_stall` how many readings were 25 ms or more behind, `snd_at` where the worst was (the
+  opening's shot, or the story's frame and beat);
+- *the output's* (`getOutputTimestamp`: the frame at the speaker and when it is heard). WebKit's `currentTime` counts the
+  frames the page's thread has made, not the ones heard: a block made too late for the output leaves it as it was, and the
+  output plays that block late and everything after it with it ("Underruns in WebContent Process audio thread lead to extra
+  latency", WebKit bug 293296). So a crackle, a run of blocks each a little late, never showed in `snd_late`. The gap
+  between the output's clock and the wall's steps up at each and stays: `snd_xrun` counts the steps of 2 ms or more,
+  `snd_gap` is their ms in all, `snd_xat` the three places with most;
+- and `snd_off`, the seconds the context was not running while sound was wanted and the page seen (iOS leaves it
+  `interrupted` after a call or another app's sound; the page now asks for it back every two seconds while it is seen,
+  as well as at the next touch), `snd_mute` with the Sound switch off; with `snd` (the tape, the reverb and the rate:
+  `deck hybrid 48000`). A phone's story read no clock at all for six minutes (19 November): the context was not running,
+  or the sound was off, and nothing said which.
+
+A reading from the last second before the page is hidden or the context stops is dropped. The owner's iPhone (iOS 27,
+19 November 2026, the episode played to its first Stop and left for a screenshot) read `snd_late 258, snd_stall 3`:
+three readings 58, 158 and 258 ms behind, one tenth of a second apart, and then the page hidden. That is not the audio
+thread held up and catching up but its clock stopped while the wall's went on, as iOS stops the sound of a page being left
+a moment before it says the page is hidden. The same play's opening read 11 ms, another's 38: the opening's crackle, which
+the owner heard both times at the shot of the crossing from above, was not in that clock at all. On this machine's headless
+browser, whose audio device is a timer sharing the CPU with a software renderer, the clocks say nothing; a phone's are the
+first true readings (`tools/audio_graph_check.js` checks the readings against an output clock made to step).
+
+**The graph does not grow.** A node left connected to the mix is visited by the audio thread in every block, silent or not,
+until the page lets go of it. WebKit's sound has crackled once a page had left a couple of thousand there (WebKit bug 222098,
+fixed for the nodes with tails in 2021; its own advice: take nodes out of the graph once they are no longer useful), and
+the street left them by the hundred: every one-shot's last gain stayed on its bus (a beep, a step, a horn, a call's notes
+and its own pan, a bogie's wheels, a chime, the story's tones), and the screens' kick left one a beat, two a second for as
+long as you stood at the crossing. Every one-shot now takes itself off its bus as it ends (`free`, and a call's own level
+and pan after its length). `tools/audio_graph_check.js` plays every one the street and the story make six times over with
+the street's beds running, and the screens' song and a train's wheels for six seconds: the graph the audio thread visits
+went from 164 nodes to 2,710 and stayed there; it now comes back to what it was (131, with the story's hall, which is made
+once and kept).
+
+**Nothing begins before it can be taken up.** The audio thread takes up what the page has made only between blocks, and
+only when the page is not changing the graph at that moment. A sound begun at the context's own time was taken up a block
+or two late on a busy page, part way up its attack: a click, and over a crowd of them a crackle. Every one-shot begins
+`LEAD` (12 ms, about four blocks) after now, the beep's, the step's and the stamp's 2 ms attack in place of the full level
+in their first sample, and the deck's brake is laid from the same lead. A bogie's roll swelled up from 0.12 s before the
+axle, which put its start in the past: it came in at nine tenths of its level in one sample at every bogie; it now begins
+at the lead and the axle after it. The opening's score, joined late where the picture is, comes up over 40 ms.
+`tools/audio_graph_check.js` fails on any source begun at or before the context's time.
+
+**What each part costs the audio thread** (`tools/audio_cost.js`: each part on its own in an OfflineAudioContext at 48 kHz,
+best of three, as a share of a 2.7 ms block on this machine; a phone's core differs, the shares between parts do not): a
+room's hybrid reverb 1.9 %, the hall's 1.4 %, the score's room 1.9 %, the live score with its room 6.8 %, the held choir
+1.4 %, the crowd's beds 0.3 %. Everything at once at a Stop is about 13 %; the opening (a room, the deck, two buffers of
+music, a train's rumble) about 3 %. Cost is not what broke the opening.
 
 **What the opening asks of the sound on a phone** (`tools/phone_audio.js`, shot by shot, the loading screen touched): the
 loading cue alone through the aerial shot; from the kerb a train on the viaduct about 100 m off (its rumble is what the

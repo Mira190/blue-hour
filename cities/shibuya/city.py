@@ -3917,7 +3917,10 @@ def scramble_build(lm):
             if sc.get("building") == "Q-FRONT":
                 mid, n, t, base, _, _ = place(sc, node)
                 opens.append((mid, t, sc["w"], base, base + sc["h"]))
-        _DATA["scramble_build"] = scramble.Build(CITY, lm["scramble"]["node"], lm, openings=opens)
+        # (what the tactile lines lie on: Hachiko Square's setts, laid 6 cm over the ground, hachiko_square)
+        sq = Polygon(HACHIKO_SQUARE)
+        top = lambda x, y: lm_ground_at(lm, x, y) + 0.06 if sq.contains(Point(x, y)) else None
+        _DATA["scramble_build"] = scramble.Build(CITY, lm["scramble"]["node"], lm, openings=opens, top=top)
     return _DATA["scramble_build"]
 
 
