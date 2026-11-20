@@ -99,9 +99,9 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
   const geo = (k, f) => GEO[k] || (GEO[k] = f());
   // 'clear': the vinyl of a convenience-store umbrella: see-through with a milky haze, glossy enough to carry the screens'
   // and the signs' light as a sheen (at 0.82 opaque and half rough it read as a white paper canopy)
-  const stdMat = hex => MAT[hex] || (MAT[hex] = hex === 'clear'
+  const stdMat = hex => MAT[hex] || (MAT[hex] = nearMaterial(hex === 'clear'
     ? new THREE.MeshStandardMaterial({ color: 0xe9eff3, roughness: 0.16, metalness: 0, transparent: true, opacity: 0.52, depthWrite: false, side: THREE.DoubleSide })
-    : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide }));
+    : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide })));
   // an open umbrella's canopy: eight panels over a cone, open underneath (the apex up)
   const canopyGeo = () => new THREE.ConeGeometry(0.56, 0.24, 8, 1, true);
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -571,6 +571,45 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     return out;
   }
 
+  // ------------------------------------------------------------ someone at the lens (issue 82)
+  // With the chase camera on foot at a shoulder, 2.5 m up and 5.5 m back, someone of the crowd walking a pace beside the
+  // lens filled a quarter of a phone's upright frame: not between the lens and you, so the rig's lift over the crowd did
+  // nothing, and not inside the lens, so lensClear left them drawn. As games do with someone close to the camera, a
+  // person is dissolved as they come near the lens: whole at uNear.y from it, gone at uNear.x, in a fixed 4x4 ordered
+  // dither (no noise in time: held still, nothing flickers). The distance is the person's, not each pixel's: from the lens
+  // to their middle, a metre over where they stand (each instance's own for the far copies), so that the whole of them
+  // goes at once; by the pixel's, the head, nearer a lens 2.5 m up, went before the body. game.js sets the band only for
+  // the chase view on foot; a film's, a talk's and the finder's framing is composed with whoever is in it, and there it
+  // is off. Every person's material takes it (litMaterial below, and what they carry: stdMat, measured from where it is)
+  const nearU = { uNear: { value: null } };
+  function setNear(a, b) { if (!nearU.uNear.value) nearU.uNear.value = new THREE.Vector2(); nearU.uNear.value.set(a, b); }
+  const nearBand = () => (nearU.uNear.value ? nearU.uNear.value.toArray() : null); // (as last set: tools/lens_near.js)
+  const NEAR_GLSL = `
+  { float nrK = smoothstep(uNear.x, uNear.y, vNearD);
+    if (nrK < 1.0) {
+      const float NR_B[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+      ivec2 nrP = ivec2(mod(floor(gl_FragCoord.xy), 4.0));
+      if (nrK <= (NR_B[nrP.x + nrP.y * 4] + 0.5) / 16.0) discard;
+    } }`;
+  function nearPatch(sh, lift = 1.0) {
+    if (!nearU.uNear.value) setNear(-2, -1);
+    sh.uniforms.uNear = nearU.uNear;
+    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying float vNearD;\nvoid main() {')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+  { vec4 nrO = vec4(0.0, 0.0, 0.0, 1.0);
+  #ifdef USE_INSTANCING
+    nrO = instanceMatrix * nrO;
+  #endif
+    nrO = modelMatrix * nrO; nrO.y += ${lift.toFixed(2)}; vNearD = length((viewMatrix * nrO).xyz); }`);
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', `uniform vec2 uNear;\nvarying float vNearD;\nvoid main() {${NEAR_GLSL}`);
+  }
+  function nearMaterial(m) { // (one of the things a person carries, hung from a hand or the chest: dissolved with them)
+    const own = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); nearPatch(sh, 0); };
+    m.customProgramCacheKey = () => `person-near|${key ? key.call(m) : ''}`;
+    return m;
+  }
+
   // ------------------------------------------------------------ the street lights on people
   // setLight(patch): a shader patch every person's material takes from then on (world.js
   // streetLit: after dark the street lights' pool where they stand lights them as it lights the
@@ -580,7 +619,7 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
   function litMaterial(m) {
     if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
     const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
-    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); };
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); nearPatch(sh); };
     // three.js keys a program by the text of onBeforeCompile, which this wrapper makes alike for all
     m.customProgramCacheKey = () => `person-lit|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.userData.streetLit = true;
@@ -1795,5 +1834,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, setNear, nearBand, uncovered, exposure };
 })();

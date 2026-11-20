@@ -7454,6 +7454,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   let titleMustered = false;
   function updateCamera(dt, titleOn) {
+    OEPeople.setNear(-2, -1); // (nobody dissolved at the lens, unless the chase view on foot below says so: issue 82)
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
       camera.position.copy(flyCam.pos);
@@ -7660,6 +7661,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       cam.yaw = fp.yaw; cam.pitch = Math.max(-0.25, Math.min(1.35, 0.3 - fp.pitch)); cam.yawTo = cam.pitchTo = null;
       if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); // (a frame's own lens is given back when the finder's view ends)
       if (!shot) blendFrom(0.22);
+    }
+    // (someone a pace beside the lens dissolved over its last metre, in the chase view on foot: people.js setNear, issue 82.
+    // Not in a talk's shot, a film, a scripted shot or the finder, whose framing is made with whoever is in it)
+    // (whole from 3.2 m, gone at 2 m, from the lens to the person's middle: with the eye 2.5 m up, nearer than 2 m a person
+    // is mostly under a phone's frame, and from 2 to 3 m their head and shoulders fill a corner of it. Its far edge 1.2 m
+    // short of you, so that a lens pulled in close by a wall never dissolves the one you play)
+    if (player.mode === 'foot' && cam.mode === 'chase' && !shot && !talkShot && !fpOn && !photo.on) {
+      const me = Math.hypot(camera.position.x - player.x, camera.position.y - player.z - 1, -camera.position.z - player.y), far = Math.min(3.2, me - 1.2);
+      if (far > 0.6) OEPeople.setNear(Math.max(0.3, Math.min(2, far - 1.2)), far);
     }
     lensClear();
     Wd.fitShadow(live.look, live.half);
