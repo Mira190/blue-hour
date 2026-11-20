@@ -5,7 +5,7 @@
 // the ground, an NPC's "!"). Only the WebGL canvas is read, so no HUD, label, caption or letterbox bar reaches a still.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/key_shot.js [tools/views/key-art.json] [out_dir]
-// tools/views/kagami.json: the title's two portraits of Kagami ("who"), SIZE=1200x1600 halved (crop), to web/assets/story/late/kagami-w/m.webp.
+// tools/views/kagami.json: the two portraits of Kagami on the title's who-you-play screen ("who"), SIZE=1800x2400 halved (crop), 900x1200, to web/assets/story/late/kagami-w/m.webp.
 // Writes out_dir/key-N.png (1920x1080, or SIZE=WxH) and, with WEBP=1, web/assets/story/late/key-N.webp (Pillow, the
 // quality in the views file). ONLY=key-2 films one. MARKS=1 leaves the marks in (to see what the switches take out).
 // A view: {"name", "eye": [x, y, dz], "look": [x, y, dz], "fov", "floor"?, "people"?: [x, y], "crowd_r", "crowd_n",
