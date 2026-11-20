@@ -6537,6 +6537,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const p = W(v.x, v.y, z + 3), dx = camera.position.x - p.x, dz = camera.position.z - p.z, d = Math.hypot(dx, dz) || 1, k = Math.min(2.5, d * 0.4) / d;
     nightFill.position.set(p.x + dx * k, p.y, p.z + dz * k);
   }
+  // A frame a check runs without drawing it (tools/story_play.js DRAW=n: one in n drawn on a software renderer, #51): what
+  // only a drawn frame shows is left to the next one drawn (#70). Never on a player's page, where every frame is drawn
+  const unseenFrame = () => !!window.__draw && window.__draw.on === false;
   function frame(now) {
     if (!running) return;
     if (care.lost) { last = now; requestAnimationFrame(frame); return; } // the game holds still until the picture is back
@@ -6697,7 +6700,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (framesDrawn < 2 && ++framesDrawn === 2) firstDrawn();
     else if (framesDrawn === 1) try { performance.mark('oe:frame', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the load's first frame (telemetry.js)
     if (framesDrawn === 1) firstFrame();
-    updateLabels();
+    if (!unseenFrame()) updateLabels(); // (the names over the street are placed for the frame drawn: none in a check's frame not drawn)
     requestAnimationFrame(frame);
   }
 
@@ -7311,7 +7314,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const hx = Math.sin(fp.yaw), hy = Math.cos(fp.yaw), cp = Math.cos(fp.pitch);
       // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
       // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
-      const eye = W(player.x + hx * (hold ? hold[0] : 0.12), player.y + hy * (hold ? hold[0] : 0.12), fp.eyeZ);
+      // (and held out as a photographer presses the lens to the glass: to the roof's edge along its heading and a hand's
+      // breadth past it, never nearer than hold's own reach. From that reach alone, a player standing a pace back from
+      // the glass had the parapet's ledge and the light along its foot under the lens, and frame 4's dome came out with a
+      // white veil over the lower half of the finder and of the print)
+      let reach = hold ? hold[0] : 0.12;
+      if (hold) for (let d = hold[0]; d <= hold[0] + 2.5; d += 0.1) if (nav.groundBelow(player.x + hx * d, player.y + hy * d, player.z + 0.6) < player.z - 2) { reach = d + 0.15; break; }
+      fp.reach = hold && fp.reach != null ? fp.reach + (reach - fp.reach) * (1 - Math.exp(-dt / 0.12)) : reach;
+      const eye = W(player.x + hx * fp.reach, player.y + hy * fp.reach, fp.eyeZ);
       fpUp.copy(eye).add(fpDir.set(hx * cp, Math.sin(fp.pitch), -hy * cp));
       // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
       // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it).
