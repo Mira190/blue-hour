@@ -219,8 +219,26 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
       continue;
     }
+    // The last frame's rain (story.js rain(), the frame's rain_on): the cloud lowers while the player crosses to her, the
+    // first drops come on her first word, and the crowd's umbrellas go up one by one behind her as she speaks. Stills as
+    // it comes on, by the world's own clock. It fails rain before she spoke, umbrellas up in the moment it began, most of
+    // them up within five seconds (the switch it was until November 2026: nine in ten in one frame), or few after twenty
+    if (s.dlg && s.fi === 6 && s.phase === 'go' && s.beat === 'talk' && !seen.has('rain-on')) {
+      seen.add('rain-on');
+      const W = () => p.evaluate(() => { const g = window.__game, S = window.OEWeather.S; let up = 0, opening = 0, n = 0;
+        for (const q of g.crowd.P) if (q.umbAt != null && Math.abs(q.umbAt - S.t) < 0.5) { n++; if (q.umbT > 0) up++; if (q.umbT > 0 && q.umbT < 1) opening++; }
+        return { t: S.t, rain: S.rain, cloud: S.cover, wet: S.wet, up, opening, n }; });
+      const row = (at, q) => console.log(`frame 7, rain at ${at} s: rain ${q.rain.toFixed(2)}, cloud ${q.cloud.toFixed(2)}, street wet ${q.wet.toFixed(2)}, umbrellas ${q.up} up (${q.opening} opening) of ${q.n} people`);
+      const w0 = await W(); row(0, w0); await snap('7-rain-0s');
+      if (w0.rain > 0.1 || w0.up > 0) { errors.push(`frame 7: it rained before she spoke (rain ${w0.rain.toFixed(2)}, ${w0.up} umbrellas up)`); console.log(errors[errors.length - 1]); }
+      const R = {};
+      for (const at of [5, 10, 20]) { await p.waitForFunction(t => window.OEWeather.S.t >= t, w0.t + at, { timeout: 900000, polling: 250 }); R[at] = await W(); row(at, R[at]); await snap(`7-rain-${at}s`); }
+      if (R[20].rain < 0.5 || R[20].up < 0.6 * R[20].n) { errors.push(`frame 7: twenty seconds after her first word the rain is ${R[20].rain.toFixed(2)} and ${R[20].up} of ${R[20].n} umbrellas are up`); console.log(errors[errors.length - 1]); }
+      if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
+      continue;
+    }
     if (s.dlg) {
-      { const who = await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
+      { const who =await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
       // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
@@ -542,7 +560,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
     if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
       await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
-      await p.waitForTimeout(2500);
+      // (the card goes 1.2 s after the walk is taken up, by the page's own timer; on a software renderer the walk's first
+      // frames can hold the page's thread past a fixed wait, so wait for the card to go, ten seconds at most)
+      await p.waitForFunction(() => { const e = document.getElementById('g-story-end'), s = document.getElementById('game-stage'); return !e.classList.contains('on') && s.classList.contains('walk-on'); }, null, { timeout: 10000, polling: 250 }).catch(() => {});
+      await p.waitForTimeout(500);
       const look = () => p.evaluate(() => { const g = window.__game, s = document.getElementById('game-stage'), c = g.clock, pad = n => String(n).padStart(2, '0');
         return { same: !!window.__samePage, on: s.classList.contains('walk-on'), card: document.getElementById('g-story-end').classList.contains('on'), title: !document.getElementById('g-title').hidden,
           at: (document.querySelector('#g-walk-where .t') || {}).textContent || '', clock: `${pad(Math.floor(c.min / 60))}:${pad(Math.floor(c.min) % 60)}`, phase: g.story.state.phase, cast: Object.keys(g.story.state.cast).length, light: g.lights() }; });

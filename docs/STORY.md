@@ -1067,7 +1067,31 @@ frames are dry. Rain comes once.
 | 1 to 3 | Clear, the blue hour at its cleanest | The first sight of the stopped world must be legible and quiet: a held breath, not weather. The hush when the street's sound drops out is the effect |
 | 4 | Clear, the first stars | From the roof the whole case is laid out below, where he used to count the stars the city was putting out |
 | 5, 6 | Clear, full night, the screens at their brightest | The case closes in as the sky does |
-| 7 | Rain, from the moment she says *you came late* | Every umbrella goes up, so the one clear umbrella can be followed across the whole crossing; and rain held still in the air is the picture of the Stop the story has saved for last |
+| 7 | Cloud lowering as the frame begins; rain from the moment she says *you came late* | Every umbrella goes up, so the one clear umbrella can be followed across the whole crossing; and rain held still in the air is the picture of the Stop the story has saved for last |
+
+**How the rain comes on (November 2026).** The owner found it abrupt: frame 7 began with the rain at once, the street
+wet and nine in ten of the crowd's umbrellas up in one frame, each with no motion, and *It has begun to rain* said a
+second and a half later over a street already soaked (the frame's `wet` snapped the weather on, and the crowd put its
+umbrellas up by the rain's amount alone); and it came as the frame began, under the last frame's closing words, not on
+her line, where this table had always put it. They asked whether a cut or a card should cover it: dark cloud gathering, and the
+camera coming down on a crossing whose umbrellas are already up. Worked from first principles, a change of weather reads
+as a switch when it has no warning, when everyone changes in the same instant, when each change has no motion, and when
+it lands on no beat of the story; a cut hides all four instead of mending them, and this story pays for a cut more than
+most: the frames run on in one evening with no cut between them, the only thing that bends time in it is the Stop (a
+sky hurried past in a few seconds would be a second one), and the crossing blooming into umbrellas is the picture of the
+place, not a seam to hide. Games that do this well in their engines (*Red Dead Redemption 2*'s storms, *Death
+Stranding*'s timefall, *Ghost of Tsushima*'s wind as a cue, the walk-and-talks of *The Last of Us Part II*) give the
+weather a warning, a first touch and a spread through the people, and let a big change happen while the player is
+listening to someone, so that it is seen when they look up; games that set their weather by the chapter (*Yakuza*,
+*Persona 5*'s calendar) cut between days, which this evening has not. Adopted, in the design only: the cloud lowers over
+half a minute as the frame begins, while the player crosses to her (`rain_on: "meet"` on the frame, `story.js` `rain`;
+the birds go and the leaves lift with it); her first word brings the first drops, and the rain builds over half a minute
+while the street darkens as it wets; each of the crowd puts an umbrella up in their own moment, a few at the first drops
+and most once the street is wet, the arm coming up and the canopy opening from furled about its tip in about a second
+(`people.js` `umbOpening`, near and far alike), so that they go up behind her as she speaks, and when the talk is done
+the crossing is umbrellas. The words come once the drops can be seen. No card and no cut: a card would tell what the
+street can show. `tools/story_play.js` takes stills 0, 5, 10 and 20 seconds after her first word and fails rain before
+it, or most umbrellas up within five seconds.
 
 Sound follows the same rule. The street is the score: the crossing's signal, footsteps, a train on
 the viaduct. Rain, when it comes, is mixed under the voices as a soft, low wash, never a hiss, and

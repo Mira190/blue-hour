@@ -702,7 +702,7 @@ void main() {
       fetchNow(geo.lat, geo.lon).then(w => { nowWx = w; nowBusy = false; if (api.onNow) api.onNow(w); });
     }
     const cur = { rain: 0, cloud: 0, snow: 0, fog: 0, storm: 0, windK: 1, temp: 15 }, target = { rain: 0, cloud: 0, snow: 0, fog: 0, storm: 0, windK: 1, temp: 15 };
-    let custom = null, wetPin = null, depthPin = null, lastKind = 'clear', windRun = 0, runX = 0, runZ = 0;
+    let custom = null, wetPin = null, depthPin = null, lastKind = 'clear', windRun = 0, runX = 0, runZ = 0, pace = 1; // (pace: how fast the sky and the rain ease to what was asked, 1 the menu's)
     // the light as the hour and the weather left it (light, air), which a lightning flash adds to and gives back
     const lit = { hemi: 0, exp: 1, flash: 0, hazeOn: 0, hazeH: 0.05, fog: new THREE.Color(), haze: new THREE.Color(), sky: new THREE.Color(), ground: new THREE.Color() };
     // lightning: the flash in play (its strokes: [start s, peak 0..1]), the next one's time, the thunder still on its way
@@ -1021,8 +1021,9 @@ void main() {
       // pin a weather ('clear', 'overcast', 'fog', 'drizzle', 'rain', 'storm', 'snow'), or exact amounts
       // ({rain, snow, fog, storm, cloud, wet, snowDepth 0..1, temp C, wind m/s, windFrom degrees}, for
       // a still or a film), or follow the season ('live'); now: no easing in; keep: remember it for the
-      // next visit
-      set(m, { now = false, keep = false } = {}) {
+      // next visit; pace: how fast it eases in (a story's sky lowering over half a minute: 0.3; 1 the menu's)
+      set(m, { now = false, keep = false, pace: pc = 1 } = {}) {
+        pace = Math.max(0.05, pc);
         if (m && typeof m === 'object') {
           const k = kindOf({ rain: m.rain || 0, snow: m.snow, fog: m.fog, storm: m.storm, cloud: m.cloud ?? 0 }), K = KINDS[k];
           custom = { rain: m.rain ?? K.rain, snow: m.snow ?? 0, fog: m.fog ?? 0, storm: m.storm ?? 0, cloud: m.cloud ?? Math.max(K.cloud, (m.rain > 0.06 || m.snow > 0.06) ? 0.9 : 0),
@@ -1137,9 +1138,9 @@ void main() {
           snap = false;
         }
         const ease = (a, b, rate) => a + (b - a) * Math.min(1, dt * rate);
-        cur.cloud = ease(cur.cloud, target.cloud, 0.25);
+        cur.cloud = ease(cur.cloud, target.cloud, 0.25 * (target.rain > 0.06 && cur.cloud <= 0.55 ? Math.max(1, pace) : pace)); // (a cloud the rain is waiting on comes at the menu's pace: the story's first drops on her word, not seconds after it)
         const clouded = cur.cloud > 0.55;
-        cur.rain = clouded || target.rain === 0 ? ease(cur.rain, target.rain, 0.35) : ease(cur.rain, 0, 0.35); // rain waits for its clouds
+        cur.rain = clouded || target.rain === 0 ? ease(cur.rain, target.rain, 0.35 * pace) : ease(cur.rain, 0, 0.35); // rain waits for its clouds
         cur.snow = clouded || target.snow === 0 ? ease(cur.snow, target.snow, 0.3) : ease(cur.snow, 0, 0.3);
         cur.storm = cur.rain > 0.4 || target.storm === 0 ? ease(cur.storm, target.storm, 0.2) : ease(cur.storm, 0, 0.2); // and thunder for its rain
         cur.fog = ease(cur.fog, target.fog, 0.12);
