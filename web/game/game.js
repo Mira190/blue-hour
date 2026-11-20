@@ -5901,10 +5901,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (s !== 'who' && whoEl) whoEl.dataset.hand = '';
     whoSync();
     if (s === 'menu' && was !== 'who') titleLead().focus({ preventScroll: true }); // (the hand on the first way in, as a menu opens)
-    if (s === 'who' && whoEl) {
-      const k = whoEl.querySelector(whoChosen() ? '.gt-who-row [aria-checked="true"]' : '.gt-who-row [data-c]');
-      if (k) k.focus({ preventScroll: true });
-    }
+    // (who you play: the hand on the one chosen; the first time on neither, not even a cursor resting on one, but on the
+    // screen itself, so that Tab, the arrows or a pad's first press put it on a portrait)
+    if (s === 'who' && whoEl) (whoEl.querySelector('.gt-who-row [aria-checked="true"]') || whoEl).focus({ preventScroll: true });
   }
   function whoSync() {
     if (!whoEl) return;
