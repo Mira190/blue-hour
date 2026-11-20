@@ -366,7 +366,38 @@ Learned from, never copied:
 |---|---|---|
 | SpeedTree in games ([SpeedTree's blog](https://blog.speedtree.com), [Unity's tree LODs](https://docs.unity3d.com/Manual/terrain-Tree-LOD.html)) | A hero tree of more than 15,000 triangles where few trees are close; three discrete levels below it and a billboard last; branch seams welded; bark as a tiling photographed texture with its normal map | A fourth level near the camera over the three there were and the far impostors; limbs started inside the trunk rather than welded; scanned bark and its normal map |
 | ez-tree (Dan Greenheck, three.js, [MIT](https://github.com/dgreenheck/ez-tree)) | A tree grown from parameters in the browser: tapered branch tubes with bark uv in world units, leaves as cards, levels of detail | Bark uv in metres round and along each tube; the growth stays this script's own (Weber and Penn's way, in Blender) |
-| ambientCG ([CC0 1.0](https://ambientcg.com)) | Scanned PBR materials | Six bark scans (1K, WebP, half size for the light tier) |
+| ambientCG ([CC0 1.0](https://ambientcg.com)) | Scanned PBR materials | Six bark scans (1K, WebP; the colour at a quarter size for the light tier) |
+
+### A phone after dark, and the level coming in (issue 62)
+
+**The screens' light on the low tier.** A desktop lights the Scramble after dark with the screens' area lights
+(`web/neon.js`, eight on high, four on medium) and the plaza's light cards (`game.look.fill`); the low tier has none of
+them, and at dusk Hachiko's corner was lit by the sky's blue alone, the tactile blocks and the pavers dull. Now the low
+tier works out, once, the light those emitters would put on the ground of the hero levels (`neon.js` `pooled`): every
+screen within 160 m in the mean colour of its whole programme (its sheet's keyframes, read once the sheet has come; the
+mean of Shibuya's sheet where it cannot be read) and the cards, by the same closed form the area lights use towards a
+ground facing up, into one texture a metre a texel over the levels (314 by 220, 280 KB, baked a few rows a frame). A
+hero material on the low tier adds it to what it gives back, as it does its baked light (`hero.js` `POOL_F`): one texture
+read a pixel, no light in its shader. The pools follow the dusk, the screens' hours and the cards' night as the area
+lights do, but not the picture playing; the city's static glow (`night.js` `uGlowMap`) is drawn at the share it has
+beside the area lights. Matched on stills of the corner, the low tier beside the high (`tools/views/corner-night-62.json`,
+`POOL_K` 0.6): at night the blocks (161, 109, 3) on a phone where the desktop has (143, 100, 4) and a phone had
+(118, 86, 3) before, the pavers (94, 62, 61) against (98, 62, 68), before (69, 46, 50). The reference photograph of the
+corner at night: "Shibuya 10pm" (Hachiko Square at 22:10, 17 April 2020, the paving under the station's fronts and the
+screens a warm grey, the blocks yellow), by nagi usano, CC BY-SA 2.0,
+https://commons.wikimedia.org/wiki/File:Shibuya_10pm_(49785559552).jpg; and the crossing's paint under the screens,
+"Shibuya Crossing" (30 September 2023, 19:25) by Dick Thomas Johnson, CC BY 2.0,
+https://commons.wikimedia.org/wiki/File:Shibuya_Crossing_(53331011301).jpg. Compared, not copied: neither is in the
+repository. Not lit by the pools: the crowd and the fronts' walls, which on the low tier keep the hemisphere light and
+the night fill.
+
+**The level coming in.** On a phone the Scramble's level is ready seconds after the game opens (the owner's iPhone: in
+frame 1 six seconds after the load, having skipped the opening); until then the city's own Scramble is drawn, and the
+level took its place in view. The way in now waits for it (`game.js` `holdForLevel`): the opening's skip, the crane down
+from the title (reduced motion, `?overture=0`) and a story taken up again hold their shot behind a veil (the loader's
+ground with the place's name, `渋谷`, and a hairline running out the wait), at most 6 s; once the level is ready the camera
+is put at the player's shoulder under the veil and the veil lifts. Past 6 s the way in goes on without it. While it waits
+the level is fetched round the player, as behind the title. `tools/level_wait.js` checks it (docs/CHECKS.md).
 
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
@@ -589,3 +620,74 @@ at every 3.6 m bay.
 While this was built, the floodlit copy of every landmark material was found to have lost its
 shader: its `onBeforeCompile` had ended up inside a comment. So since 8 November, every city's
 floodlit landmarks had lost their pattern and their fall-off after dark. It is code again.
+
+### The Akita who leads the player
+
+The guide has two upright ears above a broad skull. Each ear has a wide root, a rounded tip
+leaning slightly outward, a pale rim and a darker recessed opening. Their silhouette follows
+the front-facing portrait supplied for the guide. He has a short muzzle, compact toes,
+a cream bib and a layer of tapered guard hairs.
+The coat follows the jaw down the cheeks, lies back along the saddle and turns around the tail.
+The relative coat lengths and the cream markings follow the
+[Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
+The pale muzzle and orbital markings follow the surface around the head. The neck reaches forward at rest.
+The [Akita preservation society's description](https://akitainunosato.jp/publics/index/27/)
+informs the broad forehead, shallow central furrow, full cheeks and straight nasal bridge.
+The [Japanese Akitainu Club's illustrated guide](https://akita-inu.com/wp-content/uploads/securepdfs/2022/08/JACA-AKC-General-Guide-Electronic.pdf)
+shows the muzzle at about two fifths of the head length. These references inform the sculpt; no images are
+shipped from them.
+The standing silhouette was compared with [Dog - Akita Inu](https://www.cgtrader.com/3d-models/animal/mammal/dog-akita-inu), a commercial visual reference. No assets from the pack are used.
+The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
+a tiled undercoat with directional relief. Both textures are generated at build time.
+The corneas and lid creases are sculpted into the same surface so the skin turns as one.
+The eyes and nose use a lower roughness than the surrounding coat.
+
+**The head, measured again and set beside photographs (20 November 2026).** In review the forehead looked
+pressed in, and the owner asked for the head to match photographs of the breed from the front and the side.
+
+*What was wrong, measured.* Sampling the sculpt's distance field across the head: above the eyes the brows stood
+16 to 20 mm higher than the middle of the forehead, a trough some 9 cm wide running back from the stop (the roof
+that shapes the stop was lifted at the sides across the whole forehead), and between the eyes they still stood
+15 to 16 mm above it, two ridges with a dark trough between them that read from the front as a hollow. And the
+skull's front, the cheeks and the brows reached so far forward that the eyes sat on a flat face some 4 cm in front
+of the stop, on the muzzle: from the side the muzzle looked short and the head like a seal's.
+
+*What the breed is.* The [Japanese Akitainu Club's page of standards](https://akita-inu.com/?p=333) (it carries
+the AKC's Japanese Akitainu standard and the Akitainu Hozonkai's): "the forehead is broad and flat, preferably
+with a distinct furrow extending from the stop to the top of the skull"; a moderate stop; a head that is "a
+slightly rounded octagon" from the front; the muzzle 40 percent of the head's length; the eyes deep-set,
+almond-shaped (the Hozonkai: somewhat triangular), relatively small, raised at the outer corners, with black
+rims; the ears small, thick, triangular, wide-set and tilted forward, "at a 75 to 90 degree angle to a line drawn
+along the bridge of the muzzle". Three photographs on Wikimedia Commons were the models for the views, all
+red Japanese Akitas: a head from the front, [Akita Tête](https://commons.wikimedia.org/wiki/File:Akita_T%C3%AAte.jpg)
+(Azurfrog, CC BY 4.0); one standing in profile, [Japanese Akita red 2](https://commons.wikimedia.org/wiki/File:Japanese_Akita_red_2.jpg),
+and one at three-quarters, [Japaneseakita-red](https://commons.wikimedia.org/wiki/File:Japaneseakita-red.jpg)
+(both Canarian, CC BY-SA 4.0). They are looked at, not shipped: `tools/head_shot.js` films the model from the
+angles they were taken from, with a long lens, and with `REFS=` a folder holding them as `front.jpg`,
+`profile.jpg` and `three.jpg` sets each still beside its photograph (`HIDE=` leaves meshes out, to tell what a
+mark in a still is made of).
+
+*What changed* (`blender/build_dog.py`). The forehead is flat across and falls gently forward, with a 2 mm furrow
+from the stop to the crown; between the eyes the brows stand 2 to 4 mm above the middle (`portrait_head`, the roof
+in `face`). The skull's front and the cheeks are drawn back so that the eyes sit at the stop, and the brows sit over
+the eyes rather than out past their corners (there they overhung the temple, and the skin beneath, facing down,
+showed from a few metres as a black streak running back from each eye). The muzzle is sculpted short and drawn out
+forward of the eyes by 1.45 (`sculpted()`, `built()`: the markings, the lips, the eyes' frame, the whiskers and where
+the coat stops all go through it): from the eye to the nose it is now about the height of the ear above the eye, as
+in the photograph in profile (it was 0.86 of it, and half the depth of the head at the eye), the muzzle 44 percent
+of the head's length against the standard's 40, and the lower jaw is shallower and rises to the chin. The eyes are
+almond to three-cornered, the lower lid nearly straight up to a raised outer corner, set some 2.5 mm back under a
+slightly overhanging upper lid, a third of the head's width apart; the sculpt presses them in along each vertex's
+own normal, with a thin black rim (it had been a quarter of the eye wide and read as black fur), in a ring of pale
+fur, and on a wet material of their own (roughness 0.1) that holds a point of the sky (`orbit`, `sculpt_features`,
+the material "Eyes"). The upper lips sit back under the nose, so that from the side the nose stands in front of
+the muzzle, and the seam of the lips falls a little all the way back to the corner of the mouth (`MOUTH`), black its
+whole length: it had turned up at its ends into a smile. The ears are longer, lean forward over the eyes and splay
+out, so that from the front they carry on the lines of the cheeks (`EAR`, `ear_frame`). The cheeks are fuller, the
+head widest below the eyes. The coat's markings follow the photographs: the red comes down the forehead to a point
+between the eyes and wraps the outer corner of each eye and the temple; the whole muzzle is white, its bridge too;
+the cheeks are white below a line from under the eye back to the angle of the jaw, and above it the side of the
+head is red out to the ear; a pale patch sits over the inner half of each eye; the throat is white and the sides of
+the neck red. The red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the
+exporter of Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they
+had come out white.

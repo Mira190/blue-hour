@@ -306,6 +306,14 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 .game-stage.cine :is(.g-quest, .g-right, .g-reticle, .g-prompt, .g-vhud, .g-lens) { opacity: 0; visibility: hidden; }
 /* the arrival with reduced motion: a cut from the title shot to the player, under a short fade (game.js craneIn) */
 .game-stage.arrive-fade #game-gl { animation: g-arrive-fade .5s ease-out; }
+/* the veil the way in waits behind for the level the player stands in (game.js holdForLevel): the loader's ground and the place's name */
+.g-veil { position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; justify-items: center; gap: 22px; background: var(--bg); opacity: 0; transition: opacity .45s var(--ease); pointer-events: none; }
+.g-veil.on { opacity: 1; pointer-events: auto; }
+.g-veil b { font: 500 clamp(30px, 5vw, 56px)/1 var(--f-jp); letter-spacing: .22em; margin-right: -.22em; color: var(--ink); text-shadow: 0 0 40px rgba(255, 214, 190, .12); }
+.g-veil i { display: block; width: min(160px, 40vw); height: 1px; background: var(--line); overflow: hidden; }
+.g-veil i::before { content: ""; display: block; height: 100%; background: var(--accent); transform-origin: left; animation: inherit; animation-name: g-veil-line; animation-timing-function: linear; animation-fill-mode: both; }
+@keyframes g-veil-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .g-veil { transition: none; } .g-veil i::before { animation: none; transform: scaleX(.5); } }
 @keyframes g-arrive-fade { from { opacity: 0; } }
 .g-bars { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .g-bars::before, .g-bars::after { content: ""; position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height 0.6s ease; }
