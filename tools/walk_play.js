@@ -24,15 +24,17 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_play.js out_dir [WxH] [hour] [sky]     (390x844: a phone, by touch; hour blue|night|live, sky clear|rain)
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), phone = w < 500;
   const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
+  watchPage(p);
   const errors = [];
   const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);

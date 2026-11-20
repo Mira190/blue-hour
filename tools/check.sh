@@ -164,13 +164,16 @@ X=; command -v xvfb-run >/dev/null && X="xvfb-run -a"
 # .github/workflows/checks.yml adds them to the issue labelled check-flaky)
 : >"$OUT/flaky.txt"
 fails_of() { grep '^FAIL' "$1" 2>/dev/null | cut -c6- | sed 's/ *[(:].*//' | sort -u; }   # the failed steps' names, without their numbers
+# why a run failed, in a line: its failed steps, and what the browser said (tools/browser_watch.js: the GPU process, a lost
+# context, the page loaded again); or, from a harness that died with no step named, the error it died of (issue 49)
+why() { { grep '^FAIL\|pageerror\|^error:\|^gpu:\|^gl: \|^page:' "$1" 2>/dev/null || grep -E '^[A-Za-z]+(\.[A-Za-z]+)+: |^[A-Za-z]*Error: ' "$1" 2>/dev/null | tail -1; } | head -${2:-2} | cut -c1-160 | paste -sd ';' -; }
 twice() {   # <kind> <first log> <second log>: the verdict of the second run
   local same one two
   one=$(fails_of "$2"); two=$(fails_of "$3")
   same=$(comm -12 <(echo "$one") <(echo "$two") | grep . | head -3 | cut -c1-110 | paste -sd ';' -)
   if [ -n "$one" ] && [ -n "$two" ] && [ -z "$same" ]; then
     echo "FLAKY $1   (no step failed twice; first: $(echo "$one" | head -2 | cut -c1-90 | paste -sd ';' -); then: $(echo "$two" | head -2 | cut -c1-90 | paste -sd ';' -))" | tee -a "$OUT/flaky.txt"
-  else echo "FAIL $1   (${same:-$(echo "$two" | head -2 | cut -c1-110 | paste -sd ';' -)}; see $3; the first run $2)"; fi
+  else echo "FAIL $1   (${same:-$( [ -n "$two" ] && echo "$two" | head -2 | cut -c1-110 | paste -sd ';' - || why "$3")}; see $3; the first run $2)"; fi
 }
 run_story() {   # on a small page: a software renderer draws the stopped world's grade slowly
   story_part story "" "" "the episode plays through its seven frames to the last card"
@@ -186,16 +189,16 @@ story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
   local n=$1 log="$OUT/$1.log"
   if FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
-  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(grep '^FAIL\|pageerror\|^error:' "$log" | head -2 | cut -c1-160 | paste -sd ';' -)" "$log"; fi
+  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
 }
 run_guide() {   # the guide along each frame's way, on a small page
   if timeout 3600 $X node tools/guide_way.js "$OUT/guide" 800x500 >"$OUT/guide.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide.log") ways led: his feet on the paving drawn, down the middle, and the mark along the way"
-  else echo "FAIL guide  $(grep '^FAIL\|pageerror' "$OUT/guide.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/guide.log)"; fi
+  else echo "FAIL guide  $(why "$OUT/guide.log")   (see $OUT/guide.log)"; fi
 }
 run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
   local ok=1 d
   for d in 800x500 390x844; do
-    if ! timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(grep '^FAIL\|pageerror' "$OUT/walk-$d.log" | head -2 | cut -c1-150 | paste -sd ';' -)   (see $OUT/walk-$d.log)"; fi
+    if ! timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
   done
   [ $ok -eq 1 ] && echo "ok   walk   $(grep -c '^ok' "$OUT/walk-800x500.log") beats on a desktop's page and $(grep -c '^ok' "$OUT/walk-390x844.log") on a phone's: two ways in, the hour and the sky, out with no story"
   return 0

@@ -25,6 +25,7 @@
 // in frames not drawn and outside the frames. TASKS=0: every frame waits for the display, as it did before; HOLD=0: the
 // frames run on, drawn whole, while a still is taken.
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
@@ -33,8 +34,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500, isMobile: w < 500 });
+  watchPage(p);
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });

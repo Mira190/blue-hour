@@ -7,17 +7,19 @@
 // ridden as a passenger (one row of buttons, the readout across the screen, the car on the road's surface, Skip
 // and "Get out" by a tap). Stills of the kerb, the ride and the car go to outDir.
 const { chromium } = require('playwright');
+const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const path = require('path');
 const fs = require('fs');
 const { startPlay } = require('./start_play');
 const [,, city = 'shibuya', outDir = '.'] = process.argv;
 (async () => {
-  const b = await chromium.launch(process.env.DISPLAY
+  const b = await chromium.launch(Object.assign({ logger: browserLog() }, process.env.DISPLAY
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
-    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }));
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' });
   const p = await ctx.newPage();
+  watchPage(p);
   await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'low'); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   const errors = [];
   p.on('pageerror', e => errors.push(String(e).slice(0, 200)));
