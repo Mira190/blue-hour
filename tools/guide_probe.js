@@ -41,7 +41,7 @@ const WAYS = [
       const g = window.__game, st = g.story.state, dog = st.dog, pl = g.player, nav = g.nav;
       pl.x = wy.from[0]; pl.y = wy.from[1]; const f = nav.floorAt(pl.x, pl.y, 400); pl.z = f ? f.z : pl.z;
       dog.place(wy.from[0] + 1.2, wy.from[1] + 0.8, 0); dog.lead(wy.to, 1.2);
-      const bad = [], BODY = 0.66; let n = 0, t = 0; // (game.js GUIDE_BODY, less the pushOut's last few centimetres)
+      const bad = [], BODY = (dog.reach || 0.7) - 0.04; let n = 0, t = 0; // (his reach as his model has it, companion.js body, less the pushOut's last few centimetres)
       const iv = setInterval(() => {
         t += 0.05;
         // the player follows a couple of metres behind the dog, as a walker does
