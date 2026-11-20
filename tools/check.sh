@@ -43,16 +43,24 @@
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
 #   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   look    the models, pictures and sounds changed, each loaded as the page loads it (every texture decoded, every
+#           material drawn) and set beside itself as it was, in a still (tools/look_check.js); for a change of those
+#           alone the fast tier runs this and mem, not the story (a model whose names, flags or attributes changed, as
+#           tools/model_contract.py reads them, goes to the page's checks like code);
 #   story1, story2, story3  the story in three parts, each on its own runner (frames 1 to 4; 5 and 6 from a late start; 7
 #           and the last card from one): what "story" checks, in a third of the time; CHECK_SPLIT=1 --plan names them for "story"
+#   walk1, walk2, guide1, guide2  the walk's desktop page and its phone's, the guide's ways and his body: a runner each
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
-# Prints one line per check and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
+# Prints one line per check and the time each took, and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
+# A browser check whose last pass in this clone read nothing that has changed since is not played again: its pass is
+# kept (tools/check_cache.py, from the server's log of what the page fetched).
 #   tools/check.sh                      # the fast tier: static, and story and mem when the page or the map changed;
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
+#   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static story walk ride mem audio clip gl touch astc
+#   tools/check.sh all                  # static look story guide walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
@@ -64,8 +72,9 @@ MAP=shibuya
 PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
-KINDS="story story1 story2 story3 guide walk ride mem audio clip gl touch astc game"   # the browser checks, in the order they run
-ALL="story guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+# the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
+KINDS="look mem astc audio ride story story1 story2 story3 walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+ALL="look story guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
@@ -76,7 +85,7 @@ STAMP="$(git rev-parse --git-dir)/oe-check-pass$([ "$TIER" = full ] && echo -ful
 stamp() { [ $# -eq 0 ] && [ -z "${CHECK_BASE:-}" ] && [ -z "$(git status --porcelain)" ] && git rev-parse HEAD >"$STAMP"; return 0; }
 is_in() { printf '%s\n' $2 | grep -qx "$1"; }
 
-static=0 want=
+static=0 want= base= looks=
 add() { local k; for k in "$@"; do is_in "$k" "$KINDS" || { echo "unknown target: $k (targets: static $KINDS all)"; exit 2; }; is_in "$k" "$want" || want="$want $k"; done; }
 
 if [ $# -gt 0 ]; then
@@ -108,24 +117,48 @@ else
     done
   fi
   page() { add story walk mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
+  # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
+  # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
+  # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
+  # for what it lost. The full tier on main plays the page for it all the same.
+  looks= glbs=
+  asset() {
+    [ -e "$1" ] || { page; return 0; }
+    looks="$looks $1"; case "$1" in *.glb) glbs="$glbs $1" ;; esac
+    if [ "$TIER" = full ]; then page; add look; else add look mem; fi
+  }
+  # A harness, or a module harnesses share: the checks that require it (tools/check_cache.py users); on the fast tier only
+  # the quickest of several, which shows the module still works, and on main all of them
+  harness() {
+    local u k; u=$(python3 tools/check_cache.py users "$1" | tr ' ' '\n' | grep -vx game | paste -sd ' ' -)
+    [ -n "$u" ] || return 0
+    if [ "$TIER" = full ] || [ "$(echo "$u" | wc -w)" -eq 1 ]; then add $u; return 0; fi
+    for k in $KINDS; do is_in "$k" "$u" && { add "$k"; return 0; }; done
+  }
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
       web/data/$MAP/d/*|pipeline/district.py|tools/mem_check.js) static=1; add mem ;;   # what a phone loads
-      tools/story_play.js|tools/story_play.js|tools/start_play.js) static=1; add story ;;
-      tools/walk_play.js) static=1; add walk ;;
-      tools/clip_check.js|tools/pin_clock.js) static=1; add clip ;;
-      tools/ride_people.js) static=1; add ride ;;
-      tools/touch_check.js) static=1; add touch ;;
-      tools/gl_error_probe.js|tools/sampler_probe.js) static=1; add gl ;;
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
-      web/*|cities/*) static=1; page ;;
-      tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
+      web/data/$MAP/hero/*) static=1; page ;;   # (a hero level's ground meshes are what everyone walks on: game.js heroCover)
+      web/*.glb|web/*.webp|web/*.png|web/*.jpg|web/*.jpeg|web/*.avif|web/*.ktx2) static=1; asset "$f" ;;
+      web/*.mp3|web/*.ogg|web/*.m4a|web/*.wav) static=1; add audio; asset "$f" ;;
+      web/*|cities/$MAP/city.json) static=1; page ;;   # (tools/story_play.js reads the city's story from city.json itself)
+      tools/*.js) static=1; harness "$f" ;;
+      # (the builders' sources: the page sees only what they write under web/, which is in the diff once it is built)
+      cities/*|tools/*|pipeline/*|blender/*|.github/*|requirements.txt) static=1 ;;   # the checks' own plumbing and the build: the static ones
     esac
   done
+  if [ -n "$glbs" ] && [ "$TIER" != full ]; then
+    changed=$(python3 tools/model_contract.py "$base" $glbs | tee "$OUT/contract.txt" | grep '^CHANGED')
+    if [ -n "$changed" ]; then
+      echo "a model's names, flags or attributes changed, so the page's checks too: $(echo "$changed" | head -2 | cut -c9-140 | paste -sd ';' -) ($OUT/contract.txt)" >&2
+      page
+    elif ! is_in story "$want"; then echo "the models changed keep their names, flags and attributes ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
+  fi
   if [ "${mainonly:-0}" = 1 ] && [ -n "$want" ]; then
     echo "all that changed since the last pass is main's, as main has it: the static checks only, and the rest on main (CHECK_FULL=1:$want too)" >&2
     want=
@@ -135,8 +168,10 @@ fi
 if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to this script: a runner's shard
   [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && echo static
   for k in $want; do
-    # (a runner's plan: the story in three parts, one a runner, which together play every frame and the last card)
-    if [ "$k" = story ] && [ "${CHECK_SPLIT:-0}" = 1 ]; then echo story1; echo story2; echo story3; else echo "$k"; fi
+    # (a runner's plan: the story in three parts, one a runner, which together play every frame and the last card; the
+    # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3 ;; walk) echo walk1; echo walk2 ;; guide) echo guide1; echo guide2 ;; *) echo "$k" ;; esac
+    else echo "$k"; fi
   done
   exit 0
 fi
@@ -149,7 +184,8 @@ fi
 
 started=
 if [ -n "$want" ] && ! curl -s -o /dev/null "http://localhost:$PORT/index.html"; then
-  python3 -m http.server "$PORT" --directory web >"$OUT/server.log" 2>&1 &
+  # (its log is what each check read: tools/check_cache.py keeps a pass for as long as all of that is as it was)
+  python3 -u -m http.server "$PORT" --directory web >"$OUT/server.log" 2>&1 &
   started=$!
   for _ in $(seq 50); do curl -s -o /dev/null "http://localhost:$PORT/index.html" && break; sleep 0.2; done
 fi
@@ -193,18 +229,25 @@ story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   if CHROME_LOG="$OUT/$n-chrome.log" FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
   else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
 }
-run_guide() {   # the guide along each frame's way, on a small page; and his body and the player's never in each other
+run_guide() { run_guide1; run_guide2; }   # the guide along each frame's way, on a small page; and his body and the player's never in each other
+run_guide1() {   # (a runner each: CHECK_SPLIT=1)
   if CHROME_LOG="$OUT/guide-chrome.log" timeout 3600 $X node tools/guide_way.js "$OUT/guide" 800x500 >"$OUT/guide.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide.log") ways led: his feet on the paving drawn, down the middle, and the mark along the way"
   else echo "FAIL guide  $(why "$OUT/guide.log")   (see $OUT/guide.log)"; fi
+}
+run_guide2() {
   if CHROME_LOG="$OUT/guide-body-chrome.log" timeout 1800 $X node tools/guide_body.js "$OUT/guide-body" 800x500 >"$OUT/guide-body.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/guide-body.log") ways of meeting him (sitting, at heel, leading, against a wall): his model never in the player, measured by its own vertices"
   else echo "FAIL guide  body: $(why "$OUT/guide-body.log")   (see $OUT/guide-body.log)"; fi
 }
-run_walk() {   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
-  local ok=1 d
-  for d in 800x500 390x844; do
+run_walk() { walk_on 800x500 390x844; }   # the walk's way in and out on the street, on a small desktop page (and the last card's fresh page) and a phone's, by touch
+run_walk1() { walk_on 800x500; }          # (a runner each: CHECK_SPLIT=1)
+run_walk2() { walk_on 390x844; }
+walk_on() {
+  local ok=1 d said=
+  for d in "$@"; do
     if ! CHROME_LOG="$OUT/walk-$d-chrome.log" timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
+    said="${said:+$said and }$(grep -c '^ok' "$OUT/walk-$d.log") $([ "$d" = 390x844 ] && echo "beats on a phone's page" || echo "beats on a desktop's page")"
   done
-  [ $ok -eq 1 ] && echo "ok   walk   $(grep -c '^ok' "$OUT/walk-800x500.log") beats on a desktop's page and $(grep -c '^ok' "$OUT/walk-390x844.log") on a phone's: two ways in, the hour and the sky, out with no story"
+  [ $ok -eq 1 ] && echo "ok   walk   $said: two ways in, the hour and the sky, out with no story"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
@@ -265,6 +308,12 @@ run_touch() {
     echo "ok   touch  $(grep -c '^ok' "$OUT/touch.log") steps on a phone's page"
   else echo "FAIL touch  $(grep '^FAIL' "$OUT/touch.log" | head -2 | cut -c6-140 | paste -sd ';' -)   (see $OUT/touch.log)"; fi
 }
+run_look() {   # the models, pictures and sounds changed, loaded as the page loads them and set beside themselves as they were
+  # (no file named by the diff, as on a runner's shard: every one under web/assets and the hero levels, decoded)
+  if LOOK_BASE=${base:-} CHROME_LOG="$OUT/look-chrome.log" timeout 1200 $X node tools/look_check.js "$OUT/look" $looks >"$OUT/look.log" 2>&1; then
+    echo "ok   look   $(tail -1 "$OUT/look.log" | sed 's/: all loaded$//')"
+  else echo "FAIL look   $(grep '^FAIL' "$OUT/look.log" | head -2 | cut -c6-160 | paste -sd ';' -)   (see $OUT/look.log)"; fi
+}
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
   if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then
     echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page and decoded by the GPU, none under the floor"
@@ -286,7 +335,25 @@ parts() {   # the parts of the shared models loaded before playable and after, a
   done
 }
 
+# One browser check, or its pass kept: when everything it read at its last pass in this clone (the files the page
+# fetched, by the server's log; its harness; its settings) is byte for byte as it is now, it would play the same page
+# (tools/check_cache.py). CHECK_CACHE=0 or CHECK_FULL=1 plays it all the same; the full tier on main keeps nothing.
+cache_on() { [ "${CHECK_CACHE:-1}" != 0 ] && [ -z "${CHECK_FULL:-}" ] && [ "$TIER" != full ]; }
+run_one() {
+  local k=$1 t0 n0=0 hit res
+  if cache_on && hit=$(python3 tools/check_cache.py hit "$k"); then
+    printf 'ok   %-6s kept from its pass at %s: nothing it read has changed since (CHECK_CACHE=0 plays it again)\n' "$k" "$hit"
+    return 0
+  fi
+  t0=$(date +%s); [ -n "$started" ] && n0=$(wc -l <"$OUT/server.log")
+  res=$("run_$k"); echo "$res"
+  echo "$k $(( $(date +%s) - t0 ))" >>"$OUT/times.txt"
+  if echo "$res" | grep -q '^FAIL\|^FLAKY'; then python3 tools/check_cache.py drop "$k"
+  elif [ -n "$started" ] && cache_on; then python3 tools/check_cache.py save "$k" "$OUT/server.log" "$n0" "$t0" "$(( $(date +%s) - t0 ))"; fi
+}
+: >"$OUT/times.txt"
 {
+  t_static=$(date +%s)
   if [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ]; then
     st voice voice - '^FAIL' python3 tools/voice_check.py
     st goals goals - '^FAIL' node tools/goals_check.js
@@ -306,8 +373,10 @@ parts() {   # the parts of the shared models loaded before playable and after, a
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"
   fi
-  for k in $KINDS; do is_in "$k" "$want" && "run_$k"; done
+  for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done
+  [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", NR > 1 ? ", " : "", $1, $2; t += $2 } END { printf "; %d min in all", (t + 30) / 60 }' "$OUT/times.txt")"
 } | tee "$OUT/summary.txt"
 grep -q '^FAIL' "$OUT/summary.txt" && exit 1
 stamp "$@"

@@ -136,8 +136,11 @@ The owner should not be the one who finds the bug.
 
 - `tools/check.sh` runs the checks a change needs, chosen from what it changed against
   origin/main: the static checks (packs, voice, visibility, solids, models, signs), and for a
-  change to the page or the map the story's first episode played through
-  (`tools/story_play.js`) and the page on a phone's memory budget (`tools/mem_check.js`).
+  change to the page's code or data the story's first episode played through
+  (`tools/story_play.js`) and the page on a phone's memory budget (`tools/mem_check.js`). For
+  models, pictures or sounds alone, each is loaded beside itself as it was (`tools/look_check.js`)
+  and the phone's memory measured, and the story is not played, unless a model lost a name the code
+  can ask for (`tools/model_contract.py`).
   `tools/check.sh story` runs one target, `tools/check.sh all` everything but the free game's
   long scenario (docs/CHECKS.md).
 - The checks don't see what a person sees. For a visual change, take stills on a desktop
@@ -197,6 +200,11 @@ of main that touches nothing of the branch's now runs the static checks only: "L
   your own earlier browser job (by the PID or background task you started it as) before starting another.
 - **Play only what you changed while you work on it** (`FROM=n UPTO=n`, one screen, then the other once it is right),
   and run the whole `tools/check.sh` once, when the branch is ready to land.
+- **Let the router and the cache choose.** A browser check whose last pass in this clone read nothing that has changed
+  since is kept, not played again (`tools/check_cache.py`, from the server's log of what the page fetched), so a run
+  after a fix plays only what the fix touched; and models, pictures or sounds alone run `look` and `mem`, minutes, not
+  the story (docs/CHECKS.md, "The router and the cache"). Run plain `tools/check.sh` rather than naming targets, and
+  read its last line: the time each check took.
 - **Wait once.** A background job is waited for by one `until` loop on its own output, or by ending the turn and being
   called back when it finishes; never a loop on another loop's output, never two loops on one job.
 - **Keep the context light.** A still or a log read into the conversation stays in it for every later step: look at a
