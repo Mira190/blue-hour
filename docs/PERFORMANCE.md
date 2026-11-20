@@ -116,6 +116,72 @@ Two more, the same picture to the bit:
 What the shadow pass still draws is mostly instanced props, trees and people spread over the whole city. An
 instanced mesh is culled as a whole, so these are drawn in full however small the shadow box.
 
+## The story check's frames not drawn (issue 70)
+
+On a session's machine (four cores, Chromium on Mesa's llvmpipe under `xvfb-run`) `tools/story_play.js` plays the story
+at 800x500 with one frame in thirty drawn (`DRAW=30`, issue 51). Measured with the play's own clock (its last line now
+says where the wall's time went: frames not drawn, frames drawn, and the stills with the frames drawn whole for them) and
+CDP `Profiler` (`PROFILE=still:seconds`), one browser at a time, the same machine before and after.
+
+**Where an undrawn frame's time went** (a minute after a still, sampled every 0.5 ms; own time):
+
+| frame 2's walk (`2-said-go-talk-shun`) | | frame 7's rain, the full crowd (`7-rain-0s`) | |
+|---|---|---|---|
+| `getError` (game.js `glCheck`) | 16% | `getBufferSubData` (world.js `pollReads`: the rain's cover map read back) | 27% |
+| crowd `update` (actors.js 2487, the traffic) | 6% | `getError` (`glCheck`) | 8% |
+| crowd `plazaStep` (actors.js 1070) | 6% | crowd `walk` (actors.js 1341) | 4% |
+| crowd `walk` (actors.js 1341) | 6% | `updateMatrixWorld` (the world, at each render skipped) | 4% |
+| crowd `update` (actors.js 1270) | 6% | crowd `plazaStep` | 4% |
+| `updateMatrixWorld` | 5% | traffic `update` (actors.js 2487) | 4% |
+| crowd `nearest` (actors.js 320) | 4% | crowd `update` (actors.js 1270) | 3% |
+| `simulate` (game.js) | 3% | crowd `nearest` | 2% |
+| `traverseVisible` (the `onBeforeRender` replay) | 2% | `getProgramInfoLog` (a program's first draw) | 2% |
+| `getPropertyValue` (hud.js `css`, the minimap) | 2% | `traverseVisible` | 2% |
+
+Including what they call: the crowd and the traffic (`actors.js` `update`, its walking, its plazas, its nearest
+neighbours, `people.js` `place`) were 44% in frame 2 and 40% in frame 7. They are what the checks read (where everyone
+is, who blocks whom, the umbrellas), so they stay. The two biggest lines were neither: each was the page asking the GPU
+something it could only answer once llvmpipe had finished the frame drawn before, which took a second. A frame not drawn
+waited for it.
+
+**What was cut, on a check's frames not drawn only** (`window.__draw.on === false`, which only the harness sets; a
+player's page has no `__draw`, and every frame of it is drawn as before):
+
+- `getError` answers no error without asking (story_play.js). An error stays in the context until it is asked for, so
+  the game's `glCheck` still finds it, in its next ask made in a drawn frame. No story check read it (the `gl` target does).
+- The rain's cover map (weather.js `renderOcc`) is neither drawn nor read back there. Its render was skipped already (#51),
+  and its read back of the old map waited for the GPU. The map is drawn and read in the next frame drawn, which so shows the
+  rain kept out from under cover as it is; before, a still's frame could carry a map whose render had been skipped.
+  `world.js` `pollReads` waits for a frame drawn to read.
+- The minimap (hud.js `draw`) and the names over the street (game.js `updateLabels`) are placed for the frame drawn
+  alone: both are worked out from where things are, with nothing carried over.
+
+Not cut: the rigs' animation out of view (`rig.animate` sets each walker's clip speed from their pace every frame, so a
+pose deferred to the next drawn frame would not be the same pose), the street mirror's render (drawn every other frame,
+so skipping it would move which of a still's two frames reflects), and the world's `updateMatrixWorld` at each render
+skipped (code between two renders of a frame reads the matrices the first left).
+
+**Before and after, the whole play** (`DRAW=30 node tools/story_play.js out 800x500` under `xvfb-run -a`):
+
+| | before | after |
+|---|---|---|
+| played in | 996 s | 953 s |
+| script in a frame | 54.1 ms | 48.8 ms |
+| a frame not drawn | about 55 ms (frame 7: 56) | 40 ms, the game's clock at 0.89 of the wall's (frame 7: 0.64 before) |
+
+The page's errors none either way, the same beats reached and the same stills (a contact sheet of nine beats side by side:
+the same light, grade and interface; the crowd stands elsewhere in any two runs, since a frame's step follows the wall clock).
+
+**Why the play cannot come under 600 s with the same stills.** After the cut the play's 953 s were 435 s of frames not drawn
+(the game's clock at 0.89 of the wall's: the frames cannot make the story's clock run faster than the wall's, a twentieth of
+a second a frame at most), 52 s of frames drawn between the stills, and 472 s of 136 stills: 141 s drawing their frames
+whole and 278 s taking them. A frame drawn whole costs llvmpipe 1.1 to 1.6 s at 800x500 on the high tier (`GPUCOST=7-rain-10s`:
+from the frame's start to a pixel read back, the GPU idle again 5 ms after the frame), and a still is of the second of two
+frames drawn whole, since the ambient occlusion carries its history from one drawn frame to the next (ao.js), so a still costs
+two of them and the screenshot waits for both. The stills alone are over 350 s, and the story's clock needs some 420 s
+on top, so a play under 600 s would mean fewer stills, a lighter tier for them, or a frame drawn whole for less on llvmpipe
+(the frame budget's own work, issue 352 and after), not cheaper frames not drawn.
+
 ## The far trees as impostors
 
 Past the mid distance (520 m; a wood's trees from 200 m) a tree was a trunk and an 80-triangle crown hull in its
@@ -1765,6 +1831,46 @@ same, faces and leaves are the same; the pairs differ by the crowd's and the scr
 **Not checked: a real iPhone.** The blocks are valid to SwiftShader's decoder, which is ARM's reference code; that
 Safari's WebGL takes them from a Worker-encoded buffer the same way is expected and unproven. `?tex=raw` turns the
 packing off, and the telemetry's events carry `astc: 1` where it is on, so a phone that does worse with it shows.
+
+### A picture three.js made smaller, sent upside down (issue 68)
+
+On the phone's path the zelkovas, ginkgos and camphors round Hachiko drew a pink lavender in October, in about a
+third of the loads; the next load drew them green. It was not the season, the shaders or the leaf atlas's file:
+read back from the GPU in a pink load, the atlas was **upside down**. Its seven rows of cells were in the reverse
+order, so the cell a camphor's cards point at (row 2) held the weeping and Kawazu cherries' blossom (row 4), and
+the ginkgo's (row 3, the middle) held its own. The pink was blossom, not a colour gone wrong.
+
+**The cause is in three.js r186.** Before it sends a texture, `WebGLTextures` sets the flags the picture is sent with
+(`UNPACK_FLIP_Y_WEBGL`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL`, `UNPACK_COLORSPACE_CONVERSION_WEBGL`), but only when the
+texture's image is not an ImageBitmap, since WebGL ignores them for one. Then a picture over the renderer's
+texture cap is drawn smaller into a canvas (`resizeImage`), and a canvas does obey them. So an ImageBitmap made
+smaller went up with whatever flags the texture before it left set. Every glTF model's pictures are ImageBitmaps
+(GLTFLoader), and a canvas texture's or a TextureLoader's flips by default. Which texture went up just before the
+atlas depended on the order the loads finished in, hence one load in three.
+
+**Who it reached:** a renderer with a cap (`quality.js` `tex`, applied in `world.js`): a phone's 1024 and the low
+tier's 2048. The leaf atlas is 1024 x 3584, over both. Under the phone's cap, so were the crowd's, the cars' and the
+landmarks' model pictures (1000 x 1200, 1333 x 1600, 2048 x 2048, ...), wherever ASTC is off. On a phone that packs,
+a packed picture never reaches `resizeImage` (`tex.js` hands three.js the blocks), but one the encoder keeps as it
+was (under its quality floor) still did. It turned a
+picture upside down, or premultiplied its alpha, or converted its colours, depending on what went before it. The high
+tier (no cap) never resized, which is why a desktop drew the trees green.
+
+**The fix** is in three.js's module itself, the one place it can be made for every picture: an ImageBitmap that is
+to be made smaller is sent with the flags an ImageBitmap is sent as (not turned, its alpha as it is, its colours not
+converted), whatever the texture before it set. `pipeline/fetch_vendor.py` `PATCHES` makes it each time three.js is
+fetched, and fails if the text it fixes has changed. `--patch` makes it in place, and `--check` (in
+`tools/check.sh` static) fails if the vendored module lacks it. On an upgrade, drop the patch once three.js sets the
+flags for the resized image itself.
+
+**Tools.** `tools/atlas_upload_probe.js` sends the atlas alone and then just after a texture that flips and
+premultiplies, at the phone's cap, and reads it back: without the fix the second comes out upside down every time,
+with the pink of the stills (200, 114, 132 where the camphor's green is 27, 57, 10). `tools/leaf_probe.js` reads
+the atlas back from the game's own GPU with the trees round a place and the leaf program's defines. `tools/game_shot.js`
+now leaves the game's renderer at `window.__R` for a view's `js`.
+
+**Not checked:** a real iPhone, where the packed pictures do not take this path but anything left unpacked would;
+WebKit's own handling of these flags for an ImageBitmap.
 
 ### A phone's picture: two pixels to the point, and no floor for nothing
 
