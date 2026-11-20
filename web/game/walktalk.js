@@ -1,6 +1,6 @@
 // People with something to say, on the walk (docs/STORY.md "The walk", "People with something to say"). The walk has
 // no case and owes nothing, but a street with nobody to talk to is a set, not a city. So a few people of this evening
-// stand where they would (a girl waiting at Hachiko, a taxi driver on his break, the vintage shop's owner, the lift's
+// stand where they would (a girl waiting at Hachiko, a retired taxi driver with his can of coffee, the vintage shop's owner, the lift's
 // attendant), each with a small story told in two or three parts, and each part asks one thing the walk can do: cross
 // on the green, drive your car, take a photograph, ride the lift to the roof. Nothing of the case is in any of them.
 //
