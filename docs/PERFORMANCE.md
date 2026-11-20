@@ -816,6 +816,40 @@ In Sydney the shadow pass is 14% of the frame, and most of what it draws every f
 the depth pass too, so they are not among the cached still casters). The sea's planar reflection, where it is drawn
 (high tier on a hardware GPU), is about 5% at the quay.
 
+## The frame budget, fourth round: a desktop that crawled (November 2026)
+
+The owner played on an M3 MacBook and found it "still very laggy". The telemetry of that hour (PostHog, `time` and
+`quality` events) said why, in three parts:
+
+- **Two browsers drawing at once.** The title was left open in Chrome for over an hour (4,070 s on the title screen)
+  while the walk was played in Safari. Chrome's title drew at its full rate behind Safari's window the whole time: its
+  GPU's frame went from 20 ms to 100 ms as Safari started, and the walk in Safari ran at ten frames a second with
+  everything shed (scale 0.65, no extras). A page nobody is looking at now gives the GPU back (`game.js` `awayHold`):
+  its window behind another (`document.hasFocus()` false, the tab still showing, so the browser still calls it) draws
+  ten frames a second, and the title left untouched for a minute thirty, as a PC game's background frame limit does.
+  The governor is not ticked on a held frame. Never under a harness, whose page has no focus.
+- **A dense display drawn at 1.2 pixels to the CSS pixel at the floor.** Its canvases were 3.9 and 4.6 million pixels
+  (1099 x 894 and 1241 x 931 at a device pixel ratio of 2). The GPU's frame grew with the pixels (the title: 17 to 20
+  ms at 2.4 million, 30 to 35 ms at 3.9 million), and in the story the governor sat at its floor, 0.6, drawing the
+  scene at 1.2 device pixels to the CSS pixel at 30 to 35 frames a second. On a display of 1.75 pixels to the CSS pixel
+  or more (not a phone) the floor is now 0.45 and the middle step 0.7 (`game.js` `DENSE`): the scene may come down to
+  a little under one pixel to the CSS pixel, half the pixels of the old floor, sharpened up by the lens, before the
+  extras go.
+- **What a street-level frame costs, part by part.** `tools/perf_walk.js` runs `game/perf.js` (`?perf`) on the walk
+  from a harness. On the software renderer (shares, not milliseconds), the walk at night, high tier, 960 x 720: the post
+  stack 45% of the frame, of which the scene's 4x multisampling 20%; the materials' shading 41% (every material flat);
+  the scene at scale 0.6 a third less; the aerial ground's 25 tiles 29%; the far land 17%. The far land was drawn first
+  of everything (`renderOrder` -1) and the ground's tiles in the order their materials were made, so on a GPU without
+  hidden-surface removal every pixel of them behind the hero level's paving and the buildings was shaded and then
+  painted over. Both are now drawn after the city's other opaque surfaces (`world.js` the ground's tiles 1,
+  `farland.js` 2), where their depth rejects what is covered before it is shaded. Opaque and depth-tested, the frame
+  looks the same. An Apple GPU removes hidden opaque surfaces itself, so on the owner's Mac this saves little; on the
+  other desktops it saves most of those shares.
+
+Not measured: a real GPU's table. `?perf` on the owner's Mac (Chrome and Safari) sends one with the telemetry (`perf`
+events); it is the next round's first step. On the software renderer the table's rows after *without Mesh (instanced)*
+were seven times the frame before it, and the frame stayed that slow: that row leaves the page slower than it found it.
+
 ## Next, by what it saves for what it risks
 
 Measured on Sydney's game, high tier, 1440 x 900, from the street, after the work above: 4.42 million triangles,

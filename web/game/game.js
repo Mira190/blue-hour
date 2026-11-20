@@ -150,7 +150,12 @@ window.OpenEarthGame = async function game(cityId) {
   // was hot in the hand (the owner, November 2026). Thirty even frames, with the time a frame does not need left idle,
   // is what a phone game holds for as long as it is played; the menu's Frame rate gives 60 back.
   const PHONE_FPS = QC.lean && touch ? 30 : 60;
-  const gov = OEQuality.governor({ cap: (() => { try { const v = localStorage.getItem('oe3d-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
+  // (a dense display, two device pixels or more to the CSS pixel: the canvas is drawn at that, and the scene inside it may
+  // come down to a little under one pixel to the CSS pixel, sharpened up by the lens, before anything else is given up.
+  // At the ordinary floor of 0.6 an M3 MacBook drew the story's street at 1.2 pixels to the CSS pixel and thirty frames
+  // a second, its GPU's frame growing with the pixels drawn (telemetry, November 2026); at 0.45 it draws half as many)
+  const DENSE = Math.min(window.devicePixelRatio || 1, 2) >= 1.75 && !QC.lean;
+  const gov = OEQuality.governor({ min: DENSE ? 0.45 : 0.6, mid: DENSE ? 0.7 : 0.8, cap: (() => { try { const v = localStorage.getItem('oe3d-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
   const GOV_KEY = `oe3d-gov-${cityId}`;
   // What this device held on this map before ("scale/extras"; a bare scale from before issue 375 kept its extras): it
   // starts there. A device with no record starts low and climbs (quality.js startLow, issue 375), not at its ceiling.
@@ -164,9 +169,11 @@ window.OpenEarthGame = async function game(cityId) {
   let atmos = null; // clouds, stars, the moon and the post stack (atmosphere.js), once the world is up
   // the multisampling rung's values (the governor's ladder, below) for the view's size as it is now
   let msaaRung = null;
+  let stageW = 1, stageH = 1; // (the stage's size in CSS pixels, as resize() last found it: read each frame without asking the layout)
   const msaaFor = () => { const top = QC.samplesAt ? QC.samplesAt(stage.clientWidth, stage.clientHeight) : QC.samples; msaaRung[0] = top; msaaRung[1] = Math.min(2, top); };
   function resize() {
     const w = stage.clientWidth, h = stage.clientHeight, pr = QC.pixelRatio(w, h);
+    stageW = Math.max(1, w); stageH = Math.max(1, h);
     gov.max = QC.sceneScale ? Math.max(gov.min, QC.sceneScale(w * pr, h * pr)) : 1;
     if (gov.scale > gov.max) gov.scale = gov.max;
     // (the post stack draws the scene at the governor's scale into its own target and the lens brings it up to the
@@ -1018,7 +1025,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     rig.root.position.copy(W(o.x, o.y, o.z));
     rig.root.rotation.y = Math.PI - o.h;
     npcs.push(o);
+    // (someone of the walk's own, game.json npcs[].walk: out on the walk only, walkPeople. In the story they are not
+    // there at all, neither drawn nor in the crowd's way nor loaded)
+    if (n.walk) { rig.root.visible = false; o.away = true; continue; }
     o.post = posts.add(o.x, o.y, o.z, 0.22, 'npc'); // (where they stand: the crowd walks round them, not through them)
+  }
+  // the walk's own people out on the street (startWalk, walkOnFromStory): drawn, and in the crowd's way
+  function walkPeople() {
+    for (const n of npcs) if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); }
   }
   const npcById = id => npcs.find(n => n.id === id);
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
@@ -1026,6 +1040,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const old = n.rig, rig = makeRig(npcLook(n));
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
     rig.root.add(n.marker);
+    if (n.away) rig.root.visible = false; // (the walk's own, while it is not the walk)
     if (old.root.parent) old.root.parent.remove(old.root);
     world.add(rig.root);
     n.rig = rig;
@@ -1037,14 +1052,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (QC.lean) { // a phone: one at a time, the nearest first (each is pictures decoded, resized and sent: see afterPlayable)
       if (npcBusy) return;
       let best = null, bd = NPC_LOAD_M;
-      for (const n of npcs) if (n.rig.pending && !n.loading) { const d = Math.hypot(n.x - cx, n.y - cy); if (d < bd) { bd = d; best = n; } }
+      for (const n of npcs) if (n.rig.pending && !n.loading && !n.away) { const d = Math.hypot(n.x - cx, n.y - cy); if (d < bd) { bd = d; best = n; } }
       if (best) { npcBusy = true; npcLoad(best).then(() => { npcBusy = false; }); }
       return;
     }
-    for (const n of npcs) if (n.rig.pending && !n.loading && Math.hypot(n.x - cx, n.y - cy) < NPC_LOAD_M) npcLoad(n);
+    for (const n of npcs) if (n.rig.pending && !n.loading && !n.away && Math.hypot(n.x - cx, n.y - cy) < NPC_LOAD_M) npcLoad(n);
   }
   let npcBusy = false;
-  const npcsReady = () => Promise.all(npcs.map(npcLoad)); // every NPC in place (for the tools that look at them)
+  const npcsReady = () => Promise.all(npcs.filter(n => !n.away).map(npcLoad)); // every NPC in place (for the tools that look at them; not the walk's own until it is the walk: a phone's memory check loaded them where play never does)
 
   // ------------------------------------------------------------ vehicles
   const vopts = { lib: vlib, cfg: G.vehicles || {}, city: CITY, U, camera, renderer, water: Wd.sea, compile: compileFor, upload: uploadFor, searchlight: earlyLamps.search };
@@ -1430,14 +1445,38 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const k = kerbNear(myCar.D.st.x, myCar.D.st.y, myCar.D.st.z, 0);
     if (k) { parkMyCar(k.pose); H.toast('Back on the road.'); }
   }
+  // Your car called to the kerb nearest you (C, the walk's corner, the menu): it comes up the kerb's lane over the last
+  // twenty metres, slowing as a driver pulls in, and stops beside you with a toot, rather than standing there all at once
+  // (the cars that come when called in the open-world games do the same: arrive, never appear)
+  let carCome = null;
   function bringCar() {
     if (!myCar) { H.toast('Your car is not here yet. Try again in a moment.'); return; }
     if (player.mode !== 'foot') { H.toast('Get out first.'); return; }
     const k = kerbNear(player.x, player.y, player.z, 10);
     if (!k) { H.toast('There is no street near enough to bring it to.'); return; }
-    parkMyCar(k.pose);
-    H.toast(`Your car is at the kerb, ${Math.round(Math.hypot(k.pose.x - player.x, k.pose.y - player.y))} m away.`);
+    const st = myCar.D.st, m = Math.round(Math.hypot(k.pose.x - player.x, k.pose.y - player.y));
+    if (Math.hypot(st.x - k.pose.x, st.y - k.pose.y) < 6 && !carCome) { A.honk(0.25, 1.15); H.toast(`Your car is here, ${m} m away.`); return; }
+    const L = roadNet.L[k.pl.line].len, s1 = k.pl.s, s0 = Math.max(3, Math.min(L - 3, s1 - CAR_COME_M * k.pl.dir)), from = Object.assign({}, k.pl, { s: s0 }), p0 = kerbPose(from);
+    const M = vlib.info.cars.models[carCfg.model], half = M ? M.length_m / 2 : 2.2, hw = M ? M.width_m / 2 : 0.9;
+    // (from where it comes: clear of the traffic and not wedged, or it stands at the kerb at once)
+    const far = Math.abs(s1 - s0) > 4 && !cars.footprint(p0.x, p0.y, p0.z, p0.h, half, hw, 0.3) && !wedged(p0, half, hw);
+    parkMyCar(far ? p0 : k.pose);
+    carCome = far ? { pl: k.pl, s0, s1, t: 0, dur: 2 * Math.abs(s1 - s0) / 8.5 } : null; // (in at 30 km/h, slowing evenly to the kerb)
+    if (!far) A.honk(0.25, 1.15);
+    H.toast(far ? `Your car is pulling in at the kerb, ${m} m away.` : `Your car is at the kerb, ${m} m away.`);
     save();
+  }
+  const CAR_COME_M = 20;
+  function carComing(dt) {
+    const c = carCome;
+    if (!c || !myCar) { carCome = null; return; }
+    if (player.mode === 'car' || player.mode === 'board') { carCome = null; return; } // (got in as it came: it stops where it is)
+    c.t += dt;
+    const u = Math.min(1, c.t / c.dur), e = 1 - (1 - u) * (1 - u);
+    const pose = kerbPose(Object.assign({}, c.pl, { s: c.s0 + (c.s1 - c.s0) * e }));
+    Object.assign(myCar.D.st, { x: pose.x, y: pose.y, z: pose.z, h: pose.h });
+    myCar.C.place(pose.x, pose.y, pose.z, pose.h);
+    if (u >= 1) { carCome = null; A.honk(0.25, 1.15); save(); }
   }
   let bumpCar = -9, carFov = 0, heliFov = 0;
   // your car over a stop line on red (junctions.js), with the cross road's green: a word about it
@@ -3359,7 +3398,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     bodies: (x, y, r) => {
       const out = [{ id: 'player', x: player.x, y: player.y, z: player.z }];
       for (const f of storyFigs) out.push({ id: f.id, x: f.x, y: f.y, z: f.z });
-      for (const n of npcs) if (Math.abs(n.x - x) < r && Math.abs(n.y - y) < r) out.push({ id: `npc:${n.id}`, x: n.x, y: n.y, z: n.z });
+      for (const n of npcs) if (!n.away && Math.abs(n.x - x) < r && Math.abs(n.y - y) < r) out.push({ id: `npc:${n.id}`, x: n.x, y: n.y, z: n.z });
       // (the crowd where each is drawn, rx: held in a Stop, that is not always where it is simulated)
       if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push({ id: `crowd:${i}`, crowd: i, x: qx, y: qy, z: q.rz ?? q.z ?? nav.terrain(qx, qy) }); } // (one at a scramble's kerb is drawn whatever its line)
       return out;
@@ -3519,6 +3558,35 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     talkCam.open(sp, { x: player.x, y: player.y, z: player.z, eye: 1.58 }, sp ? next : 'reverse');
     talkTyped = '';
   };
+  // The walk's people with something to say (walktalk.js; game.json walk): a speech mark over each, E beside them, their
+  // talk in the story's box and camera, and what they ask under the hour in the walk's corner
+  const markV = new THREE.Vector3(), seeM = new THREE.Matrix4(), seeF = new THREE.Frustum();
+  const sees = (x, y, z) => { seeM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); seeF.setFromProjectionMatrix(seeM); return seeF.containsPoint(markV.set(x, z, -y)); };
+  const walkTalk = window.OEWalkTalk && G.walk && G.story && !new URLSearchParams(location.search).has('walk') ? OEWalkTalk.create({ data: G.walk, stage,
+    project: (x, y, z) => { markV.set(x, z, -y).project(camera); return markV.z > 1 || markV.z < -1 ? null : { x: (markV.x + 1) / 2 * stageW, y: (1 - markV.y) / 2 * stageH }; },
+    npc: id => npcById(id),
+    here: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return { x: o.x, y: o.y, z: o.z, mode: m }; },
+    say: (runs, done) => { // one speaker after another, each in the box and the conversation's camera
+      let i = 0;
+      const next = () => {
+        if (i >= runs.length) { done(); return; }
+        const [n, lines] = runs[i++];
+        n.talking = true; A.start();
+        talkLine({ name: n.name });
+        dlg.show(n, lines, null, () => { n.talking = false; next(); });
+      };
+      next();
+    },
+    fill: t => said(t),
+    unseen: n => !sees(n.x, n.y, n.z + 1) || Math.hypot(n.x - player.x, n.y - player.y) > 70,
+    move: (m, to) => { // someone sent on ahead, there when you come back: beside the one they were to meet, facing them
+      const a = Math.atan2(player.x - to.x, player.y - to.y) + 1.4;
+      if (!npcMove(m, [to.x + Math.sin(a) * 1.1, to.y + Math.cos(a) * 1.1])) return;
+      m.h = Math.atan2(to.x - m.x, to.y - m.y); m.rig.root.rotation.y = Math.PI - m.h;
+      to.h = Math.atan2(m.x - to.x, m.y - to.y); to.rig.root.rotation.y = Math.PI - to.h;
+    },
+    met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
+    told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); } }) : null;
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
@@ -4376,6 +4444,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (c === 'KeyG') guessStart();
     else if (c === 'KeyT') cycleTrack();
     else if (c === 'KeyL') peekRoute();
+    else if (c === 'KeyC' && player.mode === 'foot' && (walk || !story)) bringCar(); // (your car to the kerb nearest you: the walk's corner says so)
     else if (c === 'KeyO') photoMode(true);
     else if (c === 'Enter' && guess.bi >= 0 && !guess.revealed) guessCheck();
     else if (c === 'KeyV') nextView();
@@ -4560,10 +4629,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'ride') return ride && ride.phase !== 'asking' && ride.drv.st.v < 0.5 ? { key: 'E', story: true, text: ride.phase === 'arrived' ? `Get out at ${ride.dest.name}` : 'Get out here', act: leaveRide } : null;
     if (player.auto) return player.auto.label ? { key: '', text: player.auto.label } : null;
     let bn = null, bd = 3.2;
-    for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (d < bd && Math.abs(n.z - player.z) < 2) { bd = d; bn = n; } }
+    for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (!n.away && d < bd && Math.abs(n.z - player.z) < 2) { bd = d; bn = n; } }
     // (not on the story's page, which offers no talk of the old game's: there it stood first and was then put away, and
     // so hid what comes after it, your car beside someone on the walk, a lift with its attendant beside it)
     if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
+    // (on the walk: whoever has something to say, a part of a story or a word in passing; walktalk.js)
+    if (bn && walk && walkTalk && !walkTalk.busy && !bn.rig.pending && walkTalk.want(bn.id)) return { key: 'E', walk: true, text: `Talk to ${bn.name.replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '')}`, act: () => walkTalk.talk(bn) };
     if (fish) { // at a fishing spot (the first time, the code comes with the key press)
       const sp = fish.api ? null : fishSpot(14), a = fish.api ? fish.api.action() : sp && { key: 'E', text: `Fish at ${sp.name}`, act: () => fishLoad().then(api => (api ? api.start() : H.toast('The tackle did not arrive. Try again in a moment.'))) };
       if (a) return a;
@@ -5161,7 +5232,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     g.filter = 'none';
     const loc = S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min)), fs = Math.max(12, Math.round(h * 0.017)), pad = Math.round(fs * 0.9);
     const lines = [`${CITY.place || CITY.name} · ${clock.d} ${MONTHS[clock.m - 1]} ${clock.y}, ${fmtMin(clock.min)} ${loc.zone} · sun ${sun.altitude.toFixed(1)}° up${film ? ` · ${film.name.toLowerCase()}` : ''}`,
-      'Open Earth 3D · buildings and streets © OpenStreetMap contributors, via Overture Maps'];
+      'Blue Hour · buildings and streets © OpenStreetMap contributors, via Overture Maps'];
     g.font = `600 ${fs}px "Public Sans", sans-serif`;
     const tw = Math.max(...lines.map(t => g.measureText(t).width));
     g.fillStyle = 'rgba(8, 16, 24, 0.55)';
@@ -5171,9 +5242,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     g.font = `400 ${Math.round(fs * 0.8)}px "Public Sans", sans-serif`; g.fillStyle = 'rgba(255, 255, 255, 0.82)';
     g.fillText(lines[1], pad, h - pad);
     A.shutter();
+    if (walk && walkTalk) walkTalk.photo({ z: camera.position.y, sees }); // (a photograph someone on the walk asked for: walktalk.js)
     if (life) { const b = life.day ? life.day.bounds() : null, gold = !!b && (Math.abs(clock.min - b.golden) < 50 || (sun.altitude < 8 && sun.altitude > -7)); life.emit('photo', { golden: gold, hour: sun.altitude < 0 ? 'blue hour' : 'golden hour', alt: sun.altitude }); }
     stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
-    const name = `open-earth-3d-${cityId}-${clock.y}${String(clock.m).padStart(2, '0')}${String(clock.d).padStart(2, '0')}-${fmtMin(clock.min).replace(':', '')}.png`;
+    const name = `blue-hour-${cityId}-${clock.y}${String(clock.m).padStart(2, '0')}${String(clock.d).padStart(2, '0')}-${fmtMin(clock.min).replace(':', '')}.png`;
     // encode now, inside the click or key press: a download started later (toBlob's callback) can
     // outlive the user's gesture and be blocked
     const a = document.createElement('a');
@@ -5202,7 +5274,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) menuSync(); }
+  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); } }
+  // the walk's stories in its menu (walktalk.js list): each by its name, told, under way with what was asked, or not yet
+  // met with where to look
+  function talesSync() {
+    const el = $('#gm-tales');
+    if (!el) return;
+    const L = walk && walkTalk ? walkTalk.list() : [];
+    el.hidden = !L.length;
+    if (!L.length) return;
+    const n = L.filter(t => t.state === 'told').length, esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`;
+  }
   function togglePass() { renderPassport(); $('#g-pass').hidden = !$('#g-pass').hidden; }
   const bigCanvas = $('#g-bigmap-c'), mapPop = $('#g-mappop');
   let bigView = null, waypoint = null, bigPins = [], picked = null, travelKey = '';
@@ -6450,6 +6533,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
     if (story.dressSet) story.dressSet(); // (an episode's own set dressing, as the story has it, on the walk too)
+    walkPeople(); if (walkTalk) walkTalk.begin(); // (the walk's own people out on the street, and their speech marks)
     craneIn(() => walkUi.begin());
   };
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
@@ -6469,6 +6553,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: 'here', sky: walk.w, from: 'story' } }); } catch (e) { /* no User Timing */ }
     { const gs = $('#gm-story'); if (gs && gs.firstChild) gs.firstChild.textContent = 'Play it again · '; } // (the case is closed: the menu's way back into it is the story again)
+    walkPeople(); if (walkTalk) walkTalk.begin();
     walkUi.takeUp();
     return true;
   }
@@ -6482,6 +6567,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
       key: k => (gamepad ? gamepad.label(k) : k),
       menu: () => toggleMenu(), photo: () => photoMode(true),
+      car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
+      errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
           : { mode: player.mode }) });
@@ -6579,7 +6666,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let lateOn = null;
   function afterPlayable() {
     if (lateOn) return lateOn;
-    const near = () => (lib ? npcs.filter(n => n.rig.pending && Math.hypot(n.x - player.x, n.y - player.y) < NPC_LOAD_M)
+    const near = () => (lib ? npcs.filter(n => n.rig.pending && !n.away && Math.hypot(n.x - player.x, n.y - player.y) < NPC_LOAD_M) // (not the walk's own: in the story they cost a phone's memory for nothing)
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y)) : []);
     const carsIn = () => (vlib && vlib.loadCars && !vlib.carsFull ? Promise.all([vlib.loadCars().then(g => { if (g && vlib.carsFull && cars.upgrade) cars.upgrade(g); }), parkWait ? parkLater() : null]) : null);
     const treesIn = () => (Wd.trees && Wd.trees.loadNear && !(QC.budget && QC.budget.extras === false) ? Wd.trees.loadNear() : null); // (the lightest set keeps the mid trees: quality.js level)
@@ -6686,6 +6773,25 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const p = W(v.x, v.y, z + 3), dx = camera.position.x - p.x, dz = camera.position.z - p.z, d = Math.hypot(dx, dz) || 1, k = Math.min(2.5, d * 0.4) / d;
     nightFill.position.set(p.x + dx * k, p.y, p.z + dz * k);
   }
+  // A page nobody is looking at gives the GPU back. Its window behind another (the tab still showing, so the browser
+  // keeps calling it), it draws ten frames a second; the title left untouched for a minute, thirty. The owner played the
+  // walk in one browser with the title open in another, on an M3: the title drew at full rate the whole time behind it,
+  // its GPU's frame went from 20 ms to 100 ms, and the walk in front ran at ten frames a second (telemetry, November 2026).
+  // A desktop game's background frame limit, as the PC ports have; never under a harness, whose page has no focus.
+  const AWAY_CAP = !navigator.webdriver;
+  let awayLast = 0, touchedAt = performance.now(), awayCapped = false;
+  for (const t of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']) on(window, t, () => { touchedAt = performance.now(); }, { capture: true, passive: true });
+  function awayHold(now) {
+    awayCapped = false;
+    if (!AWAY_CAP) return false;
+    const away = !document.hasFocus(), idle = (preTitle || !hud('#g-title').hidden) && now - touchedAt > 60000 && !(gamepad && gamepad.on);
+    const cap = away ? 10 : idle ? 30 : 0;
+    if (!cap) return false;
+    awayCapped = true;
+    if (now - awayLast < 1000 / cap - 4) return true;
+    awayLast = now;
+    return false;
+  }
   // A frame a check runs without drawing it (tools/story_play.js DRAW=n: one in n drawn on a software renderer, #51): what
   // only a drawn frame shows is left to the next one drawn (#70). Never on a player's page, where every frame is drawn
   const unseenFrame = () => !!window.__draw && window.__draw.on === false;
@@ -6693,7 +6799,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!running) return;
     if (care.lost) { last = now; requestAnimationFrame(frame); return; } // the game holds still until the picture is back
     gov.raf(now);
-    if (!gov.due(now)) { requestAnimationFrame(frame); return; } // (the frame-rate cap on a faster display: this frame is not drawn)
+    if (awayHold(now)) { requestAnimationFrame(frame); return; } // (nobody looking: a frame now and then, above)
+    if (!awayCapped && !gov.due(now)) { requestAnimationFrame(frame); return; } // (the frame-rate cap on a faster display: this frame is not drawn)
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); // the first frame can be stamped before the loop started
     last = now; if (!simHold) clockT += dt * (story ? story.scale : 1); // (the Stop holds the world's clock; a harness's hold: only advance() moves the world's clock)
     U.uTime.value = clockT;
@@ -6743,6 +6850,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
     if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
+    if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
     // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
@@ -6831,7 +6939,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     // the frame's time, for the governor: in play only (the title's orbit and a menu are lighter than play)
     // (the title's orbit too: the telemetry's slowest frames were a city's title screen, where nothing held them)
-    gov.tick(now, !simHold && framesDrawn >= 2 && !document.hidden);
+    gov.tick(now, !simHold && framesDrawn >= 2 && !document.hidden && !awayCapped); // (a frame held back for a page nobody looks at says nothing of its cost)
     if (player.rig.hideHead) player.rig.hideHead(player.mode === 'heli' && cam.mode === 'cockpit' && !photo.on && !(cine.active && cine.label !== 'crane'));
     // depth of field in photo mode, and with the camera's motion blur in the opening shot; never in play
     if (atmos && atmos.camFx) atmos.camFx(overture && overture.active ? overture.fx : photo.on ? { focus: camera.position.distanceTo(photo.focus), aperture: lensBlur(camera.fov, camera.position.distanceTo(photo.focus), photo.fstop || 2.8) }
@@ -6898,6 +7006,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(0, Math.min(1, (wS.windSpeed - 4.5) / 14)) * (inside ? 0.35 : 1), wS.gust);
   }
   function simulate(dt) {
+    if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
@@ -7014,6 +7123,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // NPCs: face the player when close, idle otherwise
     let gaze = null;
     for (const n of npcs) {
+      if (n.away) continue; // (the walk's own, while it is not the walk)
       const d = Math.hypot(player.x - n.x, player.y - n.y);
       if (d < 5 && player.mode === 'foot' && !n.sit) n.h += angDiff(Math.atan2(player.x - n.x, player.y - n.y), n.h) * Math.min(1, dt * 4);
       n.rig.root.rotation.y = Math.PI - n.h;
@@ -8367,7 +8477,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
-     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
+     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
   return {
     stop() { if (window.OEMetro) OEMetro.close(); if (window.OEVis) OEVis.dispose(); keep(); if (fish && fish.api) fish.api.dispose(); running = false; ac.abort(); ro.disconnect(); care.dispose(); if (atmos) atmos.dispose(); if (weather) weather.dispose(); renderer.dispose(); Wd.dispose(); A.stop(); window.__game = null; },
   };

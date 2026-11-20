@@ -72,7 +72,10 @@ window.OEPlaces = (function () {
       tmp.copy(W(x, y, z)).project(camera);
       const r = stage.getBoundingClientRect(), behind = tmp.z > 1;
       el.style.display = behind ? 'none' : '';
-      el.style.transform = `translate(${((tmp.x + 1) / 2) * r.width}px, ${((1 - tmp.y) / 2) * r.height}px) translate(-50%, -100%)`;
+      // (kept on the screen: a line said at its edge, on a phone's narrow screen, was cut off mid-word; a bubble is at
+      // most 260 px wide, so its middle stays 138 px in from either side)
+      const sx = Math.max(Math.min(r.width / 2, 138), Math.min(Math.max(r.width / 2, r.width - 138), ((tmp.x + 1) / 2) * r.width));
+      el.style.transform = `translate(${sx}px, ${((1 - tmp.y) / 2) * r.height}px) translate(-50%, -100%)`;
     }
     return {
       // the spot within reach of a walker at (x, y, z), if any
