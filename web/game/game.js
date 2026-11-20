@@ -145,8 +145,12 @@ window.OpenEarthGame = async function game(cityId) {
   const BASE_FOV = 55, camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.3, 40000);
   // The frame-time governor (quality.js): how much of the canvas's resolution the scene is drawn at, and how much
   // of what a frame can do without (governor.extras), both ways as the frame time allows. Its ceiling is the
-  // tier's budget of scene pixels on this canvas. The frame-rate cap is the player's (the menu: 60 unless asked).
-  const gov = OEQuality.governor({ cap: (() => { try { const v = localStorage.getItem('oe3d-fps'); return v === null ? 60 : Math.max(0, +v || 0); } catch (e) { return 60; } })() });
+  // tier's budget of scene pixels on this canvas. The frame-rate cap is the player's (the menu), 60 unless asked, and on
+  // a phone 30: an iPhone drew the story at 17 to 43 frames a second with its GPU never idle, and after a few minutes it
+  // was hot in the hand (the owner, November 2026). Thirty even frames, with the time a frame does not need left idle,
+  // is what a phone game holds for as long as it is played; the menu's Frame rate gives 60 back.
+  const PHONE_FPS = QC.lean && touch ? 30 : 60;
+  const gov = OEQuality.governor({ cap: (() => { try { const v = localStorage.getItem('oe3d-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
   const GOV_KEY = `oe3d-gov-${cityId}`;
   // What this device held on this map before ("scale/extras"; a bare scale from before issue 375 kept its extras): it
   // starts there. A device with no record starts low and climbs (quality.js startLow, issue 375), not at its ceiling.

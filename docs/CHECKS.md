@@ -21,6 +21,15 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder | `tools/astc_check.js` |
 | `game` | The free game's long scenario: walk, talk, the helicopter, your car, a taxi, the trains | `tools/game_check.js` |
 
+Feet on the ground (`web/game/nav.js` `lift`, a hero level's paving and the city's own under it): `tools/feet_check.js [out]
+[WxH]` plays the story to its first walk and measures every sole within 25 m against the ground drawn under it (the
+lowest vertex of each foot as the skin poses it, a ray down onto whatever is drawn), failing a sole more than 2.5 cm
+in or 5 cm over it; `HERO=off` holds the hero levels back, as a phone shows the street before its level has come (at
+a desktop's size, where the city's buffers are kept to cast a ray at). Run when the walking heights, a hero level or
+the landmarks' paving change. The tactile blocks' places (`cities/shibuya/scramble.py` `tactile_layout`) are looked at
+in stills: `tools/game_shot.js shibuya tools/views/tactile.json out [390x844 with LEAN=1]`, from the air over Hachiko
+Square and on foot at the start, at dusk and by day.
+
 Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
 film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
 to you passes within 0.42 m of a held person's middle or ends away from you, then runs after him at the game's own run

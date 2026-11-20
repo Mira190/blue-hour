@@ -168,8 +168,16 @@ window.OEHero = (function () {
           for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
             if (!m || seen.has(m)) continue;
             seen.add(m); L.mats.push(m);
-            // on the low tier (phones): no normal or roughness maps (the surface's own roughness instead), the rest halved
-            if (tier === 'low') for (const k of ['normalMap', 'roughnessMap', 'metalnessMap']) if (m[k]) { m[k].dispose(); m[k] = null; }
+            // on the low tier (phones): no normal or roughness maps (the surface's own roughness instead), the rest halved.
+            // The paving's roughness comes in glTF's one metallic-roughness picture, its metalness 0 in it (hero_kit
+            // fetch_texture), and the factors beside it are left at glTF's default of 1: the picture let go, the asphalt,
+            // the crossings' paint, the pavers and Hachiko Square's setts were drawn as a rough metal, lit by the sky's
+            // reflection alone and by no lamp, on every phone (November 2026). Without it, what it said: no metal, and
+            // the roughness of a paving rather than of chalk
+            if (tier === 'low') {
+              if (m.metalnessMap && m.metalnessMap === m.roughnessMap) { m.metalness = 0; if (m.roughness >= 0.999) m.roughness = 0.85; }
+              for (const k of ['normalMap', 'roughnessMap', 'metalnessMap']) if (m[k]) { m[k].dispose(); m[k] = null; }
+            }
             share(L, m);
             if (tier === 'low') {
               for (const k of ['map', 'emissiveMap', 'aoMap']) if (m[k] && !shrunk.includes(m[k])) shrunk.push(m[k]);
