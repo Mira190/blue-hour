@@ -53,7 +53,7 @@ UNIFORM = re.compile(r"Police|Pilot|Security|Construction|Delivery|Gardener|Work
 
 
 def live_cities():
-    idx = json.load(open(os.path.join(ROOT, "cities", "index.json")))
+    idx = json.load(open(os.path.join(ROOT, "cities", "index.json"), encoding="utf-8"))
     parked = set(idx.get("parked", []))
     return [c["id"] for c in idx["cities"] if c.get("status") == "live" and c["id"] not in parked]
 
@@ -63,7 +63,7 @@ def cast(info):
     casts game.crowd.real_from names)."""
     want = set()
     for cid in live_cities():
-        g = json.load(open(os.path.join(ROOT, "cities", cid, "city.json"))).get("game", {})
+        g = json.load(open(os.path.join(ROOT, "cities", cid, "city.json"), encoding="utf-8")).get("game", {})
         want |= {cid, *g.get("crowd", {}).get("real_from", [])}
     npcs = info["npcs"]["characters"]
     names = {n for n, c in npcs.items() if set(c.get("cities", [])) & want and not UNIFORM.search(n)}
@@ -74,7 +74,7 @@ def cast(info):
     kagami = {face(h) for h in info.get("heroes", {}).get("characters", {}).values()}
     named = set()
     for cid in live_cities():
-        g = json.load(open(os.path.join(ROOT, "cities", cid, "city.json"))).get("game", {})
+        g = json.load(open(os.path.join(ROOT, "cities", cid, "city.json"), encoding="utf-8")).get("game", {})
         cc = g.get("crowd", {}).get("cast")
         if cc:
             story = set(re.findall(r'"character": "([^"]+)"', json.dumps(g.get("story", {}))))
@@ -225,7 +225,7 @@ class GLB:
 
 def main():
     path = os.path.join(PEOPLE, "people.json")
-    info = json.load(open(path))
+    info = json.load(open(path, encoding="utf-8"))
     names = cast(info)
     if "--check" in sys.argv:   # (tools/check.sh: a cast member with no far copy is drawn as a doll far off)
         have = set(info.get("crowd_cast", {}).get("characters", {}))
@@ -271,7 +271,7 @@ def main():
                 "past people.js COARSE_M (<name>~coarse), with one "
                 f"{CELL[0]}x{CELL[1]} picture a character (pipeline/crowd_cast.py; people.js crowdRenderer). Pivots: [height, forward], m.",
         "file": "crowd_cast.glb", "cell": list(CELL), "characters": chars}
-    json.dump(info, open(path, "w"), indent=1)
+    json.dump(info, open(path, "w", encoding="utf-8"), indent=1)
     print(f"wrote {out} ({os.path.getsize(out) / 1e3:.0f} kB, {len(names)} characters)")
 
 

@@ -30,6 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 
 ## How it works
 
@@ -312,6 +313,93 @@ are pruned clear of the people under them (Japan's road rules keep 2.5 m over a 
 `tools/hero_trees.js` lists the trees round the Scramble with where their leaves begin and exits 1 on one lower
 than 2.5 m within 60 m.
 
+### The trees up close (November 2026)
+
+The owner's still by the koban at Hachiko: a street tree next to the player was a smooth dark cone a metre and a half
+through, with no bark, and a pillar where a zelkova stood beside the camera. Three things were wrong, and each is a
+thing a real tree's make explains:
+
+- **Its girth.** `r0` in `blender/build_trees.py` now means what a street-tree survey measures: the trunk's radius at
+  breast height. A Tokyo street zelkova or ginkgo of 15 to 20 m stands on a trunk 40 to 60 cm through, a camphor's
+  near a metre; before, the trunk tapered linearly from 1.35 `r0` at its foot and a zelkova was 1.4 m through at
+  eye height. Below breast height it flares into its roots (`trunk_rad`: half as wide again at the ground, gone in
+  half a metre), and above it tapers to the crown. Every model, near and far, has it, and the game's posts
+  (`trees.json` `trunk_r`) follow.
+- **Its bark.** Every trunk, limb and twig carries a bark uv in metres (`branch`: round the ring a whole number of
+  repeats nearest its girth, no seam; along it the same metres), and wears a CC0 scan from ambientCG with its normal
+  map (`BARKS`: Bark004, an old zelkova's grey scales over warmer under-bark; Bark001, the ginkgo's and the pine's
+  corky ridges; Bark009, the plane's shed patches; Bark012, the camphor's long fissures; Bark003, the smooth bark of
+  the evergreen oaks, the maple and the cherries, whose lenticel bands `trees.js` draws over it; Bark015, the sugi's
+  strips). One scan stands for each kind of bark: the page tints it to the species' own colour (`bark_map.tint`), so
+  the bark's mean is the colour the trees had, and only its relief and its grain are new. A thin branch's bark is
+  finer than a trunk's, as a young branch's is.
+- **Its making near the camera.** Within 42 m (24 m on the light tier) each tree is its hero model (`<species>_LODH`,
+  `trees_hero.glb`, 8 to 16 thousand triangles where the near model has two): grown from the same seed through the
+  same steps as the near model, so its limbs, twigs and crown are where the near model's are and the switch shows no
+  jump, but finer. A trunk of twenty sides on four to six root spurs that fade over its first half metre (`BUTTRESS`:
+  a zelkova and a camphor stand on spurs, a ginkgo and a cherry flare round), a slight oval and a slow lump winding up
+  it; limbs of ten sides with a collar where they leave the trunk, tapering fastest where their twigs leave them;
+  twigs of five sides down to a centimetre; and the leaves at their own size. The atlas's sprays were drawn about
+  twice a real leaf's size for the near model's big cards; the hero model lays each card as three cards a little over
+  half its size over the same place, each tipped its own way and half of them mirrored, so the one spray per species
+  repeats far less, and gives each spray within 90 cm of its twig a short stalk from the nearest point along it, so no
+  leaf hangs in the air (stalks from each twig's tip to every spray of it fanned out against the sky like wires).
+- Limbs leave from inside the trunk's top metre, so that it forks into them: up to 40 cm of a limb's start was above
+  the trunk before, a gap a close camera could see through.
+
+What it costs: the hero part (2.2 MB) and the bark scans (4.1 MB; on the light tier the colour alone at a quarter size,
+0.1 MB: a trunk 3 m off is some 130 pixels across and 256 texels a repeat of its bark are still twice what it shows,
+and in shade the crevices' shade in the colour shows its relief) come after
+the game can be played (`trees.js` `loadNear`, with the near models); until they do, the near model stands in and a
+texel of each scan's mean colour stands in for the scan, so the bark's program is the one compiled behind the loader
+and nothing is compiled when they come. On a phone the colour scans are packed for the GPU (`tex.js`) before they are
+worn; the normal maps stay as they are. A species' hero model holds only as many trees as stand within its reach (160,
+40 on the light tier; the rest are drawn as the near model), not every tree of the species as the other levels do, and
+is shown only while it draws one, so its model goes up to the GPU when one of its trees is first near. On the phone's
+memory check (`tools/mem_check.js`) the first build, with half-size scans and a hero model holding every tree, put the
+GPU's peak 22 MB higher, over the budget (287 MB of 270; main 265); with these, 270, and 268 without the light
+tier's normal maps. `trees.js` `hero()` says how far the hero models are drawn, how many trees
+draw them and whether the scans are in.
+
+Learned from, never copied:
+
+| Work | What it does | Adopted here |
+|---|---|---|
+| SpeedTree in games ([SpeedTree's blog](https://blog.speedtree.com), [Unity's tree LODs](https://docs.unity3d.com/Manual/terrain-Tree-LOD.html)) | A hero tree of more than 15,000 triangles where few trees are close; three discrete levels below it and a billboard last; branch seams welded; bark as a tiling photographed texture with its normal map | A fourth level near the camera over the three there were and the far impostors; limbs started inside the trunk rather than welded; scanned bark and its normal map |
+| ez-tree (Dan Greenheck, three.js, [MIT](https://github.com/dgreenheck/ez-tree)) | A tree grown from parameters in the browser: tapered branch tubes with bark uv in world units, leaves as cards, levels of detail | Bark uv in metres round and along each tube; the growth stays this script's own (Weber and Penn's way, in Blender) |
+| ambientCG ([CC0 1.0](https://ambientcg.com)) | Scanned PBR materials | Six bark scans (1K, WebP; the colour at a quarter size for the light tier) |
+
+### A phone after dark, and the level coming in (issue 62)
+
+**The screens' light on the low tier.** A desktop lights the Scramble after dark with the screens' area lights
+(`web/neon.js`, eight on high, four on medium) and the plaza's light cards (`game.look.fill`); the low tier has none of
+them, and at dusk Hachiko's corner was lit by the sky's blue alone, the tactile blocks and the pavers dull. Now the low
+tier works out, once, the light those emitters would put on the ground of the hero levels (`neon.js` `pooled`): every
+screen within 160 m in the mean colour of its whole programme (its sheet's keyframes, read once the sheet has come; the
+mean of Shibuya's sheet where it cannot be read) and the cards, by the same closed form the area lights use towards a
+ground facing up, into one texture a metre a texel over the levels (314 by 220, 280 KB, baked a few rows a frame). A
+hero material on the low tier adds it to what it gives back, as it does its baked light (`hero.js` `POOL_F`): one texture
+read a pixel, no light in its shader. The pools follow the dusk, the screens' hours and the cards' night as the area
+lights do, but not the picture playing; the city's static glow (`night.js` `uGlowMap`) is drawn at the share it has
+beside the area lights. Matched on stills of the corner, the low tier beside the high (`tools/views/corner-night-62.json`,
+`POOL_K` 0.6): at night the blocks (161, 109, 3) on a phone where the desktop has (143, 100, 4) and a phone had
+(118, 86, 3) before, the pavers (94, 62, 61) against (98, 62, 68), before (69, 46, 50). The reference photograph of the
+corner at night: "Shibuya 10pm" (Hachiko Square at 22:10, 17 April 2020, the paving under the station's fronts and the
+screens a warm grey, the blocks yellow), by nagi usano, CC BY-SA 2.0,
+https://commons.wikimedia.org/wiki/File:Shibuya_10pm_(49785559552).jpg; and the crossing's paint under the screens,
+"Shibuya Crossing" (30 September 2023, 19:25) by Dick Thomas Johnson, CC BY 2.0,
+https://commons.wikimedia.org/wiki/File:Shibuya_Crossing_(53331011301).jpg. Compared, not copied: neither is in the
+repository. Not lit by the pools: the crowd and the fronts' walls, which on the low tier keep the hemisphere light and
+the night fill.
+
+**The level coming in.** On a phone the Scramble's level is ready seconds after the game opens (the owner's iPhone: in
+frame 1 six seconds after the load, having skipped the opening); until then the city's own Scramble is drawn, and the
+level took its place in view. The way in now waits for it (`game.js` `holdForLevel`): the opening's skip, the crane down
+from the title (reduced motion, `?overture=0`) and a story taken up again hold their shot behind a veil (the loader's
+ground with the place's name, `渋谷`, and a hairline running out the wait), at most 6 s; once the level is ready the camera
+is put at the player's shoulder under the veil and the veil lifts. Past 6 s the way in goes on without it. While it waits
+the level is fetched round the player, as behind the title. `tools/level_wait.js` checks it (docs/CHECKS.md).
+
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
 The story's fifth frame is taken at the foot of Shibuya Scramble Square's north face, where Miyamasu Bridge (宮益橋)
@@ -389,6 +477,134 @@ Where it still falls short: the station's walls above the girders are the city's
 and glass; the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
 the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
 software renderer only.
+
+## SKY's street entrance (Shibuya): frame 4's way up (issue 53)
+
+Frame 4 and the walk send the player from the crossing to the lift at Shibuya Scramble Square that goes up to SHIBUYA
+SKY. Its lobby was set dressing in the story's flat, self-lit material (the old `blender/build_set.py`): stone, steel
+and the lift's doors read as flat colour, nothing reflected its lines of light, the indicator said 46F, and the way in
+was an open 10 m mouth in the tower's generic wall, 17 m west of where the real entrance is. It is now a small hero
+level of its own, `cities/shibuya/hero_skylobby.py` (`python blender/build_hero.py --city shibuya --level skylobby`),
+and the set dressing is gone.
+
+**The place, from the research** (November 2026; sources below). The street lift is "館外1階": a lift hall of its own,
+outside the building's doors, at the far east end of the tower's north face, practically at its north-east corner and
+a few metres east of the Hikarie-side entrance, under the overhang of the station deck over the east exit (the 1F
+plan, `access_entrance_floormap_1f.png`, marks it "SHIBUYA SKY エレベーター 14Fへ", entered from the west; the section
+drawing shows its shaft as glass outside the tower's east face). It goes to 14F, stopping at 2F on weekdays when it is
+not busy. Elevator Journal 28's schedule has one bank that fits: E3-1 and E3-2, two Fujitec scenic cars, 24 people,
+150 m a minute, 1F to 14F. In the photographs (2019 to 2020): a glass wall in stainless frames, its lower lites
+fritted white, with two single framed doors about 2 m apart; over it a dark metal soffit with one line of round
+downlights; in front of it pale square tiles of about 600 mm, then the forecourt's striped planks; to its west a
+free-standing square pillar in light warm grey panels with the lit SKY disc and the name over a portrait screen;
+retractable belts in front at busy times. No photograph of the hall's inside, its lift doors or its indicator was
+found.
+
+**How it is entered, read again** (the owner's question, November 2026: "you queue inside, and face the outside as you
+board"). The official plan draws the SKY lift as its own small box *outside* the shop's outline at its north-east corner,
+east of the east wall's line and mostly north of the north face's, with its entrance marker (▷) on its **west** side;
+the section drawing has the shaft as glass outside the tower's east face; the schedule's E3 cars are scenic. So the hall
+is entered from the west, the queue faces east, and a visitor boards a car whose back is glass onto Meiji-dori and
+Hikarie. A first pass had cut the lobby 8 m into the tower with its glass to the north and the cars on its back wall:
+wrong, and redone.
+
+**What was built**:
+
+- **The hall where it is.** `pipeline/lobby.py` takes a lobby that stands outside its building (city.json
+  `game.lobbies` `"outside": {"door", "at"}`): the lobby once cut into the tower is filled back (each solid keeps its
+  index; the ground floor's two solids take their passages' feet again) and the stop put at the hall's doors and before
+  its cars. scene.json's `shibuya_sky.door` moved with it, and Yuna stands by the pillar.
+- **The hall**: 6.2 m north to south, 4.2 m west to east, under the station deck (its ceiling 2.65 m up, under the
+  deck's underside). Its west front glass in stainless frames, fritted to a metre, with two doorways 1.2 m clear under a
+  transom whose sliding leaves stand open behind the lites outside them (a door that is always open is what a player
+  walking up to an automatic one sees); its north side glass onto the forecourt; its roof carried 1.6 m out over the
+  doors as a canopy with a line of round downlights (the photographs'); its south side dark metal against the tower.
+  All of it solid (`game.hero[].posts`), the doorways open.
+- **Inside**: SKY's own black and lines of light (SKY GATE's cars, the 45F LEADING LINE), since its finishes are in no
+  photograph. A floor of polished charcoal granite in 1.2 by 0.6 m slabs, each its own part of the stone; black
+  lacquered panels with an 8 mm reveal, a line of light at the south wall's foot; a matt black ceiling with four lines
+  of light running east from over the doors to the cars, baked onto the floor and walls, and their reflections in the
+  polished floor (`refl*`: light added over the stone, without depth, dimmed by day as a glow is). The environment map
+  is the sky's, which inside a hall is wrong, so its surfaces take little of it.
+- **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
+  each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
+  behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
+  to 14F; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts run east to the
+  cars (`game.hero[].belts`, solid).
+- **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
+  hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
+  (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
+  name printed on its panels and an invented screen; and the forecourt's planks out along the tower's north face and
+  round the hall's north side.
+- **Its floor is walked on.** The ground rises half a metre to the north under the hall, and a hall is level. A level
+  with `"floor": true` is stood on where its model draws a floor (game.js `heroCover` reads its `room_floor_*` and
+  `ground_*` meshes into a height grid, `h.height`; nav.js `lift` returns that height less the ground's, under it or
+  over it).
+
+3,600 triangles, 0.67 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
+within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
+`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
+entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
+
+Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY access (shibuya-scramble-square.com/sky/access/,
+its 1F and 2F plans and the section drawing of the lift); Elevator Journal 28 (n-elekyo.or.jp, the lift schedule);
+Shibuya Scramble Square Level 1 Entrance, 2019-12-23 (Wpcpey, Wikimedia Commons, CC BY 4.0: the forecourt, the pillar
+and the soffit at dusk); SHIBUYA SKY Logo, 2022-12 (稲妻ノ歯鯨, Commons, CC BY-SA 4.0: the disc's colours, which are not
+drawn); and, all rights reserved, compared only: eki-kara-access.tokyo/shibuya-sky-ikikata/ (2019, twelve views of the
+entrance and the pillar), 1rankup.jp/shibuya/sky.html (the doors at night, the belts), skyticket.jp/guide/405506/.
+
+Where it still falls short: the hall's inside, its lift doors and its indicator are designed, not seen, and its size is
+the plan's, read at its scale; the doors do not slide as you come; the hall's height is the station deck's here, which
+is lower than the real 2F deck (7.7 m over 1F); the forecourt's striped planks with lights in their joints and its faceted mirror ceiling are
+the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
+renderer only.
+
+## Scramble Square's curtain wall (Shibuya)
+
+The owner's ask (November 2026): the building the story climbs should be the real one. The city drew Shibuya Scramble
+Square as every tower is drawn: PLATEAU's 227 m on OpenStreetMap's footprint, the generic curtain wall in a grey-blue.
+What the research found (sources below):
+
+- **Massing.** GL+229.7 m, 47 floors over 7 below and two on the roof (Nikken Sekkei; Komaihaltec's report). Shops
+  B2 to 14F (12F and 13F restaurants), SHIBUYA SKY's counter on 14F, SHIBUYA QWS on 15F, the sky lobby on 17F, offices
+  17F to 45F, SKY GALLERY on 45F and 46F, SKY STAGE on the roof. Floor to floor, from the escalators' rises
+  (Elevator Journal 28): 1F to 2F 7.7 m, 2F to 3F 5.6, 3F to 4F 6.0, then 5.0 to 5.7 to 14F (14F about 71 m over 1F),
+  17F about 84 m, the offices about 4.55 m. A standard office floor 2,815 m², ceilings 2.9 m (CASBEE). The footprint is
+  OpenStreetMap's (way 617560918), about 60 by 68 m, its long sides NNW-SSE.
+- **The skin.** The tower by Nikken Sekkei, the lower part by Kengo Kuma & Associates (Shinkenchiku 2019-12). Low-E
+  panes over 4 m tall, a white ceramic frit printed on their outer face that thins toward the corners, mullions that
+  shift with the cut-and-expanded form (KKAA, designboom, gooood); in the photographs a blue-green glass whose joints
+  step across each face in diagonals, every pane giving back the sky in its own tone.
+- **The base.** The official floor plans show the north edge changing floor by floor (1F straight with a shallow kink,
+  3F curved round the Ginza line's concourse, 4F an undulating S-curve reaching further north over the Urban Core); in
+  the photographs from the crossing and from Hikarie the north face is carved below 15F by a concave glass sweep either
+  side of the 550 m² LED screen that faces the crossing (Panasonic). No elevation or dimension of it is published.
+
+**What was built** (`cities/shibuya/hero_scramblesq.py`, `python blender/build_hero.py --city shibuya --level
+scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 92 triangles in one
+material (`win_scrsq`: hero.js win*, the glass mirroring the sky by day, the offices lit after dark) on a tile drawn
+here, 12 m across and eight office storeys high: each 1.5 m pane its own tone within a few percent and its own small
+tilt in the normal map (the tilt is the cause of the tone), the mullions as ribs, every second heavier, the joints
+stepping 0.75 m at each floor, the spandrel recessed and fritted, the frit thinning up each pane; after dark a ceiling's
+light in each lit bay, floors lit or dark as a working evening leaves them. The shop floors take the same tile at
+their 5.4 m storeys. Fetched anywhere in the story's streets (load_m 900): 0.21 MB, three 512 by 1536 pictures (two on
+a phone, halved). The ground floor round SKY's lobby is left to the lobby's own level.
+
+**Not built, and why**: the north face's concave sweep, the LED screen and the overhang over the Urban Core (with its
+faceted mirror-metal ceiling and lit slots over the forecourt) need the tower's solids cut below 15F to a measured
+shape, which nobody publishes; drawn from the photographs alone it would be a guess at the largest thing in the frame.
+It waits in issue 66 with the plans and photographs gathered here.
+
+Sources: nikken.co.jp (Shibuya Scramble Square, first phase), kkaa.co.jp (the project page), data.shinkenchiku.online
+(SK 2019-12), designboom 2021-05-04, gooood.cn, komaihaltec.co.jp (vol10_2-2.pdf), ibecs.or.jp (CASBEE
+RE_DAIWA-F-00241), n-elekyo.or.jp (Elevator Journal 28), panasonic.biz (Shibuya SS Vision), the official floor guide's
+1F to 4F plans (shibuya-scramble-square.com/floorguide/, all rights reserved: looked at). Photographs (Wikimedia
+Commons, looked at, none reproduced): SHIBUYA SCRAMBLE SQUARE East Tower, 2023-05 (Sakura Torch, CC BY-SA 4.0);
+Shibuya Station 191129a (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Scramble Square, seen from Hikarie, 2025-03 (Syced,
+CC0); Hikarie and Shibuya scramble square buildings, 2025-06 (Nesnad, CC BY 4.0); Shibuya Scramble Square building,
+taken from Shibuya Stream, 2022-06 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance, 2019-12 (Wpcpey, CC BY 4.0);
+Shibuya Scramble Square 191101a1 (江戸村のとくぞう, CC BY-SA 4.0).
 
 ## Only what the first frame sees (issue 358)
 
@@ -533,3 +749,74 @@ at every 3.6 m bay.
 While this was built, the floodlit copy of every landmark material was found to have lost its
 shader: its `onBeforeCompile` had ended up inside a comment. So since 8 November, every city's
 floodlit landmarks had lost their pattern and their fall-off after dark. It is code again.
+
+### The Akita who leads the player
+
+The guide has two upright ears above a broad skull. Each ear has a wide root, a rounded tip
+leaning slightly outward, a pale rim and a darker recessed opening. Their silhouette follows
+the front-facing portrait supplied for the guide. He has a short muzzle, compact toes,
+a cream bib and a layer of tapered guard hairs.
+The coat follows the jaw down the cheeks, lies back along the saddle and turns around the tail.
+The relative coat lengths and the cream markings follow the
+[Japanese Akita breed standard](https://www.wuac.info/akita/standard/index.email.shtml).
+The pale muzzle and orbital markings follow the surface around the head. The neck reaches forward at rest.
+The [Akita preservation society's description](https://akitainunosato.jp/publics/index/27/)
+informs the broad forehead, shallow central furrow, full cheeks and straight nasal bridge.
+The [Japanese Akitainu Club's illustrated guide](https://akita-inu.com/wp-content/uploads/securepdfs/2022/08/JACA-AKC-General-Guide-Electronic.pdf)
+shows the muzzle at about two fifths of the head length. These references inform the sculpt; no images are
+shipped from them.
+The standing silhouette was compared with [Dog - Akita Inu](https://www.cgtrader.com/3d-models/animal/mammal/dog-akita-inu), a commercial visual reference. No assets from the pack are used.
+The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
+a tiled undercoat with directional relief. Both textures are generated at build time.
+The corneas and lid creases are sculpted into the same surface so the skin turns as one.
+The eyes and nose use a lower roughness than the surrounding coat.
+
+**The head, measured again and set beside photographs (20 November 2026).** In review the forehead looked
+pressed in, and the owner asked for the head to match photographs of the breed from the front and the side.
+
+*What was wrong, measured.* Sampling the sculpt's distance field across the head: above the eyes the brows stood
+16 to 20 mm higher than the middle of the forehead, a trough some 9 cm wide running back from the stop (the roof
+that shapes the stop was lifted at the sides across the whole forehead), and between the eyes they still stood
+15 to 16 mm above it, two ridges with a dark trough between them that read from the front as a hollow. And the
+skull's front, the cheeks and the brows reached so far forward that the eyes sat on a flat face some 4 cm in front
+of the stop, on the muzzle: from the side the muzzle looked short and the head like a seal's.
+
+*What the breed is.* The [Japanese Akitainu Club's page of standards](https://akita-inu.com/?p=333) (it carries
+the AKC's Japanese Akitainu standard and the Akitainu Hozonkai's): "the forehead is broad and flat, preferably
+with a distinct furrow extending from the stop to the top of the skull"; a moderate stop; a head that is "a
+slightly rounded octagon" from the front; the muzzle 40 percent of the head's length; the eyes deep-set,
+almond-shaped (the Hozonkai: somewhat triangular), relatively small, raised at the outer corners, with black
+rims; the ears small, thick, triangular, wide-set and tilted forward, "at a 75 to 90 degree angle to a line drawn
+along the bridge of the muzzle". Three photographs on Wikimedia Commons were the models for the views, all
+red Japanese Akitas: a head from the front, [Akita Tête](https://commons.wikimedia.org/wiki/File:Akita_T%C3%AAte.jpg)
+(Azurfrog, CC BY 4.0); one standing in profile, [Japanese Akita red 2](https://commons.wikimedia.org/wiki/File:Japanese_Akita_red_2.jpg),
+and one at three-quarters, [Japaneseakita-red](https://commons.wikimedia.org/wiki/File:Japaneseakita-red.jpg)
+(both Canarian, CC BY-SA 4.0). They are looked at, not shipped: `tools/head_shot.js` films the model from the
+angles they were taken from, with a long lens, and with `REFS=` a folder holding them as `front.jpg`,
+`profile.jpg` and `three.jpg` sets each still beside its photograph (`HIDE=` leaves meshes out, to tell what a
+mark in a still is made of).
+
+*What changed* (`blender/build_dog.py`). The forehead is flat across and falls gently forward, with a 2 mm furrow
+from the stop to the crown; between the eyes the brows stand 2 to 4 mm above the middle (`portrait_head`, the roof
+in `face`). The skull's front and the cheeks are drawn back so that the eyes sit at the stop, and the brows sit over
+the eyes rather than out past their corners (there they overhung the temple, and the skin beneath, facing down,
+showed from a few metres as a black streak running back from each eye). The muzzle is sculpted short and drawn out
+forward of the eyes by 1.45 (`sculpted()`, `built()`: the markings, the lips, the eyes' frame, the whiskers and where
+the coat stops all go through it): from the eye to the nose it is now about the height of the ear above the eye, as
+in the photograph in profile (it was 0.86 of it, and half the depth of the head at the eye), the muzzle 44 percent
+of the head's length against the standard's 40, and the lower jaw is shallower and rises to the chin. The eyes are
+almond to three-cornered, the lower lid nearly straight up to a raised outer corner, set some 2.5 mm back under a
+slightly overhanging upper lid, a third of the head's width apart; the sculpt presses them in along each vertex's
+own normal, with a thin black rim (it had been a quarter of the eye wide and read as black fur), in a ring of pale
+fur, and on a wet material of their own (roughness 0.1) that holds a point of the sky (`orbit`, `sculpt_features`,
+the material "Eyes"). The upper lips sit back under the nose, so that from the side the nose stands in front of
+the muzzle, and the seam of the lips falls a little all the way back to the corner of the mouth (`MOUTH`), black its
+whole length: it had turned up at its ends into a smile. The ears are longer, lean forward over the eyes and splay
+out, so that from the front they carry on the lines of the cheeks (`EAR`, `ear_frame`). The cheeks are fuller, the
+head widest below the eyes. The coat's markings follow the photographs: the red comes down the forehead to a point
+between the eyes and wraps the outer corner of each eye and the temple; the whole muzzle is white, its bridge too;
+the cheeks are white below a line from under the eye back to the angle of the jaw, and above it the side of the
+head is red out to the ear; a pale patch sits over the inner half of each eye; the throat is white and the sides of
+the neck red. The red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the
+exporter of Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they
+had come out white.

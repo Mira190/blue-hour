@@ -44,10 +44,18 @@ window.OEHero = (function () {
   // the baked light (_BAKE) and the glow's hum, in every material of a hero model
   const BAKE_V = `attribute vec4 _bake;\nvarying vec4 vHeroBake;\n`;
   const BAKE_F = `varying vec4 vHeroBake;\nuniform float uHeroBake, uHeroNight;\n`;
+  // the low tier's pools of the screens' and the plaza cards' light (neon.js pooled), on a surface as it faces up
+  const POOL_F = `uniform sampler2D uPoolMap; uniform vec4 uPoolXf; uniform float uPoolScr, uPoolCardK; uniform vec3 uPoolCard;
+vec3 heroPool(vec3 wp, vec3 nv) {
+  vec2 uv = vec2((wp.x - uPoolXf.x) * uPoolXf.z, (-wp.z - uPoolXf.y) * uPoolXf.w);
+  if (uPoolScr + uPoolCardK <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec3(0.0);
+  vec4 p = texture2D(uPoolMap, uv); p *= p;
+  return (p.rgb * uPoolScr + uPoolCard * (p.a * uPoolCardK)) * saturate(dot(nv, viewMatrix[1].xyz));
+}`;
 
   function create(Wd, renderer, opts) {
     const THREE = window.THREE, list = Array.isArray(opts.hero) ? opts.hero : opts.hero ? [opts.hero] : [];
-    const tier = opts.tier || 'high', base = opts.base || '', U = Wd.U;
+    const tier = opts.tier || 'high', base = opts.base || '', U = Wd.U, pool = opts.pool || null;
     const group = new THREE.Group();
     group.name = 'hero';
     Wd.world.add(group);
@@ -98,13 +106,19 @@ window.OEHero = (function () {
           .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n  reflectedLight.indirectDiffuse *= mix(1.0, vHeroBake.a, 0.85); reflectedLight.indirectSpecular *= vHeroBake.a;')
           // the signs' and shop fronts' light on it after dark, in its own colour (an irradiance, baked)
           .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * vHeroBake.rgb * uHeroBake * uHeroNight;');
+        // on the low tier, the screens' and the plaza's light on what faces up (neon.js pooled: the area lights' stand-in)
+        if (pool && !/^(glow|tube|chase|paper|lamp|win|room)/.test(name)) {
+          Object.assign(sh.uniforms, pool);
+          sh.fragmentShader = sh.fragmentShader.replace('uniform float uHeroBake, uHeroNight;', `uniform float uHeroBake, uHeroNight;\n${POOL_F}`)
+            .replace('uHeroBake * uHeroNight;', `uHeroBake * uHeroNight;\n  totalEmissiveRadiance += diffuseColor.rgb * heroPool(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz), normal);`);
+        }
         // a room (room*: a hall inside a building) is lit by its own lamps by day too, and takes a share of the sky's
         // light through its windows, not all of it as a street does. Its lamps are no brighter at night: the eye is,
         // and the exposure with it, so the baked light's share falls as night comes or the room burns out
         if (/^room/.test(name)) sh.fragmentShader = sh.fragmentShader.replace('uHeroBake * uHeroNight;', 'uHeroBake * mix(0.8, 0.3, uHeroNight);')
           .replace('reflectedLight.indirectDiffuse *= mix(1.0, vHeroBake.a, 0.85);', 'reflectedLight.indirectDiffuse *= 0.45 * mix(1.0, vHeroBake.a, 0.85);');
         // the city's street lights, at the share the level asks (h.street): its own lamps and signs are baked in
-        if (Wd.streetLit && !/^(glow|tube|chase|paper|lamp)/.test(name)) {
+        if (Wd.streetLit && !/^(glow|tube|chase|paper|lamp|refl)/.test(name)) {
           Wd.streetLit(sh);
           sh.uniforms.uHeroStreet = uStreet;
           sh.fragmentShader = sh.fragmentShader.replace('uniform float uHeroBake, uHeroNight;', 'uniform float uHeroBake, uHeroNight, uHeroStreet;')
@@ -119,6 +133,9 @@ window.OEHero = (function () {
       // (a room's floor is laid on the ground the city draws, a few centimetres over it: in front of it, as a landmark's paving is)
       if (/^room_floor/.test(name)) Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       if (/^(glow|tube|chase)/.test(name)) { m.userData.oeDry = true; m.userData.heroGlow = m.emissiveIntensity || 1; }
+      // a light's reflection in a polished floor (refl*: the lines of light in SKY's hall): light added over the stone, its
+      // picture in the emissive map; it writes no depth and hides nothing, and dims by day as the glow does
+      if (/^refl/.test(name)) { Object.assign(m, { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }); m.userData.oeDry = true; m.userData.heroGlow = m.emissiveIntensity || 1; }
       if (/^(paper|lamp)/.test(name)) { m.userData.oeDry = true; m.userData.heroDusk = m.emissiveIntensity || 1; m.emissiveIntensity = 0; }
       m.needsUpdate = true;
     }
@@ -127,12 +144,14 @@ window.OEHero = (function () {
     // side over 1024. Resized by createImageBitmap where it can (no full-size canvas copy, which is tens of MB of
     // passing CPU memory on a phone), else through a canvas that is shrunk to nothing once it is uploaded.
     const lean = () => { try { const q = window.OEQuality && OEQuality.city && OEQuality.city(); return !!(q && q.lean); } catch (e) { return false; } };
-    async function shrink(tex, done) {
+    // (lowK: a level's own share on the low tier, game.json hero[].low_k: a small level whose pictures are text and a
+    // facade's tile, read at a phone's few pixels, takes a quarter: SKY's hall and Scramble Square's skin at frame 5)
+    async function shrink(tex, done, lowK = 0.5) {
       const img = tex && tex.image;
       if (!img || !img.width || img.width <= 256 || tex.userData.heroHalved) return;
       if (done.has(img)) { const o = await done.get(img); if (o) { tex.image = o; tex.userData.heroHalved = true; tex.needsUpdate = true; } return; }
       let fin; done.set(img, new Promise(r => { fin = r; }));
-      const k = lean() ? Math.min(0.5, 1024 / Math.max(img.width, img.height)) : 0.5;
+      const k = Math.min(lowK, lean() ? Math.min(0.5, 1024 / Math.max(img.width, img.height)) : 0.5);
       const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
       let out = null;
       if (window.createImageBitmap) {
@@ -199,7 +218,7 @@ window.OEHero = (function () {
         root.visible = false;
         group.add(root);
         L.root = root;
-        const ready = Promise.all(shrunk.map(t => shrink(t, halving)))
+        const ready = Promise.all(shrunk.map(t => shrink(t, halving, L.h.low_k || 0.5)))
           .then(() => (window.OETex && OETex.stats.on ? OETex.packObject(root) : null))
           .then(() => L.root === root && opts.warm ? opts.warm(root) : null)
           // (and its vertex buffers sent in slices: on its first draw they went in one, 0.7 s of the tap on Play)

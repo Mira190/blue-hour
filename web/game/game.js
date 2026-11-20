@@ -454,7 +454,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   console.info(`nav: ${Math.round(performance.now() - tNav)} ms (the collision world ${nav.col.count} solids; the landmarks' fine cells sorted ${Math.round(nav.startMs)} ms)`);
   if (window.OESurface) OESurface.load(renderer); // the street's scanned surfaces, which the shaders take when they come (surface.js)
   // the big screens light the street, the crowd and the buildings across from them (neon.js)
-  const neon = window.OENeon ? await OENeon.create(Wd, renderer, { tier: QC.name, gain: (G.look || {}).neon ?? 1, fill: (G.look || {}).fill || [], ground: (x, y) => Math.max(0, nav.terrain(x, y)) }) : null;
+  const neon = window.OENeon ? await OENeon.create(Wd, renderer, { tier: QC.name, gain: (G.look || {}).neon ?? 1, fill: (G.look || {}).fill || [], ground: (x, y) => Math.max(0, nav.terrain(x, y)), pool: (G.hero || []).map(h => [h.at[0], h.at[1], h.r || 100]) }) : null;
   // a wet street mirrors the city (mirror.js, high tier): the ground, the paving and the road markings take it
   if (window.OEMirror) {
     mirror = OEMirror.create(Wd, renderer, camera, { tier: QC.name, ground: (x, y) => { const z = Math.max(0, nav.terrain(x, y)), f = nav.floorAt(x, y, z + 0.5); return f ? f.z : z; } });
@@ -473,7 +473,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const t0 = performance.now(), n = Math.ceil(2 * h.r / HC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, g = new Float32Array(n * n).fill(-1e9), road = new Uint8Array(n * n), v = new THREE.Vector3(), P = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
     let tris = 0;
     root.traverse(o => {
-      if (!o.isMesh || !/(^|_)ground_/.test(o.name)) return;
+      if (!o.isMesh || !/(^|_)(ground|room_floor)_/.test(o.name)) return; // (room_floor: a hall's floor, stood on, never wet: hero[].floor)
       const asphalt = /_ground_(asphalt|paint)/.test(o.name) ? 1 : 0; // (the carriageway and what is painted on it: the crossings' stripes)
       const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
       for (let t = 0; t + 2 < m; t += 3) {
@@ -494,8 +494,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     h.road = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : road[j * n + i] === 1; };
     nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
     h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
+    // (the drawn floor's own height, or null where it draws none: a level whose floor is its own, hero[].floor, nav.js lift)
+    h.height = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : g[j * n + i]; };
   }
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj), upload: sendBuffers, ground: heroCover }) : null;
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, pool: neon && neon.pool, warm: obj => warmFor(obj), upload: sendBuffers, ground: heroCover }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -620,6 +622,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (let i = 0; i < TR.length; i += 4) { const q = posts.add(TR[i], TR[i + 1], TR[i + 2], TR[i + 3], 'tree'), j = i / 4 * 3; if (CW.length) { q.hb = CW[j]; q.rc = CW[j + 1]; q.top = CW[j + 2]; } } }
   // (and a hero level's own lamp posts, hero[].posts: drawn by its model, solid here)
   for (const h of G.hero || []) for (const [x, y] of h.posts || []) posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp');
+  // (and its queue belts, hero[].belts: points along each belt, 0.2 m apart, so that nobody, the guide included, walks through one)
+  for (const h of G.hero || []) for (const [x, y] of h.belts || []) posts.add(x, y, (h.z ?? nav.terrain(x, y)) + 0.3, 0.06, 'column');
   // (and what stands round in it and is a fence however low, hero[].rounds [x, y, r]: a planter's rail, which the walker's
   // step would otherwise take them over and onto the soil, with the dog after them)
   for (const h of G.hero || []) for (const [x, y, r] of h.rounds || []) posts.add(x, y, nav.terrain(x, y), r, 'round');
@@ -3299,16 +3303,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
-  // the lift lobby's two queue belts (blender/build_set.py lift: a post at (±1.5, -2.2) in the model, a belt from it to
-  // the wall at y = 0) as a row of posts, so that nobody, the guide included, walks through a belt
   let guideMade = null; // (the story's guide as last made: tools/lobby_shot.js)
   const GUIDE_BODY = 0.7; // (the guide's reach from where it stands until his model has said: blender/build_dog.py's Akita, 0.52 m behind to 0.72 m in front)
   // (and once it has, his own: companion.js measures it from the model, so another animal is kept off posts by its size)
   const guideReach = g => (guideMade && guideMade.reach) || GUIDE_BODY * (g.scale || 1);
-  const beltPosts = r => {
-    const h = (r.h || 0) * Math.PI / 180, c = Math.cos(h), s = Math.sin(h), z = r.at[2] ?? Math.max(0, nav.terrain(r.at[0], r.at[1]));
-    for (const lx of [-1.5, 1.5]) for (let ly = -2.2; ly <= 0.01; ly += 0.2) posts.add(r.at[0] + lx * c - ly * s, r.at[1] + lx * s + ly * c, z + 0.3, 0.06, 'column');
-  };
   // the way from where a frame is taken to what it is of, kept clear: of the crowd who stand in it, a walker is sent on
   // elsewhere (out of sight, as anyone the crowd is done with) and someone crossing a square or the Scramble steps to
   // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
@@ -3840,7 +3838,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
-    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ if (r.set && r.model === 'lift') beltPosts(r); const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); } }; }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1)
+    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); } }; }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1)
     clear: (a, b, half) => clearSight(a, b, half), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to; half: a lane for someone to walk)
     clearRound: (x, y, r) => clearRound(x, y, r), // (and out of a ring round someone the frame is of)
     finder: (q, open = true) => { if (past) { past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); past.open(open); } }, // (open: the lens stands where the other year was seen from; off it the finder has tonight only)
@@ -6297,7 +6295,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // own score then leaves the bed to that one: film-score.js plan.under)
   makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
-    walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } } });
+    walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
   if (overture && (story || OEOverture.due(CITY.id))) overture.prepareScore();
   if (overture) $('#gm-overture').hidden = false;
@@ -6444,7 +6442,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
-    if (story.dressSet) story.dressSet(); // (SKY GATE's lift doors and its sign over the way in, as the story has them: without them its lobby was a bare box on the walk)
+    if (story.dressSet) story.dressSet(); // (an episode's own set dressing, as the story has it, on the walk too)
     craneIn(() => walkUi.begin());
   };
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
@@ -6726,7 +6724,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Wd.tick(now, camera);
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
-    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
+    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
     weatherTick(simHold ? 0 : dt * (story ? story.scale : 1), titleOn, titleOn || paused || photo.on); // (held by a harness: the weather eases on only with advance(), which ticks it; stepped by the frames too, it eased by however many the machine drew, #420)
@@ -7825,7 +7823,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     fn.early = early;
     return fn;
   }
-  function craneIn(onDone = null) {
+  // The level the player stands in (hero.js) comes seconds after the game opens on a phone: until it is ready the city's
+  // own Scramble is drawn there (its plaza, flat asphalt and paint), and the level then took its place in view. The owner's
+  // iPhone skipped the opening and saw it in frame 1, six seconds after the load (issue 62). So the way in (the opening's
+  // skip, the crane down from the title, a story taken up again) waits for it behind a veil, the loader's ground with the
+  // place's name on it, at most LEVEL_WAIT_S; the shot is held under it, and the camera reaches the player once the level is drawn.
+  const LEVEL_WAIT_S = +((location.search.match(/[?&]levelwait=(\d+)/) || [])[1] || 6); // (?levelwait=s: a harness's own bound, tools/level_wait.js)
+  const levelReady = () => !hero || hero.levels.every(L => L.state === 'ready' || L.state === 'failed' || Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) > (L.h.r || 100));
+  let levelHold = null;
+  // done: what the way in does once the level is ready (or the wait is over); false when there is nothing to wait for
+  function holdForLevel(done) {
+    if (levelReady()) return false;
+    const v = document.createElement('div'), t0 = performance.now();
+    v.className = 'g-veil'; v.setAttribute('aria-hidden', 'true');
+    v.innerHTML = `<b>${((G.overture || {}).title || {}).name || CITY.native || CITY.name}</b><i style="animation-duration:${LEVEL_WAIT_S}s"></i>`;
+    stage.appendChild(v); void v.offsetWidth; v.classList.add('on');
+    levelHold = { t0 };
+    const tick = () => {
+      const t = (performance.now() - t0) / 1000;
+      if (t < 0.5 || (!levelReady() && t < LEVEL_WAIT_S)) { setTimeout(tick, 100); return; } // (the veil up first: the level never comes in half seen)
+      levelHold = null;
+      console.info(`the way in waited ${t.toFixed(1)} s for the level${levelReady() ? '' : ', and went on without it'}`);
+      done();
+      setTimeout(() => { v.classList.remove('on'); setTimeout(() => v.remove(), 700); }, 300); // (a few frames for it to be drawn under the veil)
+    };
+    setTimeout(tick, 100);
+    return true;
+  }
+  function craneIn(onDone = null, waited = false) {
+    // (held on the title's view behind the veil until the level is ready, or the wait is over; a tap meanwhile does not end it)
+    if (!waited && holdForLevel(() => craneIn(onDone, true))) { const pos = camera.position.clone(), look = titleLook.clone(); arriving = { onDone: null, settling: true }; cine.play(() => ({ pos, look }), 60, { label: 'crane' }); return; }
     const H0 = head(), lk0 = titleLook.clone().sub(H0), p0 = OECine.polar(H0, camera.position);
     const shot = openingHere(), dur = shot ? OPENING.dur : ARRIVE.dur;
     if (shot) player.h = OPENING.face; // (the start's own view: the shot was framed behind it)

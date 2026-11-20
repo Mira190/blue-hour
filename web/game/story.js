@@ -464,8 +464,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const tm = setTimeout(end, total + 14000); // (read at leisure; the Stop waits for it)
       addEventListener('keydown', key, true); pre.addEventListener('pointerdown', end);
     }
-    // tonight's own set dressing (a lift's doors at the back of SKY GATE's lobby, its sign over the way in): put up as the
-    // player is given the street, in the story or on the walk (game.js startWalk), once
+    // tonight's own set dressing (an episode's `set`: things only tonight has, past.js models drawn always): put up as the
+    // player is given the street, in the story or on the walk (game.js startWalk), once. (SKY GATE's lobby was the first;
+    // it is a hero level now, cities/shibuya/hero_skylobby.py)
     function setDress(ep = st.ep) {
       for (const [i, r] of ((ep && ep.set) || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r));
     }

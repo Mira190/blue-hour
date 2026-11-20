@@ -12,6 +12,11 @@ the lift's doors would be. Roofs, plant and frontages stay with the solid they w
 stands in the lobby below its ceiling (a building's ground floor in several solids) is cut back round it the same
 way, so that nothing passes through the lift's portal (tools/lobby_check.py fails on one that does).
 
+A lobby given "outside" ({"door", "at"}) stands outside its building: a lobby once cut is filled back and the stop is
+put there (SHIBUYA SKY's street hall, just off Scramble Square's north-east corner). A lobby given a "door" ([x, y], the
+way in on the face) whose stop's door is elsewhere is moved: the old lobby is filled
+back and the new one cut there (SHIBUYA SKY's street lift stands at the tower's north-east corner, issue 53).
+
 Rewrites web/data/<city>/buildings.json and game.json; a lift whose stop is already under a passage is left alone, so running it again changes nothing.
 """
 import argparse
@@ -82,8 +87,74 @@ def clear(B, stop, L):
     return n
 
 
-def cut(B, lift):
+def refill(B, stop, L):
+    """The lobby where it was cut, filled back: each solid that was cut to stand below its ceiling (a solid of the
+    building wholly under h, beside a passage of the same building) takes its passage's foot again. Every solid keeps
+    its index (other files name solids by it). Returns how many were filled."""
+    room, n = room_of(stop, L), 0
+    passages = [k for k in B.get("passages", []) if B["s"][k][2] == round(L["h"] * 10)]
+    for k, s in enumerate(B["s"]):
+        if s[2] != 0 or s[3] != round(L["h"] * 10) or not poly(s).intersects(room.buffer(1.0)):
+            continue
+        low = poly(s)
+        best = max((q for q in passages if B["s"][q][0] == s[0]), key=lambda q: low.intersection(poly(B["s"][q])).area / max(low.union(poly(B["s"][q])).area, 1e-9), default=None)
+        if best is None:
+            continue
+        up = poly(B["s"][best])
+        if up.difference(low).difference(room.buffer(0.05)).area > 0.5:
+            continue  # (not this lobby's cut: its passage has more of a foot than the room)
+        s[4:] = [list(r) for r in B["s"][best][4:]]
+        n += 1
+    return n
+
+
+def move(B, stop, L, ground):
+    """A lobby whose way in has moved (city.json game.lobbies {id: {..., "door": [x, y]}}): the old one filled back, the
+    stop moved to the new way in, on the face of the building it climbs, and the new lobby cut there (clear). The
+    stop's height is the hall's floor, the ground at its glass (blender: cities/<city>/hero_skylobby.py)."""
+    refill(B, stop, L)
+    want = Point(*L["door"])
+    k = min((k for k in B.get("passages", []) if B["s"][k][2] == round(L["h"] * 10)), key=lambda k: poly(B["s"][k]).exterior.distance(want))
+    P = poly(B["s"][k])
+    ext = P.exterior
+    foot = ext.interpolate(ext.project(want))
+    a, b = ext.interpolate(max(0, ext.project(want) - 0.5)), ext.interpolate(min(ext.length, ext.project(want) + 0.5))
+    ux, uy = b.x - a.x, b.y - a.y
+    n = (ux * ux + uy * uy) ** 0.5
+    ux, uy = ux / n, uy / n
+    nx, ny = -uy, ux
+    if not P.contains(Point(foot.x + nx * 0.5, foot.y + ny * 0.5)):
+        nx, ny = -nx, -ny
+    d = L["d"]
+    z = round(ground(foot.x + nx * L.get("glass", 0.0), foot.y + ny * L.get("glass", 0.0)) + 0.01, 2)
+    stop["at"] = [round(foot.x + nx * (d - 1.6), 2), round(foot.y + ny * (d - 1.6), 2), z]
+    stop["door"] = [round(foot.x, 2), round(foot.y, 2)]
+    clear(B, stop, L)
+
+
+def outside(B, stop, L, ground):
+    """A lift whose street hall stands outside its building (city.json game.lobbies {id: {..., "outside": {"door", "at"}}}:
+    SHIBUYA SKY's, just off Scramble Square's north-east corner): a lobby once cut for it is filled back, and the stop
+    put where the hall's way in and its cars are (hero_skylobby.py builds the hall round them). Returns whether anything
+    changed."""
+    o = L["outside"]
+    door, at = [round(float(v), 2) for v in o["door"]], [round(float(v), 2) for v in o["at"]]
+    z = round(ground(*at) + 0.01, 2) if ground else (stop["at"][2] if len(stop["at"]) > 2 else 0.0)
+    if stop.get("door") == door and stop["at"][:2] == at:
+        return False
+    if stop.get("door"):
+        refill(B, stop, L)
+    stop["door"], stop["at"] = door, at + [z]
+    return True
+
+
+def cut(B, lift, ground=None):
     stop, L = lift["stops"][0], lift["stops"][0]["lobby"]
+    if L.get("outside"):
+        return outside(B, stop, L, ground)
+    if L.get("door") and stop.get("door") and Point(*L["door"]).distance(Point(*stop["door"])) > 0.5:
+        move(B, stop, L, ground)
+        return True
     p = Point(stop["at"][0], stop["at"][1])
     passages = set(B.get("passages", []))
     if any(B["s"][k][2] > 0 and poly(B["s"][k]).contains(p) for k in passages):
@@ -129,7 +200,11 @@ def main():
     for l in G.get("lifts", []):  # (cities/<city>/city.json game.lobbies: {lift id: {w, d, h}})
         if l["id"] in cfg.get("game", {}).get("lobbies", {}):
             l["stops"][0]["lobby"] = cfg["game"]["lobbies"][l["id"]]
-    n = sum(cut(B, l) for l in G.get("lifts", []) if l["stops"][0].get("lobby"))
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "blender"))
+    from hero_open import Ground  # (the game's own walking ground: the hall's floor is set on it)
+    T = Ground(a.city)
+    n = sum(cut(B, l, T) for l in G.get("lifts", []) if l["stops"][0].get("lobby"))
     if n:
         json.dump(B, open(os.path.join(d, "buildings.json"), "w"), separators=(",", ":"))
         open(os.path.join(d, "game.json"), "w", encoding="utf8").write(json.dumps(G, separators=(",", ":")))

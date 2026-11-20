@@ -1043,7 +1043,13 @@ window.OENav = (function () {
       let l = 0, inside = false;
       for (const h of lifts) {
         const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]);
-        if (d > 0 && h.shown) { inside = true; if (!h.cover || h.cover(x, y)) l = Math.max(l, h.lift * Math.min(1, d / 2)); }
+        if (d > 0 && h.shown) {
+          inside = true;
+          // (a level whose floor is its own, level where the ground under it slopes: SHIBUYA SKY's hall, game.json hero[].floor.
+          // Its drawn floor is what is stood on, under the ground or over it, wherever its model has drawn one: h.height)
+          if (h.floor) { const z = h.height ? h.height(x, y) : null; if (z !== null) return z - terrain(x, y); continue; }
+          if (!h.cover || h.cover(x, y)) l = Math.max(l, h.lift * Math.min(1, d / 2));
+        }
       }
       if (!inside && pavingHid && pavingHid.size) l = Math.max(l, hidLift(x, y));
       return l;

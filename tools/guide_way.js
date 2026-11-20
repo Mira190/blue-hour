@@ -7,6 +7,8 @@
 //     where the way is wider than WIDE_M and he runs nearer than EDGE_M to one side for more than RUN_M, a fault (a
 //     guide leads down the middle of a footway, not along its hoarding);
 //   - and the same for the way planned (ways.walk, the line he follows), every metre;
+//   (neither within MOUTH_M of where the way goes out onto a crossing or comes off one: there it steps over the kerb's line
+//   on its way, and the kerb is beside it for a pace or two however it is laid, issue 63)
 //   - the mark (story.js markTick), with the signs out as for a player who is lost, the view turned four ways: what it
 //     points at must be on the way and reachable from the player in a straight line (the way's next turn, never the
 //     goal across a block), and its metres the way's, not the crow's.
@@ -18,7 +20,7 @@ const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // 
 const fs = require('fs');
 const [,, out = '/tmp/guide-way', size = '1440x900'] = process.argv;
 // (RUN_M for the way planned; DOG_RUN_M for him, who steps round the people waiting at a kerb and the player he passes)
-const FLOAT_M = 0.06, SINK_M = 0.08, WIDE_M = 3.2, EDGE_M = 0.8, RUN_M = 1.5, DOG_RUN_M = 2.5;
+const FLOAT_M = 0.06, SINK_M = 0.08, WIDE_M = 3.2, EDGE_M = 0.8, RUN_M = 1.5, DOG_RUN_M = 2.5, MOUTH_M = 2.5;
 // each frame's lead: from where the player stands when it is given to whom or where the story sends them
 // (f4 is the frame as the story gives it: from where the page leaves you at its start; the others from the data)
 const LEADS = [
@@ -48,7 +50,15 @@ const LEADS = [
     window.requestAnimationFrame = fn => raf(t => { D.on = D.all || D.frames++ % n === 0; fn(t); D.on = true; });
     for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
   }, DRAW);
-  const shoot = async path => { if (DRAW > 1) await p.evaluate(() => new Promise(r => { window.__draw.all = true; requestAnimationFrame(() => requestAnimationFrame(r)); })); await p.screenshot({ path }); if (DRAW > 1) await p.evaluate(() => { window.__draw.all = false; }); };
+  // (a still is for looking at, not a check: on a software renderer a whole frame drawn mid-lead took over Playwright's
+  // 30 s, and the timeout ended the run; it is given longer, and one that still fails is reported, not fatal)
+  const shoot = async path => {
+    try {
+      if (DRAW > 1) await p.evaluate(() => new Promise(r => { window.__draw.all = true; const t = setTimeout(r, 60000); requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(t); r(); })); }));
+      await p.screenshot({ path, timeout: 180000 });
+    } catch (e) { console.log('still missed:', path, String(e).split('\n')[0]); }
+    finally { if (DRAW > 1) await p.evaluate(() => { window.__draw.all = false; }).catch(() => {}); }
+  };
   // (as a case left at frame 4 and opened again: the dog is met, and the frame's goal is the lift)
   await p.addInitScript(() => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 3, left: 4, prints: [0, 1, 2].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -77,7 +87,7 @@ const LEADS = [
     // second level, frame 5's place, comes as the way nears it)
     await p.evaluate(L => new Promise(ok => { const g = window.__game, t0 = Date.now(); const f = () => (!g.hero || g.hero().levels.every(q => q.state !== 'loading') || Date.now() - t0 > 900000 ? ok() : setTimeout(f, 1000)); f(); }), L.live ? {} : L);
     let r = null;
-    const run = p.evaluate(({ L, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M, DOG_RUN_M }) => new Promise(async done => {
+    const run = p.evaluate(({ L, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M, DOG_RUN_M, MOUTH_M }) => new Promise(async done => {
       // (the story held off its own beat while a way it is not on is led: passing Yuna on the way to Tanaka began her talk,
       // and the story moved on under the check; the live lead has it back)
       { const st0 = window.__game.story.state; if (!L.live) { st0.beat = 'check'; } else st0.beat = 'meet'; }
@@ -86,22 +96,27 @@ const LEADS = [
         pl.x = L.from[0]; pl.y = L.from[1]; const f = nav.floorAt(pl.x, pl.y, (L.from[2] ?? nav.terrain(pl.x, pl.y)) + 1); pl.z = f ? f.z : pl.z;
         const sp = nav.floorAt(L.to[0], L.to[1], (L.to[2] ?? nav.terrain(L.to[0], L.to[1])) + 1);
         st.target = [L.to[0], L.to[1], (sp ? sp.z : 0) + 1.2, sp ? sp.z : 0]; // (as story.js spot() makes it)
+        // (a place to walk to, as story.js aimAt gives one: the live lead's kind was left on it, someone to talk to, and the
+        // mark read "Talk" with the metres to whoever the last lead ended at, issue 63)
+        st.kind = 'go'; document.getElementById('g-story-mark').dataset.kind = 'go';
         const free = dog.free(pl.x + 1.5 * Math.sin(pl.h || 0), pl.y + 1.5 * Math.cos(pl.h || 0), 2) || [pl.x, pl.y];
         dog.place(free[0], free[1], 0); dog.met();
       }
       const to = st.target;
       // the way as the dog plans it from where he is, measured every metre (each stretch's own level)
       const way = ways.walk({ x: dog.x, y: dog.y, z: dog.z }, { x: to[0], y: to[1], z: to[3] });
-      const wayBad = [];
+      const wayBad = [], mouths = [], nearMouth = (x, y) => mouths.some(q => Math.hypot(q[0] - x, q[1] - y) < MOUTH_M);
       if (way) {
         const P = way.pts; let run = 0, len = 0;
+        // (where it is out on a crossing, first: the kerbs it steps over going on and coming off)
+        for (let i = 1; i < P.length; i++) { if (P[i][3]) continue; const [ax, ay, az] = P[i - 1], [bx, by, bz] = P[i], d = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.round(d * 2)), nx = -(by - ay) / (d || 1), ny = (bx - ax) / (d || 1); for (let k = 0; k <= m; k++) { const x = ax + (bx - ax) * k / m, y = ay + (by - ay) * k / m; if (ways.crossing(x, y, az + (bz - az) * k / m, nx, ny)) mouths.push([x, y]); } }
         for (let i = 1; i < P.length; i++) {
           if (P[i][3]) continue;
           const [ax, ay, az] = P[i - 1], [bx, by, bz] = P[i], d = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.round(d));
           const nx = -(by - ay) / (d || 1), ny = (bx - ax) / (d || 1);
           for (let k = 0; k < m; k++) {
             const t = k / m, x = ax + (bx - ax) * t, y = ay + (by - ay) * t, z = az + (bz - az) * t; len += d / m;
-            if (len < 4 || way.len - len < 4) continue; // (its ends are where the player and the goal are)
+            if (len < 4 || way.len - len < 4 || nearMouth(x, y)) { run = 0; continue; } // (its ends are where the player and the goal are)
             const [l, rr] = ways.room(x, y, z, nx, ny);
             if (l + rr > WIDE_M && Math.min(l, rr) < EDGE_M) { run += d / m; if (run > RUN_M && wayBad.length < 12) wayBad.push([+x.toFixed(1), +y.toFixed(1), +l.toFixed(2), +rr.toFixed(2)]); } else run = 0;
           }
@@ -122,6 +137,9 @@ const LEADS = [
         for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
           if (g.cam) g.cam.yaw = (pl.h || 0) + yaw;
           st.lost = true; await new Promise(r => setTimeout(r, 1200)); // (the lens comes round, and the story's tick marks it)
+          // (and the game has drawn at least one whole frame since: on a software renderer one frame can take longer than the
+          // wait, and the mark read was still the last lead's, issue 63)
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
           const mk = document.getElementById('g-story-mark'), txt = mk.querySelector('b').textContent, a = st.wayAim || st.target;
           const m = /([0-9]+) m/.exec(txt), metres = m ? +m[1] : null;
           const f = [];
@@ -144,11 +162,20 @@ const LEADS = [
       };
       // (each mesh's box in the scene once, and a ray tried only on those over him: the whole world's meshes, every quarter
       // second, held the page for seconds a time)
-      const meshes = []; (g.world || g.scene).traverse(m => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.geometry.attributes.position) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.updateMatrixWorld(); meshes.push({ m, b: m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld) }); } });
+      // (and listed again when a hero level comes or goes on the way: a level fetched as the dog nears it, SKY's hall and its
+      // forecourt on the way from Hachiko, was not in a list made at the start, and what he stood on read as the game's ground)
+      let meshes = [], heroSeen = '';
+      const listMeshes = () => { meshes = []; (g.world || g.scene).traverse(m => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.geometry.attributes.position) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.updateMatrixWorld(); meshes.push({ m, b: m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld) }); } }); };
+      const heroKey = () => (g.hero && g.hero() ? g.hero().state().map(q => q.id + q.state + q.shown).join() : '');
+      listMeshes(); heroSeen = heroKey();
       const surface = (x, y, z) => {
+        { const k = heroKey(); if (k !== heroSeen) { heroSeen = k; listMeshes(); } }
         o.set(x, z + 0.9, -y); ray.set(o, down); ray.far = 4;
         const over = meshes.filter(q => x >= q.b.min.x && x <= q.b.max.x && -y >= q.b.min.z && -y <= q.b.max.z && q.b.min.y <= z + 0.9 && q.b.max.y >= z - 3.1).map(q => q.m);
-        const hits = ray.intersectObjects(over, false).filter(h => solidMesh(h.object));
+        // (and the hero levels' own meshes as they are now, whatever came or went since the list: they are small)
+        const H = g.hero && g.hero(), hm = [];
+        if (H && H.group) H.group.traverse(m => { if (m.isMesh && !over.includes(m)) hm.push(m); });
+        const hits = ray.intersectObjects(over.concat(hm), false).filter(h => solidMesh(h.object)).sort((a, b) => a.distance - b.distance);
         return hits.length ? hits[0].point.y : null; // (the scene's y is the map's height: game.js W)
       };
       const arrows = await signs();
@@ -169,14 +196,16 @@ const LEADS = [
           if (gap != null) { maxGap = Math.max(maxGap, gap); minGap = Math.min(minGap, gap); }
           if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind]);
           const nx = -(dog.y - lastY) / mv, ny = (dog.x - lastX) / mv, [l, rr] = ways.room(dog.x, dog.y, dog.z, nx, ny);
-          if (l + rr > WIDE_M && Math.min(l, rr) < EDGE_M) { run += mv; if (run > DOG_RUN_M && side.length < 12) side.push([+dog.x.toFixed(1), +dog.y.toFixed(1), +l.toFixed(2), +rr.toFixed(2)]); } else run = 0;
+          if (ways.crossing(dog.x, dog.y, dog.z, nx, ny)) mouths.push([dog.x, dog.y]);
+          if (nearMouth(dog.x, dog.y)) run = 0;
+          else if (l + rr > WIDE_M && Math.min(l, rr) < EDGE_M) { run += mv; if (run > DOG_RUN_M && side.length < 12) side.push([+dog.x.toFixed(1), +dog.y.toFixed(1), +l.toFixed(2), +rr.toFixed(2)]); } else run = 0;
           lastX = dog.x; lastY = dog.y;
         } else if (mv > 0.5) { lastX = dog.x; lastY = dog.y; }
         if (dog.state === 'sit' || t > 240) return done({ t: +t.toFixed(1), state: dog.state, at: [+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2)], left: +Math.hypot(dog.x - to[0], dog.y - to[1]).toFixed(2), wayLen: way ? +way.len.toFixed(1) : null, maxGap: +maxGap.toFixed(3), minGap: +minGap.toFixed(3), float: bad.slice(0, 8), nfloat: bad.length, edge: side, wayEdge: wayBad, arrows });
         requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
-    }), { L: lead, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M, DOG_RUN_M }).then(v => { r = v; }, e => { r = { error: String(e).slice(0, 300) }; });
+    }), { L: lead, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M, DOG_RUN_M, MOUTH_M }).then(v => { r = v; }, e => { r = { error: String(e).slice(0, 300) }; });
     // stills behind the player as he leads: soon after he sets off, and further on
     const w0 = Date.now(); let shot = 0;
     while (!r) {
