@@ -1055,7 +1055,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) if (n.rig.pending && !n.loading && !n.away && Math.hypot(n.x - cx, n.y - cy) < NPC_LOAD_M) npcLoad(n);
   }
   let npcBusy = false;
-  const npcsReady = () => Promise.all(npcs.map(npcLoad)); // every NPC in place (for the tools that look at them)
+  const npcsReady = () => Promise.all(npcs.filter(n => !n.away).map(npcLoad)); // every NPC in place (for the tools that look at them; not the walk's own until it is the walk: a phone's memory check loaded them where play never does)
 
   // ------------------------------------------------------------ vehicles
   const vopts = { lib: vlib, cfg: G.vehicles || {}, city: CITY, U, camera, renderer, water: Wd.sea, compile: compileFor, upload: uploadFor, searchlight: earlyLamps.search };
