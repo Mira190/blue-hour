@@ -1109,9 +1109,12 @@ transformed = crowdPose(transformed, false);`);
   // [turn in radians, colour kept (0 grey to 1 the street's most), tone, dye: I and Q of the cast it takes].
   // (most of a Tokyo evening crowd is black, charcoal, navy and grey with white, beige, camel and brown, some olive;
   // docs/LOOK.md "A Tokyo street's colours". Four in twelve are near grey or black: the turn hardly matters there)
-  const DRESS = [[0, 1, 1, 0, 0], [2.3, 0.6, 0.62, -0.022, 0.008], [-1.7, 0.8, 1.45, 0.014, 0.0], [1.0, 0.7, 0.85, 0.02, 0.0],
-    [3.1, 0.12, 0.5, 0, 0], [-0.75, 0.7, 1.25, -0.016, 0.006], [1.7, 0.6, 0.72, 0.012, 0.0], [-2.5, 0.18, 1.45, 0, 0],
-    [0.5, 0.55, 0.45, -0.018, 0.01], [-1.2, 0.22, 0.68, 0.006, 0.0], [2.8, 0.9, 1.1, 0.016, -0.004], [-3.0, 0.4, 0.55, 0.01, -0.006]];
+  // (dealt to one person's walkers in turn, below, and the tones go dark and light by turns round the list, so the same
+  // person twice is once near black and once a light grey or a sand, not two shades of one colour. The owner, of a
+  // kerb before this: at the least, one person's clothes should differ, black, white, grey)
+  const DRESS = [[0, 1, 1, 0, 0], [3.1, 0.1, 0.36, 0, 0], [-2.5, 0.15, 2.0, 0, 0], [2.3, 0.6, 0.55, -0.022, 0.008],
+    [-1.7, 0.8, 1.7, 0.014, 0.0], [0.5, 0.55, 0.4, -0.018, 0.01], [2.8, 0.9, 1.5, 0.016, -0.004], [1.7, 0.6, 0.62, 0.012, 0.0],
+    [-1.2, 0.2, 1.15, 0.006, 0.0], [-3.0, 0.35, 0.45, 0.01, -0.006], [-0.75, 0.7, 1.35, -0.016, 0.006], [1.0, 0.7, 0.8, 0.02, 0.0]];
   const dressOf = i => (Math.imul(i + 7, 2246822519) >>> 16) % DRESS.length;
   // (the colour kept is the length of the turn's vector: no new attribute or uniform)
   const dressVec = (k, out, dye) => { const D = DRESS[k]; out.set(Math.cos(D[0]) * D[1], Math.sin(D[0]) * D[1], D[2]); if (dye) dye.set(D[3], D[4]); return out; };
@@ -1292,7 +1295,7 @@ transformed = crowdPose(transformed, false);`);
       // its own, so that two of one person in the one change of clothes are as rare as the cast allows: drawn at
       // random, a kerb of forty had the same man in the same clothes three times over, issue 64)
       const rn = realOf(i, p.look);
-      if (rn) { worn[rn] = (worn[rn] === undefined ? dressOf(rn.length * 31 + rn.charCodeAt(rn.length - 1)) : worn[rn] + 5) % DRESS.length; p.dress = worn[rn]; } else p.dress = dressOf(i);
+      if (rn) { worn[rn] = (worn[rn] === undefined ? dressOf(rn.length * 31 + rn.charCodeAt(rn.length - 1)) : worn[rn] + 1) % DRESS.length; p.dress = worn[rn]; } else p.dress = dressOf(i);
       p.far = farOf(i, p.look);
       p.fscale = p.far ? realScale(p.far, p.look) : p.look.scale; // (the near walker's own height)
       const ex = p.far ? lib.far[p.far].extras : lib.lod[p.look.character].extras, key = p.far ? '@' + p.far : p.look.character;

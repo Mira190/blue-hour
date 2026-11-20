@@ -523,8 +523,9 @@ argyle sweater vest ten times or more, and women in aqua, mint, lime and sky blu
   Still one program, the same far and near, no new pictures or attributes (the colour kept rides in the length of
   the turn's vector).
 - *Who wears what.* A walker's change of clothes was drawn at random, so the same man in the same clothes stood
-  three times at one kerb. Now each cast member's walkers are dealt the twelve in turn (a stride of five from a
-  start of its own), so two of one person in one change are as rare as a cast of twelve allows.
+  three times at one kerb. Now each cast member's walkers are dealt the twelve in turn from a start of its own,
+  and the list goes dark and light by turns (near black, then a light grey or sand), so one person's walkers one
+  after another are not two shades of one colour, and two in one change are as rare as a cast of twelve allows.
 
 The palette's sources (facts only, nothing copied): no count of what a Tokyo street wears was found. Web Japan,
 "Goodbye Black, Hello Gray" (2007: black, grey, navy, brown and beige the basic colours), Highsnobiety's Tokyo
