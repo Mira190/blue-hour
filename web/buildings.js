@@ -259,6 +259,7 @@ window.OEBuildings = (function () {
         props.add(im);
       };
       for (const [kind, kd] of Object.entries(kinds).map(([k, v]) => [+k, v])) {
+        if (small && kind === 7) continue; // (a condenser is under a phone's pixel from the air: most of the instances, none of the picture)
         const rows = PR.filter(p => p[1] === kind && p.length <= 8 && deckZ.has(p[0]) && !hidden.has(p[0]) && kitNear(p));
         if (!rows.length) continue;
         const list = kind === 8 ? [[], []] : [], legs = [];
