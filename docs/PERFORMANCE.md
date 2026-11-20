@@ -116,6 +116,72 @@ Two more, the same picture to the bit:
 What the shadow pass still draws is mostly instanced props, trees and people spread over the whole city. An
 instanced mesh is culled as a whole, so these are drawn in full however small the shadow box.
 
+## The story check's frames not drawn (issue 70)
+
+On a session's machine (four cores, Chromium on Mesa's llvmpipe under `xvfb-run`) `tools/story_play.js` plays the story
+at 800x500 with one frame in thirty drawn (`DRAW=30`, issue 51). Measured with the play's own clock (its last line now
+says where the wall's time went: frames not drawn, frames drawn, and the stills with the frames drawn whole for them) and
+CDP `Profiler` (`PROFILE=still:seconds`), one browser at a time, the same machine before and after.
+
+**Where an undrawn frame's time went** (a minute after a still, sampled every 0.5 ms; own time):
+
+| frame 2's walk (`2-said-go-talk-shun`) | | frame 7's rain, the full crowd (`7-rain-0s`) | |
+|---|---|---|---|
+| `getError` (game.js `glCheck`) | 16% | `getBufferSubData` (world.js `pollReads`: the rain's cover map read back) | 27% |
+| crowd `update` (actors.js 2487, the traffic) | 6% | `getError` (`glCheck`) | 8% |
+| crowd `plazaStep` (actors.js 1070) | 6% | crowd `walk` (actors.js 1341) | 4% |
+| crowd `walk` (actors.js 1341) | 6% | `updateMatrixWorld` (the world, at each render skipped) | 4% |
+| crowd `update` (actors.js 1270) | 6% | crowd `plazaStep` | 4% |
+| `updateMatrixWorld` | 5% | traffic `update` (actors.js 2487) | 4% |
+| crowd `nearest` (actors.js 320) | 4% | crowd `update` (actors.js 1270) | 3% |
+| `simulate` (game.js) | 3% | crowd `nearest` | 2% |
+| `traverseVisible` (the `onBeforeRender` replay) | 2% | `getProgramInfoLog` (a program's first draw) | 2% |
+| `getPropertyValue` (hud.js `css`, the minimap) | 2% | `traverseVisible` | 2% |
+
+Including what they call: the crowd and the traffic (`actors.js` `update`, its walking, its plazas, its nearest
+neighbours, `people.js` `place`) were 44% in frame 2 and 40% in frame 7. They are what the checks read (where everyone
+is, who blocks whom, the umbrellas), so they stay. The two biggest lines were neither: each was the page asking the GPU
+something it could only answer once llvmpipe had finished the frame drawn before, which took a second. A frame not drawn
+waited for it.
+
+**What was cut, on a check's frames not drawn only** (`window.__draw.on === false`, which only the harness sets; a
+player's page has no `__draw`, and every frame of it is drawn as before):
+
+- `getError` answers no error without asking (story_play.js). An error stays in the context until it is asked for, so
+  the game's `glCheck` still finds it, in its next ask made in a drawn frame. No story check read it (the `gl` target does).
+- The rain's cover map (weather.js `renderOcc`) is neither drawn nor read back there. Its render was skipped already (#51),
+  and its read back of the old map waited for the GPU. The map is drawn and read in the next frame drawn, which so shows the
+  rain kept out from under cover as it is; before, a still's frame could carry a map whose render had been skipped.
+  `world.js` `pollReads` waits for a frame drawn to read.
+- The minimap (hud.js `draw`) and the names over the street (game.js `updateLabels`) are placed for the frame drawn
+  alone: both are worked out from where things are, with nothing carried over.
+
+Not cut: the rigs' animation out of view (`rig.animate` sets each walker's clip speed from their pace every frame, so a
+pose deferred to the next drawn frame would not be the same pose), the street mirror's render (drawn every other frame,
+so skipping it would move which of a still's two frames reflects), and the world's `updateMatrixWorld` at each render
+skipped (code between two renders of a frame reads the matrices the first left).
+
+**Before and after, the whole play** (`DRAW=30 node tools/story_play.js out 800x500` under `xvfb-run -a`):
+
+| | before | after |
+|---|---|---|
+| played in | 996 s | 953 s |
+| script in a frame | 54.1 ms | 48.8 ms |
+| a frame not drawn | about 55 ms (frame 7: 56) | 40 ms, the game's clock at 0.89 of the wall's (frame 7: 0.64 before) |
+
+The page's errors none either way, the same beats reached and the same stills (a contact sheet of nine beats side by side:
+the same light, grade and interface; the crowd stands elsewhere in any two runs, since a frame's step follows the wall clock).
+
+**Why the play cannot come under 600 s with the same stills.** After the cut the play's 953 s were 435 s of frames not drawn
+(the game's clock at 0.89 of the wall's: the frames cannot make the story's clock run faster than the wall's, a twentieth of
+a second a frame at most), 52 s of frames drawn between the stills, and 472 s of 136 stills: 141 s drawing their frames
+whole and 278 s taking them. A frame drawn whole costs llvmpipe 1.1 to 1.6 s at 800x500 on the high tier (`GPUCOST=7-rain-10s`:
+from the frame's start to a pixel read back, the GPU idle again 5 ms after the frame), and a still is of the second of two
+frames drawn whole, since the ambient occlusion carries its history from one drawn frame to the next (ao.js), so a still costs
+two of them and the screenshot waits for both. The stills alone are over 350 s, and the story's clock needs some 420 s
+on top, so a play under 600 s would mean fewer stills, a lighter tier for them, or a frame drawn whole for less on llvmpipe
+(the frame budget's own work, issue 352 and after), not cheaper frames not drawn.
+
 ## The far trees as impostors
 
 Past the mid distance (520 m; a wood's trees from 200 m) a tree was a trunk and an 80-triangle crown hull in its
