@@ -547,28 +547,53 @@ The pale muzzle and orbital markings follow the surface around the head. The nec
 The [Akita preservation society's description](https://akitainunosato.jp/publics/index/27/)
 informs the broad forehead, shallow central furrow, full cheeks and straight nasal bridge.
 The [Japanese Akitainu Club's illustrated guide](https://akita-inu.com/wp-content/uploads/securepdfs/2022/08/JACA-AKC-General-Guide-Electronic.pdf)
-shows the muzzle at about two fifths of the head length. The supplied dog's portrait sets
-the spacing of the eyes within the cheeks. These references inform the sculpt; no images are shipped from them.
+shows the muzzle at about two fifths of the head length. These references inform the sculpt; no images are
+shipped from them.
 The standing silhouette was compared with [Dog - Akita Inu](https://www.cgtrader.com/3d-models/animal/mammal/dog-akita-inu), a commercial visual reference. No assets from the pack are used.
 The hair roots share the skin's bone weights. Each lock carries a cutout of fine strands above
 a tiled undercoat with directional relief. Both textures are generated at build time.
 The corneas and lid creases are sculpted into the same surface so the skin turns as one.
 The eyes and nose use a lower roughness than the surrounding coat.
 
-**The forehead and the eyes, measured again (20 November 2026).** In review the forehead looked pressed in.
-Sampling the sculpt's distance field across the head showed why: above the eyes the brows stood 16 to 20 mm
-higher than the middle of the forehead, a trough some 9 cm wide running back from the stop, because the roof
-that shapes the stop was lifted at the sides across the whole forehead. The standards say otherwise: the
-[Japanese Akitainu Club's page of standards](https://akita-inu.com/?p=333) gives "the forehead is broad and flat,
-preferably with a distinct furrow extending from the stop to the top of the skull", a moderate stop and a head
-that is "a slightly rounded octagon" from the front, and the Akitainu Hozonkai's text on the same page has the top
-of the head somewhat flat and the groove distinct. So the forehead is now flat across and falls gently forward,
-a 2 mm furrow runs up its middle from the stop to the crown, and the brows rise only where the stop is, between
-the eyes, and there gently: 6 to 7 mm above the middle where they had stood 15 to 16, two ridges with a dark
-trough between them read from the front as a hollow above the eyes (`portrait_head`: the brows and the roof in
-`face`; the bridge still drops from the forehead as the profile check in `portrait_head` asks). The same page gives the eyes as deep-set, almond-shaped (the
-Hozonkai: somewhat triangular), relatively small and raised at the outer corners; the sculpt's had been round,
-level with the lids and staring. They are smaller now, three-cornered, with a nearly straight lower lid rising to
-the outer corner, set about 3 mm back under lids whose upper edge overhangs a little (`orbit`, `sculpt_features`).
-The whiskers' dark keratin is set on their shader, since the exporter of Blender 5.2.3 (the version the
-builds use) reads the shader rather than the viewport colour, and they had come out white.
+**The head, measured again and set beside photographs (20 November 2026).** In review the forehead looked
+pressed in, and the owner asked for the head to match photographs of the breed from the front and the side.
+
+*What was wrong, measured.* Sampling the sculpt's distance field across the head: above the eyes the brows stood
+16 to 20 mm higher than the middle of the forehead, a trough some 9 cm wide running back from the stop (the roof
+that shapes the stop was lifted at the sides across the whole forehead), and between the eyes they still stood
+15 to 16 mm above it, two ridges with a dark trough between them that read from the front as a hollow. And the
+skull's front, the cheeks and the brows reached so far forward that the eyes sat on a flat face some 4 cm in front
+of the stop, on the muzzle: from the side the muzzle looked short and the head like a seal's.
+
+*What the breed is.* The [Japanese Akitainu Club's page of standards](https://akita-inu.com/?p=333) (it carries
+the AKC's Japanese Akitainu standard and the Akitainu Hozonkai's): "the forehead is broad and flat, preferably
+with a distinct furrow extending from the stop to the top of the skull"; a moderate stop; a head that is "a
+slightly rounded octagon" from the front; the muzzle 40 percent of the head's length; the eyes deep-set,
+almond-shaped (the Hozonkai: somewhat triangular), relatively small, raised at the outer corners, with black
+rims; the ears small, thick, triangular, wide-set and tilted forward, "at a 75 to 90 degree angle to a line drawn
+along the bridge of the muzzle". Three photographs on Wikimedia Commons were the models for the views, all
+red Japanese Akitas: a head from the front, [Akita Tête](https://commons.wikimedia.org/wiki/File:Akita_T%C3%AAte.jpg)
+(Azurfrog, CC BY 4.0); one standing in profile, [Japanese Akita red 2](https://commons.wikimedia.org/wiki/File:Japanese_Akita_red_2.jpg),
+and one at three-quarters, [Japaneseakita-red](https://commons.wikimedia.org/wiki/File:Japaneseakita-red.jpg)
+(both Canarian, CC BY-SA 4.0). They are looked at, not shipped: `tools/head_shot.js` films the model from the
+angles they were taken from, with a long lens, and with `REFS=` a folder holding them as `front.jpg`,
+`profile.jpg` and `three.jpg` sets each still beside its photograph.
+
+*What changed* (`blender/build_dog.py`). The forehead is flat across and falls gently forward, with a 2 mm furrow
+from the stop to the crown; between the eyes the brows now stand 2 to 4 mm above the middle (`portrait_head`, the
+roof in `face`). The skull's front, the cheeks and the brows are drawn back, so that the eyes sit at the stop and
+the muzzle runs forward of them, straight-bridged, 37 percent of the head's length; the stop moved 1.3 cm forward with
+them and the profile check in `portrait_head` with it. The eyes are almond to three-cornered, the lower lid nearly
+straight up to a raised outer corner, set some 2.5 mm back under a slightly overhanging upper lid, a third of the
+head's width apart as in the photograph from the front (`orbit`, `sculpt_features`). The upper lips sit back under
+the nose, so that from the side the nose stands in front of the muzzle and the lips fall back under it, and the
+seam of the lips falls a little all the way back to the corner of the mouth below the eye (`MOUTH`), black its whole
+length: it had turned up at its ends into a smile. The ears are a third longer, lean forward over the eyes and
+splay out, so that from the front they carry on the lines of the cheeks (`EAR`, `ear_frame`). The cheeks are fuller,
+the head widest below the eyes. The coat's markings follow the photographs: the red comes down the forehead to a
+point between the eyes and wraps the outer corner of each eye and the temple; the whole muzzle is white, its bridge
+too; the cheeks are white below a line from under the eye back to the angle of the jaw, and above it the side of the
+head is red out to the ear; a pale patch sits over each eye; the throat is white and the sides of the neck red. The
+red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the exporter of
+Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they had come out
+white.

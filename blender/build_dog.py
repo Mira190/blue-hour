@@ -48,18 +48,30 @@ HIP, STIFLE, HOCK, TOE = (-0.25, 0.44), (-0.20, 0.30), (-0.33, 0.16), (-0.30, 0.
 
 
 def ear_frame(x, y, z):
-    # The opening faces forward and slightly outward. Each tip leans away from the crown.
+    # The opening faces forward and slightly outward. Each tip leans away from the crown, so that from the
+    # front the ears carry on the lines of the cheeks and the head reads as a triangle.
     height = (z - 0.047) * 1.18
-    width = abs(y) - 0.093 - 0.40 * height
-    depth = x + 0.012 - 0.16 * height + 0.24 * width
+    width = abs(y) - 0.093 - 0.52 * height
+    depth = x + 0.006 - 0.30 * height + 0.24 * width   # (leaning forward over the eyes, as the standard asks)
     return depth, width / 1.15, height
+
+
+EAR = 0.095   # the ear's length in its frame: in photographs of the breed it stands above the crown about as far
+              # as the crown stands above the eyes (it was 0.073, half that)
 
 
 def upright_ears(x, y, z):
     depth, width, height = ear_frame(x, y, z)
-    outer = sk.capsule((0, 0, 0), (0, 0, 0.073), 0.054, 0.024)
-    cup = sk.capsule((0.026, 0, 0.021), (0.016, 0, 0.073), 0.034, 0.009)
+    outer = sk.capsule((0, 0, 0), (0, 0, EAR), 0.058, 0.025)
+    cup = sk.capsule((0.027, 0, 0.026), (0.016, 0, EAR), 0.036, 0.010)
     return np.maximum(outer(depth * 1.65, width, height), -cup(depth, width, height))
+
+
+# The lips' seam, from under the nose back to the corner of the mouth below the eye (the head's frame, one side).
+# It falls a little all the way back, as a closed mouth does under the flews: from the front the line turns down
+# at its ends, never up into a smile.
+MOUTH = [(0.161, 0, -0.055), (0.157, 0.023, -0.059), (0.143, 0.042, -0.063), (0.123, 0.052, -0.067), (0.100, 0.054, -0.070)]
+MOUTH_R = [0.005, 0.006, 0.005, 0.004, 0.002]
 
 
 def orbit(v, lift=False):
@@ -68,49 +80,46 @@ def orbit(v, lift=False):
     breed's eyes are: the lower lid nearly straight up to a raised outer corner, the upper lid highest
     a third of the way out from the inner one."""
     x, y, z = (v - np.asarray(HEAD_AT)).T
-    along = (abs(y) - 0.037) * 0.88 - (x - 0.104) * 0.475
+    along = (abs(y) - 0.048) * 0.83 - (x - 0.085) * 0.56   # (the eye at the stop, looking 34 degrees out)
     height = z - 0.024 - 0.26 * along
-    a = along / 0.0145
-    lid = np.where(height > 0, 0.0080 * (1 - 0.3 * np.clip(a, -1, 1)), 0.0050)
-    radius = np.where(x > 0.064, np.hypot(a, height / lid), 100.0)
+    a = along / 0.0165
+    lid = np.where(height > 0, 0.0115 * (1 - 0.3 * np.clip(a, -1, 1)), 0.0078)
+    radius = np.where(x > 0.05, np.hypot(a, height / lid), 100.0)
     return (along, radius, height) if lift else (along, radius)
 
 
 def portrait_head():
     pair = sk.mirror_v
-    skull = sk.ellipsoid((-0.009, 0, 0.003), (0.117, 0.124, 0.097))
-    cheeks = pair(sk.ellipsoid((0.007, 0.079, -0.022), (0.095, 0.068, 0.076)))
+    skull = sk.ellipsoid((-0.021, 0, 0.003), (0.105, 0.124, 0.097))
+    cheeks = pair(sk.ellipsoid((-0.020, 0.081, -0.030), (0.095, 0.072, 0.082)))   # (the full cheeks: the head is widest below the eyes)
     chin = sk.ellipsoid((0.043, 0, -0.070), (0.088, 0.089, 0.045))
-    brow = pair(sk.ellipsoid((0.082, 0.039, 0.033), (0.027, 0.034, 0.014)))
-    arch = pair(sk.capsule((-0.030, 0.113, -0.010), (0.066, 0.087, 0.002), 0.030, 0.020))
+    brow = pair(sk.ellipsoid((0.071, 0.051, 0.037), (0.027, 0.034, 0.014)))
+    arch = pair(sk.capsule((-0.030, 0.113, -0.010), (0.040, 0.090, 0.002), 0.030, 0.020))
     dome = sk.smooth_union(0.022, skull, cheeks, arch, chin, brow)
-    bridge = sk.capsule((0.068, 0, 0.012), (0.145, 0, 0.008), 0.046, 0.028)
-    pads = pair(sk.ellipsoid((0.119, 0.026, -0.039), (0.054, 0.034, 0.033)))
+    bridge = sk.capsule((0.072, 0, 0.012), (0.145, 0, 0.008), 0.039, 0.027)
+    pads = pair(sk.ellipsoid((0.110, 0.027, -0.041), (0.052, 0.034, 0.032)))   # (the upper lips, behind the nose)
     jawline = pair(sk.capsule((-0.010, 0.083, -0.052), (0.133, 0.028, -0.076), 0.041, 0.019))
-    jaw = sk.ellipsoid((0.109, 0, -0.075), (0.054, 0.048, 0.023))
+    jaw = sk.ellipsoid((0.100, 0, -0.076), (0.054, 0.046, 0.023))
     mass = sk.smooth_union(0.017, dome, bridge, pads, jawline, jaw)
     def face(x, y, z):
         # The skull is flat and broad between the ears, falling gently forward, and a shallow furrow
         # runs up its middle. The stop is defined between the brows; from it the bridge runs straight.
         # (The brows once stood 2 cm above the middle of the forehead, as if it had been pressed in.)
-        u = np.clip((x - 0.025) / 0.06, 0, 1)
+        u = np.clip((x - 0.038) / 0.06, 0, 1)
         stop = u * u * (3 - 2 * u)
         forehead = 0.097 - 4.5 * np.maximum(0, x + 0.01) ** 2
-        bridge = 0.043 - 0.065 * np.maximum(0, x - 0.068)
+        bridge = 0.043 - 0.065 * np.maximum(0, x - 0.080)
         roof = forehead + (bridge - forehead) * stop
         roof += 0.007 * stop * (1 - np.exp(-(y / 0.024) ** 2))     # the brows either side of the stop
         roof -= 0.003 * np.exp(-(y / 0.008) ** 2 - ((x - 0.02) / 0.06) ** 2)   # the furrow, the stop to the crown
         a, b = mass(x, y, z), z - roof
         return np.maximum(a, b) + np.maximum(0, 0.012 - abs(a - b)) ** 2 / 0.048
-    nose = sk.ellipsoid((0.163, 0, -0.005), (0.021, 0.026, 0.019))
+    nose = sk.ellipsoid((0.163, 0, -0.004), (0.022, 0.028, 0.021))
     face = sk.smooth_union(0.005, face, nose)
     nostrils = pair(sk.ellipsoid((0.179, 0.015, -0.003), (0.011, 0.007, 0.0055)))
-    mouth = pair(sk.path([(0.161, 0, -0.055), (0.157, 0.023, -0.062),
-                          (0.143, 0.042, -0.063), (0.123, 0.054, -0.058),
-                          (0.102, 0.055, -0.052)],
-                         [0.005, 0.006, 0.005, 0.004, 0.002]))
+    mouth = pair(sk.path(MOUTH, MOUTH_R))
     head = sk.smooth_union(0.016, sk.subtract(0.003, face, sk.union(nostrils, mouth)), upright_ears)
-    for x, height in ((0.08, 0.040), (0.13, 0.036)):
+    for x, height in ((0.095, 0.042), (0.14, 0.036)):
         assert head(x, 0, height - 0.004) < 0 < head(x, 0, height + 0.004), "check the nasal bridge in profile"
     return head
 
@@ -161,34 +170,41 @@ def coat(v, n):
         (1 - s(z, 0.2, 0.31)) * (1 - on_tail),                        # the legs' lower half
         s(x, 0.27, 0.36) * (1 - s(z, 0.5, 0.62)) * (1 - on_head),     # the breast
         s(np.abs(y) * 0 + (0.105 - np.abs(np.abs(y) - 0.02)), 0.0, 0.03) * (1 - s(z, 0.3, 0.42)) * (np.abs(y) < 0.085),  # the legs' inner faces
-        on_head * s(hx + abs(hy) * 0.7, -0.065, 0.045) * (1 - s(hz + 0.15 * hx, -0.026, 0.013)),
-        s(x, 0.18, 0.37) * (1 - s(z + abs(y) * 0.9, 0.59, 0.82)),    # cream bib tapers between the cheeks
+        # the throat and the bib, between the cheeks: the sides of the neck stay red, as photographs of the
+        # breed in profile show (they had been white back to the shoulder)
+        s(x, 0.18, 0.37) * (1 - s(z + abs(y) * 2.2, 0.59, 0.82)),
         on_head * (1 - s(hz, -0.085, -0.05)),                         # under the jaw
     ])
-    red = np.array([0.40, 0.217, 0.112])
+    red = np.array([0.40, 0.19, 0.082])   # (red fawn: the photographs' coat is redder than the tan it was)
     cream = np.array([0.83, 0.80, 0.74])
     c = red[None] * (1 - white[:, None]) + cream[None] * white[:, None]
     depth, width, height = ear_frame(hx, hy, hz)
-    aperture = abs(width) / np.maximum(0.010, 0.047 - 0.39 * height)
+    aperture = abs(width) / np.maximum(0.010, 0.050 - 0.40 * height)
     ear = s(height, 0.003, 0.024) * s(depth, -0.019, -0.006) * (1 - s(hx, 0.012, 0.035))
-    rim = ear * (1 - s(aperture, 0.86, 1.08)) * (1 - 0.58 * s(height, 0.077, 0.092))
+    rim = ear * (1 - s(aperture, 0.86, 1.08)) * (1 - 0.58 * s(height, EAR * 1.05, EAR * 1.26))
     c = c * (1 - rim[:, None]) + np.array([0.66, 0.50, 0.37]) * rim[:, None]
-    cup = ear * (1 - s(aperture, 0.24, 0.73)) * (1 - s(height, 0.067, 0.082))
+    cup = ear * (1 - s(aperture, 0.24, 0.73)) * (1 - s(height, EAR * 0.92, EAR * 1.12))
     c = c * (1 - cup[:, None]) + np.array([0.139, 0.078, 0.060]) * cup[:, None]
-    # The pale muzzle wraps under the cheek; the bridge keeps its fawn saddle.
-    muzzle = s(hx, 0.063, 0.121) * (1 - s(hz - 0.26 * abs(hy), -0.014, 0.014))
+    # The urajiro of the face, as photographs of red Akitas show it from the front and in profile: the whole
+    # muzzle, its bridge too, up to a point of red that comes down the forehead between the eyes; the cheeks
+    # below a line from under the eye back and down to the angle of the jaw (above it, the side of the head
+    # is red out to the ear); and a pale patch over each eye.
+    muzzle = s(hx + 0.6 * np.minimum(abs(hy), 0.04), 0.080, 0.096) * (1 - s(hz - (0.036 + 0.25 * abs(hy)), -0.007, 0.007))
+    muzzle = np.maximum(muzzle, s(hx, 0.098, 0.112))   # (the red's point between the eyes, the bridge white in front of them)
+    muzzle *= 1 - s(abs(hy), 0.044, 0.060)   # (round the inner corner and under the eye; the outer corner and the temple stay red)
     along, eye = orbit(v)
-    brow = on_head * np.exp(-((along + 0.006) / 0.023) ** 2 - ((hz - 0.044) / 0.012) ** 2) * s(hx, 0.061, 0.094)
-    cheek = on_head * s(hx + 0.7 * abs(hy), 0.041, 0.085) * (1 - s(hz - 0.20 * abs(hy), -0.011, 0.015))
-    pale = np.maximum.reduce([muzzle, 0.65 * brow, cheek])
+    brow = on_head * np.exp(-((along + 0.006) / 0.023) ** 2 - ((hz - 0.046) / 0.012) ** 2) * s(hx, 0.045, 0.078)
+    cheek = on_head * s(hx, -0.07, -0.03) * (1 - s(hz - (0.019 + 0.3 * (hx - 0.085)), -0.010, 0.010))
+    pale = np.maximum.reduce([muzzle * on_head, 0.65 * brow, cheek])
     c = c * (1 - pale[:, None]) + cream * pale[:, None]
-    nose = s(hx, 0.149, 0.161) * (1 - s((hy / 0.027) ** 2 + ((hz + 0.005) / 0.020) ** 2, 0.84, 1.22))
+    nose = s(hx, 0.149, 0.161) * (1 - s((hy / 0.029) ** 2 + ((hz + 0.004) / 0.022) ** 2, 0.84, 1.22))
     philtrum = (1 - s(abs(hy), 0.0018, 0.005)) * s(hz, -0.059, -0.049) * (1 - s(hz, -0.024, -0.016))
-    seam = -0.056 - 0.008 * np.sin(np.pi * np.clip(abs(hy) / 0.055, 0, 1))
-    lips = (1 - s(abs(hz - seam), 0.0025, 0.0065)) * (1 - s(abs(hy), 0.045, 0.058))
+    # black lips the length of the seam, to the corner of the mouth
+    seam = np.interp(hx, [m[0] for m in MOUTH[::-1]], [m[2] for m in MOUTH[::-1]])
+    lips = on_head * s(hx, MOUTH[-1][0] - 0.004, MOUTH[-1][0] + 0.004) * (1 - s(abs(hz - seam), 0.0028, 0.0055))
     muzzle_shade = s(hx, 0.112, 0.148) * np.exp(-(hy / 0.044) ** 2 - ((hz + 0.047) / 0.022) ** 2)
     c *= (1 - 0.52 * muzzle_shade[:, None])
-    k = np.maximum(nose, np.maximum(lips, philtrum) * s(hx + 0.58 * abs(hy), 0.138, 0.155))
+    k = np.maximum.reduce([nose, lips, philtrum * s(hx + 0.58 * abs(hy), 0.138, 0.155)])
     lid = 1 - s(eye, 0.94, 1.26)
     k = np.maximum(k, lid)
     c = c * (1 - k[:, None]) + np.array([0.016, 0.011, 0.009]) * k[:, None]
@@ -357,7 +373,7 @@ def sculpt_features(bpy, v, t):
     bm = bmesh.new()
     bm.from_mesh(me)
     bpy.data.meshes.remove(me)
-    edges = [e for e in bm.edges if all(p.co.x > 0.54 and abs(p.co.y) < 0.075
+    edges = [e for e in bm.edges if all(p.co.x > 0.525 and abs(p.co.y) < 0.085
                                         and (0.82 < p.co.z < 0.89 or (p.co.x > 0.61 and 0.80 < p.co.z < 0.85)) for p in e.verts)]
     bmesh.ops.subdivide_edges(bm, edges=edges, cuts=3, use_grid_fill=True)
     bmesh.ops.triangulate(bm, faces=list(bm.faces))
@@ -369,7 +385,7 @@ def sculpt_features(bpy, v, t):
     # The eye sits a few millimetres back under its lids, and the upper lid overhangs it a little.
     # (It once stood level with them, round and staring.)
     hood = np.clip(height / 0.006 + 0.5, 0, 1)
-    depth = -0.007 * np.exp(-(r / 1.3) ** 4) + 0.0035 * np.maximum(0, 1 - r ** 2)
+    depth = -0.007 * np.exp(-(r / 1.3) ** 4) + 0.0045 * np.maximum(0, 1 - r ** 2)
     depth += (0.0025 + 0.0015 * hood * hood * (3 - 2 * hood)) * np.exp(-((r - 1.12) / 0.24) ** 2)
     v[:, 0] += 0.88 * depth
     v[:, 1] += np.sign(v[:, 1]) * 0.475 * depth
@@ -448,7 +464,7 @@ def guard_coat(bpy, skin, rig, v, normal, color, gloss):
     # Short velvet at the ears leaves the rim and the opening readable in silhouette.
     pinna = (x > 0.39) & (x < 0.51) & (abs(y) > 0.07) & (z > 0.90)
     length[pinna] *= 0.27
-    length[cheek] = np.maximum(0.019, length[cheek])
+    length[cheek] = np.maximum(0.026, length[cheek])
     bib = (x > 0.24) & (x < 0.43) & (z > 0.42) & (z < 0.75)
     length[bib] *= 1.35
     width = length * rng.uniform(0.055, 0.10, len(p))
