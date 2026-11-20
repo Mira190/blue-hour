@@ -1114,7 +1114,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
         if (st.beat === 'meet') {
           const m = living(fr.meet);
           if (!m) approach();
-          else if (near([m.x, m.y, m.z], fr.meet.reach_m || 3)) {
+          else if (near([m.x, m.y, m.z], fr.meet.reach_m || 3) && m.ready !== false) { // (not to someone still to come: ctx.person)
             st.beat = 'talk'; aimAt(null); goal('');
             if (fr.rain_on === 'meet' && fr.weather === 'rain') rain(0.3); // (her first word, and the first drops)
             if (m.face) m.face(ctx.player.x, ctx.player.y);

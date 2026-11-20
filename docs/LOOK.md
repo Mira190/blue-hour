@@ -333,9 +333,30 @@ elsewhere, as one the crowd is done with, and someone waiting at a scramble's ke
 next cut. A cut hides the change, in a Stop as in the running street. The street behind the face keeps its
 people: they are the life behind a talk.
 
+The words are part of the frame (issue 76). At their largest the dialogue's panel covers the lower 28% of a
+desktop's frame and more of a phone's, and a shot composed on the whole frame put Yuna's body under it, her head
+at its edge. The shot is told the panel's top every frame (`#gd`, as a share of the canvas's height) and puts the
+eyes on the upper third of what the words leave above them, never nearer the top than a fifth of the frame. It
+does that with a lens shift (`camera.setViewOffset`): the lens looks level at the eyes and the picture is moved up,
+so the shot's perspective and its verticals are the same at every size of the words, as a view camera's rising
+front keeps them. The shift is set at a cut, eased as the words grow (a question's answers coming in under
+them) and eased off with the blend back to the chase view; the reflection of a wet street (`web/mirror.js`) takes
+the frame as shifted. A shot whose face the frame would not show is refused as a wall is, and the next distance
+or the other side is tried: the eye outside the frame as composed, or the face behind the head of the one whose
+shoulder the shot is over (a head 0.16 m round, hair and all, and a face 0.1 m, as the lens sees them).
+
+The one spoken to is there before the talk opens: a map's person the story asks for (`ctx.person`) is loaded
+ahead of the rest, and the talk waits until they have come. Taken up at frame 4, the player was put at SKY GATE
+before Yuna's character had loaded, and the shot was of the empty place where she was to stand. A character that
+comes is posed before it is put in the world, as the next frame would pose it: one that came in its bind pose
+while the Stop held time had its head turned 0.055 rad by the first held frame, and the Stop's check failed on it
+(`tools/head_spin.js` holds both).
+
 `tools/talk_check.js` plays the episode and fails a shot whose face is off the screen or occluded, whose lens is
 in a wall, or which shows any of the crowd it should have cleared, judged by what the crowd's renderer draws
-(not by what the camera meant to clear).
+(not by what the camera meant to clear); a face behind the shoulder's head; and a face under the words or below
+the middle of what they leave above them (the log's `panel`). `WORDS=2` plays with the words at their largest from
+the start, for a late start (`FROM=3 UPTO=4`).
 
 Learnt from, not copied: film grammar's coverage of a dialogue (master, singles, reverse; the line of action);
 the dialogue cameras of *Mass Effect* (2007) and *The Witcher 3* (2015), which cut between a small set of

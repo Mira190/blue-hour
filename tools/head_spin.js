@@ -35,7 +35,28 @@ const [,, size = '1440x900'] = process.argv;
     }
     return out;
   });
+  // a character that comes while time is held (issue 76: Yuna's, when the case is taken up at frame 4 and she loaded in
+  // the Stop): it goes into the world posed as the next frame will pose it, not in its bind pose for that frame to turn
+  // its head (and the rest of it) to the clip's. Every NPC's character made again as npcLoad makes it, then held frames
+  const late = await p.evaluate(async () => {
+    const g = window.__game, T = window.THREE, q0 = new T.Quaternion(), q1 = new T.Quaternion(), out = [];
+    for (const n of g.npcs.filter(n => n.rig && n.rig.head && !n.sit).slice(0, 6)) {
+      const was = n.rig; n.loading = null; n.rig = { root: was.root, pending: true, animate() {} };
+      await g.npcLoad(n);
+      const rig = n.rig; if (!rig.head) { out.push({ id: n.id, first: 0, held: 0 }); continue; }
+      rig.root.updateMatrixWorld(true); rig.head.getWorldQuaternion(q0);
+      let first = null, held = 0;
+      for (let i = 0; i < 30; i++) { rig.animate(0, 0, 'ground', 100); rig.head.getWorldQuaternion(q1); const a = q0.angleTo(q1); if (first == null) first = a; else held = Math.max(held, a); q0.copy(q1); }
+      out.push({ id: n.id, first: +first.toFixed(4), held: +held.toFixed(4) });
+    }
+    return out;
+  });
   let bad = 0;
+  for (const x of late) {
+    const fail = x.first > 1e-3 || x.held > 1e-3;
+    console.log(`${fail ? 'FAIL' : 'ok  '} ${x.id.padEnd(10)} come with time held: the first held frame turns the head ${x.first} rad, the rest ${x.held}`);
+    if (fail) bad++;
+  }
   for (const x of r) {
     const fail = x.held > 1e-3 || x.creep > 0.01 || x.running > 0.35; // (a clip's own head moves a little a frame; a turn laid over itself moves the look's whole angle)
     if (fail) bad++;

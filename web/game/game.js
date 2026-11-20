@@ -1040,6 +1040,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : lib.require(n.look.character).catch(e => console.warn(`${n.look.character} unavailable:`, e)).then(() => {
     const old = n.rig, rig = makeRig(npcLook(n));
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
+    // (posed before it is put in the world, as the next frame will pose it: come in its bind pose while time was held,
+    // the first held frame turned its head 0.055 rad to the clip's, and the Stop's check saw Yuna's head turn by itself
+    // when the case was taken up at frame 4 and her character came late: issue 76, tools/head_spin.js)
+    let now = 0; try { now = clockT; } catch (e) { /* (come before the game's clock is: the load's) */ }
+    rig.animate(0, 0, n.sit ? 'sit' : n.talking ? 'talk' : 'ground', now + n.pitch);
     rig.root.add(n.marker);
     if (n.away) rig.root.visible = false; // (the walk's own, while it is not the walk)
     if (old.root.parent) old.root.parent.remove(old.root);
@@ -3541,7 +3546,24 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const k of bodiesOn.keys()) if (!now.has(k)) bodiesOn.delete(k);
   };
   let talkShot = null, talkPrint = false, talkTyped = '';
-  const talkText = document.getElementById('gd-text');
+  const talkText = document.getElementById('gd-text'), talkBox = document.getElementById('gd');
+  // the share of the frame's height the dialogue's words cover, from its foot (issue 76: the talk's shot is composed
+  // above them; at their largest they took the lower 28% of a desktop's frame, and Yuna's body under them)
+  const talkPanel = () => {
+    if (!talkBox || talkBox.hidden) return 0;
+    const b = talkBox.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+    return b.height > 0 && c.height > 0 ? Math.max(0, Math.min(0.7, (c.bottom - b.top) / c.height)) : 0;
+  };
+  // the talk's lens shift (camera.setViewOffset): set at a cut, eased as the words grow (a question's answers come in
+  // under them) and back to none as the talk gives way to the chase view, over the same half second
+  const talkLens = { shift: 0, t: 0 };
+  const talkShift = (want, snap) => {
+    const now = performance.now(), dt = Math.min(0.1, Math.max(0, (now - talkLens.t) / 1000)); talkLens.t = now;
+    talkLens.shift = snap ? want : talkLens.shift + (want - talkLens.shift) * Math.min(1, dt * 6);
+    if (!want && Math.abs(talkLens.shift) < 1e-3) talkLens.shift = 0;
+    if (talkLens.shift) camera.setViewOffset(camera.aspect, 1, 0, talkLens.shift, camera.aspect, 1);
+    else if (camera.view && camera.view.enabled) camera.clearViewOffset();
+  };
   // who is speaking, by the name the story gives them: the nearest of its people (or of the map's) with that name
   const talkSpeaker = who => {
     const nm = who && who.name; let best = null, bd = 40;
@@ -3625,6 +3647,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const r = makeRig({ character: a.character, scale: old ? 0.93 : 1 });
         dress(r);
         r.root.position.copy(rig.root.position); r.root.rotation.copy(rig.root.rotation);
+        r.animate(0, 0, 'ground', t); // (posed before it is put in the world, as npcLoad's are: issue 76)
         world.remove(rig.root); world.add(r.root); rig = r; f.rig = r;
       }).catch(e => console.warn(`${a.character} unavailable:`, e));
     let t = 0;
@@ -3954,7 +3977,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     figure: storyFigure,
     // one of the map's own people, lent to the story (where they stand, and their name for the line)
-    person: id => { const n = npcs.find(q => q.id === id); return n ? { x: n.x, y: n.y, z: n.z, name: n.name, role: n.role, color: n.color } : null; },
+    // (one of the map's people the story asks for: their character loaded now, ahead of the rest, and ready once it has
+    // come. Taken up at frame 4, Yuna was still to load when the player was put at her door, and the talk's shot was on
+    // the empty place where she was to stand: issue 76)
+    person: id => { const n = npcs.find(q => q.id === id); if (n && n.rig.pending && lib) npcLoad(n); return n ? { x: n.x, y: n.y, z: n.z, name: n.name, role: n.role, color: n.color, ready: !n.rig.pending } : null; },
     weather: (kind, now, pace) => { if (weather) weather.set(kind, now ? { now: true } : { pace: pace || 1 }); }, // (now: as if it had been so for a while, the street already wet; pace: slower than the menu's, a sky that lowers over half a minute)
     // the hour of the light, by name ('blue': the blue hour), on the evening the story is dressed in
     light: kind => { const t = S.presetTime(kind, clock.y, clock.m, clock.d); if (t != null) setClock(clock.y, clock.m, clock.d, t); },
@@ -7526,7 +7552,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const typed = talkText ? talkText.textContent : '';
         if (talkTyped && !typed.startsWith(talkTyped) && !talkCam.talk.cut) talkCam.line();
         talkTyped = typed;
-        const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect);
+        const cut = talkCam.talk.cut, t = talkCam.shot(player, camera.aspect, talkPanel());
         if (t) {
           talkShot = t;
           { const sp = talkCam.talk.speaker; if (crowd.keep) crowd.keep(player.x, player.y, sp ? sp.x : player.x, sp ? sp.y : player.y, 7); } // (nobody begins to stop along the way in the conversation's shot)
@@ -7544,16 +7570,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           camera.position.copy(W(t.pos[0], t.pos[1], t.pos[2]));
           camera.lookAt(W(t.look[0], t.look[1], t.look[2]));
           if (Math.abs(camera.fov - t.fov) > 0.01) { camera.fov = t.fov; camera.updateProjectionMatrix(); }
+          talkShift(t.shift || 0, cut);
           player.rig.root.visible = t.shoulder !== null || t.kind === 'reverse' || Math.hypot(t.pos[0] - player.x, t.pos[1] - player.y) > 0.5; // (through the player's own eyes, the last resort: not their own head)
           if (cut) { // (what the shot cut to shows, for tools/talk_check.js: where the face is in the frame, what stands before it, and whether the lens is in a wall)
             const L = talkCam.log[talkCam.log.length - 1], v = W(t.subject[0], t.subject[1], t.subject[2]), P = camera.position, d = v.clone().sub(P);
             const undrawn = new Set(); if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) if (!crowdDraw || !crowdDraw.shows(i)) undrawn.add(i);
             camera.updateMatrixWorld(); const front = d.dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera);
-            if (L) Object.assign(L, { x: +v.x.toFixed(3), y: +v.y.toFixed(3), front, block: talkCam.check(undrawn), crowd: talkCam.framing(undrawn), inWall: nav.clearFraction(d.clone().normalize().multiplyScalar(Math.min(0.6, d.length() / 2)).add(P), P) < 0.999, aspect: +camera.aspect.toFixed(3) });
+            if (L) Object.assign(L, { x: +v.x.toFixed(3), y: +v.y.toFixed(3), front, block: talkCam.check(undrawn), crowd: talkCam.framing(undrawn), inWall: nav.clearFraction(d.clone().normalize().multiplyScalar(Math.min(0.6, d.length() / 2)).add(P), P) < 0.999, aspect: +camera.aspect.toFixed(3), panel: +talkCam.talk.panel.toFixed(3) });
           }
         }
       }
     }
+    // (no talk on screen: the lens shift eased off with the blend back to the chase view, at once under another camera)
+    if (!talkShot && (talkLens.shift || (camera.view && camera.view.enabled))) talkShift(0, !!(shot || (story && story.finder) || player.mode !== 'foot'));
     // the story's camera raised (story.js): the view is the lens's, from your own eye, not from behind you. It has an aim of
     // its own (fp: where the lens points, and where the hand turns it), so nothing that moves the view behind you moves it
     // (that view's turn round you in the Stop, its swing round behind a walk, its ease towards the goal, its lift over a
@@ -8501,7 +8530,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
-     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
+     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
   return {
     stop() { if (window.OEMetro) OEMetro.close(); if (window.OEVis) OEVis.dispose(); keep(); if (fish && fish.api) fish.api.dispose(); running = false; ac.abort(); ro.disconnect(); care.dispose(); if (atmos) atmos.dispose(); if (weather) weather.dispose(); renderer.dispose(); Wd.dispose(); A.stop(); window.__game = null; },
   };
