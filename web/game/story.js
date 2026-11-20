@@ -18,6 +18,7 @@
 //       "frames": [{
 //         "stamp": "17:14",                                    // under its print
 //         "weather": "rain",                                   // the sky turns as the frame begins
+//         "rain_on": "meet",                                   // (rain) the sky lowers as it begins, and the rain comes on the living's first word
 //         "meet": { "npc": "shun" | "cast": "old", "goal": "...", "lines": ["..."], // first, a word with the living
 //                   "ask": [{ "q": "...", "options": ["..."], "answer": 0, "wrong": "..." }] }, // and what they ask you
 //                   (or a print, "frame": n; a cross-examination, "press": [{ "say", "no" }], "lie", "frame"; the summation,
@@ -433,11 +434,26 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       else if (!k) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
       else frame(k.fi);
     }
+    // The rain, once in the evening (docs/STORY.md, "Weather, light and sound"). It came on as the last frame began, at
+    // once: the street wet and nine in ten umbrellas up in one frame, and the words "It has begun to rain" after it, on no
+    // beat of the story. The owner found it abrupt. Now as a shower comes on at the crossing: the cloud lowers while the player
+    // crosses to her (the frame's start, rain_on), and on her first word the first drops; the rain builds over half a
+    // minute, the street darkens as it wets, and the crowd's umbrellas go up one by one behind her as she speaks
+    // (people.js wantUmb), so that when the talk is done the crossing is umbrellas. pace: how fast it builds (0 at once,
+    // as the menu's)
+    function rain(pace) {
+      if (st.rain) return;
+      st.rain = true;
+      if (pace) { ctx.weather('rain', false, pace); if (ctx.score) ctx.score({ rain: 0.8 }); }
+      later(pace ? 4500 : 1500, () => { say('It has begun to rain'); sfx('rain'); }); // (said once the drops can be seen)
+    }
     // a frame begins: the sky it has, a word with the living if there is one, and the way to where the world will stop
     function frame(i) {
       const fr = st.ep.frames[i];
       st.fi = i; st.fr = fr; st.phase = 'go'; st.t = 0; st.late = false; st.asked = 0; st.called = false; huntFresh(); // (the hints asked for in one frame are not carried into the next: the third's light stood beside the dog leading to the old man)
-      if (fr.weather) ctx.weather(fr.weather, !!fr.wet);
+      // (rain_on: the cloud first, over half a minute as the player crosses to them, and the rain on the first word, rain())
+      const waits = fr.weather === 'rain' && fr.rain_on === 'meet' && fr.meet && !st.rain;
+      if (fr.weather) ctx.weather(waits ? 'overcast' : fr.weather, !waits && !!fr.wet, waits ? 0.45 : 0);
       // (the case as it stood on arriving at this frame: what going back into it from the last card restores. Not the
       // prints themselves, which the roll keeps in order, but how many; a frame taken up again after a slip keeps its first)
       if (!(st.again || st.resumed) || !st.snaps[i]) { st.snaps.length = i; st.snaps[i] = { n: st.prints.length, left: st.left, flags: Object.assign({}, st.flags), pairs: st.pairs.slice(), file: st.file.map(e => Object.assign({}, e)), failed: st.failed || 0 }; }
@@ -445,8 +461,8 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // the scene's air (leaves, birds), made again only where the scene's differs; and a car, where the frame sends one
       { const a = JSON.stringify(fr.air || (fr.weather === 'rain' || st.rain ? { leaves: 40, birds: 0 } : {})); if (a !== st.air && ctx.air) { st.air = a; ctx.air(JSON.parse(a)); } }
       // the score, set to the scene: the evening going into night as the frames go, the roof's air, the rain
-      if (ctx.score) ctx.score(Object.assign({ slot: i < 3 ? 'evening' : 'night', hour: 17.3 + i * 0.55, rain: fr.weather === 'rain' || st.rain ? 0.8 : 0, mode: i === 3 ? 'heli' : 'foot', theme: i, held: false }, fr.score || {})); // (theme: the score knows as much of its tune as the roll has frames)
-      if (fr.weather === 'rain' && !st.rain) { st.rain = true; later(1500, () => { say('It has begun to rain'); sfx('rain'); }); }
+      if (ctx.score) ctx.score(Object.assign({ slot: i < 3 ? 'evening' : 'night', hour: 17.3 + i * 0.55, rain: (fr.weather === 'rain' && !waits) || st.rain ? 0.8 : 0, mode: i === 3 ? 'heli' : 'foot', theme: i, held: false }, fr.score || {})); // (theme: the score knows as much of its tune as the roll has frames)
+      if (fr.weather === 'rain' && !st.rain && !waits) rain(0);
       // the helicopter the next frame's flight goes by (its flight.board) stands parked on its pad through this frame (ctx.board)
       if (ctx.board) { const nx = st.ep.frames[i + 1]; ctx.board(null, nx && nx.flight && nx.flight.board ? 'parked' : null); }
       const go = () => {
@@ -1038,6 +1054,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           if (!m) approach();
           else if (near([m.x, m.y, m.z], fr.meet.reach_m || 3)) {
             st.beat = 'talk'; aimAt(null); goal('');
+            if (fr.rain_on === 'meet' && fr.weather === 'rain') rain(0.3); // (her first word, and the first drops)
             if (m.face) m.face(ctx.player.x, ctx.player.y);
             const w = { name: m.name || '', role: [m.age ? `${m.age}` : '', m.role || ''].filter(Boolean).join(' · '), alive: true, voice: voiceOf(Object.assign({}, m, { voice: m.voice || fr.meet.voice })) }; // (the living: their age tonight)
             hear(fr.meet, w, () => approach());

@@ -158,8 +158,10 @@ than 0.12 at any lag from 40 to 160 ms (the whole convolution's: up to 0.07).
 
 **How close it is** (`tools/reverb_check.js`, the impulse responses rendered offline both ways in Chromium, whose
 convolver is exact; WebKit's Linux build puts a Nyquist-rate pattern out of every FFT stage even for a silent response, so
-it cannot judge, and iOS's WebKit uses Apple's vDSP instead; the responses are noise made afresh, so a run moves these
-by a few tenths):
+it cannot judge, and iOS's WebKit uses Apple's vDSP instead; the four rooms' and the hall's noise comes from a fixed seed
+for each room and channel since November 2026, so every page hears the room that was measured and a run gives the same
+figures; the score's room is still drawn afresh and moves by a few tenths. Drawn afresh, the inside's low band at 48 kHz
+once came out at 3.9 dB, past its 3.7):
 
 | Reverb | Energy decay after the head, broadband (below 500 Hz, above 3 kHz) | Seam | Echo density (whole) | Left/right |
 |---|---|---|---|---|
