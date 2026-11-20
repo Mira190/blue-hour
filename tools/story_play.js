@@ -6,6 +6,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   node tools/story_play.js out_dir [WxH]          (GPU=metal on a Mac; under xvfb-run -a elsewhere)
 // FROM=6: from the last frame only (FROM counts from 0 and UPTO from 1: FROM=4 UPTO=5 is the fifth frame only). LIMIT=seconds: how long the whole play may take.
+// PLAYER=W or M: who is played (the title's Play as; the woman by default).
 // SLIP=n: at frame n the first question that can be lost is answered wrongly until the one asked sees through the player; the
 // card must come up, and the frame is taken up again and played rightly. SPEND=n: frame n is spent from the wrong place (the
 // release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
@@ -115,6 +116,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);

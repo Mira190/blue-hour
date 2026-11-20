@@ -493,6 +493,11 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
         if (/_opacity$/.test(o.material.name || '') && !/glasses/.test(o.material.name)) { hair = o; roundHair(o); } else if (/_head$/.test(o.material.name || '')) head = o;
       });
       if (hair && head) matchHair(hair, head);
+      // the hair as strands (issue 74): the cards, and the hair painted on the head's own mesh (after litMaterial: its
+      // street light is in the shader the hair reads)
+      let headHair = false;
+      if (head && head.material.map) { let at = null; try { at = pixels(head.material.map, 128); } catch (e) { /* a picture that cannot be read */ } if (at) { strandHair(head, at); hairMaterial(head.material, true); headHair = true; } }
+      if (hair) { strandHair(hair, null, headHair ? head : null); hairMaterial(hair.material); }
       // (an NPC's character that comes before the game has a warm-up to give it waits for one, and is shown once warmed:
       // the crowd's cast came between the loader's compile and the title, and the title's first frames linked their
       // programs in a draw, issue 31. Until then the far crowd's copy of each stands in. A main character is wanted by
@@ -579,6 +584,221 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     m.needsUpdate = true;
   }
 
+  // ------------------------------------------------------------ hair: strands, not a shell (issue 74)
+  // An avatar's hair is two things: the hair cards (its *_opacity material: strips cut out of a picture of strands)
+  // and, under them, hair painted on the head's own mesh (a long head of hair falls down the back as part of the head).
+  // Both were drawn as any other surface: the cards cut at one alpha, everything lit as a matte skin. Over a shoulder,
+  // close, that is one black shell with a hem cut in teeth. They are drawn here as real-time hair is drawn on cards
+  // (docs/LOOK.md "Hair: strands, not a shell"):
+  // - the cards' edge: with MSAA on (a desktop's composer), alpha to coverage: each strand cut at its own alpha, so the
+  //   ends thin out strand by strand instead of stopping in a hem, the cut sharpened across a pixel (Golus's
+  //   anti-aliased alpha test), and the texture's alpha kept from fading in its smaller mips (the strands otherwise go
+  //   as the head goes away); the head's painted hair opened between its strands toward its outline. Without MSAA (a
+  //   phone), the cut at the same alpha as before and the head whole: the same pixels, with the light and tone below;
+  // - its light: Kajiya-Kay's strand highlight, two lobes shifted along the strand (Scheuermann, ATI 2004), the first
+  //   white, the second tinted by the hair: from every light the game has (the moon, the sun, the street lights' fill,
+  //   the cars' lamps), and from the street round the head (the hemisphere's sky and the street lights' and screens'
+  //   own light where the head is, world.js streetLight), as the lit fronts all round a crossing light it; and that
+  //   light through the thin strands at the edge, as a backlit head of hair glows at its rim;
+  // - its tone: a darker root, the ends a little lighter, as hair is denser and shaded at the scalp.
+  // Each vertex carries the strand's way (from the crown, down over the head), how near the scalp it is (hairTR), the way round
+  // the head and, on the head's mesh, whether it is hair or skin (hairSK): strandHair, once per character. The shading is in the
+  // hair's own fragments (on the head, the face's too, where it adds nothing): a few dozen instructions.
+  const hairMS = { value: 1 }; // (1: the target drawn into has samples: alpha to coverage takes the strands' alpha)
+  const HAIR_VS = ['attribute vec4 hairTR; attribute vec2 hairSK; varying vec3 vHairT; varying float vHairRoot, vHairS;\n#ifdef HAIR_HEAD\nvarying float vHairK;\n#endif', `
+vec3 hairT0 = hairTR.xyz;
+#ifdef USE_SKINNING
+hairT0 = (skinMatrix * vec4(hairT0, 0.0)).xyz;
+#endif
+vHairT = normalMatrix * hairT0; vHairRoot = hairTR.w; vHairS = hairSK.x;
+#ifdef HAIR_HEAD
+vHairK = hairSK.y;
+#endif`];
+  const HAIR_FS = `uniform float uHairMS; varying vec3 vHairT; varying float vHairRoot, vHairS;
+#ifdef HAIR_HEAD
+varying float vHairK;
+#else
+#define vHairK 1.0
+#endif
+float hairA = 1.0, hairJ = 0.0;
+// the strands: clumps side by side round the head (vHairS: the way round it, in clumps), each its own shade, a finer
+// grain over them, and both gone where a pixel spans several clumps (no shimmer as the head goes away)
+float hairHash(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+float hairNoise(float x) { float i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(hairHash(i), hairHash(i + 1.0), f); }
+float hairStrands() {
+  float w = fwidth(vHairS);
+  return (0.65 * (hairNoise(vHairS) - 0.5) * (1.0 - smoothstep(0.4, 1.2, w)) + 0.35 * (hairNoise(vHairS * 3.7 + 17.0) - 0.5) * (1.0 - smoothstep(0.1, 0.35, w))) * 2.0;
+}
+// Kajiya-Kay's highlight along a strand of way t, at half vector h (Scheuermann's form: sin^e of the angle to h)
+float hairKK(vec3 t, vec3 h, float e) { float th = dot(t, h); return smoothstep(-1.0, 0.0, th) * pow(max(1.0 - th * th, 0.0), 0.5 * e); }
+vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint) {
+  vec3 t = normalize(vHairT), h = normalize(v + l);
+  vec3 t1 = normalize(t + n * (-0.06 + 0.08 * hairJ)), t2 = normalize(t + n * (0.14 + 0.08 * hairJ));
+  float spark = 0.7 + 0.6 * clamp(0.5 + hairJ, 0.0, 1.0); // (the strands' own breakup)
+  return (vec3(0.07 * hairKK(t1, h, 140.0)) + tint * (0.6 * hairKK(t2, h, 32.0))) * spark * vHairK;
+}`;
+  // head: the head's own mesh (its hair painted on it, hairSK.y), not the cards
+  function hairMaterial(m, head = false) {
+    if (!m || m.userData.oeStrand) return;
+    m.userData.oeStrand = true;
+    m.alphaToCoverage = true; // (where the target has no samples the GPU ignores it: the shader cuts as before)
+    m.onBeforeRender = r => { const t = r.getRenderTarget(); hairMS.value = (t ? t.samples > 0 : r.getContext().getContextAttributes().antialias) ? 1 : 0; };
+    const own = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = (sh, r) => {
+      if (own) own.call(m, sh, r);
+      const street = /vec3 streetLight\(/.test(sh.fragmentShader), H = head ? '#define HAIR_HEAD\n' : '';
+      sh.uniforms.uHairMS = hairMS;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${H}${HAIR_VS[0]}`)
+        .replace('#include <defaultnormal_vertex>', `#include <defaultnormal_vertex>${HAIR_VS[1]}`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${H}${HAIR_FS}`)
+        // the tone: the strands each their own shade, the root darker, the ends lighter
+        .replace('#include <map_fragment>', `#include <map_fragment>
+#ifdef USE_MAP
+{ hairJ = clamp(hairStrands(), -1.0, 1.0);
+#ifndef HAIR_HEAD
+  hairA = texture2D(map, vMapUv).a;
+  // (the alpha's smaller mips average the strands away: kept up as far as a texel's footprint grows)
+  vec2 hSz = vec2(textureSize(map, 0)), hdx = dFdx(vMapUv * hSz), hdy = dFdy(vMapUv * hSz);
+  if (uHairMS > 0.5) diffuseColor.a *= 1.0 + 0.22 * max(0.5 * log2(max(dot(hdx, hdx), dot(hdy, hdy))), 0.0);
+#endif
+}
+#endif
+diffuseColor.rgb *= mix(1.0, mix(1.0, 0.55, vHairRoot) * (1.0 + 0.08 * (1.0 - vHairRoot) * (1.0 - smoothstep(0.5, 1.0, hairA))) * (1.0 + 0.12 * hairJ), vHairK);`)
+        // the cards' edge (material.alphaTest stays, for the shadow's depth and the define)
+        .replace('#include <alphatest_fragment>', `#ifdef USE_ALPHATEST
+if (uHairMS > 0.5) {
+  // each strand cut at its own alpha (a third of the cut to one and a quarter of it, by its shade), so where the
+  // picture's strands thin out they end one by one at their own lengths; and the cut sharpened across a pixel (Golus),
+  // so the coverage is whole or none but at the cut itself, and the GPU's dither is not seen
+  float hThr = alphaTest * (0.3 + 0.95 * clamp(0.5 + 0.5 * hairJ, 0.0, 1.0));
+  float hw = max(fwidth(diffuseColor.a), 1e-3);
+  diffuseColor.a = clamp((diffuseColor.a - hThr) / hw + 0.5, 0.0, 1.0);
+  // (and between the strands a card lets the hair under it through: its straight top edge, where it lies on the head,
+  // breaks into strands instead of a ledge)
+  diffuseColor.a *= 1.0 - clamp((-hairJ - 0.45) / max(fwidth(hairJ), 1e-3) + 0.5, 0.0, 1.0);
+  if (diffuseColor.a < 0.02) discard;
+} else {
+  if (diffuseColor.a < alphaTest) discard;
+  diffuseColor.a = 1.0;
+}
+#endif
+#ifdef HAIR_HEAD
+// (the head's painted hair, where it turns from the lens: its outline let through between the strands, by the
+// picture's grain, as the cards' ends are; without samples it stays whole)
+diffuseColor.a = 1.0;
+if (uHairMS > 0.5 && vHairK > 0.01) {
+  // (the gaps open from the outline in: a strand's shade below a threshold that rises towards it, cut clean, so the
+  // coverage is whole or none and the GPU's dither is not seen)
+  float hEdge = smoothstep(0.6, 0.95, 1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition)))) * vHairK * (1.0 - 0.6 * vHairRoot);
+  float hX = -hairJ + 1.3 * hEdge - 1.0;
+  diffuseColor.a = 1.0 - clamp(hX / max(fwidth(hX), 1e-3) + 0.5, 0.0, 1.0);
+  if (diffuseColor.a < 0.12) discard;
+}
+#endif`)
+        // every light the game has: the strand's two lobes, and a softer wrap of its diffuse (light passes into hair)
+        .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
+void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+  RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+  float nl = dot(geometryNormal, directLight.direction);
+  reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * 0.3 * vHairK * clamp(1.0 - abs(nl) * 1.6, 0.0, 1.0);
+  reflectedLight.directSpecular += directLight.color * smoothstep(-0.25, 0.35, nl) * hairLobes(geometryNormal, geometryViewDir, directLight.direction, material.diffuseColor);
+}
+#undef RE_Direct
+#define RE_Direct RE_Direct_Hair`)
+        // the street round the head: the sky, and the street lights' and screens' light where it stands (from above and
+        // behind the lens, as the screens and lit fronts all round a crossing light it), and that light through the
+        // thin strands at the edge
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+{ vec3 hE = vec3(0.0);
+#if NUM_HEMI_LIGHTS > 0
+  hE += hemisphereLights[0].skyColor;
+#endif
+${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz)) * 1.6;' : ''}
+  vec3 hV = normalize(vViewPosition), hUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+  vec3 hL = normalize(hV - hUp * dot(hV, hUp) + hUp * 0.55);
+  reflectedLight.indirectSpecular += hE * hairLobes(normal, hV, hL, material.diffuseColor) * 0.55;
+  float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = 1.0 - smoothstep(0.35, 1.0, hairA);
+  // (light through hair takes the warm brown of its pigment, even through black hair)
+  reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.3, 0.2, 0.14)) * (0.12 * hThin + 0.18 * hRim) * (1.0 - vHairRoot) * vHairK; }`);
+    };
+    m.customProgramCacheKey = () => `strand-hair${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.needsUpdate = true;
+  }
+  // The strand's way at each vertex, how near the scalp it is (hairTR: xyz, w) and on the head's mesh whether it is hair
+  // (hairSK: the way round the head, in clumps of strands, and on the head's mesh 1 where it is hair), in the mesh's own frame at its bind pose. Up runs from the pelvis to the head; the skull is a ball round the
+  // middle of the head (a hand over the head's bone, at the skull's foot), the crown on top of it; a strand runs from
+  // the crown down over the head (the vertex's way from the crown, laid along the hair's surface: its normal); its
+  // root is on the skull, the ends a hand and more off it. On the head's mesh a vertex is hair where its picture is
+  // (sample(u, v) -> linear rgb: dark, or without the warmth of skin) above the brows or behind the ears.
+  // under: the head's mesh, done first: a card near its hair takes the normal of the hair under it, so that card and
+  // head are lit as one head of hair and the card's edge is not seen as a ledge (roundHair's otherwise)
+  function strandHair(mesh, sample = null, under = null) {
+    const g = mesh.geometry, P = g.attributes.position, Nn = g.attributes.normal, UV = g.attributes.uv;
+    if (!P || !Nn || g.attributes.hairTR) return;
+    const at = re => {
+      const sk = mesh.skeleton, i = sk ? sk.bones.findIndex(b => re.test(b.name)) : -1;
+      if (i < 0) return null;
+      return new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert().premultiply(mesh.bindMatrixInverse));
+    };
+    const hb = at(/Head$/), pb = at(/Pelvis$/) || at(/Spine$/), re = at(/REye$/), le = at(/LEye$/);
+    g.computeBoundingBox();
+    const v = new THREE.Vector3(), n = new THREE.Vector3(), d = new THREE.Vector3();
+    let up, u, S;
+    if (hb && pb) {
+      up = hb.clone().sub(pb).normalize();
+      u = hb.distanceTo(pb) / 0.6; // (the mesh's units in metres: a pelvis is about 60 cm under the skull's foot)
+      S = hb.clone().addScaledVector(up, 0.085 * u);
+    } else { // (no rig to go by: the hair's own box)
+      up = new THREE.Vector3(0, 1, 0); S = g.boundingBox.getCenter(new THREE.Vector3());
+      u = (g.boundingBox.max.y - g.boundingBox.min.y) / 0.3;
+    }
+    const R = 0.095 * u, crown = S.clone().addScaledVector(up, R);
+    const eye = re && le ? re.clone().add(le).multiplyScalar(0.5) : null;
+    const fwd = eye ? eye.clone().sub(S).addScaledVector(up, -eye.clone().sub(S).dot(up)).normalize() : null;
+    const ahead = fwd || new THREE.Vector3(1, 0, 0).addScaledVector(up, -up.x).normalize(), side = up.clone().cross(ahead);
+    const head = !!sample && !!UV;
+    // (the hair of the head's mesh under the cards: its vertices and normals, in this mesh's frame: they share the rig)
+    let UP = null, UN = null;
+    const uq = under && under.geometry.attributes, uk = uq && uq.hairSK;
+    if (uk && uq.normal) {
+      const p0 = [], n0 = [];
+      for (let j = 0; j < uk.count; j++) if (uk.getY(j) > 0.5) { p0.push(uq.position.getX(j), uq.position.getY(j), uq.position.getZ(j)); n0.push(uq.normal.getX(j), uq.normal.getY(j), uq.normal.getZ(j)); }
+      if (p0.length) { UP = p0; UN = n0; }
+    }
+    // (the way round the head from the back, in clumps of strands, about 160 round: 4 mm at the skull. It wraps at the
+    // face, where the head's own mesh is skin)
+    const out = new Float32Array(P.count * 4), SK = new Float32Array(P.count * 2), CL = 160 / (2 * Math.PI);
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i); n.fromBufferAttribute(Nn, i);
+      if (UP) {
+        let best = Infinity, bj = -1;
+        for (let j = 0; j < UP.length; j += 3) { const dx = UP[j] - v.x, dy = UP[j + 1] - v.y, dz = UP[j + 2] - v.z, dd = dx * dx + dy * dy + dz * dz; if (dd < best) { best = dd; bj = j; } }
+        const w = 1 - Math.min(1, Math.max(0, (Math.sqrt(best) / u - 0.03) / 0.09));
+        if (w > 0) { n.lerp(d.set(UN[bj], UN[bj + 1], UN[bj + 2]), w).normalize(); Nn.setXYZ(i, n.x, n.y, n.z); }
+      }
+      d.copy(v).sub(crown); d.addScaledVector(n, -d.dot(n));
+      if (d.lengthSq() < 1e-4 * R * R) { d.copy(up).negate(); d.addScaledVector(n, -d.dot(n)); }
+      d.normalize();
+      const off = (v.distanceTo(S) - R) / u; // (metres off the skull)
+      const root = 1 - Math.min(1, Math.max(0, (off - 0.005) / 0.16));
+      out.set([d.x, d.y, d.z, root * root * (3 - 2 * root)], i * 4);
+      const q = v.clone().sub(S);
+      SK[2 * i] = Math.atan2(q.dot(side), -q.dot(ahead)) * CL;
+      SK[2 * i + 1] = head ? 0 : 1;
+      if (head) {
+        const where = !eye || v.clone().sub(eye).dot(up) > 0.035 * u || v.clone().sub(eye).dot(fwd) < -0.085 * u;
+        const c = where ? sample(UV.getX(i), UV.getY(i)) : null;
+        if (c) {
+          const lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], warm = (c[0] - c[2]) / Math.max(1e-3, c[0] + c[1] + c[2]);
+          SK[2 * i + 1] = lum < 0.05 ? 1 : warm < 0.12 ? 1 : 0; // (black and brown hair is dark; grey and white hair has no warmth)
+        }
+      }
+    }
+    g.setAttribute('hairTR', new THREE.BufferAttribute(out, 4));
+    g.setAttribute('hairSK', new THREE.BufferAttribute(SK, 2));
+    if (UP) Nn.needsUpdate = true;
+  }
+
   // ------------------------------------------------------------ an afterimage: a person in an old exposure
   // Someone of another year standing in tonight's street (the story's afterimages, game.js figure; docs/PAST.md). One
   // look for all of them, the look past.js gives the things of 1964: their own body, face and clothes, in a silver
@@ -611,12 +831,13 @@ gl_FragColor = vec4(xpC, 1.0 - 0.32 * (1.0 - smoothstep(0.08, 0.5, xpV)));`;
       c.onBeforeCompile = (sh, r) => {
         if (own) own.call(m, sh, r);
         Object.assign(sh.uniforms, xpU);
+        if (sh.uniforms.uHairMS) sh.uniforms.uHairMS = { value: 0 }; // (hair, issue 74: cut as without samples; it is laid over the street, not covered)
         sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform float uXpT, uXpLift;\nvoid main() {')
           .replace('#include <dithering_fragment>', `#include <dithering_fragment>${EXPOSURE}`);
       };
       c.customProgramCacheKey = () => `exposure|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
       // (a second exposure: what it adds, over what was there let through as it is dark: one, one minus its alpha)
-      Object.assign(c, { transparent: true, depthWrite: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
+      Object.assign(c, { alphaToCoverage: false, transparent: true, depthWrite: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
       xpMade.set(m, c); xpOwn.add(c);
       c.needsUpdate = true;
       return c;
