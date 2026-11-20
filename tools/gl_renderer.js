@@ -1,10 +1,12 @@
 // Which WebGL renderer the browser checks get, launched as tools/story_play.js launches Chromium: Mesa's llvmpipe
 // under Xvfb (`--use-gl=angle --use-angle=gl`), or SwiftShader without a display. When the GL backend cannot start
 // (no GLX on the display, a missing Mesa driver) Chromium falls back to SwiftShader without a word, and every check
-// in a browser runs about three times slower (AGENTS.md, "Software WebGL"). Prints the renderer and exits 1 when
-// a display was given and the renderer is not llvmpipe.
+// in a browser runs about three times slower (AGENTS.md, "Software WebGL"). Prints the renderer and the CPU, and
+// exits 1 when a display was given and the renderer is not llvmpipe, 2 when the browser has no WebGL2 at all (its GPU
+// process died at the start: on a runner, llvmpipe's shaders kept from a run on another CPU, issue 84).
 //   xvfb-run -a node tools/gl_renderer.js
 const { chromium } = require('playwright');
+const os = require('os');
 (async () => {
   const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
@@ -17,6 +19,8 @@ const { chromium } = require('playwright');
   });
   await b.close();
   const soft = /llvmpipe/i.test(r.renderer);
-  console.log(`${process.env.DISPLAY ? `display ${process.env.DISPLAY}` : 'no display'}: ${r.renderer}${r.vendor ? ` (${r.vendor})` : ''}${r.units ? `, ${r.units} texture units` : ''}`);
+  const cpu = os.cpus();
+  console.log(`${process.env.DISPLAY ? `display ${process.env.DISPLAY}` : 'no display'}: ${r.renderer}${r.vendor ? ` (${r.vendor})` : ''}${r.units ? `, ${r.units} texture units` : ''}; ${cpu.length} x ${cpu[0] ? cpu[0].model.trim() : 'an unknown CPU'}`);
+  if (!r.units) { console.log('FAIL no WebGL2: every check in a browser fails on this machine'); process.exit(2); }
   if (process.env.DISPLAY && !soft) { console.log('FAIL not llvmpipe: the browser checks will run on SwiftShader, about three times slower'); process.exit(1); }
 })();

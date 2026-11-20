@@ -138,9 +138,15 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
   production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
   hand publishes main as it is.
-- Each browser shard prints which renderer it got (`tools/gl_renderer.js`): llvmpipe, or SwiftShader when the GL
-  backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled are kept
-  from one run to the next (`actions/cache`).
+- Each browser shard prints which renderer it got and on which CPU (`tools/gl_renderer.js`): llvmpipe, or SwiftShader
+  when the GL backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled
+  are kept from one run to the next (`actions/cache`), the shaders a CPU apiece (its model and its flags in the
+  cache's key). llvmpipe compiles for the CPU it runs on, by name, and files the shaders under an id that records only
+  the CPU's family and its SSE, AVX and AVX-512 basics (Mesa 25.2, `lp_screen.c`), so two Intels of one family share
+  it: a runner loaded what one with another CPU had compiled, its GPU process died of an illegal instruction (SIGILL,
+  exit code 132, in the shard's `-chrome.log`) at the first context, and the clip and ride shards waited out 13 and 15
+  minutes on a page with no WebGL (issue 84). A renderer that does not come up is asked again with the kept shaders
+  dropped, and a browser with no WebGL at all stops the shard there, in seconds.
 - The browser shards run on `ubuntu-24.04`, whose Mesa (25.2) is a session's machine's, where each check's waits were
   measured. `ubuntu-latest` became Ubuntu 26.04 in November 2026 (Mesa 26.0, LLVM 21), and main went red for a day
   and a half without a step named (issue 49): there the desktop page's walk at night in the rain had not set out in
