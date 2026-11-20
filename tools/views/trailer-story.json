@@ -1,0 +1,129 @@
+{
+ "_": "Blue Hour's story trailer (docs/TRAILER.md): tools/trailer.js films it, tools/trailer/score.js scores it. Three acts: the crossing at the blue hour; the Stop and the girl of 1964; the seven frames counted down to the last, the title and its button. Points are [x, y, dz over the ground] in the map's metres, or [\"@anchor\", dx, dy, dz].",
+ "name": "blue-hour-story",
+ "date": [10, 10],
+ "size": "1920x804",
+ "fps": 24,
+ "grain": 5,
+ "score": {"root": 49, "scale": [0, 2, 3, 5, 7, 8, 10], "events": [{"at": "open", "kind": "drone", "until": "raise@0.56", "gain": 0.06, "fade": 4, "fadeOut": 0.1}, {"at": "open@0.1", "kind": "boom", "gain": 0.45}, {"at": "open@0.4", "kind": "city", "until": "raise@0.6", "gain": 0.065, "fade": 3, "fadeOut": 0.1}, {"at": "aerial+0.8", "kind": "motif", "every": 0.95, "oct": 1, "vel": 0.42}, {"at": "aerial+5.6", "kind": "piano", "notes": [37, 44], "every": 0.0, "vel": 0.35, "len": 6}, {"at": "kerb@0.3", "kind": "boom", "gain": 0.5}, {"at": "kerb+0.4", "kind": "motif", "degrees": [4, 2, 1, 0], "every": 0.8, "oct": 0, "vel": 0.3}, {"at": "green-0.5", "kind": "whoosh", "dur": 0.9, "gain": 0.18}, {"at": "green@0.1", "kind": "chirp", "until": "raise@0.56", "gain": 0.05, "cuckoo": true}, {"at": "green", "kind": "strings", "dur": 10, "gain": 0.16, "attack": 3, "notes": [37, 44, 52]}, {"at": "green@0.58", "kind": "boom", "gain": 0.45}, {"at": "walk", "kind": "pulse", "until": "raise@0.56", "bpm": 120, "gain": 0.07, "open": 1600, "notes": [37, 37, 37, 44]}, {"at": "walk", "kind": "heart", "until": "raise@0.5", "bpm": 64, "gain": 0.22}, {"at": "raise+0.3", "kind": "riser", "until": "raise@0.555", "gain": 0.22, "top": 5000}, {"at": "raise@0.555", "kind": "shutter", "gain": 0.7}, {"at": "raise@0.56", "kind": "duck", "to": 0, "fade": 0.05}, {"at": "raise@0.56", "kind": "stop", "until": "girl@0.97", "gain": 0.8, "shimmer": 0.045}, {"at": "held+0.6", "kind": "heart", "until": "girl+2.5", "bpm": 50, "gain": 0.28}, {"at": "girl+1.2", "kind": "motif", "every": 1.05, "oct": 2, "vel": 0.3, "len": 6}, {"at": "girl@0.38", "kind": "choir", "dur": 5, "gain": 0.16, "notes": [49, 56, 64]}, {"at": "c_camera", "kind": "hit", "gain": 0.75}, {"at": "c_camera", "kind": "shutter", "gain": 0.45}, {"at": "relic+0.1", "kind": "advance", "gain": 0.2}, {"at": "relic+0.5", "kind": "reverse", "until": "relic@0.3", "gain": 0.2}, {"at": "relic@0.3", "kind": "choir", "dur": 4.2, "gain": 0.26, "notes": [52, 59, 64, 68]}, {"at": "relic@0.3", "kind": "shimmer", "until": "relic@1.0", "gain": 0.04, "attack": 0.4}, {"at": "relic@0.93", "kind": "shutter", "gain": 0.6}, {"at": "c_seven", "kind": "braam", "dur": 3.4, "gain": 0.6}, {"at": "c_seven", "kind": "hit", "gain": 0.7}, {"at": "c_years+0.15", "kind": "piano", "notes": [37, 29], "every": 1.4, "vel": 0.6, "len": 7}, {"at": "akira", "kind": "strings", "dur": 4.4, "gain": 0.22, "notes": [33, 45, 52], "attack": 1.0, "release": 1.2}, {"at": "akira+1.2", "kind": "riser", "until": "c_why", "gain": 0.28}, {"at": "c_why", "kind": "braam", "dur": 3.4, "gain": 0.8, "bright": 2000}, {"at": "c_why", "kind": "hit", "gain": 0.9}, {"at": "c_why@0.5", "kind": "reverse", "until": "dog", "gain": 0.25}, {"at": "dog", "kind": "drums", "until": "meet@0.909", "bpm": 120, "gain": 1.0, "from": 0.4, "snare": true}, {"at": "dog", "kind": "pulse", "until": "meet@0.909", "bpm": 120, "gain": 0.24, "cut": 500, "open": 3800}, {"at": "dog", "kind": "strings", "dur": 11, "gain": 0.12, "notes": [37, 44, 52, 56], "attack": 4}, {"at": "lamp", "kind": "whoosh", "dur": 0.6, "gain": 0.15}, {"at": "roof", "kind": "choir", "dur": 3, "gain": 0.14, "notes": [52, 59, 64]}, {"at": "heli", "kind": "whoosh", "dur": 1.6, "gain": 0.25, "pan": 0.3}, {"at": "storm", "kind": "rain", "until": "meet@0.92", "gain": 0.1, "fade": 0.4}, {"at": "storm@0.3", "kind": "thunder", "gain": 0.75}, {"at": "meet", "kind": "strings", "dur": 5.2, "gain": 0.26, "notes": [33, 45, 52, 57], "attack": 1.5}, {"at": "meet", "kind": "choir", "dur": 5.1, "gain": 0.26, "notes": [52, 57, 64], "attack": 2}, {"at": "meet+1.5", "kind": "riser", "until": "meet@0.909", "gain": 0.38}, {"at": "meet@0.909", "kind": "shutter", "gain": 0.85}, {"at": "meet@0.909", "kind": "hit", "gain": 1.0}, {"at": "c1+0.1", "kind": "piano", "notes": [73], "vel": 0.35, "len": 5}, {"at": "title", "kind": "hit", "gain": 1.0, "metal": 55}, {"at": "title", "kind": "braam", "dur": 5.6, "gain": 0.85, "bright": 1800, "peak": 0.5}, {"at": "title+0.6", "kind": "shimmer", "until": "stinger+1", "gain": 0.035}, {"at": "stinger+0.4", "kind": "motif", "every": 1.1, "oct": 2, "vel": 0.26, "len": 6}, {"at": "end", "kind": "boom", "gain": 0.5}, {"at": "end+0.3", "kind": "piano", "notes": [37, 44, 52], "every": 0.05, "vel": 0.4, "len": 7}, {"at": "end", "kind": "strings", "dur": 5.8, "gain": 0.12, "notes": [37, 44, 52], "attack": 1.0, "release": 3}, {"at": "c6", "kind": "shutter", "gain": 0.6}, {"at": "c6", "kind": "hit", "gain": 0.65}, {"at": "c6", "kind": "braam", "dur": 1.3, "gain": 0.38}, {"at": "c5", "kind": "shutter", "gain": 0.6}, {"at": "c5", "kind": "hit", "gain": 0.65}, {"at": "c5", "kind": "braam", "dur": 1.3, "gain": 0.38}, {"at": "c4", "kind": "shutter", "gain": 0.6}, {"at": "c4", "kind": "hit", "gain": 0.65}, {"at": "c4", "kind": "braam", "dur": 1.3, "gain": 0.38}, {"at": "c3", "kind": "shutter", "gain": 0.6}, {"at": "c3", "kind": "hit", "gain": 0.65}, {"at": "c3", "kind": "braam", "dur": 1.3, "gain": 0.38}, {"at": "c2", "kind": "shutter", "gain": 0.6}, {"at": "c2", "kind": "hit", "gain": 0.65}, {"at": "c2", "kind": "braam", "dur": 1.3, "gain": 0.38}]},
+ "shots": [
+  {"id": "open", "dur": 3.0, "type": "card",
+   "text": [{"kind": "card", "at": 0.12, "until": 0.92, "eyebrow": "Shibuya · 10 October 2026", "text": "17:14", "big": true, "fade": 0.7}]},
+
+  {"id": "aerial", "dur": 8.0, "type": "orbit", "at": ["@scramble", 0, 0, 0], "az": [204, 178], "dist": [640, 330], "h": [560, 270], "fov": 34, "ease": "inOut", "time": 0, "fadeIn": 1.4,
+   "text": [{"kind": "stamp", "at": 0.18, "until": 0.88, "text": "The Shibuya Scramble", "line": "the blue hour"}]},
+
+  {"id": "kerb", "dur": 4.5, "type": "move", "from": [384.6, -1018.6, 1.4], "to": [383.8, -1017.8, 1.45], "look": [356.0, -982.0, 2.6], "fov": 19, "hand": 0.5, "time": 0.5,
+   "crowd": "muster", "signal": [[0, "red"]], "stand": [372.0, -1002.0, 0], "clear": [7, 6, 2.2],
+   "dof": {"focus": [362.0, -988.0, 1.5], "fstop": 2.8, "blur": 0.2},
+   "text": [{"kind": "card", "over": true, "at": 0.3, "until": 0.97, "text": "Three thousand strangers"}]},
+
+  {"id": "green", "dur": 6.0, "type": "orbit", "at": ["@scramble", 0, 0, 0], "az": [200, 226], "dist": [50, 40], "h": [44, 34], "fov": 44, "ease": "glide", "time": 1,
+   "crowd": "muster", "signal": [[0, "red"], [0.1, "green"]], "preroll": 0.5, "blur": 0.25,
+   "text": [{"kind": "card", "over": true, "at": 0.58, "until": 0.97, "text": "One crossing"}]},
+
+  {"id": "walk", "dur": 4.0, "type": "move", "from": [372.8, -1006.5, 1.05], "to": [369.4, -1001.0, 1.15], "look": [360.0, -987.0, 2.2], "fov": 30, "hand": 0.3, "time": 1.5,
+   "crowd": "muster", "signal": [[0, "green"]], "preroll": 5.0, "speed": 0.32, "clear": [8, 3, 1.4],
+   "dof": {"focus": 7.5, "fstop": 2.2, "blur": 0.2}},
+
+  {"id": "raise", "dur": 4.5, "type": "move", "from": [370.5, -1002.9, 1.74], "to": [370.3, -1002.4, 1.74], "look": [364.0, -982.4, 1.5], "fov": 28, "hand": 0.6, "time": 2,
+   "crowd": "muster", "signal": [[0, "green"]], "preroll": 3.5, "clear": [7, 14, 2.2],
+   "speed": [[0, 1], [0.5, 1], [0.58, 0]], "stop": {"at": 0.56, "centre": [369.0, -999.0, 0]}, "flash": [[0.555, 0.35]], "shake": [[0.555, 1.0, 0.6]],
+   "figures": [{"who": "girl", "at": [364.0, -982.4, 0], "face": "cam", "from": 0.56}],
+   "dof": {"focus": [364.0, -982.4, 1.5], "fstop": 4},
+   "text": [{"kind": "finder", "at": 0.04, "until": 0.555, "fade": 0.15, "left": "Frame 30 of 36", "right": "17:14"}]},
+
+  {"id": "held", "dur": 7.0, "type": "move", "from": [373.4, -1003.6, 1.55], "to": [368.4, -998.0, 1.55], "look": [360.0, -986.0, 1.5], "fov": 34, "ease": "linear", "time": 2,
+   "crowd": "muster", "signal": [[0, "green"]], "preroll": 4.0, "speed": 0, "stop": {"at": 0, "centre": [370.0, -1000.0, 0]}, "air": {"leaves": 150, "birds": 12},
+   "stand": [370.5, -1001.0, 0], "clear": [9, 4.5, 2.6],
+   "dof": {"focus": 8.0, "fstop": 4},
+   "text": [{"kind": "sub", "at": 0.5, "until": 0.97, "text": "Someone is still moving.", "cold": true}]},
+
+  {"id": "girl", "dur": 6.0, "type": "move", "from": [364.5, -986.7, 1.5], "to": [364.3, -985.5, 1.5], "look": [364.0, -982.4, 1.36], "fov": 28, "ease": "out", "time": 2,
+   "crowd": "muster", "preroll": 0.5, "speed": 0, "stop": {"at": 0, "centre": [364.0, -986.0, 0]}, "air": {"leaves": 120, "birds": 6},
+   "stand": [364.2, -985.0, 0], "clear": [20, 5, 1.6],
+   "figures": [{"who": "girl", "at": [364.0, -982.4, 0], "face": "cam"}, {"who": "old", "at": [362.5, -984.0, 0], "face": [364.0, -982.4, 0]}],
+   "dof": {"focus": [364.0, -982.4, 1.45], "fstop": 2.0},
+   "text": [{"kind": "sub", "at": 0.4, "until": 0.96, "jp": "遅かったね。", "text": "You came late.", "warm": true}]},
+
+  {"id": "c_camera", "dur": 2.2, "type": "card", "text": [{"kind": "card", "at": 0.05, "until": 0.95, "text": "One camera", "fade": 0.35}]},
+
+  {"id": "relic", "dur": 5.0, "type": "move", "from": [362.0, -986.4, 1.5], "to": [361.9, -985.7, 1.5], "look": [361.9, -982.1, 0.95], "fov": 36, "hand": 0.35, "time": 2,
+   "crowd": "muster", "preroll": 0.5, "speed": 0, "stop": {"at": 0, "centre": [362.0, -987.0, 0]}, "stand": [362.3, -985.0, 0], "clear": [30, 6, 1.5],
+   "relic": {"model": "board", "at": [361.6, -982.1, 0], "h": 10.1, "from": 0.3},
+   "figures": [{"who": "girl", "at": [364.0, -982.4, 0], "face": "cam"}],
+   "text": [{"kind": "finder", "at": 0.02, "until": 0.98, "fade": 0.2, "left": "Frame 31 of 36", "right": "It sees 1964"}]},
+
+  {"id": "c_seven", "dur": 2.4, "type": "card", "text": [{"kind": "counter", "at": 0.04, "until": 0.94, "text": "7", "line": "frames left on his roll", "fade": 0.3}]},
+
+  {"id": "c_years", "dur": 3.2, "type": "card", "text": [{"kind": "card", "at": 0.06, "until": 0.95, "eyebrow": "10 October 1964", "text": ["He came", "He did not cross"], "fade": 0.5}]},
+
+  {"id": "akira", "dur": 3.6, "type": "move", "from": [379.7, -1017.4, 1.72], "to": [379.4, -1016.9, 1.72], "look": [364.0, -982.4, 1.5], "fov": 24, "ease": "out", "time": 32,
+   "crowd": "muster", "preroll": 0.5, "speed": 0, "stop": {"at": 0, "centre": [378.0, -1015.0, 0]}, "stand": [377.0, -1012.0, 0], "clear": [7, 12, 1.4],
+   "figures": [{"who": "akira", "at": [378.0, -1015.0, 0], "face": [364.0, -982.4, 0]}, {"who": "girl", "at": [364.0, -982.4, 0], "face": [378.0, -1015.0, 0]}],
+   "dof": {"focus": [364.0, -982.4, 1.5], "fstop": 2.8},
+   "text": [{"kind": "sub", "at": 0.16, "until": 0.97, "text": "Is she there? I can never see past the road.", "cold": true}]},
+
+  {"id": "c_why", "dur": 3.2, "type": "card", "text": [{"kind": "card", "at": 0.06, "until": 0.94, "text": ["Why did he", "not cross the street?"], "fade": 0.45}]},
+
+  {"id": "dog", "dur": 3.0, "type": "move", "from": [373.3, -1035.8, 0.55], "to": [373.3, -1036.4, 0.5], "look": [374.0, -1043.0, 0.9], "fov": 34, "ease": "linear", "time": 6,
+   "crowd": {"at": [374.0, -1040.0, 0], "r": 40, "n": 220, "clear": 3}, "preroll": 2.0, "speed": 0, "stop": {"at": 0, "centre": [373.5, -1038.0, 0]}, "stand": [373.6, -1038.5, 0], "clear": [10, 9, 1.5],
+   "dog": {"at": [374.2, -1042.6, 0], "face": [373.3, -1036.0, 0], "go": [0.0, [373.4, -1037.4, 0], 1.3]},
+   "dof": {"focus": 4.0, "fstop": 2.0}},
+
+  {"id": "lamp", "dur": 2.0, "type": "move", "from": [387.0, -1047.8, 1.7], "to": [386.4, -1047.4, 1.7], "look": [378.4, -1043.4, 2.3], "fov": 30, "time": 10,
+   "crowd": {"at": [384.0, -1043.0, 0], "r": 40, "n": 200, "clear": 3}, "preroll": 2.0, "speed": 0, "stop": {"at": 0, "centre": [390.0, -1043.0, 0]}, "stand": [384.0, -1046.0, 0], "clear": [12, 10, 1.5],
+   "relic": {"model": "lamp", "at": [378.4, -1043.4, 0], "h": 150, "from": 0.0},
+   "figures": [{"who": "detective", "at": [382.6, -1045.1, 0], "face": "cam"}],
+   "dof": {"focus": [382.6, -1045.1, 1.5], "fstop": 2.8}},
+
+  {"id": "c6", "dur": 1.0, "type": "card", "text": [{"kind": "counter", "at": 0, "until": 1, "text": "6", "fade": 0.08, "zoom": 0.06}]},
+
+  {"id": "roof", "dur": 3.0, "type": "move", "from": ["@shibuya_sky", 20.1, 14.7, 1.7], "to": ["@shibuya_sky", 20.9, 14.3, 1.7], "look": [638.0, -1050.0, 40.0, "abs"], "fov": 50, "time": 17,
+   "stand": ["@shibuya_sky", 22.0, 11.5, 0], "speed": 0, "stop": {"at": 0, "centre": ["@shibuya_sky", 22.0, 11.5, 0]},
+   "figures": [{"who": "kanbara", "at": ["@shibuya_sky", 24.5, 12.87, 0], "face": [638.0, -1050.0, 52.0, "abs"]}],
+   "relic": {"model": "dome", "at": [638.0, -1050.0, 52.0, "abs"], "h": 20, "over": true, "from": 0.15},
+   "dof": {"focus": ["@shibuya_sky", 24.5, 12.87, 1.5], "fstop": 5.6}},
+
+  {"id": "c5", "dur": 1.0, "type": "card", "text": [{"kind": "counter", "at": 0, "until": 1, "text": "5", "fade": 0.08, "zoom": 0.06}]},
+
+  {"id": "river", "dur": 3.0, "type": "move", "from": [517.0, -1086.0, 1.7], "to": [517.2, -1085.2, 1.7], "look": [519.2, -1070.0, 1.3], "fov": 40, "time": 25,
+   "crowd": {"at": [518.0, -1075.0, 0], "r": 40, "n": 160, "clear": 3}, "preroll": 1.0, "speed": 0, "stop": {"at": 0, "centre": [518.0, -1078.0, 0]}, "stand": [518.0, -1078.0, 0], "clear": [10, 20, 1.5],
+   "relic": {"model": "river", "at": [519.42, -1067.66, 0], "h": 21, "over": true, "from": 0.0},
+   "figures": [{"who": "tatsuo", "at": [518.21, -1077.34, 0], "face": "cam"}],
+   "dof": {"focus": [518.21, -1077.34, 1.5], "fstop": 4}},
+
+  {"id": "c4", "dur": 1.0, "type": "card", "text": [{"kind": "counter", "at": 0, "until": 1, "text": "4", "fade": 0.08, "zoom": 0.06}]},
+
+  {"id": "heli", "dur": 3.0, "type": "orbit", "at": [470.0, -1088.0, 251.0, "abs"], "az": [222, 252], "dist": [17, 15], "h": [3, 1], "fov": 40, "ease": "linear", "time": 27,
+   "heli": {"from": [470.0, -1088.0, 249.0, 300, 4, -3], "to": [470.0, -1088.0, 252.0, 306, 4, -3]}, "stand": ["@shibuya_sky", -20.0, 28.0, 0], "blur": 0.35},
+
+  {"id": "c3", "dur": 1.0, "type": "card", "text": [{"kind": "counter", "at": 0, "until": 1, "text": "3", "fade": 0.08, "zoom": 0.06}]},
+
+  {"id": "storm", "dur": 3.0, "type": "move", "from": [366.0, -992.0, 78.0], "to": [368.0, -995.0, 76.0], "look": [560.0, -1120.0, 150.0, "abs"], "fov": 42, "time": 39,
+   "weather": "storm", "strikes": [[0.32, {"dist": 1400, "bearing": 128, "ground": true}]], "stand": [372.0, -1002.0, 0], "blur": 0.2},
+
+  {"id": "c2", "dur": 1.0, "type": "card", "text": [{"kind": "counter", "at": 0, "until": 1, "text": "2", "fade": 0.08, "zoom": 0.06}]},
+
+  {"id": "meet", "dur": 5.5, "type": "move", "from": [361.6, -1002.4, 1.3], "to": [362.6, -1001.9, 1.35], "look": [370.2, -999.7, 1.35], "fov": 30, "ease": "linear", "time": 39,
+   "weather": "rain", "crowd": "muster", "signal": [[0, "green"]], "preroll": 4.0, "speed": 0, "stop": {"at": 0, "centre": [364.0, -1001.0, 0]}, "stand": [366.0, -1001.0, 0], "clear": [14, 14, 2.0],
+   "figures": [{"who": "girl", "at": [367.2, -993.5, 0], "walk": [0.0, [369.7, -998.7, 0], 1.05]}, {"who": "akira", "at": [373.1, -1006.2, 0], "walk": [0.0, [370.6, -1000.8, 0], 1.05]}],
+   "dof": {"focus": [370.2, -999.8, 1.4], "fstop": 2.8}, "flash": [[0.909, 0.5]], "shake": [[0.909, 0.8, 0.5]]},
+
+  {"id": "c1", "dur": 1.2, "type": "card", "text": [{"kind": "counter", "at": 0, "until": 0.92, "text": "1", "line": "the last frame", "fade": 0.12, "zoom": 0.05}]},
+
+  {"id": "hush", "dur": 1.1, "type": "card", "text": []},
+
+  {"id": "title", "dur": 6.0, "type": "card",
+   "text": [{"kind": "title", "at": 0.02, "until": 0.94, "text": "Blue Hour", "jp": "遅かったね", "line": "Episode 1 · One evening · Seven frames", "fadeIn": 0.08, "fadeOut": 0.7, "blur": 1.2, "zoom": 0.05}]},
+
+  {"id": "stinger", "dur": 4.6, "type": "move", "from": [364.25, -984.9, 1.5], "to": [364.2, -984.5, 1.5], "look": [364.0, -982.4, 1.47], "fov": 26, "ease": "out", "time": 2, "fadeIn": 0.4,
+   "weather": "rain", "crowd": "muster", "preroll": 0.5, "speed": 0, "stop": {"at": 0, "centre": [364.0, -985.0, 0]}, "stand": [364.0, -984.6, 0], "clear": [28, 5, 2.0],
+   "figures": [{"who": "girl", "at": [364.0, -982.4, 0], "face": "cam"}],
+   "dof": {"focus": [364.0, -982.4, 1.5], "fstop": 2.0}, "fadeOut": 0.25,
+   "text": [{"kind": "sub", "at": 0.12, "until": 0.56, "text": "Sixty years I have stood on this kerb.", "cold": true, "fade": 0.25}, {"kind": "sub", "at": 0.6, "until": 0.97, "text": "I was not waiting for you.", "cold": true, "fade": 0.25}]},
+
+  {"id": "end", "dur": 6.0, "type": "card",
+   "text": [{"kind": "end", "at": 0.06, "until": 0.95, "text": "Blue Hour", "line": "Play it in your browser", "lines": ["One evening at the Shibuya Scramble, rebuilt from open data", "On a desktop and on a phone"], "fade": 0.6}]}
+ ]
+}
