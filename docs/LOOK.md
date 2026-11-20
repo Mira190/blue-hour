@@ -519,7 +519,8 @@ argyle sweater vest ten times or more, and women in aqua, mint, lime and sky blu
   sRGB navy 35,45,75, brown 120,80,50, olive 95,95,60, wine 95,35,45, made linear) and holds its colour to what
   that hue has at its lightness (chroma over luminance: dark navy 0.8 down to 0.12 for a light one, brown 0.75 to
   0.22, olive 0.35 to 0.12, wine 0.6 to 0.12), so a light colour is a greyish blue or a beige, never a pastel. Twelve
-  changes instead of eight, four of them near grey or black, and a walker's colours lighter or darker as a whole.
+  changes instead of eight, three of them near grey or black (each keeping a third of the colour and a dye of navy or
+  sand, so that different people in the grey change are not one grey top), and a walker's colours lighter or darker as a whole.
   Still one program, the same far and near, no new pictures or attributes (the colour kept rides in the length of
   the turn's vector).
 - *Who wears what.* A walker's change of clothes was drawn at random, so the same man in the same clothes stood

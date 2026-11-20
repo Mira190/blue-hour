@@ -1108,13 +1108,15 @@ transformed = crowdPose(transformed, false);`);
   // colour and lightness: red over green over blue in a skin's ratios), and the head has its own material.
   // [turn in radians, colour kept (0 grey to 1 the street's most), tone, dye: I and Q of the cast it takes].
   // (most of a Tokyo evening crowd is black, charcoal, navy and grey with white, beige, camel and brown, some olive;
-  // docs/LOOK.md "A Tokyo street's colours". Four in twelve are near grey or black: the turn hardly matters there)
+  // docs/LOOK.md "A Tokyo street's colours". Three in twelve are near grey or black: the turn matters little there)
+  // (the near-grey changes keep a third of the street's colour and take a dye, navy or sand: with none, every body
+  // took the one light grey, and four strangers at a kerb stood in the same grey top, issue 64)
   // (dealt to one person's walkers in turn, below, and the tones go dark and light by turns round the list, so the same
   // person twice is once near black and once a light grey or a sand, not two shades of one colour. The owner, of a
   // kerb before this: at the least, one person's clothes should differ, black, white, grey)
-  const DRESS = [[0, 1, 1, 0, 0], [3.1, 0.1, 0.36, 0, 0], [-2.5, 0.15, 2.0, 0, 0], [2.3, 0.6, 0.55, -0.022, 0.008],
-    [-1.7, 0.8, 1.7, 0.014, 0.0], [0.5, 0.55, 0.4, -0.018, 0.01], [2.8, 0.9, 1.5, 0.016, -0.004], [1.7, 0.6, 0.62, 0.012, 0.0],
-    [-1.2, 0.2, 1.15, 0.006, 0.0], [-3.0, 0.35, 0.45, 0.01, -0.006], [-0.75, 0.7, 1.35, -0.016, 0.006], [1.0, 0.7, 0.8, 0.02, 0.0]];
+  const DRESS = [[0, 1, 1, 0, 0], [3.1, 0.3, 0.36, -0.01, 0.006], [-2.5, 0.35, 1.6, 0.016, -0.004], [2.3, 0.6, 0.55, -0.022, 0.008],
+    [-1.7, 0.8, 1.5, 0.014, 0.0], [0.5, 0.55, 0.4, -0.018, 0.01], [2.8, 0.9, 1.5, 0.016, -0.004], [1.7, 0.6, 0.62, 0.012, 0.0],
+    [-1.2, 0.4, 1.15, -0.016, 0.008], [-3.0, 0.35, 0.45, 0.01, -0.006], [-0.75, 0.7, 1.35, -0.016, 0.006], [1.0, 0.7, 0.8, 0.02, 0.0]];
   const dressOf = i => (Math.imul(i + 7, 2246822519) >>> 16) % DRESS.length;
   // (the colour kept is the length of the turn's vector: no new attribute or uniform)
   const dressVec = (k, out, dye) => { const D = DRESS[k]; out.set(Math.cos(D[0]) * D[1], Math.sin(D[0]) * D[1], D[2]); if (dye) dye.set(D[3], D[4]); return out; };
