@@ -1933,7 +1933,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     makeWay: (x, y, z, h, half, hw) => !!(junctions.makeWay && inSight(x, y, z) && junctions.makeWay(x, y, z, h, half, hw)),
     wedge: coming ? 1 : undefined,
     people: (ps, np, step, st, C) => peopleOnWay(ps, np, step, st, C),
+    kerbFit: (x, y, hx, hy, k, keep) => kerbFit(C, x, y, hx, hy, k, keep),
   });
+  // how far off its way's line a car can pull in at (x, y) heading (hx, hy): k, or less until its outer side, over its
+  // length, is on the carriageway a hero level draws there (nav.carriageway; outside a level the street's class stands).
+  // By Hachiko the street's width took the car 4.4 m out, its wheels on the square's paving (#54)
+  function kerbFit(C, x, y, hx, hy, k, keep) {
+    if (!nav.carriageway) return k;
+    const s = Math.sign(k * keep) || 1, min = Math.min(k, OECars.LANE);
+    const fits = kk => { const lat = kk * keep + s * (C.hw + 0.15); for (const a of [-C.half, 0, C.half]) if (nav.carriageway(x + hx * a - hy * lat, y + hy * a + hx * lat) === false) return false; return true; };
+    for (let kk = k; kk > min; kk -= 0.2) if (fits(kk)) return kk;
+    return min;
+  }
   // the first person along a driver's way (cars.js chauffeur people: ps, np points step apart from its bumper): how far
   // along it, or Infinity. The crowd, the NPCs and you on foot, as the traffic brakes for them (actors.js 'person'); a
   // ride drove through the people on the pavement's edge and stepping out under the JR viaduct, seeing only the
@@ -3697,7 +3708,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     ride: spec => player.mode === 'foot' && orderRide({ id: 'story', name: spec.name || 'there', at: spec.to.slice(0, 2) }),
     rideOff: () => { if (ride && player.mode !== 'ride') rideAway(); }, // (walked there instead: the car goes on its way, and is not left at the kerb in the next frame's shot)
     // where that car is and what it is doing: {at: [x, y, z], state: 'coming' | 'waiting' | 'in'}, or null once it has gone
-    rideNow: () => (!ride || ride.phase === 'leaving' ? null : { at: [ride.drv.st.x, ride.drv.st.y, ride.drv.st.z], state: player.mode === 'ride' ? 'in' : ride.phase === 'coming' ? 'coming' : 'waiting' }),
+    rideNow: () => (!ride || ride.phase === 'leaving' ? null : { at: [ride.drv.st.x, ride.drv.st.y, ride.drv.st.z], state: player.mode === 'ride' ? 'in' : ride.phase === 'coming' ? 'coming' : 'waiting', arrived: ride.phase === 'arrived' }),
     hold: on => { if (!stopFx) return; if (on) stopFx.start(W(player.x, player.y, player.z), { rain: !!(weather && weather.state && weather.state.rain > 0.15) }); else stopFx.release(); },
     ask: (who, lines, choices, done) => (talkLine(who, choices), talkPrint = choices.some(c => /class="pr"/.test(c.text)), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), choices, done)), // (a question: the lines, then answers to pick from)
     dress: (date, light, wx) => {
