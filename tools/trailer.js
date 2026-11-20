@@ -83,14 +83,22 @@ async function settle(p, s) {
   const t0 = Date.now();
   // (loaders pace themselves on the page's clock, which is the film's: it is run on while they work, the world held)
   // (and a frame is not drawn while they do: a texture goes up a frame, and a drawn frame takes seconds here)
-  await p.evaluate(() => { window.__game.hold(true); window.OETrailer.draw(false); });
+  // (a texture goes up in the page's idle time, one a frame, world.js upload: frames run back to back leave no idle time,
+  // so a texture went up only every twenty frames and a set built from cold, the hero level and the cast queued
+  // together, was not up in 90 s; while the set is built an idle callback is the next task, and each frame yields to it)
+  await p.evaluate(() => {
+    window.__game.hold(true); window.OETrailer.draw(false);
+    window.__ric = window.__ric || window.requestIdleCallback;
+    window.requestIdleCallback = f => setTimeout(() => f({ didTimeout: false, timeRemaining: () => 50 }), 0);
+  });
   for (;;) {
-    await p.evaluate(() => { for (let i = 0; i < 20; i++) window.__vt.step(1000 / 30); });
+    await p.evaluate(async () => { for (let i = 0; i < 20; i++) { window.__vt.step(1000 / 30); await new Promise(r => setTimeout(r, 0)); } });
     if (await p.evaluate(() => window.OETrailer.ready())) break;
-    if (Date.now() - t0 > 90000) { console.log(`  ${s.id}: still waiting after 90 s for ${JSON.stringify(await p.evaluate(() => window.OETrailer.waiting()))}; filming as it is`); break; }
+    if (Date.now() - t0 > 240000) { console.log(`  ${s.id}: still waiting after 240 s for ${JSON.stringify(await p.evaluate(() => window.OETrailer.waiting()))}; filming as it is`); break; }
     await p.waitForTimeout(100);
   }
-  await p.evaluate(() => window.OETrailer.draw(true));
+  console.log(`  ${s.id}: set built in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  await p.evaluate(() => { window.requestIdleCallback = window.__ric; window.OETrailer.draw(true); });
   // a few frames for what loads as it is first seen (textures, a far tile)
   for (let i = 0; i < 4; i++) { await p.evaluate(() => window.__vt.step(1000 / 30)); await p.waitForTimeout(250); }
   await p.evaluate(() => window.__game.hold(false));

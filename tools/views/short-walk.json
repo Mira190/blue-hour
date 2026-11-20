@@ -19,7 +19,7 @@
   {
    "id": "k_fall",
    "dur": 2.0,
-   "from": "w_sky@0.22",
+   "from": "w_sky@0.39",
    "speed": 1.5,
    "cx": 0.5,
    "zoom": [
@@ -71,9 +71,9 @@
   {
    "id": "k_gai",
    "dur": 1.0,
-   "from": "w_gai@0.3",
+   "from": "w_gai@0.6",
    "speed": 1.5,
-   "cx": 0.5,
+   "cx": 0.38,
    "punch": [
     0.0
    ],
@@ -113,7 +113,7 @@
    "id": "k_storm",
    "dur": 1.0,
    "from": "w_storm@0.12",
-   "cx": 0.6,
+   "cx": 0.82,
    "punch": [
     0.0
    ],
@@ -140,7 +140,7 @@
    "dur": 2.0,
    "from": "w_lapse@0.08",
    "speed": 3.0,
-   "cx": 0.5,
+   "cx": 0.8,
    "punch": [
     0.0
    ],
