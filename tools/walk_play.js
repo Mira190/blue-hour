@@ -146,11 +146,6 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (s.lights.objective) fail('the old free game\'s objective light stands in the walk');
   if (!s.where || s.at !== s.clock.hm) fail(`the corner does not say where and when you are ("${s.where}" "${s.at}", the clock ${s.clock.hm})`);
   else ok(`out in ${Math.round((Date.now() - t0) / 1000)} s: "${s.where}", ${s.at}, ${s.wx.kind}; no goal, no light`);
-  // (and tonight's set dressing, as the story puts it up: SKY GATE's lift doors and its sign over the way in; without it the
-  // lobby on the walk was a bare box cut into the tower, lined with its own windows)
-  const setUp = await p.evaluate(() => { const g = window.__game, n = (g.story.state.ep || {}).set; return { up: g.story.setUp, of: n ? n.length : 0 }; });
-  if (setUp.up < setUp.of) fail(`out on the walk, ${setUp.up} of the ${setUp.of} pieces of tonight's set dressing are up (SKY GATE's lift doors and sign)`);
-  else ok(`tonight's set dressing is up (${setUp.up} pieces: SKY GATE's lift doors and sign)`);
   // (nothing unseen over the walk's own buttons: the story's film's skip button, invisible, took the phone's taps there)
   const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
   if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
@@ -265,12 +260,18 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else ok(`Bring your car: at the kerb ${far.toFixed(0)} m away`);
       }
     }
-    // SKY GATE: in its lobby (lined, with its doors and its name: the set dressing), E or a tap takes the lift, ridden in
+    // SKY GATE: in its hall (a hero level: the glass, the lines of light, its two lifts), E or a tap takes the lift, ridden in
     // the dark as the real one is (the doors shut, the car's ceiling and its lines; game.js podRide), out at the top stop
     const lobby = await p.evaluate(() => { const g = window.__game, l = (g.G.lifts || []).find(q => q.pod), s = l && l.stops[0]; if (!s) return null; const [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.player.x = ax - (ax - dx) / n * 1.2; g.player.y = ay - (ay - dy) / n * 1.2; g.player.z = az; g.player.h = Math.atan2(ax - dx, ay - dy); g.player.speed = 0; return { top: l.stops[l.stops.length - 1].at[2] }; });
     if (!lobby) fail('no lift ridden in the dark (game.json lifts[].pod) on the map');
     else if (!(await waitPrompt(/lift/i))) fail(`in SKY GATE's lobby on the walk, nothing offers the lift ("${await prompt()}")`);
     else {
+      // (the hall is a hero level of its own, cities/shibuya/hero_skylobby.py: loaded and shown round you, its floor stood on)
+      const hall = await p.evaluate(async () => { const g = window.__game, H = g.hero && g.hero(); for (let i = 0; i < 480; i++) { const L = H && H.levels.find(q => q.h.id === 'skylobby'); if (L && L.state === 'ready' && L.h.shown) break; await new Promise(r => setTimeout(r, 250)); } /* (two minutes: a level fetched as you are put by it compiles its shaders on a software renderer for most of one) */ const L = H && H.levels.find(q => q.h.id === 'skylobby'); return L ? { state: L.state, shown: !!L.h.shown, feet: +(g.player.z - (g.nav.terrain(g.player.x, g.player.y) + g.nav.lift(g.player.x, g.player.y))).toFixed(3), floor: L.h.z } : null; });
+      if (!hall) fail('SKY GATE\'s hall: no hero level "skylobby" on the map');
+      else if (hall.state !== 'ready' || !hall.shown) fail(`SKY GATE's hall is not drawn round you in its lobby (${JSON.stringify(hall)})`);
+      else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
+      await shot('7a-hall');
       await act();
       await p.evaluate(() => window.__game.advance(1.6));
       const mid = await p.evaluate(() => { const e = document.getElementById('g-pod'); return e ? e.className : ''; });

@@ -10,8 +10,8 @@ const [,, out = '/tmp/guide-probe', size = '1440x900'] = process.argv;
 const WAYS = [
   { name: 'kerb-to-hachiko', from: [376.9, -1013.1], to: [374.3, -1041.5] },
   { name: 'hachiko-round-the-planters', from: [368.5, -1046.0], to: [384.0, -1036.0] },
-  { name: 'street-to-lift', from: [507.6, -1088.9], to: [513.6, -1096.4] },
-  { name: 'side-to-lift', from: [518.5, -1093.0], to: [513.6, -1096.4] },
+  { name: 'street-to-lift', from: [528.53, -1080.44], to: [535.04, -1077.89] }, // (in through either door in the west front of SKY's hall: cities/shibuya/hero_skylobby.py)
+  { name: 'side-to-lift', from: [532.29, -1073.6], to: [535.04, -1077.89] }, // (from the hall's north side, round to its doors)
 ];
 (async () => {
   const [w, h] = size.split('x').map(Number);

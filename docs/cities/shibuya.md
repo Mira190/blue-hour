@@ -164,10 +164,12 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   the street, the lobby they stand in to call the lift, and the ride. The floors between (B2 to 45F: shops, restaurants,
   offices) are never seen from the route and nothing happens in them, so they are not built (docs/PERFORMANCE.md: what
   is not seen costs nothing); the 1F hall, the 14F counter and the 45F corridor are folded into one lobby and one ride,
-  as games fold a building's lifts. What is built is what is seen: the lobby cut into the north face (pipeline/lobby.py),
-  lined as a SKY lobby is (black-panelled walls to the ceiling, charcoal stone laid in courses, lines of light on the
-  ceiling leading to the doors and at the walls' foot; `blender/build_set.py` LOBBY), with the doors, the indicator and
-  the name over them, and the sign over the way in, on the walk as in the story; and the ride is SKY GATE's own, in the
+  as games fold a building's lifts. What is built is what is seen: the street lift's own hall where it is, just outside the
+  tower's north-east corner (pipeline/lobby.py, city.json game.lobbies `outside`), as a hero level
+  (`cities/shibuya/hero_skylobby.py`, docs/HERO.md "SKY's street entrance", issue 53): entered from the west through
+  its glass front's two doors under a canopy, the queue facing east, toward the outside, to two scenic cars whose
+  indicators say 14F (the street lift's top: SKY GATE runs on from 14F to 45F), their glass shaft up the tower's east
+  face; the tiles, the sign pillar and the forecourt's planks in front, on the walk as in the story; and the ride is SKY GATE's own, in the
   dark (`game.json` lifts[].pod, `web/game/game.js` podRide), not the camera climbing the tower's face outside, which
   read as a jump across the map and spent the view before the roof's escalator gives it. The station's way through the
   building (the urban core from B2) is a real and fine space, but nobody in the story comes by subway and the walk sets
