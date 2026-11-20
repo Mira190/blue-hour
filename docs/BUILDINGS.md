@@ -218,6 +218,48 @@ In the browser, `buildings.js` builds the walls:
 All of it is deterministic. Plant and tanks are decoration: they sit on the deck
 and are not part of the shadow analysis.
 
+### The rooftop kit (issue 73)
+
+From the helicopter a Tokyo roofscape is mostly its equipment, and the flight in frame 5 showed extruded boxes
+with bare decks. `pipeline/roofkit.py` (run after any step that writes `buildings.json`, then `pipeline/pack.py`)
+places, from each flat roof's polygon, what the Tokyo roof carries besides the plant above:
+
+- **A stair hut** (touya) on every flat roof from 7 m, against the roof's long edge, its steel door facing in and a
+  slab over it, in the building's own render. Not on a roof whose plant room holds the stair already.
+- **A row of air-conditioning condensers** along the opposite parapet, 2 to 12 units at a 0.95 m pitch, on roofs
+  up to 80 m (a tower's plant is in its plant room).
+- **The fire service's marks**: an "R" in a 10 m square for the emergency rescue space on a roof from 31 m, an "H"
+  in a circle on an 18 m pad from 100 m, as near the middle of the roof as the plant leaves the square open (the
+  Tokyo Fire Department's guidance for high-rise roofs; the thresholds are the Fire Service's 31 m and 100 m. The
+  paint, yellow for the R and its square, white H, yellow circle and white border on a dark green pad, is from
+  photographs of Shibuya's roofs, not a published specification).
+- **Finer plant**: the plant boxes carry a louvred band and a fan guard on their lid, the water tanks are panel tanks
+  with their ribs and hatch on a four-legged stand, the plant rooms a louvre and a door.
+
+Roofs in `city.json` `roofkit.skip` (Scramble Square, whose deck SHIBUYA SKY furnishes) and solids a landmark draws
+instead are left alone. Every kind is one small vertex-coloured model drawn as one instanced mesh (`web/buildings.js`,
+"the rooftop kit"), split into culling cells; the instance colour is the paint, a building's wall for a hut or a
+plant room, and a unit's paint differs from the next by at most 8%, no random tones. The marks are flat geometry
+with a polygon offset, no texture. A phone draws the kit only within 420 m of where its map was built (the hero level
+and the flight), and still no parapets.
+
+Prior art looked at (design only; no code taken): Streets GL (MIT) and OSM2World (LGPL) put generic rooftop objects
+only where OSM tags them, which Tokyo's roofs almost never are; three.js's city examples and hobby generators
+(`SkyscraperGenerator`, MIT, merged geometry) place boxes at random. What was adopted is the pattern common to
+game cities: a small kit of shared meshes instanced over the roofs, placed by rules from the footprint rather than
+by noise, so each piece has a cause (a stair to the roof, a unit's condensers along its parapet, a mark the fire
+service requires at a height).
+
+### Signs and lit windows from the air (issue 73)
+
+A lit window is a room's light: offices under cool white tubes, homes under warm bulbs or cool ceiling lights
+(`lampC` in the facade shader). Colour comes from signs, and signs hang where the shops are: a mixed-use building's
+floor panels now stand only on a street face (one with a shopfront or an awning), in one column of two bays down
+it (two on a wide front), a tenant a floor with some floors to let, and its corner sign only on a street face too.
+Before, a panel was drawn on any floor of any face by a hash, and from the air the backs and sides of the blocks
+were dotted with red, yellow, blue and green squares that read as coloured windows. Far off, the signs' mean colour
+is laid on street faces only.
+
 ## 5. Regions
 
 The city's `architecture` key picks the rules: `sydney`, `japan`, `hong_kong` or
@@ -320,7 +362,7 @@ The roof meshes are most of the growth: 14.6 MB of Kyoto's file, about 320 bytes
 a roof. Delta-encoding their vertices would save only 2–11% after gzip, so the
 format stays as it is.
 
-Small screens skip parapets, awnings and rooftop plant.
+Small screens skip parapets and awnings, and draw the rooftop kit only near where their map was built.
 
 ## 8. What is next
 

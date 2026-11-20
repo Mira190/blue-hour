@@ -59,6 +59,12 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
       return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts);
     };
   });
+  // the game's renderer as window.__R, for a view's "js" (three.js makes a renderer's methods in its constructor, so the
+  // class is wrapped, not its prototype)
+  await p.addInitScript(() => addEventListener('three-ready', () => {
+    const W = THREE.WebGLRenderer;
+    THREE.WebGLRenderer = class extends W { constructor(...a) { super(...a); window.__R = this; } };
+  }));
   const logs = [];
   p.on('console', m => { if (m.text().startsWith('[clear]')) console.log(m.text()); else if (['error', 'warning'].includes(m.type())) logs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
