@@ -11,6 +11,7 @@
 //   web/assets/vehicles/cars_far.glb   every car's far model (_LOD2), the traffic's first look (actors.js)
 //   web/assets/trees/trees_far.glb     the trees' mid and far models (_LOD1, _LOD2) and the leaf atlas (trees.js)
 //   web/assets/trees/trees_near.glb    the near models (_LOD0), without the atlas
+//   web/assets/trees/trees_hero.glb    the hero models (_LODH), drawn within a few tens of metres, without the atlas
 // pipeline/split_models.sh writes those from cars.glb and trees.glb; blender/build_vehicles.py and build_trees.py
 // run it after them, and tools/check.sh fails on a part older than its model.
 import fs from 'fs';
