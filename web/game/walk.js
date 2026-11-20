@@ -117,16 +117,19 @@ window.OEWalk = (function () {
     // the keys once, at the foot of the frame
     const hud = document.createElement('div');
     hud.id = 'g-walk-where'; hud.setAttribute('aria-live', 'off');
-    hud.innerHTML = '<small></small><span class="t"></span><em></em><b class="g" hidden></b>';
+    hud.innerHTML = '<small></small><span class="t"></span><em></em><b class="g" hidden></b><p class="q" hidden><span></span><i></i></p>';
     const acts = document.createElement('div');
     acts.id = 'g-walk-acts';
-    acts.innerHTML = `<button type="button" data-do="photo"><i class="cam" aria-hidden="true"></i><span>Photograph</span>${ctx.touch ? '' : '<kbd>O</kbd>'}</button><button type="button" data-do="menu"><i class="menu" aria-hidden="true"></i><span>Hour · sky · story</span>${ctx.touch ? '' : '<kbd>Esc</kbd>'}</button>`;
-    acts.addEventListener('click', e => { const b = e.target.closest('button[data-do]'); if (!b) return; e.stopPropagation(); (b.dataset.do === 'photo' ? ctx.photo : ctx.menu)(); });
+    // (your car first: called to the kerb nearest you, it is the one way about the walk that is not in the street to be
+    // found, and in the menu alone nobody found it: the owner, November 2026)
+    acts.innerHTML = `${ctx.car ? `<button type="button" data-do="car" title="Call your car to the kerb nearest you"><i class="car" aria-hidden="true"></i><span>Your car</span>${ctx.touch ? '' : `<kbd>${ctx.key('C')}</kbd>`}</button>` : ''}<button type="button" data-do="photo"><i class="cam" aria-hidden="true"></i><span>Photograph</span>${ctx.touch ? '' : '<kbd>O</kbd>'}</button><button type="button" data-do="menu"><i class="menu" aria-hidden="true"></i><span>Hour · sky · story</span>${ctx.touch ? '' : '<kbd>Esc</kbd>'}</button>`;
+    acts.addEventListener('click', e => { const b = e.target.closest('button[data-do]'); if (!b) return; e.stopPropagation(); ({ car: ctx.car, photo: ctx.photo, menu: ctx.menu })[b.dataset.do](); });
+    const carBtn = acts.querySelector('[data-do="car"]');
     acts.addEventListener('pointerdown', e => e.stopPropagation());
     const keys = document.createElement('div');
     keys.id = 'g-walk-keys';
     ctx.stage.append(hud, acts, keys);
-    let shown = { where: '', t: '', em: '', g: '' }, keysT = 0, walked = 0, lastXY = null, mode = 'foot';
+    let shown = { where: '', t: '', em: '', g: '', q: '' }, keysT = 0, walked = 0, lastXY = null, mode = 'foot';
     const taught = new Set(); // (the ways of getting about whose keys have been shown on this walk: each once, the first time)
     // the keys at the foot of the frame: walking's as you set out, and a car's or the helicopter's the first time you are in one
     const K = k => `<kbd>${ctx.key(k)}</kbd>`;
@@ -136,8 +139,8 @@ window.OEWalk = (function () {
       if (m === 'heli') return ctx.touch ? '<span>Up and Down climb and descend</span><span>The stick flies and turns</span><span>Set down: tap Get out</span>'
         : `<span>${K('Space')}climb</span><span>${K('Shift')}descend</span><span>${K('W')}${K('S')}fly · slow</span><span>${K('A')}${K('D')}turn</span><span>${K('V')}view</span><span>${K('E')}get out, landed</span>`;
       return ctx.touch
-        ? '<span>The stick walks · drag to look</span><span>Top right: the camera · the hour, the sky, the story</span>'
-        : `<span>${K('W')}${K('A')}${K('S')}${K('D')}walk</span><span>${K('Shift')}run</span><span>${K('O')}photograph</span><span>${K('Esc')}the hour, the sky, the story</span>`;
+        ? '<span>The stick walks · drag to look</span><span>Top right: your car · the camera · the hour, the sky, the story</span>'
+        : `<span>${K('W')}${K('A')}${K('S')}${K('D')}walk</span><span>${K('Shift')}run</span><span>${K('E')}talk</span><span>${K('C')}your car</span><span>${K('O')}photograph</span><span>${K('Esc')}the hour, the sky, the story</span>`;
     };
     function begin() {
       ctx.stage.classList.add('walk-on');
@@ -163,15 +166,32 @@ window.OEWalk = (function () {
         if (!taught.has(mode)) { taught.add(mode); keys.innerHTML = keyLine(mode); keys.classList.add('on'); keysT = 0; walked = 0; lastXY = null; }
         else keys.classList.remove('on');
       }
-      shown = { where, t, em, g };
+      // your car's button on foot; and what someone on the walk asked of you (walktalk.js), with the metres to it
+      if (carBtn && carBtn.hidden !== (r.mode !== 'foot')) carBtn.hidden = r.mode !== 'foot';
+      const er = ctx.errand ? ctx.errand() : null;
+      const q = er && er.text ? `<span>${esc(er.text)}</span>${er.m != null ? `<i>${er.m < 950 ? `${Math.max(5, Math.round(er.m / 5) * 5)} m` : `${(er.m / 1000).toFixed(1)} km`}</i>` : ''}${er.key && !ctx.touch ? `<kbd>${esc(ctx.key(er.key))}</kbd>` : ''}` : '';
+      if (force || q !== shown.q) { const e = hud.querySelector('.q'); e.innerHTML = q; e.hidden = !q; }
+      shown = { where, t, em, g, q };
       if (keys.classList.contains('on')) {
         keysT += dt;
         if (at) { if (lastXY) walked += Math.hypot(at[0] - lastXY[0], at[1] - lastXY[1]); lastXY = at; }
         if ((keysT > 6 && walked > 25) || keysT > 16) keys.classList.remove('on');
       }
     }
+    // a story of the walk put away (walktalk.js): its name over the street for a few seconds, and how many are told
+    const told = document.createElement('div');
+    told.id = 'g-walk-told'; told.setAttribute('role', 'status');
+    ctx.stage.append(told);
+    let toldT = 0;
+    function tell(title, n, of) {
+      told.innerHTML = `<small>A story of the walk · ${n} of ${of}</small><b>${esc(title)}</b>`;
+      told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
+      clearTimeout(toldT); toldT = setTimeout(() => told.classList.remove('on'), 5200);
+    }
+    // what was asked done: the corner's line says so with a turn of its amber
+    function flash() { const e = hud.querySelector('.q'); e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
     return {
-      open, titleKey, begin, tick,
+      open, titleKey, begin, tick, told: tell, flash,
       get isOpen() { return isOpen; }, get walking() { return walking; }, get spec() { return spec; },
       // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
       takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },

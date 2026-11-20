@@ -1127,8 +1127,9 @@ from what a player wants of it, not from the old free game this map once had:
 - **What is not seen costs nothing.** It sets out where the story does, in the hero level, on foot, and offers nothing
   that sends you to the map's unfinished far corners; the map round you loads as you walk, as in the story.
 - **Never stuck, never lost.** Where and when you are sits in the goal's corner (the area's name, the minute, the date
-  and the sky); the keys once at the foot of the frame; at the top right the camera (photo mode) and the menu, which
-  has the hour, the sky and the story.
+  and the sky, and under them what someone on the walk asked of you, with the metres to it); the keys once at the foot of
+  the frame; at the top right your car, the camera (photo mode) and the menu, which has the hour, the sky and the
+  story.
 - **No page loaded again where one can be helped.** From the title the street on the card is the street walked. From
   the last card the walk is taken up where the case ended: the card fades off the street, the score lets go into the
   street's own sound over a few bars, the evening's people leave once the lens no longer has them (never in view), the
@@ -1198,6 +1199,56 @@ steal); *Mafia: Definitive Edition*'s Free Ride and *Cyberpunk 2077*'s own car c
 *Red Dead Redemption 2*'s horse that comes when whistled but is otherwise where you left it (the car stays where it is
 parked); *Forza Horizon*'s and the flight simulators' instruments reduced to what the moment needs (one line under the
 hour); the contextual prompts already used by the story (shown when the action is possible).
+
+**Your car in plain sight (November 2026).** The owner found the car's call too well hidden: it was a line in the menu,
+and a player who did not open the menu never learnt the car would come. Now it is the first of the walk's buttons at the
+top right (*Your car*, with C on a keyboard; on a phone its icon over the camera's), shown whenever you are on foot, and
+C is in the keys' line as you set out. Called, it does not appear at the kerb: it comes up the kerb's lane over the last
+twenty metres, in at 30 km/h and slowing evenly, and stops beside you with a toot (`game.js` `bringCar`, `carComing`),
+as the cars that come when called in *Cyberpunk 2077* and *Mafia* arrive rather than appear. Where there is no room to
+come from (traffic there, a wall), it stands at the kerb at once, as before. Mr Oda's story (below) sends you to it.
+
+**People with something to say (November 2026).** The owner asked for the walk to have people to talk to, with stories,
+and a speech mark over those who can talk, as the big open-world games do. Worked from first principles:
+
+- *A street with nobody to talk to is a set.* What makes a crossing a place is its people, and the walk had only the
+  crowd going by. So a few people of this evening stand where they would: Mei, waiting at Hachiko for a friend who is
+  late; Riko, the friend, waiting at the station's Hachiko exit across the crossing; Mr Oda, a taxi driver on his break
+  with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; and on the roof Taro, and Aoi at the
+  arch, with a word in passing.
+- *Small stories in parts, each asking one thing the walk can do.* Mei's (*Which Hachiko*) crosses the scramble on the
+  green, twice; Mr Oda's (*Once round by car*) drives your car to 109; Shun's (*The shot everyone takes*) is a photograph
+  of the crossing from in it or from high up; Yuna's (*Forty-five floors*) is the lift to the roof. So the side stories
+  are how the walk's ways about are found, as an open world's first side quests teach its systems.
+- *Nothing of the case in any of them.* Walked before the story they spoil nothing; walked after, they undo nothing.
+  Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
+  about, without a word of it.
+- *Found, never owed.* A speech mark over the head of whoever has something to say: amber, its dots breathing, while they
+  have a part of a story for you (seen from about forty metres), pale for a word in passing (from eighteen); their name
+  and what they are under it once you are within eleven metres. E (or a tap on the prompt) beside them opens the talk in
+  the story's own box, with the story's conversation camera cutting between you. What they asked sits under the hour in
+  the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
+  sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
+  the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
+  1 of 4*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward.
+- *The street talks too.* The overheard lines of the crossing (`game.json` `chatter`: *Meet at Hachiko? Everyone says
+  that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles.
+
+What the games that do this do, and what was taken (design only; nothing of their look, words or code): the *Yakuza* /
+*Like a Dragon* series' substories, short comic or touching stories in two or three beats met in the street, which
+teach the city's pastimes; *Red Dead Redemption 2*'s strangers, met where they live, whose stories go on when you come
+back; *The Witcher 3*'s and *Ghost of Tsushima*'s marks over whoever has something for you, which appear as you near
+them rather than on a map; *Persona 5*'s and *The World Ends with You*'s Shibuya, where the crowd's own words float over
+it as you pass. Adopted: a story in parts met in the street, each part one thing to do with what the walk already has;
+a mark that shows only near and fades by distance; the corner's one line for what was asked; the overheard words over
+the crowd. Not adopted: a map of marks, a quest log, rewards, or a mark over every passer-by (the crossing has hundreds,
+and a mark on each says nothing).
+
+On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
+`game.walk` (the people's parts, their lines and what each asks: `talk`, `go`, `drive`, `up`, `photo`, `meet`), the
+walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither drawn nor loaded nor in the crowd's
+way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
+its end and calls the car from the corner.
 
 On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
 `walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of

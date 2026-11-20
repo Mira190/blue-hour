@@ -263,7 +263,10 @@ float farN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f
     mat.customProgramCacheKey = () => 'farland';
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = 'far-land';
-    mesh.renderOrder = -1;
+    // (drawn after the city's own opaque surfaces, so that what the streets and the buildings hide of it is rejected by
+    // its depth before its shading runs: drawn first, every pixel of it behind the city was shaded and then painted over,
+    // a sixth of a street-level frame on a GPU without hidden-surface removal. Opaque and depth-tested, it looks the same)
+    mesh.renderOrder = 2;
     mesh.frustumCulled = false;
     console.info(`far land: ${tris.toLocaleString()} triangles, relief to ${meta.relief_m[1]} m`);
     return {

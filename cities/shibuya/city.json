@@ -830,8 +830,240 @@
           "Forty years a regular. The water's hotter on the men's side, they say on the women's side.",
           "A bath, then a cold milk from the machine. That's the rule."
         ]
+      },
+      {
+        "id": "mei",
+        "name": "Mei 芽衣",
+        "role": "Waiting at Hachiko ハチ公前",
+        "at": [
+          379.0,
+          -1043.5
+        ],
+        "walk": true,
+        "look": {
+          "character": "R_Female_Adult_12_f013",
+          "skin": "#f1cbb0",
+          "hair": "#1e1612",
+          "top": "#5d6b7a",
+          "legs": "#2c2f36",
+          "shirt": "#5d6b7a",
+          "pants": "#2c2f36",
+          "clip": "LookAround"
+        },
+        "idle": [
+          "She said Hachiko. Which side of Hachiko, though?"
+        ]
+      },
+      {
+        "id": "riko",
+        "name": "Riko 莉子",
+        "role": "Waiting at the other Hachiko",
+        "at": [
+          357.0,
+          -976.5
+        ],
+        "walk": true,
+        "look": {
+          "character": "R_Female_Adult_17_f011",
+          "skin": "#efc6a8",
+          "hair": "#2a1c14",
+          "top": "#c49a2c",
+          "legs": "#2b2a2e",
+          "shirt": "#c49a2c",
+          "pants": "#2b2a2e",
+          "clip": "Phone"
+        },
+        "idle": [
+          "Twenty minutes at Hachiko. The exit, I mean."
+        ]
+      },
+      {
+        "id": "oda",
+        "name": "Mr Oda 小田さん",
+        "role": "Taxi driver, on his break タクシー運転手",
+        "at": [
+          389.0,
+          -1058.0
+        ],
+        "walk": true,
+        "look": {
+          "character": "R_Male_Adult_13_m008_grey",
+          "skin": "#e2b392",
+          "hair": "#bdb8b2",
+          "top": "#2f3440",
+          "legs": "#2a2e36",
+          "shirt": "#2f3440",
+          "pants": "#2a2e36",
+          "clip": "Drink"
+        },
+        "idle": [
+          "Twenty-two years on these streets. Canned coffee, hot, from the machine. That's the rule."
+        ]
       }
     ],
+    "walk": {
+      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): a few of this evening's locals, each with a small story in parts, each part asking one thing the walk can do. Nothing of the case is in any of them. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it); meet: someone who, unseen, goes to stand by the next part's speaker.",
+      "people": [
+        {
+          "id": "hachiko",
+          "npc": "mei",
+          "title": "Which Hachiko",
+          "parts": [
+            {
+              "lines": [
+                "Sorry, have you seen a girl in a mustard coat? Riko. Short hair, a bag from 109.",
+                "She said Hachiko. My phone died on the Ginza Line.",
+                "If you see her across the crossing, tell her I'm by the dog. The bronze one."
+              ],
+              "then": {
+                "talk": "riko",
+                "goal": "Find Riko across the crossing, in a mustard coat"
+              }
+            },
+            {
+              "npc": "riko",
+              "lines": [
+                "Mei? I've been at Hachiko for twenty minutes.",
+                "The Hachiko exit. The station's. Oh, no. She means the dog.",
+                "Tell her I'm coming round. I'll take the lights."
+              ],
+              "then": {
+                "talk": "mei",
+                "meet": "riko",
+                "goal": "Back across the crossing to Mei, by the dog"
+              }
+            },
+            {
+              "lines": [
+                "There she is.",
+                {
+                  "npc": "riko",
+                  "text": "You said Hachiko!"
+                },
+                "I did. The dog.",
+                {
+                  "npc": "riko",
+                  "text": "Three years in Tokyo, and I still wait at the wrong one."
+                },
+                "Thank you. We'd have stood all night on two sides of one name."
+              ]
+            }
+          ],
+          "after": [
+            "Everyone says meet at Hachiko. Nobody says which one.",
+            "We're going for ramen. She's paying, for the wrong Hachiko."
+          ]
+        },
+        {
+          "id": "taxi",
+          "npc": "oda",
+          "title": "Once round by car",
+          "parts": [
+            {
+              "lines": [
+                "Twenty-two years on these streets. On foot you only see the bottoms of the signs.",
+                "Take your car up to 109 once, where Dogenzaka forks. At night it's another town.",
+                "Yours is at a kerb somewhere, isn't it? It'll come to you."
+              ],
+              "then": {
+                "drive": [
+                  268.0,
+                  -998.6
+                ],
+                "r": 35,
+                "goal": "Drive to 109, at the foot of Dogenzaka",
+                "key": "C"
+              }
+            },
+            {
+              "lines": [
+                "Well?",
+                "109 lit up at the fork, the two roads going up either side of it like a ship's wake.",
+                "On the way back, mind the scramble. Green there means the people, not you."
+              ]
+            }
+          ],
+          "after": [
+            "Drivers here wait for the scramble like everyone else. Four ways at once, then us.",
+            "The rank's quiet till the last trains. Then everyone wants to go to Setagaya."
+          ]
+        },
+        {
+          "id": "shot",
+          "npc": "shun",
+          "title": "The shot everyone takes",
+          "parts": [
+            {
+              "lines": [
+                "That's a working camera on your chest. Not a phone on a strap.",
+                "Everybody shoots the crossing from the café upstairs. The same picture, ten thousand times a day.",
+                "Bring me a different one. From right in it, on the green. Or from somewhere higher than the café."
+              ],
+              "then": {
+                "photo": [
+                  368.0,
+                  -1002.0,
+                  15.0
+                ],
+                "r": 24,
+                "above": 40,
+                "goal": "Photograph the crossing: from in it, or from high up",
+                "key": "O"
+              }
+            },
+            {
+              "lines": [
+                "Let me see.",
+                "Huh. Nobody in it is looking at the camera.",
+                "That's the one. Everyone else's has somebody doing a peace sign."
+              ]
+            }
+          ],
+          "after": [
+            "Center Gai never sleeps. It does get quieter around five in the morning.",
+            "Old cameras come in with the coats. People forget what's in the pockets."
+          ]
+        },
+        {
+          "id": "roof",
+          "npc": "yuna",
+          "title": "Forty-five floors",
+          "parts": [
+            {
+              "lines": [
+                "Going up? The roof is open tonight.",
+                "Forty-five floors in the lift, then an escalator out into the air.",
+                "Mind your hat at the edge. Come and tell me what you saw."
+              ],
+              "then": {
+                "up": 200,
+                "goal": "Up to the roof: the lift is behind Yuna"
+              }
+            },
+            {
+              "lines": [
+                "You're back. People always come down quieter than they went up.",
+                "What I like is the crossing from up there. All those people, and not a sound."
+              ]
+            }
+          ],
+          "after": [
+            "The roof closes in strong wind or lightning. Tonight: {sun_line}",
+            "You take people up, and you bring them down. That's the job."
+          ]
+        }
+      ],
+      "chat": {
+        "taro": [
+          "From up here the scramble is a clock face: everyone waits, then everyone goes.",
+          "{sun_line}"
+        ],
+        "aoi": [
+          "Shibuya's scramble at {time}. {sun_line}",
+          "Stand on one corner for a whole change of the lights, just once. Everyone should."
+        ]
+      }
+    },
     "lines": [
       {
         "id": "start",

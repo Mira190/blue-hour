@@ -1401,6 +1401,9 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
       }));
       m.material.onBeforeCompile = gradePhoto;
       m.receiveShadow = true;
+      // (after the nearer opaque surfaces, the far land after it: what a hero level's paving, a street's kerbs and the
+      // buildings cover of the aerial photograph is rejected by its depth instead of shaded and painted over)
+      m.renderOrder = 1;
       world.add(m);
       groundMeshes.push(m);
     });
