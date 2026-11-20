@@ -191,8 +191,8 @@ licensed; the ideas only, no code):
   computed again). A browser check reads its harness and whatever the page fetches from the server `tools/check.sh`
   starts, and the server's log names every file. After a pass `tools/check_cache.py` keeps, in the clone's git
   directory (`.git/oe-check-cache/`, never committed, so a fresh session starts with none), the list of those files with
-  a hash of their bytes, the harness's files (the scripts and every module they require), `tools/check.sh`, the
-  story's `city.json`, and the settings that steer a run (`GAME_TIME`, `DRAW`, `AT` and the like). The next run plays the
+  a hash of their bytes, the harness's files (the scripts and every module they require), the functions `tools/check.sh`
+  runs it with (a change to the router or a comment keeps the pass), the story's `city.json`, and the settings that steer a run (`GAME_TIME`, `DRAW`, `AT` and the like). The next run plays the
   check only if any of that changed. A file the page asked for and did not get is kept as missing, so adding it counts.
   A file edited while the check ran keeps the pass from being kept. A run against a server it did not start (no log)
   keeps nothing. The page reads the same files for the same bytes because its clock is pinned and its draws are

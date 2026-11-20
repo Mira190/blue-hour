@@ -341,6 +341,8 @@ parts() {   # the parts of the shared models loaded before playable and after, a
 cache_on() { [ "${CHECK_CACHE:-1}" != 0 ] && [ -z "${CHECK_FULL:-}" ] && [ "$TIER" != full ]; }
 run_one() {
   local k=$1 t0 n0=0 hit res
+  # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
+  CHECK_FN=$(declare -f "run_$k" story_part walk_on twice why fails_of | sha1sum | cut -c1-16) && export CHECK_FN
   if cache_on && hit=$(python3 tools/check_cache.py hit "$k"); then
     printf 'ok   %-6s kept from its pass at %s: nothing it read has changed since (CHECK_CACHE=0 plays it again)\n' "$k" "$hit"
     return 0
@@ -376,7 +378,7 @@ run_one() {
     echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"
   fi
   for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done
-  [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", NR > 1 ? ", " : "", $1, $2; t += $2 } END { printf "; %d min in all", (t + 30) / 60 }' "$OUT/times.txt")"
+  [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", (NR > 1 ? ", " : ""), $1, $2; t += $2 } END { printf "; %d min in all", (t + 30) / 60 }' "$OUT/times.txt")"
 } | tee "$OUT/summary.txt"
 grep -q '^FAIL' "$OUT/summary.txt" && exit 1
 stamp "$@"

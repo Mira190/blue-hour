@@ -2,8 +2,8 @@
 """What each of tools/check.sh's browser checks read, and a pass kept for as long as all of it is as it was
 (docs/CHECKS.md, "The router and the cache").
 
-A browser check reads three things: its own harness (tools/<check>.js and the modules it requires), tools/check.sh,
-and the files the page fetched from the server check.sh started. The server's log says which files those were, so
+A browser check reads three things: its own harness (tools/<check>.js and the modules it requires), the function
+tools/check.sh runs it with, and the files the page fetched from the server check.sh started. The server's log says which files those were, so
 after a pass this keeps, in the clone's git directory, the list of them and a hash of their bytes. The next run asks
 first: when every file on the list (and every harness file, and the settings that steer the check) is byte for byte
 as it was, the check would play the same page and is not run again. A file the page asked for and did not get (a 404)
@@ -38,8 +38,9 @@ HARNESS = {
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'game': ['tools/game_check.js'],
 }
 EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3')}  # (story_play.js reads it)
-# the settings a run takes from the environment that change what it plays or measures
-ENV = ['GAME_TIME', 'DRAW', 'GPU', 'AT', 'PIN', 'TIER', 'QUERY', 'LIMIT', 'MEM_GPU', 'MEM_HEAP', 'MEM_DESK', 'LOOK_BASE',
+# the settings a run takes from the environment that change what it plays or measures (CHECK_FN: a hash of the
+# functions tools/check.sh runs the target with)
+ENV = ['CHECK_FN', 'GAME_TIME', 'DRAW', 'GPU', 'AT', 'PIN', 'TIER', 'QUERY', 'LIMIT', 'MEM_GPU', 'MEM_HEAP', 'MEM_DESK', 'LOOK_BASE',
        'STILLS', 'Q', 'WALK', 'START']
 LOG = re.compile(r'"(?:GET|HEAD) (\S+) HTTP/[\d.]+" (\d{3})')
 
@@ -70,7 +71,7 @@ def closure(scripts):
 
 
 def harness(target):
-    return closure(HARNESS.get(target, [])) + ['tools/check.sh'] + EXTRA.get(target, [])
+    return closure(HARNESS.get(target, [])) + EXTRA.get(target, [])
 
 
 def digest(path):

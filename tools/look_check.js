@@ -192,7 +192,7 @@ window.lookReady = true;
     }
   }
   for (const e of errors) { bad++; console.log(`FAIL pageerror: ${e}`); }
-  console.log(`looked at ${files.length} files in ${((Date.now() - t0) / 1000).toFixed(0)} s${stills ? `, stills in ${out}` : ''}: ${bad ? `${bad} failed` : 'all loaded'}`);
+  console.log(`looked at ${files.length} file${files.length === 1 ? '' : 's'} in ${((Date.now() - t0) / 1000).toFixed(0)} s${stills ? `, stills in ${out}` : ''}: ${bad ? `${bad} failed` : 'all loaded'}`);
   await b.close();
   process.exit(bad ? 1 : 0);
 })();
