@@ -30,7 +30,7 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEX_DIR = os.path.join(ROOT, "data", "raw", "hero_tex")
-UA = {"User-Agent": "open-earth-3d (https://github.com/Mira190/open-earth-3d)"}
+UA = {"User-Agent": "blue-hour (https://github.com/Mira190/blue-hour)"}
 
 # CC0 materials (ambientCG, https://ambientcg.com, CC0 1.0): id, metres one repeat covers
 TEXTURES = {
