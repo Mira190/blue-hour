@@ -1,0 +1,64 @@
+{
+ "_": "Walk Shibuya's film (docs/TRAILER.md): the map with no story in it, the city that never sleeps, from the blue hour into a stormy night (by night: the owner's ask, November 2026; by day the city's models read as models). No face near the lens: the city, its lights, its landmarks and its crowd at a distance. tools/trailer.js films it, tools/trailer/score.js scores it.",
+ "name": "walk-shibuya",
+ "date": [10, 10],
+ "size": "1920x804",
+ "fps": 24,
+ "grain": 3,
+ "score": {"root": 52, "scale": [0, 2, 4, 6, 7, 9, 11], "events": [{"at": "w_open", "kind": "drone", "until": "w_c_build", "note": 28, "gain": 0.05, "fade": 2.5, "cut": 220, "open": 400}, {"at": "w_open@0.1", "kind": "boom", "gain": 0.35}, {"at": "w_open+0.6", "kind": "city", "until": "w_air@0.9", "gain": 0.05, "fade": 2}, {"at": "w_air", "kind": "arp", "until": "w_c_build", "bpm": 76, "div": 2, "notes": [52, 59, 64, 68, 71, 68, 64, 59], "vel": 0.24, "from": 0.5}, {"at": "w_air", "kind": "strings", "dur": 7, "gain": 0.13, "notes": [40, 47, 56], "attack": 2.5}, {"at": "w_c_build", "kind": "boom", "gain": 0.55}, {"at": "w_c_build", "kind": "piano", "notes": [40, 47, 56, 63], "every": 0.04, "vel": 0.42, "len": 6}, {"at": "w_lapse", "kind": "strings", "dur": 7.2, "gain": 0.2, "notes": [44, 51, 58, 63], "attack": 3}, {"at": "w_lapse+1", "kind": "choir", "dur": 6.2, "gain": 0.14, "notes": [56, 63, 68], "attack": 3}, {"at": "w_lapse+0.5", "kind": "motif", "degrees": [4, 2, 1, 0, 2], "every": 1.2, "oct": 1, "vel": 0.34, "len": 6}, {"at": "w_lapse+2.5", "kind": "riser", "until": "w_c_hour", "gain": 0.22, "top": 6000}, {"at": "w_c_hour", "kind": "hit", "gain": 0.75, "metal": 66}, {"at": "w_c_hour", "kind": "braam", "dur": 1.8, "gain": 0.3, "note": 28, "bright": 900}, {"at": "w_scramble", "kind": "arp", "until": "w_c_sky", "bpm": 112, "div": 2, "notes": [64, 71, 68, 71, 73, 71, 68, 71], "vel": 0.2, "from": 0.6}, {"at": "w_scramble", "kind": "pulse", "until": "w_c_sky", "bpm": 112, "gain": 0.12, "notes": [40, 40, 40, 47], "cut": 400, "open": 2200}, {"at": "w_scramble@0.12", "kind": "chirp", "until": "w_hachiko+2", "gain": 0.045, "cuckoo": true}, {"at": "w_scramble", "kind": "city", "until": "w_c_sky", "gain": 0.04, "fade": 1}, {"at": "w_hachiko", "kind": "strings", "dur": 4.2, "gain": 0.16, "notes": [49, 56, 61], "attack": 1.2}, {"at": "w_hachiko+0.3", "kind": "motif", "degrees": [4, 2, 1, 0], "every": 0.75, "oct": 2, "vel": 0.26, "len": 5}, {"at": "w_qfront", "kind": "drums", "until": "w_c_sky", "bpm": 112, "gain": 0.55, "from": 0.3, "pattern": "T..t T... T..t T.t."}, {"at": "w_qfront", "kind": "whoosh", "dur": 1.6, "gain": 0.12}, {"at": "w_gai+1.5", "kind": "riser", "until": "w_c_sky", "gain": 0.26}, {"at": "w_c_sky", "kind": "braam", "dur": 2.8, "gain": 0.7, "note": 28, "bright": 1800}, {"at": "w_c_sky", "kind": "hit", "gain": 0.85, "metal": 58}, {"at": "w_rain", "kind": "rain", "until": "w_heli", "gain": 0.12, "fade": 0.5}, {"at": "w_rain", "kind": "drums", "until": "w_sky", "bpm": 112, "gain": 0.9, "from": 0.55, "snare": true}, {"at": "w_rain", "kind": "pulse", "until": "w_sky", "bpm": 112, "gain": 0.2, "cut": 600, "open": 3600, "notes": [40, 40, 47, 40, 42, 42, 49, 42]}, {"at": "w_rain", "kind": "strings", "dur": 8.6, "gain": 0.17, "notes": [44, 51, 56, 63], "attack": 2}, {"at": "w_storm@0.22", "kind": "thunder", "gain": 0.85}, {"at": "w_storm@0.7", "kind": "thunder", "gain": 0.6}, {"at": "w_storm", "kind": "braam", "dur": 2.0, "gain": 0.45, "note": 28}, {"at": "w_heli", "kind": "whoosh", "dur": 2.0, "gain": 0.3, "pan": 0.4}, {"at": "w_heli", "kind": "braam", "dur": 1.8, "gain": 0.42, "note": 32}, {"at": "w_heli+1", "kind": "riser", "until": "w_sky", "gain": 0.3}, {"at": "w_sky", "kind": "hit", "gain": 0.9, "metal": 60}, {"at": "w_sky", "kind": "choir", "dur": 5.8, "gain": 0.3, "notes": [56, 63, 68, 70], "attack": 1.0}, {"at": "w_sky", "kind": "strings", "dur": 5.8, "gain": 0.26, "notes": [40, 47, 56, 63, 68], "attack": 0.8}, {"at": "w_finale", "kind": "braam", "dur": 4.0, "gain": 0.55, "note": 28, "bright": 1400, "peak": 0.8}, {"at": "w_finale", "kind": "choir", "dur": 8.6, "gain": 0.34, "notes": [58, 65, 70, 75], "attack": 1.5}, {"at": "w_finale", "kind": "strings", "dur": 8.6, "gain": 0.3, "notes": [42, 49, 58, 65], "attack": 1.0}, {"at": "w_finale", "kind": "drums", "until": "w_hush", "bpm": 112, "gain": 0.9, "from": 0.7, "pattern": "T.T. T.t. T.T. TTtt", "snare": true}, {"at": "w_finale+0.3", "kind": "motif", "degrees": [4, 2, 1, 0, 2], "every": 1.0, "oct": 2, "vel": 0.42, "len": 6}, {"at": "w_finale+3", "kind": "riser", "until": "w_hush", "gain": 0.38}, {"at": "w_title", "kind": "hit", "gain": 1.0, "metal": 64}, {"at": "w_title", "kind": "braam", "dur": 5.2, "gain": 0.8, "note": 28, "bright": 1900, "peak": 0.5}, {"at": "w_title", "kind": "strings", "dur": 5.4, "gain": 0.2, "notes": [40, 47, 56, 63], "attack": 0.3, "release": 3}, {"at": "w_title+0.5", "kind": "shimmer", "until": "w_end+2", "gain": 0.03}, {"at": "w_end", "kind": "boom", "gain": 0.4}, {"at": "w_end+0.3", "kind": "motif", "degrees": [4, 2, 1, 0], "every": 0.9, "oct": 1, "vel": 0.3, "len": 6}]},
+ "shots": [
+  {"id": "w_open", "dur": 3.0, "type": "card",
+   "text": [{"kind": "card", "at": 0.1, "until": 0.92, "eyebrow": "Tokyo · 35.66° N 139.70° E", "text": "Shibuya", "big": true, "fade": 0.7}]},
+
+  {"id": "w_air", "dur": 6.5, "type": "move", "from": [290.0, -1335.0, 300.0, "abs"], "to": [370.0, -1275.0, 278.0, "abs"], "look": [530.0, -1050.0, 110.0, "abs"], "fov": 40, "ease": "inOut", "grade": {"ev": 0.35},
+   "time": {"light": "night", "plus": 10}, "fadeIn": 1.2, "stand": [372.0, -1002.0, 0],
+   "text": [{"kind": "stamp", "at": 0.2, "until": 0.9, "text": "Shibuya, Tokyo", "line": "after dark"}]},
+
+  {"id": "w_c_build", "dur": 2.6, "type": "card", "text": [{"kind": "card", "at": 0.05, "until": 0.95, "eyebrow": "Measured from open data", "text": "48,000 buildings", "fade": 0.4}]},
+
+  {"id": "w_lapse", "dur": 7.0, "type": "move", "from": ["@shibuya_sky", -11.6, 24.6, 2.4], "to": ["@shibuya_sky", -14.2, 28.2, 2.1], "lookFrom": ["@scramble", -420, 320, 110], "lookTo": ["@scramble", -170, 140, 60], "fov": [40, 46], "ease": "inOut",
+   "time": [{"light": "blue", "plus": -2}, {"light": "night", "plus": 15}], "stand": ["@shibuya_sky", -8.0, 20.0, 0]},
+
+  {"id": "w_c_hour", "dur": 2.4, "type": "card", "text": [{"kind": "card", "at": 0.05, "until": 0.94, "eyebrow": "不夜城", "text": "The city that never sleeps", "fade": 0.3}]},
+
+  {"id": "w_scramble", "dur": 5.5, "type": "orbit", "at": ["@scramble", 0, 0, 0], "az": [214, 242], "dist": [56, 44], "h": [46, 36], "fov": 44, "ease": "glide", "time": {"light": "night", "plus": -5},
+   "crowd": "muster", "signal": [[0, "red"], [0.12, "green"]], "preroll": 0.5, "blur": 0.25},
+
+  {"id": "w_hachiko", "dur": 4.0, "type": "orbit", "at": ["@hachiko", 0, 0, 1.0], "az": [96, 122], "dist": [7.5, 6.6], "h": [0.45, 0.6], "look": ["@hachiko", 0, 0, 1.55], "fov": 30, "ease": "linear", "time": {"light": "night", "plus": 0},
+   "crowd": {"at": ["@hachiko", 0, 0, 0], "r": 45, "n": 160, "clear": 4}, "clear": [40, 9, 2.5], "preroll": 1.0, "stand": ["@hachiko", 3, 0, 0],
+   "dof": {"focus": ["@hachiko", 0, 0, 1.5], "fstop": 2.0},
+   "text": [{"kind": "stamp", "at": 0.15, "until": 0.92, "text": "Hachiko · 忠犬ハチ公", "line": "he waited here nine years"}]},
+
+  {"id": "w_qfront", "dur": 3.5, "type": "move", "from": [374.0, -992.0, 2.5], "to": [373.0, -991.0, 13.0], "look": [349.7, -956.4, 34.0], "fov": 38, "ease": "inOut", "time": {"light": "night", "plus": 5},
+   "crowd": "muster", "signal": [[0, "green"]], "preroll": 3.0, "clear": [30, 8, 3.0], "blur": 0.2},
+
+  {"id": "w_gai", "dur": 4.5, "type": "move", "from": [349.5, -983.5, 4.2], "to": [343.5, -977.6, 4.0], "look": [316.0, -950.0, 3.6], "fov": 40, "ease": "linear", "time": {"light": "night", "plus": 10},
+   "crowd": {"at": [330.0, -964.0, 0], "r": 45, "n": 320, "clear": 3}, "preroll": 1.5, "stand": [338.0, -972.0, 0], "clear": [30, 4, 2.5], "blur": 0.2,
+   "text": [{"kind": "stamp", "at": 0.15, "until": 0.9, "text": "Center Gai · センター街", "line": "after dark"}]},
+
+  {"id": "w_c_sky", "dur": 1.6, "type": "card", "text": [{"kind": "card", "at": 0.05, "until": 0.94, "text": "Any sky", "fade": 0.25}]},
+
+  {"id": "w_rain", "dur": 4.5, "type": "move", "from": [388.0, -1020.0, 9.0], "to": [386.5, -1018.0, 8.0], "look": [355.0, -978.0, 4.0], "fov": 40, "ease": "linear", "time": {"light": "night", "plus": 15},
+   "weather": "rain", "crowd": "muster", "signal": [[0, "green"]], "preroll": 3.0, "stand": [372.0, -1002.0, 0], "clear": [30, 10, 3.0], "blur": 0.2},
+
+  {"id": "w_storm", "dur": 4.0, "type": "move", "from": [364.0, -990.0, 84.0], "to": [367.0, -994.0, 82.0], "look": [580.0, -1150.0, 140.0, "abs"], "fov": 44, "time": {"light": "night", "plus": 20}, "grade": {"ev": 0.3},
+   "weather": "storm", "strikes": [[0.22, {"dist": 1500, "bearing": 128, "ground": true}], [0.7, {"dist": 2600, "bearing": 112, "ground": false}]], "stand": [372.0, -1002.0, 0]},
+
+  {"id": "w_heli", "dur": 4.0, "type": "move", "from": [330.0, -1210.0, 212.0, "abs"], "to": [400.0, -1176.0, 216.0, "abs"], "fov": 34, "ease": "linear", "time": {"light": "night", "plus": 25},
+   "heli": {"from": [330.0, -1168.0, 214.0, 62, 6, -6], "to": [440.0, -1110.0, 220.0, 62, 6, -6]}, "lookHeli": true, "stand": [372.0, -1002.0, 0], "blur": 0.4},
+
+  {"id": "w_sky", "dur": 6.5, "type": "move", "from": ["@shibuya_sky", -8.0, 18.0, 1.7], "to": ["@shibuya_sky", -26.0, 42.0, 5.0], "lookFrom": ["@scramble", -500, 420, 140], "lookTo": ["@scramble", 0, 0, 0], "fov": [44, 52], "ease": "inOut", "time": {"light": "night", "plus": 30}, "grade": {"ev": 0.3},
+   "stand": ["@shibuya_sky", -8.0, 20.0, 0]},
+
+  {"id": "w_finale", "dur": 9.5, "type": "orbit", "at": ["@scramble", 0, 0, 0], "az": [150, 206], "dist": [80, 820], "h": [52, 600], "fov": [42, 36], "ease": "inOut", "time": {"light": "night", "plus": 35}, "grade": {"ev": [[0, 0.1], [1, 0.35]]},
+   "crowd": "muster", "signal": [[0, "green"]], "preroll": 3.0, "fadeOut": 0.6},
+
+  {"id": "w_hush", "dur": 0.8, "type": "card", "text": []},
+
+  {"id": "w_title", "dur": 5.5, "type": "card",
+   "text": [{"kind": "title", "at": 0.02, "until": 0.94, "text": "Walk Shibuya", "jp": "渋谷", "line": "After dark · Any sky · On foot", "fadeIn": 0.08, "fadeOut": 0.7, "blur": 1.2, "zoom": 0.05}]},
+
+  {"id": "w_end", "dur": 5.0, "type": "card",
+   "text": [{"kind": "end", "at": 0.06, "until": 0.95, "text": "Walk Shibuya", "line": "Play it in your browser", "lines": ["The Shibuya Scramble and the city round it, rebuilt from open data", "On a desktop and on a phone"], "fade": 0.6}]}
+ ]
+}
