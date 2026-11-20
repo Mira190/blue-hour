@@ -1096,7 +1096,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function mateSlot(L, k, n, hw, dense) {
       if (L.stop) return { lat: L.stop.lat, back: (k % 2 ? 1 : -1) * MATE * Math.ceil(k / 2) };
       const ll = L.lat ?? L.side, sp = MATE - (MATE - MATE_DENSE) * dense;
-      const cols = Math.max(1, Math.min(n, Math.floor((ll + hw - 0.3) / sp) + 1)), col = k % cols, row = Math.floor(k / cols);
+      const cols = dense > 0.7 ? 1 : Math.max(1, Math.min(n, Math.floor((ll + hw - 0.3) / sp) + 1)), col = k % cols, row = Math.floor(k / cols); // (in a press, single file)
       const bend = col > 0 && col < cols - 1 ? 0.5 : cols === 2 && col === 1 ? 0.2 : 0;
       return { lat: ll - col * sp, back: row * 0.9 + bend * dense };
     }
@@ -1152,8 +1152,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       } else if (g) {
         const ax = -g.oy, ay = g.ox, u = Math.ceil(k / 2), sd = k % 2 ? 1 : -1;
         for (const [a, b] of [[sd * u, 0], [-sd * u, 0], [0, k], [sd, 1]]) {
-          out.x = T.x + ax * a * 0.72 + g.ox * b * 0.75; out.y = T.y + ay * a * 0.72 + g.oy * b * 0.75;
-          if (standOk(out.x, out.y, z, road) && slotFree(q, out.x, out.y, 0.65)) return out;
+          out.x = T.x + ax * a * 0.85 + g.ox * b * 0.8; out.y = T.y + ay * a * 0.85 + g.oy * b * 0.8;
+          if (standOk(out.x, out.y, z, road) && slotFree(q, out.x, out.y, 0.8)) return out;
         }
       }
       out.x = T.x + Math.sin(k * 2.1) * 0.72; out.y = T.y + Math.cos(k * 2.1) * 0.72;
@@ -1535,6 +1535,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const k = bucket(Math.floor(q.x / CELL), Math.floor(q.y / CELL));
         chain[i] = head[k]; head[k] = i; q.hashed = stepNo;
       }
+      // groups part (a leader turns off, a mate falls behind) and were only made where someone comes out, so over a few
+      // minutes their share sank from half to a quarter: now and then someone walking alone is joined, out of sight, by
+      // people who were walking alone out of sight (formGroup puts none of them where the camera sees)
+      if (frame % 20 === 7 && api.active > 8) for (let k = 0; k < 2; k++) {
+        const L = P[Math.floor(rnd() * api.active)];
+        if (L.lead < 0 && !L.mates && !L.seat && !L.stop && L.line >= 0) formGroup(L, true);
+      }
       // (api.fresh: the hour was set, not reached: those who come out with it are put anywhere, near the player too, as
       // when the game opens. A cut to lunchtime that put the lunch crowd only out of sight left the player's square empty)
       // The same on the crowd's first step. It was `t < 1`, the game's first second, but the title card holds the crowd
@@ -1650,14 +1657,17 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // one of a group: across the way at its place by the leader, along it by its pace; a leader holds back for its mates
       let gcap = Infinity;
       if (G) {
-        const n = 1 + (G.mates ? G.mates.length : 1), dense = Math.max(0, Math.min(1, (nn - 8) / 24));
+        // (held up, by people coming the other way or a kerb's crowd: into single file behind the leader, and out of the
+        // way as anyone alone would be; a group abreast met head on had blocked a footway a minute)
+        const jam = (p.slow || 0) > 0.4 || (p.still || 0) > 0.2 || (G.slow || 0) > 0.4 || (G.still || 0) > 0.2;
+        const n = 1 + (G.mates ? G.mates.length : 1), dense = jam ? 1 : Math.max(0, Math.min(1, (nn - 8) / 24));
         const sl = mateSlot(G, p.gk || 1, n, hw, dense), along = (G.x - p.x) * hx + (G.y - p.y) * hy;
-        if (G.line === p.line && G.dir === p.dir) want = Math.max(-hw + 0.3, Math.min(Math.max(hw, side) + 0.2, sl.lat + p.dodge * 0.5));
+        if (G.line === p.line && G.dir === p.dir) want = Math.max(-hw + 0.3, Math.min(Math.max(hw, side) + 0.2, sl.lat + p.dodge * (jam ? 1 : 0.5)));
         const err = along - sl.back;
-        gcap = Math.max(G.line === p.line ? 0 : 0.3, (G.v || 0) + Math.max(-1, Math.min(0.8, err * 1.5)));
+        gcap = Math.max(G.line === p.line && !(nn > 8) ? 0 : 0.3, (G.v || 0) + Math.max(-1, Math.min(0.8, err * 1.5))); // (in a crowd never stood still in its way)
         if (G.pause > 0 && G.stop && Math.abs(err) < 0.4) { p.pause = Math.max(p.pause, 0.3); p.stopFace = G.stopFace; } // (and stops with it)
         else if (p.stopFace != null && !p.stop) p.stopFace = null;
-      } else if (p.mates) {
+      } else if (p.mates && nn < 16) { // (in a crowd it goes on with the flow: a lagging mate catches up or parts)
         for (const j of p.mates) { const o = P[j]; if (o.lead !== p.id || o.pz) continue; const lag = (p.x - o.x) * hx + (p.y - o.y) * hy; if (lag > 2.5) gcap = Math.min(gcap, Math.max(0.3, p.speed * (lag > 5 ? 0.3 : 0.6))); }
       }
       // a stop along the way (stopAt): over to the window or the rail, slowly, and there stood a while

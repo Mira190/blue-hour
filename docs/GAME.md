@@ -1881,19 +1881,26 @@ Sydney's traffic stood still a third of the time.
       apart; as the crowd round it thickens the line closes to 0.62 m and bends
       forward into a V, the middle ones half a metre back, so that they can still
       talk (the paper's finding); on a footway too narrow for them abreast, two by
-      two. It walks 5% slower a member. The leader walks as anyone does; each mate
+      two; in a press, or held up by people coming the other way, single file
+      behind the leader, each out of their way as anyone alone would step (a group
+      abreast met head on at a kerb had blocked a footway for a minute). It walks 5% slower a member. The leader walks as anyone does; each mate
       keeps its place by it: across the footway at its offset, along it by its pace
       (a little quicker behind, slower ahead), the way its leader went at a corner,
       turned back when it turns, and stopped when it stops. A leader holds back
-      for a mate more than 2.5 m behind. Mates do not see one another as in their
-      way. At a scramble a mate waits beside its leader along the kerb (else a step
-      behind), steps out when it does, crosses beside it, waits for it on the far
+      for a mate more than 2.5 m behind, unless the crowd round it is thick: then
+      it goes on with the flow, and a mate in a crowd never stands still in the
+      way to keep its place. Mates do not see one another as in their
+      way. At a scramble a mate waits beside its leader along the kerb, 0.85 m
+      off (else a step behind), steps out when it does, crosses beside it, waits for it on the far
       side if over first, and stands about the square with it in a ring, each
       turned to the others. Whichever of them reaches a scramble's kerb first
       brings the rest; the leader going off along a footway takes them along. A
       group parts only where it would: one of them sent elsewhere (out of sight,
       by the story's clearing, into a bus, too far apart); a leader's mates then go
-      on as a group of their own (`formGroup`, `mateSlot`, `mateSpot`, `groupSync`
+      on as a group of their own. Groups made only where people come out sank
+      from half the crowd to a quarter in three minutes, so a few times a second
+      someone walking alone out of sight may be joined by others walking alone
+      out of sight (`formGroup`, `mateSlot`, `mateSpot`, `groupSync`
       in `web/game/actors.js`).
     - **Stops along the way.** Every two to four minutes of walking, someone alone
       or leading a group may stop: found from the footway itself, out to either
@@ -1906,11 +1913,13 @@ Sydney's traffic stood still a third of the time.
       0.42 m off it, and is gone round as anyone standing is. Not near a crossing,
       on steps, within a metre of anyone or by a car or a bench, and not where the
       story keeps the crowd out of: `clearSight`, `clearRound` and the talk
-      camera's shot now tell the crowd (`crowd.keep`, 1.5 s after the last call),
+      camera's shot now tell the crowd (`crowd.keep`, for three seconds after the last call),
       and nobody begins to stop or to stand about the square there
       (`stopAt`, `keptOut`). A group stops with its leader, along the window either
-      side of it. The station's map board is not in the level, so nobody stops at
-      it yet.
+      side of it. On the square itself half of those standing about alone lean on
+      something within two and a half metres instead (the guard pipes, a planter,
+      a pier), facing away from it. The station's map board is not in the level,
+      so nobody stops at it yet.
     - **The crossing wave.** Each crosser now heads for the far kerb across from
       where it stands along its own, in the stripes' half-widths (0.8 of it, and
       0.3 of one to its left so that lanes still form), rather than from a number
