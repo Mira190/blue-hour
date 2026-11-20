@@ -104,7 +104,7 @@ window.OEHero = (function () {
         if (/^room/.test(name)) sh.fragmentShader = sh.fragmentShader.replace('uHeroBake * uHeroNight;', 'uHeroBake * mix(0.8, 0.3, uHeroNight);')
           .replace('reflectedLight.indirectDiffuse *= mix(1.0, vHeroBake.a, 0.85);', 'reflectedLight.indirectDiffuse *= 0.45 * mix(1.0, vHeroBake.a, 0.85);');
         // the city's street lights, at the share the level asks (h.street): its own lamps and signs are baked in
-        if (Wd.streetLit && !/^(glow|tube|chase|paper|lamp)/.test(name)) {
+        if (Wd.streetLit && !/^(glow|tube|chase|paper|lamp|refl)/.test(name)) {
           Wd.streetLit(sh);
           sh.uniforms.uHeroStreet = uStreet;
           sh.fragmentShader = sh.fragmentShader.replace('uniform float uHeroBake, uHeroNight;', 'uniform float uHeroBake, uHeroNight, uHeroStreet;')
@@ -119,6 +119,9 @@ window.OEHero = (function () {
       // (a room's floor is laid on the ground the city draws, a few centimetres over it: in front of it, as a landmark's paving is)
       if (/^room_floor/.test(name)) Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       if (/^(glow|tube|chase)/.test(name)) { m.userData.oeDry = true; m.userData.heroGlow = m.emissiveIntensity || 1; }
+      // a light's reflection in a polished floor (refl*: the lines of light in SKY's hall): light added over the stone, its
+      // picture in the emissive map; it writes no depth and hides nothing, and dims by day as the glow does
+      if (/^refl/.test(name)) { Object.assign(m, { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }); m.userData.oeDry = true; m.userData.heroGlow = m.emissiveIntensity || 1; }
       if (/^(paper|lamp)/.test(name)) { m.userData.oeDry = true; m.userData.heroDusk = m.emissiveIntensity || 1; m.emissiveIntensity = 0; }
       m.needsUpdate = true;
     }

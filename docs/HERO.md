@@ -30,6 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 
 ## How it works
 
@@ -389,6 +390,78 @@ Where it still falls short: the station's walls above the girders are the city's
 and glass; the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
 the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
 software renderer only.
+
+## SKY's street entrance (Shibuya): frame 4's way up (issue 53)
+
+Frame 4 and the walk send the player from the crossing to the lift at Shibuya Scramble Square that goes up to SHIBUYA
+SKY. Its lobby was set dressing in the story's flat, self-lit material (the old `blender/build_set.py`): stone, steel
+and the lift's doors read as flat colour, nothing reflected its lines of light, the indicator said 46F, and the way in
+was an open 10 m mouth in the tower's generic wall, 17 m west of where the real entrance is. It is now a small hero
+level of its own, `cities/shibuya/hero_skylobby.py` (`python blender/build_hero.py --city shibuya --level skylobby`),
+and the set dressing is gone.
+
+**The place, from the research** (November 2026; sources below). The street lift is "館外1階": a lift hall of its own,
+outside the building's doors, at the far east end of the tower's north face, practically at its north-east corner and
+a few metres east of the Hikarie-side entrance, under the overhang of the station deck over the east exit (the 1F
+plan, `access_entrance_floormap_1f.png`, marks it "SHIBUYA SKY エレベーター 14Fへ", entered from the west; the section
+drawing shows its shaft as glass outside the tower's east face). It goes to 14F, stopping at 2F on weekdays when it is
+not busy. Elevator Journal 28's schedule has one bank that fits: E3-1 and E3-2, two Fujitec scenic cars, 24 people,
+150 m a minute, 1F to 14F. In the photographs (2019 to 2020): a glass wall in stainless frames, its lower lites
+fritted white, with two single framed doors about 2 m apart; over it a dark metal soffit with one line of round
+downlights; in front of it pale square tiles of about 600 mm, then the forecourt's striped planks; to its west a
+free-standing square pillar in light warm grey panels with the lit SKY disc and the name over a portrait screen;
+retractable belts in front at busy times. No photograph of the hall's inside, its lift doors or its indicator was
+found.
+
+**What was built**:
+
+- **The lobby where it is.** `pipeline/lobby.py` now moves a lobby when city.json `game.lobbies` gives its way in
+  (`"door"`) somewhere else: the old cut is filled back (each solid keeps its index, the ground floor's two solids
+  take their passages' feet again), the stop is moved to the new place on the face, and the new lobby is cut there.
+  `"glass"` is where the glass wall stands, 2.4 m in from the face; the stop's height is the hall's floor.
+  scene.json's `shibuya_sky.door` moved with it, and Yuna stands beside the pillar.
+- **In front**: the tiles from 1.8 m out on the street to the glass (granite, tinted a pale beige, each tile its own
+  part of the stone, 600 mm laid square), meeting the street's slope at the face and the hall's level at the glass
+  (`ground_*`: wet in the rain, the mirror's on the high tier); the cut's sides in honed dark granite; the soffit in
+  dark grey metal panels with seven round downlights over the doors (a light the bake takes: their pool on the tiles
+  after dark); the pillar to the west with its disc (an opal face lit from behind, sky blue over warm white: the
+  hall's mark as a disc of light, not its logo drawn), its name printed on the panels, and an invented screen.
+- **The glass wall**: dark-tinted glass in stainless frames (transparent: the hall is seen through it), the fixed
+  lites fritted to a metre, a transom at 2.5 m, two doorways 1 m clear whose sliding leaves stand open behind the
+  lites beside them (a door that is always open is what a player walking up to an automatic one sees). The lites and
+  the pillar are solid (`game.hero[].posts`); the doorways are open.
+- **The hall**: SKY's own black and lines of light (SKY GATE's cars, the 45F LEADING LINE), since its finishes are
+  in no photograph. A floor of polished charcoal granite in 1.2 by 0.6 m slabs in courses, 4 mm joints, each slab its
+  own part of the stone; black lacquered panels 1.2 m wide with an 8 mm reveal, a line of light in a slot at their
+  foot; a matt black ceiling with five lines of light from the glass to the lifts, baked onto the floor and walls; and
+  their reflections in the polished floor, drawn as light added over the stone (`refl*`: hero.js draws such a
+  material additively, without depth, dimmed by day as a glow is). The environment map is the sky's, which inside a
+  hall is wrong, so its surfaces take little of it (`sky` 0.25 to 0.5).
+- **The lifts**: two cars in stainless portals with hairline-brushed leaves (`hairline`, drawn here: scratches all
+  one way, and nothing else), each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY in lit
+  letters over both; the queue's two belts on stainless posts outside the portals (`game.hero[].belts`, solid).
+- **Its floor is walked on.** The game's ground under the hall falls half a metre from the street to the back wall; a
+  hall is level. A level with `"floor": true` is stood on where its model draws a floor (game.js `heroCover` reads its
+  `room_floor_*` and `ground_*` meshes into a height grid, `h.height`; nav.js `lift` returns that height less the
+  ground's, under it or over it), so nobody stands in the stone or above it.
+
+2,300 triangles, 0.63 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
+within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
+`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
+entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
+
+Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY access (shibuya-scramble-square.com/sky/access/,
+its 1F and 2F plans and the section drawing of the lift); Elevator Journal 28 (n-elekyo.or.jp, the lift schedule);
+Shibuya Scramble Square Level 1 Entrance, 2019-12-23 (Wpcpey, Wikimedia Commons, CC BY 4.0: the forecourt, the pillar
+and the soffit at dusk); SHIBUYA SKY Logo, 2022-12 (稲妻ノ歯鯨, Commons, CC BY-SA 4.0: the disc's colours, which are not
+drawn); and, all rights reserved, compared only: eki-kara-access.tokyo/shibuya-sky-ikikata/ (2019, twelve views of the
+entrance and the pillar), 1rankup.jp/shibuya/sky.html (the doors at night, the belts), skyticket.jp/guide/405506/.
+
+Where it still falls short: the hall's inside, its lift doors and its indicator are designed, not seen; the doors do
+not slide as you come; the forecourt's striped planks with lights in their joints and its faceted mirror ceiling are
+the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
+renderer only.
 
 ## Only what the first frame sees (issue 358)
 
