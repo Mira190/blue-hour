@@ -113,6 +113,7 @@ else
     mainonly=1
     [ -z "$(git status --porcelain)" ] || mainonly=0
     for f in $(git diff --name-only "$last" HEAD); do
+      case "$f" in docs/*|*.md) continue ;; esac   # (the docs, both sides' words merged: no check reads them)
       [ "$(git rev-parse -q --verify "HEAD:$f" 2>/dev/null)" = "$(git rev-parse -q --verify "origin/main:$f" 2>/dev/null)" ] || { mainonly=0; break; }
     done
   fi
