@@ -59,9 +59,11 @@ window.OEPeople = (function () {
     weights: { M_Casual2: 3, M_Hoodie: 1.6, M_Suit: 1.6, M_Worker: 0.6, M_Beach: 0.2, M_Adventurer: 1.2, M_Punk: 0.2,
       W_Casual: 3, W_Formal: 1.6, W_Suit: 1.4, W_Worker: 0.5, W_Adventurer: 1.2, W_Punk: 0.2 },
   };
-  // Japan carries the clear vinyl umbrellas sold at every konbini, and black and navy ones
-  // (black, navy and grey first, as a wet evening's crowd reads from above; one in ten the convenience store's clear vinyl)
-  STYLES.tokyo.umbrellas = ['#1d1f26', '#1d1f26', '#1d1f26', '#22304a', '#22304a', '#2b4a6b', '#3a3f47', '#5b626c', '#7b8794', 'clear'];
+  // Japan carries the clear vinyl umbrellas sold at every konbini (some 80 million of the 130 million umbrellas the country
+  // buys in a year, the Japan Umbrella Promotion Association's estimate), and black and navy ones. A photograph of the
+  // Scramble in the rain is a field of clear canopies among dark ones: four in ten here. At one in ten the crowd's
+  // umbrellas read as any city's, dark and opaque
+  STYLES.tokyo.umbrellas = ['#1d1f26', '#1d1f26', '#1d1f26', '#22304a', '#2b4a6b', '#5b626c', 'clear', 'clear', 'clear', 'clear'];
   STYLES.kyoto = Object.assign({}, STYLES.tokyo, {
     tops: ['#1f2328', '#1f2328', '#1d2b4a', '#1d2b4a', '#e9e6df', '#f2f0ea', '#2b2f3a', '#9aa3a8', '#d7c6a5', '#46604f', '#8a2f39', '#5b6b7a', '#c9c2b5', '#7a4e8f'],
   });
@@ -95,9 +97,10 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
 }`;
   const GEO = {}, MAT = {};
   const geo = (k, f) => GEO[k] || (GEO[k] = f());
-  // 'clear': the frosted vinyl of a convenience-store umbrella (mostly opaque: the head under it is hidden)
+  // 'clear': the vinyl of a convenience-store umbrella: see-through with a milky haze, glossy enough to carry the screens'
+  // and the signs' light as a sheen (at 0.82 opaque and half rough it read as a white paper canopy)
   const stdMat = hex => MAT[hex] || (MAT[hex] = hex === 'clear'
-    ? new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.32, metalness: 0, transparent: true, opacity: 0.82, depthWrite: false, side: THREE.DoubleSide })
+    ? new THREE.MeshStandardMaterial({ color: 0xe9eff3, roughness: 0.16, metalness: 0, transparent: true, opacity: 0.52, depthWrite: false, side: THREE.DoubleSide })
     : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide }));
   // an open umbrella's canopy: eight panels over a cone, open underneath (the apex up)
   const canopyGeo = () => new THREE.ConeGeometry(0.56, 0.24, 8, 1, true);
