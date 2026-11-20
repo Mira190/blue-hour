@@ -651,15 +651,19 @@ window.OEAudio = (function () {
   };
   let irs = {}, placeNow = null;
   const verbs = [];
+  // the responses' noise from a fixed seed for each room and channel (mulberry32, public domain): every page hears the
+  // same room, the one tools/reverb_check.js measured, and not a new draw of it at each load (a draw now and then put
+  // the inside's low band past the check's tolerance of the whole convolution)
+  const seeded = s => () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), s | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   function impulse(kind, c0 = ctx) {
     if (c0 === ctx && irs[kind]) return irs[kind];
     const P = PLACES[kind], sr = c0.sampleRate, n = Math.floor(sr * (P.pre + P.rt * 1.1)), b = c0.createBuffer(2, n, sr);
     for (let c = 0; c < 2; c++) {
-      const d = b.getChannelData(c);
+      const d = b.getChannelData(c), rnd = seeded(Object.keys(PLACES).indexOf(kind) * 7919 + c * 104729 + 1);
       let lp = 0;
       for (let i = Math.floor(P.pre * sr); i < n; i++) {
         const t = i / sr - P.pre, fc = P.dark + (14000 - P.dark) * Math.exp(-6 * t / P.rt);
-        lp += (1 - Math.exp(-2 * Math.PI * fc / sr)) * (Math.random() * 2 - 1 - lp);
+        lp += (1 - Math.exp(-2 * Math.PI * fc / sr)) * (rnd() * 2 - 1 - lp);
         d[i] = lp * Math.pow(10, -3 * t / P.rt) * Math.min(1, t / 0.01);
       }
       for (const [at, g] of P.er) { const i = Math.floor((P.pre + at * (c ? 1.07 : 1)) * sr); if (i < n) d[i] += g * 0.6; }
@@ -1094,7 +1098,7 @@ window.OEAudio = (function () {
   // the hall's response: four seconds and a fifth of noise dying away
   function hallIR(c0 = ctx) {
     const len = Math.floor(c0.sampleRate * 4.2), ir = c0.createBuffer(2, len, c0.sampleRate);
-    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c), rnd = seeded(31 + c * 104729); for (let i = 0; i < len; i++) d[i] = (rnd() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
     return ir;
   }
   // a bell of glass: a note, and the partials over it that a struck bar has, each dying faster than the one below
