@@ -2951,6 +2951,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // out: a Float32Array of w * h * 4 (RGBA, float: readable from any float colour buffer).
   const reads = [];
   function pollReads() {
+    // (a check's frame not drawn, tools/story_play.js DRAW=n: the read waits for a frame drawn, when the GPU has long finished
+    // what it was given; a read in the frames between waited for it to finish the one drawn before, #70)
+    if (window.__draw && window.__draw.on === false) { if (reads.length) requestAnimationFrame(pollReads); return; }
     for (let i = reads.length - 1; i >= 0; i--) {
       const q = reads[i], gl = q.gl;
       let st;

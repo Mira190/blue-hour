@@ -299,7 +299,8 @@ def cut_buildings(B, scene, LM, R):
     out["s"] = [[bmap[B["s"][si][0]]] + B["s"][si][1:] for si in keep]
     for k in ("r", "f", "p"):
         if k in B:
-            out[k] = [[smap[row[0]]] + row[1:] for row in B[k] if row[0] in smap]
+            # (not the rooftop kit's condenser rows: a phone does not draw them, web/buildings.js)
+            out[k] = [[smap[row[0]]] + row[1:] for row in B[k] if row[0] in smap and not (k == "p" and row[1] == 7)]
     if "passages" in B:
         out["passages"] = [smap[si] for si in B["passages"] if si in smap]
     for k in ("inner_posts", "no_posts"):

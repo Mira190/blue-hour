@@ -64,6 +64,7 @@ window.OEHud = (function () {
     return function draw({ x, y, yaw, heading, radius, route, icons, ride }) {
       const now = performance.now();
       if (now - drawnAt < 30 && !navigator.webdriver) return;
+      if (window.__draw && window.__draw.on === false) return; // (a check's frame not drawn: the next one drawn paints it, game.js unseenFrame)
       drawnAt = now;
       const k = (S / 2) / radius * base.PX; // canvas px per base px
       g.save();
