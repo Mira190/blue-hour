@@ -1911,7 +1911,10 @@ Sydney's traffic stood still a third of the time.
       with the back to them or facing the street. Anything else solid is a pier of
       the viaduct or a post: leaned on, the back to it. It goes over slowly, stands
       0.42 m off it, and is gone round as anyone standing is. Not near a crossing,
-      on steps, within a metre of anyone or by a car or a bench, and not where the
+      on steps, on a footway under 3 m wide or with ten people round (a stop
+      there pinched a counterflow into a jam; one stopped cuts it short when the
+      way round it fills up), within a metre of anyone or by a car or a bench,
+      and not where the
       story keeps the crowd out of: `clearSight`, `clearRound` and the talk
       camera's shot now tell the crowd (`crowd.keep`, for three seconds after the last call),
       and nobody begins to stop or to stand about the square there
