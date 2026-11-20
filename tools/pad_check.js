@@ -50,16 +50,28 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   await snap('0-title-pad');
   const titleKbd = await p.evaluate(() => (document.querySelector('#gt-play kbd') || {}).textContent);
   if (titleKbd !== 'A') fail(`the title's button names "${titleKbd}", not the pad's A`);
-  // (the first time, who you play is asked first: A puts the hand on the first portrait, the d-pad moves it, A chooses,
-  // and A again begins. A first A that began, or a choice not made by the pad, fails)
+  // (the title opens on its press: A opens the menu)
+  await press('A'); await p.waitForTimeout(1200);
+  if ((await p.evaluate(() => window.__game.screen())) !== 'menu') fail(`A on the press did not open the menu (on "${await p.evaluate(() => window.__game.screen())}")`);
+  // (the walk leads the menu's list while the episodes are being finished, and A takes it: down moves the hand from it,
+  // whether it is on it or on none, to the story; A opens the story's screen with the hand on its Begin, and A again begins)
+  if (await p.evaluate(() => !!document.getElementById('gt-walk-go'))) {
+    await press('DOWN'); await p.waitForTimeout(200);
+    if (!(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-story-go'))) fail(`down on the menu did not move the hand from the walk to the story (${await p.evaluate(() => (document.activeElement || {}).id)})`);
+    await press('A'); await p.waitForTimeout(1200);
+    if ((await p.evaluate(() => window.__game.screen())) !== 'story' || !(await p.evaluate(() => (document.activeElement || {}).id === 'gt-play'))) fail("A on the story's row did not open its screen with the hand on Begin");
+  }
+  await press('A'); await p.waitForTimeout(1200);
+  // (the first time, who you play comes up on its own screen: A puts the hand on the first portrait, the d-pad moves it,
+  // A chooses, and A again confirms and begins. An A that began without asking, or a choice not made by the pad, fails)
   if (await p.evaluate(() => document.getElementById('g-title').hasAttribute('data-choose'))) {
     await press('A'); await p.waitForTimeout(300);
-    if (!(await p.evaluate(() => document.getElementById('g-title').hidden === false && document.activeElement && document.activeElement.dataset.c === 'W'))) fail('the first A on the title did not put the hand on the first portrait');
+    if (!(await p.evaluate(() => document.getElementById('g-title').hidden === false && document.activeElement && document.activeElement.dataset.c === 'W'))) fail('the first A on who you play did not put the hand on the first portrait');
     await press('RIGHT'); await p.waitForTimeout(200); await press('A');
     await p.waitForFunction(() => { try { return localStorage.getItem('oe3d-player') === 'M'; } catch (e) { return false; } }, null, { timeout: 120000 }).catch(() => fail('the pad did not choose the second portrait'));
     await snap('0-title-chosen');
+    await press('A');
   }
-  await press('A');
   if (!(await p.waitForFunction(() => document.getElementById('g-title').hidden, null, { timeout: 30000 }).catch(() => null))) fail('A did not start from the title');
   // the order in the hand: A puts it away
   const ord = await until(async s => s.beat === 'order' || (s.phase === 'stop'), 900, 'the order in the hand');
