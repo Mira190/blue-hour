@@ -3326,12 +3326,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
-      const t = (p.x - a[0]) * ux + (p.y - a[1]) * uy, side = (p.x - a[0]) * -uy + (p.y - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
+      // (where it is drawn: in a Stop the drawn place does not catch up with the simulated one, and one drawn in the way
+      // and simulated out of it was left standing in someone, issue 65)
+      const px = p.rx ?? p.x, py = p.ry ?? p.y;
+      const t = (px - a[0]) * ux + (py - a[1]) * uy, side = (px - a[0]) * -uy + (py - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
       if ((half ? t < -half || t > L + half : t < -2.5 || t > L - 0.6) || Math.abs(side) > w) continue;
       if (!p.pz) { p.line = -1; continue; }
       let to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
-      for (let k = 0; k < 4 && !roomAt(p.x - uy * to, p.y + ux * to); k++) to += (Math.sign(side) || 1) * 0.5; // (not onto someone not of the crowd, issue 65)
-      p.x += -uy * to; p.y += ux * to; p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
+      for (let k = 0; k < 4 && !roomAt(px - uy * to, py + ux * to); k++) to += (Math.sign(side) || 1) * 0.5; // (not onto someone not of the crowd, issue 65)
+      p.x = px - uy * to; p.y = py + ux * to; p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
     }
   };
   // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
@@ -3340,12 +3343,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
       const p = crowd.P[i];
       if (p.line < 0 && !p.pz) continue;
-      const dx = p.x - x, dy = p.y - y, d = Math.hypot(dx, dy);
+      const dx = (p.rx ?? p.x) - x, dy = (p.ry ?? p.y) - y, d = Math.hypot(dx, dy); // (where it is drawn, as clearSight)
       if (d >= r) continue;
       if (!p.pz) { p.line = -1; if (crowdDraw) crowdDraw.hide(i); continue; } // (and not drawn there this frame either)
       let k = (r + 0.4) / (d || 1);
       for (let j = 0; j < 4 && !roomAt(x + (d ? dx : 1) * k, y + (d ? dy : 0) * k); j++) k += 0.5 / (d || 1); // (not onto someone not of the crowd, issue 65)
-      p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null;
+      p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null; // (dx, dy: from where it is drawn)
     }
   };
   // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
@@ -3427,16 +3430,58 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // copy) within 0.45 m of one of the story's people, the player or the guide (no: an NPC), on the same level, who and where
   // and when, once while it lasts with the closest it came (issue 65)
   const bodiesOn = new Map();
+  // who the crowd must not be drawn in: [name, ax, ay, bx, by, z, less] (less: taken off the distance to the segment)
+  const bodiesWho = withNpcs => {
+    const who = [];
+    if (player.mode === 'foot' && player.rig.root.visible) who.push(['you', player.x, player.y, player.x, player.y, player.z, 0]);
+    for (const f of storyFigs) if (!(f.rig && f.rig.root && !f.rig.root.visible)) who.push([`${f.name || f.id}${f.seen < 30 ? ` (put there ${f.seen} frames before)` : ''}`, f.x, f.y, f.x, f.y, f.z, 0]);
+    const g = guideSeg();
+    if (g) who.push(['guide', g[0], g[1], g[2], g[3], g[5], g[4] - 0.2]); // (from his spine less the flank a person's own centre to its edge is held to)
+    if (withNpcs) for (const q of npcs) if (!(q.rig && q.rig.root && !q.rig.root.visible)) who.push([`npc ${q.name || q.id}`, q.x, q.y, q.x, q.y, q.z, 0]);
+    return who;
+  };
+  // The last guard, each frame before it is drawn: one of the crowd drawn inside the player, one of the story's people or
+  // the guide (within 0.45 m), whatever brought it there (the world held in a Stop, where nobody can step aside; someone
+  // set down by the story beside a held waiter; the crowd not stepped at all), is moved out of them and not drawn this
+  // frame: one at a scramble out to a shoulder's width from them, a walker sent on elsewhere. The crowd's own steering
+  // (crowdKeep) is what keeps them clear; this is what is left. tools/story_play.js counts every time it acts (issue 65)
+  const guardOn = new Map();
+  const bodiesGuard = () => {
+    if (!crowd || !crowd.P) return;
+    for (const f of storyFigs) f.seen = (f.seen || 0) + 1;
+    const who = bodiesWho(false);
+    if (!who.length) return;
+    const now = window.__guarded ? new Set() : null;
+    for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+      const q = crowd.P[i];
+      if (!(q.line >= 0 || q.pz) || (crowdDraw && !crowdDraw.shows(i))) continue;
+      const x = q.rx ?? q.x, y = q.ry ?? q.y, z = q.rz ?? q.z ?? 0;
+      for (const w of who) {
+        if (Math.abs(w[1] - x) > 3 || Math.abs(w[2] - y) > 3 || Math.abs((w[5] ?? z) - z) > 1.5) continue;
+        const dx = w[3] - w[1], dy = w[4] - w[2], L2 = dx * dx + dy * dy, t = L2 > 1e-9 ? Math.max(0, Math.min(1, ((x - w[1]) * dx + (y - w[2]) * dy) / L2)) : 0;
+        const cx = w[1] + dx * t, cy = w[2] + dy * t, e = Math.hypot(cx - x, cy - y);
+        if (e - w[6] >= 0.45) continue;
+        if (q.pz) {
+          const k = (w[6] + 0.6) / (e || 1), ex = e ? x - cx : 1, ey = e ? y - cy : 0;
+          q.x = cx + ex * k; q.y = cy + ey * k; q.rx = null;
+          if (q.T && (q.ph === 'wait' || q.ph === 'linger')) { q.T.x = q.x; q.T.y = q.y; }
+        } else q.line = -1;
+        if (crowdDraw) crowdDraw.hide(i);
+        if (now) {
+          const key = `${w[0].replace(/ \(put there.*$/, '')}|${i}`; now.add(key);
+          if (!guardOn.has(key)) { const r = { who: w[0], crowd: i, d: +(e - w[6]).toFixed(3), at: bodiesAt(), x: +x.toFixed(2), y: +y.toFixed(2), ph: q.pz ? q.ph : 'footway' }; guardOn.set(key, r); window.__guarded.push(r); }
+        }
+        break;
+      }
+    }
+    if (now) for (const k of guardOn.keys()) if (!now.has(k)) guardOn.delete(k);
+  };
+  const bodiesAt = () => (story && story.state ? `frame ${story.state.fi + 1} ${story.state.phase}${story.state.beat != null ? ` ${story.state.beat}` : ''}${story.stopped ? ' (Stop)' : ''}${talkShot ? ' (talk)' : ''}` : '');
   const bodiesCheck = () => {
     const B = window.__bodies;
     if (!crowd || !crowd.P || B.length > 300) return;
-    const who = [];
-    if (player.mode === 'foot' && player.rig.root.visible) who.push(['you', player.x, player.y, player.x, player.y, player.z, 0]);
-    for (const f of storyFigs) { f.seen = (f.seen || 0) + 1; if (!(f.rig && f.rig.root && !f.rig.root.visible)) who.push([`${f.name || f.id}${f.seen < 30 ? ` (put there ${f.seen} frames before)` : ''}`, f.x, f.y, f.x, f.y, f.z, 0]); }
-    const g = guideSeg();
-    if (g) who.push(['guide', g[0], g[1], g[2], g[3], g[5], g[4] - 0.2]); // (from his spine less the flank a person's own centre to its edge is held to)
-    for (const q of npcs) if (!(q.rig && q.rig.root && !q.rig.root.visible)) who.push([`npc ${q.name || q.id}`, q.x, q.y, q.x, q.y, q.z, 0]);
-    const at = story && story.state ? `frame ${story.state.fi + 1} ${story.state.phase}${story.state.beat != null ? ` ${story.state.beat}` : ''}${story.stopped ? ' (Stop)' : ''}${talkShot ? ' (talk)' : ''}` : '';
+    const who = bodiesWho(true);
+    const at = bodiesAt();
     const now = new Set();
     for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
       const q = crowd.P[i];
@@ -6785,6 +6830,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       : arriving && cine.active ? { focus: camera.position.distanceTo(live.look), aperture: lensBlur(camera.fov, camera.position.distanceTo(live.look), 4), blur: 0.5 }
       : talkShot ? { focus: talkShot.focus, aperture: lensBlur(camera.fov, talkShot.focus, 2.8) } // (a conversation: the face sharp, the street behind it soft, where the tier draws depth of field)
       : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
+    bodiesGuard();
     if (window.__bodies) bodiesCheck();
     mirrorTick();
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
