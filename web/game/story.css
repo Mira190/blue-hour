@@ -1380,3 +1380,6 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 @media (max-width: 350px) { #g-story-frames em { display: none; } }
 @media (max-width: 400px) { #g-story-keys { flex-direction: column; align-items: center; gap: 9px; } }
 @media (pointer: coarse) { #g-story-album button.vs { margin-top: 4px; } }
+/* (a narrow window with a keyboard keeps the keys in the story's pause: under 860 px the table was left out, for the
+   phones that width was taken to be, and a player in a small window had no help at all) */
+:root:not(.oe-touch) .game-stage.story:not(.walk) #g-menu .gt-keys:not(.gt-touch) { display: table; }
