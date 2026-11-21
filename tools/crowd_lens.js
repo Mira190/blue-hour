@@ -1,7 +1,7 @@
 // The near crowd and the lens on foot (issue 82): you stand on a footway by the Scramble with the chase camera behind
 // you, and walkers are sent along that footway from behind the camera, past it and past you, with the rest of the crowd
 // going about its business. Each frame of the game (the camera's own easing and lifts running) it measures, for the
-// crowd's people within 3 m of the lens, how much of the frame the nearest covers (a body 0.5 m wide and 1.7 m tall,
+// crowd's people within 2.5 m of the lens, how much of the frame the nearest covers (a body 0.5 m wide and 1.7 m tall,
 // projected), and how close any of them came to the lens. Someone walking a pace beside the lens filled a corner of a
 // phone's upright frame: here the most any one covers, and the frames where one covers more than 6% of it.
 // A still is taken (the frame held) into out_dir the moment the first of them is level with the lens. The share is counted as
@@ -62,7 +62,7 @@ const CASES = [
           const q = C.P[j]; if (q.line < 0 && !q.pz) continue;
           const qx = q.rx ?? q.x, qy = q.ry ?? q.y, qz = q.rz ?? q.z, d = Math.hypot(qx - cx, qy - cy);
           if (d < near) near = d;
-          if (d > 3 || d < 0.55) continue; // (within 0.55 m the lens is inside them and they are not drawn: game.js lensClear)
+          if (d > 2.5 || d < 0.55) continue; // (further off, beside the player, they are the street the frame is of) // (within 0.55 m the lens is inside them and they are not drawn: game.js lensClear)
           let x0 = 1, x1 = -1, y0 = 1, y1 = -1, ok = false;
           for (const [a, c, hh] of [[-0.25, 0, 0], [0.25, 0, 0], [-0.25, 0, 1.7], [0.25, 0, 1.7], [0, -0.25, 0.9], [0, 0.25, 0.9]]) {
             v3.set(qx + a, qz + hh, -(qy + c)).applyMatrix4(cam.matrixWorldInverse);
