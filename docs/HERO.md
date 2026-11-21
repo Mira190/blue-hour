@@ -762,6 +762,42 @@ measured; whether the heliport's paint is the H and circle drawn here, or the co
 the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
 there; and it has been seen on a software renderer only.
 
+### SKY STAGE at blue hour (issue 125)
+
+From the launch review: at 17:31 the roof was a near-black floor with no material to read, the glass a thin line, and
+from above (frame 5's walk to the helicopter) black with the dog's ring on it. What the photographs taken on the roof
+at dusk show, and what was changed to it:
+
+- **The floor is dark, and gives back the sky.** In every photograph the deck is near black, far darker than the sky or
+  the city, and reads by the sky's sheen at a low angle, in which its courses show. The pavers were matt (roughness
+  0.62, half of the sky mirrored): now honed (0.44, 0.85), the steps with them. Nothing lights the deck from above: the
+  roof is lit low, and it is the lines of light that draw it.
+- **The lines of light are the brightest thing on the roof**: warm white under every step's nosing and along the glass's
+  foot, each with its light on the stone beside it. They were there, their light on the deck too faint to see on a
+  stone this dark: the level's baked light is eight times what it was (`bake_gain`), the lines themselves brighter.
+- **CLOUD HAMMOCK is lit from beneath**, amber, the net and whoever lies in it dark over a glowing bed: a line of light
+  along the inside of each long kerb (`lamp_under`) and its light on the lawn.
+- **The glass is nearly invisible, and is drawn by its top edge.** A thin bright line along the top, faint joints, the
+  sky in the pane: the cap is brighter and mirrors all of the sky, the pane a little more of it.
+- **The city under it** has its air (docs/NIGHT.md, "The air between").
+
+Photographs (Wikimedia Commons; looked at, set beside the stills, nothing taken from them into the model):
+Wei-Te Wong, 21 December 2019, CC BY-SA 2.0: `Shibuya Sky (49287086252).jpg` (west-south-west, 18 minutes after
+sunset: Cerulean Tower, Route 246 in amber, the haze), `(49287081607)` (north: Yoyogi Park and Shinjuku),
+`(49287094497)` (south), `(49286403613)` (the heliport at dusk), `(49287104532)` (GEO COMPASS). Dick Thomas Johnson,
+CC BY 2.0: `Shibuya Scramble Square SHIBUYA SKY (53002565398).jpg` (23 February 2023, 30 minutes after sunset: the lit
+hammock, the deck, the glass), `(53002565413)` (the steps' lines of light), `(53443766384)` (2 December 2023: SKY
+EDGE's glass, its reflections and the glow at its foot), `(53443585538)` (east, 6 minutes after sunset). Read only, all
+rights reserved: Impress Watch (docs/news/1203947), nippon.com (gu900265), Time Out Tokyo.
+
+Where it still falls short. The photographs show the heliport as green artificial turf with yellow paint (a circle and
+H, a square boundary, "MAX 5t") and GEO COMPASS as a separate disc of radial stone round an etched glass map; here
+they are one dark pad with a white and yellow marking and the compass round it (above), which is wrong and is its own
+piece of work. The glass shows no reflection of the people standing at it, nor of the city's lights behind the camera:
+that needs a picture of the scene from behind the glass, which a phone cannot pay for. CROSSING LIGHT's lamps stand
+along the glass on plinths; the photographs show moving heads under clear domes in a trench. The photographs are of
+December and February, not October. Seen on a software renderer only.
+
 ## Scramble Square's curtain wall (Shibuya)
 
 The owner's ask (November 2026): the building the story climbs should be the real one. The city drew Shibuya Scramble
