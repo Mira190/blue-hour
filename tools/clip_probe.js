@@ -323,7 +323,9 @@ function pageSide(NEAR) {
 // tools/clip_look.js had a standing sole within a centimetre of the paving drawn: readings that small are printed for a
 // look, and the play fails on a foot more than FOOT under or over its floor, someone standing in or over the ground)
 const FOOT = 0.15;
-const fails = c => c.kind === 'bodies' || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT);
+// (the guide against someone for a frame or two is him making way: run at from 1.3 m he is off the player in the next
+// frame, companion.js keepOff; three frames or more is him standing in them)
+const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT);
 
 async function install(page) { await page.addInitScript(`(${pageSide.toString()})(${NEAR})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }
