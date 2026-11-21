@@ -41,18 +41,26 @@ window.OEAudio = (function () {
   // iOS has a context made outside a touch start as it pleases (a context it was not given leave for has come up at the
   // wrong rate and played distorted, WebKit bug 154538): there, the context is made in the first touch, the one that
   // would have resumed it, and until then start() only says that sound is wanted (`pending`)
-  let want = false;
+  let want = false, away = false; // (away: the context suspended by the page as it was put away, below)
   const madeFns = [];
   const allowed = () => !IOS || !navigator.userActivation || navigator.userActivation.isActive;
   const wake = () => {
     if (!ctx) { if (want && !muted) start(); return; }
-    if (!muted && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+    if (!muted && !document.hidden && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().then(() => { away = false; }, () => {});
   };
   for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, wake, { capture: true, passive: true });
   // (and while the page is seen, every two seconds: an interruption that has ended leaves the context 'interrupted' until
-  // it is asked, and a story's long beat may have no touch in it)
-  setInterval(() => { if (ctx && !muted && !document.hidden && ctx.state === 'interrupted') wake(); }, 2000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  // it is asked, a context the page put away below 'suspended' if it was not given back, and a story's long beat may
+  // have no touch in it)
+  setInterval(() => { if (ctx && !muted && !document.hidden && (ctx.state === 'interrupted' || (away && ctx.state === 'suspended'))) wake(); }, 2000);
+  // A page put away is silent: the context is suspended while it is hidden and resumed as it is seen. The game stands
+  // still in a tab put away, and its beds went on behind another tab or app; and on a phone a context left running there
+  // is an audio thread beside the page being played (the owner's iPhone, 21 November 2026, had two tabs of the story
+  // open when the sound of the one in front broke).
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { wake(); return; }
+    if (ctx && ctx.state === 'running') { away = true; ctx.suspend().catch(() => {}); }
+  });
   // fn() once the context is made (now, if it is): the loading cue waits on this where the context waits on a touch
   function made(fn) { if (ctx) fn(); else madeFns.push(fn); }
   function start() {
