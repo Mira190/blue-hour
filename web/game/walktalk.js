@@ -19,7 +19,8 @@
 //            move(npc, [x, y], faceTo) puts someone somewhere else, told(title, n, of): a story put away })
 //   then: { goal: the words under the hour, and one of: talk (the next part's speaker, at once), go [x, y] r on foot,
 //           drive [x, y] r in your car, up z (higher than z, as on SHIBUYA SKY's roof), photo [x, y, z] (a photograph
-//           with that point in it, taken from within `r` of it or from `above` metres over it) ; meet: an npc id who,
+//           with that point in it, taken from within `r` of it or from `above` metres over it; from 'heli': from the
+//           helicopter, within `r` of it and `above` metres over it) ; meet: an npc id who,
 //           unseen, goes to stand by the next part's speaker }
 'use strict';
 window.OEWalkTalk = (function () {
@@ -135,7 +136,9 @@ window.OEWalkTalk = (function () {
         if (!then.photo) continue;
         const [x, y, z] = then.photo, me = ctx.here();
         const near = Math.hypot(x - me.x, y - me.y) < (then.r || 25), high = then.above != null && cam.z - z > then.above;
-        if ((near || high) && cam.sees(x, y, z)) { k.met = true; hit = s; lastAsked = s.id; }
+        // (from the helicopter: over the place, within r of it, and that high; otherwise from in it or from up high)
+        const ok = then.from === 'heli' ? me.mode === 'heli' && near && high : near || high;
+        if (ok && cam.sees(x, y, z)) { k.met = true; hit = s; lastAsked = s.id; }
       }
       if (hit) { keep(); if (ctx.met) ctx.met(hit, ctx.npc(speaker(hit, of(hit).part))); }
       return !!hit;
