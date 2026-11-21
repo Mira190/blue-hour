@@ -647,8 +647,8 @@ be in the picture and the lens still to within 0.15 degrees a frame with no hand
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
-place the world stops; whoever still moves is found and heard; the camera comes up, the standpoint
-and the subject are found, and the picture is taken; a few lines on what the print shows; the
+place the world stops; whoever still moves is found and heard; the standpoint is found, the camera
+comes up, the subject is framed, and the picture is taken; a few lines on what the print shows; the
 world runs on, and the next line is already on screen. A Stop that runs out costs only the minute:
 the world runs, and stops again when you come back. A page closed mid-case opens at the same frame.
 
@@ -793,9 +793,17 @@ what it does before it is done (`task.teach` on frame 1; `story.js` `teach`):
 | Turn it into the frame lines | an arrow on their edge points to it while it is outside them | the lines go amber; *In the frame · the planetarium's board* |
 | Take the picture (F, the shutter, RT) | the print comes up as tonight, and 1964 through it; seven frames, no eighth | the print develops in the hand |
 
-The steps are live, not a list that only goes forward: raised off the light, the first is still to do and the second is
-ticked, and the finder says *not from here*, which is the rule seen from its wrong side. A release pressed too early
-shakes the step not yet done; the goal line says the same in the story's words. The keys are named on the card the
+The steps are done in their order. **The talk ends, the place is found, then the camera comes up** (the owner,
+November 2026: "finish the talk, find the place, then raise it"). In a frame whose light stands from the start (frames 1
+and 6) the camera comes up only in the light: off it, R, the button, the left trigger and the release shake the step to
+do, the chip says *Not from here · the light first* and the goal line says where the light is; the button to raise it
+is offered only once you stand in it (`story.js` `camCan`). And nothing raises it in the first 0.7 s after the talk:
+the camera had come up on the talk's last press, before the place was looked for, because on a phone the button comes
+up where the words were (the tap after the last line was a tap on it) and F passes a line and is the release, which
+raises a camera that is down (`camWait`; `tools/talk_end_probe.js` plays it by taps and by keys). Where the place is
+found by the rangefinder (frames 2, 4 and 5) the camera is how it is found, so it comes up anywhere, and off the place
+the finder says *not from here*, which is the rule seen from its wrong side. A release pressed too early shakes the
+step not yet done; the goal line says the same in the story's words. The keys are named on the card the
 first time they are needed (a pad's signs while a pad is in the hand, nothing on a touch screen, where the buttons are
 on the picture). The card goes a moment after the print, and never comes again: frames 2 to 7 have only the goal, the
 line through the patch, and hints asked for. The walking keys (W A S D, Shift, the mouse; the thumbs) are shown as the

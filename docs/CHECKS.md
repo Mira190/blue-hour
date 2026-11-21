@@ -61,12 +61,16 @@ tools/views/corner-night-62.json out [390x844 with LEAN=1]`, beside the desktop'
 level that is loading before a still, which on the low tier here is half a minute (before, a phone's stills of the
 Scramble were of the city's own model).
 
-Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
+Three of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
 film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
 to you passes within 0.42 m of a held person's middle or ends away from you, then runs after him at the game's own run
 and fails if he is behind the player more than a quarter of the time. A frame whose place is found (`task.find`):
 `tools/find_probe.js` plays it to its camera and takes stills, with what the finder says, from where the world stops,
 from the standpoint and from points given (`AT=x,y;x,y`), so that the words and the place are seen to agree.
+The end of the first talk (`story.js` `camCan`, `camWait`): `tools/talk_end_probe.js` plays to Sumiko and passes her
+lines as a hand does (E on a desktop, a tap on the words on a phone; `MASH=1` presses F or taps several times a second and
+on past the last line), then fails if the camera came up or its button was offered off the light, or if in the light the
+button is not there or does not raise it. Stills of each.
 The title in three screens and who you play (`web/game/game.js` `titleScreen`, `whoAsk`, `whoPick`; docs/STORY.md *The title, as a game opens*): `tools/title_who.js` opens the page as someone who has never played and presses as a hand does (a key or a tap past the press, mouse or touch, Enter, the arrows), and fails a title that does not open on its press, a first press of a way in that begins without bringing who you play up, portraits or a file on Kagami not shown whole, a Confirm with none chosen that goes on, a choice that is not who you then are, is not kept or does not set the file's lines, a Confirm that does not take the way in asked for, and a page opened again that asks again or does not name the choice under the menu. A rig's look (`web/game/people.js` `rig.animate`, the head turned to what an NPC or the player looks at): `tools/head_spin.js` holds every NPC's rig and the player's looking beside them, with time running and then held, and fails a head that goes on turning (a look laid over the last frame's look wound Aoi's head round by the Center Gai arch, on a phone, November 2026); `tools/story_play.js` reads every head at the first beat of each Stop as well. A train's sound (`web/game/audio.js` `trainAt`, `web/game/trains.js`): `tools/train_sound.js` renders one going by under
 the Yamanote bridge and beside its viaduct, offline, to WAV, and reads its rhythm, its hiss far off and its deck's boom.
 

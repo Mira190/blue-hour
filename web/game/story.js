@@ -181,6 +181,8 @@ window.OEStory = (function () {
     const camLabel = () => { camBtn.innerHTML = st.cam ? `<i></i>Lower the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}` : `<i></i>Raise the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}`; };
     function raise(on) {
       if (st.phase !== 'stop' || st.beat !== 'shoot' || st.cam === on) return;
+      if (on && camWait()) return; // (a press left over from the talk: nothing)
+      if (on && !camCan(framed())) { teachNudge(); say('Not from here · the light first'); goal((st.fr.task.goals || {}).stand || 'Not from here. Go to the light.'); st.miss = 2.5; return; } // (off the light: the step to do shakes, and the goal says where)
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? (st.meet ? st.lensNow : st.fr.task.lens) : null, !!st.meet); // (a frame taken through a long lens: task.lens, degrees; the last frame's, closed on the two of them as they meet)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
@@ -189,6 +191,14 @@ window.OEStory = (function () {
       say(on ? (finder.dataset.year ? (from ? `Camera up · it sees ${finder.dataset.year}` : 'Camera up · not from here') : 'Camera up') : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
     camBtn.addEventListener('click', () => raise(!st.cam));
+    // When the camera may come up: once the talk is over, and in a frame whose light stands from the start (frames 1 and 6;
+    // not one whose place the rangefinder finds, where the camera is how it is found), only in the light. A frame goes:
+    // the talk ends, the place is found, the camera comes up, the picture is taken. The talk's last press raised it before
+    // the place was found (the owner, November 2026): on a phone the button comes up where the words were, so the tap after
+    // the last line was a tap on it, and F passes a line and is the release, which raises a camera that is down.
+    const lit0 = T => !!(T && T.stand && !T.find);
+    const camWait = () => performance.now() < (st.camAfter || 0);
+    const camCan = f => !camWait() && (!lit0(st.fr && st.fr.task) || !!st.meet || f.placed);
     // a print's postmark: struck on it when it is taken, as a letter's stamp is cancelled; the place round the top,
     // the hour in the middle, the frame under it, and the wavy lines of the cancel running off to the side
     let pmN = 0;
@@ -856,7 +866,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       { const T = st.fr.task, from = T.stand || [ctx.player.x, ctx.player.y]; if (ctx.clear) for (const c of T.clear || []) ctx.clear(from, c); if (T.clear_round && ctx.clearRound && T.relic) ctx.clearRound(T.relic.at[0], T.relic.at[1], T.clear_round); } // (task.clear: the way on past the thing kept clear too, to points beyond it; task.clear_round: a ring round it. Frame 2's stool had a held walker a metre off and the crowd standing on it from behind)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
-      st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
+      st.cam = false; camLabel(); camBtn.classList.remove('up', 'on'); st.camAfter = performance.now() + 700; // (the button comes up in the tick, when the camera may: camCan)
       teach(st.fr.task.teach);
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)
       if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand && !T.find ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1, ux = (px - R.at[0]) / l, uy = (py - R.at[1]) / l, q = [R.at[0] + ux * 1.2 - uy * 2.2, R.at[1] + uy * 1.2 + ux * 2.2]; to = (st.dog.free && st.dog.free(q[0], q[1], 1.5)) || q; } /* (beside it, off the line from the lens: on that line, 2.2 m before the lamp, his head filled the foot of the third print) */ if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
@@ -1166,11 +1176,12 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
             if (finder.dataset.fix !== fix) { finder.dataset.fix = fix; finder.querySelector('.rf small').textContent = fix === 'on' ? 'The place · here' : fix === 'near' ? 'The place · nearer' : 'The place · far'; }
             if (f.placed && !st.placedOnce) { st.placedOnce = true; if (!st.lit) { sfx('found'); say('This is the place'); } }
             // (stepping into the light: said, and heard, each time it is come into after a while out of it)
-            if (f.placed !== st.wasPlaced) { if (f.placed && st.lit && st.t - (st.outAt ?? -9) > 2) { sfx('goal'); say('In the light'); } if (!f.placed) st.outAt = st.t; st.wasPlaced = f.placed; }
+            if (f.placed !== st.wasPlaced) { if (f.placed && lit0(T)) st.miss = 0; /* (a word that sent you to the light goes once you are in it) */ if (f.placed && st.lit && st.t - (st.outAt ?? -9) > 2) { sfx('goal'); say('In the light'); } if (!f.placed) st.outAt = st.t; st.wasPlaced = f.placed; }
             if (ctx.here) ctx.here(f.placed ? spot(T.stand) : null, w);
           }
           else if (finder.dataset.fix) delete finder.dataset.fix;
           teachTick(f);
+          camBtn.classList.toggle('on', st.cam || camCan(f)); // (the button: to raise it once it may come up, and to lower it)
           const standGoal = hunt ? (st.hintText || G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
           const raiseText = G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`;
           const text = st.meet === 'walk' ? G.wait || 'Wait.' : st.meet === 'met' ? (!st.cam ? raiseText : shot ? G.ready || 'Now.' : G.aim || 'Turn back to them.')
