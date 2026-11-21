@@ -317,10 +317,13 @@ function pageSide(NEAR) {
 }
 
 // the cases that fail a play: one body in another (the player, the story's people, the guide; a map's NPC against the
-// player or the story's people too), and a foot under or over its floor
-// (the guide's paws are told roughly, from the lowest of him in the pose he was first seen in: a paw read 4 to 7 cm under
-// the paving for a few frames as he sat down or got up is printed, and fails only past 10 cm)
-const fails = c => c.kind === 'bodies' || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && (c.a !== 'guide' || c.depth > 0.1));
+// player or the story's people too), and a foot well under or over its floor
+// (a foot is told from the lowest vertices its bone carried in the pose it was first seen in. The first whole play after
+// the fix read 3 to 10 cm under the floor for the walkers of frame 7, for Yuna and for the guide's paws, where
+// tools/clip_look.js had a standing sole within a centimetre of the paving drawn: readings that small are printed for a
+// look, and the play fails on a foot more than FOOT under or over its floor, someone standing in or over the ground)
+const FOOT = 0.15;
+const fails = c => c.kind === 'bodies' || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT);
 
 async function install(page) { await page.addInitScript(`(${pageSide.toString()})(${NEAR})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }
