@@ -58,9 +58,12 @@ before the split.
 | Layer | Source | Licence |
 |---|---|---|
 | Building heights, massing | Project PLATEAU Tokyo 23 wards LOD2 (MLIT), read as the vector tiles published by indigo-lab | CC BY 4.0 (PLATEAU), MIT (tiles) |
+| Buildings that changed since (new towers, slabs that are towers on podiums, demolitions) | Project PLATEAU Shibuya-ku FY2025, spec v5, published 2026-03-16 (LOD2 from Tokyo's FY2023 LiDAR, footprints from the FY2022 1/2500 base map), read out of its CityGML zip by range requests (`pipeline/plateau_today.py`; docs/BUILDINGS.md 7b) | CC BY 4.0 |
+| Construction sites | OpenStreetMap API, fetched 2026-11-21: the Upper West Project, Dogenzaka 2-chome South, MITAKE Link Park (`landuse=construction`) | ODbL |
+| Height check | Tokyo Metropolitan Government, Digital Twin project: 23 wards point clouds, flown March-April 2023, about 50 points/m² (`tools/lidar_heights.py`) | CC BY 4.0 |
 | Footprints, names, roads, steps, water, parks | Overture Maps, release 2026-10-21.0 (OpenStreetMap) | ODbL |
 | Terrain | GSI DEM5A, 5 m airborne laser survey, bare earth (10 m DEM where 5A has no data) | GSI terms of use |
-| Aerial photos | GSI seamless photos, zoom 17 | GSI terms of use |
+| Aerial photos | Tokyo Metropolitan Government, Digital Twin project: 2023 ortho photographs, 0.2 m, flown March-April 2023, used at 1 m with their shadows and leaning walls taken out (`pipeline/ortho_tokyo.py`); outside the frame GSI seamless photos, zoom 17 (June-November 2019 round the Scramble) | CC BY 4.0; GSI terms of use |
 | Street detail round the scramble: entrances, crossings, kerbs, tactile paving, the police box, the JR tracks | OpenStreetMap API, fetched 2026-11-03 (`pipeline/osm_detail.py`, `cities/shibuya/scramble_osm.json`) | ODbL |
 | Crosswalk widths and positions | GSI seamless aerial photos, zoom 18 (`tools/aerial_local.py`) | GSI terms of use |
 | Reference photographs (compared against, not used as textures) | Wikimedia Commons, 2019-26, listed in section 6b | CC BY 2.0 / 4.0, CC BY-SA 2.0 / 4.0, CC0 |
