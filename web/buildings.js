@@ -16,6 +16,22 @@
 // vertex shader).
 'use strict';
 window.OEBuildings = (function () {
+  // a shop's hours, shared with the hero levels' shop fronts (game/hero.js glow_shop): GLSL, after h21
+  const SHOP_HOURS = `
+  // a shop's hours (city.json game.tonight, docs/STORY.md "Tonight"): open from about eight, and shut at its own hour,
+  // its shutter down a minute or four after it, so a street goes dark a shop at a time: a sixth at 20:00, two fifths at
+  // 21:00 (the department stores' and the fashion's hour), a fifth at 22:00, an eighth at 23:00, and the rest (the
+  // convenience stores, the bars, the discount stores) all night. The small hours count as the night's end (24 to 29)
+  float shopShut(float r) { return r < 0.15 ? 20.0 : r < 0.55 ? 21.0 : r < 0.75 ? 22.0 : r < 0.87 ? 23.0 : 99.0; }
+  float shopOpen(float r, float r2, float hr) {
+    float h = hr < 5.0 ? hr + 24.0 : hr;
+    return step(7.5 + r2, h) * step(h, shopShut(r) + 0.02 + 0.05 * r2);
+  }
+  // the share of a frontage's shops open, where a shop is under a pixel
+  float shopShare(float hr) {
+    float h = hr < 5.0 ? hr + 24.0 : hr;
+    return smoothstep(7.5, 8.5, h) * (1.0 - 0.15 * smoothstep(20.02, 20.07, h) - 0.4 * smoothstep(21.02, 21.07, h) - 0.2 * smoothstep(22.02, 22.07, h) - 0.12 * smoothstep(23.02, 23.07, h));
+  }`;
   // the shared part (buildings-geo.js): the walls, roofs and decks as vertex arrays, built in a Worker where
   // there is one (pack-worker.js, issue 344), and the styles' constants the facade shader reads
   const GEO = window.OEBuildingsGeo;
@@ -615,7 +631,8 @@ window.OEBuildings = (function () {
     if (style > 6.5 && style < 7.5) return 0.1 + 0.85 * smoothstep(7.0, 8.0, hr) * (1.0 - smoothstep(21.0, 22.5, hr));
     if (style > 5.5 && style < 6.5) return 0.05 + 0.5 * work + 0.15 * evening;
     return 0.05 + 0.4 * evening + 0.2 * smoothstep(6.0, 7.0, hr) * (1.0 - smoothstep(8.5, 9.5, hr));
-  }`)
+  }
+  ${SHOP_HOURS}`)
         .replace('#include <color_fragment>', `#include <color_fragment>
   float kind = floor(vInf.x / 16.0 + 0.01), style = floor(vInf.x - kind * 16.0 + 0.5);
   float storey = max(vInf.y, 2.4), ground = max(vInf.z, 2.4), seed = floor(vInf.w * 997.0 + 0.5) / 997.0;
@@ -808,7 +825,7 @@ window.OEBuildings = (function () {
     float unitR = h31(vec3(floor(bay / unitW), fl, bidH * 1.37));
     if (office > 0.5) unitR = mix(h21(vec2(fl, bidH * 1.91 + 2.7)), unitR, 0.3);
     float occ = clamp(occupancy(style, uHour) * (0.3 + 1.4 * h21(vec2(bidH * 1.13 + 4.1, 2.9))), 0.0, 0.97);
-    float unitLit = step(unitR, occ), shopLit = 0.85 * step(0.0, occupancy(7.0, uHour) - 0.3);
+    float unitLit = step(unitR, occ), shopLit = 0.85 * shopShare(uHour);
     // rooms lit in different lights: offices under cool white (4000-5000 K LED and fluorescent
     // tubes), a floor in four warmer; homes under warm lamps, or a share of them (uCoolHomes: most
     // in Japan and Hong Kong) under cool ceiling lights; until a run of rooms is under a pixel
@@ -821,7 +838,7 @@ window.OEBuildings = (function () {
     float bR = h31(vec3(floor(bay / unitW), fl, bidH * 0.77 + 9.3));
     float unitB = mix(0.25 + 0.6 * pow(bR, 1.5) + 0.5 * step(0.9, bR), 0.56, runFar), litGain = 1.6;
     float lit = unitLit * step(0.12, rnd);
-    if (shop > 0.5) lit = step(0.15, rnd) * step(0.0, occupancy(7.0, uHour) - 0.3);
+    if (shop > 0.5) { float sId = floor(bay / 3.0); lit = step(0.15, rnd) * shopOpen(h21(vec2(sId, bidH * 2.31 + 5.7)), h21(vec2(sId + 7.7, bidH * 1.7 + 0.3)), uHour); }
     // an office tower's lobby stays lit all night
     float lobby = office * step(fl, 0.5) * (1.0 - shop);
     lit = max(lit, lobby); unitB = mix(unitB, 1.0, lobby);
@@ -994,7 +1011,7 @@ window.OEBuildings = (function () {
     roughB = 0.7; aoW = 0.95; // coping, awnings
   } else {
     roughB = 0.8; aoW = 0.9; // awning soffit, lit at night
-    emitB += diffuseColor.rgb * uNight * 0.55 * occupancy(7.0, uHour);
+    emitB += diffuseColor.rgb * uNight * 0.55 * (0.1 + 0.85 * shopShare(uHour));
   }
   // the street lights on the lower floors: the light on the pavement in front of the wall, fading
   // up the facade from the lamps' height, less on glass, which shows the room behind it instead
@@ -1109,5 +1126,5 @@ window.OEBuildings = (function () {
     return im;
   }
 
-  return { create, start, cells, cellInstances, STYLES, guessStyle: GEO.guessStyle, canopyPosts, POST, PIER: GEO.PIER };
+  return { SHOP_HOURS, create, start, cells, cellInstances, STYLES, guessStyle: GEO.guessStyle, canopyPosts, POST, PIER: GEO.PIER };
 })();
