@@ -8563,7 +8563,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (/[?&]perf\b/.test(location.search)) {
     const ps = document.createElement('script');
     ps.src = 'game/perf.js';
-    ps.onload = () => { const go = () => (!$('#g-title').hidden || arriving || (overture && overture.active) ? setTimeout(go, 1000) : setTimeout(() => OEPerf.run({ renderer, world, camera, atmos, gov, mirror, weather, stage, tick: mirrorTick }), 6000)); go(); };
+    // (ready: the loader gone and the title down, the walk or the story set out, the crane and any cut over: perf.js waits on it)
+    const ready = () => !preTitle && playing && $('#g-title').hidden && $('#g-loader').hidden && !arriving && !levelHold && !cine.active && !(overture && overture.active) && !photo.on && !closeup && $('#g-menu').hidden;
+    ps.onload = () => OEPerf.run({ renderer, world, camera, atmos, gov, mirror, weather, hero, stage, tick: mirrorTick, ready, label: o => (Wd.groundMeshes && Wd.groundMeshes.includes(o) ? 'the ground\'s tiles' : fineTiles.includes(o) ? 'the ground\'s fine tiles' : null) }).catch(e => console.warn('perf', e));
     document.head.appendChild(ps);
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
