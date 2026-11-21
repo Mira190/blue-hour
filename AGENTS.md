@@ -63,6 +63,11 @@ was finished; now there is one thing to finish.
   its tab; stills of its beats at the hour it is set, on a desktop and a phone, stand beside a
   photograph of the place and show nothing on the list under "Checking your own work"; and its
   beats are in `tools/story_play.js`.
+- **The walk is held to the same bar.** The owner's acceptance standard (21 November 2026): the story and the walk a
+  player is given (the title's second way in, and the last card's Walk Shibuya) are both to stand at the top of what a
+  AAA game is, in the place, the interface and the story. The walk is finished as an episode is: every hour and sky it
+  offers, on foot, by car and by helicopter, on a desktop and a phone, with nothing held, see-through, cut off or left
+  over from the game that was; its beats are in `tools/walk_play.js`. `?walk=1` with its builder's switches stays a tool.
 - **The core** is the story's episodes, and what they stand on: walking, the crowd and the
   traffic at the crossing, the camera, the hero level, the light from dusk into night and the
   rain. Finish these before starting a system. A follow-up issue is closed by doing it or by
