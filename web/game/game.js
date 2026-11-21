@@ -269,8 +269,8 @@ window.OpenEarthGame = async function game(cityId) {
   // the same family of tones instead of meeting a blurred photograph at its edge. (x, -y in the world's frame, the
   // zone's outer radius, on.) zoneTile(i): whether ground tile i lies under a zone, so its drawn streets stay on in
   // the helicopter and from any height
-  const ZONE_M = 320, ZONE = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) };
-  (G.hero || []).filter(h => h.at && h.r).slice(0, 4).forEach((h, k) => ZONE.value[k].set(h.at[0], -h.at[1], h.r + ZONE_M, 1));
+  const ZONE_M = 320, ZONE = { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) };
+  (G.hero || []).filter(h => h.at && h.r).slice(0, 8).forEach((h, k) => ZONE.value[k].set(h.at[0], -h.at[1], h.r + ZONE_M, 1));
   if (U.uZone) U.uZone.value = ZONE.value; // (the roofs' photo too: buildings.js photoZone)
   const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
@@ -281,7 +281,7 @@ window.OpenEarthGame = async function game(cityId) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[4];
+varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8];
 #define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -303,7 +303,7 @@ float near = 1.0 - smoothstep(12.0, 70.0, camD);
 float street = 1.0 - smoothstep(60.0, 420.0, camD); // street level, out to where the photo takes over
 // round a hero level (ZONE): how far the ground is drawn from the street data alone, whatever the height
 float zn = 0.0;
-for (int i = 0; i < 4; i++) zn = max(zn, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(vWP.xz, uZone[i].xy))));
+for (int i = 0; i < 8; i++) zn = max(zn, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(vWP.xz, uZone[i].xy))));
 const vec3 LUM = vec3(0.2126, 0.7152, 0.0722);
 // the photo's baked shadows and blotches, flattened towards the ground around them
 float l0 = dot(texture2D(map, vMapUv).rgb, LUM), l4 = dot(texture2D(map, vMapUv, 4.0).rgb, LUM);

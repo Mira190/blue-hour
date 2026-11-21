@@ -516,7 +516,7 @@ window.OEBuildings = (function () {
       uFrame: { value: new THREE.Vector4(0, 0, 1, 1) }, uSigns: { value: signage }, uCoolHomes: { value: coolHomes }, uNudge: U.uNudge || { value: 4e-5 },
       uGlyphs: { value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) }, uGlyphOn: { value: 0 },
       // round each hero level, the zone where the aerial photograph is never a roof's colour (the game sets it: game.js ZONE)
-      uZone: U.uZone || { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) },
+      uZone: U.uZone || { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) },
     });
     U.uGlyphs.value.needsUpdate = true;
     // the words on the signs (pipeline/sign_glyphs.py); until they load, or if they don't, the
@@ -556,8 +556,8 @@ window.OEBuildings = (function () {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
   uniform float uNight; uniform float uSel; uniform float uMode; uniform vec3 uC0; uniform vec3 uC1; uniform vec3 uC2;
-  uniform vec4 uZone[4];
-  float photoZone(vec3 wp) { float z = 0.0; for (int i = 0; i < 4; i++) z = max(z, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(wp.xz, uZone[i].xy)))); return z; }
+  uniform vec4 uZone[8];
+  float photoZone(vec3 wp) { float z = 0.0; for (int i = 0; i < 8; i++) z = max(z, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(wp.xz, uZone[i].xy)))); return z; }
   uniform float uHour; uniform sampler2D uPhoto; uniform float uPhotoOn; uniform vec4 uFrame; uniform float uSigns; uniform float uCoolHomes; uniform sampler2D uGlyphs; uniform float uGlyphOn;
   varying vec2 vFac; varying vec4 vInf; varying vec3 vExt; varying float vBid; varying float vSrc;
   varying vec3 vWPos; varying vec3 vWNrm; varying vec4 vGrid; varying vec4 vLook;
