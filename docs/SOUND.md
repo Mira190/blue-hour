@@ -372,6 +372,11 @@ the page.
 | The helicopter's cabin | 5 | Rotor, turbine and gearbox over everything, the air's rush with speed; the city silent | shut | shut | −8 dB, 1.8 kHz | +8 dB | shut |
 | A car's cabin | 6 | Engine, the road under the tyres, the indicator's relay; the street outside low and dull; rain on the roof | −12 dB, 900 Hz | −14 dB, 350 Hz | −6 dB, 2.5 kHz | −5 dB | −14 dB, 220 Hz |
 
+A phone's cap on voices holds: the far events and the indicator take a voice from the cap as every one-shot of the
+street does, and the city's bed and its far events are given up at level 2 with the street's other beds ("Giving up
+sound before a click"). Nothing here is off the audio thread: gains, biquads, oscillators, looped noise and a stereo
+pan (`tools/audio_thread_check.py`).
+
 Between the kerb and the roof the mix follows the ears' height over the ground (25 to 150 m), so a helicopter rising
 from the street loses it by degrees. "Under a deck" is read from the surface model (something 2.5 to 14 m over the ears
 and over three of the four points round them): the weather's own answer is drawn only while it rains, and on a dry
