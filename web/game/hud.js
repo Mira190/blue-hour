@@ -323,7 +323,8 @@ window.OEHud = (function () {
     choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
     // (the dialogue's own buttons, a story's: a step back, and the log)
     box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false); });
-    return { show, next, back, choose, tick, get open() { return !!cur; }, get stepped() { return view; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
+    return { show, next, back, choose, tick, get open() { return !!cur; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts

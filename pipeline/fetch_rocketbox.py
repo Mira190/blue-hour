@@ -112,6 +112,28 @@ def npc_cast(listing):
     return cast
 
 
+def face_cast():
+    """The characters who speak to the player, whose faces move (blender/build_people.py add_face; issue 12): the story's
+    people (game.story: the living cast and the afterimages), the NPCs a story meets (frames' meet.npc) and those who
+    talk on the walk (game.json walk), by their character; and the main characters, whom the reverse shot sees. Everyone
+    else keeps a face without morph targets (docs/PERFORMANCE.md)."""
+    out = set()
+    for path in sorted(glob.glob(os.path.join(ROOT, "cities", "*", "city.json"))):
+        game = json.load(open(path, encoding="utf8")).get("game") or {}
+        story = json.dumps(game.get("story") or {})
+        out.update(re.findall(r'"character": "(R_[A-Za-z0-9_]+)"', story))
+        talk = set(re.findall(r'"npc": "(\w+)"', story))
+        walk = os.path.join(ROOT, "web", "data", os.path.basename(os.path.dirname(path)), "game.json")
+        if os.path.exists(walk):
+            w = json.dumps(json.load(open(walk, encoding="utf8")).get("walk") or {})
+            talk.update(re.findall(r'"(?:npc|by|who)": "(\w+)"', w))
+        for n in game.get("npcs", []):
+            cid = (n.get("look") or {}).get("character", "")
+            if n.get("id") in talk and cid.startswith("R_"):
+                out.add(cid)
+    return out
+
+
 def main():
     characters, clips, npc_clips, field_clips = literals("CHARACTERS", "CLIPS", "NPC_CLIPS", "FIELD_CLIPS")
     if not os.path.isdir(os.path.join(DST, ".git")):
@@ -125,6 +147,11 @@ def main():
         if spec["head"]:
             avatars[spec["head"]] = spec["sex"]
     paths = ["/LICENSE.md"]
+    # the speaking cast's heads with their blendshapes (HeadBox's ARKit set and visemes, in the avatar's *_facial.fbx)
+    faces = face_cast()
+    for cid, spec in list(characters.items()) + [(c, s) for c, s in cast.items() if c in faces]:
+        head = spec.get("head") or spec["avatar"]
+        paths.append(f"/Assets/Avatars/{head}/Export/{os.path.basename(head)}_facial.fbx")
     for avatar in avatars:
         folder = f"Assets/Avatars/{avatar}"
         name = os.path.basename(avatar)
