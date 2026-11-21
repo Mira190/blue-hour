@@ -31,6 +31,9 @@ const G = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'web', 'data', '
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await startPlay(p);
   await p.waitForFunction(() => { const g = window.__game; return g && g.player && g.player.rig && g.lifts && g.frame; }, null, { timeout: 600000, polling: 500 });
+  // (the arrival's shot over: while it plays the prompt is not drawn, and the first walks read none)
+  await p.evaluate(() => { const g = window.__game; if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); });
+  await p.waitForFunction(() => { const g = window.__game; return !(g.cine && g.cine.active); }, null, { timeout: 120000, polling: 500 }).catch(() => console.log('(the arrival shot still on)'));
   const shot = async name => { if (out) await p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${name}.png` }); };
   const S = () => p.evaluate(() => { const g = window.__game, pl = g.player, pr = document.getElementById('g-prompt');
     return { x: pl.x, y: pl.y, z: pl.z, prompt: pr && !pr.hidden ? (document.getElementById('gp-text') || pr).textContent : '' }; });
@@ -103,10 +106,14 @@ const G = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'web', 'data', '
       const a = await walk(mid[0] - o[0] * 1.0, mid[1] - o[1] * 1.0, 3, 0.05);
       let least = Math.min(...a.map(([px, py]) => out({ x: px, y: py })));
       await shot(`roof-cheek${i}-into`);
-      // along it, a hand's width out, from its foot to the pad, as the owner walked
-      await put(lo[0] + o[0] * 0.35 - f[0] * 0, lo[1] + o[1] * 0.35, z0 + 0.5, hi[0], hi[1]);
-      const bpts = await walk(hi[0] + o[0] * 0.2, hi[1] + o[1] * 0.2, 3, 0.3);
-      const along = Math.min(...bpts.slice(4).map(([px, py]) => out({ x: px, y: py })));
+      // along it, a hand's width out, from a pace past its foot to the pad, as the owner walked: measured where the
+      // walker is beside it (between its two ends)
+      const ux = (lo[0] - hi[0]) / (2 * hl), uy = (lo[1] - hi[1]) / (2 * hl);
+      await put(lo[0] + ux * 1.2 + o[0] * 0.35, lo[1] + uy * 1.2 + o[1] * 0.35, z0 + 0.5, hi[0], hi[1]);
+      const bpts = await walk(hi[0] + o[0] * 0.2, hi[1] + o[1] * 0.2, 4, 0.3);
+      const beside = bpts.filter(([px, py]) => Math.abs((px - x) * f[0] + (py - y) * f[1]) <= hl);
+      const along = beside.length ? Math.min(...beside.map(([px, py]) => out({ x: px, y: py }))) : -1;
+      if (!beside.length) console.log(`  roof stair cheek ${i}: the walk along it never came beside it`);
       least = Math.min(least, along);
       await shot(`roof-cheek${i}-along`);
       const ok = least >= 0.28;
