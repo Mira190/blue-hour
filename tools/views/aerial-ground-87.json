@@ -1,0 +1,14 @@
+{
+ "_": "Issue 87: the ground just past the Scramble's hero level seen from the air: west and south-west of the station (the west exit's bus terminal, 300 to 340, -1040 to -1100), from over SHIBUYA SKY's north edge and from 200 m over the station, and the story's frame 5 wide shot. dz is over the ground.",
+ "times": {
+  "dusk": "17:39",
+  "night": "19:30",
+  "day": "13:00"
+ },
+ "views": [
+  {"name": "west", "eye": [515, -1092, 300], "look": [320, -1070, 0], "fov": 50, "floor": 20},
+  {"name": "station", "eye": [450, -1030, 200], "look": [330, -1080, 0], "fov": 55},
+  {"name": "down", "eye": [380, -1060, 200], "look": [340, -1075, 0], "fov": 60},
+  {"name": "wide", "eye": [300, -1180, 180], "look": [440, -980, 40], "fov": 46}
+ ]
+}

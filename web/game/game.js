@@ -264,14 +264,25 @@ window.OpenEarthGame = async function game(cityId) {
   // ground gets pavers (stretcher bond, joints anti-aliased by their screen size, each paver its
   // own shade), roads a fine aggregate, the rest a fine grain; all of it fades out with distance,
   // so from the air the ground is the photograph.
+  // Round each hero level, out to ZONE_M past its circle, the ground is drawn from the street data and not from the
+  // aerial photograph, at every height a player reaches (issue 87; the shader below): the level's paving goes on in
+  // the same family of tones instead of meeting a blurred photograph at its edge. (x, -y in the world's frame, the
+  // zone's outer radius, on.) zoneTile(i): whether ground tile i lies under a zone, so its drawn streets stay on in
+  // the helicopter and from any height
+  const ZONE_M = 320, ZONE = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) };
+  (G.hero || []).filter(h => h.at && h.r).slice(0, 4).forEach((h, k) => ZONE.value[k].set(h.at[0], -h.at[1], h.r + ZONE_M, 1));
+  if (U.uZone) U.uZone.value = ZONE.value; // (the roofs' photo too: buildings.js photoZone)
+  const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
     if (Wd.sea) Wd.sea.patchGround(sh); // the wet band and swash along the shore
     sh.uniforms.uStreet = m.material.userData.street = m.material.userData.street || { value: null };
     sh.uniforms.uStreetOn = m.material.userData.streetOn = m.material.userData.streetOn || { value: 0 };
+    sh.uniforms.uZone = ZONE;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn;
+varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[4];
+#define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
@@ -290,6 +301,9 @@ vec2 pavers(vec2 p) {
 float camD = distance(vWP, cameraPosition);
 float near = 1.0 - smoothstep(12.0, 70.0, camD);
 float street = 1.0 - smoothstep(60.0, 420.0, camD); // street level, out to where the photo takes over
+// round a hero level (ZONE): how far the ground is drawn from the street data alone, whatever the height
+float zn = 0.0;
+for (int i = 0; i < 4; i++) zn = max(zn, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(vWP.xz, uZone[i].xy))));
 const vec3 LUM = vec3(0.2126, 0.7152, 0.0722);
 // the photo's baked shadows and blotches, flattened towards the ground around them
 float l0 = dot(texture2D(map, vMapUv).rgb, LUM), l4 = dot(texture2D(map, vMapUv, 4.0).rgb, LUM);
@@ -356,10 +370,30 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
   diffuseColor.rgb = mix(diffuseColor.rgb, st.rgb, k);
   roadway = k * smoothstep(0.12, 0.07, sl);           // asphalt (dark), not the footways and kerbs drawn beside it
   paved = mix(paved, 1.0 - roadway, k);
+  // Round a hero level the photograph is not the ground at any height (issue 87): from the air its blur, its baked
+  // shadows and the buses on its terminal read as wet blotches beside the level's crisp paving. There the ground is
+  // what the street data says it is, in the level's tones: asphalt, kerbs and footways as drawn, and between them
+  // paving of one tone. The drawn edges are taken back to a pixel's width where the drawing is magnified (from a
+  // car or on foot), so where one surface meets the next stays crisp
+  if (zn > 0.0) {
+    // (the drawing's colour without the black of its empty pixels, which a filtered edge takes in: no dark seam
+    // where a footway meets the paving of its own tone)
+    vec4 r0 = texture2D(uStreet, vMapUv);
+    // (and without the gaps filled from its blurred levels, which laid a soft band of asphalt over the paving)
+    vec4 sz = vec4(sRGBTransferEOTF(vec4(r0.rgb / max(r0.a, 0.02), 1.0)).rgb, r0.a);
+    float wa = fwidth(sz.a);
+    sz.a = mix(sz.a, smoothstep(0.5 - wa, 0.5 + wa, sz.a), smoothstep(0.02, 0.2, wa));
+    vec3 zc = mix(ZONE_PAVE, sz.rgb, sz.a);
+    diffuseColor.rgb = mix(diffuseColor.rgb, zc, zn);
+    float zr = sz.a * smoothstep(0.12, 0.07, dot(sz.rgb, LUM));
+    roadway = mix(roadway, zr, zn);
+    paved = mix(paved, 1.0 - zr, zn);
+    green *= 1.0 - zn;
+  }
 }
 // paving at the albedo it has, not the photo's near-white: a soft knee from 0.28
 float L = dot(diffuseColor.rgb, LUM);
-if (L > 0.28) diffuseColor.rgb *= mix(1.0, (0.28 + (L - 0.28) * 0.3) / L, street * mix(0.6, 1.0, paved));
+if (L > 0.28) diffuseColor.rgb *= mix(1.0, (0.28 + (L - 0.28) * 0.3) / L, max(street, zn) * mix(0.6, 1.0, paved));
 // pavers on paved ground, a fine aggregate on the roads, a grain on the rest
 vec2 pv = pavers(vWP.xz);
 float pnear = 1.0 - smoothstep(8.0, 32.0, camD);
@@ -367,7 +401,7 @@ diffuseColor.rgb *= mix(1.0, (0.9 + 0.14 * pv.y) * mix(0.7, 1.0, pv.x), paved * 
 float agg = vn(vWP.xz * 31.0) * 0.6 + vn(vWP.xz * 7.0) * 0.4;
 diffuseColor.rgb *= mix(1.0, 0.86 + 0.26 * agg, roadway * near${window.OESurface && OESurface.active ? ' * 0.3' : ''}); // (the scanned asphalt carries it near: surface.js)
 float grain = vn(vWP.xz * 2.7) * 0.55 + vn(vWP.xz * 9.0) * 0.3 + vn(vWP.xz * 0.6) * 0.15;
-diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * pnear));`);
+diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * pnear) * (1.0 - zn)); // (none round a hero level: tone the material does not explain)`);
     // photographed asphalt and paving at eye level (surface.js; not on the low tier)
     if (window.OESurface) OESurface.ground(sh, { road: 'roadway', paved: 'paved' });
     // in the rain: darker, glossier ground, and puddles on the roads and the paving (weather.js)
@@ -447,7 +481,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const ud = Wd.groundMeshes[i].material.userData;
       if (near && ud.street && !ud.street.value) ud.street.value = streetTexture(i);
       else if (d > 700 && ud.street && ud.street.value) { ud.street.value.dispose(); ud.street.value = null; } // (drawn again if you come back: 24 MB a tile)
-      if (ud.streetOn) ud.streetOn.value = near && player.mode !== 'heli' && !(ud.street && ud.street.value && ud.street.value.userData.pending) ? 1 : 0;
+      // (under a hero level's zone the drawn streets stay on from the helicopter too: the photograph is never that ground)
+      if (ud.streetOn) ud.streetOn.value = near && (player.mode !== 'heli' || zoneTile(i)) && !(ud.street && ud.street.value && ud.street.value.userData.pending) ? 1 : 0;
       Wd.groundMeshes[i].visible = !near;
     });
   }
