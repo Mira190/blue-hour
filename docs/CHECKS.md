@@ -305,6 +305,56 @@ file under `web/assets`, 18 s) and `mem` (a few minutes), against 35 to 40 minut
 what a session still owes a visual change: how the model looks in the street at the episode's hour, in stills on a
 desktop and a phone ("Checking your own work" in AGENTS.md); `look`'s stills are the model alone, before and after.
 
+## Checks by reach
+
+The owner's ask of 21 November 2026 (issue 131): with fifteen sessions at work the checks cost too much, every branch
+checks again when main moves, and the parts are not separate enough ("if I change the people's models next time, it
+should not touch the story at all, and the story should not be played again"). From first principles: **a check is
+worth its time only where the change can alter its result.** What a change can reach is decided by the seams between
+the parts; where a seam is written down and held, a change behind it needs the seam's check and its own part's.
+
+What was read first, and what was taken from it (ideas and published behaviour only; no code from any of them):
+
+| Work | What it says | Taken here |
+|---|---|---|
+| Ekstazi (Gligoric, Eloussi, Marinov, ISSTA 2015) | A test's dependencies are the files it was seen to read; it runs again only when one of them changed. Less end-to-end time though it selects more tests than a finer analysis | What `tools/check_cache.py` already did by files, from the server's log |
+| Test Impact Analysis, Azure Pipelines (Microsoft's docs) | A map from each test to the sources it ran, from earlier runs; a change selects the tests that had its files; a safe fallback to everything for what it cannot read, and a full run at a set period | The map one level finer: functions, not files. The fallback: anything that is not a counted script is judged by its bytes. The full run: main's full tier, after every landing |
+| V8's code coverage (v8.dev, "JavaScript code coverage"; `Profiler.startPreciseCoverage` in the DevTools protocol; V8 is BSD-3-Clause) | Precise binary coverage: yes or no for each function, none lost to the garbage collector, and the optimiser allowed again once a function has reported; a take gives what ran since the last one | The source of the map. `tools/browser_watch.js` asks every page a check opens (`COVER`), function by function, yes or no |
+| Bazel's remote cache (bazel.build; Apache-2.0) | An action's result is kept under a hash of its inputs, its command and its environment, in a store shared by every machine; a test whose inputs did not change is not run again | The pass kept with every input's bytes (as git blobs) and the settings; shared between machines: main's passes for a fresh session (below) |
+| Chromium's commit queue (docs/infra/cq.md) | A passing build is reused for an equivalent patch set across a trivial rebase, inside a window of commits; only the suites a change might affect are compiled and run | Main moving under a branch is the trivial rebase: the branch's passes stand where main's change and the branch's are in different functions |
+| Predictive test selection (Machalica et al., Meta, 2018) and Taming Google-scale continuous testing (Memon et al., 2017) | Very few tests ever fail; those that do are near the code changed; a selection that reports 99.9% of faulty changes at half the cost | The shape, not the model: a draft before landing that plays what the change reaches, an exact check after it that plays everything, and nothing published that the exact check failed |
+| GitHub's merge queue (docs.github.com) | Each queued pull request is checked once, on a temporary branch with main and those ahead of it, by workflows on `merge_group` | Not taken: see "A merge queue, weighed" |
+| Fix Your Timestep! (Glenn Fiedler), FoundationDB's simulation, TigerBeetle's VOPR | The simulation steps in fixed dt; with the clock, the network and the disk under the test, a run repeats exactly and runs faster than the wall | The game under test already steps a twentieth of a second at most with seeded draws; what was slow was the drawing between the stills (below) |
+| Chromium's virtual time (`Emulation.setVirtualTimePolicy`) and Playwright's `page.clock` (Apache-2.0) | Timers, `Date` and `performance.now` from a synthetic source; `page.clock` fakes `requestAnimationFrame` too, in the page's script only | Weighed, not taken yet: the story's harness already owns the page's frames; see "The clock" |
+| Mesa's llvmpipe (`LP_NUM_THREADS`, docs.mesa3d.org; MIT) | How many threads the software renderer draws with; the default is every core | The lanes: checks side by side, each renderer held to its share of the cores |
+
+**The rule.** With a pass, `tools/check_cache.py` keeps every file the check read as a git blob, and for the page's
+scripts which of their functions the check ran. When a file it read has changed, the pass still stands if every
+change in that file since the pass is one of:
+
+- **main's**: the lines are as `origin/main` has them now, and they lie in a function this branch has not itself
+  changed against main. Main's own checks play main's change with this branch once it lands, and only a commit they
+  pass is published; that was the rule for a whole file (above), and is now the rule for a function;
+- **comments and spacing only** (both sources printed without comments by TypeScript's printer, where it is installed);
+- **inside a function the check never ran**, which is still that one whole function under the same name (V8 is asked:
+  the text, evaluated as an expression in an empty context, must give a function that prints back as exactly that
+  text; so a brace closed early, which would put new statements outside it, is seen);
+- **a new function** under a name nothing in the file said before.
+
+Anything else reaches the check, and its line says what: `web/game/story.js:412 changed in meetGuide(), which it ran`.
+A model, a picture, a pack or any file that is not a counted script reaches every check that read it, unless it is
+main's as main has it. Scripts that a worker runs too (`pack.js`, `sun.js`, `navcells.js` and the like) are judged by
+their bytes: the page's count says nothing of what ran in the worker. `tools/reach_unit.py` holds each rule on a small
+script in a clone of its own, with the static checks.
+
+    python3 tools/check_cache.py why story          # each file changed since story's pass, and whether it reaches
+    python3 tools/check_cache.py ran story web/game/story.js meetGuide   # did the story's pass run it
+
+**What the rule cannot see.** A function that did not run in the pass that was kept, and would in another run of the
+same check: the story is seeded and its clock pinned, but which frame a load finishes in is the machine's. Such a
+function is rare (the count is of a whole play), and main's full tier plays everything after landing. A script the
+page evaluates from a string, and a page a page opens by itself, are not counted; the page has neither.
+
 ## Unsteady steps
 
 A change that breaks something breaks the same step every time. So when the clip or the game check
