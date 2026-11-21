@@ -6,6 +6,7 @@
 //   gap:    each one's nearest neighbour (m: the mean, and its spread over the mean, cv: a ruled line is near 0)
 //   front:  the front third's distance behind the kerb, its spread (m: a ruled line along the kerb's edge is near 0)
 //   turn:   how far each faces from square to the road (degrees: the spread; a parade is near 0)
+//   row:    the share of them in the front row (within 0.6 m of the frontmost's distance behind the kerb: a parade is 1)
 //   phone:  the share of those drawn as people near the lens who would look at a phone standing (look.clip)
 // Means over the samples are printed, kerb by kerb, and over all. Fails when no kerb was sampled.
 //   python3 -m http.server 8800 --directory web &
@@ -46,13 +47,13 @@ const MIN = +(process.env.MIN || 8), R = +(process.env.R || 40);
       for (const q of W) { if (!by.has(q.g)) by.set(q.g, []); by.get(q.g).push(q); }
       for (const [gt, A] of by) {
         if (A.length < MIN) continue;
-        const key = `${gt.x.toFixed(0)},${gt.y.toFixed(0)}`, o = K[key] || (K[key] = { n: [], deep: [], rows: [], gap: [], cv: [], front: [], turn: [] });
+        const key = `${gt.x.toFixed(0)},${gt.y.toFixed(0)}`, o = K[key] || (K[key] = { n: [], deep: [], rows: [], gap: [], cv: [], front: [], turn: [], row: [] });
         const dep = A.map(q => (q.x - gt.x) * gt.ox + (q.y - gt.y) * gt.oy), road = Math.atan2(-gt.ox, -gt.oy);
         const nn = A.map(q => Math.min(...A.filter(r => r !== q).map(r => Math.hypot(r.x - q.x, r.y - q.y))));
         const fr = dep.slice().sort((a, b) => a - b).slice(0, Math.max(2, Math.ceil(A.length / 3)));
         const deep = Math.max(...dep);
         o.n.push(A.length); o.deep.push(deep); o.rows.push(Math.max(1, (deep - Math.min(...dep)) / 0.75 + 1));
-        o.gap.push(mean(nn)); o.cv.push(sd(nn) / (mean(nn) || 1)); o.front.push(sd(fr));
+        o.gap.push(mean(nn)); o.cv.push(sd(nn) / (mean(nn) || 1)); o.front.push(sd(fr)); o.row.push(dep.filter(d => d < Math.min(...dep) + 0.6).length / A.length);
         o.turn.push(sd(A.map(q => Math.atan2(Math.sin(q.h - road), Math.cos(q.h - road)) * 180 / Math.PI)));
       }
     }
@@ -61,8 +62,8 @@ const MIN = +(process.env.MIN || 8), R = +(process.env.R || 40);
     return { kerbs: out, phone: looks ? +(phones / looks).toFixed(2) : 0 };
   }, [h * 60 + m, spot, +secs, R, MIN]);
   const all = Object.values(r.kerbs), w = all.reduce((s, o) => s + o.samples, 0), avg = f => (w ? all.reduce((s, o) => s + o[f] * o.samples, 0) / w : 0);
-  for (const [k, o] of Object.entries(r.kerbs)) console.log(`kerb ${k}: ${o.samples} samples, ${o.n} waiting, ${o.deep} m deep (${o.rows} rows), gap ${o.gap} m (cv ${o.cv}), front spread ${o.front} m, turn spread ${o.turn} deg`);
-  console.log(`all: ${w} samples, ${avg('n').toFixed(1)} waiting a kerb, ${avg('deep').toFixed(2)} m deep (${avg('rows').toFixed(1)} rows), gap ${avg('gap').toFixed(2)} m (cv ${avg('cv').toFixed(2)}), front spread ${avg('front').toFixed(2)} m, turn spread ${avg('turn').toFixed(1)} deg; phones ${Math.round(r.phone * 100)}% of the crowd`);
+  for (const [k, o] of Object.entries(r.kerbs)) console.log(`kerb ${k}: ${o.samples} samples, ${o.n} waiting, ${o.deep} m deep (${o.rows} rows), ${Math.round(o.row * 100)}% in the front row, gap ${o.gap} m (cv ${o.cv}), front spread ${o.front} m, turn spread ${o.turn} deg`);
+  console.log(`all: ${w} samples, ${avg('n').toFixed(1)} waiting a kerb, ${avg('deep').toFixed(2)} m deep (${avg('rows').toFixed(1)} rows), ${Math.round(avg('row') * 100)}% in the front row, gap ${avg('gap').toFixed(2)} m (cv ${avg('cv').toFixed(2)}), front spread ${avg('front').toFixed(2)} m, turn spread ${avg('turn').toFixed(1)} deg; phones ${Math.round(r.phone * 100)}% of the crowd`);
   await b.close();
   if (!w) { console.log('FAIL no kerb with a crowd waiting was sampled'); process.exit(1); }
 })().catch(e => { console.error(e); process.exit(2); });
