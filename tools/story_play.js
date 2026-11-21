@@ -438,7 +438,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!t || !MOV.length || (t[2] != null && Math.abs(t[2] - g.player.z) < 12)) return null; // (up there already: frame 5's helicopter, on the roof)
         for (const l of g.G.lifts || []) for (const q of l.stops) {
           const [x, y, z] = q.at, tz = t[2] != null ? t[2] : 0;
-          if (Math.hypot(t[0] - x, t[1] - y) < 120 && tz > z + 2 && MOV.some(m => Math.hypot(m.origin[0] - x, m.origin[1] - y) < 15 && Math.abs(m.zs[0] - z) < 12)) return { at: q.at, face: q.face || null, name: q.name };
+          if (Math.hypot(t[0] - x, t[1] - y) < 120 && tz > z + 2 && MOV.some(m => Math.hypot(m.origin[0] - x, m.origin[1] - y) < 15 && Math.abs(m.zs[0] - z) < 12)) return { at: q.at, face: q.face || null, name: q.name, lift: l.id, stop: l.stops.indexOf(q) };
         }
         return null;
       });
@@ -446,7 +446,37 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         seen.add(`lift-${s.fi}`);
         const r = await escalators(p);
         for (const l of r.lines) { console.log(`frame ${s.fi + 1}: ${l}`); if (l.startsWith('FAIL')) errors.push(`frame ${s.fi + 1}: ${l}`); }
-        await p.evaluate(st => { const g = window.__game, pl = g.player; [pl.x, pl.y, pl.z] = st.at; pl.vz = 0; pl.ground = true; if (st.face) pl.h = Math.atan2(st.face[0], st.face[1]); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = 0.4; g.cam.dist = 9; } }, st); // (from behind and above: the lobby's ceiling is high, the line and both escalators in view)
+        // The ride itself, as a player takes it (issue 99: the player was put at the top, and the stills there were of a camera
+        // this harness had set): stood in the lift's hall at the street, the prompt's own action, stills along the shot
+        // (cine.seek puts it at each, rather than playing it at a software renderer's pace), and then the view the game hands
+        // over to, as it leaves it. The camera's way up must be clear of every building, and it must end beside you.
+        const hall = await p.evaluate(st => { const g = window.__game, l = g.G.lifts.find(q => q.id === st.lift), s = l.stops[st.stop ? 0 : l.stops.length - 1], [ax, ay, az] = s.at, [dx, dy] = s.door || [ax - 1, ay], n = Math.hypot(ax - dx, ay - dy) || 1, pl = g.player; pl.x = ax - (ax - dx) / n * 1.2; pl.y = ay - (ay - dy) / n * 1.2; pl.z = az; pl.h = Math.atan2(ax - dx, ay - dy); pl.speed = 0; pl.vz = 0; pl.ground = true; g.cam.yaw = pl.h; g.cam.pitch = 0.17; g.cam.snap = true; return s.name; }, st);
+        await p.waitForFunction(() => { const a = window.__game.currentAction(); return !!a && /lift/i.test(a.text || ''); }, null, { timeout: 300000, polling: 300 }).catch(() => {}); // (the hall is a level fetched as you come to it)
+        await frames(4); await snap(`${s.fi + 1}-lift-hall`);
+        const took = await p.evaluate(() => { const a = window.__game.currentAction(); if (!a || !/lift/i.test(a.text || '') || !a.act) return a ? a.text : 'no action'; a.act(); return 'ok'; });
+        if (took !== 'ok') { errors.push(`frame ${s.fi + 1}: in the hall at ${hall} the lift is not offered ("${took}")`); console.log(errors[errors.length - 1]); }
+        else {
+          await p.waitForFunction(() => window.__game.cine.active, null, { timeout: 60000, polling: 100 }).catch(() => {});
+          await frames(2);
+          let last = null;
+          for (const [n, k] of [0.06, 0.2, 0.34, 0.47, 0.6, 0.7, 0.78, 0.84, 0.93].entries()) {
+            await p.evaluate(k => window.__game.cine.seek(k), k);
+            await frames(2); await snap(`${s.fi + 1}-lift-ride${n ? `-${n}` : ''}`);
+            const c = await p.evaluate(last => { const g = window.__game, c = g.camera.position, T3 = window.THREE; return { k: +g.cine.k.toFixed(2), at: [c.x, -c.z, c.y].map(v => +v.toFixed(1)), z: +g.player.z.toFixed(1), clear: last ? +g.nav.clearFraction(new T3.Vector3(last[0], last[2], -last[1]), c).toFixed(2) : 1 }; }, last);
+            console.log(`frame ${s.fi + 1} lift ride:`, JSON.stringify(c));
+            // (the climb itself: past 0.8 the shot hands over to the chase camera, which stands clear of your head by its own
+            // rule, and a straight line between two stills there cuts the corner the shot goes round)
+            if (c.clear < 0.99 && c.k <= 0.8) { errors.push(`frame ${s.fi + 1}: the lift's shot goes through a building between ${last} and ${c.at}`); console.log(errors[errors.length - 1]); }
+            last = c.at;
+          }
+          await p.waitForFunction(() => !window.__game.cine.active, null, { timeout: 180000, polling: 200 }).catch(() => {});
+          await p.waitForFunction(() => !window.__game.player.auto, null, { timeout: 120000, polling: 200 }).catch(() => {}); // (the steps out of the doors)
+          await frames(4); await p.waitForTimeout(1500);
+          const up = await p.evaluate(st => { const pl = window.__game.player; return Math.hypot(pl.x - st.at[0], pl.y - st.at[1], pl.z - st.at[2]); }, st);
+          console.log(`frame ${s.fi + 1}: out of the lift ${up.toFixed(1)} m from its stop`);
+          if (up > 4.5) { errors.push(`frame ${s.fi + 1}: the lift did not set you down at ${st.name} (${up.toFixed(1)} m off)`); console.log(errors[errors.length - 1]); }
+        }
+        await p.evaluate(st => { const g = window.__game, pl = g.player; if (Math.hypot(pl.x - st.at[0], pl.y - st.at[1], pl.z - st.at[2]) > 4.5) { [pl.x, pl.y, pl.z] = st.at; pl.vz = 0; pl.ground = true; if (st.face) pl.h = Math.atan2(st.face[0], st.face[1]); g.cam.yaw = pl.h; g.cam.seek = g.cam.snap = true; } }, st); // (the view is the game's own: where the lift set you down)
         // the way shown from the stop: the dog's while he leads (route.js's walk to the place, with no height, as companion.js
         // asks it: the top of what stands there), else the gold line (game.js's guide; __game.guide() hands back the guide).
         // It rides no escalator against its steps, and turns the way the one up stands: to the left of where the lift faces at
@@ -469,9 +499,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log(`frame ${s.fi + 1}: from ${st.name}, ${what} (${way.n} points, ${way.off.toFixed(1)} m from you) goes ${way.side > 0 ? 'left' : 'right'}, on ${way.rides.join(', ') || 'no escalator'}${way.against > 0.25 ? `, ${way.against.toFixed(1)} m against an escalator's steps` : ''}`);
         if (!way.n || way.off > 3) errors.push(`frame ${s.fi + 1}: from ${st.name} ${what} does not start where you stand (${way.n} points, ${way.off.toFixed(1)} m off)`);
         if (way.against > 0.25) errors.push(`frame ${s.fi + 1}: from ${st.name} ${what} rides an escalator ${way.against.toFixed(1)} m against its steps`);
-        // (the camera eases after the player: from the street it comes up 217 m, so it is set again and given time to settle; the
-        // stills a second apart, the dog setting off the way he leads)
-        for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h - (innerWidth > innerHeight ? 0.6 : 0); g.cam.pitch = 0.25; g.cam.dist = 7; }); await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way${k ? `-${k}` : ''}`); }
+        // (the stills a second apart, the dog setting off the way he leads; the view as the game left it)
+        for (let k = 0; k < 3; k++) { await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way${k ? `-${k}` : ''}`);
+          // (issue 99: there the camera stood a metre over her head looking straight down at her hair, the frame round her one flat
+          // blue. Where the lens is, by the rig's own account: beside her, not over her)
+          const c = await p.evaluate(() => { const g = window.__game, c = g.camera.position, pl = g.player, r = v => +v.toFixed(2); g.cam.trace = {}; g.frame(0); const t = g.cam.trace; g.cam.trace = null; return { off: r(Math.hypot(c.x - pl.x, -c.z - pl.y)), over: r(c.y - pl.z), yaw: r(g.cam.yaw), swing: r(g.cam.swing || 0), lift: r(g.cam.lift), pull: r(g.cam.pull), f: r(t.f), want: t.wantLift, mode: g.cam.mode, pmode: pl.mode, cine: !!g.cine.active, fp: !!(g.cam.fp || g.cam.first) }; });
+          console.log(`frame ${s.fi + 1} lift-way${k ? `-${k}` : ''} camera:`, JSON.stringify(c));
+          if (c.off < 1.2 || c.over > 1.55 + 0.6 + c.off * 0.9) { errors.push(`frame ${s.fi + 1}: where the lift sets you down the camera is ${c.off} m from you and ${c.over} m over your feet (overhead: issue 99)`); console.log(errors[errors.length - 1]); }
+          if (process.env.CAMTABLE && !k) console.log(await p.evaluate(() => { const g = window.__game, pl = g.player, T3 = window.THREE, a = new T3.Vector3(pl.x, pl.z + 1.55, -pl.y), b = new T3.Vector3(), rows = []; for (let i = 0; i < 16; i++) { const yaw = pl.h + i * Math.PI / 8, r = []; for (const lift of [0, 0.15, 0.3, 0.45, 0.6, 0.8]) { const pitch = 0.25 + lift, cp = Math.cos(pitch); b.set(a.x - Math.sin(yaw) * cp * 7, a.y + Math.sin(pitch) * 7, a.z + Math.cos(yaw) * cp * 7); r.push(g.nav.clearFraction(a, b).toFixed(2)); } rows.push(`${(i * 22.5).toFixed(0).padStart(4)}  ${r.join(' ')}`); } return `tiles ${g.nav.tiles.join('/')} at ${[pl.x, pl.y, pl.z].map(v => v.toFixed(2))}\n${rows.join('\n')}`; }));
+        }
         continue;
       }
     }
@@ -700,6 +736,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log(`frame ${s.fi + 1} board:`, JSON.stringify(h));
         if (!h.seen || h.rotor < 0.1) { errors.push(`frame ${s.fi + 1}: the helicopter to get into is ${h.seen ? 'not turning over' : 'not to be seen'} on its pad`); console.log(errors[errors.length - 1]); }
         await snap(`${s.fi + 1}-board`);
+        { // (where the lens is as the frame begins: issue 99's other still, from over your head at the roof's east glass)
+          const c = await p.evaluate(tab => { const g = window.__game, c = g.camera.position, pl = g.player, r = v => +v.toFixed(2); g.cam.trace = {}; g.frame(0); const t = g.cam.trace; g.cam.trace = null;
+            let rows = '';
+            if (tab) { const T3 = window.THREE, a = new T3.Vector3(pl.x, pl.z + 1.55, -pl.y), b = new T3.Vector3(); for (let i = 0; i < 16; i++) { const yaw = i * Math.PI / 8, q = []; for (const lift of [0, 0.15, 0.3, 0.45, 0.6, 0.8]) { const pitch = g.cam.pitch + lift, cp = Math.cos(pitch); b.set(a.x - Math.sin(yaw) * cp * g.cam.dist, a.y + Math.sin(pitch) * g.cam.dist, a.z + Math.cos(yaw) * cp * g.cam.dist); q.push(g.nav.clearFraction(a, b).toFixed(2)); } rows += `\n${(yaw).toFixed(2)}  ${q.join(' ')}`; } }
+            return { at: [pl.x, pl.y, pl.z].map(r), h: r(pl.h), off: r(Math.hypot(c.x - pl.x, -c.z - pl.y)), over: r(c.y - pl.z), yaw: r(g.cam.yaw), yawTo: g.cam.yawTo, pitch: r(g.cam.pitch), dist: r(g.cam.dist), lift: r(g.cam.lift), pull: r(g.cam.pull), f: r(t.f), want: t.wantLift, hand: g.cam.hand || null, idle: r(g.t() - g.cam.lastInput), rows }; }, !!process.env.CAMTABLE);
+          console.log(`frame ${s.fi + 1} board camera:`, JSON.stringify(c).replace(/\\n/g, '\n'));
+        }
         await goTo(h.at, 8); await frames(4); // (on its floor: the pad stands over the deck round it) await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h; g.cam.pitch = 0.3; });
         const act = await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : null; });
         if (act !== 'Get in the helicopter') { errors.push(`frame ${s.fi + 1}: 8 m from the helicopter E is "${act}"`); console.log(errors[errors.length - 1]); }
