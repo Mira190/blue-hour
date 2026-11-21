@@ -684,7 +684,13 @@ What was built:
   (`web/assets/far/`, 0.4 MB). The page stands each at its real place, turned about its axis to the camera, under the
   same air, and tints the masks by the date: Tokyo Tower's Landmark Light orange from October to early July and white in
   summer, the decks' windows warm; the Skytree's Iki (a pale indigo blue) one night and Miyabi (Edo purple) the next.
-- The low tier (phones) keeps the faces over 100 m. `?farcity=off` leaves the far skyline out, to compare.
+- What it costs. The geometry carries no normals (flat shading takes each face's from its slope) and its facade
+  attributes as 16-bit whole numbers: 20 bytes a vertex. On the low tier (phones) only the faces over 100 m, the cards at
+  a quarter of their size (a tower is a hundred pixels on a phone's screen at most) and packed to ASTC where the GPU
+  takes it; and, since the far skyline is seen from SHIBUYA SKY and the flight and hardly at all from the street, it is
+  built only once the camera is over 90 m and let go five seconds after it is back under 60 m. A phone's GPU peak
+  (tools/mem_check.js) stays at the 268 MB it had without it; with it built at once it was 275, over the 270 budget.
+  `?farcity=off` leaves the far skyline out, to compare.
 
 ## Frame time by tier
 

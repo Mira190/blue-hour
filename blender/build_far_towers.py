@@ -7,6 +7,7 @@ transparency, its mipmaps the lattice's true coverage at every distance. Each to
 and orthographic, into:
 
   <id>.webp        its colour by day (in sRGB) and its coverage (alpha), lit by an even sky and a high sun;
+  <id>_low.webp, <id>_night_low.webp  the same at a quarter of the size, for a phone;
   <id>_night.webp  what lights it after dark: r its lattice's floodlight (Tokyo Tower's Landmark Light from the feet and
                    the main deck, Skytree's LEDs up its lattice), g its decks' windows and lamps, b Skytree's core
                    (the page tints each: orange or white by the season, Iki's blue or Miyabi's purple by the day).
@@ -310,9 +311,20 @@ def main():
         day.save(os.path.join(OUT, f"{tid}.webp"), quality=92, method=6)
         ch = [np.asarray(Image.open(paths[m]).convert("RGB"), float)[..., 0] for m in ("r", "g", "b")]
         n = np.clip(np.dstack(ch), 0, 255).astype(np.uint8)
-        Image.fromarray(n, "RGB").save(os.path.join(OUT, f"{tid}_night.webp"), quality=92, method=6)
+        night_im = Image.fromarray(n, "RGB")
+        night_im.save(os.path.join(OUT, f"{tid}_night.webp"), quality=92, method=6)
+        # a phone.s: a quarter of the size (a hundred pixels on its screen at most), the colour averaged with its coverage
+        # (premultiplied) so the lattice keeps its edge
+        a = np.asarray(day, float) / 255.0
+        pm = Image.fromarray(np.clip(np.dstack([a[..., :3] * a[..., 3:], a[..., 3:]]) * 255, 0, 255).astype(np.uint8), "RGBA")
+        lo = np.asarray(pm.resize((px_w // 4, px_h // 4), Image.BOX), float) / 255.0
+        al = np.maximum(lo[..., 3:], 1e-4)
+        lo = np.dstack([np.where(lo[..., 3:] > 0, lo[..., :3] / al, 0), lo[..., 3:]])
+        Image.fromarray(np.clip(lo * 255, 0, 255).astype(np.uint8), "RGBA").save(os.path.join(OUT, f"{tid}_low.webp"), quality=90, method=6)
+        night_im.resize((px_w // 4, px_h // 4), Image.BOX).save(os.path.join(OUT, f"{tid}_night_low.webp"), quality=90, method=6)
         meta[tid] = {"height": dims["height"], "width": round(2 * dims["half_width"], 2), "px": [px_w, px_h],
-                     "picture": f"far/{tid}.webp", "night": f"far/{tid}_night.webp"}
+                     "picture": f"far/{tid}.webp", "night": f"far/{tid}_night.webp",
+                     "low": f"far/{tid}_low.webp", "night_low": f"far/{tid}_night_low.webp"}
         print(f"{tid}: {px_w} x {px_h}, {sum(len(b.f) for b in M.values())} faces")
     json.dump(meta, open(os.path.join(OUT, "far.json"), "w"), indent=1)
 

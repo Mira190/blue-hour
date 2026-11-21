@@ -12,10 +12,11 @@
 //    camera. After dark they take their lighting: Tokyo Tower's Landmark Light, orange from October to early July and
 //    white in summer; the Skytree's Iki (a pale indigo blue) one night and Miyabi (Edo purple) the next.
 // The aircraft warning lights on the far towers' tops are night.js's (D.farTops), flashing with the map's own.
-// On the low tier (phones) only the faces over 100 m are drawn.
+// On the low tier (phones) only the faces over 100 m are drawn, at a quarter of the cards' size, and only while the camera
+// is high enough to see them (SHIBUYA SKY, the flight): what is not seen costs nothing.
 'use strict';
 window.OEFarCity = (function () {
-  const PHONE_MIN_H = 100;
+  const PHONE_MIN_H = 100, BUILD_Y = 90, DROP_Y = 60; // (m over the datum: the street is 15 to 35 m, SKY's deck 243)
   const SUMMER = [707, 1001]; // Tokyo Tower's white lamps, 7 July to 30 September (MMDD)
 
   async function load(DATA, ASSETS) {
@@ -66,12 +67,13 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
 
   function material(U, THREE) {
     const night = (U && U.uNight) || { value: 0 }, hour = (U && U.uHour) || { value: 20 };
-    const m = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.1 });
+    // (flat: each face's normal from its own slope, so the geometry carries none)
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.1, flatShading: true });
     m.defines = { OE_FAR: '' };
     m.onBeforeCompile = sh => {
       sh.uniforms.uFcNight = night; sh.uniforms.uFcHour = hour;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aFc;\nvarying vec4 vFc;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFc = aFc;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFc = vec4(aFc.x, aFc.y, aFc.z * 0.001, aFc.w);');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${FACADE}`)
         .replace('#include <color_fragment>', `#include <color_fragment>
   float fcRoof = step(vFc.x, -0.5), fcS = vFc.z, fcSt = 3.9 + 0.6 * fract(fcS * 7.0);   // a storey's height
@@ -107,14 +109,15 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
   }
 
   // the prisms of the records, in sectors round the frame's middle so that what is behind the camera is not drawn
-  function geometry(recs, centre, THREE) {
-    const SECT = 16, parts = Array.from({ length: SECT }, () => ({ p: [], n: [], a: [], i: [] }));
+  function geometry(recs, centre, THREE, topsOnly = false) {
+    const SECT = 16, parts = Array.from({ length: SECT }, () => ({ p: [], a: [], i: [] }));
     const tops = [];
     for (const r of recs) {
       const k = r.ring.length / 2;
       let cx = 0, cy = 0;
       for (let j = 0; j < k; j++) { cx += r.ring[2 * j]; cy += r.ring[2 * j + 1]; }
       cx /= k; cy /= k;
+      if (topsOnly) { if (r.h >= 60) tops.push([cx, cy, r.g + r.h]); continue; }
       const s = Math.floor(((Math.atan2(cy - centre[1], cx - centre[0]) / (2 * Math.PI) + 1) % 1) * SECT) % SECT, P = parts[s];
       const seed = ((r.seed * 0.618034) % 1 + 1) % 1, z0 = r.g, z1 = r.g + r.h;
       let along = 0;
@@ -122,10 +125,9 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
         const ax = r.ring[2 * j], ay = r.ring[2 * j + 1], bx = r.ring[2 * ((j + 1) % k)], by = r.ring[2 * ((j + 1) % k) + 1];
         const L = Math.hypot(bx - ax, by - ay);
         if (L < 0.2) continue;
-        const nx = (by - ay) / L, ny = -(bx - ax) / L, b = P.p.length / 3;
+        const b = P.p.length / 3;
         // map (x, y, z) -> three.js (x, z, -y)
         P.p.push(ax, z0, -ay, bx, z0, -by, bx, z1, -by, ax, z1, -ay);
-        for (let q = 0; q < 4; q++) P.n.push(nx, 0, -ny);
         P.a.push(along, 0, seed, r.h, along + L, 0, seed, r.h, along + L, r.h, seed, r.h, along, r.h, seed, r.h);
         P.i.push(b, b + 1, b + 2, b, b + 2, b + 3);
         along += L;
@@ -133,7 +135,7 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
       const pts = [];
       for (let j = 0; j < k; j++) pts.push(new THREE.Vector2(r.ring[2 * j], r.ring[2 * j + 1]));
       const tri = THREE.ShapeUtils.triangulateShape(pts, []), b = P.p.length / 3;
-      for (let j = 0; j < k; j++) { P.p.push(pts[j].x, z1, -pts[j].y); P.n.push(0, 1, 0); P.a.push(-1, r.h, seed, r.h); }
+      for (let j = 0; j < k; j++) { P.p.push(pts[j].x, z1, -pts[j].y); P.a.push(-1, r.h, seed, r.h); }
       for (const [u, v, w] of tri) {
         // (counter-clockwise seen from above, so that the roof faces up)
         const cross = (pts[v].x - pts[u].x) * (pts[w].y - pts[u].y) - (pts[v].y - pts[u].y) * (pts[w].x - pts[u].x);
@@ -186,43 +188,61 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
     const group = new THREE.Group();
     group.name = 'farcity';
     const recs = decode(data.bin, small ? PHONE_MIN_H : 0);
-    const { parts, tops } = geometry(recs, data.meta.centre || [0, 0], THREE);
     const mat = material(U, THREE);
-    let tris = 0;
-    for (const P of parts) {
-      if (!P.i.length) continue;
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(P.p, 3));
-      g.setAttribute('normal', new THREE.Float32BufferAttribute(P.n, 3));
-      g.setAttribute('aFc', new THREE.Float32BufferAttribute(P.a, 4));
-      g.setIndex(P.i);
-      g.computeBoundingSphere();
-      const mesh = new THREE.Mesh(g, mat);
-      mesh.matrixAutoUpdate = false;
-      mesh.name = 'farcity';
-      mesh.userData.noRefl = true;
-      group.add(mesh);
-      tris += P.i.length / 3;
+    const tints = {}, defs = Object.entries(data.cards || {}).filter(([id]) => data.meta.cards && data.meta.cards[id]);
+    for (const [id] of defs) tints[id] = { r: { value: new THREE.Color(0, 0, 0) }, g: { value: new THREE.Color(0, 0, 0) }, b: { value: new THREE.Color(0, 0, 0) } };
+    // the warning lights' places (night.js) whether or not the towers are built: a few hundred points
+    const { tops } = geometry(recs, data.meta.centre || [0, 0], THREE, true);
+    let built = null, low = 0, tris = 0;
+    // What is not seen costs nothing: the far skyline is seen from SHIBUYA SKY and the flight, and from the street hardly
+    // at all, behind the map's own walls. On the low tier it is built only once the camera is over BUILD_Y and let go a
+    // few seconds after it is back under DROP_Y; elsewhere it is built at once and kept
+    function build() {
+      const { parts } = geometry(recs, data.meta.centre || [0, 0], THREE);
+      const meshes = [], cards = [], texs = [];
+      tris = 0;
+      for (const P of parts) {
+        if (!P.i.length) continue;
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(P.p, 3));
+        // along the walls (m), over the ground (m), the seed (thousandths), the height (m): whole numbers, half the bytes
+        g.setAttribute('aFc', new THREE.Int16BufferAttribute(Int16Array.from(P.a, (v, i) => (i % 4 === 2 ? Math.round(v * 1000) : Math.round(v))), 4));
+        g.setIndex(P.i);
+        g.computeBoundingSphere();
+        const mesh = new THREE.Mesh(g, mat);
+        mesh.matrixAutoUpdate = false;
+        mesh.name = 'farcity';
+        mesh.userData.noRefl = true;
+        group.add(mesh);
+        meshes.push(mesh);
+        tris += P.i.length / 3;
+      }
+      const loader = new THREE.TextureLoader();
+      for (const [id, def] of defs) {
+        // (a phone's at a quarter of the size, and in ASTC blocks where its GPU takes them: tex.js)
+        const lo = small && def.low, pack = t => { if (small && window.OETex && OETex.stats.on) OETex.pack(t); };
+        const day = loader.load(ASSETS + (lo ? def.low : def.picture), pack), night = loader.load(ASSETS + (lo ? def.night_low : def.night), pack);
+        day.colorSpace = THREE.SRGBColorSpace; night.colorSpace = THREE.NoColorSpace;
+        for (const t of [day, night]) { t.anisotropy = small ? 2 : 4; t.generateMipmaps = true; texs.push(t); }
+        const c = card(def, data.meta.cards[id], { day, night }, THREE, U, tints[id]);
+        c.name = `farcard-${id}`;
+        cards.push(c);
+        group.add(c);
+      }
+      return { meshes, cards, texs };
     }
-    // the towers' cards
-    const cards = [], tints = {};
-    const loader = new THREE.TextureLoader();
-    for (const [id, def] of Object.entries((data.cards) || {})) {
-      const at = data.meta.cards && data.meta.cards[id];
-      if (!at) continue;
-      const day = loader.load(ASSETS + def.picture), night = loader.load(ASSETS + def.night);
-      day.colorSpace = THREE.SRGBColorSpace; night.colorSpace = THREE.NoColorSpace;
-      for (const t of [day, night]) { t.anisotropy = 4; t.generateMipmaps = true; }
-      const tint = { r: { value: new THREE.Color(0, 0, 0) }, g: { value: new THREE.Color(0, 0, 0) }, b: { value: new THREE.Color(0, 0, 0) } };
-      tints[id] = tint;
-      const c = card(def, at, { day, night }, THREE, U, tint);
-      c.name = `farcard-${id}`;
-      cards.push(c);
-      group.add(c);
+    function drop() {
+      for (const m of built.meshes) { group.remove(m); m.geometry.dispose(); }
+      for (const c of built.cards) { group.remove(c); c.geometry.dispose(); c.material.dispose(); }
+      for (const t of built.texs) t.dispose();
+      built = null;
     }
+    if (!small) built = build();
     const lin = (r, g, b, k = 1) => new THREE.Color(r * k, g * k, b * k);
     const api = {
-      group, tops, tris, count: recs.length, cards,
+      group, tops, count: recs.length,
+      get tris() { return built ? tris : 0; },
+      get cards() { return built ? built.cards : []; },
       // the date (local month and day): each tower's lighting
       setSeason(month, day) {
         const md = month * 100 + day, doy = Math.round((Date.UTC(2001, month - 1, day) - Date.UTC(2001, 0, 1)) / 864e5);
@@ -239,9 +259,16 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
           st.b.value.copy(miyabi ? lin(0.9, 0.7, 1.0, 1.2) : lin(0.85, 0.95, 1.0, 1.4));   // the core
         }
       },
-      // each frame: the cards turned to face the camera about their own axis
+      // each frame: built or let go by the camera's height (low tier), and the cards turned to face the camera
       update(camera) {
-        for (const c of cards) {
+        if (small) {
+          const y = camera.position.y;
+          if (!built && y > BUILD_Y) { built = build(); low = 0; }
+          else if (built && y < DROP_Y) { if (!low) low = performance.now(); else if (performance.now() - low > 5000) { drop(); low = 0; } }
+          else low = 0;
+        }
+        if (!built) return;
+        for (const c of built.cards) {
           const dx = camera.position.x - c.position.x, dz = camera.position.z - c.position.z;
           c.rotation.y = Math.atan2(dx, dz);
         }

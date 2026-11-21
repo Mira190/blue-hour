@@ -7,7 +7,9 @@
    2048
   ],
   "picture": "far/tokyo_tower.webp",
-  "night": "far/tokyo_tower_night.webp"
+  "night": "far/tokyo_tower_night.webp",
+  "low": "far/tokyo_tower_low.webp",
+  "night_low": "far/tokyo_tower_night_low.webp"
  },
  "skytree": {
   "height": 634.0,
@@ -17,6 +19,8 @@
    2048
   ],
   "picture": "far/skytree.webp",
-  "night": "far/skytree_night.webp"
+  "night": "far/skytree_night.webp",
+  "low": "far/skytree_low.webp",
+  "night_low": "far/skytree_night_low.webp"
  }
 }
