@@ -69,6 +69,9 @@ async function measure(b, city) {
       0x8232: 1, 0x8231: 1, 0x823C: 8, 0x823B: 4, 0x823A: 4, 0x8239: 2, 0x8238: 2, 0x8237: 2, 0x8D70: 16, 0x8D76: 16, 0x8D7C: 4, 0x8D82: 16, 0x8D88: 16, 0x8D8E: 4,
       0x93B0: 1, 0x93D0: 1 }; // (ASTC 4x4, linear and sRGB: sixteen bytes a block of sixteen texels)
     const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0 };
+    // the load's own steps (game.js loadStep), each with the GPU memory and the heap when it was named: which step takes the memory
+    const SP = window.__steps = [], pm = performance.mark.bind(performance);
+    performance.mark = function (n, o) { if (n === 'oe:step') { try { SP.push({ step: o && o.detail && o.detail.step, t: +(performance.now() / 1000).toFixed(1), gpu: M.sum, heap: performance.memory ? performance.memory.usedJSHeapSize : 0 }); } catch (e) { /* no memory reading */ } } return pm(n, o); };
     const total = () => { let s = 0; for (const m of [M.tex, M.buf, M.rb]) for (const e of m.values()) s += e.bytes; return s; };
     const bump = () => { M.sum = total(); if (M.sum > M.peak) { M.peak = M.sum; M.peakAt = (performance.now() / 1000).toFixed(1); } };
     const nameOf = a => { for (const x of a) if (x && (x.src || x.currentSrc)) return String(x.src || x.currentSrc).split('/').slice(-2).join('/'); return ''; };
@@ -310,6 +313,7 @@ async function measure(b, city) {
     smaps = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${MB(v)}`).join(', ');
   } catch (e) { /* gone */ }
   const r = await p.evaluate(top => window.__memReport(top), TOP).catch(() => null);
+  const steps = await p.evaluate(() => window.__steps || []).catch(() => []);
   // the pictures packed as ASTC blocks on the device (web/tex.js), where the renderer decodes them (SwiftShader does: run without xvfb-run)
   const astc = await p.evaluate(() => (window.OETex && OETex.stats.on ? { packed: OETex.stats.packed, kept: OETex.stats.kept, mb: OETex.stats.bytes / 1048576, worst: OETex.stats.worst, s: OETex.stats.ms / 1000, log: OETex.stats.log } : null)).catch(() => null);
   try { await cdp.send('HeapProfiler.collectGarbage'); } catch (e) { /* */ }
@@ -363,7 +367,7 @@ async function measure(b, city) {
   }).catch(e => [String(e)]);
   const pr = await p.evaluate(() => { const c = document.getElementById('game-gl'); return c ? { w: c.width, h: c.height } : null; }).catch(() => null);
   await ctx.close();
-  return { city, ok, map, district, parts, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: hasProc ? peakRss : null, gl: r, canvas: pr, errors };
+  return { city, ok, map, district, parts, steps, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: hasProc ? peakRss : null, gl: r, canvas: pr, errors };
 }
 
 // the desktop's load to the title: the loader's upload before it, by its own log line
@@ -431,6 +435,7 @@ async function desktop(b, city) {
       console.log(`     pictures in ASTC blocks: ${m.astc.packed} packed (${m.astc.mb.toFixed(1)} MB of blocks, the worst ${m.astc.worst.toFixed(1)} dB), ${m.astc.kept} kept as they were`);
       if (process.env.ASTC_LOG) for (const l of m.astc.log) console.log(`       ${l.kept ? 'kept  ' : 'packed'} ${String(l.w).padStart(4)}x${String(l.h).padEnd(4)} ${l.db == null ? '' : `${l.db} dB`}${l.adb ? ` alpha ${l.adb}` : ''} ${l.name}${l.why ? ` (${l.why})` : ''}`);
     }
+    if (process.env.STEPS && m.steps && m.steps.length) console.log(`     the load's steps (second, GPU MB, heap MB): ${m.steps.map(q => `${q.step} ${q.t}s ${MB(q.gpu)}/${MB(q.heap)}`).join(' | ')}`);
     if (m.parts && m.parts.length) { // (the part the peak rose in last is the one it fell in)
       let at = m.parts[0].name;
       for (let i = 1; i < m.parts.length; i++) if (m.parts[i].peak > m.parts[i - 1].peak) at = m.parts[i].name;
