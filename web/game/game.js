@@ -3431,6 +3431,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
+  // a disc or a ring of radius r (from r0 to r, shares of r) laid on the ground a walker stands on round at (x, y, its floor z0),
+  // 3 cm over it, in the frame of a group placed at (x, y, z0): a polar grid fine enough (20 cm round, 17 cm out at a
+  // 4 m place) that a kerb crossed is a step in it. aP: where each point is in the unit disc, for a shader. Flat at
+  // one height, a standpoint's edge that reached over a kerb into the road hung over the asphalt and sank under the
+  // paving, and only a lone pale arc of it lay across the zebra from the player's feet to the kerb
+  function storyDrape(x, y, z0, r, r0 = 0) {
+    const NA = Math.max(48, Math.min(160, Math.round(2 * Math.PI * r / 0.2))), NR = Math.max(1, Math.min(32, Math.round(r * (1 - r0) / 0.17))), pos = [], uv = [], idx = [];
+    const put = (u, v) => { const g = lineGround(x + u * r, y + v * r, { z: z0, deck: 0 }); pos.push(u * r, (g == null ? 0 : g - z0) + 0.03, -v * r); uv.push(u, v); };
+    if (!r0) put(0, 0);
+    const first = r0 ? 0 : 1, base = r0 ? 0 : 1;
+    for (let i = first; i <= NR; i++) { const f = r0 + (1 - r0) * i / NR; for (let k = 0; k < NA; k++) { const t = k / NA * 2 * Math.PI; put(Math.cos(t) * f, Math.sin(t) * f); } }
+    if (!r0) for (let k = 0; k < NA; k++) idx.push(0, 1 + k, 1 + (k + 1) % NA);
+    for (let i = 0; i < NR - first; i++) for (let k = 0; k < NA; k++) { const a = base + i * NA + k, b = base + i * NA + (k + 1) % NA, c = a + NA, d = b + NA; idx.push(a, c, b, b, c, d); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aP', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+    return g;
+  }
   let guideMade = null; // (the story's guide as last made: tools/lobby_shot.js)
   const GUIDE_BODY = 0.7; // (the guide's reach from where it stands until his model has said: blender/build_dog.py's Akita, 0.52 m behind to 0.72 m in front)
   // (and once it has, his own: companion.js measures it from the model, so another animal is kept off posts by its size)
@@ -3852,16 +3869,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
         // (and round a standpoint, the edge of where the picture can be taken from: a fine line at task.within_m, so that
         // the light is a place with a size, and the player sees when they are inside it)
-        const edge = new THREE.Mesh(new THREE.RingGeometry(0.955, 1, 128), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-        edge.rotation.x = -Math.PI / 2; edge.position.y = 0.05; edge.visible = false;
+        // (laid on the ground round the place, storyDrape, made again when the place or its size changes)
+        const edge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+        edge.visible = false;
         storyBeacon = new THREE.Group(); storyBeacon.add(col, ring, edge); storyBeacon.userData = { col, ring, edge };
         storyBeacon.traverse(o => { o.frustumCulled = false; o.renderOrder = 20; });
         world.add(storyBeacon);
       }
       storyBeacon.visible = !!at;
-      storyBeacon.userData.edge.visible = !!(at && kind === 'stand' && r > 1.2); if (r > 1.2) storyBeacon.userData.edge.scale.setScalar(r);
+      const E = storyBeacon.userData.edge, z0 = at ? (at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1]))) : 0, eKey = at ? `${at[0].toFixed(1)},${at[1].toFixed(1)},${r}` : '';
+      E.visible = !!(at && kind === 'stand' && r > 1.2);
+      if (E.visible && E.userData.key !== eKey) { E.userData.key = eKey; E.geometry.dispose(); E.geometry = storyDrape(at[0], at[1], z0, r, 1 - 0.08 / r); } // (the same fine line, 8 cm)
       if (at) { const amber = kind === 'stand'; storyBeacon.userData.col.material.uniforms.uC.value.setRGB(amber ? 1.0 : 0.62, amber ? 0.8 : 0.78, amber ? 0.52 : 1.0); storyBeacon.userData.ring.material.color.setHex(amber ? 0xffcf8a : 0x9fc4ff); }
-      if (at) storyBeacon.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1])))); // (at[3]: the floor it stands on, a roof's)
+      if (at) storyBeacon.position.copy(W(at[0], at[1], z0)); // (at[3]: the floor it stands on, a roof's)
     },
     // standing in the light (a frame's standpoint, reached): the column goes, the edge of the place is lit, the ground
     // inside it is warmed a little, and a ring goes out once from your feet to its edge as you step in. What the camera
@@ -3869,21 +3889,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     here: (at, r = 2.5) => {
       if (!at) { if (storyHere) storyHere.visible = false; return; }
       if (!storyHere) {
-        const amber = new THREE.Color(1.0, 0.8, 0.52);
-        const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: amber } },
-          vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: 'uniform float uT; uniform vec3 uC; varying vec2 vP; void main() { float r = length(vP); float a = 0.11 * smoothstep(1.0, 0.2, r) * (0.85 + 0.15 * sin(uT * 2.2)) + 0.22 * smoothstep(0.7, 0.94, r) * smoothstep(1.0, 0.94, r) + 0.95 * smoothstep(0.925, 0.955, r) * smoothstep(1.0, 0.975, r); gl_FragColor = vec4(uC * a, a); }' }));
-        const wave = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 72), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-        for (const m of [disc, wave]) { m.rotation.x = -Math.PI / 2; m.frustumCulled = false; m.renderOrder = 20; }
-        disc.position.y = 0.04; wave.position.y = 0.05;
-        storyHere = new THREE.Group(); storyHere.add(disc, wave); storyHere.userData = { disc, wave, t0: 0, key: '' };
+        const amber = new THREE.Color(1.0, 0.8, 0.52), wave = new THREE.Color(0xffcf8a).convertSRGBToLinear();
+        // one mesh, the place's light and the ring that goes out to its edge (uWave: the ring's radius, a share of the
+        // place's; uWaveA its strength), laid on the ground as it is (storyDrape), the ring with it
+        // Its edge is a fine line, 8 cm in metres (uR: the place's radius) whatever the place's size: a third of the radius
+        // as before was a 30 cm cream stroke at a 4 m place, which at night read as a band of light of its own
+        const disc = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+          polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+          uniforms: { uT: { value: 0 }, uC: { value: amber }, uW: { value: wave }, uWave: { value: 1 }, uWaveA: { value: 0 }, uR: { value: 4 } },
+          vertexShader: 'attribute vec2 aP; varying vec2 vP; void main() { vP = aP; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+          fragmentShader: 'uniform float uT, uWave, uWaveA, uR; uniform vec3 uC, uW; varying vec2 vP; void main() { float r = length(vP), e = (1.0 - r) * uR; float a = 0.11 * smoothstep(1.0, 0.2, r) * (0.85 + 0.15 * sin(uT * 2.2)) + 0.22 * smoothstep(0.7, 0.94, r) * smoothstep(1.0, 0.94, r) + 0.62 * smoothstep(0.0, 0.015, e) * (1.0 - smoothstep(0.05, 0.085, e)); float w = uWaveA * step(0.94 * uWave, r) * step(r, uWave); gl_FragColor = vec4(uC * a * a + uW * w, 1.0); }' }));
+        // (additive at alpha 1: the light as its alpha times itself, as the disc was, and the ring at its strength, as its own mesh was)
+        disc.frustumCulled = false; disc.renderOrder = 20;
+        storyHere = new THREE.Group(); storyHere.add(disc); storyHere.userData = { disc, t0: 0, key: '' };
         world.add(storyHere);
       }
-      const U = storyHere.userData, key = `${at[0].toFixed(1)},${at[1].toFixed(1)}`;
+      const U = storyHere.userData, key = `${at[0].toFixed(1)},${at[1].toFixed(1)}`, z0 = at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1]));
       if (!storyHere.visible || U.key !== key) U.t0 = performance.now(); // (stepped in: the ring goes out)
+      if (U.key !== key || U.r !== r) { U.disc.geometry.dispose(); U.disc.geometry = storyDrape(at[0], at[1], z0, r); U.disc.material.uniforms.uR.value = r; } // (laid on the ground there: storyDrape)
       U.key = key; U.r = r; storyHere.visible = true;
-      U.disc.scale.setScalar(r);
-      storyHere.position.copy(W(at[0], at[1], at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1]))));
+      storyHere.position.copy(W(at[0], at[1], z0));
     },
     // where a point of the map is in the frame (0..1 from its top left), whether it is ahead, and how far from you
     screen: at => { const v = W(at[0], at[1], at[2] ?? player.z + 1.2), d = Math.hypot(at[0] - player.x, at[1] - player.y), f = v.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3())) > 0; v.project(camera); return { x: v.x * 0.5 + 0.5, y: 0.5 - v.y * 0.5, front: f, dist: d }; },
@@ -4347,7 +4372,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const m = player.mode, me = m === 'heli' ? heli.st : m === 'ferry' ? player.vehicle : player;
     const auto = m === 'car' && pilot ? pilot : null; // (the autopilot's destination is the route's, whatever the walk's is)
     // (in a story the way is to the story's own goal, by the footways and the lifts: round a station, up a tower)
-    const storyWay = story && story.on && story.state.target && m === 'foot' && !story.guided ? story.state.target : null; // (and none while the dog leads: he is the way)
+    // (and none while the dog leads: he is the way; nor to a thing to photograph, story.js kind 'frame': the way ends at the
+    // standpoint and the thing is framed from there, and a line drawn on to it ran from the player's feet across the zebra)
+    const storyWay = story && story.on && story.state.target && m === 'foot' && !story.guided && story.state.kind !== 'frame' ? story.state.target : null;
     const goal = titled ? null : storyWay ? { x: storyWay[0], y: storyWay[1], z: storyWay[3] != null ? storyWay[3] : null, kind: 'waypoint' } : auto ? { x: auto.dest.at[0], y: auto.dest.at[1], z: null, kind: 'pilot' } : routeGoal(target, ob);
     const here = goal && Math.hypot(goal.x - me.x, goal.y - me.y) < (m === 'heli' ? 30 : 12) && (m !== 'heli' || heli.st.landed);
     // (in a story no line is drawn on the ground but the story's own way: the map's routes are not the story's way, and a line that leads elsewhere is worse than none)
@@ -7036,7 +7063,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       heli.st.idle = heliWait && heliWait.idle && heli.loaded() ? HELI_IDLE : 0;
     }
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
-    if (storyHere && storyHere.visible) { const U = storyHere.userData, t = (performance.now() - U.t0) / 900, e = 1 - Math.pow(1 - Math.min(1, t), 3); U.disc.material.uniforms.uT.value = performance.now() / 1000; U.wave.visible = t < 1; U.wave.scale.setScalar(U.r * (0.15 + 0.85 * e)); U.wave.material.opacity = 0.7 * (1 - Math.min(1, t)); }
+    if (storyHere && storyHere.visible) { const U = storyHere.userData, t = (performance.now() - U.t0) / 900, e = 1 - Math.pow(1 - Math.min(1, t), 3), u = U.disc.material.uniforms; u.uT.value = performance.now() / 1000; u.uWave.value = 0.15 + 0.85 * e; u.uWaveA.value = 0.7 * (1 - Math.min(1, t)); }
     if (!simHold) dlg.tick(paused || uiOpen() || document.querySelector('#g-story-log.on, #g-story-album.on') ? 0 : dt); // (not under the menu, the log or the roll: a call that goes on by itself waits while they are up) (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
     const ob = titleOn || walk ? null : objective(); // (the walk owes nobody anything: no objective, no line, no light)

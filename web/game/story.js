@@ -1216,6 +1216,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       // (the case closed and the street walked on, release(): tonight's people go once the lens no longer has them, never in view)
       if (st.released) for (const id in st.cast) { const f = st.cast[id], v = ctx.screen([f.x, f.y, (f.z || 0) + 1]); if (!v.front || v.x < -0.15 || v.x > 1.15 || v.y < -0.15 || v.y > 1.15 || v.dist > 80) { f.remove(); delete st.cast[id]; } }
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
+      // (the case closed: time runs, and tonight's people go on living under the last card and on the street walked on
+      // after it. They were animated only further down, past the return below, so whoever was crossing as the card
+      // came up stood held in mid-step, and was found so by a player who chose to walk on)
+      if (st.phase === 'done') for (const id in st.cast) st.cast[id].animate(dt);
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
       waitTick(dt);
       if (keys.classList.contains('on') && KEYS() !== keysAre) keysHint(true); // (the keys, or the pad's sticks, as the hand changes)

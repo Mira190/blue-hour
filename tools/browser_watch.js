@@ -21,8 +21,58 @@ pw.chromium.launch = (o = {}) => {
   const f = process.env.CHROME_LOG ? `${process.env.CHROME_LOG}${logs.length ? `.${logs.length}` : ''}` : path.join(os.tmpdir(), `chrome-${process.pid}-${logs.length}.log`);
   try { fs.rmSync(f, { force: true }); } catch (e) { /* not there */ }
   logs.push(f);
-  return launch0(Object.assign({}, o, { args: [...(o.args || []), '--enable-logging', `--log-file=${f}`, '--v=0'] }));
+  return launch0(Object.assign({}, o, { args: [...(o.args || []), '--enable-logging', `--log-file=${f}`, '--v=0'] })).then(covered);
 };
+
+// Which of the page's functions a check ran (COVER=dir, set by tools/check.sh; docs/CHECKS.md, "Checks by reach"): V8's
+// own count, function by function and yes or no only, which leaves its optimiser on. Asked of every page the browser
+// opens, taken every twenty seconds (a take gives what ran since the last one) and when the browser is closed, and
+// written as one file a browser: for each script the page ran, every function's place in its source and whether it ran.
+// tools/check_cache.py keeps it with the pass: a change inside a function the check never ran cannot alter its result.
+function covered(b) {
+  const dir = process.env.COVER;
+  if (!dir) return b;
+  const seen = new Map(), sessions = [];   // url -> Map("start-end" -> [start, end, ran, name])
+  const tag = `${process.pid}-${logs.length}`;
+  try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, `launch-${tag}`), ''); } catch (e) { /* as below */ }   // (a launch with no count beside it: the check's count is not whole)
+  const take = async s => {
+    let r; try { r = await s.send('Profiler.takePreciseCoverage'); } catch (e) { return; }
+    for (const sc of r.result) {
+      if (!/^https?:/.test(sc.url)) continue;
+      let m = seen.get(sc.url); if (!m) seen.set(sc.url, m = new Map());
+      for (const fn of sc.functions) {
+        const g = fn.ranges[0], k = `${g.startOffset}-${g.endOffset}`, was = m.get(k);
+        if (was) was[2] = was[2] || (g.count ? 1 : 0); else m.set(k, [g.startOffset, g.endOffset, g.count ? 1 : 0, fn.functionName]);
+      }
+    }
+  };
+  const write = () => {
+    const out = {};
+    for (const [url, m] of seen) out[url.replace(/^https?:\/\/[^/]+\//, '').split(/[?#]/)[0]] = [...m.values()].sort((x, y) => x[0] - y[0] || y[1] - x[1]);
+    try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, `cover-${tag}.json`), JSON.stringify(out)); } catch (e) { /* no place for it: the pass is kept by its files alone */ }
+  };
+  const start = async p => {
+    try {
+      const s = await p.context().newCDPSession(p);
+      await s.send('Profiler.enable');
+      await s.send('Profiler.startPreciseCoverage', { callCount: false, detailed: false });
+      sessions.push(s);
+    } catch (e) { broken = true; }
+  };
+  let broken = false;
+  const timer = setInterval(() => { for (const s of sessions) take(s); }, 20000); timer.unref();
+  const newPage0 = b.newPage.bind(b), newContext0 = b.newContext.bind(b), close0 = b.close.bind(b);
+  const ctx = c => { const np = c.newPage.bind(c); c.newPage = async (...a) => { const p = await np(...a); await start(p); return p; }; return c; };
+  b.newPage = async (...a) => { const p = await newPage0(...a); await start(p); return p; };
+  b.newContext = async (...a) => ctx(await newContext0(...a));
+  b.close = async (...a) => {
+    clearInterval(timer);
+    for (const s of sessions) await take(s);
+    if (!broken) write();   // (a page it could not ask leaves no file: the pass is then kept by its files alone)
+    return close0(...a);
+  };
+  return b;
+}
 process.on('exit', () => {
   const seen = new Set();
   for (const f of logs) {
