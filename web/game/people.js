@@ -1710,6 +1710,10 @@ transformed = crowdPose(transformed, false);`);
         const u = ut > 0;
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null }); }
         if (u && r.umbOpen) r.umbOpen(ut);
+        // (stood waiting: at a phone, looking about, talking, as actors.js gives it, p.idle; none under an umbrella, the
+        // hand that holds it being the phone's, issue 75)
+        const ic = u ? null : p.idle || null;
+        if (r.idleK !== ic) { r.idleK = ic; r.setLook({ clip: ic }); }
         unshow(p);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
@@ -1787,7 +1791,16 @@ transformed = crowdPose(transformed, false);`);
     }
     // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
     const shows = i => active.has(i) || !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count);
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes };
+    // where the lens stands and the way it looks, in the crowd's ground plan (x, y, z up; fx, fy): actors.js keeps the
+    // walkers out of its way, issue 82. false with no camera
+    let lensDir = null;
+    function lens(out) {
+      if (!camera) return false;
+      camera.getWorldDirection(lensDir || (lensDir = new THREE.Vector3()));
+      out.x = camera.position.x; out.y = -camera.position.z; out.z = camera.position.y; out.fx = lensDir.x; out.fy = -lensDir.z;
+      return true;
+    }
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };

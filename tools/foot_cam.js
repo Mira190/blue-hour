@@ -7,7 +7,8 @@
 // across the line from the lens to the head over five seconds, and the lift it took.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/foot_cam.js out_dir [WxH]          (ONLY=f2,f7: only those; WAS=0: no "was" stills)
-// Stills force the desktop tier (TIER=low to see a phone's).
+// Stills force the desktop tier (TIER=low to see a phone's). lensMax: the most of the frame one of the crowd within 2.5 m
+// of the lens covered while walking, and lensFrames the frames where one covered more than 6% of it (issue 82).
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
 const fs = require('fs');
@@ -40,7 +41,30 @@ const WAS = { dist: 7.5, pitch: 0.36 };
   // the way); returns how many frames had someone across the line to the head, and the camera's highest lift
   const walk = (n, dt, still) => p.evaluate(async ([n, dt, still]) => {
     const g = window.__game, pl = g.player, nav = g.nav, P = window.__footWay || [];
-    let across = 0, lift = 0;
+    let across = 0, lift = 0, lensMax = 0, lensFrames = 0;
+    // (issue 82: the most of the frame one of the crowd within 2.5 m of the lens covers, a body 0.5 m wide and 1.7 m tall
+    // projected; and the frames where one covers more than 6% of it, a corner filled)
+    const T = window.THREE, cam = g.camera, v3 = new T.Vector3(), C = g.crowd;
+    const cover = () => {
+      let worst = 0;
+      const cx = cam.position.x, cy = -cam.position.z;
+      for (let j = 0; j < C.active; j++) {
+        const q = C.P[j]; if (q.line < 0 && !q.pz) continue;
+        const x = q.rx ?? q.x, y = q.ry ?? q.y, z = q.rz ?? q.z, d = Math.hypot(x - cx, y - cy);
+        if (d > 2.5 || d < 0.55) continue; // (within 0.55 m the lens is inside them: not drawn, game.js lensClear)
+        let x0 = 1, x1 = -1, y0 = 1, y1 = -1, ok = false;
+        for (const [a, b, h] of [[-0.25, 0, 0], [0.25, 0, 0], [-0.25, 0, 1.7], [0.25, 0, 1.7], [0, -0.25, 0.9], [0, 0.25, 0.9]]) {
+          v3.set(x + a, z + h, -(y + b)).applyMatrix4(cam.matrixWorldInverse);
+          if (v3.z > -0.05) continue; // (behind the lens)
+          v3.applyMatrix4(cam.projectionMatrix); ok = true;
+          x0 = Math.min(x0, v3.x); x1 = Math.max(x1, v3.x); y0 = Math.min(y0, v3.y); y1 = Math.max(y1, v3.y);
+        }
+        if (!ok) continue;
+        const a = Math.max(0, Math.min(1, x1) - Math.max(-1, x0)) * Math.max(0, Math.min(1, y1) - Math.max(-1, y0)) / 4;
+        worst = Math.max(worst, a);
+      }
+      return worst;
+    };
     for (let i = 0; i < n; i++) {
       if (!still && P.length) {
         let k = window.__footK || 1;
@@ -52,10 +76,11 @@ const WAS = { dist: 7.5, pitch: 0.36 };
       g.cam.trace = {};
       g.frame(dt);
       if (g.cam.trace.folk) across++;
+      if (!still) { cam.updateMatrixWorld(); const c = cover(); lensMax = Math.max(lensMax, c); if (c > 0.06) lensFrames++; }
       lift = Math.max(lift, g.cam.lift);
       if (i % 10 === 9) await new Promise(r => setTimeout(r, 0));
     }
-    return { across, lift: +lift.toFixed(2) };
+    return { across, lift: +lift.toFixed(2), lensMax: +lensMax.toFixed(3), lensFrames };
   }, [n, dt, still]);
   // the camera's eye over the ground, its pitch, and the share of the frame's height above the horizon
   const pose = () => p.evaluate(() => {
@@ -83,7 +108,7 @@ const WAS = { dist: 7.5, pitch: 0.36 };
     const r = await walk(v.kerb ? 100 : 80, 0.05, false); // (4 or 5 s of walking)
     const now = await pose();
     await shoot(`${v.name}-now`);
-    const row = { name: v.name, time: v.time, now, across: r.across, maxLift: r.lift };
+    const row = { name: v.name, time: v.time, now, across: r.across, maxLift: r.lift, lensMax: r.lensMax, lensFrames: r.lensFrames };
     if (process.env.WAS !== '0') {
       await p.evaluate(W => Object.assign(window.__game.cam, W, { pitchTo: null, distTo: 0 }), WAS);
       await walk(30, 0.05, true);
