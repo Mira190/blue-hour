@@ -490,18 +490,18 @@ window.OEAtmos = (function () {
       // alike), and the bloom's sum, which is soft already, is added after. One pass and one target; a pixel in focus
       // is, to the bit, what the merge made it.
       camFx.merged = (() => {
-        const sh = CAMFX(), F = sh.fragmentShader, L = window.OELens;
+        const sh = CAMFX(), F = sh.fragmentShader;
         const head = 'uniform sampler2D tDiffuse, tDepth; uniform float uReversed, uFocus, uAperture, uBlur, uFar, uAspect; uniform mat4 uInvProj, uCamWorld, uPrevVP; varying vec2 vUv;';
         const depthU = 'uniform sampler2D tDepth; uniform mat4 uInvProj; uniform float uReversed;\n', aoU = 'uniform sampler2D tAO; uniform float uAOStrength, uFadeNear, uFadeFar;\n';
         const NO = 'float oeShade(vec2 uv) { return 1.0; }';
         const full = shade.upsample || NO, near = shade.coarse || NO;
-        if (!L || !L.TAP || !L.ROLLOFF || !F.includes(head) || (shade.upsample && !(full.includes(depthU) && near.includes(aoU)))) return null;
+        if (!window.OELens || !OELens.TAP || !OELens.ROLLOFF || !F.includes(head) || (shade.upsample && !(full.includes(depthU) && near.includes(aoU)))) return null;
         const centre = 'vec3 c = texture2D(tDiffuse, vUv).rgb;', end = 'gl_FragColor = vec4(c, 1.0);';
         if (F.split(centre).length !== 2 || F.split(end).length !== 2) return null;
         let body = F.replace(head, `${head}
       uniform sampler2D tBloom; uniform float uBloom;
-      ${L.TAP}
-      ${L.ROLLOFF}
+      ${OELens.TAP}
+      ${OELens.ROLLOFF}
       ${full.replace(depthU, '')}
       ${near.replace(aoU, '').replace('float oeShade(', 'float oeShadeNear(')}
       vec3 src(vec2 uv) { return rolloff(tap(uv) * oeShadeNear(uv)); }`);
