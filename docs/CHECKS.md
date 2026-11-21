@@ -36,6 +36,14 @@ Square and on foot at the start, at dusk and by day.
 The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
 stills: `tools/walk_people.js out [WxH] [hour] [sky]` sets out on the walk, waits for each to be drawn, and takes each from
 twelve metres with their speech mark and from three in front, printing where each stands and whether that is in a road.
+The walk as a review looks at it (issue 134): `tools/walk_review.js out [WxH] [hour.sky,...]` sets out on the walk, presses
+the menu's own hour and sky for each condition, and takes the page (the walk's interface in it) from standpoints in three
+sets: `hud` (round the scramble, turned eight ways, so the corner and the keys are seen over every picture), `edge` (out
+along six ways from the hero level's centre at each distance in `RINGS`, the footway nearest that point, looking on and
+back) and `menu` (the menu, its foot, the camera). It prints for each still where you stand, how many of the crowd are out,
+and what of the interface lies within `EDGE` px of the screen's edge. `tools/views/walk-heights.json` is the scramble from
+the heights the walk reaches (on foot to 400 m), for `tools/scramble_shot.js`. Neither is run by `tools/check.sh`: they
+are for looking, and what `tools/walk_play.js` does not play is listed in issue 134.
 The walk's night by the hour (`web/game/tonight.js`, docs/STORY.md "Tonight"): `tools/tonight_play.js out [WxH]` sets the
 clock to just before each moment (CROSSING LIGHT, the shutters, the screens, the last trains), fails if its line is not in
 the corner before, its name not over the street as it comes, the searchlights not on, a train runs after the last or none
@@ -417,10 +425,19 @@ printed with its reason:
 - A file both sides changed is judged by its functions: main's lines, in functions the branch has not changed against
   main, are main's. The branch's kept passes stand: `kept from its pass at ...: what changed since cannot reach it:
   web/game/game.js: 3 changes main's`. Until issue 131 one such file sent the branch through the story and the walk again.
-- Main's lines in a function the branch changed too are the branch's to check, as its own change is.
+- Main's lines in a function the branch changed too are the branch's to check, as its own change is. A closure that
+  holds a script's functions (eight or more: `game.js`'s is 7,500 lines) is a scope as a file is, not a function: main's
+  statement at its level and the branch's stand apart.
+- A file that is main's as main has it is apart before any other rule is asked (a hero level whose ground main moved
+  is main's to play, not the branch's).
+- A play kept, with its beats counted then (issue 130), whose counts are over the budgets as they are now is played
+  again and counted again: main may have made the beat lighter and its budget with it.
 
-Measured on 21 November 2026: main moved three times while the first step of issue 131 was being landed; the last
-merge (seven files of main's, `web/game/people.js` among them) checked in 55 s, the static checks and the contracts.
+Measured on 21 November 2026: main moved nine times while issue 131's steps were being landed. With no file shared
+(seven files of main's, `web/game/people.js` among them) the merge checked in 55 s, the static checks and the
+contracts; with `game.js` cut on the branch and changed in fifteen, then twenty places by main, in 60 s each time,
+every pass kept (`web/game/game.js: 20 changes main's`). Twice a merge played more: once all of it, for the two rules
+above that were not yet written, and once the story's last two parts, whose kept counts were over main's new budgets.
 What stands behind this is unchanged: main's full tier plays main's change with the branch's once it lands, and only a
 commit it passes is published.
 
@@ -502,7 +519,7 @@ What the same change costs, before and after (a session's machine; "before" from
 | Every check of a page change played (`story`, `walk1`, `ride`, `mem`, `look`, static) | 38 to 43 min | 31 min of checks in 16 min of the wall |
 | One function of `web/game/story.js` (routed to static, mem, story, walk1 and guide: 52 min on 21 November) | 51 min | 10 min at the median: the checks that ran it, side by side (from the passes' counts of 163 functions; 23 min where every part and the guide ran it) |
 | One function of `web/game/game.js` | 36 min | 8.5 min at the median, 16 at the worst |
-| Main moved, the branch's own change not reached | static only when no file was shared, else 33 min or more | 55 s |
+| Main moved, the branch's own change not reached | static only when no file was shared, else 33 min or more | 55 to 60 s, `game.js` changed by both sides or not |
 | A model or a people's set replaced, its contract kept | 4 to 6 min since the router of November; 35 to 40 before it | the same 4 to 6 min (static beside `look` and `mem`; `mem` is 250 s of it), and no longer the story when another change in the branch routes there |
 | A hero level rebuilt with its ground and names as they were | 33 min (played as code) | 4 to 6 min |
 | A fresh session's first run, the branch's change reaching one part of the story | 33 to 62 min | that part, and what else it reaches (main's passes) |
@@ -562,6 +579,19 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+- Whether the words on the picture can be read: `tools/legible.js`, by hand after a change to the story's goal, its
+  hint, what is said over the picture, the finder's words or their styles (it is not a target either: it lays out the
+  same recordings). Each screen a play wrote down (`UI_DUMP=dir`) is laid in with the page's stylesheets and no game
+  over pale paving at dusk (#cbc6d0), over white, and over the picture the still was of where the play kept it
+  (`BARE=regex` on `tools/story_play.js` saves the canvas alone in `out/bare`; `BARE_DIR=` here). Every line is
+  measured where a letter is read: the letters are found as what differs between the screen and the same screen with
+  its glyphs left out, and the contrast is the letter's colour against what lies under it and for two pixels round
+  each stroke, backing and shadows drawn. It fails a line under 4.5:1 on the paving or the picture, or under 3:1 on
+  white, and prints the least of each kind of words. Before issue 114 the goal measured 2.9:1 on the paving and its
+  hint 2.3:1; after, 6.2:1 and 5.5:1, and 1949 lines on 226 screens of frames 1, 2, 5 and 6 (a desktop and a phone)
+  pass. `tools/story_play.js` itself now fails a play where two lines are said over the picture at once, and one
+  where the dialogue, the goal or a slip is still drawn with the log open; `LOGAT=n LOGSECS=5` opens the log after
+  frame n and takes a still of it each second.
 - The Credits screen: `tools/credits_shot.js`, by hand after a change to `web/credits.js`, `credits.css`, `credits.json`
   or telemetry's switch. On a desktop's page (1440x900) and a phone's (390x844, by touch) it opens the Credits from the
   title's menu (by the keys on the desktop) and from the pause menu, and fails a screen without the map's sources, the
@@ -625,3 +655,41 @@ the roof's rim glass from eight directions, and measures every frame the skin of
 part, against the glass's plane and the collision world's walls; it fails on any part more than a centimetre in. With
 an out dir, stills close and from the chase camera at each, and five with time held.
 
+
+## One body in another (issue 126)
+
+On 21 November 2026 the owner's still of frame 6 showed Kagami and Mr Tanaka in one body on the stone blossom. The play
+checked only the crowd against the story's people (`bodiesCheck`, issue 65); nothing measured the player against them.
+
+- **`tools/clip_probe.js`** is put into the page by `tools/story_play.js` and called by the game every frame
+  (`window.__probe.frame`, `web/game/game.js`). It measures, from what the game holds and from the bones as they are
+  posed: the player, the story's people (the living and the afterimages), the guide and the map's NPCs against each
+  other (middle to middle; under 0.45 m is one body in another); each model's hands, forearms, feet, calves, head and
+  what it carries against its own body (less the rest pose's own depth) and its neighbours' (each part an ellipsoid
+  fitted to the vertices its bone carries); the lowest of each foot against the floor it stands on; each body against
+  walls, posts, cars and a floor at its head; in a helicopter or a car, the seat, the floor and the roof by rays. Every
+  case is printed once with its frame, beat, place, greatest depth and how many frames it lasted.
+- **The play fails** on one body in another and on a foot more than 15 cm under or over its floor. A foot read 3 to
+  15 cm off its floor is printed as a note, not failed: the first whole play after the fix read 3 to 10 cm under for
+  the walkers of frame 7, for Yuna and for the guide's paws, and the one such reading looked at closely (Yuna, in the
+  map without the story) was the measure's and not the model's; the others are not yet looked at (issue 126's
+  follow-up). The rest are printed as notes too: the ellipsoids are fitted, not the skin itself, so a limb case is a place to look, with
+  `tools/clip_look.js` (a close still of someone's feet and body, and the ground as it is drawn under each foot by a
+  ray through the world's meshes).
+- **Walked into.** After each talk and in each Stop the play walks the player straight at everyone within 14 m with the
+  key held, takes a still from the side (`into-*.png`) and fails when the player comes within 0.45 m of their middle.
+- **`tools/standpoints.py`** (static): no place the story sends the player to stand lies inside one of its people or
+  its things of 1964, and no two of its people stand in each other.
+
+What the first measure found, a whole play on a desktop (9164 frames, 231 cases): the player walked into every one of
+the story's people, living or afterimage, to 0.05 to 0.12 m from their middle (nothing held the player out of them);
+the guide sat with his flank inside Mr Tanaka and inside Akira's afterimage; and nothing else of the kind: nobody of
+the story stood in a wall, a post or a car, and the feet the first measure called sunk (the map's NPCs, 5 to 9 cm) were
+its own error (it took a kerb beside a foot for the foot's floor; `tools/clip_look.js` has their soles within a
+centimetre of the paving drawn). The cause was fixed in `storyFigure`: each of the story's people holds a place as a
+map's NPC does (`posts`, kind `story`), so the player's step stops at their shoulder (0.63 m, middle to middle), the
+guide keeps his body off them, one of them who walks goes round whoever stands in the way, and a player on whom
+someone is set down steps out of them at a walk.
+
+Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
+crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.

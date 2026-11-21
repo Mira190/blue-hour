@@ -104,25 +104,7 @@ function audit() {
   return { bad: [...new Set(bad)], warn: [...new Set(warn)] };
 }
 
-// A screen written down by ui_dump.js, laid in over the live page: the overlays, the classes, the scroll, the animations
-function lay(d) {
-  const stage = document.getElementById('game-stage'), gl = document.getElementById('game-gl');
-  for (const e of [...stage.children]) if (e !== gl) e.remove();
-  let before = true;
-  for (const h of d.html) { if (h === null) { before = false; continue; } const t = document.createElement('template'); t.innerHTML = h; const e = t.content.firstElementChild; if (before) stage.insertBefore(e, gl); else stage.appendChild(e); }
-  stage.className = d.stage; stage.setAttribute('style', d.stageStyle || '');
-  document.documentElement.className = d.root; document.body.className = d.body;
-  const at = p => p.reduce((e, i) => (e ? e.children[i] : null), stage);
-  for (const s of d.scrolled || []) { const e = at(s.p); if (e) { e.scrollTop = s.top; e.scrollLeft = s.left; } }
-  // (each animation where it was at the still; one the still did not have had finished)
-  const was = new Map((d.anims || []).map(a => [`${a.p.join('.')}|${a.name}`, a]));
-  for (const a of document.getAnimations()) {
-    const t = a.effect && a.effect.target; if (!t || !stage.contains(t)) continue;
-    let p = []; for (let e = t; e && e !== stage; e = e.parentElement) p.unshift([...e.parentElement.children].indexOf(e));
-    const k = `${p.join('.')}|${a.animationName || a.transitionProperty || ''}`, r = was.get(k);
-    try { if (r && r.t != null) { a.currentTime = r.t; a.pause(); } else if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* not seekable */ }
-  }
-}
+const { lay } = require('./ui_dump'); // (a screen written down by ui_dump.js, laid in over the live page)
 const setWords = n => { const s = document.getElementById('game-stage'); s.classList.remove('words-1', 'words-2'); if (n) s.classList.add(`words-${n}`); };
 
 (async () => {

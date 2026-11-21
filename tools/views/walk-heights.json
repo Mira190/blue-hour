@@ -1,0 +1,13 @@
+{
+  "note": "The scramble from every height the walk reaches (issue 134): on foot at the kerb, from a bridge's or a first floor's height, a low and a high pass of the helicopter, SHIBUYA SKY's roof height, and straight down from the air. Each at midday, dusk, night and night in rain.",
+  "times": {"day": "13:00", "dusk": "sunset+15", "night": "21:00", "rain": {"time": "21:00", "weather": "rain"}},
+  "views": [
+    {"name": "foot", "eye": [377, -1013, 1.6], "look": [355, -975, 6], "fov": 55},
+    {"name": "h008", "eye": [392, -1036, 8], "look": [362, -996, 2], "fov": 55},
+    {"name": "h030", "eye": [404, -1052, 30], "look": [366, -1000, 0], "fov": 50},
+    {"name": "h080", "eye": [432, -1092, 80], "look": [368, -1002, 0], "fov": 50},
+    {"name": "h230", "eye": [440, -1075, 230], "look": [368, -1002, 0], "fov": 45},
+    {"name": "down400", "eye": [368, -1014, 400], "look": [368, -1002, 0], "fov": 40},
+    {"name": "wide300", "eye": [620, -1210, 300], "look": [300, -950, 40], "fov": 60}
+  ]
+}

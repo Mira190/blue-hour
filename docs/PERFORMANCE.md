@@ -2520,3 +2520,36 @@ differs from itself by 0.92 (the film's grain); the largest difference of any ch
 4.6 against 3.7 (the screens play on between the two draws). Stills of both are side by side in the branch's report.
 Measured on a session's machine (the counts and the megabytes are the page's own; the milliseconds a full-size pass
 costs an iPhone or an M3 are for `?perf` and the telemetry to say).
+
+### The rain's cover map: what stands still is kept (issue 130, the second cut)
+
+While it rains the game keeps a map of the tops of things from straight above, 80 m square round the camera
+(`weather.js` `occRT`: 128 x 128 on a phone, 256 x 256 on a desktop), so that no drop falls under a roof and the
+ground is dry there. It was drawn whole every half second of rain, and whenever the camera had gone four metres: the
+ground's tiles, the buildings, the hero level, the roofs' kit, the trains. At the Scramble that is 660,000 triangles
+and 345 draws on a phone into 16,384 pixels, in one frame of every fifteen, on top of a picture of 1.45 million; on a
+desktop 1.07 million.
+
+Almost none of it moves. What stands still (the shadows' cache's mark, `userData.shadowStatic`, and
+`userData.oeStill` for the ground's tiles, the far land and the lamps, which cast no shadow) now has a map of its own
+(`occStill`), drawn when the map's place changes and every six seconds (for what the map round the player has built
+or let go). Each time the map is due, that one is copied, colour and depth, and what moves (the cars, the trains, a
+door) is drawn over it. The map keeps its place while the camera stays within two metres of where it was set; set
+afresh at every draw, as it was, a camera's sway moved it a texel each time. `?occ=whole` draws it whole as before.
+
+`tools/rain_cover.js` holds the walk at the Scramble in the rain and draws the map three ways from one place:
+
+| each time the map is due | draws | triangles | the map against the whole |
+|---|---|---|---|
+| a phone, whole, as before | 345 | 659,000 | |
+| a phone, the moving over the map kept | 86 | 111,000 | no texel differs |
+| a desktop, whole, as before | 220 | 1,074,000 | |
+| a desktop, the moving over the map kept | 118 | 297,000 | no texel differs |
+
+Standing in the rain for ten seconds of the game's time, the map is due nineteen times; the still things are drawn
+once where they were drawn nineteen times. Walking, the still things are drawn again every two metres (a second and
+a half on foot), where the whole was drawn every half second. The picture is the same by construction: the three maps
+are compared texel by texel (height and cover) and must not differ. What is left in the moving pass on a phone: the
+trains (57,000), and instanced things nobody has marked as still (45,000). A still's frame in the story's check is
+usually a frame that draws the still things too (the play has just put the camera somewhere new), so frame 7's budget
+does not show this; the harness's count does. Measured on a session's machine; the counts are the page's own.

@@ -659,7 +659,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
           return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
         });
       }
-      const opts = (q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) })) : wordsOf(q)).concat(q.told ? [lookOpt()] : []), right = q.frame || q.answer;
+      const gone = struck(q), opts = (q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) })) : wordsOf(q)).filter(o => !gone.p.has(o.k)).concat(q.told ? [lookOpt()] : []), right = q.frame || q.answer;
       st.want = opts.findIndex(o => o.k === right); // (which answer is the right one: tools/story_play.js picks it)
       st.canFail = !!(q.fail || q.told);
       ctx.ask(q.frame && !w.alive ? Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }) : w, [q.q], opts, c => { // (what an afterimage is told is yours to choose: the question is not in their mouth)
@@ -669,9 +669,18 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
         else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
-        return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
+        else if (q.frame && c) gone.p.add(c.k); // (a print that was not it is off the roll for the next try)
+        const more = ok ? said : said.concat(helpFor(q));
+        return more.length ? ctx.say(w, more, () => ask(m, w, done)) : ask(m, w, done);
       });
     }
+    // What a wrong answer takes off the table for the next try (a statement that stands, a print that is not it), so that
+    // each try is narrower than the last and a player who cannot work it out still gets to the end of the question by
+    // elimination, and the line that says where to look, after the first slip (`help` on the question): the second
+    // is the last the one asked allows. Both are forgotten when the frame is taken up again.
+    let struckBy = new WeakMap();
+    const struck = q => { let g = struckBy.get(q); if (!g) struckBy.set(q, g = { s: new Set(), p: new Set() }); return g; };
+    const helpFor = q => (q.help && st.slips === 1 ? L(q.help) : []);
     // A print as an answer (the roll laid out), and the answers that are not prints: one of the case's people (`who`:
     // the episode's `people`, each with what the player knows them as), or one of the question's own sentences
     const printOpt = (p, i) => `<span class="pr${p.plain ? ' spent' : ''}">${p.src ? `<img alt="" src="${p.src}">` : '<i></i>'}<b>${i + 1}</b><span>${esc(p.cap || p.stamp || '')}</span></span>`;
@@ -708,7 +717,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
       const nm = q.who && how.named != null ? nameOf(how.named) : '';
       if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
-      else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
       else if (q.told) {
         const n = st.qmiss = (st.qmiss || 0) + 1; st.misses = (st.misses || 0) + 1;
         if (q.file) filed(`${q.file}: you said ${nm || 'that'}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
@@ -716,7 +725,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         if (n === 2) { st.hot = proofOn(q); said = L(said).concat(L(q.wrong2)); } // (the second: more said, and the print marked)
         keep();
       }
-      const S2 = L(said);
+      const S2 = ok ? L(said) : L(said).concat(helpFor(q)); // (how.free: a wrong answer the evidence fairly led to, answered and struck off, and not counted)
       return S2.length ? ctx.say(w, S2, () => ask(m, w, done)) : ask(m, w, done);
     }
     // (every question of the talk settled: one line in the file, and the case is heard to close)
@@ -752,16 +761,20 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // was in the cut all afternoon, minding the pumps. Tell him what the roof saw"). A true statement pressed is answered
     // with its own `no`; the lie with the wrong print, with `wrong_print`; a wrong pair counts once toward `fail`. An
     // afterimage cannot see a photograph: what the print shows is told him, from the roll.
-    //   { q, press: [{ say, no }], lie: index, show: the second line, frame: n, wrong_print, right, fail }
+    // A statement the roll fairly seems to break and does not (`near`: nailed boots on the stair against *nobody from my
+    // gang went up on any roof*) is answered and struck off and costs nothing: a player who reasoned to it is not told
+    // they guessed (what L.A. Noire's interrogations were faulted for: a mistake that is not shown to be one).
+    //   { q, press: [{ say, no, near }], lie: index, show: the second line, frame: n, wrong_print, right, help, fail }
     function cross(m, w, q, done) {
-      const said = q.press.map((o, i) => ({ k: i, text: `<span class="said">“${esc(o.say)}”</span>` }));
-      st.want = q.lie; st.canFail = !!q.fail; st.proving = false;
+      const gone = struck(q), said = q.press.map((o, i) => ({ k: i, text: `<span class="said">“${esc(o.say)}”</span>` })).filter(o => !gone.s.has(o.k));
+      st.want = said.findIndex(o => o.k === q.lie); st.canFail = !!q.fail; st.proving = false;
       ctx.ask(Object.assign({}, w, { name: q.own || 'You', role: '', alive: true }), [q.q], said, c => { // (the question is the player's own, not in his mouth)
-        const k = c ? c.k : -1, opts = st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) }));
+        const k = c ? c.k : -1, opts = st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) })).filter(o => !gone.p.has(o.k));
         st.want = opts.findIndex(o => o.k === q.frame); st.proving = true;
         ctx.ask(w.alive ? w : Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }), [q.show || 'And what does the roll have against it?'], opts, c2 => {
           const okS = k === q.lie, okP = !!c2 && c2.k === q.frame, ok = okS && okP;
-          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done);
+          if (!okS && k >= 0) gone.s.add(k); else if (okS && c2 && !okP) gone.p.add(c2.k); // (a statement that stands, or a print that is not it: off the table for the next try)
+          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done, { free: !okS && !!(q.press[k] || {}).near });
         });
       });
     }
@@ -896,7 +909,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // decided for the player when they were stuck, and gave the place away to one who was about to find it. After
     // NUDGE_S of looking without one the button is offered, once, and pressed for nobody. The last card says which
     // places were found alone (`hints` on the frame or its task: the three lines; else the frame's own second line)
-    const NUDGE_S = 45;
+    const NUDGE_S = 30, NUDGE2_S = 75;
     function hunting() {
       const fr = st.fr; if (!fr || st.lit) return null;
       const dogName = (st.ep.guide || {}).name || 'The dog';
@@ -906,10 +919,19 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (st.phase === 'stop' && st.beat === 'shoot' && T && T.hint_at && T.hints && !st.ready && !st.meet) return { at: T.hint_at, look: null, lines: T.hints, only: true }; // (not once they walk: the place is found)
       return null;
     }
-    function huntFresh() { st.hint = 0; st.hintText = ''; st.nudged = false; st.hk = null; st.hintLight = null; }
-    function nudge() { if (!st.nudged && !st.hint && st.findT > NUDGE_S && !st.mov) { st.nudged = true; say(ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Stuck? Tap for a hint' : `Stuck? ${K('H')} for a hint`); hintBtn.classList.remove('nudge'); void hintBtn.offsetWidth; hintBtn.classList.add('nudge'); } }
+    function huntFresh() { st.hint = 0; st.hintText = ''; st.nudged = false; hintBtn.classList.remove('glow', 'nudge'); st.hk = null; st.hintLight = null; }
+    // The offer is made twice, and the button keeps its glow until a hint is asked for: the first time it was a line for
+    // 2.6 s and three pulses, and a player on the frame 4 glass did not see either and thought there was no way on.
+    function nudge() {
+      if (st.hint || st.mov) return;
+      const n = st.nudged || 0, due = n === 0 ? st.findT > NUDGE_S : n === 1 && st.findT > NUDGE2_S;
+      if (!due) return;
+      st.nudged = n + 1; say(ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Stuck? Tap the hint button' : `Stuck? Press ${K('H')} for a hint`);
+      hintBtn.classList.add('glow'); hintBtn.classList.remove('nudge'); void hintBtn.offsetWidth; hintBtn.classList.add('nudge');
+    }
     function hint() {
       const H = hunting(); if (!H || st.hint >= 3) return;
+      hintBtn.classList.remove('glow', 'nudge');
       const n = ++st.hint, text = H.lines[n - 1] || '';
       st.helped[st.fi] = Math.max(st.helped[st.fi] || 0, n); keep();
       sfx('goal'); say(`A hint · ${n} of 3`);
@@ -1021,7 +1043,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
     // seen through: the card says so, and the frame is taken up again from its beginning (the flight or the ride to it
     // is not made twice)
     function failed(F) {
-      st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong');
+      st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong'); struckBy = new WeakMap(); // (taken up again: nothing is struck off)
       failEl.innerHTML = `<div class="card"><small>${esc(st.fr.stamp || '')} · frame ${st.fi + 1}</small><h2>${esc(F.title || 'Seen through')}</h2><p>${esc(F.line || '')}</p><div class="row"><button type="button" class="go">Take it up again${st.fr.stamp ? ` · ${esc(st.fr.stamp)}` : ''}</button></div></div>`;
       failEl.classList.add('on'); st.failed = (st.failed || 0) + 1;
       if (document.exitPointerLock) document.exitPointerLock();
@@ -1344,6 +1366,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
+      // the pause's own lines (game.js, issue 114): the frame the case is at, and the case begun again from its first card
+      // (before the first frame's own beats, the office's call and the order in the hand, the case is at its first frame all the same)
+      get at() { const F = (st.ep && st.ep.frames) || [], fr = st.fr || F[st.fi | 0]; return fr && st.phase !== 'idle' && st.phase !== 'dressed' && st.phase !== 'done' ? { fi: st.fi | 0, of: F.length, stamp: fr.stamp || '', taken: st.prints.length } : null; },
+      beginAgain() { forget(); ctx.again(); },
       // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
       // evening's cast, each once out of the frame (tick); the dog is already on his way home
       // (the walk from the title: the street as tonight has it, with the set dressing the story puts up, and no case)
