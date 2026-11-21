@@ -123,16 +123,16 @@ async function keysMoved(b, S) {
   // (the old keys as a visit before the change left them; the page itself held before its scripts: only the guard runs)
   await p.route('**/telemetry.js*', r => r.abort());
   await p.addInitScript(() => { if (!sessionStorage.getItem('lc-once')) { sessionStorage.setItem('lc-once', '1');
-    localStorage.setItem('bh-story-late', '{"fi":3}'); localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-pad', 'x'); localStorage.setItem('bh-alive-abc', '1');
-    localStorage.setItem('bh-music', 'kept'); localStorage.setItem('bh-music', 'old'); localStorage.setItem('other-site', '1'); } });
+    localStorage.setItem('oe-story-late', '{"fi":3}'); localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe-pad', 'x'); localStorage.setItem('oe3d-alive-abc', '1');
+    localStorage.setItem('bh-music', 'kept'); localStorage.setItem('oe3d-music', 'old'); localStorage.setItem('other-site', '1'); } });
   await p.goto(URL0, { waitUntil: 'commit' });
   await p.waitForFunction(() => window.OEBoot, null, { timeout: 60000 });
   const k = await p.evaluate(() => { const o = {}; for (let i = 0; i < localStorage.length; i++) o[localStorage.key(i)] = localStorage.getItem(localStorage.key(i)); return o; });
   check(k['bh-story-late'] === '{"fi":3}' && k['bh-quality'] === 'high' && k['bh-pad'] === 'x' && k['bh-moved'] === '1',
     `a visit's old keys are copied to the page's own, once (bh-story-late ${k['bh-story-late']}, bh-quality ${k['bh-quality']}, bh-pad ${k['bh-pad']}, bh-moved ${k['bh-moved']})`);
-  check(k['bh-music'] === 'kept' && !('bh-alive-abc' in k) && !('bh-other-site' in k) && k['bh-story-late'] === '{"fi":3}',
+  check(k['bh-music'] === 'kept' && !('bh-alive-abc' in k) && !('bh-other-site' in k) && k['oe-story-late'] === '{"fi":3}',
     `a key the page already has is not written over, a dead page's note and another site's keys are not brought, and the old project keeps its own (bh-music ${k['bh-music']})`);
-  await p.evaluate(() => { localStorage.setItem('bh-story-late', '{"fi":5}'); });
+  await p.evaluate(() => { localStorage.setItem('oe-story-late', '{"fi":5}'); });
   await p.reload({ waitUntil: 'commit' }); await p.waitForFunction(() => window.OEBoot, null, { timeout: 60000 });
   check(await p.evaluate(() => localStorage.getItem('bh-story-late')) === '{"fi":3}', 'the old project\'s later writes do not come over: the keys are copied once');
   await ctx.close();
