@@ -1213,6 +1213,58 @@ story, from the place the story ends, without a lock (Yakuza opens it only after
 case in it to keep back); the flight simulator's choice made over the live view. Nothing of those games' look or words is
 used.
 
+**The walk's opening (November 2026).** The owner asked for the walk, too, to open on the whole of the city from the air
+and come down to the ground, as the story's opening does, but not the story's, and as a AAA game's would. Worked from
+first principles:
+
+- *What it is for.* The walk's promise is the place itself, at the hour you chose. So the opening goes from the whole to
+  one kerb in it, the grammar of an establishing shot (the extreme wide, the wide, then the person), in one movement:
+  the district to the horizon, the towers of the station, the crossing, your shoulder. Then the walk is yours.
+- *Not the story's.* The story's opening circles the crossing from the south-west and cuts to the street, under its own
+  title and the woman's words, at its own evening under a clear sky. The walk's comes in from the north-east, from 600 m
+  over Omotesando with the evening's last light beyond the towers, in one flight with no cut, at the hour and under the
+  sky the player chose (the rain falls in it; after dark it is a fifth brighter, as the walk's trailer's night aerials
+  are). No guide, nothing of the case. Its title is the walk's own card in the title screen's type: WALK SHIBUYA, 渋谷,
+  the date, hour and sky chosen over it in amber, the crossing's coordinates under it.
+- *One flight.* The camera's way is one curve (`fly`: the points it passes, what it looks at from each, the lens at
+  each) and the shots are only windows on it for the type and the score, so nothing jumps at a cut. It is flown at a
+  pace set by its height over the ground: each metre counts as one over the height to the power 0.6, so 600 m up it
+  drifts as a held reveal does, lower down the city streams past at a steady rate, and it slows into the hand-over. This
+  is the fly-to of web maps and globes (J. J. van Wijk and W. A. A. Nuij, *Smooth and efficient zooming and panning*,
+  2003, which Mapbox GL JS's and CesiumJS's flights follow: speed over the ground in proportion to what is seen),
+  softened, since at the full rate the high part was a rush.
+- *The beats.* `over` (8.5 s): from 600 m over Omotesando, the whole district to the horizon and the title. `glide`
+  (8 s): down towards the station's towers. `edge` (5 s): at the deck's height to the north edge of SHIBUYA SKY's roof,
+  its lit parapet ahead, and over it. `dive` (8.5 s): down the tower's face and out over the crossing to
+  above where you stand, the crowd gathered at every kerb, and the walk turns green under you. `land` (6 s): straight
+  down into the surge onto your shoulder, still looking across the crossing until the last second (`lookHold`), never
+  tipped onto the tops of heads. Its way keeps clear of the roofs and of the trees' crowns: a first way down from the
+  station's side passed through the twenty-metre zelkova on that corner.
+- *A map without a map.* A few of the places the walk can take you are named as the camera passes over them
+  (SHIBUYA SKY at 229 m, Hikarie, Cerulean Tower, Dogenzaka's 109, Center Gai, Hachiko): a point on
+  the place, an amber stem, its name in its own script and in the title's type, faded in and out over its seconds and
+  gone when it leaves the frame. Six, never more than three at once: what the walk offers, not a tour.
+- *Its own sound.* A score of its own (film-score.js): E major on a glass bell over a piano's arpeggio, where the
+  story's is a minor piano alone; rising, never striking; the crossing's birds as it turns green; let go into the
+  street's own sound as you land. The loading cue goes as the walk sets out.
+- *Never in the way.* Any key or a tap eases down to your shoulder in under a second. With reduced motion or
+  `?overture=0` the crane comes down from the title's view as before; taken up from the story's last card, on a fresh
+  page too, the walk goes on at the kerb without it, as it does in place. The walk's own people are out in it already. The
+  camera does not come down to the kerb before the level you stand in is drawn: the film holds at the top of its last
+  shot while it is not, six seconds at most. Its score is rendered and its parts compiled while the hour and the sky are
+  chosen, so Set out plays it at once.
+
+What was taken, and from where (design only; nothing of their look, words or code): the opening that comes down from a
+whole city to a few people in it (*West Side Story*, 1961, which opens looking straight down on Manhattan and comes
+down into one playground; *Grand Theft Auto V*, 2013, whose change of character drops from the map's height to one
+person in the street); the unbroken flight of the FPV drone one-takes (*Right Up Our Alley*, 2021, one flight through a
+whole building); the fly-to of web maps and globes for its pace (above; the idea, from the paper, not code); and the
+viewpoints of the *Assassin's Creed* games, from which the city round you is shown and its places put on your map, for
+the names. On the page: `cities/shibuya/city.json` `game.walk.overture`, `web/game/overture.js` (`fly`, `marks`, guide
+`none`, the title's `style: card`, `{tokens}` the game fills, the hold for the level), `web/game/game.js` (`startWalk`,
+`walkFilmMake`). `tools/walk_open.js` takes a still of each shot and checks the camera's clearance over the roofs and
+from the trees' crowns (`FILM=1`: the whole film with its score); `tools/walk_play.js` sees it play and a key or a tap end it.
+
 **The title's ways in, one list (November 2026).** On a phone the walk's button stood taller than the episode's (its
 second line wrapped under it), and on a desktop the title's ways in were three widths and three looks: an amber one, a
 paper one, a grey one. The owner asked how a AAA game sets this, and for the walk first while the episodes are being

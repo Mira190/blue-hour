@@ -10,7 +10,9 @@
 //     orbit  {at, az: [a, b] (compass degrees of the camera from at), dist, h, look?}
 //     move   {from, to, look | lookFrom + lookTo}
 //     chase  {dist, h, side}               behind the guide along its path, looking at it
-//     land   {via}                        from the last shot's end down to over the player's shoulder
+//     land   {via, lookHold}              from the last shot's end down to over the player's shoulder
+//     fly    {}                            a window on the film's own flight (spec.fly, below): the camera runs on through
+//                                          every cut, and the shot gives only its type, its cues and its seconds
 //     escort {az, dist, h, lag, lead_s}    a camera ship flying with the guide: dist metres from it, az degrees round
 //                                          from dead astern (+ to its right), h above it, in the way it has been
 //                                          going over the last lag seconds (never whipped round by a turn), looking
@@ -31,7 +33,12 @@
 //   through them in time: its speed is what the points' spacing and times give, and it stops at the first and last
 //   and wherever a point is repeated); spec.end: {at, facing}: where you stand when control comes to you; spec.guides: [[kind, [m, d], [m, d]]]
 //   the guide by season (the first whose dates hold); spec.score: the score's plan (film-score.js);
-//   spec.title: {name, reading, line}; spec.signal: the point whose junction the cues change.
+//   spec.title: {name, reading, line}, or {style: "card", eyebrow, name, jp, line}: the title screen's own card (the walk's);
+//   a title's or a caption's {tokens} are filled by the game (ctx.fill: the walk's {date}, {hour}, {sky});
+//   spec.signal: the point whose junction the cues change; spec.guide "none": no guide and no air (the walk's opening).
+//   spec.fly: {pts, look, fov, from, to, ease, pace, low}: the camera's one way through the film (resolveFly);
+//   spec.marks: [{at, jp, name, sub, t: [from, to] seconds, stem}]: places named on the picture as the camera passes them.
+//   ctx.levelReady: the film holds where its land shot begins until the level under the player is drawn (ctx.levelWait s).
 'use strict';
 window.OEOverture = (function () {
   const RAD = Math.PI / 180;
@@ -93,6 +100,8 @@ window.OEOverture = (function () {
     mote: { geo: null, color: '#fff1d0', edge: '#fff1d0', size: 0.05, glow: '#ffe6b0', fall: -0.05, spin: 0 },
     // a meteor, for the night: a white head and a long blue-violet tail across the sky, far off (sized in metres there)
     meteor: { geo: null, color: '#ffffff', edge: '#c070ff', size: 2.2, glow: '#eaf6ff', fall: 0, spin: 0, tail: 96, far: true },
+    // no guide at all: the film's camera is its own subject (the walk's opening, flown as one flight: spec.fly)
+    none: { geo: null, color: '#000000', edge: '#000000', size: 0.05, glow: '#000000', fall: 0, spin: 0, none: true },
   };
   function kindFor(spec, m, d) {
     const md = m * 100 + d;
@@ -278,7 +287,63 @@ window.OEOverture = (function () {
         for (const k of ['at', 'look', 'from', 'to', 'lookFrom', 'lookTo', 'via', 'focus']) if (s[k]) s['_' + k] = point(s[k]);
         s._guide = s.guide === 'path' ? null : (s.guide || []).map(point);
       }
+      resolveFly();
+      marks = (spec.marks || []).map(m => Object.assign({}, m, { _at: point(m.at) }));
     }
+    // ------------------------------------------------------------ the film's own flight (spec.fly; a shot of type "fly" is
+    // a window on it, so the camera runs on unbroken through every cut)
+    //   spec.fly: { pts: [points] (where the camera passes), look: [points] (what it looks at from each, or one point),
+    //               fov: [degrees] (the lens at each, optional), from, to (its seconds in the film), ease, pace, low }
+    // The way is a centripetal Catmull-Rom curve through pts (it neither loops nor overshoots between points spaced
+    // unevenly), and the look and the lens are the same curve's through theirs, at the same place along it. It is flown at
+    // a pace set by the camera's height over the ground: each metre counts as 1 / height^pace, so with pace 1 the city
+    // streams past the lens at one rate from 600 m to the kerb (the "optimal" fly-to of van Wijk and Nuij, 2003, which web
+    // maps' fly-to uses: a camera's speed over the ground in proportion to what it sees), with 0 at one speed; between,
+    // the high part slower than that, as a held reveal is. `low` is the height under which a metre counts as at it (6 m).
+    let fly = null, marks = [];
+    function crc(P, i, u, out) { // the centripetal Catmull-Rom (alpha 0.5) through P at segment i, 0 <= u <= 1
+      const n = P.length, g = j => P[Math.max(0, Math.min(n - 1, j))];
+      const p1 = g(i), p2 = g(i + 1);
+      let p0 = g(i - 1), p3 = g(i + 2);
+      if (i === 0) p0 = p1.map((v, j) => 2 * v - p2[j]); // (the ends reflected: the curve leaves and arrives along its chord)
+      if (i >= n - 2) p3 = p2.map((v, j) => 2 * v - p1[j]);
+      const d = (a, b) => Math.max(1e-4, Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])));
+      const t1 = d(p0, p1), t2 = t1 + d(p1, p2), t3 = t2 + d(p2, p3), t = t1 + (t2 - t1) * u;
+      for (let j = 0; j < 3; j++) {
+        const a1 = ((t1 - t) * p0[j] + t * p1[j]) / t1, a2 = ((t2 - t) * p1[j] + (t - t1) * p2[j]) / (t2 - t1), a3 = ((t3 - t) * p2[j] + (t - t2) * p3[j]) / (t3 - t2);
+        const b1 = ((t2 - t) * a1 + t * a2) / t2, b2 = ((t3 - t) * a2 + (t - t1) * a3) / (t3 - t1);
+        out[j] = ((t2 - t) * b1 + (t - t1) * b2) / (t2 - t1);
+      }
+      return out;
+    }
+    function resolveFly() {
+      fly = null;
+      const F = spec.fly;
+      if (!F || !F.pts || F.pts.length < 2) return;
+      const P = F.pts.map(point), L = (F.look || []).map(point), n = P.length, M = 80, pace = F.pace ?? 0.7, low = F.low ?? 6;
+      const S = [], q = [0, 0, 0];
+      let acc = 0, prev = null;
+      for (let i = 0; i < n - 1; i++) for (let j = 0; j < M; j++) {
+        const u = j / M; crc(P, i, u, q);
+        if (prev) { const ds = Math.hypot(q[0] - prev[0], q[1] - prev[1], q[2] - prev[2]), h = Math.max(low, (q[2] + prev[2]) / 2 - Math.max(0, nav.terrain((q[0] + prev[0]) / 2, (q[1] + prev[1]) / 2))); acc += ds / Math.pow(h, pace); }
+        S.push({ L: acc, g: i + u }); prev = q.slice();
+      }
+      crc(P, n - 2, 1, q); acc += Math.hypot(q[0] - prev[0], q[1] - prev[1], q[2] - prev[2]) / Math.pow(Math.max(low, q[2] - Math.max(0, nav.terrain(q[0], q[1]))), pace);
+      S.push({ L: acc, g: n - 1 });
+      fly = { P, L, S, fov: F.fov && F.fov.length === n ? F.fov.slice() : null, from: F.from ?? 0, to: F.to ?? total, ease: EASE[F.ease || 'glide'] };
+    }
+    // where along it at T seconds: the curve's own parameter (segment + fraction)
+    function flyG(T) {
+      const f = fly, S = f.S, want = f.ease(clamp((T - f.from) / Math.max(1e-3, f.to - f.from))) * S[S.length - 1].L;
+      let lo = 0, hi = S.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m].L < want) lo = m; else hi = m; }
+      const a = S[lo], b = S[hi], w = b.L > a.L ? (want - a.L) / (b.L - a.L) : 0;
+      return a.g + (b.g - a.g) * w;
+    }
+    const flyAt = (P, g, out) => { const i = Math.min(P.length - 2, Math.floor(g)); return crc(P, i, g - i, out); };
+    const flyFov = g => { const v = fly.fov, n = v.length, i = Math.min(n - 2, Math.floor(g)), u = g - i, a = v[Math.max(0, i - 1)], b = v[i], c = v[i + 1], d = v[Math.min(n - 1, i + 2)]; // (a lens: a plain Catmull-Rom)
+      return 0.5 * (2 * b + (c - a) * u + (2 * a - 5 * b + 4 * c - d) * u * u + (3 * b - a - 3 * c + d) * u * u * u); };
+    const fq = [0, 0, 0];
     // the film's path at T seconds from its start ([x, y, z], local metres): a cubic in time through its points (Hermite,
     // the velocities above), so position and velocity run on unbroken through every cut
     function pathAt(T) {
@@ -424,13 +489,21 @@ window.OEOverture = (function () {
         pose.pos.y += h;
         pose.look.copy(g).addScaledVector(tan, s.lead ?? 2);
         if (s._look) pose.look.lerp(W(...s._look), ch(s.lookMix ?? 0.5, k, e));
+      } else if (s.type === 'fly' && fly) {
+        // the film's own flight at this moment (resolveFly): the camera on its way, looking where its points say
+        const gg = flyG(s.t0 + k * s.dur);
+        pose.pos.copy(W(...flyAt(fly.P, gg, fq)));
+        if (fly.L.length === fly.P.length) pose.look.copy(W(...flyAt(fly.L, gg, fq)));
+        else if (fly.L.length) pose.look.copy(W(...fly.L[0]));
+        else { flyAt(fly.P, Math.min(fly.P.length - 1, gg + 0.05), fq); pose.look.copy(W(...fq)).sub(pose.pos).multiplyScalar(8).add(pose.pos); } // (along the way, ahead)
+        if (fly.fov && s.fov == null) { fov = flyFov(gg); return g; }
       } else if (s.type === 'land') {
         // from where the last shot ended, through `via`, down to the chase camera over the player's shoulder
         const a = from || { pos: pose.pos.clone(), look: pose.look.clone() }, q = EASE[s.qEase || 'smooth'](k);
         const v = s._via ? W(...s._via) : a.pos.clone().lerp(ctx.live.pos, 0.5).setY(Math.max(a.pos.y, ctx.live.pos.y) * 0.6);
         const b = ctx.live;
         pose.pos.set(0, 0, 0).addScaledVector(a.pos, (1 - q) * (1 - q)).addScaledVector(v, 2 * q * (1 - q)).addScaledVector(b.pos, q * q);
-        pose.look.lerpVectors(a.look, g || b.look, EASE.smooth(clamp(k * 2.2)));
+        pose.look.lerpVectors(a.look, g || b.look, EASE.smooth(clamp((k - (s.lookHold || 0)) / (1 - (s.lookHold || 0)) * 2.2))); // (lookHold: the look kept where the last shot left it until then, coming down, not tipping onto the player from above)
         if (k > 0.55) pose.look.lerp(b.look, EASE.smooth((k - 0.55) / 0.45));
       }
       fov = ch(s.fov ?? 45, k, e);
@@ -482,8 +555,27 @@ window.OEOverture = (function () {
 .ov-skip { position: absolute; right: max(16px, 3vw); bottom: calc(8.5vh + 18px); font: 400 10px/1 var(--f-mono, ui-monospace, monospace); letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.55); opacity: 0; pointer-events: auto; cursor: pointer; background: none; border: 0; padding: 10px 0; }
 .ov-skip:hover { color: #fff; }
 @media (max-width: 640px) { .ov-title { top: 30%; } .ov-cap { bottom: calc(8.5vh + 14px); } .ov-skip { top: calc(8.5vh + 6px); bottom: auto; } }
+.ov-title.card { top: 27%; padding: 44px 0 46px; letter-spacing: .16em; background: radial-gradient(ellipse 46% 50% at 50% 50%, rgba(4,8,18,.5), rgba(4,8,18,.22) 55%, rgba(4,8,18,0) 78%); }
+.ov-title.card small { display: block; margin-bottom: 18px; font: 400 11px/1 var(--f-mono, ui-monospace, monospace); letter-spacing: .34em; margin-right: -.34em; text-transform: uppercase; color: #ffcf8a; text-shadow: 0 1px 12px rgba(0,0,0,.6); }
+.ov-title.card b { margin-right: -.16em; font: 200 clamp(38px, 7.4vw, 96px)/.96 var(--f-display, system-ui); letter-spacing: inherit; text-transform: uppercase; color: #f4efe6; text-shadow: 0 2px 30px rgba(0,0,0,.4), 0 0 60px rgba(120,150,255,.26); }
+.ov-title.card em { display: block; margin-top: 20px; margin-right: -.5em; font: 500 18px/1 var(--f-jp, serif); font-style: normal; letter-spacing: .5em; color: #ffcf8a; text-shadow: 0 1px 12px rgba(0,0,0,.8); }
+.ov-title.card i { margin-top: 16px; margin-right: -.24em; font-size: 11px; color: rgba(244,239,230,.86); text-shadow: 0 1px 10px rgba(0,0,0,.8); }
+.ov-marks { position: absolute; inset: 0; }
+.ov-mark { position: absolute; left: 0; top: 0; opacity: 0; white-space: nowrap; will-change: transform, opacity; }
+.ov-mark::before { content: ""; position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: #ffcf8a; box-shadow: 0 0 0 1px rgba(4,8,18,.45), 0 0 12px 2px rgba(255,207,138,.55); }
+.ov-mark::after { content: ""; position: absolute; left: -.5px; bottom: 6px; width: 1px; height: var(--stem, 46px); background: linear-gradient(rgba(255,207,138,.85), rgba(255,207,138,.15)); }
+.ov-mark div { position: absolute; left: -1px; bottom: calc(var(--stem, 46px) + 6px); padding: 7px 12px 8px 11px; border-left: 1px solid rgba(255,207,138,.9); background: linear-gradient(90deg, rgba(4,8,18,.72), rgba(4,8,18,.5)); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.ov-mark small { display: block; font: 400 10px/1.3 var(--f-body, system-ui); letter-spacing: .16em; color: #ffcf8a; }
+.ov-mark b { display: block; margin-top: 3px; font: 300 clamp(11.5px, 1.1vw, 13.5px)/1.2 var(--f-display, system-ui); letter-spacing: .2em; text-transform: uppercase; color: #f4efe6; }
+.ov-mark i { display: block; margin-top: 3px; font: 400 10px/1.2 var(--f-mono, ui-monospace, monospace); font-style: normal; letter-spacing: .18em; color: rgba(244,239,230,.78); }
+.ov-mark.l div { left: auto; right: -1px; padding: 7px 11px 8px 12px; border-left: 0; border-right: 1px solid rgba(255,207,138,.9); background: linear-gradient(270deg, rgba(4,8,18,.72), rgba(4,8,18,.5)); text-align: right; }
+@media (max-width: 640px) { .ov-mark b { font-size: 10.5px; letter-spacing: .16em; } .ov-mark small, .ov-mark i { font-size: 9px; } .ov-mark { --stem: 30px; }
+  .ov-title.card { top: 24%; padding: 34px 16px 36px; background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(4,8,18,.5), rgba(4,8,18,.2) 60%, rgba(4,8,18,0) 82%); }
+  .ov-title.card b { font-size: clamp(34px, 11vw, 52px); line-height: 1.04; } .ov-title.card em { margin-top: 16px; font-size: 16px; } .ov-title.card small, .ov-title.card i { font-size: 9.5px; letter-spacing: .26em; } }
 `;
-    let layer = null, black = null, titleEl = null, capEl = null, skipEl = null;
+    let layer = null, black = null, titleEl = null, capEl = null, skipEl = null, marksEl = null;
+    // a title's or a caption's {tokens}: what the game fills in at the moment (ctx.fill: the walk's hour, date and sky)
+    const fill = txt => String(txt).replace(/\{(\w+)\}/g, (a, k) => { const v = ctx.fill && ctx.fill(k); return v == null ? a : v; });
     function overlay() {
       document.head.appendChild(css);
       layer = document.createElement('div'); layer.className = 'ov-layer'; layer.setAttribute('aria-live', 'polite');
@@ -491,12 +583,23 @@ window.OEOverture = (function () {
       titleEl = document.createElement('div'); titleEl.className = 'ov-title';
       const t = spec.title || {}, f = scene.frame || {};
       const lat = f.lat0 != null ? `${Math.abs(f.lat0).toFixed(3)}°${f.lat0 >= 0 ? 'N' : 'S'}  ${Math.abs(f.lon0).toFixed(3)}°${f.lon0 >= 0 ? 'E' : 'W'}` : '';
-      titleEl.innerHTML = `<b>${t.name || ctx.CITY.native || ctx.CITY.name}</b><span>${t.reading || ctx.CITY.name}</span><i>${t.line || lat}</i>`;
+      if (t.style === 'card') { // (the story's own title card, as the title screen sets it: an amber eyebrow, the name in the display face, its own script under it, a mono line)
+        titleEl.classList.add('card');
+        titleEl.innerHTML = `${t.eyebrow ? `<small>${fill(t.eyebrow)}</small>` : ''}<b>${t.name}</b>${t.jp ? `<em lang="ja">${t.jp}</em>` : ''}${t.line ? `<i>${fill(t.line)}</i>` : ''}`;
+      } else titleEl.innerHTML = `<b>${t.name || ctx.CITY.native || ctx.CITY.name}</b><span>${t.reading || ctx.CITY.name}</span><i>${t.line || lat}</i>`;
       capEl = document.createElement('div'); capEl.className = 'ov-cap';
       skipEl = document.createElement('button'); skipEl.className = 'ov-skip'; skipEl.type = 'button';
       skipEl.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap to skip' : (ctx.G.overture || {}).skip_keys || 'Any key to skip'; // (a story's flight: only the keys that skip it)
       skipEl.addEventListener('click', e => { e.stopPropagation(); skip(); });
-      layer.append(black, titleEl, capEl, skipEl);
+      // the places named as the camera passes over them (spec.marks): a point on the place, a stem, its name
+      marksEl = document.createElement('div'); marksEl.className = 'ov-marks';
+      for (const m of marks) {
+        m.el = document.createElement('div'); m.el.className = 'ov-mark';
+        m.el.innerHTML = `<div>${m.jp ? `<small lang="ja">${m.jp}</small>` : ''}<b>${m.name}</b>${m.sub ? `<i>${m.sub}</i>` : ''}</div>`;
+        if (m.stem) m.el.style.setProperty('--stem', `${m.stem}px`);
+        marksEl.appendChild(m.el);
+      }
+      layer.append(black, marksEl, titleEl, capEl, skipEl);
       ctx.stage.appendChild(layer);
     }
     // the type is drawn from the overture's own clock, not by CSS transitions, so a film of it
@@ -519,13 +622,29 @@ window.OEOverture = (function () {
         titleEl.style.letterSpacing = `${(0.22 + 0.3 * (1 - O(clamp(a / 7)))).toFixed(3)}em`;
       } else titleEl.style.opacity = '0';
       const c = s.caption;
-      if (c && capFor !== s) { capEl.innerHTML = `${c.eyebrow ? `<small>${c.eyebrow}</small>` : ''}${c.text}`; capFor = s; }
+      if (c && capFor !== s) { capEl.innerHTML = `${c.eyebrow ? `<small>${fill(c.eyebrow)}</small>` : ''}${fill(c.text)}`; capFor = s; }
       if (c) {
         const a = (k - (c.at || 0)) * s.dur, z = (k - (c.until ?? 0.9)) * s.dur;
         capEl.style.opacity = (a < 0 ? 0 : E(clamp(a / 1.0)) * (1 - E(clamp(z / 0.8)))).toFixed(3);
         capEl.style.transform = `translateY(${(6 * (1 - O(clamp(a / 1.4)))).toFixed(2)}px)`;
       } else capEl.style.opacity = '0';
       skipEl.style.opacity = (E(clamp((t - 1.2) / 0.8)) * (1 - E(clamp((t - total + 4) / 0.8)))).toFixed(3);
+      if (marks.length) placeMarks();
+    }
+    // each name where its place is in this frame's picture: projected through the pose this frame has just been given (the
+    // camera itself takes it after), at the lens the page will draw it at (lensFor), faded in and out over its seconds
+    const mf = new V3(), mr = new V3(), mu = new V3(), md = new V3(), UP = new V3(0, 1, 0);
+    function placeMarks() {
+      const wv = ctx.stage.clientWidth || innerWidth, hv = ctx.stage.clientHeight || innerHeight, ty = Math.tan(lensFor(fov) * RAD / 2), tx = ty * wv / hv;
+      mf.copy(pose.look).sub(pose.pos).normalize(); mr.crossVectors(mf, UP).normalize(); mu.crossVectors(mr, mf);
+      for (const m of marks) {
+        const [a, b] = m.t || [0, total], op = E(clamp((t - a) / 0.9)) * (1 - E(clamp((t - b + 0.9) / 0.9)));
+        md.copy(W(...m._at)).sub(pose.pos);
+        const z = md.dot(mf), x = md.dot(mr) / (z * tx), y = md.dot(mu) / (z * ty);
+        const on = op > 0.002 && z > 1 && Math.abs(x) < 0.92 && y > -0.92 && y < 0.7; // (room above it for its name)
+        m.el.style.opacity = on ? (op * clamp((0.92 - Math.abs(x)) / 0.12) * clamp((0.7 - y) / 0.12)).toFixed(3) : '0';
+        if (on) { m.el.style.transform = `translate(${((x + 1) / 2 * wv).toFixed(1)}px, ${((1 - y) / 2 * hv).toFixed(1)}px)`; if (m.side !== x > 0.3) { m.side = x > 0.3; m.el.classList.toggle('l', m.side); } } // (its name to the left of it in the frame's right part, never off the edge)
+      }
     }
 
     // ------------------------------------------------------------ the score (film-score.js, rendered offline and played)
@@ -645,10 +764,20 @@ window.OEOverture = (function () {
     }
 
     // ------------------------------------------------------------ playing
-    let active = false, onDone = null, t = 0, fired = new Set(), wasFrozen = false, clock0 = 0, settling = false, lapsed = 0;
+    let active = false, onDone = null, t = 0, fired = new Set(), wasFrozen = false, clock0 = 0, settling = false, lapsed = 0, levelHeld = null;
     function frameFn(kAll) {
       t = kAll * total;
-      const s = shotAt(t), k = clamp((t - s.t0) / s.dur);
+      const s = shotAt(t);
+      // the camera does not come down to the player before the level they stand in is drawn (game.js holdForLevel, issue 62):
+      // the film held where the land shot begins while it is not, for at most ctx.levelWait seconds
+      if (s.type === 'land' && ctx.levelReady && !settling) {
+        if (levelHeld == null) levelHeld = ctx.levelReady() ? -1 : performance.now();
+        if (levelHeld > 0) {
+          if (!ctx.levelReady() && performance.now() - levelHeld < (ctx.levelWait || 6) * 1000) { ctx.cine.seek(s.t0 / total); t = s.t0; }
+          else { console.info(`the walk film waited ${((performance.now() - levelHeld) / 1000).toFixed(1)} s for the level`); levelHeld = -1; }
+        }
+      }
+      const k = clamp((t - s.t0) / s.dur);
       if (s !== lastShot) { // a cut: the land shot starts where the shot before it ends
         const i = shots.indexOf(s);
         if (i > 0) { tan.set(0, 0, -1); shotPose(shots[i - 1], 1); from = { pos: pose.pos.clone(), look: pose.look.clone() }; }
@@ -664,7 +793,7 @@ window.OEOverture = (function () {
       if (ctx.guideAt) ctx.guideAt(g, s, k); // (a film whose guide is a thing of the game's: a helicopter the camera flies with)
       // the guide: placed and turning, lit from behind when the sun is low (its edge glows)
       if (hero || glow) {
-        const show = !!g && !ctx.guideAt && !(s.type === 'land' && k > 0.93); // (a film whose guide is a thing of the game's: that thing, not a glow on it)
+        const show = !!g && !K.none && !ctx.guideAt && !(s.type === 'land' && k > 0.93); // (a film whose guide is a thing of the game's: that thing, not a glow on it)
         const gp = g || gprev;
         if (hero) {
           hero.visible = show;
@@ -797,7 +926,7 @@ window.OEOverture = (function () {
         }
       }
       const dens = ch(s.drift ?? 0.5, k, EASE.smooth) * (s.type === 'land' ? 1 - EASE.smooth(clamp((k - 0.6) / 0.4)) : 1);
-      const n = Math.round(NDRIFT * clamp(dens));
+      const n = K.none ? 0 : Math.round(NDRIFT * clamp(dens));
       drift.count = n;
       const cam = ctx.camera.position, wind = dCol.set(0.9, 0, -0.5);
       for (let i = 0; i < n; i++) {
@@ -843,7 +972,7 @@ window.OEOverture = (function () {
       if (variant === 'day' && base.day === false) return false; // (a map whose day overture is not ready yet: the plain crane)
       try { placeEnd(); resolve(); } catch (e) { console.warn(String(e)); return false; }
       onDone = done;
-      active = true; settling = false; fired = new Set(); lastShot = null; from = null; lapsed = 0;
+      active = true; settling = false; fired = new Set(); lastShot = null; from = null; lapsed = 0; levelHeld = null;
       if (group && builtFor !== buildKey()) dispose(); // (built ahead for another hour or season)
       if (!group) build();
       group.visible = true; if (sky) sky.visible = true;
@@ -892,7 +1021,7 @@ window.OEOverture = (function () {
     }
     return {
       play, skip, update, prepareScore, prewarm, scorePlan, point, get shots() { return shots; }, get total() { return total; }, get variant() { return variant; },
-      get active() { return active; }, get fov() { return lensFor(fov); }, get fx() { return active ? fx : null; }, get t() { return t; }, get kind() { return kind; }, get end() { return endAt.slice(); },
+      get active() { return active; }, get walk() { return !!ctx.walk; }, get fov() { return lensFor(fov); }, get fx() { return active ? fx : null; }, get t() { return t; }, get kind() { return kind; }, get end() { return endAt.slice(); },
       // the guide's and the camera's path through each shot (for tools/overture_film.js's checks)
       sample(s, k) { const g = shotPose(s, k); return { pos: pose.pos.clone(), look: pose.look.clone(), guide: g ? g.clone() : null }; },
       // the guide's path through a shot at k (0..1), as the camera's frame has it, without touching the camera: where a thing
