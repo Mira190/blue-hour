@@ -193,7 +193,8 @@
     "web/game/autopilot.js",
     "web/game/junctions.js",
     "web/game/rail.js",
-    "web/game/trains.js"
+    "web/game/trains.js",
+    "web/game/pilot.js"
    ],
    "checks": [
     "story",
@@ -202,17 +203,8 @@
    ],
    "offers": {
     "OEAutopilot": [
-     "cruise",
-     "film",
-     "join",
-     "laneKeep",
-     "nextTurn",
-     "onLane",
-     "scenic",
-     "scenicShare",
      "turnGlyph",
-     "turnText",
-     "turns"
+     "turnText"
     ],
     "OECars": [
      "CAR_STEP",
@@ -233,6 +225,7 @@
      "sprayStep",
      "weather"
     ],
+    "OEGamePilot": [],
     "OEJunctions": [
      "RANK",
      "create"
@@ -248,6 +241,48 @@
      "helicopter",
      "load",
      "searchlight"
+    ]
+   },
+   "asks_of_game": {
+    "web/game/pilot.js": [
+     "A",
+     "G",
+     "H",
+     "U",
+     "angDiff",
+     "boxesMeet",
+     "cam",
+     "cars",
+     "clockT",
+     "crowd",
+     "destinations",
+     "dlg",
+     "driveTo",
+     "driverStep",
+     "eta",
+     "handGhost",
+     "handGhostT",
+     "junctions",
+     "k",
+     "keepSign",
+     "myCar",
+     "nav",
+     "npcs",
+     "pilot",
+     "pilotEnd",
+     "placeOnRoute",
+     "player",
+     "reduced",
+     "ride",
+     "rideClock",
+     "rideGuard",
+     "rideStep",
+     "roadNet",
+     "roads",
+     "rq",
+     "save",
+     "scene",
+     "waypoint"
     ]
    }
   },
