@@ -1,0 +1,93 @@
+{
+ "count": 4326,
+ "over_150m": 1116,
+ "tiles": 173,
+ "radius_m": 14000,
+ "rule": "height >= 45.0 + 5.5 m a km past 2 km from the frame's middle",
+ "min_area_m2": 60.0,
+ "centre": [
+  -475.0,
+  -1100.0
+ ],
+ "frame": [
+  -2700,
+  1750,
+  -3100,
+  900
+ ],
+ "order": "tallest first",
+ "added": [
+  {
+   "name": "Azabudai Hills Mori JP Tower",
+   "height": 325.2
+  },
+  {
+   "name": "Azabudai Hills Residence A",
+   "height": 237.2
+  },
+  {
+   "name": "Azabudai Hills Residence B",
+   "height": 263.0
+  },
+  {
+   "name": "Toranomon Hills Residencial Tower",
+   "height": 221.55
+  },
+  {
+   "name": "Toranomon Hills Station Tower",
+   "height": 265.75
+  },
+  {
+   "name": "Tokyu Kabukicho Tower",
+   "height": 225.0
+  },
+  {
+   "name": "way 1217955817",
+   "height": 225.0
+  },
+  {
+   "name": "TODA BUILDING",
+   "height": 165.0
+  },
+  {
+   "name": "Tokiwabashi Tower",
+   "height": 212.0
+  },
+  {
+   "name": "\u4e16\u754c\u8cbf\u6613\u30bb\u30f3\u30bf\u30fc\u30d3\u30eb\u30c7\u30a3\u30f3\u30b0\u5357\u9928",
+   "height": 197.317
+  },
+  {
+   "name": "\u30ef\u30fc\u30eb\u30c9\u30bf\u30ef\u30fc\u30ec\u30b8\u30c7\u30f3\u30b9",
+   "height": 185.0
+  },
+  {
+   "name": "THE LINKPILLAR 1 NORTH",
+   "height": 161.43
+  },
+  {
+   "name": "THE LINKPILLAR 1 SOUTH",
+   "height": 158.68
+  },
+  {
+   "name": "way 312917824",
+   "height": 242.0
+  }
+ ],
+ "cards": {
+  "tokyo_tower": [
+   4430.9,
+   -1099.4,
+   19.0
+  ],
+  "skytree": [
+   10334.3,
+   4617.6,
+   0.5
+  ]
+ },
+ "sources": {
+  "plateau": "MLIT Project PLATEAU Tokyo 23 wards LOD2 building models (CC BY 4.0), as vector tiles by indigo-lab (MIT)",
+  "added": "OpenStreetMap contributors (ODbL), the towers finished since PLATEAU's 2020 models"
+ }
+}
