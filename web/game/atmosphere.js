@@ -536,10 +536,12 @@ window.OEAtmos = (function () {
       // warmPasses. A camera effect after it draws the merge and the plain lens, compiled behind the title with the rest)
       bloom.firstDraws = () => ({ target: [bloom.materialHighPassFilter, ...bloom.separableBlurMaterials.slice(0, bloom.levels), bloom.compositeMaterial] });
       lens.firstDraws = () => ({ screen: [lens.merged] });
-      const oneFx = new URLSearchParams(location.search).get('camfx') !== 'two'; // (?camfx=two: the merge and the effect as two passes, as before, to set beside)
+      let oneFx = new URLSearchParams(location.search).get('camfx') !== 'two'; // (?camfx=two, or composer.camFxPasses = 2: the merge and the effect as two passes, as before, to set beside: tools/dof_compare.js)
       const passes = [scenePass, ...(ao ? [ao.pass] : []), bloom, camFx, lens, anime];
       composer = {
         renderer, passes, renderTarget1: rt, renderTarget2: rt,
+        get camFxPasses() { return oneFx ? 1 : 2; }, set camFxPasses(n) { oneFx = n !== 2; },
+        get pings() { return (pingA ? 1 : 0) + (pingB ? 1 : 0); },
         addPass(p) { passes.push(p); if (p.setSize) p.setSize(rt.width, rt.height); },
         removePass(p) { const i = passes.indexOf(p); if (i >= 0) passes.splice(i, 1); },
         setSize(W, H) {

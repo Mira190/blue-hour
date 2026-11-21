@@ -2469,3 +2469,33 @@ Each lands by itself with its beats' numbers before and after, and the budgets c
 2. `python3 tools/slo_report.py --posthog --days 3`: "the levels by release" sets each version's frame rate, slow
    frames, GPU and script time, draws, triangles and passes side by side, by device; a release is better when its
    phone rows show fewer slow frames at the same or a higher governor scale, and no `gl_lost`.
+
+### The depth of field in one pass (issue 130, the first cut)
+
+A conversation's shot, the camera raised, a print and the flight blur by depth (`atmosphere.js` `camFx`; a third of a
+play's stills). With it on, the frame drew the scene, the occlusion and the bloom together into one full-size
+half-float target (`lens.js` `merge`), blurred that into a second, and the lens read the second: two full-size passes
+and two full-size targets more than a frame without it, and the targets, made at the first conversation, were kept
+for good.
+
+Now the blur reads the scene itself (`camFx.merged`): each tap is rolled off as the merge rolled it off and shaded by
+the occlusion (the pixel's own with the depth-aware upsample; a neighbour's as the occlusion's texel has it, which
+under a blur reads alike), and the bloom's sum, soft already, is added after the blur. One pass, one target; a pixel
+in focus is what the merge made it. Eight seconds after the last frame that needed it the target is let go. Any other
+tail (the opening's animated lens, a film's own pass) draws as before.
+
+`tools/dof_compare.js` holds the walk at 19:30 in photo mode and draws the same frame both ways
+(`composer.camFxPasses`, or `?camfx=two` on the address):
+
+| the same held frame | passes | pixels shaded, canvases | full-size targets | GPU memory while on | after |
+|---|---|---|---|---|---|
+| a phone (760 x 1644, the low tier), before | 13 | 4.29 | 2 | 260.7 MB | 260.7 MB (kept) |
+| after | 12 | 3.29 | 1 | 244.0 MB | 241.7 MB (let go) |
+| a desktop (1440 x 900, the high tier), before | 19 | 6.17 | 2 | 1104 MB | kept |
+| after | 18 | 5.17 | 1 | 1084 MB | let go |
+
+The picture: on the phone's page the two ways differ by 0.93 levels of 255 on average, where the old way drawn twice
+differs from itself by 0.92 (the film's grain); the largest difference of any channel is 17. On the desktop's page
+4.6 against 3.7 (the screens play on between the two draws). Stills of both are side by side in the branch's report.
+Measured on a session's machine (the counts and the megabytes are the page's own; the milliseconds a full-size pass
+costs an iPhone or an M3 are for `?perf` and the telemetry to say).
