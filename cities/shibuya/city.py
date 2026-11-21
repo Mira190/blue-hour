@@ -3240,11 +3240,24 @@ def blossom(K, c, R, z, turn=0.0):
     heart = Point(c).buffer(0.06, 3)
     joints = [LineString([c, (c[0] + R * math.cos(turn + k * 2 * math.pi / 5), c[1] + R * math.sin(turn + k * 2 * math.pi / 5))]).buffer(0.006, cap_style=2) for k in range(5)]
     seam = inner.intersection(joints[0].union(joints[1]).union(joints[2]).union(joints[3]).union(joints[4])).difference(heart)
-    flat = lambda x, y: z
+    from shapely.geometry.polygon import orient
+    from shapely.ops import triangulate
     for key, shape in (("hk_rim", whole.difference(inner)), ("hk_rim", heart), ("hk_joint", seam), ("hk_inlay", inner.difference(seam).difference(heart))):
+        m = K(key)
         for g in getattr(shape, "geoms", [shape]):
-            if not g.is_empty and g.geom_type == "Polygon":
-                ground_cell(K(key), g.simplify(0.004), flat, 0.0)
+            if g.is_empty or g.geom_type != "Polygon":
+                continue
+            g, at = g.simplify(0.004), {}  # (a piece's triangles share its points: a phone's memory is at its budget, issue 105)
+            for t in triangulate(g):
+                if t.area < 1e-5 or not g.contains(t.representative_point()):
+                    continue
+                for x, y in list(orient(t).exterior.coords)[:-1]:
+                    k = (round(x, 3), round(y, 3))
+                    if k not in at:
+                        at[k] = len(m.v)
+                        m.v.append(np.array([x, y, z]))
+                        m.t.append([float(x), float(y)])
+                    m.i.append(at[k])
 
 
 def sculpt_into(m, f, lo, hi, cell, P, z0, seed_relax=0.3):
