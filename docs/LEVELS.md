@@ -38,8 +38,7 @@ One model of levels that every generator reads, in the pipeline (nothing is adde
 3. **One rule for whatever has a top** (`pipeline/levels.py`). `Levels` is the ground as the game draws it.
    `stepped(line, ground, height)` gives the bays of a wall, fence, hoarding, rail or parapet: each bay level, the
    fewest levels that keep every bay between its height and its height plus a slack over the highest ground under it
-   (interval stabbing), a dip of one or two bays filled, feet under the lowest ground, the line stopped against a
-   retaining block. `footing()` does the same for a mast or a crane. `walls()` and `posts()` draw them. A generator of
+   (interval stabbing), a dip of one or two bays filled, feet under the lowest ground. `footing()` does the same for a mast or a crane. `walls()` and `posts()` draw them. A generator of
    a new kind of thing calls these and inherits the rule; the hoardings, their masts and cranes do.
 4. **Every building stands on the lowest ground along its walls** (`rebase()`, now for all of them).
 5. **The class is held by a check** (`tools/levels_check.py`, 9 s, in the static checks): runs and footings against
