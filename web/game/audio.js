@@ -27,6 +27,22 @@ window.OEAudio = (function () {
   // left a couple of thousand of them there (WebKit bug 222098; its fix's own advice: take nodes out of the graph once
   // they are no longer useful). The screens' kick alone left one a beat, two a second, for as long as you stood there.
   const LEAD = 0.012;
+  // How much the street may sound at once, and what it gives up when the phone cannot keep up (docs/SOUND.md, "Giving up
+  // sound before a click"). A block missed is a click whatever the sound's own cost: the audio thread is starved by what
+  // else the phone is doing (a busy page, heat, a low-power mode), which a page cannot raise. What it can do is ask less
+  // of the thread while it is starved. Level 0 is everything; 1 lets go of the room's reverb and halves the street's
+  // voices; 2 lets go of the crowd's murmur, the screens' song, the cicadas and the animals; 3 keeps four voices of the
+  // street. The story's own sound (its bus), the score and the dialogue's beeps are never given up. A touch screen only
+  // (?shed=0..3 sets a level on any device, for the tools).
+  const SHED_SET = /[?&]shed=([0-3])\b/.exec(location.search);
+  const SHED_ON = TOUCH || !!SHED_SET, CAP = SHED_ON ? [28, 14, 8, 4] : [1e9, 1e9, 1e9, 1e9]; // (a mouse's desktop has the cores for all of it)
+  let shed = SHED_SET ? +SHED_SET[1] : 0, shedMax = shed, shedHit = [], shedAt = -1e9, shedSec = [0, 0, 0, 0], live = 0, shedDrop = 0;
+  // a place for a one-shot of the street that lasts `life` seconds, or none
+  function take(life) {
+    if (live >= CAP[shed]) { shedDrop++; return false; }
+    live++; setTimeout(() => { live--; }, life * 1000);
+    return true;
+  }
   const free = (src, ...nodes) => { src.onended = () => { for (const n of nodes) { try { n.disconnect(); } catch (e) { /* already gone */ } } }; };
   function noiseSource() {
     const s = ctx.createBufferSource();
@@ -192,6 +208,7 @@ window.OEAudio = (function () {
   // fading every few seconds; made the first time it is asked for, so a winter's game never builds it
   function cicadas(level) {
     if (!ctx) return;
+    if (shed >= 2) level = 0;
     if (!ch.cicada) {
       if (!(level > 0.01)) return;
       const n = noiseSource(), bp = ctx.createBiquadFilter(), am = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(), sw = ctx.createOscillator(), sg = ctx.createGain(), out = ctx.createGain();
@@ -214,17 +231,17 @@ window.OEAudio = (function () {
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
   }
-  function blip(freq, dur, type = 'square', vol = 0.05, fc = 20000) {
-    if (!ctx || muted) return;
+  function blip(freq, dur, type = 'square', vol = 0.05, must = false, fc = 20000) {
+    if (!ctx || muted || (!must && !take(dur + 0.1))) return;
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     o.type = type; o.frequency.value = freq; g.gain.value = 0;
     // (up in 2 ms: it began at its full level in the first sample, a click of its own under the note)
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(into(fc, dur)); o.start(t); o.stop(t + dur + 0.02); free(o, g);
   }
-  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035); }
+  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035, true); }
   function step() {
-    if (!ctx || muted) return;
+    if (!ctx || muted || !take(0.2)) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
@@ -232,7 +249,7 @@ window.OEAudio = (function () {
   }
   function horn() { blip(196, 1.3, 'sawtooth', 0.06); blip(247, 1.3, 'sawtooth', 0.04); }
   // your horn; another driver's at a gain (its distance) and a pitch (a bus's is lower)
-  function honk(gain = 1, pitch = 1, fc = 20000) { if (gain <= 0.01) return; blip(415 * pitch, 0.32, 'square', 0.045 * gain, fc); blip(523 * pitch, 0.32, 'square', 0.035 * gain, fc); }
+  function honk(gain = 1, pitch = 1, fc = 20000) { if (gain <= 0.01) return; blip(415 * pitch, 0.32, 'square', 0.045 * gain, false, fc); blip(523 * pitch, 0.32, 'square', 0.035 * gain, false, fc); }
   function shutter() { sfx('shutter'); } // (the photo mode's: the story's camera, below)
   function thump() { // a rubber stamp on paper: a short low knock and a slap of noise
     if (!ctx || muted) return;
@@ -244,7 +261,7 @@ window.OEAudio = (function () {
   }
   // a little penguin's bray: a run of nasal pulses, rising and falling; level 0..1 with distance
   function penguin(level = 1) {
-    if (!ctx || muted || level <= 0) return;
+    if (!ctx || muted || level <= 0 || shed >= 2 || !take(1.5)) return;
     const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD, n = 4 + Math.floor(Math.random() * 5), f0 = 700 + Math.random() * 300;
     o.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 3;
     g.gain.value = 0;
@@ -257,7 +274,7 @@ window.OEAudio = (function () {
   }
   // a silver gull's call: a harsh, falling "kee-ar", sometimes two; level 0..1 with distance
   function gull(level = 1) {
-    if (!ctx || muted || level <= 0) return;
+    if (!ctx || muted || level <= 0 || shed >= 2 || !take(1.5)) return;
     const t = ctx.currentTime + LEAD, n = Math.random() < 0.4 ? 2 : 1, f0 = 1500 + Math.random() * 500;
     for (let k = 0; k < n; k++) {
       const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), a = t + k * 0.32;
@@ -322,6 +339,7 @@ window.OEAudio = (function () {
   let crowdBed = null, screenBed = null, beatAt = 0, chord = 0;
   function murmur(level) {
     if (!ctx) return;
+    if (shed >= 2) level = 0;
     if (!crowdBed && level > 0) {
       const n = noiseSource(), a = ctx.createBiquadFilter(), b = ctx.createBiquadFilter(), g = ctx.createGain(), am = ctx.createOscillator(), ag = ctx.createGain(), out = ctx.createGain();
       a.type = 'bandpass'; a.frequency.value = 420; a.Q.value = 0.9; b.type = 'bandpass'; b.frequency.value = 1150; b.Q.value = 1.4;
@@ -335,6 +353,7 @@ window.OEAudio = (function () {
   // traffic's noise (muffled: little above 1 kHz carries); level 0..1 with distance
   function screens(level, fc = 20000) {
     if (!ctx) return;
+    if (shed >= 2) level = 0;
     if (!screenBed && level > 0) {
       const lp = ctx.createBiquadFilter(), out = ctx.createGain(), oscs = [];
       lp.type = 'lowpass'; lp.frequency.value = 950; lp.Q.value = 0.7; out.gain.value = 0;
@@ -368,7 +387,9 @@ window.OEAudio = (function () {
   // falling "zap" as the walk comes on, Hong Kong's hard pips, the Netherlands' rateltikker.
   // level 0..1 (with distance); pan -1 (left) to 1 (right)
   function out(level, pan, life = 2, fc = 20000) {
-    const g = ctx.createGain(), bus = into(fc, life);
+    const g = ctx.createGain();
+    if (!take(life + 0.5)) { g.gain.value = 0; return g; } // (not connected: its notes sound into nothing)
+    const bus = into(fc, life);
     let last = g;
     g.gain.value = level;
     pan = Math.max(-1, Math.min(1, pan || 0));
@@ -742,11 +763,32 @@ window.OEAudio = (function () {
   function place(kind) {
     if (!ctx || kind === placeNow || !PLACES[kind]) return;
     placeNow = kind;
+    if (shed >= 1) { for (const v of verbs.splice(0)) letGo(v); return; } // (the room is let go of while the phone cannot keep up)
     const t = ctx.currentTime, cv = reverb(impulse(kind)), g = ctx.createGain();
     g.gain.value = 0; verbIn.connect(cv.input); cv.output.connect(g); g.connect(duck);
     g.gain.setTargetAtTime(PLACES[kind].wet, t, 0.1);
-    for (const v of verbs.splice(0)) { v.g.gain.setTargetAtTime(0, t, 0.1); setTimeout(() => { try { verbIn.disconnect(v.cv.input); v.cv.dispose(); v.g.disconnect(); } catch (e) { /* already gone */ } }, 1500); }
+    for (const v of verbs.splice(0)) letGo(v);
     verbs.push({ cv, g });
+  }
+  function letGo(v) {
+    if (ctx) v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+    setTimeout(() => { try { verbIn.disconnect(v.cv.input); v.cv.dispose(); v.g.disconnect(); } catch (e) { /* already gone */ } }, 1500);
+  }
+  // The level changes: a step down when three clicks were counted in twenty seconds (and at least eight since the last
+  // step), a step up after ninety seconds without one. The room comes back as the place the page last asked for.
+  function shedTo(n) {
+    if (SHED_SET || n === shed || n < 0 || n > 3 || !ctx) return;
+    const was = shed, kind = placeNow;
+    shed = n; shedMax = Math.max(shedMax, n); shedAt = performance.now() / 1000;
+    if (was === 0 && n >= 1) { for (const v of verbs.splice(0)) letGo(v); }
+    else if (was >= 1 && n === 0 && kind) { placeNow = null; place(kind); }
+  }
+  function shedWatch(w) {
+    if (!SHED_ON || SHED_SET) return;
+    shedSec[shed] += 0.1;
+    shedHit = shedHit.filter(t => w - t < 20);
+    if (shedHit.length >= 3 && shed < 3 && w - shedAt > 8) { shedTo(shed + 1); shedHit = []; }
+    else if (shed > 0 && !shedHit.length && w - shedAt > 90) shedTo(shed - 1);
   }
   // ------------------------------------------------------------ every sound made on the audio thread (docs/SOUND.md)
   // On a phone a context has one thread that is given real time: iOS plays Web Audio in blocks of 128 frames (2.7 ms at
@@ -966,8 +1008,9 @@ window.OEAudio = (function () {
       o3.push(ot.performanceTime / 1000 - ot.contextTime); if (o3.length > 3) o3.shift();
       const ol = o3.length < 3 ? null : o3.slice().sort((a, b) => a - b)[1];
       if (ol === null) { /* not three readings yet */ } else if (oBase === null || ol < oBase) oBase = ol;
-      else if (ol - oBase >= XRUN) { xr.push([w, ol - oBase, sp]); oBase = ol; }
+      else if (ol - oBase >= XRUN) { xr.push([w, ol - oBase, sp]); shedHit.push(w); oBase = ol; }
     }
+    shedWatch(w);
     if (hs.length >= 3000) healthClose(false);
   }
   // the readings so far taken into the tallies; dropping (the page hidden or the context stopped): the last second's not
@@ -993,12 +1036,17 @@ window.OEAudio = (function () {
       h.snd_xrun = hXr.length; h.snd_gap = Math.round(hXr.reduce((a, r) => a + r[1], 0) * 1000);
       if (hXr.length) { const by = {}; for (const r of hXr) by[r[2]] = (by[r[2]] || 0) + 1; h.snd_xat = Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 3).map(k => `${k} ${by[k]}`).join(', '); }
     }
+    // the phone, and what the sound gave up (docs/SOUND.md): its kind, its cores and its screen's short side, the most levels
+    // it shed to, the seconds spent at each level above 0, and the voices it did not make
+    h.snd_dev = `${IOS ? 'ios' : TOUCH ? 'touch' : 'mouse'} c${navigator.hardwareConcurrency || 0} s${Math.min(screen.width, screen.height)}x${window.devicePixelRatio || 1}`;
+    if (shedMax > 0 || shedDrop) { h.snd_shed = shedMax; h.snd_shed_s = shedSec.slice(1).map(Math.round).join('/'); if (shedDrop) h.snd_drop = shedDrop; }
+    shedMax = shed; shedSec = [0, 0, 0, 0]; shedDrop = 0;
     if (hOff >= 1) h.snd_off = Math.round(hOff);
     if (muted) h.snd_mute = true;
     hLate = 0; hStall = 0; hAt = ''; hOff = 0; hXr = [];
     return h;
   }
-  function stop() { want = false; if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  function stop() { want = false; if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -1198,5 +1246,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo };
 })();

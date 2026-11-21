@@ -303,6 +303,25 @@ walk calls until the green. The mix is quiet (its loudest second −24 dBFS RMS,
 80% of its energy under 150 Hz, which a phone's speaker does not play. Not checked: a real iPhone's audio thread, its
 speaker, WebKit's real-time scheduling, its vDSP convolver.
 
+## Giving up sound before a click
+
+A block missed is a click whatever the sound costs, because what starves the audio thread (a busy page, heat, a
+low-power mode, a page being killed for memory) is not the page's to lift. What the page can do is ask less of the thread
+while it is starved. On a touch screen (`audio.js` `shed`; `?shed=0..3` fixes a level on any device, for the tools):
+
+- the street's one-shots (steps, beeps of the world, calls, horns, chimes) are capped at 28 at once, taken from `take()`;
+  the dialogue's beeps, the story's bus and the score are never given up;
+- when the output's clock steps three times within twenty seconds (`snd_xrun`, above), the sound gives up a level, and at
+  least eight seconds later another: **1** lets go of the room's reverb and halves the street's voices (14), **2** lets go
+  of the crowd's murmur, the screens' song, the cicadas and the animals (8 voices), **3** keeps four voices of the street;
+- ninety seconds without a step bring a level back, and the room with it;
+- telemetry says what the phone is (`snd_dev`) and what was given up (`snd_shed`, `snd_shed_s`, `snd_drop`).
+
+`tools/audio_shed_check.js` plays it as a phone's page. **What this does not do:** a page killed for memory. On 21 November
+2026 an iPhone's page was taken twice within a minute of entering the story (`gl_lost` at `late trees` and `late in`,
+then `crash`), its audio clock stepping by 32 s in the opening just before: the crackle there was the page dying, and no
+sound's cost explains it (docs/PERFORMANCE.md, "On a phone").
+
 ## Trains
 
 A train going by is told from a jet by its wheels. What the ear takes for a train, from the way railway noise is made
