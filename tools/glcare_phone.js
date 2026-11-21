@@ -22,14 +22,14 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
   // the tab put away and back, as the page sees it (document.hidden and a visibilitychange)
   await ctx.addInitScript(() => {
     try { localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ }
-    window.__hid = false;
+    window.__hid = false; Error.stackTraceLimit = 60; // (the page's own lines under three.js's, in an error's stack)
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__hid });
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (window.__hid ? 'hidden' : 'visible') });
     window.__setHidden = h => { window.__hid = h; document.dispatchEvent(new Event('visibilitychange')); };
   });
   const p = await ctx.newPage();
   const errors = [];
-  p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 200)); });
+  p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 200), (e.stack || '').split('\n').slice(1).map(l => l.trim()).filter(l => !/three\.module/.test(l)).slice(0, 6).join(' | ').slice(0, 900)); });
   const loaded = async () => {
     await p.waitForFunction(() => window.__game && window.__game.care, null, { timeout: 900000, polling: 1000 });
     await p.waitForFunction(() => { const l = document.getElementById('g-loader'); return !l || l.hidden || l.classList.contains('out'); }, null, { timeout: 900000, polling: 1000 });

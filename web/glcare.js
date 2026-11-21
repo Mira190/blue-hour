@@ -94,7 +94,11 @@ body > .gl-note { position: fixed; }
     // an object (evaluating 'r.byteLength')" from three.js in the frame after the restore)
     let lost = false, gone = false, check = 0, timer = 0, losses = 0, restores = 0;
     const stats = { losses: 0, restores: 0, drawn: 0, reloads: 0 };
-    const giveUp = why => { check = 0; gone = true; stats.reloads++; reload(note, why); };
+    const giveUp = why => { check = 0; gone = true; stats.reloads++; still(); reload(note, why); };
+    // and nothing draws again, whoever asks: the frame loop holds on care.lost, but a slice of buffers sent ahead of its
+    // first draw (world.js uploadBuffers), a tree's impostor or a level's warm-up runs on its own clock, and drew what the
+    // phone had let go of (the same error, from a render outside the frame, in tools/glcare_phone.js one run in three)
+    const still = () => { renderer.render = () => {}; renderer.compile = () => {}; if (renderer.compileAsync) renderer.compileAsync = () => Promise.resolve(); if (renderer.initTexture) renderer.initTexture = () => {}; };
     const onLostE = e => {
       e.preventDefault(); // without it the browser never offers the context back
       lost = true; check = 0; stats.losses = ++losses;
