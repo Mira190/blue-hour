@@ -3118,10 +3118,11 @@ def tower_crane(K, lm, CRANE):
     S.tube([jib(0.0, 6.0), jib(CRANE["jib_m"] * 0.7, 0.4)], 0.05, 3)                          # the ties from the peak
     S.tube([jib(0.0, 6.0), jib(-CRANE["counter_m"] + 1, 0.4)], 0.05, 3)
     S.tube([jib(0.0, 0.0), jib(0.0, 6.0)], 0.25, 4)
+    block(S, frame(c, f), -1.1, 1.1, -1.1, 1.1, top, top + 1.6)   # the slewing unit the jib turns on, over the mast
     block(K("concrete"), frame(c - f * (CRANE["counter_m"] - 2.5), f), -2.0, 2.0, -1.2, 1.2, top + 0.2, top + 2.6)   # its counterweight
     block(K("white_wall"), frame(c + f * 2.0, f), -1.0, 1.0, -1.1, 1.1, top - 2.2, top + 0.6)                 # the cab
     K("wire").tube([jib(CRANE["jib_m"] * 0.6), jib(CRANE["jib_m"] * 0.6, -CRANE["mast_m"] * 0.7)], 0.03, 3)  # the hook's line
-    for u, hh in ((CRANE["jib_m"], 0.5), (0.0, 6.5), (-CRANE["counter_m"], 0.5)):              # red lights at its ends and peak
+    for u, hh in ((CRANE["jib_m"], 0.3), (0.0, 6.0), (-CRANE["counter_m"], 0.3)):              # red lights on its ends and peak
         q = jib(u, hh)
         block(K("aviation", "lit"), frame(q[:2], f), -0.25, 0.25, -0.25, 0.25, q[2], q[2] + 0.5)
 
