@@ -251,37 +251,43 @@ class Station:
         for j in range(n_sp + 1):
             a = L0 + j * sp
             w = RIB_W * (1.8 if j in (0, n_sp) else 1.0)
-            self.rib(a, w, prof, nrm, world_n)
+            self.rib(a, w, prof, nrm, world_n, deep=j in (0, n_sp))
             n_ribs += 1
         # the gables, closed in glass behind the end frames, with a mullion every 1.25 m
         for a, s in ((L0, -1), (L1, 1)):
             self.gable(a, s, prof)
         print(f"roof: {n_ribs} frames, {n_sp} spans of {sp:.2f} m over {L1 - L0:.1f} m")
 
-    def rib(self, a, w, prof, nrm, world_n):
-        """One frame: a box section along the M at a metres along, w wide, standing 0.12 m proud of the skin and
-        RIB_D under it."""
+    def rib(self, a, w, prof, nrm, world_n, deep=False):
+        """One frame at a metres along, w wide: what of its box section stands proud of the skin (0.15 m), as three
+        strips that share their points along the M (its back and its two sides; the rest of it is inside the roof,
+        where no one sees it). An end frame, seen across the gable, shows its whole depth, RIB_D under the skin."""
         G = self.geo
         U = np.r_[self.u, 0.0]
-        out_, in_ = 0.12, -RIB_D
+        out_, in_ = 0.15, (-RIB_D if deep else -0.02)
+        h = U * w / 2
         pts = [self.P(a, b, z) for b, z in prof]
         Ns = [world_n(k) for k in range(len(prof))]
-        for k in range(len(prof) - 1):
-            p0, p1, n0, n1 = pts[k], pts[k + 1], Ns[k], Ns[k + 1]
-            o0, o1, i0, i1 = p0 + n0 * out_, p1 + n1 * out_, p0 + n0 * in_, p1 + n1 * in_
-            h = U * w / 2
-            nm = (n0 + n1) / np.linalg.norm(n0 + n1)
-            for q, n in (([o0 - h, o0 + h, o1 + h, o1 - h], nm),           # its back, over the skin
-                         ([i0 + h, i0 - h, i1 - h, i1 + h], -nm),          # its face under the roof
-                         ([o0 + h, i0 + h, i1 + h, o1 + h], U),            # its sides
-                         ([i0 - h, o0 - h, o1 - h, i1 - h], -U)):
-                if np.cross(q[1] - q[0], q[3] - q[0]) @ n < 0:
-                    q = [q[0], q[3], q[2], q[1]]
-                G.quad("ginza_white", *q, n=n)
+        n_pt = len(pts)
+
+        def strip(P, N):
+            tri = [t for k in range(n_pt - 1) for t in ((2 * k, 2 * k + 1, 2 * k + 3), (2 * k, 2 * k + 3, 2 * k + 2))]
+            q = np.asarray(P)
+            if np.cross(q[1] - q[0], q[3] - q[0]) @ N[0] < 0:          # (each face counter-clockwise seen from outside)
+                tri = [(x, z, y) for x, y, z in tri]
+            G.mesh("ginza_white", P, tri, n=N, uv=[(i % 2, i // 2) for i in range(len(P))])
+        back, sides = [], []
+        for p, n in zip(pts, Ns):
+            back += [p + n * out_ - h, p + n * out_ + h]
+        strip(back, [n for n in Ns for _ in (0, 1)])
+        for sgn in (1, -1):
+            P = []
+            for p, n in zip(pts, Ns):
+                P += [p + n * in_ + h * sgn, p + n * out_ + h * sgn] if sgn > 0 else [p + n * out_ + h * sgn, p + n * in_ + h * sgn]
+            strip(P, [U * sgn] * len(P))
         # its feet on the cornice
-        for k in (0, len(prof) - 1):
-            p = pts[k]
-            G.box("ginza_white", p - np.r_[0, 0, 0.3], (self.u, self.v), (w + 0.1, RIB_D + 0.3, 0.32))
+        for k in (0, n_pt - 1):
+            G.box("ginza_white", pts[k] - np.r_[0, 0, 0.3], (self.u, self.v), (w + 0.1, 0.5, 0.32))
 
     def gable(self, a, s, prof):
         """The M's end, closed in glass from the frames' feet up, a mullion every 1.25 m across it."""
