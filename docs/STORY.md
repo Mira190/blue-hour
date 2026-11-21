@@ -830,7 +830,7 @@ Taken off: **Run**, a button alone over the right thumb doing what the stick doe
 for). The walk adds where and when you are, which is what the walk is for, and at the top right your car, the camera
 and the menu, three small icons. The map without the story (`?walk=1`, a tool for building and checking) still has
 the old free game's six buttons (Lens, View, Run, Guess, Jump, E); they are not the game's, and stills meant to show
-the game are taken on the game's own page (`tools/lens_near.js` sets out on the walk as a player does).
+the game are taken on the game's own page (`tools/foot_cam.js` and `tools/story_play.js`).
 
 What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
 old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose
@@ -1356,18 +1356,30 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
 - *Found, never owed.* A speech mark over the head of whoever has something to say: amber, its dots breathing, while they
-  have a part of a story for you (seen from about forty metres), pale for a word in passing (from eighteen); their name
-  and what they are under it once you are within eleven metres. E (or a tap on the prompt) beside them opens the talk in
+  have a part of a story for you (seen from 24 metres), pale for a word in passing (from eighteen); their name and what
+  they are under it once you are within eleven metres. A mark is only ever over someone the player can see: their head
+  in sight of the lens (a ray against the city's solids, `ctx.seen`, asked every eighth frame), and it fades in and out
+  over a quarter of a second as they step behind something. It was seen from 42 m and through anything: on SHIBUYA
+  SKY's roof Taro's mark stood over the glass with him out of sight behind the heliport's deck, a few pixels of a man on a
+  phone if he was seen at all (the owner's report, November 2026). E (or a tap on the prompt) beside them opens the talk in
   the story's own box, with the story's conversation camera cutting between you. What they asked sits under the hour in
   the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
-  sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
+  sends you back to them. Where they are on another level, as Yuna is at the lift's foot when you have done what she asked
+  on the roof 226 m over her, the corner names the way (*Down the lift to Yuna*) and its metres are to the lift's stop on
+  your level (`ctx.via`, from `game.json` `lifts`); it read *Back to Yuna · 15 m*, the metres in plan to a point under
+  your feet. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
   the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
   1 of 5*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
   them as a game's journal lists its side stories: each by its name, ticked when told, with what was asked while it is
   under way, and for one not yet met a word on where to look (*By Hachiko, someone is looking for a friend who is
   late*), never a pin on a map.
 - *The street talks too.* The overheard lines of the crossing (`game.json` `chatter`: *Meet at Hachiko? Everyone says
-  that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles.
+  that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles. Each line is
+  said by someone standing there: of the crowd drawn within five metres of where it is said, in the lens's frame and in
+  sight, the nearest (the next nearest for the other side of a conversation), and the bubble follows them as they walk
+  (`game.js` `speakers`, `places.js`). With nobody there in sight, nobody says it, and a line said off the side of the
+  screen is not shown: on the roof's empty deck at night a visitor's line hung over the glass, held at the screen's edge,
+  a bubble over nobody. (The roof has no visitors yet, so its two lines wait for some: a follow-up.)
 
 What the games that do this do, and what was taken (design only; nothing of their look, words or code): the *Yakuza* /
 *Like a Dragon* series' substories, short comic or touching stories in two or three beats met in the street, which

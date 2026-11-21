@@ -325,7 +325,9 @@ window.OETelemetry = (function () {
     // the first view is timed from the navigation itself (the page's own download is part of its wait)
     cur = { kind: w.kind, city: w.city, t0: views ? now() : 0, ready: w.kind === 'globe', failed: false, active: 0, since: null, frames: frames(),
       restored: restored === true, here: null, dwell: new Map(), tourMax: 0, tourDone: false, stamps: null };
-    track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days }, prev));
+    // (gl_reload: the page was loaded again by glcare.js after its WebGL context was lost, in the last minute)
+    let glr = 0; if (!views) try { glr = Date.now() - (Number(sessionStorage.getItem('oe3d-gl-reload')) || 0) < 60000 ? 1 : 0; } catch (e) { /* storage blocked */ }
+    track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days, gl_reload: glr || undefined }, prev));
     prev = {};
     while (crashes.length) crashes.shift()();
     if (cur.ready) bank();
@@ -666,7 +668,7 @@ window.OETelemetry = (function () {
   // (mb: what the view has downloaded, decoded, in MB: the browsers that give no heap (Safari, iOS) still say how much a
   // page held when it died, the memory signal for a phone killed mid-load)
   const held = () => { let b = 0; try { const t0 = cur ? cur.t0 : 0; for (const r of performance.getEntriesByType('resource')) if (r.startTime >= t0) b += r.decodedBodySize || 0; } catch (e) { /* no Resource Timing */ } return Math.round(b / 1048576); };
-  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held(), lost: lostNoted || undefined }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
+  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held(), lost: (lostNoted || !!(window.OEQuality && OEQuality.lostHere && OEQuality.lostHere())) || undefined }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
   const gone = () => { try { localStorage.removeItem(ALIVE + sid); } catch (e) { /* storage blocked */ } };
   // This tab's last page load, by the tab's own session storage, which outlives a page that was killed: Safari
   // loads a tab again the moment its page dies, so the note it left is seconds old, and taken for another tab's it
@@ -713,11 +715,8 @@ window.OETelemetry = (function () {
   function noteLost() {
     try {
       const Q = window.OEQuality;
-      if (lostNoted || !cur || !cur.city || (cur.kind !== 'game' && cur.kind !== 'city') || !Q || !Q.lean()) return;
-      let d = null; try { d = JSON.parse(localStorage.getItem(`oe3d-died-${cur.city}`)); } catch (e) { d = null; }
-      const was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, lv = Math.max(was, lvNow() != null ? lvNow() : 1);
-      localStorage.setItem(`oe3d-died-${cur.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!cur.ready, lv }));
-      lostNoted = true; alive();
+      if (lostNoted || !cur || !cur.city || (cur.kind !== 'game' && cur.kind !== 'city') || !Q || !Q.lost) return;
+      if (Q.lost(cur.city, !!cur.ready)) { lostNoted = true; alive(); } // (quality.js lost: once a page, and not while put away)
     } catch (e) { /* storage blocked */ }
   }
   // a shader that fails to compile or link: three.js says so on the console and draws the material black or not at
