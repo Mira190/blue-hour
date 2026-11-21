@@ -178,6 +178,14 @@ target, so it can run on a schedule.
   id. The JSONL collector does not log IP addresses.
 - The script sends nothing when Do Not Track or Global Privacy Control is on, when `?telemetry=off` is
   in the URL, or when the browser is automated (the checks in `tools/`).
+- The page says what it measures and why, in a paragraph on its Credits screen (`web/credits.js`, reached
+  from the title's menu, the pause menu and the story's last card), with a switch beside it
+  (`OETelemetry.consent`). Off is kept in localStorage (`oe3d-telemetry` = `off`): it stops the script at
+  once, drops what was waiting to be sent, and removes the visitor id, the visit count and PostHog's
+  session from the browser; a page opened later starts none of it and makes no id. On again takes
+  effect from the next time the page is opened, under a new id. Where the browser itself asks not to be
+  tracked the switch is shown off and cannot be turned on. `tools/credits_shot.js` checks all of it on
+  a desktop's page and a phone's.
 - `CONFIG` in `web/telemetry.js` sends the events to the project's PostHog EU Cloud project. The `phc_`
   key there is PostHog's public capture key: it can write events but cannot read them. To stop sending
   events, empty `CONFIG.endpoint`.
