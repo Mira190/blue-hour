@@ -203,7 +203,7 @@ async function measure(b, city) {
         g.player.heading = Math.atan2(ux, uy); if (g.cam) g.cam.yaw = g.player.heading;
         for (let i = 0; i < 25 * 15; i++) g.advance(1 / 15, ['KeyW']);
         out.walked = { end: [x, y], to: [Math.round(g.player.x), Math.round(g.player.y)], held: inF([g.player.x, g.player.y], 8) };
-        out.said = [...document.querySelectorAll('#g-toasts > *')].some(e => /edge of this district/.test(e.textContent));
+        out.said = [...document.querySelectorAll('#g-toasts > *')].some(e => /edge of this district/.test(e.textContent)) || /edge of this district/.test(document.getElementById('g-toasts').dataset.next || ''); // (said, or waiting its turn behind another line: hud.js says one at a time in the story)
         g.spawn(was.slice(0, 2), was[2] + 0.5);
         for (let i = 0; i < 10; i++) g.advance(1 / 30);
       }

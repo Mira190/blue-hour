@@ -1315,3 +1315,71 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
 }
 @keyframes g-story-chip-narrow { 0% { opacity: 0; letter-spacing: 0.36em; } 14%, 72% { opacity: 1; letter-spacing: 0.22em; } 100% { opacity: 0; } }
+
+/* ---- the words on the picture are read over any picture (issue 114) ----
+   The goal, its hint, what is said over the street, the word, the prompt and the finder's words lie on the world, and
+   the world is sometimes a lit sign or pale paving. Each carries its own ground: a soft dark the colour of the
+   story's night that follows its letters (shadows laid one on another: close ones for the edge of a stroke, wide ones
+   that join into a shade the shape of the lines), never a box. Measured by tools/legible.js: 4.5:1 on the palest
+   paving at dusk, 3:1 on white. */
+.game-stage.story {
+  --halo: 0 0 1px rgba(4, 8, 18, 0.95), 0 0 2px rgba(4, 8, 18, 0.9), 0 1px 4px rgba(4, 8, 18, 0.85), 0 0 8px rgba(4, 8, 18, 0.8), 0 0 14px rgba(4, 8, 18, 0.75), 0 0 22px rgba(4, 8, 18, 0.7), 0 0 32px rgba(4, 8, 18, 0.6);
+  /* (small capitals in a thin face have little ink to cast a shade: theirs is laid closer and more times) */
+  --halo-small: 0 0 1px rgb(4, 8, 18), 0 0 2px rgb(4, 8, 18), 0 0 2px rgb(4, 8, 18), 0 0 3px rgb(4, 8, 18), 0 0 4px rgb(4, 8, 18), 0 0 5px rgba(4, 8, 18, 0.95), 0 1px 6px rgba(4, 8, 18, 0.95), 0 0 9px rgba(4, 8, 18, 0.9), 0 0 13px rgba(4, 8, 18, 0.9), 0 0 18px rgba(4, 8, 18, 0.85), 0 0 26px rgba(4, 8, 18, 0.75);
+}
+.game-stage.story :is(#g-story-goal span, .g-toast) { text-shadow: var(--halo); }
+.game-stage.story :is(#g-story-goal small, #g-story-goal em, #g-story-keys, #g-story-frames, #g-story-shutter, .g-prompt, #g-story-finder .rf small, #g-story-finder::before) { text-shadow: var(--halo-small); }
+.game-stage.story #g-story-goal em { color: rgba(244, 239, 230, 0.94); }
+.game-stage.story #g-story-frames small { color: rgba(244, 239, 230, 0.82); }
+.game-stage.story #g-story-frames em { color: #fff; }
+.game-stage.story #g-story-frames { color: #fff; }
+/* (the log's Backing, an opaque ground for the words, holds for what is said over the picture too) */
+.game-stage.story.words-solid .g-toast { background: rgb(5, 8, 16); border-radius: 2px; box-shadow: 0 0 0 1px rgba(244, 239, 230, 0.12); text-shadow: none; }
+/* with the camera up on a desktop the goal is one line across the head of the frame: its shade lies under the line,
+   from the middle out (the corner's shade, drawn from the top left of a box 980 wide, showed that box's left edge) */
+@media (pointer: fine) and (min-width: 641px) {
+  .game-stage.story:not(.words-solid):has(#g-story-finder.on) #g-story-goal { padding-bottom: 34px; background: radial-gradient(ellipse 50% 100% at 50% 0, rgba(4, 8, 18, 0.6), rgba(4, 8, 18, 0.34) 55%, transparent 100%); }
+}
+
+/* ---- the log is read by itself (issue 114) ----
+   What is being said, the goal and the file's slip are not seen through it or over it: the line being said lay under
+   the log's last entry, the same words twice, while the log came up, and a slip entered in the file covered its first
+   entries. Its last line is not read through the Back button either: the foot of the sheet is solid from the button up. */
+.game-stage.story:has(#g-story-log.on) :is(.g-dialog, #g-story-goal, .g-toasts, #g-story-chip, #g-story-keys, #g-story-frames, #g-story-mark, #g-story-hint, .g-prompt) { visibility: hidden; }
+.game-stage.story:has(#g-story-log.on) #g-story-slip { visibility: hidden; }
+#g-story-log .row { padding-top: 44px; background: linear-gradient(rgba(4, 8, 18, 0), rgb(7, 11, 26) 30px); }
+#g-story-log .row button { background: rgb(7, 11, 26); }
+
+/* ---- the story's own pause (issue 114) ----
+   In a story set at fourteen minutes past five on the tenth of October the hour, the date, the weather, the clock's
+   speed, who is played, the crowd and the route line are the builder's tools, not a player's: they stay on the walk's
+   menu (?walk=1). The story's pause holds going on, the sound, the words' size, the frame rate, the keys or the
+   thumbs' controls, the case begun again, and the credits. */
+.gm-case, .gm-words, .gk-case, .gt-keys.gt-touch { display: none; }
+.game-stage.story:not(.walk) #g-menu :is(.gm-map, #gm-overture) { display: none; } /* (and the map's overture, which is not the story's opening) */
+.game-stage.story:not(.walk) #g-menu .gm-case { display: grid; gap: 12px; }
+.game-stage.story:not(.walk) #g-menu #gm-case { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.game-stage.story:not(.walk) #g-menu #gm-case-at { font: 400 10px/1.4 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: var(--amber); }
+.game-stage.story:not(.walk) #g-menu #gm-case-at:empty { display: none; }
+.game-stage.story:not(.walk) #g-menu #gm-resume { justify-content: center; padding: 16px 18px; border-color: var(--amber); background: var(--amber); color: #0b1020; font: 400 11px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; }
+.game-stage.story:not(.walk) #g-menu .g-settings > label.note { order: -1; min-height: 28px; }
+.game-stage.story:not(.walk) #g-menu .gm-words { display: grid; }
+.game-stage.story:not(.walk) #g-menu .gk-case { display: table-row; }
+.oe-touch .game-stage.story:not(.walk) #g-menu .gt-keys.gt-touch { display: table; margin-top: 18px; }
+.oe-touch .game-stage.story:not(.walk) #g-menu .gt-touch td:first-child { white-space: normal; width: 34%; padding-right: 12px; color: var(--ink-2); }
+.game-stage.story:not(.walk) #g-menu .gm-again { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.game-stage.story:not(.walk) #g-menu #gm-again { justify-content: center; padding: 14px 18px; }
+.game-stage.story:not(.walk) #g-menu #gm-again.sure { border-color: var(--amber); color: var(--amber); }
+.game-stage.story:not(.walk) #g-menu .row:has(#gm-credits) { margin-top: 12px; } /* (the Credits, under the case begun again: the row's other buttons are the free game's, left out above) */
+.game-stage.story:not(.walk) #g-menu #gm-credits { flex: 1; justify-content: center; padding: 14px 18px; }
+@media (pointer: coarse) { .game-stage.story:not(.walk) #g-menu .seg button { min-height: 40px; padding-inline: 14px; } }
+/* ---- the smallest phones (tools/ui_fit.js, found with issue 114) ----
+   At 320 px the roll's strip with its count and "Tap · the roll" was 348 px wide and ran off both sides; at 360 px
+   and under the thumbs' two lines of help ran off as one. The strip keeps its count and its frames (the pause's help
+   says what a tap on it does); the help is set one line over the other. */
+@media (max-width: 350px) { #g-story-frames em { display: none; } }
+@media (max-width: 400px) { #g-story-keys { flex-direction: column; align-items: center; gap: 9px; } }
+@media (pointer: coarse) { #g-story-album button.vs { margin-top: 4px; } }
+/* (a narrow window with a keyboard keeps the keys in the story's pause: under 860 px the table was left out, for the
+   phones that width was taken to be, and a player in a small window had no help at all) */
+:root:not(.oe-touch) .game-stage.story:not(.walk) #g-menu .gt-keys:not(.gt-touch) { display: table; }
