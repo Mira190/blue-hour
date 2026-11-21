@@ -173,9 +173,25 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await hold(false);
     }
   };
+  // SHOTCOST=still: after that still, with the page's frames held, what each part of taking a still costs, three times each (#78)
+  const shotCost = async () => {
+    await hold(true); await p.waitForTimeout(2000);
+    const c = await p.context().newCDPSession(p), T = async (k, f) => { const r = []; for (let i = 0; i < 3; i++) { const t = Date.now(); await f(); r.push(Date.now() - t); } console.log(`shot cost ${k}: ${r.join(' ')} ms`); };
+    await T('evaluate', () => p.evaluate(() => 1));
+    await T('fonts.ready', () => p.evaluate(() => document.fonts.ready.then(() => 1)));
+    await T('getLayoutMetrics', () => c.send('Page.getLayoutMetrics'));
+    await T('p.screenshot png', () => p.screenshot({ path: `${out}/shotcost-a.png` }));
+    await T('cdp png fast', async () => fs.writeFileSync(`${out}/shotcost-b.png`, Buffer.from((await c.send('Page.captureScreenshot', { format: 'png', optimizeForSpeed: true })).data, 'base64')));
+    await T('cdp png', () => c.send('Page.captureScreenshot', { format: 'png' }));
+    await T('cdp jpeg', () => c.send('Page.captureScreenshot', { format: 'jpeg', quality: 90 }));
+    await T('cdp png fromSurface:false', () => c.send('Page.captureScreenshot', { format: 'png', optimizeForSpeed: true, fromSurface: false }).catch(e => console.log(String(e).slice(0, 100))));
+    await hold(false);
+    for (let k = 0; k < 3; k++) { const t = Date.now(); await drawAll(true); const t1 = Date.now(); await hold(true); const t2 = Date.now(); await p.screenshot({ path: `${out}/shotcost-c.png` }); const t3 = Date.now(); await hold(false); await drawAll(false); console.log(`shot cost a still: frames whole ${t1 - t} ms, hold ${t2 - t1}, screenshot ${t3 - t2}, release ${Date.now() - t3}`); }
+    await c.detach();
+  };
   const hold = on => (DRAW > 1 && process.env.HOLD !== '0' ? p.evaluate(on => (on ? window.__draw.holdOn() : window.__draw.holdOff()), on) : null); // (HOLD=0: the frames run on while a still is taken)
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
-  const snap = async name => { const t0 = Date.now(); await drawAll(true); await hold(true); const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); await drawAll(true); await hold(true); const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
