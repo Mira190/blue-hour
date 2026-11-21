@@ -1061,6 +1061,8 @@ ${PAT_GLSL}`)
     b.quaternion.copy(sq2.multiply(sq));
     b.updateMatrixWorld(true);
   }
+  // (switches a harness may turn: clearArms off shows a clip as it was made, tools/hold_check.js)
+  const OPT = { clearArms: true };
   function person(lib, look) {
     if (!up) {
       up = new THREE.Vector3(0, 1, 0); tv = new THREE.Vector3(); tq = new THREE.Quaternion(); tq2 = new THREE.Quaternion(); hp = new THREE.Vector3();
@@ -1189,11 +1191,15 @@ ${PAT_GLSL}`)
       canopy.position.copy(C.pos).addScaledVector(C.dir, UMB_TIP * (1 - o.a));
       umbW = o.arm;
     };
-    const armBack = () => { if (armHeld) { const a = arms[1]; a.ua.quaternion.copy(armHeld[0]); a.la.quaternion.copy(armHeld[1]); armHeld = null; } };
+    // (each arm's pose as the clip left it, kept the first time in a frame something is laid over it: the umbrella's reach,
+    // or the arm moved out of the body, armsClear; put back before the mixer runs)
+    const armClip = [null, null];
+    const keepArm = i => { const a = arms[i]; if (!armClip[i]) { armClip[i] = a.kept = a.kept || [new THREE.Quaternion(), new THREE.Quaternion()]; armClip[i][0].copy(a.ua.quaternion); armClip[i][1].copy(a.la.quaternion); } return armClip[i]; };
+    const armBack = () => { for (let i = 0; i < 2; i++) if (armClip[i]) { const a = arms[i]; a.ua.quaternion.copy(armClip[i][0]); a.la.quaternion.copy(armClip[i][1]); armClip[i] = null; } armHeld = null; };
     // (at: a point in the world for the fist instead, rig.hold: a fishing rod's grip, game/fishing.js)
     function holdUmbrella(at) {
       const a = arms[1];
-      armHeld = [a.ua.quaternion.clone(), a.la.quaternion.clone()];
+      armHeld = keepArm(1);
       root.updateMatrixWorld(true);
       const fist = at ? r2.copy(at) : r2.copy(umbGrip).applyMatrix4(ref.Chest.inv).applyMatrix4(bones.Chest.matrixWorld);
       const sh = a.ua.getWorldPosition(r3), el = a.la.getWorldPosition(r4);
@@ -1271,6 +1277,241 @@ ${PAT_GLSL}`)
     for (const l of legs) l.hangs = !!l.ft && l.ft.parent === l.ll;
     const arms = ['L', 'R'].map(side => ({ ua: B('UpperArm.' + side), la: B('LowerArm.' + side), wr: B('Wrist.' + side), s: side === 'L' ? 1 : -1 }));
     const seated = legs.every(l => l.ul && l.ll && l.ft), reaches = arms.every(a => a.ua && a.la && a.wr);
+    // The forearms, the hands and what they hold kept out of the body. One clip file drives every avatar of a sex, so a
+    // pose made on one body plays on broader ones: the texting clip put the right forearm into a jacket's chest, the drink
+    // and the book the hand into a blouse (tools/hold_check.js measures every cast avatar through every held clip). The
+    // body's own torso, as it was bound, is cut into 3 cm slices up its spine, each a ring of 24 radii about its middle,
+    // carried by the spine bones that carry a share of it (the jacket and the blouse over them). Each frame points of each
+    // forearm and hand and the corners of what the hand holds are looked for inside the rings (between two slices, the ring
+    // between them). Every point inside, or nearer than CLEAR, asks for a turn that would take it out along its ring's
+    // radius: a point by the elbow of the upper arm at the shoulder (the forearm then aimed back at the wrist, so the hand
+    // keeps its place), a point by the wrist, of the hand or of what it holds, of the forearm at the elbow, and between the
+    // two, of both in shares. The turns asked are weighed by how far each point is in, so the correction grows and fades with
+    // the pose and never jumps from one point to another (a jump showed as a wrist's jerk). Laid over the clip and taken
+    // off before the next frame (keepArm, armBack).
+    const CLEAR = 0.02, EASE = 0.02, NEAR = 0.04, SLICE = 0.03, RAYS = 24;
+    let clr;
+    function clearBuild() {
+      const body = [];
+      model.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && o.skeleton.bones.some(b => /Bip01_Spine2$/.test(b.name))) body.push(o); });
+      const o = body.sort((a, b) => b.geometry.attributes.position.count - a.geometry.attributes.position.count)[0];
+      if (!o || !reaches) return null;
+      const g = o.geometry, P = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
+      // the geometry's own axes: up, forward and to the right of the figure as it was bound (the bind matrix turns them to the model's)
+      const bi = new THREE.Matrix4().copy(o.bindMatrix).invert(), m0 = new THREE.Vector3().setFromMatrixColumn(o.bindMatrix, 0).length();
+      const upG = V3(0, 1, 0).transformDirection(bi), fwG = V3(0, 0, 1).transformDirection(bi), rtG = new THREE.Vector3().crossVectors(upG, fwG).normalize();
+      const torso = /Bip01_(Pelvis|Spine\d?|Neck|[LR]_Clavicle)$/, kind = b => { const n = b.name; if (torso.test(n)) return 'T'; const m = /Bip01_([RL])_(Forearm|Hand|Finger\d*)$/.exec(n); return m ? m[1] + (m[2] === 'Forearm' ? 'f' : 'h') : ''; };
+      const kinds = bones.map(kind), sl = SLICE / m0, v = new THREE.Vector3();
+      const tv = [], pts = { Rf: [], Rh: [], Lf: [], Lh: [] };
+      let h0 = Infinity, h1 = -Infinity;
+      for (let i = 0; i < P.count; i++) {
+        let b = 0, w = -1; for (let k = 0; k < 4; k++) { const x = sw.getComponent(i, k); if (x > w) { w = x; b = si.getComponent(i, k); } }
+        const k = kinds[b]; if (!k) continue;
+        v.fromBufferAttribute(P, i);
+        if (k === 'T') { const h = v.dot(upG); tv.push(b, h, v.dot(rtG), v.dot(fwG)); h0 = Math.min(h0, h); h1 = Math.max(h1, h); } else pts[k].push(b, v.x, v.y, v.z);
+      }
+      if (!tv.length) return null;
+      const n = Math.ceil((h1 - h0) / sl) + 1, S = [], at = h => Math.floor((h - h0) / sl);
+      for (let j = 0; j < n; j++) S.push({ x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, r: new Float32Array(RAYS), votes: new Map() });
+      // the middle of each slice from the box of the two slices either side as well (a slice of a few vertices had its middle
+      // off to one side, and a hand at the chest read 18 cm deep); the bones that carry a quarter of it or more (where the
+      // spine bends, a point between two bones' slices was in neither)
+      for (let i = 0; i < tv.length; i += 4) for (let dj = -2; dj <= 2; dj++) {
+        const s = S[at(tv[i + 1]) + dj]; if (!s) continue;
+        s.x0 = Math.min(s.x0, tv[i + 2]); s.x1 = Math.max(s.x1, tv[i + 2]); s.z0 = Math.min(s.z0, tv[i + 3]); s.z1 = Math.max(s.z1, tv[i + 3]);
+        if (!dj) s.votes.set(tv[i], (s.votes.get(tv[i]) || 0) + 1);
+      }
+      // each slice is carried by the bones that carry its vertices, in their shares (smoothed over the slices either side, so
+      // that the slices' frames change by degrees up the spine: a point handed from one bone's slices to the next jumped)
+      for (const s of S) { s.cx = (s.x0 + s.x1) / 2; s.cz = (s.z0 + s.z1) / 2; }
+      for (let j = 0; j < n; j++) {
+        const w = new Map(); let all = 0;
+        for (let dj = -1; dj <= 1; dj++) { const t = S[j + dj]; if (t) for (const [b, c] of t.votes) { w.set(b, (w.get(b) || 0) + c); all += c; } }
+        S[j].w = all ? [...w].map(([b, c]) => [b, c / all]) : null;
+        S[j].F = new THREE.Matrix4(); S[j].I = new THREE.Matrix4(); S[j].k = 1;
+      }
+      for (let j = 0; j < n; j++) if (!S[j].w) { for (let d = 1; d < n; d++) { const t = S[j - d] || S[j + d]; if (t && t.w) { S[j].w = t.w; break; } } }
+      // each ray's radius, the farthest vertex of its slice in that way; a ray without one takes it from the slices over and
+      // under it, then from its neighbours round the ring; then each radius the middle of its own and the ones over and under
+      // it (a body's rows of vertices lie farther apart than a slice, and one slice's odd row is not the body)
+      for (let i = 0; i < tv.length; i += 4) {
+        const s = S[at(tv[i + 1])], dx = tv[i + 2] - s.cx, dz = tv[i + 3] - s.cz;
+        const a = ((Math.round(Math.atan2(dz, dx) / (2 * Math.PI) * RAYS) % RAYS) + RAYS) % RAYS; s.r[a] = Math.max(s.r[a], Math.hypot(dx, dz));
+      }
+      { const R0 = S.map(s => s.r.slice()); for (let j = 0; j < n; j++) for (let a = 0; a < RAYS; a++) if (!R0[j][a]) { const u = (R0[j - 1] || [])[a] || 0, d = (R0[j + 1] || [])[a] || 0; S[j].r[a] = u && d ? (u + d) / 2 : u || d; } }
+      for (const s of S) {
+        const r = s.r.slice(); if (!r.some(x => x)) continue;
+        for (let a = 0; a < RAYS; a++) if (!r[a]) {
+          let p = 1, q = 1; while (!r[(a - p + RAYS) % RAYS]) p++; while (!r[(a + q) % RAYS]) q++;
+          s.r[a] = (r[(a - p + RAYS) % RAYS] * q + r[(a + q) % RAYS] * p) / (p + q);
+        }
+      }
+      { const R0 = S.map(s => s.r.slice()); for (let j = 1; j < n - 1; j++) for (let a = 0; a < RAYS; a++) { const t = [R0[j - 1][a], R0[j][a], R0[j + 1][a]].sort((x, y) => x - y); if (t[0]) S[j].r[a] = t[1]; } }
+      // the points looked for: every few of each forearm's and hand's vertices, each with how far along the forearm it lies
+      // (spread over the part: each next point the farthest from those already taken, from the farthest from its middle)
+      const pick = (arr, want) => {
+        const c = arr.length / 4, out = [], far = new Float32Array(c).fill(Infinity); if (!c) return out;
+        let mx = 0, my = 0, mz = 0; for (let i = 0; i < c; i++) { mx += arr[i * 4 + 1] / c; my += arr[i * 4 + 2] / c; mz += arr[i * 4 + 3] / c; }
+        let k = 0, best = -1; for (let i = 0; i < c; i++) { const d = (arr[i * 4 + 1] - mx) ** 2 + (arr[i * 4 + 2] - my) ** 2 + (arr[i * 4 + 3] - mz) ** 2; if (d > best) { best = d; k = i; } }
+        while (out.length < Math.min(want, c)) {
+          out.push({ b: arr[k * 4], p: V3(arr[k * 4 + 1], arr[k * 4 + 2], arr[k * 4 + 3]) });
+          let nk = 0; best = -1;
+          for (let i = 0; i < c; i++) { const d = Math.min(far[i], (arr[i * 4 + 1] - arr[k * 4 + 1]) ** 2 + (arr[i * 4 + 2] - arr[k * 4 + 2]) ** 2 + (arr[i * 4 + 3] - arr[k * 4 + 3]) ** 2); far[i] = d; if (d > best) { best = d; nk = i; } }
+          k = nk;
+        }
+        return out;
+      };
+      const arm = [{ f: pick(pts.Lf, 10), h: pick(pts.Lh, 14) }, { f: pick(pts.Rf, 10), h: pick(pts.Rh, 14) }];
+      for (const A of arm) { A.m = new Map(); for (const x of A.f.concat(A.h)) if (!A.m.has(x.b)) A.m.set(x.b, new THREE.Matrix4()); }
+      const owners = [...new Set(S.flatMap(s => (s.w || []).map(([b]) => b)))];
+      // the nodes whose places the measure reads, each after its parent: from under the root to the spine and the arms
+      const chain = [];
+      for (const nd of [o, ...owners.map(b => bones[b]), ...arms.flatMap(x => [x.ua, x.la, x.wr]), ...arm.flatMap(A => [...A.m.keys()].map(b => bones[b]))]) {
+        const up = []; for (let q = nd; q && q !== root; q = q.parent) up.unshift(q);
+        for (const q of up) if (!chain.includes(q)) chain.push(q);
+      }
+      return { o, bones, S, h0, sl, upG, rtG, fwG, owners, chain, M: new Map(owners.map(b => [b, new THREE.Matrix4()])), arm, bm: new THREE.Matrix4(), q: new THREE.Vector3(), w: new THREE.Vector3(), mid: n >> 1, frame: 0 };
+    }
+    // a vertex's place in the world as its bone carries it now (the skinning matrix of that one bone)
+    const skinM = (c, b, out) => out.multiplyMatrices(c.o.matrixWorld, c.o.bindMatrixInverse).multiply(c.bm.multiplyMatrices(c.bones[b].matrixWorld, c.o.skeleton.boneInverses[b])).multiply(c.o.bindMatrix);
+    // how deep a point of the world is inside the torso (metres; below 0, how far out), and the way out, into hit
+    const hit = { d: 0, n: new THREE.Vector3() };
+    const ringR = (s, f) => { const a0 = Math.floor(f), t = f - a0; return s.r[((a0 % RAYS) + RAYS) % RAYS] * (1 - t) + s.r[(((a0 + 1) % RAYS) + RAYS) % RAYS] * t; };
+    // a slice's depth for a point: its radius in the point's way less the point's distance from its middle, in its own frame
+    // (a slice of nothing, over the top or under the lowest, has none: a hand rising past the shoulders comes out by degrees)
+    const sdA = [0, new THREE.Vector3()], sdB = [0, new THREE.Vector3()];
+    function sliceAt(c, j) {
+      const s = c.S[j];
+      if (s.at !== c.frame) {
+        const F = s.F.elements; F.fill(0);
+        for (const [b, w] of s.w) { const e = c.M.get(b).elements; for (let i = 0; i < 16; i++) F[i] += w * e[i]; }
+        s.I.copy(s.F).invert(); s.k = cax.setFromMatrixColumn(s.F, 0).length(); s.at = c.frame;
+      }
+      return s;
+    }
+    function sliceDepth(c, s, wp, out, none) {
+      const q = c.q.copy(wp).applyMatrix4(s.I), dx = q.dot(c.rtG) - s.cx, dz = q.dot(c.fwG) - s.cz, L = Math.hypot(dx, dz) || 1e-6;
+      out[0] = ((none ? 0 : ringR(s, Math.atan2(dz, dx) / (2 * Math.PI) * RAYS)) - L) * s.k;
+      out[1].copy(c.rtG).multiplyScalar(dx / L).addScaledVector(c.fwG, dz / L).transformDirection(s.F);
+      return out;
+    }
+    function torsoDepth(c, wp) {
+      const S = c.S, n = S.length;
+      // the height: first in the frame of the middle slice, then in that of the slice it found
+      let j = c.mid, u = 0;
+      for (let pass = 0; pass < 2; pass++) { u = (c.q.copy(wp).applyMatrix4(sliceAt(c, Math.max(0, Math.min(n - 1, j))).I).dot(c.upG) - c.h0) / c.sl - 0.5; j = Math.floor(u); }
+      if (j < -1 || j >= n) { hit.d = -Infinity; return hit.d; }
+      const t = u - j, a = sliceDepth(c, sliceAt(c, Math.max(0, j)), wp, sdA, j < 0), b = sliceDepth(c, sliceAt(c, Math.min(n - 1, j + 1)), wp, sdB, j + 1 >= n);
+      hit.d = a[0] * (1 - t) + b[0] * t;
+      hit.n.copy(a[1]).multiplyScalar(1 - t).addScaledVector(b[1], t).normalize();
+      return hit.d;
+    }
+    const cp = new THREE.Vector3(), cel = new THREE.Vector3(), csh = new THREE.Vector3(), cwr = new THREE.Vector3(), cax = new THREE.Vector3(), cq = new THREE.Quaternion(), cbox = new THREE.Box3();
+    const wSh = new THREE.Vector3(), wEl = new THREE.Vector3(), cpt = new THREE.Vector3(), cmw = new THREE.Matrix4(), clrW = [0, 0];
+    // one point's ask: the turn that would take it out, by its lever from the shoulder and from the elbow, in its shares
+    // (by the elbow the shoulder's, by the wrist the elbow's), weighed by how far it is in, eased in over the first EASE of it
+    // so that the correction starts with no kick; into wSh and wEl, the weights into clrW
+    function clrAsk(c, wp, along) {
+      const e = torsoDepth(c, wp) + CLEAR; if (!(e > 0)) return e;
+      const d = e < EASE ? e * e / (2 * EASE) : e - EASE / 2, sh = Math.max(0, Math.min(1, 1.6 - 2 * along)), el = 1 - sh;
+      // (weighed by the square of how far in: the deepest point has most of the say, and no point's say starts or ends at once)
+      if (sh > 0) { const r = cp.subVectors(wp, csh), L2 = Math.max(0.0025, r.lengthSq()); wSh.addScaledVector(cax.crossVectors(r, hit.n), d * d * d * sh / L2); clrW[0] += d * d * sh; }
+      if (el > 0) { const r = cp.subVectors(wp, cel), L2 = Math.max(0.0025, r.lengthSq()); wEl.addScaledVector(cax.crossVectors(r, hit.n), d * d * d * el / L2); clrW[1] += d * d * el; }
+      return e;
+    }
+    // (the arm's three bones brought up to date from their parents alone, not their fingers and what they hold: done the
+    // three.js way, a frame's turns updated twenty bones each and cost a near walker half a millisecond)
+    const upd = n => { n.updateMatrix(); n.matrixWorld.multiplyMatrices(n.parent.matrixWorld, n.matrix); };
+    const cps = new THREE.Vector3(), csc = new THREE.Vector3(), cpq = new THREE.Quaternion();
+    // a turn of the world (a quaternion) laid on a bone, in its parent's terms, and the bones below it on the arm brought along
+    const turnQ = (bone, qw, below) => {
+      bone.parent.matrixWorld.decompose(cps, cpq, csc);
+      bone.quaternion.premultiply(sq.copy(cpq).invert().multiply(qw).multiply(cpq));
+      upd(bone); for (const n of below) upd(n);
+    };
+    // ... a turn about the world's axis w, its length the angle
+    const turnBone = (bone, w, below) => { const ang = Math.min(0.8, w.length()); if (ang < 1e-5) return; turnQ(bone, cq.setFromAxisAngle(cax.copy(w).normalize(), ang), below); };
+    // ... and the forearm aimed at a point of the world for the wrist
+    const aimFore = (a, at) => {
+      cel.setFromMatrixPosition(a.la.matrixWorld);
+      sa.setFromMatrixPosition(a.wr.matrixWorld).sub(cel).normalize();
+      turnQ(a.la, cq.setFromUnitVectors(sa, sb.copy(at).sub(cel).normalize()), [a.wr]);
+    };
+    // The turns found are then laid on the arm as it came in, through a spring of its own for each joint, critically damped:
+    // stiff while the turn must grow (a hand that meets the hip at speed is held out within a frame or two), soft while it
+    // lets go. Laid on at once, a hand that met the hip at speed stopped within the frame, and one that left the chest at
+    // speed snapped away; let go at a rate, it still changed its pace at once (tools/hold_check.js reads either as a jerk).
+    const GRIP = 40, LET = 18, cRq = new THREE.Quaternion(), cRi = new THREE.Quaternion(), cv = new THREE.Vector3(), cx2 = new THREE.Vector3();
+    const upTo = (w, k) => (w.length() > k ? w.setLength(k) : w);
+    // (the spring's place p and pace v, in the body's own frame, towards want, in the world; want becomes the place)
+    const spring = (p, v, want, dt) => {
+      if (!(dt > 0)) { want.copy(p).applyQuaternion(cRq); return; }
+      cv.copy(want).applyQuaternion(cRi);
+      const w = cv.lengthSq() > p.lengthSq() ? GRIP : LET, e = Math.exp(-w * dt);
+      cx2.subVectors(p, cv);                                        // (how far from where it wants to be)
+      const t = sa.copy(v).addScaledVector(cx2, w).multiplyScalar(dt); // (closed form: Kirkpatrick's smooth damp)
+      v.addScaledVector(t, -w).multiplyScalar(e);
+      p.copy(cx2.add(t).multiplyScalar(e)).add(cv);
+      want.copy(p).applyQuaternion(cRq);
+    };
+    function armsClear(dt) {
+      if (clr === undefined) clr = clearBuild();
+      if (!clr) return;
+      const c = clr, d0 = Math.min(0.1, Math.max(0, dt || 0));
+      // (only the bones measured, from the root down: the renderer brings the rest up to date before it draws)
+      root.updateWorldMatrix(true, false);
+      for (const nd of c.chain) upd(nd);
+      root.matrixWorld.decompose(cps, cRq, csc); cRi.copy(cRq).invert();
+      for (const b of c.owners) skinM(c, b, c.M.get(b));
+      c.frame++; // (each slice's frame made when a point first falls in it this frame: sliceAt)
+      for (let side = 0; side < 2; side++) {
+        const a = arms[side], A = c.arm[side];
+        if (!A.tSh) { A.tSh = new THREE.Vector3(); A.tEl = new THREE.Vector3(); A.pSh = new THREE.Vector3(); A.pEl = new THREE.Vector3(); A.vSh = new THREE.Vector3(); A.vEl = new THREE.Vector3(); }
+        A.tSh.set(0, 0, 0); A.tEl.set(0, 0, 0);
+        const q0 = A.q0 || (A.q0 = [new THREE.Quaternion(), new THREE.Quaternion()]);
+        q0[0].copy(a.ua.quaternion); q0[1].copy(a.la.quaternion);   // (the arm as it came in: the clip's, or the umbrella's)
+        const held = A.held || (A.held = []);
+        held.length = 0;
+        for (const g of accObjs) if (g.parent === a.wr) for (const m of g.children) if (m.geometry) {
+          if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+          m.updateMatrix(); held.push(m);
+        }
+        // (two passes, the second asking again only of the points the first found within NEAR of the body)
+        const near = A.near || (A.near = new Uint8Array(A.f.length + A.h.length + 64));
+        for (let it = 0; it < 2; it++) {
+          csh.setFromMatrixPosition(a.ua.matrixWorld); cel.setFromMatrixPosition(a.la.matrixWorld); cwr.setFromMatrixPosition(a.wr.matrixWorld);
+          const fl = cel.distanceTo(cwr) || 1;
+          // the turns asked of the shoulder and of the elbow, each the sum of every point's own weighed by how far it is in
+          wSh.set(0, 0, 0); wEl.set(0, 0, 0); clrW[0] = clrW[1] = 0;
+          for (const [b, m] of A.m) if (!it || A.f.length && b === A.f[0].b) skinM(c, b, m);
+          // (the hand's points, fingers and all, as the hand carries them: found once, then turned with the hand)
+          if (!it) { cmw.copy(a.wr.matrixWorld).invert(); for (const x of A.h) (x.loc || (x.loc = new THREE.Vector3())).copy(x.p).applyMatrix4(A.m.get(x.b)).applyMatrix4(cmw); }
+          let k = 0;
+          const one = (wp, along) => { if (it && !near[k]) { k++; return; } const e = clrAsk(c, wp, along); if (!it) near[k] = e > -NEAR ? 1 : 0; k++; };
+          for (const x of A.f) { cpt.copy(x.p).applyMatrix4(A.m.get(x.b)); one(cpt, Math.min(1, cpt.distanceTo(cel) / fl)); }
+          for (const x of A.h) one(cpt.copy(x.loc).applyMatrix4(a.wr.matrixWorld), 1);
+          for (const m of held) {
+            cmw.multiplyMatrices(a.wr.matrixWorld, m.parent.matrix).multiply(m.matrix); cbox.copy(m.geometry.boundingBox);
+            for (let i = 0; i < 8 && k < near.length; i++) one(cpt.set(i & 1 ? cbox.max.x : cbox.min.x, i & 2 ? cbox.max.y : cbox.min.y, i & 4 ? cbox.max.z : cbox.min.z).applyMatrix4(cmw), 1);
+          }
+          const wsS = clrW[0], wsE = clrW[1];
+          if (!wsS && !wsE) break;
+          keepArm(side);
+          if (wsS) { upTo(wSh.divideScalar(wsS), 0.3); turnBone(a.ua, wSh, [a.la, a.wr]); aimFore(a, cwr); A.tSh.add(wSh); }
+          if (wsE) { upTo(wEl.divideScalar(wsE), 0.3); turnBone(a.la, wEl, [a.wr]); A.tEl.add(wEl); }
+        }
+        // through the springs, and laid on the arm as it came in
+        spring(A.pSh, A.vSh, A.tSh, d0); spring(A.pEl, A.vEl, A.tEl, d0);
+        a.ua.quaternion.copy(q0[0]); a.la.quaternion.copy(q0[1]);
+        if (A.tSh.lengthSq() + A.tEl.lengthSq() > 1e-10) {
+          keepArm(side);
+          upd(a.ua); upd(a.la); upd(a.wr);
+          cwr.setFromMatrixPosition(a.wr.matrixWorld);
+          turnBone(a.ua, wSh.copy(A.tSh), [a.la, a.wr]); aimFore(a, cwr);
+          turnBone(a.la, wEl.copy(A.tEl), [a.wr]);
+        }
+      }
+    }
     // The mixer only writes a bone whose value has changed, so under a still clip a foot moved
     // here stays moved: put it back where the clip had it before measuring again (or standing up).
     const feetBack = () => { for (const l of legs) if (l.moved) { if (l.ft.position.equals(l.set)) l.ft.position.copy(l.home); l.moved = false; } };
@@ -1359,6 +1600,7 @@ ${PAT_GLSL}`)
       if (mode === 'sit') seat();
       else if (rig.hold && reaches) holdUmbrella(rig.hold);
       else if (umbGrip && reaches && bones.Chest) holdUmbrella();
+      if (mode !== 'sit' && mode !== 'air' && OPT.clearArms) armsClear(dt);
       // the walk cycle as a phase, two steps per cycle (footsteps)
       const d = cur.getClip().duration, tt = cur.time / d;
       if (tt < lastT) cycles++;
@@ -1958,5 +2200,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, opts: OPT };
 })();
