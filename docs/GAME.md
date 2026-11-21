@@ -1987,7 +1987,9 @@ Sydney's traffic stood still a third of the time.
         way are not (after 4 s to the middle instead, out of the edge's posts); after
         4.5 s, for two seconds, it sidles on through the walkers and past a post or a
         standing NPC a shoulder off, never into a car, the player or the story's
-        people; after 6.5 s, out of sight, it is put somewhere else, and in sight it
+        people; after 6.5 s, out of sight, it is put somewhere else 25 to 70 m off, out
+        of sight as a new walker is (put 270 m off at first, the footways round you emptied over
+        two minutes, 79 people within 45 m to 22), and in sight it
         turns and takes another way (held 1.5 s more, it is put somewhere else all
         the same: a footway's node with one of the map's NPCs standing on it held one
         whichever way it turned). A held mate walks on, parting from its group if
@@ -2025,13 +2027,22 @@ Sydney's traffic stood still a third of the time.
       walkers now keep out of the lens's way: the renderer tells the crowd where the
       lens stands and looks (`crowdRenderer().lens`), and a segment from it to a pace
       and a half along its look is gone round as one of the people not of the crowd
-      is (footway walkers steer and detour round it; those crossing or strolling the
-      square are pushed gently off it; those stood waiting are left where they are).
+      is (footway walkers steer round it, never turning back from it; those crossing
+      or strolling the square are pushed gently off it; those stood waiting are left
+      where they are). Where a footway is too narrow to go round it (under the
+      viaduct by the station), whoever still comes within a pace and a half of the
+      lens dissolves, as games do with an NPC that close to the camera rather than
+      pop it out: whole at 2 m, gone at 0.7 m (within 0.55 m the game already stops
+      drawing whoever the lens is inside), cut by a dither fixed to the screen's
+      pixels, so nothing crawls or flickers while time is held (`rig.fade`, the
+      `uFade` every person's material takes in `litMaterial`, `people.js`).
       It is on only for a camera on foot behind the player (within 9 m of them and
       4.5 m over them), and nobody is put out of it at once. `tools/foot_cam.js` now
       prints, for each walk, the most of the frame one of the crowd within 2.5 m of
       the lens covered (`lensMax`) and the frames where one covered more than 6%
-      (`lensFrames`). RESULTS_82
+      (`lensFrames`); none of its walks brought anyone that close, on main either, so
+      `tools/crowd_lens.js` sends walkers past the lens on two footways by the
+      Scramble and measures the same, as drawn. RESULTS_82
     - Research (ideas only, no code): Moussaïd, Helbing and Theraulaz, *How simple
       rules determine pedestrian behavior and crowd disasters* (PNAS 2011), on
       walkers turning the shoulder and sidestepping by the first body in their way;

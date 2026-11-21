@@ -577,12 +577,38 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
   // pavement, so the player and the people they meet are not silhouettes under a lamp)
   let streetLit = null;
   function setLight(patch) { streetLit = patch; }
+  // ... and a fade (issue 82): one of the crowd walking within a pace and a half of the lens on foot, where a footway is
+  // too narrow to go round it, filled a corner of a phone's upright frame. Games dissolve an NPC that close to the camera
+  // rather than pop it out: here the near crowd's rig (rig.fade, 1 drawn whole, 0 gone) is cut by a dither fixed to the
+  // screen's pixels (interleaved gradient noise: no pattern that crawls, nothing that flickers while time is held). One
+  // uniform shared by every person's program, set by the material itself before each draw (a material's onBeforeRender
+  // runs for every draw of it, whatever the mesh: the rig is found up the drawn object's parents, fadeOf,
+  // and anything with none, the far crowd's instances, is whole), and sent to the GPU again only when it changes from
+  // the last draw's (three.js sends a material's uniforms again on a change of material, or when asked). A hook on the
+  // rig's meshes alone left a mesh added after the rig was made drawing with the last rig's value: a man six metres
+  // off drawn without his head
+  const FADE = { value: 1 }, fadeOf = new WeakMap(); // (fadeOf: a rig's root to the rig)
+  let fadeWas = 1;
+  const FADE_GLSL = '\n  if (uFade < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) > uFade) discard;';
+  function fadeBefore(material, object) {
+    let v = 1;
+    for (let o = object; o; o = o.parent) { const r = fadeOf.get(o); if (r) { v = r.fade ?? 1; break; } }
+    FADE.value = v;
+    if (v !== fadeWas) { fadeWas = v; material.uniformsNeedUpdate = true; }
+  }
   function litMaterial(m) {
     if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
     const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
-    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); };
+    const ownR = m.onBeforeRender;
+    m.onBeforeRender = function (renderer, scene, camera, geometry, object, group) { if (ownR) ownR.call(this, renderer, scene, camera, geometry, object, group); fadeBefore(this, object); };
+    m.onBeforeCompile = (sh, r) => {
+      if (own) own.call(m, sh, r);
+      patch(sh);
+      sh.uniforms.uFade = FADE;
+      sh.fragmentShader = ('uniform float uFade;\n' + sh.fragmentShader).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + FADE_GLSL);
+    };
     // three.js keys a program by the text of onBeforeCompile, which this wrapper makes alike for all
-    m.customProgramCacheKey = () => `person-lit|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `person-lit-fade|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.userData.streetLit = true;
     m.needsUpdate = true;
   }
@@ -645,7 +671,8 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint) {
     if (!m || m.userData.oeStrand) return;
     m.userData.oeStrand = true;
     m.alphaToCoverage = true; // (where the target has no samples the GPU ignores it: the shader cuts as before)
-    m.onBeforeRender = r => { const t = r.getRenderTarget(); hairMS.value = (t ? t.samples > 0 : r.getContext().getContextAttributes().antialias) ? 1 : 0; };
+    const ownR = m.onBeforeRender; // (and whatever it did before: the fade, litMaterial)
+    m.onBeforeRender = function (r, ...a) { if (ownR) ownR.call(this, r, ...a); const t = r.getRenderTarget(); hairMS.value = (t ? t.samples > 0 : r.getContext().getContextAttributes().antialias) ? 1 : 0; };
     const own = m.onBeforeCompile, key = m.customProgramCacheKey;
     m.onBeforeCompile = (sh, r) => {
       if (own) own.call(m, sh, r);
@@ -953,7 +980,8 @@ ${PAT_GLSL}`)
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);
     let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false;
-    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
+    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character, fade: 1 };
+    fadeOf.set(root, rig); // (the fade: litMaterial)
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
     model.traverse(o => { if (o.isBone) bones[o.name] = o; });
@@ -1717,6 +1745,9 @@ transformed = crowdPose(transformed, false);`);
         unshow(p);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
+        // (two metres from the lens and nearer: dissolved, whole at 2 m, gone at 0.7; at 1.5 to 2.5 m one still covered a
+        // seventh of a phone's upright frame. Whoever the lens is inside, within 0.55 m, the game stops drawing; issue 82)
+        r.fade = camera ? Math.max(0, Math.min(1, (Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z) - 0.7) / 1.3)) : 1;
         if (p.wave) { p.wave = false; r.wave(tNow); }
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;

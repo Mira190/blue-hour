@@ -523,7 +523,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       shutLines.set(li, v);
       return v;
     }
-    function respawn(p, cx, cy, rMin) {
+    function respawn(p, cx, cy, rMin, rMax = radius) { // (rMax: no farther off than that, out of sight still: one held on a footway, walk())
       release(p);
       if (p.lead >= 0 || p.mates) partGroup(p);
       p.stop = null; p.stopFace = null;
@@ -539,8 +539,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // round a corner or from far off, and where the crowd gathers in the player's sight it is those who fill it)
       const unseen = rMin > 0 && !!eye;
       p.line = -1;
-      if (hot && place(p, net.near(hot.x, hot.y, 0, hot.r).filter(i => near1(net.L[i], hot.x, hot.y, hot.r)), 8, cx, cy, hot, Math.min(rMin, HOT_MIN), unseen)) { formGroup(p, unseen); return; }
-      if (place(p, net.near(cx, cy, rMin, radius), 4, cx, cy, null, 0, unseen)) formGroup(p, unseen);
+      if (hot && rMax >= radius && place(p, net.near(hot.x, hot.y, 0, hot.r).filter(i => near1(net.L[i], hot.x, hot.y, hot.r)), 8, cx, cy, hot, Math.min(rMin, HOT_MIN), unseen)) { formGroup(p, unseen); return; }
+      if (place(p, net.near(cx, cy, rMin, rMax), rMax < radius ? 8 : 4, cx, cy, null, 0, unseen)) formGroup(p, unseen);
     }
     function place(p, cand, tries, cx, cy, hot, rMe, unseen) {
       for (let k = 0; k < tries && cand.length; k++) { // somewhere clear of the cars and benches
@@ -1641,7 +1641,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       p.moving = p.state !== 'sit' && (p.moving ? p.av > (kerb ? 0.3 : 0.12) : p.av > (kerb ? 0.55 : 0.35));
     }
     let frame = 0;
+    let ucx = 0, ucy = 0; // (where the crowd is centred this step: one held on a footway is put back near it, walk())
     function update(dt, cx, cy, t, player) {
+      ucx = cx; ucy = cy;
       R.begin(dt, cx, cy, t, api.active);
       frame++;
       if (api.plazas && (frame % 15 === 1 || t < 1)) plazas(t, cx, cy);
@@ -1774,8 +1776,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (player) { const dx = player.x - p.x, dy = player.y - p.y; pAhead = dx * hx + dy * hy; pLat = dx * -hy + dy * hx; byPlayer = pAhead > 0 && pAhead < 2.4 && Math.abs(pLat) < BODY + (player.r || 0.15); }
       // (or, with the player not in its way, one of those not of the crowd standing on its course: gone round as the player is)
       let obR = player ? player.r || 0.15 : 0.15, obOf = -2;
-      if (!byPlayer && !(p.ghost > 0)) for (let j = 0; j < KW.length; j++) { // (squeezing on past them, issue 85: sidled by a shoulder off, ghostBad)
-        const k = KW[j];
+      if (!byPlayer && !(p.ghost > 0)) for (let j = 0; j < K.length; j++) { // (squeezing on past them, issue 85: sidled by a shoulder off, ghostBad; the lens is steered round, never turned back from)
+        const k = K[j];
         if (Math.abs(k.ax - p.x) > 4 || Math.abs(k.ay - p.y) > 4) continue;
         keepPt(k, p.x + hx * 1.2, p.y + hy * 1.2);
         const dx = kp.x - p.x, dy = kp.y - p.y, a = dx * hx + dy * hy, l = dx * -hy + dy * hx;
@@ -1950,7 +1952,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // where those coming the other way are not, in single file (after four, to the middle instead: the edge's posts);
       // after four and a half, for two seconds, on through the walkers and the posts round it as best it can (p.ghost:
       // never into a car, the player or the story's people); and after six and a half, out of sight, it is somewhere
-      // else, or in sight, turns and takes another way (and held a second and a half more, it is somewhere else all the same)
+      // else nearby, out of sight as a new walker is (put far off, the footways round the player emptied over two minutes),
+      // or in sight, turns and takes another way (and held a second and a half more, it is somewhere else all the same)
       const freeNow = atKerb || p.pause > 0 || p.kerbNext || p.kerbBack || p.stop;
       if (freeNow || p.mgx == null || Math.hypot(p.x - p.mgx, p.y - p.mgy) > 0.5) { if (p.mgx != null) p.esc = 0; p.mgx = p.x; p.mgy = p.y; p.mgT = 0; }
       else p.mgT = (p.mgT || 0) + dt;
@@ -1963,7 +1966,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (p.mgT > 2.5 && !(p.detourT > 0)) { p.detourT = 2; p.detourOf = -4; p.detourLat = p.mgT > 4 ? 0 : side >= 0 ? Math.max(hw, side) - 0.05 : -hw + 0.3; } // (and that not helping, the footway's middle: one at the edge between two bollards was pulled back into the gap)
       if (p.ghost > 0) p.ghost -= dt;
       if (p.mgT > 4.5 && !(p.ghost > 0) && !((p.ghostT || 0) > p.mgT)) { p.ghost = 2; p.ghostT = p.mgT + 2; }
-      if (p.mgT > (p.esc ? 1.5 : 6.5)) { p.mgT = 0; p.mgx = null; p.ghostT = 0; p.esc = (p.esc || 0) + 1; if (p.esc > 1 || !seen(p.x, p.y, p.z)) { p.esc = 0; p.line = -1; return; } turn(p); p.still = 0; } // (turned and held again: elsewhere even in sight, a pocket by someone standing on a footway's node, issue 85)
+      if (p.mgT > (p.esc ? 1.5 : 6.5)) { p.mgT = 0; p.mgx = null; p.ghostT = 0; p.esc = (p.esc || 0) + 1; if (p.esc > 1 || !seen(p.x, p.y, p.z)) { p.esc = 0; respawn(p, ucx, ucy, 25, 70); return; } turn(p); p.still = 0; } // (turned and held again: elsewhere even in sight, a pocket by someone standing on a footway's node, issue 85)
       const s0 = p.s, line0 = p.line, dir0 = p.dir, lat0 = p.lat - dl;
       p.s += p.dir * p.v * dt;
       // a bench on this stretch with a free seat: maybe sit down
