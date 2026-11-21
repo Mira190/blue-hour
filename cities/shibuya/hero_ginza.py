@@ -19,6 +19,10 @@ city's walls (whose box pipeline/stations.py TOP caps under the frames' feet):
     them glass up the frames' steep feet and white panels over the crowns, a glazing bar along the legs, a gutter in
     the valley, and the gables closed in glass behind their heavier end frames.
 
+Its finest parts (the frames' sides and feet, the light mullions and transoms, the glazing bars, the gables' mullions,
+the cladding's joints) are its fine model, drawn near the camera and never fetched on a phone, where frame 5 holds the
+Scramble's and Miyamasu's levels beside it at the edge of the memory budget (issue 105).
+
 It is the station a player sees from frame 5's place under it, from up and down Meiji-dori, from Scramble Square's
 roof (frame 4) and from the air, so it is fetched wherever the story walks (game.hero[].load_m), and drawn in plain
 materials only: no picture, a few hundred kilobytes on a phone.
@@ -150,7 +154,7 @@ class Station:
             # panel cost a phone at frame 5 four times the vertices for the same picture)
             PT.fbox(G, "ginza_white", F, 0.0, Ln, 0.0, 0.12, z0, z1, faces=("front", "bottom", "top"))
             for j in range(1, k):
-                PT.fbox(G, "ginza_joint", F, j * w - 0.012, j * w + 0.012, 0.12, 0.124, z0, z1, faces=("front",))
+                PT.fbox(G.fine, "ginza_joint", F, j * w - 0.012, j * w + 0.012, 0.12, 0.124, z0, z1, faces=("front",))
                 n += 1
             # a horizontal joint where the girder's face meets the parapet over the deck
             PT.fbox(G, "ginza_joint", F, 0.0, Ln, 0.11, 0.125, self.zs + 0.02, self.zs + 0.05, faces=("front",))
@@ -180,10 +184,10 @@ class Station:
                 um = Ln * j / k
                 heavy = j % 2 == 0
                 w2 = 0.09 if heavy else 0.035
-                PT.fbox(G, "ginza_white", F, um - w2, um + w2, 0.0, 0.2 if heavy else 0.1, z0 + 0.25, z1 - 0.3,
+                PT.fbox(G if heavy else G.fine, "ginza_white", F, um - w2, um + w2, 0.0, 0.2 if heavy else 0.1, z0 + 0.25, z1 - 0.3,
                         faces=("front", "left", "right") if heavy else ("front",))
             # a transom a metre over the sill
-            PT.fbox(G, "ginza_white", F, 0.0, Ln, 0.03, 0.08, z0 + 1.25, z0 + 1.3, faces=("front", "top", "bottom"))
+            PT.fbox(G.fine, "ginza_white", F, 0.0, Ln, 0.03, 0.08, z0 + 1.25, z0 + 1.3, faces=("front", "top", "bottom"))
             G.walls.append((a, b, z0, z1))
         self.X.cover("ginza_panel", P.buffer(-0.08), 0.0, cell=3.0, zfn=lambda x, y: z1 - 0.02)
 
@@ -244,7 +248,7 @@ class Station:
             for side in (0, 1):
                 kk = int(np.argmin([abs(zs[i] - (self.zf + RISE * frac)) + (1e3 if (i < len(prof) // 2) != (side == 0) else 0) for i in range(len(prof))]))
                 p0, p1 = self.P(L0, bs[kk], zs[kk]) + world_n(kk) * 0.035, self.P(L1, bs[kk], zs[kk]) + world_n(kk) * 0.035
-                G.tube("ginza_white", [p0, p1], 0.04, segs=6)
+                G.fine.tube("ginza_white", [p0, p1], 0.04, segs=6)
         # the gutter in the valley
         km = len(prof) // 2
         G.tube("ginza_joint", [self.P(L0, bs[km], zs[km] + 0.02), self.P(L1, bs[km], zs[km] + 0.02)], 0.09, segs=6)
@@ -272,12 +276,12 @@ class Station:
         Ns = [world_n(k) for k in range(len(prof))]
         n_pt = len(pts)
 
-        def strip(P, N):
+        def strip(P, N, g=G):
             tri = [t for k in range(n_pt - 1) for t in ((2 * k, 2 * k + 1, 2 * k + 3), (2 * k, 2 * k + 3, 2 * k + 2))]
             q = np.asarray(P)
             if np.cross(q[1] - q[0], q[3] - q[0]) @ N[0] < 0:          # (each face counter-clockwise seen from outside)
                 tri = [(x, z, y) for x, y, z in tri]
-            G.mesh("ginza_white", P, tri, n=N, uv=[(i % 2, i // 2) for i in range(len(P))])
+            g.mesh("ginza_white", P, tri, n=N, uv=[(i % 2, i // 2) for i in range(len(P))])
         back, sides = [], []
         for p, n in zip(pts, Ns):
             back += [p + n * out_ - h, p + n * out_ + h]
@@ -286,10 +290,10 @@ class Station:
             P = []
             for p, n in zip(pts, Ns):
                 P += [p + n * in_ + h * sgn, p + n * out_ + h * sgn] if sgn > 0 else [p + n * out_ + h * sgn, p + n * in_ + h * sgn]
-            strip(P, [U * sgn] * len(P))
+            strip(P, [U * sgn] * len(P), G if deep else G.fine)
         # its feet on the cornice
         for k in (0, n_pt - 1):
-            G.box("ginza_white", pts[k] - np.r_[0, 0, 0.3], (self.u, self.v), (w + 0.1, 0.5, 0.32))
+            G.fine.box("ginza_white", pts[k] - np.r_[0, 0, 0.3], (self.u, self.v), (w + 0.1, 0.5, 0.32))
 
     def gable(self, a, s, prof):
         """The M's end, closed in glass from the frames' feet up, a mullion every 1.25 m across it."""
@@ -307,7 +311,7 @@ class Station:
         for b in np.arange(EAVE + 1.25, self.W - EAVE - 0.5, 1.25):
             ztop = float(np.interp(b, bs, zs))
             c = self.P(a + s * 0.06, b, self.zf)
-            G.box("ginza_white", c, (self.u, self.v), (0.08, 0.06, ztop - self.zf - 0.05))
+            G.fine.box("ginza_white", c, (self.u, self.v), (0.08, 0.06, ztop - self.zf - 0.05))
 
 
 def build(K):
@@ -316,6 +320,6 @@ def build(K):
     geo, atlas = L.build()
     c = L.P((L.ua + L.ub) / 2, L.W / 2, 0)
     meta = {"id": ID, "at": [round(float(c[0]), 2), round(float(c[1]), 2)], "r": round((L.ub - L.ua) / 2 + 8, 1), "z": round(L.zs, 2),
-            "glb": f"hero/{ID}.glb", "bake_gain": 1.0, "cell": 40.0, "sky_rays": 16, "sky_reach": 6.0, "sky_strength": 1.0}
+            "glb": f"hero/{ID}.glb", "bake_gain": 1.0, "cell": 40.0, "fine_cell": 30.0, "sky_rays": 16, "sky_reach": 6.0, "sky_strength": 1.0}
     print("game.hero:", json.dumps({"at": meta["at"], "r": meta["r"], "z": meta["z"]}))
     return geo, atlas, materials(), meta

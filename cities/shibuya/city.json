@@ -1516,6 +1516,8 @@
       {
         "id": "ginza",
         "glb": "hero/ginza.glb",
+        "fine": "hero/ginza_fine.glb",
+        "fine_m": 110,
         "at": [536.5, -1054.69],
         "r": 74.5,
         "z": 21.9,
@@ -1528,7 +1530,7 @@
         "glow": [0.24, 1.5],
         "low_k": 0.25,
         "hide": [],
-        "note": "The Ginza line's Shibuya station (2020) over Meiji-dori: the white cladding of its deck's edge, the glazed band over it and the roof of M-shaped white frames every 2.5 m, 44 spans over 110 m, glass up their feet and white panels over the crowns, the gables in glass (cities/shibuya/hero_ginza.py, docs/HERO.md \"The Ginza line's station\", issue 57). The city's box under it is capped at the frames' feet (pipeline/stations.py TOP). Plain materials, no picture: fetched wherever the story walks, since it is seen from frame 5 under it, from up and down Meiji-dori, from Scramble Square's roof and from the air."
+        "note": "The Ginza line's Shibuya station (2020) over Meiji-dori: the white cladding of its deck's edge, the glazed band over it and the roof of M-shaped white frames every 2.5 m, 44 spans over 110 m, glass up their feet and white panels over the crowns, the gables in glass (cities/shibuya/hero_ginza.py, docs/HERO.md \"The Ginza line's station\", issue 57). Its finest parts (the frames' sides and feet, the light mullions, the glazing bars, the joints) are its fine model, never fetched on a phone. The city's box under it is capped at the frames' feet (pipeline/stations.py TOP). Plain materials, no picture: fetched wherever the story walks, since it is seen from frame 5 under it, from up and down Meiji-dori, from Scramble Square's roof and from the air."
       },
       {
         "id": "skylobby",

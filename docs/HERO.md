@@ -583,12 +583,14 @@ white, rib after rib, glass up their steep feet and white panels over the crowns
 - **The city's box under it** is capped at the frames' feet (`pipeline/stations.py` `TOP`, 11.4 m over the ground):
   the record's flat top stood through the arches.
 
-10,200 triangles and 13,500 vertices, 0.23 MB, in plain materials only: no picture. What a phone holds at frame 5
-was cut three ways, since main had come to 269 MB of the 270 budget there before it: a frame is drawn only where it
-stands proud of the skin (its back and sides as strips that share their points; the end frames to their full depth,
-seen across the gables), the cladding's panels are one face to a wall with each open joint a dark line in front of it,
-and the M has eleven points to a half. That took the level from 35,500 vertices to 13,500 with no change a still
-shows. A phone at frame 5 (`tools/mem_check.js` `AT=521.9,-1074.1`) then peaks at 269 MB, as main does without it. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
+4,600 triangles and 5,600 vertices, 0.13 MB, in plain materials only (no picture), and a fine model of 5,600
+triangles, 0.14 MB: the frames' sides and feet (the end frames' stay in the level, seen across the gables), the light
+mullions and transoms, the glazing bars, the gables' mullions and the cladding's joints, drawn within 110 m of the
+camera and never fetched on a phone. A phone at frame 5 holds the Scramble's and Miyamasu's levels beside it, and main
+had come to 270 MB of the 270 budget there (`tools/mem_check.js` `AT=521.9,-1074.1`; issue 105), so what it holds of
+this level was cut until the frame measured no more than main: a frame is drawn only where it stands proud of the
+skin, its back as a strip that shares its points along the M; the cladding's panels are one face to a wall; the M has
+eleven points to a half. 35,500 vertices became 5,600 on a phone, with no change a still shows. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
 story walks (`game.hero[].load_m` 900).
 
 Its stills: `station`, `west` and `ginza_air` in `tools/views/shibuya-miyamasu.json`, and frame 5's beat.
