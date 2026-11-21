@@ -126,7 +126,8 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
               const m = Array.isArray(h.object.material) ? h.object.material[(h.face && h.face.materialIndex) || 0] : h.object.material;
               let vis = true; for (let o = h.object; o; o = o.parent) vis = vis && o.visible;
               if (!vis) continue;
-              seen.push(`${h.distance.toFixed(1)} m  ${h.object.name || h.object.type} / ${m && m.name || '?'}  #${m && m.color ? m.color.getHexString() : ''} op ${m && m.transparent ? m.opacity : 1}`
+              let who = h.object.name; for (let o = h.object.parent; !who && o; o = o.parent) if (o.name) who = `${h.object.type} in ${o.name}`;
+              seen.push(`${h.distance.toFixed(1)} m  ${who || h.object.type} / ${m && m.name || '?'}  #${m && m.color ? m.color.getHexString() : ''} op ${m && m.transparent ? m.opacity : 1}`
                 + ` glow ${m && m.emissiveIntensity != null ? (+m.emissiveIntensity).toFixed(2) : '-'} sky ${m && m.envMapIntensity != null ? m.envMapIntensity : '-'} rough ${m && m.roughness} metal ${m && m.metalness}`);
             }
             out.push(`  at ${fx},${fy}:\n    ` + seen.join('\n    '));
