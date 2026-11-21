@@ -759,6 +759,12 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 .g-walk-mark[data-k="event"] i { border-color: var(--paper); background: rgba(16, 12, 6, 0.55); }
 .g-walk-mark[data-k="event"] i::after { border-color: var(--paper); }
 .g-walk-mark[data-k="event"] i b { background: var(--amber); }
+/* a place the street offers (a free place on Hachiko's wall, until it has been sat on once: issue 146): pale, a seat's
+   line and its two legs in place of the dots, no tail: it is over a stone, not said by anyone */
+.g-walk-mark[data-k="place"] i { width: 26px; height: 20px; gap: 0; border-color: rgba(244, 239, 230, 0.7); border-radius: 2px; background: rgba(4, 8, 18, 0.5); }
+.g-walk-mark[data-k="place"] i::after { display: none; }
+.g-walk-mark[data-k="place"] i b { display: none; }
+.g-walk-mark[data-k="place"] i b:first-child { display: block; width: 12px; height: 5px; border-radius: 0; background: none; border-top: 1.5px solid var(--paper); border-left: 1px solid var(--paper); border-right: 1px solid var(--paper); box-sizing: border-box; margin-top: 3px; }
 /* someone calling you over (walktalk.js bark): a few words in the walk's glass over their mark, for a few seconds */
 .g-walk-bark { position: absolute; left: 0; top: 0; max-width: 240px; padding: 6px 10px 7px; border: 1px solid rgba(255, 207, 138, 0.55); border-radius: 3px; background: rgba(4, 8, 18, 0.66);
   color: var(--paper); font: 400 13px/1.3 var(--f-body); text-shadow: 0 1px 6px #000; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; will-change: transform, opacity; }

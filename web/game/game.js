@@ -1355,11 +1355,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // somewhere to sit and watch the crossing on the walk (perch.js; game.json hero[].perches): the stone the hero level has
   const perch = window.OEPerch ? OEPerch.create({ G, floorAt: (x, y) => { const f = nav.floorAt(x, y, Math.max(0, nav.terrain(x, y)) + 1); return f ? f.z : null; } }) : null;
   let perchFov = 0;
+  // the seats the walk marks (walktalk.js places): each until it has been sat on once in this browser, by its name
+  const SAT_KEY = 'bh-walk-sat';
+  let satOn = null, seatList = null;
+  const satGet = () => { if (!satOn) { try { satOn = new Set(JSON.parse(localStorage.getItem(SAT_KEY) || '[]')); } catch (e) { satOn = new Set(); } } return satOn; };
+  function seatMarks() {
+    if (!perch || !walk) return [];
+    const sat = satGet();
+    if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
+    return seatList;
+  }
   function sitDown(st) {
     player.seatFrom = { x: player.x, y: player.y, z: player.z, h: player.h };
     Object.assign(player, { mode: 'seat', x: st.at[0], y: st.at[1], z: st.perch ? st.z : st.at[2], h: st.h, speed: 0, ground: true, vz: 0 });
     cam.lookYaw = 0; cam.lookPitch = st.pitch || 0; cam.lastInput = -10;
     if (st.perch) { // (on a low wall, perch.js: its rake, the feet further out so the hips come down onto the stone, laid each frame in simulate)
+      satGet().add(st.name); try { localStorage.setItem(SAT_KEY, JSON.stringify([...satOn])); } catch (e) { /* storage blocked */ }
       perch.sit(st); seatTouch(true); if (touch) $('#gt-jump').hidden = false; stage.classList.add('at-perch'); // (story.css: its button shown)
       blendFrom(1.1, true); // (from over your shoulder round to the seat's tripod, not a cut)
       return;
@@ -2503,6 +2514,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     project: (x, y, z) => { markV.set(x, z, -y).project(camera); return markV.z > 1 || markV.z < -1 ? null : { x: (markV.x + 1) / 2 * stageW, y: (1 - markV.y) / 2 * stageH }; },
     npc: id => npcById(id),
     here: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return { x: o.x, y: o.y, z: o.z, mode: m }; },
+    places: () => seatMarks(), // (somewhere to sit, until it has been sat on once: its mark, as the street's offer of it)
     say: (runs, done) => { // one speaker after another, each in the box and the conversation's camera
       let i = 0;
       const next = () => {
