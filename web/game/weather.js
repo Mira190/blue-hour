@@ -602,6 +602,46 @@ void main() {
     const OCC_R = 40, occOk = !!(QC ? QC.post : true) && renderer.capabilities.isWebGL2;
     const occRT = occOk ? new THREE.WebGLRenderTarget(T.occ, T.occ, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
     const occCam = new THREE.OrthographicCamera(-OCC_R, OCC_R, OCC_R, -OCC_R, 1, 4000);
+    // The cover of what stands still, kept (issue 130). The map was drawn whole every half second it rained and whenever
+    // the camera had gone four metres: the ground, the buildings, the hero level, the roofs' kit, the trains, 0.9 million
+    // triangles on a phone into 128 x 128 pixels, one frame in fifteen two thirds heavier than its neighbours. What stands
+    // still (world.js's mark for the shadows' cache, userData.shadowStatic, or userData.oeStill, on a thing or a parent of it) has the same top
+    // until the map moves: it is drawn into a map of its own when the map's place changes (and every few seconds, for what
+    // the map round the player has built or let go since), and each time the map is due that one is copied and what
+    // moves, the cars, the trains, a door, is drawn over it with its depth. ?occ=whole: every time whole, as before.
+    const occStill = occRT ? new THREE.WebGLRenderTarget(T.occ, T.occ, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
+    const coverStat = { cache: new URLSearchParams(location.search).get('occ') !== 'whole', whole: 0, still: 0, moves: 0, off: '' };
+    // (each pass is the whole one with the other's things not shown for it: a thing made since the last sorting is in
+    // neither list and is drawn in both, which is right, if twice. The map keeps its place while the camera stays within
+    // two metres of where it was set: set afresh at every draw, as it was, a camera that sways a hand's width moved the
+    // map a texel and the still things' map was never the same place twice.)
+    let stillKey = '', stillAt = -99, sortAt = -99, stillList = [], movesList = [], ctr = null;
+    function sortCover() {
+      stillList = []; movesList = [];
+      const walk = (o, st) => {
+        st = st || !!o.userData.shadowStatic || !!o.userData.oeStill; // (oeStill: what stands still and casts no shadow, the ground's tiles, the far land)
+        if (o.isMesh || o.isLine || o.isPoints) (st ? stillList : movesList).push(o);
+        for (const c of o.children) walk(c, st);
+      };
+      walk(world, false);
+      coverStat.sorted = [stillList.length, movesList.length];
+    }
+    function without(list, fn) { // fn with the list's things not shown
+      const was = []; let n = 0;
+      for (const o of list) if (o.visible) { was[n++] = o; o.visible = false; }
+      try { fn(); } finally { for (let i = 0; i < n; i++) was[i].visible = true; }
+    }
+    function copyStill() {
+      const props = renderer.properties, gl = renderer.getContext(), state = renderer.state;
+      const src = props.get(occStill).__webglFramebuffer, dst = props.get(occRT).__webglFramebuffer;
+      if (!src || !dst || !gl.blitFramebuffer) throw new Error('no framebuffer to copy');
+      state.bindFramebuffer(gl.READ_FRAMEBUFFER, src);
+      state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, dst);
+      state.buffers.color.setMask(true); state.buffers.depth.setMask(true);
+      gl.blitFramebuffer(0, 0, T.occ, T.occ, 0, 0, T.occ, T.occ, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      state.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, dst);
+    }
     occCam.up.set(0, 0, -1);
     if (!U.uOeOccBox.value) U.uOeOccBox.value = new THREE.Vector4(0, 0, 1, 1); // (THREE is there once the game starts, not when this file loads)
     if (!U.uOeWind.value) U.uOeWind.value = new THREE.Vector4(0, 0, 0, 0);
@@ -979,6 +1019,7 @@ void main() {
 
     const api = {
       U, kinds: Object.keys(KINDS), tread, names: NAMES, meshes: { near, far, splash, fNear, fFar, deck }, occ: occRT, dress,
+      cover: Object.assign(coverStat, { size: T.occ, draw: (tSec, fresh) => { if (!occRT) return; if (fresh) stillKey = ''; renderOcc(tSec, false); } }), // (the cover map's draws by kind, and one drawn now: tools/rain_cover.js)
       get mode() { return mode; },
       get kind() { return kindOf(cur); },
       // how much a slow device has shed (0 nothing, 1 light, 2 off or, for a chosen weather, no drops):
@@ -1254,7 +1295,7 @@ void main() {
       },
       // is a point under cover (a roof within a few metres overhead)? from the last occlusion map
       covered: () => cover.roof,
-      dispose() { TR.tex.dispose(); if (occRT) occRT.dispose(); for (const m of [near, far, splash, fNear, fFar, boltMesh, bow, deck]) { world.remove(m); if (m !== fNear && m !== fFar) m.geometry.dispose(); m.material.dispose(); } },
+      dispose() { TR.tex.dispose(); if (occRT) occRT.dispose(); if (occStill) occStill.dispose(); for (const m of [near, far, splash, fNear, fFar, boltMesh, bow, deck]) { world.remove(m); if (m !== fNear && m !== fFar) m.geometry.dispose(); m.material.dispose(); } },
     };
     // what the camera should not see from above: the sky, the stars and the moon, sprites and
     // labels, the rain itself, and whatever draws its own pass (a mirror); and, each time, the people with what
@@ -1276,11 +1317,12 @@ void main() {
     }
     function renderOcc(tSec, read = true) {
       const c = camera.position, texel = 2 * OCC_R / T.occ;
-      const cx = Math.round(c.x / texel) * texel, cz = Math.round(c.z / texel) * texel;
-      occBase.value = Math.round(c.y);
-      occCam.position.set(cx, c.y + 1500, cz);
-      occCam.lookAt(cx, c.y, cz);
-      occCam.near = 1; occCam.far = 1500 + Math.max(600, c.y + 200);
+      if (!ctr || !coverStat.cache || Math.abs(c.x - ctr.cx) > 2 || Math.abs(c.z - ctr.cz) > 2 || Math.abs(c.y - ctr.y) > 2) ctr = { cx: Math.round(c.x / texel) * texel, cz: Math.round(c.z / texel) * texel, y: c.y };
+      const cx = ctr.cx, cz = ctr.cz, cy = ctr.y; // (the map's camera from the map's place alone: the still things' depth is kept with it)
+      occBase.value = Math.round(cy);
+      occCam.position.set(cx, cy + 1500, cz);
+      occCam.lookAt(cx, cy, cz);
+      occCam.near = 1; occCam.far = 1500 + Math.max(600, cy + 200);
       occCam.updateProjectionMatrix(); occCam.updateMatrixWorld();
       occBox.value.set(cx, cz, 2 * OCC_R, -2 * OCC_R);
       const hide = hidden(tSec).concat(people()), was = hide.map(o => o.visible);
@@ -1288,11 +1330,29 @@ void main() {
       const prev = { rt: renderer.getRenderTarget(), auto: renderer.autoClear, alpha: renderer.getClearAlpha(), col: renderer.getClearColor(new THREE.Color()),
         bg: world.background, fog: world.fog, over: world.overrideMaterial, sh: renderer.shadowMap.autoUpdate };
       world.background = null; world.fog = null; world.overrideMaterial = occMat; renderer.shadowMap.autoUpdate = false;
-      renderer.setRenderTarget(occRT);
       renderer.setClearColor(0x000000, 0);
       renderer.autoClear = true;
-      renderer.clear();
-      renderer.render(world, occCam);
+      const whole = () => { renderer.autoClear = true; renderer.setRenderTarget(occRT); renderer.clear(); renderer.render(world, occCam); coverStat.whole++; };
+      if (!coverStat.cache || !occStill) whole();
+      else {
+        const key = `${cx},${cz},${cy}`;
+        try {
+          if (key !== stillKey || tSec - stillAt > 6 || tSec < stillAt) {
+            if (tSec - sortAt > 2 || tSec < sortAt || !stillList.length) { sortCover(); sortAt = tSec; }
+            renderer.setRenderTarget(occStill); renderer.clear();
+            without(movesList, () => renderer.render(world, occCam));
+            stillKey = key; stillAt = tSec; coverStat.still++;
+          }
+          renderer.setRenderTarget(occRT);
+          copyStill();
+          renderer.autoClear = false;
+          without(stillList, () => renderer.render(world, occCam));
+          coverStat.moves++;
+        } catch (e) { // (a GPU that will not copy: whole, as it was)
+          coverStat.cache = false; coverStat.off = String(e).slice(0, 120); console.warn('rain cover: drawn whole', e);
+          whole();
+        }
+      }
       renderer.setRenderTarget(prev.rt);
       renderer.setClearColor(prev.col, prev.alpha);
       renderer.autoClear = prev.auto;

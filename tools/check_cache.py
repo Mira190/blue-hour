@@ -489,11 +489,16 @@ def judge(target, c):
     for f in sorted(blobs):
         if blob_id(f) != blobs[f]:
             w = None
-            if f in SOURCE:
-                main = (git('rev-parse', '-q', '--verify', f'origin/main:{f}') or b'').decode().strip()
+            main = (git('rev-parse', '-q', '--verify', f'origin/main:{f}') or b'').decode().strip()
+            if main == blob_id(f):   # (main's, as main has it: before any other rule; reach() says so)
+                pass
+            elif f in SOURCE:
                 was = blobs[f] if SOURCE[f][0] == f else (c.get('sources') or {}).get(SOURCE[f][0])
-                w = words(target, f, was) if was and main != blob_id(f) else None
-            r, why = w or looked(target, f, blobs[f]) or reach(f, blobs[f], cover.get(f))
+                w = words(target, f, was) if was else None
+                w = w or looked(target, f, blobs[f])
+            else:
+                w = looked(target, f, blobs[f])
+            r, why = w or reach(f, blobs[f], cover.get(f))
             out.append((f, r, why))
     for f in harness(target):   # (a module the harness requires now and did not then)
         if f not in blobs:

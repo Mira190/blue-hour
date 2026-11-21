@@ -143,7 +143,8 @@
     "web/game/companion.js",
     "web/game/collision.js",
     "web/game/decks.js",
-    "web/game/doors.js"
+    "web/game/doors.js",
+    "web/game/routeline.js"
    ],
    "checks": [
     "story",
@@ -175,6 +176,7 @@
     "OEDoors": [
      "create"
     ],
+    "OEGameRouteLine": [],
     "OENav": [
      "create"
     ],
@@ -182,6 +184,31 @@
      "create",
      "line",
      "walkable"
+    ]
+   },
+   "asks_of_game": {
+    "web/game/routeline.js": [
+     "G",
+     "H",
+     "driveTo",
+     "gold",
+     "groundZ",
+     "heli",
+     "keepSign",
+     "myCar",
+     "nav",
+     "npcs",
+     "pilot",
+     "player",
+     "ride",
+     "roadNet",
+     "roads",
+     "rq",
+     "stepOf",
+     "story",
+     "waypoint",
+     "ways",
+     "wharfById"
     ]
    }
   },
@@ -194,7 +221,8 @@
     "web/game/junctions.js",
     "web/game/rail.js",
     "web/game/trains.js",
-    "web/game/pilot.js"
+    "web/game/pilot.js",
+    "web/game/rides.js"
    ],
    "checks": [
     "story",
@@ -211,14 +239,11 @@
      "LANE",
      "boxOf",
      "car",
-     "chauffeur",
      "drive",
      "headlamp",
      "kerbOf",
      "ledgesUnder",
-     "path",
      "pushOut",
-     "queueing",
      "router",
      "setWeather",
      "sprayState",
@@ -226,6 +251,7 @@
      "weather"
     ],
     "OEGamePilot": [],
+    "OEGameRides": [],
     "OEJunctions": [
      "RANK",
      "create"
@@ -283,6 +309,68 @@
      "save",
      "scene",
      "waypoint"
+    ],
+    "web/game/rides.js": [
+     "$",
+     "A",
+     "CARS_OK",
+     "CITY",
+     "CR",
+     "G",
+     "H",
+     "KEEP",
+     "PLAYER_LOOKS",
+     "ROAD_HALF",
+     "SCR_AT",
+     "SCR_BOX",
+     "W",
+     "angDiff",
+     "blendFrom",
+     "cam",
+     "camera",
+     "carCfg",
+     "cars",
+     "cine",
+     "clockT",
+     "crowd",
+     "dlg",
+     "driveTo",
+     "fmtSec",
+     "guideMade",
+     "headlamp",
+     "hopTo",
+     "inScramble",
+     "junctions",
+     "keepSign",
+     "lib",
+     "life",
+     "makeRig",
+     "metro",
+     "myCar",
+     "nav",
+     "npcs",
+     "objective",
+     "phone",
+     "pickupNear",
+     "pilot",
+     "placeOf",
+     "player",
+     "resetCar",
+     "ride",
+     "rideSeat",
+     "roadNet",
+     "roads",
+     "rq",
+     "save",
+     "scene",
+     "smalltalk",
+     "stepOut",
+     "story",
+     "takeHelm",
+     "touch",
+     "vlib",
+     "waypoint",
+     "world"
     ]
    }
   },
@@ -392,7 +480,6 @@
      "baseMap",
      "dialogue",
      "drawIcon",
-     "keys",
      "length",
      "log",
      "minimap",
@@ -621,20 +708,11 @@
      "tier"
     ],
     "OETelemetry": [
-     "again",
-     "by",
      "consent",
-     "h",
-     "held",
      "i",
      "length",
-     "ok",
-     "pl",
      "set",
-     "track",
-     "wait",
-     "x",
-     "y"
+     "track"
     ],
     "OEVersion": [
      "line",
