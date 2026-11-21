@@ -409,8 +409,8 @@ up the stair behind him*).
 | 3, the police box | says who they are to a detective of 1964. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
-| 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above |
+| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns back to the station | failure, as above |
 | 3, after the print | the detective waits for her name; thirty seconds of silence is an answer too (`wait_s`, `silent`) | as *not yet*, and the file says the player said nothing |
 | 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`); the roll and the file open from inside the question (`atHand`). Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | never a failure: a wrong answer is answered for what was named or shown and written in the file, struck through; the second also says more and marks the print on the roll (`wrong2`); the third, she says it herself (`told`). The last card counts both |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
@@ -657,8 +657,8 @@ be in the picture and the lens still to within 0.15 degrees a frame with no hand
 
 **How a frame plays** (four to six minutes): a line on screen says where to go and a light stands
 there; one of the living, if the frame has one, says their piece when you reach them; near the
-place the world stops; whoever still moves is found and heard; the camera comes up, the standpoint
-and the subject are found, and the picture is taken; a few lines on what the print shows; the
+place the world stops; whoever still moves is found and heard; the standpoint is found, the camera
+comes up, the subject is framed, and the picture is taken; a few lines on what the print shows; the
 world runs on, and the next line is already on screen. A Stop that runs out costs only the minute:
 the world runs, and stops again when you come back. A page closed mid-case opens at the same frame.
 
@@ -803,9 +803,17 @@ what it does before it is done (`task.teach` on frame 1; `story.js` `teach`):
 | Turn it into the frame lines | an arrow on their edge points to it while it is outside them | the lines go amber; *In the frame · the planetarium's board* |
 | Take the picture (F, the shutter, RT) | the print comes up as tonight, and 1964 through it; seven frames, no eighth | the print develops in the hand |
 
-The steps are live, not a list that only goes forward: raised off the light, the first is still to do and the second is
-ticked, and the finder says *not from here*, which is the rule seen from its wrong side. A release pressed too early
-shakes the step not yet done; the goal line says the same in the story's words. The keys are named on the card the
+The steps are done in their order. **The talk ends, the place is found, then the camera comes up** (the owner,
+November 2026: "finish the talk, find the place, then raise it"). In a frame whose light stands from the start (frames 1
+and 6) the camera comes up only in the light: off it, R, the button, the left trigger and the release shake the step to
+do, the chip says *Not from here · the light first* and the goal line says where the light is; the button to raise it
+is offered only once you stand in it (`story.js` `camCan`). And nothing raises it in the first 0.7 s after the talk:
+the camera had come up on the talk's last press, before the place was looked for, because on a phone the button comes
+up where the words were (the tap after the last line was a tap on it) and F passes a line and is the release, which
+raises a camera that is down (`camWait`; `tools/talk_end_probe.js` plays it by taps and by keys). Where the place is
+found by the rangefinder (frames 2, 4 and 5) the camera is how it is found, so it comes up anywhere, and off the place
+the finder says *not from here*, which is the rule seen from its wrong side. A release pressed too early shakes the
+step not yet done; the goal line says the same in the story's words. The keys are named on the card the
 first time they are needed (a pad's signs while a pad is in the hand, nothing on a touch screen, where the buttons are
 on the picture). The card goes a moment after the print, and never comes again: frames 2 to 7 have only the goal, the
 line through the patch, and hints asked for. The walking keys (W A S D, Shift, the mouse; the thumbs) are shown as the
@@ -856,9 +864,9 @@ file's own paper, in its hand, its words coming up as ink does. Who, which kerb,
 survey photograph is taken at blue hour, *the few minutes after sunset when the sky and the street lamps are equally
 bright*. Under it, the old plan's corner with its one pencilled word, 待つ. So the hour the story turns on is explained by
 the job, on a thing the player holds, with the street still running behind it; and the word the office will speak of is
-seen before it is said. E or a tap puts it away, it becomes the first line of the file, and a second later the world
-stops. The title falls once more, in that Stop, and nowhere else in play (`order` on the episode; `web/game/story.js`
-`order`).
+seen before it is said. E or a tap puts it away, it becomes the first line of the file, and the phone rings (below,
+*The opening rebuilt*). The title falls once more, in the first Stop, and nowhere else in play (`order` on the episode;
+`web/game/story.js` `order`).
 
 It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
 away for the card, and was then come down to again from the air. Out, for that reason.
@@ -905,7 +913,7 @@ saying more (`hints` on the frame or its task):
    so he is the hint too; where the world stops, he leads there and nothing else shows the way);
 3. the light on it, as the other frames have.
 
-After 45 s of looking without one the button is offered once (*Stuck? H for a hint*) and pressed for nobody. The last card
+After 30 s of looking without one the button is offered (*Stuck? Press H for a hint*), again at 75 s, and it keeps an amber edge until a hint is asked for (a player on frame 4's glass saw neither the line nor the button, and thought there was no way on); it is pressed for nobody. The last card
 says which places were found alone and which with a hint, and which. `tools/story_play.js` asks for all three on each
 found frame and fails if they do not come in turn; it fails a found frame that has a mark on it before they are asked for.
 
@@ -974,13 +982,50 @@ and the line is written on it in the file's hand and pen as it is said; a line t
 the camera). In the second nobody moves: a stool at a kerb, and the place to find alone. The boy who sat on it is
 met alive, at seventy-six, in the sixth, and is not heard twice.
 
-**It opens in the Stop, and the voice comes after.** The world stops a second after the player is given the street;
-the office rings only when time runs again: who you are (a photographer, late), why this kerb, who the client is (an estate: a Mr Hoshino, who printed for
-the office), the word pencilled on the old plan, and that your sister has rung again, today of all days, and been told
-you are out. The last card answers that line with one of
-its own.
+**The opening rebuilt: the call first, then the player's own camera stops the world** (the owner, 21 November 2026:
+"after the first photograph the office's call was waited for a long while, which is strange; let the call come first, as a
+buffer, and not the Stop at once; analyse and design it again to the standard of the big studios").
 
-(`prologue` on the episode, with `after`.) A case left unfinished says so on the title, with a second button to start the evening again.
+For a while it opened in the Stop and the voice came after. Measured on the page, the first minutes went: the film (half
+a minute), the job sheet, *one second* of the street, the Stop; the dog, the walk to her, her talk, the camera taught, the
+print; then her two lines, time running again, **ten seconds with nothing on the screen to do** (`resume`'s wait, 1.6 s
+and 4.2 s a line), and a five-line call that **held the player still** (every dialogue held the walk), and only then
+the second frame's goal. Read against what the openings of the big narrative games do, it failed five ways:
+
+| What they do | The work it is taken from (design only) | What Blue Hour did | What it does now |
+|---|---|---|---|
+| Show the ordinary world under the player's own feet before it breaks: a strangeness is measured against a normal the player has walked | *The Last of Us* (2013), the evening at home before the outbreak; *Life is Strange* (2015), the classroom before the rewind; *Control* (2019), the lobby before the Oldest House turns | One second of the street, then the Stop. A held crowd means little to a player who never walked a running one, and the doc's own rule (*a street that merely stands still looks like a photograph of a street*) asks for that contrast | Half a minute to a minute of the live Scramble under the player's control while the office talks: the lights, the crowd crossing round them, the sound |
+| Give the player a goal before the inciting incident, so that it interrupts *their* plan | Most mission openings; *Control* again, a job that is not the job; the interest curve (Schell, *The Art of Game Design*): a hook, then rising interest, never a valley without a pull out of it | The job was read on a card and then explained after the first frame was over | The goal and the mark come with the call's first word: *The north-west kerb, across the road. One photograph of it, at 17:14* |
+| Let the player's own act cause the incident | *Life is Strange*, the hand raised in the washroom; rule 4 of this story, *a camera is raised to her corner at the hour, as his was* | The world stopped by itself, a second after a card | The player raises their own camera to her corner; held on it a moment, the world stops **in the finder**: the brake, the ring and the hanging leaves are seen through the lens, then the camera comes down for the Stop's turn round you and the title |
+| Carry exposition while the player moves; never a silence with nothing to do after a peak | *Firewatch* (2016), the radio while you walk; *Marvel's Spider-Man* (2018) and *GTA V* (2013), calls taken hands-free while you travel; *Half-Life 2* (2004), walk-and-talk | Ten seconds of nothing after the first print, then a call that held the walk | The call is before the Stop, hands-free (`hud.js` dialogue `free`: subtitles at the foot of the frame, passing by themselves at reading pace, E passing one sooner, the street's keys and the stick still the player's). After the first print the second frame's goal comes as time runs (2.2 s, as every other frame), with the after-lines over it |
+| Let the strange cut into the ordinary | The dropped call, the radio gone dead | The Stop came between nothing and nothing | The Stop cuts the office off mid-word (`dlg.cut`); as time runs again the office is back on the line, one line hands-free: *Kagami? …Kagami. You dropped off the line. Ring me when you have it.* Nobody else saw the crossing stop |
+
+So the first frame plays:
+
+1. **The film** (half a minute, unchanged): the district from the air, down to the kerb, the crossing from above as the
+   title falls, the kerb behind you as the lights change.
+2. **The order in the hand** (unchanged): the job sheet, its ink coming up; E or a tap puts it away.
+3. **The call** (about forty seconds): the phone buzzes in a pocket (`audio.js` `phone`: a motor's hum and the case's
+   rattle, no ringtone) and the office speaks hands-free while the player walks and looks and the crowd crosses round
+   them. What it says does not repeat the sheet: you are late but there; the kerb across the road has not been touched
+   since the week before the Olympics and is dug up on Monday; who Mr Hoshino was, and that his estate will not say why
+   it wants 17:14; that the word on the plan is not the office's; and that your sister rang again today, of all days.
+   Its last line asks for the picture (`prologue.push`), and from then the camera's button is offered.
+4. **The job** (`fr.job`; `story.js` `jobBegin`, `jobTick`): R, the button, the left trigger or the release raises
+   Kagami's own camera, the lens's view as in every frame. Turned away from her corner nothing happens but the goal
+   saying where it is; with her corner inside the frame lines for 0.8 s (`hold_s`), within 80 m (`within_m`), the world
+   stops. The release with it framed is the moment at once.
+5. **The Stop**, from across the road: the lens held 1.1 s of the story's time while the street brakes in it, then down;
+   the turn round you, the title, the dog's film, and the walk across the held crossing to her (it was a walk of a few
+   steps from a Stop begun at her kerb by the card; now the whole crossing, through three thousand people standing still).
+6. Her talk, the camera of 1964 taught, the print, and time running: the office back on the line if it was cut off, the
+   after-lines, and the second frame's goal at once.
+
+A case taken up again at the first frame hears the call again; a Stop that runs out comes again where it stopped,
+without the job. `tools/opening_play.js` plays it on a desktop and a phone and fails where any of this does not hold;
+`tools/story_play.js` raises the camera away from her corner and onto it, with a still of the Stop in the finder.
+
+A case left unfinished says so on the title, with a second button to start the evening again.
 
 **The mark says what it is of.** One mark in the frame and one light in the street, and their shape says what is
 asked, the way a quest marker and an interaction prompt are told apart in *The Witcher 3*, *Ghost of Tsushima*
@@ -1845,7 +1890,9 @@ lines with the same facts (who Kagami is to the office, the kerb, the client and
 sister), and every call (the prologue, a frame's message, the call before the helicopter) goes on by itself once a line
 is whole, after the time it takes to read it (`hud.js` `dialogue`, `auto`); a key or a tap still goes on at once, and
 it waits while the menu, the log or the roll is up. A box that waits on an answer (a question) waits; a box that only
-speaks never does.
+speaks never does. (The same day the office's call moved before the first Stop and became hands-free, so that the
+player walks the live crossing while it is said and nothing waits after the first print: *The opening rebuilt*, above.
+It kept these three lines' facts and words, with the kerb said where it is and a last line that asks for the picture.)
 
 `tools/story_play.js` plays it: `SLIP=7` answers the first question wrongly three times and must see her say it herself
 and the last card count it, never the card that takes the frame up again; the first question of every play opens the
@@ -1867,3 +1914,35 @@ What is left of the story's own, each with its issue: the living Sumiko's face i
 woman's clear umbrella is not built. Frame 5's place, plain boxes and haze round its print until November 2026 (issue
 33), is a hero level of its own: the Ginza line station's underside, piers and the east exit's ground (docs/HERO.md,
 "Miyamasu").
+
+## Stuck, and wrong: what the best deduction games do (November 2026)
+
+The owner was stuck twice in one evening: on frame 4's glass, not seeing that a hint could be asked for, and at frame
+5's cross-examination, where two wrong answers send the frame back to its beginning. Surveyed before changing either
+(design only; nothing of their look, characters or text is used):
+
+| Game | Wrong, and stuck | Taken, or not |
+|---|---|---|
+| *Ace Attorney* (2001–) | Pressing a statement is free and is how the player learns; only evidence presented wrongly costs, one of five marks. *The Great Ace Attorney Chronicles* adds a Story Mode that presents the right evidence itself | Taken: a statement that stands is answered in his own words and struck off for the next try. Not taken: five marks (the question has four statements) and a mode that plays itself |
+| *Return of the Obra Dinn* (2018) | Nothing is ever failed; fates are confirmed three at a time, so a guess is not told right or wrong alone | Its principle is kept: guessing must cost. Here the cost is the frame taken up again, after two |
+| *The Case of the Golden Idol* (2022) | Hints exist, are limited, and are behind a warning and a small task, so that they are asked for on purpose | Already the rule here (a hint is asked for, never given). What was wrong was that the offer was not seen |
+| *L.A. Noire* (2011) | A case goes on whatever is answered; reviewers faulted that it was rarely clear why a mistake was a mistake | Taken as a warning: `near`, below |
+| *Professor Layton* (2007–) | Three hints to a puzzle, each saying more, bought by the player | Already here |
+
+What was changed:
+
+- **The offer of a hint is seen.** At 30 s and again at 75 s, and the button keeps an amber edge until a hint is asked
+  for. It is still pressed for nobody.
+- **A wrong answer narrows the next try.** In frame 5's cross-examination and frame 6's question, a statement that
+  stands and a print that is not it are struck off (`story.js` `struck`). After the first wrong answer the roll says
+  where to look, without naming the print (`help` on the question).
+- **Reasoning the evidence fairly led to is not called a guess.** *Nobody from my gang went up on any roof* looks
+  broken by the roof's print (nailed boots on the stair, and every man on the works wore them). It is not: boots are
+  not a face, and the foreman is careful to say *my gang*. Pressed, it is answered so, struck off, and not counted
+  (`near` on the statement).
+- Failing after two counted wrong answers is unchanged: a guesser still fails, and the frame is short to take up again.
+
+Sources read: the *Return of the Obra Dinn* article on Wikipedia and Film Stories' "Exploring Return of the Obra Dinn's
+rule of three"; PC Gamer's guide to *The Great Ace Attorney Chronicles* (Story Mode) and StrategyWiki's *Ace Attorney*
+gameplay pages (the five marks); reviews of *The Case of the Golden Idol* at waytoomany.games and Softpedia (the gated
+hints); Screen Rant and TechCrunch on *L.A. Noire*'s interrogations.

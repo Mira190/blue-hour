@@ -264,6 +264,18 @@
 .game-stage.story .g-dialog p { margin: 16px auto 14px; max-width: 34em; min-height: 3.1em; font: 300 clamp(18px, 2.1vw, 23px)/1.55 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px rgba(0, 0, 0, 0.9); }
 .game-stage.story .gd-hint { text-align: center; font-size: 9px; letter-spacing: 0.3em; color: rgba(244, 239, 230, 0.5); }
 
+/* ---- a call taken hands-free (hud.js dialogue free): a subtitle low on the picture, the street still the player's to walk
+   and look round; it passes by itself, and nothing on it is to be pressed. A line cut off by the Stop greys and goes */
+.game-stage.story .g-dialog.free { pointer-events: none; cursor: default; padding-top: 44px; background: linear-gradient(to top, rgba(4, 8, 18, 0.66), rgba(4, 8, 18, 0.3) 58%, transparent); }
+.game-stage.story .g-dialog.free p { margin: 9px auto 0; min-height: 0; font-size: clamp(16px, 1.75vw, 20px); }
+.game-stage.story .g-dialog:is(.free, .cut) .gd-head b::before { content: ""; display: inline-block; width: 6px; height: 10px; margin-right: 9px; border: 1.3px solid currentColor; border-radius: 2px; vertical-align: -1px; } /* (a phone, by the caller's name) */
+.game-stage.story .g-dialog:is(.free, .cut) :is(.gd-hint, .gd-tools) { display: none; }
+.game-stage.story .g-dialog.cut { pointer-events: none; }
+.game-stage.story .g-dialog.cut p { margin: 9px auto 0; min-height: 0; font-size: clamp(16px, 1.75vw, 20px); color: rgba(244, 239, 230, 0.55); transition: color 0.4s ease; }
+@media (pointer: coarse), (max-width: 640px) { /* (above the thumbs: the stick, and the camera's button when it comes up under the last line) */
+  .game-stage.story .g-dialog:is(.free, .cut) { bottom: max(200px, calc(env(safe-area-inset-bottom) + 200px)); padding: 26px 18px 8px; background: radial-gradient(ellipse 72% 82% at 50% 62%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0) 76%); }
+}
+
 /* ---- a line as the world runs on again: type on the picture */
 /* what is said (the guide's line, what comes after a picture) is a subtitle: low in the frame, clear of the goal at the top left */
 .game-stage.story .g-toasts { top: auto; bottom: max(178px, calc(env(safe-area-inset-bottom) + 178px)); width: min(640px, calc(100% - 48px)); }
@@ -392,13 +404,14 @@
 
 /* ---- the camera in the hand or at the eye: the button says which, beside the release; and a word in the middle of
    the frame when something changes that the player did not do */
-#g-story-cam { position: absolute; left: 50%; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 12px; padding: 13px 20px; cursor: pointer;
+#g-story-cam { position: absolute; left: 50%; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 12px; padding: 13px 20px; cursor: pointer; white-space: nowrap; /* (on one line: set from the middle, it had half the frame's width and broke in two, over the card's words) */
   border: 1px solid var(--amber); border-radius: 2px; background: rgba(4, 8, 18, 0.62); color: var(--amber); font: 400 11px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; }
-#g-story-cam.on { display: flex; animation: g-story-cam 1.6s ease-in-out infinite; }
+#g-story-cam.on { display: flex; animation: g-story-cam-in 0.35s ease-out both, g-story-cam 1.6s ease-in-out 0.35s infinite; } /* (it comes up when the camera may: in the light, the talk over) */
 #g-story-cam.up { animation: none; border-color: rgba(244, 239, 230, 0.4); color: var(--paper); bottom: auto; top: max(108px, calc(env(safe-area-inset-top) + 108px)); left: auto; right: max(22px, env(safe-area-inset-right)); transform: none; padding: 9px 13px; font-size: 9px; }
 #g-story-cam i { width: 15px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px; box-shadow: inset 0 0 0 2.5px rgba(4, 8, 18, 0.62), inset 0 0 0 5px currentColor; }
 #g-story-cam kbd { margin-left: 4px; padding: 3px 6px; border: 1px solid currentColor; border-radius: 2px; font: inherit; letter-spacing: 0.06em; }
 @keyframes g-story-cam { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 207, 138, 0.5); } 50% { box-shadow: 0 0 0 9px rgba(255, 207, 138, 0); } }
+@keyframes g-story-cam-in { from { opacity: 0; } to { opacity: 1; } }
 #g-story-chip { position: absolute; left: 50%; top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); transform: translateX(-50%); z-index: 8; pointer-events: none; opacity: 0; white-space: nowrap; padding: 8px 16px; border-top: 1px solid rgba(255, 207, 138, 0.6); border-bottom: 1px solid rgba(255, 207, 138, 0.6);
   background: rgba(4, 8, 18, 0.55); color: var(--paper); font: 400 11px/1 var(--f-mono); letter-spacing: 0.4em; text-transform: uppercase; }
 #g-story-chip.on { animation: g-story-chip 2.6s ease both; }
@@ -555,7 +568,7 @@
 @media (max-width: 640px) { .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-frames, #g-story-keys) { opacity: 0; pointer-events: none; } }
 /* (while someone speaks, nothing else is written over the lower third: a line said over the picture goes up, under the
    goal, and the mark and the keys step aside; the dialogue has the screen's foot to itself) */
-.game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(19vh, 150px); bottom: auto; }
+.game-stage.story:has(.g-dialog:not([hidden]):not(.free):not(.cut)) .g-toasts { top: max(19vh, 150px); bottom: auto; } /* (not for a call said hands-free: a subtitle, under where a line said over the picture sits) */
 .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-mark, #g-story-keys) { opacity: 0; }
 /* (on a phone the goal lies over the brightest part of the frame, the shop fronts across the road: a deeper scrim under it) */
 @media (max-width: 640px) { .game-stage.story #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); } }
@@ -628,7 +641,9 @@
 #g-story-hint i { font-style: normal; letter-spacing: 0.18em; color: var(--amber); }
 #g-story-hint kbd { min-width: 0; padding: 3px 6px; border: 1px solid rgba(244, 239, 230, 0.45); border-radius: 2px; font: inherit; letter-spacing: 0; }
 #g-story-hint:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); }
+#g-story-hint.glow { border-color: var(--amber); color: var(--amber); }
 #g-story-hint.nudge { animation: g-story-hint 1.4s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; box-shadow: 0 0 14px rgba(255, 207, 138, 0.35); } }
 @keyframes g-story-hint { 50% { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 18px rgba(255, 207, 138, 0.35); } }
 .game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
 @media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }
@@ -836,6 +851,39 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   /* (at the wheel or the stick the right edge has the car's or the helicopter's buttons: the keys' lines keep to the left of them) */
   .game-stage.walk:is(.at-car, .at-heli) #g-walk-keys { left: 24px; right: 92px; width: auto; transform: none; align-items: flex-start; text-align: left; }
   .gt-walk-row { grid-template-columns: 1fr; gap: 8px; }
+}
+/* the walk's corner read over any picture (issue 134: its date, tonight's line and what was asked lay across lit signs
+   and windows at nine pixels and seven tenths white): a denser scrim under it, the small lines a size up and nearer
+   white with a hard edge of shadow, and the options' words (Larger, Largest, the solid backing: log.js) kept by the
+   walk's corner and its cards as the story's goal keeps them */
+#g-walk-where { background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.74), rgba(4, 8, 18, 0.46) 48%, transparent 78%); }
+#g-walk-where small { text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 10px #000; }
+#g-walk-where :is(em, .tn) { font-size: 10px; color: rgba(244, 239, 230, 0.88); text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 10px #000; }
+#g-walk-where :is(.g, .q i) { text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 10px #000; }
+#g-walk-where .q { text-shadow: 0 0 2px rgba(0, 0, 0, 0.85), 0 1px 14px rgba(0, 0, 0, 0.9); }
+/* (and the names put up over the street, a story's and tonight's: thin white type at the frame's middle, which a lit
+   shop window or a billboard behind it took whole. A soft dark ground of their own under them, wider than the words) */
+:is(#g-walk-told, #g-walk-tonight)::before { content: ""; position: absolute; z-index: -1; inset: -34px -90px -40px; background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(4, 8, 18, 0.72), rgba(4, 8, 18, 0.5) 50%, transparent 100%); pointer-events: none; }
+:is(#g-walk-told, #g-walk-tonight) :is(small, b, span) { text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 18px rgba(0, 0, 0, 0.9); }
+.game-stage.words-1 :is(#g-walk-told, #g-walk-tonight) small { font-size: 12px; } .game-stage.words-2 :is(#g-walk-told, #g-walk-tonight) small { font-size: 13px; }
+.game-stage.words-1 #g-walk-tonight span { font-size: 17px; } .game-stage.words-2 #g-walk-tonight span { font-size: 20px; }
+.game-stage.words-1 #g-walk-where { width: min(100%, 500px); } .game-stage.words-2 #g-walk-where { width: min(100%, 580px); }
+.game-stage.words-1 #g-walk-where .q { font-size: clamp(17px, 1.6vw, 20px); } .game-stage.words-2 #g-walk-where .q { font-size: clamp(20px, 2vw, 24px); }
+.game-stage.words-1 #g-walk-where :is(small, em, .tn, .g, .q i) { font-size: 12px; } .game-stage.words-2 #g-walk-where :is(small, em, .tn, .g, .q i) { font-size: 13px; }
+.game-stage.words-1 #g-walk-keys { font-size: 12px; } .game-stage.words-2 #g-walk-keys { font-size: 13px; }
+/* (the keys' line in a narrow window with a mouse: one row of six ran 860 px wide and off both edges of a window 844
+   across, its first key and its last words cut. It wraps there, inside the screen) */
+@media (min-width: 641px) and (max-width: 1000px) and (pointer: fine) {
+  #g-walk-keys { left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); transform: none; flex-wrap: wrap; justify-content: center; gap: 12px 22px; }
+}
+/* (under the menu the walk's corner, buttons and keys go at once: fading out over 0.9 s they lay across the menu's own
+   heading and its first rows for its first second, on a phone the clock over "Paused") */
+.game-stage:has(.g-overlay:not([hidden])) :is(#g-walk-where, #g-walk-acts, #g-walk-keys) { transition: none; }
+.game-stage.words-solid #g-walk-where { padding-bottom: 18px; background: rgb(5, 8, 16); border-bottom-right-radius: 2px; box-shadow: 0 0 0 1px rgba(244, 239, 230, 0.12); }
+.game-stage.words-solid #g-walk-where :is(small, .t, em, .tn, .g, .q, .q i) { text-shadow: none; }
+@media (pointer: coarse), (max-width: 640px) {
+  #g-walk-where { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); }
+  .game-stage.words-solid #g-walk-where { background: rgb(5, 8, 16); }
 }
 @media (prefers-reduced-motion: reduce) { #g-walk-where, #g-walk-acts, #g-walk-keys, #g-walk-told { transition: none; } #g-walk-where.new small, #g-walk-where .q.new, .g-walk-mark i b { animation: none !important; } }
 /* ---- the camera taught (story.js teach; task.teach on the first frame): four steps in the order they are done, each
@@ -1312,7 +1360,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
   /* (while someone speaks, a line said over the picture goes to the top of the screen: the talk's shot puts the face on
      the upper third of what the words leave, where 19vh laid the line across it: Yuna at SKY GATE, Sumiko in the rain) */
-  .game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
+  .game-stage.story:has(.g-dialog:not([hidden]):not(.free):not(.cut)) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
+  .game-stage.story:has(.g-dialog:is(.free, .cut):not([hidden])) .g-toasts { bottom: max(300px, calc(env(safe-area-inset-bottom) + 300px)); } /* (over a call's subtitle, under the goal) */
 }
 @keyframes g-story-chip-narrow { 0% { opacity: 0; letter-spacing: 0.36em; } 14%, 72% { opacity: 1; letter-spacing: 0.22em; } 100% { opacity: 0; } }
 
