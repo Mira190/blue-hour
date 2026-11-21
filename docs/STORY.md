@@ -959,7 +959,8 @@ and the rangefinders' coincident images).
 
 Failure is seen and costs something, and nothing is played twice for it: the one who saw through the player is still
 there and asks again (*Seen through, and asked again*, below). `tools/story_play.js` plays these too (`SLIP=n` or a
-list, `SPEND=n`).
+list, `SPEND=n`, `CHOOSE=frame:option` for what the player commits to, `ACCUSE=1` the false solution), and main's
+full checks play them down the losing branches and by touch on a phone's page (`storyl`, `storyp`: docs/CHECKS.md).
 
 **How the case was worked, and going back in.** The last card says, in the file's hand, what the player said and what
 they took back (struck through), which frames were spent and what stood there, which of the five pairs were never set
