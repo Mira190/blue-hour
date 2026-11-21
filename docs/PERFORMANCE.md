@@ -1955,6 +1955,23 @@ decoder's, no block rejected; `tools/check.sh astc` runs it when the encoder cha
 texels a second in the software renderer's page. No code was taken: the layout is the Khronos data format
 specification's, the method the textbook one.
 
+**Cut-outs** (November 2026: the guide's coat grey and streaked on the owner's iPhone, white on a desktop). The worker
+reads a picture back from a canvas, and a canvas holds its pixels premultiplied: where alpha is 0 the colour comes
+back black. That colour is read all the same. Each mipmap level was the plain mean of the four above it, so a thin
+strand's colour was averaged with the black beside it, a step darker each level: the guard hairs (a 256 x 512 picture
+of white strands, two thirds cut away) were at 244 on top and 210 three levels down, where a phone at a few metres
+samples them, and the trees' leaves and the people's hair cards the same. A block where nothing showed was black, and
+a filter mixed it into the edge beside it. A desktop does not pack, and the browser keeps the file's colour there,
+which is why only a phone showed it. Now (`web/astc.js`): `bleed()` gives every texel that does not show the colour
+of the nearest that do (push-pull: what shows averaged down by halves, by how much it shows, then each hidden texel
+filled from the level below), each level is averaged by alpha (as a premultiplied picture is filtered; an opaque one
+comes out bit for bit as before), and a texel cut away in a block takes the step of the block's line nearest its own
+bled colour instead of the block's mean. What shows is untouched. `tools/astc_check.js` measures both, on a real
+decoder: the mipmaps' colour, by how much it shows, against the top level's (the guard hairs 45.7 steps of 8-bit sRGB
+before, 0.3 now; the trees' leaves 44 and 5.5; at most 8 passes), and the rim, a cut-away texel beside one that shows
+against that one's colour (41 and 23.7 at worst; at most 30). `tools/coat_shot.js` draws the guide on a phone's
+screen packed and not packed, side by side.
+
 | Phone's first load in its district (`tools/mem_check.js` without `xvfb-run`, so on SwiftShader) | Peak GPU, RGBA8 -> ASTC | Pictures packed | Their blocks |
 |---|---|---|---|
 | Shibuya | 215 -> 143 MB | 82 | 31.6 MB |
