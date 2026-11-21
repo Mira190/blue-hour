@@ -605,9 +605,19 @@ def main(a):
         rev = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True).stdout.strip()
         dirty = bool(subprocess.run(['git', 'status', '--porcelain'], cwd=ROOT, capture_output=True, text=True).stdout.strip())
         cover = read_cover(a[6] if len(a) > 6 else '')
+        blobs = keep_blobs(sorted(set(harness(target)) | set(files)))
+        # (a function that ran in any play seen of the same bytes ran: this clone's last pass and main's; of 8,200
+        # functions six to ten differ between two plays of one check, the traffic's and the crowd's by the moment)
+        for _, was in passes(target) if cover else []:
+            for f, fns in (was.get('cover') or {}).items():
+                if f in cover and (was.get('blobs') or {}).get(f) == blobs.get(f):
+                    ran = {(s_, e_) for s_, e_, r, _ in fns if r}
+                    for fn in cover[f]:
+                        if (fn[0], fn[1]) in ran:
+                            fn[2] = 1
         json.dump({'key': key(target, files), 'files': files, 'commit': rev, 'dirty': dirty,
                    'at': time.strftime('%Y-%m-%d %H:%M'), 's': int(a[5]) if len(a) > 5 and a[5] else None,
-                   'env': {e: os.environ.get(e, '') for e in ENV}, 'blobs': keep_blobs(sorted(set(harness(target)) | set(files))),
+                   'env': {e: os.environ.get(e, '') for e in ENV}, 'blobs': blobs,
                    'sources': keep_blobs(sorted({SOURCE[f][0] for f in files if f in SOURCE})), 'cover': cover},
                   open(store(target), 'w'), separators=(',', ':'))
         if cover is None:

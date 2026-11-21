@@ -358,7 +358,11 @@ script in a clone of its own, with the static checks.
 
 **What the rule cannot see.** A function that did not run in the pass that was kept, and would in another run of the
 same check: the story is seeded and its clock pinned, but which frame a load finishes in is the machine's. Such a
-function is rare (the count is of a whole play), and main's full tier plays everything after landing. A script the
+function is rare (the count is of a whole play), and main's full tier plays everything after landing. Measured on
+21 November 2026, the same check played on a runner and on a session's machine: of 8,200 functions in scripts of the
+same bytes, `story2` ran 7 on the runner only and 3 here only, `story3` 2 and 4; all but one were the traffic's and
+the crowd's, by what the street happened to do (`queueing`, `oncoming`, `parkNow`). So a pass is kept with the count of
+every play seen of the same bytes, this clone's and main's together: a function that ran in any of them ran. A script the
 page evaluates from a string, and a page a page opens by itself, are not counted; the page has neither.
 
 ## Main moved
