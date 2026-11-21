@@ -631,10 +631,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     const proofOn = q => (q.proof || []).filter(p => (typeof p === 'number' ? !!st.prints[p - 1] && !st.prints[p - 1].plain : st.pairs.includes(p)));
     const rollOpts = () => st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) }))
       .concat(st.pairs.slice().sort().map(key => { const [a, b] = pairOf(key), th = i => { const p = st.prints[i - 1]; return p && p.src ? `<img alt="" src="${p.src}">` : '<i></i>'; }; return { k: key, text: `<span class="pr pair"><span class="pp">${th(a)}${th(b)}</span><b>${a} + ${b}</b><span>Side by side</span></span>` }; }));
-    function judged(m, w, q, ok, said, done) {
+    function judged(m, w, q, ok, said, done, free) { // (free: a wrong answer the evidence fairly led to, answered and struck off, and not counted)
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
       if (ok) { sting('turn'); st.asked++; }
-      else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      else if (!free && q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
       const S2 = ok ? L(said) : L(said).concat(helpFor(q));
       return S2.length ? ctx.say(w, S2, () => ask(m, w, done)) : ask(m, w, done);
     }
@@ -659,7 +659,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // was in the cut all afternoon, minding the pumps. Tell him what the roof saw"). A true statement pressed is answered
     // with its own `no`; the lie with the wrong print, with `wrong_print`; a wrong pair counts once toward `fail`. An
     // afterimage cannot see a photograph: what the print shows is told him, from the roll.
-    //   { q, press: [{ say, no }], lie: index, show: the second line, frame: n, wrong_print, right, fail }
+    // A statement the roll fairly seems to break and does not (`near`: nailed boots on the stair against *nobody from my
+    // gang went up on any roof*) is answered and struck off and costs nothing: a player who reasoned to it is not told
+    // they guessed (what L.A. Noire's interrogations were faulted for: a mistake that is not shown to be one).
+    //   { q, press: [{ say, no, near }], lie: index, show: the second line, frame: n, wrong_print, right, help, fail }
     function cross(m, w, q, done) {
       const gone = struck(q), said = q.press.map((o, i) => ({ k: i, text: `<span class="said">“${esc(o.say)}”</span>` })).filter(o => !gone.s.has(o.k));
       st.want = said.findIndex(o => o.k === q.lie); st.canFail = !!q.fail; st.proving = false;
@@ -669,7 +672,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         ctx.ask(w.alive ? w : Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }), [q.show || 'And what does the roll have against it?'], opts, c2 => {
           const okS = k === q.lie, okP = !!c2 && c2.k === q.frame, ok = okS && okP;
           if (!okS && k >= 0) gone.s.add(k); else if (okS && c2 && !okP) gone.p.add(c2.k); // (a statement that stands, or a print that is not it: off the table for the next try)
-          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done);
+          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done, !okS && !!(q.press[k] || {}).near);
         });
       });
     }
