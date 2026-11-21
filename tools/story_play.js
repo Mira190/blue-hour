@@ -9,7 +9,7 @@
 // PLAYER=W or M: who is played (the title's Play as; the woman by default).
 // SLIP=n: at frame n the first question that can be lost is answered wrongly until the one asked sees through the player; the
 // card must come up, and the frame is taken up again and played rightly. SPEND=n: frame n is spent from the wrong place (the
-// release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
+// release twice asks, issue 117: kept once, then spent); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
 // The log (log.js): every line the dialogue shows is written down here as it is shown, and after frame 3 the log is opened
 // and must have the same lines in the same order; stills of it, and of the words at their largest with their backing.
 // The summation (the last frame's questions with `proof`): each is answered with a name (one of the case's people) first, then
@@ -59,7 +59,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
   const DRAW = +(process.env.DRAW || 0);
@@ -171,8 +171,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const BUDGET = process.env.BUDGET || '';
   if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
   // FROM=n: as a case left at frame n (counted from 0) and opened again
-  if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
-  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
+  if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
@@ -600,7 +600,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
       if (!seen.has(`guide-${s.fi}`) && s.fi === 0) { seen.add(`guide-${s.fi}`); const d = await p.evaluate(() => { const g = window.__game, d = g.story.state.dog; return d ? Math.hypot(d.x - g.player.x, d.y - g.player.y) : -1; }); console.log(`the guide met: ${d.toFixed(1)} m from you`); if (d < 0 || d > 6) { errors.push(`the guide's film ended with him ${d.toFixed(1)} m from you`); console.log(errors[errors.length - 1]); } } const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }
     else if (s.phase === 'stop' && s.beat === 'shoot') {
-      const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, hintAt: T.hint_at || null, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, meet: !!T.meet, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
+      const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, hintAt: T.hint_at || null, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, relic: !!T.relic, both: !!T.both, meet: !!T.meet, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
       // a frame whose place the player finds has no light standing on it and no mark of where to stand, until they have looked a while
       if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`);
         // and its hints, asked for (story.js hint, H): a word, the dog to the place and sitting there, the light on it
@@ -638,7 +638,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (T.stand && !T.find) { await goTo(T.stand, 0.6); await frames(3); } // (where a light stands from the start the camera comes up only in it: raised there, and turned away)
         await p.evaluate(() => { const g = window.__game; g.story.raise(true); g.player.h += Math.PI; if (g.cam) g.cam.yaw = g.player.h; });
         await frames(3); await p.evaluate(() => window.__game.story.shoot()); await frames(2); await snap(`${s.fi + 1}-spend-warned`);
-        await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false);
+        // (issue 117: the second press asks, and spends nothing: the card is up with the hand on Keep, a third press of the
+        // release is not an answer, Keep keeps the frame; then the release twice again, and Spend spends it)
+        const N0 = s.fi, asked = async () => p.evaluate(() => { const g = window.__game.story, e = document.querySelector('#g-story-spend'), f = document.activeElement; return { ask: !!g.state.spendAsk, on: !!e && e.classList.contains('on'), n: g.state.prints.length, keep: !!f && f.dataset && f.dataset.spend === '0' }; });
+        await p.evaluate(() => window.__game.story.shoot()); await frames(2); await p.evaluate(() => window.__game.story.shoot()); await frames(2);
+        let q = await asked(); await snap(`${s.fi + 1}-spend-asked`);
+        if (!q.ask || !q.on || q.n !== N0 || !q.keep) { errors.push(`frame ${s.fi + 1}: the release twice from the wrong place: ${q.on ? 'asked' : 'not asked'}, ${q.n - N0} frames gone, the hand ${q.keep ? '' : 'not '}on Keep`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.spendAnswer(false)); await frames(2); q = await asked();
+        if (q.ask || q.on || q.n !== N0) { errors.push(`frame ${s.fi + 1}: Keep the frame: ${q.on ? 'the card is still up' : ''} ${q.n - N0} frames gone`); console.log(errors[errors.length - 1]); }
+        else console.log(`frame ${s.fi + 1}: asked before it was spent, and kept`);
+        await p.evaluate(() => window.__game.story.shoot()); await frames(2); await p.evaluate(() => window.__game.story.shoot()); await frames(2);
+        await drawAll(true); await p.evaluate(() => window.__game.story.spendAnswer(true)); await drawAll(false);
         const pr = await p.evaluate(() => { const P = window.__game.story.state.prints, q = P[P.length - 1]; return { n: P.length, plain: !!(q && q.plain) }; });
         if (pr.n !== s.fi + 1 || !pr.plain) { errors.push(`frame ${s.fi + 1}: spent from the wrong place, and the roll has ${pr.n} prints, the last ${pr.plain ? 'only tonight' : 'not marked spent'}`); console.log(errors[errors.length - 1]); }
         else console.log(`frame ${s.fi + 1}: spent`);
@@ -693,6 +703,36 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log(`frame ${s.fi + 1} raised from 63 degrees off: the thing at ${q[0].toFixed(2)}, ${q[1].toFixed(2)} in the picture, the lens drifting ${drift.toFixed(2)} degrees and turning ${jit.toFixed(2)} at most a frame with no hand on it (${settle.length} frames)`);
         if (!inFrame) { errors.push(`frame ${s.fi + 1}: raised from 63 degrees off, the camera does not come up on the thing (at ${q[0].toFixed(2)}, ${q[1].toFixed(2)})`); console.log(errors[errors.length - 1]); }
         if (drift > 0.3 || jit > 0.15) { errors.push(`frame ${s.fi + 1}: the raised camera moves by itself (${drift.toFixed(2)} degrees, ${jit.toFixed(2)} a frame)`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.raise(false)); await frames(6);
+      }
+      // the print has what the release is ready for. On a phone held upright the finder's lines stood twice as tall as the
+      // print, and frame 2's box and stool, framed at their foot, made the release ready and were not in the print. Here the
+      // lens is tilted from above the thing to below it and turned from one side of it to the other, a step at a time, and
+      // wherever the release is ready, nine tenths of the thing lies in the print (the middle of the picture, three by two,
+      // as game.js snap cuts it); and raised onto it in its place, the release is ready
+      const inPrint = () => p.evaluate(() => {
+        const st = window.__game.story.state, b = st.relic && st.relic.frame ? st.relic.frame() : null, w = innerWidth, h = innerHeight, sw = Math.min(w, h * 1.5), sh = sw / 1.5, P = [(1 - sw / w) / 2, (1 - sh / h) / 2, (1 + sw / w) / 2, (1 + sh / h) / 2];
+        if (!b) return { ready: !!st.ready, k: st.relic ? +st.relic.k.toFixed(2) : -1, frac: -1, big: true };
+        const ix = Math.max(0, Math.min(b.x1, P[2]) - Math.max(b.x0, P[0])), iy = Math.max(0, Math.min(b.y1, P[3]) - Math.max(b.y0, P[1])), a = (b.x1 - b.x0) * (b.y1 - b.y0);
+        return { ready: !!st.ready, k: +st.relic.k.toFixed(2), frac: +(a > 0 ? ix * iy / a : 0).toFixed(2), big: !b.front || b.x1 - b.x0 > (P[2] - P[0]) * 0.9 || b.y1 - b.y0 > (P[3] - P[1]) * 0.9, box: [b.x0, b.y0, b.x1, b.y1].map(v => +v.toFixed(3)), print: P.map(v => +v.toFixed(3)) };
+      });
+      if (T.relic && T.stand && !seen.has(`sweep-${s.fi}`)) {
+        seen.add(`sweep-${s.fi}`);
+        await goTo(T.stand, 0.3); await face(T.subject); await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1500); await frames(2);
+        const base = await p.evaluate(() => ({ yaw: window.__game.cam.yaw, pitch: window.__game.cam.pitch })), on = await inPrint();
+        const bad = [], log = [`on it: ${on.ready ? 'ready' : 'not ready'}, ${on.frac} in the print`];
+        await snap(`${s.fi + 1}-sweep-on`);
+        if (!on.ready) bad.push(`raised onto the thing in its place, the release is not ready (${JSON.stringify(on)})`);
+        if (on.ready && !on.big && on.frac < 0.9) bad.push(`raised onto the thing, the release is ready with ${Math.round(on.frac * 100)}% of it in the print`);
+        for (const [dy, dp] of [[0, -0.16], [0, -0.1], [0, -0.06], [0, 0.06], [0, 0.1], [0, 0.16], [-0.12, 0], [-0.07, 0], [0.07, 0], [0.12, 0]]) {
+          await p.evaluate(([b, dy, dp]) => { const c = window.__game.cam; c.yaw = b.yaw + dy; c.pitch = b.pitch + dp; }, [base, dy, dp]);
+          await frames(8); await p.waitForTimeout(1000); await frames(2);
+          const q = await inPrint(), how = dy ? `turned ${dy} rad` : `tilted ${dp} rad`;
+          log.push(`${how}: ${q.ready ? 'ready' : 'not ready'}, ${q.frac}`);
+          if (q.ready && !q.big && q.frac < 0.9) { bad.push(`${how}, the release is ready with ${Math.round(q.frac * 100)}% of the thing in the print (${JSON.stringify(q)})`); await snap(`${s.fi + 1}-sweep-${dy ? 'turn' : 'tilt'}${dy || dp}`); }
+        }
+        console.log(`frame ${s.fi + 1}, the lens swept over the thing: ${log.join('; ')}`);
+        for (const m of bad) { errors.push(`frame ${s.fi + 1}: ${m}`); console.log(errors[errors.length - 1]); }
         await p.evaluate(() => window.__game.story.raise(false)); await frames(6);
       }
       if (T.both) { const m = [(T.a[0] + T.b[0]) / 2, (T.a[1] + T.b[1]) / 2], n = [-(T.b[1] - T.a[1]), T.b[0] - T.a[0]], l = Math.hypot(...n); await goTo(T.hintAt || [m[0] + n[0] / l * 30, m[1] + n[1] / l * 30], 0); await face(m); } // (from the corner its hints lead to: 30 m off the middle, a kiosk filled half the last print)
@@ -753,9 +793,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         }
         await snap(`${s.fi + 1}-met`);
       }
+      if (T.relic) { const q = await inPrint(); console.log(`frame ${s.fi + 1}, as the release goes: ${q.ready ? 'ready' : 'not ready'}, ${q.frac} of the thing in the print, formed ${q.k}`); if (q.ready && !q.big && q.frac < 0.9) { errors.push(`frame ${s.fi + 1}: taken with ${Math.round(q.frac * 100)}% of the thing in the print`); console.log(errors[errors.length - 1]); } }
       await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false); // (the photograph is the game's own picture of its canvas, taken as the shutter goes: of a frame drawn whole)
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
       { const src = await p.evaluate(() => { const P = window.__game.story.state.prints; return (P[P.length - 1] || {}).src || ''; }); const m = /^data:image\/(\w+);base64,(.*)$/.exec(src); if (m) fs.writeFileSync(`${out}/${s.fi + 1}-print-own.${m[1] === 'jpeg' ? 'jpg' : m[1]}`, Buffer.from(m[2], 'base64')); } // (the print itself, as the roll keeps it: on a slow renderer the still above may be taken after it has gone to the roll)
+      // (a frame spent that was not to be: the release refused twice, the second time spending it, and the play went on. Frame 3
+      // was spent so on a phone, its lamp not framed from where the player stood, and nothing failed)
+      { const q = await p.evaluate(() => { const P = window.__game.story.state.prints, q = P[P.length - 1]; return q ? { plain: !!q.plain, n: P.length } : null; }); if (q && q.n === s.fi + 1 && q.plain && +process.env.SPEND !== s.fi + 1) { errors.push(`frame ${s.fi + 1}: spent, and it was to be taken`); console.log(errors[errors.length - 1]); } }
       if (upto && s.fi + 1 >= upto && !process.env.AFTER) { done = true; break; } // (UPTO=n: stop after frame n's print; with AFTER=1, once the next frame begins)
     }
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)

@@ -28,7 +28,7 @@ const tag = query ? '-' + query.replace(/[^a-z0-9=]+/gi, '').replace(/=/g, '-') 
     HTMLCanvasElement.prototype.getContext = function (type, opts) {
       return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts);
     };
-    try { localStorage.setItem('oe3d-onboard', '1'); localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-onboard', '1'); localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ }
   }, process.env.TIER || 'high');
   p.on('console', m => { if (/^frame: /.test(m.text())) console.log(m.text().slice(0, 600)); });
   p.on('pageerror', e => console.log(`pageerror: ${String(e).slice(0, 300)}`));

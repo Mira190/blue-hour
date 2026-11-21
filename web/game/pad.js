@@ -1,6 +1,6 @@
 // A controller, through the Gamepad API's standard mapping (no library). A walk, a camera raised to the eye, a lens ring
 // and a shutter are a controller's game: the left stick walks and the right one looks; the left trigger raises the camera
-// while it is held (or each pull raises or lowers it: `oe-pad` { toggle } in this browser), the right trigger is the
+// while it is held (or each pull raises or lowers it: `bh-pad` { toggle } in this browser), the right trigger is the
 // release; the bumpers turn the lens's ring; A talks and passes a line, B steps back (and closes what is open), Y opens
 // the roll, View the log; the d-pad (or the left stick, flicked) moves through choices, prints, the roll's two-print
 // compare and a card's buttons, and A presses the one it is on.
@@ -22,7 +22,7 @@ window.OEPad = (function () {
   // a key named on screen, and the pad's button for it
   const KEY_PAD = { Wheel: 'LENS', 'Any key': 'ANY', 'Left stick': 'LSTICK', 'Right stick': 'RSTICK', E: 'A', Enter: 'A', '↵': 'A', Space: 'A', F: 'RT', R: 'LT', Tab: 'Y', H: 'UP', C: 'DOWN', L: 'VIEW', Q: 'B', Esc: 'B', Escape: 'B', Shift: 'LS', X: 'LS', W: 'LS', A: 'LS', S: 'LS', D: 'LS' };
   const dz = v => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
-  const opts = () => { try { return JSON.parse(localStorage.getItem('oe-pad') || '{}') || {}; } catch (e) { return {}; } };
+  const opts = () => { try { return JSON.parse(localStorage.getItem('bh-pad') || '{}') || {}; } catch (e) { return {}; } };
   // ctx: { stage, open() -> the card or panel up now whose buttons the pad moves through (or null), dialogue() -> the
   //        choices' buttons while a question waits, camera(on) / cameraUp() -> the story's camera to the eye, lens(dir),
   //        roll(), log(), back(): one step back in a dialogue }
@@ -123,7 +123,7 @@ window.OEPad = (function () {
       try { if (a.playEffect) a.playEffect('dual-rumble', Object.assign({ startDelay: 0 }, e)).catch(() => {}); } catch (err) { /* no rumble here */ }
     }
     const label = k => (on && KEY_PAD[k] ? sign(KEY_PAD[k]) : k);
-    return { tick, rumble, move, look, sign, label, key, get pressing() { return pressing; }, get on() { return on; }, get connected() { return !!pad; }, get toggle() { return !!opts().toggle; }, setToggle(v) { try { localStorage.setItem('oe-pad', JSON.stringify(Object.assign(opts(), { toggle: !!v }))); } catch (e) { /* storage blocked */ } } };
+    return { tick, rumble, move, look, sign, label, key, get pressing() { return pressing; }, get on() { return on; }, get connected() { return !!pad; }, get toggle() { return !!opts().toggle; }, setToggle(v) { try { localStorage.setItem('bh-pad', JSON.stringify(Object.assign(opts(), { toggle: !!v }))); } catch (e) { /* storage blocked */ } } };
   }
   return { create };
 })();

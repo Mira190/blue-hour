@@ -15,7 +15,7 @@ async function run(b) {
   await p.evaluate(() => window.__game.lateReady && window.__game.lateReady()); // (the cars' near models and your car come after the game opens, issue 335)
   await p.evaluate(async () => { const g = window.__game; g.hold(true, true); await g.ways.build(); });
   if (process.env.NOPREFETCH) await p.evaluate(() => { window.__game.nav.prefetch = () => true; });
-  if (process.env.FIRST) await p.evaluate(() => { try { localStorage.removeItem('oe3d-onboard'); } catch (e) { /* storage blocked */ } }); // (a first-time player, as tools/game_check.js plays)
+  if (process.env.FIRST) await p.evaluate(() => { try { localStorage.removeItem('bh-onboard'); } catch (e) { /* storage blocked */ } }); // (a first-time player, as tools/game_check.js plays)
   await startPlay(p); // (the title card up, Play pressed and the game started: tools/start_play.js, #423)
   if (pinned) await p.evaluate(spec => { const g = window.__game, m = /(\d\d?):(\d\d)$/.exec(spec), min = +m[1] * 60 + +m[2]; if (Math.abs(g.clock.min - min) < 30) { g.setClock(g.clock.y, g.clock.m, g.clock.d, min); g.crowdAuto(true); } }, pinned.spec);
   const out = [];

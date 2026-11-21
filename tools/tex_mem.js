@@ -15,7 +15,7 @@ const [w, h] = size.split('x').map(Number);
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const phone = w < 600;
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await ctx.addInitScript(st => { window.__TEX_STACK = st; }, !!process.env.STACK);
   await ctx.addInitScript(() => {
     // bytes per texel of the uncompressed internal formats WebGL 2 and three.js use; compressed ones by block

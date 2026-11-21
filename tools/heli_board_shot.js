@@ -16,7 +16,7 @@ const [VW, VH] = size.split('x').map(Number), phone = VW < 700, EVERY = +(proces
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const p = await b.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
   await p.addInitScript(([t, hour]) => {
-    try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: hour, w: 'clear', film: false })); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', '1'); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: hour, w: 'clear', film: false })); } catch (e) { /* storage blocked */ }
   }, [process.env.TIER || (phone ? 'low' : 'high'), process.env.HOUR || 'blue']);
   await p.addInitScript(() => {
     const get = HTMLCanvasElement.prototype.getContext;

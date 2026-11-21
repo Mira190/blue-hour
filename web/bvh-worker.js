@@ -6,8 +6,10 @@
 let lib = null;
 async function load() {
   if (lib) return lib;
-  const three = new URL('vendor/three/three.module.min.js', import.meta.url).href;
-  const src = await (await fetch(new URL('vendor/three-mesh-bvh/index.module.min.js', import.meta.url))).text();
+  // (a deployed page gives its workers the build, ?b=: the library is asked for by it; index.html's guard)
+  const b = /[?&]b=(\w+)/.exec(self.location.search), q = b ? `?b=${b[1]}` : '';
+  const three = new URL(`vendor/three/three.module.min.js${q}`, import.meta.url).href;
+  const src = await (await fetch(new URL(`vendor/three-mesh-bvh/index.module.min.js${q}`, import.meta.url))).text();
   const url = URL.createObjectURL(new Blob([src.replace(/from\s*["']three["']/g, `from"${three}"`)], { type: 'text/javascript' }));
   try { lib = Object.assign({}, await import(three), await import(url)); } finally { URL.revokeObjectURL(url); }
   return lib;

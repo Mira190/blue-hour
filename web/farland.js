@@ -34,12 +34,12 @@ window.OEFarLand = (function () {
       const g = cv.getContext('2d', { willReadFrequently: true });
       g.drawImage(bmp, 0, 0);
       const px = g.getImageData(0, 0, bmp.width, bmp.height).data;
-      const col = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = DATA + 'far.jpg'; });
+      const col = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = window.OEV ? window.OEV(DATA + 'far.jpg') : DATA + 'far.jpg'; });
       if (!col) return null;
       // the aerial photograph of the ring just past the frame (pipeline/far_photo.py), where there is one; not on a
       // small device, which keeps the land cover's colour alone (a 2.5 megapixel texture it can do without)
       const small = window.OEQuality && OEQuality.tier() === 'low';
-      const photo = meta.photo && !small ? await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = DATA + meta.photo.file; }) : null;
+      const photo = meta.photo && !small ? await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = window.OEV ? window.OEV(DATA + meta.photo.file) : DATA + meta.photo.file; }) : null;
       return { meta, px, n: bmp.width, col, photo };
     } catch (e) {
       console.warn('far land: none', e);

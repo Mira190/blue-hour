@@ -13,7 +13,7 @@ const [,, city = 'shibuya', out = '/tmp/shaders', keep = '6'] = process.argv;
 (async () => {
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1 });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await ctx.addInitScript(() => {
     const P = WebGL2RenderingContext.prototype, src = P.shaderSource, att = P.attachShader, link = P.linkProgram;
     const shaders = new WeakMap();

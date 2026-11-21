@@ -15,7 +15,7 @@ const [w, h] = size.split('x').map(Number);
   const phone = w < 600;
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   await ctx.addInitScript(() => {
-    try { localStorage.setItem('oe3d-quality', 'desktop'); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-quality', 'desktop'); } catch (e) { /* storage blocked */ }
     const get = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, opts) { return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts); };
   });

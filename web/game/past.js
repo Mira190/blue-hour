@@ -7,7 +7,7 @@
 // material draws them all: it throws away every fragment outside a rectangle of the screen (the finder's, given in the
 // picture's own -1..1 so that it holds at any render size), and none at all while the camera is down.
 //   relic(model, at, heading, { scale, over })   at: a THREE.Vector3; over: drawn through what has been built where it
-//                                                stood; returns { remove(), shown }
+//                                                stood; returns { remove(), shown, k, missing, corners(fn) }
 //   rect([x0, y0, x1, y1] | null)                the finder's rectangle, or null: the camera is down
 //   open(on)                                     whether the camera stands where that year was seen from: off it, what
 //                                                had formed goes back into the grain (FADE_MS), and the finder holds
@@ -35,7 +35,7 @@ window.OEPast = (function () {
     let pending = 1; const got = {};
     for (const file of ['assets/past/past.glb']) new THREE.GLTFLoader().load(file, gl => {
       gl.scene.updateMatrixWorld(true);
-      gl.scene.traverse(o => { if (o.isMesh) { got[o.name] = o.geometry.clone().applyMatrix4(o.matrixWorld); got[o.name].computeBoundingSphere(); } });
+      gl.scene.traverse(o => { if (o.isMesh) { got[o.name] = o.geometry.clone().applyMatrix4(o.matrixWorld); got[o.name].computeBoundingSphere(); got[o.name].computeBoundingBox(); } });
       if (!--pending) { kit = got; waiting.splice(0).forEach(f => f()); }
     }, undefined, e => { console.warn(`${file} is unavailable:`, e); if (!--pending) { kit = got; waiting.splice(0).forEach(f => f()); } });
     // A thing of that year is a thing: it stands on the ground with its shadow under it, the people of tonight who
@@ -78,12 +78,12 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
       return m;
     };
     const setMat = make(false, true);
-    const at = new THREE.Vector3(), ORIGIN = new THREE.Vector3();
+    const at = new THREE.Vector3(), ORIGIN = new THREE.Vector3(), corner = new THREE.Vector3();
     function relic(model, pos, heading = 0, { scale = 1, over = false, set = false } = {}) {
       const g = new THREE.Group(); g.position.copy(pos); g.rotation.y = heading; g.scale.setScalar(scale); // (heading: radians anticlockwise from the model's own axes, which are the map's: +x east, +y north)
       const mat = set ? setMat : make(over, false), one = { shown: set, t0: set ? -1e9 : null, k: set ? 1 : 0, last: 0 };
       const put = () => {
-        if (!kit[model]) return console.warn(`No thing of the other year called ${model}`);
+        if (!kit[model]) { one.missing = true; return console.warn(`No thing of the other year called ${model}`); } // (missing: nothing will form, and the story does not wait for it)
         const m = new THREE.Mesh(kit[model], mat); m.frustumCulled = false; m.renderOrder = over ? 40 : 2;
         // it forms the first time the camera is up, in place, and it is inside the lines; off the place it goes back
         // into the grain, and forms again from where it had got to when the lens is back on the place
@@ -107,7 +107,10 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
       };
       if (kit) put(); else waiting.push(put);
       world.add(g); live.add(one);
-      return { remove() { world.remove(g); live.delete(one); }, get shown() { return one.shown; }, get k() { return one.k; } };
+      // corners(fn): fn(v) for each corner of the box round its model, where it stands (THREE's axes; v is reused); false
+      // while its model is still loading, or is missing
+      return { remove() { world.remove(g); live.delete(one); }, get shown() { return one.shown; }, get k() { return one.k; }, get missing() { return !!one.missing; },
+        corners(fn) { const m = g.children[0]; if (!m || !kit || !kit[model]) return false; g.updateMatrixWorld(true); const b = kit[model].boundingBox; for (let i = 0; i < 8; i++) fn(corner.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(m.matrixWorld)); return true; } };
     }
     return {
       relic,

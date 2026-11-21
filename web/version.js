@@ -22,7 +22,8 @@
   };
   if (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
   const root = document.currentScript ? new URL('.', document.currentScript.src).href : '';
-  fetch(root + 'version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(v => {
+  // (asked for once: the guard at the top of index.html reads it first, to see that the page is the site's commit)
+  (window.OEBoot && OEBoot.version || fetch(root + 'version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null))).then(v => {
     if (!v || !v.version) return;
     window.OE_VERSION = v;
     try { dispatchEvent(new Event('oe-version')); } catch (e) { /* an old browser: the screen reads it when it opens */ }

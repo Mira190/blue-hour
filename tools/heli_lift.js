@@ -12,7 +12,7 @@ const [vw, vh] = size.split('x').map(Number), phone = vw < 700;
   const p = await b.newPage(shots ? { viewport: { width: vw, height: vh }, deviceScaleFactor: 2, isMobile: phone, hasTouch: phone } : { viewport: { width: 960, height: 600 } });
   if (shots) require('fs').mkdirSync(shots, { recursive: true });
   const snap = async n => { if (shots) await p.screenshot({ path: `${shots}/${n}.png` }); };
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 200)));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 600000 });

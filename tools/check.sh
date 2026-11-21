@@ -55,6 +55,10 @@
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
 #   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   launch  what a player who comes back meets (tools/launch_check.js, issue 116): the site as two commits, the second
+#           loaded in a browser whose cache holds the first, and every file it used the second's; a start that fails
+#           saying so on a desktop and a phone; a case kept by another build of the story not taken up; storage full;
+#           the page's storage keys its own; when the page's loading, the story's save, the stamp or the hosts' rules change;
 #   look    the models, pictures and sounds changed, each loaded as the page loads it (every texture decoded, every
 #           material drawn) and set beside itself as it was, in a still (tools/look_check.js); for a change of those
 #           alone the fast tier runs this and mem, not the story (a model whose names, flags or attributes changed, as
@@ -72,7 +76,7 @@
 #   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static look story guide walk ride mem audio clip gl touch astc
+#   tools/check.sh all                  # static look launch story guide walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   tools/check.sh --wait [s]           # on a session's machine a run is a job (tools/job.sh): wait on it again (540 s)
 #   tools/check.sh --status | --stop    # what the run is doing; or stop it and its browsers
@@ -91,8 +95,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look mem astc audio ride story story1 story2 story3 budget walk walk1 walk2 guide guide1 guide2 clip gl touch game"
-ALL="look story budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look launch mem astc audio ride story story1 story2 story3 budget walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+ALL="look launch story budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -129,7 +133,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
@@ -169,7 +173,7 @@ else
   # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
   # (the story in its three parts on the fast tier: side by side where the machine has the cores and the memory, each
   # kept or played by itself, so that a change only frame 7 runs plays frame 7; docs/CHECKS.md, "Checks by reach")
-  page() { if [ "$TIER" = full ]; then add story budget walk mem clip gl touch; else add story1 story2 story3 walk1 mem; fi; return 0; }
+  page() { if [ "$TIER" = full ]; then add story budget walk mem clip gl touch launch; else add story1 story2 story3 walk1 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -194,14 +198,17 @@ else
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
     if [ "${frommain:-0}" = 1 ] && mains "$f"; then static=1; skipped=$((skipped + 1)); continue; fi
     case "$f" in
-      web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
+      web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc launch ;;
+      # (how the page is loaded, kept and published: issue 116)
+      vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
+      web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
-      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
+      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
       # asks of it is loaded, looked at and weighed, and the story is not played, whatever its nodes are called
@@ -455,6 +462,13 @@ run_look() {   # the models, pictures and sounds changed, loaded as the page loa
   if LOOK_BASE=${base:-} CHROME_LOG="$OUT/look-chrome.log" timeout 1200 $X node tools/look_check.js "$OUT/look" $looks >"$OUT/look.log" 2>&1; then
     echo "ok   look   $(tail -1 "$OUT/look.log" | sed 's/: all loaded$//')"
   else echo "FAIL look   $(grep '^FAIL' "$OUT/look.log" | head -2 | cut -c6-160 | paste -sd ';' -)   (see $OUT/look.log)"; fi
+}
+# what a player who comes back meets (docs/CHECKS.md "A load is of one commit"; the tool serves the site itself, as two
+# commits, and writes what it served into the server's log for the cache of passes)
+run_launch() {
+  if OUT="$OUT/launch" SERVER_LOG="$OUT/server.log" timeout 1500 $X node tools/launch_check.js >"$OUT/launch.log" 2>&1; then
+    echo "ok   launch $(grep -c '^ok' "$OUT/launch.log") steps: a cache of the commit before, a start that fails, a case of another story, storage full, the page's own keys (stills in $OUT/launch)"
+  else echo "FAIL launch $(grep '^FAIL' "$OUT/launch.log" | head -2 | cut -c6-170 | paste -sd ';' -)   (see $OUT/launch.log)"; fi
 }
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
   if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then

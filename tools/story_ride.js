@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ args: ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] });
   const p = await b.newPage({ viewport: { width: 1200, height: 750 } });
   p.on('pageerror', e => console.log('pageerror', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)));
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe-story-late', JSON.stringify({ fi: 5, left: 2, prints: [0,1,2,3,4].map(i => ({ src: null, stamp: 'f' + i, cap: '' })) })); } catch (e) {} });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-story-late', JSON.stringify({ fi: 5, left: 2, prints: [0,1,2,3,4].map(i => ({ src: null, stamp: 'f' + i, cap: '' })) })); } catch (e) {} });
   await p.goto('http://localhost:8800/?overture=0', { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 300000 });
   await p.waitForTimeout(1500);
