@@ -46,7 +46,7 @@ const { chromium } = require('playwright');
     const calls = {
       blip: () => A.beep(1), step: () => A.step(), thump: () => A.thump(), honk: () => A.honk(1, 1), kan: () => A.kan(1), bell: () => A.bell(), chime: () => A.chime(),
       piyo: () => A.walkCall('piyopiyo', 1, 0.4), kakko: () => A.walkCall('kakakko', 1, -0.4), clack: () => A.clack(1, 0.2, 14, 1, 1), announce: () => A.announce(1),
-      platform: () => A.platformChime(1, 0.2), doors: () => A.doorChime(1, -0.2), melody: () => A.melody(1, 0, 0), thunder: () => A.thunder(800), penguin: () => A.penguin(1), gull: () => A.gull(1),
+      platform: () => A.platformChime(1, 0.2), doors: () => A.doorChime(1, -0.2), melody: () => A.melody(1, 0, 0), thunder: () => A.thunder(800), far: () => A.far('siren', 400, 0.3), horn: () => A.far('horn', 350, -0.3), lift: () => A.liftChime(), blink: () => A.indicator(true), penguin: () => A.penguin(1), gull: () => A.gull(1),
       cues: () => { for (const k of ['shutter', 'stamp', 'right', 'wrong', 'found', 'goal', 'cam-up', 'cam-down', 'run', 'ghost']) A.sfx(k); },
     };
     const made = {};

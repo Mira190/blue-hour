@@ -12,7 +12,7 @@ const AGREE = +(process.env.AGREE || 0.9);
 (async () => {
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const p = await b.newPage({ viewport: { width: 960, height: 600 } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } });
   p.on('pageerror', e => console.log('  page error:', e.message));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => window.__game && document.querySelector('#g-loader').hidden, null, { timeout: 900000, polling: 500 });

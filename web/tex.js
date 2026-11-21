@@ -35,7 +35,7 @@
   }
   function post(msg, transfer) {
     if (!worker) {
-      worker = new Worker(new URL('astc-worker.js', here));
+      worker = new Worker(window.OEV ? window.OEV(new URL('astc-worker.js', here), true) : new URL('astc-worker.js', here));
       worker.onmessage = e => { const w = waiting.get(e.data.id); if (w) { waiting.delete(e.data.id); w(e.data); } };
       worker.onerror = e => { e.preventDefault(); stats.on = false; for (const w of waiting.values()) w({ keep: true, error: 'the worker failed' }); waiting.clear(); };
     }

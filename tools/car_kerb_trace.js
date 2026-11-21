@@ -12,7 +12,7 @@ const [,, city = 'tokyo', tier = ''] = process.argv;
   const p = await b.newPage({ viewport: { width: 1100, height: 650 } });
   p.on('pageerror', e => console.log('pageerror', String(e).slice(0, 300)));
   await pinClock(p, city);
-  if (tier) await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, tier);
+  if (tier) await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, tier);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game', null, { timeout: 600000 });
   await startPlay(p);

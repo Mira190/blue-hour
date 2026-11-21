@@ -18,7 +18,7 @@ const [,, out = '/tmp/dof', size = '1440x900', time = '19:30', weather = 'clear'
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log(`pageerror: ${String(e).slice(0, 300)}`); });
   p.on('console', m => { if (/did not link|Shader Error|WebGL error|refused/.test(m.text())) { errors.push(m.text()); console.log(`console: ${m.text().slice(0, 300)}`); } });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || (w < 500 ? 'low' : 'high'));
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || (w < 500 ? 'low' : 'high'));
   await p.addInitScript(require('./gl_mem').hook);
   await p.addInitScript(require('./beat_count').hook);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1&overture=0#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });

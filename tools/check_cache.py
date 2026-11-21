@@ -48,11 +48,13 @@ HARNESS = {
     'guide2': ['tools/guide_body.js'],
     'walk': ['tools/walk_play.js'], 'walk1': ['tools/walk_play.js'], 'walk2': ['tools/walk_play.js'],
     'ride': ['tools/ride_people.js'], 'mem': ['tools/mem_check.js', 'tools/lost_check.js', 'tools/glcare_phone.js'], 'look': ['tools/look_check.js'],
-    'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/phone_audio.js'],
+    'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/sound_places.js', 'tools/phone_audio.js'],
     'clip': ['tools/clip_check.js'], 'gl': ['tools/gl_error_probe.js', 'tools/sampler_probe.js'],
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'game': ['tools/game_check.js'],
+    'launch': ['tools/launch_check.js'],
 }
 EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget')}  # (story_play.js reads it)
+EXTRA['launch'] = ['vercel.json', 'web/index.html', 'web/fonts.css', 'web/game/story.css', 'web/game/story.js', 'web/data/shibuya/game.json']  # (read, and stamped, by the tool itself)
 # the settings a run takes from the environment that change what it plays or measures (CHECK_FN: a hash of the
 # functions tools/check.sh runs the target with)
 ENV = ['CHECK_FN', 'GAME_TIME', 'DRAW', 'GPU', 'AT', 'PIN', 'TIER', 'QUERY', 'LIMIT', 'MEM_GPU', 'MEM_HEAP', 'MEM_DESK', 'LOOK_BASE',

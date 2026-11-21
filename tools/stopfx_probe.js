@@ -14,7 +14,7 @@ const [,, out = '/tmp/stopfx-probe', size = '1440x900'] = process.argv;
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   p.on('pageerror', e => console.log('pageerror:', String(e).slice(0, 300)));
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());

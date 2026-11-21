@@ -17,7 +17,7 @@ const [,, out = '/tmp/cam-people', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });
   // (a case left at frame 4 and opened again: the lobby's frame, with Yuna in it)
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe-story-late', JSON.stringify({ fi: 3, left: 4, prints: [1, 2, 3].map(i => ({ src: null, stamp: `frame ${i}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-story-late', JSON.stringify({ fi: 3, left: 4, prints: [1, 2, 3].map(i => ({ src: null, stamp: `frame ${i}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());

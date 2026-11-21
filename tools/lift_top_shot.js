@@ -19,7 +19,7 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' }
     : { viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   const p = await ctx.newPage();
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, lean ? 'low' : 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, lean ? 'low' : 'high');
   require('fs').mkdirSync(out, { recursive: true });
   const logs = [];
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));

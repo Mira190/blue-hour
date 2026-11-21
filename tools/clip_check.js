@@ -48,7 +48,7 @@ const TOL = {
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }));
   const p = await b.newPage({ viewport: { width: 800, height: 500 } });
   watchPage(p);
-  if (process.env.TIER) await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER); // (TIER=low: the tier a software renderer picks)
+  if (process.env.TIER) await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER); // (TIER=low: the tier a software renderer picks)
   const pinned = await pinClock(p, city); // (GAME_TIME)
   if (pinned) console.log(`clock pinned to ${pinned.spec} in ${pinned.tz} (${pinned.utc})`);
   const logs = [];

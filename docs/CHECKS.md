@@ -15,11 +15,12 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). You get in from the kerb seat's door; `PASS=1 SIDE=road` plays #94 instead: you stood off the car's road-side flank as a car of the traffic passes over the spot, which fails every run (`tools/lane_you_probe.js`: a walker set down in a lane ahead of a car, which the traffic never drives into, and one set down inside a car, counted for the one frame before its step moves them out). When the car gives way to a car across its way, each step's line names that car (`xb`: its speed, why it stands and for whom); a ride that did not arrive ends with what held it up, ten cars down the chain (#97). Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed; counts a phone's lost context as a death at once, once (`tools/lost_check.js`); and plays the story's page through a lost WebGL context as a phone: a death makes the next load lighter, the reload waits for a tab put away to be seen (a minute) | `tools/mem_check.js`, `tools/lost_check.js`, `tools/glcare_phone.js` |
 | `budget` | Plays the episode as an iPhone (390 x 844 at three pixels to the point, the low tier) and counts every still's frame: each beat's draws, triangles, passes, pixels shaded and GPU memory against a phone's budget (`tools/budgets/shibuya.json`; docs/PERFORMANCE.md, "A budget for every beat"). The `story` check counts its own stills against the desktop's budget as it plays, and the static checks hold the counts of a kept play against the budgets as they are now. Main's full tier runs it for every change to the page; on a branch, `tools/check.sh budget` | `tools/story_play.js` with `BUDGET=`, `tools/beat_count.js`, `tools/gl_mem.js`, `tools/beat_budget.py` |
-| `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right); every one-shot the street and the story make played many times over, failing on a graph that is larger once they have ended than before them (a node left on the mix is visited in every block) or a sound begun at or before the context's time; the sound's giving up (voices capped, the room and the street's beds let go as the output's clock steps, taken back after ninety quiet seconds); then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/audio_graph_check.js`, `tools/audio_shed_check.js`, `tools/phone_audio.js` |
+| `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right); every one-shot the street and the story make played many times over, failing on a graph that is larger once they have ended than before them (a node left on the mix is visited in every block) or a sound begun at or before the context's time; the sound's giving up (voices capped, the room and the street's beds let go as the output's clock steps, taken back after ninety quiet seconds); the mix of each place (the level of each of the world's buses read from the graph at set listening points on the real page, the kerb, under the railway's deck, the roof, a lift, the helicopter's cabin and the car's, each in the range of SOUND.md's table; the same train a pass-by at the kerb, weight under the deck and nothing on the roof; nothing of the moving world past the tape at a Stop; as a desktop and as a touch screen); then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/audio_graph_check.js`, `tools/audio_shed_check.js`, `tools/sound_places.js`, `tools/phone_audio.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
 | `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); walks the governor's ladder down and up by day and in rain at night, and fails on any error or any program that did not link; all of it as a GPU with sixteen texture units (`?units=16`, an Apple GPU's or a phone's), where `tools/sampler_probe.js` also walks noon, dusk and night, clear, rain and snow, at each of the governor's states, and fails on a program over sixteen samplers, one that did not link, or one the page counted lower than it linked (docs/PERFORMANCE.md, "Sixteen texture units") | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
 | `touch` | Plays the free game by touch on a phone's page, where no key can be pressed | `tools/touch_check.js` |
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder: each picture's quality, and a cut-out's mipmaps and edge against its own colour (the guide's coat went grey on a phone where they strayed) | `tools/astc_check.js` |
+| `launch` | What a player who comes back meets (issue 116). The site as two commits, each stamped as a deploy stamps it, from a server that keeps what GitHub Pages keeps: the second loaded in a browser whose cache holds the first, and every file it used the second's, every request with its file's hash, the page the second's, the case left going still offered. A start that fails saying so, on a desktop and a phone: a script that does not arrive, an error before the first frame, a browser without import maps, a pack that stalls or is never answered (given up, asked twice more, the loader's error state), a pack answered 503 once (asked again, the load goes on). A case kept by another build of the story not taken up, the title saying why; storage full; the page's storage keys its own, the old ones copied once | `tools/launch_check.js` |
 | `look` | The models, pictures and sounds a branch changed, each loaded as the page loads it (its own three.js and GLTFLoader, meshopt in WebAssembly), every texture decoded and every material compiled and drawn, and a still of it as it was (left) beside it as it is (right), lit and framed alike, with its triangles, textures and bytes before and after. Fails on a file that does not load or decode, a texture left undecoded, a shader error or an error on the page. Named with no change to look at (as a runner's shard is), it decodes every model, picture and sound under `web/assets` and the hero levels, without stills: half a minute | `tools/look_check.js` |
 | `game` | The free game's long scenario: walk, talk, the helicopter, your car, a taxi, the trains | `tools/game_check.js` |
 
@@ -184,7 +185,7 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   `walk2` the phone's (together 17 minutes on one runner), `guide1` his ways and `guide2` his body (19).
 - **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
   push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
-  `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
+  `live` to it, which Vercel's production deploys (`vercel.json` builds `live`; the Vercel project's
   production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
   hand publishes main as it is.
 - Each browser shard prints which renderer it got and on which CPU (`tools/gl_renderer.js`): llvmpipe, or SwiftShader
@@ -278,6 +279,47 @@ before. A job outlives its wait and the end of a turn (tried: a wait stopped aft
 under the session's worker it should outlive the worker's restart too (not yet seen). It does not outlive the machine (a
 session started afresh has neither the job nor the cache), and a run stopped anyhow keeps the passes of the checks it had
 finished (`tools/check_cache.py`), so the next run plays only the rest.
+
+## A load is of one commit
+
+The site is published many times a day and nothing is compiled: `web/` is served as it is. Until issue 116 no
+address carried a version, Vercel kept `/data`, `/assets` and `/vendor` an hour (and a day of stale-while-revalidate)
+and GitHub Pages keeps everything ten minutes, so a player who came back ran the new scripts on the packs and models
+the browser had kept. What holds it now:
+
+- **The stamp** (`tools/stamp.js`, run by both deploys: `tools/vercel_build.sh` and `.github/workflows/pages.yml`).
+  It hashes every file under `web/` and writes the commit and `{ path: hash }` into the guard at the top of
+  `web/index.html`; gives `index.html`'s own `src=`, `href=` and `url()` their `?v=<hash>`, and `url()` in the
+  stylesheets; puts every module in the import map (by its address, and by its bare name under each prefix the map
+  gives, so that no module is loaded twice under two addresses); and writes `version.json`. The hash is of the
+  file's content, so a file that did not change keeps its address from deploy to deploy and is not downloaded again.
+- **The guard** (the first script in `web/index.html`, in the oldest JavaScript). `OEV(url)` gives one of the page's
+  files its address with its hash. `fetch` of the page's own files goes through it, three.js's loaders through
+  `DefaultLoadingManager.setURLModifier`, and the few places that make an `Image`, a `Worker` or a `<script>`
+  themselves call it. A worker is given the build as well (`?b=`), and asks for what it imports by it. A new place
+  that asks for a file some other way is found by the check: every request of the page's own must carry `v=` or `b=`.
+- **A page older than the site.** Pages keeps `index.html` ten minutes too. The guard reads `version.json`
+  (never cached); when it names another commit than the page's, the page loads itself anew once, with the commit in
+  its address so that no cache answers.
+- **The hosts.** `vercel.json`: an address without a hash is asked for again every time (`max-age=0,
+  must-revalidate`), one with a hash is kept a day. Pages' ten minutes cannot be set, and no longer matter.
+- **Not covered:** a deploy while a page is open. What that page asks for afterwards, by the old hashes, is answered
+  with the new files. Only a site whose every deploy keeps its own files (addresses under the commit) ends that.
+
+The same guard gives every fetch of the page's own an end (no answer in 20 s is given up; a failure or a 5xx is
+tried twice more, after 0.8 and 2.4 s; `world.js` does the same for a pack whose download stalls or breaks off),
+turns the loader to its error state with Reload when a start fails before the first frame, tells a browser without
+import maps that it cannot run the page, and copies the storage keys of before the split (`oe-*`, `oe3d-*`) to the
+page's own (`bh-*`) once. A harness shortens the waits with `window.OE_NET = { head_ms, stall_ms, retry_ms, still_ms }`.
+
+A harness that sets a case at a frame by hand (`bh-story-late` with no `v`: `tools/story_play.js` `FROM=n`, the ride,
+the guide) is taken up as before: under automation a case with no shape is the harness's. A player's case with no
+shape is of a build before the change and is not taken up; `launch` plays that with another shape, not with none.
+
+`tools/launch_check.js` (`tools/check.sh launch`) holds all of it. Run by hand: `xvfb-run -a node
+tools/launch_check.js [keys] [start] [save] [cache]`, `SCREEN=phone` for one screen, stills in `$OUT`. It was seen
+to fail: with `OEV` returning its address unchanged, the second load used the commit before's `data/cities.json`,
+`pack.js` and `pack-worker.js`, and 93 requests carried no hash.
 
 ## The router and the cache
 
@@ -521,6 +563,9 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
 - The story past its first episode: `tools/story_play.js` plays episode one. A new episode adds its
   beats there.
 - A real GPU, WebGPU, Safari and iOS: the checks run Chromium on a software renderer.
+- The hosts themselves: `launch` reads `vercel.json`'s cache rules as Vercel documents them and plays GitHub Pages'
+  ten minutes from a server of its own. That Vercel applies a header by `has: query`, and what Safari's cache does
+  with a page reloaded by `location.replace`, are not seen until a deploy.
 - What a person sees. For a visual change take stills (`tools/game_shot.js`, `tools/story_play.js`,
   `tools/scramble_shot.js`) on a desktop and a phone, at day, dusk and night, and look at them.
   The roll's file (its kraft paper and hand) without playing the episode: `tools/file_shot.js`.

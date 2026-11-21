@@ -28,11 +28,11 @@ const ok = m => console.log(`ok   ${m}`);
     p.on('pageerror', e => fail(tag(`page error: ${String(e).slice(0, 300)}`)));
     let sent = 0;
     await p.route('**/telemetry-sink', r => { sent++; r.fulfill({ status: 204, body: '' }); });
-    await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (touch ? 'low' : 'high'));
+    await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (touch ? 'low' : 'high'));
     const url = `http://localhost:${PORT}/?telemetry=${encodeURIComponent(`http://localhost:${PORT}/telemetry-sink`)}`;
     const titled = async () => { await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }); await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden && t.dataset.screen === 'press'; }, null, { timeout: 900000, polling: 500 }); };
     const snap = n => p.screenshot({ path: `${out}/${screen}-${n}.png`, timeout: 120000 }).catch(e => console.log(`(no still ${n}: ${String(e).slice(0, 80)})`));
-    const store = () => p.evaluate(() => ({ vid: localStorage.getItem('oe3d-vid'), visits: localStorage.getItem('oe3d-visits'), sw: localStorage.getItem('oe3d-telemetry'), phs: sessionStorage.getItem('oe3d-phs'),
+    const store = () => p.evaluate(() => ({ vid: localStorage.getItem('bh-vid'), visits: localStorage.getItem('bh-visits'), sw: localStorage.getItem('oe3d-telemetry'), phs: sessionStorage.getItem('bh-phs'),
       on: !!(window.OETelemetry && OETelemetry.on), state: window.OETelemetry && OETelemetry.consent ? OETelemetry.consent.state() : null }));
     const cr = () => p.evaluate(() => { const c = document.getElementById('g-credits'); if (!c || c.hidden) return { up: false };
       const s = c.querySelector('.cr-scroll'), wide = [...c.querySelectorAll('.cr-in *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 || e.getBoundingClientRect().left < -1).length;

@@ -18,11 +18,11 @@ const PORT = process.env.PORT || 8800;
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
-  await p.addInitScript(([t, q]) => { try { localStorage.setItem('oe3d-quality', q); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-player', 'W'); localStorage.removeItem('oe-walk-talk'); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t, w: 'clear' })); } catch (e) { /* storage blocked */ } }, [hour, Q]);
+  await p.addInitScript(([t, q]) => { try { localStorage.setItem('bh-quality', q); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-player', 'W'); localStorage.removeItem('bh-walk-talk'); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t, w: 'clear' })); } catch (e) { /* storage blocked */ } }, [hour, Q]);
   p.on('pageerror', e => console.log(`page error: ${String(e).slice(0, 200)}`));
   await p.goto(`http://localhost:${PORT}/${process.env.QS ? `?${process.env.QS}` : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => document.getElementById('game-stage') && document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 1200000, polling: 1000 });
-  console.log(`tier ${await p.evaluate(() => (window.OEQuality && OEQuality.current ? OEQuality.current() : '') || localStorage.getItem('oe3d-quality'))}`);
+  console.log(`tier ${await p.evaluate(() => (window.OEQuality && OEQuality.current ? OEQuality.current() : '') || localStorage.getItem('bh-quality'))}`);
   // aboard on the roof, and up
   await p.evaluate(() => { const g = window.__game, s = g.heli.st, d = g.heli.doorAt(); g.player.x = d.x + (d.x - s.x) * 0.8; g.player.y = d.y + (d.y - s.y) * 0.8; g.player.z = s.z; g.player.speed = 0; g.player.vz = 0; });
   const seen = await p.waitForFunction(() => window.__game.heli.loaded() && window.__game.heli.group.visible, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);

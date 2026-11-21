@@ -9,7 +9,7 @@
 // PLAYER=W or M: who is played (the title's Play as; the woman by default).
 // SLIP=n: at frame n the first question that can be lost is answered wrongly until the one asked sees through the player; the
 // card must come up, and the frame is taken up again and played rightly. SPEND=n: frame n is spent from the wrong place (the
-// release twice); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
+// release twice asks, issue 117: kept once, then spent); its print must be only tonight, and the story must go on without it. Every play sets two prints side by side.
 // The log (log.js): every line the dialogue shows is written down here as it is shown, and after frame 3 the log is opened
 // and must have the same lines in the same order; stills of it, and of the words at their largest with their backing.
 // The summation (the last frame's questions with `proof`): each is answered with a name (one of the case's people) first, then
@@ -59,7 +59,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
   const DRAW = +(process.env.DRAW || 0);
@@ -171,8 +171,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const BUDGET = process.env.BUDGET || '';
   if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
   // FROM=n: as a case left at frame n (counted from 0) and opened again
-  if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
-  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
+  if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
@@ -638,7 +638,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (T.stand && !T.find) { await goTo(T.stand, 0.6); await frames(3); } // (where a light stands from the start the camera comes up only in it: raised there, and turned away)
         await p.evaluate(() => { const g = window.__game; g.story.raise(true); g.player.h += Math.PI; if (g.cam) g.cam.yaw = g.player.h; });
         await frames(3); await p.evaluate(() => window.__game.story.shoot()); await frames(2); await snap(`${s.fi + 1}-spend-warned`);
-        await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false);
+        // (issue 117: the second press asks, and spends nothing: the card is up with the hand on Keep, a third press of the
+        // release is not an answer, Keep keeps the frame; then the release twice again, and Spend spends it)
+        const N0 = s.fi, asked = async () => p.evaluate(() => { const g = window.__game.story, e = document.querySelector('#g-story-spend'), f = document.activeElement; return { ask: !!g.state.spendAsk, on: !!e && e.classList.contains('on'), n: g.state.prints.length, keep: !!f && f.dataset && f.dataset.spend === '0' }; });
+        await p.evaluate(() => window.__game.story.shoot()); await frames(2); await p.evaluate(() => window.__game.story.shoot()); await frames(2);
+        let q = await asked(); await snap(`${s.fi + 1}-spend-asked`);
+        if (!q.ask || !q.on || q.n !== N0 || !q.keep) { errors.push(`frame ${s.fi + 1}: the release twice from the wrong place: ${q.on ? 'asked' : 'not asked'}, ${q.n - N0} frames gone, the hand ${q.keep ? '' : 'not '}on Keep`); console.log(errors[errors.length - 1]); }
+        await p.evaluate(() => window.__game.story.spendAnswer(false)); await frames(2); q = await asked();
+        if (q.ask || q.on || q.n !== N0) { errors.push(`frame ${s.fi + 1}: Keep the frame: ${q.on ? 'the card is still up' : ''} ${q.n - N0} frames gone`); console.log(errors[errors.length - 1]); }
+        else console.log(`frame ${s.fi + 1}: asked before it was spent, and kept`);
+        await p.evaluate(() => window.__game.story.shoot()); await frames(2); await p.evaluate(() => window.__game.story.shoot()); await frames(2);
+        await drawAll(true); await p.evaluate(() => window.__game.story.spendAnswer(true)); await drawAll(false);
         const pr = await p.evaluate(() => { const P = window.__game.story.state.prints, q = P[P.length - 1]; return { n: P.length, plain: !!(q && q.plain) }; });
         if (pr.n !== s.fi + 1 || !pr.plain) { errors.push(`frame ${s.fi + 1}: spent from the wrong place, and the roll has ${pr.n} prints, the last ${pr.plain ? 'only tonight' : 'not marked spent'}`); console.log(errors[errors.length - 1]); }
         else console.log(`frame ${s.fi + 1}: spent`);

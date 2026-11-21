@@ -13,7 +13,7 @@ const [,, city = 'shibuya', names = '', radius = '160'] = process.argv;
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const [vw, vh] = (process.env.SIZE || '640x400').split('x').map(Number);
   const p = await b.newPage({ viewport: { width: vw, height: vh } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'low'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'low'); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game', null, { timeout: 600000 });
   const out = await p.evaluate(([names, R, extra]) => {
