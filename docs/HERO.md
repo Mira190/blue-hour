@@ -446,6 +446,19 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
   its reach (`folkNear`, `folkAcross`: a body 0.28 m round and 1.75 m tall across the line from the lens to the head),
   up to `CROWD_LIFT` (0.3 rad, about the old view); past that the view waits a moment for them to pass rather than
   climb again, and it is never pulled in for them. Never over a wall for them either.
+- Hemmed in (issue 99). Where a wall behind is higher than any lift clears (the deck's flank 9 m over the foot of
+  SHIBUYA SKY's escalators, a tower's face on the street), or only the highest lift clears it, the rig took the highest lift, because the steeper line gets
+  a little further before it meets the wall, and then came in along it: a metre over your head looking straight down,
+  the frame your hair and one flat floor. A passage narrower than the camera stands back is looked along instead: the
+  view turns to the nearest side that is open at shoulder height (`cam.yawTo`, towards behind where you face first), at
+  once where the view was just put there, after a third of a second where you walked into it. A hand on the view is
+  not fought: not for a second after, and not while you stand where you, or the story, turned it to (`cam.hand`). Where no side
+  within 1.8 rad is open, it is as it was. `tools/lift_top_shot.js` stands at SKY's 46F stop and prints the rig's own
+  account (`TABLE=1`: how far the probe gets by bearing and lift), turns the view into the flank, walks to the
+  escalator and holds time for five stills; `tools/story_play.js` fails a still there taken from over the head.
+  What it does not mend: at the start of frame 5 you stand 0.9 m from the roof's east glass (2.4 m tall) and the
+  story turns the view to the pad, away from the glass: that turn is kept, and the view still stands over you until
+  you walk off; the collision world does not tell glass from wall, so the camera cannot look in through it.
 - Measured (`tools/frame_cost.js` `POSE=7.5/0.36,5.5/0.17,...`, both poses in one sitting at the start, 17:38 in the
   rain): on a phone's tier at 390x844 the new pose draws 411 to 412 calls and 1.14 M triangles against the old pose's
   420 and 1.16 M, in the same time within the software renderer's noise; on the desktop tier 1451 and 1465 ms in two

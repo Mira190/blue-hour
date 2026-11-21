@@ -8194,6 +8194,34 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (open) want = open; // (no lift clear of them: the lowest clear of the walls, as before)
     const jumped = cam.snap || camSmooth.lengthSq() === 0 || camSmooth.distanceTo(orbit(cam.lift, camProbe)) > 60; // after a teleport, or a stretch of advance()
     cam.snap = false;
+    // Hemmed in (issue 99): a wall behind that no lift clears (a deck's flank 9 m high at the foot of SHIBUYA SKY's
+    // escalators, a tower's face on the street) took the highest lift, since the steeper line gets a little further, and
+    // then pulled the camera in along it: a metre over your head, looking straight down at your hair and the floor. And
+    // something at your back that only the highest lift clears (a column at the foot of the escalator) stood it over
+    // you the same. A passage narrower than the camera stands back is looked along instead: the view turns to the
+    // nearest side that is open at shoulder height (cam.yawTo, as the story turns it), at once where the view was just put
+    // there, after a third of a second where you walked into it. A hand on the view is not fought: not for a second after,
+    // and not while you stand where you, or the story, turned it to (cam.hand: looking that way is what was asked for).
+    // (cam.seek: a ride sets you down facing on; there the view is wanted near shoulder height though a higher lift is clear)
+    if (clockT - cam.lastInput < 0.2) cam.hand = { yaw: cam.yaw, x: player.x, y: player.y };
+    if (cam.yawTo == null) cam.swung = false; else if (!cam.swung) cam.hand = { yaw: cam.yawTo, x: player.x, y: player.y }; // (and where the story turns the view to, as a hand's)
+    const seek = !!cam.seek, hemmed = want.f < 0.5 || want.lift >= 0.8 || (seek && want.lift > 0.3);
+    const chose = !!cam.hand && Math.abs(angDiff(cam.yaw, cam.hand.yaw)) < 0.25 && Math.hypot(player.x - cam.hand.x, player.y - cam.hand.y) < 2;
+    cam.seek = false;
+    if (close && player.mode === 'foot' && !fpOn && hemmed && (seek || (cam.yawTo == null && !cine.active && !chose && clockT - cam.lastInput > 1))) {
+      cam.hem = (cam.hem || 0) + dt;
+      if (seek || jumped || cam.hem > 0.3) {
+        const yaw0 = cam.yaw, first = angDiff(player.h, yaw0) < 0 ? -1 : 1, LOW = [0, 0.15, 0.3]; // (towards behind where you face first: you look where you go)
+        const low = () => LOW.find(l => clear(camTarget, orbit(l, camProbe)) >= 0.97);
+        let to = null;
+        for (let k = 1; k <= (seek ? 10 : 6) && to == null; k++) for (const sg of [first, -first]) {
+          cam.yaw = yaw0 + sg * k * 0.3;
+          if (low() != null) { to = cam.yaw; break; }
+        }
+        cam.yaw = yaw0; cam.hem = 0;
+        if (to != null) { if (seek || jumped) { cam.yaw = to; cam.yawTo = null; want = { f: 1, lift: low() }; cam.lift = want.lift; cam.liftHold = 0; } else { cam.yawTo = to; cam.swung = true; } }
+      }
+    } else cam.hem = 0;
     if (jumped) { cam.lift = want.lift; cam.liftHold = 0; }
     // (up at 0.8 rad/s at most, the pull-in covering the wall meanwhile: at 2 rad/s it reared up 45 degrees in half a
     // second. It comes down only once a lower lift has been clear for 0.6 s running: a wall's edge flickering in and
@@ -8425,22 +8453,66 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (liftCar(l)) { rideLiftCar(l, from, to); return; }
     if (l.pod) { podRide(l, from, to); return; }
     const a = l.stops[from], b = l.stops[to], dz = b.at[2] - a.at[2];
-    const realS = Math.abs(dz) / ((l.m_per_min || 240) / 60), dur = Math.min(9, Math.max(4.5, realS / 6));
-    const A = head(), B = W(b.at[0], b.at[1], b.at[2] + 1.55), c = new THREE.Vector3(), p0 = OECine.polar(A, camera.position);
-    const out = Math.max(70, Math.abs(dz) * 0.35), up = Math.max(p0.h, 12);
-    const path = OECine.spiral({ center: k => c.lerpVectors(A, B, OECine.ease.inOut(k)), az: [p0.az, p0.az + 1.1], dist: [Math.max(p0.dist, 20), out], h: [up, 18], e: { dist: 'out' } });
+    const realS = Math.abs(dz) / ((l.m_per_min || 240) / 60), dur = Math.min(9, Math.max(4.5, realS / 5));
+    // One shot (issue 99), from the shoulder you had to the shoulder you get: the camera leaves you at the doors looking
+    // up the face to where the lift goes, climbs the tower beside its shaft with the floors going by, standing off the
+    // face in the middle of the climb so that the height is seen, and comes in over the glass where you step out. It
+    // was a spiral about the line between the stops, which runs inside the tower: 20 m off at once (a cut), looking at
+    // a point nobody can see, and at the top it handed over to a view from over your head.
+    // The side it climbs on is the open one: of the two sides of the line between the stops, the one whose way up is
+    // clear of the buildings (nav.clearFraction along it); a shaft that goes straight up is climbed on the camera's side.
+    const A = head(), B = W(b.at[0], b.at[1], b.at[2] + 1.55), S0 = camera.position.clone(), run = Math.hypot(b.at[0] - a.at[0], b.at[1] - a.at[1]);
+    const t = run > 8 ? new THREE.Vector3(B.x - A.x, 0, B.z - A.z).normalize() : new THREE.Vector3(A.x - S0.x, 0, A.z - S0.z).normalize(), n0 = new THREE.Vector3(-t.z, 0, t.x);
+    const OUT = Math.min(26, Math.max(12, Math.abs(dz) * 0.1)), OFF = 13, UP = 7;
+    const way = n => {
+      const E = B.clone().addScaledVector(n, OFF).addScaledVector(t, run > 8 ? -9 : 0); E.y += UP;
+      const pos = new THREE.Vector3(), lk = new THREE.Vector3();
+      return k => {
+        const e = OECine.ease.inOut(k), g = Math.min(1, e + 0.24 * Math.sin(Math.PI * k)); // (the look runs on ahead of the camera: up the face, to where you are going)
+        pos.lerpVectors(S0, E, e).addScaledVector(n, OUT * Math.sin(Math.PI * e));
+        pos.y = S0.y + (E.y - S0.y) * e;
+        lk.lerpVectors(A, B, g);
+        return { pos, look: lk };
+      };
+    };
+    const open = n => { const f = way(n), q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 16; i++) { const r = f(i / 16).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
+    const cA = open(n0), n1 = n0.clone().negate(), climb = way(cA >= 0.99 || cA >= open(n1) ? n0 : n1);
+    // (the far stop's fine collision is laid on the way there, a few ms a frame: where you step out to and where the
+    // camera can stand are asked of it the moment you arrive)
+    const path = k => { if (k < 0.5) nav.prefetch(b.at[0], b.at[1], 30, 3); return climb(k); };
     H.toast(`<b>${l.line || l.name}</b><span>${b.name}: ${Math.round(Math.abs(dz))} m in ${Math.round(realS)} s at ${l.m_per_min || 240} m a minute</span>`);
     cine.play(OECine.mix(path, () => live, k => handOver(k, 0.8)), dur, { label: 'hop',
       cues: [[0.5, () => {
         [player.x, player.y, player.z] = b.at;
         if (b.face) player.h = Math.atan2(b.face[0], b.face[1]);
         player.speed = 0; player.vz = 0; player.ground = true;
-        cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
+        cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist; cam.snap = true;
         groundLod(player.x, player.y);
         liftLeft = { l, i: to }; // (no ride offered back until you have walked out of the stop: liftStop)
         save();
+        // Out of the doors: a stop that says which way it lets out (face) is walked out of, the few steps to where the
+        // camera has room behind your shoulder (SHIBUYA SKY 46F sets you down 2.5 m from the corner's glass: stood there,
+        // the view had to climb over the glass or turn from the escalators), while the camera comes in over the glass. The
+        // game's own walk (player.auto): a step of yours ends it. Where there is no such place, the view turns (cam.seek).
+        nav.prefetch(b.at[0], b.at[1], 12, Infinity); // (what is left of it round the stop, where the shot was skipped)
+        const out = b.face ? stepOut(b) : null;
+        if (out) player.auto = { x: out[0], y: out[1], t: 0, label: '', then: () => { cam.seek = true; }, cancel: () => { cam.seek = true; } };
+        else cam.seek = true;
       }]],
       onEnd: () => H.toast(`${b.name}.`) });
+  }
+  // where a lift's stop lets you out to: along its face, the nearest place within 3.5 m that can be walked to in a
+  // straight line and has the chase camera's place behind your shoulder clear (nav.clearFraction); [x, y] or null
+  function stepOut(b) {
+    const [fx, fy] = b.face, z = b.at[2], yaw = Math.atan2(fx, fy), cp = Math.cos(FOOT.pitch) * FOOT.dist;
+    for (let d = 0.5; d <= 3.51; d += 0.5) {
+      const x = b.at[0] + fx * d, y = b.at[1] + fy * d;
+      if (!nav.walk(x, y, z, true).ok || !nav.room(x, y, z, 0.35)) return null;
+      if (d < 1.5) continue;
+      const hd = W(x, y, z + 1.55), c = new THREE.Vector3(hd.x - Math.sin(yaw) * cp, hd.y + Math.sin(FOOT.pitch) * FOOT.dist, hd.z + Math.cos(yaw) * cp);
+      if (nav.clearFraction(hd, c) >= 0.97) return [x + fx * 0.6, y + fy * 0.6]; // (the walk ends 0.7 m short of where it is sent)
+    }
+    return null;
   }
 
   // A lift ridden in the dark (game.json lifts[].pod; SHIBUYA SKY's SKY GATE was, until the owner found the tower climbed
