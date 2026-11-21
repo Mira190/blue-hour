@@ -4,7 +4,7 @@
 // Stills from behind the car on the way, at the hour the frame is set (its headlamps on the car ahead).
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/ride_people.js out_dir [WxH]       (GPU=metal on a Mac)
-// LIMIT=seconds: how long the ride may take (default 600). TIER=low|medium|high (default high).
+// LIMIT=seconds: how long the ride may take (default 600, 900 with PASS). TIER=low|medium|high (default high).
 // PIN=n: the skip's case (#50): once the ride is under way, n of the crowd are held standing where the car would stand at
 // its stop (pulled in to the kerb, off its way's line) and the trip is skipped (F); they are let go when it is set down.
 // A set-down on them fails as any overlap does.
@@ -104,10 +104,10 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   await p.evaluate(() => { const pl = window.__game.player; pl.x = 498; pl.y = -1046; }); // (where the flight sets you down)
   const t0 = Date.now();
   let arrivedShot = false, pinned = null, rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null;
-  while (Date.now() - t0 < (+process.env.LIMIT || 600) * 1000) {
+  while (Date.now() - t0 < (+process.env.LIMIT || (process.env.PASS ? 900 : 600)) * 1000) {
     if (s0 && s0.ride && (s0.ride.phase === 'coming' || (s0.ride.phase === 'driving' && s0.mode === 'ride'))) await p.evaluate(n => window.__rpStep(n), s0.ride.v < 0.5 && s0.ride.phase === 'driving' ? 150 : 45); // (1.5 s of the world; 5 s stood at a light)
     await p.waitForTimeout(s0 && s0.dlg ? 400 : 1000);
-    const s = s0 = await p.evaluate(() => { const g = window.__game, pl = g.player, r = g.ride(), st = g.story.state; const d = document.getElementById('gd'); return { dlg: !!(d && !d.hidden), choices: document.querySelectorAll('#gd-choices button').length, phase: st.phase, mode: pl.mode, beat: st.beat, fi: st.fi, at: [Math.round(pl.x), Math.round(pl.y)], ride: r ? { phase: r.phase, v: +r.drv.st.v.toFixed(1), why: r.drv.st.why, intent: r.drv.st.intent, jn: r.drv.st.junction || '', sig: (a => a && a.j ? `${a.j.scramble ? 'scr ' : ''}ph${a.j.ph}/${a.phase} ${a.j.st} t${(+a.j.t).toFixed(1)} nxt${a.j.nxt} g${(a.j.green || []).join(',')} skip${a.j.skip} busy${a.j.busy || 0} hold${a.j.hold != null ? 1 : 0}` : '')(r.drv.st.lineAt), blk: (b => b ? `${b.walker ? 'walker' : 'car'} v${(+(b.v || 0)).toFixed(1)} ${b.why || ''}${b.q ? ' q' : ''}` : '')(r.drv.st.block), gap: r.drv.st.gap === Infinity ? null : +(+r.drv.st.gap).toFixed(1) } : null, goal: (document.querySelector('#g-story-goal span') || {}).textContent || '', prompt: [...document.querySelectorAll('[id*=prompt]')].map(e => e.textContent).join('|').slice(0, 60), W: { frames: window.__ridePeople.frames, worst: window.__ridePeople.worst } }; });
+    const s = s0 = await p.evaluate(() => { const g = window.__game, pl = g.player, r = g.ride(), st = g.story.state; const d = document.getElementById('gd'); return { dlg: !!(d && !d.hidden), choices: document.querySelectorAll('#gd-choices button').length, phase: st.phase, mode: pl.mode, beat: st.beat, fi: st.fi, at: [Math.round(pl.x), Math.round(pl.y)], ride: r ? { phase: r.phase, v: +r.drv.st.v.toFixed(1), why: r.drv.st.why, intent: r.drv.st.intent, jn: r.drv.st.junction || '', sig: (a => a && a.j ? `${a.j.scramble ? 'scr ' : ''}ph${a.j.ph}/${a.phase} ${a.j.st} t${(+a.j.t).toFixed(1)} nxt${a.j.nxt} g${(a.j.green || []).join(',')} skip${a.j.skip} busy${a.j.busy || 0} hold${a.j.hold != null ? 1 : 0}` : '')(r.drv.st.lineAt), blk: (b => b ? `${b.walker ? 'walker' : 'car'} v${(+(b.v || 0)).toFixed(1)} ${b.why || ''}${b.q ? ' q' : ''}` : '')(r.drv.st.block), gap: r.drv.st.gap === Infinity ? null : +(+r.drv.st.gap).toFixed(1), xb: (o => (o && /Giving way/.test(r.drv.st.intent || '') ? { at: [+o.x.toFixed(1), +o.y.toFixed(1)], v: +(o.v || 0).toFixed(1), why: o.why || '', by: o.youBy || o.heldBy || '', mv: !!o.mv, q: !!o.q, line: o.line, toLine: o.toLine != null ? +(+o.toLine).toFixed(1) : null, xMut: !!r.drv.st.xMutual, held: +(r.drv.st.held || 0).toFixed(1), mutT: +(r.drv.st.mutT || 0).toFixed(1) } : null))(r.drv.st.xBlock) } : null, goal: (document.querySelector('#g-story-goal span') || {}).textContent || '', prompt: [...document.querySelectorAll('[id*=prompt]')].map(e => e.textContent).join('|').slice(0, 60), W: { frames: window.__ridePeople.frames, worst: window.__ridePeople.worst } }; });
     console.log(Math.round((Date.now() - t0) / 1000), JSON.stringify(s).slice(0, 360));
     if (s.phase === 'dressed') { await p.keyboard.press('KeyQ'); continue; } // (the opening shots: a key ends them, many minutes of frames on a software renderer)
     // the cards before the ride (as tools/story_play.js answers them)
@@ -140,6 +140,10 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }
   }
+  // (not arrived: what holds the car up, and what holds that up in turn, ten cars on: #97)
+  if (ended !== 'arrived') console.log('held by', JSON.stringify(await p.evaluate(() => { const g = window.__game, r = g.ride(); if (!r) return null; const st = r.drv.st, out = [{ ride: r.phase, at: [+st.x.toFixed(1), +st.y.toFixed(1)], v: +st.v.toFixed(1), intent: st.intent, why: st.why, held: +(st.held || 0).toFixed(1), xMut: !!st.xMutual }], seen = new Set();
+    let o = st.block; for (let k = 0; k < 10 && o && !seen.has(o); k++) { seen.add(o); const lx = o.leadX || null; out.push({ at: [+(+o.x).toFixed(1), +(+o.y).toFixed(1)], h: +(+o.h || 0).toFixed(2), v: +(o.v || 0).toFixed(1), why: o.why || '', youBy: o.youBy || '', heldBy: o.heldBy || '', q: !!o.q, mv: !!o.mv, line: o.line, toLine: o.toLine != null ? +(+o.toLine).toFixed(1) : null, stuck: +(o.stuck || 0).toFixed(1), walker: !!o.walker, id: o.id || '' }); o = o.front || o.xBlock || (o.block && !o.block.walker ? o.block : null) || null; }
+    return out; })));
   const W = await p.evaluate(() => { const W = window.__ridePeople; W.was = null; return W; });
   console.log('frames watched', W.frames, '| ride driving', W.rideT.toFixed(1), 's,', W.rideM.toFixed(0), 'm, mean', (W.rideM / Math.max(1, W.rideT) * 3.6).toFixed(1), 'km/h moving, top', (W.rideV * 3.6).toFixed(1), 'km/h');
   console.log('ride from boarding to setting down', (W.driveT || 0).toFixed(1), 's, stopped', (W.stopT || 0).toFixed(1), 's (not counting the cut on)', W.cut != null ? `; held still, cut on to its stop ${W.cut.toFixed(1)} s in` : '; never cut on');
