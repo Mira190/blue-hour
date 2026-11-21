@@ -30,14 +30,15 @@ window.OEWalk = (function () {
     try { const k = JSON.parse(localStorage.getItem(KEEP) || 'null'); if (k && HOURS.some(h => h[0] === k.t) && SKIES.some(s => s[0] === k.w)) spec = { t: k.t, w: k.w }; } catch (e) { /* storage blocked */ }
     let isOpen = false, walking = false;
 
-    // ---- on the menu: a way in, and the step that asks the hour and the sky. The first, and the one Enter and a pad's A
-    // take, while the episodes are being finished (the owner's word, November 2026), unless a case is going: then the
-    // menu's Continue stands over it, as a game's last save does, and keeps the amber (story.js). Each way in is one row of
-    // the menu's list, the same as the others: its name, a word on it, and the Enter key (story.css "the title's ways in")
-    const go = document.createElement('button'), row = q('.gt-go'), cont = row && row.querySelector('#gt-cont-go:not([hidden])');
-    go.type = 'button'; go.className = cont ? 'btn' : 'btn primary'; go.id = 'gt-walk-go';
+    // ---- on the menu: a way in, and the step that asks the hour and the sky. Second, under the story, which leads the
+    // list and takes Enter and a pad's A (the owner's word for the launch, November 2026: the story is the game, and the
+    // walk the evening round it; before, while the episodes were being finished, the walk led). A case going puts the
+    // menu's Continue over both, as a game's last save does (story.js). Each way in is one row of the menu's list, the
+    // same as the others: its name, a word on it, and the Enter key (story.css "the title's ways in")
+    const go = document.createElement('button'), row = q('.gt-go');
+    go.type = 'button'; go.className = 'btn'; go.id = 'gt-walk-go';
     go.innerHTML = '<span>Walk Shibuya</span><small>No story · any hour, any sky</small><kbd>↵</kbd>';
-    if (cont) cont.after(go); else if (row) { const s = row.querySelector('#gt-story-go'); if (s) s.before(go); else row.prepend(go); }
+    if (row) { const s = row.querySelector('#gt-story-go'); if (s) s.after(go); else row.append(go); }
     const step = document.createElement('div');
     step.className = 'gt-walk'; step.id = 'gt-walk'; step.hidden = true;
     step.setAttribute('role', 'group'); step.setAttribute('aria-labelledby', 'gt-walk-l');

@@ -1201,17 +1201,20 @@ over the live scene: every entry in one type and size, one under another, one en
 selection the only thing lit, moved by the arrows or the d-pad and pressed by Enter or A. Adopted (`story.css` "the
 title's ways in", `walk.js`, `game.js` `titleLead`): the ways in are one list, every row the same width and height and
 each in two lines, its name and a word on it (*Walk Shibuya · No story, any hour, any sky*; *Episode 1 · You came late ·
-The story, 7 frames, one evening*). The walk is the first row and the one Enter and a pad's A take, with the amber
-hairline and the Enter key on it; the story and the options are under it, and while a case is going *Continue* stands over
-it (since: *The menu, by what this browser has done*, under *The title, as a game opens*). The
+The story, 7 frames, one evening*). The story is the first row and the one Enter and a pad's A take, with the amber
+hairline and the Enter key on it; the walk and the options are under it, and while a case is going *Continue* stands over
+both (since: *The menu, by what this browser has done*, under *The title, as a game opens*). For a while, as the episodes
+were being finished, the walk led the list; for the launch the owner put the story first again (November 2026): the
+story is the game and its hook, the walk the evening round it, open from the start since it spoils nothing, and taken
+up in the same night from the story's last card, as an open world's free roam goes on after the end. The
 hand put on another row (the mouse, Tab, up and down, the d-pad, which moves on from the first row rather than from the
 portraits) fills that row with the amber and takes the key with it. On a phone the rows run the card's width, 64 px
 high, over the 44 points and 48 dp a touch target asks (Apple's and Google's guidelines); on a phone on its side they
 stand side by side, still one size, so that every way in is on the screen. What the list opens is set the same way:
 the walk's step (its hours and skies even tiles, the name over the hour, Set out and Back two halves of one row) and a
 closed case's frames (two even columns), each as wide as the list. `tools/walk_play.js` and `tools/title_menu.js` fail
-a list not led by the walk or rows not all one size. To put the episode first again, `walk.js` appends its button instead
-of prepending it and leaves the episode its `primary`.
+a list not led by the story with the walk under it, or rows not all one size (`walk.js` puts its row after the story's;
+`story.js` gives the story's row the lead unless a case is going).
 
 **Your car and the helicopter (November 2026).** The owner asked for the walk to drive and fly as well. Worked from first
 principles rather than from the old free game's panels:
