@@ -16,6 +16,10 @@
 //   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
 //     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
+//   - beside the end of Hachiko's wall nothing offers to sit and watch the crossing, or seated the camera does not stand
+//     behind your shoulder framing the scramble, a drag does not turn it (and left alone it does not come back), the
+//     time-lapse held (Space; on a phone its button) does not run the clock fast, or E (or a tap) does not stand you up
+//     (perch.js; WALK_ONLY=sit stops after this);
 //   - on foot the corner has no Your car button, or pressed, the car does not pull in at a kerb near you; the walk's menu
 //     does not list the walk's stories;
 //   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
@@ -226,6 +230,86 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   else { ok('the camera opens photo mode'); await shot('7-photo'); }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
   await p.waitForTimeout(800);
+  // somewhere to sit and watch the crossing (perch.js; docs/STORY.md "The walk", *Somewhere to sit*): beside the end of
+  // Hachiko's wall, E (or a tap on the prompt) sits you on it; seated, the camera stands behind your shoulder and frames
+  // the scramble, a drag turns the view, Space held (on a phone the Time-lapse button) runs the evening's clock fast, the
+  // stills catch the crowd waiting and then crossing, and E (or a tap) stands you up again on the square
+  {
+    const prompt = () => p.evaluate(() => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t ? t.textContent : ''; });
+    const waitPrompt = re => p.waitForFunction(r => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t && new RegExp(r).test(t.textContent); }, re.source, { timeout: 120000, polling: 250 }).then(() => true, () => false);
+    const act = async () => { if (phone) await press('#gp-main'); else await p.keyboard.press('KeyE'); await p.waitForTimeout(400); };
+    const frames = n => p.evaluate(async n => { const g = window.__game; for (let i = 0; i < n; i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } }, n);
+    const seat = await p.evaluate(() => { const g = window.__game, P = g.perch; if (!P || !P.list.length) return null; const s = P.list[0]; g.player.x = s.at[0] + s.face[0] * 1.4; g.player.y = s.at[1] + s.face[1] * 1.4; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.player.speed = 0; g.cam.yaw = g.player.h; g.advance(0.3); return { name: s.name }; });
+    if (!seat) fail('no place to sit on the walk (game.json hero[].perches, perch.js)');
+    else {
+      await frames(6);
+      if (!(await waitPrompt(/Sit and watch the crossing/))) fail(`beside ${seat.name}, nothing offers to sit ("${await prompt()}"; ${JSON.stringify(await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; return { mode: g.player.mode, at: [g.player.x, g.player.y, g.player.z], seatZ: s.z, near: !!g.perch.near(g.player.x, g.player.y, g.player.z), act: g.currentAction ? String((g.currentAction() || {}).text) : '?' }; }))})`);
+      else {
+        await act(); await frames(40);
+        const s = await p.evaluate(() => {
+          const g = window.__game, P = g.perch, st = P.seat, c = g.camera, d = new THREE.Vector3(); c.getWorldDirection(d);
+          if (!st) return { mode: g.player.mode };
+          const toLook = Math.atan2(st.look[0] - c.position.x, st.look[1] + c.position.z), aim = Math.atan2(d.x, -d.z), off = Math.abs(((aim - toLook) * 180 / Math.PI + 540) % 360 - 180);
+          return { mode: g.player.mode, back: Math.hypot(c.position.x - st.at[0], -c.position.z - st.at[1]), up: c.position.y - st.z, off, seen: g.player.rig.root.visible, feet: g.player.z - st.z, fov: c.fov, hand: g.player.rig.fist ? +(g.player.rig.fist(new THREE.Vector3()).y - st.z).toFixed(2) : null, inFrame: (() => { const v = g.player.rig.root.getWorldPosition(new THREE.Vector3()); v.y += 0.8; v.project(c); return Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 && v.z < 1; })() };
+        });
+        if (s.mode !== 'seat' || s.off == null) fail(`E beside ${seat.name}: not seated (${JSON.stringify(s)})`);
+        else if (s.back > 4 || s.up < 0.8 || s.up > 2.2 || s.off > (phone ? 40 : 25) || !s.seen || !s.inFrame) fail(`seated, the camera does not frame the crossing over your shoulder (${JSON.stringify(s)})`);
+        else ok(`seated on ${seat.name}: the camera ${s.back.toFixed(1)} m behind, ${s.up.toFixed(1)} m up, ${s.off.toFixed(0)}° off the crossing, fov ${s.fov.toFixed(0)}, you in the frame`);
+        // (the hands in the lap, over the stone's top 0.4 m above the feet: hung straight down from a standing clip they went into it)
+        if (s.hand != null && s.hand < 0.44) fail(`seated, your hand is ${s.hand} m over your feet: in the stone, not in your lap`);
+        else if (s.hand != null) ok(`seated, the hands in the lap (${s.hand} m over the feet)`);
+        if (!(await waitPrompt(/Stand up/))) fail(`seated, nothing offers to stand up ("${await prompt()}")`);
+        await shot('4f-sit');
+        // a drag turns the head (on a phone a finger, by touch)
+        const box = await p.locator('#game-stage canvas').first().boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+        if (phone) {
+          const cdp = await ctx.newCDPSession(p);
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
+          for (let k = 1; k <= 6; k++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + k * 25, y: cy }] });
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        } else { await p.mouse.move(cx, cy); await p.mouse.down(); for (let k = 1; k <= 6; k++) await p.mouse.move(cx + k * 25, cy); await p.mouse.up(); }
+        const yaw = await p.evaluate(() => window.__game.perch.look.yaw);
+        if (Math.abs(yaw) < 0.2) fail(`seated, a drag does not turn the view (yaw ${yaw.toFixed(2)})`);
+        else ok(`a drag turns the head ${(yaw * 180 / Math.PI).toFixed(0)}°`);
+        await frames(4); await shot('4g-sit-look');
+        await frames(200); // (left alone, the view comes back round to the crossing)
+        const back = await p.evaluate(() => window.__game.perch.look.yaw);
+        if (Math.abs(back) > 0.1) fail(`left alone ten seconds, the view does not come back to the crossing (yaw ${back.toFixed(2)})`);
+        // the evening let pass: Space held, or on a phone the Time-lapse button
+        const m0 = await p.evaluate(() => window.__game.clock.min);
+        if (phone) {
+          const tl = await p.evaluate(() => { const b = document.getElementById('gt-jump'); return b && !b.hidden && b.getBoundingClientRect().width > 0 ? b.textContent : ''; });
+          if (!/Time-lapse/.test(tl)) fail(`seated on a phone, no Time-lapse button ("${tl}")`);
+          const r = await p.locator('#gt-jump').boundingBox(), cdp = await ctx.newCDPSession(p);
+          if (r && r.width) await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x + r.width / 2, y: r.y + r.height / 2 }] });
+          await frames(40);
+          if (r && r.width) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        } else { await p.keyboard.down('Space'); await frames(40); await p.keyboard.up('Space'); }
+        const m1 = await p.evaluate(() => window.__game.clock.min), dm = ((m1 - m0) + 1440) % 1440;
+        if (dm < 3) fail(`held, the time-lapse does not run the clock fast (${dm.toFixed(1)} minutes in two seconds)`);
+        else ok(`held two seconds, the evening runs on ${dm.toFixed(1)} minutes`);
+        // the crowd waiting, then everyone going: the scramble's all-walk phase caught in a still
+        const go = await p.evaluate(async () => {
+          const g = window.__game, j = g.junctions.scrambles.find(q => Math.hypot(q.x - g.player.x, q.y - g.player.y) < 120);
+          if (!j) return null;
+          for (let i = 0; i < 160 && j.ph === 3; i++) g.advance(0.5); // (to the wait first)
+          for (let i = 0; i < 240 && j.ph !== 3; i++) g.advance(0.5);
+          for (let i = 0; i < 80; i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); }
+          return j.ph === 3;
+        });
+        if (go === null) console.log('(no scramble near the seat)');
+        else if (!go) fail('seated, the scramble never turned to all-walk in two minutes');
+        else { ok('the scramble crossing, from the seat'); await shot('4h-sit-go'); }
+        await act(); await frames(30);
+        const up = await p.evaluate(() => { const g = window.__game, P = g.perch; return { mode: g.player.mode, seat: !!P.seat, z: g.player.z, ground: g.nav.floorAt(g.player.x, g.player.y, g.player.z + 1), jump: document.getElementById('gt-jump').textContent }; });
+        if (up.mode !== 'foot' || up.seat) fail(`E seated does not stand you up (${JSON.stringify(up)})`);
+        else ok(`stood up, on foot again${phone ? ` (the button reads "${up.jump}")` : ''}`);
+        if (phone && /Time-lapse/.test(up.jump)) fail('stood up, the phone\'s button still reads Time-lapse');
+        await shot('4i-stood');
+      }
+    }
+    if (process.env.WALK_ONLY === 'sit') { await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk sit: all passed'); process.exit(errors.length ? 1 : 0); }
+  }
   // your car at the kerb and the helicopter on SHIBUYA SKY's roof (docs/STORY.md "The walk": a free ride's own car, a
   // flight's own aircraft): in by E or a tap on the prompt, their keys at the foot of the frame the first time, the speed
   // (and in the air the height) in the corner, the phone's buttons for each, out again once stopped or landed
