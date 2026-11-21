@@ -13,7 +13,7 @@ const [,, city = 'shibuya'] = process.argv;
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1&perf=1&overture=0${process.env.Q ? `&${process.env.Q}` : ''}#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 600000 });
   await startPlay(p, { asIs: true });
-  await p.waitForFunction(() => { const e = document.getElementById('g-perf'); return e && /Sent with/.test(e.textContent); }, null, { timeout: 2400000, polling: 2000 });
+  await p.waitForFunction(() => { const e = document.getElementById('g-perf'); return e && /Sent with|Not sent/.test(e.textContent); }, null, { timeout: 2400000, polling: 2000 });
   console.log(await p.evaluate(() => document.getElementById('g-perf').textContent));
   if (process.argv[3]) await p.screenshot({ path: process.argv[3] });
   await b.close();
