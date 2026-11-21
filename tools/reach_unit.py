@@ -62,7 +62,7 @@ def main():
             open(p, 'w').write(text)
             sh(d, 'git', 'add', '-A'); sh(d, 'git', 'commit', '-q', '-m', msg, '--allow-empty')
 
-        def case(name, want, now, main=BASE, was=BASE, ran=('ran',), needs_ts=False):
+        def case(name, want, now, main=BASE, was=BASE, ran=('ran',), needs_ts=False, table_of=None):
             nonlocal fails
             # origin/main as given; the pass read `was`; the file is `now`
             sh(d, 'git', 'checkout', '-q', '-B', 'main'); commit(main, 'main')
@@ -70,7 +70,11 @@ def main():
             open(p, 'w').write(was)
             blob = cc.keep_blobs(['web/a.js'])['web/a.js']
             open(p, 'w').write(now)
-            r, why = cc.reach('web/a.js', blob, table(was, ran))
+            fns = table(was, ran)
+            if table_of:   # (and the nine small functions of the larger closure, none of them run)
+                import re
+                fns += [[m.start(), m.end(), 0, m.group(1)] for m in re.finditer(r'function (f\d)\(\) \{ return \d; \}', was)]
+            r, why = cc.reach('web/a.js', blob, fns)
             if needs_ts and not ts:
                 print(f'ok   {name}: not tried (no TypeScript here to print a script without its comments)')
                 return
@@ -99,6 +103,12 @@ def main():
         case("main's change in a function the branch changed too", True,
              both.replace('    return x - table.a;', '    const k = 0;\n    return x - table.a;'), main=theirs,
              was=mine.replace('    return x + table.a;', '    const k = 0;\n    return x + table.a;'))
+        # a closure of many functions is a scope: main's statement and the branch's, both at its own level, stand apart
+        big = BASE.replace('  return { ran, idle, late };', ''.join(f'  function f{i}() {{ return {i}; }}\n' for i in range(9)) + '  const mine = 1;\n  return { ran, idle, late };')
+        big_mine = big.replace('const mine = 1;', 'const mine = 2;')
+        big_theirs = big.replace('{ a: 1 }', '{ a: 2 }')
+        case("main's statement and the branch's in a closure of many functions", False, big_mine.replace('{ a: 1 }', '{ a: 2 }'),
+             main=big_theirs, was=big_mine, table_of=big)
         case("main's file as main has it", False, theirs, main=theirs, was=BASE)
         case("the branch's change undone, the file main's again", False, BASE, main=BASE, was=mine)
         case('a function that did run', True, BASE.replace('x * 2', 'x * 3'), ran=('ran', 'idle', 'late'))

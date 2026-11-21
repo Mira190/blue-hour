@@ -680,9 +680,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
           if (open) {
             const m = await p.evaluate(() => { const vis = q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
-              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
+              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
             if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
-            else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} and the case begun again; none of the map's tools`);
+            else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
           }
           await tap('#g-menu-close'); await p.waitForTimeout(600);
           const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
@@ -775,6 +775,20 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const from = +process.env.FROM || 0, backs = from ? 7 - from + 1 : 7;
     if (c.back !== backs) { errors.push(`the last card offers ${c.back} frames to go back into, not ${backs}${from ? ` (a play from frame ${from + 1})` : ''}`); console.log(errors[errors.length - 1]); }
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
+    { // the last card's Credits (credits.js): the screen comes up over the card with the map's sources on it, and Esc gives the card back
+      const got = await p.evaluate(async () => {
+        const b = document.querySelector('#g-story-end [data-credits]'); if (!b) return { no: 'the last card has no Credits' };
+        b.click();
+        const c = document.getElementById('g-credits');
+        for (let i = 0; i < 100 && !(c && c.querySelector('.cr-place .cr-row')); i++) await new Promise(r => setTimeout(r, 100));
+        return { up: !!c && !c.hidden, rows: c ? c.querySelectorAll('.cr-row').length : 0, attr: c ? c.querySelectorAll('.cr-attr li').length : 0, sw: c ? c.querySelectorAll('[data-measure]').length : 0, ver: c ? (c.querySelector('#g-credits-ver') || {}).textContent : '' };
+      });
+      if (got.no || !got.up || got.rows < 12 || got.attr < 4 || got.sw !== 2 || !got.ver) { errors.push(`the last card's Credits: ${JSON.stringify(got)}`); console.log(errors[errors.length - 1]); }
+      else { await snap('end-credits'); console.log('credits', JSON.stringify(got)); }
+      await p.keyboard.press('Escape');
+      const after = await p.evaluate(() => ({ up: !document.getElementById('g-credits').hidden, card: document.getElementById('g-story-end').classList.contains('on') }));
+      if (after.up || !after.card) { errors.push(`Esc on the Credits did not give the last card back: ${JSON.stringify(after)}`); console.log(errors[errors.length - 1]); }
+    }
     if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
       await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
       // (the card goes 1.2 s after the walk is taken up, by the page's own timer; on a software renderer the walk's first

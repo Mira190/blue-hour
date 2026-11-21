@@ -1355,7 +1355,7 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
    speed, who is played, the crowd and the route line are the builder's tools, not a player's: they stay on the walk's
    menu (?walk=1). The story's pause holds going on, the sound, the words' size, the frame rate, the keys or the
    thumbs' controls, the case begun again, and the credits. */
-.gm-case, .gm-words, .gk-case, .gt-keys.gt-touch, .gm-credits:empty { display: none; }
+.gm-case, .gm-words, .gk-case, .gt-keys.gt-touch { display: none; }
 .game-stage.story:not(.walk) #g-menu :is(.gm-map, #gm-overture) { display: none; } /* (and the map's overture, which is not the story's opening) */
 .game-stage.story:not(.walk) #g-menu .gm-case { display: grid; gap: 12px; }
 .game-stage.story:not(.walk) #g-menu #gm-case { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
@@ -1367,11 +1367,11 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 .game-stage.story:not(.walk) #g-menu .gk-case { display: table-row; }
 .oe-touch .game-stage.story:not(.walk) #g-menu .gt-keys.gt-touch { display: table; margin-top: 18px; }
 .oe-touch .game-stage.story:not(.walk) #g-menu .gt-touch td:first-child { white-space: normal; width: 34%; padding-right: 12px; color: var(--ink-2); }
-.game-stage.story:not(.walk) #g-menu .row:has(#gm-reset) { display: none; } /* (the free game's row: its tour, the map's overture, its passport's fresh start) */
 .game-stage.story:not(.walk) #g-menu .gm-again { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
 .game-stage.story:not(.walk) #g-menu #gm-again { justify-content: center; padding: 14px 18px; }
 .game-stage.story:not(.walk) #g-menu #gm-again.sure { border-color: var(--amber); color: var(--amber); }
-.game-stage.story:not(.walk) #g-menu .gm-credits:not(:empty) { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.game-stage.story:not(.walk) #g-menu .row:has(#gm-credits) { margin-top: 12px; } /* (the Credits, under the case begun again: the row's other buttons are the free game's, left out above) */
+.game-stage.story:not(.walk) #g-menu #gm-credits { flex: 1; justify-content: center; padding: 14px 18px; }
 @media (pointer: coarse) { .game-stage.story:not(.walk) #g-menu .seg button { min-height: 40px; padding-inline: 14px; } }
 /* ---- the smallest phones (tools/ui_fit.js, found with issue 114) ----
    At 320 px the roll's strip with its count and "Tap · the roll" was 348 px wide and ran off both sides; at 360 px

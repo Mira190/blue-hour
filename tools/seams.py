@@ -7,7 +7,10 @@ part may ask of another is those names and nothing else: contracts/parts.json li
 the scripts as they are and fails when
   - a script asks another part for a name its contract does not offer (the seam was widened without saying so);
   - a contract offers a name its part no longer defines (the seam was narrowed under those who use it);
-  - a script under web/ belongs to no part, or a part's global is defined by a script outside it.
+  - a script under web/ belongs to no part, or a part's global is defined by a script outside it;
+  - a part cut out of game.js (tools/cut.js: a function of `g`, the rest of the game by name) uses a name of `g` its
+    contract does not list, or game.js does not hand over a name the contract lists: the name would be undefined in
+    the page, silently.
 A seam that changes is then a change to contracts/parts.json, in the diff where a reviewer and the router see it.
   python3 tools/seams.py            # check (a second; one of tools/check.sh's static checks)
   python3 tools/seams.py --write    # write each part's offers as the scripts ask for them now, keeping its notes
@@ -69,6 +72,20 @@ def survey():
     return defs, uses
 
 
+def cuts():
+    """The parts cut out of game.js: {script: (global, the names of g it uses, the names game.js hands it)}."""
+    out, game = {}, read('web/game/game.js')
+    for f in scripts():
+        s = read(f)
+        m = re.search(r'window\.(OEGame[A-Z]\w*)\s*=\s*function\s*\(g\)', s)
+        if not m:
+            continue
+        uses = set(re.findall(r'(?<![\w$.])g\.([A-Za-z_$][\w$]*)', s))
+        call = re.search(re.escape(m.group(1)) + r'\(\{(.*?)\}\);', game, re.S)
+        out[f] = (m.group(1), uses, set(re.findall(r'\bget ([A-Za-z_$][\w$]*)\(\)', call.group(1))) if call else set())
+    return out
+
+
 def main(a):
     parts = json.load(open(FILE))['parts'] if os.path.exists(FILE) else {}
     if a[:1] == ['part']:
@@ -89,6 +106,11 @@ def main(a):
         for name, p in parts.items():
             mine = [g for g, fs in defs.items() if any(part_of(parts, f) == name for f in fs)]
             p['offers'] = {g: sorted(n for n, fs in uses.get(g, {}).items() if any(part_of(parts, f) != name for f in fs)) for g in sorted(mine)}
+            asked = {f: sorted(u) for f, (_, u, _) in sorted(cuts().items()) if part_of(parts, f) == name}
+            if asked:
+                p['asks_of_game'] = asked
+            else:
+                p.pop('asks_of_game', None)
         json.dump({'_': json.load(open(FILE))['_'], 'parts': parts}, open(FILE, 'w'), indent=1)
         open(FILE, 'a').write('\n')
         print(f'wrote {os.path.relpath(FILE, ROOT)}')
@@ -123,6 +145,12 @@ def main(a):
             for n in offer:
                 if not re.search(r'(?<![\w$])' + re.escape(n) + r'(?![\w$])', body):
                     fails.append(f'the {name} offers {g}.{n}, which {", ".join(sorted(defs.get(g, ["?"])))} no longer says')
+    for f, (g, used, given) in sorted(cuts().items()):
+        listed = set(parts.get(part_of(parts, f) or '', {}).get('asks_of_game', {}).get(f, []))
+        for n in sorted(used - listed):
+            fails.append(f'{f} asks the game for g.{n}, which its contract does not list (contracts/parts.json asks_of_game; python3 tools/seams.py --write)')
+        for n in sorted(listed - given):
+            fails.append(f'{f} is to be handed g.{n} by its contract, and web/game/game.js does not give it to {g}: add get {n}() where the part is made')
     for f in fails[:12]:
         print(f'FAIL {f}')
     if not fails:

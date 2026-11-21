@@ -110,3 +110,30 @@ all that differs in the game's data since a check passed is prose inside the sto
 reach only the play of those frames: `story1` plays frames 1 to 4, `story2` 5 and 6, `story3` 7 and the last card
 (which offers frame 1 again). A name, a clip, an hour or a place is not prose, and reaches whatever read the pack.
 `tools/voice_check.py` reads every line with the static checks, whatever is played.
+
+## The cut of game.js
+
+`web/game/game.js` was 8,700 lines in one closure: every function in it can name every variable of it, so nothing
+said what a section needs of the rest. It is cut a section at a time by `tools/cut.js`, which reads the closure with
+TypeScript's checker and moves the statements between two lines into a script of their own, a function of one
+argument: `g`, the rest of the game by name. Every use in the section of a name the rest declares becomes `g.name`,
+and the line left in `game.js` hands over an object with a getter for each (and a setter for a `let`); the names the
+rest uses of the section come back from the call, by name. So the part's surface is two lists, written at the top of
+its file, kept in `contracts/parts.json` (`asks_of_game`) and held by `tools/seams.py`: a `g.name` the contract does
+not list, or one `game.js` does not hand over, fails the static checks instead of being `undefined` in the page.
+Nothing outside the section moves and nothing inside it is reformatted, so a branch that did not edit the section
+merges cleanly; a branch that did carries its edit over to the new file by hand, with `g.` before the game's names.
+
+    node tools/cut_survey.js                         # each section: its lines, what it would offer, what it would ask
+    node tools/cut.js web/game/game.js 1600 1941     # the same for two lines, by the checker: exact
+    KEEP=pilotEnd node tools/cut.js web/game/game.js 1600 1941 web/game/pilot.js OEGamePilot   # the cut
+
+| Cut | Lines | Part | Asks of the game | Gives back |
+|---|---|---|---|---|
+| `web/game/pilot.js`, November 2026 | 342 (the autopilot of your own car, the driver assists) | traffic | 38 names | 11 |
+
+What a cut is not: a redesign. The section asks for what it used, which for the sections woven into the loop is most
+of the game (`tools/cut_survey.js`: the loop asks 198 names, the camera's shots 249). Those want their state gathered
+first; the order by which the survey says a cut is cheap is the traffic (cars, taxis and rides: lines no branch was
+in), the old free game's tools (the height guess, the survey, the phone), the route, the input, and last the story's
+section, the loop and the camera.
