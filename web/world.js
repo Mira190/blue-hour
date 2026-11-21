@@ -874,6 +874,10 @@ vec3 steepRock(vec3 c, float k) {
     envSky.scale.setScalar(50); // inside the PMREM cube camera's far plane
     envScene.add(envSky);
     const pmrem = new THREE.PMREMGenerator(renderer);
+    // The generator keeps a second target of the environment map's size to blur through (768 x 1024 in half floats,
+    // 6 MB), and it stood idle between one sky and the next: a phone's textures at frame 7 lay on their budget for it
+    // (#162). Its memory is given back once a map is made; three.js sets the target up again when the next one is.
+    const envSpare = () => { const t = pmrem._pingPongRenderTarget; if (t && t.dispose) t.dispose(); };
     // its programs (the background box, the GGX filter, the blur) compiled now, off the frame, rather than by the first
     // light from the sky in the middle of the game's set-up (issue 299: 1.5 s there on a software renderer). They are
     // three.js r186's PMREMGenerator's own parts, so only where they are as there; else the first sky compiles them
@@ -2319,7 +2323,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // (game.js earlyWarm), and before the game's first setSun the ground's tiles and the far land were compiled with no
     // environment, two programs of the phone loader's that were never drawn with. The first setSun draws it again for its hour
     const skyReady = (renderer.capabilities.isWebGL2 ? compile(renderer, envScene, hazeCam, { target: hazeTarget(), shadows: false }) : Promise.resolve())
-      .then(() => { if (!world.environment && pmrem) try { envRT = pmrem.fromScene(envScene); world.environment = envRT.texture; } catch (e) { /* set by the first setSun */ } });
+      .then(() => { if (!world.environment && pmrem) try { envRT = pmrem.fromScene(envScene); envSpare(); world.environment = envRT.texture; } catch (e) { /* set by the first setSun */ } });
     // The pixels hazeOf works out, drawn and read back from the GPU (synchronously: it waits for the GPU's queue): only
     // for tools/haze_check.js (api.hazeProbe), which holds the CPU's sum to this one. The three views side by side in
     // one target. Returns the colour, or null.
@@ -2628,7 +2632,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
           if (envRT) envRT.dispose();
           const skySat = su.uSkySat.value;
           su.uSkySat.value = 1; // the light from the sky as the materials were tuned under; only its look is bluer
-          envRT = pmrem.fromScene(envScene);
+          envRT = pmrem.fromScene(envScene); envSpare();
           su.uSkySat.value = skySat;
           world.environment = envRT.texture;
         }
@@ -3164,7 +3168,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // Objects hidden now are left for their first draw.
   const LAYER = 31, bufSent = new WeakSet(), noop = () => {};
   const DRAWS = ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements'];
-  async function uploadBuffers(renderer, scene, camera, { target = null } = {}) {
+  // late: a model come after the loader's own set (a hero level, game.js sendBuffers): its line in the log says so,
+  // and the loader's line stays what the loader sent, whenever a late model happens to arrive (issue 159).
+  async function uploadBuffers(renderer, scene, camera, { target = null, late = false } = {}) {
     if (!renderer || !renderer.render || !scene || !camera) return;
     const objs = [], lights = [];
     scene.traverseVisible(o => {
@@ -3183,11 +3189,12 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     };
     const t0 = performance.now();
     let budget = 4 << 20, i = 0, slices = 0, longest = 0, total = 0;
-    const log = [];
+    const log = [], by = new Map(); // (by: the bytes by what sent them, an object's name or its nearest named parent's)
+    const nameOf = o => { for (let q = o; q; q = q.parent) if (q.name) return q.name.replace(/[-_ ]?\d+$/, ''); return o.type; };
     while (i < objs.length) {
       const slice = [];
       let sb = 0;
-      while (i < objs.length && (sb < budget || !slice.length)) { const o = objs[i++]; sb += bytes(o); slice.push(o); }
+      while (i < objs.length && (sb < budget || !slice.length)) { const o = objs[i++], n = bytes(o), k = nameOf(o); sb += n; by.set(k, (by.get(k) || 0) + n); slice.push(o); }
       await caughtUp(renderer); // (sent behind queued compiles, the uploads wait for them: uploadSliced)
       const s0 = performance.now(), sm = renderer.shadowMap, keep = { render: sm.render, own: Object.prototype.hasOwnProperty.call(sm, 'render'), clear: renderer.autoClear, bg: scene.isScene ? scene.background : null, rt: renderer.getRenderTarget(), mask: camera.layers.mask };
       const was = slice.map(o => o.frustumCulled), gl = renderer.getContext(), draws = DRAWS.filter(k => gl[k]);
@@ -3217,7 +3224,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       // (the next slice's size from this one's rate: about SLICE_MS of uploads a slice)
       budget = Math.max(256 << 10, Math.min(64 << 20, sb * SLICE_MS / Math.max(dt, 1)));
     }
-    console.info(`buffers: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms`);
+    console.info(`${late ? 'late buffers' : 'buffers'}: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms; the most: ${[...by].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ${(v / 1048576).toFixed(1)}`).join(', ')}`);
   }
 
   // The sun's shadow map, cached for what does not move. The city's walls, roofs, rooftop plant, landmarks and
