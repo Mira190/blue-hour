@@ -1971,6 +1971,9 @@ Sydney's traffic stood still a third of the time.
         way within 4 m ahead, before they meet; and people coming the other way are
         passed, not turned back from (the turn after a few seconds stood still was
         meant for a dead end: in a knot each one turned into those behind it, and back).
+      - A wall's pull-in after a step, checked again against posts and people, put the
+        step back and stopped the walker: by a post where a wall narrows the footway,
+        one stood there all run. The squeeze below is checked the same way there.
       - A walker stood exactly at the keep-distance from someone: every step shaved a
         ten-thousandth off it and was refused. A hair's tolerance now. The sidestep
         looked only at the crowd, not at the player or the map's standing NPCs, and
@@ -1980,14 +1983,22 @@ Sydney's traffic stood still a third of the time.
       - And, whatever holds it, a walker that has made no ground (half a metre) for a
         while, not waiting at a kerb or stopped along the way, does as people in a
         press do: after 1.5 s it squeezes (no braking for anyone, a shoulder closer);
-        after 3 s it moves over to its own side's edge, where those coming the other
-        way are not (after 5 s to the middle instead, out of the edge's posts); after
-        6 s, for two seconds, it sidles on through the walkers and past a post or a
+        after 2.5 s it moves over to its own side's edge, where those coming the other
+        way are not (after 4 s to the middle instead, out of the edge's posts); after
+        4.5 s, for two seconds, it sidles on through the walkers and past a post or a
         standing NPC a shoulder off, never into a car, the player or the story's
-        people; after 8.5 s, out of sight, it is put somewhere else, and in sight it
-        turns and takes another way. A held mate walks on, parting from its group if
+        people; after 6.5 s, out of sight, it is put somewhere else, and in sight it
+        turns and takes another way (held 1.5 s more, it is put somewhere else all
+        the same: a footway's node with one of the map's NPCs standing on it held one
+        whichever way it turned). A held mate walks on, parting from its group if
         it ends up too far off.
-      - Measured: RESULTS_85
+      - Measured with `tools/crowd_spread.js` at its four spots, 150 s each. On main at
+        17:41 the longest a footway walker stood without making half a metre was 74,
+        32, 35 and 117 s, with knots of 4 to 7 held 5 s and more. Here, over 12:30,
+        17:41, 17:47 and 21:00, at most 3 to 8 s, no knot; the last two spots run on
+        the final code held 7 and 5 s. `tools/crowd_knot.js`, groups of one to four
+        met head on by Hachiko, at the station's kerb and at QFRONT: everyone through,
+        nobody turned back, the longest held 1.9 to 3.2 s.
       - `tools/crowd_knot.js` puts two parties face to face on footways round the
         Scramble (groups of one to four, both ways) with the crowd running round them,
         and fails on anyone held more than 6 s, anyone not through, or more than one
@@ -1997,11 +2008,11 @@ Sydney's traffic stood still a third of the time.
         last seconds and what held it.
     - **Waiting as a photograph shows it (issue 75).** The crowd at a kerb stood in a
       ruled line, a person every 0.6 to 0.9 m, all square to the road. Now each one has
-      a pace of its own, 0.75 to 1.25 m from the next (`paceOf`), so the gaps are
+      a pace of its own, 0.85 to 1.25 m from the next (`paceOf`), so the gaps are
       uneven; the front row stands anywhere from 0.45 to 0.85 m behind the kerb's
-      edge and the rows behind as ragged; the band is thickest across the stripes'
-      middle and thins towards its ends; a pair waits shoulder to shoulder, 0.65 m
-      apart, turned in to each other. Each one stands turned up to 25° from square
+      edge and the rows behind as ragged (drawn in towards the stripes' middle as
+      well, the band stood eight to a 2 m circle there, so it is not); a pair waits
+      shoulder to shoulder, 0.65 m apart, turned in to each other. Each one stands turned up to 25° from square
       across the road. The near ones stood still are given something to do from the
       cast's own clips (`waitPose`, `q.idle`, drawn by `people.js`): about a third at a
       phone (the phone in the hand), one in seven looking about, and of a pair one

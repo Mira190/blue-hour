@@ -74,6 +74,7 @@ const CASES = [
         for (const w of W) {
           const q = w.q;
           if (q.line !== line && q.line >= 0) { w.through = w.through || !w.turns; continue; } // (on along the next line: through)
+          if (q.pz) { w.through = w.through || !w.turns; w.end = `joined the crossing's crowd (${q.ph})`; continue; } // (on to the Scramble's kerb: through to it)
           if (q.line < 0 || q.state !== 'walk') continue;
           if (q.dir !== w.was) { if (!w.through) w.turns++; w.was = q.dir; } // (turned back before getting past: a turn at a line's end on the way on is a route)
           if ((q.s - sm) * w.dir > 6) w.through = true;
@@ -81,7 +82,7 @@ const CASES = [
           else w.held = Math.max(w.held, t - w.mark.t);
         }
       }
-      return { line, s: sm, fw: net.L[line].c, W: W.map(w => ({ side: w.side, held: +w.held.toFixed(1), through: w.through, turns: w.turns })) };
+      return { line, s: sm, fw: net.L[line].c, W: W.map(w => ({ side: w.side, held: +w.held.toFixed(1), through: w.through, turns: w.turns, end: w.end || `${w.q.state} line ${w.q.line} s ${(+w.q.s).toFixed(1)} dir ${w.q.dir}` })) };
     }, [x, y, sizes, secs]);
     if (r.err) { console.log(`[${name}] ${r.err}`); continue; }
     const held = Math.max(...r.W.map(w => w.held)), through = r.W.filter(w => w.through).length, turned = r.W.filter(w => w.turns).length;

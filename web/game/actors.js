@@ -943,7 +943,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // (own: the gap to each of the others from the two's own paces, paceOf(), and none kept from its own group, whose places
     // mateSpot gives: the kerb's crowd stood at one pace from everyone, the front row ruled along the kerb a person every
     // 0.9 m like a parade, issue 75)
-    const paceOf = q => q.pace ?? (q.pace = 0.75 + rnd() * 0.5); // (each one's own: from the close-standing to the one who keeps a step from strangers)
+    const paceOf = q => q.pace ?? (q.pace = 0.85 + rnd() * 0.4); // (each one's own: from the close-standing to the one who keeps a step from strangers)
     function slotFree(q, x, y, r = SLOT, own = false) {
       if (keepRoom(x, y, Math.min(r, SLOT)) < Math.min(r, SLOT)) return false; // (nor on one of those not of the crowd: a pace past the room each needs)
       for (let k = 0; k < api.active; k++) {
@@ -1009,9 +1009,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // (and of the free places, the one nearest the way it comes, the front ones a little preferred: sent for a place
       // in the front row from behind, a newcomer walked into the backs of those standing, was stopped there and stood
       // in their pocket; those landing from the crossing take the front, those coming up the footway the back)
-      // (a loose band several deep, as a photograph of the Scramble at a red light shows it: the front row anywhere from the
-      // kerb's edge to 0.4 m behind it, the rows behind as ragged, the gaps each one's own (paceOf), and thickest across the
-      // stripes' middle, the band thinning towards its ends rather than one long row along the kerb, issue 75)
+      // (a loose band several deep, as a photograph of the Scramble at a red light shows it: the front row anywhere from
+      // 0.45 to 0.85 m behind the kerb's edge, the rows behind as ragged, and the gaps each one's own (paceOf) rather than
+      // one ruled row along the kerb a person every 0.9 m, issue 75. Drawn in to the stripes' middle too, the band stood
+      // eight to a 2 m circle there, past tools/crowd_spread.js's clump line)
       let bx = 0, by = 0, best = Infinity, found = 0;
       for (let r = 0; r < 10 && found < 24; r++) {
         for (let k = 0; k < 8; k++) {
@@ -1020,7 +1021,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if ((road && road(x, y)) || (shut && shut(x, y)) || !slotFree(q, x, y, SLOT, true)) continue;
           if (clear && ground) { ZAT.z = g.z; const z = ground(x, y, ZAT); if (z == null || Math.abs(z - g.z) > 1 || !clear(x, y, z)) continue; }
           found++;
-          const sc = Math.hypot(x - q.x, y - q.y) + 0.8 * d + 0.2 * Math.max(0, Math.abs(lat) - SCR_HW * 0.5);
+          const sc = Math.hypot(x - q.x, y - q.y) + 0.8 * d;
           if (sc < best) { best = sc; bx = x; by = y; }
         }
       }
@@ -1477,7 +1478,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (k === i) continue;
           const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey);
           if (e > 2.4 || e < 1e-4) continue;
-          const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? (mateOf(q, o) ? 0.55 : 0.66) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre)
+          const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? (mateOf(q, o) ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
@@ -1816,7 +1817,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       } else if (p.mates && nn < 16) { // (in a crowd it goes on with the flow: a lagging mate catches up or parts)
         for (const j of p.mates) { const o = P[j]; if (o.lead !== p.id || o.pz) continue; const lag = (p.x - o.x) * hx + (p.y - o.y) * hy; if (lag > 2.5) gcap = Math.min(gcap, Math.max(0.3, p.speed * (lag > 5 ? 0.3 : 0.6))); }
       }
-      if ((p.mgT || 0) > 3) gcap = Math.max(gcap, 0.5); // (held a while: on, whatever its place by the leader, rather than stand waiting on it, issue 85)
+      if ((p.mgT || 0) > 2.5) gcap = Math.max(gcap, 0.5); // (held a while: on, whatever its place by the leader, rather than stand waiting on it, issue 85)
       // a stop along the way (stopAt): over to the window or the rail, slowly, and there stood a while
       if (!G && !p.stop && (p.browse -= dt) <= 0) { p.browse = 60 + rnd() * 120; if (p.v > 0.5 && p.pause <= 0 && nn < 10 && hw >= 1.5) stopAt(p, l, X, hw); } // (not in a crowd, nor where a footway is too narrow to stand aside on)
       if (p.stop) { want = p.stop.lat; if (!p.stop.on) gcap = Math.min(gcap, 0.55); else if (nn > 12 && p.pause > 1) p.pause = 1; } // (the way filling up round it: it moves on)
@@ -1945,13 +1946,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // footway pass each other, a step aside and a turn of the shoulder, groups too, in single file. Before, two groups
       // abreast met on one line of a narrow footway stood in a knot for minutes, each turning back into those behind it
       // and back again (issue 85; tools/crowd_spread.js, tools/crowd_knot.js). So, held: after a second and a half it
-      // squeezes (no braking for anyone, a shoulder closer, closest()); after three, over to its own side's edge, where
-      // those coming the other way are not, in single file (after five, to the middle instead: the edge's posts); after
-      // six, for two seconds, on through the walkers and the posts round it as best it can (p.ghost: never into a car,
-      // the player or the story's people); and after eight and a half, out of sight, it is somewhere else, or in sight,
-      // turns and takes another way
+      // squeezes (no braking for anyone, a shoulder closer, closest()); after two and a half, over to its own side's edge,
+      // where those coming the other way are not, in single file (after four, to the middle instead: the edge's posts);
+      // after four and a half, for two seconds, on through the walkers and the posts round it as best it can (p.ghost:
+      // never into a car, the player or the story's people); and after six and a half, out of sight, it is somewhere
+      // else, or in sight, turns and takes another way (and held a second and a half more, it is somewhere else all the same)
       const freeNow = atKerb || p.pause > 0 || p.kerbNext || p.kerbBack || p.stop;
-      if (freeNow || p.mgx == null || Math.hypot(p.x - p.mgx, p.y - p.mgy) > 0.5) { p.mgx = p.x; p.mgy = p.y; p.mgT = 0; }
+      if (freeNow || p.mgx == null || Math.hypot(p.x - p.mgx, p.y - p.mgy) > 0.5) { if (p.mgx != null) p.esc = 0; p.mgx = p.x; p.mgy = p.y; p.mgT = 0; }
       else p.mgT = (p.mgT || 0) + dt;
       p.blkO = blkI >= 0 && P[blkI].dir !== p.dir && P[blkI].line === p.line;
       // (anyone coming the other way along its line within 4 m ahead and less than a body's width across: the group in front
@@ -1959,10 +1960,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       p.oncoming = false;
       for (let k = 0; k < nn && !p.oncoming; k++) { const o = P[nbr[k]]; if (o.line !== p.line || o.dir === p.dir || mateOf(p, o)) continue; const ex = o.x - p.x, ey = o.y - p.y, a = ex * hx + ey * hy; if (a > 0 && a < 4 && Math.abs(ex * -hy + ey * hx) < 1.2) p.oncoming = true; }
       if (p.mgT > 1.5) p.squeeze = Math.max(p.squeeze || 0, 0.4);
-      if (p.mgT > 3 && !(p.detourT > 0)) { p.detourT = 2.5; p.detourOf = -4; p.detourLat = p.mgT > 5 ? 0 : side >= 0 ? Math.max(hw, side) - 0.05 : -hw + 0.3; } // (and that not helping, the footway's middle: one at the edge between two bollards was pulled back into the gap)
+      if (p.mgT > 2.5 && !(p.detourT > 0)) { p.detourT = 2; p.detourOf = -4; p.detourLat = p.mgT > 4 ? 0 : side >= 0 ? Math.max(hw, side) - 0.05 : -hw + 0.3; } // (and that not helping, the footway's middle: one at the edge between two bollards was pulled back into the gap)
       if (p.ghost > 0) p.ghost -= dt;
-      if (p.mgT > 6 && !(p.ghost > 0) && !((p.ghostT || 0) > p.mgT)) { p.ghost = 2; p.ghostT = p.mgT + 2; }
-      if (p.mgT > 8.5) { p.mgT = 0; p.mgx = null; p.ghostT = 0; if (!seen(p.x, p.y, p.z)) { p.line = -1; return; } turn(p); p.still = 0; }
+      if (p.mgT > 4.5 && !(p.ghost > 0) && !((p.ghostT || 0) > p.mgT)) { p.ghost = 2; p.ghostT = p.mgT + 2; }
+      if (p.mgT > (p.esc ? 1.5 : 6.5)) { p.mgT = 0; p.mgx = null; p.ghostT = 0; p.esc = (p.esc || 0) + 1; if (p.esc > 1 || !seen(p.x, p.y, p.z)) { p.esc = 0; p.line = -1; return; } turn(p); p.still = 0; } // (turned and held again: elsewhere even in sight, a pocket by someone standing on a footway's node, issue 85)
       const s0 = p.s, line0 = p.line, dir0 = p.dir, lat0 = p.lat - dl;
       p.s += p.dir * p.v * dt;
       // a bench on this stretch with a free seat: maybe sit down
@@ -1999,7 +2000,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // out in a carriageway on a crossing, getting off it comes first: there a walker may close in to
       // shoulders brushing (0.32 m) to clear it, never inside anyone; everywhere else it keeps CLOSE
       const inRoad = !!(X && X.some(x => Math.abs(x.s - p.s) < x.kerb)), lim = inRoad ? 0.32 : CLOSE;
-      // (held six seconds and more, p.ghost: on through the walkers and past a post as best it can, a second or two, never into a
+      // (held four and a half seconds and more, p.ghost: on through the walkers and past a post as best it can, a second or two, never into a
       // car, the player or one of those not of the crowd: nobody stands blocked for minutes, issue 85)
       const ghost = p.ghost > 0, wasC = ghost ? blocked(p.x, p.y, false, false) : 0, roomK = ghost ? keepRoom(p.x, p.y, player ? Math.min(CLOSE, Math.hypot(player.x - p.x, player.y - p.y) - (player.r || 0.15)) : CLOSE) : 0;
       const ghostBad = (x, y) => blocked(x, y, false, false) > wasC + 1e-4 || keepRoom(x, y, player ? Math.min(CLOSE, Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : CLOSE) < Math.min(0.36, roomK) - 1e-4; // (past them a shoulder close, never inside: their room is past what one of the crowd gives another)
