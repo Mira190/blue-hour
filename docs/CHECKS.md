@@ -13,7 +13,8 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `walk` | The title's first way in (its list led by the walk, every row one size), on a desktop's page (800x500) and a phone's by touch (390x844): Walk Shibuya only after who you play, its hour and sky as the street behind the card, Back to the story's evening, its opening flight seen to play (its title in the bars, high over the city) and ended by a key or a tap, out on the street with no goal, no light and nothing of the old free game (its keys open nothing), where and when in the corner, walking, the menu with the story in it, the camera; tonight's set dressing up in SKY GATE's lobby; Mei's story at Hachiko told to its end (her amber speech mark, her talk in the story's box, what she asks under the hour, Riko across the crossing, the story's name put up: `walktalk.js`); Taro's on the roof asked, and met by a photograph of the crossing from the helicopter over it (not by one from the roof on foot); your car driven (its keys, its speed in the corner, out once stopped; on a phone its buttons), called from the corner's Your car (it pulls in at a kerb near you) and brought to the kerb from the menu; SKY GATE's lift ridden in the dark to the top stop; the helicopter on the roof boarded, flown up (its keys, its height) and landed; on the desktop also the last card's fresh-page way out. Stills of each beat | `tools/walk_play.js` |
 | `guide` | Leads the story's guide along each frame's way (frame 4's as the story gives it, and four others from the story's data) with a player behind him on his trail: every quarter second a ray down onto the drawn scene under his feet (a fault more than 6 cm above it or 8 cm into it), his room either side across the way (`ways.room`: a fault where the way is wider than 3.2 m and he, or the way he plans, runs within 0.8 m of a wall, a drop, a well, a kerb or a post for more than 1.5 m; not within 2.5 m of where the way steps onto or off a crossing, where it crosses the kerb's line), and the mark with the signs out as for a lost player, the view turned four ways: what it points at must be on the way and walkable to in a straight line, its metres the way's. Stills behind the player. Run when the guide, the routes, the walking grid or the marks change (`companion.js`, `route.js`, `nav.js`, `story.js`) | `tools/guide_way.js` |
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). You get in from the kerb seat's door; `PASS=1 SIDE=road` plays #94 instead: you stood off the car's road-side flank as a car of the traffic passes over the spot, which fails every run (`tools/lane_you_probe.js`: a walker set down in a lane ahead of a car, which the traffic never drives into, and one set down inside a car, counted for the one frame before its step moves them out). When the car gives way to a car across its way, each step's line names that car (`xb`: its speed, why it stands and for whom); a ride that did not arrive ends with what held it up, ten cars down the chain (#97). Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
-| `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
+| `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed; counts a phone's lost context as a death at once, once (`tools/lost_check.js`); and plays the story's page through a lost WebGL context as a phone: a death makes the next load lighter, the reload waits for a tab put away to be seen (a minute) | `tools/mem_check.js`, `tools/lost_check.js`, `tools/glcare_phone.js` |
+| `budget` | Plays the episode as an iPhone (390 x 844 at three pixels to the point, the low tier) and counts every still's frame: each beat's draws, triangles, passes, pixels shaded and GPU memory against a phone's budget (`tools/budgets/shibuya.json`; docs/PERFORMANCE.md, "A budget for every beat"). The `story` check counts its own stills against the desktop's budget as it plays, and the static checks hold the counts of a kept play against the budgets as they are now. Main's full tier runs it for every change to the page; on a branch, `tools/check.sh budget` | `tools/story_play.js` with `BUDGET=`, `tools/beat_count.js`, `tools/gl_mem.js`, `tools/beat_budget.py` |
 | `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right); every one-shot the street and the story make played many times over, failing on a graph that is larger once they have ended than before them (a node left on the mix is visited in every block) or a sound begun at or before the context's time; the sound's giving up (voices capped, the room and the street's beds let go as the output's clock steps, taken back after ninety quiet seconds); then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/audio_graph_check.js`, `tools/audio_shed_check.js`, `tools/phone_audio.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
 | `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); walks the governor's ladder down and up by day and in rain at night, and fails on any error or any program that did not link; all of it as a GPU with sixteen texture units (`?units=16`, an Apple GPU's or a phone's), where `tools/sampler_probe.js` also walks noon, dusk and night, clear, rain and snow, at each of the governor's states, and fails on a program over sixteen samplers, one that did not link, or one the page counted lower than it linked (docs/PERFORMANCE.md, "Sixteen texture units") | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
@@ -44,6 +45,10 @@ a few points of each shot (`K`, `SHOTS`) with the bars, the title and the names,
 roofs and from the trees' crowns (failing under 4 m) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
 cameras over the walk for scouting. The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
+
+What lights a person (issue 123): `xvfb-run -a node tools/cast_probe.js [HH:MM]` opens the walk at that hour and prints the
+scene's lights in numbers and, for the one you play, whether each material's program carries the cast's light and the
+hair's (`web/game/people.js` `castPatch`, `hairMaterial`): for when a still of a person shows no change.
 
 The story's faces (`web/game/face.js`, issue 12): `tools/face_check.js out [WxH]` plays the episode (story_play.js's
 settings: `FROM`, `UPTO`, `DRAW`) and at every talk shot asks whether the speaker's face moves, cropping a still of it
@@ -110,16 +115,19 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 `origin/main` (after a pass, at what changed since that pass):
 
 - a change to the page's code or data (`web/`, but for the files in the next line) or to the story in
-  `cities/shibuya/city.json` runs `static`, `story`, the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
+  `cities/shibuya/city.json` runs `static`, the story in its three parts (`story1`, `story2`, `story3`), the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
   the drivers, the cars and the crowd `ride`, the guide and his ways `guide`, and what a phone alone runs (its tier in
   `quality.js`, the tour's touch words in `onboard.js`, its district under `web/data/shibuya/d/`) the walk's phone page
   (`walk2`). In the sessions of 18 to 21 November the phone's page failed twice, both times beside the desktop's, and
   cost 9 of a run's 42 minutes; main's full tier plays both pages and `touch` (issue 95);
 - a change of models, pictures or sounds alone (`.glb`, `.webp`, `.png`, `.jpg`, `.avif`, `.ktx2`, `.mp3` and the like
   under `web/`) runs `static`, `look` and `mem`, not the story: such a file can change how the street looks and what a
-  phone holds, not where the story goes. Not so a hero level's model (`web/data/shibuya/hero/`: its ground meshes are
-  what everyone walks on), the guide dog's (his body's size is taken from it), a file removed, or a model that lost or
-  changed a name, a flag or an attribute the code can ask for (`tools/model_contract.py`): those run as code does;
+  phone holds, not where the story goes. Not so the guide dog's model (his body's size is taken from it), a file
+  removed, or a model that lost or changed a name, a flag or an attribute the code can ask for, or whose ground moved
+  (`tools/model_contract.py`; a hero level's ground meshes are what everyone walks on): those run as code does. The
+  people's models and their index (`web/assets/people/`) are behind their own contract (`tools/people_contract.py`,
+  with the static checks): a set that gives what the page asks of it is looked at and weighed, whatever its nodes
+  are called ([SEAMS.md](SEAMS.md));
 - a change to a check's harness runs the checks that require it (`tools/check_cache.py users`); of a module several
   share (`browser_watch.js`, `start_play.js`, `pin_clock.js`) the quickest of them, and on main all of them;
 - a change to the build or the plumbing (`pipeline/`, `blender/`, the builders' sources under `cities/`, `tools/`,
@@ -130,9 +138,12 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
   is not published. The branch's own change since the pass, or a file both sides changed, is routed as it would
   have been, file by file (until November 2026 one such file, even a doc, sent all of main's change through the
   story and the walk again). `CHECK_FULL=1` runs it all.
-- a browser check whose last pass in this clone read nothing that has changed since is not played again: its line says
-  `kept from its pass at <commit>` ("The router and the cache", below). After a fix to one check, a run plays that
-  check and whatever the fix touched, not the rest again.
+- a browser check whose last pass read nothing that has changed since, or nothing whose change can reach it, is not
+  played again: its line says `kept from its pass at <commit>` and why ("The router and the cache" and "Checks by
+  reach", below). The pass is this clone's, or main's where the clone has none ("Main's passes, shared"). After a fix
+  to one check, a run plays that check and whatever the fix reaches, not the rest again;
+- the browser checks play side by side, as many as the machine has cores and memory for (two on a session's
+  machine), and the static checks beside them ("The checks faster").
 
 **After landing: the full tier, on main, in GitHub Actions** (`.github/workflows/checks.yml`). Each
 push to main runs `CHECK_TIER=full tools/check.sh --plan` against the commit of the last run that
@@ -191,7 +202,7 @@ tools/check.sh                      # the fast tier, for what this branch change
 tools/check.sh --plan               # the targets that would run, one a line
 tools/check.sh static               # the checks that open no browser
 tools/check.sh story                # one target; several: tools/check.sh story mem
-tools/check.sh all                  # static look story guide walk ride mem audio clip gl touch astc
+tools/check.sh all                  # static look story budget guide walk ride mem audio clip gl touch astc
 CHECK_TIER=full tools/check.sh      # as main runs it
 CHECK_BASE=<commit> tools/check.sh  # what changed since that commit
 CHECK_FULL=1 tools/check.sh         # the whole branch, not only what changed since the last pass, and no pass kept
@@ -300,6 +311,166 @@ file under `web/assets`, 18 s) and `mem` (a few minutes), against 35 to 40 minut
 what a session still owes a visual change: how the model looks in the street at the episode's hour, in stills on a
 desktop and a phone ("Checking your own work" in AGENTS.md); `look`'s stills are the model alone, before and after.
 
+## Checks by reach
+
+The owner's ask of 21 November 2026 (issue 131): with fifteen sessions at work the checks cost too much, every branch
+checks again when main moves, and the parts are not separate enough ("if I change the people's models next time, it
+should not touch the story at all, and the story should not be played again"). From first principles: **a check is
+worth its time only where the change can alter its result.** What a change can reach is decided by the seams between
+the parts; where a seam is written down and held, a change behind it needs the seam's check and its own part's.
+
+What was read first, and what was taken from it (ideas and published behaviour only; no code from any of them):
+
+| Work | What it says | Taken here |
+|---|---|---|
+| Ekstazi (Gligoric, Eloussi, Marinov, ISSTA 2015) | A test's dependencies are the files it was seen to read; it runs again only when one of them changed. Less end-to-end time though it selects more tests than a finer analysis | What `tools/check_cache.py` already did by files, from the server's log |
+| Test Impact Analysis, Azure Pipelines (Microsoft's docs) | A map from each test to the sources it ran, from earlier runs; a change selects the tests that had its files; a safe fallback to everything for what it cannot read, and a full run at a set period | The map one level finer: functions, not files. The fallback: anything that is not a counted script is judged by its bytes. The full run: main's full tier, after every landing |
+| V8's code coverage (v8.dev, "JavaScript code coverage"; `Profiler.startPreciseCoverage` in the DevTools protocol; V8 is BSD-3-Clause) | Precise binary coverage: yes or no for each function, none lost to the garbage collector, and the optimiser allowed again once a function has reported; a take gives what ran since the last one | The source of the map. `tools/browser_watch.js` asks every page a check opens (`COVER`), function by function, yes or no |
+| Bazel's remote cache (bazel.build; Apache-2.0) | An action's result is kept under a hash of its inputs, its command and its environment, in a store shared by every machine; a test whose inputs did not change is not run again | The pass kept with every input's bytes (as git blobs) and the settings; shared between machines: main's passes for a fresh session (below) |
+| Chromium's commit queue (docs/infra/cq.md) | A passing build is reused for an equivalent patch set across a trivial rebase, inside a window of commits; only the suites a change might affect are compiled and run | Main moving under a branch is the trivial rebase: the branch's passes stand where main's change and the branch's are in different functions |
+| Predictive test selection (Machalica et al., Meta, 2018) and Taming Google-scale continuous testing (Memon et al., 2017) | Very few tests ever fail; those that do are near the code changed; a selection that reports 99.9% of faulty changes at half the cost | The shape, not the model: a draft before landing that plays what the change reaches, an exact check after it that plays everything, and nothing published that the exact check failed |
+| GitHub's merge queue (docs.github.com) | Each queued pull request is checked once, on a temporary branch with main and those ahead of it, by workflows on `merge_group` | Not taken: see "A merge queue, weighed" |
+| Fix Your Timestep! (Glenn Fiedler), FoundationDB's simulation, TigerBeetle's VOPR | The simulation steps in fixed dt; with the clock, the network and the disk under the test, a run repeats exactly and runs faster than the wall | The game under test already steps a twentieth of a second at most with seeded draws; what was slow was the drawing between the stills (below) |
+| Chromium's virtual time (`Emulation.setVirtualTimePolicy`) and Playwright's `page.clock` (Apache-2.0) | Timers, `Date` and `performance.now` from a synthetic source; `page.clock` fakes `requestAnimationFrame` too, in the page's script only | Weighed, not taken yet: the story's harness already owns the page's frames; see "The clock" |
+| Mesa's llvmpipe (`LP_NUM_THREADS`, docs.mesa3d.org; MIT) | How many threads the software renderer draws with; the default is every core | The lanes: checks side by side, each renderer held to its share of the cores |
+
+**The rule.** With a pass, `tools/check_cache.py` keeps every file the check read as a git blob, and for the page's
+scripts which of their functions the check ran. When a file it read has changed, the pass still stands if every
+change in that file since the pass is one of:
+
+- **main's**: the lines are as `origin/main` has them now, and they lie in a function this branch has not itself
+  changed against main. Main's own checks play main's change with this branch once it lands, and only a commit they
+  pass is published; that was the rule for a whole file (above), and is now the rule for a function;
+- **comments and spacing only** (both sources printed without comments by TypeScript's printer, where it is installed);
+- **inside a function the check never ran**, which is still that one whole function under the same name (V8 is asked:
+  the text, evaluated as an expression in an empty context, must give a function that prints back as exactly that
+  text; so a brace closed early, which would put new statements outside it, is seen);
+- **a new function** under a name nothing in the file said before.
+
+Anything else reaches the check, and its line says what: `web/game/story.js:412 changed in meetGuide(), which it ran`.
+A model, a picture, a pack or any file that is not a counted script reaches every check that read it, unless it is
+main's as main has it. Scripts that a worker runs too (`pack.js`, `sun.js`, `navcells.js` and the like) are judged by
+their bytes: the page's count says nothing of what ran in the worker. `tools/reach_unit.py` holds each rule on a small
+script in a clone of its own, with the static checks.
+
+    python3 tools/check_cache.py why story          # each file changed since story's pass, and whether it reaches
+    python3 tools/check_cache.py ran story web/game/story.js meetGuide   # did the story's pass run it
+
+**What the rule cannot see.** A function that did not run in the pass that was kept, and would in another run of the
+same check: the story is seeded and its clock pinned, but which frame a load finishes in is the machine's. Such a
+function is rare (the count is of a whole play), and main's full tier plays everything after landing. Measured on
+21 November 2026, the same check played on a runner and on a session's machine: of 8,200 functions in scripts of the
+same bytes, `story2` ran 7 on the runner only and 3 here only, `story3` 2 and 4; all but one were the traffic's and
+the crowd's, by what the street happened to do (`queueing`, `oncoming`, `parkNow`). So a pass is kept with the count of
+every play seen of the same bytes, this clone's and main's together: a function that ran in any of them ran. A script the
+page evaluates from a string, and a page a page opens by itself, are not counted; the page has neither.
+
+## Main moved
+
+Fifteen sessions land on one main, most of them through `web/game/game.js`; each landing moved main under the others,
+and each of the others merged and checked again. What a branch owes when main moves, decided by `tools/check.sh` and
+printed with its reason:
+
+- A file that is main's as main has it runs the static checks only (the rule since November 2026, by files).
+- A file both sides changed is judged by its functions: main's lines, in functions the branch has not changed against
+  main, are main's. The branch's kept passes stand: `kept from its pass at ...: what changed since cannot reach it:
+  web/game/game.js: 3 changes main's`. Until issue 131 one such file sent the branch through the story and the walk again.
+- Main's lines in a function the branch changed too are the branch's to check, as its own change is.
+
+Measured on 21 November 2026: main moved three times while the first step of issue 131 was being landed; the last
+merge (seven files of main's, `web/game/people.js` among them) checked in 55 s, the static checks and the contracts.
+What stands behind this is unchanged: main's full tier plays main's change with the branch's once it lands, and only a
+commit it passes is published.
+
+### A merge queue, weighed
+
+GitHub's merge queue checks each queued pull request once, on a temporary branch holding main and those ahead of it
+in the queue (the `merge_group` event), and merges only what passed. It would move the branch-side question ("main
+moved: do I check again?") to the server, with an exact answer.
+
+- **It cannot be turned on here.** GitHub offers merge queues "in any public repository owned by an organization, or
+  in private repositories owned by organizations using GitHub Enterprise Cloud" (docs.github.com, "Managing a merge
+  queue"). This repository is owned by a personal account. Moving it to an organization is the owner's to decide.
+- **What it would cost.** The checks worth queueing on are the full tier: fourteen runners for up to twenty minutes,
+  for every landing, in order. At thirty landings a day that is a queue hours long unless landings are batched, and
+  a batch that fails is split and run again. Landing would also go through pull requests, where today a session
+  merges and pushes. A landing that takes a minute here would take twenty there.
+- **What it would buy.** Main never red. Today main can be red until the next landing fixes it (issue `main-red`),
+  and nothing red is published.
+
+Decided: not now. The same question is answered on the branch side by reach, in a minute, and the exact check runs
+after landing. If the repository moves to an organization, the queue to try is one that runs `tools/check.sh` with
+main's passes on `merge_group`, so that a queued change plays only what it reaches.
+
+## Main's passes, shared
+
+A session's machine is new: it has no pass of its own, and before issue 131 its first run of the checks played
+everything, 33 to 62 minutes, to learn what main's own run had already shown. Now each shard of main's full tier
+that passes leaves what a session's pass leaves (the files it read, by their git blob ids, and the functions it ran),
+and the workflow's last job pushes them to the branch `check-passes`: one small file a check, one commit, replaced
+every time; a shard a run did not play keeps its last pass. `tools/check.sh` fetches the branch (twenty seconds at
+most; `CHECK_SHARED=0` goes without) and, for a check this clone has no pass of, judges by main's: the lines main has
+changed since are main's, so what is left to reach the check is the branch's own change. A check kept so says `kept
+from its pass at main's <commit>`. This is Bazel's remote cache in small: the result of a test kept under what it
+read, on a store every machine can reach.
+
+The pass is of a runner's play, not this machine's. What a check runs is the page's script, the same on both; what
+differs is timing, and a function one machine's play reaches and the other's does not is the rule's known blind spot
+(above), covered by main's full tier after landing. The job that pushes the branch cannot fail the run, and nothing
+waits for it.
+
+## The checks faster
+
+Where a play's time went, measured on a session's machine (four cores, 16 GB, WebGL in software) on 21 November 2026:
+the whole story took 1,015 s, of which 534 s were the script of 8,197 frames not drawn, 107 s were 281 frames drawn
+between the stills (one in thirty), and 397 s were 187 stills at 2.1 s each. So two fifths of the play was drawing for
+pictures nobody looks at unless the play fails, and a tenth was drawing nothing looks at at all.
+
+- **No drawing where a check does not look.** On the fast tier the story takes no still and draws no frame between
+  them (`STILLS=0`, `DRAW=1000`); the photographs the story itself takes are drawn as ever. Where a still's frame is
+  counted against the beat's budget (issue 130) the frame is asked for whole all the same, dry: the page makes every
+  call of it and the counts are of the calls, and no draw or clear is passed on to the renderer. The walk and the
+  ride draw one frame in twenty (`tools/draw_skip.js`); the walk takes no still. `STILLS=1 DRAW=30 tools/check.sh
+  story3` plays a part with its pictures, and main's full tier plays them so, as the budgets were measured, with its
+  pictures in a failed run's artifacts. A still was also a wait: with none taken, the walk's photograph from the
+  helicopter was released before the lens had come to rest, and now waits for that.
+- **The story from frame n.** The parts start from a case left at a frame (`FROM`, `UPTO`: a state the game itself
+  saves and opens), as main's runners have played them since issue 51: `story1` frames 1 to 4, `story2` 5 and 6,
+  `story3` 7 and the last card. The fast tier plays the parts too, each kept or played by itself; the whole story in
+  one page (a case carried from frame 4 to 5 and from 6 to 7) is a shard of main's.
+- **Side by side.** A check's page takes one core for its script and the renderer's threads when it draws, and 5 to
+  6 GB with the map at a desktop's tier. Three side by side had one killed for memory; two play. `tools/check.sh`
+  runs as many lanes as half the cores and a sixth of the free gigabytes allow (`CHECK_LANES`), each with its own
+  server (its log is what its check read) and the renderer held to its share of the cores (`LP_NUM_THREADS`), the
+  longest check first; the static checks run beside them. A check that draws every frame starves beside another:
+  the walk took 29 minutes so, against 9 alone, which is why it draws one frame in twenty now.
+- **The clock.** The game under test already steps a twentieth of a second a frame at most, from seeded draws and a
+  pinned date; with nothing drawn a frame costs 60 to 80 ms of script, so the story's clock runs at 0.6 to 0.7 of the
+  wall's, and that is what a part's four to five minutes are. A virtual clock (Chromium's, or Playwright's
+  `page.clock`) would not shorten the script of a frame; a longer step would change what is played. The fixed wait of
+  1.2 s before a beat's still was tried at none (`MARKWAIT=0`): no shorter, the play waits on the game. So the next
+  gain here is in the game's own frame (the crowd, the skinning, the world's matrices), which a player gains too.
+- **The long checks to main.** The whole story, the walk's phone page, `touch`, `clip`, `gl` and the phone's budget
+  run on main's runners after landing, a runner each; a session plays what its change reaches.
+
+What the same change costs, before and after (a session's machine; "before" from the medians above):
+
+| Change | Before | After |
+|---|---|---|
+| Every check of a page change played (`story`, `walk1`, `ride`, `mem`, `look`, static) | 38 to 43 min | 31 min of checks in 16 min of the wall |
+| One function of `web/game/story.js` (routed to static, mem, story, walk1 and guide: 52 min on 21 November) | 51 min | 10 min at the median: the checks that ran it, side by side (from the passes' counts of 163 functions; 23 min where every part and the guide ran it) |
+| One function of `web/game/game.js` | 36 min | 8.5 min at the median, 16 at the worst |
+| Main moved, the branch's own change not reached | static only when no file was shared, else 33 min or more | 55 s |
+| A model or a people's set replaced, its contract kept | 4 to 6 min since the router of November; 35 to 40 before it | the same 4 to 6 min (static beside `look` and `mem`; `mem` is 250 s of it), and no longer the story when another change in the branch routes there |
+| A hero level rebuilt with its ground and names as they were | 33 min (played as code) | 4 to 6 min |
+| A fresh session's first run, the branch's change reaching one part of the story | 33 to 62 min | that part, and what else it reaches (main's passes) |
+
+The target of issue 131 was ten minutes for a typical change to one part, five for a model, one for main moving. The
+last is met; a model is at four to six, held there by `mem`'s own four minutes; a typical change is at the median
+of ten, and a change to the frame's own hot code (the crowd's step, the people's rigs: what every check runs) is
+sixteen, because it reaches every check and two play at a time. What would bring that under ten is a third lane
+(memory: a page lighter than 5 GB under the software renderer) or a cheaper frame.
+
 ## Unsteady steps
 
 A change that breaks something breaks the same step every time. So when the clip or the game check
@@ -346,6 +517,14 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+- The Credits screen: `tools/credits_shot.js`, by hand after a change to `web/credits.js`, `credits.css`, `credits.json`
+  or telemetry's switch. On a desktop's page (1440x900) and a phone's (390x844, by touch) it opens the Credits from the
+  title's menu (by the keys on the desktop) and from the pause menu, and fails a screen without the map's sources, the
+  works, the version or the switch, anything wider than the screen, a switch that leaves the visitor id in the browser
+  or lets another batch out, a page that measures again once opened after it, and Esc or Back that does not give back
+  the screen beneath. The way in from the last card is the story's own step (`tools/story_play.js`, at the last card).
+  The list, the licence texts, the link's tags and `web/og.jpg` are held by the static checks
+  (`tools/credits_check.py`); the link's picture is taken from the title by `tools/og_shot.js` (`WRITE=1`).
 - The title's ways in as one list: `tools/title_menu.js`, by hand after a change to the title's buttons (`story.css`
   "the title's ways in", `walk.js`, `game.js` `titleLead`). On a desktop's page (1440x900) and a phone's (390x844, by
   touch), as a player who has chosen, with no case going and with one, the menu opened from the press by a key or a tap: it fails a menu that is not the walk, the story and the

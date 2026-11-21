@@ -1,0 +1,33 @@
+{
+ "_": "The third-party works the page ships, and the credit lines its data's licences ask for, shown on the Credits screen (web/credits.js) beside the map's own sources (web/data/shibuya/scene.json `sources`). One list: README.md \"Data and licences\" says the same in prose. `kind` is the row's short label; `text` is the licence's text as shipped under web/; tools/credits_check.py fails on one that is missing.",
+ "attribution": [
+  { "text": "© OpenStreetMap contributors, under the Open Database License", "url": "https://www.openstreetmap.org/copyright" },
+  { "text": "Overture Maps Foundation", "url": "https://overturemaps.org" },
+  { "text": "Source: MLIT Project PLATEAU (出典：国土交通省 PLATEAU), CC BY 4.0", "url": "https://www.mlit.go.jp/plateau/" },
+  { "text": "Source: Tokyo Metropolitan Government, Digital Twin project, 2023 ortho photographs, CC BY 4.0", "url": "https://catalog.data.metro.tokyo.lg.jp/dataset/t000029d0000000024" },
+  { "text": "Source: Geospatial Information Authority of Japan (出典：国土地理院)", "url": "https://maps.gsi.go.jp/development/ichiran.html" }
+ ],
+ "beyond": [
+  { "name": "Relief", "text": "Past the map's frame: Copernicus DEM GLO-30. © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; all rights reserved" },
+  { "name": "Land cover", "text": "Past the map's frame: ESA WorldCover 10 m 2021 v200 (CC BY 4.0)" },
+  { "name": "Night lights", "text": "Past the map's frame: annual VIIRS night lights 2024 (Elvidge et al. 2021; Earth Observation Group, Payne Institute, Colorado School of Mines; CC BY 4.0)" },
+  { "name": "Skyline", "text": "Past the map's frame: MLIT Project PLATEAU Tokyo 23 wards LOD2 building models (CC BY 4.0), with the towers finished since from OpenStreetMap contributors (ODbL)" },
+  { "name": "Weather", "text": "On the walk, when its weather is set to the city's own: Open-Meteo (CC BY 4.0)", "url": "https://open-meteo.com" }
+ ],
+ "works": [
+  { "kind": "People", "name": "Microsoft Rocketbox avatars and animations", "use": "The people you play and meet", "by": "© 2020 Microsoft", "licence": "MIT", "url": "https://github.com/microsoft/Microsoft-Rocketbox", "text": "assets/people/LICENSE-Rocketbox.txt" },
+  { "kind": "Far crowd", "name": "Ultimate Modular Men and Women", "use": "The crowd, far off", "by": "Quaternius", "licence": "CC0 1.0", "url": "https://quaternius.com" },
+  { "kind": "Surfaces", "name": "Poly Haven textures", "use": "Brick, stone, slate, paving and lawn", "by": "Poly Haven", "licence": "CC0 1.0", "url": "https://polyhaven.com", "text": "assets/pbr/LICENSE-PolyHaven.txt" },
+  { "kind": "Surfaces", "name": "ambientCG textures", "use": "The hero level's surfaces and the trees' bark", "by": "ambientCG", "licence": "CC0 1.0", "url": "https://ambientcg.com" },
+  { "kind": "Renderer", "name": "three.js r186", "use": "Draws the page", "by": "© 2010-2026 three.js authors", "licence": "MIT", "url": "https://threejs.org", "text": "vendor/three/LICENSE" },
+  { "kind": "Ray casts", "name": "three-mesh-bvh 0.9.16", "use": "Finds what a ray meets in the city", "by": "© 2018 Garrett Johnson", "licence": "MIT", "url": "https://github.com/gkjohnson/three-mesh-bvh", "text": "vendor/three-mesh-bvh/LICENSE" },
+  { "kind": "Models", "name": "meshoptimizer", "use": "Unpacks the models", "by": "© 2016-2026 Arseny Kapoulkine", "licence": "MIT", "url": "https://meshoptimizer.org", "text": "vendor/meshoptimizer/LICENSE.md" },
+  { "kind": "Water", "name": "Tidewater", "use": "The water's wave spectrum, ported", "by": "© 2026 DRG Software Solutions LLC (Daniel Greenheck)", "licence": "MIT", "url": "https://github.com/dgreenheck/tidewater", "text": "water.js" },
+  { "kind": "Type", "name": "Typefaces", "use": "Zalando Sans Expanded, Inter Tight, JetBrains Mono, Newsreader, Caveat, Shippori Mincho, Klee One, Noto Serif TC, Bricolage Grotesque, Public Sans", "by": "Their project authors, through Google Fonts", "licence": "SIL Open Font License 1.1", "url": "https://openfontlicense.org", "text": "assets/fonts/OFL.txt" }
+ ],
+ "own": [
+  { "name": "Score and sound", "text": "Written for Blue Hour and synthesised by the page's own code as it plays. No recordings and no samples; the loading music is the same score, rendered to a file." },
+  { "name": "Models", "text": "The hero level, the vehicles, the trains, the trees and the Akita are modelled for Blue Hour from published dimensions and photographs, with no third-party models." },
+  { "name": "Story", "text": "A work of fiction. Its people are invented; signs, screens and shop fronts are indicative." }
+ ]
+}
