@@ -628,7 +628,9 @@
 #g-story-hint i { font-style: normal; letter-spacing: 0.18em; color: var(--amber); }
 #g-story-hint kbd { min-width: 0; padding: 3px 6px; border: 1px solid rgba(244, 239, 230, 0.45); border-radius: 2px; font: inherit; letter-spacing: 0; }
 #g-story-hint:is(:hover, :focus-visible) { border-color: var(--amber); color: var(--paper); }
+#g-story-hint.glow { border-color: var(--amber); color: var(--amber); }
 #g-story-hint.nudge { animation: g-story-hint 1.4s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { #g-story-hint.nudge { animation: none; box-shadow: 0 0 14px rgba(255, 207, 138, 0.35); } }
 @keyframes g-story-hint { 50% { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 18px rgba(255, 207, 138, 0.35); } }
 .game-stage.story:has(#g-story-mov.on) #g-story-hint { visibility: hidden; }
 @media (max-width: 640px) { #g-story-hint { bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)); right: 12px; padding: 11px 13px; } }

@@ -407,8 +407,8 @@ up the stair behind him*).
 | 3, the police box | says who they are to a detective of 1964. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
-| 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above |
+| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns back to the station | failure, as above |
 | 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`). Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | failure, as above |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
 
@@ -895,7 +895,7 @@ saying more (`hints` on the frame or its task):
    so he is the hint too; where the world stops, he leads there and nothing else shows the way);
 3. the light on it, as the other frames have.
 
-After 45 s of looking without one the button is offered once (*Stuck? H for a hint*) and pressed for nobody. The last card
+After 30 s of looking without one the button is offered (*Stuck? Press H for a hint*), again at 75 s, and it keeps an amber edge until a hint is asked for (a player on frame 4's glass saw neither the line nor the button, and thought there was no way on); it is pressed for nobody. The last card
 says which places were found alone and which with a hint, and which. `tools/story_play.js` asks for all three on each
 found frame and fails if they do not come in turn; it fails a found frame that has a mark on it before they are asked for.
 
