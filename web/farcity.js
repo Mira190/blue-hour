@@ -85,7 +85,7 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
   // the storeys: a band of glass over a spandrel, at its mean when a storey is under a pixel
   float fcBand = mix(fcP(fcQ, 0.28, 0.9, fcW), 0.62, fcFar);
   vec3 fcCol = mix(mix(fcWall * 0.95, vec3(0.18, 0.2, 0.22), fcBand * 0.8), mix(fcGlass * 1.15, fcGlass * 0.85, fcBand), fcIsGlass);
-  diffuseColor.rgb = mix(fcCol, vec3(0.3, 0.31, 0.32), fcRoof) * (1.0 - 0.55 * uFcNight);`)
+  diffuseColor.rgb = mix(fcCol, vec3(0.3, 0.31, 0.32), fcRoof) * (1.0 - 0.72 * uFcNight);`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(0.75, mix(0.75, 0.3, fcBand * fcIsGlass), 1.0 - fcRoof);')
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
   { // after dark the offices' lit floors, emptying through the evening as the map's own do (buildings.js occupancy)
@@ -96,11 +96,16 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
     float lit = step(mix(fcH(vec2(fl, fcS * 97.0)), fcH(vec2(run, fl + fcS * 31.0)), 0.6), occ);   // by the run along a floor
     lit = mix(lit, occ, smoothstep(0.6, 1.4, fcW));                  // a storey under a pixel: the share lit
     float win = mix(fcP(fcQ, 0.3, 0.85, fcW), 0.55, fcFar);
-    vec3 lamp = mix(vec3(0.85, 0.92, 1.0), vec3(1.0, 0.86, 0.66), step(0.8, fract(fcS * 11.0)));
+    // in more than one light, as a skyline is (issue 125: from SKY's roof every far tower was one cool white): by the
+    // building, offices under cool white with a touch of the tubes' green or a neutral white, a tower of flats or a
+    // hotel warm; and a floor in five of an office in its tenant's own warmer light
+    float fcT = fract(fcS * 11.0), fcTf = fcH(vec2(fl * 3.0 + 1.0, fcS * 53.0));
+    vec3 lamp = fcT < 0.42 ? vec3(0.84, 0.95, 1.0) : fcT < 0.68 ? vec3(1.0, 0.95, 0.86) : fcT < 0.8 ? vec3(0.9, 1.0, 0.93) : vec3(1.0, 0.8, 0.56);
+    lamp = mix(lamp, vec3(1.0, 0.84, 0.62), step(0.8, fcTf) * step(fcT, 0.8) * (1.0 - smoothstep(0.6, 1.4, fcW)));
     // a lit storey reads as a line of light while it is a pixel or more; spread over the facade's pixels as its mean,
     // the same light lit the whole tower as a pale grey block: a far tower at night is a dark mass, its light a glint
     float spread = mix(1.0, 0.3, smoothstep(0.5, 1.5, fcW));
-    totalEmissiveRadiance += lamp * lit * win * spread * (1.0 - fcRoof) * uFcNight * 0.32;   // (the map's own lit rooms' level)
+    totalEmissiveRadiance += lamp * lit * win * spread * (1.0 - fcRoof) * uFcNight * 0.38;   // (the map's own lit rooms' level)
   }`);
       nightHaze(sh, night);
     };
