@@ -33,7 +33,7 @@ HARNESS = {
     'guide2': ['tools/guide_body.js'],
     'walk': ['tools/walk_play.js'], 'walk1': ['tools/walk_play.js'], 'walk2': ['tools/walk_play.js'],
     'ride': ['tools/ride_people.js'], 'mem': ['tools/mem_check.js'], 'look': ['tools/look_check.js'],
-    'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/phone_audio.js'],
+    'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/phone_audio.js'],
     'clip': ['tools/clip_check.js'], 'gl': ['tools/gl_error_probe.js', 'tools/sampler_probe.js'],
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'game': ['tools/game_check.js'],
 }

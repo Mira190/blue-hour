@@ -22,7 +22,8 @@
 //         "meet": { "npc": "shun" | "cast": "old", "goal": "...", "lines": ["..."], // first, a word with the living
 //                   "ask": [{ "q": "...", "options": ["..."], "answer": 0, "wrong": "..." }] }, // and what they ask you
 //                   (or a print, "frame": n; a cross-examination, "press": [{ "say", "no" }], "lie", "frame"; the summation,
-//                   "who": true, "answer": a person's id from the episode's "people", then "proof": [n, "a-b"]: see ask())
+//                   "who": true, "answer": a person's id from the episode's "people", then "proof": [n, "a-b"]: see ask();
+//                   never lost, with "file", "wrong2" and "told": see judged(); a choice someone waits on, "wait_s" and "silent")
 //         "goal": "...",                                       // then where to go: the line on screen
 //         "lead_s": 1,                                         // the world stops this long after (else: on coming near)
 //         "stop_r": 12, "stop_s": 420, "stop_at": [x, y],      // how near (to stop_at, else the afterimage); how long the Stop lasts
@@ -224,15 +225,15 @@ window.OEStory = (function () {
     // What goes on it is what is established and what the player has said, never what it means: a frame's own note as
     // it is taken, a thing the player committed to (an option's `file`), a pair of prints that argued. A line the
     // player later takes back is struck through, not removed (`strikes` names the `key` of the line it answers).
-    function filed(text, { key = '', strikes = '', kind = '' } = {}) {
+    function filed(text, { key = '', strikes = '', kind = '', wrong = false } = {}) {
       if (!text) return;
       if (strikes) for (const e of st.file) if (e.key === strikes) e.struck = true;
-      st.file.push({ at: (st.fr && st.fr.stamp) || '', text, key, kind });
+      st.file.push(Object.assign({ at: (st.fr && st.fr.stamp) || '', text, key, kind }, wrong ? { struck: true, wrong: true } : {})); // (wrong: an answer not taken, written and struck through at once)
       keep(); frames.classList.remove('filed'); void frames.offsetWidth; frames.classList.add('filed');
       // (what the player said is seen to be written down in the same hand, a letter at a time, as it is said: the game has heard it)
       if (kind === 'said') {
         const p = slip.querySelector('p'); clearInterval(slipT); let i = 0;
-        slip.querySelector('small').textContent = strikes ? 'Struck from the file, and entered' : 'Entered in the file';
+        slip.querySelector('small').textContent = wrong ? 'Entered, and struck through' : strikes ? 'Struck from the file, and entered' : 'Entered in the file'; slip.classList.toggle('wrong', wrong);
         p.textContent = ''; slip.classList.add('on');
         slipT = setInterval(() => { p.textContent = text.slice(0, ++i); if (i >= text.length) { clearInterval(slipT); later(3600, () => { if (p.textContent === text) slip.classList.remove('on'); }); } }, 30);
       }
@@ -254,12 +255,13 @@ window.OEStory = (function () {
 ${vs.length === 2 ? `<div class="versus${st.pairs.includes(pairKey(vs[0], vs[1])) ? ' hit' : ''}" role="status"><figure>${vs.slice().sort((a, b) => a - b).map(k => `<span>${P[k].src ? `<img alt="Frame ${k + 1}" src="${P[k].src}">` : '<i></i>'}<b>${k + 1}</b></span>`).join('')}</figure><p>${esc(vsSaid)}</p></div>` : P.length > 1 ? `<p class="how">Set two prints side by side: some of them say together what neither says alone.${st.pairs.length ? ` Found so far: ${st.pairs.length}.` : ''}</p>` : ''}
 <ol>${Array.from({ length: N }, (_, i) => cell(i)).join('')}</ol>
 ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3><ul>${st.file.map(e => `<li class="${e.struck ? 'struck' : ''}${e.kind ? ` ${e.kind}` : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}</span></li>`).join('')}</ul></section>` : ''}
-<div class="row">${ctx.log ? `<button type="button" data-do="log">The log${ctx.touch ? '' : ' <kbd>L</kbd>'}</button>` : ''}${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">Back to the street${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
+<div class="row">${ctx.log ? `<button type="button" data-do="log">The log${ctx.touch ? '' : ' <kbd>L</kbd>'}</button>` : ''}${P.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="close">${st.reask || (ctx.asking && ctx.asking()) ? 'Back to the question' : 'Back to the street'}${ctx.touch ? '' : ' <kbd>Tab</kbd>'}</button></div></div>`;
     }
     function albumOpen(on) {
       if (on && (st.phase === 'idle' || st.phase === 'dressed')) return;
       album.classList.toggle('on', on);
       if (on) { vs = []; vsSaid = ''; albumDraw(-1); if (document.exitPointerLock) document.exitPointerLock(); }
+      else if (st.reask) { const f = st.reask; st.reask = null; later(300, f); } // (looked at from inside a question: it is asked again)
     }
     // the whole roll as one picture, to keep: the frames in a strip of film, numbered and stamped
     function saveSheet() {
@@ -301,7 +303,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     }
     // the case kept in this browser: the frame it is at and the prints so far
     const KEY = () => `oe-story-${st.ep ? st.ep.id : ''}`;
-    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
+    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
     const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
@@ -478,7 +480,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       setDress(ep);
       for (const c of ep.cast || []) if (!st.cast[c.id]) { st.cast[c.id] = Object.assign(ctx.figure(Object.assign({ alive: true }, c), c.at), { name: c.name, role: c.role, age: c.age, voice: c.voice }); if (c.face && st.cast[c.id].face) st.cast[c.id].face(c.face[0], c.face[1]); } // (face: where they look all evening, the old man at the crossing)
       const k = kept();
-      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; }
+      if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; st.told = k.told || 0; st.misses = k.misses || 0; }
       else { st.flags = {}; st.pairs = []; st.file = []; st.snaps = []; }
       st.resumed = !!k;
       if (ep.walk_in_s != null && !k) ctx.walkIn(ep.walk_in_s);
@@ -486,7 +488,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // a case begun at its first frame opens on a voice: who you are, why you are on this kerb at this hour, and the one
       // odd thing about the job (ep.prologue: {who, voice, lines}); a case taken up again goes straight to its frame
       const P = !k && ep.prologue && !ep.prologue.after && ep.prologue; // (after: the office rings once the first Stop has let go, not before it)
-      if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
+      if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
       else if (!k) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
       else frame(k.fi);
     }
@@ -532,7 +534,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         st.rode = false;
         // a message on the phone (fr.call: { who, voice, lines }): heard once as the frame begins, before anything is
         // asked of the player; a frame taken up again after a slip does not ring twice
-        if (fr.call && !st.called && !st.again && L(fr.call.lines).length) { st.called = true; st.beat = 'call'; goal(''); aimAt(null); return ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, fr.call.voice || {}) }, fr.call.who || {}), L(fr.call.lines), go); }
+        if (fr.call && !st.called && !st.again && L(fr.call.lines).length) { st.called = true; st.beat = 'call'; goal(''); aimAt(null); return ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, fr.call.voice || {}) }, fr.call.who || {}), L(fr.call.lines), go); }
         if (fr.meet) { st.beat = 'meet'; goal(fr.meet.goal || ''); const m = living(fr.meet); if (m) aimAt(spot([m.x, m.y, m.z]), true, 'meet'); }
         else approach();
       };
@@ -546,7 +548,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // (why it is there, first: the office rings, in its own voice, the episode prologue's, with flight.board.call)
       const board = () => { if (st.fr !== fr) return; st.beat = 'board'; goal(B.goal || 'Get in the helicopter.'); aimAt(spot(pad), true); if (ctx.look) ctx.look(pad, true); };
       const C = pad && B.call, P = st.ep.prologue || {};
-      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true); ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
+      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true); ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
       else if (pad) board();
       else if (fr.flight && ctx.film && !st.again) fly();
       else go();
@@ -583,8 +585,15 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (q.choice) {
         const opts = q.options.map((o, i) => ({ k: i, text: o.text }));
         st.want = q.play || 0; // (tools/story_play.js takes this one)
+        // (a question someone is waiting on, wait_s: silence is an answer too. Once its answers are up a line under them
+        // runs down, held while the roll, the log or the menu is open, and when it has run out the player has said
+        // nothing (`silent`, answered as an option is). Frame 3's question after the print held one player half an hour:
+        // a choice with no right answer and no time, which sent them to the roll, with the question waiting under it)
+        st.waitQ = q.wait_s && q.silent ? { left: q.wait_s, all: q.wait_s } : null; st.silenced = false;
         return ctx.ask(q.own ? Object.assign({}, w, { name: q.own, role: '', alive: true }) : w, [q.q], opts, c => { // (own: the question is the player's own, not in anyone's mouth)
-          const o = q.options[c ? c.k : 0] || q.options[0];
+          st.waitQ = null; timed(null);
+          const quiet = !c && st.silenced && q.silent; st.silenced = false;
+          const o = quiet ? q.silent : q.options[c ? c.k : 0] || q.options[0];
           if (o.set) st.flags[o.set] = true;
           if (o.file) filed(o.file.say || o.file, { key: o.file.key || o.set || '', strikes: o.file.strikes || '', kind: 'said' });
           st.want = -1; st.asked++; keep(); sfx('goal');
@@ -592,10 +601,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
           return said.length ? ctx.say(w, said, () => ask(m, w, done)) : ask(m, w, done);
         });
       }
-      const gone = struck(q), opts = (q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) })) : wordsOf(q)).filter(o => !gone.p.has(o.k)), right = q.frame || q.answer;
+      const gone = struck(q), opts = (q.frame ? st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) })) : wordsOf(q)).filter(o => !gone.p.has(o.k)).concat(q.told ? [lookOpt()] : []), right = q.frame || q.answer;
       st.want = opts.findIndex(o => o.k === right); // (which answer is the right one: tools/story_play.js picks it)
-      st.canFail = !!q.fail;
+      st.canFail = !!(q.fail || q.told);
       ctx.ask(q.frame && !w.alive ? Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }) : w, [q.q], opts, c => { // (what an afterimage is told is yours to choose: the question is not in their mouth)
+        if (q.told) { if (c && c.k === LOOK) return atHand(() => ask(m, w, done, as)); return judged(m, w, q, !!c && c.k === right, !!c && c.k === right ? q.right : wrongFor(q, c && c.k), done, { named: c ? c.k : null, okS: !!c && c.k === right }); } // (asked in words alone: lost_q)
         if (!!c && c.k === right && q.frame) sting('turn'); // (a print that settles it: the case turns)
         const ok = !!c && c.k === right, said = L((ok ? q.right : wrongFor(q, c && c.k)) || (ok ? [] : ['No. Look at the prints again.']));
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
@@ -633,27 +643,62 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     //   { q, who: true | options, answer: id | index, show: the second line, proof: [5, "4-5"], lost_q, right, wrong, wrong_by: { id: lines }, wrong_print, fail }
     const pairOf = k => String(k).split('-').map(Number);
     const proofOn = q => (q.proof || []).filter(p => (typeof p === 'number' ? !!st.prints[p - 1] && !st.prints[p - 1].plain : st.pairs.includes(p)));
-    const rollOpts = () => st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i) }))
-      .concat(st.pairs.slice().sort().map(key => { const [a, b] = pairOf(key), th = i => { const p = st.prints[i - 1]; return p && p.src ? `<img alt="" src="${p.src}">` : '<i></i>'; }; return { k: key, text: `<span class="pr pair"><span class="pp">${th(a)}${th(b)}</span><b>${a} + ${b}</b><span>Side by side</span></span>` }; }));
-    function judged(m, w, q, ok, said, done, free) { // (free: a wrong answer the evidence fairly led to, answered and struck off, and not counted)
+    // (hot: the prints a second wrong answer has pointed at, marked on the roll as it is laid out)
+    const rollOpts = (hot = []) => st.prints.map((p, i) => ({ k: i + 1, text: printOpt(p, i).replace('class="pr', `class="pr${hot.includes(i + 1) ? ' hot' : ''}`) }))
+      .concat(st.pairs.slice().sort().map(key => { const [a, b] = pairOf(key), th = i => { const p = st.prints[i - 1]; return p && p.src ? `<img alt="" src="${p.src}">` : '<i></i>'; }; return { k: key, text: `<span class="pr pair${hot.includes(key) ? ' hot' : ''}"><span class="pp">${th(a)}${th(b)}</span><b>${a} + ${b}</b><span>Side by side</span></span>` }; }));
+    // The record at hand (as a court's record is open on the desk while evidence is presented): one more answer under
+    // every question of the summation opens the roll and the file over it, and closing them asks the question again
+    const LOOK = '__look';
+    const lookOpt = () => ({ k: LOOK, text: `<span class="look"><b>The roll and the file</b><small>Look before you answer${ctx.touch ? '' : ` · ${esc(K('Tab'))}`}</small></span>` });
+    function atHand(back) { st.reask = back; st.want = -1; albumOpen(true); }
+    const nameOf = k => ((st.ep.people || []).find(o => o.id === k) || {}).name || '';
+    // An answer judged. A question with `fail` can be lost: after that many wrong answers in one talk the one asked
+    // sees through the player and the frame is taken up again from its beginning (frames 3, 5 and 6). A question with
+    // `told` (the summation, frame 7) is never lost, and nobody plays the frame again for one answer: a wrong answer is
+    // answered for what was said (wrong_by, wrong_print) and written in the file against the player, struck through; a
+    // second says more (`wrong2`) and marks the print that answers it on the roll; a third, and she says it herself
+    // (`told`), which the file and the last card keep. A right one is written down too, and when every question of the
+    // talk is settled the file says so in one line (three answers that hold together, as a ship's log confirms fates)
+    // (how.free: a wrong answer the evidence fairly led to, a statement marked `near`: answered and struck off, and not counted)
+    function judged(m, w, q, ok, said, done, how = {}) {
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
-      if (ok) { sting('turn'); st.asked++; }
-      else if (!free && q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      const nm = q.who && how.named != null ? nameOf(how.named) : '';
+      if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
+      else if (!how.free && q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      else if (q.told) {
+        const n = st.qmiss = (st.qmiss || 0) + 1; st.misses = (st.misses || 0) + 1;
+        if (q.file) filed(`${q.file}: you said ${nm || 'that'}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
+        if (n >= 3) { st.qmiss = 0; st.told = (st.told || 0) + 1; st.asked++; keep(); const T = L(q.told); filed(`${q.file}: she told you herself. ${nameOf(q.answer) || ''}`.trim(), { kind: 'said' }); settle(m, false); return ctx.say(w, T, () => ask(m, w, done)); }
+        if (n === 2) { st.hot = proofOn(q); said = L(said).concat(L(q.wrong2)); } // (the second: more said, and the print marked)
+        keep();
+      }
       const S2 = ok ? L(said) : L(said).concat(helpFor(q));
       return S2.length ? ctx.say(w, S2, () => ask(m, w, done)) : ask(m, w, done);
+    }
+    // (every question of the talk settled: one line in the file, and the case is heard to close)
+    function settle(m, own) {
+      st.settled = (st.settled || 0) + 1; st.own = (st.own || 0) + (own ? 1 : 0); st.hot = [];
+      const all = (m.ask || []).filter(q => q.told).length;
+      if (all && st.settled === all) later(600, () => { say(st.own === all ? `The case holds · ${all} of ${all}` : `The case holds · ${st.own} of ${all} yours`); sfx('found'); filed(st.own === all ? `${all} answers, all yours, and they hold together.` : `${all} answers hold together. ${all - st.own === 1 ? 'One' : all - st.own} of them she gave you.`, { kind: 'pair' }); });
     }
     function summation(m, w, q, done) {
       const proofs = proofOn(q);
       if (!proofs.length) return ask(m, w, done, Object.assign({}, q, { proof: null, q: q.lost_q || q.q })); // (asked another way: in words alone)
-      const words = wordsOf(q);
-      st.want = words.findIndex(o => o.k === q.answer); st.canFail = !!q.fail; st.proving = false;
+      const words = wordsOf(q).concat(q.told ? [lookOpt()] : []);
+      st.want = words.findIndex(o => o.k === q.answer); st.canFail = !!(q.fail || q.told); st.proving = false;
       ctx.ask(w, [q.q], words, c => {
-        const named = c ? c.k : null, opts = rollOpts();
-        st.want = opts.findIndex(o => proofs.includes(o.k)); st.proving = true;
-        ctx.ask(w, [q.show || 'Show me which of your prints says it.'], opts, c2 => {
-          const okS = named === q.answer, okP = !!c2 && proofs.includes(c2.k), ok = okS && okP;
-          judged(m, w, q, ok, ok ? q.right : okS ? (q.wrong_print || 'That is so. But that print does not say it. Show me the one that does.') : wrongFor(q, named), done);
-        });
+        if (c && c.k === LOOK) return atHand(() => summation(m, w, q, done));
+        const named = c ? c.k : null;
+        const prove = () => {
+          const opts = rollOpts(st.hot || []).concat(q.told ? [lookOpt()] : []);
+          st.want = opts.findIndex(o => proofs.includes(o.k)); st.proving = true;
+          ctx.ask(w, [q.show || 'Show me which of your prints says it.'], opts, c2 => {
+            if (c2 && c2.k === LOOK) return atHand(prove); // (the name kept: the roll looked at before the print is shown)
+            const okS = named === q.answer, okP = !!c2 && proofs.includes(c2.k), ok = okS && okP;
+            judged(m, w, q, ok, ok ? q.right : okS ? (q.wrong_print || 'That is so. But that print does not say it. Show me the one that does.') : wrongFor(q, named), done, { named, okS });
+          });
+        };
+        prove();
       });
     }
     // A cross-examination (a question with `press`): the one liar is caught the way a court catches one, by what he
@@ -676,7 +721,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         ctx.ask(w.alive ? w : Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }), [q.show || 'And what does the roll have against it?'], opts, c2 => {
           const okS = k === q.lie, okP = !!c2 && c2.k === q.frame, ok = okS && okP;
           if (!okS && k >= 0) gone.s.add(k); else if (okS && c2 && !okP) gone.p.add(c2.k); // (a statement that stands, or a print that is not it: off the table for the next try)
-          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done, !okS && !!(q.press[k] || {}).near);
+          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done, { free: !okS && !!(q.press[k] || {}).near });
         });
       });
     }
@@ -685,7 +730,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // evening's *You came late* is the old woman's, a beat before the girl turns, and the last evening says so)
     const runs = list => { const out = []; for (const l of [].concat(list || [])) { if (typeof l !== 'string' && ((l.if && !st.flags[l.if]) || (l.not && st.flags[l.not]))) continue; const by = typeof l === 'string' ? '' : l.by || '', text = typeof l === 'string' ? l : l.say; if (out.length && out[out.length - 1].by === by) out[out.length - 1].lines.push(text); else out.push({ by, lines: [text] }); } return out; };
     const sayRuns = (R, w, done) => { if (!R.length) return done(); const [r, ...rest] = R, c = r.by && st.cast[r.by]; const who2 = c ? { name: (st.ep.cast || []).find(q => q.id === r.by)?.unseen || 'A voice', role: 'tonight', alive: true, voice: voiceOf(c) } : w; return ctx.say(who2, r.lines, () => sayRuns(rest, w, done)); };
-    const hear = (m, w, done) => { st.slips = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = runs(m.lines); return first.length ? sayRuns(first, w, go) : go(); };
+    const hear = (m, w, done) => { st.slips = 0; st.qmiss = 0; st.hot = []; st.settled = 0; st.own = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = runs(m.lines); return first.length ? sayRuns(first, w, go) : go(); };
     function stop() {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
       st.phase = 'stop'; st.t = 0; st.beat = 'still';
@@ -698,6 +743,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // what hangs in the air is seen to hang (it is the camera moving that shows a moment is held)
       st.orbit = first ? 0.5 : 0.32; later(first ? 4200 : 1500, () => { st.orbit = 0; }); // (the first time, the view turns round you through the held street)
       if (a && !st.ghost) { st.ghost = ctx.figure(a, a.at); st.ghost.face(ctx.player.x, ctx.player.y); }
+      // (someone to go to, across the held street: under the flash, where nobody is seen to move, the held crowd stands
+      // out of a lane from you to them a little wider than two walking abreast, so that they are seen at the end of it and
+      // the dog leads down it. In the first Stop players looked for her for four minutes: she was thirty metres off across
+      // the crossing behind a hundred people standing as still as she did)
+      if (st.ghost && (a.lines || []).length && ctx.clear) ctx.clear([ctx.player.x, ctx.player.y], [st.ghost.x, st.ghost.y], 1.3);
       if (fr.afterimage2 && !st.ghost2) { st.ghost2 = ctx.figure(fr.afterimage2, fr.afterimage2.at); st.ghost2.face(ctx.player.x, ctx.player.y); }
       // the world holds a breath (the first time, the title falls on it), and then the one thing to do
       // (a Stop in which something moves that should not, fr.stirs: { cast, line, after_s }: one of the living turns to look)
@@ -727,6 +777,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         if (st.dog && st.ghost) st.dog.lead([st.ghost.x, st.ghost.y], a.reach_m || 3.2);
         goal(a.seek || 'Someone is still moving. Go to them.');
         aimAt(spot([st.ghost.x, st.ghost.y, st.ghost.z]), true, 'ghost');
+        if (st.ghost.glow) st.ghost.glow(true); // (the halation of an old exposure round them, from across the street: game.js storyFigure glow)
         if (!st.hinted) { st.hinted = true; keysHint(true); }
       };
     }
@@ -1090,10 +1141,11 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
     // by their frame numbers (what they would have said is for going back in to find); and how often they were seen through.
     function worked() {
       const ep = st.ep, li = [];
-      for (const e of st.file) if (e.kind === 'said') li.push(`<li class="said${e.struck ? ' struck' : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}${e.struck ? ' <em>Taken back.</em>' : ''}</span></li>`);
+      for (const e of st.file) if (e.kind === 'said') li.push(`<li class="said${e.struck ? ' struck' : ''}"><b>${esc(e.at)}</b><span>${esc(e.text)}${e.wrong ? '' : e.struck ? ' <em>Taken back.</em>' : ''}</span></li>`);
       st.prints.forEach((p, i) => { if (p.plain) li.push(`<li class="spent"><b>${esc(p.stamp)}</b><span>Frame ${i + 1} spent: only tonight.${ep.frames[i].lost ? ` What stood there: ${esc(ep.frames[i].lost)}.` : ''}</span></li>`); });
       const P = ep.pairs || [], never = P.map(q => pairKey(q.of[0] - 1, q.of[1] - 1)).filter(k => !st.pairs.includes(k));
       if (P.length) li.push(`<li class="pair"><b>${st.pairs.length}/${P.length}</b><span>${never.length ? `Never set side by side: ${never.map(k => `frames ${k.replace('-', ' and ')}`).join('; ')}.` : 'Every pair of prints that argues was set side by side.'}</span></li>`);
+      if (st.misses || st.told) li.push(`<li><b>×${st.misses || 0}</b><span>${st.misses ? `Answered her wrongly ${st.misses === 1 ? 'once' : `${st.misses} times`}.` : ''}${st.told ? ` She answered ${st.told === 1 ? 'one question' : `${st.told} questions`} herself.` : ''}</span></li>`);
       if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and taken up again.</span></li>`);
       { const found = ep.frames.map((f, i) => (f.find || (f.task && f.task.find) ? i : -1)).filter(i => i >= 0 && st.prints[i]), alone = found.filter(i => !st.helped[i]), helped = found.filter(i => st.helped[i]);
         const L2 = a => a.map(i => i + 1).join(a.length > 2 ? ', ' : ' and ');
@@ -1157,6 +1209,16 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
     };
     addEventListener('keydown', onKey, true);
 
+    // (the line under a waited-on question's answers: how much of the wait is left, 0..1; null: none)
+    function timed(left) { const C = document.getElementById('gd-choices'); if (!C) return; C.classList.toggle('timed', left != null); if (left != null) C.style.setProperty('--left', left.toFixed(3)); }
+    function waitTick(dt) {
+      const W = st.waitQ; if (!W) return;
+      if (!(ctx.asking && ctx.asking())) return timed(null); // (the question still being typed: the wait has not begun)
+      const held = album.classList.contains('on') || !!document.querySelector('#g-story-log.on'); // (the menu: the story is not ticked under it)
+      if (!held) W.left -= dt;
+      timed(Math.max(0, W.left / W.all));
+      if (W.left <= 0) { st.waitQ = null; st.silenced = true; timed(null); if (ctx.unask) ctx.unask(); }
+    }
     function tick(dt) {
       const ep = st.ep, fr = st.fr;
       if (st.gone) { st.gone.tick(dt); if (st.gone.state === 'away') st.gone = null; } // (a guide on his way off)
@@ -1164,6 +1226,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
       if (st.released) for (const id in st.cast) { const f = st.cast[id], v = ctx.screen([f.x, f.y, (f.z || 0) + 1]); if (!v.front || v.x < -0.15 || v.x > 1.15 || v.y < -0.15 || v.y > 1.15 || v.dist > 80) { f.remove(); delete st.cast[id]; } }
       if (st.dog && st.phase !== 'idle' && st.phase !== 'dressed') st.dog.tick(dt); // (his own time: he moves in a Stop, and between them)
       if (!ep || !fr || st.phase === 'idle' || st.phase === 'dressed' || st.phase === 'done') return;
+      waitTick(dt);
       if (keys.classList.contains('on') && KEYS() !== keysAre) keysHint(true); // (the keys, or the pad's sticks, as the hand changes)
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
@@ -1212,7 +1275,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
           // the keys are put away once they have been used
           if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; keysHint(false); }
           if (g && near([g.x, g.y, g.z], a.reach_m || 3.2)) {
-            st.beat = 'talk'; keysHint(false); aimAt(null); goal('');
+            st.beat = 'talk'; keysHint(false); aimAt(null); goal(''); if (g.glow) g.glow(false);
             sfx('ghost'); hear(a, who(a), () => task());
           }
         }
@@ -1268,7 +1331,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         if (st.late) { st.phase = 'go'; approach(); }
         else if (st.fi === 0 && rings()) { // the office rings, now that time runs again: who you are, why this kerb, and the one odd thing about the job
           const P = ep.prologue; st.rang = true; st.phase = 'go'; st.beat = 'prologue'; goal('');
-          ctx.say(Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), L(P.lines), () => frame(1));
+          ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), L(P.lines), () => frame(1));
         }
         else if (st.fi + 1 < ep.frames.length) frame(st.fi + 1);
         else end();
