@@ -1874,15 +1874,18 @@ float inH(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453
     // one canvas): the parking bays, kerbs and sheds the photograph has of the wharf, not a plain slab
     // (issue 65); its sides stay concrete
     piers.material.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, { uPhoto: U.uPhoto, uPhotoOn: U.uPhotoOn, uFrame: U.uFrame, uPhotoGrade: PG });
+      U.uZone = U.uZone || { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) }; // (round a hero level: none of the photo, game.js ZONE)
+      Object.assign(sh.uniforms, { uPhoto: U.uPhoto, uPhotoOn: U.uPhotoOn, uFrame: U.uFrame, uPhotoGrade: PG, uZone: U.uZone });
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vDeckW; varying float vDeckUp;')
         .replace('#include <project_vertex>', '#include <project_vertex>\nvDeckW = (modelMatrix * vec4(transformed, 1.0)).xyz; vDeckUp = normal.y;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-uniform sampler2D uPhoto; uniform float uPhotoOn; uniform vec4 uFrame; varying vec3 vDeckW; varying float vDeckUp;
+uniform sampler2D uPhoto; uniform float uPhotoOn; uniform vec4 uFrame; varying vec3 vDeckW; varying float vDeckUp; uniform vec4 uZone[8];
 ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   if (uPhotoOn > 0.5 && vDeckUp > 0.7) {
     vec2 duv = vec2((vDeckW.x - uFrame.x) * uFrame.z, (-vDeckW.z - uFrame.y) * uFrame.w);
-    diffuseColor.rgb = mix(diffuseColor.rgb, photoGrade(texture2D(uPhoto, duv).rgb), 0.8);
+    float dz = 0.0;
+    for (int i = 0; i < 8; i++) dz = max(dz, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(vDeckW.xz, uZone[i].xy))));
+    diffuseColor.rgb = mix(diffuseColor.rgb, photoGrade(texture2D(uPhoto, duv).rgb), 0.8 * (1.0 - dz));
   }`);
       streetLit(sh);
     };

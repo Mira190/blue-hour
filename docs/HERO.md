@@ -43,6 +43,18 @@ level draws again finely (Kabukicho's tenant stacks and fascias on Ichibangai) i
 meshes of their own (`kbhero_*`, `cities/shinjuku/kabukicho.py` `in_hero`) and hidden while the level is
 shown (`game.hero[].hide`).
 
+**Its surroundings drawn from the street data, not the photograph** (issue 87). Past a level's circle the city's ground
+was the 1 m aerial photograph, and from the air (the story's flight, the helicopter, any camera past 140 m, where the
+drawn streets had faded out) its blur, the towers' shadows baked into it and the buses on the west exit's terminal read
+as wet blotches beside the level's crisp paving. Now, out to 320 m past each level's circle (fading over its last
+110 m), the ground shader in `game.js` takes no colour from the photograph at any height: asphalt, kerbs and footways
+are the drawn streets (`streetTexture`), between them is paving in the footways' tone, the drawing's edges are taken
+back to a pixel where it is magnified, and no grain is laid over it (`ZONE`, `zn`). The drawn streets of a tile under a
+zone stay on in the helicopter. Roofs and piers in the zone take none of the photograph either (`buildings.js`
+`photoZone`, `world.js` piers). It holds with any photograph the map is given. Its views: `tools/views/aerial-ground-87.json`.
+
+![Before and after, from 200 m over the station, by day and at dusk](images/hero/aerial-ground-87.jpg)
+
 **Streamed.** It is fetched when the camera comes within 260 m of its edge, shown within 420 m, and let go
 (geometry and textures freed) past 520 m. On the low tier (phones) every texture is halved before it is
 sent to the GPU, a quarter of the memory, and on a phone's lean sub-tier no side is over 1024; it is resized by
@@ -761,10 +773,7 @@ the frit and a haze of the room's light on it. Farther off the room settles to i
 pixel or two its light to the share lit, so a far tower keeps its tone and does not sparkle. The same shader on every
 tier.
 
-**Not built, and why**: the north face's concave sweep, the LED screen and the overhang over the Urban Core (with its
-faceted mirror-metal ceiling and lit slots over the forecourt) need the tower's solids cut below 15F to a measured
-shape, which nobody publishes; drawn from the photographs alone it would be a guess at the largest thing in the frame.
-It waits in issue 66 with the plans and photographs gathered here.
+**Its base (issue 66)** is in the next section.
 
 Sources: nikken.co.jp (Shibuya Scramble Square, first phase), kkaa.co.jp (the project page), data.shinkenchiku.online
 (SK 2019-12), designboom 2021-05-04, gooood.cn, komaihaltec.co.jp (vol10_2-2.pdf), ibecs.or.jp (CASBEE
@@ -775,6 +784,106 @@ Shibuya Station 191129a (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Scramb
 CC0); Hikarie and Shibuya scramble square buildings, 2025-06 (Nesnad, CC BY 4.0); Shibuya Scramble Square building,
 taken from Shibuya Stream, 2022-06 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance, 2019-12 (Wpcpey, CC BY 4.0);
 Shibuya Scramble Square 191101a1 (江戸村のとくぞう, CC BY-SA 4.0).
+
+## Scramble Square's base: the skirts, the screen and the overhang (issue 66)
+
+The city stood the tower straight down to the street. The real north face, the one the crossing, Miyamasuzaka-shita and
+Hikarie look at, is straight from the roof to 15F and below it carries the Urban Core's "くぼみ": a stepped void seen from
+the plaza over the Ginza line, behind two glass skirts that flare out of the face as they come down, with the screen
+between them and the floors 2F to 4F carried out over the forecourt in front of SKY's street lift.
+
+**What the research found** (November 2026). No elevation, section or dimension of the base is published online. The
+2013 urban-plan drawings (都市再生特別地区 渋谷駅街区: 計画図, 壁面の位置) are not online; Shibuya City's urban-planning section
+shows them only at the ward office. The 2012-13 environmental assessment is no longer online either (the developer
+asked for its web publication to end). What there is:
+
+- Shibuya City's design council summary for the east building (渋谷駅中心地区デザイン会議, "東口アーバン・コア"): the recess
+  was carved so that the Urban Core is seen from the plaza over the Ginza line, "a stepped void cut from underground to
+  the upper floors, with stacked soffits"; its renders show a skirt sweeping from the Skyway deck at 4F up to the corner
+  at about 15F, and a lower glass lobe at the other end. Its corners are to differ, the north-west one, toward Hachiko,
+  "large and distinctive".
+- Tokyo's environmental assessment change notice of July 2025 (変更届, 渋谷駅街区開発事業): ground level T.P.+15.5 m, the
+  east building GL+230 m (約), a 1:2000 site plan and an east-west section (schematic: no recess drawn); Shibuya City's
+  district page: the height limits (GL+230, 80, 65 and 35 m).
+- Elevator Journal 28: the escalators' rises, so the storeys over 1F: 2F 7.7 m, 3F 13.3, 4F 19.3, 5F 25.0, 6F 30.0,
+  7F 35.0, 8F 40.0, 9F 45.0, 10F 50.5, 11F 55.5, 12F 60.5, 13F 65.9, 14F 71.3, 15F 76.5, 17F 84.0.
+- The screen: Shibuya Scramble Square Vision (Panasonic LS Engineering, August 2019): LEDs behind the windows, the
+  mullions' width of pixels skipped so the picture is not stretched, 16 mm pitch, about 550 m2, "irregular"; Tokyu OOH's
+  sheet gives 552.6 m2 in a box 40.05 by 25.24 m. The box was entered in city.py as 25.24 wide and 40.05 high; the
+  photographs show it wider than high, so it is 40.05 wide.
+- KKAA and secondary sources: the lower volume "carved out at the Urban Core", an organic curtain wall carrying
+  aluminium fins 250, 400 and 550 mm deep, graded across it.
+
+**How it was measured.** The face is 59.3 m from the west slab's north-west corner (PLATEAU's slab over the crossing,
+whose north edge and the tower's are one straight line) to the tower's north-east corner, on OpenStreetMap's footprint.
+The edges were read off a near-frontal photograph from the north ("Shibuya Scramble Square-1", 2019-01, the north face
+bare before the screen went in), where the skirt stands on the right, the west (a first reading put it on the left, and
+the stills from Miyamasuzaka-shita beside "Shibuya Station 191129a" showed the mirror image): the skirt's top at 15F and its big terrace at 4F give the storey scale (eleven storeys
+of 52 to 60 px between them), the face's width the scale across (595 px), so each edge point is a share of the width at
+a counted storey. Then checked from Miyamasuzaka-shita ("Shibuya Station 191129a", 2019-11; "宮益坂下交差点 ...
+IMG 0569", 2026-02, at night): the screen's top straight across about 44 m up, its foot hidden behind the Ginza line's
+roof, its lower left cut by the tent and its right by the skirt; and against the screen's published box, which fits
+between the skirt's edge at its top and the tent.
+
+| Part | Measure | Uncertainty |
+|---|---|---|
+| North-west skirt | from 15F (76.5 m) down to 4F (19.3 m); its east edge on the face, measured from the north-east corner, at 53.5 m at 15F, 52.4 at 61 m, 46.8 at 43 m, 42.6 at 29 m, 38.7 at 4F (so 21 m in from the north-west corner at its foot) | +-1.5 m along, +-1 storey |
+| Its flare | 6.5 m out of the face at the corner at 4F, growing as (depth below 15F)^1.6; it stops at the west face's line | +-2 m: the least certain number, seen edge-on in no photograph |
+| North-east tent | 4F to a point at 38 m, its foot from the north-east corner to 17.7 m along, 4 m out at its ridge, over the Urban Core | +-2 m up, +-1.5 m out |
+| Screen | 40.05 x 25.24 m box from 4F, its west side 47.3 m from the north-east corner; its outline (847 m2) the windows' between the tent and the skirt, stepping by storey; 552.6 m2 of it LEDs (the rest the windows' frames and the slabs) | the box published; the outline +-1 storey at each step |
+| Overhang | 2F (7.7 m) to 4F, 6.5 m out from the north-east corner (the east face's line, past which SKY's hall and lift stand) to 17.4 m along, then on an S back to the face at 35 m; a slot of sky left to the Ginza line's station; kept clear of SKY's street hall, its canopy and the way to its doors (4.6 m either side of the hall's axis, from 6 m in front of its doors to past its shaft), since its edge ran through the lift's door point, where a walker is stood on the highest floor | +-2 m out |
+| Forecourt ceiling | from 5.6 m over 1F at the shop fronts up to 7.35 m at the overhang's edge | read off the photograph at the entrance, +-0.5 m |
+
+**What was built**:
+
+- **The solids** (`cities/shibuya/scrsq_base.py`, run after `pipeline/lobby.py`, then `pipeline/pack.py`): the flares
+  as new solids of the tower's building, one a storey band from 4F to 15F and one for the overhang, each the outline at
+  its band's top (so the glass drawn through the outlines stands outside it), all passages (an underside, no posts),
+  half a metre clear of every other building's solid (the Ginza line's station, the station's concourse); every solid
+  keeps its index, and running the pass again rewrites them in place. The tower's own solids are untouched: its roof
+  is SHIBUYA SKY's deck, its curtain wall and rooms are built on them.
+- **The glass** (`hero_scramblesq.py` `base_glass`): the north-west skirt and the north-east tent as smooth surfaces
+  through their outlines, three rows a storey, in the tower's own glass (its offices traced behind it after dark, its
+  joints running down the trumpet in diagonals as its girth grows), with aluminium fins along them, 250 mm deep at the
+  skirt's edge to 550 mm at the corner; the skirt's side in the west face's plane; their undersides at 4F; the
+  overhang's walls in the same skin. 3,600 triangles in all, 0.12 MB.
+- **The screen** (city.py `CROSSING_SCREENS`, built by `pipeline/landmarks.py`): on the north face's line, its box as
+  published, its parts the outline's rows (`scrsq_base.screen_parts`).
+- **The forecourt's ceiling** (`hero_skylobby.py` `soffit`): under the overhang, long facets of mirror-polished steel
+  0.34 m wide and 1.6 to 4.8 m long, laid at 32 degrees to the face, each tipped a few degrees about its long axis (the
+  cause of each one's tone) in two finishes a shade apart, on a dark backing; a slot of blue-white light under one joint
+  in seven (as the photograph at dusk, and the joints' lines in the planks under it); a fascia at the edge up to the
+  overhang's underside. 1,000 triangles.
+
+Stills: `tools/views/scrsq-base-66.json` (`tools/game_shot.js`): from Hachiko, Miyamasuzaka-shita, the deck to Hikarie,
+the forecourt and under its ceiling, and the face from the north, at dusk and at night, on a desktop and a phone.
+
+![The base from the north at dusk, from Miyamasuzaka-shita at night, from the deck to Hikarie, under the forecourt's ceiling at night, the forecourt, and Hachiko](images/shibuya/scrsq-base-66-desktop.jpg)
+
+![The same on a phone (390 x 844)](images/shibuya/scrsq-base-66-phone.jpg)
+
+**Where it still falls short**: the skirts' depth and the tent are measured from photographs, not drawn from plans
+(above); the skirt's lowest band, 4F to 5F, is clipped where the station's concourse blocks stand by the north-west
+corner (its glass is drawn whole, through their roofs); the overhang and its ceiling stop short of SKY's hall, which in
+the photographs stands under them; the Urban Core's stepped void behind the glass (the stacked floors seen through it) is the offices'
+traced rooms, not the void; the Skyway's deck at 4F along the face, and the Ginza line's station in front (a white box
+with glass bands under an M-shaped roof, drawn with the city's generic office wall; issue 66's comment) are not
+modelled here; it has been seen on a software renderer only.
+
+Sources (looked at, none reproduced, no texture taken): files.city.shibuya.tokyo.jp (渋谷駅中心地区デザイン会議 協議内容,
+the east building: municipal publication, the developers' copyright); kankyo.metro.tokyo.lg.jp and
+assess-toshokohyo.metro.tokyo.lg.jp (環境影響評価 変更届, 渋谷駅街区開発事業, 2025-07: public filing, for viewing);
+city.shibuya.tokyo.jp (都市再生特別地区 概要); n-elekyo.or.jp (Elevator Journal 28); www2.panasonic.biz (Shibuya SS Vision,
+the works page and its PDF); w0w.co.jp (the screen's opening programme, 2020); shibuya-scramble-square.com (the 2014
+construction release); ja.wikipedia.org (渋谷スクランブルスクエア, CC BY-SA). Photographs (Wikimedia Commons, compared,
+none reproduced): Shibuya Scramble Square-1, 2019-01-26 (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Station 191129a,
+2019-11-29 (江戸村のとくぞう, CC BY-SA 4.0); 宮益坂下交差点 2026年2月19日の渋谷 202602191904 IMG 0569 (ウィ貴公子, CC BY-SA
+4.0); SHIBUYA SCRAMBLE SQUARE East Tower, 2023-05-05 (Sakura Torch, CC BY-SA 4.0); Shibuya Scramble Square 191101a,
+2019-11-01 (江戸村のとくぞう, CC BY-SA 4.0); Hikarie and Shibuya scramble square buildings 2025 June 15 (Nesnad, CC BY 4.0);
+Shibuya Scramble Square, seen from Hikarie (23784), 2025-03-11 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance
+2019, 2019-12 (Wpcpey, CC BY 4.0); Shibuya scramble square from in front of Shibuya Station - Oct 28 2019 (Nesnad, CC BY
+4.0); 渋谷スクランブル交差点 2026年11月5日の渋谷 202611051900 IMG 8322 (ウィ貴公子, CC BY-SA 4.0). Page:
+https://commons.wikimedia.org/wiki/File: and the title.
 
 ## Only what the first frame sees (issue 358)
 
