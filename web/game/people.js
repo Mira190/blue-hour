@@ -836,19 +836,19 @@ void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPo
 ${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz)) * 1.6;' : ''}
   vec3 hV = normalize(vViewPosition), hUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
   vec3 hL = normalize(hV - hUp * dot(hV, hUp) + hUp * 0.55);
-  reflectedLight.indirectSpecular += hE * hairLobes(normal, hV, hL, material.diffuseColor, 1.0) * 0.55;
+  reflectedLight.indirectSpecular += hE * hairLobes(normal, hV, hL, material.diffuseColor, 1.0) * 0.85;
   // (the lit fronts to one side, as the cast's key, and the screens behind on the other: a band each across the strands)
   vec3 hSd = normalize(cross(hUp, hV));
-  reflectedLight.indirectSpecular += hE * (hairLobes(normal, hV, normalize(hV * 0.5 + hUp * 0.6 + hSd * 0.65), material.diffuseColor, 1.0) * 0.3
-    + hairLobes(normal, hV, normalize(hUp * 0.5 - hSd * 0.8 - hV * 0.35), material.diffuseColor, 1.0) * 0.5);
+  reflectedLight.indirectSpecular += hE * (hairLobes(normal, hV, normalize(hV * 0.5 + hUp * 0.6 + hSd * 0.65), material.diffuseColor, 1.0) * 0.45
+    + hairLobes(normal, hV, normalize(hUp * 0.5 - hSd * 0.8 - hV * 0.35), material.diffuseColor, 1.0) * 0.8);
   // (light scattered among the strands: Karis's stand-in, a wrap round the strand's own normal toward the lens, in the pigment's colour)
   { vec3 hT = normalize(vHairT), hFn = normalize(hV - hT * dot(hV, hT));
     reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.2, 0.15, 0.12)) * 0.015 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
   float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = 1.0 - smoothstep(0.35, 1.0, hairA);
   // (light through hair takes the warm brown of its pigment, even through black hair)
-  reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.3, 0.2, 0.14)) * (0.12 * hThin + 0.15 * hRim) * (1.0 - 0.8 * vHairRoot) * vHairK; }`);
+  reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.3, 0.2, 0.14)) * (0.12 * hThin + 0.3 * hRim) * (1.0 - 0.8 * vHairRoot) * vHairK; }`);
     };
-    m.customProgramCacheKey = () => `strand-hair5${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `strand-hair6${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.needsUpdate = true;
   }
   // The strand's way at each vertex, how near the scalp it is (hairTR: xyz, w) and on the head's mesh whether it is hair
