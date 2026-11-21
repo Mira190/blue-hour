@@ -102,8 +102,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     D.holdOff = () => { D.hold = false; if (queue.size && !due) { due = true; raf(flush); } };
     if (glcount) { D.glIn = {}; D.glOut = {}; for (const k of Object.getOwnPropertyNames(P)) { const d = Object.getOwnPropertyDescriptor(P, k); if (typeof d.value !== 'function' || k === 'constructor') continue; const f = d.value; P[k] = function (...a) { const w = !D.on ? D.glIn : D.inFrame ? null : D.glOut; if (w) w[k] = (w[k] || 0) + 1; return f.apply(this, a); }; } }
     // (a clear is drawing too: a frame not drawn cleared its targets a dozen times, each a pass of llvmpipe's)
-    for (const k of ['blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
-    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+    for (const k of ['blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on && !D.dry) return f.apply(this, a); }; }
+    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) { const f = P[k]; P[k] = function (...a) { if (D.on && !D.dry) return f.apply(this, a); }; }
     // A still of one frame drawn whole (#78). It was of the second of two, for what the first leaves the second in targets
     // of its own: the ambient occlusion's history (ao.js: the first frame's occlusion, reprojected, is nine tenths of the
     // second's), and the street mirror's picture (mirror.js: drawn every other frame, so one of the two drew it). The
@@ -257,7 +257,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
-  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  // (STILLS=0: no still is taken: a check that reads the story's state, not its pictures; a play here spent two fifths of
+  // its time on 187 stills, 2.1 s each on a software renderer. Where the still's frame is counted (BUDGET) the frame is
+  // asked for whole all the same, dry: the page makes every call of it and the counts are of the calls, but no draw or
+  // clear is passed on to the renderer. Where nothing is counted, nothing is asked for. The photographs the story itself
+  // takes are drawn as ever)
+  const NOSTILL = process.env.STILLS === '0', dry = on => (NOSTILL && DRAW > 1 ? p.evaluate(on => { window.__draw.dry = on; }, on) : null);
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
@@ -278,9 +284,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (and looking up or down at it, where it has a height: the lens looks 0.3 - cam.pitch above the level)
   const face = at => p.evaluate(at => { const g = window.__game, pl = g.player, d = Math.hypot(at[0] - pl.x, at[1] - pl.y); pl.h = Math.atan2(at[0] - pl.x, at[1] - pl.y); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = at[2] != null ? Math.max(-0.25, Math.min(1.35, 0.3 - Math.atan2(at[2] - (pl.z + 1.6), d))) : 0.25; } }, at);
   const seen = new Set();
+  // (a beat's still was taken 1.2 s after the beat was seen, for the picture to settle; MARKWAIT=ms: another wait)
+  const MARKWAIT = +(process.env.MARKWAIT ?? 1200);
   // (one light standing in the street at a time: at every beat's still, the story's own and no other; the free game's
   // objective column stood beside it over the Center Gai arch and SHIBUYA SKY's door)
-  const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(1200); await snap(`${s.fi + 1}-${name}`);
+  const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(MARKWAIT); await snap(`${s.fi + 1}-${name}`);
     if (s.phase === 'stop' && !seen.has(`heads-${s.fi}`)) { seen.add(`heads-${s.fi}`); // (time held: no head turns by itself; a look laid over a look wound Aoi's head round by the Center Gai arch)
       const hs = await p.evaluate(() => new Promise(r => { const g = window.__game, T = window.THREE, rigs = (g.npcs || []).filter(n => n.rig && n.rig.head && n.rig.root.visible).map(n => [n.id, n.rig]).concat(g.player && g.player.rig && g.player.rig.head ? [['player', g.player.rig]] : []);
         const was = rigs.map(([, q]) => q.head.getWorldQuaternion(new T.Quaternion())), worst = rigs.map(() => 0); let n = 12;
