@@ -584,6 +584,18 @@
       {"name": "神南一丁目 Jinnan 1-chome", "at": [392.3, -819.0], "note": "Koen-dori, the next crossing up; scramble-style (jafmate.jp road trivia, 2023-12-25, which names the scramble-style crossings); diagonals mapped in OSM."},
       {"name": "勤労福祉会館前 Kinro Fukushi Kaikan-mae", "at": [251.7, -680.2], "note": "Koen-dori, about 200 m further; scramble-style (jafmate.jp road trivia, 2023-12-25, which names the scramble-style crossings); diagonals mapped in OSM."}
     ],
+    "tonight": {
+      "place": "Shibuya",
+      "lead": 6,
+      "moments": [
+        {"id": "light", "of": "light_show", "name": "CROSSING LIGHT", "where": "SHIBUYA SKY's roof", "now": "Look up: eighteen searchlights over SHIBUYA SKY"},
+        {"id": "shops", "at": "21:00", "minutes": 4, "name": "The shutters come down", "where": "SHIBUYA109 and the shops", "now": "The department stores and the streets' shops shut: the restaurants, the bars and Don Quijote stay open"},
+        {"id": "screens", "at": "00:00", "minutes": 3, "name": "The screens go dark", "where": "round the crossing", "now": "The screens round the crossing go out for the night"},
+        {"id": "last", "at": ["00:33", "00:48"], "minutes": 3, "name": "The last Yamanote trains", "where": "Shibuya station", "now": "The last train of the night pulls out: 最終電車"}
+      ],
+      "trains": {"yamanote-n": ["00:33", "04:33"], "yamanote-s": ["00:48", "04:36"]},
+      "note": "The walk's night by the hour (web/game/tonight.js; docs/STORY.md 'Tonight', with the sources). CROSSING LIGHT keeps light_show's times (19:00 to 22:00 on the hour and the half hour). The shops of SHIBUYA109, Scramble Square, MAGNET and Hikarie ShinQs close at 21:00 (their own listings); buildings.js shuts the city's procedural shopfronts at 20:00 to 23:00 or never. The screens' hours are 9:00 to 24:00 (pipeline/screens.py, the media sellers' listings). trains: each Yamanote track's last and first departure from Shibuya (JR East's timetable, December 2026: the outer loop for Shinjuku and Ikebukuro 0:33, the inner loop for Shinagawa 0:48; the first trains about 4:30, approximate)."
+    },
     "crowd": {"cast": {"f": ["R_Female_Adult_14_f016", "R_Business_Female_04_f013", "R_Female_Adult_08_f016", "R_Female_Adult_11", "R_Female_Adult_15_f011_brown", "R_Female_Adult_17_f011", "R_Business_Female_01_f011", "R_Female_Adult_02_f013", "R_Female_Adult_13_f016", "R_Female_Adult_05_f011"], "m": ["R_Male_Adult_20_m008", "R_Male_Adult_11_m017", "R_Business_Male_06_m017", "R_Male_Adult_06", "R_Male_Adult_05_m008", "R_Business_Male_03", "R_Male_Adult_02_m017", "R_Male_Adult_18_m008", "R_Male_Adult_04_m017", "R_Male_Adult_12"], "note": "the walkers drawn as people, in order (the first ten women and ten men on a desktop, four and four on a phone), each of a body and its clothes no one else in the cast wears (issue 77: the second four of each, built for the crowd) (issue 64: two of the six men were the one argyle sweater vest under two heads, and with the change of clothes unable to touch a black-and-white print, a third of the men at a kerb were that vest): Shibuya's own crowd in everyday clothes, an office worker of each sex, and every fourth a visitor from abroad (the share is an estimate). Passed over (game.js realCast, pipeline/crowd_cast.py): whoever wears a face Kagami wears, and the people the story names"}, 
       "pedestrians": 640,
       "pedestrians_peak": 1600,
