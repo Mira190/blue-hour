@@ -264,6 +264,18 @@
 .game-stage.story .g-dialog p { margin: 16px auto 14px; max-width: 34em; min-height: 3.1em; font: 300 clamp(18px, 2.1vw, 23px)/1.55 var(--f-body); color: var(--paper); text-shadow: 0 1px 16px rgba(0, 0, 0, 0.9); }
 .game-stage.story .gd-hint { text-align: center; font-size: 9px; letter-spacing: 0.3em; color: rgba(244, 239, 230, 0.5); }
 
+/* ---- a call taken hands-free (hud.js dialogue free): a subtitle low on the picture, the street still the player's to walk
+   and look round; it passes by itself, and nothing on it is to be pressed. A line cut off by the Stop greys and goes */
+.game-stage.story .g-dialog.free { pointer-events: none; cursor: default; padding-top: 44px; background: linear-gradient(to top, rgba(4, 8, 18, 0.66), rgba(4, 8, 18, 0.3) 58%, transparent); }
+.game-stage.story .g-dialog.free p { margin: 9px auto 0; min-height: 0; font-size: clamp(16px, 1.75vw, 20px); }
+.game-stage.story .g-dialog:is(.free, .cut) .gd-head b::before { content: ""; display: inline-block; width: 6px; height: 10px; margin-right: 9px; border: 1.3px solid currentColor; border-radius: 2px; vertical-align: -1px; } /* (a phone, by the caller's name) */
+.game-stage.story .g-dialog:is(.free, .cut) :is(.gd-hint, .gd-tools) { display: none; }
+.game-stage.story .g-dialog.cut { pointer-events: none; }
+.game-stage.story .g-dialog.cut p { margin: 9px auto 0; min-height: 0; font-size: clamp(16px, 1.75vw, 20px); color: rgba(244, 239, 230, 0.55); transition: color 0.4s ease; }
+@media (pointer: coarse), (max-width: 640px) { /* (above the thumbs: the stick, and the camera's button when it comes up under the last line) */
+  .game-stage.story .g-dialog:is(.free, .cut) { bottom: max(200px, calc(env(safe-area-inset-bottom) + 200px)); padding: 26px 18px 8px; background: radial-gradient(ellipse 72% 82% at 50% 62%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0) 76%); }
+}
+
 /* ---- a line as the world runs on again: type on the picture */
 /* what is said (the guide's line, what comes after a picture) is a subtitle: low in the frame, clear of the goal at the top left */
 .game-stage.story .g-toasts { top: auto; bottom: max(178px, calc(env(safe-area-inset-bottom) + 178px)); width: min(640px, calc(100% - 48px)); }
@@ -556,7 +568,7 @@
 @media (max-width: 640px) { .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-frames, #g-story-keys) { opacity: 0; pointer-events: none; } }
 /* (while someone speaks, nothing else is written over the lower third: a line said over the picture goes up, under the
    goal, and the mark and the keys step aside; the dialogue has the screen's foot to itself) */
-.game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(19vh, 150px); bottom: auto; }
+.game-stage.story:has(.g-dialog:not([hidden]):not(.free):not(.cut)) .g-toasts { top: max(19vh, 150px); bottom: auto; } /* (not for a call said hands-free: a subtitle, under where a line said over the picture sits) */
 .game-stage.story:has(.g-dialog:not([hidden])) :is(#g-story-mark, #g-story-keys) { opacity: 0; }
 /* (on a phone the goal lies over the brightest part of the frame, the shop fronts across the road: a deeper scrim under it) */
 @media (max-width: 640px) { .game-stage.story #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); } }
@@ -1266,6 +1278,7 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
   /* (while someone speaks, a line said over the picture goes to the top of the screen: the talk's shot puts the face on
      the upper third of what the words leave, where 19vh laid the line across it: Yuna at SKY GATE, Sumiko in the rain) */
-  .game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
+  .game-stage.story:has(.g-dialog:not([hidden]):not(.free):not(.cut)) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
+  .game-stage.story:has(.g-dialog:is(.free, .cut):not([hidden])) .g-toasts { bottom: max(300px, calc(env(safe-area-inset-bottom) + 300px)); } /* (over a call's subtitle, under the goal) */
 }
 @keyframes g-story-chip-narrow { 0% { opacity: 0; letter-spacing: 0.36em; } 14%, 72% { opacity: 1; letter-spacing: 0.22em; } 100% { opacity: 0; } }

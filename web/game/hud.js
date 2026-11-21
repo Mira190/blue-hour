@@ -248,19 +248,24 @@ window.OEHud = (function () {
   // (api.log: log.js). A line typed a letter at a time is shown whole on the first press and passed on the second.
   // One step back (back()) shows the line said before, whole, with its speaker; on again comes back to the line that
   // was being said, and the question with it.
+  // A call is said hands-free (opts.free): its lines run along the foot of the frame and pass by themselves at the pace
+  // they are read (a press passes one sooner), and the player walks and looks while it is said, as a phone call in an
+  // open-world game is taken (the radio of Firewatch, the calls of Marvel's Spider-Man and GTA V: never a stop to listen).
+  // cut(): a line cut off where it stands (the world stopped under it), the call gone without its ending.
   function dialogue(audio) {
     const box = $('#gd'), nameEl = $('#gd-name'), roleEl = $('#gd-role'), textEl = $('#gd-text'), choicesEl = $('#gd-choices'), hint = $('#gd-hint');
     let cur = null, view = 0, shutAt = -1e9;
     const said = []; // (the lines said, latest last: for the step back, across one speaker's talk and the next)
     const touchy = () => matchMedia('(pointer: coarse)').matches;
     const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
-    function show(npc, lines, choices, done) {
-      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 };
-      view = 0; box.hidden = false; box.classList.remove('back');
+    function show(npc, lines, choices, done, opts = {}) {
+      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0, free: !!opts.free && !(choices || []).length };
+      view = 0; box.hidden = false; box.classList.remove('back', 'cut'); box.classList.toggle('free', cur.free);
       head(npc);
       next(true);
     }
-    const hintFor = () => (cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : '<kbd>E</kbd> or click to continue') : '');
+    const hintFor = () => (cur.free ? '' : cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : '<kbd>E</kbd> or click to continue') : ''); // (a call's lines pass by themselves)
+    const readS = t => Math.max(2.4, Math.min(7.5, 1.4 + 0.045 * t.length)); // (a line held for as long as it takes to read, after it is typed)
     function next(first) {
       if (!cur) return;
       if (!first && view > 0) { view--; return view ? recall() : present(); } // (stepping back: on is forward through what was said, to the line being said)
@@ -305,11 +310,20 @@ window.OEHud = (function () {
     function close(choice) {
       const d = cur && !choice ? cur.done : null;
       cur = null; view = 0; shutAt = performance.now();
-      box.hidden = true; box.classList.remove('back');
+      box.hidden = true; box.classList.remove('back', 'free', 'cut');
       choicesEl.innerHTML = '';
       if (d) d(null);
     }
+    let cutT = 0;
+    function cut() {
+      if (!cur) return false;
+      const n = Math.max(1, Math.floor(cur.typed)), c = cur;
+      c.full = n < c.full.length ? `${c.full.slice(0, n).replace(/[\s,.;:]+$/, '')}—` : c.full; c.typed = c.full.length; // (said to its end: only gone) c.done = null; c.free = false; textEl.textContent = c.full; hint.innerHTML = '';
+      box.classList.add('cut'); clearTimeout(cutT); cutT = setTimeout(() => { if (cur === c) close(); }, 900);
+      return true;
+    }
     function tick(dt) {
+      if (cur && cur.free && !view && cur.typed >= cur.full.length) { cur.t += dt; if (cur.t >= readS(cur.full)) next(false); return; } // (read: on to the next)
       if (!cur || view || cur.typed >= cur.full.length) return;
       const before = Math.floor(cur.typed);
       cur.typed = Math.min(cur.full.length, cur.typed + dt * 55);
@@ -326,7 +340,7 @@ window.OEHud = (function () {
     // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
     // (quiet: just closed. The press that passed the last line, or the one after it from a hand still passing lines, is not
     // also the next thing: E passes a line and gets you into a helicopter beside you, F passes one and is the shutter)
-    return { show, next, back, choose, tick, get open() { return !!cur; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    return { show, next, back, choose, tick, cut, get open() { return !!cur; }, get free() { return !!(cur && cur.free); }, get holds() { return !!cur && !cur.free; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts

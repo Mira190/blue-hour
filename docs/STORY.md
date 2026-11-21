@@ -854,9 +854,9 @@ file's own paper, in its hand, its words coming up as ink does. Who, which kerb,
 survey photograph is taken at blue hour, *the few minutes after sunset when the sky and the street lamps are equally
 bright*. Under it, the old plan's corner with its one pencilled word, 待つ. So the hour the story turns on is explained by
 the job, on a thing the player holds, with the street still running behind it; and the word the office will speak of is
-seen before it is said. E or a tap puts it away, it becomes the first line of the file, and a second later the world
-stops. The title falls once more, in that Stop, and nowhere else in play (`order` on the episode; `web/game/story.js`
-`order`).
+seen before it is said. E or a tap puts it away, it becomes the first line of the file, and the phone rings (below,
+*The opening rebuilt*). The title falls once more, in the first Stop, and nowhere else in play (`order` on the episode;
+`web/game/story.js` `order`).
 
 It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
 away for the card, and was then come down to again from the air. Out, for that reason.
@@ -972,13 +972,50 @@ and the line is written on it in the file's hand and pen as it is said; a line t
 the camera). In the second nobody moves: a stool at a kerb, and the place to find alone. The boy who sat on it is
 met alive, at seventy-six, in the sixth, and is not heard twice.
 
-**It opens in the Stop, and the voice comes after.** The world stops a second after the player is given the street;
-the office rings only when time runs again: who you are (a photographer, late), why this kerb, who the client is (an estate: a Mr Hoshino, who printed for
-the office), the word pencilled on the old plan, and that your sister has rung again, today of all days, and been told
-you are out. The last card answers that line with one of
-its own.
+**The opening rebuilt: the call first, then the player's own camera stops the world** (the owner, 21 November 2026:
+"after the first photograph the office's call was waited for a long while, which is strange; let the call come first, as a
+buffer, and not the Stop at once; analyse and design it again to the standard of the big studios").
 
-(`prologue` on the episode, with `after`.) A case left unfinished says so on the title, with a second button to start the evening again.
+For a while it opened in the Stop and the voice came after. Measured on the page, the first minutes went: the film (half
+a minute), the job sheet, *one second* of the street, the Stop; the dog, the walk to her, her talk, the camera taught, the
+print; then her two lines, time running again, **ten seconds with nothing on the screen to do** (`resume`'s wait, 1.6 s
+and 4.2 s a line), and a five-line call that **held the player still** (every dialogue held the walk), and only then
+the second frame's goal. Read against what the openings of the big narrative games do, it failed five ways:
+
+| What they do | The work it is taken from (design only) | What Blue Hour did | What it does now |
+|---|---|---|---|
+| Show the ordinary world under the player's own feet before it breaks: a strangeness is measured against a normal the player has walked | *The Last of Us* (2013), the evening at home before the outbreak; *Life is Strange* (2015), the classroom before the rewind; *Control* (2019), the lobby before the Oldest House turns | One second of the street, then the Stop. A held crowd means little to a player who never walked a running one, and the doc's own rule (*a street that merely stands still looks like a photograph of a street*) asks for that contrast | Half a minute to a minute of the live Scramble under the player's control while the office talks: the lights, the crowd crossing round them, the sound |
+| Give the player a goal before the inciting incident, so that it interrupts *their* plan | Most mission openings; *Control* again, a job that is not the job; the interest curve (Schell, *The Art of Game Design*): a hook, then rising interest, never a valley without a pull out of it | The job was read on a card and then explained after the first frame was over | The goal and the mark come with the call's first word: *The north-west kerb, across the road. One photograph of it, at 17:14* |
+| Let the player's own act cause the incident | *Life is Strange*, the hand raised in the washroom; rule 4 of this story, *a camera is raised to her corner at the hour, as his was* | The world stopped by itself, a second after a card | The player raises their own camera to her corner; held on it a moment, the world stops **in the finder**: the brake, the ring and the hanging leaves are seen through the lens, then the camera comes down for the Stop's turn round you and the title |
+| Carry exposition while the player moves; never a silence with nothing to do after a peak | *Firewatch* (2016), the radio while you walk; *Marvel's Spider-Man* (2018) and *GTA V* (2013), calls taken hands-free while you travel; *Half-Life 2* (2004), walk-and-talk | Ten seconds of nothing after the first print, then a call that held the walk | The call is before the Stop, hands-free (`hud.js` dialogue `free`: subtitles at the foot of the frame, passing by themselves at reading pace, E passing one sooner, the street's keys and the stick still the player's). After the first print the second frame's goal comes as time runs (2.2 s, as every other frame), with the after-lines over it |
+| Let the strange cut into the ordinary | The dropped call, the radio gone dead | The Stop came between nothing and nothing | The Stop cuts the office off mid-word (`dlg.cut`); as time runs again the office is back on the line, one line hands-free: *Kagami? …Kagami. You dropped off the line. Ring me when you have it.* Nobody else saw the crossing stop |
+
+So the first frame plays:
+
+1. **The film** (half a minute, unchanged): the district from the air, down to the kerb, the crossing from above as the
+   title falls, the kerb behind you as the lights change.
+2. **The order in the hand** (unchanged): the job sheet, its ink coming up; E or a tap puts it away.
+3. **The call** (about forty seconds): the phone buzzes in a pocket (`audio.js` `phone`: a motor's hum and the case's
+   rattle, no ringtone) and the office speaks hands-free while the player walks and looks and the crowd crosses round
+   them. What it says does not repeat the sheet: you are late but there; the kerb across the road has not been touched
+   since the week before the Olympics and is dug up on Monday; who Mr Hoshino was, and that his estate will not say why
+   it wants 17:14; that the word on the plan is not the office's; and that your sister rang again today, of all days.
+   Its last line asks for the picture (`prologue.push`), and from then the camera's button is offered.
+4. **The job** (`fr.job`; `story.js` `jobBegin`, `jobTick`): R, the button, the left trigger or the release raises
+   Kagami's own camera, the lens's view as in every frame. Turned away from her corner nothing happens but the goal
+   saying where it is; with her corner inside the frame lines for 0.8 s (`hold_s`), within 80 m (`within_m`), the world
+   stops. The release with it framed is the moment at once.
+5. **The Stop**, from across the road: the lens held 1.1 s of the story's time while the street brakes in it, then down;
+   the turn round you, the title, the dog's film, and the walk across the held crossing to her (it was a walk of a few
+   steps from a Stop begun at her kerb by the card; now the whole crossing, through three thousand people standing still).
+6. Her talk, the camera of 1964 taught, the print, and time running: the office back on the line if it was cut off, the
+   after-lines, and the second frame's goal at once.
+
+A case taken up again at the first frame hears the call again; a Stop that runs out comes again where it stopped,
+without the job. `tools/opening_play.js` plays it on a desktop and a phone and fails where any of this does not hold;
+`tools/story_play.js` raises the camera away from her corner and onto it, with a still of the Stop in the finder.
+
+A case left unfinished says so on the title, with a second button to start the evening again.
 
 **The mark says what it is of.** One mark in the frame and one light in the street, and their shape says what is
 asked, the way a quest marker and an interaction prompt are told apart in *The Witcher 3*, *Ghost of Tsushima*

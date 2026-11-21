@@ -395,6 +395,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         continue;
       }
     }
+    // the first frame's job (docs/STORY.md, "The opening rebuilt"): the office said hands-free while the street runs (the
+    // lines above, passed by E), then the player's own camera raised to her corner across the road: raised turned away it
+    // does not stop; turned onto the corner and held, the world stops in the finder, and the view is the lens's as it does
+    if (s.phase === 'go' && s.beat === 'job') {
+      const J = await p.evaluate(() => { const g = window.__game, st = g.story.state, J = st.fr.job; return { ready: !!st.jobReady, at: [J.at[0], J.at[1], g.player.z + 1.3], btn: document.getElementById('g-story-cam').classList.contains('on') }; });
+      if (!J.ready) { await p.waitForTimeout(500); continue; }
+      if (!seen.has('job')) {
+        seen.add('job'); await frames(3); await mark(s, 'job-raise');
+        if (!J.btn) { errors.push('frame 1: the office has asked for the picture, and there is no button to raise the camera'); console.log(errors[errors.length - 1]); }
+        await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + Math.PI; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.3; }, J.at);
+        await frames(3); await p.evaluate(() => window.__game.story.raise(true)); await frames(30);
+        const away = await p.evaluate(() => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder }));
+        console.log('frame 1: the camera raised away from her corner:', JSON.stringify(away));
+        if (away.phase !== 'go' || !away.finder) { errors.push(`frame 1: raised away from her corner, ${JSON.stringify(away)} (the world still running, the lens's view)`); console.log(errors[errors.length - 1]); }
+        await face(J.at);
+        for (let k = 0; k < 200 && await p.evaluate(() => window.__game.story.state.phase === 'go'); k++) await frames(2);
+        const st0 = await p.evaluate(() => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder, cut: document.getElementById('gd').classList.contains('cut') }));
+        console.log('frame 1: her corner held in the finder:', JSON.stringify(st0));
+        if (st0.phase !== 'stop' || !st0.finder) { errors.push(`frame 1: her corner held in the finder, ${JSON.stringify(st0)} (the world stopped, seen in the lens)`); console.log(errors[errors.length - 1]); }
+        await snap('1-stop-in-the-finder');
+      }
+      continue;
+    }
     if (s.phase === 'go' && s.beat === 'meet') {
       // while the dog leads, he alone shows the way: no light standing in the street, no gold line, and no mark while he is in the frame
       if (!seen.has(`led-${s.fi}`)) { await frames(4); const g = await p.evaluate(() => { const G = window.__game, st = G.story.state, d = st.dog; return d && d.ready ? { guided: !!st.guided, light: st.lightK || '', gold: G.guide().n, mark: document.getElementById('g-story-mark').classList.contains('on'), kind: document.getElementById('g-story-mark').dataset.kind } : null; });

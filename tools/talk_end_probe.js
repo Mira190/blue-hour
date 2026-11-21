@@ -40,6 +40,7 @@ const [,, out = '/tmp/talk-end', size = '1440x900'] = process.argv;
     if (k !== last) { console.log(`${((Date.now() - t0) / 1000).toFixed(0)} s ${k} t ${s.t} at ${s.at} cam ${s.cam} finder ${s.finder} · ${s.goal.slice(0, 90)}`); last = k; }
     if (s.phase === 'stop' && s.beat === 'shoot') break;
     if (s.phase === 'go' && s.beat === 'order') { if (phone) await p.touchscreen.tap(w / 2, h * 0.83); else await p.keyboard.press('KeyE'); await p.waitForTimeout(1500); continue; }
+    if (s.phase === 'go' && s.beat === 'job') { if (s.dlg) await p.keyboard.press('KeyE'); else await p.evaluate(() => { const g = window.__game, st = g.story.state, J = st.fr.job; if (!st.jobReady) return; const pl = g.player; g.cam.yaw = Math.atan2(J.at[0] - pl.x, J.at[1] - pl.y); g.cam.pitch = 0.3; g.story.raise(true); }); await p.waitForTimeout(600); continue; } // (the opening's job: the office passed by E, your own camera raised to her corner)
     if (s.dlg) {
       if (s.phase === 'stop' && s.beat === 'talk' && !presses) await snap('1-talk');
       presses++; await press(); await p.waitForTimeout(MASH ? 150 : 700); continue;
