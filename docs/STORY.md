@@ -1175,16 +1175,16 @@ first principles:
   2003, which Mapbox GL JS's and CesiumJS's flights follow: speed over the ground in proportion to what is seen),
   softened, since at the full rate the high part was a rush.
 - *The beats.* `over` (8.5 s): from 600 m over Omotesando, the whole district to the horizon and the title. `glide`
-  (8 s): down towards the station's towers. `edge` (5 s): over the north edge of SHIBUYA SKY's roof at the deck's height,
-  its people and the helicopter on its pad below. `dive` (8.5 s): down the tower's face and out over the crossing to
+  (8 s): down towards the station's towers. `edge` (5 s): at the deck's height to the north edge of SHIBUYA SKY's roof,
+  its lit parapet ahead, and over it. `dive` (8.5 s): down the tower's face and out over the crossing to
   above where you stand, the crowd gathered at every kerb, and the walk turns green under you. `land` (6 s): straight
   down into the surge onto your shoulder, still looking across the crossing until the last second (`lookHold`), never
   tipped onto the tops of heads. Its way keeps clear of the roofs and of the trees' crowns: a first way down from the
   station's side passed through the twenty-metre zelkova on that corner.
-- *A map without a map.* A few of the places the walk can take you are named as the camera passes over them (the
-  National Gymnasium, SHIBUYA SKY at 229 m, Hikarie, Cerulean Tower, Dogenzaka's 109, Center Gai, Hachiko): a point on
+- *A map without a map.* A few of the places the walk can take you are named as the camera passes over them
+  (SHIBUYA SKY at 229 m, Hikarie, Cerulean Tower, Dogenzaka's 109, Center Gai, Hachiko): a point on
   the place, an amber stem, its name in its own script and in the title's type, faded in and out over its seconds and
-  gone when it leaves the frame. Seven, never more than three at once: what the walk offers, not a tour.
+  gone when it leaves the frame. Six, never more than three at once: what the walk offers, not a tour.
 - *Its own sound.* A score of its own (film-score.js): E major on a glass bell over a piano's arpeggio, where the
   story's is a minor piano alone; rising, never striking; the crossing's birds as it turns green; let go into the
   street's own sound as you land. The loading cue goes as the walk sets out.
@@ -1203,8 +1203,8 @@ whole building); the fly-to of web maps and globes for its pace (above; the idea
 viewpoints of the *Assassin's Creed* games, from which the city round you is shown and its places put on your map, for
 the names. On the page: `cities/shibuya/city.json` `game.walk.overture`, `web/game/overture.js` (`fly`, `marks`, guide
 `none`, the title's `style: card`, `{tokens}` the game fills, the hold for the level), `web/game/game.js` (`startWalk`,
-`walkFilmMake`). `tools/walk_open.js` takes a still of each shot and checks the camera's clearance over the roofs and from the trees' crowns
-(`FILM=1`: the whole film with its score); `tools/walk_play.js` sees it play and a key or a tap end it.
+`walkFilmMake`). `tools/walk_open.js` takes a still of each shot and checks the camera's clearance over the roofs and
+from the trees' crowns (`FILM=1`: the whole film with its score); `tools/walk_play.js` sees it play and a key or a tap end it.
 
 **The title's ways in, one list (November 2026).** On a phone the walk's button stood taller than the episode's (its
 second line wrapped under it), and on a desktop the title's ways in were three widths and three looks: an amber one, a
