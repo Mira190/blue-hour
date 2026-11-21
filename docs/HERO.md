@@ -465,19 +465,39 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
 - Stills: `tools/foot_cam.js` walks each frame's way at its hour and takes the same moment with the camera as it is
   and as it was, on a desktop and a phone. Frame 3's walk from Center Gai had climbed to 8 m over a wall at the old
   pose; at the new one someone crossed the line to the head for 0.6 s of a 4 s walk, and the lift went to 0.15.
-- Someone at the lens (issue 82). At a shoulder, someone of the crowd walking a pace or two in front of the lens and
-  to its side filled a corner of a phone's upright frame: not across the line to the head, so no lift, and not inside
-  the lens, so `lensClear` left them. As third-person games do with what comes close to the camera (screen-door
-  transparency: an ordered dither, as Unreal's dithered opacity masks and Unity's dither fades do it; the technique
-  only, no code), every person, whole or a far copy, and what they carry, is dissolved as they near the lens in a
-  fixed 4x4 Bayer pattern: whole at 3.2 m from the lens to their middle, gone at 2 m (`people.js` `setNear`; the
-  distance is the person's, worked out in the vertex shader from where they stand, so the whole of them goes at once,
-  not the head first; with the eye 2.5 m up, someone nearer than 2 m is mostly under a phone's frame, and from 2 to
-  3 m their head and shoulders fill a corner of it). `game.js` `updateCamera` sets the band for the chase view on foot only, its far edge 1.2 m
-  short of the one you play (a lens pulled in by a wall never dissolves you); a talk's, a film's, a scripted shot's
-  and the finder's framing is composed with whoever is in it, and there it is off. The pattern is fixed in the frame,
-  so held still nothing flickers. `tools/lens_near.js` puts one of the crowd at points of the frame near the lens
-  and takes it with the dissolve off, on, and five seconds of held time later.
+- Someone at the lens (issues 82 and 129). At a shoulder, someone of the crowd walking a pace or two in front of the
+  lens and to its side filled a corner of a phone's upright frame: not across the line to the head, so no lift, and
+  not inside the lens, so `lensClear` left them. Issue 82 dissolved them, as third-person games do with what comes
+  close to the camera (screen-door transparency in a fixed 4x4 ordered dither over a band of distance, whole at 3.2 m
+  and gone at 2 m). The owner's still of 21 November (17:41 in the rain, at Center Gai's mouth) showed what that is in
+  a held crowd: the three people nearest the lens stood in the band, so they stayed in it, drawn as a screen of dots
+  at a desktop's size, the paving and the people behind seen through their bodies and through a clear umbrella's
+  canopy, itself see-through. From first principles a camera in a crowd does not see through the people beside it:
+  a person is in the picture, whole, or out of it. So (issue 129):
+  - **No fade in any material.** The dither is gone from every person's shader and from what they carry. Nothing
+    of the story's people, the named cast, the guide or the one you play can be see-through.
+  - **A near plane that takes whole people.** In the chase view on foot (not a talk's shot, a film, a scripted shot
+    or the finder, which are composed with whoever is in them), each of the crowd is out of the picture once their
+    middle is within 2 m of the lens, and back, whole, once it is 2.3 m away (`game.js` `lensClear`, `LENS_NEAR`):
+    body, umbrella and shadow together, in one frame; the 0.3 m between keeps someone at the edge from blinking as
+    the camera eases. With the eye 2.5 m up, 2 m is 1.3 m from under the lens, where a person is mostly under a
+    phone's frame. The far edge stays 1.2 m short of the one you play, so a lens pulled in by a wall takes out nobody
+    standing by you. It is a cut, not a dissolve: there is no state between to be held, and no pattern to be read at
+    any resolution.
+  - **So that it is rare**, the crowd gives the lens that room (docs/GAME.md, "Out of the lens's way").
+  - **The crowd's renderer takes them out for good that frame** (`people.js` `hide`): a far figure hidden after the
+    frame's places had gone to the GPU was drawn all the same while the figure whose slot it took was not, and its
+    umbrella stayed in the air; what a late hide changes is now sent again, and the umbrella goes with its holder.
+  - **The clear umbrella is a material of its own** (`people.js` `vinylMaterial`): a thin film, nearly nothing looked
+    through square on and a sheen where it curves away from the eye, the light it carries kept whole; the eight white
+    ribs along its panels' seams and its hem; in the rain, drops beaded on it that go as one wetness where a pixel
+    spans several. It is blended over the person under it, who is drawn first and whole, and nothing else of a person
+    is see-through, so two transparencies never lie over each other.
+  - `tools/lens_crowd.js` stands you in the rain among a kerb's crowd at Center Gai's mouth (17:41) and at the kerb of
+    the story's seventh frame (17:53), puts three of those waiting at 2.2, 2.6 and 3.1 m from the lens, plays five
+    seconds and takes a still each half second; it fails when someone inside the near space is drawn or someone
+    beyond it, in the frame, is not. Not checkable on a session's machine: a real GPU's antialiasing and a phone's
+    screen (there is no longer a pattern for either to resolve, but the cut itself was only seen in software WebGL).
 
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
