@@ -367,7 +367,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (album.length < 6 || album[0] !== '1p') fail(`the walk's menu album: ${JSON.stringify(album)} (want Hachiko's picture first of six)`);
     else ok(`the menu's album: ${album.filter(a => a[0] === '1').length} of ${album.length} views, Hachiko's picture in it`);
     await shot('7e-album');
-    await press('#g-menu-close'); await gone('#g-menu');
+    await press('#gw-continue'); await gone('#g-menu');
     await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
   }
   // somewhere to sit and watch the crossing (perch.js; docs/STORY.md "The walk", *Somewhere to sit*): beside the end of
