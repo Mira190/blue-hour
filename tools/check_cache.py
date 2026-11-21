@@ -47,7 +47,7 @@ HARNESS = {
     'guide': ['tools/guide_way.js', 'tools/guide_body.js'], 'guide1': ['tools/guide_way.js'],
     'guide2': ['tools/guide_body.js'],
     'walk': ['tools/walk_play.js'], 'walk1': ['tools/walk_play.js'], 'walk2': ['tools/walk_play.js'],
-    'ride': ['tools/ride_people.js'], 'mem': ['tools/mem_check.js'], 'look': ['tools/look_check.js'],
+    'ride': ['tools/ride_people.js'], 'mem': ['tools/mem_check.js', 'tools/lost_check.js', 'tools/glcare_phone.js'], 'look': ['tools/look_check.js'],
     'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/phone_audio.js'],
     'clip': ['tools/clip_check.js'], 'gl': ['tools/gl_error_probe.js', 'tools/sampler_probe.js'],
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'game': ['tools/game_check.js'],
@@ -307,17 +307,24 @@ def reach(path, was, fns):
                 elif a < o:
                     return None
             return o + d
-        own_fns, spots = set(), [(to_new(f[0]), to_new(f[1]), f) for f in fns]
+        # (a closure that holds a script's functions, eight or more of them, is a scope as a file is, not a function: two
+        # of its own statements are no nearer each other than two of its functions; game.js is one such, 8,700 lines)
+        scope = {(f[0], f[1]) for f in fns if sum(1 for h in fns if f[0] <= h[0] and h[1] <= f[1]) > 8}
+        fns_ = [f for f in fns if (f[0], f[1]) not in scope]
+        own_fns, spots = set(), [(to_new(f[0]), to_new(f[1]), f) for f in fns_]
         for a, b in own:
             s_, e_ = new.off[min(a, len(new.off) - 1)], new.off[min(b, len(new.off) - 1)]
             best = None
             for ns, ne, f in spots:   # (a function whose ends main moved has no place to compare: then the whole script's)
                 if ns is not None and ne is not None and ns <= s_ and e_ <= ne and (best is None or f[1] - f[0] < best[1] - best[0]):
                     best = f
-            own_fns.add((best[0], best[1]) if best else None)
+            if best:
+                own_fns.add((best[0], best[1]))
+            elif not scope:
+                own_fns.add(None)
         for h in list(mains):
             c = chars(old, new, h)
-            f = inner(fns, c[0], c[1])
+            f = inner(fns_, c[0], c[1])
             if None in own_fns or (f and (f[0], f[1]) in own_fns):
                 mains.remove(h)
                 mine.append(h)
@@ -605,9 +612,19 @@ def main(a):
         rev = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True).stdout.strip()
         dirty = bool(subprocess.run(['git', 'status', '--porcelain'], cwd=ROOT, capture_output=True, text=True).stdout.strip())
         cover = read_cover(a[6] if len(a) > 6 else '')
+        blobs = keep_blobs(sorted(set(harness(target)) | set(files)))
+        # (a function that ran in any play seen of the same bytes ran: this clone's last pass and main's; of 8,200
+        # functions six to ten differ between two plays of one check, the traffic's and the crowd's by the moment)
+        for _, was in passes(target) if cover else []:
+            for f, fns in (was.get('cover') or {}).items():
+                if f in cover and (was.get('blobs') or {}).get(f) == blobs.get(f):
+                    ran = {(s_, e_) for s_, e_, r, _ in fns if r}
+                    for fn in cover[f]:
+                        if (fn[0], fn[1]) in ran:
+                            fn[2] = 1
         json.dump({'key': key(target, files), 'files': files, 'commit': rev, 'dirty': dirty,
                    'at': time.strftime('%Y-%m-%d %H:%M'), 's': int(a[5]) if len(a) > 5 and a[5] else None,
-                   'env': {e: os.environ.get(e, '') for e in ENV}, 'blobs': keep_blobs(sorted(set(harness(target)) | set(files))),
+                   'env': {e: os.environ.get(e, '') for e in ENV}, 'blobs': blobs,
                    'sources': keep_blobs(sorted({SOURCE[f][0] for f in files if f in SOURCE})), 'cover': cover},
                   open(store(target), 'w'), separators=(',', ':'))
         if cover is None:

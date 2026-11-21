@@ -1787,6 +1787,27 @@ A phone with the room climbs to the full set in two visits; one without stays wh
 carries `prev_lv`, and the load's last step is `held` once a level has been held, so the owner's phone says which
 level it lives at.
 
+**On the story's page none of this ran** until 21 November 2026. `quality.js` read the map from the address alone
+(`#play-shibuya`), and the story's page has nothing after the `#`: its deaths were written and never read, so a phone
+the system had killed loaded the same set again, and the minutes it held never let it climb. The owner's iPhone that
+evening (telemetry, app 0.1.137): the context lost 35 s in, during the opening's shot from above; the page reloaded at
+level 2 and was killed at `built` 12 s later; Safari's own reload at level 2 again took 139 s to get in. Now:
+
+- the page names its map (`<html data-map="shibuya">`), which `quality.js` reads where the address has none;
+- a lost WebGL context on a phone is a death at its level too, counted as it is lost (`quality.js` `lost`, once a page,
+  asked by `telemetry.js` `noteLost` and by `glcare.js`, which works with the telemetry off): on a phone it is the GPU's
+  memory run out, and the reload makes room and loads a level lighter. A loss while the tab is put away is not counted (the tab in front took the memory), and the page does not reload until it is seen:
+  a phone keeps every tab's WebGL in one GPU process, and that evening a tab of the story in the background lost its
+  context, reloaded and built the whole map beside the tab being played, which then lost its own;
+- once `glcare.js` has given up, the frames hold: a restored context that is not rebuilt drew walls whose arrays the
+  phone had let go of, and three.js threw (`null is not an object (evaluating 'r.byteLength')`);
+- the climb stops at level 2 (`TOP`), the set the budget is measured at: at frame 5 a phone at level 2 holds 269 of
+  its 270 MB (issue 105), and level 1 keeps pictures at 2048 where level 2 keeps 1024. It goes up when a fuller set is
+  measured within the budget there.
+
+`tools/glcare_phone.js` plays all of it as a phone (the levels from the notes, a loss with the tab put away, a loss
+seen), and fails on the code before.
+
 | Level | Buildings whole / simplified / skyline from | Largest picture | Sun's shadow map | Signs / NPC pictures | Aerial tiles of their own | Scanned walkers | Fetched ahead |
 |---|---|---|---|---|---|---|---|
 | 0 | 500 m / 1.5 km / 25 m | 2048 | 2048 | 1024 / 512 | 6 | 8 | all |

@@ -208,6 +208,18 @@ each `time` event):
   `deck hybrid 48000`). A phone's story read no clock at all for six minutes (19 November): the context was not running,
   or the sound was off, and nothing said which.
 
+**A page put away is silent.** The context is suspended as the page is hidden and resumed as it is seen again (and asked
+again every two seconds while it is seen, should the resume not take). The game stands still in a tab put away, and its
+street's beds had gone on behind another tab or app; on a phone a context left running there is an audio thread beside the
+page being played. The owner's iPhone had two tabs of the story open on 21 November 2026 when the one in front read three
+underruns and a 32.6 s step of the output's clock in the opening's shot from above, as the WebGL contexts of both were
+lost. `tools/audio_graph_check.js` puts the page away and back.
+
+The readings of the owner's iPhone from 19 to 21 November (every phone `time` event with sound): three to six underruns a
+minute wherever the phone was, walking the map as much as in the opening (20 in 242 s in 渋谷, 35 in 240 s in 原宿), most at
+frame 1's Stop (21 in 62 s), and none in some long pieces at the same frame rate (frame 3's approach, 60 s at 18 fps). The
+page's load starving the audio thread, as issue 59 put it first, but everywhere and not in step with the frame rate.
+
 A reading from the last second before the page is hidden or the context stops is dropped. The owner's iPhone (iOS 27,
 19 November 2026, the episode played to its first Stop and left for a screenshot) read `snd_late 258, snd_stall 3`:
 three readings 58, 158 and 258 ms behind, one tenth of a second apart, and then the page hidden. That is not the audio

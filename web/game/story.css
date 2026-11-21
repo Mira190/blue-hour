@@ -714,7 +714,7 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
    lines are; it grows no larger than at fourteen metres and no smaller than three quarters of that */
 .g-walk-marks { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
 .game-stage:is(.photo, .cine, .closer) .g-walk-marks, .game-stage:has(#g-title:not([hidden])) .g-walk-marks { display: none; }
-.g-walk-mark { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0; transform-origin: 50% 100%; will-change: transform, opacity; }
+.g-walk-mark { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0; transform-origin: 50% 100%; will-change: transform, opacity; transition: opacity 0.25s ease; } /* (eased in and out: a mark that goes as its person steps behind something fades, not blinks) */
 .g-walk-mark i { position: relative; display: flex; align-items: center; justify-content: center; gap: 3px; width: 30px; height: 21px; box-sizing: border-box; border: 1px solid rgba(244, 239, 230, 0.75); border-radius: 11px; background: rgba(4, 8, 18, 0.55); box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45); }
 .g-walk-mark i::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 7px; height: 7px; margin-left: -4px; box-sizing: border-box; border-right: 1px solid rgba(244, 239, 230, 0.75); border-bottom: 1px solid rgba(244, 239, 230, 0.75); background: inherit; transform: rotate(45deg); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
 .g-walk-mark i b { width: 3px; height: 3px; border-radius: 50%; background: var(--paper); }
