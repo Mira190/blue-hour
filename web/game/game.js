@@ -1163,8 +1163,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.seatFrom = { x: player.x, y: player.y, z: player.z, h: player.h };
     Object.assign(player, { mode: 'seat', x: st.at[0], y: st.at[1], z: st.perch ? st.z : st.at[2], h: st.h, speed: 0, ground: true, vz: 0 });
     cam.lookYaw = 0; cam.lookPitch = st.pitch || 0; cam.lastInput = -10;
-    if (st.perch) { // (on a low wall: the feet further out, so the hips come down onto the stone; perch.js rake)
-      player.legRakeWas = player.rig.legRake; player.rig.legRake = st.rake;
+    if (st.perch) { // (on a low wall, perch.js: its rake, the feet further out so the hips come down onto the stone, laid each frame in simulate)
       perch.sit(st); seatTouch(true); if (touch) $('#gt-jump').hidden = false; stage.classList.add('at-perch'); // (story.css: its button shown)
       blendFrom(1.1, true); // (from over your shoulder round to the seat's tripod, not a cut)
       return;
@@ -1180,7 +1179,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function seatTouch(on) { if (touch) for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-down', '#gt-lens']) $(id).hidden = on; }
   function standUp() {
     const st = (perch && perch.seat) || shows.seat, f = player.seatFrom;
-    if (st && st.perch) { perch.stand(); player.rig.legRake = player.legRakeWas; stage.classList.remove('at-perch'); } else shows.stand();
+    if (st && st.perch) { perch.stand(); delete player.rig.legRake; stage.classList.remove('at-perch'); } else shows.stand();
     seatTouch(false);
     const p = (f && nav.stand(f.x, f.y, f.z + 0.5, { rMax: 3 })) || nav.stand(player.x, player.y, player.z + 0.5, { rMax: 4 }) || f || player;
     Object.assign(player, { mode: 'foot', x: p.x, y: p.y, z: p.z, h: st ? st.h : player.h, speed: 0, ground: true, vz: 0 });
@@ -7095,6 +7094,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       A.wind(Math.min(1, heli.st.speed / 60));
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'seat') {
+      if (perch && perch.seat) player.rig.legRake = perch.seat.rake; // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'lift') {
       liftStep(dt);
