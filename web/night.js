@@ -150,7 +150,15 @@ void main() {
     // ------------------------------------------------------------ the lamps
     // x, y, z (local, the lamp head), colour, brightness, pool along (ux, uy) and its height
     const L = { x: [], y: [], z: [], c: [], b: [], ux: [], uy: [], h: [], pole: [] };
-    const lamp = (x, y, z, c, b, ux, uy, h, pole) => { L.x.push(x); L.y.push(y); L.z.push(z); L.c.push(c); L.b.push(b); L.ux.push(ux); L.uy.push(uy); L.h.push(h); L.pole.push(pole); };
+    // a lamp h over its pole's foot. The foot stands on the ground drawn where the pole is (the game's 5 m grid where there
+    // is one: what is walked and driven on), not at the height of the road's line beside it: a line's height is a chord
+    // between its simplified points, and a pole set by it hung up to 3 m over the kerb or stood as deep in it, its head at
+    // the road's surface (met by a car, and not seen). One more than 3 m off the ground is on a bridge's deck, and stays.
+    const footGround = D.Tfine || D.T;
+    const lamp = (x, y, z, c, b, ux, uy, h, pole) => {
+      if (footGround) { const g = S.terrainTri(footGround, x, y); if (Math.abs(z - h - g) <= 3) z = g + h; }
+      L.x.push(x); L.y.push(y); L.z.push(z); L.c.push(c); L.b.push(b); L.ux.push(ux); L.uy.push(uy); L.h.push(h); L.pole.push(pole);
+    };
     const roads = [];
     for (let i = 0, k = 0; i < roadsI.length; i += 3) {
       const cls = N.classes[roadsI[i]], n = roadsI[i + 2], pts = [];
