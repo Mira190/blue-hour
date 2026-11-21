@@ -118,8 +118,9 @@ async function main() {
   const at = name => { const i = nodes.findIndex(n => n.name === name); const m = W(i); return [m[12], m[13], m[14]]; };
   const mid = (a, b) => { const p = at(a), q = at(b); return [+((p[1] + q[1]) / 2).toFixed(4), +((p[2] + q[2]) / 2).toFixed(4)]; };
   const out = { pivots: { hip: mid('Bip01 L Thigh', 'Bip01 R Thigh'), knee: mid('Bip01 L Calf', 'Bip01 R Calf'), shoulder: mid('Bip01 L UpperArm', 'Bip01 R UpperArm') }, parts: [] };
-  const mesh = J.meshes[nodes.findIndex(n => n.mesh !== undefined && n.skin !== undefined) >= 0 ? nodes.find(n => n.skin !== undefined).mesh : 0];
-  const prims = mesh.primitives.map(pr => {
+  // (every skinned mesh of it: a speaking character's face is a mesh of its own, build_people.py add_face)
+  const skinned = nodes.filter(n => n.mesh !== undefined && n.skin !== undefined).map(n => J.meshes[n.mesh]);
+  const prims = (skinned.length ? skinned : [J.meshes[0]]).flatMap(m => m.primitives).map(pr => {
     const A = pr.attributes, P = g.read(A.POSITION), N = g.read(A.NORMAL), UV = g.read(A.TEXCOORD_0), Js = g.read(A.JOINTS_0), Ws = g.read(A.WEIGHTS_0), I = g.read(pr.indices);
     const n = P.length / 3, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), prt = new Uint8Array(n);
     for (let v = 0; v < n; v++) {

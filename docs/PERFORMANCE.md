@@ -2011,6 +2011,25 @@ On a phone the district answers it by building less: Shibuya's walking model 762
 roads 221 -> 82; Tokyo's 2,445 -> 1,655, 800 -> 364 and 291 -> 81 (the table under "A phone's district").
 
 
+### The speaking cast's faces (issue 12)
+
+Faces that move cost memory and vertex work, so they are given only where a face is seen to speak:
+
+- **Who has them.** The characters who speak to the player (`pipeline/fetch_rocketbox.py` `face_cast`: the story's
+  people, the NPCs a frame meets and the walk's talkers; and Kagami, whom the reverse shot sees): 13 NPCs and the two
+  Kagamis. Every other model has no morph targets. A speaking character the crowd also wears (Yuna, Taro, Riko) is drawn in
+  the crowd from the same buffers without its shapes (`people.js` `stillGeometry`), so the crowd's vertices are never moved
+  by a shape, and its far copy (`pipeline/crowd_cast.mjs`) takes the face's mesh as before.
+- **Only what is used.** Fourteen shapes of HeadBox's 176 (`build_people.py` `FACE_KEYS`): each eye's or side's pair summed
+  into one, positions only (no normal or tangent targets). The face is a mesh of its own (the head and the lashes), so the
+  body carries none: 1,755 to 2,447 vertices a face. three.js keeps a face's shapes as one float texture of 16 bytes a
+  vertex a shape: 0.4 to 0.55 MB of the GPU a character, and about as much in the page's heap. The files grew by 10 to 70 kB.
+- **Only the nearest animated.** `game.js` `faceChoose` poses the face of whoever is saying the line on screen, the player's,
+  and the nearest one other within 14 m of the camera on a phone (two on a desktop); the rest keep their shapes at nought,
+  which three.js's shader skips.
+- **Measured** (`tools/mem_check.js`, an iPhone on the low tier): GPU peak 253 MB with the faces, 250 without (budget
+  270); the settled JS heap 284 MB against 281.
+
 ## A desktop's map round the player (issue 20)
 
 The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the

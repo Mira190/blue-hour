@@ -37,6 +37,14 @@ twelve metres with their speech mark and from three in front, printing where eac
 The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
 
+The story's faces (`web/game/face.js`, issue 12): `tools/face_check.js out [WxH]` plays the episode (story_play.js's
+settings: `FROM`, `UPTO`, `DRAW`) and at every talk shot asks whether the speaker's face moves, cropping a still of it
+(`face-talk-NN-*.png`); on the first two-shot it holds time for five seconds of stills and fails if an eye bone or a shape
+moved at all (a pose laid over the clip that builds on the frame before winds round while time is held), then steps five
+seconds a thirtieth at a time and fails without a blink, without the mouth moving while the line is typed, or with the eyes
+more than 35 degrees off the head's ahead. `story_play.js` itself notes each line whose speaker's face does not move. Run
+when the faces, the speaking cast or the people's models change, on a desktop and a phone.
+
 The way in waits for the level the player stands in (`web/game/game.js` `holdForLevel`, issue 62): `tools/level_wait.js
 [out] [WxH]` begins the story with the Scramble's level held back (`DELAY`, 12 s by default), skips the opening as soon as
 it can, and reads the veil, the level and the camera every fifth of a second; it fails if the camera reaches the player

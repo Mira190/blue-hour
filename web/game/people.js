@@ -927,6 +927,19 @@ ${PAT_GLSL}`)
     b.quaternion.copy(sq2.multiply(sq));
     b.updateMatrixWorld(true);
   }
+  const stills = new WeakMap();
+  function stillGeometry(g) {
+    let s = stills.get(g);
+    if (!s) {
+      s = new THREE.BufferGeometry();
+      s.setIndex(g.index);
+      for (const k in g.attributes) s.setAttribute(k, g.attributes[k]);
+      for (const gr of g.groups) s.addGroup(gr.start, gr.count, gr.materialIndex);
+      s.boundingBox = g.boundingBox; s.boundingSphere = g.boundingSphere; s.userData = g.userData;
+      stills.set(g, s);
+    }
+    return s;
+  }
   function person(lib, look) {
     if (!up) {
       up = new THREE.Vector3(0, 1, 0); tv = new THREE.Vector3(); tq = new THREE.Quaternion(); tq2 = new THREE.Quaternion(); hp = new THREE.Vector3();
@@ -940,6 +953,9 @@ ${PAT_GLSL}`)
     let mesh = null, head = null;
     const bone = {};
     model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; if (o.isBone) bone[o.name] = o; });
+    // (a speaking character's face has shapes, build_people.py add_face; one of the crowd wearing it keeps a still face:
+    // its mesh drawn from the same buffers without them, so no vertex of it is moved by a shape, docs/PERFORMANCE.md)
+    if (look.still) model.traverse(o => { if (o.isSkinnedMesh && o.geometry.morphAttributes.position) { o.geometry = stillGeometry(o.geometry); o.morphTargetInfluences = undefined; o.morphTargetDictionary = undefined; } });
     head = bone[alias('Head')] || null;
     if (T.textured) model.traverse(o => { if (o.isSkinnedMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; (Array.isArray(o.material) ? o.material : [o.material]).forEach(litMaterial); } });
     else {
@@ -1684,7 +1700,7 @@ transformed = crowdPose(transformed, false);`);
         // character when it comes (begin() runs again as the player moves)
         if (rn && !lib.tpl[name]) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
         if (!lib.tpl[name]) { lib.require(name); continue; }
-        const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look));
+        const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look, { still: true })); // (still: the crowd's faces do not move)
         r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null }, look));
         if (rn) r.dress(p.dress);
         r.standFor = rn && name !== rn ? rn : null;

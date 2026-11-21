@@ -13,8 +13,8 @@ work itself is issue 11 (voices) and issue 12 (faces).
   `voice`, set in `web/game/story.js` `voiceOf`). Someone of 1964 is heard twice, the second fainter.
 - Every line is kept in the log of the evening (`web/game/log.js`: L, a pad's View button, or from the roll).
 - The people are Microsoft Rocketbox avatars (MIT; `web/assets/people/LICENSE-Rocketbox.txt`), built by
-  `blender/build_people.py` with their bodies' skeletons and clips. Their glTF is exported without morph targets
-  (`export_morph=False`): the faces do not move.
+  `blender/build_people.py` with their bodies' skeletons and clips. The speaking cast's faces move (issue 12, below:
+  blinks, eyes, brows and a jaw while a line is typed); the crowd's do not.
 
 ## Voices
 
@@ -57,6 +57,48 @@ that move with what is said. Not a new cast: the same Rocketbox people, given fa
 **Not adopted.** MetaHuman (its licence ties the assets to Epic's terms and its faces are far beyond a phone's
 budget), photogrammetry of real people (a likeness needs a release, and the story's people are not real ones), and a
 face generated from a photograph of anyone.
+
+**What landed (issue 12, November 2026).**
+
+- *The shapes.* Every Rocketbox avatar in Microsoft's repository has a `*_facial.fbx` beside its `*.fbx`: the same mesh
+  with HeadBox's 176 shapes (15 visemes `AA_VI_*`, the 52 ARKit shapes `AK_*`, FACS action units `AU_*`, HeadBox's own
+  `HB_*` and VIVE's `SR_*`). `pipeline/fetch_rocketbox.py` fetches it for the head each speaking character wears
+  (`face_cast`: the story's people, the NPCs a frame meets, the walk's talkers, and both Kagamis), and
+  `build_people.py` `add_face` lays fourteen of them on the built mesh: the offsets read on the facial mesh, moved where
+  `swap_head` moved the head, and matched vertex to vertex (a head is a copy of that mesh). Each eye's or side's pair is
+  summed into one (`eyeBlink`, `eyeSquint`, `eyeWide`, `browInnerUp`, `browDown`, `browOuterUp`, `mouthSmile`,
+  `mouthFrown`, `mouthPress`) with five visemes (`viseme_aa`, `_E`, `_O`, `_U`, `_PP`: what Rhubarb's mouths A to F map
+  to). The face is a mesh of its own, so the body carries no shapes (PERFORMANCE.md, "The speaking cast's faces").
+- *Eyes and blinks* (`web/game/face.js`). The eyes turn with their bones (`Bip01 LEye`, `REye`, which every Rocketbox
+  head has), laid over the clip and taken off before the mixer as AGENTS.md asks; each timer runs on the frame's own dt,
+  so a held world holds every face (`tools/face_check.js`: five seconds of stills with time held, nothing moves). Gaze in
+  saccades: a jump of a few hundredths of a second, then still; held on a face it goes between its eyes and now and then
+  its mouth; a speaker's eyes leave for a moment as a line begins (gaze aversion); without a target they wander a little.
+  Eyes go 19 degrees each way, 13 up and 18 down before the head would have to turn; the lids follow the eyes down. Blinks
+  every 2 to 6 s, more often while speaking and at a phrase's end, one in eight doubled, often with a big saccade; 70 ms to
+  close, 130 to open.
+- *Expressions at the lines.* Each speaker has a temper under every line (`TEMPER`: the detective's set mouth, Mizuno's
+  small smile), and a line's words lay a mood over it (`CUES`: grief draws the inner brows up and the mouth down, a refusal
+  sets it, something kind smiles; a question lifts the brows), eased in over a third of a second, with a lift of the brows
+  as each line begins. While a line is typed the jaw opens and closes a syllable at a time (4 to 5 a second), each shaped by
+  the vowel being typed (kana too), the lips meeting before an m, b or p, shut at a comma or a stop: a placeholder for the
+  recorded mouths, which replace it from Rhubarb's track (issue 11).
+- *Who is animated.* The one whose line is on screen, the player, and the nearest one other within 14 m of the camera on a
+  phone (two on a desktop); the rest keep still faces (`game.js` `faceChoose`).
+
+**Prior art surveyed, and what was taken.** Nothing below is copied; the ideas are.
+
+| Work | Licence | Taken |
+|---|---|---|
+| HeadBox (openVRlab/Headbox; Volonte, Ofek, Jakubzak, Bruner, Gonzalez-Franco, IEEE VR 2022 workshops) | MIT, as Rocketbox | The shapes themselves, as Microsoft ships them in each avatar's `*_facial.fbx` |
+| three.js `morphTargetInfluences` and its facecap example (ARKit shape names on a glTF head) | MIT | ARKit names for the shapes, one dictionary shared by the face's meshes |
+| TalkingHead (met4citizen, three.js; lip-sync from text or a voice's visemes, blinks, eye contact, head moves) | MIT | Visemes driven from the text's letters while there is no recording; looking at the listener, and away while finding words |
+| three-vrm (pixiv) `VRMLookAt` (bone or expression appliers, range limits) and its examples' automatic blink | MIT | Eyes turned by bone within a range, the lids following the eyes' pitch; a blink as one weight eased closed and open |
+| Lee, Badler and Badler, "Eyes Alive" (SIGGRAPH 2002), and the literature on blink rates in conversation | (a paper) | Saccades as jumps with still intervals between them, more blinks while speaking than listening, blinks with large gaze shifts |
+
+**Still open.** Skin at the lower-third distance, judged on a real GPU against a photograph at dusk and at night (a
+software renderer here can't judge skin, nor the timing of a blink on screen); the mouths from the recordings, after
+issue 11.
 
 ## The order of the work
 
