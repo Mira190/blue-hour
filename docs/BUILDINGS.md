@@ -364,6 +364,71 @@ format stays as it is.
 
 Small screens skip parapets and awnings, and draw the rooftop kit only near where their map was built.
 
+## 7b. Today's city (Shibuya, November 2026)
+
+The map's heights were built from PLATEAU's 2020 LOD2 (as indigo-lab's vector tiles) on Overture's outlines, and its
+ground from GSI's seamless photo, flown round the Scramble between June and November 2019. Since then Sakura Stage,
+Dogenzaka-dori and SHIBUYA AXSH have gone up, and three blocks have come down. The first episode is played on the
+crossing (the hero level, hand-modelled), on SHIBUYA SKY's roof at 229 m, at the east exit and in the helicopter, so the
+errors a player sees are the city seen from above: its massing, its flat roofs and its ground.
+
+**Buildings: a targeted update, not a swap** (`pipeline/plateau_today.py`, `pipeline/today_diff.py`). Swapping all of
+the map's 48,000 buildings for the newest release would gain almost nothing on screen, and it would move the buildings
+the hero levels anchor on (`cities/shibuya/hero_*.py` find them by name). So the update diffs the release against the
+map and takes only what changed visibly:
+
+| Rule | What it catches |
+|---|---|
+| A release building 25 m or taller (45 m or taller anywhere in the frame, below that within 1 km of SKY's deck) where the map has nothing within max(10 m, 25%) of its height | new towers; the map's 12.7 m guesses (`estimate`) under buildings surveyed at 30 m and more |
+| A release building 45 m or taller that the map has at about its height, whose area above 60% of its height is not within 0.6-1.6 of the map's | a slab drawn for a tower on a podium (SAKURA Tower: 5,143 m² at 133 m in the map, 1,519 m² of tower in the release) |
+| A release building lower than the map's, only where the release surveyed it again (survey year 1 in FY2025, 3,189 buildings); a record still from 2021 is measured the way the map's was, so a drop there is how the roof was measured, not a change | demolitions and rebuilds, without the false drops of rooftop billboards |
+| A map building 30 m or taller with nothing of the release under it, within 1 km of the deck | buildings pulled down |
+| A construction site from OpenStreetMap (`today.sites`) | what stood there goes; the release's own buildings there (flown before the demolition) do not come |
+
+Each changed release building opens a *patch*: its footprint and the map's solids on it, grown until no release
+building or map solid straddles the edge. Inside a patch the map's solids go and every release building comes,
+massed from its LOD2 roofs (one solid per roof level: faces within 3 m merged), each roof's height in metres T.P.
+over the map's own ground under it. Where a release building matches one map solid (IoU 0.6 or more) and has one roof
+level, the map's solid is only re-topped, and it keeps its style. Added buildings take the style of the map building
+they replace when that was as tall, else one by their use and height, and the colours of the nearest standing building
+of that style. Nothing is touched within 25 m of a hero level, on the Toyoko site behind Hachiko (the owner's choice:
+the West and South buildings stand, though FY2025 has removed them), on a solid a landmark draws or a hook names, or
+on a building `today.osm` keeps (SHIBUYA AXSH: the release has it half built at 50.8 m, flown March 2023; OSM's 120 m
+outline stays). The result is `cities/shibuya/today.json`: 147 patches (165 buildings, 456 solids), 21 re-topped
+solids, 223 solids taken down (`landmarks.json` "demolished", from `city.py` `landmark_demolished`; the page draws them
+flat and leaves them out of the visibility raster). Its additions are appended, so no solid index any landmark, scene
+or hero level holds moves, and `apply` takes its own rows off first.
+
+The construction sites (`city.py` `today_sites`, `works_site`): the Upper West Project on the Tokyu main store's site
+(OSM way 1194193924, due FY2029), Dogenzaka 2-chome South (1159013859, February 2027) and MITAKE Link Park (1558469714,
+June 2027), each a 3.5 m white hoarding round OSM's outline, floodlights on 16 m masts and a tower crane over the middle
+(its position and height illustrative). On the ground photo each is one even tone of a site's ground.
+
+**Checked against the 2023 LiDAR** (`tools/lidar_heights.py`: the top of the points inside each footprint over the
+solid's base, both metres T.P.). Finished towers agree within a few metres: Scramble Square 229.9 m (map 227.1), Shibuya
+Stream 180.1 (182.3), Hikarie 183.1 (182.8), SHIBUYA Tower 185.7 (180.0). SAKURA Tower's measured height in the release,
+116.3 m, is taken from the top of its slope; its roof is at 128 m over the slope's foot, as its LOD2 roofs are (the
+map now 126.9 m). Dogenzaka-dori: 111 m over the foot of Dogenzaka (101.2 m is the official height from the street).
+
+**The ground: Tokyo's 2023 photograph** (`pipeline/fetch_tokyo_ortho.py`, `pipeline/ortho_tokyo.py`). Tokyo's Digital
+Twin project flew the 23 wards in March and April 2023 for its LiDAR and published a 0.2 m ortho with it: 195 sheets of
+400 x 300 m cover the frame. Each is averaged to the map's 1 m in its own grid (zone IX, EPSG:6677) and resampled into the
+frame. It is a "simple" ortho (rectified to the bare earth), flown in late morning with long shadows, so before it
+reaches the tiles:
+
+- the shadows come out: the map's own buildings are lit by the sun the photo was flown under (azimuth 150°, elevation
+  45°, fitted to its shadows), and where they shade the photo and it is dark, each channel is raised by the measured
+  ratio of lit to shaded ground in the shadows of towers 25 m and taller (red the most: a shadow is lit by the blue sky);
+- the leaning walls come off the ground: each tower's lean in the photo is measured (its roof's outline moved to where
+  it meets the photo's strongest edges; median 0.08 m a metre, most roofs on their footprints), and the ground a tower
+  40 m or taller sweeps over, and a 2 m band at the foot of every building over 20 m, is filled from the ground round it;
+- its brightness range is matched to the GSI tiles' (2nd to 98th percentile), its own neutral white balance kept
+  (matching GSI's channels tinted the ground and the lifted shadows blue);
+- the open ground is softened as the build does (`aerial_clean.soften`), with buildings.json and game.json's roads.
+
+Outside the frame the GSI photo stays, with a 20 m blend at the frame's edge. What is not done: true orthorectification
+(the photo's camera positions are not published), and the street trees and parked cars the 2023 photo has printed.
+
 ## 8. What is next
 
 - **More measured roofs.** Osaka's 2020 CityGML is LOD1 only and Tokyo's vector tiles carry heights, not roof faces. Newer PLATEAU releases with LOD2 for those wards would replace their inferred roofs the same way.
