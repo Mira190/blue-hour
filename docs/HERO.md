@@ -747,7 +747,7 @@ between the skirt's edge at its top and the tent.
 | Its flare | 6.5 m out of the face at the corner at 4F, growing as (depth below 15F)^1.6; it stops at the west face's line | +-2 m: the least certain number, seen edge-on in no photograph |
 | North-east tent | 4F to a point at 38 m, its foot from the north-east corner to 17.7 m along, 4 m out at its ridge, over the Urban Core | +-2 m up, +-1.5 m out |
 | Screen | 40.05 x 25.24 m box from 4F, its west side 47.3 m from the north-east corner; its outline (847 m2) the windows' between the tent and the skirt, stepping by storey; 552.6 m2 of it LEDs (the rest the windows' frames and the slabs) | the box published; the outline +-1 storey at each step |
-| Overhang | 2F (7.7 m) to 4F, 6.5 m out from the north-east corner (the east face's line, past which SKY's hall and lift stand) to 17.4 m along, then on an S back to the face at 35 m; a slot of sky left to the Ginza line's station | +-2 m out |
+| Overhang | 2F (7.7 m) to 4F, 6.5 m out from the north-east corner (the east face's line, past which SKY's hall and lift stand) to 17.4 m along, then on an S back to the face at 35 m; a slot of sky left to the Ginza line's station; kept clear of SKY's street hall, its canopy and the way to its doors (4.6 m either side of the hall's axis, from 6 m in front of its doors to past its shaft), since its edge ran through the lift's door point, where a walker is stood on the highest floor | +-2 m out |
 | Forecourt ceiling | from 5.6 m over 1F at the shop fronts up to 7.35 m at the overhang's edge | read off the photograph at the entrance, +-0.5 m |
 
 **What was built**:
@@ -774,9 +774,14 @@ between the skirt's edge at its top and the tent.
 Stills: `tools/views/scrsq-base-66.json` (`tools/game_shot.js`): from Hachiko, Miyamasuzaka-shita, the deck to Hikarie,
 the forecourt and under its ceiling, and the face from the north, at dusk and at night, on a desktop and a phone.
 
+![The base from the north at dusk, from Miyamasuzaka-shita at night, from the deck to Hikarie, under the forecourt's ceiling at night, the forecourt, and Hachiko](images/shibuya/scrsq-base-66-desktop.jpg)
+
+![The same on a phone (390 x 844)](images/shibuya/scrsq-base-66-phone.jpg)
+
 **Where it still falls short**: the skirts' depth and the tent are measured from photographs, not drawn from plans
 (above); the skirt's lowest band, 4F to 5F, is clipped where the station's concourse blocks stand by the north-west
-corner (its glass is drawn whole, through their roofs); the Urban Core's stepped void behind the glass (the stacked floors seen through it) is the offices'
+corner (its glass is drawn whole, through their roofs); the overhang and its ceiling stop short of SKY's hall, which in
+the photographs stands under them; the Urban Core's stepped void behind the glass (the stacked floors seen through it) is the offices'
 traced rooms, not the void; the Skyway's deck at 4F along the face, and the Ginza line's station in front (a white box
 with glass bands under an M-shaped roof, drawn with the city's generic office wall; issue 66's comment) are not
 modelled here; it has been seen on a software renderer only.

@@ -63,6 +63,8 @@ OVER = {"z0": 7.7, "z1": 19.3, "s0": 35.1, "s1": 17.4, "out": 6.5}
 # (s_right: the side further along the face)
 SCREEN = {"w": 40.05, "h": 25.24, "z": 19.3, "s_right": 47.3}
 CLEAR = 0.5                    # off any other building's solid
+HALL_KEEP = (4.6, -6.0, 8.0)   # SKY's hall kept clear: half its width (3.1 m) and 1.5 m, from 6 m in front of its doors
+                               # (its canopy, its apron, the queue's belt) to past its glass shaft
 
 
 def ring_of(s):
@@ -263,10 +265,24 @@ def dm(P):
     return out
 
 
-def run(B):
-    """rewrite the flares' solids in B (buildings.json) in place: returns (rewritten, appended, dropped)"""
+def hall_keep(G):
+    """where SKY's street hall, its canopy, its glass shaft and the way up to its doors stand (game.json lifts "sky-gate"
+    in the hall's frame, hero_skylobby.py's measures), with a margin: no flare stands over it. A walker or a story's
+    beat put at the hall's door is stood on the highest floor there, and the overhang's roof at 4F was one."""
+    stop = next(l for l in G.get("lifts", []) if l["id"] == "sky-gate")["stops"][0]
+    door, at = np.asarray(stop["door"], float), np.asarray(stop["at"][:2], float)
+    nv = (at - door) / np.linalg.norm(at - door)
+    uv = np.array([nv[1], -nv[0]])
+    P = lambda u, v: door + uv * u + nv * v
+    U, V0, V1 = HALL_KEEP
+    return Polygon([P(-U, V0), P(U, V0), P(U, V1), P(-U, V1)])
+
+
+def run(B, G=None):
+    """rewrite the flares' solids in B (buildings.json) in place: returns (rewritten, appended)"""
     F = Face(B)
     bi, g0 = F.bi, F.tower[1]
+    keep = hall_keep(G) if G else None
     ours = {}
     passages0 = set(B.get("passages", []))
     keys = {(round(a * 10), round(b * 10)) for a, b in bands()}
@@ -292,6 +308,8 @@ def run(B):
         za, zb = F.base + z0, F.base + z1
         plans = []
         for P in flares(F, z0, z1):
+            if keep is not None:
+                P = P.difference(keep)
             for Q, qa, qb in near:
                 if qa < zb and qb > za:
                     P = P.difference(Q.buffer(CLEAR))
@@ -322,7 +340,8 @@ def main():
     path = os.path.join(ROOT, "web", "data", "shibuya", "buildings.json")
     raw = open(path, encoding="utf8").read()
     B = json.loads(raw)
-    r, a = run(B)
+    G = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "game.json"), encoding="utf8"))
+    r, a = run(B, G)
     out = json.dumps(B, separators=(",", ":"))
     if out != raw:
         open(path, "w", encoding="utf8").write(out)
