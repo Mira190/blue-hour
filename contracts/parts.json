@@ -1,0 +1,590 @@
+{
+ "_": "The page's parts and what each offers the rest (docs/SEAMS.md). Held by tools/seams.py: a script may ask another part only for the names listed here. 'offers' is written by `python3 tools/seams.py --write`; 'files', 'for' and 'checks' by hand.",
+ "parts": {
+  "game": {
+   "for": "The composition root: loads the map, makes every other part, runs the loop and the title. The one part that may ask all the others.",
+   "files": [
+    "web/game/game.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "mem",
+    "ride"
+   ],
+   "offers": {
+    "OpenEarthGame": []
+   }
+  },
+  "story": {
+   "for": "The story's engine: episodes, frames, the Stop, the dialogue and its log, the goals, the things of 1964, the walk's talk.",
+   "files": [
+    "web/game/story.js",
+    "web/game/log.js",
+    "web/game/goals.js",
+    "web/game/past.js",
+    "web/game/stopfx.js",
+    "web/game/walk.js",
+    "web/game/walktalk.js",
+    "web/game/tonight.js",
+    "web/game/places.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "guide"
+   ],
+   "offers": {
+    "OELog": [
+     "create"
+    ],
+    "OEPast": [
+     "create"
+    ],
+    "OEPlaces": [
+     "create"
+    ],
+    "OEStopFX": [
+     "create"
+    ],
+    "OEStory": [
+     "create"
+    ],
+    "OETonight": [
+     "create"
+    ],
+    "OEWalk": [
+     "create"
+    ],
+    "OEWalkTalk": [
+     "create"
+    ]
+   }
+  },
+  "camera": {
+   "for": "Where the lens stands and how it moves: scripted shots, the talk's two-shot, a seat to watch from, the lens's grade.",
+   "files": [
+    "web/cine.js",
+    "web/lens.js",
+    "web/game/talkcam.js",
+    "web/game/perch.js"
+   ],
+   "checks": [
+    "story",
+    "walk"
+   ],
+   "offers": {
+    "OECine": [
+     "around",
+     "director",
+     "ease",
+     "lerp",
+     "mix",
+     "polar",
+     "span",
+     "spiral",
+     "turn"
+    ],
+    "OELens": [
+     "bright",
+     "merge",
+     "shader",
+     "sunOnScreen"
+    ],
+    "OEPerch": [
+     "create"
+    ],
+    "OETalkCam": [
+     "create"
+    ]
+   }
+  },
+  "people": {
+   "for": "The people drawn: rigs and clips, the crowd's near and far copies, faces, the things carried.",
+   "files": [
+    "web/game/people.js",
+    "web/game/face.js",
+    "web/game/kit.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "mem"
+   ],
+   "offers": {
+    "OEFace": [
+     "attach"
+    ],
+    "OEKit": [
+     "materials",
+     "setNight",
+     "shared"
+    ],
+    "OEPeople": [
+     "crowdRenderer",
+     "exposure",
+     "load",
+     "person",
+     "randomLook",
+     "setLight",
+     "setNear",
+     "setStyle",
+     "uncovered"
+    ]
+   }
+  },
+  "crowd": {
+   "for": "Who walks where: the crowd, the NPCs, the walking grid, the ways, the guide.",
+   "files": [
+    "web/game/actors.js",
+    "web/game/nav.js",
+    "web/game/navcells.js",
+    "web/game/route.js",
+    "web/game/companion.js",
+    "web/game/collision.js",
+    "web/game/decks.js",
+    "web/game/doors.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "guide",
+    "ride"
+   ],
+   "offers": {
+    "OEActors": [
+     "FOOTW",
+     "benches",
+     "boxes",
+     "crowd",
+     "makePerson",
+     "network",
+     "pick",
+     "sprite",
+     "traffic"
+    ],
+    "OECollision": [],
+    "OECompanion": [
+     "create"
+    ],
+    "OEDecks": [
+     "clearColumns",
+     "mesh",
+     "plan"
+    ],
+    "OEDoors": [
+     "create"
+    ],
+    "OENav": [
+     "create"
+    ],
+    "OERoute": [
+     "create",
+     "line",
+     "walkable"
+    ]
+   }
+  },
+  "traffic": {
+   "for": "What drives, flies and runs on rails: cars and their drivers, the junctions' lights, the helicopter, the trains.",
+   "files": [
+    "web/game/cars.js",
+    "web/game/vehicles.js",
+    "web/game/autopilot.js",
+    "web/game/junctions.js",
+    "web/game/rail.js",
+    "web/game/trains.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "ride"
+   ],
+   "offers": {
+    "OEAutopilot": [
+     "cruise",
+     "film",
+     "join",
+     "laneKeep",
+     "nextTurn",
+     "onLane",
+     "scenic",
+     "scenicShare",
+     "turnGlyph",
+     "turnText",
+     "turns"
+    ],
+    "OECars": [
+     "CAR_STEP",
+     "LANE",
+     "boxOf",
+     "car",
+     "chauffeur",
+     "drive",
+     "headlamp",
+     "kerbOf",
+     "ledgesUnder",
+     "path",
+     "pushOut",
+     "queueing",
+     "router",
+     "setWeather",
+     "sprayState",
+     "sprayStep",
+     "weather"
+    ],
+    "OEJunctions": [
+     "RANK",
+     "create"
+    ],
+    "OERail": [
+     "create"
+    ],
+    "OETrains": [
+     "create"
+    ],
+    "OEVehicles": [
+     "ferries",
+     "helicopter",
+     "load",
+     "searchlight"
+    ]
+   }
+  },
+  "sound": {
+   "for": "Everything heard, made on the audio thread: the street, the rooms, the score, the opening.",
+   "files": [
+    "web/game/audio.js",
+    "web/game/music.js",
+    "web/game/overture.js",
+    "web/game/walkcalls.js",
+    "web/film-score.js"
+   ],
+   "checks": [
+    "audio",
+    "story",
+    "walk"
+   ],
+   "offers": {
+    "OEAudio": [
+     "announce",
+     "bell",
+     "car",
+     "chime",
+     "cicadas",
+     "ctx",
+     "doorChime",
+     "engine",
+     "health",
+     "held",
+     "honk",
+     "horn",
+     "hush",
+     "kan",
+     "made",
+     "melody",
+     "murmur",
+     "musicBus",
+     "muted",
+     "on",
+     "pending",
+     "place",
+     "platformChime",
+     "rain",
+     "rotor",
+     "screens",
+     "setMuted",
+     "sfx",
+     "shutter",
+     "skid",
+     "start",
+     "step",
+     "stop",
+     "thump",
+     "thunder",
+     "train",
+     "trainAt",
+     "wind"
+    ],
+    "OEFilmScore": [],
+    "OEMusic": [
+     "create",
+     "loop"
+    ],
+    "OEOverture": [
+     "create",
+     "due"
+    ],
+    "OEWalkCalls": [
+     "create"
+    ]
+   }
+  },
+  "hud": {
+   "for": "What is laid over the picture: the goal line, the cards, the viewfinder, the touch pad, the tour's words.",
+   "files": [
+    "web/game/hud.js",
+    "web/game/style.js",
+    "web/game/fx.js",
+    "web/game/pad.js",
+    "web/onboard.js",
+    "web/plate.js"
+   ],
+   "checks": [
+    "story",
+    "walk"
+   ],
+   "offers": {
+    "OEFx": [],
+    "OEHud": [
+     "baseMap",
+     "dialogue",
+     "drawIcon",
+     "keys",
+     "length",
+     "log",
+     "minimap",
+     "rideLine",
+     "rideMap",
+     "stamp",
+     "toast"
+    ],
+    "OEOnboard": [
+     "active",
+     "coach",
+     "done",
+     "forgetCoaches",
+     "markDone",
+     "tour"
+    ],
+    "OEPad": [
+     "create"
+    ],
+    "OEPlate": [
+     "finish",
+     "stop"
+    ],
+    "OEStyle": []
+   }
+  },
+  "light": {
+   "for": "The hour and the weather: the sun, the sky, night's lights, rain, the ambient occlusion, the street's mirror.",
+   "files": [
+    "web/sun.js",
+    "web/sun-gpu.js",
+    "web/night.js",
+    "web/lights.js",
+    "web/neon.js",
+    "web/clouds.js",
+    "web/mirror.js",
+    "web/game/atmosphere.js",
+    "web/game/weather.js",
+    "web/game/ao.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "mem",
+    "gl"
+   ],
+   "offers": {
+    "OEAO": [],
+    "OEAtmos": [
+     "create"
+    ],
+    "OEClouds": [
+     "patch"
+    ],
+    "OELights": [
+     "create"
+    ],
+    "OEMirror": [
+     "create"
+    ],
+    "OENeon": [
+     "create",
+     "lowPool"
+    ],
+    "OENight": [
+     "GLSL",
+     "create",
+     "uniforms"
+    ],
+    "OEWeather": [
+     "NAMES",
+     "S",
+     "create",
+     "describe",
+     "patch"
+    ],
+    "SunGPU": []
+   }
+  },
+  "hero": {
+   "for": "The hero levels: their models, atlases and loading round the player.",
+   "files": [
+    "web/game/hero.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "mem"
+   ],
+   "offers": {
+    "OEHero": [
+     "create"
+    ]
+   }
+  },
+  "world": {
+   "for": "The map drawn from its packs: buildings, streets, trees, the far city, materials, textures, visibility.",
+   "files": [
+    "web/world.js",
+    "web/buildings.js",
+    "web/buildings-geo.js",
+    "web/streets.js",
+    "web/trees.js",
+    "web/surface.js",
+    "web/pbr.js",
+    "web/interior.js",
+    "web/quays.js",
+    "web/inland.js",
+    "web/farland.js",
+    "web/farcity.js",
+    "web/outposts.js",
+    "web/water.js",
+    "web/visibility.js",
+    "web/visibility-sweep.js",
+    "web/visibility-worker.js",
+    "web/bvh-worker.js",
+    "web/pack.js",
+    "web/pack-worker.js",
+    "web/tex.js",
+    "web/astc.js",
+    "web/astc-worker.js",
+    "web/gltf.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "mem",
+    "gl",
+    "astc"
+   ],
+   "offers": {
+    "OEBuildings": [
+     "PIER",
+     "POST",
+     "SHOP_HOURS",
+     "canopyPosts",
+     "cellInstances"
+    ],
+    "OEFarCity": [],
+    "OEFarLand": [],
+    "OEInland": [],
+    "OEInterior": [
+     "offices"
+    ],
+    "OEOutposts": [
+     "list"
+    ],
+    "OEPbr": [],
+    "OEQuays": [],
+    "OEStreets": [
+     "carriageways",
+     "posts",
+     "setback"
+    ],
+    "OESurface": [
+     "active",
+     "ground",
+     "load"
+    ],
+    "OETex": [
+     "pack",
+     "packObject",
+     "settled",
+     "stats"
+    ],
+    "OETrees": [],
+    "OEVis": [
+     "at",
+     "cot",
+     "create",
+     "dispose",
+     "hold",
+     "seenNext"
+    ],
+    "OEWater": [],
+    "OEWorld": [
+     "carveUnderWater",
+     "compile",
+     "compiling",
+     "create",
+     "deepenUnderWater",
+     "lin",
+     "load",
+     "loadLine",
+     "railGlint",
+     "readAsync",
+     "settleUnderFloors",
+     "shown",
+     "upload",
+     "uploadBuffers",
+     "uploadSliced",
+     "warmPasses"
+    ]
+   }
+  },
+  "device": {
+   "for": "The device's tier, its frame-time governor, the care of its WebGL context, telemetry, the version.",
+   "files": [
+    "web/quality.js",
+    "web/glcare.js",
+    "web/telemetry.js",
+    "web/version.js",
+    "web/game/perf.js"
+   ],
+   "checks": [
+    "story",
+    "walk",
+    "mem",
+    "gl"
+   ],
+   "offers": {
+    "OEGLCare": [
+     "fit",
+     "fitWatch",
+     "trace",
+     "watch"
+    ],
+    "OEPerf": [
+     "run"
+    ],
+    "OEQuality": [
+     "city",
+     "governor",
+     "held",
+     "sinceDeath",
+     "tier"
+    ],
+    "OETelemetry": [
+     "again",
+     "by",
+     "h",
+     "held",
+     "i",
+     "length",
+     "ok",
+     "pl",
+     "set",
+     "track",
+     "wait",
+     "x",
+     "y"
+    ],
+    "OE_VERSION": []
+   }
+  }
+ }
+}
