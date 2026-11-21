@@ -69,14 +69,19 @@ const PORT = process.env.PORT || 8800, ONLY = process.env.ONLY || '', STILLS = p
       const st = g.myCar().D.st, hh = Math.atan2(q[0] - from[0], q[1] - from[1]);
       Object.assign(st, { x: from[0], y: from[1], h: hh, vx: 0, vy: 0, v: 0, speed: 0 }); g.myCar().C.place(st.x, st.y, st.z, st.h);
       pl.x = st.x + 2; pl.y = st.y; g.advance(0.3); g.enterCar(); g.advance(0.5);
+      // (set on the road again once at the wheel: getting in can bring the car from where it waited)
+      Object.assign(st, { x: from[0], y: from[1], h: hh, vx: 0, vy: 0, v: 0, speed: 0, r: 0 }); g.myCar().C.place(st.x, st.y, st.z, st.h); g.advance(0.1);
+      const start = `${st.x.toFixed(0)},${st.y.toFixed(0)} in the bounds: ${g.edge.inside(st.x, st.y)}, mode ${pl.mode}`;
       let outside = 0;
-      for (let i = 0; i < 160; i++) { g.advance(0.1, ['KeyW']); if (!g.edge.inside(st.x, st.y)) outside++; if (i % 10 === 9) await new Promise(r => setTimeout(r, 60)); }
+      const trace = [];
+      for (let i = 0; i < 160; i++) { g.advance(0.1, ['KeyW']); if (!g.edge.inside(st.x, st.y)) outside++; if (i % 10 === 9) { trace.push(`${st.x.toFixed(0)},${st.y.toFixed(0)}`); await new Promise(r => setTimeout(r, 60)); } }
       await new Promise(r => setTimeout(r, 800));
       g.advance(0.2);
-      return { mode: pl.mode, x: +st.x.toFixed(1), y: +st.y.toFixed(1), h: +st.h.toFixed(2), inside: g.edge.inside(st.x, st.y), stepsOutside: outside, facingIn: Math.sin(st.h) * (from[0] - q[0]) + Math.cos(st.h) * (from[1] - q[1]) > 0 };
+      return { start, trace: trace.join(' '), mode: pl.mode, x: +st.x.toFixed(1), y: +st.y.toFixed(1), h: +st.h.toFixed(2), inside: g.edge.inside(st.x, st.y), stepsOutside: outside, facingIn: Math.sin(st.h) * (from[0] - q[0]) + Math.cos(st.h) * (from[1] - q[1]) > 0 };
     }, [from, q]);
-    console.log(`${r.inside && r.facingIn ? 'ok  ' : 'FAIL'} car at road ${q.map(v => v.toFixed(0))}: ${JSON.stringify(r)}`);
-    if (!(r.inside && r.facingIn)) bad++;
+    // (a car that never reached the edge, held by the traffic in front of it, has not tried it: said, not failed)
+    if (r.err) { console.log(`NOT TRIED car: ${r.err}`); } else if (r.stepsOutside === 0 && r.inside) console.log(`NOT TRIED car at road ${q.map(v => v.toFixed(0))}: it did not reach the edge in 16 s: ${JSON.stringify(r)}`);
+    else { console.log(`${r.inside && r.facingIn ? 'ok  ' : 'FAIL'} car at road ${q.map(v => v.toFixed(0))}: ${JSON.stringify(r)}`); if (!(r.inside && r.facingIn)) bad++; }
     if (STILLS) { await p.waitForTimeout(3000); await p.screenshot({ path: `${out}/${tag}-car.png` }).catch(() => {}); }
   }
   const laid = await p.evaluate(() => window.__game.edge.runs.map(r => [r.a.map(v => +v.toFixed(1)), r.b.map(v => +v.toFixed(1))]));

@@ -107,9 +107,9 @@ window.OEEdge = (function () {
       let best = null, bd = Infinity;
       for (const r of roads) { const d = Math.hypot(r.x - x, r.y - y); if (d < bd) { bd = d; best = r; } }
       if (!best) return null;
-      // twelve metres back in along the road, on the side the map keeps to, facing the way it came from
+      // sixteen metres back in along the road, on the side the map keeps to, facing the way it came from
       const keep = (G.keep === 'right' ? -1 : 1) * Math.min(halfOf(best) / 2, 2.2), ix = -best.ox, iy = -best.oy;
-      const px = best.x + ix * 12 - iy * keep, py = best.y + iy * 12 + ix * keep;
+      const px = best.x + ix * 16 - iy * keep, py = best.y + iy * 16 + ix * keep;
       return { x: px, y: py, z: nav.terrain(px, py), h: Math.atan2(ix, iy) };
     }
 
@@ -149,7 +149,7 @@ window.OEEdge = (function () {
         post: mesh(new THREE.BoxGeometry(0.06, H + 0.1, 0.06).translate(0, (H + 0.1) / 2, 0), new THREE.MeshStandardMaterial({ color: 0x8e9396, roughness: 0.45, metalness: 0.7 }), MAXQ),
         // the red lamps along its top, lit after dark
         lamp: mesh(new THREE.BoxGeometry(0.07, 0.09, 0.07), lampMat, MAXQ),
-        sign: mesh(new THREE.PlaneGeometry(1.8, 0.9), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }), MAXS),
+        sign: mesh(new THREE.PlaneGeometry(1.8, 0.9), new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0x000000, roughness: 0.6 }), MAXS),
       };
       world.add(group);
     }
@@ -181,7 +181,14 @@ window.OEEdge = (function () {
       roads: roads.map(r => [r.x, r.y]),
       feet: feet.map(f => [f.x, f.y]),
       show(on) { if (on && !group) build(); shown = !!on; if (group) group.visible = shown; },
-      night(k) { if (lampMat) lampMat.color.setRGB(0.13 + 2.2 * k, 0.02 + 0.1 * k, 0.02 + 0.06 * k); },
+      // After dark the street's lamps are what a white hoarding is seen by. The page's lamps are drawn, not cast, so
+      // the panels and the notice take that light here: a lamp's warm white at the level the paving beside them has
+      night(k) {
+        if (!lampMat) return;
+        lampMat.color.setRGB(0.13 + 2.2 * k, 0.02 + 0.1 * k, 0.02 + 0.06 * k);
+        kinds.panel.material.emissive.setRGB(0.2 * k, 0.165 * k, 0.12 * k);
+        kinds.sign.material.emissive.setRGB(0.42 * k, 0.4 * k, 0.36 * k);
+      },
     };
   }
   return { create };

@@ -151,7 +151,7 @@ where the level ended, and two of the walk's own stories led out of it. From fir
 | How | Where they can go | What is there |
 |---|---|---|
 | on foot | inside `game.walk.bounds.polygon` (cities/shibuya/city.json): the hero level's hundred metres, Center Gai to its second corner, west to the fork at 109, east under the tracks through Miyamasu's level to SKY GATE | the hero levels. At the edge, across open ground that is not a roadway, a works hoarding from wall to wall or to the kerb (white steel panels 2.4 m high on galvanised posts, the works' notice, red lamps after dark): what Shibuya closes a footway with while its station is rebuilt. In a roadway, where the traffic goes on through, the step is not taken and a line says why |
-| by car | the same bounds | past the edge the picture goes down for a third of a second and the car is set down twelve metres back on the road it was leaving by, on its own side, facing the crossing, with a line saying so |
+| by car | the same bounds | past the edge the picture goes down for a third of a second and the car is set down sixteen metres back on the road it was leaving by, on its own side, facing the crossing, with a line saying so |
 | by helicopter | anywhere | the far map is seen from the air and only from there: by night as it was, by day as issue 148 left it |
 
 `web/game/edge.js` does it, only on the walk a player is given (the story leads by its goals; the builder's `?walk=1`
@@ -171,8 +171,8 @@ outside (it is not yet one of `tools/check.sh`'s targets).
 ![The closures at blue hour, on a desktop](images/walk-review/edge-143.jpg)
 ![On a phone at 21:00 in rain](images/walk-review/edge-143-phone.jpg)
 
-**What this does not do** (kept open in issue 143): the hoarding is lit by the sky alone, so at blue hour it is a
-flat blue-white beside paving the lamps warm; a walker in a roadway is still stopped by a line of text and nothing
+**What this does not do** (kept open in issue 143): the hoarding takes no light from the drawn street lamps (after dark it is given a lamp's warm white
+as a stand-in; at blue hour it is a flat blue-white beside paving the lamps warm); a walker in a roadway is still stopped by a line of text and nothing
 they can see; what stands beyond the edge is as it was (the blank white wall south-west at 288, -1068 is now 20 m
 past a hoarding, not fixed); the two ways the stories use are inside hero levels but were not dressed further; the
 Yoyogi pad still lets a player out on foot far from the level.
