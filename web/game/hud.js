@@ -255,7 +255,7 @@ window.OEHud = (function () {
     const touchy = () => matchMedia('(pointer: coarse)').matches;
     const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
     function show(npc, lines, choices, done) {
-      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0 };
+      cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0, rest: 0 };
       view = 0; box.hidden = false; box.classList.remove('back');
       head(npc);
       next(true);
@@ -267,7 +267,7 @@ window.OEHud = (function () {
       if (!first && cur.typed < cur.full.length) { cur.typed = cur.full.length; textEl.textContent = cur.full; showChoices(); return; } // finish the line at once
       if (!first) cur.i++;
       if (cur.i >= cur.lines.length) { if (cur.choices.length) return; close(); return; }
-      cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0;
+      cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0; cur.rest = 0;
       textEl.textContent = '';
       choicesEl.innerHTML = '';
       hint.innerHTML = hintFor();
@@ -309,7 +309,12 @@ window.OEHud = (function () {
       choicesEl.innerHTML = '';
       if (d) d(null);
     }
+    // A line heard, not answered (npc.auto: a phone call, a message): once it is whole it goes on by itself after the
+    // time it takes to read, so that the box never waits on a key nobody knew to press; a press still goes on at once.
+    // The office's first call sat on its first line for twenty-five minutes on a player's page (November 2026)
+    const readS = t => 1.6 + t.length * 0.045;
     function tick(dt) {
+      if (cur && !view && cur.npc.auto && cur.typed >= cur.full.length && !(cur.choices.length && cur.i >= cur.lines.length - 1)) { cur.rest += dt; if (cur.rest > readS(cur.full)) next(false); return; }
       if (!cur || view || cur.typed >= cur.full.length) return;
       const before = Math.floor(cur.typed);
       cur.typed = Math.min(cur.full.length, cur.typed + dt * 55);
@@ -323,7 +328,7 @@ window.OEHud = (function () {
     choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
     // (the dialogue's own buttons, a story's: a step back, and the log)
     box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false); });
-    return { show, next, back, choose, tick, get open() { return !!cur; }, get stepped() { return view; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    return { show, next, back, choose, tick, quit: () => { if (cur) close(); }, get open() { return !!cur; }, get stepped() { return view; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts
