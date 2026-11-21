@@ -814,6 +814,32 @@ within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) 
 entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
 hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
 
+### The ride up: the city, not the wall (issue 144)
+
+The lift is ridden from outside the tower (issue 99: one shot from the shoulder you had to the shoulder you get; the
+owner found the dark pod odd and the tower climbed from outside the better, and asked again in November 2026 for the
+camera going up all the way with the night in it). On main the shot looked up the tower's face for seven tenths of its
+length, curtain wall and sky, with the night it rose through behind the lens, and the map's labels over it. Now
+(`web/game/game.js` `rideLift`; stills `docs/images/sky/ride-144.jpg`, a desktop and a phone, before and after):
+
+- **It rises out of the hall first.** The hall is open to the sky beside the tower's overhanging base. A camera that set
+  off across at once went through the overhang (a frame of pale panel from edge to edge) or was put on the tower's
+  roofline for a frame by the shot's clamp, 230 m up and back: a jump. The way across is now held back while the camera
+  rises where it stands, by as much as it takes for the whole way to be clear (`nav.clearFraction` along it, either
+  side, the first of four holds that is clear), and a lift's climb is left out of the roofline clamp.
+- **Then it turns out to the city.** Once clear of the base the view turns from the face to the place the story is
+  played (a lift's own `view`, else where the map starts: the Scramble), which opens under the frame as the floors go
+  by: the screens, the crossing, then the far city in its amber. Over the last third it comes round to where you step
+  out, over the glass, as before. It is the direction of the view that turns, never a point looked at.
+- **It lasts as long as it has to show** (11 s here, 7 before; a key or a tap still ends it), and the map's labels are
+  put away for it, as the rest of the interface is in a shot.
+- **The checks look at the picture.** `tools/walk_play.js` fails on a hall or a climb whose frame is one flat tone
+  (`tools/tone.js`: the luma of the still a player would see) and on a camera that jumps on the way up;
+  `tools/lift_top_shot.js` settles the opening's crane before it rides (its stills of the ride were taken from the air,
+  which no player sees), fails on a jump, and with `WELL=1` prints how high the air stands clear over the hall.
+
+Not seen: a real GPU, Safari or iOS. The hall's inside is still designed, not seen (below).
+
 Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY access (shibuya-scramble-square.com/sky/access/,
 its 1F and 2F plans and the section drawing of the lift); Elevator Journal 28 (n-elekyo.or.jp, the lift schedule);
 Shibuya Scramble Square Level 1 Entrance, 2019-12-23 (Wpcpey, Wikimedia Commons, CC BY 4.0: the forecourt, the pillar

@@ -38,6 +38,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_play.js out_dir [WxH] [hour] [sky]     (390x844: a phone, by touch; hour blue|night|live, sky clear|rain)
 const { chromium } = require('playwright');
+const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
@@ -478,11 +479,20 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else if (hall.state !== 'ready' || !hall.shown) fail(`SKY GATE's hall is not drawn round you in its lobby (${JSON.stringify(hall)})`);
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
       await shot('7a-hall');
+      // (and the hall is a picture, not one flat tone from edge to edge: issue 144)
+      const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone);
+      if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat})`);
+      else ok(`SKY GATE's hall: a picture (luma sd ${hallTone.sd}, ${Math.round(hallTone.share * 100)}% its commonest tone)`);
       await act();
-      await p.evaluate(() => window.__game.advance(2.8)); // (the shot eases off from your shoulder: by now it is well up the face)
+      await p.evaluate(() => window.__game.advance(4.5)); // (the shot eases off from your shoulder: by now it is well up the face, turned out to the city)
       const mid = await p.evaluate(() => { const g = window.__game, c = g.camera.position, x = c.x, y = -c.z, z = c.y; return { z: +z.toFixed(1), inside: !!g.nav.col.overlap(x, y, 0.3, z - 0.3, z + 0.3), riding: !!g.cine.active }; });
       await shot('7b-climb');
-      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40 && g.cine.active; i++) g.advance(0.25); });
+      const climbTone = await tones(p, await p.screenshot({ timeout: 120000 })), climbFlat = flat(climbTone);
+      if (climbFlat) fail(`SKY GATE: mid-ride the frame is one flat tone (${climbFlat})`);
+      // (the rest of the climb a quarter of a second at a time: the camera rises, and never by a jump. It was put on the
+      // tower's roof for a frame when the shot's roofline clamp caught it beside the shaft)
+      const rise = await p.evaluate(() => { const g = window.__game; let z = g.camera.position.y, jump = 0, drop = 0; for (let i = 0; i < 60 && g.cine.active; i++) { g.advance(0.25); const y = g.camera.position.y; jump = Math.max(jump, y - z); drop = Math.max(drop, z - y); z = y; } return { jump: +jump.toFixed(1), drop: +drop.toFixed(1) }; });
+      if (rise.jump > 25 || rise.drop > 8) fail(`SKY GATE: the climb's camera jumps (${JSON.stringify(rise)} m in a quarter of a second)`);
       const top = await p.evaluate(() => window.__game.player.z);
       if (!mid.riding || mid.z < lobby.street + 20 || mid.inside) fail(`SKY GATE: mid-ride the camera is not climbing outside the tower (${JSON.stringify(mid)})`);
       else if (top < lobby.top - 3) fail(`SKY GATE: the ride ended at ${top.toFixed(0)} m, not the top stop (${lobby.top.toFixed(0)} m)`);
