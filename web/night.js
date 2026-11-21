@@ -49,17 +49,19 @@ window.OENight = (function () {
 
   // GLSL for the materials the street lights fall on (world.js adds it to the ground and the piers,
   // buildings.js to the walls): streetLight(wp), the light at a world position (three.js frame)
-  const GLSL = `uniform sampler2D uNightMap, uGlowMap; uniform vec4 uNightXf; uniform float uNightOn, uGlowOn;
+  // The screens' light is in the map's alpha (one sampler where it had two: the ground of a GPU with sixteen texture
+  // units asked for seventeen, glcare.js fit). It is the screens' brightness alone: their colours are near-white pinks
+  // and blues (Shibuya's 21 timed glows are within a few percent of their mean), so their mean colour is a uniform.
+  const GLSL = `uniform sampler2D uNightMap; uniform vec4 uNightXf; uniform float uNightOn, uGlowOn; uniform vec3 uGlowCol;
 vec3 streetLight(vec3 wp) {
   if (uNightOn <= 0.0) return vec3(0.0);
   vec2 uv = vec2((wp.x - uNightXf.x) * uNightXf.z, (-wp.z - uNightXf.y) * uNightXf.w);
-  vec3 c = texture2D(uNightMap, uv).rgb, g = texture2D(uNightMap, uv, 6.0).rgb; // the pools, and the district's glow
-  vec3 s = texture2D(uGlowMap, uv).rgb; // the screens' light, while they play
-  return (c * c + 0.4 * g * g + s * s * uGlowOn) * ${VMAX.toFixed(1)} * uNightOn;
+  vec4 c = texture2D(uNightMap, uv); vec3 g = texture2D(uNightMap, uv, 6.0).rgb; // the pools and the screens, and the district's glow
+  return (c.rgb * c.rgb + 0.4 * g * g + c.a * c.a * uGlowCol * uGlowOn) * ${VMAX.toFixed(1)} * uNightOn;
 }`;
   // the uniforms that GLSL reads; world.js shares them with every material it patches
   const uniforms = () => ({ uNightMap: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uNightXf: { value: new THREE.Vector4(0, 0, 1, 1) }, uNightOn: { value: 0 },
-    uGlowMap: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uGlowOn: { value: 0 } });
+    uGlowOn: { value: 0 }, uGlowCol: { value: new THREE.Vector3(1, 1, 1) } });
 
   // the edge haze (world.js) on an additive light: fog mixes towards the haze, a light just fades
   const FOG_FRAG = `#include <fog_fragment>
@@ -317,21 +319,34 @@ void main() {
       px[o + 2] = Math.min(255, Math.round(255 * Math.sqrt(acc[i + 2] * k / VMAX)));
       px[o + 3] = 255;
     }
+    // the screens' light, on the same soft knee: its brightness, a quarter of the map's resolution, drawn up into the
+    // map's alpha (GLSL above), its mean colour a uniform
+    let gp = null;
+    if (gAcc) {
+      gp = new Uint8Array(gw * gh * 4);
+      const gL = new Float32Array(gw * gh), col = [0, 0, 0];
+      for (const [, , , hex, k, h0] of glows) if (h0 != null) { const c = lampColour(hex); col[0] += c.r * k; col[1] += c.g * k; col[2] += c.b * k; }
+      const cl = 0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2];
+      if (cl > 1e-6) NU.uGlowCol.value.set(col[0] / cl, col[1] / cl, col[2] / cl);
+      for (let i = 0, o = 0, q = 0; i < gAcc.length; i += 3, o += 4, q++) {
+        const l = 0.2126 * gAcc[i] + 0.7152 * gAcc[i + 1] + 0.0722 * gAcc[i + 2], k = l > 1e-6 ? KNEE * (1 - Math.exp(-l / KNEE)) / l : 1;
+        for (let c = 0; c < 3; c++) gp[o + c] = Math.min(255, Math.round(255 * Math.sqrt(gAcc[i + c] * k / VMAX)));
+        gp[o + 3] = 255;
+        gL[q] = l * k;
+      }
+      const sx = gw / mw, sy = gh / mh;
+      for (let j = 0; j < mh; j++) {
+        const fy = Math.min(gh - 1, Math.max(0, (j + 0.5) * sy - 0.5)), j0 = Math.floor(fy), j1 = Math.min(gh - 1, j0 + 1), v = fy - j0;
+        for (let i = 0; i < mw; i++) {
+          const fx = Math.min(gw - 1, Math.max(0, (i + 0.5) * sx - 0.5)), i0 = Math.floor(fx), i1 = Math.min(gw - 1, i0 + 1), u = fx - i0;
+          const l = (gL[j0 * gw + i0] * (1 - u) + gL[j0 * gw + i1] * u) * (1 - v) + (gL[j1 * gw + i0] * (1 - u) + gL[j1 * gw + i1] * u) * v;
+          px[(j * mw + i) * 4 + 3] = Math.min(255, Math.round(255 * Math.sqrt(l / VMAX)));
+        }
+      }
+    } else for (let o = 3; o < px.length; o += 4) px[o] = 0;
     const map = new THREE.DataTexture(px, mw, mh, THREE.RGBAFormat);
     Object.assign(map, { magFilter: THREE.LinearFilter, minFilter: THREE.LinearMipmapLinearFilter, generateMipmaps: true, needsUpdate: true });
     NU.uNightMap.value = map;
-    let gMap = null;
-    if (gAcc) { // the screens' light, on the same soft knee
-      const gp = new Uint8Array(gw * gh * 4);
-      for (let i = 0, o = 0; i < gAcc.length; i += 3, o += 4) {
-        const l = 0.2126 * gAcc[i] + 0.7152 * gAcc[i + 1] + 0.0722 * gAcc[i + 2], k = l > 1e-6 ? KNEE * (1 - Math.exp(-l / KNEE)) / l : 1;
-        for (let q = 0; q < 3; q++) gp[o + q] = Math.min(255, Math.round(255 * Math.sqrt(gAcc[i + q] * k / VMAX)));
-        gp[o + 3] = 255;
-      }
-      gMap = new THREE.DataTexture(gp, gw, gh, THREE.RGBAFormat);
-      Object.assign(gMap, { magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, needsUpdate: true });
-      NU.uGlowMap.value = gMap;
-    }
     NU.uNightXf.value.set(fr.x[0], fr.y[0], 1 / (mw * mpp), 1 / (mh * mpp));
 
     // ------------------------------------------------------------ the lamps as points of light
@@ -583,7 +598,7 @@ void main() {
         }
         const m = k => n ? (k / n / 255) ** 2 : 0, district = 0.2126 * m(r) + 0.7152 * m(g) + 0.0722 * m(b);
         let screens = 0;
-        if (gMap && glowHours && [hour, hour + 24].some(h => h >= glowHours[0] && h < glowHours[1])) screens = lum(gMap.image.data, gw, gh, Math.round((x - fr.x[0]) / (mw * mpp / gw) - 0.5), Math.round((y - fr.y[0]) / (mh * mpp / gh) - 0.5));
+        if (gp && glowHours && [hour, hour + 24].some(h => h >= glowHours[0] && h < glowHours[1])) screens = lum(gp, gw, gh, Math.round((x - fr.x[0]) / (mw * mpp / gw) - 0.5), Math.round((y - fr.y[0]) / (mh * mpp / gh) - 0.5));
         return (pool + 0.4 * district + screens) * VMAX;
       },
       skyglow: st.skyglow ? OEWorld.lin(st.skyglow) : null,
@@ -607,7 +622,7 @@ void main() {
         const cp = camera.position;
         for (const p of poles) { const v = Math.hypot(p.c.x - cp.x, p.c.z - cp.z) < 500 + CELL * 0.71 && cp.y - p.c.y < 900; p.meshes[0].visible = p.meshes[1].visible = v; }
       },
-      dispose() { map.dispose(); if (gMap) gMap.dispose(); group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); },
+      dispose() { map.dispose(); group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); },
     };
     return api;
   }
