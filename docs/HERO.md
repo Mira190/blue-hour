@@ -42,6 +42,18 @@ level draws again finely (Kabukicho's tenant stacks and fascias on Ichibangai) i
 meshes of their own (`kbhero_*`, `cities/shinjuku/kabukicho.py` `in_hero`) and hidden while the level is
 shown (`game.hero[].hide`).
 
+**Its surroundings drawn from the street data, not the photograph** (issue 87). Past a level's circle the city's ground
+was the 1 m aerial photograph, and from the air (the story's flight, the helicopter, any camera past 140 m, where the
+drawn streets had faded out) its blur, the towers' shadows baked into it and the buses on the west exit's terminal read
+as wet blotches beside the level's crisp paving. Now, out to 320 m past each level's circle (fading over its last
+110 m), the ground shader in `game.js` takes no colour from the photograph at any height: asphalt, kerbs and footways
+are the drawn streets (`streetTexture`), between them is paving in the footways' tone, the drawing's edges are taken
+back to a pixel where it is magnified, and no grain is laid over it (`ZONE`, `zn`). The drawn streets of a tile under a
+zone stay on in the helicopter. Roofs and piers in the zone take none of the photograph either (`buildings.js`
+`photoZone`, `world.js` piers). It holds with any photograph the map is given. Its views: `tools/views/aerial-ground-87.json`.
+
+![Before and after, from 200 m over the station, by day and at dusk](images/hero/aerial-ground-87.jpg)
+
 **Streamed.** It is fetched when the camera comes within 260 m of its edge, shown within 420 m, and let go
 (geometry and textures freed) past 520 m. On the low tier (phones) every texture is halved before it is
 sent to the GPU, a quarter of the memory, and on a phone's lean sub-tier no side is over 1024; it is resized by
