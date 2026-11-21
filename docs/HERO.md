@@ -143,6 +143,40 @@ drawn (sign panels with the tenants' names, shop interiors, rooms behind the win
 fronts, menu boards, air conditioners, manhole covers, grates) is one atlas, drawn in Python with the
 project's open fonts (`pipeline/adkit.py`).
 
+## The level's edge on the walk (issue 143)
+
+The walk's review found that the level had no edge: a hundred metres out the streets were blank boxes, nothing said
+where the level ended, and two of the walk's own stories led out of it. From first principles, by how a player moves:
+
+| How | Where they can go | What is there |
+|---|---|---|
+| on foot | inside `game.walk.bounds.polygon` (cities/shibuya/city.json): the hero level's hundred metres, Center Gai to its second corner, west to the fork at 109, east under the tracks through Miyamasu's level to SKY GATE | the hero levels. At the edge, across open ground that is not a roadway, a works hoarding from wall to wall or to the kerb (white steel panels 2.4 m high on galvanised posts, the works' notice, red lamps after dark): what Shibuya closes a footway with while its station is rebuilt. In a roadway, where the traffic goes on through, the step is not taken and a line says why |
+| by car | the same bounds | past the edge the picture goes down for a third of a second and the car is set down twelve metres back on the road it was leaving by, on its own side, facing the crossing, with a line saying so |
+| by helicopter | anywhere | the far map is seen from the air and only from there: by night as it was, by day as issue 148 left it |
+
+`web/game/edge.js` does it, only on the walk a player is given (the story leads by its goals; the builder's `?walk=1`
+has no bounds). A stretch of the edge is closed when the walker first comes within 80 m of it, since the walls a
+hoarding ends at are in the collision laid round the player. The step is refused in `walkStep` (the next try slides
+along the edge), so the hoarding needs no collision of its own; a walker set down outside the bounds (the helicopter
+landed at Yoyogi) is not held. The crowd's lines that cross a hoarding are shut (`actors.js` `reshut`). The walk's
+two stories that led out now end inside: Mr Oda's drive to 109 (`drive` at 268, -999, 32 m inside the west edge) and
+Yuna's lift at SKY GATE (528, -1078, inside Miyamasu's level).
+
+It costs one 512 x 256 texture and four instanced meshes (about 15,000 triangles with every stretch laid).
+
+`tools/walk_bounds.py shibuya out.png` draws the bounds on the streets and lists where each footway and road leaves
+them. `tools/edge_walk.js` walks at every one of them and drives the car out along a road, and fails if anybody ends
+outside (it is not yet one of `tools/check.sh`'s targets).
+
+![The closures at blue hour, on a desktop](images/walk-review/edge-143.jpg)
+![On a phone at 21:00 in rain](images/walk-review/edge-143-phone.jpg)
+
+**What this does not do** (kept open in issue 143): the hoarding is lit by the sky alone, so at blue hour it is a
+flat blue-white beside paving the lamps warm; a walker in a roadway is still stopped by a line of text and nothing
+they can see; what stands beyond the edge is as it was (the blank white wall south-west at 288, -1068 is now 20 m
+past a hoarding, not fixed); the two ways the stories use are inside hero levels but were not dressed further; the
+Yoyogi pad still lets a player out on foot far from the level.
+
 ## The Scramble (Shibuya)
 
 The Shibuya map's game opens on Hachiko Square at the junction's south-east corner, looking across the

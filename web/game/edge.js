@@ -4,9 +4,9 @@
 // your car is bounded to the streets that hold (game.walk.bounds.polygon in cities/<city>/city.json: the hero level's
 // hundred metres, Center Gai, the fork at 109, the way to SKY GATE), and a walker turns back at something they can
 // read, never at nothing:
-//   - where a footway leaves the bounds it is closed by what Shibuya closes footways with while its station is
-//     rebuilt: a works hoarding of white steel panels across it, from the wall to the kerb, with its notice and, after
-//     dark, its red lamps;
+//   - where the bounds' edge crosses open ground that is not a roadway it is closed by what Shibuya closes footways
+//     with while its station is rebuilt: a works hoarding of white steel panels, from wall to wall or to the kerb,
+//     with its notice and, after dark, its red lamps;
 //   - a walker in the roadway, where the traffic goes on through, is turned back with a line that says why;
 //   - your car is turned round on the road it was leaving by, and set down facing the crossing.
 // The helicopter is free of it: the far map is seen from the air. Only on the walk a player is given: the story leads
@@ -57,7 +57,8 @@ window.OEEdge = (function () {
             const t = ((c[0] - ax) * ey - (c[1] - ay) * ex) / den, u = ((c[0] - ax) * (by - ay) - (c[1] - ay) * (bx - ax)) / den;
             if (t < 0 || t > 1 || u < 0 || u > 1) continue;
             const el = Math.hypot(ex, ey), s = area > 0 ? 1 : -1; // (the way out: the edge's normal away from the inside)
-            out.push({ x: ax + (bx - ax) * t, y: ay + (by - ay) * t, ex: ex / el, ey: ey / el, ox: s * ey / el, oy: -s * ex / el, ln });
+            const ll = Math.hypot(bx - ax, by - ay) || 1;
+            out.push({ x: ax + (bx - ax) * t, y: ay + (by - ay) * t, ex: ex / el, ey: ey / el, ox: s * ey / el, oy: -s * ex / el, dx: (bx - ax) / ll, dy: (by - ay) / ll, ln });
           }
         }
       }
@@ -65,28 +66,33 @@ window.OEEdge = (function () {
     }
     const roads = crossings(G.paths.road), feet = crossings(G.paths.foot.filter(f => f.c !== 'steps'));
     const halfOf = r => (r.ln.cw || roadW[r.ln.c] || 7) / 2;
-    // A footway's closure runs along the edge either way from where the footway crosses it, to the wall on one side and
-    // the kerb on the other (a road's edge, by the road data), and no further than a footway is wide. It is laid when
-    // the walker first comes within sight of it: the walls it ends at are in the collision laid round the player
-    const runs = [];
-    function lay(f) {
-      const z = nav.terrain(f.x, f.y), ends = [];
-      for (const s of [-1, 1]) {
-        let d = 0;
-        for (; d < REACH; d += 0.25) {
-          const x = f.x + f.ex * s * (d + 0.25), y = f.y + f.ey * s * (d + 0.25);
-          if (nav.solid(x, y, z, 0.15)) { d += 0.25; break; } // (into the wall's face, so no gap is left beside it)
-          if (roads.some(r => Math.hypot(r.x - x, r.y - y) < halfOf(r) + 0.2)) break;
+    // The closure runs along the edge wherever the edge crosses open ground that is not a roadway: from a wall to the
+    // next wall or to a kerb, with no gap a walker would be held at by nothing. It is found a stretch of the edge at
+    // a time, when the walker first comes within sight of it: the walls it ends at are in the collision laid round
+    // the player. (An edge inside a building, or over a road, gets nothing.)
+    const runs = [], STEP = 0.25, CHUNK = 14;
+    const onRoad = (x, y) => roads.some(r => Math.abs((x - r.x) * r.dy - (y - r.y) * r.dx) < halfOf(r) + 0.3 && Math.abs((x - r.x) * r.dx + (y - r.y) * r.dy) < 9);
+    const chunks = [];
+    for (let e = 0; e < n; e++) {
+      const a = P[e], b = P[(e + 1) % n], len = Math.hypot(b[0] - a[0], b[1] - a[1]), ex = (b[0] - a[0]) / len, ey = (b[1] - a[1]) / len, s = area > 0 ? 1 : -1;
+      for (let u = 0; u < len; u += CHUNK) chunks.push({ ax: a[0] + ex * u, ay: a[1] + ey * u, ex, ey, len: Math.min(CHUNK, len - u), out: [s * ey, -s * ex], laid: false });
+    }
+    function lay(c) {
+      let from = null;
+      const close = to => {
+        if (from != null && to - from >= 1.2) {
+          const a = [c.ax + c.ex * from, c.ay + c.ey * from], b = [c.ax + c.ex * to, c.ay + c.ey * to], r = { a, b, out: c.out, z: nav.terrain((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) };
+          runs.push(r); dress(r);
         }
-        ends.push(d);
+        from = null;
+      };
+      for (let u = 0; u <= c.len + 1e-6; u += STEP) {
+        const x = c.ax + c.ex * u, y = c.ay + c.ey * u, z = nav.terrain(x, y);
+        const open = !onRoad(x, y) && !nav.solid(x, y, z, 0.12) && !nav.isWater(x, y);
+        if (open) { if (from == null) from = Math.max(0, u - STEP); } // (from the wall's face, so no gap is left beside it)
+        else close(nav.solid(x, y, z, 0.12) ? u : u - STEP);
       }
-      if (ends[0] + ends[1] < 1.5) return null; // (no room for a footway here: the line runs through a wall)
-      const a = [f.x - f.ex * ends[0], f.y - f.ey * ends[0]], b = [f.x + f.ex * ends[1], f.y + f.ey * ends[1]];
-      // (two footways side by side share one closure)
-      if (runs.some(r => Math.hypot(r.a[0] + r.b[0] - a[0] - b[0], r.a[1] + r.b[1] - a[1] - b[1]) / 2 < 2.5)) return null;
-      const r = { a, b, out: [f.ox, f.oy], z };
-      runs.push(r);
-      return r;
+      close(c.len);
     }
     const wall = (x, y) => runs.some(r => {
       const ex = r.b[0] - r.a[0], ey = r.b[1] - r.a[1], u = Math.max(0, Math.min(1, ((x - r.a[0]) * ex + (y - r.a[1]) * ey) / (ex * ex + ey * ey)));
@@ -109,7 +115,7 @@ window.OEEdge = (function () {
 
     // ---- the hoardings: one instanced mesh a kind, filled run by run
     let group = null, lampMat = null, kinds = null, shown = false;
-    const SEE = 70, MAXP = 420, MAXQ = 110, MAXS = 30;
+    const SEE = 80, MAXP = 1200, MAXQ = 380, MAXS = 80;
     function build() {
       group = new THREE.Group();
       group.name = 'walk_edge';
@@ -143,7 +149,7 @@ window.OEEdge = (function () {
         post: mesh(new THREE.BoxGeometry(0.06, H + 0.1, 0.06).translate(0, (H + 0.1) / 2, 0), new THREE.MeshStandardMaterial({ color: 0x8e9396, roughness: 0.45, metalness: 0.7 }), MAXQ),
         // the red lamps along its top, lit after dark
         lamp: mesh(new THREE.BoxGeometry(0.07, 0.09, 0.07), lampMat, MAXQ),
-        sign: mesh(new THREE.PlaneGeometry(1.2, 0.6), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }), MAXS),
+        sign: mesh(new THREE.PlaneGeometry(1.8, 0.9), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }), MAXS),
       };
       world.add(group);
     }
@@ -164,11 +170,11 @@ window.OEEdge = (function () {
         put(kinds.lamp, r.a[0] + ex * u, r.a[1] + ey * u, r.z + H + 0.06, yaw);
       }
       // (the notice faces in: a plane's front is +z, turned to the way back)
-      if (len > 2.6) put(kinds.sign, (r.a[0] + r.b[0]) / 2 - r.out[0] * 0.03, (r.a[1] + r.b[1]) / 2 - r.out[1] * 0.03, r.z + 1.5, Math.atan2(-r.out[0], r.out[1]));
+      if (len > 2.6) put(kinds.sign, (r.a[0] + r.b[0]) / 2 - r.out[0] * 0.03, (r.a[1] + r.b[1]) / 2 - r.out[1] * 0.03, r.z + 1.45, Math.atan2(-r.out[0], r.out[1]));
     }
     function tick(px, py) {
       if (!shown) return;
-      for (const f of feet) if (!f.laid && Math.hypot(f.x - px, f.y - py) < SEE) { f.laid = true; const r = lay(f); if (r) dress(r); }
+      for (const c of chunks) if (!c.laid && Math.hypot(c.ax + c.ex * c.len / 2 - px, c.ay + c.ey * c.len / 2 - py) < SEE) { c.laid = true; lay(c); }
     }
     return {
       runs, leaves, turn, wall, inside, tick,

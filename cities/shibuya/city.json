@@ -1025,7 +1025,7 @@
     "walk": {
       "bounds": {
         "note": "The walk's bounds on foot and in your car (web/game/edge.js, issue 143; local metres, x east, y north): the hero level's hundred metres round the scramble, Center Gai to its second corner, the fork at 109 (Mr Oda's drive), and east under the tracks through Miyamasu's level to SKY GATE (Yuna's lift). Where a footway leaves it a works hoarding closes the footway; a walker in the road and your car are turned back; the helicopter is free. python3 tools/walk_bounds.py shibuya out.png draws it on the streets.",
-        "polygon": [[236, -1040], [236, -968], [225, -925], [240, -895], [330, -925], [430, -922], [455, -950], [468, -985], [470, -1010], [556, -1010], [556, -1105], [470, -1100], [330, -1098], [300, -1060]]
+        "polygon": [[236, -1040], [236, -968], [225, -925], [240, -895], [330, -925], [430, -922], [455, -950], [468, -985], [470, -1010], [556, -1010], [556, -1105], [470, -1100], [345, -1098], [318, -1058], [262, -1040]]
       },
       "overture": {
         "note": "The walk's opening (docs/STORY.md \"The walk's opening\"; played by game.js startWalk on the story's film engine): the whole of Shibuya from the air at the hour and under the sky the player chose, flown down in one flight to their shoulder at the kerb. Not the story's: no cut, no guide, no words of the case; it comes in from the north-east, high over Omotesando, where the story's opening circles in from the south-west, and it ends behind you at the kerb as the lights change. fly: the camera's one way (points, what it looks at from each, the lens at each), flown at a pace set by its height; the shots are windows on it, for the type and the score. marks: places named as it passes them.",
