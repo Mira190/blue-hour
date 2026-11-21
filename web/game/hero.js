@@ -81,6 +81,29 @@ window.OEHero = (function () {
     const uBake = { value: 1 }, uStreet = { value: 1 }, uNight = U && U.uNight ? U.uNight : { value: 0 }, uHour = U && U.uHour ? U.uHour : { value: 20 };
     const aniso = Math.min(tier === 'high' ? 8 : tier === 'medium' ? 4 : 2, renderer && renderer.capabilities ? renderer.capabilities.getMaxAnisotropy() : 1);
 
+    // a shop front's light box (glow_shop*) keeps its shop's hours (buildings.js SHOP_HOURS, docs/STORY.md "Tonight"):
+    // each box, a piece of the mesh joined by its faces, is given a number of its own from where it stands (a shop's
+    // boxes, a few metres apart, share it), so the street's shop fronts go dark one shop at a time at their hours
+    const SHOP_V = 'attribute float _shop;\nvarying float vHeroShop;\n';
+    function shopIds(o) {
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      if (!ms.some(m => m && /^glow_shop/i.test(m.name || '')) || o.geometry.attributes._shop) return;
+      const g = o.geometry, P = g.attributes.position, n = P.count, idx = g.index ? g.index.array : null;
+      const up = new Int32Array(n).map((_, i) => i), find = i => { while (up[i] !== i) i = up[i] = up[up[i]]; return i; };
+      const nt = idx ? idx.length : n;
+      for (let t = 0; t < nt; t += 3) { const a = find(idx ? idx[t] : t); for (let j = 1; j < 3; j++) { const b = find(idx ? idx[t + j] : t + j); if (a !== b) up[b] = a; } }
+      const sum = new Map();
+      for (let i = 0; i < n; i++) { const r = find(i); let c = sum.get(r); if (!c) sum.set(r, c = [0, 0, 0, 0]); c[0] += P.getX(i); c[1] += P.getY(i); c[2] += P.getZ(i); c[3]++; }
+      const h = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
+      const id = new Map();
+      o.updateWorldMatrix(true, false); // (in metres: a meshopt-packed position is in the node's own units)
+      const w = new THREE.Vector3();
+      for (const [r, c] of sum) { w.set(c[0] / c[3], c[1] / c[3], c[2] / c[3]).applyMatrix4(o.matrixWorld); const x = Math.floor(w.x / 4), z = Math.floor(w.z / 4); id.set(r, Math.min(255, Math.floor(h(x, z) * 256))); }
+      const a = new Uint8Array(n); // (a byte a vertex: a phone's memory is near its budget, tools/mem_check.js)
+      for (let i = 0; i < n; i++) a[i] = id.get(find(i));
+      g.setAttribute('_shop', new THREE.BufferAttribute(a, 1, true));
+    }
+
     // a hero material, patched once: its baked light and occlusion, then the city's street lights
     function patch(m, h) {
       const name = (m.name || '').toLowerCase(), own = m.onBeforeCompile;
@@ -103,6 +126,13 @@ window.OEHero = (function () {
         // on the low tier, the screens' and the plaza's light comes with the street lights' (neon.js pooled: the area lights'
         // stand-in, on the ground and the walls), except in the rooms behind the windows and on the windows themselves
         if (/^(win|room|refl)/.test(name)) sh.oePool = false;
+        if (/^glow_shop/.test(name) && window.OEBuildings && OEBuildings.SHOP_HOURS) { // (shut at its shop's hour: shopIds)
+          sh.uniforms.uHour = uHour;
+          sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${SHOP_V}`)
+            .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vHeroShop = _shop;');
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying float vHeroShop; uniform float uHour;\nfloat h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\n${OEBuildings.SHOP_HOURS}\n`)
+            .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= mix(0.03, 1.0, shopOpen(vHeroShop, fract(vHeroShop * 37.0 + 0.31), uHour)); // (its shutter down: a night light behind it)');
+        }
         // a room (room*: a hall inside a building) is lit by its own lamps by day too, and takes a share of the sky's
         // light through its windows, not all of it as a street does. Its lamps are no brighter at night: the eye is,
         // and the exposure with it, so the baked light's share falls as night comes or the room burns out
@@ -174,6 +204,7 @@ window.OEHero = (function () {
         root.traverse(o => {
           if (!o.isMesh) return;
           o.castShadow = !/nocast/i.test(o.name); o.receiveShadow = true;
+          shopIds(o);
           o.matrixAutoUpdate = false; o.updateMatrix();
           for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
             if (!m || seen.has(m)) continue;
@@ -239,6 +270,7 @@ window.OEHero = (function () {
         root.traverse(o => {
           if (!o.isMesh) return;
           o.castShadow = false; o.receiveShadow = true; // (too fine to throw a shadow a shadow map resolves)
+          shopIds(o);
           o.matrixAutoUpdate = false; o.updateMatrix();
           o.geometry.computeBoundingSphere();
           o.visible = false;
