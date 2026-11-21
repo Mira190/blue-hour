@@ -409,8 +409,8 @@ up the stair behind him*).
 | 3, the police box | says who they are to a detective of 1964. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
-| 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above |
+| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns back to the station | failure, as above |
 | 3, after the print | the detective waits for her name; thirty seconds of silence is an answer too (`wait_s`, `silent`) | as *not yet*, and the file says the player said nothing |
 | 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`); the roll and the file open from inside the question (`atHand`). Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | never a failure: a wrong answer is answered for what was named or shown and written in the file, struck through; the second also says more and marks the print on the roll (`wrong2`); the third, she says it herself (`told`). The last card counts both |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
@@ -905,7 +905,7 @@ saying more (`hints` on the frame or its task):
    so he is the hint too; where the world stops, he leads there and nothing else shows the way);
 3. the light on it, as the other frames have.
 
-After 45 s of looking without one the button is offered once (*Stuck? H for a hint*) and pressed for nobody. The last card
+After 30 s of looking without one the button is offered (*Stuck? Press H for a hint*), again at 75 s, and it keeps an amber edge until a hint is asked for (a player on frame 4's glass saw neither the line nor the button, and thought there was no way on); it is pressed for nobody. The last card
 says which places were found alone and which with a hint, and which. `tools/story_play.js` asks for all three on each
 found frame and fails if they do not come in turn; it fails a found frame that has a mark on it before they are asked for.
 
@@ -1867,3 +1867,35 @@ What is left of the story's own, each with its issue: the living Sumiko's face i
 woman's clear umbrella is not built. Frame 5's place, plain boxes and haze round its print until November 2026 (issue
 33), is a hero level of its own: the Ginza line station's underside, piers and the east exit's ground (docs/HERO.md,
 "Miyamasu").
+
+## Stuck, and wrong: what the best deduction games do (November 2026)
+
+The owner was stuck twice in one evening: on frame 4's glass, not seeing that a hint could be asked for, and at frame
+5's cross-examination, where two wrong answers send the frame back to its beginning. Surveyed before changing either
+(design only; nothing of their look, characters or text is used):
+
+| Game | Wrong, and stuck | Taken, or not |
+|---|---|---|
+| *Ace Attorney* (2001–) | Pressing a statement is free and is how the player learns; only evidence presented wrongly costs, one of five marks. *The Great Ace Attorney Chronicles* adds a Story Mode that presents the right evidence itself | Taken: a statement that stands is answered in his own words and struck off for the next try. Not taken: five marks (the question has four statements) and a mode that plays itself |
+| *Return of the Obra Dinn* (2018) | Nothing is ever failed; fates are confirmed three at a time, so a guess is not told right or wrong alone | Its principle is kept: guessing must cost. Here the cost is the frame taken up again, after two |
+| *The Case of the Golden Idol* (2022) | Hints exist, are limited, and are behind a warning and a small task, so that they are asked for on purpose | Already the rule here (a hint is asked for, never given). What was wrong was that the offer was not seen |
+| *L.A. Noire* (2011) | A case goes on whatever is answered; reviewers faulted that it was rarely clear why a mistake was a mistake | Taken as a warning: `near`, below |
+| *Professor Layton* (2007–) | Three hints to a puzzle, each saying more, bought by the player | Already here |
+
+What was changed:
+
+- **The offer of a hint is seen.** At 30 s and again at 75 s, and the button keeps an amber edge until a hint is asked
+  for. It is still pressed for nobody.
+- **A wrong answer narrows the next try.** In frame 5's cross-examination and frame 6's question, a statement that
+  stands and a print that is not it are struck off (`story.js` `struck`). After the first wrong answer the roll says
+  where to look, without naming the print (`help` on the question).
+- **Reasoning the evidence fairly led to is not called a guess.** *Nobody from my gang went up on any roof* looks
+  broken by the roof's print (nailed boots on the stair, and every man on the works wore them). It is not: boots are
+  not a face, and the foreman is careful to say *my gang*. Pressed, it is answered so, struck off, and not counted
+  (`near` on the statement).
+- Failing after two counted wrong answers is unchanged: a guesser still fails, and the frame is short to take up again.
+
+Sources read: the *Return of the Obra Dinn* article on Wikipedia and Film Stories' "Exploring Return of the Obra Dinn's
+rule of three"; PC Gamer's guide to *The Great Ace Attorney Chronicles* (Story Mode) and StrategyWiki's *Ace Attorney*
+gameplay pages (the five marks); reviews of *The Case of the Golden Idol* at waytoomany.games and Softpedia (the gated
+hints); Screen Rant and TechCrunch on *L.A. Noire*'s interrogations.
