@@ -1378,6 +1378,43 @@ walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither
 way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
 its end, takes Taro's photograph from the helicopter over the crossing, and calls the car from the corner.
 
+**Somewhere to sit (November 2026).** There was no bench within 150 m of the crossing, and sitting existed only for a
+theatre's seats the map does not have. The best open worlds give the player places to stop and look: *Red Dead
+Redemption 2*'s benches and camp seats, where the camera stands back and the world goes on round you; *Ghost of
+Tsushima*'s haiku spots and vistas, a seat with a framed view and the head free to look round it; the *Yakuza* series'
+places to stop in Kamurocho, where watching the street is the thing to do. Worked from first principles: the crossing
+is a show that repeats every two minutes (the crowd gathers at the kerbs, the lights turn, everyone goes at once), and
+the place to watch it from is where the people of Shibuya watch it, at ground level from Hachiko Square.
+
+- *Where the real people sit.* People sit on the low granite wall round Hachiko's bed (the hero level's own, `city.py`
+  `HK_BED`: 0.48 m over his setts, built from photographs of the square, 2020-25). The bed is behind him as he looks
+  north-east to the station's Hachiko exit, so most of its wall faces the bus street or the station; the one stretch
+  that looks at the crossing is the outer corner of its end on his left, sat across with the legs over the corner,
+  facing north to the scramble 40 m off. That is the seat (`game.json` `hero[].perches`, from
+  `cities/shibuya/city.json` `game.hero`). Nothing is added to the ground and nothing stands in the crowd's way: the stone
+  was there, and you sit on its edge with your feet on the setts. Tried and left out: the end blocks' long sides (they
+  face north-east and east, away from the crossing) and the round planters (a stainless rail stands round each).
+- *Found, never owed.* E beside the end of the wall (or a tap on the prompt): *Sit and watch the crossing*. Only on the
+  walk (`walk: true`; `currentAction` keeps it out of the story's episodes).
+- *A calm camera that frames the show.* Seated, the camera stands on a tripod a few metres behind you and to your left, at
+  eye height and tilted a few degrees down: you sit at the side of the frame, the crowd fills the middle and the screens
+  stand over it, and the aim swings just enough to keep you in the frame on a narrow screen. (Tried first: straight
+  behind your shoulder, where the bed's stone lantern, 0.9 m behind you, filled the view.) It breathes a few centimetres, eases in a little
+  when the lights turn and everyone goes, and back out while the crowd waits. A drag (the mouse, or a finger on a
+  phone) turns your head and the view with it; let go, and after five seconds it drifts back round to the crossing.
+- *Time passes if you want it to.* Held, Space (on a phone the *Time-lapse* button where Jump stands) runs the evening's
+  clock at two and a half minutes a second: the blue hour goes to night in about twenty-five seconds, the screens and
+  the shopfronts coming up, while the crowd keeps its own pace so that the crossing still reads.
+- *Out again at once.* E or a tap on *Stand up*, and you are on the square where you stood.
+
+What was taken (design only; nothing of those games' look, words or code): the bench's sit action with the camera
+pulled back to frame the world (*Red Dead Redemption 2*); the seat with a composed view and free look, recentring when
+left alone (*Ghost of Tsushima*); watching the street as a pastime in itself (*Yakuza*). Not taken: a rest that heals or
+saves, or a cut to black. On the page: `web/game/perch.js` (the seats, the shot, the time-lapse), `web/game/game.js`
+(`sitDown`, `standUp` with a perch, its action, its camera branch); `tools/walk_play.js` sits on the wall, checks
+the shot, the drag, the time-lapse and the crossing's all-walk from the seat, and stands (`WALK_ONLY=sit` for that
+alone).
+
 On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
 `walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of
 `web/game/story.css`. `tools/walk_play.js` plays it by mouse and keys on a desktop's page and by touch on a phone's;
