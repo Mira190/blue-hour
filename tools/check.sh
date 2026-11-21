@@ -22,6 +22,8 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - the credits: every shipped work with its licence text, the fonts' OFL, the map's sources beside the README's,
+#             a link's picture and its tags, the version's repository, the three ways to the Credits (tools/credits_check.py);
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
 #           - the rules by which a check's pass is kept though a file it read changed (tools/reach_unit.py);
 #           - the seams between the page's parts: each asks another only for what its contract offers (tools/seams.py),
@@ -35,7 +37,8 @@
 #   walk    the title's first way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
 #           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
 #           SKY's hall drawn round you in its lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
-#   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js), and its memory loop
+#           through a lost context (tools/glcare_phone.js);
 #   budget  the episode played as an iPhone, every still's frame counted: each beat within a phone's budget of draws,
 #           triangles, passes, pixels and GPU memory (tools/beat_budget.py; the story counts the desktop's as it plays);
 #   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
@@ -382,6 +385,10 @@ run_mem() {
   # (a phone's lost WebGL context counts as a death at once: the next load is a level lighter, tools/lost_check.js)
   if timeout 300 $X node tools/lost_check.js >"$OUT/lost.log" 2>&1; then echo "ok   mem    a lost context on a phone counts as a death at once, once"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/lost.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/lost.log)"; fi
+  # and the memory loop on the story's page: a death makes the next load lighter, a lost context reloads lighter and
+  # never from a tab put away (tools/glcare_phone.js, docs/PERFORMANCE.md "Measure, then grant")
+  if timeout 900 $X node tools/glcare_phone.js >"$OUT/glcare_phone.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/glcare_phone.log") steps of a phone's lost context and its next load"
+  else echo "FAIL mem    $(grep '^FAIL' "$OUT/glcare_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/glcare_phone.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {
@@ -541,6 +548,7 @@ rm -rf "$OUT/keep"
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st credits credits - '^FAIL' python3 tools/credits_check.py "$MAP"
     st reach reach - '^FAIL|Error' python3 tools/reach_unit.py
     st seams seams - '^FAIL|Error' python3 tools/seams.py
     st people people - '^FAIL|Error' python3 tools/people_contract.py
