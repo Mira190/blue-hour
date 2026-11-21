@@ -613,7 +613,40 @@ class Level:
         self.q("yellow_line", (wu0 - 1.75, h2 - 1.85, z), (wu0 - 1.65, h2 - 1.85, z), (wu0 - 1.65, h2 - 0.55, z), (wu0 - 1.75, h2 - 0.55, z), n=up)
 
 
+    # what stands on the deck and is solid to a walker (game.json hero[].boxes, game.js): the benches, the nets' frames
+    # with their kerbs, the searchlights. The level is drawn, not walked: the landmark under it keeps the deck, the pad,
+    # its steps, the channels and the glass, but nothing of what this level adds, so a walker went through the benches to
+    # the knee (the owner's phone, at the glass where the walk's Yuna waits). Each a box in the city's frame:
+    # [x, y, heading (to the box's length, from north toward east), half its length, half its width, z bottom, z top],
+    # its top over a walker's knee (nav.js KNEE) however low the thing is, so that it is a thing to walk round, never a
+    # step to take onto it
+    def boxes(self):
+        z, out = self.z + LIFT, []
+        ang = lambda d: math.atan2(float(d[0]), float(d[1]))      # (a direction in the city's frame as a heading from north)
+        def put(u, v, axis, hl, hw, top):
+            x, y = self.c + self.a1 * u + self.a2 * v
+            out.append([round(float(x), 2), round(float(y), 2), round(ang(self.a1 if axis == "u" else self.a2), 4), hl, hw, round(z - 0.05, 2), round(max(z + 0.6, top), 2)])
+        for (u, v) in self.bench_at:                                 # 3 m of slats, 0.5 m deep (bench)
+            axis = "u" if abs(abs(v) - (self.h2 - 1.0)) < 0.01 else "v"
+            put(u, v, axis, 1.55, 0.27, z + 0.44)
+        h1, h2 = self.h1, self.h2
+        for (u, v) in ((-h1 + 9, h2 - 9), (-h1 + 9, -h2 + 22), (h1 - 24, -h2 + 7)):   # the nets: their frames and the kerbs round the lawn
+            put(u, v, "u", 3.1, 1.85, z + 0.92)
+        for (u, v) in self.beams:                                    # the searchlights: the plinth, the yoke and the drum
+            put(u, v, "u", 0.34, 0.34, z + 1.0)
+        return out
+
+
 HIDE = ["sky_deck", "sky_deck_light", "sky_glass", "sky_steel_dark", "sky_compass_atlas", "sky_steps_deck_light", "sky_net", "sky_lit_lamp"]
+
+
+def boxes_only():
+    """The solids alone, without Blender: python cities/shibuya/hero_skyroof.py --boxes writes them into
+    cities/shibuya/city.json game.hero (skyroof) .boxes (then pipeline/game_text.py and pipeline/pack.py)."""
+    import hero_kit as K
+    L = Level(K)
+    L.benches()
+    return L.boxes()
 
 
 def build(K):
@@ -622,6 +655,27 @@ def build(K):
     geo, atlas = L.build()
     r = round(math.hypot(L.h1, L.h2) + 1.0, 1)
     meta = {"id": ID, "at": [round(float(L.c[0]), 2), round(float(L.c[1]), 2)], "r": r, "z": round(L.z, 2), "glb": f"hero/{ID}.glb",
-            "bake_gain": 1.0, "hide": HIDE}
-    print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z")}), f"{len(L.bench_at)} benches")
+            "bake_gain": 1.0, "hide": HIDE, "boxes": L.boxes()}
+    print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z")}), f"{len(L.bench_at)} benches, {len(meta['boxes'])} solid boxes")
     return geo, atlas, materials(K), meta
+
+
+if __name__ == "__main__" and "--boxes" in sys.argv:
+    # (written into city.json's own lines, as its other hand-kept lists are: the file is not reflowed)
+    import re
+    sys.path.insert(0, os.path.join(ROOT, "blender"))
+    B = boxes_only()
+    path = os.path.join(HERE, "city.json")
+    text = open(path, encoding="utf-8").read()
+    at = text.index('"id": "%s",' % ID)
+    note = text.index('"note":', at)
+    ind = re.search(r"\n( *)\"note\":", text[at:note + 8]).group(1)
+    head, body = text[:at], text[at:note]
+    body = re.sub(r'\n *"boxes(_note)?": .*,(?=\n)', "", body)
+    lines = (f'{ind}"boxes": {json.dumps(B)},\n'
+             f'{ind}"boxes_note": "What stands on the deck and is solid to a walker (cities/shibuya/hero_skyroof.py boxes, game.js): the benches, '
+             "the nets' frames and kerbs, the searchlights. [x, y, heading of its length from north toward east, half length, half width, "
+             'z bottom, z top], its top over a walker\'s knee: a thing to walk round, never a step.",\n')
+    body = body[:body.rstrip(" ").rfind("\n") + 1] + lines + ind
+    open(path, "w", encoding="utf-8").write(head + body + text[note:])
+    print(f"{len(B)} boxes into {path}")

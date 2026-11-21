@@ -214,13 +214,13 @@ window.OEAudio = (function () {
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
   }
-  function blip(freq, dur, type = 'square', vol = 0.05) {
+  function blip(freq, dur, type = 'square', vol = 0.05, fc = 20000) {
     if (!ctx || muted) return;
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     o.type = type; o.frequency.value = freq; g.gain.value = 0;
     // (up in 2 ms: it began at its full level in the first sample, a click of its own under the note)
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02); free(o, g);
+    o.connect(g); g.connect(into(fc, dur)); o.start(t); o.stop(t + dur + 0.02); free(o, g);
   }
   function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035); }
   function step() {
@@ -232,7 +232,7 @@ window.OEAudio = (function () {
   }
   function horn() { blip(196, 1.3, 'sawtooth', 0.06); blip(247, 1.3, 'sawtooth', 0.04); }
   // your horn; another driver's at a gain (its distance) and a pitch (a bus's is lower)
-  function honk(gain = 1, pitch = 1) { blip(415 * pitch, 0.32, 'square', 0.045 * gain); blip(523 * pitch, 0.32, 'square', 0.035 * gain); }
+  function honk(gain = 1, pitch = 1, fc = 20000) { if (gain <= 0.01) return; blip(415 * pitch, 0.32, 'square', 0.045 * gain, fc); blip(523 * pitch, 0.32, 'square', 0.035 * gain, fc); }
   function shutter() { sfx('shutter'); } // (the photo mode's: the story's camera, below)
   function thump() { // a rubber stamp on paper: a short low knock and a slap of noise
     if (!ctx || muted) return;
@@ -272,6 +272,50 @@ window.OEAudio = (function () {
   // a level crossing's electronic bell, one stroke: 700 and 750 Hz together, cut off short (130 strokes a minute, rail.js)
   function kan(vol = 1) { if (vol > 0.01) { blip(700, 0.2, 'triangle', 0.09 * vol); blip(750, 0.2, 'triangle', 0.09 * vol); blip(1450, 0.08, 'sine', 0.02 * vol); } }
   function bell() { [0, 320].forEach(d => setTimeout(() => { blip(1180, 0.8, 'sine', 0.06); blip(2840, 0.45, 'sine', 0.02); }, d)); }
+  // ---------------------------------------------------------------- how a sound reaches the ear
+  // (docs/SOUND.md "Distance, the air and what stands between"). A game's sound engine does three things to a sound
+  // from where it is made to where it is heard (Unreal's attenuation and occlusion, Wwise's obstruction, Steam Audio's
+  // air absorption), and the street had only the first, read in plan: the station's announcement played at nine
+  // tenths of its level on SHIBUYA SKY's roof, 104 m from the station in plan and 250 m from it through the air, with
+  // the tower between. reach(src, ear, memo, dt) -> { d, g, fc, delta }:
+  //  d   the distance through the air, height in it, which each sound's own curve reads as it always has;
+  //  g   what the air and what stands between take off it: the air's loss in its middle band, Steam Audio's default
+  //      coefficient (Apache-2.0, ISO 9613-1's at 20 C), and ISO 9613-2's loss over a barrier, 10 lg(3 + 20 delta /
+  //      lambda) at 500 Hz, at most 25 dB (its double diffraction: a roof's two edges), nothing where the line clears;
+  //  fc  the low-pass the sound goes through: the air takes the high band first (Steam Audio's high coefficient, as
+  //      one second-order filter's slope), and a sound round an edge is muffled (to 1.8 kHz at the full loss);
+  //  delta  the path difference over the highest edge between (m; negative by how much the line clears it), from the
+  //      world's edge(), which game.js sets (world()), read at most four times a second for a sound that goes on
+  //      (memo: its own { t, delta }), as games read their occlusion rays at a slower rate than the frame. src.skip:
+  //      how far round the sound the line is not read (6 m unless given), where what makes it stands in or on a structure
+  //      of its own (a station's announcements come out of its hall's doors, not its middle)
+  let edgeFn = null, edgeLast = null;
+  const AIR_MID = 0.0017, AIR_HIGH = 0.0182, BARRIER_MAX = 25, OCC_FC = 1800;
+  function world(w) { edgeFn = w && w.edge ? w.edge : null; edgeLast = w && w.last ? w.last : null; }
+  function reach(src, ear, memo = null, dt = 0) {
+    const d = Math.hypot(src.x - ear.x, src.y - ear.y, src.z - ear.z);
+    let delta = -1;
+    if (edgeFn) {
+      if (!memo) delta = edgeFn(src.x, src.y, src.z, ear.x, ear.y, ear.z, src.skip);
+      else {
+        memo.t = (memo.t || 0) - dt;
+        if (memo.t <= 0 || memo.delta == null) { memo.delta = edgeFn(src.x, src.y, src.z, ear.x, ear.y, ear.z, src.skip); memo.t = 0.25; }
+        delta = memo.delta;
+      }
+    }
+    const lam = 343 / 500, Dz = Math.min(BARRIER_MAX, 10 * Math.log10(Math.max(1, 3 + 20 * delta / lam))), a = Dz / BARRIER_MAX;
+    const fcAir = Math.min(20000, 18000 * Math.exp(-0.5 * (AIR_HIGH - AIR_MID) * d)), fcOcc = Math.pow(20000, 1 - a) * Math.pow(OCC_FC, a);
+    return { d, g: Math.exp(-AIR_MID * d) * Math.pow(10, -Dz / 20), fc: Math.min(fcAir, fcOcc), delta, edge: !memo && edgeLast ? edgeLast.at : null };
+  }
+  // where a short sound plays into: the world's bus, or a low-pass to it when the air or an edge takes its highs (taken
+  // off the bus once it has sounded: life, its length)
+  function into(fc = 20000, life = 2) {
+    if (!(fc < 16000)) return master;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = Math.max(200, fc); lp.Q.value = 0.707; lp.connect(master);
+    const c = ctx; setTimeout(() => { if (ctx === c) { try { lp.disconnect(); } catch (e) { /* already gone */ } } }, (life + 0.5) * 1000);
+    return lp;
+  }
   // ---------------------------------------------------------------- a busy crossing (game.look.sound)
   // the crowd's murmur: noise through two voice bands, a little of it pulsing at a syllable's rate,
   // as a thousand people talking at once sound; level 0..1 with how many are round you
@@ -289,17 +333,18 @@ window.OEAudio = (function () {
   }
   // the screens' sound: a pop song heard across the street, its kick and its chords through the
   // traffic's noise (muffled: little above 1 kHz carries); level 0..1 with distance
-  function screens(level) {
+  function screens(level, fc = 20000) {
     if (!ctx) return;
     if (!screenBed && level > 0) {
       const lp = ctx.createBiquadFilter(), out = ctx.createGain(), oscs = [];
       lp.type = 'lowpass'; lp.frequency.value = 950; lp.Q.value = 0.7; out.gain.value = 0;
       for (let i = 0; i < 3; i++) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; g.gain.value = 0.18; o.connect(g); g.connect(lp); o.start(); oscs.push(o); }
       lp.connect(out); out.connect(master);
-      screenBed = { out, oscs };
+      screenBed = { out, oscs, lp };
     }
     if (!screenBed) return;
     ramp(screenBed.out.gain, Math.min(1, level) * 0.05, 0.8);
+    ramp(screenBed.lp.frequency, Math.max(200, Math.min(950, fc)), 0.8);
     // the beat and the changes, scheduled a little ahead (122 bpm, a chord every bar)
     const t = ctx.currentTime, beat = 60 / 122;
     if (level > 0.02 && beatAt < t + 0.3) {
@@ -322,8 +367,8 @@ window.OEAudio = (function () {
   // box's locator tick (slow, on red) and its walk tick (fast, on green): Australia's with its
   // falling "zap" as the walk comes on, Hong Kong's hard pips, the Netherlands' rateltikker.
   // level 0..1 (with distance); pan -1 (left) to 1 (right)
-  function out(level, pan, life = 2) {
-    const g = ctx.createGain();
+  function out(level, pan, life = 2, fc = 20000) {
+    const g = ctx.createGain(), bus = into(fc, life);
     let last = g;
     g.gain.value = level;
     pan = Math.max(-1, Math.min(1, pan || 0));
@@ -333,9 +378,9 @@ window.OEAudio = (function () {
       const p = ctx.createPanner(), az = pan * Math.PI / 2;
       p.panningModel = 'HRTF'; p.rolloffFactor = 0;
       if (p.positionX) { p.positionX.value = Math.sin(az); p.positionZ.value = -Math.cos(az); } else p.setPosition(Math.sin(az), 0, -Math.cos(az));
-      g.connect(p); p.connect(master); last = p;
-    } else if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); last = p; }
-    else g.connect(master);
+      g.connect(p); p.connect(bus); last = p;
+    } else if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(bus); last = p; }
+    else g.connect(bus);
     // (taken off the bus once the call has sounded: life, its length; its notes go with it)
     const c = ctx; setTimeout(() => { if (ctx === c) { try { last.disconnect(); } catch (e) { /* already gone */ } } }, (life + 0.5) * 1000);
     return g;
@@ -364,28 +409,28 @@ window.OEAudio = (function () {
     pip: (d, t) => tone(d, t, 0.035, 'square', 2050, 0, 0.35, 0.002), // (Hong Kong's)
     ratel: (d, t) => { tone(d, t, 0.012, 'square', 900, 0, 0.55, 0.001); tone(d, t + 0.004, 0.02, 'triangle', 2600, 0, 0.25, 0.001); }, // (the rateltikker's knock)
   };
-  function walkCall(kind, level = 1, pan = 0) {
+  function walkCall(kind, level = 1, pan = 0, fc = 20000) {
     if (!ctx || muted || level <= 0.002 || !CALLS[kind]) return false;
-    CALLS[kind](out(0.09 * Math.min(1, level), pan, 1), ctx.currentTime + LEAD);
+    CALLS[kind](out(0.09 * Math.min(1, level), pan, 1, fc), ctx.currentTime + LEAD);
     return true;
   }
   function piyo(side = 0, level = 1) { walkCall(side ? 'piyopiyo' : 'piyo', level); }
   function kakko(side = 0, level = 1) { walkCall(side ? 'kakakko' : 'kakko', level); }
   // a station's announcement, carried from the concourse: its two-note chime, then a voice too far
   // off to make out (noise through moving vowel formants)
-  function announce(level = 1) {
-    if (!ctx || muted || level <= 0) return;
-    const t = ctx.currentTime + LEAD;
+  function announce(level = 1, fc = 20000) {
+    if (!ctx || muted || level <= 0.002) return;
+    const t = ctx.currentTime + LEAD, bus = into(fc, 5.2);
     [[0, 1046.5], [0.32, 784]].forEach(([d, f]) => { const o = ctx.createOscillator(), g = ctx.createGain(), a = t + d;
       o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, a); g.gain.linearRampToValueAtTime(0.05 * level, a + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, a + 0.9);
-      o.connect(g); g.connect(master); o.start(a); o.stop(a + 1); free(o, g); });
+      o.connect(g); g.connect(bus); o.start(a); o.stop(a + 1); free(o, g); });
     const s = ctx.createBufferSource(), f1 = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter(), g = ctx.createGain(), a = t + 1.3, dur = 3.6;
     s.buffer = noise; s.loop = true; f1.type = 'bandpass'; f1.Q.value = 6; f2.type = 'bandpass'; f2.Q.value = 8;
     for (let k = 0; k < 18; k++) { const at = a + k * dur / 18; f1.frequency.setValueAtTime(350 + Math.random() * 500, at); f2.frequency.setValueAtTime(1000 + Math.random() * 1300, at); }
     g.gain.setValueAtTime(0.0001, a);
     for (let k = 0; k < 14; k++) { const at = a + k * dur / 14; g.gain.linearRampToValueAtTime((0.04 + Math.random() * 0.05) * level, at + 0.05); g.gain.linearRampToValueAtTime(0.008 * level, at + dur / 14); }
     g.gain.linearRampToValueAtTime(0.0001, a + dur);
-    s.connect(f1); s.connect(f2); f1.connect(g); f2.connect(g); g.connect(master); s.start(a); s.stop(a + dur + 0.1); free(s, g);
+    s.connect(f1); s.connect(f2); f1.connect(g); f2.connect(g); g.connect(bus); s.start(a); s.stop(a + dur + 0.1); free(s, g);
   }
   // ---------------------------------------------------------------- the railway (trains.js)
   // A train near the camera, one of three voices: the wheels' rumble on the rail (low noise, louder and
@@ -395,15 +440,16 @@ window.OEAudio = (function () {
   // close (0..1): how near the wheels are, for what the air takes first with distance (the roll, the whine's edge);
   // bridge (0..1): the train is overhead on a steel deck (trainAt below)
   const trainCh = [];
-  function train(i, level, pan = 0, v = 0, a = 0, fast = false, close = 1, bridge = 0) {
+  function train(i, level, pan = 0, v = 0, a = 0, fast = false, close = 1, bridge = 0, fc = 20000) {
     if (!ctx) return;
     let c = trainCh[i];
     if (!c) {
       if (level <= 0) return;
       const mk = (type, f, q) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
-      const outG = ctx.createGain(), pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      const outG = ctx.createGain(), pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null, lp = mk('lowpass', 20000, 0.707);
       outG.gain.value = 0;
-      if (pn) { outG.connect(pn); pn.connect(master); } else outG.connect(master);
+      outG.connect(lp); // (what the air and what stands between leave of it: reach)
+      if (pn) { lp.connect(pn); pn.connect(master); } else lp.connect(master);
       const rum = mk('lowpass', 200, 0.7), rg = ctx.createGain(), air = mk('bandpass', 1800, 0.5), ag = ctx.createGain();
       noiseSource().connect(rum); rum.connect(rg); rg.connect(outG);
       noiseSource().connect(air); air.connect(ag); ag.connect(outG);
@@ -412,10 +458,11 @@ window.OEAudio = (function () {
       const deck = mk('bandpass', 64, 4), dg = ctx.createGain(); // (a steel deck's drum: its lowest modes, 50 to 80 Hz)
       noiseSource().connect(deck); deck.connect(dg); dg.connect(outG);
       rg.gain.value = ag.gain.value = mg.gain.value = dg.gain.value = 0;
-      c = trainCh[i] = { outG, pn, rum, rg, air, ag, mo, m2, mf, mg, dg };
+      c = trainCh[i] = { outG, pn, lp, rum, rg, air, ag, mo, m2, mf, mg, dg };
     }
     const on = muted ? 0 : Math.min(1.2, level), k = Math.min(1.4, v / 25);
     ramp(c.outG.gain, on, 0.12);
+    ramp(c.lp.frequency, Math.max(200, Math.min(20000, fc)), 0.2);
     if (c.pn) ramp(c.pn.pan, Math.max(-1, Math.min(1, pan)), 0.1);
     ramp(c.rum.frequency, 110 + 260 * k, 0.2); ramp(c.rg.gain, (fast ? 0.34 : 0.5) * Math.min(1, 0.25 + k), 0.2);
     // (a commuter train's roll is near you or nowhere: heard from 240 m, a bed of hiss swelling slowly and falling as
@@ -428,34 +475,53 @@ window.OEAudio = (function () {
     ramp(c.mg.gain, (a && !fast ? 0.035 + 0.02 * Math.min(1, v / 8) : fast ? 0.012 * k : 0) * (0.3 + 0.7 * close), 0.35);
   }
   // A train where you stand (trains.js asks for each of the three nearest, each frame): s = { near, above, v, a, len,
-  // pan, fast }, near the distance to its nearest car (m), above how far its rail is over your ears (m), len a car's
-  // length. A train is not a jet, and what tells the ear so is the wheels: a bogie at a time over the rail's joints and
+  // pan, fast, at, ear }, near the distance to its nearest car (m), above how far its rail is over your ears (m), len a car's
+  // length, at and ear ({ x, y, z }) where its nearest car is and where you hear it from: what the air and what stands
+  // between take off it (reach: from SHIBUYA SKY's roof the line passes 230 m below, with the tower between). A train is not a jet, and what tells the ear so is the wheels: a bogie at a time over the rail's joints and
   // a deck's, its two axles a wheelbase apart, a car's two bogies 0.69 of its length apart and the next car's front bogie
   // close behind the last one's rear (ta-tan . . . ta-tan ta-tan . . . ta-tan); the roll swelling with each bogie as it
   // goes by; and overhead on a steel bridge, the bridge struck by every axle, a boom under the clatter. Far off, only the
   // rumble: the air takes the high sound first, and the wheels are lost in it
-  const trainRun = [];
+  // A train is a line of sound 200 m long, and games give a source that long more than one point (Wwise's multi-position
+  // emitters, Unreal's spread): heard from its nearest car, through the air, and from whichever of its cars (pts: every
+  // third and the last) the air and what stands between leave the most of, four times a second. Its nearest car behind the
+  // station from Hachiko, the cars on the open viaduct are heard; from SHIBUYA SKY's roof, none
+  const trainRun = [], trainPath = [];
+  const trainLevel = d => Math.pow(Math.max(0, 1 - d / 240), 2.2) * (1 + 0.6 * Math.max(0, 1 - d / 30));
   function trainAt(i, s, dt) {
     if (!ctx) return;
     if (!s) { train(i, 0); if (trainRun[i]) trainRun[i].t = 0; return; }
-    const near = s.near, level = Math.pow(Math.max(0, 1 - near / 240), 2.2) * (1 + 0.6 * Math.max(0, 1 - near / 30));
+    let near = s.near, k = 1, fc = 20000;
+    if (s.at && s.ear) {
+      const M = trainPath[i] = trainPath[i] || { t: 0, k: null, fc: 20000 };
+      near = Math.hypot(s.at.x - s.ear.x, s.at.y - s.ear.y, s.at.z - s.ear.z);
+      if ((M.t -= dt) <= 0 || M.k == null) {
+        M.t = 0.25;
+        let best = 0, bfc = 20000;
+        for (const q of [s.at, ...(s.pts || [])]) { const P = reach(q, s.ear), v = trainLevel(P.d) * P.g; if (v > best) { best = v; bfc = P.fc; } }
+        const c0 = trainLevel(near);
+        M.k = c0 > 1e-6 ? Math.min(1, best / c0) : 0; M.fc = bfc;
+      }
+      k = M.k; fc = M.fc;
+    }
+    const level = trainLevel(near) * k;
     const close = Math.max(0, Math.min(1, (45 - near) / 35)), bridge = (s.above || 0) > 3 && near < 30 ? Math.min(1, (30 - near) / 14) : 0, pan = s.pan || 0;
-    train(i, level, pan, s.v, s.a || 0, !!s.fast, close, bridge);
+    train(i, level, pan, s.v, s.a || 0, !!s.fast, close, bridge, fc);
     const R = trainRun[i] = trainRun[i] || { t: 0, k: 0 };
     if (s.fast || s.v < 1.5 || close <= 0) { R.t = 0; return; }
     if ((R.t -= dt) > 0) return;
     const len = s.len || 20, inner = 0.69 * len;
-    clack(level * (0.3 + 0.7 * close * close), pan, s.v, bridge, close);
+    clack(level * (0.3 + 0.7 * close * close), pan, s.v, bridge, close, fc);
     R.t = (R.k++ % 2 ? len - inner : inner) / s.v;
   }
   // a bogie over a rail joint: its two axles, the second a wheelbase (2.1 m) behind the first. Each is steel on steel:
   // a bright tick, the wheel's body and the knock of the axle; the roll of the bogie swelling past under them; and on a
   // steel deck the deck itself, boomed by each axle and ringing a little
-  function clack(level, pan = 0, v = 10, bridge = 0, close = 1) {
+  function clack(level, pan = 0, v = 10, bridge = 0, close = 1, fc = 20000) {
     if (!ctx || muted || level <= 0.004) return;
     // (t: the first axle, after the roll has begun to swell, at now and LEAD: begun 0.12 s before the axle at now, the
     // roll started in the past, part way up its swell, in a single sample)
-    const d = out(Math.min(1, level) * 0.3, pan, 1.3), t = ctx.currentTime + LEAD + 0.12, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
+    const d = out(Math.min(1, level) * 0.3, pan, 1.3, fc), t = ctx.currentTime + LEAD + 0.12, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
     const nz = (at, type, f, q, vol, a, rel) => { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noise; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + a); g.gain.exponentialRampToValueAtTime(0.0001, at + a + rel); s.connect(fl); fl.connect(g); g.connect(d); s.start(at, Math.random() * 1.5); s.stop(at + a + rel + 0.05); free(s, g); };
     for (const [at, k] of [[t, 1], [t + gap, 0.8]]) {
       nz(at, 'bandpass', 2600, 1.4, 0.3 * k * close, 0.001, 0.012);  // (the tick: wheel on the joint's edge)
@@ -1132,5 +1198,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; } };
 })();

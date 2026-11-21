@@ -686,7 +686,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       let lamps = 0;
       for (const tr of live) {
         const s = tr.s, c = s.tr.c, [h0, h1] = s.tr.hide_m || [0, c.L];
-        tr.near = Infinity;
+        tr.near = Infinity; tr.pn = 0;
         for (let i = 0; i < s.cars; i++) {
           const d = tr.x + (s.len / 2 - (i + 0.5) * s.S.len); // car 0 leads
           if (d < h0 || d > h1 || inDark(s.tr, d)) continue;
@@ -702,6 +702,9 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
           for (const m of L.meshes) m.setMatrixAt(L.n, dummy.matrix);
           L.n++;
           if (o.listener) { const l = o.listener(), dd = Math.hypot((fwd.x + aft.x) / 2 - l.x, (fwd.y + aft.y) / 2 - l.y, fwd.z + 1.5 - l.z); if (dd < tr.near) { tr.near = dd; tr.nx = (fwd.x + aft.x) / 2; tr.ny = (fwd.y + aft.y) / 2; tr.nz = (fwd.z + aft.z) / 2; } }
+          // (and every third car and the last, their bodies' middles: a train is heard from the length of it that is in the
+          // open, not only its nearest car, which may be behind the station, audio.js trainAt)
+          if (o.listener && (i % 3 === 0 || i === s.cars - 1)) { const q = (tr.pts = tr.pts || [])[tr.pn] || (tr.pts[tr.pn] = { x: 0, y: 0, z: 0 }); q.x = cx; q.y = cy; q.z = (fwd.z + aft.z) / 2 + 1.5; tr.pn++; }
           if (i === 0 || i === s.cars - 1) { // white at the head, red at the tail
             const [ahead, side, up] = s.S.lamp || (s.S.shinkansen ? [10.2, 0.5, 1.0] : s.S.deck2 ? [9.85, 0.95, 1.5] : [9.85, 0.95, 1.25]);
             const e = i === 0 ? 1 : -1, hx = (fwd.x - aft.x) / (2 * half), hy = (fwd.y - aft.y) / (2 * half), ex = cx + hx * e * ahead, ey = cy + hy * e * ahead;
@@ -933,7 +936,10 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         const level = Math.pow(Math.max(0, 1 - tr.near / HEAR), 2.2) * (1 + 0.6 * Math.max(0, 1 - tr.near / 30)), pan = panOf(tr.nx, tr.ny);
         api.voices[i] = level;
         // (its rumble, its wheels a bogie at a time, and over a deck the deck: audio.js trainAt, from where it is)
-        if (A.trainAt) A.trainAt(i, { near: tr.near, above: (tr.nz ?? l.z) - l.z, v: tr.v, a: tr.a, len: tr.s.S.len, pan, fast: !!tr.s.S.shinkansen }, dt);
+        // (and where its nearest car is, its body's middle over the rail, and your ear: what the air and what stands between
+        // take off it, audio.js reach)
+        if (A.trainAt) A.trainAt(i, { near: tr.near, above: (tr.nz ?? l.z) - l.z, v: tr.v, a: tr.a, len: tr.s.S.len, pan, fast: !!tr.s.S.shinkansen,
+          at: { x: tr.nx, y: tr.ny, z: (tr.nz ?? l.z) + 1.5 }, pts: (tr.pts || []).slice(0, tr.pn), ear: l }, dt);
         else A.train(i, level, pan, tr.v, tr.a, !!tr.s.S.shinkansen);
       }
       // the announcements, while you are in hearing of a station
