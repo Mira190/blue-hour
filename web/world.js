@@ -3164,7 +3164,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // Objects hidden now are left for their first draw.
   const LAYER = 31, bufSent = new WeakSet(), noop = () => {};
   const DRAWS = ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements'];
-  async function uploadBuffers(renderer, scene, camera, { target = null } = {}) {
+  // late: a model come after the loader's own set (a hero level, game.js sendBuffers): its line in the log says so,
+  // and the loader's line stays what the loader sent, whenever a late model happens to arrive (issue 159).
+  async function uploadBuffers(renderer, scene, camera, { target = null, late = false } = {}) {
     if (!renderer || !renderer.render || !scene || !camera) return;
     const objs = [], lights = [];
     scene.traverseVisible(o => {
@@ -3183,11 +3185,12 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     };
     const t0 = performance.now();
     let budget = 4 << 20, i = 0, slices = 0, longest = 0, total = 0;
-    const log = [];
+    const log = [], by = new Map(); // (by: the bytes by what sent them, an object's name or its nearest named parent's)
+    const nameOf = o => { for (let q = o; q; q = q.parent) if (q.name) return q.name.replace(/[-_ ]?\d+$/, ''); return o.type; };
     while (i < objs.length) {
       const slice = [];
       let sb = 0;
-      while (i < objs.length && (sb < budget || !slice.length)) { const o = objs[i++]; sb += bytes(o); slice.push(o); }
+      while (i < objs.length && (sb < budget || !slice.length)) { const o = objs[i++], n = bytes(o), k = nameOf(o); sb += n; by.set(k, (by.get(k) || 0) + n); slice.push(o); }
       await caughtUp(renderer); // (sent behind queued compiles, the uploads wait for them: uploadSliced)
       const s0 = performance.now(), sm = renderer.shadowMap, keep = { render: sm.render, own: Object.prototype.hasOwnProperty.call(sm, 'render'), clear: renderer.autoClear, bg: scene.isScene ? scene.background : null, rt: renderer.getRenderTarget(), mask: camera.layers.mask };
       const was = slice.map(o => o.frustumCulled), gl = renderer.getContext(), draws = DRAWS.filter(k => gl[k]);
@@ -3217,7 +3220,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       // (the next slice's size from this one's rate: about SLICE_MS of uploads a slice)
       budget = Math.max(256 << 10, Math.min(64 << 20, sb * SLICE_MS / Math.max(dt, 1)));
     }
-    console.info(`buffers: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms`);
+    console.info(`${late ? 'late buffers' : 'buffers'}: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms; the most: ${[...by].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ${(v / 1048576).toFixed(1)}`).join(', ')}`);
   }
 
   // The sun's shadow map, cached for what does not move. The city's walls, roofs, rooftop plant, landmarks and
