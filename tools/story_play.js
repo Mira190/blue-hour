@@ -644,6 +644,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (+process.env.SPEND && !spent) { errors.push(`frame ${process.env.SPEND}: was to be spent, and was not`); console.log(errors[errors.length - 1]); }
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
+  if (done) {
+    // under the last card time runs: whoever of tonight's people was on their way as it came up (the old woman, crossing)
+    // goes on walking. She stood held in mid-step, and a player who walked on from the card found her so.
+    const cast = () => p.evaluate(() => Object.entries(window.__game.story.state.cast).map(([id, f]) => ({ id, x: f.x, y: f.y, to: !!f.to })));
+    const a = await cast();
+    await p.waitForFunction(was => Object.entries(window.__game.story.state.cast).every(([id, f]) => { const w = was.find(q => q.id === id); return !w || !w.to || !f.to || Math.hypot(f.x - w.x, f.y - w.y) > 0.3; }), a, { timeout: 60000, polling: 250 }).catch(() => {});
+    const b = await cast(), held = a.filter(w => w.to).filter(w => { const f = b.find(q => q.id === w.id); return f && f.to && Math.hypot(f.x - w.x, f.y - w.y) <= 0.3; });
+    console.log(`under the last card: ${a.filter(w => w.to).length} of tonight's ${a.length} people on their way, ${held.length} held in mid-step`);
+    if (held.length) errors.push(`under the last card ${held.map(w => w.id).join(', ')} stood held in mid-step: the story's people are to go on once the case is closed`);
+  }
   // (not where UPTO=n stopped at a print: the case is still open there, and the camera rightly round the neck)
   if (done && !upto && await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam))) { errors.push('the case is closed, and the camera of 1964 is still round Kagami\'s neck: it is hers again'); console.log(errors[errors.length - 1]); }
   if (!done) console.log('FAIL the last card was not reached', JSON.stringify(await state())); // (its own test: as the camera's else, it was said of every case that closed rightly)
