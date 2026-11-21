@@ -4527,14 +4527,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     $('#g-touch').hidden = false;
     const pad = $('#gt-joy'), knob = $('#gt-knob');
     let jid = null, c0 = null;
-    on(pad, 'pointerdown', e => { jid = e.pointerId; c0 = [e.clientX, e.clientY]; pad.setPointerCapture(jid); A.start(); settleArrival(); });
+    on(pad, 'pointerdown', e => { jid = e.pointerId; c0 = [e.clientX, e.clientY]; pad.setPointerCapture(jid); pad.classList.add('on'); A.start(); settleArrival(); });
     on(pad, 'pointermove', e => {
       if (e.pointerId !== jid) return;
       let dx = (e.clientX - c0[0]) / 50, dy = (e.clientY - c0[1]) / 50;
       const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
       joy = { x: dx, y: -dy }; knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
     });
-    const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; };
+    const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; pad.classList.remove('on'); };
     on(pad, 'pointerup', end); on(pad, 'pointercancel', end);
     const hold = (id, down, up) => { on($(id), 'pointerdown', e => { e.preventDefault(); down(); }); on($(id), 'pointerup', up || (() => {})); on($(id), 'pointercancel', up || (() => {})); };
     hold('#gt-act', () => (dlg.open ? dlg.next(false) : interact()));
@@ -7280,8 +7280,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     const m = Math.min(1, Math.hypot(fwd, side));
     const run = k('ShiftLeft') || k('ShiftRight');
-    const target = m > 0.05 ? (fpOn ? GAIT.walk : run ? GAIT.sprint : player.walking ? GAIT.walk : GAIT.run) * m : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
-    gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
+    // (and with a stick, how far it is pushed is how fast you go: to three quarters of the way a walk, its pace with the push,
+    // and past that on to a run at the edge, so a phone needs no Run button. Pushed all the way, as a key is, a run)
+    const pace = GAIT.walk * Math.min(1, m / 0.75) + (GAIT.run - GAIT.walk) * Math.max(0, (m - 0.75) / 0.25);
+    const target = m > 0.05 ? (fpOn ? GAIT.walk * m : run ? GAIT.sprint * m : player.walking ? GAIT.walk * m : pace) : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
+    gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking || m < 0.75 ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
     player.speed += (target - player.speed) * Math.min(1, dt * (target > player.speed ? 6 : 10));
     if (m > 0.05) {
       let dir = cam.yaw + Math.atan2(side, fwd);
