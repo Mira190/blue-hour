@@ -545,9 +545,102 @@ move), Tokyo Metro news 2019-10-28 (the M-shaped arch frame), ja.wikipedia 宮�
 panels (上流から宮益橋を見る, 1959, all rights reserved: looked at, not used), Tokyo Metropolitan University's paper on
 the river's improvement works (akira.fpark.tmu.ac.jp, 263.pdf).
 
+(Issue 124 dressed the tower's foot and the ground under the deck: the next section.)
+
 Where it still falls short: the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
 the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
 software renderer only.
+
+### The east side under the deck: frames 5 and 6 (issue 124)
+
+The launch review found this the barest place in the episode: behind Tatsuo "a long white hoarding in flat panels" and one
+grey paving, the deck's underside a flat grey with strip lights, and in frame 6's wide view a pale floor washed out by the
+lights, two bare columns. It is where the case turns, and where a player stands longest in the second half.
+
+**What the white wall was.** Not a hoarding: the tower's own street floor, which the city draws as its generic white
+panels under a dark band, 9 m behind Tatsuo. Scramble Square's curtain wall (`hero_scramblesq.py`) starts over it and SKY's
+hall (`hero_skylobby.py`) stands at its east end with the forecourt's planks and the faceted ceiling, which stopped 1.5 m
+past Tatsuo.
+
+**The place, from the research** (November 2026). One photograph of 2024 shows the ground under the deck as it is while
+the east plaza is rebuilt (渋谷駅東口バスターミナル, 3 December 2024, ウィ貴公子, Commons, CC BY-SA 4.0): a round board-marked
+concrete pier flaring upward, the deck's fascia in tall pale panels, its soffit in smooth silver planks with a few small
+recessed fittings, dark asphalt, white flat-panel hoardings 2 to 3 m high with green and white striped end panels and a
+folding mesh gate, white tube guard pipes on precast bases, striped cones. From Hikarie's ninth floor (渋谷ヒカリエから見た
+渋谷駅東口, 23 September 2025, Misei sen, CC BY 4.0) and from above the terminal (Bus station in Shibuya 2, 19 November
+2023, Syced, CC0): the works' compounds in white hoarding with boards on them, bus shelters with flat roofs on green and
+white posts, yellow tactile lines, guard pipes on the islands. The tower's street floor in 2019 (Shibuya Scramble Square
+Level 1 Entrance, Wpcpey, CC BY 4.0): glass from the floor to a dark fascia between slim piers onto lit shops, the
+building's name in lit letters over the doors, a wayfinding wall of lit maps, the striped planks with lines of light in
+their joints. The operator's rules for the Urban Core (April 2025) give its ceiling as about 3,000 mm and say the east
+exit's bus rotary is "under construction". Phase II of the station's rebuilding (the central and west buildings) began in
+May 2025 and is to be complete in fiscal 2031 (Tokyu, JR East and Tokyo Metro, 9 May 2025). The river under the east exit
+was moved east and made a sewer trunk in August 2015; a 4,000 t rain tank lies 25 m under the plaza (Tokyu's
+redevelopment pages). No marker of the river at street level was found, and no published clearance of the deck.
+
+**What was built** (`cities/shibuya/hero_miyamasu.py`; `python blender/build_hero.py --city shibuya --level miyamasu`):
+
+- **The tower's street floor** (`shopfront`), 44 m of its north face from SKY's hall west to the works: twelve bays of
+  3.7 m, glass from a dark stone foot to a charcoal fascia 0.8 m deep at the forecourt ceiling's height (5.6 m over the
+  tower's base), slim piers in pale panel between the bays, a mullion at each third and a transom at 2.5 m, a pair of
+  doors in every third bay, the lit shops behind (the level's own shop pictures, the warm ones) and SHIBUYA SCRAMBLE
+  SQUARE in lit letters on the fascia over the middle doors (the building's name in an open face, not its logotype). Its
+  frame stands 7 cm in front of the record's line: the rings are in decimetres, and glass 3 cm off the line lay behind
+  the city's wall.
+- **The forecourt's planks carried on west** (`forecourt`), 22 m more of them in the hall's own frame so that each stripe
+  runs through: honed stone 0.3 m wide and 1.2 to 3 m long in the hall's three close greys (128, 150 and 168), a line of
+  blue-white light in one joint in seven. The blocks are cut out under every plank, here and before the hall: a plank is
+  flat from end to end and the blocks follow the ground every 2 m, so where the ground swells they stood through.
+- **The works' hoarding** (`hoarding`) along the station's works west of the forecourt, 35 m in three runs 0.9 m off the
+  city's walls: flat steel panels 0.5 m wide and 3 m high with a joint between each (the rental catalogues' size: W500,
+  H2,000 or 3,000, t1.2), end posts banded green and white, and on its longest run the boards a site in Tokyo carries:
+  the notice of the building plan (建築計画のお知らせ, 0.9 m square, Tokyo's minimum), the works' board, the builder's
+  permit and the workers' insurance board (each no smaller than 25 by 35 cm), 安全第一 round the green cross, and no entry.
+  Their words are the works' own (渋谷駅街区 中央棟・西棟, begun May 2025, due fiscal 2031); no company is named. Five LED
+  battens on arms light it after dark, in the bake. It is solid: 129 points along it are `game.hero[].posts`.
+- **Under the deck**: three signs hung on rods from the girders, 2.67 m by 0.3 m, lit on both faces, their feet 4 m up
+  (the east exit and Meiji-dori in black on yellow as exits are signed, the Ginza line's platforms on 3F and the JR
+  lines' Miyamasuzaka gate in white on dark; words, no marks), set off the line frame 5 photographs; two conduits and a
+  cable tray along the deck under the girders' flanges; on each pier a brushed stainless wrap to 2.1 m and the deck's
+  rainwater pipe in three clamps.
+- **The ground** (`drains`): a cast-iron slot drain 0.25 m wide along the deck's drip line on its south side, 59 m of
+  it, and two access covers on the line the river ran (through frame 5's relic, 21 degrees west of north), 23 and 39 m
+  up it from where the print shows the water. Both are things a ground has because of the water under and over it.
+- **The light.** The linear lights' radiance for the bake went from 30 to 16 and the blocks from a pale grey (150) to a
+  mid grey (122), beside the planks' 128 to 168: under the evening's lamps the pale blocks were the "washed out" floor
+  of frame 6's wide view, five times as bright as the forecourt beside them. The baked light on the blocks within 15 m
+  of the standpoint is now 0.12 at the mean and 0.24 at the ninetieth centile (0.20 and 0.43 before).
+
+**On a phone.** Main was at the budget at frame 5 (issues 105 and 110), so what was added is paid for in the level
+itself: a front's windows keep their sills only within 60 m of the standpoint (`sills`: 4 cm of stone, under a pixel
+across the plaza, 20 vertices a window; hero.py's hook, the Scramble's level unchanged). The level went from 79,047
+vertices to 69,014 with everything above in it, and no texture was added: the signs' faces, the name and the boards are
+small cells laid where the atlas's shelves had left room (`place_free`), in the same 2048 by 1024. `tools/mem_check.js`
+`AT=521.9,-1074.1`: 267 MB settled at the frame, 270 at the peak in the rain, inside the budget as main was.
+
+Stills: frames 5 and 6 of `tools/story_play.js` (`FROM=4 UPTO=6`, 1440x900 and 390x844 on the low tier), before and
+after beside the photographs' description; free cameras in `tools/views/shibuya-east-124.json`.
+
+![Frames 5 and 6 before and after, on a desktop](images/shibuya/east-124-desktop.jpg)
+
+![Frames 5 and 6 before and after, on a phone](images/shibuya/east-124-phone.jpg)
+
+Sources (looked at and measured from, none reproduced, no texture taken from one): the four Commons photographs named
+above (CC BY-SA 4.0, CC BY 4.0, CC0, CC BY 4.0); Shibuya Scramble Square, Urban Core Space rules of use, April 2025
+(shibuya-scramble-square.com, the operator's copyright: facts only); Tokyu's release of 9 May 2025 (tokyu.co.jp/company/
+news/detail/56376.html) and its redevelopment pages (the river, the rain tank); HSK Rental's catalogue, p. 113 (flat
+panels and gates); Tokyo's rules for the notice of a building plan (toshiseibi.metro.tokyo.lg.jp); JIS T 9251 for the
+tactile blocks the level already had; Ota City's standard drawings of 2026 for guard pipes (posts 850 mm over the
+ground, rails at 250 mm) and MonotaRO's listings for cones (380 mm square, 700 mm high), neither built here.
+
+Where it still falls short: the bus terminal's islands, shelters and stops, the taxi bay and the guard pipes on them are
+not there, because the game's ground has no carriageway under the deck (the helicopter lands on that plaza); the piers
+are painted steel on granite, not the board-marked concrete flare of the photograph, and the soffit keeps its girders
+and linear lights where the photograph has smooth silver planks; the shops behind the glass are the level's generic
+pictures, not the food hall, and the lit map wall is not built; the 1F plan could not be fetched, so the bays' rhythm
+is from the photograph; no tactile line crosses the plaza (its real route is not known, and the one line that would
+serve crosses frame 5's print); the shadow the low sun throws across the forecourt at 17:39 has a stepped edge (the
+shadow map's, not this level's); and it has been seen on a software renderer only.
 
 ## The Ginza line's station (Shibuya): the box over Meiji-dori (issue 57)
 
