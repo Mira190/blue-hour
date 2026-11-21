@@ -31,19 +31,27 @@ const SCREENS = (process.env.SCREENS || 'desk,touch').split(',');
     await p.waitForTimeout(4000);
     // the springs held where they are (the film sets the mark itself, along the same curve: game.js damp), the press's
     // type at rest, and the clock held
+    // (and once pressed, every animation the page starts is held at the film's moment the instant it starts: the screen
+    // changes in a frame of the page's own, between two of the film's, and its type would otherwise run in the wall clock)
     const T = await p.evaluate(() => { const M = window.__game.flyover.marks.MARK, t = M.time; M.time = 1e9; window.__vt = window.__ts;
-      document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } }); return t; });
+      document.getAnimations().forEach(a => { try { if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* */ } });
+      // (what had played out before the film is left as it ended; what is still playing goes on in the film's time)
+      window.__filmT = 0;
+      document.getAnimations().forEach(a => { if (a.playState === 'finished') a.__skip = true; else a.__born = -(a.currentTime || 0) / 1000; });
+      const hold = () => { document.getAnimations().forEach(a => { if (a.__skip) return; if (a.__born == null) a.__born = window.__filmT; try { a.pause(); a.currentTime = Math.max(0, (window.__filmT - a.__born) * 1000); } catch (e) { /* */ } }); };
+      new MutationObserver(hold).observe(document.getElementById('game-stage') || document.body, { attributes: true, subtree: true, childList: true });
+      setInterval(hold, 8); window.__hold = hold; return t; });
     const s = [0, 0, 0, 0], damp = (i, want, dt) => { const w = 2 / T, x = w * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x), ch = s[i] - want, tmp = (s[i + 1] + w * ch) * dt; s[i + 1] = (s[i + 1] - w * tmp) * e; s[i] = want + (ch + tmp) * e; return s[i]; };
     const dir = `${out}/${screen}`; fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
     const n0 = Math.round(HOLD * FPS), n = n0 + Math.round(SECS * FPS);
     for (let i = 0; i < n; i++) {
       if (i === n0) { if (touch) await p.touchscreen.tap(size.width / 2, size.height / 2); else await p.keyboard.press('Space'); }
-      const k = i < n0 ? 0 : damp(2, damp(0, 1, 1 / FPS), 1 / FPS), t = (i - n0) / FPS;
-      await p.evaluate(([k, t, pressed]) => new Promise(r => {
+      const k = i < n0 ? 0 : damp(2, damp(0, 1, 1 / FPS), 1 / FPS), t = i / FPS;
+      await p.evaluate(([k, t]) => new Promise(r => {
         const m = window.__game.flyover.marks.mark; m.s[0] = m.s[2] = k; m.s[1] = m.s[3] = 0;
-        if (pressed) document.getAnimations().forEach(a => { if (a.__born == null) a.__born = t; try { a.pause(); a.currentTime = Math.max(0, (t - a.__born) * 1000); } catch (e) { /* */ } });
+        window.__filmT = t; window.__hold();
         window.__vt += 1000 / 30; requestAnimationFrame(() => r());
-      }), [k, t, i >= n0]);
+      }), [k, t]);
       await p.screenshot({ path: `${dir}/f${String(i).padStart(4, '0')}.png` });
       if (i % 15 === 0) console.log(`${screen} frame ${i}/${n} mark ${k.toFixed(3)}`);
     }
