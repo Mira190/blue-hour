@@ -370,8 +370,10 @@ It has the movements a classical mystery has:
 - **A liar broken by evidence** (frame 5): Tatsuo cross-examined, his own statements against the roll.
 - **A witness who trusts only what he is shown** (frame 6): Mr Tanaka and his pitch.
 - **The challenge to the reader** (frame 7): the living Sumiko asks three questions, each answered with a name (one of
-  the case's people, from all of them) and then the print (or the pair of prints) that proves it. A right name on the
-  wrong print is not an answer. The second is the title's own question, and its answer is the one inference nobody
+  the case's people, from all of them) and then the print (or the pair of prints) that proves it, with the roll and the
+  file open to the player from inside the question. A right name on the wrong print is not an answer. It is never lost:
+  a wrong answer is answered and written against the player in the file, and the third on one question she answers
+  herself (section 12, "The first play, from what players did"). The second is the title's own question, and its answer is the one inference nobody
   says aloud: whom Akira was keeping out of it. The player says it to her face.
 - **The last reveal** (frame 7, and the card): she is alive; the camera was hers all along; the word.
 
@@ -409,7 +411,8 @@ up the stair behind him*).
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
 | 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
 | 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
-| 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`). Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | failure, as above |
+| 3, after the print | the detective waits for her name; thirty seconds of silence is an answer too (`wait_s`, `silent`) | as *not yet*, and the file says the player said nothing |
+| 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`); the roll and the file open from inside the question (`atHand`). Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | never a failure: a wrong answer is answered for what was named or shown and written in the file, struck through; the second also says more and marks the print on the roll (`wrong2`); the third, she says it herself (`told`). The last card counts both |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
 
 ## 9. Fair play: every clue, and where it is first shown
@@ -610,6 +613,13 @@ frame rate. They are the pause menu's own controls, lent to the screen while it 
 stay in the pause menu. Every screen has its Back at the top left and on Esc or B, and the hand comes back to the row that
 opened it. Who you play, asked from the story's screen, returns to it.
 
+*Credits* is the menu's last row, and is also in the pause menu and on the story's last card: one screen in the title's
+look (`web/credits.js`, `web/credits.css`) that lies over whatever was up and gives it back on Back, Esc or B. It leads
+with the credit lines the map's data asks for (OpenStreetMap, Overture, PLATEAU, Tokyo's ortho photographs, GSI), then
+the map's sources as the pipeline wrote them (`scene.json` `sources`), the third-party works the page ships with their
+licences (`web/credits.json`), what was made for the story, what the page measures and why with its switch, and the
+build's version. A game's credits scroll past; these are read, so they are a page that scrolls under the reader's hand.
+
 Taken from story games of that kind (the *Uncharted* and *The Last of Us* games among them): Continue first when there is
 something to continue, a chapter select opened from the menu with each chapter named and its progress shown, and a
 question before a new game overwrites a save. Nothing of their look or words is used.
@@ -788,7 +798,7 @@ what it does before it is done (`task.teach` on frame 1; `story.js` `teach`):
 
 | Step | What it says it does | How the world answers, the moment it is done |
 |---|---|---|
-| Stand in the light | the camera sees 1964 only from where it was seen; anywhere else, tonight | the column goes, the edge of the place is lit on the ground and a ring goes out to it from your feet (`game.js` `here`); *In the light*; the rangefinder's line joins |
+| Stand in the light | the camera sees 1964 only from where it was seen; anywhere else, tonight | the column goes, the edge of the place is lit on the ground, a fine line 8 cm wide laid on the ground as it is, kerbs and all (`game.js` `storyDrape`), and a ring goes out to it from your feet (`game.js` `here`); *In the light*; the rangefinder's line joins |
 | Raise the camera (R, the button, LT) | from the light, what stood there comes up in the finder out of the grain | the board forms inside the lines in 0.8 s, with its glass |
 | Turn it into the frame lines | an arrow on their edge points to it while it is outside them | the lines go amber; *In the frame · the planetarium's board* |
 | Take the picture (F, the shutter, RT) | the print comes up as tonight, and 1964 through it; seven frames, no eighth | the print develops in the hand |
@@ -820,7 +830,7 @@ Taken off: **Run**, a button alone over the right thumb doing what the stick doe
 for). The walk adds where and when you are, which is what the walk is for, and at the top right your car, the camera
 and the menu, three small icons. The map without the story (`?walk=1`, a tool for building and checking) still has
 the old free game's six buttons (Lens, View, Run, Guess, Jump, E); they are not the game's, and stills meant to show
-the game are taken on the game's own page (`tools/lens_near.js` sets out on the walk as a player does).
+the game are taken on the game's own page (`tools/foot_cam.js` and `tools/story_play.js`).
 
 What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
 old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose
@@ -1008,7 +1018,8 @@ where he went, Hachi was something walking beside the instructions. So while he 
 (`story.js` `ledBy`, `st.guided`) there is no light standing in the street, no gold line, and no mark while he is
 in the frame; out of it, the arrow at the frame's edge points to him, not to the goal. The signs come back
 where he cannot show it: before he is met in the first Stop, when the goal is a thing to frame (turned to, not
-walked to), and when the player has gone thirty seconds without getting any nearer, whatever the reason (the
+walked to: its mark, never a gold line, which ran from Kagami's feet across the zebra to the thing to photograph
+until `game.js` `updateRoute` left the kind `frame` out; `tools/story_play.js` holds it at every standpoint), and when the player has gone thirty seconds without getting any nearer, whatever the reason (the
 net under him: he is a dog, and the player may not be following). Someone to talk to is marked *Talk* only when
 near (12 m) and in sight (`ctx.seen`, a ray against the collision world): a speech mark across a wall 116 m off
 said only that someone stood behind it. He rides a lift at the player's side, and is not lost at the bottom and
@@ -1345,18 +1356,30 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
 - *Found, never owed.* A speech mark over the head of whoever has something to say: amber, its dots breathing, while they
-  have a part of a story for you (seen from about forty metres), pale for a word in passing (from eighteen); their name
-  and what they are under it once you are within eleven metres. E (or a tap on the prompt) beside them opens the talk in
+  have a part of a story for you (seen from 24 metres), pale for a word in passing (from eighteen); their name and what
+  they are under it once you are within eleven metres. A mark is only ever over someone the player can see: their head
+  in sight of the lens (a ray against the city's solids, `ctx.seen`, asked every eighth frame), and it fades in and out
+  over a quarter of a second as they step behind something. It was seen from 42 m and through anything: on SHIBUYA
+  SKY's roof Taro's mark stood over the glass with him out of sight behind the heliport's deck, a few pixels of a man on a
+  phone if he was seen at all (the owner's report, November 2026). E (or a tap on the prompt) beside them opens the talk in
   the story's own box, with the story's conversation camera cutting between you. What they asked sits under the hour in
   the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
-  sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
+  sends you back to them. Where they are on another level, as Yuna is at the lift's foot when you have done what she asked
+  on the roof 226 m over her, the corner names the way (*Down the lift to Yuna*) and its metres are to the lift's stop on
+  your level (`ctx.via`, from `game.json` `lifts`); it read *Back to Yuna · 15 m*, the metres in plan to a point under
+  your feet. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
   the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
   1 of 5*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
   them as a game's journal lists its side stories: each by its name, ticked when told, with what was asked while it is
   under way, and for one not yet met a word on where to look (*By Hachiko, someone is looking for a friend who is
   late*), never a pin on a map.
 - *The street talks too.* The overheard lines of the crossing (`game.json` `chatter`: *Meet at Hachiko? Everyone says
-  that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles.
+  that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles. Each line is
+  said by someone standing there: of the crowd drawn within five metres of where it is said, in the lens's frame and in
+  sight, the nearest (the next nearest for the other side of a conversation), and the bubble follows them as they walk
+  (`game.js` `speakers`, `places.js`). With nobody there in sight, nobody says it, and a line said off the side of the
+  screen is not shown: on the roof's empty deck at night a visitor's line hung over the glass, held at the screen's edge,
+  a bubble over nobody. (The roof has no visitors yet, so its two lines wait for some: a follow-up.)
 
 What the games that do this do, and what was taken (design only; nothing of their look, words or code): the *Yakuza* /
 *Like a Dragon* series' substories, short comic or touching stories in two or three beats met in the street, which
@@ -1718,6 +1741,83 @@ cross-examination, a statement pressed and evidence presented, judged as a pair;
 an author's sentence. `tools/story_play.js` presses Tatsuo's statements and names Sumiko's answers as a player who knows
 them would (state `want`), with a still of each list; `SLIP=5` and `SLIP=7` answer them wrongly until the one asked sees
 through the player.
+
+### The first play, from what players did (21 November 2026)
+
+The story became the title's first way in for the launch, so its first play may have no dead end and no stall. Three
+weeks of the page's own telemetry (`story` and `dwell` events: the beat a player is in, and how long) were a small
+sample, seven players begun and two at the last card, but they said where it hurt, and four places were worked on.
+The engaged time overstated it: an open dialogue or any moment of a Stop counted as engaged with nobody at the keys, so a
+box left open for half an hour read as half an hour of play. Now only what is watched with no hand on anything counts
+without input (the Stop falling, the dog's film, a flight, a call; `web/telemetry.js`), and the rest as everywhere else.
+Learnt from (design only; nothing of their look, characters, words or code is used): *Ace Attorney* (2001–), *The Case
+of the Golden Idol* (2022), *Return of the Obra Dinn* (2018), *L.A. Noire* (2011), the *Telltale* adventures (2012–),
+*Firewatch* (2016), *Journey* (2012), *The Last Guardian* (2016) and *Ghost of Tsushima* (2020).
+
+**The summation is never lost (frame 7).** The two players who reached it were seen through eight times between them:
+two wrong answers and the frame was taken up again from her kerb, the crossing, her five lines and every question before
+the one that was missed. What the best detective games do with a wrong answer:
+
+| Work | A wrong answer | The evidence while answering |
+|---|---|---|
+| *Ace Attorney* | costs a share of a penalty bar, and the judge says why it is wrong; only an empty bar ends the trial | the Court Record is open on the desk while evidence is presented |
+| *The Case of the Golden Idol* | costs nothing but time; the game says how many of a scene's blanks are wrong when few are | the notes and every scene's clues are on the same screen as the blanks |
+| *Return of the Obra Dinn* | is never confirmed alone: the book says *correct* only when three fates hold together, so a guess cannot be checked one at a time | the logbook, the crew list and every memory are at hand |
+| *L.A. Noire* | an accusation of a lie needs the evidence from the notebook; a wrong one loses the line of questioning, not the case | the notebook, always |
+
+Adopted: the case is the player's to argue, so nothing of it is played twice for one answer. A wrong answer is answered
+for what was said, as before (*I tore free and ran, and left him on his feet*), and costs something the player can see:
+it is written into the file in the fountain pen's ink and struck through as it is written (the slip at the top of the
+frame says *Entered, and struck through*), and the last card counts it (`story.js` `judged`, the question's `file`).
+The second wrong answer on one question says more (`wrong2`: where to look, in her words) and marks the print that
+answers it when the roll is laid out (*look again*), as a judge would point at the record. The third, and she says it
+herself (`told`): the case goes on, and the file and the last card keep that she had to (*She answered one question
+herself*). A right answer is written down too, and when all three are settled the file says in one line that they hold
+together, and how many were the player's own (Obra Dinn's confirmation, given once the whole case stands). The roll and
+the file are at hand from inside every question: one more answer, *The roll and the file*, opens them over it, and
+closing them asks the same question again, the name already given kept if it was the print being asked for
+(`atHand`). Kept: the name first and then the print, judged as a pair, so that a guesser of seven names and as many
+prints is wrong, and seen to be wrong, nearly every time. Not taken: a penalty bar. Sumiko is not a court; she is a woman
+who has waited sixty-two years, and her patience is the story's subject, not a meter.
+
+**The first Stop shows her (frame 1, the walk to Sumiko).** The players spent about four minutes each between the world
+stopping and reaching her. In the stills of a first play the reason is plain: the view after the dog's entrance looks
+north across the crossing, and she is thirty metres off at the far kerb behind a hundred people standing exactly as
+still as she does; the one thing that told her from them was that she turns her head. The goal said *Walk to her*, and
+the dog led, but a player has to see where before they follow. *Journey* puts a light on the mountain and never says a
+word about it; level designers lead the eye with a clear line through a crowded frame; *The Last Guardian* and *Ghost of
+Tsushima* show the way with something of the world (the creature's gaze, the wind) instead of a marker. Adopted, with no
+word added: under the flash of the Stop, where nobody is seen to move, the held crowd stands out of a lane from you to
+her a little wider than two people walking abreast (`story.js` `stop`, `ctx.clear`), so that she stands at the end of an
+open line through the crossing and the dog runs down it; and she has the halation an old exposure has round its
+brightest part, a soft pale column about her that is found across the street and fades as you come near, so that close
+to she is only a person (`game.js` `storyFigure` `glow`, on while she is looked for). Every afterimage that is walked to
+has the same.
+
+**The question the detective waits on (frame 3, after its print).** One player sat half an hour in this beat; the page
+recorded the roll being opened in it. After the print the detective asks the player to say it was her, or not: a choice
+with no right answer and no time, the first time the story asks the player to commit, and it sends them to the roll to
+weigh it, with the question waiting under the roll and nothing on the screen to say so. The *Telltale* adventures treat
+silence as an answer: the choice has a visible time, and saying nothing is remembered like anything said. Adopted: he
+waits thirty seconds (`wait_s`), shown as a hairline under the answers running down, held while the roll, the log or the
+menu is open; when it has run out the player has said nothing, which he answers as *not yet* (`silent`: *You say
+nothing. Good.*), and the file writes *You said nothing at the police box when he waited for her name*. The roll opened
+over a waiting question closes on *Back to the question*.
+
+**The office's call (frame 1, after the first Stop).** Five long lines, about seven minutes a player, one of them for
+twenty-five minutes before reloading the page: a call is a thing heard, and it waited on a key at every line.
+*Firewatch*'s radio talk runs on by itself at the pace it is spoken, and is still the game's whole story. Adopted: three
+lines with the same facts (who Kagami is to the office, the kerb, the client and his hour, the word on the plan, the
+sister), and every call (the prologue, a frame's message, the call before the helicopter) goes on by itself once a line
+is whole, after the time it takes to read it (`hud.js` `dialogue`, `auto`); a key or a tap still goes on at once, and
+it waits while the menu, the log or the roll is up. A box that waits on an answer (a question) waits; a box that only
+speaks never does.
+
+`tools/story_play.js` plays it: `SLIP=7` answers the first question wrongly three times and must see her say it herself
+and the last card count it, never the card that takes the frame up again; the first question of every play opens the
+roll and the file from inside it and must be asked again; `SILENT=3` leaves the detective's question to run out; and
+`AFTER=1` with `UPTO=n` plays on past frame n's print, through what is said after it, so that a frame's call is played
+with it.
 
 ## 13. What is left, and the marks without colour
 
