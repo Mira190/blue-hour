@@ -80,11 +80,47 @@ window.OEFace = (function () {
     return 'aa';
   }
 
+  // A face is drawn still until it is chosen to move. Its shapes cost the GPU a float texture (16 bytes a vertex a shape),
+  // which three.js makes the first time a mesh is drawn with them and keeps as long as its geometry: so every face mesh
+  // is drawn from a still geometry (the same buffers, no shapes: the program the crowd's faces use) and only a face
+  // that moves is given its geometry with the shapes (live: its own small copies of the buffers, so that letting it go
+  // can dispose it, texture and all, without touching the still one's). The phone's budget pays only for the faces in
+  // play (docs/PERFORMANCE.md, "The speaking cast's faces").
+  const FULL = new WeakMap(), LIVE = new Map(), STILL = new WeakMap();
+  function stillOf(g) {
+    let s = STILL.get(g);
+    if (!s) {
+      s = new THREE.BufferGeometry();
+      s.setIndex(g.index);
+      for (const k in g.attributes) s.setAttribute(k, g.attributes[k]);
+      for (const gr of g.groups) s.addGroup(gr.start, gr.count, gr.materialIndex);
+      s.boundingBox = g.boundingBox; s.boundingSphere = g.boundingSphere; s.userData = g.userData;
+      STILL.set(g, s); FULL.set(s, g);
+    }
+    return s;
+  }
+  const isFace = o => o.isMesh && o.morphTargetDictionary && o.morphTargetDictionary.eyeBlink !== undefined;
+  // (a model as it comes: its face meshes drawn still, people.js ready; so are the crowd's copies of it)
+  function prepare(root) { root.traverse(o => { if (isFace(o) && o.geometry.morphAttributes.position) o.geometry = stillOf(o.geometry); }); }
+  function liveOf(full) {
+    let L = LIVE.get(full);
+    if (!L) {
+      const g = new THREE.BufferGeometry(), own = a => (a.isInterleavedBufferAttribute ? null : new THREE.BufferAttribute(a.array, a.itemSize, a.normalized));
+      let shared = false;
+      if (full.index) g.setIndex(own(full.index));
+      for (const k in full.attributes) { const a = own(full.attributes[k]); if (a) g.setAttribute(k, a); else { g.setAttribute(k, full.attributes[k]); shared = true; } }
+      for (const gr of full.groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
+      g.morphAttributes = full.morphAttributes; g.morphTargetsRelative = full.morphTargetsRelative;
+      g.boundingBox = full.boundingBox; g.boundingSphere = full.boundingSphere; g.userData = full.userData;
+      L = { g, n: 0, shared }; LIVE.set(full, L);
+    }
+    return L;
+  }
   function attach(root, seed) {
     const meshes = [], bones = {};
     let headB = null;
     root.traverse(o => {
-      if (o.isMesh && o.morphTargetDictionary && o.morphTargetDictionary.eyeBlink !== undefined) meshes.push(o);
+      if (isFace(o)) { if (o.geometry.morphAttributes.position) o.geometry = stillOf(o.geometry); if (FULL.has(o.geometry)) meshes.push(o); }
       if (o.isBone) { if (/LEye$/.test(o.name)) bones.L = o; else if (/REye$/.test(o.name)) bones.R = o; else if (/_Head$|Head$/.test(o.name) && !headB) headB = o; }
     });
     if (!meshes.length) return null; // (a face without shapes, the crowd's: still, docs/PERFORMANCE.md)
@@ -120,9 +156,20 @@ window.OEFace = (function () {
         for (let k = 0; k < SHAPES.length; k++) if (ix[k] !== undefined) inf[ix[k]] = w[k];
       }
     }
+    const stills = meshes.map(m => m.geometry);
+    function live(on) {
+      meshes.forEach((m, i) => {
+        const full = FULL.get(stills[i]);
+        if (on) { const L = liveOf(full); L.n++; m.geometry = L.g; return; }
+        m.geometry = stills[i];
+        const L = LIVE.get(full);
+        if (L && --L.n <= 0) { LIVE.delete(full); if (!L.shared) L.g.dispose(); }
+      });
+    }
     function rest() {
       st.shapes.fill(0); setShapes(st.shapes);
       for (const e of eyes) { if (e.has && e.b.quaternion.equals(e.laid)) e.b.quaternion.copy(e.raw); e.has = false; }
+      if (st.active) live(false);
       st.active = false;
     }
     function startBlink() { st.blinkT = 0; }
@@ -138,6 +185,7 @@ window.OEFace = (function () {
       return [Math.atan2(d.dot(r), d.dot(f)), Math.asin(clamp(d.dot(u), -1, 1))];
     }
     function after(dt, o = {}) {
+      if (!st.active) live(true);
       st.active = true;
       dt = Math.max(0, Math.min(dt || 0, 0.1));
       const line = o.line && o.line.text ? o.line : null;
@@ -242,5 +290,5 @@ window.OEFace = (function () {
       get state() { return { blink: st.blink, gaze: [st.gy, st.gp], open: st.open, shapes: Object.fromEntries(SHAPES.map((k, i) => [k, +st.shapes[i].toFixed(3)])) }; },
     };
   }
-  return { attach, moodOf, SHAPES };
+  return { attach, prepare, moodOf, SHAPES };
 })();

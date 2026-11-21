@@ -3671,7 +3671,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         dress(r);
         r.root.position.copy(rig.root.position); r.root.rotation.copy(rig.root.rotation);
         r.animate(0, 0, 'ground', t); // (posed before it is put in the world, as npcLoad's are: issue 76)
-        world.remove(rig.root); world.add(r.root); rig = r; f.rig = r;
+        if (rig.face) rig.face.rest(); world.remove(rig.root); world.add(r.root); rig = r; f.rig = r;
       }).catch(e => console.warn(`${a.character} unavailable:`, e));
     let t = 0;
     const turn = (x, y) => { f.yaw = Math.atan2(x - f.x, y - f.y); rig.root.rotation.y = Math.PI - f.yaw; };
@@ -3718,7 +3718,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       faceAfter(rig, dt);
     };
-    f.remove = () => { gone = true; world.remove(rig.root); storyFigs.delete(f); };
+    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); }; // (its face let go: face.js frees what a moving face holds)
     f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
     return f;
   };

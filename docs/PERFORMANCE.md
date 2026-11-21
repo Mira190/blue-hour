@@ -2080,18 +2080,24 @@ Faces that move cost memory and vertex work, so they are given only where a face
 
 - **Who has them.** The characters who speak to the player (`pipeline/fetch_rocketbox.py` `face_cast`: the story's
   people, the NPCs a frame meets and the walk's talkers; and Kagami, whom the reverse shot sees): 13 NPCs and the two
-  Kagamis. Every other model has no morph targets. A speaking character the crowd also wears (Yuna, Taro, Riko) is drawn in
-  the crowd from the same buffers without its shapes (`people.js` `stillGeometry`), so the crowd's vertices are never moved
-  by a shape, and its far copy (`pipeline/crowd_cast.mjs`) takes the face's mesh as before.
+  Kagamis. Every other model has no morph targets. The far crowd's copy of a speaking character the crowd also wears
+  (Yuna, Taro, Riko) takes the face's mesh as before (`pipeline/crowd_cast.mjs`).
 - **Only what is used.** Fourteen shapes of HeadBox's 176 (`build_people.py` `FACE_KEYS`): each eye's or side's pair summed
   into one, positions only (no normal or tangent targets). The face is a mesh of its own (the head and the lashes), so the
-  body carries none: 1,755 to 2,447 vertices a face. three.js keeps a face's shapes as one float texture of 16 bytes a
-  vertex a shape: 0.4 to 0.55 MB of the GPU a character, and about as much in the page's heap. The files grew by 10 to 70 kB.
-- **Only the nearest animated.** `game.js` `faceChoose` poses the face of whoever is saying the line on screen, the player's,
-  and the nearest one other within 14 m of the camera on a phone (two on a desktop); the rest keep their shapes at nought,
-  which three.js's shader skips.
-- **Measured** (`tools/mem_check.js`, an iPhone on the low tier): GPU peak 253 MB with the faces, 250 without (budget
-  270); the settled JS heap 284 MB against 281.
+  body carries none: 1,755 to 2,447 vertices a face. The files grew by 10 to 70 kB.
+- **Only the faces in play cost the GPU.** three.js keeps a mesh's shapes as a float texture (16 bytes a vertex a shape, 0.4
+  to 0.55 MB a character), made the first time it is drawn with them and kept as long as its geometry. So every face mesh
+  is drawn from a still geometry (the same buffers without the shapes: the program the crowd's faces use, people.js
+  `ready` calls `face.js` `prepare`), and a face chosen to move is given a live geometry with the shapes (its own small
+  copies of the buffers), disposed, texture and all, when it is let go (`face.js` `live`). The crowd's copies of a speaking
+  character are never chosen and stay still. With every speaking character's texture made at once, the phone measured
+  271 MB against its 270; with only the faces in play, 252 to 253.
+- **Only the nearest animated.** `game.js` `faceChoose` poses the face of whoever is saying the line on screen (or whom the
+  talk is with while a question waits), the player's, and the nearest one other within 14 m of the camera on a phone (two on
+  a desktop). The first time a character's face moves its program with shapes is compiled; the nearest-within-14-m rule
+  usually brings that on as the player walks up, before the talk's cut.
+- **Measured** (`tools/mem_check.js`, an iPhone on the low tier, November 2026): GPU peak 252 to 253 MB (budget 270), the
+  settled JS heap 280 MB.
 
 ## A desktop's map round the player (issue 20)
 
