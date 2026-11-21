@@ -7433,6 +7433,46 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const ORBIT = DISTRICT ? { r: 300, h: 115 } : { r: 470, h: 150 }, FLY_END = { yaw: 0, r: 420, h: 210 };
   let titleYaw0 = 0, titleYaw = null, titleR = ORBIT.r, titleH = ORBIT.h, flyCam = null, titleT = 0;
   if (OPENING) { titleR = openingView().r; titleH = OPENING.h; } // (no ease into the opening's own height on the first frame)
+  // A mark for each of the title's screens (docs/STORY.md "A mark for each screen"). The press is the promise and is
+  // framed as one: centred, low at the kerb, looking up past the screens into the blue hour. Pressed, the world answers as
+  // the score comes in: the camera stands up and steps back and aside (MARK.rise, MARK.back, MARK.truck to the left) and turns, so the screens
+  // go to the frame's upper right third, away from the menu's list (on a phone upright, to its top, over the list), and
+  // the crossing and its crowd come into the frame. The screens behind the menu (who you play, the story, options) take
+  // it MARK.deep further in, and Back brings it out again. MARK.x and MARK.y: where the screens stand in a landscape frame,
+  // as a fraction of its half width and half height from the middle; MARK.px and MARK.py, upright, where the frame is a
+  // third as wide and the tower fills it, so it steps further back and up there (MARK.pback, MARK.prise). Each move is two
+  // critically damped springs in a row (MARK.time each), so it sets off and settles gently and a press made mid-move turns
+  // it round without a jolt; under reduced motion, a cut. The look it ends on is titleLook, where the crane down to your
+  // shoulder starts from (craneIn).
+  const MARK = { truck: 4, rise: 1.4, back: 6, x: 0.36, y: 0.06, prise: 2.2, pback: 10, px: 0, py: 0.2, deep: 2, time: 0.42 };
+  const mark = { k: 0, d: 0, s: [0, 0, 0, 0, 0, 0, 0, 0] }; // (s: each spring's value and speed, the press's two then the depth's two)
+  const damp = (s, i, want, st, dt) => { // (a critically damped spring: s[i] the value, s[i + 1] its speed)
+    const w = 2 / st, x = w * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x), ch = s[i] - want, tmp = (s[i + 1] + w * ch) * dt;
+    s[i + 1] = (s[i + 1] - w * tmp) * e; s[i] = want + (ch + tmp) * e;
+    return s[i];
+  };
+  const markF = new THREE.Vector3(), markR = new THREE.Vector3();
+  function titleMarks(dt) {
+    const sc = titleEl.dataset.screen, want = !sc || sc === 'press' ? 0 : 1, deep = sc === 'who' || sc === 'story' || sc === 'opts' ? 1 : 0, s = mark.s;
+    if (reduced) { s.fill(0); s[0] = s[2] = mark.k = want; s[4] = s[6] = mark.d = deep; } else if (dt > 0) {
+      mark.k = damp(s, 2, damp(s, 0, want, MARK.time, dt), MARK.time, dt);
+      mark.d = damp(s, 6, damp(s, 4, deep, MARK.time, dt), MARK.time, dt);
+    }
+    const k = mark.k, d = mark.d;
+    if (Math.abs(k) < 1e-4 && Math.abs(d) < 1e-4) return;
+    markF.subVectors(titleLook, camera.position);
+    const dist = markF.length();
+    markF.y = 0; markF.normalize(); markR.set(-markF.z, 0, markF.x); // (level forward and right)
+    const a = camera.aspect || 1.6, up = Math.max(0, Math.min(1, (a - 0.8) / 0.5)), by = (p, l) => p + (l - p) * up; // (upright to landscape)
+    camera.position.addScaledVector(markR, -MARK.truck * k).addScaledVector(markF, MARK.deep * d - by(MARK.pback, MARK.back) * k);
+    camera.position.y += by(MARK.prise, MARK.rise) * k;
+    // the screens put where the frame wants them: the turn and the tilt their place in the frame takes, at this lens
+    const tanV = Math.tan(camera.fov * Math.PI / 360), sx = by(MARK.px, MARK.x), sy = by(MARK.py, MARK.y);
+    markF.subVectors(titleLook, camera.position);
+    const az = Math.atan2(markF.x, -markF.z) - Math.atan(sx * tanV * a) * k, el = Math.atan2(markF.y, Math.hypot(markF.x, markF.z)) - Math.atan(sy * tanV) * k;
+    titleLook.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).multiplyScalar(markF.length() || dist).add(camera.position);
+    camera.lookAt(titleLook);
+  }
   // the orbit's centre: north-east of the start, or with an opening shot (game.start.shot, #110) the point it
   // looks at (Shibuya's: the screen over the scramble), the camera then swaying gently behind the start's view
   // and not orbiting, so the crane down from it to over the player's shoulder never swings round
@@ -7477,6 +7517,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const tr = titleR - (O.push || 0) * (1 - Math.exp(-titleT / 30)); // (the slow push in)
       camera.position.copy(titleLook).add(new THREE.Vector3(Math.sin(titleYaw) * -tr, titleH, Math.cos(titleYaw) * tr));
       camera.lookAt(titleLook);
+      if (O.push) titleMarks(dt); // (the press's frame, or the menu's and the screens' behind it: titleMarks)
       // (the title is paused, so nothing is simulated under it; the crowd is stepped here, gathered once at the scramble's
       // kerbs, and waits there under the screens, not an empty crossing)
       if (O.push && crowd) {
@@ -8539,7 +8580,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     document.head.appendChild(ps);
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
-  const flyover = { titlePose, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
+  const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
   window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
