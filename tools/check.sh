@@ -63,6 +63,9 @@
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
 #   tools/check.sh all                  # static look story guide walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
+#   tools/check.sh --wait [s]           # on a session's machine a run is a job (tools/job.sh): wait on it again (540 s)
+#   tools/check.sh --status | --stop    # what the run is doing; or stop it and its browsers
+#   CHECK_INLINE=1 tools/check.sh ...   # played in this shell, not as a job (as on a runner, where CI is set)
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
 #   CHECK_STATIC=0 tools/check.sh ...   # without the static checks (a runner's shard)
@@ -77,6 +80,24 @@ TIER=${CHECK_TIER:-fast}
 KINDS="look mem astc audio ride story story1 story2 story3 walk walk1 walk2 guide guide1 guide2 clip gl touch game"
 ALL="look story guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
+# On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
+# docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
+# page checks for 40 to 60 there. The same command asked again while the run goes attaches to it and prints what it has
+# done since: a run is never started twice, nor beside another job. --wait [s] waits on it again, --status and --stop.
+# On a runner (CI), without setsid (macOS) or with CHECK_INLINE=1 the run is played here, in the foreground.
+if [ $plan -eq 0 ] && [ -z "${CI:-}" ] && [ "${CHECK_INLINE:-0}" != 1 ] && command -v setsid >/dev/null; then
+  case "${1:-}" in
+    --wait) exec tools/job.sh wait check "${2:-${JOB_WAIT:-540}}" ;;
+    --status) exec tools/job.sh status check ;;
+    --stop) exec tools/job.sh stop check ;;
+  esac
+  # (the run's key is the tree and the settings it plays: after an edit it is another run, refused while this one goes)
+  JOB_KEY=$( { git rev-parse HEAD; git diff HEAD --binary; git ls-files -z --others --exclude-standard | xargs -0r sha1sum
+    env | grep -E '^(CHECK_|GAME_TIME=|DRAW=|AT=|GPU=|LIMIT=|FROM=|UPTO=|PORT=)' | sort; } 2>/dev/null | sha1sum | cut -c1-16)
+  export JOB_KEY JOB_LINES=${JOB_LINES:-40} JOB_WAITCMD="tools/check.sh --wait" JOB_STOPCMD="tools/check.sh --stop"
+  exec tools/job.sh run check -- env CHECK_INLINE=1 tools/check.sh "$@"
+fi
+case "${1:-}" in --wait|--status|--stop) echo "$1: no run to wait on here (on a runner, without setsid or with CHECK_INLINE=1 a run plays in the foreground)"; exit 2 ;; esac
 mkdir -p "$OUT"
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
 # (macOS has no timeout: there a check runs for as long as it takes)
@@ -85,6 +106,16 @@ command -v timeout >/dev/null || timeout() { shift; "$@"; }
 STAMP="$(git rev-parse --git-dir)/oe-check-pass$([ "$TIER" = full ] && echo -full)"   # the commit of this tier's last pass, in this clone only
 stamp() { [ $# -eq 0 ] && [ -z "${CHECK_BASE:-}" ] && [ -z "$(git status --porcelain)" ] && git rev-parse HEAD >"$STAMP"; return 0; }
 is_in() { printf '%s\n' $2 | grep -qx "$1"; }
+# how long each target takes on this machine: its passes, a line each (kind seconds epoch), in this clone only; a target's
+# time is the median of its last five, or before any, what a session's machine took in November 2026 (48 sessions' runs)
+HIST="$(git rev-parse --git-dir)/oe-check-times"
+eta() {
+  local v n
+  v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
+  [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
+  case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; audio) echo 180 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
+    story|guide) echo 1180 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
+}
 
 static=0 want= base= looks=
 add() { local k; for k in "$@"; do is_in "$k" "$KINDS" || { echo "unknown target: $k (targets: static $KINDS all)"; exit 2; }; is_in "$k" "$want" || want="$want $k"; done; }
@@ -347,12 +378,22 @@ run_one() {
     return 0
   fi
   t0=$(date +%s); [ -n "$started" ] && n0=$(wc -l <"$OUT/server.log")
+  echo "... $k from $(date +%H:%M), about $(( ($(eta "$k") + 30) / 60 )) min here" >&2
   res=$("run_$k"); echo "$res"
   echo "$k $(( $(date +%s) - t0 ))" >>"$OUT/times.txt"
+  echo "$res" | grep -q '^FAIL\|^FLAKY' || echo "$k $(( $(date +%s) - t0 )) $(date +%s)" >>"$HIST"
   if echo "$res" | grep -q '^FAIL\|^FLAKY'; then python3 tools/check_cache.py drop "$k"
   elif [ -n "$started" ] && cache_on; then python3 tools/check_cache.py save "$k" "$OUT/server.log" "$n0" "$t0" "$(( $(date +%s) - t0 ))"; fi
 }
 : >"$OUT/times.txt"
+# what this run plays and how long that takes here (a pass kept from the cache costs nothing)
+{ total=0; said=
+  [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && { total=$(eta static); said=static; }
+  for k in $KINDS; do
+    is_in "$k" "$want" || continue
+    if cache_on && CHECK_FN=$(declare -f "run_$k" story_part walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k" >/dev/null 2>&1; then said="$said $k(kept)"; else total=$((total + $(eta "$k"))); said="$said $k"; fi
+  done
+  echo "checks: ${said# }: about $(( (total + 30) / 60 )) min on this machine" >&2; }
 {
   t_static=$(date +%s)
   if [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ]; then
@@ -375,7 +416,7 @@ run_one() {
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
     st vendor vendor "three.js carries its fixes (an ImageBitmap made smaller sent unturned)" '^FAIL|Error' python3 pipeline/fetch_vendor.py --check
-    echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"
+    echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"; echo "static $(( $(date +%s) - t_static )) $(date +%s)" >>"$HIST"
   fi
   for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done
   [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", (NR > 1 ? ", " : ""), $1, $2; t += $2 } END { printf "; %d min in all", (t + 30) / 60 }' "$OUT/times.txt")"

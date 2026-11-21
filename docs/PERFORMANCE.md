@@ -846,9 +846,53 @@ The owner played on an M3 MacBook and found it "still very laggy". The telemetry
   looks the same. An Apple GPU removes hidden opaque surfaces itself, so on the owner's Mac this saves little; on the
   other desktops it saves most of those shares.
 
-Not measured: a real GPU's table. `?perf` on the owner's Mac (Chrome and Safari) sends one with the telemetry (`perf`
-events); it is the next round's first step. On the software renderer the table's rows after *without Mesh (instanced)*
-were seven times the frame before it, and the frame stayed that slow: that row leaves the page slower than it found it.
+### `?perf` made trustworthy (issue 67)
+
+The table above came from a `perf.js` that measured the wrong frame. It started as soon as the title element was
+hidden, but the title is hidden while the page is still loading too (`preTitle`), so it began during the loading
+plate. On the software renderer it then measured a camera still at the map's origin (105 draws, 428k triangles), and
+its long blocks of finished frames starved the loading of everything else. About a minute in, the walk set out, the
+camera came down to the street (580 draws, 2.3M triangles, about seven times the GPU work), and the visibility sweep
+made its first answer. Every row from then on, and *the frame as it is, again*, measured the real street against a
+first row that had measured nothing. Hiding the instanced meshes had nothing to do with it: with the rows in another
+order, the jump came at *without far-land* instead. Nothing was left invalidated: the shadow cache, the visibility
+sweep and the buffers were all as they should be. So the shares in the last bullet above were measured from the
+origin, not the street, and are measured again below.
+
+What `perf.js` does now:
+
+- **It waits for the street.** `game.js` hands it `ready()`: the loader gone and the title down, the walk or the story
+  set out, no crane, cut, level wait, menu or photograph going on. Then the camera has to stand within 0.6 m for eight
+  seconds before anything is measured. The table says what it is waiting for, and asks you to stand still.
+- **Drift is not counted as a part's cost.** The frame as it is gets measured again every four rows, and each row is
+  set against the value interpolated between the two measures either side of it. The last row compares the end with
+  the start and lists every measure, so drift shows up there.
+- **The governor is held while it measures** (`gov.auto` off), then given back and reset, so the long measuring
+  frames are never taken for the scene's cost. Everything a row changes is put back, whether or not the row succeeds.
+- **Precise on a fast GPU.** Each sample is the mean of enough finished frames to take at least 30 ms, because
+  Safari's clock counts whole milliseconds and an M3's frame is about ten of them.
+- **Rows that separate an Apple GPU's costs:** the ambient occlusion and the bloom by name (the lens writes the canvas,
+  so the post-stack row covers it); MSAA; the shadow map *not redrawn* (drawing it) apart from *without shadows*
+  (drawing and sampling it); the area lights; the hero level's 24 materials without their maps (what its texture
+  reads cost); and the scene's parts by what they are: the ground's tiles and fine tiles, the crowd, the people near,
+  the trees, the far land, the hero level, the buildings and their roof kit. Named parts are measured whatever their
+  size.
+- **The page stays playable after.** The table has Copy and Close buttons, and says whether it was sent with the
+  telemetry (a `perf` event, with the GPU's name, the draws, the triangles and every row).
+
+`tools/perf_walk.js 960x720 night clear` (software renderer, high tier, the walk at night, 580 draws, 2.3M triangles,
+a frame of about 1.7 s): over three runs, *the frame as it is, again* came out +2.7%, -10.6% and -5.1% of the first.
+The measures in between stayed within 1580 to 1935 ms, which is this renderer's own noise; before the fix the end was
+seven times the start. Shares of that street frame, as the three runs agree on them (software renderer, so only a
+guide; anything under 5% is lost in the noise): the post stack 60%, nearly all of it the 4x MSAA (55%); with every
+material flat the frame is 82% cheaper; the scene at scale 0.6 37% cheaper; the people near 20%; the ground's fine
+tiles 16 to 21%; the hero level 9 to 20%; the area lights 12%; the buildings 7 to 13%; the crowd 6 to 10%; the
+hero level's maps 6 to 10%; the shadows 5 to 10% (drawing the map costs almost nothing, because the cache keeps it).
+The far land, the trees, the roof kit, the ambient occlusion and the bloom were each within the noise.
+
+Not measured: a real GPU's table, which is the next round's first step. Open the page with `?perf` on the owner's Mac
+(Chrome and Safari), set out on the walk, and stand still for a minute; the table appears on the page and goes to the
+telemetry. Not checked here: Safari, WebGPU, a real Apple GPU.
 
 ## Next, by what it saves for what it risks
 
@@ -2035,7 +2079,8 @@ extras, no multisampling), and at 59 only by day at that floor. Telemetry said t
 say which part of it. Two things came of that.
 
 **The frame, part by part, on the player's device** (`web/game/perf.js`, `?perf` on a game's address, with
-`?story=<map>` for the story's evening). A few seconds after the street is the player's, the page draws its frame
+`?story=<map>` for the story's evening). Once the street is the player's and the camera has stood still for eight
+seconds ("The frame budget, fourth round"), the page draws its frame
 several times over, finished each time (`gl.finish` and a pixel read back), then again with one thing taken away
 at a time: the post stack and each of its passes, the shadows, the screens' area lights, the wet street's mirror,
 the weather, the multisampling, the scene at the governor's floor and at full size, every material flat (what
