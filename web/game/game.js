@@ -706,6 +706,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return best === -Infinity ? -1 : best;
   };
+  // Is there a deck or a roof over the ears, for the sound's place (weatherTick)? The weather's own answer
+  // (weather.covered) is read from the rain's occlusion map, which is drawn only while it rains: on a dry evening the
+  // street under the railway's deck was heard as the open crossing. The surface model is a height field: where its top
+  // stands 2.5 to 14 m over the ears, at the ears and at three of the four points a metre and a half round them, something
+  // is overhead (a wall beside you is over one or two of them, and a tower's top is further up than a roof is)
+  const roofOver = (x, y, z) => {
+    let n = 0;
+    for (const [dx, dy] of [[0, 0], [1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5]]) { const over = dsmTop(x + dx, y + dy) - z; if (over > 2.5 && over < 14) n++; else if (!dx && !dy) return false; }
+    return n >= 4;
+  };
   // (the landmarks' fine cells left unbuilt: a line 300 m long would have laid every tile it crossed)
   if (A.world) A.world({ edge: (sx, sy, sz, ex, ey, ez, skip = 6) => nav.withoutFine(() => hearLine(sx, sy, sz, ex, ey, ez, skip)), last: hearEdge });
   // where someone or a car beside a mapped line stands: its deck, the surface the line is on (a pier, a
@@ -1234,7 +1244,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a railway's trains: the modelled stock in place of the stand-ins, when it has loaded
   if (rail && rail.useModels) new THREE.GLTFLoader().load('assets/vehicles/trains.glb', g => { try { rail.useModels(g.scene); } catch (e) { console.warn('Train models unavailable, using simple ones:', e); } }, undefined, e => console.warn('Train models unavailable, using simple ones:', e));
   // a main line's trains past its station, where the city has them (trains.js): heard from the camera
-  const trains = G.trains && window.OETrains ? OETrains.create(world, G, { hour: () => clock.min / 60, listener: () => ({ x: camera.position.x, y: -camera.position.z, z: camera.position.y }), warm: obj => firstFramed.then(() => warmFor(obj)) }) : null; // (a train's cars after the first frame: none runs on the title's first frames)
+  const trains = G.trains && window.OETrains ? OETrains.create(world, G, { hour: () => clock.min / 60, listener: () => ({ x: camera.position.x, y: -camera.position.z, z: camera.position.y, under: sndPlace === 'deck' }), warm: obj => firstFramed.then(() => warmFor(obj)) }) : null; // (a train's cars after the first frame: none runs on the title's first frames)
   // ridden the way rail.js's trains are, where the city has no rail.js line (trains.js ride: its stations, the trains
   // standing at them, boarding, the next stop and getting off)
   if (!rail && trains && trains.ride) rail = trains.ride;
@@ -1663,6 +1673,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Object.assign(player, { x: st.x, y: st.y, z: st.z, h: st.h, speed: st.speed });
     if (!pilot) redLight(st);
     A.car(st.rpm, auto === true ? st.pull || 0 : Math.abs(fwd), 1);
+    if (A.indicator) A.indicator(!!st.signal);
     A.skid(Math.min(1, Math.max(0, st.slip - 2.2) / 6));
     player.rig.animate(dt, 0, 'sit', clockT);
   }
@@ -2717,7 +2728,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     free: () => { if (walkOnFromStory()) return; try { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: sun && sun.altitude < -10 ? 'night' : 'blue', w: weather && /rain|drizzle|storm/.test(weather.state.kind) ? 'rain' : 'clear' })); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); location.href = u.toString(); },
     say: (who, lines, done, opts) => ((opts && opts.free) || talkLine(who), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done, opts)), // (opts.free: a call said hands-free, hud.js)
     cut: () => dlg.cut(), // (a call cut off by the Stop) // (log: kept in the evening's log)
-    hush: on => { if (A.hush) A.hush(on); },
+    hush: on => { if (A.hush) A.hush(on); if (on && window.speechSynthesis) window.speechSynthesis.cancel(); }, // (a platform's spoken announcement is the browser's own voice, past the tape: cut at a Stop)
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
     score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { cueOut(); storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
     sting: kind => { if (storyMusic) storyMusic.sting(kind); }, // (a phrase of the score at a beat of the story: music.js's stings)
@@ -2803,6 +2814,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (!heli.loaded()) { heli.want(); heli.show(); }
         heli.place(); heli.group.visible = true; // (its rotor spools up to full as it lifts, vehicles.js update: from turning over on its pad, not at once)
         if (A.rotor) A.rotor(1, 0.55); // (heard, as it is seen)
+        flightSnd = clockT; // (and from its cabin: weatherTick's mix)
       };
       const go = () => {
         const f = makeFilm && !reduced ? makeFilm(sp, craft ? fly : null) : null; // (craft false: the air's own view, no helicopter in it)
@@ -3047,12 +3059,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // announcement, all rising as you come to it (heard from the camera, so a film hears what it
   // sees). The walk signals' calls, there and at every signalled crossing: walkcalls.js.
   const walkCalls = OEWalkCalls.create({ junctions, audio: A, country: CITY.country, cfg: (G.signals || {}).sound, hour: () => clock.min / 60 });
-  // The city's constant beds (the crowd's murmur and the screens' music) are off: too loud, always
-  // there. What comes and goes still sounds: the station's announcements, the walk signals' calls,
+  // The city's constant beds as they were (the crowd's murmur at its full level and the screens' music) are off: too
+  // loud, always there. The crowd is heard low, by how many are round you (crossingSound). What comes and goes still sounds: the station's announcements, the walk signals' calls,
   // footsteps, engines, horns, the weather, the birds and the score. ?noise=1 brings the beds back.
   const CITY_NOISE = new URLSearchParams(location.search).get('noise') === '1';
   const SND = (G.look || {}).sound;
-  let sndJ = null, sndAnn = 20 + Math.random() * 30, sndNear = 0, sndCount = 0;
+  let sndJ = null, sndAnn = 20 + Math.random() * 30, sndNear = 0, sndCount = 0, sndFar = 25 + Math.random() * 40, sndPlace = 'kerb', flightSnd = -10, sndCover = false, sndCoverT = 0, liftHop = -1;
   if (SND) {
     let best = 60;
     for (const j of junctions.J) {
@@ -3078,8 +3090,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (let i = 0; i < crowd.active; i++) { const p = crowd.P[i]; if (p.line >= 0 && Math.abs(p.x - cx) < 40 && Math.abs(p.y - cy) < 40) sndCount++; }
     }
     const hr = clock.min / 60;
-    A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + sndCount / 80) : 0);
+    // (the crowd is back as the people round you, a third of the level the owner found too loud and always there, and
+    // nothing where nobody stands: issue 127's kerb. ?noise=1 plays it and the screens' song as they were)
+    A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + sndCount / 80) : level * 0.32 * Math.min(1, sndCount / 60));
     A.screens(CITY_NOISE ? level * (hr >= 9 || hr < 0.1 ? 1 : 0) : 0, P.fc);
+    // the city's far events, every minute or two: a siren, now and then a train's horn, from 350 to 900 m off, heard late
+    // by that distance (audio.js far). On the roof they are the only single sounds the city has
+    if (A.far && (sndFar -= dt) <= 0) { sndFar = 70 + Math.random() * 90; A.far(Math.random() < 0.75 ? 'siren' : 'horn', 350 + Math.random() * 550, Math.random() * 1.6 - 0.8); }
     if (stnAt && (sndAnn -= dt) <= 0) {
       sndAnn = 45 + Math.random() * 60;
       const Q = A.reach ? A.reach(stnAt, ear) : { d: Math.hypot(cx - stnAt.x, cy - stnAt.y), g: 1, fc: 20000 };
@@ -5848,13 +5865,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     weather.update(dt, clockT, W(fx, fy, fz));
     if (weather.tread && OEWeather.S.snowDepth > 0.02) weather.tread(treaders(fx, fy), dt); // tracks in the snow (weather.js)
     const wS = OEWeather.S, inside = player.mode === 'car' || player.mode === 'ride' || player.mode === 'heli';
+    if ((sndCoverT -= dt) <= 0 || dt === 0) { sndCoverT = 0.25; sndCover = roofOver(fx, fy, fz); } // (four times a second. Not the weather's answer: it is read from the rain's map, which is drawn only while it rains, lags a walker by its readings and kept its last answer after the rain, so that the roof was once mixed as under a deck and Hachiko's kerb in the rain as one too)
     // the room the street's sound rings in (audio.js place): a lift or a room, high in the open air (a deck, the
     // helicopter), under a roof outside (the viaduct, an arcade), or the open crossing
-    if (A.place) A.place(player.mode === 'lift' || room ? 'inside' : fz - Math.max(0, nav.terrain(fx, fy) || 0) > 40 ? 'roof' : weather.covered() && player.mode === 'foot' ? 'viaduct' : 'open');
+    if (A.place) A.place(player.mode === 'lift' || room ? 'inside' : fz - Math.max(0, nav.terrain(fx, fy) || 0) > 40 ? 'roof' : sndCover && player.mode === 'foot' ? 'viaduct' : 'open');
+    // and the mix of the place (audio.js mix, docs/SOUND.md "The mix, place by place"): a lift or a room, the
+    // helicopter's cabin (at its stick, or aboard a story's flight), a car's, under a deck on foot, or the open air at
+    // your height over the street, which takes the kerb's mix to the roof's
+    const closed = player.mode === 'lift' || !!room || clockT < liftHop, upM0 = Math.max(0, fz - Math.max(0, nav.terrain(fx, fy) || 0));
+    sndPlace = closed ? 'lift' : player.mode === 'heli' || clockT - flightSnd < 0.5 ? 'heli' : player.mode === 'car' || player.mode === 'ride' ? 'car' : sndCover && player.mode === 'foot' ? 'deck' : 'kerb';
+    if (A.mix) A.mix(titleOn ? 'kerb' : sndPlace, Math.max(0, fz - Math.max(0, nav.terrain(fx, fy) || 0)));
+    if (A.lift) A.lift(player.mode === 'lift' || clockT < liftHop ? 1 : 0, clockT < liftHop || (liftRide && liftRide.phase === 'ride') ? 1 : 0);
+    if (A.road) A.road(player.mode === 'car' || player.mode === 'ride' ? Math.min(1, Math.abs(player.vehicle && (player.vehicle.D || player.vehicle.drv) ? stOf(player.vehicle).v || 0 : player.speed || 0) / 16) : 0);
     if (crowdDraw && crowdDraw.setRain) crowdDraw.setRain(Math.max(wS.rain, wS.snow * 0.7), wS.snow > wS.rain ? Math.min(1, wS.snow * 2) : wS.wet); // (umbrellas go up in the snow too; one by one as it has rained a while: the street's wetness says how long, people.js wantUmb)
-    if (A.rain) A.rain(titleOn ? 0 : wS.rain, weather.covered() && player.mode === 'foot', inside);
+    if (A.rain) A.rain(titleOn || closed ? 0 : wS.rain, sndCover && player.mode === 'foot', inside, player.mode === 'foot' && upM0 < 25 ? Math.min(1, wS.wet * 2) : 0); // (none in a lift or a room; on the street the umbrellas round you, up once it has rained a while)
     // the cicadas of a hot day: from 25 degrees up, by daylight, silent in the rain
-    if (A.cicadas) A.cicadas(titleOn ? 0 : Math.max(0, Math.min(1, (wS.temp - 24.5) / 4)) * wS.day * (1 - Math.min(1, wS.rate * 4)) * (inside ? 0.2 : 1));
+    if (A.cicadas) A.cicadas(titleOn || closed ? 0 : Math.max(0, Math.min(1, (wS.temp - 24.5) / 4)) * wS.day * (1 - Math.min(1, wS.rate * 4)) * (inside ? 0.2 : 1));
     if (!weather.onThunder) weather.onThunder = d => { if (A.thunder && $('#g-title').hidden) A.thunder(d, player.mode === 'car' || player.mode === 'ride' || player.mode === 'heli'); };
     // the wind's own sound, from a fresh breeze up, louder in the gusts (the helicopter's rush of air is its own: simulate).
     // The weather's wind is the one at 10 m, and the wind grows with height over a city by the power law (Hellmann's
@@ -5862,7 +5888,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // quite still there. Where the street's sounds are lost below the roof's edge (audio.js reach), the wind is what
     // the deck is heard as, as a game's rooftop is
     const upM = Math.max(0, fz - Math.max(0, nav.terrain(fx, fy) || 0)), upK = Math.pow(Math.max(10, upM) / 10, 0.3), highK = smoothK(40, 200, upM);
-    if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(Math.max(0, Math.min(1, (wS.windSpeed * upK - 4.5) / 14)), 0.18 * highK) * (inside ? 0.35 : room || player.mode === 'lift' ? 0 : 1), wS.gust); // (none in a lift or a room)
+    if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(Math.max(0, Math.min(1, (wS.windSpeed * upK - 4.5) / 14)), 0.34 * highK) * (inside ? 0.35 : closed ? 0 : 1), wS.gust); // (none in a lift or a room)
   }
   // whose face moves this frame (faceWho, read by faceAfter as each is posed): the one whose line is being said, looking
   // at the player; the player, looking back at them (or with the camera close); and the nearest FACE_NEAR others within FACE_R of the camera, at
@@ -7176,6 +7202,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // camera can stand are asked of it the moment you arrive)
     const path = k => { if (k < 0.5) nav.prefetch(b.at[0], b.at[1], 30, 3); return climb(k); };
     H.toast(`<b>${l.line || l.name}</b><span>${b.name}: ${Math.round(Math.abs(dz))} m in ${Math.round(realS)} s at ${l.m_per_min || 240} m a minute</span>`);
+    liftHop = clockT + dur; // (in its car for the ride, to the sound: weatherTick's mix)
     cine.play(OECine.mix(path, () => live, k => handOver(k, 0.8)), dur, { label: 'hop',
       cues: [[0.5, () => {
         [player.x, player.y, player.z] = b.at;
@@ -7194,7 +7221,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (out) player.auto = { x: out[0], y: out[1], t: 0, label: '', then: () => { cam.seek = true; }, cancel: () => { cam.seek = true; } };
         else cam.seek = true;
       }]],
-      onEnd: () => H.toast(`${b.name}.`) });
+      onEnd: () => { liftHop = -1; if (A.liftChime) A.liftChime(); H.toast(`${b.name}.`); } });
   }
   // where a lift's stop lets you out to: along its face, the nearest place within 3.5 m that can be walked to in a
   // straight line and has the chase camera's place behind your shoulder clear (nav.clearFraction); [x, y] or null
@@ -7328,7 +7355,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       liftPose(c, R.zA + (R.zB - R.zA) * ease(k));
       [player.x, player.y] = inside(); player.z = z();
       player.h += angDiff(Math.atan2(R.out[0], R.out[1]), player.h) * Math.min(1, dt * 4);
-      if (k >= 1) { R.phase = 'open2'; R.t = 0; }
+      if (k >= 1) { R.phase = 'open2'; R.t = 0; if (A.liftChime) A.liftChime(); }
     } else if (R.phase === 'done') {
       liftRide = null; liftLeft = { l: R.l, i: R.to }; // (no ride offered back until you have walked out of the stop: liftStop)
       if (R.b.face) player.h = Math.atan2(R.b.face[0], R.b.face[1]);
@@ -7613,7 +7640,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },
-     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
+     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, soundPlace: () => sndPlace, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
   return {
     stop() { if (window.OEMetro) OEMetro.close(); if (window.OEVis) OEVis.dispose(); keep(); if (fish && fish.api) fish.api.dispose(); running = false; ac.abort(); ro.disconnect(); care.dispose(); if (atmos) atmos.dispose(); if (weather) weather.dispose(); renderer.dispose(); Wd.dispose(); A.stop(); window.__game = null; },
   };
