@@ -86,6 +86,8 @@
      "turn"
     ],
     "OELens": [
+     "ROLLOFF",
+     "TAP",
      "bright",
      "merge",
      "shader",
