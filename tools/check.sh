@@ -223,6 +223,9 @@ else
     if [ -n "$changed" ]; then
       echo "a model's names, flags, attributes or ground changed, so the page's checks too: $(echo "$changed" | head -2 | cut -c9-140 | paste -sd ';' -) ($OUT/contract.txt)" >&2
       page
+      # (ground moved: the guide led along his ways, his feet measured against what is drawn under them. A forecourt's
+      # planks carried on under a deck left him 7.7 cm in the air on frame 6's way, found on main, issue 155)
+      echo "$changed" | grep -q '\[ground\]' && add guide1
     elif ! is_in story1 "$want"; then echo "the models changed keep their names, flags, attributes and ground ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
   is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2' | paste -sd ' ' -)   # (both pages already)
@@ -333,7 +336,7 @@ budgets_kept() {   # (static: the counts of each play whose pass is kept, agains
   for f in "$BUDGETS"/*.jsonl; do
     [ -e "$f" ] || continue
     k=$(basename "$f" .jsonl); k=${k%-*}
-    CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k" >/dev/null 2>&1 || continue
+    kept "$k" || continue   # (as this run keeps it: one over today's budgets is played again, above)
     python3 tools/beat_budget.py check "$f" "$(basename "$f" .jsonl | sed 's/.*-//')" --map "$MAP" | grep '^FAIL' && return 1
     n=$((n + 1))
   done
@@ -487,7 +490,12 @@ kept() {
     mkdir -p "$OUT/keep"
     # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
     if ! cache_on; then printf 'played\n\n' >"$f"
-    elif hit=$(CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k"); then printf 'kept\n%s\n' "$hit" >"$f"
+    elif hit=$(CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k"); then
+      # (a play kept, and its beats counted then: over a budget as the budgets are now, it is played again and counted
+      # again, not failed on counts of the page as it was; main may have made the beat lighter and its budget with it)
+      if over=$(for b in "$BUDGETS/$k"-*.jsonl; do [ -e "$b" ] && python3 tools/beat_budget.py check "$b" "$(basename "$b" .jsonl | sed 's/.*-//')" --map "$MAP" | grep -m1 '^FAIL'; done) && [ -n "$over" ]; then
+        printf 'played\nits kept counts are over the budgets as they are now (%s)\n' "$(echo "$over" | head -1 | cut -c6-90)" >"$f"
+      else printf 'kept\n%s\n' "$hit" >"$f"; fi
     else printf 'played\n%s\n' "$hit" >"$f"; fi
   fi
   [ "$(head -1 "$f")" = kept ]

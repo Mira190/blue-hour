@@ -1393,6 +1393,7 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
     };
     function groundMesh(g, material) {
       const m = new THREE.Mesh(shed(g), material);
+      m.userData.oeStill = true; // (it never moves: the rain's cover map keeps it, weather.js occStill)
       if (g.userData.underlay) m.add(new THREE.Mesh(shed(g.userData.underlay), quayBed));
       return m;
     }
