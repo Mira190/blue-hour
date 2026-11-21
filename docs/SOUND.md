@@ -403,18 +403,18 @@ still has its wheels in it, and on anything heard past the tape at a Stop. "Sile
 <!-- sound_places:table -->
 | Listening point | near | rail | weather | self | city |
 |---|---|---|---|---|---|
-| `kerb` Hachiko's kerb, about 160 people round you, the train 40 m off behind the station | −51 to −40 | −67 to −42 | silent | silent | −57 to −45 |
+| `kerb` Hachiko's kerb, about 160 people round you, the train 40 m off behind the station | −51 to −40 | −67 to −30 | silent | silent | −57 to −45 |
 | `kerb-station` the kerb by the station, the train 6 m off on the viaduct | −51 to −40 | −36 to −21 | silent | silent | −57 to −45 |
 | `deck` under the railway's deck, the train 8 m overhead | −54 to −43 | −31 to −20 | silent | silent | −53 to −41 |
-| `kerb-rain` Hachiko's kerb in frame 7's rain | −51 to −40 | −67 to −42 | −39 to −28 | silent | −57 to −45 |
+| `kerb-rain` Hachiko's kerb in frame 7's rain | −51 to −40 | −67 to −30 | −39 to −28 | silent | −57 to −45 |
 | `roof` SHIBUYA SKY's deck, 229 m, the train 235 m below | silent | silent | −47 to −36 | silent | −48 to −37 |
 | `lift` SHIBUYA SKY's lift, riding | silent | silent | silent | −43 to −32 | silent |
 | `heli` the helicopter's cabin, hovering over the pad | silent | silent | silent | −37 to −26 | silent |
 | `car` the car's cabin, standing at the kerb, its engine running | −66 to −55 | −72 to −55 | silent | −43 to −32 | −60 to −49 |
 
-At Hachiko the `rail` bus moves by 15 dB from run to run (−46 to −61 in the runs so far): the check's train is behind
-the station there, and the game's own trains, on the open viaduct or at a platform with its melody, come and go over
-it. `self` is silent on foot because the player stands still (steps are its only sound there); the helicopter hovers, so
+At Hachiko the `rail` bus moves by 25 dB from run to run (−35 to −61 in the runs so far): the check's train is behind
+the station there, and the game's own trains on the open viaduct, and a platform's departure melody 65 m off (−35),
+come and go over it. `self` is silent on foot because the player stands still (steps are its only sound there); the helicopter hovers, so
 the air's rush with speed (`weather`) is not in its row.
 
 **Not checked by anyone yet**: how any of this sounds. The levels are read from the graph on a machine with no
