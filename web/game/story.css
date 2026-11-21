@@ -202,7 +202,9 @@
 @media (max-width: 640px) { #g-story-order .sheet { padding: 16px 18px 14px; } #g-story-order p { font-size: 19px; } #g-story-order figure { grid-template-columns: 110px 1fr; } #g-story-order svg { width: 110px; } }
 @media (prefers-reduced-motion: reduce) { #g-story-order { transition: none; } #g-story-order i { animation: none; opacity: 1; } }
 /* ---- the camera raised: the bright-line frame, the rangefinder's patch at its centre, and the release */
-#g-story-finder { position: absolute; inset: 12% 18%; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; --l: rgba(244, 239, 230, 0.95);
+/* (the lines are kept inside the print, the middle of the picture three by two, --print-x and --print-y from story.js
+   fitFinder: what stands in them is what the print has. On a phone held upright they stood twice as tall as the print) */
+#g-story-finder { position: absolute; inset: max(12%, calc(var(--print-y, 0%) + 10px)) max(18%, calc(var(--print-x, 0%) + 10px)); z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; --l: rgba(244, 239, 230, 0.95);
   background: linear-gradient(var(--l), var(--l)) 0 0 / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 0 0 / 1.5px 40px no-repeat, linear-gradient(var(--l), var(--l)) 100% 0 / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 100% 0 / 1.5px 40px no-repeat,
     linear-gradient(var(--l), var(--l)) 0 100% / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 0 100% / 1.5px 40px no-repeat, linear-gradient(var(--l), var(--l)) 100% 100% / 40px 1.5px no-repeat, linear-gradient(var(--l), var(--l)) 100% 100% / 1.5px 40px no-repeat;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7)); }
@@ -300,7 +302,7 @@
 .game-stage.story .gt-btns { grid-template-columns: 56px; }
 .game-stage.story .gt-btns button { display: none; }
 @media (pointer: coarse), (max-width: 640px) {
-  #g-story-finder { inset: 21% 8% 16%; } /* (its top under the goal's four lines: at 16% the goal lay over the year and the corner) */
+  #g-story-finder { inset: max(21%, calc(var(--print-y, 0%) + 10px)) max(8%, calc(var(--print-x, 0%) + 10px)) max(16%, calc(var(--print-y, 0%) + 10px)); } /* (its top under the goal's four lines: at 16% the goal lay over the year and the corner) */
   #g-story-keys { gap: 16px; letter-spacing: 0.12em; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); }
   #g-story-frames { left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom)); grid-auto-flow: column; align-items: center; gap: 10px; }
   #g-story-frames span:first-child { font-size: 0; }
