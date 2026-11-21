@@ -59,7 +59,6 @@ class Levels:
         self.cell, self.nx, self.ny = t["cell"], t["nx"], t["ny"]
         self.T = np.frombuffer(base64.b64decode(t["data"]), "<i2").astype(np.float64).reshape(self.ny, self.nx) * t["scale"]
         self.x0, self.y1 = scene["frame"]["x"][0], scene["frame"]["y"][1]
-        self.city, self._blocks = city_id, None
 
     def at(self, x, y):
         """The ground under (x, y), scalars or arrays: the triangle of the cell the game walks."""
@@ -74,47 +73,12 @@ class Levels:
 
     __call__ = at
 
-    def blocks(self):
-        """The retaining blocks on the ground's breaks (pipeline/terraces.py): (their polygons' tree, polygons, tops)."""
-        if self._blocks is None:
-            import shapely
-            from shapely.geometry import Polygon
-            B = json.load(open(os.path.join(ROOT, "web", "data", self.city, "buildings.json"), encoding="utf8"))
-            P, Z = [], []
-            for sd in B["s"]:
-                if B["b"][sd[0]][5] == "R":
-                    P.append(Polygon(np.asarray(sd[4], np.float64).reshape(-1, 2) / 10))
-                    Z.append((sd[1] + sd[3]) / 10)
-            self._blocks = (shapely.STRtree(P) if P else None, P, Z)
-        return self._blocks
-
-    def on_break(self, a, b):
-        """Does the segment a-b touch a retaining block? (A wall, a fence or a hoarding does not run over one: the
-        retaining wall is the enclosure there, and the line stops against it.)"""
-        from shapely.geometry import LineString
-        tree, P, Z = self.blocks()
-        return tree is not None and len(tree.query(LineString([tuple(a[:2]), tuple(b[:2])]), predicate="intersects")) > 0
-
-    def stand(self, x, y):
-        """What a built thing stands on at (x, y): the ground, or the top of the retaining block over a break of it (the
-        cell a break is drawn in is a ramp only because the grid cannot hold an edge: nothing stands on it)."""
-        import shapely
-        x, y = np.atleast_1d(np.asarray(x, np.float64)), np.atleast_1d(np.asarray(y, np.float64))
-        z = np.atleast_1d(self.at(x, y)).copy()
-        tree, P, Z = self.blocks()
-        if tree is not None:
-            pts = shapely.points(x, y)
-            ip, ib = tree.query(pts, predicate="within")
-            for i, b in zip(ip.tolist(), ib.tolist()):
-                z[i] = max(z[i], Z[b])
-        return z
-
     def along(self, a, b, step=SAMPLE_M):
         """The ground along the segment a-b: its lowest and its highest, read every `step` and at both ends."""
         a, b = np.asarray(a, np.float64)[:2], np.asarray(b, np.float64)[:2]
         n = max(2, int(math.ceil(float(np.hypot(*(b - a))) / step)) + 1)
         p = a + (b - a) * np.linspace(0.0, 1.0, n)[:, None]
-        z = self.stand(p[:, 0], p[:, 1])
+        z = self.at(p[:, 0], p[:, 1])
         return float(z.min()), float(z.max())
 
 
@@ -154,11 +118,10 @@ def stepped(line, ground, height, bay=BAY_M, slack=SLACK_M, embed=EMBED_M, close
 
     Every bay's top is level, at least `height` over the highest ground under it and at most `height + slack` over
     it; the tops change only at posts and as seldom as that allows; every foot is `embed` under the lowest ground of
-    its bay. keep(a, b) -> False leaves a bay out (a gap: a gate, a building against the line), and so does a retaining
-    block the bay would cross (the break of level is the wall's, pipeline/terraces.py); the tops start afresh past a
-    gap. With `kind` the run is kept for the check (RUNS)."""
+    its bay. keep(a, b) -> False leaves a bay out (a gap: a gate, a building against the line), and the tops start
+    afresh past it. With `kind` the run is kept for the check (RUNS)."""
     bays = split(line, bay, closed)
-    use = [i for i, (a, b) in enumerate(bays) if (keep is None or keep(a, b)) and not ground.on_break(a, b)]
+    use = [i for i, (a, b) in enumerate(bays) if keep is None or keep(a, b)]
     if not use:
         return []
     g = [ground.along(*bays[i]) for i in use]
@@ -200,7 +163,7 @@ def footing(points, ground, embed=EMBED_M):
     p = np.asarray(points, np.float64).reshape(-1, 2)
     c = p.mean(0)
     rad = float(np.hypot(p[:, 0] - c[0], p[:, 1] - c[1]).max())
-    z = ground.stand(*ring_of(c[0], c[1], rad).T)
+    z = np.atleast_1d(ground.at(*ring_of(c[0], c[1], rad).T))
     base, deep = float(np.max(z)), float(np.max(z) - np.min(z)) + embed
     FEET.append([round(float(c[0]), 2), round(float(c[1]), 2), round(base, 3), round(base - deep, 3), round(rad, 2)])
     return base, deep
@@ -248,12 +211,11 @@ def steps_of(bays):
     return len(ch), max((abs(v) for _, v in ch), default=0.0), teeth
 
 
-def paved(G, game, B, scene=None, blocks=False):
+def paved(G, game, B, scene=None):
     """The cells of the ground (ny - 1, nx - 1) that are paved: town ground a player sees as a surface somebody laid.
     Not the water, not under a building (a cell its wall crosses is the wall's), not open land (further than 15 m
     from every building: a park, a railway's corridor, a hillside keep the land's shape), not a mapped stair or ramp,
-    not a hero level (it draws its own floor: docs/HERO.md). With blocks, not under a retaining block either
-    (pipeline/terraces.py): what is left steep is a slope somebody would have to walk."""
+    not a hero level (it draws its own floor: docs/HERO.md)."""
     from PIL import Image, ImageDraw
     from scipy import ndimage
     T, cell = G.T, G.cell
@@ -264,19 +226,15 @@ def paved(G, game, B, scene=None, blocks=False):
         w = np.unpackbits(np.frombuffer(base64.b64decode(wm["bits"]), np.uint8))[:T.size].reshape(T.shape).astype(bool)
         out |= ndimage.binary_dilation(w)[:ny, :nx]
     px = lambda x, y: ((x - G.x0) / cell - 0.5, (G.y1 - y) / cell - 0.5)
-    kr, kb = B["s_fields"].index("ring_dm"), B["s_fields"].index("building")
-    img, wal = Image.new("L", (nx, ny), 0), Image.new("L", (nx, ny), 0)
-    d, dw = ImageDraw.Draw(img), ImageDraw.Draw(wal)
+    kr = B["s_fields"].index("ring_dm")
+    img = Image.new("L", (nx, ny), 0)
+    d = ImageDraw.Draw(img)
     for sd in B["s"]:
         r = sd[kr]
-        made = B["b"][sd[kb]][5] == "R"
-        if made and not blocks:
-            continue
-        (dw if made else d).polygon([px(r[i] / 10, r[i + 1] / 10) for i in range(0, len(r) - 1, 2)], fill=1, outline=1)
+        d.polygon([px(r[i] / 10, r[i + 1] / 10) for i in range(0, len(r) - 1, 2)], fill=1, outline=1)
     bld = np.asarray(img, bool)
     out |= ndimage.binary_dilation(bld)
     out |= ndimage.distance_transform_edt(~bld) * cell > 15.0
-    out |= np.asarray(wal, bool)
     img = Image.new("L", (nx, ny), 0)
     d = ImageDraw.Draw(img)
     for kind in ("foot", "road"):

@@ -17,8 +17,7 @@
 #           - what is built stands on that ground by rule (tools/levels_check.py, docs/LEVELS.md): every run of a wall,
 #             a fence or a hoarding level-topped and stepped at its posts with its feet in the ground, no tooth in any
 #             landmark's top, every building's base on the lowest ground along its walls, no paved ground steeper than
-#             a street beyond the budget; and a retaining block over every break of the ground (pipeline/terraces.py
-#             --check);
+#             a street beyond the budget;
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
 #           - nothing standing in a lift's street lobby, and its hall's posts and belts inside it (tools/lobby_check.py);
@@ -574,7 +573,6 @@ rm -rf "$OUT/keep"
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
-    st levels terraces - '^FAIL|Error' python3 pipeline/terraces.py --city "$MAP" --check
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"

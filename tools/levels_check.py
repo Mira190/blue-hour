@@ -71,7 +71,7 @@ def check_runs(L, G):
 def check_feet(L, G):
     fails = []
     for x, y, base, foot, rad in L.get("feet", []):
-        z = G.stand(*levels.ring_of(x, y, rad).T)
+        z = np.atleast_1d(G.at(*levels.ring_of(x, y, rad).T))
         if base < z.max() - 0.05 or base > z.max() + 0.05:
             fails.append((abs(base - z.max()), f"a footing at {x:.0f},{y:.0f}: its base {base - z.max():+.2f} m from the ground under it"))
         if foot > z.min() - 0.05:
@@ -156,7 +156,7 @@ def check_bases(city, G, game, scene, L):
         by.setdefault(sd[k_b], []).append(i)
     fails, n = [], 0
     for bi, idxs in by.items():
-        if bi in skip or B["b"][bi][5] == "R" or any(B["s"][i][k_min] > 0 for i in idxs):
+        if bi in skip or any(B["s"][i][k_min] > 0 for i in idxs):
             continue
         low, base, c = np.inf, np.inf, None
         for i in idxs:
@@ -182,7 +182,7 @@ def steep_cells(city, G, game, scene):
     gx, gy = np.abs(np.diff(T, axis=1))[:-1, :] / cell, np.abs(np.diff(T, axis=0))[:, :-1] / cell
     s = np.hypot(gx, gy)
     B = json.load(open(os.path.join(ROOT, "web", "data", city, "buildings.json"), encoding="utf8"))
-    out = ~levels.paved(G, game, B, scene, blocks=True)
+    out = ~levels.paved(G, game, B, scene)
     steep = (s > STEEP) & ~out
     lab, k = ndimage.label(steep)
     places = []

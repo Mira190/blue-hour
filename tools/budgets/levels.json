@@ -1,6 +1,6 @@
 {
- "note": "What tools/levels_check.py allows a map (issue 163). steep_cells: paved cells of the 5 m ground steeper than 15 % outside the retaining blocks (8,294 on main before the plots were levelled to their streets; what is left lies along the banks of streets with no room for a wall). teeth, bases: 0 unless a number is given.",
+ "note": "What tools/levels_check.py allows a map (issue 163). steep_cells: paved cells of the 5 m ground steeper than 15 %: a ratchet, not a target (8,399 with the lots' membrane stretched through the buildings, 8,155 now; four fifths of them lie along street edges and kept survey, which issue 158 takes up: docs/LEVELS.md). teeth, bases: 0 unless a number is given.",
  "shibuya": {
-  "steep_cells": 1900
+  "steep_cells": 8200
  }
 }
