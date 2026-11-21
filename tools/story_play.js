@@ -19,6 +19,7 @@
 // AFTER=1: with UPTO=n, the play goes on past frame n's print through what is said after it, to the next frame's start.
 // SILENT=n: the first question at frame n that someone waits on (wait_s) is left to run out; silence must be its answer.
 // BACKTO=n: from the last card, frame n is gone back into, and played to its print.
+// LOGAT=n: the log is opened after frame n (3). LOGSECS=n: a still of it each second for n seconds more (log-1s ...), time held: nothing in it moves or is drawn twice.
 // WORDS=n: the dialogue's words at size n (2: the largest) from the start. LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
 // The game moves a twentieth of a second a frame at most, so on a software renderer, at a frame a second or less, the
@@ -257,13 +258,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
+  const BARE = process.env.BARE ? new RegExp(process.env.BARE) : null; // (BARE=regex: the picture alone at those stills, in out/bare: what tools/legible.js lays the words over)
   // (STILLS=0: no still is taken: a check that reads the story's state, not its pictures; a play here spent two fifths of
   // its time on 187 stills, 2.1 s each on a software renderer. Where the still's frame is counted (BUDGET) the frame is
   // asked for whole all the same, dry: the page makes every call of it and the counts are of the calls, but no draw or
   // clear is passed on to the renderer. Where nothing is counted, nothing is asked for. The photographs the story itself
   // takes are drawn as ever)
   const NOSTILL = process.env.STILLS === '0', dry = on => (NOSTILL && DRAW > 1 ? p.evaluate(on => { window.__draw.dry = on; }, on) : null);
-  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } if (BARE && !NOSTILL && BARE.test(name)) { const st = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }); try { fs.mkdirSync(`${out}/bare`, { recursive: true }); await p.screenshot({ path: `${out}/bare/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no bare still ${name})`); } await st.evaluate(e => e.remove()); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
@@ -297,6 +299,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const spun = hs.filter(([, a]) => a > 0.05);
       if (spun.length) { errors.push(`frame ${s.fi + 1} ${name}: with time held, a head turns by itself: ${JSON.stringify(spun)}`); console.log(errors[errors.length - 1]); } }
     const L = await p.evaluate(() => (window.__game.lights ? window.__game.lights() : null)); if (L && L.objective) { errors.push(`frame ${s.fi + 1} ${name}: a second light stands in the street (the free game's objective)`); console.log(errors[errors.length - 1]); } };
+  const LOGAT = +(process.env.LOGAT || 3), LOGSECS = +(process.env.LOGSECS || 0);
   let slipped = 0, told0 = null, spent = false, logged = !!process.env.FROM, logWas = null, big = 0;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
@@ -319,16 +322,23 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     // has not moved at all; the last frame's meeting, 40 s of the story, was 240 looks long at a sixth of the pace)
     if (!same) { beatT = tWas = s.t; still = 0; } else { still = s.t === tWas ? still + 1 : 0; tWas = s.t; }
     if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); break; }
+    // (issue 114: one line is said over the picture at a time, hud.js)
+    if (!seen.has('two-said')) { const two = await p.evaluate(() => [...document.querySelectorAll('#g-toasts > .g-toast')].map(e => e.textContent.slice(0, 50))); if (two.length > 1) { seen.add('two-said'); errors.push(`frame ${s.fi + 1}: ${two.length} lines said over the picture at once: ${two.join(' | ')}`); console.log(errors[errors.length - 1]); await snap(`${s.fi + 1}-two-said`); } }
     // seen through: the card is up; the frame is taken up again
     if (await p.evaluate(() => document.getElementById('g-story-fail').classList.contains('on'))) { if (s.fi === 6) { errors.push('frame 7: seen through, and the frame taken up again: the summation is never lost'); console.log(errors[errors.length - 1]); } slipped = 2; console.log(`frame ${s.fi + 1}: seen through`); await snap(`${s.fi + 1}-seen-through`); await p.evaluate(() => document.querySelector('#g-story-fail button').click()); await p.waitForTimeout(600); continue; }
     // after frame 3: the log has every line said so far, in order
-    if (!logged && s.fi >= 3) {
+    if (!logged && s.fi >= LOGAT) {
       logged = true;
       const r = await p.evaluate(() => { const L = window.__game.story && document.getElementById('g-story-log'); window.__game.storyLog.show(true); const e = window.__game.storyLog.entries; return { on: !!L && L.classList.contains('on'), lines: e.filter(q => q.kind === 'line' || q.kind === 'q').map(q => q.text), answers: e.filter(q => q.kind === 'a').length, shown: document.querySelectorAll('#g-story-log li:not(.fr)').length, n: e.length, heard: window.__heard.lines.slice() }; });
       const miss = r.heard.findIndex((x, i) => r.lines[i] !== x);
       console.log(`log after frame 3: ${r.lines.length} lines, ${r.answers} answers; heard ${r.heard.length}`);
       if (!r.on || r.shown !== r.n || r.lines.length !== r.heard.length || miss >= 0) { errors.push(`the log after frame 3: ${r.on ? '' : 'not open; '}${r.shown} of ${r.n} shown; ${r.lines.length} lines for ${r.heard.length} heard${miss >= 0 ? `; line ${miss + 1} is "${(r.lines[miss] || '').slice(0, 60)}" for "${r.heard[miss].slice(0, 60)}"` : ''}`); console.log(errors[errors.length - 1]); }
-      await snap('log'); await p.evaluate(() => { const o = document.querySelector('#g-story-log ol'); o.firstElementChild.scrollIntoView({ block: 'start' }); }); await snap('log-top');
+      // (issue 114: the log is read by itself. Its still is of the sheet once it has come up, not of the 0.35 s it takes
+      // to; and nothing said on the picture is seen under it or over it: the line being said is the log's last entry)
+      await p.waitForFunction(() => { const L = document.getElementById('g-story-log'); return L.getAnimations().every(a => a.playState === 'finished'); }, null, { timeout: 20000, polling: 200 }).catch(() => {}); await p.waitForTimeout(300);
+      { const under = await p.evaluate(() => ['#gd', '#g-story-goal', '#g-toasts', '#g-story-slip', '#g-story-chip'].filter(q => { const e = document.querySelector(q); if (!e || e.hidden) return false; const c = getComputedStyle(e); return c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0.05 && e.textContent.trim() && e.getClientRects().length; }));
+        if (under.length) { errors.push(`with the log open, still drawn with it: ${under.join(', ')}`); console.log(errors[errors.length - 1]); } }
+      await snap('log'); for (let k = 1; k <= LOGSECS; k++) { await p.waitForTimeout(1000); await snap(`log-${k}s`); } await p.evaluate(() => { const o = document.querySelector('#g-story-log ol'); o.firstElementChild.scrollIntoView({ block: 'start' }); }); await snap('log-top');
       await p.evaluate(() => window.__game.storyLog.setWords({ size: 2, solid: true })); await snap('log-largest');
       await p.evaluate(() => window.__game.storyLog.show(false)); await p.waitForTimeout(600); await snap('goal-largest'); big = 1;
       logWas = r.lines;
@@ -428,7 +438,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!t || !MOV.length || (t[2] != null && Math.abs(t[2] - g.player.z) < 12)) return null; // (up there already: frame 5's helicopter, on the roof)
         for (const l of g.G.lifts || []) for (const q of l.stops) {
           const [x, y, z] = q.at, tz = t[2] != null ? t[2] : 0;
-          if (Math.hypot(t[0] - x, t[1] - y) < 120 && tz > z + 2 && MOV.some(m => Math.hypot(m.origin[0] - x, m.origin[1] - y) < 15 && Math.abs(m.zs[0] - z) < 12)) return { at: q.at, face: q.face || null, name: q.name };
+          if (Math.hypot(t[0] - x, t[1] - y) < 120 && tz > z + 2 && MOV.some(m => Math.hypot(m.origin[0] - x, m.origin[1] - y) < 15 && Math.abs(m.zs[0] - z) < 12)) return { at: q.at, face: q.face || null, name: q.name, lift: l.id, stop: l.stops.indexOf(q) };
         }
         return null;
       });
@@ -436,7 +446,37 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         seen.add(`lift-${s.fi}`);
         const r = await escalators(p);
         for (const l of r.lines) { console.log(`frame ${s.fi + 1}: ${l}`); if (l.startsWith('FAIL')) errors.push(`frame ${s.fi + 1}: ${l}`); }
-        await p.evaluate(st => { const g = window.__game, pl = g.player; [pl.x, pl.y, pl.z] = st.at; pl.vz = 0; pl.ground = true; if (st.face) pl.h = Math.atan2(st.face[0], st.face[1]); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = 0.4; g.cam.dist = 9; } }, st); // (from behind and above: the lobby's ceiling is high, the line and both escalators in view)
+        // The ride itself, as a player takes it (issue 99: the player was put at the top, and the stills there were of a camera
+        // this harness had set): stood in the lift's hall at the street, the prompt's own action, stills along the shot
+        // (cine.seek puts it at each, rather than playing it at a software renderer's pace), and then the view the game hands
+        // over to, as it leaves it. The camera's way up must be clear of every building, and it must end beside you.
+        const hall = await p.evaluate(st => { const g = window.__game, l = g.G.lifts.find(q => q.id === st.lift), s = l.stops[st.stop ? 0 : l.stops.length - 1], [ax, ay, az] = s.at, [dx, dy] = s.door || [ax - 1, ay], n = Math.hypot(ax - dx, ay - dy) || 1, pl = g.player; pl.x = ax - (ax - dx) / n * 1.2; pl.y = ay - (ay - dy) / n * 1.2; pl.z = az; pl.h = Math.atan2(ax - dx, ay - dy); pl.speed = 0; pl.vz = 0; pl.ground = true; g.cam.yaw = pl.h; g.cam.pitch = 0.17; g.cam.snap = true; return s.name; }, st);
+        await p.waitForFunction(() => { const a = window.__game.currentAction(); return !!a && /lift/i.test(a.text || ''); }, null, { timeout: 300000, polling: 300 }).catch(() => {}); // (the hall is a level fetched as you come to it)
+        await frames(4); await snap(`${s.fi + 1}-lift-hall`);
+        const took = await p.evaluate(() => { const a = window.__game.currentAction(); if (!a || !/lift/i.test(a.text || '') || !a.act) return a ? a.text : 'no action'; a.act(); return 'ok'; });
+        if (took !== 'ok') { errors.push(`frame ${s.fi + 1}: in the hall at ${hall} the lift is not offered ("${took}")`); console.log(errors[errors.length - 1]); }
+        else {
+          await p.waitForFunction(() => window.__game.cine.active, null, { timeout: 60000, polling: 100 }).catch(() => {});
+          await frames(2);
+          let last = null;
+          for (const [n, k] of [0.06, 0.2, 0.34, 0.47, 0.6, 0.7, 0.78, 0.84, 0.93].entries()) {
+            await p.evaluate(k => window.__game.cine.seek(k), k);
+            await frames(2); await snap(`${s.fi + 1}-lift-ride${n ? `-${n}` : ''}`);
+            const c = await p.evaluate(last => { const g = window.__game, c = g.camera.position, T3 = window.THREE; return { k: +g.cine.k.toFixed(2), at: [c.x, -c.z, c.y].map(v => +v.toFixed(1)), z: +g.player.z.toFixed(1), clear: last ? +g.nav.clearFraction(new T3.Vector3(last[0], last[2], -last[1]), c).toFixed(2) : 1 }; }, last);
+            console.log(`frame ${s.fi + 1} lift ride:`, JSON.stringify(c));
+            // (the climb itself: past 0.8 the shot hands over to the chase camera, which stands clear of your head by its own
+            // rule, and a straight line between two stills there cuts the corner the shot goes round)
+            if (c.clear < 0.99 && c.k <= 0.8) { errors.push(`frame ${s.fi + 1}: the lift's shot goes through a building between ${last} and ${c.at}`); console.log(errors[errors.length - 1]); }
+            last = c.at;
+          }
+          await p.waitForFunction(() => !window.__game.cine.active, null, { timeout: 180000, polling: 200 }).catch(() => {});
+          await p.waitForFunction(() => !window.__game.player.auto, null, { timeout: 120000, polling: 200 }).catch(() => {}); // (the steps out of the doors)
+          await frames(4); await p.waitForTimeout(1500);
+          const up = await p.evaluate(st => { const pl = window.__game.player; return Math.hypot(pl.x - st.at[0], pl.y - st.at[1], pl.z - st.at[2]); }, st);
+          console.log(`frame ${s.fi + 1}: out of the lift ${up.toFixed(1)} m from its stop`);
+          if (up > 4.5) { errors.push(`frame ${s.fi + 1}: the lift did not set you down at ${st.name} (${up.toFixed(1)} m off)`); console.log(errors[errors.length - 1]); }
+        }
+        await p.evaluate(st => { const g = window.__game, pl = g.player; if (Math.hypot(pl.x - st.at[0], pl.y - st.at[1], pl.z - st.at[2]) > 4.5) { [pl.x, pl.y, pl.z] = st.at; pl.vz = 0; pl.ground = true; if (st.face) pl.h = Math.atan2(st.face[0], st.face[1]); g.cam.yaw = pl.h; g.cam.seek = g.cam.snap = true; } }, st); // (the view is the game's own: where the lift set you down)
         // the way shown from the stop: the dog's while he leads (route.js's walk to the place, with no height, as companion.js
         // asks it: the top of what stands there), else the gold line (game.js's guide; __game.guide() hands back the guide).
         // It rides no escalator against its steps, and turns the way the one up stands: to the left of where the lift faces at
@@ -459,9 +499,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log(`frame ${s.fi + 1}: from ${st.name}, ${what} (${way.n} points, ${way.off.toFixed(1)} m from you) goes ${way.side > 0 ? 'left' : 'right'}, on ${way.rides.join(', ') || 'no escalator'}${way.against > 0.25 ? `, ${way.against.toFixed(1)} m against an escalator's steps` : ''}`);
         if (!way.n || way.off > 3) errors.push(`frame ${s.fi + 1}: from ${st.name} ${what} does not start where you stand (${way.n} points, ${way.off.toFixed(1)} m off)`);
         if (way.against > 0.25) errors.push(`frame ${s.fi + 1}: from ${st.name} ${what} rides an escalator ${way.against.toFixed(1)} m against its steps`);
-        // (the camera eases after the player: from the street it comes up 217 m, so it is set again and given time to settle; the
-        // stills a second apart, the dog setting off the way he leads)
-        for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h - (innerWidth > innerHeight ? 0.6 : 0); g.cam.pitch = 0.25; g.cam.dist = 7; }); await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way${k ? `-${k}` : ''}`); }
+        // (the stills a second apart, the dog setting off the way he leads; the view as the game left it)
+        for (let k = 0; k < 3; k++) { await frames(4); await p.waitForTimeout(800); await snap(`${s.fi + 1}-lift-way${k ? `-${k}` : ''}`);
+          // (issue 99: there the camera stood a metre over her head looking straight down at her hair, the frame round her one flat
+          // blue. Where the lens is, by the rig's own account: beside her, not over her)
+          const c = await p.evaluate(() => { const g = window.__game, c = g.camera.position, pl = g.player, r = v => +v.toFixed(2); g.cam.trace = {}; g.frame(0); const t = g.cam.trace; g.cam.trace = null; return { off: r(Math.hypot(c.x - pl.x, -c.z - pl.y)), over: r(c.y - pl.z), yaw: r(g.cam.yaw), swing: r(g.cam.swing || 0), lift: r(g.cam.lift), pull: r(g.cam.pull), f: r(t.f), want: t.wantLift, mode: g.cam.mode, pmode: pl.mode, cine: !!g.cine.active, fp: !!(g.cam.fp || g.cam.first) }; });
+          console.log(`frame ${s.fi + 1} lift-way${k ? `-${k}` : ''} camera:`, JSON.stringify(c));
+          if (c.off < 1.2 || c.over > 1.55 + 0.6 + c.off * 0.9) { errors.push(`frame ${s.fi + 1}: where the lift sets you down the camera is ${c.off} m from you and ${c.over} m over your feet (overhead: issue 99)`); console.log(errors[errors.length - 1]); }
+          if (process.env.CAMTABLE && !k) console.log(await p.evaluate(() => { const g = window.__game, pl = g.player, T3 = window.THREE, a = new T3.Vector3(pl.x, pl.z + 1.55, -pl.y), b = new T3.Vector3(), rows = []; for (let i = 0; i < 16; i++) { const yaw = pl.h + i * Math.PI / 8, r = []; for (const lift of [0, 0.15, 0.3, 0.45, 0.6, 0.8]) { const pitch = 0.25 + lift, cp = Math.cos(pitch); b.set(a.x - Math.sin(yaw) * cp * 7, a.y + Math.sin(pitch) * 7, a.z + Math.cos(yaw) * cp * 7); r.push(g.nav.clearFraction(a, b).toFixed(2)); } rows.push(`${(i * 22.5).toFixed(0).padStart(4)}  ${r.join(' ')}`); } return `tiles ${g.nav.tiles.join('/')} at ${[pl.x, pl.y, pl.z].map(v => v.toFixed(2))}\n${rows.join('\n')}`; }));
+        }
         continue;
       }
     }
@@ -710,6 +756,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           await p.waitForTimeout(600);
           const open = await p.evaluate(() => !document.getElementById('g-menu').hidden);
           if (open) await snap('1-menu');
+          // (issue 114: the story's pause is a player's, not the builder's: no hour, date, weather, clock speed or route
+          // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
+          if (open) {
+            const m = await p.evaluate(() => { const vis = q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
+              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
+            if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
+            else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
+          }
           await tap('#g-menu-close'); await p.waitForTimeout(600);
           const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
           if (!open || !shut) { errors.push(`the story's menu button: ${open ? 'the menu opened and its close button did not shut it' : 'the menu did not open'}`); console.log(errors[errors.length - 1]); }
@@ -726,6 +780,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log(`frame ${s.fi + 1} board:`, JSON.stringify(h));
         if (!h.seen || h.rotor < 0.1) { errors.push(`frame ${s.fi + 1}: the helicopter to get into is ${h.seen ? 'not turning over' : 'not to be seen'} on its pad`); console.log(errors[errors.length - 1]); }
         await snap(`${s.fi + 1}-board`);
+        { // (where the lens is as the frame begins: issue 99's other still, from over your head at the roof's east glass)
+          const c = await p.evaluate(tab => { const g = window.__game, c = g.camera.position, pl = g.player, r = v => +v.toFixed(2); g.cam.trace = {}; g.frame(0); const t = g.cam.trace; g.cam.trace = null;
+            let rows = '';
+            if (tab) { const T3 = window.THREE, a = new T3.Vector3(pl.x, pl.z + 1.55, -pl.y), b = new T3.Vector3(); for (let i = 0; i < 16; i++) { const yaw = i * Math.PI / 8, q = []; for (const lift of [0, 0.15, 0.3, 0.45, 0.6, 0.8]) { const pitch = g.cam.pitch + lift, cp = Math.cos(pitch); b.set(a.x - Math.sin(yaw) * cp * g.cam.dist, a.y + Math.sin(pitch) * g.cam.dist, a.z + Math.cos(yaw) * cp * g.cam.dist); q.push(g.nav.clearFraction(a, b).toFixed(2)); } rows += `\n${(yaw).toFixed(2)}  ${q.join(' ')}`; } }
+            return { at: [pl.x, pl.y, pl.z].map(r), h: r(pl.h), off: r(Math.hypot(c.x - pl.x, -c.z - pl.y)), over: r(c.y - pl.z), yaw: r(g.cam.yaw), yawTo: g.cam.yawTo, pitch: r(g.cam.pitch), dist: r(g.cam.dist), lift: r(g.cam.lift), pull: r(g.cam.pull), f: r(t.f), want: t.wantLift, hand: g.cam.hand || null, idle: r(g.t() - g.cam.lastInput), rows }; }, !!process.env.CAMTABLE);
+          console.log(`frame ${s.fi + 1} board camera:`, JSON.stringify(c).replace(/\\n/g, '\n'));
+        }
         await goTo(h.at, 8); await frames(4); // (on its floor: the pad stands over the deck round it) await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h; g.cam.pitch = 0.3; });
         const act = await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : null; });
         if (act !== 'Get in the helicopter') { errors.push(`frame ${s.fi + 1}: 8 m from the helicopter E is "${act}"`); console.log(errors[errors.length - 1]); }

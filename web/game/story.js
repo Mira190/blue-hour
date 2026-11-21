@@ -664,7 +664,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
       const nm = q.who && how.named != null ? nameOf(how.named) : '';
       if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
-      else if (!how.free && q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
       else if (q.told) {
         const n = st.qmiss = (st.qmiss || 0) + 1; st.misses = (st.misses || 0) + 1;
         if (q.file) filed(`${q.file}: you said ${nm || 'that'}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
@@ -672,7 +672,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         if (n === 2) { st.hot = proofOn(q); said = L(said).concat(L(q.wrong2)); } // (the second: more said, and the print marked)
         keep();
       }
-      const S2 = ok ? L(said) : L(said).concat(helpFor(q));
+      const S2 = ok ? L(said) : L(said).concat(helpFor(q)); // (how.free: a wrong answer the evidence fairly led to, answered and struck off, and not counted)
       return S2.length ? ctx.say(w, S2, () => ask(m, w, done)) : ask(m, w, done);
     }
     // (every question of the talk settled: one line in the file, and the case is heard to close)
@@ -1369,6 +1369,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
+      // the pause's own lines (game.js, issue 114): the frame the case is at, and the case begun again from its first card
+      // (before the first frame's own beats, the office's call and the order in the hand, the case is at its first frame all the same)
+      get at() { const F = (st.ep && st.ep.frames) || [], fr = st.fr || F[st.fi | 0]; return fr && st.phase !== 'idle' && st.phase !== 'dressed' && st.phase !== 'done' ? { fi: st.fi | 0, of: F.length, stamp: fr.stamp || '', taken: st.prints.length } : null; },
+      beginAgain() { forget(); ctx.again(); },
       // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
       // evening's cast, each once out of the frame (tick); the dog is already on his way home
       // (the walk from the title: the street as tonight has it, with the set dressing the story puts up, and no case)

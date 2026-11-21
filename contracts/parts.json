@@ -82,7 +82,6 @@
      "mix",
      "polar",
      "span",
-     "spiral",
      "turn"
     ],
     "OELens": [
@@ -327,6 +326,7 @@
      "place",
      "platformChime",
      "rain",
+     "reach",
      "rotor",
      "screens",
      "setMuted",
@@ -340,7 +340,10 @@
      "thunder",
      "train",
      "trainAt",
-     "wind"
+     "wind",
+     "world",
+     "x",
+     "z"
     ],
     "OEFilmScore": [],
     "OEMusic": [
