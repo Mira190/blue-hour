@@ -353,7 +353,7 @@ run_look() {   # the models, pictures and sounds changed, loaded as the page loa
 }
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
   if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then
-    echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page and decoded by the GPU, none under the floor"
+    echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page and decoded by the GPU, none under the floor, no cut-out's mipmaps or edge astray"
   else echo "FAIL astc   $(grep '^FAIL' "$OUT/astc.log" | head -2 | cut -c6-140 | paste -sd ';' -)   (see $OUT/astc.log)"; fi
 }
 # one static check: <name> <log> <what a pass says, or - for the log's last line> <the lines of a failure to show> <command...>

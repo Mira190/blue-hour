@@ -2734,9 +2734,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (o.hold) st.v = 0; // (waiting in its lane for you to get back in)
     else if (o.turn) turnStep(o, dt);
     else o.drv.update(dt, inTheWay(o), false, inSight(st.x, st.y, st.z) || SCR_BOX.some(j => Math.hypot(st.x - j.x, st.y - j.y) < j.r + 60)); // (and the lights, in sight, and a scramble's always: out of sight or not, nobody drives into its walk)
+    // how long it has gone without getting 3 m further on its way: held up, whether it stands or inches along a queue. (#97:
+    // read as its speed this frame, under 0.5 m/s, a ride creeping at 0.6 in a queue that stood for minutes set the clock
+    // back every frame, and was never moved on: not cut on to its stop with you in it, not found a way round coming for you)
+    if (o.progS == null || st.s < o.progS || st.s - o.progS > 3) { o.progS = st.s; o.stillT = 0; } else if (!o.hold && !o.turn) o.stillT += dt;
     // running well late in a jam and out of view, it finds its way round, a stretch at a time, to a
     // clear piece of road (games keep the cars that come for you on time); in view it queues as it would
-    if (o.phase === 'coming' && clockT - o.t0 > (o.T0 || 20) + 6 && st.v < 0.5 && clockT - (o.hopT || 0) > 2.5 && !inView(st.x, st.y, st.z)) {
+    if (o.phase === 'coming' && clockT - o.t0 > (o.T0 || 20) + 6 && (st.v < 0.5 || o.stillT > 3) && clockT - (o.hopT || 0) > 2.5 && !inView(st.x, st.y, st.z)) {
       o.hopT = clockT;
       const P = o.drv.path, at = {};
       for (let s = Math.min(st.end - 0.5, st.s + 22); s > st.s + 6; s -= 4) {
@@ -2887,8 +2891,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // the car a story sends, with you in it, is not sat in at a red or in the queue to one: held still STORY_HELD seconds,
       // the trip goes on to where it sets you down, as F takes it (the queue to the Scramble's arm under the viaduct waits out
       // its walk and its turns: on one way back to Hachiko 75 s of 127 were stood still)
-      // (once under way: not while it waits at the kerb for a gap to pull out into, or the drive is never seen)
-      if (o.phase === 'driving' && player.vehicle === o && o.dest && o.dest.id === 'story') { o.driveT = (o.driveT || 0) + dt; o.heldT = st.v < 0.5 && st.s > 8 && !cine.active ? (o.heldT || 0) + dt : 0; if (o.heldT > STORY_HELD) { o.heldT = 0; o.cut = o.driveT; skipRide(); } }
+      // (once under way: not while it waits at the kerb for a gap to pull out into, or the drive is never seen; but not for
+      // good either: a queue standing beside the kerb for minutes held it there, #97, so four times as long there. Held
+      // means no 3 m further on in that time, o.stillT: inching along a queue that does not move is held too)
+      if (o.phase === 'driving' && player.vehicle === o && o.dest && o.dest.id === 'story') { o.driveT = (o.driveT || 0) + dt; if (!cine.active && o.stillT > STORY_HELD * (st.s > 8 ? 1 : 4)) { o.stillT = 0; o.cut = o.driveT; skipRide(); } }
       if (o.phase === 'driving' && st.done) {
         o.phase = 'arrived';
         const fare = life ? life.fare(o.meter, o.kind) : '';

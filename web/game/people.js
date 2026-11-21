@@ -1832,7 +1832,16 @@ transformed = crowdPose(transformed, false);`);
     }
     // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
     const shows = i => active.has(i) || !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count);
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes };
+    // where the lens stands and the way it looks, in the crowd's ground plan (x, y, z up; fx, fy): actors.js steers the
+    // walkers out of its way, issue 82 (and those who still come near it dissolve: nearPatch). false with no camera
+    let lensDir = null;
+    function lens(out) {
+      if (!camera) return false;
+      camera.getWorldDirection(lensDir || (lensDir = new THREE.Vector3()));
+      out.x = camera.position.x; out.y = -camera.position.z; out.z = camera.position.y; out.fx = lensDir.x; out.fy = -lensDir.z;
+      return true;
+    }
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, setNear, nearBand, uncovered, exposure };
