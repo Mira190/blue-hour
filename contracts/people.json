@@ -1,0 +1,38 @@
+{
+ "_": "What the page asks of the people's models (docs/SEAMS.md, 'A new avatar set'). Held by tools/people_contract.py against web/assets/people/people.json, the models it names and the people cities/shibuya/city.json casts. A set that keeps this may replace the one in use without the story being played: tools/check.sh runs this, look and mem.",
+ "index": "web/assets/people/people.json",
+ "units": {"metres": true, "up": "y", "faces": "+z", "origin": "between the feet, on the ground", "feet_within_m": 0.06, "height_within_m": 0.06},
+ "height_m": [1.45, 1.98],
+ "bones": {
+  "_": "Logical names the code asks for (people.js alias()); the index's `bones` map gives each the set's own bone name, as three.js names it (spaces to underscores). Each must be a joint of every model.",
+  "aliases": ["Head", "Chest", "Abdomen", "Hips", "WristR", "WristL", "UpperLeg.L", "LowerLeg.L", "Foot.L", "UpperLeg.R", "LowerLeg.R", "Foot.R", "UpperArm.L", "LowerArm.L", "Wrist.L", "UpperArm.R", "LowerArm.R", "Wrist.R"],
+  "by_pattern": {"_": "Found by the end of their name; each pattern must match one joint", "patterns": ["LEye$", "REye$", "Neck$", "Head$", "Pelvis$|Spine$"]},
+  "grip": {"_": "The hand's grip for what is carried (people.js): for each hand of the alias's prefix, these fingers", "fingers": ["Finger2", "Finger01"]}
+ },
+ "materials": {"_": "By the end of their name: the body (its texture's alpha marks skin from cloth) and the head; hair cards end _opacity", "required": ["_body$", "_head$"]},
+ "heroes": {
+  "_": "Who you play: index heroes.characters. Clips are in the model itself.",
+  "clips": ["Idle", "Idle_Neutral", "Walk", "Run", "Sprint", "Wave", "Talk"],
+  "ground_speed": ["Walk", "Run", "Sprint"],
+  "fields": ["file", "height_m", "ground_speed", "clips", "neck_camera"],
+  "neck_camera": ["lugs", "lens", "top", "centre", "old"],
+  "materials": ["^camera_camera$", "^camera_strap$", "^camera_strap1964$"],
+  "face": true
+ },
+ "npcs": {
+  "_": "Everyone else: index npcs.characters, one model each, no clips in it. The clips are shared, one file a sex (index npcs.clips), bound by bone name: every bone a clip drives must be a node of every model of that sex.",
+  "fields": ["file", "sex", "height_m"],
+  "clips": ["Idle", "Idle_Neutral", "Walk", "Wave", "Talk", "Listen", "Nod"],
+  "ground_speed": ["Walk"],
+  "field_clips": ["Run"],
+  "cast_clips": "every look.clip the map's people are cast with (cities/shibuya/city.json game.npcs[].look.clip) is in their sex's file",
+  "cast_clips_known": {"_": "Cast with a clip their sex's file has not, and so standing in Idle (people.js play()); to be built or recast", "oda": "Drink"}
+ },
+ "face": {"_": "A model the index gives a `face` has a mesh with these shapes (face.js)", "shapes": ["eyeBlink", "eyeSquint", "eyeWide", "browInnerUp", "browDown", "browOuterUp", "mouthSmile", "mouthFrown", "mouthPress", "viseme_aa", "viseme_E", "viseme_O", "viseme_U", "viseme_PP"]},
+ "far": {"_": "The crowd's far copy (index crowd_cast.file): a node for each of the crowd's cast and its coarse copy; pipeline/crowd_cast.py --check holds it", "suffix": "~coarse"},
+ "guide": {
+  "_": "The guide dog (city.json story guide.model; companion.js): looks along +x, its size taken from its own box",
+  "clips": ["idle", "walk", "trot", "sit"],
+  "bones": ["head", "neck"]
+ }
+}
