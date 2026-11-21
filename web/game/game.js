@@ -1250,7 +1250,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const railStation = (x, y, r = 25, z = null) => (rail ? rail.stations.find(st => Math.hypot(st.x - x, st.y - y) < (st.r || r) && (!st.deck || z == null || Math.abs(z - st.z) < 3)) : null);
   // neighbourhood signs, things to look at and conversations to overhear (places.js), and lifts between a
   // street door and a floor high up (game.json "lifts", from the city's landmarks)
-  const places = window.OEPlaces ? OEPlaces.create({ G, W, camera, stage }) : null;
+  // who says an overheard line (places.js chatter): of the crowd drawn within r of where it is said, on its level, in the
+  // camera's frame and in sight, the two nearest, each as a function that gives where they are now (or null once they are
+  // no longer drawn). Only the crowd: the map's people have names and stories of their own, and a visitor's line said by
+  // Taro the photographer would be someone else's words in his mouth
+  const chatFr = new THREE.Frustum(), chatM = new THREE.Matrix4(), chatV = new THREE.Vector3();
+  const speakers = (x, y, z, r) => {
+    if (!crowd || !crowd.P) return [];
+    const near = [];
+    for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+      const q = crowd.P[i];
+      if (!(q.line >= 0 || q.pz) || (crowdDraw && !crowdDraw.shows(i))) continue;
+      const qx = q.rx ?? q.x, qy = q.ry ?? q.y, qz = q.rz ?? q.z ?? 0, d = Math.hypot(qx - x, qy - y);
+      if (d < r && Math.abs(qz - z) < 3) near.push([d, i, qx, qy, qz]);
+    }
+    near.sort((a, b) => a[0] - b[0]);
+    chatM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); chatFr.setFromProjectionMatrix(chatM);
+    const c = camera.position, out = [];
+    for (const [, i, qx, qy, qz] of near) {
+      if (!chatFr.containsPoint(chatV.set(qx, qz + 1.6, -qy)) || nav.col.pick(c.x, -c.z, c.y, qx, qy, qz + 1.6)) continue;
+      const q = crowd.P[i];
+      out.push(() => (q === crowd.P[i] && (q.line >= 0 || q.pz) && !(crowdDraw && !crowdDraw.shows(i)) ? { x: q.rx ?? q.x, y: q.ry ?? q.y, z: q.rz ?? q.z ?? 0 } : null));
+      if (out.length === 2) break;
+    }
+    return out;
+  };
+  const places = window.OEPlaces ? OEPlaces.create({ G, W, camera, stage, speakers }) : null;
   const lifts = G.lifts || [];
   // doors that open as you come up to them, and the rooms behind them (game.json "doors", "interiors": doors.js)
   const doors = window.OEDoors ? OEDoors.create({ G, world }) : null;
@@ -3753,6 +3778,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     fill: t => said(t),
     unseen: n => !sees(n.x, n.y, n.z + 1) || Math.hypot(n.x - player.x, n.y - player.y) > 70,
+    seen: (x, y, z) => { const c = camera.position; return !nav.col.pick(c.x, -c.z, c.y, x, y, z); }, // (a head in sight: no solid between the camera and it)
+    // the way to someone on another level: the stop on the player's level of a lift with a stop on theirs, the nearest
+    via: (me, who) => {
+      let best = null, bd = Infinity;
+      for (const l of lifts) {
+        if (!l.stops.some(s => Math.abs(s.at[2] - (who.z || 0)) < 15 && Math.hypot(s.at[0] - who.x, s.at[1] - who.y) < 80)) continue;
+        for (const s of l.stops) { const d = Math.hypot(s.at[0] - me.x, s.at[1] - me.y); if (Math.abs(s.at[2] - me.z) < 15 && d < bd) { bd = d; best = { x: s.at[0], y: s.at[1], z: s.at[2] }; } }
+      }
+      return best;
+    },
     move: (m, to) => { // someone sent on ahead, there when you come back: beside the one they were to meet, facing them
       const a = Math.atan2(player.x - to.x, player.y - to.y) + 1.4;
       if (!npcMove(m, [to.x + Math.sin(a) * 1.1, to.y + Math.cos(a) * 1.1])) return;
@@ -7010,10 +7045,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (a hero level is lit by its own signs and shop fronts, baked: there the fill is the share it asks for, hero.fill,
     // or it washes the people and the paving at your feet to a flat white the street's own light never gives them)
     let heroFill = 1;
-    for (const h of G.hero || []) if (h.fill != null && Math.hypot(h.at[0] - player.x, h.at[1] - player.y) < (h.r || 100)) heroFill = Math.min(heroFill, h.fill);
-    nightFill.intensity = air ? 0 : nightFill.userData.cd * n * heroFill;
+    // (the level you are on: SHIBUYA SKY's roof stands over Scramble Square's foot, and took the street level's share)
+    for (const h of G.hero || []) if (h.fill != null && Math.hypot(h.at[0] - player.x, h.at[1] - player.y) < (h.r || 100) && (h.z == null || Math.abs(player.z - h.z) < (h.zr || 4) + 20)) heroFill = Math.min(heroFill, h.fill);
+    // (in the air a third of it, carried with the helicopter: it lights nothing below from its height, and the body,
+    // dark paint against a dark city, read as a hole with four coloured dots on it)
+    nightFill.intensity = nightFill.userData.cd * n * (air ? 0.35 : heroFill);
     if (!nightFill.intensity) return;
-    const v = player.mode === 'ferry' && player.vehicle ? player.vehicle : player, z = player.mode === 'ferry' ? 5 : player.z;
+    const v = air ? heli.st : player.mode === 'ferry' && player.vehicle ? player.vehicle : player, z = air ? heli.st.z - 1 : player.mode === 'ferry' ? 5 : player.z;
     const p = W(v.x, v.y, z + 3), dx = camera.position.x - p.x, dz = camera.position.z - p.z, d = Math.hypot(dx, dz) || 1, k = Math.min(2.5, d * 0.4) / d;
     nightFill.position.set(p.x + dx * k, p.y, p.z + dz * k);
   }
@@ -8002,7 +8040,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) || inShot(x, y))) crowdDraw.hide(i); }
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
-  const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
+  const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3(), heliMid = new THREE.Vector3(), aheadT = new THREE.Vector3(), aheadP = new THREE.Vector3(), aheadM = new THREE.Vector3();
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
   const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
   // the people standing or walking within the camera's reach of your head (the crowd's near people, the named cast, the
@@ -8206,7 +8244,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (a post is looked past only where it stands away from the lens: within 1.5 m of it, since the camera came down to the
     // shoulder (issue 71), a trunk or a pole filled half a phone's frame and hid you behind it, at Hachiko and frame 7's
     // corner; there the camera comes in past it, as for a wall)
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && thin(a, b) ? 1 : f, g); };
+    // (in the air nothing is looked past: what the probe meets up there is a tower's corner, not a post)
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
     // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
@@ -8233,9 +8272,24 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (want.lift > cam.lift) { cam.lift = Math.min(want.lift, cam.lift + Math.min((want.lift - cam.lift) * dt * 4, dt * 0.8)); cam.liftHold = 0.6; }
     else if (want.lift > cam.lift - 0.01) cam.liftHold = 0.6;
     else if ((cam.liftHold -= dt) <= 0) cam.lift = Math.max(want.lift, cam.lift - Math.min((cam.lift - want.lift) * dt * 2, dt * 0.5));
-    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos)), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
+    // (in the air the helicopter's body as well as the point over it the lens looks at: beside a tower's roof one was in
+    // sight and the other not, and the helicopter was hidden behind the roof's edge for seconds)
+    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
-    else cam.pull += pull < cam.pull ? -Math.min(cam.pull - pull, Math.max(dt * 2, (cam.pull - pull) * dt * 4)) : Math.min(pull - cam.pull, dt * 0.8);
+    // (in the air a tower comes between in a frame: the lens is in front of it in that frame, and eases back out after it.
+    // Eased in as on the street, at 170 km/h the helicopter went behind a tower's corner for a few frames and came out
+    // again, hidden and shown, as if the model had a hole in it: the owner's report, November 2026)
+    // And it looks half a second ahead along the helicopter's way, so that it is usually already coming in, eased, when
+    // the tower comes between (a lens that only met the wall when it was there jumped 15 to 20 m in one frame)
+    let pullAhead = pull;
+    if (air && !jumped) {
+      const T = 0.5, ax = heli.st.vx * T, ay = heli.st.vy * T, az = (heli.st.vz || 0) * T;
+      aheadT.set(camTarget.x + ax, camTarget.y + az, camTarget.z - ay); aheadP.set(camPos.x + ax, camPos.y + az, camPos.z - ay); aheadM.set(heliMid.x + ax, heliMid.y + az, heliMid.z - ay);
+      const fa = Math.min(clear(aheadT, aheadP), clear(aheadM, aheadP));
+      if (fa < 1) pullAhead = Math.min(pull, Math.max(0.15, fa - 0.04));
+    }
+    if (jumped) { /* (set above) */ } else if (air && pull < cam.pull) cam.pull = pull;
+    else cam.pull += pullAhead < cam.pull ? -Math.min(cam.pull - pullAhead, Math.max(dt * (air ? 3 : 2), (cam.pull - pullAhead) * dt * 4)) : Math.min(pullAhead - cam.pull, dt * 0.8);
     if (cam.pull < 1) camPos.lerpVectors(camTarget, camPos, cam.pull);
     // pulled in that close by a wall, it may be over a car: then it looks down over the roof
     for (const q of near) if (OECars.pushOut(camPos.x, -camPos.z, q.z + 0.5, 0.35, [q]).hit) camPos.y = Math.max(camPos.y, q.z + q.top + 0.45);
@@ -8245,6 +8299,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camWant.subVectors(camPos, camTarget);
     if (jumped || camSmooth.distanceTo(camPos) > 60 || camOff.distanceTo(camWant) > 60) camOff.copy(camWant);
     camOff.lerp(camWant, close ? 1 - Math.exp(-dt * 10) : veh ? 1 - Math.exp(-dt * 16) : air ? 1 - Math.exp(-dt * 7) : 1);
+    if (air && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
     camPos.addVectors(camTarget, camOff);
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
