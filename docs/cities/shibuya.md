@@ -169,12 +169,22 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   is not seen costs nothing); the 1F hall, the 14F counter and the 45F corridor are folded into one lobby and one ride,
   as games fold a building's lifts. What is built is what is seen: the street lift's own hall where it is, just outside the
   tower's north-east corner (pipeline/lobby.py, city.json game.lobbies `outside`), as a hero level
-  (`cities/shibuya/hero_skylobby.py`, docs/HERO.md "SKY's street entrance", issue 53): entered from the west through
-  its glass front's two doors under a canopy, the queue facing east, toward the outside, to two scenic cars whose
-  indicators say 14F (the street lift's top: SKY GATE runs on from 14F to 45F), their glass shaft up the tower's east
-  face; the tiles, the sign pillar and the forecourt's planks in front, on the walk as in the story; and the ride is SKY GATE's own, in the
-  dark (`game.json` lifts[].pod, `web/game/game.js` podRide), not the camera climbing the tower's face outside, which
-  read as a jump across the map and spent the view before the roof's escalator gives it. The station's way through the
+  (`cities/shibuya/hero_skylobby.py`, docs/HERO.md "SKY's street entrance", issue 53): open to the sky and to the west
+  and the north (no glass box and no roof over it, as the owner remembers the street lift), the queue facing east,
+  toward the outside, to two scenic cars whose indicators say 14F (the street lift's top: SKY GATE runs on from 14F to
+  45F), their glass shaft up the tower's east face; the tiles, the sign pillar and the forecourt's planks in front, on
+  the walk as in the story; and the ride is watched from outside the tower as it climbs (`web/game/game.js` rideLift),
+  in one shot from the shoulder you had to the shoulder you get (issue 99): the camera leaves you at the doors looking
+  up the face to where the lift goes, climbs the north face beside the shaft with the floors going by, standing 22 m
+  off it in the middle of the climb, and comes in over the corner's glass as you walk out of the 46F doors (the stop's
+  `face`: the three metres to where the camera has room behind your shoulder, `liftOut`, the game's own walk), with the
+  escalator and the stair ahead and the city through the glass. It was a spiral about the line between the two stops,
+  which runs inside the tower (20 m off at once, looking at a point nobody could see), and at the top the view stood
+  over your head, 2.5 m from the corner's glass. `tools/story_play.js` takes the ride as a player does (the prompt's
+  own action from the hall) with stills along it, and fails a shot that goes through a building. It was ridden in the dark for a while, as SKY GATE's
+  cars are (`lifts[].pod`, podRide: black walls and a ceiling that is one screen), and the owner found it odd, the screen
+  black when the doors opened and the camera somewhere else, and the tower climbed from outside the better (November
+  2026); a lift with `pod` is still ridden so. The station's way through the
   building (the urban core from B2) is a real and fine space, but nobody in the story comes by subway and the walk sets
   out on the street; it waits in an issue labelled `later`.
   West of the hall the tower's street floor is glass onto its shops under the building's name, the forecourt's planks run
