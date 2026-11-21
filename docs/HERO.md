@@ -643,23 +643,23 @@ wrong, and redone.
   `game.lobbies` `"outside": {"door", "at"}`): the lobby once cut into the tower is filled back (each solid keeps its
   index; the ground floor's two solids take their passages' feet again) and the stop put at the hall's doors and before
   its cars. scene.json's `shibuya_sky.door` moved with it, and Yuna stands by the pillar.
-- **The hall**: 6.2 m north to south, 4.2 m west to east, under the station deck (its ceiling 2.65 m up, under the
-  deck's underside). Its west front glass in stainless frames, fritted to a metre, with two doorways 1.2 m clear under a
-  transom whose sliding leaves stand open behind the lites outside them (a door that is always open is what a player
-  walking up to an automatic one sees); its north side glass onto the forecourt; its roof carried 1.6 m out over the
-  doors as a canopy with a line of round downlights (the photographs'); its south side dark metal against the tower.
-  All of it solid (`game.hero[].posts`), the doorways open.
-- **Inside**: SKY's own black and lines of light (SKY GATE's cars, the 45F LEADING LINE), since its finishes are in no
-  photograph. A floor of polished charcoal granite in 1.2 by 0.6 m slabs, each its own part of the stone; black
-  lacquered panels with an 8 mm reveal, a line of light at the south wall's foot; a matt black ceiling with four lines
-  of light running east from over the doors to the cars, baked onto the floor and walls, and their reflections in the
-  polished floor (`refl*`: light added over the stone, without depth, dimmed by day as a glow is). The environment map
-  is the sky's, which inside a hall is wrong, so its surfaces take little of it.
+- **The hall, open** (November 2026). It was built first as a box under its own roof: a glass west front in stainless
+  frames with two doorways, a glass north side, a roof carried out over the doors as a canopy with downlights, inside
+  SKY's black, a polished charcoal floor and lines of light in a black ceiling, all of it solid but the doorways. The
+  owner, from the street lift as it is, asked for no roof and none of the glass, and found the box an odd thing to walk
+  into (the chase camera came down inside it). Now: a floor 6.2 m by 4.2 m open to the sky and to the west and the
+  north, in honed granite slabs 1.2 by 0.6 m a step darker than the tiles before it (the polished charcoal, under the open
+  sky, read as a black hole in the street); a step down into it from the forecourt's planks along its north side, whose
+  floor stands 0.2 to 0.4 m higher, in the hall's stone with a stainless nosing; a stainless kick plate where the ground
+  falls away at its south-west corner; to the south the black lacquered wall against the tower, an 8 mm reveal between
+  its panels and a line of light at its foot, capped in stainless. Solid where it is wall and shaft (`game.hero[].posts`,
+  138 to 108).
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
-  to 14F; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts run east to the
-  cars (`game.hero[].belts`, solid).
+  to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
+  run east to the cars (`game.hero[].belts`, solid).
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its

@@ -8443,7 +8443,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       onEnd: () => H.toast(`${b.name}.`) });
   }
 
-  // A lift ridden in the dark (game.json lifts[].pod: SHIBUYA SKY's SKY GATE, docs/cities/shibuya.md). The real one is
+  // A lift ridden in the dark (game.json lifts[].pod; SHIBUYA SKY's SKY GATE was, until the owner found the tower climbed
+  // from outside the better and the dark ride odd, November 2026: rideLift above; docs/cities/shibuya.md). The real one is
   // a car with black walls, its whole ceiling a screen whose picture keeps pace with the climb, lines of light that
   // change as it moves and its floor lamps dark until it stops (Hitachi; Rhizomatiks; Elevator Journal 28). So the ride
   // is that, not the camera climbing the tower's face outside, which read as a jump across the map and spent the view
