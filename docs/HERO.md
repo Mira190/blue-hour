@@ -695,14 +695,58 @@ What the research found (sources below):
   side of the 550 m² LED screen that faces the crossing (Panasonic). No elevation or dimension of it is published.
 
 **What was built** (`cities/shibuya/hero_scramblesq.py`, `python blender/build_hero.py --city shibuya --level
-scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 92 triangles in one
-material (`win_scrsq`: hero.js win*, the glass mirroring the sky by day, the offices lit after dark) on a tile drawn
-here, 12 m across and eight office storeys high: each 1.5 m pane its own tone within a few percent and its own small
-tilt in the normal map (the tilt is the cause of the tone), the mullions as ribs, every second heavier, the joints
-stepping 0.75 m at each floor, the spandrel recessed and fritted, the frit thinning up each pane; after dark a ceiling's
-light in each lit bay, floors lit or dark as a working evening leaves them. The shop floors take the same tile at
-their 5.4 m storeys. Fetched anywhere in the story's streets (load_m 900): 0.21 MB, three 512 by 1536 pictures (two on
-a phone, halved). The ground floor round SKY's lobby is left to the lobby's own level.
+scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 62 triangles in one
+material (`win_scrsq`: hero.js win*, the glass mirroring the sky) on a tile drawn here, 12 m across and eight office
+storeys high: each 1.5 m pane its own tone within a few percent and its own small tilt in the normal map (the tilt is
+the cause of the tone), the mullions as ribs, every second heavier, the joints stepping 0.75 m at each floor, the
+spandrel recessed and fritted, the frit thinning up each pane. The shop floors take the same tile at their 5.4 m
+storeys. The tower's wing outside its ring (PLATEAU's slab on the west, over the crossing, from the street to 218 m)
+takes the same skin, its faces against the tower left out: drawn as the city's generic wall, it was the face the
+crossing and the flight see, dark among lit floors. Fetched anywhere in the story's streets (load_m 900): 0.04 MB, the
+tile's colour, normal and roughness pictures (the colour alone on a phone, at a quarter). The ground floor round SKY's
+lobby is left to the lobby's own level.
+
+### Its floors after dark
+
+The owner's ask (November 2026, from a phone's still of the flight): the tower read as a dark block among lit ones; each
+storey should have a real interior's light, as the city's other buildings do. On seeing the first passes: the rooms
+should be plain, not busy, and the tower's light one family, not cool offices over warm shop floors. Before, the tile
+carried an emissive picture of lit bays, eight storeys of it repeated up the tower, flat and without depth; on a phone it
+did not show at all.
+
+Now the page draws the storeys (`web/interior.js` offices, called by `web/game/hero.js` for a win* material whose level
+has `offices` in game.json; `hero_scramblesq.py` offices() writes it). Each storey is a room the eye's ray is traced
+into, as the city's own windows are (`buildings.js`, interior mapping: Joost van Dongen, "Interior Mapping", CGI 2008;
+the same idea as Unreal's InteriorCubemap and the cities of recent open-world games, which draw a room behind a pane
+without a model of it; ideas only, no code taken). A storey is open along the facade, so a ray through one pane can end
+deeper in the next. Every storey is the same plain room: an evenly lit floor, a white ceiling with unbroken rows of
+line luminaires along the glass (3.2 m apart in the offices, the system ceilings of Japanese offices; 2.4 m in the
+halls), the core's wall at the back (15 m in), and the plenum over the ceiling dark. The shops to 11F and SKY's counter
+on 14F, the restaurants on 12F and 13F, the sky lobby on 17F and SKY GALLERY on 45F and 46F differ only in their height
+and depth, the tone of their floor and how bright they are (shops a little brighter, the restaurants lower, the gallery
+dim for the view out); the plant over it is dark.
+
+What was tried and taken out, and why (the AAA read of a hero tower at night: one silhouette with one light, its storeys
+told apart by value and rhythm, never by hue; colour and detail are kept for the street, the signs and the screens):
+
+- desks, monitors, chairs, partitions and doors: through the glass, at the distances the story sees the tower from,
+  they read as clutter;
+- warm shop and restaurant floors (3000 K and 2700 K under 4500 K offices): two buildings stacked, not one;
+- lighting zones along a floor, a dark zone beside a lit one: seen into the room at a slant the edge read as a cut, and
+  softened, as a smudge. A storey is lit whole or dark;
+- the shops' downlights in a grid and the restaurants' pendants: from outside, a field of bright dots; and blinds
+  lowered here and there: pale patches. Every storey has the same unbroken lines of light instead;
+- the rows of light deep in a room at a graze, filtered by a guess at their footprint: they broke into dots. They are
+  filtered over the pixel's own neighbours (`fwidth` of where the ray ends) and settle into an even glow.
+
+So: one neutral cool white (about 4500 K, the city's offices' and the night's blue) on every storey. Each storey is lit
+by its use's hours: offices empty through the evening as the city's do (buildings.js occupancy, the tower a little
+busier: `busy` 1.15), each lit storey a little brighter or dimmer than the next; shops until 21:00, the restaurants
+until 23:00, the gallery until 22:30, the sky lobby until midnight. The glass in front is the tile's own, drawn again in the same
+places: no light through the spandrel or a mullion (stepping along at each storey as the tile steps them), less through
+the frit and a haze of the room's light on it. Farther off the room settles to its mean, and where a storey is under a
+pixel or two its light to the share lit, so a far tower keeps its tone and does not sparkle. The same shader on every
+tier.
 
 **Not built, and why**: the north face's concave sweep, the LED screen and the overhang over the Urban Core (with its
 faceted mirror-metal ceiling and lit slots over the forecourt) need the tower's solids cut below 15F to a measured

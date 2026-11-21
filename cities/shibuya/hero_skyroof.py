@@ -105,7 +105,7 @@ def materials(K):
         # what gives light after dark (lamp*: off by day): the lines along the glass and under the steps, the
         # searchlights' lenses, the pad's green lights
         "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.5},
-        "lamp_lens": {"color": (0.9, 0.9, 0.9), "emissive": (1.0, 0.97, 0.92), "glow": 2.2},
+        "lamp_lens": {"color": (0.5, 0.5, 0.5), "emissive": (1.0, 0.97, 0.92), "glow": 0.7},
         "lamp_green": {"color": (0.3, 0.5, 0.3), "emissive": GREEN, "glow": 1.6},
         "yellow_line": {"color": (0.78, 0.6, 0.08), "rough": 0.55},
     }
