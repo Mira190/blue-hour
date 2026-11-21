@@ -649,12 +649,12 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     function judged(m, w, q, ok, said, done, how = {}) {
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
       const nm = q.who && how.named != null ? nameOf(how.named) : '';
-      if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`You told her ${nm || 'it'}: ${q.file}. She took it.`, { kind: 'said' }); settle(m, true); } }
+      if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
       else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
       else if (q.told) {
         const n = st.qmiss = (st.qmiss || 0) + 1; st.misses = (st.misses || 0) + 1;
-        if (q.file) filed(`You told her ${nm || 'that'}: ${q.file}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
-        if (n >= 3) { st.qmiss = 0; st.told = (st.told || 0) + 1; st.asked++; keep(); const T = L(q.told); filed(`She told you herself: ${nameOf(q.answer) || 'it'}, ${q.file || ''}.`, { kind: 'said' }); settle(m, false); return ctx.say(w, T, () => ask(m, w, done)); }
+        if (q.file) filed(`${q.file}: you said ${nm || 'that'}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
+        if (n >= 3) { st.qmiss = 0; st.told = (st.told || 0) + 1; st.asked++; keep(); const T = L(q.told); filed(`${q.file}: she told you herself. ${nameOf(q.answer) || ''}`.trim(), { kind: 'said' }); settle(m, false); return ctx.say(w, T, () => ask(m, w, done)); }
         if (n === 2) { st.hot = proofOn(q); said = L(said).concat(L(q.wrong2)); } // (the second: more said, and the print marked)
         keep();
       }
