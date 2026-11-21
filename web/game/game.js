@@ -821,8 +821,30 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const makeRig = (look, opts) => {
     const real = lib && look.character && (lib.tpl[look.character] ? look : standIn(look));
-    return real ? OEPeople.person(lib, Object.assign({}, real)) : OEActors.makePerson(look, opts);
+    return withFace(real ? OEPeople.person(lib, Object.assign({}, real)) : OEActors.makePerson(look, opts));
   };
+  // Faces that move (face.js, issue 12): a speaking character's face (its model has the shapes, build_people.py add_face)
+  // is posed after its clip each frame it is chosen for (faceChoose): who speaks, whom they speak to, and the nearest
+  // one or two others the camera is close to. The rest keep a still face, and cost nothing but their shapes' memory.
+  // A rig whose head turn is laid after the clip (the story's people, storyFigure) says so (faceLater) and calls
+  // faceAfter itself once the turn is laid, so that the eyes look from where the head ends up.
+  const faceWho = new Map();
+  function withFace(rig) {
+    if (!window.OEFace || !rig || !rig.root || rig.pending || rig.face !== undefined) return rig;
+    const f = rig.face = OEFace.attach(rig.root, [...(rig.character || 'face')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7));
+    if (f) {
+      const raw = rig.animate;
+      rig.animate = function (dt, ...rest) { f.before(); const out = raw.call(this, dt, ...rest); if (!rig.faceLater) faceAfter(rig, dt); return out; };
+    }
+    return rig;
+  }
+  function faceAfter(rig, dt) {
+    const f = rig.face;
+    if (!f) return;
+    const o = faceWho.get(rig);
+    if (!o) { if (f.active) f.rest(); return; }
+    f.after(o.held ? 0 : dt, o);
+  }
   // an NPC whose character is still to load: nobody there yet (npcStream puts them in when it has come)
   const awaited = look => lib && look.character && !lib.tpl[look.character] && (lib.npcs[look.character] || lib.heroes[look.character] || lib.info.characters[look.character]);
   const pendingRig = () => ({ root: new THREE.Group(), pending: true, animate() {} });
@@ -3665,6 +3687,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // when the head cannot reach)
     const dress = r => {
       bend.length = 0; look.length = 0;
+      r.faceLater = true; // (its eyes after the head's turn: faceAfter at the end of animate)
       // (the back only: the same turn at the neck threw her head back)
       if (old) r.root.traverse(o => { if (o.isBone && /Spine1$|Spine2$/.test(o.name)) bend.push(o); });
       if (!a.alive) {
@@ -3674,7 +3697,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     };
     dress(rig);
     const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
-    const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1), ghost: !a.alive };
+    const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', character: a.character, id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1), ghost: !a.alive };
     storyFigs.add(f);
     // (and nobody of the crowd where they are put: in a Stop the held crowd cannot step out of them, and one stood inside
     // the last frame's afterimage as it formed, issue 65)
@@ -3690,7 +3713,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         dress(r);
         r.root.position.copy(rig.root.position); r.root.rotation.copy(rig.root.rotation);
         r.animate(0, 0, 'ground', t); // (posed before it is put in the world, as npcLoad's are: issue 76)
-        world.remove(rig.root); world.add(r.root); rig = r; f.rig = r;
+        if (rig.face) rig.face.rest(); world.remove(rig.root); world.add(r.root); rig = r; f.rig = r;
       }).catch(e => console.warn(`${a.character} unavailable:`, e));
     let t = 0;
     const turn = (x, y) => { f.yaw = Math.atan2(x - f.x, y - f.y); rig.root.rotation.y = Math.PI - f.yaw; };
@@ -3735,8 +3758,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         b.updateMatrixWorld(true);
         b.userData.turned = (b.userData.turned || new THREE.Quaternion()).copy(b.quaternion);
       }
+      faceAfter(rig, dt);
     };
-    f.remove = () => { gone = true; world.remove(rig.root); storyFigs.delete(f); };
+    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); }; // (its face let go: face.js frees what a moving face holds)
     f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
     return f;
   };
@@ -7089,7 +7113,45 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the wind's own sound, from a fresh breeze up, louder in the gusts (the helicopter's rush of air is its own: simulate)
     if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(0, Math.min(1, (wS.windSpeed - 4.5) / 14)) * (inside ? 0.35 : 1), wS.gust);
   }
+  // whose face moves this frame (faceWho, read by faceAfter as each is posed): the one whose line is being said, looking
+  // at the player; the player, looking back at them (or with the camera close); and the nearest FACE_NEAR others within FACE_R of the camera, at
+  // whomever their head turns to. In the Stop the held world's faces hold too (the afterimages', who move in it, do not)
+  const FACE_NEAR = touch ? 1 : 2, FACE_R = touch ? 8 : 14;
+  const faceRigOf = who => {
+    if (!who) return null;
+    if (who.rig && who.rig.face) return who.rig;
+    let best = null, bd = 40;
+    for (const f of storyFigs) { const d = Math.hypot(f.x - player.x, f.y - player.y); if (f.name && f.name === who.name && f.rig && d < bd) { bd = d; best = f.rig; } }
+    if (!best) for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (n.name === who.name && n.rig && d < bd) { bd = d; best = n.rig; } }
+    return best && best.face ? best : null;
+  };
+  function faceChoose() {
+    faceWho.clear();
+    if (!window.OEFace) return;
+    const held = !!(story && story.stopped && story.scale === 0);
+    const ln = dlg.line, sp = ln ? faceRigOf(ln.npc) : null;
+    // (one the talk is with while nothing of theirs is typed, a question put as answers only: they look at the player and wait)
+    const tk = !sp && talkCam && talkCam.talk && talkCam.talk.speaker, wait = tk ? faceRigOf(tk) : null;
+    const pEye = W(player.x, player.y, player.z + 1.55);
+    let spEye = null;
+    const near = [];
+    const cand = (rig, x, y, z, eye, name, still, looks) => {
+      if (!rig || !rig.face || !rig.root.visible) return;
+      const at = W(x, y, z + eye);
+      if (rig === sp) { spEye = at; faceWho.set(rig, { name, look: pEye, line: { text: ln.text, at: ln.at }, talk: true, held: still }); return; }
+      if (rig === wait) { spEye = at; faceWho.set(rig, { name, look: pEye, listen: true, talk: true, held: still }); return; }
+      const d = at.distanceTo(camera.position);
+      if (d < FACE_R) near.push({ rig, d, o: { name, look: looks, listen: !!(sp && Math.hypot(x - player.x, y - player.y) < 6), held: still } });
+    };
+    for (const f of storyFigs) cand(f.rig, f.x, f.y, f.z, f.eye || 1.58, f.name, held && !f.ghost, f.want || f.ghost ? pEye : null);
+    for (const n of npcs) if (!n.away) cand(n.rig, n.x, n.y, n.z, 1.58, n.name, held, n.rig.lookTarget || null);
+    near.sort((a, b) => a.d - b.d);
+    for (const c of near.slice(0, FACE_NEAR)) faceWho.set(c.rig, c.o);
+    // (the player's own face in a talk, or with the camera close to it: from the chase view it is the back of a head)
+    if (player.rig.face && (spEye || W(player.x, player.y, player.z + 1.55).distanceTo(camera.position) < 3.5)) faceWho.set(player.rig, { name: 'Kagami', look: spEye || player.rig.lookTarget || null, listen: !!sp, held: false });
+  }
   function simulate(dt) {
+    faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
@@ -8648,7 +8710,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
