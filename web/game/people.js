@@ -1296,19 +1296,25 @@ ${PAT_GLSL}`)
       model.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && o.skeleton.bones.some(b => /Bip01_Spine2$/.test(b.name))) body.push(o); });
       const o = body.sort((a, b) => b.geometry.attributes.position.count - a.geometry.attributes.position.count)[0];
       if (!o || !reaches) return null;
-      const g = o.geometry, P = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
+      const bones = o.skeleton.bones;
       // the geometry's own axes: up, forward and to the right of the figure as it was bound (the bind matrix turns them to the model's)
       const bi = new THREE.Matrix4().copy(o.bindMatrix).invert(), m0 = new THREE.Vector3().setFromMatrixColumn(o.bindMatrix, 0).length();
       const upG = V3(0, 1, 0).transformDirection(bi), fwG = V3(0, 0, 1).transformDirection(bi), rtG = new THREE.Vector3().crossVectors(upG, fwG).normalize();
       const torso = /Bip01_(Pelvis|Spine\d?|Neck|[LR]_Clavicle)$/, kind = b => { const n = b.name; if (torso.test(n)) return 'T'; const m = /Bip01_([RL])_(Forearm|Hand|Finger\d*)$/.exec(n); return m ? m[1] + (m[2] === 'Forearm' ? 'f' : 'h') : ''; };
-      const kinds = bones.map(kind), sl = SLICE / m0, v = new THREE.Vector3();
+      const kinds = bones.map(kind), sl = SLICE / m0, v = new THREE.Vector3(), into = new THREE.Matrix4();
       const tv = [], pts = { Rf: [], Rh: [], Lf: [], Lh: [] };
       let h0 = Infinity, h1 = -Infinity;
-      for (let i = 0; i < P.count; i++) {
-        let b = 0, w = -1; for (let k = 0; k < 4; k++) { const x = sw.getComponent(i, k); if (x > w) { w = x; b = si.getComponent(i, k); } }
-        const k = kinds[b]; if (!k) continue;
-        v.fromBufferAttribute(P, i);
-        if (k === 'T') { const h = v.dot(upG); tv.push(b, h, v.dot(rtG), v.dot(fwG)); h0 = Math.min(h0, h); h1 = Math.max(h1, h); } else pts[k].push(b, v.x, v.y, v.z);
+      // (every part of the body: the loader makes a mesh of each of its materials, the skin, the jacket, the sleeves; each
+      // brought into the largest one's space, its bones found in that one's skeleton)
+      for (const m of body) {
+        const g = m.geometry, P = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, map = m.skeleton.bones.map(x => bones.indexOf(x));
+        into.multiplyMatrices(bi, m.bindMatrix);
+        for (let i = 0; i < P.count; i++) {
+          let b = 0, w = -1; for (let k = 0; k < 4; k++) { const x = sw.getComponent(i, k); if (x > w) { w = x; b = si.getComponent(i, k); } }
+          b = map[b]; const k = b >= 0 && kinds[b]; if (!k) continue;
+          v.fromBufferAttribute(P, i); if (m !== o) v.applyMatrix4(into);
+          if (k === 'T') { const h = v.dot(upG); tv.push(b, h, v.dot(rtG), v.dot(fwG)); h0 = Math.min(h0, h); h1 = Math.max(h1, h); } else pts[k].push(b, v.x, v.y, v.z);
+        }
       }
       if (!tv.length) return null;
       const n = Math.ceil((h1 - h0) / sl) + 1, S = [], at = h => Math.floor((h - h0) / sl);
@@ -1449,7 +1455,7 @@ ${PAT_GLSL}`)
       cv.copy(want).applyQuaternion(cRi);
       const w = cv.lengthSq() > p.lengthSq() ? GRIP : LET, e = Math.exp(-w * dt);
       cx2.subVectors(p, cv);                                        // (how far from where it wants to be)
-      const t = sa.copy(v).addScaledVector(cx2, w).multiplyScalar(dt); // (closed form: Kirkpatrick's smooth damp)
+      const t = sa.copy(v).addScaledVector(cx2, w).multiplyScalar(dt); // (the closed form of Lowe's critically damped smoothing)
       v.addScaledVector(t, -w).multiplyScalar(e);
       p.copy(cx2.add(t).multiplyScalar(e)).add(cv);
       want.copy(p).applyQuaternion(cRq);
