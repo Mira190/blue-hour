@@ -69,11 +69,22 @@ const wrap = every => {
   await startPlay(p, { asIs: true });
   await p.waitForTimeout(5000);
   bad += await report('playing');
-  if (process.env.WALK) for (const [sc, ex] of [[0.8, 1], [0.8, 0.5], [0.6, 0.5], [0.6, 0], [0.65, 0], [0.6, 0], [0.8, 0], [1, 0], [1, 0.5], [1, 1], [0.6, 0], [1, 1]]) {
-    await p.evaluate(([s, e]) => window.__game.governor.set(s, e), [sc, ex]);
-    await p.waitForTimeout(1200);
-    bad += await report(`scale ${sc}, extras ${ex}`);
+  // WALK: the governor down its ladder and up again (each rung's three values: every extra, half, none), by day, and
+  // again after dark in rain (the wet street's mirror, the street lights, the screens' and the cars' lights)
+  const ladder = [[0.8, 1], [0.8, 0.5], [0.6, 0.5], [0.6, 0], [0.65, 0], [0.6, 0], [0.8, 0], [1, 0], [1, 0.5], [1, 1], [0.6, 0], [1, 1]];
+  if (process.env.WALK) for (const pass of ['day', 'rain at night']) {
+    if (pass !== 'day') await p.evaluate(() => { const g = window.__game, c = g.clock, L = g.dayLimits ? g.dayLimits() : { sunset: 1080 }; if (g.weather && g.weather.set) g.weather.set('rain', { now: true }); g.setClock(c.y, c.m, c.d, (L.sunset + 150) % 1440); });
+    for (const [sc, ex] of ladder) {
+      await p.evaluate(([s, e]) => window.__game.governor.set(s, e), [sc, ex]);
+      await p.waitForTimeout(1200);
+      bad += await report(`${pass}, scale ${sc}, extras ${ex}`);
+    }
   }
+  // and no program the GPU would not link (glcare.js: each is fitted to the GPU's units as it is compiled; Q=units=16
+  // plays an Apple GPU's or a phone's sixteen here): a failed link is every draw with it refused, as on the owner's M3
+  const fit = await p.evaluate(() => { const f = window.OEGLCare && OEGLCare.fit; return f ? { units: f.limit, failed: f.failed, plain: f.plain, level: f.level } : null; });
+  console.log('programs', JSON.stringify(fit));
+  if (!fit || fit.failed || fit.plain) bad++;
   await b.close();
   if (bad) { console.log('FAIL'); process.exit(1); }
 })().catch(e => { console.error(e); process.exit(1); });
