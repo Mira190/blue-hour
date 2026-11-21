@@ -449,6 +449,26 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                        // two passing at this keep a hand's width between them rather than show inside each other
   const HALF = 0.3;    // a walker's own half-width, for the room it gives a bench or a post
   const KERB = 0.45;   // how far a walker keeps from a car's side or bumper (m, centre to body)
+  // People under umbrellas take an umbrella's room (issue 165). A canopy is a metre across: while two walkers'
+  // umbrellas are up (p.umbR, the canopy's radius as it is now, which the crowd's renderer writes: people.js) they
+  // keep the two radii between them, less a rim's width, so that canopies touch at most at their rims (where they are
+  // pressed closer a taller one's rides over a shorter one's and each leans from the other: people.js lean), and
+  // someone with none whose head stands as high as a neighbour's rim keeps out from under it. 0: nothing
+  // more than one of the crowd gives another. It is kept between the canopies' middles, which stand a hand off the
+  // body towards the holding hand (p.ucx, p.ucy from the body, in the plan; someone with none: their head). The rooms
+  // below take it as distance already spent (umbGap: how far the canopies are from each other, with p stood at x, y,
+  // less what an umbrella asks past the room they keep anyway), so each of them holds to it in its own way. Those
+  // who walk together are left to it: of two friends one carries and the other shares it (people.js wantUmb), and
+  // where both carry the canopies lean apart
+  const UMB_RIM = 0.06;
+  function umbRoom(p, o) {
+    const a = p.umbR || 0, b = o.umbR || 0;
+    if (a > 0 && b > 0) return a + b - UMB_RIM;
+    if (a > 0) return o.crown > p.umbRim - 0.03 ? a + 0.12 : 0;
+    if (b > 0) return p.crown > o.umbRim - 0.03 ? b + 0.12 : 0;
+    return 0;
+  }
+  const umbGap = (p, x, y, o, u, room) => Math.hypot(o.x + (o.umbR > 0 ? o.ucx : 0) - x - (p.umbR > 0 ? p.ucx : 0), o.y + (o.umbR > 0 ? o.ucy : 0) - y - (p.umbR > 0 ? p.ucy : 0)) - u + room;
   const HOT_MIN = 45;  // how near the player a walker may be put where the crowd gathers (m: lost in the crowd there)
   const SCR_HW = 3.4;  // the half-width of a scramble's crosswalk the crowd spreads across (m: Shibuya's are about 8 m wide)
   // a number from 0 to 1 for walker i's trait k, the same on every visit and drawing nothing from rnd
@@ -768,7 +788,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function closest(x, y, player) {
       let best = player ? Math.min(CLOSE, Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : CLOSE;
       const sq = p.squeeze > 0 ? SHOULDER : 0;
-      for (let k = 0; k < nn; k++) { const o = P[nbr[k]], dx = o.x - x, dy = o.y - y; if (Math.abs(dx) < best && Math.abs(dy) < best) best = Math.min(best, Math.hypot(dx, dy) + (mateOf(p, o) ? SHOULDER : sq)); }
+      for (let k = 0; k < nn; k++) {
+        const o = P[nbr[k]], dx = o.x - x, dy = o.y - y, mate = mateOf(p, o);
+        if (Math.abs(dx) < best && Math.abs(dy) < best) best = Math.min(best, Math.hypot(dx, dy) + (mate ? SHOULDER : sq));
+        if (!mate && (p.umbR > 0 || o.umbR > 0)) { const u = umbRoom(p, o); if (u > CLOSE) best = Math.min(best, umbGap(p, x, y, o, u, CLOSE) + sq); } // (an umbrella's room, issue 165)
+      }
       return keepRoom(x, y, best);
     }
     // those standing among the crowd who are not of it (api.bodies, set by game.js each frame: the story's people, the
@@ -1361,12 +1385,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // how far the nearest other walker is from (x, y), up to 1 m (the neighbour hash as this step began)
     function nearest1(self, x, y) {
       let best = 1;
+      const me = P[self], us = me.squeeze > 0 ? 0.4 : 1; // (through a press, shuffling: the canopies lean and brush)
       const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
           if (k === self) continue;
           const o = P[k], ex = o.x - x, ey = o.y - y;
-          if (o.line < 0 || Math.abs(ex) > best || Math.abs(ey) > best) continue;
+          if (o.line < 0) continue;
+          if ((me.umbR > 0 || o.umbR > 0) && Math.abs(ex) < 1.6 && Math.abs(ey) < 1.6 && !mateOf(me, o)) { // (an umbrella's room, issue 165)
+            const u = umbRoom(me, o);
+            if (u > 0.45) { const e = umbGap(me, x, y, o, 0.45 + (u - 0.45) * us, 0.45); if (e < best) best = e; }
+          }
+          if (Math.abs(ex) > best || Math.abs(ey) > best) continue;
           const e = Math.hypot(ex, ey);
           if (e < best) best = e;
         }
@@ -1476,6 +1506,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (e > 2.4 || e < 1e-4) continue;
           const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
+          if ((q.umbR > 0 || o.umbR > 0) && (o.lead >= 0 ? o.lead : o.id) !== gq) { // (under umbrellas: an umbrella's room between the canopies, issue 165)
+            const u = umbRoom(q, o) + 0.04, cx = ex + (q.umbR > 0 ? q.ucx : 0) - (o.umbR > 0 ? o.ucx : 0), cy = ey + (q.umbR > 0 ? q.ucy : 0) - (o.umbR > 0 ? o.ucy : 0), ec = Math.hypot(cx, cy);
+            if (u > 0.1 && ec < u && ec > 1e-4) { const f = (u - ec) / ec * 2.2; fx += cx * f; fy += cy * f; }
+          }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
       }
