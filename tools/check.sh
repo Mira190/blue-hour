@@ -20,6 +20,8 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - the credits: every shipped work with its licence text, the fonts' OFL, the map's sources beside the README's,
+#             a link's picture and its tags, the version's repository, the three ways to the Credits (tools/credits_check.py);
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
 #           - the rules by which a check's pass is kept though a file it read changed (tools/reach_unit.py);
 #           - the seams between the page's parts: each asks another only for what its contract offers (tools/seams.py),
@@ -543,6 +545,7 @@ rm -rf "$OUT/keep"
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st credits credits - '^FAIL' python3 tools/credits_check.py "$MAP"
     st reach reach - '^FAIL|Error' python3 tools/reach_unit.py
     st seams seams - '^FAIL|Error' python3 tools/seams.py
     st people people - '^FAIL|Error' python3 tools/people_contract.py

@@ -349,15 +349,35 @@ window.OEHud = (function () {
   }
 
   // ------------------------------------------------------------ toasts
+  // In the story one line is said over the picture at a time (issue 114: what a frame leaves you with and where the car
+  // will pull in came up together, one over the other across the player on a phone). A line waits for the one before it
+  // to go, stays for as long as it takes to read, and is not said twice while it is up or waiting. The walk and the
+  // map keep their stack of three: theirs are short notes on what a key did.
+  const said = []; let saying = null;
+  const waits = () => { $('#g-toasts').dataset.next = said.map(q => q.text).join(' | '); }; // (what is still to be said: a check reads it, tools/mem_check.js)
+  const oneAtATime = () => { const s = $('#game-stage'); return !!s && s.classList.contains('story') && !s.classList.contains('walk'); };
   function toast(text, kind = '') {
+    if (!oneAtATime()) return put(text, kind);
+    if (saying === text || said.some(q => q.text === text)) return;
+    said.push({ text, kind });
+    if (saying === null) sayNext(); else waits();
+  }
+  function sayNext() {
+    const q = said.shift(); waits();
+    if (!q) { saying = null; return; }
+    saying = q.text;
+    const words = q.text.replace(/<[^>]*>/g, '').length;
+    put(q.text, q.kind, Math.max(2800, Math.min(7000, 1200 + 55 * words)), sayNext);
+  }
+  function put(text, kind, stay = kind === 'stamp' ? 4200 : 2800, gone = null) {
     const el = document.createElement('div');
     el.className = `g-toast ${kind}`;
     el.innerHTML = api.keys ? api.keys(text) : text; // (a phone names its buttons, not keys: game.js)
     const box = $('#g-toasts');
     box.appendChild(el);
-    while (box.children.length > 3) box.firstChild.remove(); // keep the stack short
-    setTimeout(() => el.classList.add('out'), kind === 'stamp' ? 4200 : 2800);
-    setTimeout(() => el.remove(), kind === 'stamp' ? 4800 : 3400);
+    while (box.children.length > (gone ? 1 : 3)) box.firstChild.remove(); // keep the stack short
+    setTimeout(() => el.classList.add('out'), stay);
+    setTimeout(() => { el.remove(); if (gone) gone(); }, stay + 600);
   }
 
   // ------------------------------------------------------------ a passport stamp comes down, then flies to the Passport button

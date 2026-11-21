@@ -11,8 +11,24 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Blue Hour">
 <meta property="og:description" content="A story in episodes at the Shibuya Scramble, rebuilt from open data. Once an evening the crossing stops.">
+<!-- a link's preview: the title's own picture (og.jpg, 1200x630: tools/og_shot.js takes it from this page), by its
+     absolute address, as the sites that draw previews ask -->
+<meta property="og:site_name" content="Blue Hour">
+<meta property="og:url" content="https://mira190.github.io/blue-hour/">
+<meta property="og:image" content="https://mira190.github.io/blue-hour/og.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Blue Hour: the Shibuya Scramble at dusk, its screens lit, a crowd waiting at the crossing under the title.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Blue Hour">
+<meta name="twitter:description" content="A story in episodes at the Shibuya Scramble, rebuilt from open data. Once an evening the crossing stops.">
+<meta name="twitter:image" content="https://mira190.github.io/blue-hour/og.jpg">
+<meta name="twitter:image:alt" content="Blue Hour: the Shibuya Scramble at dusk, its screens lit, a crowd waiting at the crossing under the title.">
+<link rel="canonical" href="https://mira190.github.io/blue-hour/">
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="game/story.css">
+<link rel="stylesheet" href="credits.css">
 <style>
 /* City: full-bleed 3D stage, a working panel on the right, a sun dial dock along the bottom.
    Game: the stage full-bleed under its HUD. Both carry on from the title screen (title.css): off-white
@@ -793,23 +809,28 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
     <div class="g-overlay" id="g-menu" hidden>
       <div class="g-panel"><header><h2>Paused</h2><button class="x" id="g-menu-close" aria-label="Resume">×</button></header>
         <div class="gm-walk" id="gm-walk"><span class="note">Walking, with no case. People with a speech mark over them have small stories of their own. Your car comes to the kerb when called (C), and a helicopter waits on SHIBUYA SKY's roof, up the SKY GATE lift across the crossing. Change the hour and the sky below, or begin the story from its first card.</span><button class="btn primary" id="gm-story">Begin the story · <span>Episode 1</span></button><button class="btn" id="gm-car">Bring your car to the kerb</button><div class="gm-tales" id="gm-tales" hidden></div><div class="gm-tonight" id="gm-tonight" hidden></div></div>
+        <div class="gm-case" id="gm-case"><span class="note" id="gm-case-at"></span><button class="btn primary" id="gm-resume">Resume</button></div>
         <div class="g-settings">
-          <div class="field"><span class="note">Time of day</span><div class="seg wrap" id="gm-time"><button data-t="live">Now</button></div></div>
-          <div class="field"><label for="gm-clock"><span>Any time</span><output class="num" id="gm-clock-v"></output></label><input type="range" id="gm-clock" min="0" max="1439" step="1" aria-label="Time of day, local clock time"></div>
-          <div class="field"><label for="gm-date"><span>Date</span></label><input type="date" id="gm-date" aria-label="Date"></div>
-          <div class="field"><span class="note">Weather</span><div class="seg wrap" id="gm-weather"><button data-w="live" aria-pressed="true">As the season brings it</button><button data-w="now" title="Asks Open-Meteo for this city's weather now. Only the city's coordinates are sent.">Live</button><button data-w="clear">Clear</button><button data-w="overcast">Overcast</button><button data-w="fog">Fog</button><button data-w="drizzle">Drizzle</button><button data-w="rain">Rain</button><button data-w="storm">Thunderstorm</button><button data-w="snow">Snow</button><button data-w="off" title="No weather at all: the lightest on a slow device">Off</button></div></div>
-          <div class="field"><span class="note">Clock speed</span><div class="seg" id="gm-speed"><button data-s="1" aria-pressed="true">Real time</button><button data-s="30">30×</button><button data-s="120">120×</button><button data-s="0">Paused</button></div></div>
-          <div class="field"><span class="note">Play as</span><div class="seg" id="gm-who"><button data-c="W">Kagami (woman)</button><button data-c="M">Kagami (man)</button></div></div>
-          <div class="field"><span class="note">Crowds and traffic</span><div class="seg" id="gm-density"><button data-d="low">Light</button><button data-d="normal" aria-pressed="true">Normal</button></div></div>
+          <div class="field gm-map"><span class="note">Time of day</span><div class="seg wrap" id="gm-time"><button data-t="live">Now</button></div></div>
+          <div class="field gm-map"><label for="gm-clock"><span>Any time</span><output class="num" id="gm-clock-v"></output></label><input type="range" id="gm-clock" min="0" max="1439" step="1" aria-label="Time of day, local clock time"></div>
+          <div class="field gm-map"><label for="gm-date"><span>Date</span></label><input type="date" id="gm-date" aria-label="Date"></div>
+          <div class="field gm-map"><span class="note">Weather</span><div class="seg wrap" id="gm-weather"><button data-w="live" aria-pressed="true">As the season brings it</button><button data-w="now" title="Asks Open-Meteo for this city's weather now. Only the city's coordinates are sent.">Live</button><button data-w="clear">Clear</button><button data-w="overcast">Overcast</button><button data-w="fog">Fog</button><button data-w="drizzle">Drizzle</button><button data-w="rain">Rain</button><button data-w="storm">Thunderstorm</button><button data-w="snow">Snow</button><button data-w="off" title="No weather at all: the lightest on a slow device">Off</button></div></div>
+          <div class="field gm-map"><span class="note">Clock speed</span><div class="seg" id="gm-speed"><button data-s="1" aria-pressed="true">Real time</button><button data-s="30">30×</button><button data-s="120">120×</button><button data-s="0">Paused</button></div></div>
+          <div class="field gm-map"><span class="note">Play as</span><div class="seg" id="gm-who"><button data-c="W">Kagami (woman)</button><button data-c="M">Kagami (man)</button></div></div>
+          <div class="field gm-map"><span class="note">Crowds and traffic</span><div class="seg" id="gm-density"><button data-d="low">Light</button><button data-d="normal" aria-pressed="true">Normal</button></div></div>
           <div class="field"><span class="note">Frame rate</span><div class="seg" id="gm-fps"><button data-f="30">30</button><button data-f="60" aria-pressed="true">60</button><button data-f="0">Display</button></div></div>
-          <div class="field"><span class="note">Route line</span><div class="seg wrap" id="gm-route"><button data-r="on" aria-pressed="true">On</button><button data-r="ask">Only when I ask</button><button data-r="off">Off</button></div></div>
+          <div class="field gm-map"><span class="note">Route line</span><div class="seg wrap" id="gm-route"><button data-r="on" aria-pressed="true">On</button><button data-r="ask">Only when I ask</button><button data-r="off">Off</button></div></div>
           <label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="gm-sound" checked> Sound</label>
+          <div class="field gm-words"><span class="note">Words</span><div class="seg wrap" id="gm-words"><button data-size="0" aria-pressed="true">As set</button><button data-size="1">Larger</button><button data-size="2">Largest</button><button data-solid aria-pressed="false">Backing</button></div></div>
         </div>
         <table class="gt-keys"><tbody>
           <tr><td><kbd>W A S D</kbd> or arrows</td><td>Walk, relative to the camera; drag to look around, scroll to zoom</td></tr>
           <tr><td><kbd>Shift</kbd> · <kbd>X</kbd> · <kbd>Space</kbd></td><td>Sprint while held · switch between walking and running · jump</td></tr>
           <tr class="gk-free"><td><kbd>E</kbd></td><td>Talk, board, fly, drive your car, get in a taxi, get out</td></tr>
           <tr class="gk-story"><td><kbd>E</kbd></td><td>Talk to whoever is beside you, take a lift, get in or out</td></tr>
+          <tr class="gk-case"><td><kbd>R</kbd> · <kbd>F</kbd></td><td>When the street has stopped: raise or lower the camera · take the picture; the wheel changes the lens</td></tr>
+          <tr class="gk-case"><td><kbd>H</kbd></td><td>A hint, while you look for the place a frame is taken from</td></tr>
+          <tr class="gk-case"><td><kbd>Tab</kbd> · <kbd>L</kbd></td><td>The roll: the frames taken, and the file · the log: everything said tonight, to read again</td></tr>
           <tr class="gk-walk"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> hand brake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road, <kbd>E</kbd> get out once stopped</td></tr>
           <tr class="gk-walk"><td>Helicopter</td><td><kbd>Space</kbd> climb, <kbd>Shift</kbd> or <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd> fly and slow, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> the view, <kbd>E</kbd> get out once landed</td></tr>
           <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>In a conversation: put the hand on an answer, then <kbd>E</kbd> or <kbd>↵</kbd> to give it (or its number)</td></tr>
@@ -827,8 +848,17 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
           <tr class="gk-free"><td><kbd>M</kbd> · <kbd>P</kbd> · <kbd>R</kbd></td><td>Map · passport · unstick yourself</td></tr>
           <tr class="g-metro-key" hidden><td><kbd>B</kbd></td><td>The subway map: go on to another district</td></tr>
         </tbody></table>
+        <table class="gt-keys gt-touch"><tbody>
+          <tr><td>Left thumb</td><td>Walk; pushed further, run</td></tr>
+          <tr><td>Drag</td><td>Look around</td></tr>
+          <tr><td>The words over someone</td><td>Tap them to talk, to take a lift, to get in or out</td></tr>
+          <tr><td>Raise the camera</td><td>When the street has stopped: the button at the foot of the picture raises it and lowers it; the round one takes the picture</td></tr>
+          <tr><td>A hint</td><td>While you look for the place a frame is taken from</td></tr>
+          <tr><td>The roll · Log</td><td>Tap the strip of frames for the roll and the file; Log, under what is said, is everything said tonight</td></tr>
+        </tbody></table>
         <div class="row" id="gm-links"></div>
-        <div class="row"><button class="btn" id="gm-intro">Show the intro again</button><button class="btn" id="gm-overture" hidden>Play the opening</button><button class="btn" id="gm-reset">Start again</button></div>
+        <div class="gm-case gm-again"><button class="btn" id="gm-again">Start the case again</button><span class="note" id="gm-again-note" hidden></span></div>
+        <div class="row"><button class="btn" id="gm-intro">Show the intro again</button><button class="btn" id="gm-overture" hidden>Play the opening</button><button class="btn" id="gm-reset">Start again</button><button class="btn" id="gm-credits" data-credits>Credits</button></div>
       </div>
     </div>
 
@@ -839,7 +869,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         <h1 id="gt-title">Blue Hour</h1>
         <p id="gt-blurb"></p>
         <div class="gt-time"><span class="eyebrow">Start at</span><div class="seg" id="gt-timechoice"><button data-t="live" aria-pressed="true" id="gt-now">Now</button></div></div>
-        <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button><button type="button" class="btn" id="gt-cont-go" hidden><span>Continue</span><small></small><img alt="" hidden><kbd>↵</kbd></button><button type="button" class="btn" id="gt-story-go"><span>The story</span><small></small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-opts-go"><span>Options</span><small>Sound · crowds and traffic · frame rate</small><kbd>↵</kbd></button></div>
+        <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button><button type="button" class="btn" id="gt-cont-go" hidden><span>Continue</span><small></small><img alt="" hidden><kbd>↵</kbd></button><button type="button" class="btn" id="gt-story-go"><span>The story</span><small></small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-opts-go"><span>Options</span><small>Sound · crowds and traffic · frame rate</small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-credits-go" data-credits><span>Credits</span><small>Sources · licences · what is measured</small><kbd>↵</kbd></button></div>
         <button type="button" class="gt-who-line" id="gt-who-line" hidden><span>Playing as</span><b>Kagami</b><small></small><em>Change</em></button>
         <label class="gt-skip note" id="gt-skip" hidden><input type="checkbox" id="gt-skip-on" checked> Skip the intro: you have played before</label>
         <div class="gt-hints">
@@ -944,6 +974,7 @@ window.dispatchEvent(new Event('three-ready'));
 <script src="onboard.js"></script>
 <script src="lens.js"></script>
 <script src="version.js"></script>
+<script src="credits.js"></script>
 <script src="plate.js"></script>
 <script src="water.js"></script>
 <script src="visibility.js"></script>

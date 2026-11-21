@@ -43,17 +43,25 @@ exports.hook = () => {
   wrap('drawElementsInstanced', (gl, a) => tri(gl, a[0], a[1], a[4], true));
   wrap('clear', () => { B.cur.clears++; });
   wrap('blitFramebuffer', () => { B.cur.blits++; });
-  // names(true): each draw put down to the thing drawn, by the names up its parents (three.js calls a thing's
-  // onBeforeRender just before its draw; a target the scene is drawn into another way, the shadows' map, keeps the last
-  // name and is told by its size); names(false): the things as they were
-  let hooked = [];
+  // names(true): each draw put down to the thing drawn, by the names up its parents. three.js draws every thing through
+  // its renderer's renderBufferDirect, the shadows' map and a pass with an override material included (the rain's cover
+  // map), so the name is noted there; not in a thing's onBeforeRender, which the rain's cover takes as a sign to leave
+  // the thing out (weather.js hidden). names(false): the renderer as it was
+  let wrapped = null;
   B.names = on => {
-    for (const [o, was] of hooked) o.onBeforeRender = was;
-    hooked = []; B.group = '';
-    if (!on || !window.__game || !window.__game.world) return;
-    let root = window.__game.world; while (root.parent) root = root.parent;
+    if (wrapped) { wrapped.r.renderBufferDirect = wrapped.was; wrapped = null; }
+    B.group = '';
+    const g = window.__game, r = g && g.atmos && g.atmos.composer && g.atmos.composer.renderer;
+    if (!on || !r || !g.world) return;
+    let root = g.world; while (root.parent) root = root.parent;
+    const names = new WeakMap();
     const nameOf = o => { const n = []; for (let q = o; q && q !== root; q = q.parent) if (q.name && !/^(Scene|Group)$/.test(q.name)) n.push(q.name.replace(/[_-]?\d+$/, '')); if (n.length) return n.length > 1 ? `${n[n.length - 1]}/${n[0]}` : n[0]; const m = Array.isArray(o.material) ? o.material[0] : o.material; return `${o.isInstancedMesh ? 'InstancedMesh' : o.isSkinnedMesh ? 'SkinnedMesh' : o.type}:${(m && (m.name || m.type)) || ''}:${o.userData && Object.keys(o.userData).slice(0, 3).join(',')}`; };
-    root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite) { const was = o.onBeforeRender, k = nameOf(o); hooked.push([o, was]); o.onBeforeRender = function (...a) { B.group = k; return was.apply(this, a); }; } });
+    const was = r.renderBufferDirect;
+    wrapped = { r, was };
+    r.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+      if (object) { let k = names.get(object); if (!k) names.set(object, k = nameOf(object)); B.group = k; }
+      return was.call(this, camera, scene, geometry, material, object, group);
+    };
   };
   // the frames counted as one line: the heaviest by its triangles, and element by element the larger of them for what is
   // drawn in one and not another (the passes, the pixels); with what WebGL holds now (tools/gl_mem.js, where its hook is

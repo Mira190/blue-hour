@@ -1181,7 +1181,7 @@ ${st.prints.length > 1 ? `<ol class="sheet">${st.prints.slice(0, -1).map((p, i) 
 <small>${esc(S.title || '')}${ep.no ? ` · Episode ${ep.no}` : ''}</small><h2>${esc(E.title || 'To be continued')}</h2>
 ${E.found ? `<div class="found">${ticket(E.found.ticket || {})}<p>${esc(E.found.line || '')}</p></div>` : ''}
 ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p class="next">${esc(E.next)}</p>` : ''}${goBack(closedNow())}
-<div class="row">${st.prints.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="free">${esc(E.free || 'Walk the city')}</button><button type="button" data-do="again">Play it again</button></div></div>`;
+<div class="row">${st.prints.some(p => p.src) ? '<button type="button" data-do="sheet">Save the contact sheet</button>' : ''}<button type="button" class="go" data-do="free">${esc(E.free || 'Walk the city')}</button><button type="button" data-do="again">Play it again</button><button type="button" data-credits>Credits</button></div></div>`;
       endEl.classList.add('on');
       if (E.found) later(2400, () => sting('found')); // (as the ticket comes up)
       requestAnimationFrame(() => endEl.classList.add('in'));
@@ -1357,6 +1357,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get finder() { return (st.phase === 'go' && st.beat === 'job' && !!st.cam) || (st.phase === 'stop' && !!st.lensHold) || (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
+      // the pause's own lines (game.js, issue 114): the frame the case is at, and the case begun again from its first card
+      // (before the first frame's own beats, the office's call and the order in the hand, the case is at its first frame all the same)
+      get at() { const F = (st.ep && st.ep.frames) || [], fr = st.fr || F[st.fi | 0]; return fr && st.phase !== 'idle' && st.phase !== 'dressed' && st.phase !== 'done' ? { fi: st.fi | 0, of: F.length, stamp: fr.stamp || '', taken: st.prints.length } : null; },
+      beginAgain() { forget(); ctx.again(); },
       // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
       // evening's cast, each once out of the frame (tick); the dog is already on his way home
       // (the walk from the title: the street as tonight has it, with the set dressing the story puts up, and no case)
