@@ -669,7 +669,52 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (and what stands round in it and is a fence however low, hero[].rounds [x, y, r]: a planter's rail, which the walker's
   // step would otherwise take them over and onto the soil, with the dog after them)
   for (const h of G.hero || []) for (const [x, y, r] of h.rounds || []) posts.add(x, y, nav.terrain(x, y), r, 'round');
+  // (and what stands in it as a box, hero[].boxes [x, y, heading, half length, half width, z0, z1]: SHIBUYA SKY's benches,
+  // the nets' frames and the searchlights, which its model draws over a landmark that has none of them, so that a walker
+  // went through a bench to the knee; walls in the collision world, as a railway's platform furniture is, below)
+  for (const h of G.hero || []) for (const [x, y, hd, hl, hw, z0, z1] of h.boxes || []) {
+    const fx = Math.sin(hd), fy = Math.cos(hd), r = [];
+    for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) r.push(x + fx * hl * u - fy * hw * v, y + fy * hl * u + fx * hw * v);
+    nav.col.add([r], z0, z1, nav.LFINE, -1);
+  }
   nav.posts = posts;
+  // What stands between a sound and the ear, for audio.js reach: the path difference over the highest edge on the line
+  // from one to the other (m; negative by how much the line clears everything). The line is read in plan every 3 m (60
+  // reads at most): where it passes through a solid of the collision world (a building as published, a landmark's 2 m
+  // cell: SHIBUYA SKY's deck and its glass among them) or through the ground, the way over that solid's top; where it is
+  // clear, how far over the surface model's top it passes. The point that most lengthens the way round is taken as the one
+  // edge the sound bends over: the single knife edge of noise and radio propagation (Bullington's construction, ITU-R
+  // P.526). The solids, not the surface model alone, say what blocks: the surface model is a height field, and under a
+  // platform's canopy or a viaduct it is solid to the top (a train under Shibuya's platform roof, heard from Hachiko, lost
+  // 18 dB to the roof over it). Not the first `skip` metres from the sound (6 unless it says), which stand in or on what
+  // makes it (a train on its viaduct, a station's announcements out of its hall), nor the metre and a half round the ear.
+  // From the deck at 230 m the tower's own roof is the edge to the street, 15 to 40 m longer a way than the straight
+  // line: the most a barrier takes, 25 dB
+  const dsmTop = (x, y) => {
+    const c = Math.floor((x - DSM.x0) / DSM.cell), r = Math.floor((DSM.y1 - y) / DSM.cell);
+    return c >= 0 && r >= 0 && c < DSM.nx && r < DSM.ny ? DSM.data[r * DSM.nx + c] : -Infinity;
+  };
+  const hearEdge = { at: null };
+  const hearLine = (sx, sy, sz, ex, ey, ez, skip) => {
+    const L = Math.hypot(ex - sx, ey - sy);
+    hearEdge.at = null;
+    if (L < skip + 2) return -1;
+    const d = Math.hypot(L, ez - sz), n = Math.min(60, Math.ceil(L / 3));
+    let best = -Infinity;
+    for (let k = 1; k < n; k++) {
+      const t = k / n, m = t * L;
+      if (m < skip || L - m < 1.5) continue;
+      const x = sx + (ex - sx) * t, y = sy + (ey - sy) * t, z = sz + (ez - sz) * t, g = nav.terrain(x, y);
+      let top;
+      if (g > z || nav.col.overlap(x, y, 0.05, z - 0.05, z + 0.05)) top = Math.max(g, nav.col.topAt(x, y)); // (through it: the way over its top)
+      else { top = dsmTop(x, y); if (!(top < z)) continue; } // (clear: by how much, over what is under the line; under a canopy, nothing)
+      const way = Math.hypot(m, top - sz) + Math.hypot(L - m, ez - top) - d, v = top > z ? way : -way;
+      if (v > best) { best = v; hearEdge.at = [+x.toFixed(1), +y.toFixed(1), +top.toFixed(1)]; } // (for a tool: tools/roof_hear.js)
+    }
+    return best === -Infinity ? -1 : best;
+  };
+  // (the landmarks' fine cells left unbuilt: a line 300 m long would have laid every tile it crossed)
+  if (A.world) A.world({ edge: (sx, sy, sz, ex, ey, ez, skip = 6) => nav.withoutFine(() => hearLine(sx, sy, sz, ex, ey, ez, skip)), last: hearEdge });
   // where someone or a car beside a mapped line stands: its deck, the surface the line is on (a pier, a
   // bridge's walkway, a flight of steps: not the ground under it), or the ground drawn there (null on the bank of the water)
   const lineGround = (x, y, at) => {
@@ -1246,10 +1291,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     blendFrom(0.7, true); // (from the seat's eyes out to over your shoulder, not a cut)
     player.rig.root.visible = true;
   }
+  // The stop a ride has just set you down at offers no ride until you have walked out of it once, as a lift you have just
+  // stepped out of in a game does not ask you straight back in: the player is set down on the stop itself, and at
+  // SHIBUYA SKY 46F "Take the lift to Shibuya Scramble Square, street level" stood in the middle of a phone's screen the
+  // moment you were up, over the way on to the roof (the owner's phone, November 2026). liftLeft: { l, i }, or null
+  let liftLeft = null;
   function liftStop(x, y, z) {
     for (const l of lifts) for (let i = 0; i < l.stops.length; i++) {
-      const s = l.stops[i];
-      if (Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5) return { l, i };
+      const s = l.stops[i], at = Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5;
+      if (liftLeft && liftLeft.l === l && liftLeft.i === i) { if (at) continue; liftLeft = null; } // (out of it: it offers the ride again)
+      if (at) return { l, i };
     }
     return null;
   }
@@ -4379,21 +4430,29 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (d < best) { best = d; sndJ = j; }
     }
   }
+  // Each heard from where it is made, through the air (audio.js reach): the crowd and the screens from the crossing, the
+  // announcements from the station, at their height. They were read in plan, and the height only lowered the beds to a
+  // fifth: on SHIBUYA SKY's roof, 104 m from the station in plan, the announcements played at nine tenths of their level
+  const sndAt = SND ? { x: SND.at[0], y: SND.at[1], z: nav.terrain(SND.at[0], SND.at[1]) + 2 } : null, sndMemo = {};
+  // (the announcements come out of the station's doors all round it, not its middle: what stands within 45 m of that,
+  // the station itself, is not between them and you)
+  const stnAt = SND && SND.station ? { x: SND.station[0], y: SND.station[1], z: nav.terrain(SND.station[0], SND.station[1]) + 4, skip: 45 } : null;
   function crossingSound(dt) {
     if (!SND || !A.murmur) return;
-    const cx = camera.position.x, cy = -camera.position.z, r = SND.r || 150, d = Math.hypot(cx - SND.at[0], cy - SND.at[1]);
-    const level = Math.max(0, Math.min(1, (r - d) / (0.6 * r))) * Math.max(0.2, 1 - Math.max(0, camera.position.y - (SND.z || 30)) / 250);
+    const cx = camera.position.x, cy = -camera.position.z, r = SND.r || 150, ear = { x: cx, y: cy, z: camera.position.y };
+    const P = A.reach ? A.reach(sndAt, ear, sndMemo, dt) : { d: Math.hypot(cx - SND.at[0], cy - SND.at[1]), g: 1, fc: 20000 }, d = P.d;
+    const level = Math.max(0, Math.min(1, (r - d) / (0.6 * r))) * P.g;
     if ((sndNear -= dt) <= 0) { // how many people are round you, twice a second
       sndNear = 0.5; sndCount = 0;
       for (let i = 0; i < crowd.active; i++) { const p = crowd.P[i]; if (p.line >= 0 && Math.abs(p.x - cx) < 40 && Math.abs(p.y - cy) < 40) sndCount++; }
     }
     const hr = clock.min / 60;
     A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + sndCount / 80) : 0);
-    A.screens(CITY_NOISE ? level * (hr >= 9 || hr < 0.1 ? 1 : 0) : 0);
-    if (SND.station && (sndAnn -= dt) <= 0) {
+    A.screens(CITY_NOISE ? level * (hr >= 9 || hr < 0.1 ? 1 : 0) : 0, P.fc);
+    if (stnAt && (sndAnn -= dt) <= 0) {
       sndAnn = 45 + Math.random() * 60;
-      const ds = Math.hypot(cx - SND.station[0], cy - SND.station[1]);
-      if (ds < 260) A.announce(Math.min(1, (260 - ds) / 160));
+      const Q = A.reach ? A.reach(stnAt, ear) : { d: Math.hypot(cx - stnAt.x, cy - stnAt.y), g: 1, fc: 20000 };
+      if (Q.d < 260) A.announce(Math.min(1, (260 - Q.d) / 160) * Q.g, Q.fc);
     }
   }
   let crowdAuto = true, govCrowd = 1; // (govCrowd: the frame-time governor's share of the crowd, its ladder below)
@@ -7119,8 +7178,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the cicadas of a hot day: from 25 degrees up, by daylight, silent in the rain
     if (A.cicadas) A.cicadas(titleOn ? 0 : Math.max(0, Math.min(1, (wS.temp - 24.5) / 4)) * wS.day * (1 - Math.min(1, wS.rate * 4)) * (inside ? 0.2 : 1));
     if (!weather.onThunder) weather.onThunder = d => { if (A.thunder && $('#g-title').hidden) A.thunder(d, player.mode === 'car' || player.mode === 'ride' || player.mode === 'heli'); };
-    // the wind's own sound, from a fresh breeze up, louder in the gusts (the helicopter's rush of air is its own: simulate)
-    if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(0, Math.min(1, (wS.windSpeed - 4.5) / 14)) * (inside ? 0.35 : 1), wS.gust);
+    // the wind's own sound, from a fresh breeze up, louder in the gusts (the helicopter's rush of air is its own: simulate).
+    // The weather's wind is the one at 10 m, and the wind grows with height over a city by the power law (Hellmann's
+    // exponent, 0.3 over a city's roofs): on SHIBUYA SKY's deck, 230 m over the street, 2.5 times as strong, and never
+    // quite still there. Where the street's sounds are lost below the roof's edge (audio.js reach), the wind is what
+    // the deck is heard as, as a game's rooftop is
+    const upM = Math.max(0, fz - Math.max(0, nav.terrain(fx, fy) || 0)), upK = Math.pow(Math.max(10, upM) / 10, 0.3), highK = smoothK(40, 200, upM);
+    if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(Math.max(0, Math.min(1, (wS.windSpeed * upK - 4.5) / 14)), 0.18 * highK) * (inside ? 0.35 : room || player.mode === 'lift' ? 0 : 1), wS.gust); // (none in a lift or a room)
   }
   // whose face moves this frame (faceWho, read by faceAfter as each is posed): the one whose line is being said, looking
   // at the player; the player, looking back at them (or with the camera close); and the nearest FACE_NEAR others within FACE_R of the camera, at
@@ -7361,7 +7425,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       OECars.sprayStep(dt, { world, cars: sprayCars, eye: camera, night: U.uNight.value });
     }
     // a driver getting out of your car's way sounds its horn, fainter the farther off (actors.js DODGE_T)
-    for (const h of cars.honks.splice(0)) A.honk(Math.max(0.15, 1 - h.d / 40) * 0.8, h.bus ? 0.72 : 0.9 + Math.random() * 0.2);
+    // (each from its car, through the air: a honk at you in the road below is not heard on a roof, audio.js reach)
+    for (const h of cars.honks.splice(0)) {
+      const P = A.reach ? A.reach({ x: h.x, y: h.y, z: (h.z || 0) + 1 }, { x: camera.position.x, y: -camera.position.z, z: camera.position.y }) : { d: h.d, g: 1, fc: 20000 };
+      if (P.d < 90) A.honk(Math.max(0.15, 1 - P.d / 40) * Math.min(1, (90 - P.d) / 40) * 0.8 * P.g, h.bus ? 0.72 : 0.9 + Math.random() * 0.2, P.fc);
+    }
     if (shows) shows.update(dt, player, clockT);
     if (places) {
       // the area caption waits for a quiet screen: no conversation, menu, map, phone, photo mode or
@@ -8332,12 +8400,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         player.speed = 0; player.vz = 0; player.ground = true;
         cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
         groundLod(player.x, player.y);
+        liftLeft = { l, i: to }; // (no ride offered back until you have walked out of the stop: liftStop)
         save();
       }]],
       onEnd: () => H.toast(`${b.name}.`) });
   }
 
-  // A lift ridden in the dark (game.json lifts[].pod: SHIBUYA SKY's SKY GATE, docs/cities/shibuya.md). The real one is
+  // A lift ridden in the dark (game.json lifts[].pod; SHIBUYA SKY's SKY GATE was, until the owner found the tower climbed
+  // from outside the better and the dark ride odd, November 2026: rideLift above; docs/cities/shibuya.md). The real one is
   // a car with black walls, its whole ceiling a screen whose picture keeps pace with the climb, lines of light that
   // change as it moves and its floor lamps dark until it stops (Hitachi; Rhizomatiks; Elevator Journal 28). So the ride
   // is that, not the camera climbing the tower's face outside, which read as a jump across the map and spent the view
@@ -8372,6 +8442,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           player.speed = 0; player.vz = 0; player.ground = true;
           cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
           groundLod(player.x, player.y);
+          liftLeft = { l, i: to }; // (no ride offered back until you have walked out of the stop: liftStop)
           save();
         }],
         [0.88, () => { A.chime(); end(); }]],
@@ -8455,7 +8526,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       player.h += angDiff(Math.atan2(R.out[0], R.out[1]), player.h) * Math.min(1, dt * 4);
       if (k >= 1) { R.phase = 'open2'; R.t = 0; }
     } else if (R.phase === 'done') {
-      liftRide = null;
+      liftRide = null; liftLeft = { l: R.l, i: R.to }; // (no ride offered back until you have walked out of the stop: liftStop)
       if (R.b.face) player.h = Math.atan2(R.b.face[0], R.b.face[1]);
       player.mode = 'foot'; player.speed = 0; player.vz = 0; player.ground = true;
       cam.distTo = FOOT.dist; cam.yawTo = player.h;
