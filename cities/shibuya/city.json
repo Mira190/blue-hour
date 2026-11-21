@@ -931,6 +931,157 @@
       }
     ],
     "walk": {
+      "overture": {
+        "note": "The walk's opening (docs/STORY.md \"The walk's opening\"; played by game.js startWalk on the story's film engine): the whole of Shibuya from the air at the hour and under the sky the player chose, flown down in one flight to their shoulder at the kerb. Not the story's: no cut, no guide, no words of the case; it comes in from the north-east, high over Omotesando, where the story's opening circles in from the south-west, and it ends behind you at the kerb as the lights change. fly: the camera's one way (points, what it looks at from each, the lens at each), flown at a pace set by its height; the shots are windows on it, for the type and the score. marks: places named as it passes them.",
+        "title": {
+          "style": "card",
+          "eyebrow": "Tokyo · {date} · {hour} · {sky}",
+          "name": "Walk Shibuya",
+          "jp": "渋谷",
+          "line": "35.6595° N   139.7005° E"
+        },
+        "guide": "none",
+        "signal": ["@scramble"],
+        "crowd_at": ["@scramble"],
+        "crowd_r": 120,
+        "grade": {
+          "tint": [0.99, 1.0, 1.03],
+          "sat": 1.06,
+          "ev": 1.0,
+          "flare": 0.6,
+          "sky_sat": 1.0,
+          "clouds": 0,
+          "bloom": 1.25
+        },
+        "anime": {"paint": 0, "grade": 0, "rays": 0, "haze": 0, "rim": 0, "streak": 0},
+        "night": {
+          "below": -6,
+          "grade": {
+            "tint": [0.98, 1.0, 1.04],
+            "sat": 1.08,
+            "ev": 1.22,
+            "flare": 0,
+            "sky_sat": 1.0,
+            "clouds": 0,
+            "bloom": 1.4
+          }
+        },
+        "score": {
+          "root": 52,
+          "scale": [0, 2, 4, 5, 7, 9, 11],
+          "chords": [[0, 2, 4], [5, 7, 9], [3, 5, 7], [4, 6, 8]],
+          "motif": [2, 4, 1, 0, 2],
+          "tempo": 66,
+          "voice": "bell",
+          "air": "none",
+          "arp": true,
+          "chirp": true,
+          "title_shot": "over",
+          "title_at": 0.4,
+          "finale_shot": "dive",
+          "finale_at": 0.5,
+          "clean": true,
+          "swell": true
+        },
+        "fly": {
+          "from": 0,
+          "to": 30,
+          "ease": "glide",
+          "pace": 0.6,
+          "pts": [
+            [1040, -120, 600],
+            [900, -420, 500],
+            [740, -760, 380],
+            [610, -1010, 278],
+            [530, -1060, 262],
+            [465, -1038, 165],
+            [422, -1010, 92],
+            [375, -1006, 46]
+          ],
+          "look": [
+            [230, -2450, 250],
+            [420, -1500, 110],
+            [470, -1180, 150],
+            [500, -1110, 230],
+            [360, -975, 40],
+            [350, -970, 30],
+            [352, -978, 16],
+            [346, -970, 16]
+          ],
+          "fov": [42, 40, 42, 44, 46, 46, 44, 44]
+        },
+        "marks": [
+          {
+            "at": [518.4, -1124.3, 246],
+            "jp": "渋谷スカイ",
+            "name": "SHIBUYA SKY",
+            "sub": "229 m",
+            "t": [8.2, 15]
+          },
+          {
+            "at": [657.4, -1041.2, 204],
+            "jp": "渋谷ヒカリエ",
+            "name": "Shibuya Hikarie",
+            "t": [9.6, 15.6]
+          },
+          {
+            "at": [256.3, -1350.8, 216],
+            "jp": "セルリアンタワー",
+            "name": "Cerulean Tower",
+            "t": [11, 16.6]
+          },
+          {
+            "at": [205.0, -985.0, 52],
+            "jp": "SHIBUYA109",
+            "name": "Dogenzaka",
+            "t": [20.5, 26.5]
+          },
+          {
+            "at": [345.6, -980.4, 22],
+            "jp": "センター街",
+            "name": "Center Gai",
+            "t": [22.5, 28.5]
+          },
+          {
+            "at": [373.8, -1047.4, 18],
+            "jp": "忠犬ハチ公",
+            "name": "Hachiko",
+            "t": [24.5, 29.5],
+            "stem": 34
+          }
+        ],
+        "shots": [
+          {
+            "id": "over",
+            "dur": 8.5,
+            "type": "fly",
+            "fadeIn": 2.2,
+            "cues": [[0.0, "red"]],
+            "title": {"at": 0.16, "until": 0.9}
+          },
+          {"id": "glide", "dur": 8.0, "type": "fly"},
+          {"id": "edge", "dur": 5.0, "type": "fly"},
+          {
+            "id": "dive",
+            "dur": 8.5,
+            "type": "fly",
+            "cues": [[0.5, "green"]],
+            "caption": {
+              "eyebrow": "渋谷スクランブル交差点 · Shibuya Crossing",
+              "text": "Up to three thousand people cross here at every change of the lights. Tonight there is nowhere you have to be.",
+              "at": 0.12,
+              "until": 0.96
+            }
+          },
+          {
+            "id": "land",
+            "dur": 6.0,
+            "type": "land",
+            "via": [374, -1011, 26],
+            "lookHold": 0.45
+          }
+        ]
+      },
       "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): a few of this evening's locals, each with a small story in parts, each part asking one thing the walk can do. Nothing of the case is in any of them. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it); meet: someone who, unseen, goes to stand by the next part's speaker.",
       "people": [
         {

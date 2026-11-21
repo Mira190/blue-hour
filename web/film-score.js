@@ -120,7 +120,7 @@ window.OEFilmScore = (function () {
     const chordAt = (degs, oct = 0) => degs.map(d => deg(d, oct));
     const chords = plan.chords || [[0, 2, 4], [3, 5, 7], [1, 3, 5], [4, 6, 8]];
     riser(T, 3.4);
-    if (swell && !plan.under) { const m = plan.motif || [4, 2]; piano(T - 2.7, deg(m[0], 1), 0.75, -0.15); piano(T - 1.35, deg(m[1], 1), 0.7, 0.15); } // (her first two notes, and the title on the third beat)
+    if (swell && !plan.under && T >= 2.8) { const m = plan.motif || [4, 2]; piano(T - 2.7, deg(m[0], 1), 0.75, -0.15); piano(T - 1.35, deg(m[1], 1), 0.7, 0.15); } // (her first two notes, and the title on the third beat; not before the film: a note begun before nought lost the whole score)
     hit(T + 0.03 - (swell ? 0.6 : 0), [root - 12, root - 5, root, root + 7, deg(2, 1), deg(4, 1), deg(1, 2), deg(4, 2)]);
 
     // the pad: the city's chords changing at the cuts after the title

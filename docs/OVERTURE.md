@@ -128,6 +128,18 @@ What makes a night in these films, taken apart, and what answers it here:
 
 The crowd is seen from across the junction and from above; no shot stands among it.
 
+### The walk's opening: one flight down (November 2026)
+
+The walk (STORY.md, "The walk") opens on a film of its own, `game.walk.overture`, played by this engine from game.js
+`startWalk` at the hour and under the sky the player chose: the whole district from 600 m over Omotesando, down past the
+north edge of SHIBUYA SKY's roof, down the tower's face to the crossing as it turns green, and onto your shoulder at the
+kerb. It is one flight with no cut, which the engine now flies (`spec.fly`: a centripetal Catmull-Rom curve through the
+camera's points, its look and its lens on the same curve, at a pace set by its height over the ground, after the fly-to
+of web maps; shots of type `fly` are windows on it), with no guide (`guide: "none"`), the title screen's own card for its
+title (`title.style: "card"`, its `{date}`, `{hour}` and `{sky}` filled by the game), and places named on the picture as
+it passes them (`spec.marks`). It holds where its last shot begins until the level under the player is drawn. Stills and
+the film: `tools/walk_open.js`. Why each of these, and what was taken from where: STORY.md, "The walk's opening".
+
 ### The guide by season (on the game's clock)
 
 | Dates | Guide | Why |
