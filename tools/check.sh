@@ -332,7 +332,7 @@ budgets_kept() {   # (static: the counts of each play whose pass is kept, agains
   for f in "$BUDGETS"/*.jsonl; do
     [ -e "$f" ] || continue
     k=$(basename "$f" .jsonl); k=${k%-*}
-    CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k" >/dev/null 2>&1 || continue
+    kept "$k" || continue   # (as this run keeps it: one over today's budgets is played again, above)
     python3 tools/beat_budget.py check "$f" "$(basename "$f" .jsonl | sed 's/.*-//')" --map "$MAP" | grep '^FAIL' && return 1
     n=$((n + 1))
   done
