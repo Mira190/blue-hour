@@ -662,6 +662,16 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
     }
 
     const api = { tracks, services, kinds, models: false, live: [], t: o.t0 || 0, station: stations[0] || null, stations, said: [], voices: [0, 0, 0], run, plan, stopsNow, haltsNow, passAt };
+    // the night the line stops: a service with `night` ([last, first] departures, minutes after midnight on the clock the
+    // game runs, set by setNight) sends no train out between its last and its first. Departure k leaves the course's
+    // start at the clock's time now less the time since it left (its place is still a function of the time alone).
+    const depMin = (s, k) => ((((o.hour ? o.hour() * 60 : 720) + (s.offset_s + k * s.every_s - api.t) / 60) % 1440) + 1440) % 1440;
+    const inNight = (n, m) => (n[0] < n[1] ? m > n[0] && m < n[1] : m > n[0] || m < n[1]);
+    const runs = (s, k) => !s.night || !inNight(s.night, depMin(s, k));
+    const lastOf = (s, k) => !!s.night && runs(s, k) && !runs(s, k + 1); // (the night's last train: the one after it does not run)
+    api.runs = runs; api.isLast = lastOf; api.depMin = depMin;
+    // night: { track id: [last, first] } in minutes, or null for trains all night (a harness, a map with no timetable)
+    api.setNight = night => { for (const s of services) s.night = night && night[s.track] ? night[s.track] : null; };
     const state = { t: 0, x: 0, v: 0, a: 0, ph: '', T: 0, t1: 0, t2: 0, t3: 0 };
     const fwd = { x: 0, y: 0, z: 0 }, aft = { x: 0, y: 0, z: 0 };
 
@@ -672,6 +682,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         const stops = stopsNow(s), T = run(s, 0, stops, state).T;
         const k1 = Math.floor((t - s.offset_s) / s.every_s), k0 = Math.ceil((t - s.offset_s - T) / s.every_s);
         for (let k = k0; k <= k1; k++) {
+          if (!runs(s, k)) continue; // (the line's night: no train out between the last and the first)
           const tau = t - s.offset_s - k * s.every_s, r = run(s, tau, stops, state);
           out.push({ s, k, tau, x: r.x, v: r.v, a: r.a, ph: r.ph, t1: r.t1, t2: r.t2, t3: r.t3, leg: r.leg, legs: r.legs, stops });
         }
@@ -845,7 +856,8 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       for (const s of services) {
         const legs = stopsNow(s) ? plan(s, true).legs : [], j = legs.findIndex(q => q.h.st === st), L = legs[j];
         if (!L || j === legs.length - 1) continue; // (a train that ends its run on this map here is not one to wait for)
-        const k = Math.ceil((api.t - s.offset_s - L.t2) / s.every_s);
+        let k = Math.ceil((api.t - s.offset_s - L.t2) / s.every_s);
+        for (let i = 0; i < 200 && !runs(s, k); i++) k++; // (through the night, to the first train)
         best = Math.min(best, s.offset_s + k * s.every_s + L.t2 - api.t);
       }
       return best;
@@ -893,7 +905,12 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       }
       // (JR West's and JR Central's platforms are のりば, "platform"; a Shinkansen 到着します, "arrives")
       const jrw = st.style === 'jrw', ban = jrw ? '番のりば' : '番線', where = jrw ? 'platform' : 'track', shk = s.kind === 'shinkansen';
-      if (what === 'approach') {
+      const last = lastOf(s, tr.k); // (the night's last train: said so as it comes in, 最終電車, as a Tokyo platform does)
+      if (what === 'approach' && last && !shk) {
+        ja = `まもなく、${num(n)}${ban}に、${s.line.ja}、${s.for.ja}行き、最終電車が、まいります。お乗り遅れのないよう、ご注意ください。`;
+        en = `The last ${s.line.en} train for ${s.for.en} is arriving on ${where} ${n}. This is the last train tonight.`;
+        if (A && A.on) A.platformChime(level, pan);
+      } else if (what === 'approach') {
         ja = shk ? `まもなく、${num(n)}${ban}に、${s.line.ja}号、${s.for.ja}行きが、到着します。黄色い線の内側まで、お下がりください。`
           : `まもなく、${num(n)}${ban}に、${s.line.ja}、${s.for.ja}行きが、まいります。危ないですから、黄色い点字ブロックまで、お下がりください。`;
         en = shk ? `The ${s.line.en} for ${s.for.en} is arriving at ${where} ${n}.` : `The ${s.line.en} train for ${s.for.en} is arriving on ${where} ${n}. Please stand behind the yellow blocks.`;
@@ -994,7 +1011,9 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         const h = s.tr.halts.find(q => q.st === st && q.platform === platform);
         if (!h) continue;
         const stops = stopsNow(s), P = plan(s, stops), L = P.legs.find(q => q.h === h), tArr = L ? L.t2 : passAt(s, h.m);
-        const k = Math.ceil((api.t - s.offset_s - tArr) / s.every_s), due = s.offset_s + k * s.every_s + tArr - api.t;
+        let k = Math.ceil((api.t - s.offset_s - tArr) / s.every_s);
+        for (let i = 0; i < 200 && !runs(s, k); i++) k++; // (through the night, to the first train)
+        const due = s.offset_s + k * s.every_s + tArr - api.t;
         if (!best || due < best.in_s) best = { s, in_s: due, stops };
       }
       return best;
