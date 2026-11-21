@@ -35,6 +35,14 @@ Square and on foot at the start, at dusk and by day.
 The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
 stills: `tools/walk_people.js out [WxH] [hour] [sky]` sets out on the walk, waits for each to be drawn, and takes each from
 twelve metres with their speech mark and from three in front, printing where each stands and whether that is in a road.
+The walk as a review looks at it (issue 134): `tools/walk_review.js out [WxH] [hour.sky,...]` sets out on the walk, presses
+the menu's own hour and sky for each condition, and takes the page (the walk's interface in it) from standpoints in three
+sets: `hud` (round the scramble, turned eight ways, so the corner and the keys are seen over every picture), `edge` (out
+along six ways from the hero level's centre at each distance in `RINGS`, the footway nearest that point, looking on and
+back) and `menu` (the menu, its foot, the camera). It prints for each still where you stand, how many of the crowd are out,
+and what of the interface lies within `EDGE` px of the screen's edge. `tools/views/walk-heights.json` is the scramble from
+the heights the walk reaches (on foot to 400 m), for `tools/scramble_shot.js`. Neither is run by `tools/check.sh`: they
+are for looking, and what `tools/walk_play.js` does not play is listed in issue 134.
 The walk's night by the hour (`web/game/tonight.js`, docs/STORY.md "Tonight"): `tools/tonight_play.js out [WxH]` sets the
 clock to just before each moment (CROSSING LIGHT, the shutters, the screens, the last trains), fails if its line is not in
 the corner before, its name not over the street as it comes, the searchlights not on, a train runs after the last or none
