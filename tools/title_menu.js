@@ -154,6 +154,6 @@ const ok = m => console.log(`ok   ${m}`);
     await ctx.close();
   }
   await b.close();
-  console.log(fails ? `FAIL ${fails} (stills in ${out})` : `ok   the menu: Continue, the walk, the story and the options, each one size; the story's and the options' screens (stills in ${out})`);
+  console.log(fails ? `FAIL ${fails} (stills in ${out})` : `ok   the menu: Continue, the story, the walk and the options, each one size; the story's and the options' screens (stills in ${out})`);
   process.exit(fails ? 1 : 0);
 })();
