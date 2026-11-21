@@ -10,9 +10,11 @@
 //             "fill": 0.3,                            // the share of the night's fill light round the player it takes (game.js nightFill)
 //             "fine": "hero/kabukicho_fine.glb",      // its finest parts (blender/hero_kit.py Geo.fine): see below
 //             "fine_m": 70,                           // how near the camera a square of them is drawn (m)
-//             "load_m": 60, "show_m": 300, "drop_m": 85}]  // fetched within r + load_m (260), shown within show_m (420),
+//             "load_m": 60, "show_m": 300, "drop_m": 85,  // fetched within r + load_m (260), shown within show_m (420),
 //                                                     // let go past r + drop_m (520): a level only one place uses comes later
 //                                                     // and goes sooner (Miyamasu, frame 5's place)
+//             "zr": 4}]                               // a level over the street (SKY STAGE): its half-height about its z; the
+//                                                     // camera's height off it counts in those distances as well
 // The model is built in the city's local frame (blender/build_hero.py: x east, y north, z up, which glTF
 // carries as three.js's x, z, -y, as the game draws every local point) and meshopt-compressed.
 //
@@ -279,10 +281,13 @@ window.OEHero = (function () {
     // most of a second for each few of its shaders on a phone, tools/entry_cost.js); shown by the camera alone
     function update(camera, dt, anchor = null) {
       t += dt || 0;
-      const cx = camera.position.x, cy = -camera.position.z, night = uNight.value;
+      const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y, night = uNight.value;
       for (const L of levels) {
-        const d = Math.hypot(cx - L.h.at[0], cy - L.h.at[1]) - (L.h.r || 150);
-        const near = anchor ? Math.min(d, Math.hypot(anchor[0] - L.h.at[0], anchor[1] - L.h.at[1]) - (L.h.r || 150)) : d;
+        // (a level high over the street, h.zr: its half-height about h.z, is as far as the camera is from it in height
+        // as well: SKY STAGE's roof is 227 m over frame 5's place, which stands within its plan)
+        const dz = L.h.zr ? Math.max(0, Math.abs(cz - L.h.z) - L.h.zr) : 0;
+        const plan = Math.hypot(cx - L.h.at[0], cy - L.h.at[1]) - (L.h.r || 150), d = dz > 0 ? Math.hypot(Math.max(0, plan), dz) : plan;
+        const near = anchor && !L.h.zr ? Math.min(d, Math.hypot(anchor[0] - L.h.at[0], anchor[1] - L.h.at[1]) - (L.h.r || 150)) : d;
         // (a level may be fetched nearer than the default: one that only a frame of the story is played in, h.load_m)
         const loadM = L.h.load_m || LOAD_M, dropM = Math.max(L.h.drop_m || DROP_M, loadM + 20);
         if (L.state === 'idle' && near < loadM) load(L);
