@@ -31,6 +31,8 @@
 #           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
 #           SKY's hall drawn round you in its lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   budget  the episode played as an iPhone, every still's frame counted: each beat within a phone's budget of draws,
+#           triangles, passes, pixels and GPU memory (tools/beat_budget.py; the story counts the desktop's as it plays);
 #   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
 #           (tools/reverb_check.js), the graph as small after every one-shot has sounded as before, and no sound begun
 #           before the audio thread can take it up (tools/audio_graph_check.js), and the opening and the story's own sound
@@ -77,8 +79,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look mem astc audio ride story story1 story2 story3 walk walk1 walk2 guide guide1 guide2 clip gl touch game"
-ALL="look story guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look mem astc audio ride story story1 story2 story3 budget walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+ALL="look story budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -114,7 +116,7 @@ eta() {
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
   case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; audio) echo 180 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
-    story|guide) echo 1180 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
+    story|guide) echo 1180 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
 static=0 want= base= looks=
@@ -151,7 +153,7 @@ else
   # the page or the map changed. On the fast tier the walk's desktop page only (walk1, 9 minutes of its 18), its phone's
   # (walk2) for what a phone alone runs, below: in the sessions of 18 to 21 November the phone's page failed twice, both
   # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
-  page() { if [ "$TIER" = full ]; then add story walk mem clip gl touch; else add story walk1 mem; fi; return 0; }
+  page() { if [ "$TIER" = full ]; then add story budget walk mem clip gl touch; else add story walk1 mem; fi; return 0; }
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -175,9 +177,9 @@ else
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
-      pipeline/district.py|tools/mem_check.js) static=1; add mem ;;
+      pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
@@ -262,8 +264,39 @@ story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
   local n=$1 log="$OUT/$1.log"
-  if CHROME_LOG="$OUT/$n-chrome.log" FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+  # (and every still's frame counted, BUDGET: each beat it played against the desktop's budget, tools/beat_budget.py)
+  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then
+    printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+    beats_of "$n" desktop "$OUT/$n-budget.jsonl"
   else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
+}
+# a play's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat"); the play's counts are kept in
+# this clone, so that a budget changed later is held against them while the play itself is kept (budgets_kept)
+BUDGETS="$(git rev-parse --git-dir)/oe-budget"
+beats_of() {   # <target> <desktop|phone> <the play's counts>
+  mkdir -p "$BUDGETS"; cp "$3" "$BUDGETS/$1-$2.jsonl"
+  if python3 tools/beat_budget.py check "$3" "$2" --map "$MAP" >"$OUT/$1-budget.txt" 2>&1; then printf 'ok   %-6s %s beats within the %s budget\n' "$1" "$(grep -c '^ok' "$OUT/$1-budget.txt")" "$2"
+  else printf 'FAIL %-6s %s   (see %s)\n' "$1" "$(grep '^FAIL' "$OUT/$1-budget.txt" | head -2 | cut -c6-200 | paste -sd ';' -)" "$OUT/$1-budget.txt"; fi
+}
+budgets_kept() {   # (static: the counts of each play whose pass is kept, against the budgets as they are now)
+  local f k n=0
+  for f in "$BUDGETS"/*.jsonl; do
+    [ -e "$f" ] || continue
+    k=$(basename "$f" .jsonl); k=${k%-*}
+    CHECK_FN=$(declare -f "run_$k" story_part beats_of walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k" >/dev/null 2>&1 || continue
+    python3 tools/beat_budget.py check "$f" "$(basename "$f" .jsonl | sed 's/.*-//')" --map "$MAP" | grep '^FAIL' && return 1
+    n=$((n + 1))
+  done
+  echo "ok   $n kept plays' beats within their budgets"
+}
+# the story as an iPhone plays it (390 x 844 at three pixels to the point, the low tier, its user agent), every still's
+# frame counted: each beat against a phone's budget. One frame in sixty drawn: the stills' frames are drawn whole
+run_budget() {
+  local log="$OUT/budget.log"
+  if CHROME_LOG="$OUT/budget-chrome.log" BUDGET="$OUT/budget-budget.jsonl" PHONE=1 DPR=3 TIER=low DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/budget" 390x844 >"$log" 2>&1; then
+    printf 'ok   %-6s the episode played as a phone plays it; %s\n' budget "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+    beats_of budget phone "$OUT/budget-budget.jsonl"
+  else printf 'FAIL %-6s %s   (see %s)\n' budget "$(why "$log")" "$log"; fi
 }
 run_guide() { run_guide1; run_guide2; }   # the guide along each frame's way, on a small page; and his body and the player's never in each other
 run_guide1() {   # (a runner each: CHECK_SPLIT=1)
@@ -297,6 +330,9 @@ run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+  # (a phone's lost WebGL context counts as a death at once: the next load is a level lighter, tools/lost_check.js)
+  if timeout 300 $X node tools/lost_check.js >"$OUT/lost.log" 2>&1; then echo "ok   mem    a lost context on a phone counts as a death at once, once"
+  else echo "FAIL mem    $(grep '^FAIL' "$OUT/lost.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/lost.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {
@@ -304,6 +340,8 @@ run_audio() {
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/reverb.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/reverb.log)"; fi
   if timeout 600 node tools/audio_graph_check.js >"$OUT/audio_graph.log" 2>&1; then echo "ok   audio  the graph as small once every one-shot has sounded as before ($(grep -o '[0-9]* once they have ended' "$OUT/audio_graph.log" | head -1 | grep -o '^[0-9]*') nodes), none begun before the audio thread can take it up"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_graph.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_graph.log)"; fi
+  if timeout 300 node tools/audio_shed_check.js >"$OUT/audio_shed.log" 2>&1; then echo "ok   audio  the sound gives up voices, the room and the street's beds when a phone clicks, and takes them back"
+  else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_shed.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_shed.log)"; fi
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
@@ -379,7 +417,7 @@ cache_on() { [ "${CHECK_CACHE:-1}" != 0 ] && [ -z "${CHECK_FULL:-}" ] && [ "$TIE
 run_one() {
   local k=$1 t0 n0=0 hit res
   # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
-  CHECK_FN=$(declare -f "run_$k" story_part walk_on twice why fails_of | sha1sum | cut -c1-16) && export CHECK_FN
+  CHECK_FN=$(declare -f "run_$k" story_part beats_of walk_on twice why fails_of | sha1sum | cut -c1-16) && export CHECK_FN
   if cache_on && hit=$(python3 tools/check_cache.py hit "$k"); then
     printf 'ok   %-6s kept from its pass at %s: nothing it read has changed since (CHECK_CACHE=0 plays it again)\n' "$k" "$hit"
     return 0
@@ -398,7 +436,7 @@ run_one() {
   [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && { total=$(eta static); said=static; }
   for k in $KINDS; do
     is_in "$k" "$want" || continue
-    if cache_on && CHECK_FN=$(declare -f "run_$k" story_part walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k" >/dev/null 2>&1; then said="$said $k(kept)"; else total=$((total + $(eta "$k"))); said="$said $k"; fi
+    if cache_on && CHECK_FN=$(declare -f "run_$k" story_part beats_of walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k" >/dev/null 2>&1; then said="$said $k(kept)"; else total=$((total + $(eta "$k"))); said="$said $k"; fi
   done
   echo "checks: ${said# }: about $(( (total + 30) / 60 )) min on this machine" >&2; }
 {
@@ -409,6 +447,7 @@ run_one() {
     st pack pack "the packs up to date" '^FAIL' python3 pipeline/pack.py --check
     st pack pack_decode "the packs decode to their JSON" '^FAIL|Error' node tools/pack_check.js
     st vis vis "the sweep hides nothing an exact ray reaches" '^FAIL|Error' env EYES=12 node tools/vis_unit.js
+    st budget budget - '^FAIL' budgets_kept
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
