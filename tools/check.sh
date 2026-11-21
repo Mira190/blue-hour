@@ -20,6 +20,7 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - no place the story sends the player to stand inside one of its people or its things (tools/standpoints.py);
 #           - the credits: every shipped work with its licence text, the fonts' OFL, the map's sources beside the README's,
 #             a link's picture and its tags, the version's repository, the three ways to the Credits (tools/credits_check.py);
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
@@ -222,6 +223,9 @@ else
     if [ -n "$changed" ]; then
       echo "a model's names, flags, attributes or ground changed, so the page's checks too: $(echo "$changed" | head -2 | cut -c9-140 | paste -sd ';' -) ($OUT/contract.txt)" >&2
       page
+      # (ground moved: the guide led along his ways, his feet measured against what is drawn under them. A forecourt's
+      # planks carried on under a deck left him 7.7 cm in the air on frame 6's way, found on main, issue 155)
+      echo "$changed" | grep -q '\[ground\]' && add guide1
     elif ! is_in story1 "$want"; then echo "the models changed keep their names, flags, attributes and ground ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
   is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2' | paste -sd ' ' -)   # (both pages already)
@@ -546,6 +550,7 @@ rm -rf "$OUT/keep"
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
     st flight flight_frames "the story's flight in every frame of its shots, from one side of it and clear of the buildings" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
+    st stands standpoints - '^FAIL|Error' python3 tools/standpoints.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts

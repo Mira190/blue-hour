@@ -35,6 +35,14 @@ Square and on foot at the start, at dusk and by day.
 The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
 stills: `tools/walk_people.js out [WxH] [hour] [sky]` sets out on the walk, waits for each to be drawn, and takes each from
 twelve metres with their speech mark and from three in front, printing where each stands and whether that is in a road.
+The walk as a review looks at it (issue 134): `tools/walk_review.js out [WxH] [hour.sky,...]` sets out on the walk, presses
+the menu's own hour and sky for each condition, and takes the page (the walk's interface in it) from standpoints in three
+sets: `hud` (round the scramble, turned eight ways, so the corner and the keys are seen over every picture), `edge` (out
+along six ways from the hero level's centre at each distance in `RINGS`, the footway nearest that point, looking on and
+back) and `menu` (the menu, its foot, the camera). It prints for each still where you stand, how many of the crowd are out,
+and what of the interface lies within `EDGE` px of the screen's edge. `tools/views/walk-heights.json` is the scramble from
+the heights the walk reaches (on foot to 400 m), for `tools/scramble_shot.js`. Neither is run by `tools/check.sh`: they
+are for looking, and what `tools/walk_play.js` does not play is listed in issue 134.
 The walk's night by the hour (`web/game/tonight.js`, docs/STORY.md "Tonight"): `tools/tonight_play.js out [WxH]` sets the
 clock to just before each moment (CROSSING LIGHT, the shutters, the screens, the last trains), fails if its line is not in
 the corner before, its name not over the street as it comes, the searchlights not on, a train runs after the last or none
@@ -605,3 +613,41 @@ the roof's rim glass from eight directions, and measures every frame the skin of
 part, against the glass's plane and the collision world's walls; it fails on any part more than a centimetre in. With
 an out dir, stills close and from the chase camera at each, and five with time held.
 
+
+## One body in another (issue 126)
+
+On 21 November 2026 the owner's still of frame 6 showed Kagami and Mr Tanaka in one body on the stone blossom. The play
+checked only the crowd against the story's people (`bodiesCheck`, issue 65); nothing measured the player against them.
+
+- **`tools/clip_probe.js`** is put into the page by `tools/story_play.js` and called by the game every frame
+  (`window.__probe.frame`, `web/game/game.js`). It measures, from what the game holds and from the bones as they are
+  posed: the player, the story's people (the living and the afterimages), the guide and the map's NPCs against each
+  other (middle to middle; under 0.45 m is one body in another); each model's hands, forearms, feet, calves, head and
+  what it carries against its own body (less the rest pose's own depth) and its neighbours' (each part an ellipsoid
+  fitted to the vertices its bone carries); the lowest of each foot against the floor it stands on; each body against
+  walls, posts, cars and a floor at its head; in a helicopter or a car, the seat, the floor and the roof by rays. Every
+  case is printed once with its frame, beat, place, greatest depth and how many frames it lasted.
+- **The play fails** on one body in another and on a foot more than 15 cm under or over its floor. A foot read 3 to
+  15 cm off its floor is printed as a note, not failed: the first whole play after the fix read 3 to 10 cm under for
+  the walkers of frame 7, for Yuna and for the guide's paws, and the one such reading looked at closely (Yuna, in the
+  map without the story) was the measure's and not the model's; the others are not yet looked at (issue 126's
+  follow-up). The rest are printed as notes too: the ellipsoids are fitted, not the skin itself, so a limb case is a place to look, with
+  `tools/clip_look.js` (a close still of someone's feet and body, and the ground as it is drawn under each foot by a
+  ray through the world's meshes).
+- **Walked into.** After each talk and in each Stop the play walks the player straight at everyone within 14 m with the
+  key held, takes a still from the side (`into-*.png`) and fails when the player comes within 0.45 m of their middle.
+- **`tools/standpoints.py`** (static): no place the story sends the player to stand lies inside one of its people or
+  its things of 1964, and no two of its people stand in each other.
+
+What the first measure found, a whole play on a desktop (9164 frames, 231 cases): the player walked into every one of
+the story's people, living or afterimage, to 0.05 to 0.12 m from their middle (nothing held the player out of them);
+the guide sat with his flank inside Mr Tanaka and inside Akira's afterimage; and nothing else of the kind: nobody of
+the story stood in a wall, a post or a car, and the feet the first measure called sunk (the map's NPCs, 5 to 9 cm) were
+its own error (it took a kerb beside a foot for the foot's floor; `tools/clip_look.js` has their soles within a
+centimetre of the paving drawn). The cause was fixed in `storyFigure`: each of the story's people holds a place as a
+map's NPC does (`posts`, kind `story`), so the player's step stops at their shoulder (0.63 m, middle to middle), the
+guide keeps his body off them, one of them who walks goes round whoever stands in the way, and a player on whom
+someone is set down steps out of them at a walk.
+
+Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
+crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.

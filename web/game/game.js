@@ -2500,7 +2500,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and nobody of the crowd where they are put: in a Stop the held crowd cannot step out of them, and one stood inside
     // the last frame's afterimage as it formed, issue 65)
     if (crowd && crowd.P) clearRound(f.x, f.y, 0.6);
-    const put = () => rig.root.position.copy(W(f.x, f.y, f.z));
+    // (and a place of their own, as a map's NPC has: the player's step stops at their shoulder, the guide keeps his body
+    // off them and a car brakes for them. Until issue 126 nothing held the player out of the story's own people: frame 6's
+    // goal sent the player to the stone blossom the old man stands on, and the two stood in one body. An afterimage too:
+    // it is somebody standing there)
+    f.post = posts.add(f.x, f.y, f.z, 0.28, 'story'); // (a hand's width more than an NPC's: run at, the player's leading hand reached 6 cm into a chest at 0.22)
+    const put = () => { rig.root.position.copy(W(f.x, f.y, f.z)); posts.move(f.post, f.x, f.y, f.z); };
     put(); world.add(rig.root);
     // (made before their own character had come, they are someone else standing in for them, people.js: the moment
     // it comes they are themselves, where they stood and facing as they faced. Five of the cast were one man in a vest)
@@ -2536,7 +2541,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (f.to) {
         const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy);
         if (d < 0.25) f.to = null;
-        else { v = f.to[2]; const k = Math.min(1, v * dt / d); turn(f.to[0], f.to[1]); f.x += dx * k; f.y += dy * k; f.z = Math.max(0, nav.terrain(f.x, f.y)); put(); }
+        else {
+          v = f.to[2]; const k = Math.min(1, v * dt / d), x0 = f.x, y0 = f.y; turn(f.to[0], f.to[1]); f.x += dx * k; f.y += dy * k;
+          // (round whoever stands in the way, the player first: a step that would end inside a body ends at its shoulder,
+          // and the next goes on along it. Where the place walked to is itself held, the walk ends beside it)
+          const round = (ox, oy, oz) => { if (Math.abs((oz || 0) - f.z) > 1.5) return; let ex = f.x - ox, ey = f.y - oy, e = Math.hypot(ex, ey); if (e >= 0.62) return; if (e < 1e-3) { ex = dy; ey = -dx; e = Math.hypot(ex, ey) || 1; } f.x = ox + ex / e * 0.62; f.y = oy + ey / e * 0.62; };
+          if (player.mode === 'foot' && player.rig.root.visible) round(player.x, player.y, player.z);
+          for (const o of storyFigs) if (o !== f && !(o.rig && o.rig.root && !o.rig.root.visible)) round(o.x, o.y, o.z);
+          for (const o of npcs) if (!o.away && Math.abs(o.x - f.x) < 2 && Math.abs(o.y - f.y) < 2) round(o.x, o.y, o.z);
+          const went = Math.hypot(f.x - x0, f.y - y0), on = dt > 0 ? ((f.x - x0) * dx + (f.y - y0) * dy) / d : 1;
+          f.held = on < 0.3 * v * dt ? (f.held || 0) + dt : 0; // (not getting nearer: someone holds the way, or the place)
+          if (f.held > 0.8 && (d < 1.3 || f.held > 4)) { f.to = null; f.held = 0; }
+          if (dt > 0) v = Math.min(v, went / dt);
+          f.z = Math.max(0, nav.terrain(f.x, f.y)); put();
+        }
       }
       // (the bend is laid over the clip's pose, and taken off again before the clip is asked for the next: with time
       // held the clip does not move the bones, and a bend added every frame turned her round and round)
@@ -2569,7 +2587,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       faceAfter(rig, dt);
     };
-    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); if (halo) { world.remove(halo); halo.material.dispose(); halo = null; } }; // (its face let go: face.js frees what a moving face holds; and the halation round it)
+    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); posts.remove(f.post); if (halo) { world.remove(halo); halo.material.dispose(); halo = null; } }; // (its face let go: face.js frees what a moving face holds; and the halation round it)
     f.haloNow = () => (halo && halo.visible ? halo.material.opacity : 0); // (tools/story_play.js, the first Stop)
     f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
     return f;
@@ -5756,6 +5774,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
     bodiesGuard();
     if (window.__bodies) bodiesCheck();
+    // (tools/clip_probe.js, issue 126: what stands inside what, measured every frame of a play from the bones as they are drawn)
+    if (window.__probe) window.__probe.frame({ THREE, player, storyFigs, npcs, crowd, guide: guideMade, guideSeg, nav, posts, carBoxes, heli, car: myCar, story, at: bodiesAt(), talk: !!talkShot, camera });
     mirrorTick();
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
     if (window.OEVis) OEVis.at(camera); // what cannot be seen from here is left out (visibility.js)
@@ -6185,6 +6205,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const [cx, cy] = gd.spineNear(player.x, player.y), dx = player.x - cx, dy = player.y - cy, d = Math.hypot(dx, dy) || 1e-3, need = gd.clearance;
       if (d < need) { const nx = cx + dx / d * need, ny = cy + dy / d * need; if (nav.walk(nx, ny, player.z, true).ok) { player.x = nx; player.y = ny; } else { player.x = x0; player.y = y0; } moved = Math.hypot(player.x - x0, player.y - y0); }
     } }
+    // and someone who has come to stand where you are (one of the story's people set down or walked there, a map's NPC
+    // back at its place): you step out of them at a walk, with or without a key held (issue 126)
+    { const o = posts.pushOut(player.x, player.y, 0.3, player.z);
+      if (o.hit && (o.hit.kind === 'npc' || o.hit.kind === 'story')) {
+        const dx = o.x - player.x, dy = o.y - player.y, d = Math.hypot(dx, dy), s = Math.min(d, GAIT.walk * dt);
+        if (d > 1e-3 && nav.walk(player.x + dx / d * s, player.y + dy / d * s, player.z, true).ok) { player.x += dx / d * s; player.y += dy / d * s; moved = Math.max(moved, s); }
+      } }
     if (dt > 0) player.speed = Math.min(player.speed, moved / dt); // the speed is what the move achieved, so the walk cycle slows against a wall
     if (m > 0.05 && player.ground) { // (a wall slantwise across the way pressed: a short step that way slides off it, and the way it slides is the way faced)
       const dir = cam.yaw + Math.atan2(side, fwd), q = nav.slide(player.x, player.y, player.z, Math.sin(dir) * 0.15, Math.cos(dir) * 0.15);
