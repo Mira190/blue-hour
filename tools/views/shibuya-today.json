@@ -1,13 +1,101 @@
 {
- "_": "Today's city (pipeline/plateau_today.py, pipeline/ortho_tokyo.py): what the update changes, from where the first episode sees it. SHIBUYA SKY's deck (frame 4) east, north and south-west toward Sakura Stage; the flight over Sakuragaoka toward the station and over the station toward Dogenzaka's two sites; the crossing toward Dogenzaka. floor 0: heights over sea level, else dz over the ground.",
- "date": [11, 14],
- "times": {"day": "13:00", "dusk": "sunset+20", "night": "21:00"},
+ "_": "Today's city (pipeline/plateau_today.py, pipeline/ortho_tokyo.py): what the update changes, from where the first episode sees it. SHIBUYA SKY's deck (frame 4) east, north and south-west toward Sakura Stage; the flight over Sakuragaoka toward the station and over the station toward Dogenzaka's two sites; the crossing toward Dogenzaka. floor 0: heights over sea level, else dz over the ground. The deck's eyes stand 4 m inside its parapet (the roof's outline in buildings.json), 3.7 m over the deck.",
+ "date": [
+  11,
+  14
+ ],
+ "times": {
+  "day": "13:00",
+  "dusk": "sunset+20",
+  "night": "21:00"
+ },
  "views": [
-  {"name": "sky-east", "eye": [543.33, -1108.84, 245.5], "look": [2000.0, -1350.0, 0.0], "floor": 0, "fov": 60},
-  {"name": "sky-north", "eye": [530.0, -1095.0, 245.5], "look": [250.0, 800.0, 0.0], "floor": 0, "fov": 60},
-  {"name": "sky-sw", "eye": [515.0, -1135.0, 245.5], "look": [330.0, -1750.0, 0.0], "floor": 0, "fov": 60},
-  {"name": "flight-sakura", "eye": [180.0, -1500.0, 250.0], "look": [520.0, -1080.0, 30.0], "fov": 50},
-  {"name": "flight-dogenzaka", "eye": [700.0, -760.0, 230.0], "look": [80.0, -1050.0, 20.0], "fov": 50},
-  {"name": "crossing", "eye": [356.0, -1012.0, 1.6], "look": [180.0, -1080.0, 30.0], "fov": 60}
+  {
+   "name": "sky-north",
+   "eye": [
+    508.0,
+    -1098.0,
+    245.5
+   ],
+   "look": [
+    250.0,
+    800.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "sky-east",
+   "eye": [
+    543.33,
+    -1108.84,
+    245.5
+   ],
+   "look": [
+    2600.0,
+    -1500.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "sky-sw",
+   "eye": [
+    497.0,
+    -1134.0,
+    245.5
+   ],
+   "look": [
+    420.0,
+    -1750.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
+  {
+   "name": "flight-sakura",
+   "eye": [
+    180.0,
+    -1500.0,
+    250.0
+   ],
+   "look": [
+    520.0,
+    -1080.0,
+    30.0
+   ],
+   "fov": 50
+  },
+  {
+   "name": "flight-dogenzaka",
+   "eye": [
+    700.0,
+    -760.0,
+    230.0
+   ],
+   "look": [
+    80.0,
+    -1050.0,
+    20.0
+   ],
+   "fov": 50
+  },
+  {
+   "name": "crossing",
+   "eye": [
+    356.0,
+    -1012.0,
+    1.6
+   ],
+   "look": [
+    120.0,
+    -1130.0,
+    55.0
+   ],
+   "fov": 60
+  }
  ]
 }
