@@ -722,7 +722,10 @@
      "line",
      "link"
     ],
-    "OE_VERSION": []
+    "OE_VERSION": [
+     "release",
+     "version"
+    ]
    }
   }
  }

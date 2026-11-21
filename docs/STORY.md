@@ -469,7 +469,11 @@ colours and what it carries before its face, and to look like Tokyo in October:
   own working camera (the job sheet's photograph is taken with it), not the one of 1964, which is only ever seen
   through. It hangs where the arms do not swing; a camera bag on the hip, tried first, was in the hand's way at every
   step. Modelled with the body (`neck_camera`): the strap round the back of the neck on the collar and over the
-  collarbones, kept off the cloth, and the camera riding on the chest.
+  collarbones, kept off the cloth, and the camera riding on the chest. Long hair lies over the strap, as it does on
+  anyone: the strap is laid on the collar under the hair (the hair cards, and the hair that is part of the head's own
+  mesh and falls down the back), and comes out beside it on each shoulder. It was once laid on the outermost surface
+  there, which is the hair, and read from behind as a black band across it; `tools/strap_shot.js` looks at it from
+  behind, standing, walking and running, and fails when the hair does not cover it.
 - **His camera round the neck.** From the first frame's photograph, once Sumiko has given it, Akira's camera of 1964
   hangs round Kagami's neck in place of their own, which they put away with its strap (the frame's goal says so): flat
   on the chest, nearly level, as a light camera hangs, on a thin brown leather strap of its own. A 35 mm rangefinder
@@ -763,6 +767,28 @@ stand (`clearAt`: pulled in to the kerb, metres off its way's line), against the
 on the line, it was set down on five people waiting by Hachiko (#50). A ride coming for you that hops on out of sight
 is put down by the same test. The frame goes on where it sets you down, or where you walk to
 (`tools/story_ride.js` takes it; `tools/ride_people.js` times it).
+
+**The car always comes, or the frame goes on on foot (issue 97).** In three runs of the checks the car sent for you
+stood in view and never came: 6.2 m inside the car ahead, giving way to a car across its nose at 0.6 m, waiting at a
+line for a junction to clear. One cause was under all three. Out of the player's sight a ride drives through the
+traffic, and a car coming for you, on the move, is driven into by it (it is `soft` to the traffic, so that it comes in
+good time), so it could come into sight inside a car, or be stopped in one. From then on neither moved: the ride never
+steps further into a car, the traffic never into a ride, the car in its box kept the junction from clearing, and the
+three reasons took turns, each setting the others' clocks back (`held` at a line, the 8 s and 12 s creeps on a car
+across), so nothing that counted seconds ran out. The hop that moves a late car on is for out of view only. Now
+(`rides.js` `driverStep`):
+
+- seen again, a ride goes on as it went unseen until it is clear of every car (`thru`), and only then reads the traffic;
+- coming for you and 20 s without 3 m gained (`COME_STILL`, counted by `stillT`, which no change of reason sets back),
+  it goes on so too, lights and all, for 10 m and until it is clear: late through a knot, never not at all. A red
+  light, a walk and people on its way are waited out for 75 s first (`COME_WAIT`); people are never driven into, nor a
+  scramble's walk;
+- and whatever the traffic does, the story has its own bound: a car that has not pulled in within a minute and a half
+  (`ride.wait_s`, 90) is sent on its way, the frame says *The car is held up · on foot, then*, and the goal is the
+  frame's own, as for whoever chose to walk (`story.js`, the ride beat).
+
+`tools/ride_come.js` sends for the car again and again and prints what each stood for; `FORCE=overlap` puts it inside a
+car of the traffic on its way, in sight, and `FORCE=hold` holds it for good, which the story's bound must end.
 
 **What is in the air is there before it stops.** Leaves come off the street's trees all evening, a page of an old
 newspaper goes by, a flock of pigeons passes over every quarter minute; the Stop holds them where they are and
