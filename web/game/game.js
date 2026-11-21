@@ -2827,7 +2827,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let walk = null, walkUi = null, tonight = null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
-  const padOpen = () => [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
+  const padOpen = () => (window.OECredits && OECredits.open() ? OECredits.el : null) || [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
     || (!$('#g-menu').hidden ? $('#g-menu') : !$('#g-title').hidden && !preTitle ? $('#g-title') : null);
   const gamepad = window.OEPad ? OEPad.create({ stage, open: padOpen,
     dialogue: () => (dlg.hasChoices ? [...document.querySelectorAll('#gd-choices button')] : null),
@@ -2835,7 +2835,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     lens: d => zoom(d > 0 ? 0.89 : 1.12), // (the ring: RB longer, LB wider, a notch of the wheel each)
     log: () => { if (storyLog) storyLog.show(!storyLog.open); },
     back: () => { if (dlg.open) dlg.back(); },
-    close: el => { if (el.id === 'g-story-log' && storyLog) storyLog.show(false); else if (el.id === 'g-story-album' || el.id === 'g-menu') gamepad.key('Escape'); else if (el.id === 'g-title') gamepad.key('Escape'); } }) : null; // (B on the title: one screen back, as Esc, the title's keys below: the walk's step to the menu, who you play to the menu, the menu to the press)
+    close: el => { if (el.id === 'g-credits') OECredits.show(false); else if (el.id === 'g-story-log' && storyLog) storyLog.show(false); else if (el.id === 'g-story-album' || el.id === 'g-menu') gamepad.key('Escape'); else if (el.id === 'g-title') gamepad.key('Escape'); } }) : null; // (B on the title: one screen back, as Esc, the title's keys below: the walk's step to the menu, who you play to the menu, the menu to the press)
   if (storyLog && gamepad) storyLog.gamepad = gamepad; // (the log's sheet has the trigger's setting while a pad is in the hand)
   let postCame = null; // the postcards asked for, once a visit (postcards.js brings nothing sooner than six hours after the last)
   function renderPassport() {
