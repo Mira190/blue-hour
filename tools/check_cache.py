@@ -39,6 +39,7 @@ import time
 from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # each target's harness: the scripts tools/check.sh runs for it (their requires follow), and what else it reads itself
 HARNESS = {
     'story': ['tools/story_play.js'], 'story1': ['tools/story_play.js'], 'story2': ['tools/story_play.js'],
@@ -439,6 +440,38 @@ def words(target, path, was):
     return False, f'{path}: only {said}, which it does not play'
 
 
+# A model, a picture or a sound behind its contract (docs/SEAMS.md): it can change how the street looks and what a
+# phone holds, which look and mem measure, and nothing a play decides. So for any other check such a file is apart
+# when it is still there and, a model, gives what the code asks of it: a person's by the people's contract
+# (tools/people_contract.py, with the static checks), any other by its own interface as the check's pass read it
+# (tools/model_contract.py: its names, flags, attributes and where its ground lies).
+SEEN_BY = ('look', 'mem')
+PICTURES = ('.webp', '.png', '.jpg', '.jpeg', '.avif', '.ktx2', '.mp3', '.ogg', '.m4a', '.wav')
+
+
+def looked(target, path, was):
+    if target in SEEN_BY or not path.startswith('web/') or was == 'missing' or not os.path.isfile(os.path.join(ROOT, path)):
+        return None
+    if path.endswith(PICTURES):
+        return False, f'{path}: a picture or a sound, looked at and weighed'
+    if not path.endswith('.glb'):
+        return None
+    if path.startswith('web/assets/people/'):
+        return False, f'{path}: behind the people\'s contract'
+    if path.startswith('web/assets/animals/'):
+        return None   # (the guide's body is measured from his model)
+    try:
+        import model_contract as mc
+        old = mc.interface(mc.gltf_json(git('cat-file', 'blob', was)))
+        new = mc.interface(mc.gltf_json(open(os.path.join(ROOT, path), 'rb').read()))
+    except Exception:
+        return None
+    lost = sorted(old - new)
+    if lost:
+        return True, f'{path}: a model that lost or changed {lost[0][:70]}'
+    return False, f'{path}: a model with its names, flags, attributes and ground as they were'
+
+
 def judge(target, c):
     """Every file the pass read that is not as it was: [(path, reaches, why)]; None when the pass kept no bytes."""
     blobs = c.get('blobs')
@@ -453,7 +486,7 @@ def judge(target, c):
                 main = (git('rev-parse', '-q', '--verify', f'origin/main:{f}') or b'').decode().strip()
                 was = blobs[f] if SOURCE[f][0] == f else (c.get('sources') or {}).get(SOURCE[f][0])
                 w = words(target, f, was) if was and main != blob_id(f) else None
-            r, why = w or reach(f, blobs[f], cover.get(f))
+            r, why = w or looked(target, f, blobs[f]) or reach(f, blobs[f], cover.get(f))
             out.append((f, r, why))
     for f in harness(target):   # (a module the harness requires now and did not then)
         if f not in blobs:
@@ -529,7 +562,7 @@ def main(a):
                 print(f'{whose}{text}')
                 return 0
             said = said or text
-        print(said)
+        print(said or 'no pass of it kept in this clone, and none of main\'s')
         return 1
     if cmd == 'pack':   # <dir>: each pass in it as main shares it (tools/check_cache.py passes; .github/workflows/checks.yml)
         for n in sorted(os.listdir(a[1])):
