@@ -2189,7 +2189,9 @@ MATERIALS.update({
     "hk_step": {"color": "#45474a", "roughness": 0.6, "metalness": 0.0, "pattern": "granite", "joints_m": [0.2, 0.2]},
     "hk_setts": {"color": "#696b6e", "roughness": 0.85, "metalness": 0.0, "pattern": "granite", "joints_m": [0.11, 0.11], "decal": True, "street_lit": True},
     "hk_band": {"color": "#2f3133", "roughness": 0.8, "metalness": 0.0, "decal": True, "street_lit": True},
-    "hk_inlay": {"color": "#b8b2a7", "roughness": 0.75, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.0], "decal": True, "street_lit": True},
+    "hk_inlay": {"color": "#a59e92", "roughness": 0.75, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.0], "decal": True, "street_lit": True},
+    "hk_joint": {"color": "#6a665f", "roughness": 0.9, "metalness": 0.0, "decal": True, "street_lit": True},
+    "hk_rim": {"color": "#55575a", "roughness": 0.8, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.0], "decal": True, "street_lit": True},
     "hk_wall": {"color": "#626467", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.16, 0.0]},
     "hk_cap": {"color": "#55575a", "roughness": 0.6, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.0]},
     "hk_soil": {"color": "#3a3128", "roughness": 1.0, "metalness": 0.0},
@@ -3221,17 +3223,28 @@ def rail_ring(m, c, r, a0, a1, z, seg_deg=6.0, radius=0.028):
     m.tube([np.array([c[0] + r * math.cos(t), c[1] + r * math.sin(t), z]) for t in np.linspace(a0, a1, n + 1)], radius, 6)
 
 
-def blossom(m, c, R, z, turn=0.0):
-    """A cherry blossom of pale stone set in the paving: five petals, each notched at its tip."""
+def blossom(K, c, R, z, turn=0.0):
+    """A cherry blossom set flush in the paving, as the square's are (a photograph of March 2025, docs/HERO.md): five
+    petals of pale stone, each a piece of its own and notched at its tip, with a mortar joint between one and the next,
+    a small dark stone at the heart, and a band of dark grey granite round the whole outline. Each tone is a piece of
+    stone: nothing is laid over them."""
+    from shapely.geometry import LineString, Point, Polygon
     pts = []
     for k in range(80):
         t = 2 * math.pi * k / 80
         phi = ((t - turn) * 5 / (2 * math.pi)) % 1.0 - 0.5          # -0.5..0.5 across a petal
         r = R * (0.42 + 0.58 * math.cos(phi * math.pi) ** 0.7) * (1 - 0.16 * math.exp(-(phi / 0.07) ** 2))
         pts.append((c[0] + r * math.cos(t), c[1] + r * math.sin(t)))
-    for k in range(80):
-        a, b = pts[k], pts[(k + 1) % 80]
-        m.tri(np.array([c[0], c[1], z]), np.array([*a, z]), np.array([*b, z]), [list(c), list(a), list(b)])
+    whole = Polygon(pts)
+    inner = whole.buffer(-0.05, join_style=2)
+    heart = Point(c).buffer(0.06, 3)
+    joints = [LineString([c, (c[0] + R * math.cos(turn + k * 2 * math.pi / 5), c[1] + R * math.sin(turn + k * 2 * math.pi / 5))]).buffer(0.006, cap_style=2) for k in range(5)]
+    seam = inner.intersection(joints[0].union(joints[1]).union(joints[2]).union(joints[3]).union(joints[4])).difference(heart)
+    flat = lambda x, y: z
+    for key, shape in (("hk_rim", whole.difference(inner)), ("hk_rim", heart), ("hk_joint", seam), ("hk_inlay", inner.difference(seam).difference(heart))):
+        for g in getattr(shape, "geoms", [shape]):
+            if not g.is_empty and g.geom_type == "Polygon":
+                ground_cell(K(key), g.simplify(0.004), flat, 0.0)
 
 
 def sculpt_into(m, f, lo, hi, cell, P, z0, seed_relax=0.3):
@@ -3297,7 +3310,7 @@ def hachiko_square(K, h, lm):
     for r in (3.1, HK_DISC_M - 0.15):
         ring_top(K("hk_band"), at, r - 0.08, r + 0.08, 0.0, 2 * math.pi, lambda x, y: zd(x, y) + 0.015, 5.0)
     for k, (bx, by) in enumerate(HK_BLOSSOMS):
-        blossom(K("hk_inlay"), (bx, by), 0.85, gz(bx, by) + 0.08, turn=0.4 * k)
+        blossom(K, (bx, by), 0.75, gz(bx, by) + 0.08, turn=0.4 * k)
     # the bed behind him: the low wall people sit on, its cap, the soil, stainless rails, lamps in the wall
     B = HK_BED
     ang = math.atan2(face[1], face[0])

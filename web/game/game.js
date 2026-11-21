@@ -4580,7 +4580,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (onTrain() && cam.mode !== 'chase') { cam.lookYaw = Math.max(-2.6, Math.min(2.6, cam.lookYaw + dx * 0.005)); cam.lookPitch = Math.max(-0.9, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
     else if (player.mode === 'seat' && perch && perch.seat) perch.turn(dx, dy); // (on a perch: your head, and the tripod's aim with it)
     else if (player.mode === 'seat') { cam.lookYaw = Math.max(-1.9, Math.min(1.9, cam.lookYaw + dx * 0.004)); cam.lookPitch = Math.max(-0.7, Math.min(0.9, cam.lookPitch - dy * 0.0035)); } // in a seat: you turn your head
-    else { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006 * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + dy * 0.005 * ls)); } // (through the lens, slower the longer it is, and up as far as the eye looks)
+    else { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006 * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(fpOn ? 1.62 : 1.35, cam.pitch + dy * 0.005 * ls)); } // (through the lens, slower the longer it is, and up as far as the eye looks)
     cam.lastInput = clockT;
   });
   on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.open) dlg.next(false); drag = null; });
@@ -7203,7 +7203,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
-      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt * ls)); cam.lastInput = clockT; }
+      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(fpOn ? 1.62 : 1.35, cam.pitch + lk.y * 1.7 * dt * ls)); cam.lastInput = clockT; }
     }
     if (D.district && playing && (player.mode === 'foot' || player.mode === 'car') && !inFrame(player.x, player.y, 8)) districtEdge(); // (a phone's district: its edge, said)
     const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + joy.y + (gamepad ? gamepad.move.y : 0);
@@ -7802,11 +7802,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const at = story.subject;
         if (at) {
           const dx = at[0] - player.x, dy = at[1] - player.y, ys = Math.atan2(dx, dy);
-          if (Math.abs(angDiff(ys, yaw0)) < 1.75) { yaw = ys; pitch = Math.max(-1.0, Math.min(0.8, Math.atan2((at[2] ?? player.z + 1.2) - eyeZ, Math.hypot(dx, dy)))); } // (within 100 degrees of where you looked; behind you, the view is not spun round: the arrow on the frame lines points there)
+          if (Math.abs(angDiff(ys, yaw0)) < 1.75) { yaw = ys; pitch = Math.max(-1.32, Math.min(0.8, Math.atan2((at[2] ?? player.z + 1.2) - eyeZ, Math.hypot(dx, dy)))); } /* (down to 75 degrees: from SKY's roof the dome's building is 67 under the lens, and at 57 it sat on the picture's lower edge) */ // (within 100 degrees of where you looked; behind you, the view is not spun round: the arrow on the frame lines points there)
         }
         fp.yaw = fp.yawT = yaw; fp.pitch = fp.pitchT = pitch; fp.k = 0; fp.eyeZ = eyeZ;
         fp.dur = 0.28 + 0.25 * Math.abs(angDiff(yaw, yaw0)) / (Math.PI / 2); // (a shooter's aim is 0.25 to 0.38 s; a turn onto the thing takes its time, never a whip)
-        cam.yaw = yaw; cam.pitch = Math.max(-0.6, Math.min(1.35, 0.3 - pitch)); cam.yawTo = cam.pitchTo = null; // (the hand turns it from there)
+        cam.yaw = yaw; cam.pitch = Math.max(-0.6, Math.min(1.62, 0.3 - pitch)); cam.yawTo = cam.pitchTo = null; // (the hand turns it from there)
         fp.fov = null; fpOn = true;
       }
       cam.yawTo = cam.pitchTo = null;
@@ -7814,7 +7814,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // closes on them; the hand still turns it, and is pulled back gently)
       const steer = story.steer;
       if (steer) { const dx = steer[0] - player.x, dy = steer[1] - player.y, k = 1 - Math.exp(-dt / 0.6); cam.yaw += angDiff(Math.atan2(dx, dy), cam.yaw) * k; const pw = 0.3 - Math.atan2((steer[2] ?? player.z + 0.9) - fp.eyeZ, Math.hypot(dx, dy)); cam.pitch += (pw - cam.pitch) * k; }
-      fp.yawT = cam.yaw; fp.pitchT = Math.max(-1.1, Math.min(0.9, 0.3 - cam.pitch));
+      fp.yawT = cam.yaw; fp.pitchT = Math.max(-1.32, Math.min(0.9, 0.3 - cam.pitch));
       const e = 1 - Math.exp(-dt / 0.06); // (the hand's turn, eased over a few hundredths of a second: smooth, never behind it)
       fp.yaw += angDiff(fp.yawT, fp.yaw) * e; fp.pitch += (fp.pitchT - fp.pitch) * e;
       fp.eyeZ += (eyeZ - fp.eyeZ) * (1 - Math.exp(-dt / 0.08)); // (a step up or down is not a jolt in the finder)

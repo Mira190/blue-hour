@@ -126,6 +126,18 @@ junction, and its first part is what fills most of the frame from eye level: the
   photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks
   with their bars and domes in relief (JIS T 9251's pattern, `tactile_texture`), laid as Japan lays them
   (`scramble.tactile_layout`, below); a cast-iron grate round each mapped tree.
+- **The stone blossoms in Hachiko Square** (`cities/shibuya/city.py` `blossom`, the landmark's): four five-petalled
+  cherry blossoms of pale stone set flush in the red-brown blocks, each outlined by a band of dark grey stone, as a
+  photograph of 23 March 2025 shows them in the foreground (Wikimedia Commons, *Demolition of Tokyu Toyoko (Hachiko
+  square) 2025-03-23*, Asanagi, CC0 1.0: at least three near the seats and the tactile line, about 1.2 to 1.6 m
+  across, the joints between their petals faint). Until November 2026 each was one flat fan of one pale tone 1.7 m
+  across, the brightest thing in frame 2's photograph, and read as a sticker on the ground (issue 101). Now each is
+  1.5 m across and is cut stone: five petals, each a piece, a mortar joint of 12 mm between one and the next, a small
+  dark stone at the heart and a 50 mm band of dark grey granite (`hk_rim`) round the outline; the petals'
+  stone is a tone darker (`hk_inlay` `#a59e92`), so that on the low tier, which draws no grain and adds the screens'
+  pooled light to the albedo, it stays stone beside the blocks. They are flush, as the real ones are: an inlay shows no
+  thickness, and what says stone is the joints and the band. Not known: the stone, and whether the inlays survived
+  the square's repaving of summer 2025 (the blocks were reported changed by 27 August; nothing was said of them).
 - **On the kerbs**: white guard pipes between the crosswalks, and steel lamp posts whose light is baked.
 - **The fronts** (`Level.fronts`, `front`): each wall a player can see from the junction's roads and pavements
   (eye points on a 7 m grid within 70 m, no building between), of the buildings the landmarks do not draw whole
