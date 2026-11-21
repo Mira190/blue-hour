@@ -19,6 +19,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 T.ColorManagement.enabled = false;
 window.THREE = Object.assign({}, T, { GLTFLoader, SkeletonUtils });
 addEventListener('error', e => console.error(String(e.error && e.error.stack || e.message)));
+await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'face.js'; s.onload = res; s.onerror = rej; document.head.append(s); });
 await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'people.js'; s.onload = res; s.onerror = rej; document.head.append(s); });
 const W = innerWidth, H = innerHeight;
 const renderer = new THREE.WebGLRenderer({ antialias: ${msaa}, preserveDrawingBuffer: true });
@@ -27,7 +28,7 @@ document.body.prepend(renderer.domElement);
 const L = c => new THREE.Color(c).convertSRGBToLinear();
 const HOUR = ${JSON.stringify(hour)};
 const K = { night: { sky: 0x0b1020, hemi: [0x2a3550, 0x1a1712, 0.5], moon: [0x9fb0d0, 0.35], fill: 1.4, shop: 0.85, exp: 1.25 },
-            dusk: { sky: 0x3a4a72, hemi: [0x6d7fa8, 0x3a3128, 0.9], moon: [0xffc79a, 0.9], fill: 0.8, shop: 0.8, exp: 1.0 },
+            dusk: { sky: 0x3a4a72, hemi: [0xacbcdc, 0xa2957f, 0.5], moon: [0xffc79a, 0.02], fill: 0.25, shop: 0.12, exp: 0.9 }, // (the game's own numbers at 16:30, the story's first frame: tools/cast_probe.js)
             day: { sky: 0xa9c0d8, hemi: [0xdbe8f5, 0x8f8676, 1.6], moon: [0xfff1dc, 2.8], fill: 0, shop: 0.7, exp: 0.9 } }[HOUR];
 renderer.toneMappingExposure = K.exp;
 const scene = new THREE.Scene(); scene.background = L(K.sky);
@@ -43,12 +44,16 @@ floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 // the shop front: a bright window band, mullions, a fascia, and a screen over it (what the over-the-shoulder shot sees behind)
 const front = new THREE.Group();
 const lit = (c, k) => new THREE.MeshBasicMaterial({ color: L(c).multiplyScalar(k) });
-const win = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.6), lit(0xffe9c8, K.shop)); win.position.set(0, 1.5, -5.2); front.add(win);
+const win = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.6), lit(0xffe9c8, Math.max(K.shop, 0.7))); win.position.set(0, 1.5, -5.2); front.add(win);
 for (let x = -4.5; x <= 4.5; x += 1.5) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 2.6), lit(0x15151a, 1)); m.position.set(x, 1.5, -5.19); front.add(m); }
 const fascia = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.7), lit(0x1c2230, 1)); fascia.position.set(0, 3.15, -5.2); front.add(fascia);
 const screen = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 2.6), lit(0x6fb6ff, K.shop * 0.9)); screen.position.set(-2.4, 5.0, -5.6); front.add(screen);
 const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 14), new THREE.MeshStandardMaterial({ color: L(0x2a2b2e), roughness: 0.9 })); wall.position.set(0, 7, -5.8); front.add(wall);
 scene.add(front);
+// (the street's light where they stand, as world.js streetLit gives it to every person: one colour, here the shop's and the screen's)
+const ST = { value: L(HOUR === 'day' ? 0x000000 : 0xffd9b0).multiplyScalar(HOUR === 'night' ? 0.5 : 0.15) };
+if (!${JSON.stringify(process.env.NOLIGHT || '')}) OEPeople.setLight(sh => { sh.uniforms.uSt = ST; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nuniform vec3 uSt; vec3 streetLight(vec3 wp) { return uSt; }')
+  .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\\ntotalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz));'); });
 const lib = await OEPeople.load('../assets/people/');
 const rigs = [];
 for (const [c, x, z, ry] of [[${JSON.stringify(who)}, 0, 0, Math.PI], [${JSON.stringify(other)}, 0.15, -1.7, 0]]) {
@@ -81,7 +86,7 @@ window.ready = true;
     const base = `http://localhost:${process.env.PORT || 8800}`;
     await p.route(`${base}/game/__hair.html`, r => r.fulfill({ contentType: 'text/html', body: PAGE(msaa) }));
     await p.goto(`${base}/game/__hair.html`);
-    await p.waitForFunction('window.ready', null, { timeout: 240000 });
+    await p.waitForFunction('window.ready', null, { timeout: +(process.env.READY_MS || 240000) });
     for (const v of ['wide', 'close', 'face']) shots.push(Buffer.from((await p.evaluate(v => window[v](), v)).split(',')[1], 'base64'));
     await p.close();
   }
