@@ -224,19 +224,127 @@ body > .gl-note { position: fixed; }
   //  - ?units=N plays a device with N units on any machine: a program with more samplers reads as not linked.
   // tools/sampler_probe.js counts every program's samplers against 16 in the checks, so the ladder is the net,
   // not the plan.
+  //
+  // The plan (issue 485, again: an M3 in Chrome and Safari kept logging the ground's link failure after the ladder):
+  //  - every material's onBeforeCompile is guarded (guard(), below): the samplers the program will have are counted
+  //    as it is compiled, three.js's own from the program's parameters (its maps, the environment's two, each shadow
+  //    map and spot light's pattern, the area lights' tables) and the patches' from the text they wrote; a program
+  //    over the GPU's units is compiled again, that program alone, a rung further down the ladder, until it fits. So
+  //    no program is sent to be linked with more samplers than the GPU has, whatever lights the scene has at the time
+  //    (a car's headlamp pattern, the sun's shadow, a debug area light), and nothing else goes without the layer;
+  //  - the budget is kept by design under that: the ground, the material with the most, asks for sixteen with every
+  //    layer it has (docs/PERFORMANCE.md, "Sixteen texture units"); the counting is the net under the plan, the
+  //    failed link's ladder (onShaderError) the net under that.
   const LADDER = ['trail', 'floor', 'shore', 'mirror', 'surface', 'woods'];
   const SAMPLERS = [0x8B5E, 0x8B5F, 0x8B60, 0x8B62, 0x8DC1, 0x8DC4, 0x8DC5, 0x8DCA, 0x8DCB, 0x8DCC, 0x8DCF, 0x8DD2, 0x8DD3, 0x8DD4, 0x8DD7];
-  const fit = { level: 0, limit: 0, failed: 0, plain: 0, ladder: LADDER,
-    off(name) { const i = LADDER.indexOf(name); return i >= 0 && i < fit.level; } };
+  const fit = { level: 0, limit: 0, failed: 0, plain: 0, ladder: LADDER, cur: -1, fitted: [],
+    // (inside a guarded compile, the rung that program is being tried at: guard)
+    off(name) { const i = LADDER.indexOf(name); return i >= 0 && i < Math.max(fit.level, fit.cur); } };
+
+  // The samplers a fragment shader will have: three.js's own from the program's parameters (r186's chunks), and those
+  // the patches declared in the text (the uniform lines, through the #ifdefs they are under). A sampler declared and
+  // not read is counted too, which the compiler would drop: the count errs high, never low (sampler_probe.js compares
+  // it with what each program linked with).
+  const OWN_MAPS = ['map', 'matcap', 'alphaMap', 'aoMap', 'lightMap', 'bumpMap', 'normalMap', 'emissiveMap', 'metalnessMap', 'roughnessMap',
+    'anisotropyMap', 'clearcoatMap', 'clearcoatNormalMap', 'clearcoatRoughnessMap', 'iridescenceMap', 'iridescenceThicknessMap', 'sheenColorMap',
+    'sheenRoughnessMap', 'specularMap', 'specularColorMap', 'specularIntensityMap', 'transmissionMap', 'thicknessMap', 'gradientMap', 'envMap'];
+  function threeSamplers(p) {
+    const out = new Map();
+    for (const k of OWN_MAPS) if (p[k]) out.set(k, 1);
+    if (p.transmission) out.set('transmissionSamplerMap', 1);
+    if (p.shaderID === 'physical') out.set('dfgLUT', 1); // (the multiple scattering's table, read by every standard material)
+    if (p.shadowMapEnabled) {
+      for (const [k, n] of [['directionalShadowMap', p.numDirLightShadows], ['spotShadowMap', p.numSpotLightShadows], ['pointShadowMap', p.numPointLightShadows], ['sunShadowMap', p.numSunLightShadows]]) if (n > 0) out.set(k, n);
+    }
+    if (p.numSpotLightMaps > 0) out.set('spotLightMap', p.numSpotLightMaps);
+    if (p.numRectAreaLights > 0 && /\bltc_1\b/.test(THREE.ShaderChunk.lights_pars_begin || '')) { out.set('ltc_1', 1); out.set('ltc_2', 1); } // (not with neon.js lean)
+    if (p.numLightProbeGrids > 0) out.set('probesSH', 1);
+    return out;
+  }
+  const DECL = /\buniform\s+(?:(?:highp|mediump|lowp)\s+)?[iu]?sampler\w*\s+([^;]+);/g;
+  function textSamplers(text, defines, out) {
+    const def = new Set(Object.keys(defines || {})), live = [true];
+    for (const line of text.split('\n')) {
+      const t = line.trim();
+      let m;
+      if ((m = /^#\s*ifdef\s+(\w+)/.exec(t))) live.push(live[live.length - 1] && def.has(m[1]));
+      else if ((m = /^#\s*ifndef\s+(\w+)/.exec(t))) live.push(live[live.length - 1] && !def.has(m[1]));
+      else if (/^#\s*if\b/.test(t)) live.push(live[live.length - 1]); // (an expression: counted as true)
+      else if (/^#\s*else\b/.test(t)) { const was = live.pop(); live.push(live[live.length - 1] && !was); }
+      else if (/^#\s*endif\b/.test(t)) { if (live.length > 1) live.pop(); }
+      else if (!live[live.length - 1]) continue;
+      else if ((m = /^#\s*define\s+(\w+)/.exec(t))) def.add(m[1]);
+      else for (const d of line.matchAll(DECL)) for (const part of d[1].split(',')) {
+        const q = /(\w+)\s*(?:\[\s*(\d+)\s*\])?/.exec(part.trim());
+        if (q && !out.has(q[1])) out.set(q[1], q[2] ? +q[2] : 1);
+      }
+    }
+    return out;
+  }
+  function countSamplers(sh) {
+    const m = textSamplers(sh.fragmentShader || '', sh.defines, threeSamplers(sh));
+    let n = 0; for (const v of m.values()) n += v;
+    return { n, names: [...m.keys()] };
+  }
+  // Every material's onBeforeCompile, guarded: a property of three.js's Material in place of its empty method, which
+  // keeps each material's own function and hands three.js a wrapper of it (one per function, its text the function's,
+  // which three.js keys its programs by). A wrapper inside another (a patch calls the one it replaced) runs plainly.
+  let depth = 0, guarded = false;
+  const WRAP = new WeakMap(), RAW = new WeakMap();
+  function wrapperOf(f) {
+    let w = WRAP.get(f);
+    if (w) return w;
+    w = function (sh, renderer) {
+      if (depth || !fit.limit || !sh || typeof sh.fragmentShader !== 'string') return f.call(this, sh, renderer);
+      const keep = { v: sh.vertexShader, f: sh.fragmentShader, d: sh.defines, dc: sh.defines ? Object.assign({}, sh.defines) : null,
+        u: sh.uniforms ? new Set(Object.keys(sh.uniforms)) : null };
+      const restore = () => {
+        sh.vertexShader = keep.v; sh.fragmentShader = keep.f;
+        if (keep.d) { for (const k of Object.keys(keep.d)) delete keep.d[k]; Object.assign(keep.d, keep.dc); }
+        sh.defines = keep.d;
+        if (keep.u) for (const k of Object.keys(sh.uniforms)) if (!keep.u.has(k)) delete sh.uniforms[k];
+      };
+      const first = Math.max(fit.level, this && this.userData && this.userData.oeFitAt || 0);
+      let c = null, at = first;
+      depth++;
+      try {
+        for (; ; at++) {
+          fit.cur = at;
+          f.call(this, sh, renderer);
+          c = countSamplers(sh);
+          if (c.n <= fit.limit || at >= LADDER.length) break;
+          restore();
+        }
+      } finally { depth--; fit.cur = -1; }
+      if (at > first) fit.fitted.push({ name: (this && (this.name || this.type)) || '', n: c.n, without: LADDER.slice(fit.level, at) });
+      sh.fragmentShader += `\n// oe-samplers ${c.n} of ${fit.limit}\n`; // (what sampler_probe.js compares with the linked program)
+    };
+    w.toString = () => f.toString();
+    WRAP.set(f, w);
+    return w;
+  }
+  function guard() {
+    if (guarded || !window.THREE || !THREE.Material) return;
+    const P = THREE.Material.prototype, d = Object.getOwnPropertyDescriptor(P, 'onBeforeCompile');
+    if (!d || typeof d.value !== 'function') return;
+    const noop = d.value;
+    guarded = true;
+    Object.defineProperty(P, 'onBeforeCompile', {
+      configurable: true,
+      get() { const f = RAW.get(this); return f ? wrapperOf(f) : noop; },
+      set(f) { if (typeof f === 'function' && f !== noop) RAW.set(this, f); else RAW.delete(this); },
+    });
+  }
+  if (window.THREE) guard(); else window.addEventListener('three-ready', guard, { once: true });
   const FIT_KEY = 'oe3d-fit';
   function fitWatch(renderer, { roots = () => [], key = '' } = {}) {
     const gl = renderer.getContext();
     const asked = +(new URLSearchParams(location.search).get('units') || 0);
     fit.limit = asked || gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
     const memKey = `${key}|${fit.limit}|${(window.OE_VERSION || {}).version || ''}`;
-    // (a GPU with sixteen units starts without the snow's tracks, the first rung, which only snow shows: Tokyo's ground
-    // needs seventeen with them, and a link that fails costs that load a second compile)
-    fit.level = fit.limit <= 16 ? 1 : 0; fit.failed = 0; fit.plain = 0;
+    // (every GPU starts with every layer: a program that would not fit is fitted as it is compiled, guard above)
+    guard();
+    fit.level = 0; fit.failed = 0; fit.plain = 0; fit.fitted = [];
     try { const m = JSON.parse(localStorage.getItem(FIT_KEY) || '{}'); if (m.k === memKey && m.level > fit.level) fit.level = Math.min(LADDER.length, m.level | 0); } catch (e) { /* storage blocked */ }
     const samplers = p => { let n = 0; for (let i = 0, c = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < c; i++) { const u = gl.getActiveUniform(p, i); if (u && SAMPLERS.includes(u.type)) n += u.size; } return n; };
     if (asked) { // (a device with fewer units, played here: its link fails where this machine's would not)
@@ -290,6 +398,7 @@ body > .gl-note { position: fixed; }
     };
     fit.start = fit.level;
     fit.samplers = samplers;
+    fit.count = countSamplers;
     return fit;
   }
 

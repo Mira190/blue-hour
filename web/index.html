@@ -648,6 +648,10 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 #gt-joy { position: absolute; left: max(18px, env(safe-area-inset-left, 0px)); bottom: 24px; width: 120px; height: 120px; border-radius: 50%; touch-action: none;
   background: rgba(6, 10, 18, 0.35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid var(--line-2); }
 #gt-knob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px; border-radius: 50%; background: rgba(236, 232, 225, 0.16); border: 1px solid rgba(236, 232, 225, 0.5); }
+/* (untouched, the stick is a faint ring over the street, without its blur; under the thumb, as above: it was the frame's
+   heaviest thing at rest, a dark disc in a corner whether or not anyone walked) */
+#gt-joy:not(.on) { opacity: 0.45; background: rgba(6, 10, 18, 0.16); -webkit-backdrop-filter: none; backdrop-filter: none; }
+#gt-joy { transition: opacity 0.25s; }
 .gt-btns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: 20px; display: grid; grid-template-columns: repeat(3, 56px); gap: 8px; }
 .gt-btns button { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--hud); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
   font: 400 8.5px/1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); touch-action: none; }
