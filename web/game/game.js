@@ -1218,7 +1218,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the walk's own people out on the street (startWalk, walkOnFromStory): drawn, and in the crowd's way
   function walkPeople() {
-    for (const n of npcs) if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); }
+    for (const n of npcs) if (n.away && !n.event) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); } // (a street moment's people stay away until one puts them out: walktalk.js events)
   }
   const npcById = id => npcs.find(n => n.id === id);
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
@@ -2550,7 +2550,41 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       to.h = Math.atan2(m.x - to.x, m.y - to.y); to.rig.root.rotation.y = Math.PI - to.h;
     },
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
-    told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); } }) : null;
+    told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); },
+    view: (v, n, of) => { if (walkUi && walkUi.told) walkUi.told(v.name, n, of, 'view'); A.chime(); }, // (a view of Shibuya found: its name over the street, and a chime)
+    when: () => `${clock.d} ${MONTHS[clock.m - 1]}, ${fmtMin(clock.min)}`,
+    // a street moment's people (walktalk.js events): put where they would stand, out of sight, facing what they look at
+    // (the crossing, or the one they are with), in the crowd's way, and drawn once their model has come; and away again
+    place: (n, at, faceTo) => {
+      if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); }
+      npcMove(n, at);
+      const t = faceTo || { x: 368, y: -1002 }; n.h = Math.atan2(t.x - n.x, t.y - n.y); n.rig.root.rotation.y = Math.PI - n.h;
+    },
+    hide: n => { n.away = true; n.talking = false; n.walkSpeed = 0; n.rig.root.visible = false; if (n.post) posts.move(n.post, 1e7, 1e7, 0); },
+    // someone of a street moment walking: a step on the ground (its floor or the terrain), turned the way they go, in the
+    // crowd's way as they go, and walking as fast as the step (the NPCs' loop animates them by n.walkSpeed)
+    step: (n, x, y, h, speed) => {
+      const f = nav.floorAt(x, y, (n.z || 0) + 1);
+      n.x = x; n.y = y; n.z = f ? f.z : Math.max(0, nav.terrain(x, y)); n.h = h; n.walkSpeed = speed;
+      n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h;
+      if (n.post) posts.move(n.post, n.x, n.y, n.z);
+    },
+    // a clear way on foot from one point to another: a floor all along, no step up or down a person would not take, off
+    // the road, and no post, trunk or bench in the way
+    clear: (x0, y0, x1, y1) => {
+      const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.ceil(d / 0.8));
+      const f0 = nav.floorAt(x0, y0, (groundZ(x0, y0) ?? Math.max(0, nav.terrain(x0, y0))) + 1);
+      let z = f0 ? f0.z : null;
+      if (z == null) return false;
+      for (let i = 1; i <= n; i++) {
+        const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n, f = nav.floorAt(x, y, z + 0.6);
+        if (!f || Math.abs(f.z - z) > 0.35 || inRoad(x, y, f.z, 0.3) || posts.pushOut(x, y, 0.35, f.z).hit) return false;
+        z = f.z;
+      }
+      return true;
+    },
+    unseenAt: (x, y, z) => !sees(x, y, z),
+    ask: (n, lines, choices, done) => { n.talking = true; A.start(); talkLine({ name: n.name }, choices); dlg.show(n, lines, choices, c => { n.talking = false; done(c); }); } }) : null;
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
@@ -3566,7 +3600,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const seatHere = shows && shows.near(player.x, player.y, player.z);
     if (seatHere) return { key: 'E', text: seatHere.verb || 'Sit down', act: () => sitDown(seatHere) };
     const sp = places && places.spotNear(player.x, player.y, player.z);
-    if (sp) return { key: 'E', text: sp.verb || `Look at ${sp.name}`, act: () => lookAt(sp) };
+    if (sp) return { key: 'E', walk: true, text: sp.verb || `Look at ${sp.name}`, act: () => lookAt(sp) }; // (on the walk too: Hachiko's story, the compass's bearings, the net on the roof)
     const tv = VP.find(v => Math.hypot(v.x - player.x, v.y - player.y) < 7 && Math.abs(v.z - player.z) < 3);
     if (tv) return { key: 'E', text: `${trigDone()[tv.id] ? 'Survey again' : 'Survey the view'} from ${tv.name}`, act: () => survey(tv) };
     const w = nearWharf(player.x, player.y);
@@ -3597,7 +3631,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the angle a film or a game made the place known by, from where it was taken (#359)
     dlg.show({ name: sp.name, role: sp.role || '', color: sp.color || '#6d5a3a', pitch: sp.pitch || 260 }, places.lines(sp).map(fill), null,
       sp.frame ? () => framePhoto(sp) : undefined);
-    spotDone(sp);
+    if (!walk) spotDone(sp); // (the old game's stamp and its quests' steps: not on the walk, whose passport there is none)
   }
   function framePhoto(sp) {
     const fr = sp.frame;
@@ -4111,7 +4145,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     g.font = `400 ${Math.round(fs * 0.8)}px "Public Sans", sans-serif`; g.fillStyle = 'rgba(255, 255, 255, 0.82)';
     g.fillText(lines[1], pad, h - pad);
     A.shutter();
-    if (walk && walkTalk) walkTalk.photo({ z: camera.position.y, sees }); // (a photograph someone on the walk asked for: walktalk.js)
+    // (a photograph someone on the walk asked for, or one of the views of Shibuya, with a small copy for the album: walktalk.js)
+    if (walk && walkTalk) walkTalk.photo({ z: camera.position.y, sees, thumb: () => { const c = document.createElement('canvas'); c.width = 320; c.height = Math.round(320 * h / Math.max(1, w)); c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.72); } });
     if (life) { const b = life.day ? life.day.bounds() : null, gold = !!b && (Math.abs(clock.min - b.golden) < 50 || (sun.altitude < 8 && sun.altitude > -7)); life.emit('photo', { golden: gold, hour: sun.altitude < 0 ? 'blue hour' : 'golden hour', alt: sun.altitude }); }
     stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
     const name = `blue-hour-${cityId}-${clock.y}${String(clock.m).padStart(2, '0')}${String(clock.d).padStart(2, '0')}-${fmtMin(clock.min).replace(':', '')}.png`;
@@ -4178,7 +4213,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     el.hidden = !L.length;
     if (!L.length) return;
     const n = L.filter(t => t.state === 'told').length, esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`;
+    const V = walkTalk.views(), nv = V.filter(v => v.found).length;
+    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`
+      + (V.length ? `<span class="eyebrow">Views of Shibuya · ${nv} of ${V.length}</span><ul class="gm-album">${V.map(v => `<li data-f="${v.found ? 1 : 0}">${v.found && v.pic ? `<img alt="" src="${v.pic}">` : ''}<b>${esc(v.name)}</b><span>${esc(v.found ? v.when : v.hint)}</span></li>`).join('')}</ul>` : '');
   }
   // tonight's timetable in the walk's menu, under its stories (tonight.js)
   function tonightSync() {
@@ -5441,14 +5478,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (walkFilmDue() && !walkNoFilm) {
       const film = walkFilmMake(), was = overture;
       overture = film;
-      if (film.play(() => { overture = was; walkUi.begin(); })) return;
+      if (film.play(() => { overture = was; walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); })) return; // (and the first time, the office rings as you reach your shoulder: walkIntro)
       overture = was;
     }
     if (openingHere()) { // (down from the title's view to your shoulder, the scramble turning to walk as you come down, as the story's opening does without its film)
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
-    craneIn(() => walkUi.begin());
+    craneIn(() => { walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); }); // (and the first time, the office rings: walkIntro)
   };
   // the walk's film, made the first time the walk's step opens (its score rendered and its things compiled while the hour
   // and the sky are chosen, so that Set out plays it at once), and played as the walk sets out (startWalk)
@@ -5463,6 +5500,37 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return walkFilm;
   }
   const walkFilmReady = () => { if (!walkFilmDue() || playing) return; const f = walkFilmMake(); if (!f) return; f.prepareScore(); if (f.prewarm) f.prewarm(o => compileFor(o)); };
+  // The walk's way in, the first time in this browser from the title (game.json walk.intro; docs/STORY.md "The walk's way
+  // in"): as you come down to your shoulder, the office rings, as it rings in the story, in its own voice: no job tonight,
+  // take the evening, your car comes when you call it (its button lit while that is said), people here will talk if you
+  // let them. Four lines, each passed with E or a tap; then the street is yours, and the corner already says who has the
+  // first story. Not from the story's last card, nor from a page opened straight onto the walk, nor a second time.
+  const WALK_INTRO = 'bh-walk-intro';
+  let walkAuto = false;
+  const walkIntroDue = () => { if (walkAuto || !G.walk || !G.walk.intro || !walkUi) return false; try { return !localStorage.getItem(WALK_INTRO); } catch (e) { return false; } };
+  function walkIntro() {
+    const I = G.walk.intro, who = Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, I.voice || {}) }, I.who || {}), hl = I.highlight || {};
+    if (dlg.open || player.mode !== 'foot') return;
+    try { localStorage.setItem(WALK_INTRO, '1'); } catch (e) { /* storage blocked */ }
+    A.start();
+    let i = 0;
+    const next = () => {
+      if (walkUi.highlight) walkUi.highlight(null);
+      if (i >= I.lines.length) { introEnd(); return; }
+      if (hl[i] && walkUi.highlight) walkUi.highlight(hl[i]);
+      dlg.show(who, [fill(I.lines[i++])], null, next);
+    };
+    next();
+  }
+  // the call over, the street takes it up (no line that tells you people will talk: one of them does): the view eased round
+  // to whoever has the first story, if they are near, and they call you over. Any turn of the mouse or the stick takes the
+  // view back at once (cam.yawTo)
+  function introEnd() {
+    const s = walkTalk ? walkTalk.people.find(q => !(walkTalk.state()[q.id] || {}).done) : null, n = s ? npcById(s.npc) : null;
+    if (!n || player.mode !== 'foot' || Math.hypot(n.x - player.x, n.y - player.y) > 70) return;
+    cam.yawTo = Math.atan2(n.x - player.x, n.y - player.y);
+    setTimeout(() => { if (walkTalk && s.bark) walkTalk.bark(n.id, s.bark); }, 700);
+  }
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
   // kerb, so that is where the walk begins. No page again, no title, no crane down from the air: the card fades off the
   // street, the score lets go into the street's own sound over a few bars, the evening's people go once the lens has
@@ -5496,6 +5564,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       menu: () => toggleMenu(), photo: () => photoMode(true),
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
+      yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
           : { mode: player.mode }) });
@@ -5583,7 +5652,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (auto) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
     // come from the story's last card (its Walk Shibuya, story ctx free): no card to press, the walk sets out
     { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('bh-walk-auto') || 'null') : null; sessionStorage.removeItem('bh-walk-auto'); } catch (e) { sp = null; }
-      if (sp && !playing) { stage.classList.add('story-auto'); walkNoFilm = !sp.film; setTimeout(() => walkUi.auto(sp), 0); } } // (sp.film: a harness's, tools/walk_open.js)
+      if (sp && !playing) { stage.classList.add('story-auto'); walkAuto = true; walkNoFilm = !sp.film; setTimeout(() => walkUi.auto(sp), 0); } } // (sp.film: a harness's, tools/walk_open.js)
     $('#g-loader').classList.add('out');
     if (window.OEBoot) OEBoot.done(); // (the first frame is behind the loader: what fails from here is the game's to say, not the loader's)
     setTimeout(() => {
@@ -6139,12 +6208,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) {
       if (n.away) continue; // (the walk's own, while it is not the walk)
       const d = Math.hypot(player.x - n.x, player.y - n.y);
-      if (d < 5 && player.mode === 'foot' && !n.sit) n.h += angDiff(Math.atan2(player.x - n.x, player.y - n.y), n.h) * Math.min(1, dt * 4);
+      if (d < 5 && player.mode === 'foot' && !n.sit && !n.walkSpeed) n.h += angDiff(Math.atan2(player.x - n.x, player.y - n.y), n.h) * Math.min(1, dt * 4); // (not while walking: walktalk.js events)
       n.rig.root.rotation.y = Math.PI - n.h;
       // look at the player when close; the player looks at whoever they are talking to
       n.rig.lookTarget = d < 9 && player.mode === 'foot' ? n.eyes.copy(W(player.x, player.y, player.z + 1.55)) : null;
       if (n.talking) gaze = W(n.x, n.y, n.z + 1.55);
-      n.rig.animate(dt, 0, n.sit ? 'sit' : n.talking ? 'talk' : 'ground', clockT + n.pitch);
+      n.rig.animate(dt, n.walkSpeed || 0, n.sit ? 'sit' : n.talking ? 'talk' : 'ground', clockT + n.pitch);
     }
     player.rig.lookTarget = gaze;
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
