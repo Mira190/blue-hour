@@ -2139,6 +2139,46 @@ Faces that move cost memory and vertex work, so they are given only where a face
   main without the faces 269 MB of GPU at its peak; with every face drawn moving at once 271, with the player's face always
   moving 270 (over the 270 budget); as above, the same as without.
 
+### Frame 5's place: what is held there, and what of it is seen (issue 105)
+
+Main on 21 November held 268 MB settled and 270 MB at its peak at frame 5's place on a phone (`AT=521.9,-1074.1
+tools/mem_check.js shibuya`, rain at ten at night), against a 270 MB budget: any change that added a megabyte there
+failed `mem` on noise. Measured first: `mem_check.js` now prints, at `AT`, what each hero level loaded there holds
+(textures and geometry), and with `OWN=n` the n largest textures with the meshes that hold them or the script line that
+made them (a render target, a pass, a uniform). What was held at frame 5, largest first:
+
+| Held | MB | Seen there? |
+|---|---|---|
+| The scene's target and the lens's two half-float ping targets (760 x 1644 each) | 3 x 9.5 | the scene's: always. The two pings: drawn into only while a camera effect is on (a conversation, the camera raised, the arrival's crane), and kept from the first arrival to the end of play |
+| The Scramble level, 70 m off its edge | 12.2 textures, 12.7 geometry | 25 of its 56 squares from the stand and the ground round it, more from where the helicopter sets you down |
+| The two PMREM targets (the light from the sky, and three.js's ping-pong for baking it) | 2 x 6.0 | both while the sky is baked again, which the measure's own change of hour does |
+| The inland channels' hole mask, the far land's two pictures, the night map, the roofs' photo | 6.0, 5.3 + 5.0, 4.8, 4.8 | map-wide, sampled by whatever ground, sky or roof is drawn |
+| The player's face, body and hair (1024 each) | 3 x 5.3 | yes, up close |
+
+The Scramble level was the issue's first suspect, but from frame 5's ground much of it can be seen: down Miyamasu-zaka
+under the Ginza line's deck and up Meiji-dori, 2,000 to 30,000 of the 393,216 pixels of a cube round the eye.
+`tools/hero_unseen.js scramble` asks the GPU: from a grid of eyes at four heights, the level's meshes each in a colour of
+its own against the depth of everything else the page draws, the crowd and the trees left out. From the stand alone 31
+of its squares are hidden: 4.2 MB of geometry and none of its pictures, since every material it has is also on a square
+that is seen. The visibility sweep (`visibility.js`) cannot say even that much: the station's landmarks hide nothing in
+its raster, so it counts 455 of the level's 486 meshes as seen from the stand.
+
+The biggest holder no draw read was the two ping targets, 19 MB. A first cut here let them go when idle and gave the
+depth of field one target; issue 130's cut, which landed first, does both and more (the blur reads the scene itself, one
+pass; "The depth of field in one pass" below), and is what main has. On top of it, the measure now plays frame 5's own
+worst moment: at `AT`, a conversation's depth of field for six seconds (`FX=0` leaves it out), then the rain at ten while
+its target is still held, so a change that adds to the one target or to what a talk there holds is seen.
+
+| Phone, frame 5's place (`mem_check.js`, `AT=521.9,-1074.1`) | Main before (21 Nov, f11cc12) | Main with issue 130 |
+|---|---|---|
+| The load and the first play | 252 MB | 237 MB |
+| Settled at frame 5's place | 268 MB | 247 MB |
+| A conversation's depth of field there | 268 MB (the pings already held) | 257 MB |
+| The peak | 270 MB, in the rain | 259 MB, the rain with the conversation's target still held |
+
+Not done, by what it would save: the Scramble's squares hidden from the stand parked off the GPU there (4.2 MB, at the
+stand only); the sky's PMREM ping-pong let go between bakes (6 MB settled, nothing at a bake, which needs both).
+
 ## A desktop's map round the player (issue 20)
 
 The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the

@@ -23,7 +23,10 @@
 // `buffers: n objects, N MB`) against MEM_DESK (default 140 MB: the map round the player, docs/PERFORMANCE.md "A desktop's
 // map round the player", sent 125 where the whole map sent 283), with the time to the title and the GPU's buffers then.
 // QUERY='?district=off' measures the whole map on the phone tier, to compare with its district (pipeline/district.py).
-// AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1).
+// AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1),
+// with what each hero level loaded there holds, and then a conversation's depth of field there (FX=0 leaves it out).
+// OWN=n: at AT, the n largest textures, each with the meshes that hold it or the script line that made it. HERO_SEEN=1: at AT,
+// how many of each level's meshes the visibility sweep (visibility.js) says may be seen (tools/hero_unseen.js asks the GPU).
 // TIER=low|medium|high (default low). QUERY=?a=b adds a query to the page's address. LV=n: the phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest). SNAP=file (%c for the city) writes a heap snapshot at the end (tools/heap_owners.js). JSON=1 prints the result as JSON. TOP=n lists n largest (default 8).
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
@@ -61,6 +64,19 @@ async function measure(b, city) {
   await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
   // LV=n: a phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest)
   if (process.env.LV) await ctx.addInitScript(n => { try { localStorage.setItem('oe3d-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
+  // (OWN: every texture given a picture is noted with where in the page's scripts that was, to name those no material holds)
+  if (process.env.OWN) await ctx.addInitScript(() => {
+    window.__memOwn = true; window.__texAll = new Set();
+    const hook = () => {
+      const T = window.THREE, d = T && Object.getOwnPropertyDescriptor(T.Texture.prototype, 'needsUpdate');
+      if (!d || !d.set) return;
+      Object.defineProperty(T.Texture.prototype, 'needsUpdate', { configurable: true, get: d.get, set(v) {
+        if (v && !this.__memAt) { this.__memAt = (new Error().stack || '').split('\n').filter(l => /\.js/.test(l) && !/three|mem_check/.test(l)).slice(0, 3).map(l => l.replace(/^.*\/(\w[\w.-]*\.js):(\d+):\d+\)?$/, '$1:$2').trim()).join(' < '); window.__texAll.add(new WeakRef(this)); }
+        d.set.call(this, v);
+      } });
+    };
+    if (window.THREE) hook(); else addEventListener('three-ready', hook, { once: true });
+  });
   await ctx.addInitScript(require('./gl_mem').hook); // (every texture, buffer and renderbuffer WebGL is asked for, summed: window.__mem)
   // TRACK=1: every array buffer of a megabyte or more the page makes, receives from a Worker or fetches, with where, kept
   // as a weak reference: those still alive at the end (after a collection), summed by where they came from
@@ -209,7 +225,78 @@ async function measure(b, city) {
       await p.waitForTimeout(+(process.env.SETTLE || 8) * 1000 + 6000);
       const lv = await p.evaluate(() => { const g = window.__game, H = g.hero && g.hero(); return H ? H.state().map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : 'no levels'; });
       console.log(`  at ${at.join(', ')}: ${lv}`);
+      // what each loaded level holds there: its textures (texels, four bytes each, a third more for the mips) and its
+      // geometry (vertex and index bytes), each counted once, shared pictures where they are held (issue 105)
+      const held = await p.evaluate(() => {
+        const g = window.__game, H = g.hero && g.hero();
+        if (!H || !H.levels) return [];
+        const seenT = new Set(), seenG = new Set();
+        return H.levels.filter(L => L.root).map(L => {
+          let tex = 0, geo = 0, verts = 0, nTex = 0;
+          const top = [];
+          for (const r of [L.root, L.fineRoot]) if (r) r.traverse(o => {
+            if (!o.isMesh) return;
+            if (!seenG.has(o.geometry)) {
+              seenG.add(o.geometry);
+              for (const a of Object.values(o.geometry.attributes)) geo += a.array.byteLength;
+              if (o.geometry.index) geo += o.geometry.index.array.byteLength;
+              verts += o.geometry.attributes.position ? o.geometry.attributes.position.count : 0;
+            }
+            for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
+              const t = m && m[k];
+              if (!t || seenT.has(t) || !t.image || !t.image.width) continue;
+              seenT.add(t); nTex++;
+              const b = t.image.width * t.image.height * 4 * (t.generateMipmaps === false ? 1 : 4 / 3);
+              tex += b; top.push([b, `${t.name || '?'} ${t.image.width}x${t.image.height}`]);
+            }
+          });
+          top.sort((a, b) => b[0] - a[0]);
+          return `${L.h.id}: textures ${(tex / 1048576).toFixed(1)} MB (${nTex}; ${top.slice(0, 4).map(q => `${(q[0] / 1048576).toFixed(1)} ${q[1]}`).join(', ')}), geometry ${(geo / 1048576).toFixed(1)} MB (${verts.toLocaleString()} vertices)`;
+        });
+      }).catch(e => [String(e)]);
+      for (const l of held) console.log(`    ${l}`);
+      // OWN=n: the n largest textures held there, each with the three.js texture and the meshes (or the pass) that hold it
+      if (process.env.OWN) console.log(`    held by:\n      ${(await p.evaluate(n => {
+        const g = window.__game, R = g.renderer, scene = g.Wd.world.parent || g.Wd.world, by = new Map();
+        const note = (t, who) => { if (!t || !t.isTexture) return; const w = R.properties.get(t).__webglTexture; if (!w) return; if (!by.has(w)) by.set(w, { t, who: new Set() }); by.get(w).who.add(who); };
+        scene.traverse(o => {
+          if (!o.material) return;
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+            for (const k in m) if (m[k] && m[k].isTexture) note(m[k], `${o.name || o.type}${o.visible ? '' : ' (hidden)'}/${m.name || m.type}.${k}`);
+            if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) note(v, `${o.name || o.type}/${m.name || m.type}.u.${k}`); }
+          }
+        });
+        for (const r of window.__texAll || []) { const t = r.deref(); if (t) note(t, `made at ${t.__memAt}`); }
+        return [...window.__mem.tex].sort((a, b) => b[1].bytes - a[1].bytes).slice(0, n).map(([w, e]) => {
+          const h = by.get(w);
+          return `${(e.bytes / 1048576).toFixed(1)} MB ${e.label} ${h ? `"${h.t.name || ''}" ${[...h.who].slice(0, 3).join(', ')}${h.who.size > 3 ? ` +${h.who.size - 3}` : ''}` : '(no material: a target or a pass)'}${e.stack ? ` [${e.stack}]` : ''}`;
+        });
+      }, +process.env.OWN).catch(e => [String(e)])).join('\n      ')}`);
+      if (process.env.HERO_SEEN) console.log(`    seen: ${await p.evaluate(() => {
+        const g = window.__game, H = g.hero && g.hero(), V = window.OEVis, T = window.THREE;
+        const box = new T.Box3(), c = new T.Vector3(), s = new T.Vector3();
+        return H.levels.filter(L => L.root).map(L => {
+          let n = 0, k = 0, vb = 0, vs = 0;
+          L.root.traverse(o => {
+            if (!o.isMesh) return;
+            box.setFromObject(o); box.getCenter(c); box.getSize(s);
+            const b = Object.values(o.geometry.attributes).reduce((a, q) => a + q.array.byteLength, 0) + (o.geometry.index ? o.geometry.index.array.byteLength : 0);
+            n++; vb += b;
+            if (!V || V.seen(c.x, -c.z, box.max.y, Math.hypot(s.x, s.z) / 2)) { k++; vs += b; }
+          });
+          return `${L.h.id} ${k}/${n} meshes (${(vs / 1048576).toFixed(1)} of ${(vb / 1048576).toFixed(1)} MB) live=${V && V.live} where=${V && JSON.stringify(V.where())}`;
+        }).join('; ');
+      }).catch(e => String(e))}`);
       await part(`at ${at.join(', ')}, settled`);
+      // then a conversation's shot there, the camera's depth of field drawn for a few seconds (atmosphere.js: the post
+      // stack's target made for it, let go a few seconds after it ends), held in the peak: frame 5's talk (issue 105). FX=0 leaves it out
+      if (process.env.FX !== '0') {
+        await p.evaluate(() => { const A = window.__game.atmos, f = A.camFx; A.__fx = f; A.camFx = o => f.call(A, o || { focus: 3, aperture: 0.08 }); });
+        await p.waitForTimeout(6000);
+        await p.evaluate(() => { const A = window.__game.atmos; A.camFx = A.__fx; });
+        await part(`at ${at.join(', ')}, a conversation's depth of field`);
+        await p.waitForTimeout(6000);
+      }
     }
     // the heaviest hour: rain at ten at night, on the game's own clock and weather, drawn for WET seconds
     const wet = await p.evaluate(() => {
