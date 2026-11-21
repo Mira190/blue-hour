@@ -133,7 +133,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 180 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
@@ -205,7 +205,7 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
@@ -412,6 +412,13 @@ run_audio() {
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
+  # the mix, place by place (docs/SOUND.md's table of listening points): each bus's level read from the graph at the
+  # kerb, under the deck, on the roof, in the lift, the helicopter's cabin and the car's, and nothing of the moving
+  # world past the tape at a Stop; as a desktop and as a touch screen
+  if timeout 900 $X node tools/sound_places.js >"$OUT/sound_places.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/sound_places.log" | cut -c6-)"
+  else echo "FAIL audio  the mix by place: $(grep '^FAIL' "$OUT/sound_places.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/sound_places.log)"; fi
+  if PHONE=1 timeout 900 $X node tools/sound_places.js >"$OUT/sound_places_phone.log" 2>&1; then echo "ok   audio  as a touch screen: $(grep -o '^PASS.*' "$OUT/sound_places_phone.log" | cut -c6-)"
+  else echo "FAIL audio  the mix by place, as a touch screen: $(grep '^FAIL' "$OUT/sound_places_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/sound_places_phone.log)"; fi
   # (and touched first on the title: the opening's score with its own bed, and the loading cue let go)
   if FIRST=title DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio_title.log" 2>&1; then
     echo "ok   audio  as an iPhone touched first on the title: one piece of music at a time in the opening"

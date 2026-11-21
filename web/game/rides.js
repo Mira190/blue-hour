@@ -979,6 +979,7 @@ window.OEGameRides = function (g) {
         g.A.chime();
       }
       g.A.car(0.22 + Math.min(1, st.v / 22) * 0.45, st.brake ? 0 : 0.3, 0.35);
+      if (g.A.indicator) g.A.indicator(!!st.signal || o.phase === 'arrived'); // (the relay's tick in the cabin: audio.js)
       g.player.rig.animate(dt, 0, 'sit', g.clockT);
     }
     if (o.phase === 'leaving' && (g.clockT - o.t0 > 45 || Math.hypot(st.x - g.player.x, st.y - g.player.y) > 240 || st.done)) { o.drv.leave(); o.C.dispose(); g.ride = null; }
