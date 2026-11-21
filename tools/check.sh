@@ -327,14 +327,15 @@ run_walk2() { walk_on 390x844; }
 walk_on() {
   local ok=1 d said=
   for d in "$@"; do
-    if ! CHROME_LOG="$OUT/walk-$d-chrome.log" timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
+    # (one frame in twenty drawn and no still taken, tools/draw_skip.js: the beats read the page's state; STILLS=1 DRAW=0 for its pictures)
+    if ! CHROME_LOG="$OUT/walk-$d-chrome.log" STILLS=${STILLS:-0} DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 20)} timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
     said="${said:+$said and }$(grep -c '^ok' "$OUT/walk-$d.log") $([ "$d" = 390x844 ] && echo "beats on a phone's page" || echo "beats on a desktop's page")"
   done
   [ $ok -eq 1 ] && echo "ok   walk   $said: two ways in, the hour and the sky, out with no story"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
-  if CHROME_LOG="$OUT/ride-chrome.log" LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
+  if CHROME_LOG="$OUT/ride-chrome.log" DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 20)} LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
