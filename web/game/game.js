@@ -5163,7 +5163,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); } }
+  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); } }
+  // the story's own pause (issue 114): the frame the case is at, the words' size as the log has it, and the case begun
+  // again, asked twice (the frames taken are lost with it)
+  function caseSync() {
+    const at = story && story.at, w = storyLog ? storyLog.words() : null, again = $('#gm-again'), note = $('#gm-again-note');
+    if ($('#gm-case-at')) $('#gm-case-at').textContent = at ? `Frame ${at.fi + 1} of ${at.of}${at.stamp ? ` · ${at.stamp}` : ''}` : '';
+    if (w) $$('#gm-words button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.solid != null ? w.solid : +b.dataset.size === w.size)));
+    if (again) { again.classList.remove('sure'); again.textContent = 'Start the case again'; again.parentNode.hidden = !at; }
+    if (note) note.hidden = true;
+  }
+  on($('#gm-resume'), 'click', () => { $('#g-menu').hidden = true; });
+  on($('#gm-words'), 'click', e => {
+    const b = e.target.closest('button'); if (!b || !storyLog) return;
+    storyLog.setWords(b.dataset.solid != null ? { solid: !storyLog.words().solid } : { size: +b.dataset.size });
+    caseSync();
+  });
+  on($('#gm-again'), 'click', e => {
+    const b = e.currentTarget, at = story && story.at, note = $('#gm-again-note');
+    if (!at) return;
+    if (!b.classList.contains('sure')) {
+      b.classList.add('sure'); b.textContent = 'Yes, from the first card';
+      note.textContent = at.taken ? `The ${at.taken === 1 ? 'frame' : `${at.taken} frames`} taken, the file and the log go with it. Close the menu to keep the case.` : 'The case begins again from its first card. Close the menu to keep it.'; note.hidden = false;
+      return;
+    }
+    story.beginAgain();
+  });
   // the walk's stories in its menu (walktalk.js list): each by its name, told, under way with what was asked, or not yet
   // met with where to look
   function talesSync() {

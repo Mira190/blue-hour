@@ -19,6 +19,7 @@
 // AFTER=1: with UPTO=n, the play goes on past frame n's print through what is said after it, to the next frame's start.
 // SILENT=n: the first question at frame n that someone waits on (wait_s) is left to run out; silence must be its answer.
 // BACKTO=n: from the last card, frame n is gone back into, and played to its print.
+// LOGAT=n: the log is opened after frame n (3). LOGSECS=n: a still of it each second for n seconds more (log-1s ...), time held: nothing in it moves or is drawn twice.
 // WORDS=n: the dialogue's words at size n (2: the largest) from the start. LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
 // The game moves a twentieth of a second a frame at most, so on a software renderer, at a frame a second or less, the
@@ -257,13 +258,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
+  const BARE = process.env.BARE ? new RegExp(process.env.BARE) : null; // (BARE=regex: the picture alone at those stills, in out/bare: what tools/legible.js lays the words over)
   // (STILLS=0: no still is taken: a check that reads the story's state, not its pictures; a play here spent two fifths of
   // its time on 187 stills, 2.1 s each on a software renderer. Where the still's frame is counted (BUDGET) the frame is
   // asked for whole all the same, dry: the page makes every call of it and the counts are of the calls, but no draw or
   // clear is passed on to the renderer. Where nothing is counted, nothing is asked for. The photographs the story itself
   // takes are drawn as ever)
   const NOSTILL = process.env.STILLS === '0', dry = on => (NOSTILL && DRAW > 1 ? p.evaluate(on => { window.__draw.dry = on; }, on) : null);
-  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } if (BARE && !NOSTILL && BARE.test(name)) { const st = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }); try { fs.mkdirSync(`${out}/bare`, { recursive: true }); await p.screenshot({ path: `${out}/bare/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no bare still ${name})`); } await st.evaluate(e => e.remove()); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
@@ -297,6 +299,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const spun = hs.filter(([, a]) => a > 0.05);
       if (spun.length) { errors.push(`frame ${s.fi + 1} ${name}: with time held, a head turns by itself: ${JSON.stringify(spun)}`); console.log(errors[errors.length - 1]); } }
     const L = await p.evaluate(() => (window.__game.lights ? window.__game.lights() : null)); if (L && L.objective) { errors.push(`frame ${s.fi + 1} ${name}: a second light stands in the street (the free game's objective)`); console.log(errors[errors.length - 1]); } };
+  const LOGAT = +(process.env.LOGAT || 3), LOGSECS = +(process.env.LOGSECS || 0);
   let slipped = 0, told0 = null, spent = false, logged = !!process.env.FROM, logWas = null, big = 0;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
@@ -319,16 +322,23 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     // has not moved at all; the last frame's meeting, 40 s of the story, was 240 looks long at a sixth of the pace)
     if (!same) { beatT = tWas = s.t; still = 0; } else { still = s.t === tWas ? still + 1 : 0; tWas = s.t; }
     if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); break; }
+    // (issue 114: one line is said over the picture at a time, hud.js)
+    if (!seen.has('two-said')) { const two = await p.evaluate(() => [...document.querySelectorAll('#g-toasts > .g-toast')].map(e => e.textContent.slice(0, 50))); if (two.length > 1) { seen.add('two-said'); errors.push(`frame ${s.fi + 1}: ${two.length} lines said over the picture at once: ${two.join(' | ')}`); console.log(errors[errors.length - 1]); await snap(`${s.fi + 1}-two-said`); } }
     // seen through: the card is up; the frame is taken up again
     if (await p.evaluate(() => document.getElementById('g-story-fail').classList.contains('on'))) { if (s.fi === 6) { errors.push('frame 7: seen through, and the frame taken up again: the summation is never lost'); console.log(errors[errors.length - 1]); } slipped = 2; console.log(`frame ${s.fi + 1}: seen through`); await snap(`${s.fi + 1}-seen-through`); await p.evaluate(() => document.querySelector('#g-story-fail button').click()); await p.waitForTimeout(600); continue; }
     // after frame 3: the log has every line said so far, in order
-    if (!logged && s.fi >= 3) {
+    if (!logged && s.fi >= LOGAT) {
       logged = true;
       const r = await p.evaluate(() => { const L = window.__game.story && document.getElementById('g-story-log'); window.__game.storyLog.show(true); const e = window.__game.storyLog.entries; return { on: !!L && L.classList.contains('on'), lines: e.filter(q => q.kind === 'line' || q.kind === 'q').map(q => q.text), answers: e.filter(q => q.kind === 'a').length, shown: document.querySelectorAll('#g-story-log li:not(.fr)').length, n: e.length, heard: window.__heard.lines.slice() }; });
       const miss = r.heard.findIndex((x, i) => r.lines[i] !== x);
       console.log(`log after frame 3: ${r.lines.length} lines, ${r.answers} answers; heard ${r.heard.length}`);
       if (!r.on || r.shown !== r.n || r.lines.length !== r.heard.length || miss >= 0) { errors.push(`the log after frame 3: ${r.on ? '' : 'not open; '}${r.shown} of ${r.n} shown; ${r.lines.length} lines for ${r.heard.length} heard${miss >= 0 ? `; line ${miss + 1} is "${(r.lines[miss] || '').slice(0, 60)}" for "${r.heard[miss].slice(0, 60)}"` : ''}`); console.log(errors[errors.length - 1]); }
-      await snap('log'); await p.evaluate(() => { const o = document.querySelector('#g-story-log ol'); o.firstElementChild.scrollIntoView({ block: 'start' }); }); await snap('log-top');
+      // (issue 114: the log is read by itself. Its still is of the sheet once it has come up, not of the 0.35 s it takes
+      // to; and nothing said on the picture is seen under it or over it: the line being said is the log's last entry)
+      await p.waitForFunction(() => { const L = document.getElementById('g-story-log'); return L.getAnimations().every(a => a.playState === 'finished'); }, null, { timeout: 20000, polling: 200 }).catch(() => {}); await p.waitForTimeout(300);
+      { const under = await p.evaluate(() => ['#gd', '#g-story-goal', '#g-toasts', '#g-story-slip', '#g-story-chip'].filter(q => { const e = document.querySelector(q); if (!e || e.hidden) return false; const c = getComputedStyle(e); return c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0.05 && e.textContent.trim() && e.getClientRects().length; }));
+        if (under.length) { errors.push(`with the log open, still drawn with it: ${under.join(', ')}`); console.log(errors[errors.length - 1]); } }
+      await snap('log'); for (let k = 1; k <= LOGSECS; k++) { await p.waitForTimeout(1000); await snap(`log-${k}s`); } await p.evaluate(() => { const o = document.querySelector('#g-story-log ol'); o.firstElementChild.scrollIntoView({ block: 'start' }); }); await snap('log-top');
       await p.evaluate(() => window.__game.storyLog.setWords({ size: 2, solid: true })); await snap('log-largest');
       await p.evaluate(() => window.__game.storyLog.show(false)); await p.waitForTimeout(600); await snap('goal-largest'); big = 1;
       logWas = r.lines;
@@ -702,6 +712,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           await p.waitForTimeout(600);
           const open = await p.evaluate(() => !document.getElementById('g-menu').hidden);
           if (open) await snap('1-menu');
+          // (issue 114: the story's pause is a player's, not the builder's: no hour, date, weather, clock speed or route
+          // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
+          if (open) {
+            const m = await p.evaluate(() => { const vis = q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
+              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
+            if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
+            else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
+          }
           await tap('#g-menu-close'); await p.waitForTimeout(600);
           const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
           if (!open || !shut) { errors.push(`the story's menu button: ${open ? 'the menu opened and its close button did not shut it' : 'the menu did not open'}`); console.log(errors[errors.length - 1]); }
