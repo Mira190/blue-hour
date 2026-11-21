@@ -211,6 +211,9 @@ In the browser, `buildings.js` builds the walls:
 ## 4. Rooftops
 
 - **Flat roofs:** a 0.3 m parapet, 0.5–1.3 m high by style. The deck inside shows the aerial photo, softened and leaned towards the roof's median colour, with the same haze correction as the ground (ARCHITECTURE.md).
+- **What the deck is made of** (issue 148): where the photograph is not its colour (round a hero level, and on a
+  tower), a flat deck takes its `roof_material`'s tone and joints: sheet or coating in 1.2 m runs, gravel, or a
+  concrete slab in 3 m bays, square to the building (docs/HERO.md, "From the air by day").
 - **Plant rooms:** buildings 30 m or taller get a plant room or lift overrun, aligned to the roof's long axis.
 - **Plant boxes:** smaller roofs get plant boxes placed without overlap.
 - **Water tanks (Japan):** on 30% of buildings of 4–15 floors.
