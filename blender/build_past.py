@@ -519,7 +519,7 @@ def tram():
 
 KEY_MAP = (0.35, -0.4, 0.85)  # the print's key light in the map's axes (past.js: (0.35, 0.85, 0.4) with y up, -z north)
 SITES = {  # where each is seen from: the frame's stand point, what it aims at and its heading (cities/shibuya/city.json)
-    "dome": {"stand": (543.33, -1108.84, 241.8 + 1.6), "at": (606.2, -1053.3, 51.0), "eye": -6.0, "h": 20.0, "lens": 24.0, "key": (-0.44, -0.53, 0.72)},
+    "dome": {"stand": (543.33, -1108.84, 241.8 + 1.6), "at": (611.85, -1051.28, 51.0), "eye": -6.0, "h": 20.0, "lens": 24.0, "key": (-0.44, -0.53, 0.72)},
     "river": {"stand": (521.87, -1074.06, 1.6), "at": (519.42, -1067.66, 0.0), "eye": 1.0, "h": 21.0, "lens": 50.0},
 }
 
@@ -669,7 +669,7 @@ def dome():
     station end the silver dome on its low drum, its sheets of aluminium laid in gores and rings. The origin is the
     foot of the drum; the station face is to -X, north is +Y."""
     S = Solid()
-    X0, X1, Y0, Y1, HT = -14.0, 70.0, -32.0, 14.0, 31.0
+    X0, X1, Y0, Y1, HT = -20.0, 64.0, -32.0, 14.0, 31.0
     R, DRUM = 10.5, 1.2
     G = 4.6                      # the ground floor, shops
     FH = (HT - G) / 7            # a storey above it
@@ -757,21 +757,27 @@ def dome():
             for k in range(round((x1 - x0 - 1.6) / 2.0)):
                 S.quad([(x0 + 0.8 + k * 2.0, y0 - 0.02, z), (x0 + 2.4 + k * 2.0, y0 - 0.02, z), (x0 + 2.4 + k * 2.0, y0 - 0.02, z + 1.5), (x0 + 0.8 + k * 2.0, y0 - 0.02, z + 1.5)], lights(6, b, k * 3), (0, -1, 0))
 
-    house(46.0, -27.0, 67.0, -9.0, 10.5, 3)       # the three-storey penthouse at the far end
-    house(52.0, -23.0, 60.0, -15.0, 13.4, 0)      # (the lift's machine room on it)
-    house(58.0, 2.0, 67.0, 11.5, 6.8, 2)          # the stair's head at the north-east corner
-    house(-12.0, -30.5, -6.5, -25.0, 3.2, 0)      # a stair hut at the station face
+    # (as the aerial photograph of about 1960 has them: a tower at the station end's south corner, in front of the dome;
+    # the long ribbed roof of the cinema's hall along the south side; a second tower at the far end)
+    house(X0 + 3.0, -31.0, X0 + 15.0, -21.0, 10.5, 3)   # the three-storey penthouse
+    house(55.0, -31.0, 63.0, -23.0, 9.0, 2)             # the far tower
+    house(55.0, 2.0, 63.0, 11.5, 6.8, 2)                # the stair's head at the north-east corner
+    hall = hexc(0xb3b6b1)
+    S.box(20.0, -29.0, 0.0, 52.0, -9.0, 2.2, wall, skip="du")
+    S.sheet((20.0, -29.0, 2.2), (32.0, 0, 0), (0, 20.0, 0), 16, 5, hall, (0, 0, 1))
+    for k in range(17):                                 # its standing ribs
+        S.box(20.0 + k * 2.0 - 0.12, -29.0, 2.2, 20.0 + k * 2.0 + 0.12, -9.0, 2.5, hall, skip="d")
     steel, fan = hexc(0x8a938f), hexc(0x1d2022)
     for lx, ly in ((29.5, -4.0), (34.5, -4.0), (29.5, 1.0), (34.5, 1.0)):  # the water tank, of steel panels on its stand
         S.box(lx - 0.15, ly - 0.15, 0.0, lx + 0.15, ly + 0.15, 1.8, steel, skip="du")
     S.box(28.6, -5.0, 1.8, 35.4, 2.0, 4.8, steel, skip="d")
     for k in range(1, 4):
         S.quad([(28.6 + k * 1.7 - 0.04, -5.0, 4.82), (28.6 + k * 1.7 + 0.04, -5.0, 4.82), (28.6 + k * 1.7 + 0.04, 2.0, 4.82), (28.6 + k * 1.7 - 0.04, 2.0, 4.82)], seam_c, (0, 0, 1))
-    for k in range(6):  # a row of vent cowls over the cinemas
-        S.box(14.0 + k * 5.0, -25.0, 0.0, 15.2 + k * 5.0, -23.8, 0.9, steel, skip="d", top=hexc(0x4c5150))
+    for k in range(6):  # a row of vent cowls along the north parapet
+        S.box(16.0 + k * 4.5, 9.0, 0.0, 17.2 + k * 4.5, 10.2, 0.9, steel, skip="d", top=hexc(0x4c5150))
     parts = [S.ob("kaikan")]
-    for cy in (-17.0, -11.5):  # two cooling towers: a steel drum, the dark of its fan at the top
-        parts.append(lathe([(1.7, 0.0, steel), (1.7, 3.0, steel), (1.45, 3.3, steel), (1.3, 3.3, fan), (0.0, 3.2, fan)], seg=16, at=(40.0, cy, 0.0), smooth=False))
+    for cx in (41.0, 46.5):  # two cooling towers: a steel drum, the dark of its fan at the top
+        parts.append(lathe([(1.7, 0.0, steel), (1.7, 3.0, steel), (1.45, 3.3, steel), (1.3, 3.3, fan), (0.0, 3.2, fan)], seg=16, at=(cx, 6.0, 0.0), smooth=False))
     # the drum, and the dome: a shell whose sheets are laid in thirty-two gores and nine rings, a standing seam between
     drum_c, metal_lo, metal_hi = hexc(0xdcd6c6), lin(hexc(0x848c90)), lin(hexc(0xe8ecea))
     Z0 = DRUM + 0.15
