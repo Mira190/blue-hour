@@ -180,6 +180,9 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   2026); a lift with `pod` is still ridden so. The station's way through the
   building (the urban core from B2) is a real and fine space, but nobody in the story comes by subway and the walk sets
   out on the street; it waits in an issue labelled `later`.
+  West of the hall the tower's street floor is glass onto its shops under the building's name, the forecourt's planks run
+  on along it to the works' hoarding, and the deck over the east exit has its hung signs, its conduits and its drains
+  (`cities/shibuya/hero_miyamasu.py`, docs/HERO.md "The east side under the deck", issue 124): where frames 5 and 6 are played.
 - **Built.** `cities/shibuya/city.py` (`sky_flights`, `sky_channels`, `sky_doors`)
   draws the channels and cuts them into the roof when the scene is built;
   `cities/shibuya/sky_refit.py` cut them into the built roof of November 2026

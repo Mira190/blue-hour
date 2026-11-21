@@ -532,8 +532,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           return was;
         });
         await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {});
-        // (and the lens come to rest over the crossing before the release: a still used to take the seconds it needed)
-        await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, n = 0; const t = setInterval(() => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); if (now === was || ++n > 60) { clearInterval(t); r(); } was = now; }, 400); }));
+        // (and the lens come to rest over the crossing before the release: a still used to take the seconds it needed. At rest
+        // over the game's own frames, six alike, not over the wall's time: beside another check a frame drawn whole takes a
+        // second or two, and a lens read twice inside one frame has not moved)
+        await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, same = 0, n = 0; const f = () => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); same = now === was ? same + 1 : 0; was = now; if (same >= 6 || ++n > 900) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
         await shot('7d-air-photo');
         const aerial = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); g.photoMode(false); const st = g.walkTalk().state(), e = g.walkTalk().errand(); return { met: !!(st.air && st.air.met), errand: e ? e.text : '' }; });
         if (!aerial.met) fail('over the crossing in the helicopter, a photograph of it does not meet what Taro asked');
