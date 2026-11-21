@@ -174,7 +174,14 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   toward the outside, to two scenic cars whose indicators say 14F (the street lift's top: SKY GATE runs on from 14F to
   45F), their glass shaft up the tower's east face; the tiles, the sign pillar and the forecourt's planks in front, on
   the walk as in the story; and the ride is watched from outside the tower as it climbs (`web/game/game.js` rideLift),
-  the camera turning out round the tower's face and up to the roof. It was ridden in the dark for a while, as SKY GATE's
+  in one shot from the shoulder you had to the shoulder you get (issue 99): the camera leaves you at the doors looking
+  up the face to where the lift goes, climbs the north face beside the shaft with the floors going by, standing 22 m
+  off it in the middle of the climb, and comes in over the corner's glass as you walk out of the 46F doors (the stop's
+  `face`: the three metres to where the camera has room behind your shoulder, `liftOut`, the game's own walk), with the
+  escalator and the stair ahead and the city through the glass. It was a spiral about the line between the two stops,
+  which runs inside the tower (20 m off at once, looking at a point nobody could see), and at the top the view stood
+  over your head, 2.5 m from the corner's glass. `tools/story_play.js` takes the ride as a player does (the prompt's
+  own action from the hall) with stills along it, and fails a shot that goes through a building. It was ridden in the dark for a while, as SKY GATE's
   cars are (`lifts[].pod`, podRide: black walls and a ceiling that is one screen), and the owner found it odd, the screen
   black when the doors opened and the camera somewhere else, and the tower climbed from outside the better (November
   2026); a lift with `pod` is still ridden so. The station's way through the
