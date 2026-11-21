@@ -664,7 +664,9 @@ wrong, and redone.
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
   name printed on its panels and an invented screen; and the forecourt's planks out along the tower's north face and
-  round the hall's north side.
+  round the hall's north side. No belt outside: one ran along the front 1.5 m out (the line formed behind it at busy
+  times, as in the photographs), and a player sent to "Take the lift" met a rope across the doors; the owner took it
+  away (November 2026), and the doors are walked straight into.
 - **Its floor is walked on.** The ground rises half a metre to the north under the hall, and a hall is level. A level
   with `"floor": true` is stood on where its model draws a floor (game.js `heroCover` reads its `room_floor_*` and
   `ground_*` meshes into a height grid, `h.height`; nav.js `lift` returns that height less the ground's, under it or
