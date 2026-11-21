@@ -79,6 +79,10 @@ window.OEStory = (function () {
     for (const ch of out.join('|')) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193); }
     return (h >>> 0).toString(16).padStart(8, '0');
   }
+  // (is a kept case of this shape? One with no shape at all is of a build before cases carried one, and is not; but
+  // a harness's is: the tools set a case at a frame by hand, tools/story_play.js FROM=n and twenty more, and under
+  // automation such a case is theirs, of the story as it is)
+  const same = (k, sig) => !!k && (k.v === sig || (k.v == null && !!navigator.webdriver));
   // A case written to this browser. The prints are photographs kept as data: images, a few hundred kB an evening,
   // and a browser's few MB can be full (of this site's own keys, or on github.io of another project's): setItem
   // throws then. The case is written again without its pictures (the frames, the notes, the flags and the file
@@ -132,9 +136,9 @@ window.OEStory = (function () {
       try { left = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
       // (a case of another shape, kept by a build before the story changed or before cases carried their shape: not
       // taken up at a frame that may no longer be the one it was left at. The title says so, and offers tonight again)
-      const sig = shape(ep0), inPlay = !!(left && left.fi > 0), stale = inPlay && left.v !== sig;
+      const sig = shape(ep0), inPlay = !!(left && left.fi > 0), stale = inPlay && !same(left, sig);
       const going = inPlay && !stale && left.fi < (ep0.frames || []).length;
-      const shut = !going && !stale && (() => { try { const c = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? Object.assign(c, { old: c.v !== sig }) : null; } catch (e) { return null; } })();
+      const shut = !going && !stale && (() => { try { const c = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? Object.assign(c, { old: !same(c, sig) }) : null; } catch (e) { return null; } })();
       const WHY = 'The story has changed since you left this evening, so it cannot be taken up where it was.';
       const name = `${ep0.no ? `Episode ${ep0.no} · ` : ''}${ep0.title || ''}`, taken = going ? left.prints || [] : shut ? shut.prints || [] : [];
       const photoOf = p => (p && typeof p.src === 'string' && /^data:image\//.test(p.src) ? p.src : null); // (a photograph the player took, kept with the case)
@@ -357,7 +361,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
         : 'This browser will not keep the evening. Play on: it lasts as long as this page is open.');
       if (how !== keptAs) { keptAs = how; try { if (window.OETelemetry && OETelemetry.track) OETelemetry.track('story_save', { how, frame: st.fi + 1 }); } catch (e) { /* no telemetry */ } }
     };
-    const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.v === shape(st.ep) && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
+    const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && same(k, shape(st.ep)) && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
     let goalText = '';
@@ -1141,7 +1145,7 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
     // another answer tried, from the last card or from the title. Entering frame n writes the case as it stood at n and
     // opens the page again (ctx.again); the first frame is the evening from its beginning.
     const CLOSED = id => `bh-story-${id}-closed`;
-    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && c.v === shape(eps.find(e => e.id === id) || {}) && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
+    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && same(c, shape(eps.find(e => e.id === id) || {})) && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
     const closedNow = () => (st.ep ? closedOf(st.ep.id) : null);
     function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
     const goBack = C => (C ? `<nav class="back" aria-label="Go back into a frame"><small>Go back into a frame</small><span>${C.stamps.map((t, i) => (C.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span></nav>` : '');
