@@ -3714,6 +3714,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
   // world) or, with a.alive, a living person of this evening. Stood where there is room near `at`, or at at[2] exactly
+  // An afterimage looked for across a held street (story.js seek: glow): the halation an old exposure has round its
+  // brightest part, a soft pale column about them that the eye finds among the held crowd from across the crossing, and
+  // that fades as you come near, so that close to they are only a person. In the first Stop players looked for her for
+  // four minutes among hundreds of people standing as still as she did (November 2026)
+  let haloTex = null;
+  const haloMap = () => {
+    if (haloTex) return haloTex;
+    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+    const x = c.getContext('2d'), g = x.createRadialGradient(32, 64, 0, 32, 64, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.setTransform(1, 0, 0, 2, 0, -64); x.fillStyle = g; x.fillRect(0, 0, 64, 128); // (an ellipse twice as tall as it is wide: a standing figure's)
+    haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    return haloTex;
+  };
   const storyFigure = (a, at) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
     const old = a.alive && a.age >= 70, bend = [], look = [];
@@ -3757,8 +3771,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const hq = new THREE.Quaternion(), hp = new THREE.Quaternion(), hv = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
     let hYaw = 0, hPitch = 0;
     f.walkTo = (x, y, speed = 1.15) => { f.to = [x, y, speed]; };
+    let halo = null;
+    f.glow = on => {
+      if (on && !halo && !a.alive) { halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xd6e4ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); halo.scale.set(2.4, 4.2, 1); halo.visible = false; world.add(halo); }
+      if (halo) halo.userData.on = !!on;
+    };
+    const haloTick = dt => {
+      if (!halo) return;
+      const d = Math.hypot(f.x - player.x, f.y - player.y), want = halo.userData.on ? 0.45 * Math.max(0, Math.min(1, (d - 6) / 18)) : 0; // (none within six metres, all of it from twenty-four)
+      const o = halo.material.opacity + (want - halo.material.opacity) * Math.min(1, dt * 2.5);
+      halo.material.opacity = o; halo.visible = o > 0.004; if (halo.visible) halo.position.copy(W(f.x, f.y, f.z + 1.3));
+    };
     f.animate = dt => {
-      t += dt;
+      t += dt; haloTick(dt);
       let v = 0;
       if (f.to) {
         const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy);
@@ -3796,7 +3821,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       faceAfter(rig, dt);
     };
-    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); }; // (its face let go: face.js frees what a moving face holds)
+    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); if (halo) { world.remove(halo); halo.material.dispose(); halo = null; } }; // (its face let go: face.js frees what a moving face holds; and the halation round it)
+    f.haloNow = () => (halo && halo.visible ? halo.material.opacity : 0); // (tools/story_play.js, the first Stop)
     f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
     return f;
   };
@@ -4070,6 +4096,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // where that car is and what it is doing: {at: [x, y, z], state: 'coming' | 'waiting' | 'in'}, or null once it has gone
     rideNow: () => (!ride || ride.phase === 'leaving' ? null : { at: [ride.drv.st.x, ride.drv.st.y, ride.drv.st.z], state: player.mode === 'ride' ? 'in' : ride.phase === 'coming' ? 'coming' : 'waiting', arrived: ride.phase === 'arrived' }),
     hold: on => { if (!stopFx) return; if (on) stopFx.start(W(player.x, player.y, player.z), { rain: !!(weather && weather.state && weather.state.rain > 0.15) }); else stopFx.release(); },
+    asking: () => dlg.hasChoices, unask: () => dlg.quit(), // (a question's answers up and waiting; and closed with none given, story.js silence)
     ask: (who, lines, choices, done) => (talkLine(who, choices), talkPrint = choices.some(c => /class="pr"/.test(c.text)), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), choices, done)), // (a question: the lines, then answers to pick from)
     dress: (date, light, wx) => {
       const [m, d] = date || [clock.m, clock.d];
@@ -4100,7 +4127,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }) : null;
   // the walk (walk.js): the story's map with no story in it, the title's first way in. walk: the hour and the sky set
   // out in ({ t, w }), null on the title and in the story; walkUi: its title step and its corner of the screen
-  let walk = null, walkUi = null;
+  let walk = null, walkUi = null, tonight = null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
   const padOpen = () => [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
@@ -5379,7 +5406,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); } }
+  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); } }
   // the walk's stories in its menu (walktalk.js list): each by its name, told, under way with what was asked, or not yet
   // met with where to look
   function talesSync() {
@@ -5390,6 +5417,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!L.length) return;
     const n = L.filter(t => t.state === 'told').length, esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`;
+  }
+  // tonight's timetable in the walk's menu, under its stories (tonight.js)
+  function tonightSync() {
+    const el = $('#gm-tonight');
+    if (!el) return;
+    const h = walk && tonight ? tonight.menuHtml() : '';
+    el.hidden = !h;
+    if (h) el.innerHTML = h;
   }
   function togglePass() { renderPassport(); $('#g-pass').hidden = !$('#g-pass').hidden; }
   const bigCanvas = $('#g-bigmap-c'), mapPop = $('#g-mappop');
@@ -6703,6 +6738,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
           : { mode: player.mode }) });
     whoSync(); // (the walk's way in waits for who you play, as the episode's does)
+    // tonight (tonight.js): the night's moments by the walk's clock, told in its corner, over the street and in its menu;
+    // the last trains are the railway's own (trains.js setNight)
+    if (window.OETonight && G.tonight) {
+      tonight = OETonight.create({ stage, data: G.tonight, show, fmt: fmtMin, clock: () => clock.min, on: () => !!walk && walkUi.walking });
+      if (trains && trains.setNight && G.tonight.trains) { const n = {}; for (const [k, v] of Object.entries(G.tonight.trains)) n[k] = v.map(S.hm); trains.setNight(n); }
+    }
     // the menu's Bring your car: to the kerb nearest you, as a free ride's own car is called (and the menu put away to see it)
     { const gc = $('#gm-car'); if (gc) on(gc, 'click', () => { toggleMenu(); bringCar(); }); }
     // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
@@ -6994,6 +7035,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
     if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
+    if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
@@ -7020,7 +7062,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
     if (storyHere && storyHere.visible) { const U = storyHere.userData, t = (performance.now() - U.t0) / 900, e = 1 - Math.pow(1 - Math.min(1, t), 3), u = U.disc.material.uniforms; u.uT.value = performance.now() / 1000; u.uWave.value = 0.15 + 0.85 * e; u.uWaveA.value = 0.7 * (1 - Math.min(1, t)); }
-    if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
+    if (!simHold) dlg.tick(paused || uiOpen() || document.querySelector('#g-story-log.on, #g-story-album.on') ? 0 : dt); // (not under the menu, the log or the roll: a call that goes on by itself waits while they are up) (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
     const ob = titleOn || walk ? null : objective(); // (the walk owes nobody anything: no objective, no line, no light)
     const target = waypoint || (ob && ob.at);
@@ -8761,7 +8803,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { perch, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { perch, tonight: () => tonight, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };

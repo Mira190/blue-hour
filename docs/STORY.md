@@ -370,8 +370,10 @@ It has the movements a classical mystery has:
 - **A liar broken by evidence** (frame 5): Tatsuo cross-examined, his own statements against the roll.
 - **A witness who trusts only what he is shown** (frame 6): Mr Tanaka and his pitch.
 - **The challenge to the reader** (frame 7): the living Sumiko asks three questions, each answered with a name (one of
-  the case's people, from all of them) and then the print (or the pair of prints) that proves it. A right name on the
-  wrong print is not an answer. The second is the title's own question, and its answer is the one inference nobody
+  the case's people, from all of them) and then the print (or the pair of prints) that proves it, with the roll and the
+  file open to the player from inside the question. A right name on the wrong print is not an answer. It is never lost:
+  a wrong answer is answered and written against the player in the file, and the third on one question she answers
+  herself (section 12, "The first play, from what players did"). The second is the title's own question, and its answer is the one inference nobody
   says aloud: whom Akira was keeping out of it. The player says it to her face.
 - **The last reveal** (frame 7, and the card): she is alive; the camera was hers all along; the word.
 
@@ -409,7 +411,8 @@ up the stair behind him*).
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
 | 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true. Two wrong and he knows a guess | failure, as above |
 | 6, Mr Tanaka | shows him his pitch. Two wrong and he turns back to the station | failure, as above |
-| 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`). Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | failure, as above |
+| 3, after the print | the detective waits for her name; thirty seconds of silence is an answer too (`wait_s`, `silent`) | as *not yet*, and the file says the player said nothing |
+| 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`); the roll and the file open from inside the question (`atHand`). Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | never a failure: a wrong answer is answered for what was named or shown and written in the file, struck through; the second also says more and marks the print on the roll (`wrong2`); the third, she says it herself (`told`). The last card counts both |
 | 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
 
 ## 9. Fair play: every clue, and where it is first shown
@@ -1418,6 +1421,41 @@ On the page: `web/game/walk.js` (its step on the title and its corner of the str
 `web/game/story.css`. `tools/walk_play.js` plays it by mouse and keys on a desktop's page and by touch on a phone's;
 `tools/story_play.js` takes the last card's walk up in the same night.
 
+#### Tonight: the night's timetable (November 2026)
+
+The walk's night keeps a few things to a time, by the walk's own clock (`game.js` `clock`): whatever hour the player set
+out at (the blue hour, the night, now in Tokyo) or set the menu's clock to, and at whatever speed. Nothing is kept of an
+evening: what is shown is worked out from the minute, so a moment comes round again when the clock is set back.
+
+| Time | Tonight | What the player sees and hears | Real Shibuya, and the source |
+|---|---|---|---|
+| 19:00 to 22:00, on the hour and the half hour | CROSSING LIGHT | SHIBUYA SKY's eighteen searchlights over the roof (`web/lights.js`, `light_show`) | 18 searchlights from 19:00 on the hour and the half hour, the last at 22:00: nippon.com gu900265 (2023-12-08), Time Out Tokyo "Shibuya Sky" (2025-03-21). Each show's length (about five minutes in one old guide) is uncertain; the map keeps ten |
+| 21:00 | The shutters come down | Two fifths of the streets' shopfronts go dark a shop at a time over four minutes (a sixth already at 20:00, a fifth at 22:00, an eighth at 23:00; the rest, the convenience stores, bars and discount stores, all night: `web/buildings.js` `shopOpen`) | SHIBUYA109, Scramble Square, MAGNET, Hikarie ShinQs and the Tokyu Food Show: shops 10:00 to 21:00 (shibuya109.jp; walkerplus ar0313s370436; tokyu-dept.co.jp; gltjp.com 10489, 19617). Restaurant floors to 23:00; MEGA Don Quijote 24 hours (gotokyo.org 1879). Center Gai's own hours are not published: the shares are an assumption |
+| 00:00 | The screens go dark | The six screens round the crossing go out, and their sound with them (the screens' `hours`, `pipeline/screens.py`) | The crossing's screens are sold 9:00 to 24:00: yunikavision.jp (2024-12-24), ooh-portal.jp's pages for Rakuten Vision, Starts Vision, 109 Forum Vision |
+| 00:33 and 00:48 | The last Yamanote trains | The last train of each loop comes in to its platform said to be the last (最終電車, in the platform's voice and caption), and none runs after it until the first, about 4:30 (`web/game/trains.js` `setNight`) | JR East's timetable (December 2026, timetables.jreast.co.jp tt0808): the outer loop for Shinjuku and Ikebukuro 0:33, the inner loop for Shinagawa 0:48, weekday and weekend. The first trains' times are approximate |
+
+Researched and not taken as moments: the Ginza line's last train (0:02, to Ueno) and the Den-en-toshi line's (0:25, to
+Saginuma; transit.yahoo.co.jp timetables 3270 and 3161), which the map does not run; SHIBUYA SKY's last admission
+(21:20) and close (22:30, gotokyo.org 1749), not seen from the street; the screens' synchronised slots, which are
+bought by advertisers rather than kept to a clock (shunkosha.co.jp, 2026-04-08; the map's own joint slot every two and a
+half minutes stays); a meeting crowd at Hachiko on the hour and a rush before the last trains, for which no count was
+found. Seibu Shibuya's A and B wings closed for good on 30 September 2026, and Tokyu's department stores before it.
+
+How it is told, from the open worlds whose towns keep hours (design only, nothing of their look or words): *Red Dead
+Redemption 2*'s and *Ghost of Tsushima*'s worlds that change by the hour without saying so, and the *Yakuza* series'
+Kamurocho, whose night has its own places and people; *Animal Crossing*'s and *Majora's Mask*'s shops that close and
+events kept to a clock the player learns. Adopted: the world does it by itself, from its own systems; a quiet word a few
+minutes before, in the walk's corner, under the date in its mono, never over the storyline's line and never more than
+one (*CROSSING LIGHT · 20:00 · SHIBUYA SKY's roof*, then *Now · ...*); its name over the street as it begins, as a story
+put away has; tonight's timetable in the walk's menu under its stories, the next in amber. Two at one minute (21:00's
+show and the shutters): the one that comes once a night has the line. Not adopted: a countdown, a marker on the map,
+a reward for being there.
+
+On the page: `web/game/tonight.js`, `cities/shibuya/city.json` `game.tonight` (the moments, their words, the
+Yamanote's last and first trains), the styles after the walk's stories in `web/game/story.css`.
+`tools/tonight_play.js` sets the clock to just before each moment, checks it happens, and takes its stills on a desktop
+and a phone.
+
 ## 11. The voice
 
 - Short lines. Nobody explains the rules; they say what they saw and did, never what it means. The rules come as
@@ -1684,6 +1722,83 @@ cross-examination, a statement pressed and evidence presented, judged as a pair;
 an author's sentence. `tools/story_play.js` presses Tatsuo's statements and names Sumiko's answers as a player who knows
 them would (state `want`), with a still of each list; `SLIP=5` and `SLIP=7` answer them wrongly until the one asked sees
 through the player.
+
+### The first play, from what players did (21 November 2026)
+
+The story became the title's first way in for the launch, so its first play may have no dead end and no stall. Three
+weeks of the page's own telemetry (`story` and `dwell` events: the beat a player is in, and how long) were a small
+sample, seven players begun and two at the last card, but they said where it hurt, and four places were worked on.
+The engaged time overstated it: an open dialogue or any moment of a Stop counted as engaged with nobody at the keys, so a
+box left open for half an hour read as half an hour of play. Now only what is watched with no hand on anything counts
+without input (the Stop falling, the dog's film, a flight, a call; `web/telemetry.js`), and the rest as everywhere else.
+Learnt from (design only; nothing of their look, characters, words or code is used): *Ace Attorney* (2001–), *The Case
+of the Golden Idol* (2022), *Return of the Obra Dinn* (2018), *L.A. Noire* (2011), the *Telltale* adventures (2012–),
+*Firewatch* (2016), *Journey* (2012), *The Last Guardian* (2016) and *Ghost of Tsushima* (2020).
+
+**The summation is never lost (frame 7).** The two players who reached it were seen through eight times between them:
+two wrong answers and the frame was taken up again from her kerb, the crossing, her five lines and every question before
+the one that was missed. What the best detective games do with a wrong answer:
+
+| Work | A wrong answer | The evidence while answering |
+|---|---|---|
+| *Ace Attorney* | costs a share of a penalty bar, and the judge says why it is wrong; only an empty bar ends the trial | the Court Record is open on the desk while evidence is presented |
+| *The Case of the Golden Idol* | costs nothing but time; the game says how many of a scene's blanks are wrong when few are | the notes and every scene's clues are on the same screen as the blanks |
+| *Return of the Obra Dinn* | is never confirmed alone: the book says *correct* only when three fates hold together, so a guess cannot be checked one at a time | the logbook, the crew list and every memory are at hand |
+| *L.A. Noire* | an accusation of a lie needs the evidence from the notebook; a wrong one loses the line of questioning, not the case | the notebook, always |
+
+Adopted: the case is the player's to argue, so nothing of it is played twice for one answer. A wrong answer is answered
+for what was said, as before (*I tore free and ran, and left him on his feet*), and costs something the player can see:
+it is written into the file in the fountain pen's ink and struck through as it is written (the slip at the top of the
+frame says *Entered, and struck through*), and the last card counts it (`story.js` `judged`, the question's `file`).
+The second wrong answer on one question says more (`wrong2`: where to look, in her words) and marks the print that
+answers it when the roll is laid out (*look again*), as a judge would point at the record. The third, and she says it
+herself (`told`): the case goes on, and the file and the last card keep that she had to (*She answered one question
+herself*). A right answer is written down too, and when all three are settled the file says in one line that they hold
+together, and how many were the player's own (Obra Dinn's confirmation, given once the whole case stands). The roll and
+the file are at hand from inside every question: one more answer, *The roll and the file*, opens them over it, and
+closing them asks the same question again, the name already given kept if it was the print being asked for
+(`atHand`). Kept: the name first and then the print, judged as a pair, so that a guesser of seven names and as many
+prints is wrong, and seen to be wrong, nearly every time. Not taken: a penalty bar. Sumiko is not a court; she is a woman
+who has waited sixty-two years, and her patience is the story's subject, not a meter.
+
+**The first Stop shows her (frame 1, the walk to Sumiko).** The players spent about four minutes each between the world
+stopping and reaching her. In the stills of a first play the reason is plain: the view after the dog's entrance looks
+north across the crossing, and she is thirty metres off at the far kerb behind a hundred people standing exactly as
+still as she does; the one thing that told her from them was that she turns her head. The goal said *Walk to her*, and
+the dog led, but a player has to see where before they follow. *Journey* puts a light on the mountain and never says a
+word about it; level designers lead the eye with a clear line through a crowded frame; *The Last Guardian* and *Ghost of
+Tsushima* show the way with something of the world (the creature's gaze, the wind) instead of a marker. Adopted, with no
+word added: under the flash of the Stop, where nobody is seen to move, the held crowd stands out of a lane from you to
+her a little wider than two people walking abreast (`story.js` `stop`, `ctx.clear`), so that she stands at the end of an
+open line through the crossing and the dog runs down it; and she has the halation an old exposure has round its
+brightest part, a soft pale column about her that is found across the street and fades as you come near, so that close
+to she is only a person (`game.js` `storyFigure` `glow`, on while she is looked for). Every afterimage that is walked to
+has the same.
+
+**The question the detective waits on (frame 3, after its print).** One player sat half an hour in this beat; the page
+recorded the roll being opened in it. After the print the detective asks the player to say it was her, or not: a choice
+with no right answer and no time, the first time the story asks the player to commit, and it sends them to the roll to
+weigh it, with the question waiting under the roll and nothing on the screen to say so. The *Telltale* adventures treat
+silence as an answer: the choice has a visible time, and saying nothing is remembered like anything said. Adopted: he
+waits thirty seconds (`wait_s`), shown as a hairline under the answers running down, held while the roll, the log or the
+menu is open; when it has run out the player has said nothing, which he answers as *not yet* (`silent`: *You say
+nothing. Good.*), and the file writes *You said nothing at the police box when he waited for her name*. The roll opened
+over a waiting question closes on *Back to the question*.
+
+**The office's call (frame 1, after the first Stop).** Five long lines, about seven minutes a player, one of them for
+twenty-five minutes before reloading the page: a call is a thing heard, and it waited on a key at every line.
+*Firewatch*'s radio talk runs on by itself at the pace it is spoken, and is still the game's whole story. Adopted: three
+lines with the same facts (who Kagami is to the office, the kerb, the client and his hour, the word on the plan, the
+sister), and every call (the prologue, a frame's message, the call before the helicopter) goes on by itself once a line
+is whole, after the time it takes to read it (`hud.js` `dialogue`, `auto`); a key or a tap still goes on at once, and
+it waits while the menu, the log or the roll is up. A box that waits on an answer (a question) waits; a box that only
+speaks never does.
+
+`tools/story_play.js` plays it: `SLIP=7` answers the first question wrongly three times and must see her say it herself
+and the last card count it, never the card that takes the frame up again; the first question of every play opens the
+roll and the file from inside it and must be asked again; `SILENT=3` leaves the detective's question to run out; and
+`AFTER=1` with `UPTO=n` plays on past frame n's print, through what is said after it, so that a frame's call is played
+with it.
 
 ## 13. What is left, and the marks without colour
 
