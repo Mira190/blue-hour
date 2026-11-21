@@ -515,7 +515,12 @@ the coursed stone the relic draws (docs/PAST.md keeps that liberty).
   invented). Toei Plaza carries three tall signs, three boxes and its name, FPG links SHIBUYA (closing the view) one
   tall sign, its neighbour one of each. Their faces are on the atlas's last shelf, after the shops, so a phone holds no
   bigger an atlas at frame 5. The west side's fronts up the street (渋谷パークサイド共同ビル and the towers beyond it) are
-  dressed by the Scramble's level, and their signs are that level's to hang.
+  dressed by the Scramble's level, and their signs are that level's to hang: hero.py's `SIGNED`, on the same code
+  (`Level.hang`, `Level.signs`), so 渋谷パークサイド共同ビル's south front over the street carries two tall signs and three
+  boxes, and the slim towers behind it a tall sign each down their narrow faces. The east side's mid-rises up the street
+  (seen in the views up it and back down) carry one or two each, and Toei Plaza four of each and its name. The boxes'
+  faces are two cells of six now, twelve invented trades; on both levels they and the tall signs' faces fill the
+  atlas's last shelf exactly (2048 px), so neither atlas grew.
 
 Its stills: `tools/views/shibuya-miyamasu.json` (the frame's view, the talk shot, up and back along the deck, from
 the air) with `tools/scramble_shot.js`; its beat is frame 5 of `tools/story_play.js` (`FROM=4 UPTO=5`).
@@ -540,10 +545,67 @@ move), Tokyo Metro news 2019-10-28 (the M-shaped arch frame), ja.wikipedia 宮�
 panels (上流から宮益橋を見る, 1959, all rights reserved: looked at, not used), Tokyo Metropolitan University's paper on
 the river's improvement works (akira.fpark.tmu.ac.jp, 263.pdf).
 
-Where it still falls short: the station's walls above the girders are the city's panel style, not its white box
-and glass; the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
+Where it still falls short: the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
 the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
 software renderer only.
+
+## The Ginza line's station (Shibuya): the box over Meiji-dori (issue 57)
+
+Frame 5 is taken three metres south of the Ginza line's station, under its deck's edge, and the station fills the top
+of the frame; from up Meiji-dori, from Scramble Square's roof (frame 4) and from the air it is the white thing that
+crosses the street. The city drew it as its generic panelled box, 15 m tall over the deck, with punched windows.
+
+**The station, from the research** (November 2026). Moved about 130 m east onto Meiji-dori and opened on 3 January
+2020; the roof's design is Hiroshi Naito's (Naito Architect & Associates), the box Tokyo Metro's. A 12 m island
+platform (the old one had two of 6 m) under a roof of M-shaped arch frames with no column on the platform: 110 m long,
+28 m wide and 9 m high, assembled from 44 spans, 1,500 t in all (Railway Gazette 2019-01; Japan Times 2019-02-07;
+Tokyo Metro news 2019-10-28; trafficnews.jp 92628). A roof block lifted into place in 2019 was 25.2 m by 22.5 m and
+7.7 m high, 290 t (the same reports). In the photographs listed under "Miyamasu" and the press photographs of the
+works: a white deck edge in large flat panels, a glazed band where the frames' feet stand, and over it the frames,
+white, rib after rib, glass up their steep feet and white panels over the crowns.
+
+**What was built** (`cities/shibuya/hero_ginza.py`, a level of its own: `python blender/build_hero.py --city shibuya
+--level ginza`):
+
+- **The deck's edge**: the box girders clad in white panels 1.8 m wide with open joints, from 1.15 m under the deck to
+  1.4 m over it, round the station's whole outline (this was the Miyamasu level's, within its reach only; it moved here
+  so the station is whole wherever it is seen).
+- **The glazed band** over it to the frames' feet, 3.2 m: glass on a white sill, a transom a metre up, a mullion every
+  1.25 m and a frame's foot every 2.5 m, a white cornice over it, the box's top closed in white panels inside it.
+- **The roof**: 45 frames, 44 spans of 2.5 m over 110 m from the station's west end over Meiji-dori, each a white box
+  section 0.28 m by 0.42 m swept along the M across the station (steep at the eaves, the crowns two fifths of the way
+  in, a valley 1.1 m lower over the platform's middle; 8.6 m from the feet to the crowns), standing 0.15 m proud of the
+  skin; the skin glass up the frames' feet and white panels over the crowns, a glazing bar along each leg, a gutter in
+  the valley, the end frames heavier, and the gables in glass with a mullion every 1.25 m. Past the 110 m, the box (the
+  concourse's way east) keeps the band's flat top.
+- **After dark** the glass is lit from behind, the platform's light (`win_ginza`: hero.js lights `win*` with the
+  evening), and mirrors the sky by day.
+- **The city's box under it** is capped at the frames' feet (`pipeline/stations.py` `TOP`, 11.4 m over the ground):
+  the record's flat top stood through the arches.
+
+4,600 triangles and 5,600 vertices, 0.13 MB, in plain materials only (no picture), and a fine model of 5,600
+triangles, 0.14 MB: the frames' sides and feet (the end frames' stay in the level, seen across the gables), the light
+mullions and transoms, the glazing bars, the gables' mullions and the cladding's joints, drawn within 110 m of the
+camera and never fetched on a phone. A phone at frame 5 holds the Scramble's and Miyamasu's levels beside it, and main
+had come to 270 MB of the 270 budget there (`tools/mem_check.js` `AT=521.9,-1074.1`; issue 105), so what it holds of
+this level was cut until the frame measured no more than main: a frame is drawn only where it stands proud of the
+skin, its back as a strip that shares its points along the M; the cladding's panels are one face to a wall; the M has
+eleven points to a half. 35,500 vertices became 5,600 on a phone, with no change a still shows. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
+story walks (`game.hero[].load_m` 900).
+
+Its stills: `station`, `west` and `ginza_air` in `tools/views/shibuya-miyamasu.json`, and frame 5's beat.
+
+Sources (looked at and measured from, compared and not copied; no photograph is reproduced and no texture taken from
+one): Railway Gazette, "Tokyo Metro's Shibuya roof in place" (2019) and "Shibuya station shift sorted" (2020); The
+Japan Times, 2019-02-07, "Distinctive new roof placed on Shibuya Station platform"; Tokyo Metro news releases
+2019-10-28 and 2021-02-18 (metroNews20191028_105.pdf, metroNews210218_06.pdf); trafficnews.jp/post/92628 and 83304;
+Shinkenchiku 2020-04 (SK_2020_04_046), all rights reserved by their publishers: facts and dimensions taken, nothing
+else. The Wikimedia Commons photographs under "Miyamasu" (CC BY-SA 4.0 and CC0) for the elevations.
+
+Where it falls short: the frames are a designed M drawn from the published height and the photographs, not from
+drawings; the width is the record's box, 21.8 m between its walls, not the published 28 m of the roof (the record's
+outline is what the city's piers and deck stand on, and the level keeps to it); the platform inside, its lights and its
+trains are not modelled, only their light on the glass; and it has been seen on a software renderer only.
 
 ## SKY's street entrance (Shibuya): frame 4's way up (issue 53)
 
