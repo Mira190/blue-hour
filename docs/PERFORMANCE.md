@@ -2332,3 +2332,132 @@ back to the idle, or any clip the rig has, since 17 November; the other `reset()
 
 Not checked: a real Apple GPU, Safari, iOS, WebGPU. The vertex stage's units are not counted (no patch reads a
 texture in a vertex shader; three.js's skinning, morph and batching textures are within any GPU's sixteen there).
+
+## Every millisecond and megabyte on what the player sees now (issue 130, November 2026)
+
+The owner's ask: from first principles, all the compute on the blade's edge; a picture that goes up while the frame and
+the memory go down. Where it stood on real devices (three days of telemetry to 21 November): an iPhone at a median of
+27 frames a second with 40% of its frames slower than 50 ms, held by the GPU 73% of the time, a frame of some 376
+draws, 1.26 million triangles and 11 passes over 1.09 million pixels, four WebGL contexts lost in five minutes
+(issue 118) and the GPU's memory at frame 5 at 269 MB of 270 (issue 105); an M3 at 59 frames a second with the
+governor at its floor (scale 0.6), 13 passes over 3.9 million pixels and 29 ms of GPU a frame.
+
+**The principle.** A frame's cost is set by what is in this picture at this moment, at the detail this picture can
+show, and by nothing else: not the size of the map, not the number of things that exist, not what the last beat
+needed. Memory the same (resident is what the next minute of play can show) and the download (what the first beat
+shows comes before it). Three questions follow, asked of everything in a frame:
+
+1. *Is it in the picture?* A thing behind a wall, on a roof seen from the street, behind the camera or under a
+   pixel is not. Its triangles, its draw and its textures are owed nothing.
+2. *How much of it can the picture show?* A triangle smaller than a pixel, a texel smaller than a pixel, a pass at
+   a resolution finer than what it computes (occlusion, bloom, fog and a wet street's reflection are soft by
+   nature) are paid for and not seen.
+3. *Is it paid for once?* A pixel shaded and then covered, a target stored and loaded again between two passes, a
+   pose worked out for a walker nobody sees, a texture kept after its beat: each is the same cost twice.
+
+### What the frontier does, and what is taken from it
+
+Surveyed 21 November 2026 (rendering in a browser, and what shipped games do within a fixed frame). What is adopted
+is the design; no code was copied.
+
+| Topic | What was found | Here |
+|---|---|---|
+| Hidden surfaces on a phone's GPU | Apple's GPUs remove hidden surfaces themselves: "if you only perform a depth pre-pass for performance, then hidden surface removal serves the same purpose on Apple GPUs... without any additional costs" (WWDC 2020, session 10632). Opaque first, then anything that discards, then the translucent; the opaque order does not matter there. Arm's Mali and Qualcomm's Adreno do reward front to back, and a `discard` stops both of their early rejections ([Arm](https://developer.arm.com/community/arm-community-blogs/b/mobile-graphics-and-gaming-blog/posts/hidden-surface-graphics-removal-methods-in-mali-gpus), [Mesa's notes on Adreno](https://docs.mesa3d.org/drivers/freedreno/hw/lrz.html)). | **No depth prepass**: on an iPhone it would shade 1.26 million triangles' vertices twice for nothing. Opaque sorted front to back as three.js does already; alpha-tested things kept after the opaque. |
+| Passes on a tile-based GPU | Each render pass loads its target into the tile memory and stores it after; Apple: load and store actions "consume the majority of your app's system bandwidth". Meta measured a pass on an Adreno at 1216 x 1344 with 2x MSAA: 10.6 ms, of which 3.9 ms was load and store that could be avoided ([Meta](https://developers.meta.com/horizon/blog/loads-stores-passes-and-advanced-gpu-pipelines/)). | **Adopted as the first cost to cut on a phone**: fewer passes and fewer full-size ones, the soft ones at half size, targets invalidated when their contents are done with. The budget counts passes and the pixels they shade, per beat. |
+| Triangles within a frame | Epic's guideline for mobile: at most 700 draws and 500,000 triangles in view ([Unreal Engine, performance guidelines for mobile](https://dev.epicgames.com/documentation/en-us/unreal-engine/performance-guidelines-for-mobile-devices-in-unreal-engine)). Virtualised geometry in a browser exists on WebGPU only ([Scthe/nanite-webgpu](https://github.com/Scthe/nanite-webgpu), MIT; no streaming, no skinning). On WebGL 2: three.js's `BatchedMesh` (per-object culling, multi-draw), [agargaro/instanced-mesh](https://github.com/agargaro/instanced-mesh) (MIT: per-instance culling, a BVH, levels of detail), meshoptimizer's simplifier (MIT, already in the pipeline). | **A level of detail by projected size for every kind of thing**, built in the pipeline with meshoptimizer, chosen by the height in pixels a thing has on this screen; a phone's beat aims at Epic's half million. The draws are within the guideline; the triangles were 2.5 times over it. Nanite-like clusters: not taken (WebGPU only, and the level is small enough for discrete levels). |
+| Resolution | three.js has a temporal upscaler (`TAAUNode`) and FSR 1 (`FSR1Node`) for its WebGPU renderer. FSR 1's two passes (EASU, RCAS; AMD, MIT) run on WebGL 2 (Babylon.js ships it). Arm's ASR (MIT, from FSR 2) is the temporal one on phones. | The governor's render scale is kept. A sharpening upscale when the scale is under 0.8 is the candidate, to be judged on the devices (it costs a pass, and a pass is what a phone is short of). |
+| Lights | three.js's tiled and clustered lighting are WebGPU only; no measured gain was found under some tens of lights. | **Not taken.** The ten screens' lights are in closed form already ("The device's own numbers"); the street's lamps are a baked map. |
+| Texture memory | A 4096 x 4096 RGBA texture with its mips is about 90 MB on the GPU whatever its file's size; block formats cut that four to eight times ([Don McCurdy, 2024](https://www.donmccurdy.com/2024/02/11/web-texture-formats/)). iOS gives a tab no fixed limit; context loss is reported there without growth, too. | ASTC on a phone is done ("A phone's pictures in ASTC blocks"). **Next: what a beat leaves behind is freed**, and a desktop's textures (1.25 GB resident in frame 1 here, none of it in blocks). |
+| Crowds | Past a hundred skinned meshes the cost is the skeletons' update on the CPU; bone matrices baked to a texture with instancing is the standard answer (GPU Gems 3, chapter 2). | The far crowd is instanced from baked poses already (issue 475); the near cast stays skinned. |
+| Shaders at load | `KHR_parallel_shader_compile` is exposed by Safari, but compiling is reported to block there still (WebKit bug 251514). | Programs are compiled behind the loading plate ("The loader's compile"), never counted on to be asynchronous. |
+| WebGPU | Safari 26 ships it on iOS, Chrome on Android since 121. three.js's WebGPU renderer is slower than its WebGL one with many separate meshes (682 against 2,562 meshes at 60 frames a second in one comparison, [ICS, 2025](https://ics.media/en/entry/250501/)). | **Not moved to.** At 400 draws it buys nothing by itself; its worth would be compute culling and a temporal upscale, to be measured on one beat before any move. WebGL 2 stays the path every device has. |
+| Budgets | Studios play their levels through every night and collect what each costs (Epic's Automated Performance Tests). | **Adopted**: below. |
+
+### A budget for every beat
+
+Until now the budget was one number for the map (`tools/mem_check.js`: a phone's GPU memory at one place). Now every
+beat of the episode has its own, on a phone's tier and a desktop's.
+
+- **Counted where the story is played.** `tools/story_play.js` with `BUDGET=file` counts, at every still it takes, the
+  frame after the still's (`tools/beat_count.js`): draw calls, triangles, full-screen passes (as the telemetry counts
+  them), the pixels shaded at least once (every pass's target, and every target the scene is drawn into: the canvas
+  itself is 1), and what WebGL holds (`tools/gl_mem.js`: textures, buffers, renderbuffers). `BUDGET_BY=1` adds what
+  was drawn, by name; `BUDGET_TOP=n` the largest textures and buffers held.
+- **A beat is one of the episode's frames** (and the title); its cost is the heaviest of its stills, measure by measure.
+- **These are the page's own asks**, so they are the same under this machine's software renderer as on a GPU, and they
+  are what the telemetry reports from a device (`draws`, `tris_k`, `passes`, `px_k`): the session's counts and the
+  owner's iPhone's agree (here 390 to 520 draws and 1.3 to 1.7 million triangles a beat; there 376 and 1.26 million).
+  What a frame costs in milliseconds only a device says.
+- **The check.** `tools/budgets/shibuya.json` holds each beat's ceiling. The story's own check counts its stills and
+  fails a beat over the desktop's budget; `tools/check.sh budget` plays the episode as an iPhone (390 x 844 at three
+  pixels to the point, the low tier) and fails a beat over a phone's (main's checks run it for every change to the
+  page). A budget is set a little above what the beat costs (`tools/beat_budget.py set`: 12% over for draws and
+  triangles, which differ from play to play with the crowd; 3% for memory; none for passes) and goes down as the
+  work lands. It only goes up on purpose, with the reason in the commit.
+
+**The budgets as first set** (21 November, main at `e48d974`; the heaviest still of each beat, with the room above it).
+Counted on a session's machine (Chromium on Mesa's software renderer), which changes none of these counts; the phone
+is an iPhone emulated (its size, three pixels to the point, its user agent, touch), without ASTC, so its textures are
+weighed uncompressed as `tools/mem_check.js` weighs them. The script's time is this machine's, a guide only, and is
+not held to a budget.
+
+phone (390x844, the low tier, canvas 760 x 1644):
+
+| beat | draws | triangles | passes | pixels shaded, canvases | textures | textures, MB | buffers, MB | GPU memory, MB | script, ms |
+|---|---|---|---|---|---|---|---|---|---|
+| title | 216 | 0.96 M | 11 | 2.41 | 104 | 143 | 49 | 196 | 18.4 |
+| frame 1 | 473 | 1.73 M | 13 | 4.51 | 318 | 202 | 88.5 | 296 | 35.4 |
+| frame 2 | 584 | 1.89 M | 13 | 4.51 | 320 | 203 | 89.6 | 298 | 37.2 |
+| frame 3 | 544 | 1.73 M | 13 | 4.51 | 331 | 205 | 90.6 | 301 | 41.2 |
+| frame 4 | 461 | 1.46 M | 13 | 4.51 | 353 | 220 | 104.1 | 330 | 63.8 |
+| frame 5 | 1071 | 1.64 M | 13 | 4.51 | 359 | 220 | 104.1 | 330 | 52.8 |
+| frame 6 | 540 | 1.83 M | 13 | 4.51 | 373 | 212 | 100.5 | 318 | 91.1 |
+| frame 7 | 963 | 2.48 M | 13 | 4.78 | 400 | 212 | 96.7 | 314 | 53.5 |
+
+desktop (800x500, the high tier, canvas 800 x 500):
+
+| beat | draws | triangles | passes | pixels shaded, canvases | textures | textures, MB | buffers, MB | GPU memory, MB | script, ms |
+|---|---|---|---|---|---|---|---|---|---|
+| title | 329 | 2.02 M | 17 | 4.38 | 139 | 688 | 132.3 | 852 | 31.4 |
+| frame 1 | 764 | 3.01 M | 19 | 6.48 | 729 | 1288 | 174.8 | 1496 | 103.1 |
+| frame 2 | 855 | 3.21 M | 19 | 6.48 | 745 | 1289 | 182.3 | 1505 | 108.8 |
+| frame 3 | 864 | 2.99 M | 19 | 6.48 | 760 | 1299 | 183.3 | 1516 | 74.6 |
+| frame 4 | 777 | 2.59 M | 19 | 6.48 | 777 | 1375 | 196.9 | 1605 | 124.8 |
+| frame 5 | 1073 | 3.01 M | 19 | 6.48 | 799 | 1375 | 196.9 | 1605 | 100.6 |
+| frame 6 | 869 | 3.14 M | 19 | 6.48 | 817 | 1315 | 197 | 1546 | 157.1 |
+| frame 7 | 1882 | 5.92 M | 19 | 7.33 | 841 | 1308 | 189.5 | 1531 | 111 |
+
+**What the first count found**, largest first:
+
+- *A phone's memory is not what one place holds; it is what the story has left behind.* `mem_check.js` puts the
+  player at frame 5's place and reads 266 MB. Played from the title, the same phone holds 253 MB as frame 1 opens,
+  296 by frame 4 and **320 MB at frame 4's lift and through frame 5**: fifty megabytes over the budget the check
+  held it to, in the frames where the owner's iPhone lost its context. Nothing a beat brings is given back.
+- *Depth of field costs two more full-size passes and two full-size targets, and the targets are kept for good.* A
+  conversation's shot, the camera raised, a print and the flight all blur by depth (a third of a play's stills). The
+  frame then draws the bloom's merge into one full-size half-float target, the blur into a second, and the lens to the
+  canvas: on a phone 4.29 canvases of pixels shaded against 2.29 without it, and 19 MB (two targets of 760 x 1644)
+  that stay after the first conversation; on a desktop at 2560 x 1440, 59 MB.
+- *A desktop holds 1.25 GB of textures in frame 1* (1.45 GB of GPU memory in all), none of it in blocks.
+- *Triangles by what they are*, a phone's mean of 1.32 million a still: the ground's tiles 256,000 (19%, most of them
+  under the hero level's paving); the far crowd 165,000 (12%); the guide dog 113,000 with its guard hairs (8.5%, one
+  animal); the roof kit 72,000, the same in every still of the play (never culled); the trains 100,000. A desktop's
+  mean of 2.72 million: the roof kit 430,000 (16%, on roofs the street cannot see), the wet street's mirror 250,000
+  more (the scene drawn again at a third of the size), the dog 120,000, the far land 127,000 in one draw.
+- *Frame 7 in the rain* is the heaviest beat on both: 5.3 million triangles and 1,680 draws on a desktop.
+- *Passes.* A phone's eleven are the scene, ten small ones of the bloom (a quarter of the size and down) and the
+  lens: 2.29 canvases in all, already lean. A desktop's seventeen to nineteen shade 4.2 to 6.2 canvases.
+
+**The order of work**, by what was counted: the depth of field's passes and targets; what a beat leaves behind in a
+phone's memory; the triangles nobody can see (the roof kit from the street, the ground under the paving) and the
+ones no screen can show (the dog, the far crowd, the trains by projected size); a desktop's textures in blocks.
+Each lands by itself with its beats' numbers before and after, and the budgets come down with it.
+
+**On the devices** (what a session cannot measure: a GPU's milliseconds). After each release:
+
+1. iPhone: open the story, play into frame 1 until the world has stopped, add `?perf` to the address (with
+   `?story=shibuya` for the story's evening), stand still for a minute; the table appears on the page and is sent
+   with the telemetry as a `perf` event. The same on the M3 in Chrome and in Safari.
+2. `python3 tools/slo_report.py --posthog --days 3`: "the levels by release" sets each version's frame rate, slow
+   frames, GPU and script time, draws, triangles and passes side by side, by device; a release is better when its
+   phone rows show fewer slow frames at the same or a higher governor scale, and no `gl_lost`.

@@ -1,0 +1,198 @@
+{
+ "desktop": {
+  "beats": {
+   "title": {
+    "draws": 329,
+    "tris": 2021000,
+    "passes": 17,
+    "px_x": 4.38,
+    "tex_n": 139,
+    "tex_mb": 688,
+    "buf_mb": 132.3,
+    "gpu_mb": 852,
+    "js_ms": 31.4
+   },
+   "frame 1": {
+    "draws": 764,
+    "tris": 3011000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 729,
+    "tex_mb": 1288,
+    "buf_mb": 174.8,
+    "gpu_mb": 1496,
+    "js_ms": 103.1
+   },
+   "frame 2": {
+    "draws": 855,
+    "tris": 3212000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 745,
+    "tex_mb": 1289,
+    "buf_mb": 182.3,
+    "gpu_mb": 1505,
+    "js_ms": 108.8
+   },
+   "frame 3": {
+    "draws": 864,
+    "tris": 2990000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 760,
+    "tex_mb": 1299,
+    "buf_mb": 183.3,
+    "gpu_mb": 1516,
+    "js_ms": 74.6
+   },
+   "frame 4": {
+    "draws": 777,
+    "tris": 2594000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 777,
+    "tex_mb": 1375,
+    "buf_mb": 196.9,
+    "gpu_mb": 1605,
+    "js_ms": 124.8
+   },
+   "frame 5": {
+    "draws": 1073,
+    "tris": 3009000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 799,
+    "tex_mb": 1375,
+    "buf_mb": 196.9,
+    "gpu_mb": 1605,
+    "js_ms": 100.6
+   },
+   "frame 6": {
+    "draws": 869,
+    "tris": 3136000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 817,
+    "tex_mb": 1315,
+    "buf_mb": 197,
+    "gpu_mb": 1546,
+    "js_ms": 157.1
+   },
+   "frame 7": {
+    "draws": 1882,
+    "tris": 5922000,
+    "passes": 19,
+    "px_x": 7.33,
+    "tex_n": 841,
+    "tex_mb": 1308,
+    "buf_mb": 189.5,
+    "gpu_mb": 1531,
+    "js_ms": 111
+   }
+  },
+  "size": "800x500",
+  "tier": "high",
+  "canvas": [
+   800,
+   500
+  ]
+ },
+ "phone": {
+  "beats": {
+   "title": {
+    "draws": 216,
+    "tris": 957000,
+    "passes": 11,
+    "px_x": 2.41,
+    "tex_n": 104,
+    "tex_mb": 143,
+    "buf_mb": 49,
+    "gpu_mb": 196,
+    "js_ms": 18.4
+   },
+   "frame 1": {
+    "draws": 473,
+    "tris": 1731000,
+    "passes": 13,
+    "px_x": 4.51,
+    "tex_n": 318,
+    "tex_mb": 202,
+    "buf_mb": 88.5,
+    "gpu_mb": 296,
+    "js_ms": 35.4
+   },
+   "frame 2": {
+    "draws": 584,
+    "tris": 1892000,
+    "passes": 13,
+    "px_x": 4.51,
+    "tex_n": 320,
+    "tex_mb": 203,
+    "buf_mb": 89.6,
+    "gpu_mb": 298,
+    "js_ms": 37.2
+   },
+   "frame 3": {
+    "draws": 544,
+    "tris": 1730000,
+    "passes": 13,
+    "px_x": 4.51,
+    "tex_n": 331,
+    "tex_mb": 205,
+    "buf_mb": 90.6,
+    "gpu_mb": 301,
+    "js_ms": 41.2
+   },
+   "frame 4": {
+    "draws": 461,
+    "tris": 1461000,
+    "passes": 13,
+    "px_x": 4.51,
+    "tex_n": 353,
+    "tex_mb": 220,
+    "buf_mb": 104.1,
+    "gpu_mb": 330,
+    "js_ms": 63.8
+   },
+   "frame 5": {
+    "draws": 1071,
+    "tris": 1640000,
+    "passes": 13,
+    "px_x": 4.51,
+    "tex_n": 359,
+    "tex_mb": 220,
+    "buf_mb": 104.1,
+    "gpu_mb": 330,
+    "js_ms": 52.8
+   },
+   "frame 6": {
+    "draws": 540,
+    "tris": 1827000,
+    "passes": 13,
+    "px_x": 4.51,
+    "tex_n": 373,
+    "tex_mb": 212,
+    "buf_mb": 100.5,
+    "gpu_mb": 318,
+    "js_ms": 91.1
+   },
+   "frame 7": {
+    "draws": 963,
+    "tris": 2480000,
+    "passes": 13,
+    "px_x": 4.78,
+    "tex_n": 400,
+    "tex_mb": 212,
+    "buf_mb": 96.7,
+    "gpu_mb": 314,
+    "js_ms": 53.5
+   }
+  },
+  "size": "390x844",
+  "tier": "low",
+  "canvas": [
+   760,
+   1644
+  ]
+ }
+}
