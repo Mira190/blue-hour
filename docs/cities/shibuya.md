@@ -177,7 +177,7 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   in one shot from the shoulder you had to the shoulder you get (issue 99): the camera leaves you at the doors looking
   up the face to where the lift goes, climbs the north face beside the shaft with the floors going by, standing 22 m
   off it in the middle of the climb, and comes in over the corner's glass as you walk out of the 46F doors (the stop's
-  `face`: the three metres to where the camera has room behind your shoulder, `stepOut`, the game's own walk), with the
+  `face`: the three metres to where the camera has room behind your shoulder, `liftOut`, the game's own walk), with the
   escalator and the stair ahead and the city through the glass. It was a spiral about the line between the two stops,
   which runs inside the tower (20 m off at once, looking at a point nobody could see), and at the top the view stood
   over your head, 2.5 m from the corner's glass. `tools/story_play.js` takes the ride as a player does (the prompt's

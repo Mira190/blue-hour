@@ -8527,7 +8527,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // the view had to climb over the glass or turn from the escalators), while the camera comes in over the glass. The
         // game's own walk (player.auto): a step of yours ends it. Where there is no such place, the view turns (cam.seek).
         nav.prefetch(b.at[0], b.at[1], 12, Infinity); // (what is left of it round the stop, where the shot was skipped)
-        const out = b.face ? stepOut(b) : null;
+        const out = b.face ? liftOut(b) : null;
         if (out) player.auto = { x: out[0], y: out[1], t: 0, label: '', then: () => { cam.seek = true; }, cancel: () => { cam.seek = true; } };
         else cam.seek = true;
       }]],
@@ -8535,7 +8535,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // where a lift's stop lets you out to: along its face, the nearest place within 3.5 m that can be walked to in a
   // straight line and has the chase camera's place behind your shoulder clear (nav.clearFraction); [x, y] or null
-  function stepOut(b) {
+  function liftOut(b) {
     const [fx, fy] = b.face, z = b.at[2], yaw = Math.atan2(fx, fy), cp = Math.cos(FOOT.pitch) * FOOT.dist;
     for (let d = 0.5; d <= 3.51; d += 0.5) {
       const x = b.at[0] + fx * d, y = b.at[1] + fy * d;
