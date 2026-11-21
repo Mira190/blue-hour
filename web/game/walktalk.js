@@ -26,13 +26,15 @@
 //           unseen, goes to stand by the next part's speaker }
 'use strict';
 window.OEWalkTalk = (function () {
-  const KEEP = 'oe-walk-talk';
+  const KEEP = 'oe-walk-talk', ROLL = 'oe-walk-roll';
   const SEE_M = 42, NAME_M = 11; // (a speech mark seen from this far; the name under it from this close)
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const first = name => String(name || '').replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '').trim(); // (the name as it is read: "Mr Oda 小田さん" is Mr Oda)
 
   function create(ctx) {
-    const people = (ctx.data && ctx.data.people) || [], chat = (ctx.data && ctx.data.chat) || {};
+    const people = (ctx.data && ctx.data.people) || [], chat = (ctx.data && ctx.data.chat) || {}, views = (ctx.data && ctx.data.views) || [];
+    let roll = {}; // (the views' pictures, small, kept apart from where the stories have got to: walk.views, photo())
+    try { roll = JSON.parse(localStorage.getItem(ROLL) || '{}') || {}; } catch (e) { roll = {}; }
     let st = {};
     try { st = JSON.parse(localStorage.getItem(KEEP) || '{}') || {}; } catch (e) { st = {}; }
     const keep = () => { try { localStorage.setItem(KEEP, JSON.stringify(st)); } catch (e) { /* storage blocked */ } };
@@ -61,13 +63,15 @@ window.OEWalkTalk = (function () {
       const s = current();
       if (!s) return null;
       const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part)), to = who ? Math.hypot(who.x - me.x, who.y - me.y) : null;
-      if (k.part === 0) return who ? { text: `${first(who.name)} has something to say`, m: to, key: '', next: true } : null;
+      // (dir: the way to it on the map, a bearing from north, for the corner's arrow)
+      const dirTo = (x, y) => Math.atan2(x - me.x, y - me.y), toWho = who ? dirTo(who.x, who.y) : null;
+      if (k.part === 0) return who ? { text: `${first(who.name)} has something to say`, m: to, dir: toWho, key: '', next: true } : null;
       const then = s.parts[k.part - 1].then || {};
       // (sent on to someone, or what was asked done: the metres are to the one who speaks next)
-      if (then.talk && who) return { text: then.goal, m: to, key: '' };
-      if (k.met && who) return { text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: to, key: '' };
+      if (then.talk && who) return { text: then.goal, m: to, dir: toWho, key: '' };
+      if (k.met && who) return { text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: to, dir: toWho, key: '' };
       const at = then.go || then.drive || then.photo;
-      return { text: then.goal || '', m: at ? Math.hypot(at[0] - me.x, at[1] - me.y) : null, key: then.key || '' };
+      return { text: then.goal || '', m: at ? Math.hypot(at[0] - me.x, at[1] - me.y) : null, dir: at ? dirTo(at[0], at[1]) : null, key: then.key || '' };
     }
     // a part said: the next is waiting, or the story is put away
     function said(s) {
@@ -143,6 +147,20 @@ window.OEWalkTalk = (function () {
         if (ok && cam.sees(x, y, z)) { k.met = true; hit = s; }
       }
       if (hit) { keep(); if (ctx.met) ctx.met(hit, ctx.npc(speaker(hit, of(hit).part))); }
+      // and the views of Shibuya (game.json walk.views): each the first time it is in a photograph from where it is seen
+      const seen = (st._views = st._views || {}), me = ctx.here();
+      for (const v of views) {
+        if (seen[v.id]) continue;
+        const [x, y, z] = v.at, d = Math.hypot(x - me.x, y - me.y);
+        if (d > (v.r || 30) || (v.above != null && cam.z - z < v.above) || (v.below != null && cam.z > v.below) || !cam.sees(x, y, z)) continue;
+        seen[v.id] = { when: ctx.when ? ctx.when() : '' };
+        let pic = null; try { pic = cam.thumb ? cam.thumb() : null; } catch (e) { pic = null; }
+        if (pic) { roll[v.id] = pic; try { localStorage.setItem(ROLL, JSON.stringify(roll)); } catch (e) { delete roll[v.id]; } } // (a full store keeps the find without its picture)
+        keep();
+        const n = views.filter(q => seen[q.id]).length;
+        if (ctx.view) ctx.view(v, n, views.length);
+        break; // (one a photograph: two at once would put one name over the other)
+      }
       return !!hit;
     }
 
@@ -195,7 +213,9 @@ window.OEWalkTalk = (function () {
       get busy() { return busy; },
       // where each story has got to, for the checks; and from the start again
       state: () => JSON.parse(JSON.stringify(st)),
-      reset() { st = {}; keep(); },
+      reset() { st = {}; roll = {}; keep(); try { localStorage.removeItem(ROLL); } catch (e) { /* storage blocked */ } },
+      // the views of Shibuya for the menu's album: each found (with its picture and when) or still to find (with its hint)
+      views: () => views.map(v => { const f = (st._views || {})[v.id]; return { id: v.id, name: v.name, hint: v.hint || '', found: !!f, when: f ? f.when : '', pic: roll[v.id] || null }; }),
       // (for the checks: every story before this one told, so that it is the one under way)
       startAt(id) { st = {}; for (const s of people) { if (s.id === id) break; Object.assign(of(s), { part: s.parts.length, met: false, done: true }); } keep(); },
       count: () => ({ done: people.filter(s => of(s).done).length, of: people.length }),

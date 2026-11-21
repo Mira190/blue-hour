@@ -10,7 +10,8 @@
 //   - you cannot walk (the player does not move), or a key of the old free game opens one of its panels (the map,
 //     the passport, the lens);
 //   - the walk's menu does not offer the story, or still offers the old game's tour and passport;
-//   - the camera (photo mode) does not open from the walk's own button;
+//   - the camera (photo mode) does not open from the walk's own button, or a photograph of Hachiko from beside him is not
+//     the first of the views of Shibuya with its picture in the menu's album;
 //   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
 //     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
@@ -203,12 +204,29 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await press('#g-menu-close'); await gone('#g-menu');
     if (await visible('#g-menu')) fail('the menu\'s close button does not shut it (off the screen, or under something)');
   }
-  // the camera
+  // the camera, by Hachiko and facing him: the photograph is the first of the views of Shibuya (walktalk.js views), its
+  // name put up over the street and its picture in the menu's album
+  await p.evaluate(() => { const g = window.__game, t = g.walkTalk(); if (t) t.reset(); g.spawn([381, -1040]); g.player.h = Math.atan2(374.79 - g.player.x, -1046.45 - g.player.y); g.cam.yaw = g.player.h; g.cam.pitch = 0.12; for (let i = 0; i < 10; i++) g.frame(0.05); });
   await press('#g-walk-acts [data-do="photo"]'); await until(() => document.getElementById('game-stage').classList.contains('photo'), undefined, 20000);
   if (!(await p.evaluate(() => document.getElementById('game-stage').classList.contains('photo')))) fail('the walk\'s camera button does not open photo mode');
-  else { ok('the camera opens photo mode'); await shot('7-photo'); }
+  else {
+    ok('the camera opens photo mode'); await shot('7-photo');
+    const view = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); const v = g.walkTalk().views().find(q => q.id === 'hachiko'); return v ? { found: v.found, pic: !!v.pic } : null; });
+    if (!view || !view.found) fail('a photograph of Hachiko from beside him is not among the views of Shibuya');
+    else if (!view.pic) fail('Hachiko found, but no picture of him kept for the album');
+    else ok('a photograph of Hachiko: the first of the views of Shibuya, with its picture');
+  }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
   await p.waitForTimeout(800);
+  { // (the menu's album: Hachiko as his picture)
+    await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
+    const album = await p.evaluate(() => [...document.querySelectorAll('#gm-tales .gm-album li')].map(l => `${l.dataset.f}${l.querySelector('img') ? 'p' : ''}`));
+    if (album.length < 6 || album[0] !== '1p') fail(`the walk's menu album: ${JSON.stringify(album)} (want Hachiko's picture first of six)`);
+    else ok(`the menu's album: ${album.filter(a => a[0] === '1').length} of ${album.length} views, Hachiko's picture in it`);
+    await shot('7e-album');
+    await press('#g-menu-close'); await gone('#g-menu');
+    await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+  }
   // your car at the kerb and the helicopter on SHIBUYA SKY's roof (docs/STORY.md "The walk": a free ride's own car, a
   // flight's own aircraft): in by E or a tap on the prompt, their keys at the foot of the frame the first time, the speed
   // (and in the air the height) in the corner, the phone's buttons for each, out again once stopped or landed

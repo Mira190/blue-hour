@@ -3609,7 +3609,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       to.h = Math.atan2(m.x - to.x, m.y - to.y); to.rig.root.rotation.y = Math.PI - to.h;
     },
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
-    told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); } }) : null;
+    told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); },
+    view: (v, n, of) => { if (walkUi && walkUi.told) walkUi.told(v.name, n, of, 'view'); A.chime(); }, // (a view of Shibuya found: its name over the street, and a chime)
+    when: () => `${clock.d} ${MONTHS[clock.m - 1]}, ${fmtMin(clock.min)}` }) : null;
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
@@ -4687,7 +4689,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const seatHere = shows && shows.near(player.x, player.y, player.z);
     if (seatHere) return { key: 'E', text: seatHere.verb || 'Sit down', act: () => sitDown(seatHere) };
     const sp = places && places.spotNear(player.x, player.y, player.z);
-    if (sp) return { key: 'E', text: sp.verb || `Look at ${sp.name}`, act: () => lookAt(sp) };
+    if (sp) return { key: 'E', walk: true, text: sp.verb || `Look at ${sp.name}`, act: () => lookAt(sp) }; // (on the walk too: Hachiko's story, the compass's bearings, the net on the roof)
     const tv = VP.find(v => Math.hypot(v.x - player.x, v.y - player.y) < 7 && Math.abs(v.z - player.z) < 3);
     if (tv) return { key: 'E', text: `${trigDone()[tv.id] ? 'Survey again' : 'Survey the view'} from ${tv.name}`, act: () => survey(tv) };
     const w = nearWharf(player.x, player.y);
@@ -4718,7 +4720,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the angle a film or a game made the place known by, from where it was taken (#359)
     dlg.show({ name: sp.name, role: sp.role || '', color: sp.color || '#6d5a3a', pitch: sp.pitch || 260 }, places.lines(sp).map(fill), null,
       sp.frame ? () => framePhoto(sp) : undefined);
-    spotDone(sp);
+    if (!walk) spotDone(sp); // (the old game's stamp and its quests' steps: not on the walk, whose passport there is none)
   }
   function framePhoto(sp) {
     const fr = sp.frame;
@@ -5270,7 +5272,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     g.font = `400 ${Math.round(fs * 0.8)}px "Public Sans", sans-serif`; g.fillStyle = 'rgba(255, 255, 255, 0.82)';
     g.fillText(lines[1], pad, h - pad);
     A.shutter();
-    if (walk && walkTalk) walkTalk.photo({ z: camera.position.y, sees }); // (a photograph someone on the walk asked for: walktalk.js)
+    // (a photograph someone on the walk asked for, or one of the views of Shibuya, with a small copy for the album: walktalk.js)
+    if (walk && walkTalk) walkTalk.photo({ z: camera.position.y, sees, thumb: () => { const c = document.createElement('canvas'); c.width = 320; c.height = Math.round(320 * h / Math.max(1, w)); c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.72); } });
     if (life) { const b = life.day ? life.day.bounds() : null, gold = !!b && (Math.abs(clock.min - b.golden) < 50 || (sun.altitude < 8 && sun.altitude > -7)); life.emit('photo', { golden: gold, hour: sun.altitude < 0 ? 'blue hour' : 'golden hour', alt: sun.altitude }); }
     stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
     const name = `blue-hour-${cityId}-${clock.y}${String(clock.m).padStart(2, '0')}${String(clock.d).padStart(2, '0')}-${fmtMin(clock.min).replace(':', '')}.png`;
@@ -5312,7 +5315,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     el.hidden = !L.length;
     if (!L.length) return;
     const n = L.filter(t => t.state === 'told').length, esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`;
+    const V = walkTalk.views(), nv = V.filter(v => v.found).length;
+    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`
+      + (V.length ? `<span class="eyebrow">Views of Shibuya · ${nv} of ${V.length}</span><ul class="gm-album">${V.map(v => `<li data-f="${v.found ? 1 : 0}">${v.found && v.pic ? `<img alt="" src="${v.pic}">` : ''}<b>${esc(v.name)}</b><span>${esc(v.found ? v.when : v.hint)}</span></li>`).join('')}</ul>` : '');
   }
   function togglePass() { renderPassport(); $('#g-pass').hidden = !$('#g-pass').hidden; }
   const bigCanvas = $('#g-bigmap-c'), mapPop = $('#g-mappop');
@@ -6597,6 +6602,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       menu: () => toggleMenu(), photo: () => photoMode(true),
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
+      yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
           : { mode: player.mode }) });

@@ -1258,6 +1258,22 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   Hachiko, someone is looking for a friend who is late*), the rest *later tonight*; never a pin on a map.
 - *The street talks too.* The overheard lines of the crossing (`game.json` `chatter`: *Meet at Hachiko? Everyone says
   that.*) are drawn on the walk, in the walk's glass and type rather than the old game's white bubbles.
+- *Which way, not only how far (November 2026).* The corner's line said the metres to what was asked and nothing of the
+  direction, so a player with 190 m to go turned round to find it. Beside the metres there is now a small amber needle
+  that turns as you turn, up being straight ahead (`walk.js`, the bearing from `walktalk.js` `errand`), the job a
+  compass bar does in an open world, without the bar: one thing to point at, and it is the one thing asked.
+- *The places have their own words.* Hachiko's statue, the Center Gai arch, the GEO COMPASS, the CLOUD HAMMOCK and the
+  escalator to SKY EDGE each had a few lines of their own (`game.json` `spots`), kept off the walk with the old game's
+  passport; E beside them now reads them on the walk too, without the passport's stamp.
+- *A photographer's list: the views of Shibuya.* Photography is the trade of the one you play and the walk's own verb, so
+  besides the stories the walk keeps a list of six views to find with the camera, as an open world keeps its landmarks
+  to photograph (*Marvel's Spider-Man*'s, *Ghost of Tsushima*'s vistas): Hachiko, the Center Gai arch, 109 at the fork,
+  SHIBUYA SKY from the street, the scramble from SKY EDGE and the GEO COMPASS (`game.json` `walk.views`). Each is found
+  the first time a photograph has it in frame from where it is seen (from beside the statue, from the street for the
+  tower, from the roof's edge for the crossing), with its name over the street (*A view of Shibuya · 2 of 6*) and a
+  chime, and a small copy of the picture kept in this browser. The walk's menu shows them as an album under the stories:
+  each found view as its own picture with when it was taken, each still to find as a dark frame with where to look.
+  Nothing is owed: no view gates a story, and none is on a map.
 
 What the games that do this do, and what was taken (design only; nothing of their look, words or code): the *Yakuza* /
 *Like a Dragon* series' substories, short comic or touching stories in two or three beats met in the street, which
@@ -1272,7 +1288,7 @@ and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
 `game.walk` (the stories in their order, the people's parts, their lines and what each asks: `talk`, `go`, `drive`,
-`up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn), the
+`up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn; `views`, the photographer's list), the
 walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither drawn nor loaded nor in the crowd's
 way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
 its end, takes Taro's photograph from the helicopter over the crossing, and calls the car from the corner.

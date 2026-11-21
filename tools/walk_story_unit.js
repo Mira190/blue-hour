@@ -3,7 +3,8 @@
 // on the roof, a photograph from the helicopter over the crossing), and checked at every step: exactly one person with
 // the story's amber mark, nobody else's story begun meanwhile, the corner's line saying what to do next, the menu's
 // list told / under way / next / later in order, a photograph from the roof on foot not taken for the helicopter's,
-// and at the end every story told and nobody with a part left.
+// and at the end every story told and nobody with a part left; the corner's arrow pointing the way; and the views of
+// Shibuya each found once, by a photograph from where it is seen, with its picture kept for the album.
 //   node tools/walk_story_unit.js
 const fs = require('fs');
 const path = require('path');
@@ -35,8 +36,9 @@ function step(label) {
   return { a, e };
 }
 const talkTo = (id, label) => { const r = step(label); if (!r.a.includes(id)) fail(`${label}: ${id} has no part for you (the part is ${r.a.join(', ') || 'nobody'}'s)`); at(id); if (!T.talk(byId[id])) fail(`${label}: talking to ${id} said nothing`); };
-// the start: one person with the amber mark, and the corner says who
-{ const r = step('the start'); if (r.a.join() !== 'mei') fail(`at the start the amber mark is over ${r.a.join(', ') || 'nobody'}, not Mei`); if (!/Mei has something to say/.test(r.e && r.e.text)) fail(`at the start the corner says "${r.e && r.e.text}"`); }
+// the start: one person with the amber mark, and the corner says who, and which way (Mei is south of the start)
+{ const r = step('the start'); if (r.a.join() !== 'mei') fail(`at the start the amber mark is over ${r.a.join(', ') || 'nobody'}, not Mei`); if (!/Mei has something to say/.test(r.e && r.e.text)) fail(`at the start the corner says "${r.e && r.e.text}"`);
+  if (!(r.e && typeof r.e.dir === 'number' && Math.cos(r.e.dir) < -0.7)) fail(`at the start the corner's arrow does not point south to Mei (${r.e && r.e.dir})`); }
 // a story to come is not begun by talking to its giver early: a word, and no part
 { const w = T.want('taro'); if (!w || w.kind !== 'wait') fail(`Taro before his turn: ${w ? w.kind : 'nothing'} (want a word in passing)`); at('taro'); T.talk(byId.taro); if (begun().length) fail(`talking to Taro early began ${begun().join(', ')}`); }
 // 1. Which Hachiko
@@ -70,5 +72,20 @@ if (told.length !== c.of) fail(`${told.length} stories put away, of ${c.of}: ${t
 // the menu's list mid-way: told, then the one under way, then later
 T.startAt('shot');
 { const L = T.list().map(t => t.state).join(' '); if (L !== 'told told next later later') fail(`the menu's list at Shun's turn: ${L}`); }
-console.log(errors.length ? `FAIL ${errors.length}` : `ok   walk story  ${c.of} stories told in order, one at a time: ${told.join('; ')}`);
+// the views of Shibuya: each found once, by a photograph with it in frame from where it is seen, with its picture kept
+T.reset();
+const pic = 'data:image/jpeg;base64,AAAA', only = (px, py) => (x, y) => Math.hypot(x - px, y - py) < 1;
+Object.assign(me, { x: 380, y: -1040, z: 15, mode: 'foot' });
+T.photo({ z: 16.5, sees: only(374.79, -1046.45), thumb: () => pic });
+T.photo({ z: 16.5, sees: only(374.79, -1046.45), thumb: () => pic });
+{ const V = T.views(), h = V.find(v => v.id === 'hachiko'); if (!h || !h.found || h.pic !== pic) fail(`a photograph of Hachiko from beside it: ${JSON.stringify(h)}`); if (V.filter(v => v.found).length !== 1) fail(`two photographs of Hachiko found ${V.filter(v => v.found).length} views`); }
+Object.assign(me, { x: 495, y: -1110, z: 241.8, mode: 'foot' });
+T.photo({ z: 243.4, sees: only(500, -1110) });
+if (T.views().find(v => v.id === 'tower').found) fail('SHIBUYA SKY "from the street" was found from its own roof');
+T.photo({ z: 243.4, sees: only(368, -1002) });
+if (!T.views().find(v => v.id === 'edge').found) fail('the scramble from SKY EDGE was not found from the roof');
+Object.assign(me, { x: 420, y: -1050, z: 15, mode: 'foot' });
+T.photo({ z: 16.5, sees: only(500, -1110) });
+if (!T.views().find(v => v.id === 'tower').found) fail('SHIBUYA SKY from the street was not found from the street');
+console.log(errors.length ? `FAIL ${errors.length}` : `ok   walk story  ${c.of} stories told in order, one at a time: ${told.join('; ')}; ${T.views().filter(v => v.found).length} of ${T.views().length} views found by their photographs`);
 process.exit(errors.length ? 1 : 0);

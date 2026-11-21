@@ -1122,7 +1122,78 @@
           "Shibuya's scramble at {time}. {sun_line}",
           "Stand on one corner for a whole change of the lights, just once. Everyone should."
         ]
-      }
+      },
+      "views_note": "The views of Shibuya (walktalk.js photo, the menu's album): a photographer's list, as an open world's landmarks to photograph. Each is found the first time a photograph has its point in frame from within r metres of it (and, where given, from above metres over it, or from no higher than below); a small copy of the picture is kept in this browser for the album.",
+      "views": [
+        {
+          "id": "hachiko",
+          "name": "Hachiko",
+          "at": [
+            374.79,
+            -1046.45,
+            16.4
+          ],
+          "r": 18,
+          "hint": "The bronze dog on the station side of the crossing."
+        },
+        {
+          "id": "arch",
+          "name": "The Center Gai arch",
+          "at": [
+            345.08,
+            -979.02,
+            21.0
+          ],
+          "r": 35,
+          "hint": "The lit arch over the mouth of Center Gai."
+        },
+        {
+          "id": "fork",
+          "name": "109 at the fork",
+          "at": [
+            262.0,
+            -1001.0,
+            38.0
+          ],
+          "r": 230,
+          "hint": "The silver tower where Dogenzaka forks, west of the crossing."
+        },
+        {
+          "id": "tower",
+          "name": "SHIBUYA SKY from the street",
+          "at": [
+            500.0,
+            -1110.0,
+            200.0
+          ],
+          "r": 420,
+          "below": 40,
+          "hint": "Scramble Square's tower, from the street below it."
+        },
+        {
+          "id": "edge",
+          "name": "The scramble from SKY EDGE",
+          "at": [
+            368.0,
+            -1002.0,
+            15.0
+          ],
+          "r": 260,
+          "above": 180,
+          "hint": "The crossing, from the edge of SHIBUYA SKY's roof."
+        },
+        {
+          "id": "compass",
+          "name": "GEO COMPASS",
+          "at": [
+            518.45,
+            -1124.31,
+            244.3
+          ],
+          "r": 22,
+          "hint": "The highest point of SHIBUYA SKY."
+        }
+      ]
     },
     "lines": [
       {
