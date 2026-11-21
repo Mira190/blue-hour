@@ -1389,7 +1389,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // stepped out of in a game does not ask you straight back in: the player is set down on the stop itself, and at
   // SHIBUYA SKY 46F "Take the lift to Shibuya Scramble Square, street level" stood in the middle of a phone's screen the
   // moment you were up, over the way on to the roof (the owner's phone, November 2026). liftLeft: { l, i }, or null
-  let liftLeft = null;
+  let liftLeft = null, liftAt = '';
   function liftStop(x, y, z) {
     for (const l of lifts) for (let i = 0; i < l.stops.length; i++) {
       const s = l.stops[i], at = Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5;
@@ -3579,6 +3579,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return { key: '', text: `${st.name}: the next car is due in ${fmtSec(rail.eta())}` };
     }
     const ls_ = liftStop(player.x, player.y, player.z);
+    // (come to a lift's stop, the view left alone for a second: it goes to the lift. Issue 144: in SKY GATE's hall with the
+    // view left facing its lacquered wall, the frame was that wall from edge to edge behind the offer of the lift. Where
+    // the stop has no hall, a view hemmed in there turns to the nearest open side at once, as where a ride sets you down)
+    if ((ls_ ? ls_.l.id + ls_.i : '') !== liftAt) {
+      liftAt = ls_ ? ls_.l.id + ls_.i : '';
+      const sd = ls_ && ls_.l.stops[ls_.i];
+      if (sd && player.mode === 'foot' && clockT - cam.lastInput > 1) {
+        // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
+        if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
+        else cam.seek = true;
+      }
+    }
     if (ls_) { const to = (ls_.i + 1) % ls_.l.stops.length; return { key: 'E', story: true, text: `${ls_.l.verb || 'Take the lift to'} ${ls_.l.stops[to].name}`, act: () => rideLift(ls_.l, ls_.i, to) }; } // (a flight of stairs the game does not draw is climbed as a lift is ridden: game.json lifts[].verb)
     const seatHere = shows && shows.near(player.x, player.y, player.z);
     if (seatHere) return { key: 'E', text: seatHere.verb || 'Sit down', act: () => sitDown(seatHere) };

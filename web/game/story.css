@@ -733,6 +733,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 /* a story of the walk put away: its name over the street, under the upper third, a few seconds */
 #g-walk-told { position: absolute; left: 50%; top: 22%; z-index: 7; transform: translate(-50%, 8px); pointer-events: none; opacity: 0; text-align: center; color: var(--paper); transition: opacity 0.9s ease, transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
 #g-walk-told.on { opacity: 1; transform: translate(-50%, 0); }
+/* (and never over a shot or the camera's own frame: SKY GATE's climb had a story's name across the crossing, issue 144) */
+.game-stage:is(.photo, .cine, .closer) #g-walk-told { opacity: 0 !important; }
 #g-walk-told small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); text-shadow: 0 1px 10px #000; }
 #g-walk-told small::after { content: ""; display: block; width: 28px; height: 1px; margin: 12px auto 12px; background: rgba(255, 207, 138, 0.7); }
 #g-walk-told b { display: block; font: 200 clamp(26px, 3.2vw, 42px)/1.05 var(--f-display); letter-spacing: 0.1em; text-shadow: 0 1px 24px rgba(0, 0, 0, 0.85); }
