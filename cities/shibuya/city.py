@@ -1431,7 +1431,7 @@ BOARDS = [("いらっしゃいませ", (200, 30, 40), (255, 255, 255)), ("営業
 # buildings' own names, set in open fonts, not their logos; the adverts are invented.
 CROSSING_SIGNS = [
     # QFRONT's Q'S WALL: on each glass side wall a print of up to 100 m2, lit by lamps from the top (11 on the
-    # Center Gai side, 8 on the Jinnan side); SHIBUYA TSUTAYA's name is on the canopy (scramble.py)
+    # Center Gai side, 8 on the Jinnan side); the bookshop's name is on the canopy (scramble.py)
     {"building": "Q-FRONT", "edge": [[332.0, -956.0], [346.0, -969.0]], "toward": [320.0, -990.0], "kind": "print", "w": 10.5, "h": 9.5, "z": 13.0,
      "lamps": 11, "art": "qwall_c"},
     {"building": "Q-FRONT", "edge": [[363.0, -967.0], [367.0, -951.0]], "toward": [400.0, -960.0], "kind": "print", "w": 9.0, "h": 10.5, "z": 13.0,

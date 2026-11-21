@@ -534,7 +534,7 @@ window.OETelemetry = (function () {
         // the story (game.js story.js): where in the case, as the spot; and what to count as its steps
         const S = g.story && g.story.state;
         if (S && S.phase && S.phase !== 'idle' && S.phase !== 'dressed') {
-          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: S.phase === 'stop' || !!(document.getElementById('gd') && !document.getElementById('gd').hidden),
+          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: ['still', 'guide', 'flight', 'prologue', 'call'].includes(S.beat), // (watched with no hand on anything: the Stop falling, the dog's film, a flight, a call; a line or a question that waits on a key, or a Stop walked in, counts as engaged only with input, as everywhere: an open box once counted a player half an hour away as playing)
             story: { fi: S.fi, phase: S.phase, prints: (S.prints || []).length, spent: (S.prints || []).filter(q => q.plain).length, failed: S.failed || 0, pairs: (S.pairs || []).length, ep: S.ep && S.ep.id } };
         }
         const p = g.player, a = g.places && g.places.area && g.places.area();
@@ -624,11 +624,15 @@ window.OETelemetry = (function () {
   // process crashed, or the system killed it for memory. The next page load reports it.
   const ALIVE = 'oe3d-alive-', crashes = [];   // the reports wait for the first view, so they carry its tier
   // (lv: the level of a phone's set the page runs at, quality.js level: a death is counted against that level)
+  // a phone whose WebGL context is lost is counted as having died there at once (noteLost, below): iOS often takes the whole
+  // page a moment later, and Safari gives a page two deaths before it stops loading it, so the next load must already be a
+  // level lighter. The note says so (lost), and the next load, which finds the page dead, does not count it twice.
+  let lostNoted = false;
   const lvNow = () => { try { const Q = window.OEQuality; return Q && Q.lean() ? Q.city().lighter : undefined; } catch (e) { return undefined; } };
   // (mb: what the view has downloaded, decoded, in MB: the browsers that give no heap (Safari, iOS) still say how much a
   // page held when it died, the memory signal for a phone killed mid-load)
   const held = () => { let b = 0; try { const t0 = cur ? cur.t0 : 0; for (const r of performance.getEntriesByType('resource')) if (r.startTime >= t0) b += r.decodedBodySize || 0; } catch (e) { /* no Resource Timing */ } return Math.round(b / 1048576); };
-  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held() }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
+  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held(), lost: lostNoted || undefined }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
   const gone = () => { try { localStorage.removeItem(ALIVE + sid); } catch (e) { /* storage blocked */ } };
   // This tab's last page load, by the tab's own session storage, which outlives a page that was killed: Safari
   // loads a tab again the moment its page dies, so the note it left is seconds old, and taken for another tab's it
@@ -650,6 +654,7 @@ window.OETelemetry = (function () {
         let d = null; try { d = JSON.parse(localStorage.getItem(`oe3d-died-${o.city}`)); } catch (e) { d = null; }
         // (lv: the lightest level a page of this map has died at, for quality.js level; a page from before levels
         // were written died at 0 or 1, the sets of that time)
+        if (o.lost) throw 0; // (counted when its context was lost: noteLost)
         const was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, lv = Math.max(was, o.lv != null ? o.lv : 1);
         localStorage.setItem(`oe3d-died-${o.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!o.ready, lv }));
       } catch (e) { /* storage blocked */ }
@@ -670,7 +675,17 @@ window.OETelemetry = (function () {
   // a change of view, or once the page is going, is not counted
   let going = false, changed = 0;
   // (how far the view had come: a context lost while loading is a GPU out of memory mid-build, one in play a driver's reset)
-  addEventListener('webglcontextlost', () => { if (going || now() - changed < 4000) return; track('gl_lost', { ready: !!(cur && cur.ready), stage: stage || undefined, up_s: Math.round(now() / 1000), mb: held() }); flush(); }, true);
+  addEventListener('webglcontextlost', () => { if (going || now() - changed < 4000) return; track('gl_lost', { ready: !!(cur && cur.ready), stage: stage || undefined, up_s: Math.round(now() / 1000), mb: held() }); noteLost(); flush(); }, true);
+  function noteLost() {
+    try {
+      const Q = window.OEQuality;
+      if (lostNoted || !cur || !cur.city || (cur.kind !== 'game' && cur.kind !== 'city') || !Q || !Q.lean()) return;
+      let d = null; try { d = JSON.parse(localStorage.getItem(`oe3d-died-${cur.city}`)); } catch (e) { d = null; }
+      const was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, lv = Math.max(was, lvNow() != null ? lvNow() : 1);
+      localStorage.setItem(`oe3d-died-${cur.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!cur.ready, lv }));
+      lostNoted = true; alive();
+    } catch (e) { /* storage blocked */ }
+  }
   // a shader that fails to compile or link: three.js says so on the console and draws the material black or not at
   // all, with no exception for "error" to catch; the first line and the material's name are kept
   try {

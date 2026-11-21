@@ -172,7 +172,7 @@ def flat(m, pts, z, uvm=True):
 # north of Center Gai's mouth is not painted. Bars 45 cm wide with 45 cm gaps (the national standard,
 # 道路標示 横断歩道: 45 cm bars, gaps of 45 to 90 cm), parallel to the traffic, so you step over them.
 CROSSWALKS = [
-    {"id": "diagonal", "a": [358.4, -985.9], "b": [376.0, -1012.6], "width": 9.4},   # QFRONT and Tsutaya to Hachiko
+    {"id": "diagonal", "a": [358.4, -985.9], "b": [376.0, -1012.6], "width": 9.4},   # QFRONT to Hachiko
     {"id": "north", "a": [366.9, -979.5], "b": [381.6, -982.5], "width": 9.2},       # QFRONT to MAGNET, across Bunkamura-dori's end
     {"id": "east", "a": [385.2, -1011.1], "b": [387.6, -994.8], "width": 9.0},       # MAGNET to Hachiko, across the road under the tracks
     {"id": "south", "a": [343.8, -1013.7], "b": [368.9, -1018.9], "width": 7.8},     # Hachiko to the Ekimae building, across Dogenzaka's foot
@@ -1088,7 +1088,8 @@ def ginza_viaduct(K, D):
 # front over the scramble, curved round its two corners, is a double skin, an outer glass wall on dense
 # silver fins in front of the floors, with Q'S EYE built into it; the fins run up through the crown, a
 # glass box at the top with a roof advert inside it, and the building's name under it. At the foot, a
-# canopy over the shopfronts carries STARBUCKS COFFEE (2F) and SHIBUYA TSUTAYA. From photographs
+# canopy over the shopfronts carries a coffee shop's name (2F) and a bookshop's, both invented (the real tenants'
+# names are not drawn: docs/HERO.md). From photographs
 # (Wikimedia Commons, 2024-25: docs/cities/shibuya.md); the fins' spacing (0.9 m), the skins' gap
 # (1.2 m), the storeys and the canopy are estimates. The advert in the crown is invented.
 QFRONT = {"osm": "w136691386", "round_m": 5.5, "fin_m": 0.9, "gap_m": 1.2, "shop_m": 4.8, "storey_m": 4.6, "crown_m": 8.6,
@@ -1222,7 +1223,7 @@ def qfront(K, A, D, openings=None):
         panel.quad(np.array([*a, zs - 0.55]), np.array([*b, zs - 0.55]), np.array([*b, zs + 0.35]), np.array([*a, zs + 0.35]))     # its fascia
         panel.quad(np.array([*ai, zs + 0.35]), np.array([*a, zs + 0.35]), np.array([*b, zs + 0.35]), np.array([*bi, zs + 0.35]))
         K["x_light"].quad(np.array([*(b - n * 0.4), zs - 0.56]), np.array([*(a - n * 0.4), zs - 0.56]), np.array([*(a - n * 0.55), zs - 0.56]), np.array([*(b - n * 0.55), zs - 0.56]))
-    # STARBUCKS COFFEE over the canopy on the left of the front, SHIBUYA TSUTAYA on the right (as seen from the crossing)
+    # the coffee shop's name over the canopy on the left of the front, the bookshop's on the right (as seen from the crossing)
     if fronts:
         ch = fronts[-1][1] - fronts[0][0]
         nf = np.array([ch[1], -ch[0]]) / np.linalg.norm(ch)
@@ -1230,7 +1231,7 @@ def qfront(K, A, D, openings=None):
         c = (fronts[0][0] + fronts[-1][1]) / 2
         depth = max((np.asarray(q) - c) @ nf for q in O.exterior.coords)
         c = c + nf * (depth + 0.35)
-        for along, w, h, z0, key in ((-5.2, 8.0, 0.95, zs + 1.4, "qf_starbucks"), (6.0, 5.6, 0.9, zs + 0.45, "qf_tsutaya")):
+        for along, w, h, z0, key in ((-5.2, 8.0, 0.95, zs + 1.4, "qf_coffee"), (6.0, 5.6, 0.9, zs + 0.45, "qf_books")):
             q = c + t * along
             A.quad(K["x_atlas"], np.array([*(q - t * w / 2), z0]), np.array([*(q + t * w / 2), z0]), np.array([*(q + t * w / 2), z0 + h]),
                    np.array([*(q - t * w / 2), z0 + h]), key)
@@ -1254,15 +1255,16 @@ def draw_qfront(img, rects):
     d.rectangle([x, y, x + w, y + h], fill=(40, 44, 50))
     f = ad.font("bebas", int(h * 0.8))
     d.text((x + w / 2, y + h / 2 + 2), "Q FRONT", font=f, fill=(240, 242, 244), anchor="mm")
-    x, y, w, h = rects["qf_starbucks"]
+    x, y, w, h = rects["qf_coffee"]       # an invented coffee shop: dusk, in Japanese
     d.rectangle([x, y, x + w, y + h], fill=(28, 30, 32))
     f = ad.font("bebas", int(h * 0.78))
-    d.text((x + w / 2, y + h / 2 + 2), "STARBUCKS COFFEE", font=f, fill=(245, 245, 240), anchor="mm")
-    x, y, w, h = rects["qf_tsutaya"]
+    d.text((x + w / 2, y + h / 2 + 2), "TASOGARE COFFEE", font=f, fill=(245, 245, 240), anchor="mm")
+    x, y, w, h = rects["qf_books"]        # an invented bookshop: three spines for its mark
     d.rectangle([x, y, x + w, y + h], fill=(20, 24, 40))
-    d.rectangle([x + 10, y + 14, x + 10 + h - 28, y + h - 14], fill=(255, 205, 0))
+    for k, c in enumerate(((226, 220, 204), (150, 170, 196), (226, 220, 204))):
+        d.rectangle([x + 12 + k * 14, y + 16 + (6 if k == 1 else 0), x + 12 + k * 14 + 9, y + h - 16], fill=c)
     f = ad.font("bebas", int(h * 0.7))
-    d.text((x + h + (w - h) / 2, y + h / 2 + 2), "SHIBUYA TSUTAYA", font=f, fill=(255, 255, 255), anchor="mm")
+    d.text((x + h + (w - h) / 2, y + h / 2 + 2), "SHIBUYA HONDANA", font=f, fill=(255, 255, 255), anchor="mm")
 
 
 def Image_new(w, h, c):
@@ -1905,7 +1907,7 @@ class Build:
             items += [(k, int(min(512, 96 * w / h)) if w >= h else 128, 96 if w >= h else int(128 * h / w)) for k, w, h in b["boxes"]]
         items += [(k, 768, 76) for b in BANDS for _, k in b["rows"]]
         items += [("jr_clear", 384, 96), ("st_billboard", 1024, 480), ("st_hoarding", 512, 160), ("magnet_name", 768, 112), ("koban_sign", 384, 76), ("s109_wrap", 512, 768), ("s109_name", 512, 384), ("cg_banner", 768, 160), ("cg_name", 64, 384)]
-        items += [("qf_crown", 1024, 320), ("qf_name", 384, 52), ("qf_starbucks", 768, 92), ("qf_tsutaya", 512, 84)]
+        items += [("qf_crown", 1024, 320), ("qf_name", 384, 52), ("qf_coffee", 768, 92), ("qf_books", 512, 84)]
         items += [("bk_sign", 1600, 400), ("bk_awning", 768, 48)]
         items += streets.atlas_items()
         self.A = Atlas(list(dict.fromkeys(items)), width=2048)
