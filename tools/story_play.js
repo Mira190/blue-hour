@@ -44,7 +44,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
-  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500, isMobile: w < 500 });
+  // (DPR=3 PHONE=1: the page as an iPhone has it, three device pixels to the point and its user agent, as tools/mem_check.js opens it)
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +process.env.DPR || 1, hasTouch: w < 500, isMobile: w < 500,
+    ...(process.env.PHONE ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' } : {}) });
   watchPage(p);
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
@@ -100,8 +102,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     D.holdOff = () => { D.hold = false; if (queue.size && !due) { due = true; raf(flush); } };
     if (glcount) { D.glIn = {}; D.glOut = {}; for (const k of Object.getOwnPropertyNames(P)) { const d = Object.getOwnPropertyDescriptor(P, k); if (typeof d.value !== 'function' || k === 'constructor') continue; const f = d.value; P[k] = function (...a) { const w = !D.on ? D.glIn : D.inFrame ? null : D.glOut; if (w) w[k] = (w[k] || 0) + 1; return f.apply(this, a); }; } }
     // (a clear is drawing too: a frame not drawn cleared its targets a dozen times, each a pass of llvmpipe's)
-    for (const k of ['blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
-    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+    for (const k of ['blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on && !D.dry) return f.apply(this, a); }; }
+    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) { const f = P[k]; P[k] = function (...a) { if (D.on && !D.dry) return f.apply(this, a); }; }
     // A still of one frame drawn whole (#78). It was of the second of two, for what the first leaves the second in targets
     // of its own: the ambient occlusion's history (ao.js: the first frame's occlusion, reprojected, is nine tenths of the
     // second's), and the street mirror's picture (mirror.js: drawn every other frame, so one of the two drew it). The
@@ -113,7 +115,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     D.one = false; D.twice = false; D.oneDone = null; D.ones = 0;
     const oneFrame = () => {
       const g = window.__game, ao = g && g.atmos && g.atmos.ao, m = g && g.mirror;
-      if (ao && !ao.__twice) { const f = ao.compute; ao.__twice = true; ao.compute = function (...a) { if (D.twice && !D.twiceDone) { D.twiceDone = true; D.ones++; f.apply(this, a); } return f.apply(this, a); }; }
+      if (ao && !ao.__twice) { const f = ao.compute; ao.__twice = true; ao.compute = function (...a) { if (D.twice && !D.twiceDone) { D.twiceDone = true; D.ones++; const B = window.__beat, on = B && B.on; if (on) B.on = false; f.apply(this, a); if (on) B.on = true; } return f.apply(this, a); }; } // (the first working-out is this harness's, not the frame's: not counted, tools/beat_count.js)
       D.twiceDone = false;
       if (m && m.uniforms && m.uniforms.uMirrorOn) m.uniforms.uMirrorOn.value = 0; // (mirror.js keeps its last picture only while it is on)
     };
@@ -156,6 +158,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       };
     }, { once: true });
   }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
+  // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
+  // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
+  const BUDGET = process.env.BUDGET || '';
+  if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
   if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
@@ -236,8 +242,28 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await p.evaluate(c => { const G = window.__game, A = G.atmos; G.hold(false); G.governor.cap = c; A.update = A.__up; }, cap);
   };
   const hold = on => (DRAW > 1 && process.env.HOLD !== '0' ? p.evaluate(on => (on ? window.__draw.holdOn() : window.__draw.holdOff()), on) : null); // (HOLD=0: the frames run on while a still is taken)
+  // (the frame after the still's, counted, drawn whole as the still's was; and the script's time a frame not drawn took since the last still: this machine's, a guide)
+  let jsWas = { n: 0, js: 0 };
+  // (counted: the still's own frame, where the harness draws one frame whole for a still, DRAW=n: no frame more. It is the
+  // heavier of the game's frames: the wet street's mirror is drawn in it, the occlusion worked out once as far as the count goes)
+  const budget = async (name, counted) => {
+    try {
+      const c = counted && counted.draws ? counted : await require('./beat_count').sample(p, 2, !!process.env.BUDGET_BY); // (BUDGET_BY=1: and by what was drawn, the heaviest forty)
+      const x = await p.evaluate(() => { const g = window.__game, s = g && g.story && g.story.state, D = window.__draw, o = D && D.split ? D.split.off : null; return { fi: s ? s.fi : -1, phase: s ? s.phase : '', off: o ? { n: o.n, js: o.js } : null, tier: window.OEQuality && OEQuality.tier ? OEQuality.tier().name : '' }; });
+      const js = x.off && x.off.n > jsWas.n ? +((x.off.js - jsWas.js) / (x.off.n - jsWas.n)).toFixed(1) : null; if (x.off) jsWas = x.off;
+      // (BUDGET_TOP=n: and the n largest textures and buffers WebGL holds, by what each was made from: what a beat brought and what it left behind)
+      const top = +process.env.BUDGET_TOP ? await p.evaluate(n => { const r = window.__memReport(n); return { topTex: r.topTex, topBuf: r.topBuf }; }, +process.env.BUDGET_TOP) : {};
+      fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
+    } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
+  };
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
-  const snap = async name => { const t0 = Date.now(); await drawAll(true); await hold(true); const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  // (STILLS=0: no still is taken: a check that reads the story's state, not its pictures; a play here spent two fifths of
+  // its time on 187 stills, 2.1 s each on a software renderer. Where the still's frame is counted (BUDGET) the frame is
+  // asked for whole all the same, dry: the page makes every call of it and the counts are of the calls, but no draw or
+  // clear is passed on to the renderer. Where nothing is counted, nothing is asked for. The photographs the story itself
+  // takes are drawn as ever)
+  const NOSTILL = process.env.STILLS === '0', dry = on => (NOSTILL && DRAW > 1 ? p.evaluate(on => { window.__draw.dry = on; }, on) : null);
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
