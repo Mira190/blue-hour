@@ -375,10 +375,19 @@ printed with its reason:
 - A file both sides changed is judged by its functions: main's lines, in functions the branch has not changed against
   main, are main's. The branch's kept passes stand: `kept from its pass at ...: what changed since cannot reach it:
   web/game/game.js: 3 changes main's`. Until issue 131 one such file sent the branch through the story and the walk again.
-- Main's lines in a function the branch changed too are the branch's to check, as its own change is.
+- Main's lines in a function the branch changed too are the branch's to check, as its own change is. A closure that
+  holds a script's functions (eight or more: `game.js`'s is 7,500 lines) is a scope as a file is, not a function: main's
+  statement at its level and the branch's stand apart.
+- A file that is main's as main has it is apart before any other rule is asked (a hero level whose ground main moved
+  is main's to play, not the branch's).
+- A play kept, with its beats counted then (issue 130), whose counts are over the budgets as they are now is played
+  again and counted again: main may have made the beat lighter and its budget with it.
 
-Measured on 21 November 2026: main moved three times while the first step of issue 131 was being landed; the last
-merge (seven files of main's, `web/game/people.js` among them) checked in 55 s, the static checks and the contracts.
+Measured on 21 November 2026: main moved nine times while issue 131's steps were being landed. With no file shared
+(seven files of main's, `web/game/people.js` among them) the merge checked in 55 s, the static checks and the
+contracts; with `game.js` cut on the branch and changed in fifteen, then twenty places by main, in 60 s each time,
+every pass kept (`web/game/game.js: 20 changes main's`). Twice a merge played more: once all of it, for the two rules
+above that were not yet written, and once the story's last two parts, whose kept counts were over main's new budgets.
 What stands behind this is unchanged: main's full tier plays main's change with the branch's once it lands, and only a
 commit it passes is published.
 
@@ -460,7 +469,7 @@ What the same change costs, before and after (a session's machine; "before" from
 | Every check of a page change played (`story`, `walk1`, `ride`, `mem`, `look`, static) | 38 to 43 min | 31 min of checks in 16 min of the wall |
 | One function of `web/game/story.js` (routed to static, mem, story, walk1 and guide: 52 min on 21 November) | 51 min | 10 min at the median: the checks that ran it, side by side (from the passes' counts of 163 functions; 23 min where every part and the guide ran it) |
 | One function of `web/game/game.js` | 36 min | 8.5 min at the median, 16 at the worst |
-| Main moved, the branch's own change not reached | static only when no file was shared, else 33 min or more | 55 s |
+| Main moved, the branch's own change not reached | static only when no file was shared, else 33 min or more | 55 to 60 s, `game.js` changed by both sides or not |
 | A model or a people's set replaced, its contract kept | 4 to 6 min since the router of November; 35 to 40 before it | the same 4 to 6 min (static beside `look` and `mem`; `mem` is 250 s of it), and no longer the story when another change in the branch routes there |
 | A hero level rebuilt with its ground and names as they were | 33 min (played as code) | 4 to 6 min |
 | A fresh session's first run, the branch's change reaching one part of the story | 33 to 62 min | that part, and what else it reaches (main's passes) |
@@ -520,6 +529,19 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+- Whether the words on the picture can be read: `tools/legible.js`, by hand after a change to the story's goal, its
+  hint, what is said over the picture, the finder's words or their styles (it is not a target either: it lays out the
+  same recordings). Each screen a play wrote down (`UI_DUMP=dir`) is laid in with the page's stylesheets and no game
+  over pale paving at dusk (#cbc6d0), over white, and over the picture the still was of where the play kept it
+  (`BARE=regex` on `tools/story_play.js` saves the canvas alone in `out/bare`; `BARE_DIR=` here). Every line is
+  measured where a letter is read: the letters are found as what differs between the screen and the same screen with
+  its glyphs left out, and the contrast is the letter's colour against what lies under it and for two pixels round
+  each stroke, backing and shadows drawn. It fails a line under 4.5:1 on the paving or the picture, or under 3:1 on
+  white, and prints the least of each kind of words. Before issue 114 the goal measured 2.9:1 on the paving and its
+  hint 2.3:1; after, 6.2:1 and 5.5:1, and 1949 lines on 226 screens of frames 1, 2, 5 and 6 (a desktop and a phone)
+  pass. `tools/story_play.js` itself now fails a play where two lines are said over the picture at once, and one
+  where the dialogue, the goal or a slip is still drawn with the log open; `LOGAT=n LOGSECS=5` opens the log after
+  frame n and takes a still of it each second.
 - The Credits screen: `tools/credits_shot.js`, by hand after a change to `web/credits.js`, `credits.css`, `credits.json`
   or telemetry's switch. On a desktop's page (1440x900) and a phone's (390x844, by touch) it opens the Credits from the
   title's menu (by the keys on the desktop) and from the pause menu, and fails a screen without the map's sources, the

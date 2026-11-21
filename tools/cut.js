@@ -83,6 +83,6 @@ function wrap(s) { const o = []; let l = ''; for (const w of s.split(' ')) { if 
 fs.writeFileSync(out, `${head}${sec.replace(/\n*$/, '\n')}  return { ${give.join(', ')} };\n};\n`);
 const getters = want.map(n => `get ${n}() { return ${n}; }${asks.get(n) === 'let' ? `, set ${n}(v) { ${n} = v; }` : ''}`).join(', ');
 const first = text.slice(from, to).split('\n')[0];
-const line = `${/^\s*\/\/ -{4,}/.test(first) ? `${first.replace(/\s*$/, '')}: ${path.relative(path.dirname(file), out)} (tools/cut.js)\n` : ''}${kept.map(k => text.slice(k[0], k[1])).join('')}  const { ${give.join(', ')} } = ${glob}({ ${getters} });\n`;
+const line = `${/^\s*\/\/ -{4,}/.test(first) ? `${first.replace(/\s*$/, '')}: ${path.relative(path.dirname(file), out)} (tools/cut.js)\n` : ''}${kept.map(k => text.slice(k[0], k[1])).join('')}  const { ${give.join(', ')} } = ${glob}({ ${getters} });\n${/\n\s*\n$/.test(text.slice(from, to)) ? '\n' : ''}`;
 fs.writeFileSync(file, text.slice(0, from) + line + text.slice(to));
 console.log(`wrote ${out} (${sec.split('\n').length} lines, ${edits.length} names of the game's now g.name) and one line in ${file}`);

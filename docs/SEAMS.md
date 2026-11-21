@@ -131,6 +131,8 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | Cut | Lines | Part | Asks of the game | Gives back |
 |---|---|---|---|---|
 | `web/game/pilot.js`, November 2026 | 342 (the autopilot of your own car, the driver assists) | traffic | 38 names | 11 |
+| `web/game/rides.js`, November 2026 | 1,005 (taxis and rides: the drivers' step, the story's car, boarding, the helicopter's reach) | traffic | 60 | 24 |
+| `web/game/routeline.js`, November 2026 | 165 (the route to go: the gold line, the way on foot) | crowd | 21 | 3 |
 
 What a cut is not: a redesign. The section asks for what it used, which for the sections woven into the loop is most
 of the game (`tools/cut_survey.js`: the loop asks 198 names, the camera's shots 249). Those want their state gathered
