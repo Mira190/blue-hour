@@ -65,10 +65,12 @@ window.OELens = (function () {
   // the scene with its contact shadows, rolled-off highlights and bloom, in linear HDR, for a pass that is not the lens
   function merge({ shade = NOSHADE } = {}) {
     return {
-      uniforms: Object.assign({ tDiffuse: { value: null } }, merged()),
+      // uDistA: the alpha the distance from the camera (m, to uFarA), read from the scene's depth (tDepthA), for a camera
+      // effect that then needs no depth of its own and draws back into the scene's target (atmosphere.js, issue 105)
+      uniforms: Object.assign({ tDiffuse: { value: null }, tDepthA: { value: null }, uDistA: { value: 0 }, uRevA: { value: 0 }, uFarA: { value: 3000 }, uInvProjA: { value: new THREE.Matrix4() } }, merged()),
       vertexShader: VERT,
       fragmentShader: `
-        uniform sampler2D tDiffuse, tBloom; uniform float uBloom, uShadeShow; varying vec2 vUv;
+        uniform sampler2D tDiffuse, tBloom, tDepthA; uniform float uBloom, uShadeShow, uDistA, uRevA, uFarA; uniform mat4 uInvProjA; varying vec2 vUv;
         ${TAP}
         ${ROLLOFF}
         ${shade}
@@ -76,7 +78,9 @@ window.OELens = (function () {
           float k = oeShade(vUv);
           vec3 col = uShadeShow > 0.5 ? vec3(k) : rolloff(tap(vUv) * k);
           if (uBloom > 0.0) col += texture2D(tBloom, vUv).rgb;
-          gl_FragColor = vec4(col, 1.0);
+          float a = 1.0;
+          if (uDistA > 0.5) { float z = texture2D(tDepthA, vUv).x; vec4 p = uInvProjA * vec4(vUv * 2.0 - 1.0, uRevA > 0.5 ? z : z * 2.0 - 1.0, 1.0); a = min(length(p.xyz / p.w), uFarA); }
+          gl_FragColor = vec4(col, a);
         }`,
     };
   }

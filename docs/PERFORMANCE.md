@@ -2118,6 +2118,52 @@ Faces that move cost memory and vertex work, so they are given only where a face
   main without the faces 269 MB of GPU at its peak; with every face drawn moving at once 271, with the player's face always
   moving 270 (over the 270 budget); as above, the same as without.
 
+### Frame 5's place: the post stack's targets nobody draws into (issue 105)
+
+Main on 21 November held 268 MB settled and 270 MB at its peak at frame 5's place on a phone (`AT=521.9,-1074.1
+tools/mem_check.js shibuya`, rain at ten at night), against a 270 MB budget: any change that added a megabyte there
+failed `mem` on noise. Measured first: `mem_check.js` now prints, at `AT`, what each hero level loaded there holds
+(textures and geometry), and `OWN=n` the n largest textures with the meshes that hold them or the script line that made
+them (a render target, a pass, a uniform). What was held at frame 5, largest first:
+
+| Held | MB | Seen there? |
+|---|---|---|
+| The scene's target, the lens's two half-float ping targets (760 x 1644 each) | 3 x 9.5 | the scene's: always. The two pings: drawn into only while a camera effect is on (a conversation's depth of field, photo mode, the arrival's crane), and kept from the first arrival to the end of play |
+| The Scramble level, 70 m off its edge | 12.2 textures, 12.7 geometry | 25 of its 56 squares from the stand and the ground round it (`tools/hero_unseen.js`), most of it from where the helicopter sets you down |
+| The two PMREM targets (the light from the sky and three.js's ping-pong for it) | 2 x 6.0 | both while the sky is baked again, which the measure's own change of hour does |
+| The inland channels' hole mask, the far land's two pictures, the night map, the roofs' photo | 6.0, 5.3 + 5.0, 4.8, 4.8 | map-wide, sampled by whatever ground, sky or roof is drawn |
+| The player's own face, body and hair (1024 each) | 3 x 5.3 | yes, up close |
+
+The Scramble level was the issue's first suspect, but from frame 5's ground most of it can be seen: down Miyamasu-zaka
+under the Ginza line's deck and up Meiji-dori, 2,000 to 30,000 of the 393,216 pixels of a cube round the eye
+(`tools/hero_unseen.js scramble`: the level's meshes in a colour of their own against the depth of everything else, from
+a grid of eyes at four heights). From the stand alone 31 of its squares are hidden, 4.2 MB of geometry and none of its
+pictures. The two ping targets were the biggest holder no draw read: 19 MB.
+
+What was done (`web/game/atmosphere.js`, `web/lens.js`):
+
+- **The ping targets are let go** three seconds after the last frame that drew a camera effect, and made again by the
+  next one.
+- **A camera effect takes one target, not two, where the scene has no MSAA** (a phone). The merge of the scene and the
+  bloom writes into the one target with each pixel's distance from the camera in its alpha; the camera's effects read
+  their picture and distance from it and draw back into the scene's own target, whose colour is free once merged (its
+  depth, attached there, is not read, so there is no feedback loop); the lens reads that onto the canvas. The same
+  passes in the same order as before. `tools/fx_ab.js` draws a held frame both ways at frame 5's place: a near focus
+  identical to the pixel; a far focus and the motion blur differ by more than 4/255 on 0.016% and 0.004% of the frame
+  (the distance is a half float there: a tie between neighbouring samples on a far edge goes the other way); each way
+  drawn twice is identical to itself.
+
+| Phone, frame 5's place (`mem_check.js`, `AT=521.9,-1074.1`) | Main | Now |
+|---|---|---|
+| The load and the first play | 252 MB | 242 MB |
+| Settled at frame 5's place | 268 MB | 249 MB |
+| A conversation's depth of field there (now in the measure at `AT`; `FX=0` leaves it out) | 268 MB (the pings already held) | 258 MB |
+| Rain at ten at night there; the peak | 270 MB | 251 MB; the peak 258, in the conversation |
+
+Not done, by what it would save: the Scramble's squares hidden from the stand parked off the GPU there (4.2 MB, only at
+the stand, not where the helicopter lands); the sky's PMREM ping-pong let go between bakes (6 MB settled, nothing at a
+bake). A desktop's scene has MSAA and keeps the two-target tail.
+
 ## A desktop's map round the player (issue 20)
 
 The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the
