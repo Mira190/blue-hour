@@ -5,6 +5,8 @@
 //     Shibuya over the episode's button, or it opens before who you play is chosen and confirmed on a screen of its own;
 //   - its step does not ask the hour and the sky, or what is chosen there is not the street behind the card (the clock
 //     at the hour on the story's evening, the rain falling), or Back does not give the title its own evening again;
+//   - set out, the walk's opening does not play (the city from the air, its title in the bars), or a key or a tap in it
+//     does not bring the walk to you;
 //   - set out, the title is still up, the story has begun (its goal, its light, a phase past dressed), the old free
 //     game's objective light stands, or where and when you are is not in the corner (the hour as the clock has it);
 //   - you cannot walk (the player does not move), or a key of the old free game opens one of its panels (the map,
@@ -147,6 +149,21 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!s.step || !kept.includes(hour) || !kept.includes(sky)) fail(`the step opened again does not keep what was chosen (${kept})`);
   // set out
   if (phone) await press('#gt-walk-set'); else await p.keyboard.press('Enter');
+  // the walk's opening: the city from the air, its title in the bars, and a key or a tap eases down to you at once
+  // (the film itself, shot by shot: tools/walk_open.js)
+  const film = await until(() => { const g = window.__game, o = g.overture && g.overture(); return !!(o && o.active && o.walk); }, null, 120000);
+  if (!film) fail('set out, and the walk\'s opening did not play');
+  else {
+    await until(() => window.__game.overture().t > 3, null, 120000);
+    const f = await p.evaluate(() => ({ bars: document.getElementById('game-stage').classList.contains('letterbox'), title: !!document.querySelector('.ov-title.card'), name: (document.querySelector('.ov-title.card b') || {}).textContent || '', t: +window.__game.overture().t.toFixed(1), total: +window.__game.overture().total.toFixed(1), up: Math.round(window.__game.camera.position.y) }));
+    if (!f.bars || !f.title || f.up < 150) fail(`the walk's opening: ${JSON.stringify(f)}`);
+    else ok(`the walk's opening plays: "${f.name}" in the bars, ${f.up} m up at ${f.t} of ${f.total} s`);
+    await shot('3-film');
+    if (phone) await p.touchscreen.tap(w / 2, h / 2); else await p.keyboard.press('Space');
+    const ts = Date.now();
+    if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 120000))) fail(`a ${phone ? 'tap' : 'key'} in the walk's opening did not bring the walk to you`);
+    else ok(`a ${phone ? 'tap' : 'key'} in the walk's opening: on the street ${((Date.now() - ts) / 1000).toFixed(1)} s later`);
+  }
   const t0 = Date.now();
   await p.waitForFunction(() => document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 600000, polling: 500 }).catch(() => fail('set out, and the walk never came to you (no walk-on in ten minutes)'));
   await p.waitForTimeout(2500);
