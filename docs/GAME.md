@@ -498,7 +498,7 @@ listed at the end.
 | Game | What we took | What this does that it can't |
 |---|---|---|
 | **Microsoft Flight Simulator** | Hand-built landmarks over generated filler; an assisted helicopter, since players find hovering hard. | Its buildings are generated, and it shipped errors that open data can contain. A two-storey building tagged as 212 floors in OpenStreetMap reached the sim as a Melbourne monolith. Sydney's Harbour Bridge was a flat auto-generated span until World Update VII. Here every height has a source, outliers are capped, the towers are checked against published heights, and the bridge is built to its published geometry. |
-| **Sketchbook** (three.js sandbox) | Assisted helicopter flight: the rotor cancels gravity so it hovers with no input, levels itself, damps drift and spools up before take-off. You walk to the door instead of teleporting in, and <kbd>E</kbd> to use. | Its world is an empty sandbox. Here the world is a real city with things to do. |
+| **Sketchbook** (three.js sandbox) | Assisted helicopter flight: the rotor cancels gravity so it hovers with no input, levels itself, damps drift and spools up before take-off, and <kbd>E</kbd> to use. Its walk to the door instead of teleporting in was taken and then let go: without a captured clip for the climb, the walk round and the climb clipped into the hull on a phone and could not reach the door from behind the tail, so <kbd>E</kbd> puts you in the seat at once, the camera's move carrying it, as Battlefield and PUBG Mobile do ("Getting in", below). | Its world is an empty sandbox. Here the world is a real city with things to do. |
 | **GTA V** | A clock running 30 times real time, so a day lasts 48 minutes. A minimap with a GPS route along the street network, which in a car keeps to the roads. A waypoint you click on the map. A crowd and traffic density setting. Hailing a taxi at the kerb, telling the driver where to go, and skipping the trip. A view from the driver's seat. | Its city is a caricature. Here the streets, wharves and sun are real, the traffic keeps to the city's side of the road at Overture speed limits, and crowds keep left as Australians do. |
 | **GTA VI** (trailers and previews; it comes out on 19 November 2026) | Ryde Me, the ride-hailing app on the phone: say where, and a car comes for you. Cars with interiors you can see into, and bodies that move on their springs. | Its taxi driver can talk to you on the way. Here what the driver says is a fact about the street you are on, worked out from the model. |
 | **Red Dead Redemption 2** (the cinematic camera on a waypoint), **Final Fantasy XV** (the Regalia's Auto, with Ignis at the wheel) | A waypoint on the map, one button, and the ride goes there by road while the camera cuts between film shots; touching the controls gives it back at once. Auto and Manual as two ways to use one car, with the time to each place shown. | Their roads are empty enough to follow a line. Here the car is in the traffic: it queues, waits at the lights and gives way by the same rules as every other car, and its screen says what it is doing and why. |
@@ -2294,13 +2294,31 @@ quality tier runs a third of the cars.
     ease-out from the old view to the new, which travels with the helicopter,
     not a cut. The reef sites' helicopter (`reef/boats/control.js`) also turns
     more slowly at speed and banks by what the turn needs.
-  - **Getting in,** as in GTA and Sketchbook: <kbd>E</kbd> walks you round to
-    the pilot's door (round the nose from the far side). The door swings open
-    on its hinge, you step up onto the skid and slide into the seat, and the
-    door shuts at once. A line on screen says what is happening, the camera
-    swings round to watch, and the rotor spools up until it can lift at 90%.
-    Getting out is the same the other way round, once you have landed. The
-    moves are in the helicopter's own frame, so they work wherever it lands.
+  - **Getting in,** as your car and a taxi are: <kbd>E</kbd> (on a phone, the
+    E button) within four metres of the cabin or the boom, from any side, and
+    you are in the pilot's seat. The view goes round behind the helicopter from
+    where you stood, by bearing, height and distance (`blendFrom`), in about a
+    second, longer the farther round; the door is seen swinging shut and the
+    rotor spools up until it can lift at 90%. Getting out, once landed: on your
+    feet beside the pilot's door, facing out, the view coming down to you from
+    outside the door and a little behind it, and the door swinging shut behind
+    you. `tools/heli_board_shot.js` films both from beside the door, the far
+    side and behind the tail, on a desktop and a phone, and says when the
+    walker or the camera was inside the hull.
+    It was once GTA's way: a walk round to the pilot's door (round the nose
+    from the far side), the door opening, a step onto the skid and a slide into
+    the seat. Without a clip of its own for the climb (it was posed from the
+    walk and the sitting clips), it showed what it lacked: on a phone the
+    camera was pressed into the hull as you climbed, from behind the tail the
+    walk round never reached the door, and from the far side it was five
+    seconds of walking between the key and the seat. What was looked at
+    (November 2026): GTA V walks you to the nearest door and plays a captured
+    entry clip for that door of that machine, and GTA VI fits those clips to
+    the car's geometry, its door and its seat (a squeeze in where there is no
+    room); the shooters and the phone games (Battlefield, PUBG Mobile, whose
+    buttons are *Drive* and *Get in*) put you in the seat at once and let the
+    camera's move carry it. Without a captured clip for each door, the second
+    is what reads as getting in, and it is what the cars here already did.
   - **The cockpit view** (<kbd>V</kbd>): the pilot's eyes, pitching with the
     cabin and banking with it by half: the bank still reads, but the whole
     city doesn't swing round the screen. The view looks past the instrument
