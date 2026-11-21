@@ -263,6 +263,7 @@ float farN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f
     mat.customProgramCacheKey = () => 'farland';
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = 'far-land';
+    mesh.userData.oeStill = true; // (it never moves: the rain's cover map keeps it, weather.js occStill)
     // (drawn after the city's own opaque surfaces, so that what the streets and the buildings hide of it is rejected by
     // its depth before its shading runs: drawn first, every pixel of it behind the city was shaded and then painted over,
     // a sixth of a street-level frame on a GPU without hidden-surface removal. Opaque and depth-tested, it looks the same)
