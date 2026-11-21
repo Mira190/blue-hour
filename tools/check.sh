@@ -205,7 +205,7 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
@@ -409,6 +409,8 @@ run_audio() {
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_graph.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_graph.log)"; fi
   if timeout 300 node tools/audio_shed_check.js >"$OUT/audio_shed.log" 2>&1; then echo "ok   audio  the sound gives up voices, the room and the street's beds when a phone clicks, and takes them back"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_shed.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_shed.log)"; fi
+  if timeout 120 node tools/snd_probe_check.js >"$OUT/snd_probe.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/snd_probe.log" | cut -c6-)"
+  else echo "FAIL audio  the probe of the sound's breaks: $(grep '^FAIL' "$OUT/snd_probe.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/snd_probe.log)"; fi
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
