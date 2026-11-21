@@ -376,7 +376,7 @@ printed with its reason:
   main, are main's. The branch's kept passes stand: `kept from its pass at ...: what changed since cannot reach it:
   web/game/game.js: 3 changes main's`. Until issue 131 one such file sent the branch through the story and the walk again.
 - Main's lines in a function the branch changed too are the branch's to check, as its own change is. A closure that
-  holds a script's functions (eight or more: `game.js`'s is 7,400 lines) is a scope as a file is, not a function: main's
+  holds a script's functions (eight or more: `game.js`'s is 7,500 lines) is a scope as a file is, not a function: main's
   statement at its level and the branch's stand apart.
 - A file that is main's as main has it is apart before any other rule is asked (a hero level whose ground main moved
   is main's to play, not the branch's).
