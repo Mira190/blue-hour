@@ -570,11 +570,12 @@ white, rib after rib, glass up their steep feet and white panels over the crowns
 - **The city's box under it** is capped at the frames' feet (`pipeline/stations.py` `TOP`, 11.4 m over the ground):
   the record's flat top stood through the arches.
 
-17,000 triangles, 0.33 MB, in plain materials only: no picture. A frame is drawn only where it stands proud of the
-skin (its back and sides as strips that share their points; the end frames to their full depth, seen across the
-gables), which took the level from 35,500 vertices to 22,300. On a phone at frame 5 (`tools/mem_check.js`
-`AT=521.9,-1074.1`, run one after the other on the same machine) main settled at 265 MB and peaked at 268 in the rain
-at ten at night; with this level and the signs, 267 and 269 of the 270 budget; at the spawn 251 against 250. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
+10,200 triangles and 13,500 vertices, 0.23 MB, in plain materials only: no picture. What a phone holds at frame 5
+was cut three ways, since main had come to 269 MB of the 270 budget there before it: a frame is drawn only where it
+stands proud of the skin (its back and sides as strips that share their points; the end frames to their full depth,
+seen across the gables), the cladding's panels are one face to a wall with each open joint a dark line in front of it,
+and the M has eleven points to a half. That took the level from 35,500 vertices to 13,500 with no change a still
+shows. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
 story walks (`game.hero[].load_m` 900).
 
 Its stills: `station`, `west` and `ginza_air` in `tools/views/shibuya-miyamasu.json`, and frame 5's beat.

@@ -48,8 +48,8 @@ RIB_W, RIB_D = 0.28, 0.42    # a frame's box section: along the station, and its
 EAVE = 0.35                  # the frames' feet inside the band's face
 # the M across the station, from an eave (d = 0) to the middle (d = 1, the valley), as (d, height over the feet / RISE):
 # steep at the foot, a crown two fifths of the way in, and a shallow valley over the platform's middle
-M = [(0.0, 0.0), (0.004, 0.16), (0.016, 0.33), (0.04, 0.5), (0.08, 0.66), (0.13, 0.79), (0.2, 0.9), (0.28, 0.968),
-     (0.36, 0.997), (0.42, 1.0), (0.5, 0.988), (0.6, 0.955), (0.7, 0.92), (0.8, 0.895), (0.9, 0.88), (1.0, 0.875)]
+M = [(0.0, 0.0), (0.01, 0.25), (0.04, 0.5), (0.1, 0.72), (0.2, 0.9), (0.31, 0.982), (0.42, 1.0), (0.55, 0.972),
+     (0.7, 0.92), (0.85, 0.888), (1.0, 0.875)]
 GLASS_TO = 0.62              # the skin is glass up the frames' feet to this share of the rise, white panels over it
 
 
@@ -146,10 +146,11 @@ class Station:
             F = PT.Frame(b, a)
             k = max(1, int(round(Ln / PANEL)))
             w = Ln / k
-            PT.fbox(G, "ginza_joint", F, 0.0, Ln, 0.0, 0.06, z0, z1, faces=("front",))       # the joints' shadow behind
-            for j in range(k):
-                PT.fbox(G, "ginza_white", F, j * w + 0.012, (j + 1) * w - 0.012, 0.0, 0.12, z0 + 0.012, z1 - 0.012,
-                        faces=("front", "bottom", "top", "left", "right"))
+            # the panels' face in one, its edges, and each open joint as a dark line just in front of it (a face to a
+            # panel cost a phone at frame 5 four times the vertices for the same picture)
+            PT.fbox(G, "ginza_white", F, 0.0, Ln, 0.0, 0.12, z0, z1, faces=("front", "bottom", "top"))
+            for j in range(1, k):
+                PT.fbox(G, "ginza_joint", F, j * w - 0.012, j * w + 0.012, 0.12, 0.124, z0, z1, faces=("front",))
                 n += 1
             # a horizontal joint where the girder's face meets the parapet over the deck
             PT.fbox(G, "ginza_joint", F, 0.0, Ln, 0.11, 0.125, self.zs + 0.02, self.zs + 0.05, faces=("front",))
@@ -180,7 +181,7 @@ class Station:
                 heavy = j % 2 == 0
                 w2 = 0.09 if heavy else 0.035
                 PT.fbox(G, "ginza_white", F, um - w2, um + w2, 0.0, 0.2 if heavy else 0.1, z0 + 0.25, z1 - 0.3,
-                        faces=("front", "left", "right"))
+                        faces=("front", "left", "right") if heavy else ("front",))
             # a transom a metre over the sill
             PT.fbox(G, "ginza_white", F, 0.0, Ln, 0.03, 0.08, z0 + 1.25, z0 + 1.3, faces=("front", "top", "bottom"))
             G.walls.append((a, b, z0, z1))
@@ -236,7 +237,8 @@ class Station:
             q = [a0, b0, b1, a1]
             if np.cross(q[1] - q[0], q[3] - q[0]) @ n < 0:
                 q = [a0, a1, b1, b0]
-            G.quad(mat, *q, n=n, sub=(n_sp, 1) if q[1] is b0 else (1, n_sp))
+            m_ = max(1, n_sp // 4)                     # (the bake's points along it, every 10 m: no light falls on it nearer)
+            G.quad(mat, *q, n=n, sub=(m_, 1) if q[1] is b0 else (1, m_))
         # a glazing bar along each leg, at the glass's top and half way up it
         for frac in (0.3, GLASS_TO):
             for side in (0, 1):
