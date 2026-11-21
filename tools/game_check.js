@@ -1571,7 +1571,7 @@ const { camRun, jumps: camJumps, SHORT: CAM_WALK } = require('./cam_jumps');
     r.inTaxi = g.player.mode === 'ride';
     for (let i = 0; i < 80 && g.dlg.open && !g.dlg.hasChoices; i++) g.dlg.tick(0.1);
     r.choices = document.querySelectorAll('#gd-choices button').length;
-    r.you = o.C.clearance(g.player.rig, g.KEEP === 'left' ? 'rear_left' : 'rear_right'); r.driver = o.C.clearance(o.driver, 'driver');
+    r.you = o.C.clearance(g.player.rig, g.rideSeat(o)); r.driver = o.C.clearance(o.driver, 'driver');
     { const d = o.driver; r.driverWhy = `${d.character || 'the stand-in figure'}, scale ${d.root.scale.x.toFixed(2)}, ${d.root.parent === o.C.body ? 'in the seat' : d.root.parent ? 'elsewhere' : 'in no scene'}`; }
     g.dlg.choose(0);
     g.advance(1);

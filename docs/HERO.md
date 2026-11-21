@@ -31,6 +31,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
 | A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
+| A level over the street, fetched by its height off the camera as well (`zr`) | `cities/shibuya/hero_skyroof.py`; below, "SKY STAGE" |
 
 ## How it works
 
@@ -673,6 +674,77 @@ the plan's, read at its scale; the doors do not slide as you come; the hall's he
 is lower than the real 2F deck (7.7 m over 1F); the forecourt's striped planks with lights in their joints and its faceted mirror ceiling are
 the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
 renderer only.
+
+## SKY STAGE: the roof frame 4 is played on (Shibuya, issue 72)
+
+Frame 4 of the story is played on the roof of Shibuya Scramble Square (the lift up, Kanbara at the glass, the find, the
+frame looking down on the scramble) and frame 5 lifts off from its pad. The roof was the city's landmark mesh in flat
+colours (`city.py` `sky_meshes`): pale tiles in two random tones, a grey block for GEO COMPASS under a small picture of
+its compass, nets as a coarse grid, a glass fence on posts; at 17:31 it read as a pale void with nothing on it to give
+the eye its size. It is now a hero level of its own, `cities/shibuya/hero_skyroof.py` (`python blender/build_hero.py
+--city shibuya --level skyroof`).
+
+**The place, from the research** (November 2026; sources below). SKY STAGE is about 2,500 m² open to the sky at
+229 m, walled in tall glass; the heliport is part of the roof's walk (Travel Watch's report from the opening, 2019),
+raised in its middle as GEO COMPASS, the highest point, whose floor points the way to far places; CLOUD HAMMOCK is
+nets to lie in over a bed of lawn; SKY EDGE is the corner over the scramble where the glass is lowest; CROSSING LIGHT is
+18 searchlights after dark; in the photographs the deck is dark grey, benches stand along the glass, and at night the
+roof is lit low, by lines of light at the glass's foot and under the steps, the city being the light. No plan with the
+furniture's dimensions is published: the deck's size and the channels are the city's (PLATEAU and OpenStreetMap,
+`sky_plan`), the pad is the landmark's 24 m square 2 m up, the paint is a heliport's (ICAO Annex 14's touchdown circle
+and H, the edge line), and the compass's places and bearings are the ones `city.py` `COMPASS_TO` already names.
+
+**What was built** (in the roof's frame, scene.json `landmarks.shibuya_sky`):
+
+- **The deck**: dark grey porcelain pavers 600 mm square in straight courses, 5 mm open joints over a dark slab, each
+  paver its own part of the stone (one tone, the stone's own speckle: no random tones), cut clean round the channels,
+  the pad and its steps; a 0.3 m slot drain of dark steel along the glass's foot.
+- **GEO COMPASS**: its top in a drawn picture (`skypad`, 2048 px over 24 m, about 1.2 cm a pixel): a dark non-slip coat
+  whose only grain is its aggregate's, the heliport's white edge line, yellow touchdown circle and white H, and round
+  them the compass (a white ring, its degrees, N, E, S and W at true north, a gold line to each far place with its
+  name and distance set beside it, each name in the first place along its line clear of the others: Mt Fuji, Osaka,
+  Kyoto and Hong Kong lie within 14° of one another). The paint stands half a millimetre proud in the normal map and
+  is a little smoother than the coat. A stainless coping round the edge; the sides in dark metal panels 1.2 m wide
+  over a reveal; green flush lights round the edge, as a heliport has. The steps up each side in the deck's stone
+  with a pale honed nosing and a line of light in the shadow under each.
+- **The glass**: frameless panes 1.5 m wide and 2 m high on a dark aluminium shoe, a slim stainless cap, and in the
+  shoe's face toward the deck a line of warm light, baked onto the deck after dark (its face held low, 0.5, so it
+  glows instead of drawing a white bar). Where the channels run out and at SKY EDGE the city's lower glass stays.
+- **CLOUD HAMMOCK**: the landmark's three, at its places and its net's sag (the poses lie in it): a bed of short
+  artificial lawn in a timber kerb, four dark steel posts and rails at 0.9 m, and the net as white ropes 12 cm apart.
+- **Benches**: 3 m of oiled timber slats on dark flat steel, 1 m in from the glass wherever its foot is clear of the
+  searchlights, the nets, the channels' ends and the steps (twelve).
+- **CROSSING LIGHT**: at each of the landmark's 18 points (the beams `lights.js` throws) a plinth, a turntable, a yoke
+  and a finned drum tilted 20° out over the city, its lens lit after dark (`lamp*`).
+- **The escalators' heads**: a stainless landing plate and a yellow line before each.
+
+46,000 triangles, 3.0 MB (the granite is the Scramble's, held once); no fine model. While it is shown it hides the
+landmark meshes it draws again (`sky_deck`, `sky_deck_light`, `sky_glass`, `sky_steel_dark`, `sky_compass_atlas`,
+`sky_steps_deck_light`, `sky_net`, `sky_lit_lamp`); the channels, the escalators and the stairs stay the landmark's,
+and so does the walking: the level is drawn 5 cm over the deck's solids.
+
+**The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
+the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
+with a fine line along the parapet), drawn 0.3 m outside the tower's walls up to the deck, seen through the glass. A
+tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) now has no crown.
+
+**Only near, in height too.** The roof stands within 80 m in plan of frame 5's place at the tower's foot, and a level
+was fetched by its distance in plan. `hero.js` now takes a level's `zr` (its half-height about its `z`): the camera's
+height off it is counted as well (`d = hypot(max(0, plan), dz)`), and the opening's anchor, which is a point on the
+ground, does not fetch it. SKY STAGE is fetched once the camera is within 110 m of it (a third of the way up in SKY
+GATE's lift), shown within 120 m, and let go past 160 m: on the flight down in frame 5, never from the street.
+
+Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY's pages (shibuya-scramble-square.com/sky/:
+the zones SKY STAGE, SKY EDGE, CLOUD HAMMOCK, GEO COMPASS, CROSSING LIGHT; about 2,500 m²); Travel Watch (Impress),
+the opening's report, 2019 (travel.watch.impress.co.jp, docs 1214943: the heliport within the roof's walk, the glass
+round it, photographs 16 to 19); nippon.com's guide (gu900265) and Go Tokyo (gotokyo.org, 191015); ICAO Annex 14 vol. II
+(heliports: the touchdown/positioning circle, the H, the TLOF and FATO edge markings). Photographs on Wikimedia Commons
+of SKY STAGE, 2019-2024, looked at for the deck's tone, the glass and the benches.
+
+Where it still falls short: the furniture's sizes and places are read from photographs and the landmark's plan, not
+measured; whether the heliport's paint is the H and circle drawn here, or the compass alone, could not be settled from
+the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
+there; and it has been seen on a software renderer only.
 
 ## Scramble Square's curtain wall (Shibuya)
 
