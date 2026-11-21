@@ -910,7 +910,24 @@ window.OENav = (function () {
     const PX1 = x0 + DSM.nx * DSM.cell, PY0 = y1 - DSM.ny * DSM.cell;
     const inPlay = !D.district ? null : s => { const r = s[4]; for (let k = 0; k < r.length; k += 2) if (r[k] >= x0 * 10 && r[k] <= PX1 * 10 && r[k + 1] >= PY0 * 10 && r[k + 1] <= y1 * 10) return true; return false; };
     const shown = D.B.s.filter((s, i) => !hidden.has(i) && (!inPlay || inPlay(s)));
-    for (const s of shown) col.add(s, (s[1] + s[2]) / 10, (s[1] + s[3]) / 10, BUILDING, s[0], 10, 4); // (its rings in decimetres, s[4...])
+    // A building that stands on the ground is a wall down to the ground at its foot, as buildings.js draws it (its
+    // walls reach down to whichever ground is drawn). Its base is one level, the lowest ground under it as surveyed,
+    // and where the ground at a wall lies lower still (a street graded down beside it, a slope across a long front)
+    // the solid began above it: under a wall that hung 1.4 m or more over the ground a car's body passed (its
+    // circles are met from the knee to 1.6 m up), drove into the building and stood there in its walls, and under
+    // one 2.2 m over it a walker did. No further than 4 m down: past that the ring overhangs a cutting, not a foot.
+    const footOf = s => {
+      const base = s[1] / 10;
+      if (s[2] > 0) return base + s[2] / 10; // (a part that stands over the ground: its clearance is its own)
+      let z = base;
+      for (let j = 4; j < s.length; j++) for (let r = s[j], n = r.length / 2, a = 0; a < n; a++) {
+        const b = (a + 1) % n, ax = r[2 * a] / 10, ay = r[2 * a + 1] / 10, bx = r[2 * b] / 10, by = r[2 * b + 1] / 10;
+        const m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2.5));
+        for (let q = 0; q < m; q++) { const g = terrain(ax + (bx - ax) * q / m, ay + (by - ay) * q / m); if (g < z) z = g; }
+      }
+      return z < base ? Math.max(z, base - 4) - 0.2 : base;
+    };
+    for (const s of shown) col.add(s, footOf(s), (s[1] + s[3]) / 10, BUILDING, s[0], 10, 4); // (its rings in decimetres, s[4...])
     // the posts a canopy (an arcade, a gate: pipeline/arcades.py) stands on, as buildings.js draws them
     const PH = OEBuildings.POST / 2;
     const passages = new Set((D.B.passages || []).map(i => D.B.s[i])); // (a building over a road through it stands on no posts: pipeline/road_passages.py)
