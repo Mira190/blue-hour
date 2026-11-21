@@ -534,7 +534,7 @@ window.OETelemetry = (function () {
         // the story (game.js story.js): where in the case, as the spot; and what to count as its steps
         const S = g.story && g.story.state;
         if (S && S.phase && S.phase !== 'idle' && S.phase !== 'dressed') {
-          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: S.phase === 'stop' || !!(document.getElementById('gd') && !document.getElementById('gd').hidden),
+          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: ['still', 'guide', 'flight', 'prologue', 'call'].includes(S.beat), // (watched with no hand on anything: the Stop falling, the dog's film, a flight, a call; a line or a question that waits on a key, or a Stop walked in, counts as engaged only with input, as everywhere: an open box once counted a player half an hour away as playing)
             story: { fi: S.fi, phase: S.phase, prints: (S.prints || []).length, spent: (S.prints || []).filter(q => q.plain).length, failed: S.failed || 0, pairs: (S.pairs || []).length, ep: S.ep && S.ep.id } };
         }
         const p = g.player, a = g.places && g.places.area && g.places.area();

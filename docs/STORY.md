@@ -1583,6 +1583,9 @@ through the player.
 The story became the title's first way in for the launch, so its first play may have no dead end and no stall. Three
 weeks of the page's own telemetry (`story` and `dwell` events: the beat a player is in, and how long) were a small
 sample, seven players begun and two at the last card, but they said where it hurt, and four places were worked on.
+The engaged time overstated it: an open dialogue or any moment of a Stop counted as engaged with nobody at the keys, so a
+box left open for half an hour read as half an hour of play. Now only what is watched with no hand on anything counts
+without input (the Stop falling, the dog's film, a flight, a call; `web/telemetry.js`), and the rest as everywhere else.
 Learnt from (design only; nothing of their look, characters, words or code is used): *Ace Attorney* (2001–), *The Case
 of the Golden Idol* (2022), *Return of the Obra Dinn* (2018), *L.A. Noire* (2011), the *Telltale* adventures (2012–),
 *Firewatch* (2016), *Journey* (2012), *The Last Guardian* (2016) and *Ghost of Tsushima* (2020).
