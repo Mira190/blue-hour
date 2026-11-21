@@ -2379,11 +2379,14 @@ Until now the budget was one number for the map (`tools/mem_check.js`: a phone's
 beat of the episode has its own, on a phone's tier and a desktop's.
 
 - **Counted where the story is played.** `tools/story_play.js` with `BUDGET=file` counts, at every still it takes, the
-  frame after the still's (`tools/beat_count.js`): draw calls, triangles, full-screen passes (as the telemetry counts
+  still's own frame (`tools/beat_count.js`; the harness draws that one whole, so the count costs a play no frame more): draw calls, triangles, full-screen passes (as the telemetry counts
   them), the pixels shaded at least once (every pass's target, and every target the scene is drawn into: the canvas
   itself is 1), and what WebGL holds (`tools/gl_mem.js`: textures, buffers, renderbuffers). `BUDGET_BY=1` adds what
   was drawn, by name; `BUDGET_TOP=n` the largest textures and buffers held.
-- **A beat is one of the episode's frames** (and the title); its cost is the heaviest of its stills, measure by measure.
+- **A beat is one of the episode's frames** (and the title); its cost is the heaviest of its stills, measure by measure
+  (of what a frame draws, the second heaviest: work done once, the mirror's warm-up drawing the scene again as the game
+  settles, falls in whichever frame it falls in, and a cost that stays shows in more stills than one). A still's frame
+  is the heavy kind of frame: the wet street's mirror and the rain's cover map are drawn in it.
 - **These are the page's own asks**, so they are the same under this machine's software renderer as on a GPU, and they
   are what the telemetry reports from a device (`draws`, `tris_k`, `passes`, `px_k`): the session's counts and the
   owner's iPhone's agree (here 390 to 520 draws and 1.3 to 1.7 million triangles a beat; there 376 and 1.26 million).
@@ -2395,7 +2398,8 @@ beat of the episode has its own, on a phone's tier and a desktop's.
   triangles, which differ from play to play with the crowd; 3% for memory; none for passes) and goes down as the
   work lands. It only goes up on purpose, with the reason in the commit.
 
-**The budgets as first set** (21 November, main at `e48d974`; the heaviest still of each beat, with the room above it).
+**The budgets as first set** (21 November, main at `e48d974`; each beat's cost with the room above it: what was
+counted is 12% under these for draws and triangles, 3% for memory).
 Counted on a session's machine (Chromium on Mesa's software renderer), which changes none of these counts; the phone
 is an iPhone emulated (its size, three pixels to the point, its user agent, touch), without ASTC, so its textures are
 weighed uncompressed as `tools/mem_check.js` weighs them. The script's time is this machine's, a guide only, and is
@@ -2405,27 +2409,27 @@ phone (390x844, the low tier, canvas 760 x 1644):
 
 | beat | draws | triangles | passes | pixels shaded, canvases | textures | textures, MB | buffers, MB | GPU memory, MB | script, ms |
 |---|---|---|---|---|---|---|---|---|---|
-| title | 216 | 0.96 M | 11 | 2.41 | 104 | 143 | 49 | 196 | 18.4 |
-| frame 1 | 473 | 1.73 M | 13 | 4.51 | 318 | 202 | 88.5 | 296 | 35.4 |
-| frame 2 | 584 | 1.89 M | 13 | 4.51 | 320 | 203 | 89.6 | 298 | 37.2 |
-| frame 3 | 544 | 1.73 M | 13 | 4.51 | 331 | 205 | 90.6 | 301 | 41.2 |
-| frame 4 | 461 | 1.46 M | 13 | 4.51 | 353 | 220 | 104.1 | 330 | 63.8 |
-| frame 5 | 1071 | 1.64 M | 13 | 4.51 | 359 | 220 | 104.1 | 330 | 52.8 |
-| frame 6 | 540 | 1.83 M | 13 | 4.51 | 373 | 212 | 100.5 | 318 | 91.1 |
-| frame 7 | 963 | 2.48 M | 13 | 4.78 | 400 | 212 | 96.7 | 314 | 53.5 |
+| title | 216 | 0.95 M | 11 | 2.41 | 106 | 145 | 49.4 | 198 | 15.7 |
+| frame 1 | 440 | 1.63 M | 13 | 4.51 | 318 | 202 | 88 | 296 | 28.9 |
+| frame 2 | 582 | 1.83 M | 13 | 4.51 | 323 | 203 | 89.1 | 297 | 30.7 |
+| frame 3 | 529 | 1.63 M | 13 | 4.51 | 334 | 205 | 90.1 | 300 | 34.4 |
+| frame 4 | 460 | 1.47 M | 13 | 4.51 | 354 | 219 | 103.5 | 329 | 55 |
+| frame 5 | 895 | 1.59 M | 13 | 4.51 | 354 | 219 | 103.5 | 329 | 38.3 |
+| frame 6 | 492 | 1.78 M | 13 | 4.51 | 366 | 211 | 101.2 | 318 | 47.9 |
+| frame 7 | 973 | 2.68 M | 13 | 4.52 | 383 | 211 | 97.5 | 314 | 46 |
 
 desktop (800x500, the high tier, canvas 800 x 500):
 
 | beat | draws | triangles | passes | pixels shaded, canvases | textures | textures, MB | buffers, MB | GPU memory, MB | script, ms |
 |---|---|---|---|---|---|---|---|---|---|
-| title | 329 | 2.02 M | 17 | 4.38 | 139 | 688 | 132.3 | 852 | 31.4 |
-| frame 1 | 764 | 3.01 M | 19 | 6.48 | 729 | 1288 | 174.8 | 1496 | 103.1 |
-| frame 2 | 855 | 3.21 M | 19 | 6.48 | 745 | 1289 | 182.3 | 1505 | 108.8 |
-| frame 3 | 864 | 2.99 M | 19 | 6.48 | 760 | 1299 | 183.3 | 1516 | 74.6 |
-| frame 4 | 777 | 2.59 M | 19 | 6.48 | 777 | 1375 | 196.9 | 1605 | 124.8 |
-| frame 5 | 1073 | 3.01 M | 19 | 6.48 | 799 | 1375 | 196.9 | 1605 | 100.6 |
-| frame 6 | 869 | 3.14 M | 19 | 6.48 | 817 | 1315 | 197 | 1546 | 157.1 |
-| frame 7 | 1882 | 5.92 M | 19 | 7.33 | 841 | 1308 | 189.5 | 1531 | 111 |
+| title | 329 | 2.02 M | 17 | 4.38 | 137 | 683 | 132.3 | 846 | 29.8 |
+| frame 1 | 759 | 3.07 M | 19 | 6.48 | 761 | 1288 | 174.8 | 1496 | 60.7 |
+| frame 2 | 833 | 3.17 M | 19 | 6.48 | 771 | 1289 | 182.3 | 1504 | 93.8 |
+| frame 3 | 845 | 2.96 M | 19 | 6.48 | 786 | 1299 | 183.3 | 1515 | 99.4 |
+| frame 4 | 746 | 2.78 M | 19 | 6.48 | 805 | 1375 | 196 | 1605 | 122.2 |
+| frame 5 | 1072 | 3.08 M | 19 | 6.48 | 818 | 1375 | 196.8 | 1605 | 88.1 |
+| frame 6 | 836 | 3.23 M | 19 | 6.48 | 830 | 1315 | 196.9 | 1546 | 112.3 |
+| frame 7 | 2392 | 8.10 M | 19 | 6.77 | 857 | 1310 | 189.5 | 1533 | 107.6 |
 
 **What the first count found**, largest first:
 
@@ -2444,12 +2448,16 @@ desktop (800x500, the high tier, canvas 800 x 500):
   animal); the roof kit 72,000, the same in every still of the play (never culled); the trains 100,000. A desktop's
   mean of 2.72 million: the roof kit 430,000 (16%, on roofs the street cannot see), the wet street's mirror 250,000
   more (the scene drawn again at a third of the size), the dog 120,000, the far land 127,000 in one draw.
-- *Frame 7 in the rain* is the heaviest beat on both: 5.3 million triangles and 1,680 draws on a desktop.
+- *Frame 7 in the rain draws the scene three times.* On a desktop a still's frame there is 7.2 million triangles and
+  2,135 draws: 3.0 million for the picture, 2.9 million again for the wet street's mirror, a target of 267 x 167
+  pixels (sixty triangles a pixel; every other frame), and 1.2 million for the rain's cover map, 256 x 256, seen from
+  above (weather.js: every half second while it rains). On a phone, which has no mirror, the cover map alone adds
+  0.9 million triangles to a frame of 1.45 million, into 128 x 128 pixels: one frame in fifteen two thirds heavier.
 - *Passes.* A phone's eleven are the scene, ten small ones of the bloom (a quarter of the size and down) and the
   lens: 2.29 canvases in all, already lean. A desktop's seventeen to nineteen shade 4.2 to 6.2 canvases.
 
-**The order of work**, by what was counted: the depth of field's passes and targets; what a beat leaves behind in a
-phone's memory; the triangles nobody can see (the roof kit from the street, the ground under the paving) and the
+**The order of work**, by what was counted: the depth of field's passes and targets; the scene drawn again for the
+rain's cover and the mirror, from what a picture of that size can show; what a beat leaves behind in a phone's memory; the triangles nobody can see (the roof kit from the street, the ground under the paving) and the
 ones no screen can show (the dog, the far crowd, the trains by projected size); a desktop's textures in blocks.
 Each lands by itself with its beats' numbers before and after, and the budgets come down with it.
 

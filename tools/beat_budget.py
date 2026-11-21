@@ -4,7 +4,7 @@
 tools/story_play.js BUDGET=file writes a line for every still: what that frame asked of the GPU (draw calls, triangles,
 full-screen passes, the pixels the passes shade and the scene's targets hold) and what WebGL held (textures, buffers,
 renderbuffers). A beat is one of the episode's frames (and the title before the first); its cost is the heaviest of
-its stills. The budgets are in tools/budgets/<map>.json, a set for the desktop's tier and one for a phone's.
+its stills (of what a frame draws, the second heaviest: a thing drawn once is not the beat's cost). The budgets are in tools/budgets/<map>.json, a set for the desktop's tier and one for a phone's.
 
   tools/beat_budget.py check <samples.jsonl> <desktop|phone> [--map shibuya]   exit 1 on a beat over its budget
   tools/beat_budget.py set   <samples.jsonl> <desktop|phone> [--margin 0.1]    the budgets from a play (only its beats)
@@ -19,6 +19,7 @@ import json, math, sys, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 # what is held to a budget, with the room a play's own variation needs (the crowd and the traffic differ from play to play)
 GATED = {'draws': 0.12, 'tris': 0.12, 'passes': 0.0, 'px_x': 0.05, 'tex_mb': 0.03, 'gpu_mb': 0.03}
+ONCE = ('draws', 'tris', 'passes', 'px_x')   # what one frame draws: the second heaviest still of a beat (beats(), below)
 SHOWN = ['draws', 'tris', 'passes', 'px_x', 'tex_n', 'tex_mb', 'buf_mb', 'gpu_mb', 'js_ms']
 NAMES = {'draws': 'draws', 'tris': 'triangles', 'passes': 'passes', 'px_x': 'pixels shaded, canvases', 'tex_n': 'textures', 'tex_mb': 'textures, MB',
          'buf_mb': 'buffers, MB', 'gpu_mb': 'GPU memory, MB', 'js_ms': 'script, ms'}
@@ -29,8 +30,11 @@ def beat_of(s):
 
 
 def beats(path):
-    """each beat's heaviest still, measure by measure"""
-    out, meta = {}, {}
+    """each beat's heaviest still, measure by measure. For what a frame draws (not what is held), the second heaviest
+    where a beat has three stills or more: work done once (the mirror's warm-up drawing the scene again as the game
+    settles, a cache drawn afresh) falls in whichever frame it falls in and is not what the beat costs; a cost that
+    stays shows in more stills than one."""
+    out, meta, seen = {}, {}, {}
     for line in open(path):
         line = line.strip()
         if not line:
@@ -44,9 +48,13 @@ def beats(path):
             v = s.get(k)
             if v is None:
                 continue
+            seen.setdefault((beat_of(s), k), []).append((v, s['still']))
             if k not in b or v > b[k][0]:
                 b[k] = (v, s['still'])
         meta = {'size': s.get('size'), 'tier': s.get('tier'), 'canvas': cv}
+    for (n, k), vs in seen.items():
+        if k in ONCE and len(vs) >= 3:
+            out[n][k] = sorted(vs, key=lambda x: -x[0])[1]
     return out, meta
 
 

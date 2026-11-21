@@ -34,7 +34,8 @@ exports.hook = () => {
     if (mode === 4 && count === 3 && !indexed && inst === 1) { c.passes++; b.passes++; c.pass_px += s.w * s.h; }
     else { t.scene = true; t.px = Math.max(t.px, s.w * s.h); }
   };
-  const wrap = (k, fn) => { const f = P[k]; if (!f) return; P[k] = function (...a) { if (B.on) fn(this, a); return f.apply(this, a); }; };
+  // (a frame the harness does not draw, tools/story_play.js DRAW=n, asks for its draws all the same and they are passed over: not counted)
+  const wrap = (k, fn) => { const f = P[k]; if (!f) return; P[k] = function (...a) { if (B.on && !(window.__draw && !window.__draw.on)) fn(this, a); return f.apply(this, a); }; };
   wrap('drawArrays', (gl, a) => tri(gl, a[0], a[2], 1, false));
   wrap('drawElements', (gl, a) => tri(gl, a[0], a[1], 1, true));
   wrap('drawRangeElements', (gl, a) => tri(gl, a[0], a[3], 1, true));
@@ -42,34 +43,45 @@ exports.hook = () => {
   wrap('drawElementsInstanced', (gl, a) => tri(gl, a[0], a[1], a[4], true));
   wrap('clear', () => { B.cur.clears++; });
   wrap('blitFramebuffer', () => { B.cur.blits++; });
+  // names(true): each draw put down to the thing drawn, by the names up its parents (three.js calls a thing's
+  // onBeforeRender just before its draw; a target the scene is drawn into another way, the shadows' map, keeps the last
+  // name and is told by its size); names(false): the things as they were
+  let hooked = [];
+  B.names = on => {
+    for (const [o, was] of hooked) o.onBeforeRender = was;
+    hooked = []; B.group = '';
+    if (!on || !window.__game || !window.__game.world) return;
+    let root = window.__game.world; while (root.parent) root = root.parent;
+    const nameOf = o => { const n = []; for (let q = o; q && q !== root; q = q.parent) if (q.name && !/^(Scene|Group)$/.test(q.name)) n.push(q.name.replace(/[_-]?\d+$/, '')); if (n.length) return n.length > 1 ? `${n[n.length - 1]}/${n[0]}` : n[0]; const m = Array.isArray(o.material) ? o.material[0] : o.material; return `${o.isInstancedMesh ? 'InstancedMesh' : o.isSkinnedMesh ? 'SkinnedMesh' : o.type}:${(m && (m.name || m.type)) || ''}:${o.userData && Object.keys(o.userData).slice(0, 3).join(',')}`; };
+    root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite) { const was = o.onBeforeRender, k = nameOf(o); hooked.push([o, was]); o.onBeforeRender = function (...a) { B.group = k; return was.apply(this, a); }; } });
+  };
+  // the frames counted as one line: the heaviest by its triangles, and element by element the larger of them for what is
+  // drawn in one and not another (the passes, the pixels); with what WebGL holds now (tools/gl_mem.js, where its hook is
+  // in the page) and the page's own state
+  B.report = got => {
+    got = got.filter(c => c && c.draws).sort((a, b) => b.tris - a.tris);
+    const c = got[0] || { draws: 0, tris: 0, passes: 0, pass_px: 0, scene_px: 0, by: [], groups: [] }, g = window.__game, gl = document.querySelector('#game-gl'), M = window.__memReport ? window.__memReport(0) : null;
+    for (const o of got.slice(1)) for (const k of ['draws', 'passes', 'pass_px', 'scene_px']) c[k] = Math.max(c[k], o[k]);
+    const mb = v => +(v / 1048576).toFixed(1);
+    return { ...c, frames: got.length, canvas: gl ? [gl.width, gl.height] : null, scale: g && g.pxScale ? +g.pxScale().toFixed(2) : null,
+      ...(M ? { tex_n: M.nTex, tex_mb: mb(M.tex), buf_mb: mb(M.buf), rb_mb: mb(M.rb), gpu_mb: mb(M.now), gpu_peak_mb: mb(M.peak) } : {}) };
+  };
 };
 
 // Two of the game's frames counted (a frame the cap passes over draws nothing and is not one), and the heavier kept:
 // the wet street's mirror is drawn every other frame, the shadows' cache and the rain's cover in whichever finds them
-// stale. With the memory WebGL holds now (tools/gl_mem.js, where its hook is in the page) and the page's own state.
+// stale. by=true: and by what was drawn.
 exports.sample = (p, frames = 2, by = false) => p.evaluate(([frames, by]) => new Promise(done => {
   const B = window.__beat, got = []; let tries = 0;
-  // (by=true: each draw put down to the thing drawn, by the names up its parents: three.js calls a thing's onBeforeRender just
-  // before its draw; a target the scene is drawn into another way, the shadows' map, keeps the last name and is told by its size)
-  const hooked = [];
-  if (by && window.__game && window.__game.world) {
-    let root = window.__game.world; while (root.parent) root = root.parent;
-    const nameOf = o => { const n = []; for (let q = o; q && q !== root; q = q.parent) if (q.name && !/^(Scene|Group)$/.test(q.name)) n.push(q.name.replace(/[_-]?\d+$/, '')); if (n.length) return n.length > 1 ? `${n[n.length - 1]}/${n[0]}` : n[0]; const m = Array.isArray(o.material) ? o.material[0] : o.material; return `${o.isInstancedMesh ? 'InstancedMesh' : o.isSkinnedMesh ? 'SkinnedMesh' : o.type}:${(m && (m.name || m.type)) || ''}:${o.userData && Object.keys(o.userData).slice(0, 3).join(',')}`; };
-    root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite) { const was = o.onBeforeRender, k = nameOf(o); hooked.push([o, was]); o.onBeforeRender = function (...a) { B.group = k; return was.apply(this, a); }; } });
-  }
+  B.names(by);
   const step = () => {
     const c = B.end(); if (c && c.draws) got.push(c);
-    if (got.length >= frames || ++tries > 40) {
-      for (const [o, was] of hooked) o.onBeforeRender = was; B.group = '';
-      got.sort((a, b) => b.tris - a.tris);
-      const c = got[0] || { draws: 0, tris: 0, passes: 0, pass_px: 0, scene_px: 0, by: [] }, g = window.__game, gl = document.querySelector('#game-gl'), M = window.__memReport ? window.__memReport(0) : null;
-      // (element by element the larger of the frames, for what is drawn in one and not the other: the passes, the pixels)
-      for (const o of got.slice(1)) for (const k of ['draws', 'passes', 'pass_px', 'scene_px']) c[k] = Math.max(c[k], o[k]);
-      const mb = v => +(v / 1048576).toFixed(1);
-      return done({ ...c, frames: got.length, canvas: gl ? [gl.width, gl.height] : null, scale: g && g.pxScale ? +g.pxScale().toFixed(2) : null,
-        ...(M ? { tex_n: M.nTex, tex_mb: mb(M.tex), buf_mb: mb(M.buf), rb_mb: mb(M.rb), gpu_mb: mb(M.now), gpu_peak_mb: mb(M.peak) } : {}) });
-    }
+    if (got.length >= frames || ++tries > 40) { B.names(false); return done(B.report(got)); }
     B.begin(); requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }), [frames, by]);
+// One frame the caller draws itself, counted from begin to end: a still's own frame, drawn whole (tools/story_play.js),
+// which costs a play no frame more.
+exports.begin = (p, by = false) => p.evaluate(by => { const B = window.__beat; B.names(by); B.begin(); }, by);
+exports.end = p => p.evaluate(() => { const B = window.__beat, c = B.end(); B.names(false); return B.report([c]); });

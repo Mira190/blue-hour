@@ -112,7 +112,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     D.one = false; D.twice = false; D.oneDone = null; D.ones = 0;
     const oneFrame = () => {
       const g = window.__game, ao = g && g.atmos && g.atmos.ao, m = g && g.mirror;
-      if (ao && !ao.__twice) { const f = ao.compute; ao.__twice = true; ao.compute = function (...a) { if (D.twice && !D.twiceDone) { D.twiceDone = true; D.ones++; f.apply(this, a); } return f.apply(this, a); }; }
+      if (ao && !ao.__twice) { const f = ao.compute; ao.__twice = true; ao.compute = function (...a) { if (D.twice && !D.twiceDone) { D.twiceDone = true; D.ones++; const B = window.__beat, on = B && B.on; if (on) B.on = false; f.apply(this, a); if (on) B.on = true; } return f.apply(this, a); }; } // (the first working-out is this harness's, not the frame's: not counted, tools/beat_count.js)
       D.twiceDone = false;
       if (m && m.uniforms && m.uniforms.uMirrorOn) m.uniforms.uMirrorOn.value = 0; // (mirror.js keeps its last picture only while it is on)
     };
@@ -241,9 +241,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const hold = on => (DRAW > 1 && process.env.HOLD !== '0' ? p.evaluate(on => (on ? window.__draw.holdOn() : window.__draw.holdOff()), on) : null); // (HOLD=0: the frames run on while a still is taken)
   // (the frame after the still's, counted, drawn whole as the still's was; and the script's time a frame not drawn took since the last still: this machine's, a guide)
   let jsWas = { n: 0, js: 0 };
-  const budget = async name => {
+  // (counted: the still's own frame, where the harness draws one frame whole for a still, DRAW=n: no frame more. It is the
+  // heavier of the game's frames: the wet street's mirror is drawn in it, the occlusion worked out once as far as the count goes)
+  const budget = async (name, counted) => {
     try {
-      const c = await require('./beat_count').sample(p, 2, !!process.env.BUDGET_BY); // (BUDGET_BY=1: and by what was drawn, the heaviest forty)
+      const c = counted && counted.draws ? counted : await require('./beat_count').sample(p, 2, !!process.env.BUDGET_BY); // (BUDGET_BY=1: and by what was drawn, the heaviest forty)
       const x = await p.evaluate(() => { const g = window.__game, s = g && g.story && g.story.state, D = window.__draw, o = D && D.split ? D.split.off : null; return { fi: s ? s.fi : -1, phase: s ? s.phase : '', off: o ? { n: o.n, js: o.js } : null, tier: window.OEQuality && OEQuality.tier ? OEQuality.tier().name : '' }; });
       const js = x.off && x.off.n > jsWas.n ? +((x.off.js - jsWas.js) / (x.off.n - jsWas.n)).toFixed(1) : null; if (x.off) jsWas = x.off;
       // (BUDGET_TOP=n: and the n largest textures and buffers WebGL holds, by what each was made from: what a beat brought and what it left behind)
@@ -252,7 +254,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
-  const snap = async name => { const t0 = Date.now(); await drawAll(true); await hold(true); const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET) await budget(name, counted); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
