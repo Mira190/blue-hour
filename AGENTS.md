@@ -190,8 +190,8 @@ The owner should not be the one who finds the bug.
 
 Measured over the 48 sessions of 18 to 21 November 2026, from their transcripts (docs/CHECKS.md, "A run is a job"): on a
 session's machine (four cores, WebGL in software) the story plays in 20 minutes, the walk's two pages in 18, the guide
-in 20, the ride in 5 and mem in 3, so `tools/check.sh` for a change to the page takes about 42 minutes, and for one to
-`game.js` or `story.js` 47 to 62. Four fifths of the time sessions spent in tools went in waiting on Chromium (the
+in 20, the ride in 5 and mem in 3, so `tools/check.sh` for a change to the page took about 42 minutes, and for one to
+`game.js` or `story.js` 47 to 62; with the walk's desktop page alone on the fast tier (issue 95) 33, and 38 to 53. Four fifths of the time sessions spent in tools went in waiting on Chromium (the
 story's clock runs at a third to a half of the wall clock's pace there: a frame costs 80 to 140 ms though only one in
 thirty is drawn). So:
 

@@ -1954,6 +1954,33 @@ Sydney's traffic stood still a third of the time.
       taken. Lingering and leaning as a street's people do: Whyte, *The Social
       Life of Small Urban Spaces* (1980), on people standing at edges and at
       objects rather than in the open.
+  - *The wait at a kerb* (November 2026, issue 75: in the episode's stills the front
+    row at a kerb stood ruled along its edge, one person every 0.6 to 0.7 m, all square
+    to the road; a photograph of the Scramble at a red light shows a ragged mass several
+    deep, people turned to each other and at their phones):
+    - **Each its own room.** A place at a kerb is kept from a stranger's by the mean of
+      the two's own room, each walker's from 0.8 to 1.25 m (`room`), and from one of its
+      own group by a shoulder's width (0.62 m, `MATE_NEAR`; the press keeps a group's own
+      0.55 m apart, strangers 0.68). From 0.72 m and 0.58 m, the densest kerbs held seven
+      in a 2 m circle for 20 s (`tools/crowd_spread.js`). All at one pace, 0.9 m, the places had packed into a
+      lattice.
+    - **A ragged front.** Each place is chosen by its distance from where the walker
+      comes, the front preferred by as much as that walker wants it (`keen`, 0.15 to 1.25
+      a metre of depth) and by a little left to chance; the front row stands 0.45 to
+      0.95 m behind the kerb's line.
+    - **Turned their own ways.** Each stands turned from square to the road by up to 25
+      degrees (`wf`, mostly less), and one waiting with its group turned a third of the
+      way to them.
+    - **At their phones.** Three in ten of the crowd, the right hand free, look at a
+      phone when they stand: the cast's `Phone` clip (Rocketbox's text message) with a
+      phone in the hand, put away while an umbrella is up.
+    - The traits come from each walker's place in the crowd, not from its random draws,
+      so the crowd's other draws are as they were.
+    - Measured with `tools/kerb_shape.js` (Shibuya at 17:41 by Hachiko, 150 s, the kerbs
+      with eight or more waiting while the walk is off): the spread of how each faces
+      from 5 to 24 degrees; the spread of the nearest neighbour's distance over its mean
+      from 0.34 to 0.56 (the mean 0.96 m before, 0.95 after); 14 waiting at a kerb
+      against 12, the crowd 6.6 m deep against 6.1.
   - `tools/scramble_step.js`, run by `tools/game_check.js` in every city with a
     scramble, checks that in the walk every arm's light is red, the walk signals
     are green and the crowd is out on the crosswalks and the diagonals; that in
