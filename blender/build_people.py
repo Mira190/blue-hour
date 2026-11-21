@@ -49,7 +49,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RB = os.path.join(ROOT, "data", "raw", "rocketbox", "Assets")
 FPS = 30
 sys.path.insert(0, os.path.join(ROOT, "pipeline"))
-from fetch_rocketbox import npc_cast  # noqa: E402  (the cities' NPC characters; no bpy there)
+from fetch_rocketbox import face_cast, npc_cast  # noqa: E402  (the cities' NPC characters, and who of them speaks; no bpy there)
 
 # the game's clip name -> the Rocketbox clip (f_ or m_ prefixed by the avatar's sex) and its folder:
 # 'static' clips stand in place, 'xy' clips carry their root motion on a separate helper. The game
@@ -353,7 +353,8 @@ def export(rig, path, colour_px=1024, data_px=512, mesh=True, clips=True, shared
     bpy.context.view_layer.objects.active = rig
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_skins=True,
                               export_animations=clips, export_animation_mode="NLA_TRACKS", export_optimize_animation_size=True,
-                              export_image_format="WEBP", export_image_quality=80, export_morph=False, export_yup=True,
+                              export_image_format="WEBP", export_image_quality=80, export_morph=True, export_morph_normal=False,
+                              export_morph_tangent=False, export_try_sparse_sk=False, export_yup=True,
                               **({} if clips and mesh else {"export_vertex_color": "NONE"}))
     before = os.path.getsize(path)
     slim_glb(path, shared=shared, quantize=not clips)
@@ -464,6 +465,8 @@ def slim_glb(path, eps=1e-5, shared=False, quantize=False):
     for m in j.get("meshes", []):
         for pr in m["primitives"]:
             refs.update(pr["attributes"].values())
+            for tg in pr.get("targets", []):   # (a face's morph targets, add_face)
+                refs.update(tg.values())
             if "indices" in pr:
                 refs.add(pr["indices"])
     for sk in j.get("skins", []):
@@ -514,6 +517,8 @@ def slim_glb(path, eps=1e-5, shared=False, quantize=False):
     for m in j.get("meshes", []):
         for pr in m["primitives"]:
             pr["attributes"] = {k: amap[a] for k, a in pr["attributes"].items()}
+            if "targets" in pr:
+                pr["targets"] = [{k: amap[a] for k, a in tg.items()} for tg in pr["targets"]]
             if "indices" in pr:
                 pr["indices"] = amap[pr["indices"]]
     for sk in j.get("skins", []):
@@ -1719,6 +1724,117 @@ def embed_masks(path):
         f.write(struct.pack("<II", len(out), 0x004E4942)); f.write(out)
 
 
+# ------------------------------------------------------------------ faces that move (issue 12)
+# The speaking cast's faces take blendshapes from HeadBox (Volonte et al., 2022: ARKit-style shapes, FACS action units
+# and visemes made for the Rocketbox heads, MIT as the library; in the repository as each avatar's *_facial.fbx, the
+# same mesh as its *.fbx). Only what web/game/face.js drives is kept, each eye's or side's pair summed into one (the
+# page never moves one side alone): a blink, the brows, a smile, a frown, a set mouth, and five mouth shapes for a jaw
+# that moves while a line is said (the visemes Rhubarb's mouths map to, issue 11). The face is its own mesh (the head
+# and the hair cards with the lashes, which close with the lids), so that the body carries no morph targets: memory
+# and vertex work go to the face alone (docs/PERFORMANCE.md). The eyes look with their bones, which every Rocketbox
+# avatar has (Bip01 LEye, REye), and need no shape.
+FACE_KEYS = {"eyeBlink": ["AK_09_EyeBlinkLeft", "AK_10_EyeBlinkRight"], "eyeSquint": ["AK_19_EyeSquintLeft", "AK_20_EyeSquintRight"],
+             "eyeWide": ["AK_21_EyeWideLeft", "AK_22_EyeWideRight"], "browInnerUp": ["AK_03_BrowInnerUp"],
+             "browDown": ["AK_01_BrowDownLeft", "AK_02_BrowDownRight"], "browOuterUp": ["AK_04_BrowOuterUpLeft", "AK_05_BrowOuterUpRight"],
+             "mouthSmile": ["AK_44_MouthSmileLeft", "AK_45_MouthSmileRight"], "mouthFrown": ["AK_30_MouthFrownLeft", "AK_31_MouthFrownRight"],
+             "mouthPress": ["AK_36_MouthPressLeft", "AK_37_MouthPressRight"],
+             "viseme_aa": ["AA_VI_10_aa"], "viseme_E": ["AA_VI_11_E"], "viseme_O": ["AA_VI_13_O"], "viseme_U": ["AA_VI_14_U"],
+             "viseme_PP": ["AA_VI_01_PP"]}
+FACE_NAME = re.compile(r"_(head|opacity)(\.\d+)?$")   # the face's mesh: the head's material and the hair cards' (the lashes)
+
+
+def add_face(cid, arm, mesh, head):
+    """Give the built mesh the blendshapes of the head it wears (head: that avatar's folder, or the body's own), and
+    part the head from the body as a mesh of its own. Each shape's offsets are found on the *_facial.fbx's mesh, moved
+    where swap_head moved its head, and laid on the built mesh's vertices that lie where that mesh's do (the head is a
+    copy of it, so they match to a hair; a vertex that matches none keeps still)."""
+    from mathutils.kdtree import KDTree
+    name = os.path.basename(head)
+    objs, _ = import_fbx(os.path.join(RB, "Avatars", head, "Export", f"{name}_facial.fbx"))
+    da = next(o for o in objs if o.type == "ARMATURE")
+    dm = next(o for o in objs if o.type == "MESH")
+    to = (arm.matrix_world @ arm.data.bones["Bip01 Head"].matrix_local) @ (da.matrix_world @ da.data.bones["Bip01 Head"].matrix_local).inverted()
+    M = np.array(mesh.matrix_world.inverted() @ to @ dm.matrix_world)
+    kb = dm.data.shape_keys.key_blocks
+    co = lambda k: (lambda a: (k.data.foreach_get("co", a), a.reshape(-1, 3))[1])(np.empty(len(k.data) * 3, dtype=np.float32))
+    base = co(kb["Basis"]).astype(np.float64)
+    deltas = {}
+    for out, src in FACE_KEYS.items():
+        d = sum(co(kb[k]) - base for k in src)
+        deltas[out] = d @ M[:3, :3].T
+    base = base @ M[:3, :3].T + M[:3, 3]
+    names = [s.name for s in dm.material_slots]
+    on = np.zeros(len(base), bool)
+    for p in dm.data.polygons:
+        if FACE_NAME.search(names[p.material_index]):
+            on[list(p.vertices)] = True
+    tree = KDTree(int(on.sum()))
+    idx = np.nonzero(on)[0]
+    for k, i in enumerate(idx):
+        tree.insert(base[i], k)
+    tree.balance()
+    for o in objs:
+        bpy.data.objects.remove(o)
+    # the built mesh's face vertices, matched to the facial mesh's
+    names = [s.name for s in mesh.material_slots]
+    face = set()
+    for p in mesh.data.polygons:
+        if FACE_NAME.search(names[p.material_index]):
+            face.update(p.vertices)
+    n = len(mesh.data.vertices)
+    vco = np.empty(n * 3, dtype=np.float32)
+    mesh.data.vertices.foreach_get("co", vco)
+    vco = vco.reshape(-1, 3)
+    match, miss = {}, 0
+    for i in face:
+        _, k, d = tree.find(vco[i])
+        if d is not None and d < 0.05:   # (half a millimetre: the mesh is in centimetres)
+            match[i] = idx[k]
+        else:
+            miss += 1
+    mesh.shape_key_add(name="Basis", from_mix=False)
+    ii = np.array(list(match.keys()), dtype=np.int64)
+    jj = np.array(list(match.values()), dtype=np.int64)
+    for out, d in deltas.items():
+        k = mesh.shape_key_add(name=out, from_mix=False)
+        a = vco.copy()
+        a[ii] += d[jj].astype(np.float32)
+        k.data.foreach_set("co", a.reshape(-1))
+    moved = int((np.abs(np.stack([d[jj] for d in deltas.values()])).max(axis=(0, 2)) > 1e-4).sum())
+    # the head parted from the body, its normals kept as they were across the cut (custom normals: else the cut is seen
+    # as a crease in the light)
+    me = mesh.data
+    cn = np.empty(len(me.loops) * 3, dtype=np.float32)
+    me.corner_normals.foreach_get("vector", cn)
+    me.normals_split_custom_set(cn.reshape(-1, 3))
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = mesh
+    mesh.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for p in me.polygons:
+        p.select = bool(FACE_NAME.search(names[p.material_index]))
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.separate(type="SELECTED")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    head_obj = next(o for o in bpy.context.selected_objects if o is not mesh)
+    head_obj.name = f"{cid}_Face"
+    mesh.shape_key_clear()
+    # (each part keeps only the materials it uses: the exporter writes a primitive for each)
+    for o in (mesh, head_obj):
+        used = {p.material_index for p in o.data.polygons}
+        for i in reversed(range(len(o.material_slots))):
+            if i not in used:
+                o.active_material_index = i
+                bpy.context.view_layer.objects.active = o
+                bpy.ops.object.material_slot_remove()
+    bpy.data.orphans_purge(do_recursive=True)
+    print(f"  {cid}: a face of {len(head_obj.data.vertices)} vertices from {name}_facial.fbx, {len(FACE_KEYS)} shapes, "
+          f"{moved} vertices move ({miss} of the head's matched none)")
+    return head_obj
+
+
 SKELETON = {}   # sex -> the first NPC's bind pose, to check the others against
 
 
@@ -1783,6 +1899,7 @@ def build_npcs(only=None, clips=True):
     listing = [os.path.relpath(p, os.path.dirname(RB)).replace(os.sep, "/")
                for p in glob.glob(os.path.join(RB, "Avatars", "*", "*", "Textures", "*"))]
     cast = npc_cast(listing)
+    faces = face_cast()
     out = os.path.join(ROOT, "web", "assets", "people")
     path = os.path.join(out, "people.json")
     info = json.load(open(path))
@@ -1794,9 +1911,11 @@ def build_npcs(only=None, clips=True):
             continue
         rig, mesh = build_npc(cid, spec)
         tris = sum(len(p.vertices) - 2 for p in mesh.data.polygons)
+        height = round(max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices), 3)
+        face = cid in faces and add_face(cid, rig, mesh, spec["head"] or spec["avatar"])
         export(rig, os.path.join(out, f"{cid}.glb"), clips=False, data_px=256)
         chars[cid] = {"file": f"{cid}.glb", "sex": spec["sex"], "avatar": spec["avatar"], "head": spec["head"], "tags": spec["tags"],
-                      "height_m": round(max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices), 3), "triangles": tris,
+                      "height_m": height, "triangles": tris, **({"face": sorted(FACE_KEYS)} if face else {}),
                       "cities": sorted(spec["cities"]), **({"mask": spec["skin"]} if spec.get("skin") else {})}   # (mask: its body's picture marks the skin, and how much of it)
         print(f"{cid}: {tris} triangles")
     clip_files = dict(sec.get("clips", {}))
@@ -1909,9 +2028,11 @@ def main():
                 n.inputs["Alpha"].default_value = 1.0
         if not args.no_export:
             out = os.path.join(ROOT, "web", "assets", "people")
+            height = round(max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices), 3)
+            add_face(cid, rig, mesh, spec.get("head") or spec["avatar"])
             export(rig, os.path.join(out, f"{cid}.glb"))
             heroes[cid] = {"file": f"{cid}.glb", "label": spec["label"], "avatar": spec["avatar"], "head": spec.get("head"), "ground_speed": speeds,
-                           "height_m": round(max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices), 3), "triangles": tris,
+                           "height_m": height, "triangles": tris, "face": sorted(FACE_KEYS),
                            "clips": [t.name for t in rig.animation_data.nla_tracks], **({"neck_camera": cam} if cam else {})}
     if not args.no_export:
         for cid in [c for c in heroes if c not in CHARACTERS]:   # main characters there are no more of

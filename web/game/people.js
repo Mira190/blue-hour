@@ -490,6 +490,7 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     };
     const ready = (name, tpl, npc = false) => {
       let hair = null, head = null;
+      if (window.OEFace) OEFace.prepare(tpl.scene); // (a speaking character's face drawn still until it is chosen to move: face.js)
       tpl.scene.traverse(o => {
         if (!o.isSkinnedMesh) return;
         o.castShadow = o.receiveShadow = true; [].concat(o.material).forEach(litMaterial); // (the variant person() draws, its shadow's too)

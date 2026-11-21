@@ -665,6 +665,22 @@
     },
     "height_m": 1.739,
     "triangles": 10370,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "clips": [
      "Idle",
      "Idle_Neutral",
@@ -741,6 +757,22 @@
     },
     "height_m": 1.829,
     "triangles": 9544,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "clips": [
      "Idle",
      "Idle_Neutral",
@@ -964,6 +996,22 @@
     ],
     "height_m": 1.769,
     "triangles": 9685,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1004,6 +1052,22 @@
     "tags": [],
     "height_m": 1.733,
     "triangles": 8150,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1017,10 +1081,24 @@
     "tags": [],
     "height_m": 1.822,
     "triangles": 7448,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
-     "kyoto",
-     "osaka",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.0453
    },
@@ -1084,9 +1162,26 @@
     "tags": [],
     "height_m": 1.829,
     "triangles": 7152,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
-     "osaka"
-    ]
+     "shibuya"
+    ],
+    "mask": 0.0419
    },
    "R_Construction_Male_05_m008_bare": {
     "file": "R_Construction_Male_05_m008_bare.glb",
@@ -1112,6 +1207,22 @@
     ],
     "height_m": 1.821,
     "triangles": 7602,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1309,6 +1420,22 @@
     ],
     "height_m": 1.736,
     "triangles": 10304,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1366,9 +1493,26 @@
     "tags": [],
     "height_m": 1.733,
     "triangles": 8552,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
-     "amsterdam"
-    ]
+     "shibuya"
+    ],
+    "mask": 0.1062
    },
    "R_Female_Adult_13": {
     "file": "R_Female_Adult_13.glb",
@@ -1515,12 +1659,24 @@
     "tags": [],
     "height_m": 1.736,
     "triangles": 8600,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
-     "jinbocho",
-     "kamakura",
-     "shibuya",
-     "shinjuku",
-     "tokyo"
+     "shibuya"
     ],
     "mask": 0.1292
    },
@@ -1596,6 +1752,22 @@
     ],
     "height_m": 1.822,
     "triangles": 7086,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1639,6 +1811,22 @@
     "tags": [],
     "height_m": 1.822,
     "triangles": 7586,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1714,10 +1902,26 @@
     "tags": [],
     "height_m": 1.821,
     "triangles": 7426,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
-     "kyoto",
      "shibuya"
-    ]
+    ],
+    "mask": 0.149
    },
    "R_Male_Adult_10": {
     "file": "R_Male_Adult_10.glb",
@@ -1800,6 +2004,22 @@
     ],
     "height_m": 1.822,
     "triangles": 6928,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -1841,6 +2061,22 @@
     ],
     "height_m": 1.821,
     "triangles": 7398,
+    "face": [
+     "browDown",
+     "browInnerUp",
+     "browOuterUp",
+     "eyeBlink",
+     "eyeSquint",
+     "eyeWide",
+     "mouthFrown",
+     "mouthPress",
+     "mouthSmile",
+     "viseme_E",
+     "viseme_O",
+     "viseme_PP",
+     "viseme_U",
+     "viseme_aa"
+    ],
     "cities": [
      "shibuya"
     ],
@@ -2175,7 +2411,7 @@
    },
    "R_Business_Female_04_f013": {
     "triangles": 1352,
-    "coarse_triangles": 341,
+    "coarse_triangles": 339,
     "height_m": 1.732
    },
    "R_Business_Male_03": {
