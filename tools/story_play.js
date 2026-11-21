@@ -13,8 +13,11 @@
 // The log (log.js): every line the dialogue shows is written down here as it is shown, and after frame 3 the log is opened
 // and must have the same lines in the same order; stills of it, and of the words at their largest with their backing.
 // The summation (the last frame's questions with `proof`): each is answered with a name (one of the case's people) first, then
-// a print or a pair; SLIP=7 answers it wrongly until she is not answered. Frame 5's liar is cross-examined: one of his
+// a print or a pair; SLIP=7 answers the first wrongly three times: she must say it herself (never a card that takes the frame
+// up again), and the last card must say so. The first question's roll and file are opened from inside it, once. Frame 5's liar is cross-examined: one of his
 // statements, then the print that breaks it (SLIP=5). At the last card, how the case was worked must name a frame spent (SPEND=n).
+// AFTER=1: with UPTO=n, the play goes on past frame n's print through what is said after it, to the next frame's start.
+// SILENT=n: the first question at frame n that someone waits on (wait_s) is left to run out; silence must be its answer.
 // BACKTO=n: from the last card, frame n is gone back into, and played to its print.
 // WORDS=n: the dialogue's words at size n (2: the largest) from the start. LOGRELOAD=1: then the page is opened again, the case continued, and the log must still have them.
 // DRAW=n: one frame in n is drawn, and the others run the game without their draw calls (0, a GPU's default: every one).
@@ -266,13 +269,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const spun = hs.filter(([, a]) => a > 0.05);
       if (spun.length) { errors.push(`frame ${s.fi + 1} ${name}: with time held, a head turns by itself: ${JSON.stringify(spun)}`); console.log(errors[errors.length - 1]); } }
     const L = await p.evaluate(() => (window.__game.lights ? window.__game.lights() : null)); if (L && L.objective) { errors.push(`frame ${s.fi + 1} ${name}: a second light stands in the street (the free game's objective)`); console.log(errors[errors.length - 1]); } };
-  let slipped = 0, spent = false, logged = !!process.env.FROM, logWas = null, big = 0;
+  let slipped = 0, told0 = null, spent = false, logged = !!process.env.FROM, logWas = null, big = 0;
   const t0 = Date.now(); let done = false, last = '', same = 0, beatT = 0, tWas = 0, still = 0;
   // the game's next frames run: what a frame sets (the mark, the goal) is read after it, however long a frame takes
   // every question with a right answer costs something to guess at (q.fail): one that does not can be answered by
   // trying each print in turn, and asks nothing of the player (Mr Tanaka's pitch, until it had one)
   { const E = ((JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'cities', 'shibuya', 'city.json'), 'utf8')).game || {}).story) || null;
-    for (const ep of (E && E.episodes) || []) (ep.frames || []).forEach((f, i) => { for (const m of [f.meet, f.afterimage, f.task]) for (const q of (m && m.ask) || []) if ((q.frame || q.answer != null) && !q.fail) errors.push(`frame ${i + 1}: "${q.q}" has a right answer and nothing lost by guessing (fail)`); }); }
+    for (const ep of (E && E.episodes) || []) (ep.frames || []).forEach((f, i) => { for (const m of [f.meet, f.afterimage, f.task]) for (const q of (m && m.ask) || []) if ((q.frame || q.answer != null) && !q.fail && !(q.told && q.wrong2 && q.file)) errors.push(`frame ${i + 1}: "${q.q}" has a right answer and nothing lost by guessing (fail; or told, wrong2 and file)`); }); }
   const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   let upto = +process.env.UPTO || 0, proved = 0;
   const play = async () => {
@@ -282,13 +285,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     // (the opening shots, before the first card, are not stuck while their camera still moves: on a software renderer
     // they take many minutes of frames, and were counted as a dead end)
     const film = s.phase === 'dressed' ? await p.evaluate(() => { const c = window.__game.camera; return c ? `${Math.round(c.position.x * 4)},${Math.round(c.position.y * 4)},${Math.round(c.position.z * 4)}` : ''; }) : '';
+    if (upto && process.env.AFTER && s.fi >= upto) { done = true; break; } // (AFTER=1: what is said after frame n's print, and the call after it, played too)
     const key = `${s.phase}/${s.beat}/${s.fi}/${s.dlg}/${film}`; same = key === last ? same + 1 : 0; last = key;
     // (stuck by the story's own clock, which a slow machine runs slow: two minutes of it in one beat, or a clock that
     // has not moved at all; the last frame's meeting, 40 s of the story, was 240 looks long at a sixth of the pace)
     if (!same) { beatT = tWas = s.t; still = 0; } else { still = s.t === tWas ? still + 1 : 0; tWas = s.t; }
     if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); break; }
     // seen through: the card is up; the frame is taken up again
-    if (await p.evaluate(() => document.getElementById('g-story-fail').classList.contains('on'))) { slipped = 2; console.log(`frame ${s.fi + 1}: seen through`); await snap(`${s.fi + 1}-seen-through`); await p.evaluate(() => document.querySelector('#g-story-fail button').click()); await p.waitForTimeout(600); continue; }
+    if (await p.evaluate(() => document.getElementById('g-story-fail').classList.contains('on'))) { if (s.fi === 6) { errors.push('frame 7: seen through, and the frame taken up again: the summation is never lost'); console.log(errors[errors.length - 1]); } slipped = 2; console.log(`frame ${s.fi + 1}: seen through`); await snap(`${s.fi + 1}-seen-through`); await p.evaluate(() => document.querySelector('#g-story-fail button').click()); await p.waitForTimeout(600); continue; }
     // after frame 3: the log has every line said so far, in order
     if (!logged && s.fi >= 3) {
       logged = true;
@@ -332,6 +336,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
       continue;
     }
+    // (a call is heard, not answered, hud.js dialogue `auto`: at the office's call nothing is pressed, and its first line
+    // must go on by itself. It waited on a key at every line, and one player sat on it for twenty-five minutes)
+    if (s.dlg && s.beat === 'prologue' && !seen.has('call-auto')) {
+      seen.add('call-auto'); await snap(`${s.fi + 1}-call`);
+      const was = await p.evaluate(() => document.getElementById('gd-text').textContent);
+      const went = await p.waitForFunction(w => { const d = document.getElementById('gd'), t = document.getElementById('gd-text').textContent; return d.hidden || (!t.startsWith(w) && !w.startsWith(t)); }, was, { timeout: 240000, polling: 250 }).then(() => true, () => false);
+      console.log(`the office's call, nothing pressed: ${went ? 'its first line went on by itself' : 'it waited on a key'}`);
+      if (!went) { errors.push("the office's call waited on a key: a call goes on by itself"); console.log(errors[errors.length - 1]); }
+      continue;
+    }
     if (s.dlg) {
       { const who =await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
       // (the speaker's face moves while they speak: web/game/face.js, issue 12; a voice with nobody in the shot is not asked)
@@ -341,10 +355,38 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
         for (const [cls, name] of [['said', 'press'], ['who', 'name']]) if (!seen.has(`${name}-${s.fi}`) && await p.evaluate(c => !!document.querySelector(`#gd-choices .${c}`), cls)) { seen.add(`${name}-${s.fi}`); await snap(`${s.fi + 1}-${name}`); } // (a statement to press, his own words; one of the case's people to name)
+        // (the summation's record at hand, story.js atHand: once, the roll and the file opened from inside a question, a still
+        // of them over it, and closed again; the question must be asked again, with the same answers)
+        if (s.fi === 6 && !seen.has('at-hand') && await p.evaluate(() => !!document.querySelector('#gd-choices .look'))) {
+          seen.add('at-hand');
+          const q0 = await p.evaluate(() => document.getElementById('gd-text').textContent);
+          await p.evaluate(() => document.querySelector('#gd-choices .look').closest('button').click());
+          await p.waitForTimeout(900); await snap('7-roll-at-hand');
+          const on = await p.evaluate(() => document.getElementById('g-story-album').classList.contains('on'));
+          await p.evaluate(() => document.querySelector('#g-story-album [data-do="close"]').click());
+          await p.waitForFunction(() => document.querySelectorAll('#gd-choices button').length > 0, null, { timeout: 120000, polling: 250 }).catch(() => {});
+          const q1 = await p.evaluate(() => document.getElementById('gd-text').textContent);
+          console.log(`frame 7: the roll and the file at hand from a question: ${on ? 'opened' : 'NOT opened'}; the question asked again: ${q1 === q0 ? 'yes' : `no ("${q1.slice(0, 60)}")`}`);
+          if (!on || q1 !== q0) { errors.push('frame 7: the roll and the file from inside a question did not open, or the question was not asked again'); console.log(errors[errors.length - 1]); }
+          continue;
+        }
+        // (SILENT=n: a question someone waits on at frame n, story.js waitTick, is left unanswered: its line runs down, the
+        // player has said nothing, and that is answered and kept as an answer is)
+        if (+process.env.SILENT === s.fi + 1 && !seen.has('silent') && await p.evaluate(() => !!window.__game.story.state.waitQ)) {
+          seen.add('silent'); await p.waitForTimeout(4000); await snap(`${s.fi + 1}-waiting`);
+          await p.waitForFunction(() => !window.__game.story.state.waitQ, null, { timeout: 900000, polling: 500 });
+          const r = await p.evaluate(() => ({ flags: window.__game.story.state.flags, file: window.__game.story.state.file.map(e => e.text).slice(-1)[0] || '' }));
+          console.log(`frame ${s.fi + 1}: said nothing; the wait ran out; in the file: "${r.file.slice(0, 90)}"`);
+          if (!r.flags.withheld || !/said nothing/.test(r.file)) { errors.push(`frame ${s.fi + 1}: the wait ran out, and silence was not taken as an answer`); console.log(errors[errors.length - 1]); }
+          continue;
+        }
         const slip = +process.env.SLIP === s.fi + 1 && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
-        if (slip) slipped = 1;
+        if (slip) { slipped = 1; told0 = told0 ?? await p.evaluate(() => window.__game.story.state.told || 0); }
         { const pv = await p.evaluate(() => !!window.__game.story.state.proving); if (pv) proved++; const k = `summation-${pv ? 'evidence' : 'words'}`; if (s.fi === 6 && !seen.has(k)) { seen.add(k); await snap(`7-${k}`); } } // (the summation: the roll laid out with its pairs, then the words)
-        await p.evaluate(slip => { const st = window.__game.story.state, B = document.querySelectorAll('#gd-choices button'); (B[slip ? (st.want + 1) % B.length : st.want] || B[0]).click(); }, slip); } // (story.js says which answer is right: state.want)
+        await p.evaluate(slip => { const st = window.__game.story.state, B = [...document.querySelectorAll('#gd-choices button')].filter(b => !b.querySelector('.look')); (B[slip ? (st.want + 1) % B.length : st.want] || B[0]).click(); }, slip); // (story.js says which answer is right: state.want; a slip is the next answer, never the roll)
+        // (the summation is never lost: answered wrongly three times, she says it herself, and the play goes on rightly)
+        if (slipped === 1 && told0 != null && await p.evaluate(t => (window.__game.story.state.told || 0) > t, told0)) { slipped = 2; console.log(`frame ${s.fi + 1}: answered wrongly three times; she said it herself`); await snap(`${s.fi + 1}-told`); }
+      }
       else await p.keyboard.press('KeyE');
       await p.waitForTimeout(350); continue;
     }
@@ -410,6 +452,21 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (F && F.sat) await mark(s, 'guide-sits');
     }
     else if (s.phase === 'stop' && s.beat === 'seek') {
+      // (the first Stop as a first-time player meets it, before anyone is walked anywhere: she must be in the picture, and
+      // the halation round her up, four seconds of the story after the goal says to walk to her. Players spent four minutes
+      // finding her: docs/STORY.md "The first play, from what players did")
+      if (s.fi === 0 && !seen.has('seek-look')) {
+        seen.add('seek-look');
+        const look = () => p.evaluate(() => { const g = window.__game, st = g.story.state, f = st.ghost, c = g.camera, T = window.THREE; if (!f || !c || !T) return null;
+          const v = new T.Vector3(f.x, f.z + 1.6, -f.y).project(c), front = v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1;
+          return { t: +st.t.toFixed(1), at: front ? [+((v.x + 1) / 2).toFixed(2), +((1 - v.y) / 2).toFixed(2)] : null, d: +Math.hypot(f.x - g.player.x, f.y - g.player.y).toFixed(1), halo: +(f.haloNow ? f.haloNow() : 0).toFixed(2) }; });
+        const q0 = await look();
+        await p.waitForFunction(t => window.__game.story.state.t >= t || window.__game.story.state.beat !== 'seek', (q0 ? q0.t : 0) + 4, { timeout: 600000, polling: 250 }).catch(() => {});
+        const q1 = await look(); await snap('1-seek-4s');
+        console.log(`the first Stop, walking to her: ${JSON.stringify(q0)}, then ${JSON.stringify(q1)}`);
+        if (!q1 || !q1.at || (q1.d > 12 && q1.halo < 0.1)) { errors.push(`the first Stop: four seconds into the walk to her she is ${!q1 || !q1.at ? 'not in the picture' : `${q1.d} m off with no light round her`}`); console.log(errors[errors.length - 1]); }
+        continue;
+      }
       if (!seen.has(`guide-${s.fi}`) && s.fi === 0) { seen.add(`guide-${s.fi}`); const d = await p.evaluate(() => { const g = window.__game, d = g.story.state.dog; return d ? Math.hypot(d.x - g.player.x, d.y - g.player.y) : -1; }); console.log(`the guide met: ${d.toFixed(1)} m from you`); if (d < 0 || d > 6) { errors.push(`the guide's film ended with him ${d.toFixed(1)} m from you`); console.log(errors[errors.length - 1]); } } const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }
     else if (s.phase === 'stop' && s.beat === 'shoot') {
       const T = await p.evaluate(() => { const st = window.__game.story.state, T = st.fr.task; return { stand: T.stand || null, find: !!T.find, hintAt: T.hint_at || null, subject: T.relic ? [T.relic.at[0], T.relic.at[1], (T.relic.at[2] != null ? T.relic.at[2] : window.__game.player.z - 0.2) + (T.relic.eye != null ? T.relic.eye : 0.6)] : T.subject || null, both: !!T.both, meet: !!T.meet, a: st.ghost && [st.ghost.x, st.ghost.y], b: st.ghost2 && [st.ghost2.x, st.ghost2.y] }; });
@@ -562,7 +619,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false); // (the photograph is the game's own picture of its canvas, taken as the shutter goes: of a frame drawn whole)
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
       { const src = await p.evaluate(() => { const P = window.__game.story.state.prints; return (P[P.length - 1] || {}).src || ''; }); const m = /^data:image\/(\w+);base64,(.*)$/.exec(src); if (m) fs.writeFileSync(`${out}/${s.fi + 1}-print-own.${m[1] === 'jpeg' ? 'jpg' : m[1]}`, Buffer.from(m[2], 'base64')); } // (the print itself, as the roll keeps it: on a slow renderer the still above may be taken after it has gone to the roll)
-      if (upto && s.fi + 1 >= upto) { done = true; break; } // (UPTO=n: stop after frame n's print)
+      if (upto && s.fi + 1 >= upto && !process.env.AFTER) { done = true; break; } // (UPTO=n: stop after frame n's print; with AFTER=1, once the next frame begins)
     }
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
       // (read from what the page saw as the sheet came up, above: the sheet does not wait for the check or for the still)
@@ -662,6 +719,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     console.log('how the case was worked:', c.worked.slice(0, 400));
     if (!proved) { errors.push('the summation was not answered with a print'); console.log(errors[errors.length - 1]); }
     if (!c.worked || !/side by side|Every pair/.test(c.worked)) { errors.push(`the last card does not say how the case was worked: "${c.worked.slice(0, 80)}"`); console.log(errors[errors.length - 1]); }
+    if (+process.env.SLIP === 7 && !/She answered one question herself/.test(c.worked)) { errors.push(`the last card does not say she answered a question herself: "${c.worked.slice(0, 80)}"`); console.log(errors[errors.length - 1]); }
     if (+process.env.SPEND && !c.worked.includes(`Frame ${process.env.SPEND} spent`)) { errors.push(`the last card does not name frame ${process.env.SPEND}, spent`); console.log(errors[errors.length - 1]); }
     // (all seven from a play of the whole case; from a late start (FROM=n), the frames played here and the first, which is
     // always offered: the frames before n were left with no print to go back to)
