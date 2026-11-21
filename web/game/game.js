@@ -1033,7 +1033,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the walk's own people out on the street (startWalk, walkOnFromStory): drawn, and in the crowd's way
   function walkPeople() {
-    for (const n of npcs) if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); }
+    for (const n of npcs) if (n.away && !n.event) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); } // (a street moment's people stay away until one puts them out: walktalk.js events)
   }
   const npcById = id => npcs.find(n => n.id === id);
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
@@ -3611,7 +3611,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
     told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); },
     view: (v, n, of) => { if (walkUi && walkUi.told) walkUi.told(v.name, n, of, 'view'); A.chime(); }, // (a view of Shibuya found: its name over the street, and a chime)
-    when: () => `${clock.d} ${MONTHS[clock.m - 1]}, ${fmtMin(clock.min)}` }) : null;
+    when: () => `${clock.d} ${MONTHS[clock.m - 1]}, ${fmtMin(clock.min)}`,
+    // a street moment's people (walktalk.js events): put where they would stand, out of sight, facing what they look at
+    // (the crossing, or the one they are with), in the crowd's way, and drawn once their model has come; and away again
+    place: (n, at, faceTo) => {
+      if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); }
+      npcMove(n, at);
+      const t = faceTo || { x: 368, y: -1002 }; n.h = Math.atan2(t.x - n.x, t.y - n.y); n.rig.root.rotation.y = Math.PI - n.h;
+    },
+    hide: n => { n.away = true; n.talking = false; n.rig.root.visible = false; if (n.post) posts.move(n.post, 1e7, 1e7, 0); },
+    unseenAt: (x, y, z) => !sees(x, y, z),
+    ask: (n, lines, choices, done) => { n.talking = true; A.start(); talkLine({ name: n.name }, choices); dlg.show(n, lines, choices, c => { n.talking = false; done(c); }); } }) : null;
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
@@ -6567,8 +6577,30 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (story.dressSet) story.dressSet(); // (an episode's own set dressing, as the story has it, on the walk too)
     walkPeople(); if (walkTalk) walkTalk.begin(); // (the walk's own people out on the street, and their speech marks)
-    craneIn(() => walkUi.begin());
+    craneIn(() => { walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); }); // (and the first time, the office rings: walkIntro)
   };
+  // The walk's way in, the first time in this browser from the title (game.json walk.intro; docs/STORY.md "The walk's way
+  // in"): as you come down to your shoulder, the office rings, as it rings in the story, in its own voice: no job tonight,
+  // take the evening, your car comes when you call it (its button lit while that is said), people here will talk if you
+  // let them. Four lines, each passed with E or a tap; then the street is yours, and the corner already says who has the
+  // first story. Not from the story's last card, nor from a page opened straight onto the walk, nor a second time.
+  const WALK_INTRO = 'oe-walk-intro';
+  let walkAuto = false;
+  const walkIntroDue = () => { if (walkAuto || !G.walk || !G.walk.intro || !walkUi) return false; try { return !localStorage.getItem(WALK_INTRO); } catch (e) { return false; } };
+  function walkIntro() {
+    const I = G.walk.intro, who = Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, I.voice || {}) }, I.who || {}), hl = I.highlight || {};
+    if (dlg.open || player.mode !== 'foot') return;
+    try { localStorage.setItem(WALK_INTRO, '1'); } catch (e) { /* storage blocked */ }
+    A.start();
+    let i = 0;
+    const next = () => {
+      if (walkUi.highlight) walkUi.highlight(null);
+      if (i >= I.lines.length) return;
+      if (hl[i] && walkUi.highlight) walkUi.highlight(hl[i]);
+      dlg.show(who, [fill(I.lines[i++])], null, next);
+    };
+    next();
+  }
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
   // kerb, so that is where the walk begins. No page again, no title, no crane down from the air: the card fades off the
   // street, the score lets go into the street's own sound over a few bars, the evening's people go once the lens has
@@ -6684,7 +6716,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (auto) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
     // come from the story's last card (its Walk Shibuya, story ctx free): no card to press, the walk sets out
     { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('oe-walk-auto') || 'null') : null; sessionStorage.removeItem('oe-walk-auto'); } catch (e) { sp = null; }
-      if (sp && !playing) { stage.classList.add('story-auto'); setTimeout(() => walkUi.auto(sp), 0); } }
+      if (sp && !playing) { stage.classList.add('story-auto'); walkAuto = true; setTimeout(() => walkUi.auto(sp), 0); } }
     $('#g-loader').classList.add('out');
     setTimeout(() => {
       $('#g-loader').hidden = true; OEPlate.stop($('#g-loader'));

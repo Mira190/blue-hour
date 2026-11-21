@@ -1274,6 +1274,41 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   chime, and a small copy of the picture kept in this browser. The walk's menu shows them as an album under the stories:
   each found view as its own picture with when it was taken, each still to find as a dark frame with where to look.
   Nothing is owed: no view gates a story, and none is on a map.
+- *The street's own moments (November 2026, the owner's asking).* Every two or three minutes on foot, someone of the
+  street has a small favour to ask, as an open world's random encounters come to you on the road (*Red Dead Redemption
+  2*'s strangers, GTA's random events, the *Yakuza* series' street events): Chloe and Sam from Melbourne want their
+  picture taken with the crossing behind them, Mrs Endo one of herself for a grandson who says she never sends him any,
+  Ren asks whether SHIBUYA SKY is this way, and Chloe and Sam where the famous dog is (`game.json` `walk.events`). Each
+  is put where they would stand at one of three corners of the crossing (`event_spots`), out of your sight and 30 to
+  110 m off, so that they are found rather than seen arriving; their mark is paper with amber dots, between the
+  story's amber and a word's pale one. A photograph's favour takes the corner's line while it lasts (*Photograph Mrs
+  Endo*, then *Show Mrs Endo the picture*) and gives it back to the story after; the way is asked with two answers to
+  choose, and the right one is thanked, the other shrugged at. One at a time, never during a talk, and nothing kept:
+  left for two and a half minutes or walked away from, they go, unseen.
+
+**The walk's way in (November 2026).** The owner proposed opening the walk with a friend running up, *sorry I'm late*,
+showing what there is to do, then called away by someone else, leaving you free. Reviewed against what the best open
+worlds do and against this story:
+
+- *What is right in it:* a welcome inside the world rather than a card of instructions (the diegetic opening of *Red
+  Dead Redemption 2*, *GTA V*'s first calls, *Marvel's Spider-Man*'s voice in the ear), a person's warmth before the
+  freedom, and an exit that hands you to the street.
+- *What would cost the story:* *you came late* is the story's own first line, Sumiko's, the hook the whole case turns
+  on, and a friend saying it first on the walk wears it out; Kagami has no friend in the story (the arc is a person who
+  answers no one but the office), so a friend on the walk is lore the story then contradicts, whichever is played first;
+  a tour of everything at the start is the info-dump the best games have dropped for teaching each thing when it is
+  needed (the walk's storyline already teaches crossing, the car, the camera, the lift and the helicopter, in that
+  order); a scene on every walk is a toll on the second; and a companion who runs up and walks beside you through the
+  crowd is a person to animate, path and keep out of the crowd for a scene of thirty seconds.
+- *Adopted:* the office rings, the one voice Kagami answers, in the voice it rings in in the story, as you come down to
+  your shoulder (`game.js` `walkIntro`, `game.json` `walk.intro`): *Nothing on tonight. No kerbs, no clients. / Take
+  the evening. You never take the evening. / Your car's at the kerb by Hachiko. It comes when you call it.* (the
+  corner's *Your car* lit and breathing while it is said) */ People round the crossing will talk to you, if you let
+  them. Nobody's ringing you tonight. Not even me.* Four lines, each passed with E or a tap; then the corner already
+  says who has the first story (*Mei has something to say*) and its amber mark is in view. The first time from the title
+  only: not from the story's last card, not on a page opened straight onto the walk, never a second time in a browser.
+  The warmth is the office giving the one who is always *out on a job* an evening, which is Kagami's arc touched once,
+  lightly, without a word of the case.
 
 What the games that do this do, and what was taken (design only; nothing of their look, words or code): the *Yakuza* /
 *Like a Dragon* series' substories, short comic or touching stories in two or three beats met in the street, which
@@ -1288,7 +1323,8 @@ and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
 `game.walk` (the stories in their order, the people's parts, their lines and what each asks: `talk`, `go`, `drive`,
-`up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn; `views`, the photographer's list), the
+`up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn; `views`, the photographer's list; `events` and
+`event_spots`, the street's moments; `intro`, the office's call), the
 walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither drawn nor loaded nor in the crowd's
 way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
 its end, takes Taro's photograph from the helicopter over the crossing, and calls the car from the corner.

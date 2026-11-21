@@ -716,6 +716,14 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 .g-walk-mark span { order: -1; max-width: 220px; padding: 0 2px; font: 400 9px/1.2 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: var(--paper); text-align: center; text-shadow: 0 1px 8px #000, 0 0 2px #000; white-space: nowrap; opacity: 0; transition: opacity 0.4s ease; }
 .g-walk-mark.named span { opacity: 1; }
 .g-walk-mark[data-k="story"] span { color: var(--amber); }
+/* (someone of a street moment with a favour to ask, walktalk.js events: a paper mark with amber dots, between the
+   story's amber and a word's pale one) */
+.g-walk-mark[data-k="event"] i { border-color: var(--paper); background: rgba(16, 12, 6, 0.55); }
+.g-walk-mark[data-k="event"] i::after { border-color: var(--paper); }
+.g-walk-mark[data-k="event"] i b { background: var(--amber); }
+/* (a corner's button lit while the walk's way in speaks of it) */
+#g-walk-acts button.hl { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber), 0 0 22px rgba(255, 207, 138, 0.45); animation: g-walk-hl 1.6s ease-in-out infinite; }
+@keyframes g-walk-hl { 50% { box-shadow: 0 0 0 1px var(--amber), 0 0 6px rgba(255, 207, 138, 0.2); } }
 /* (the overheard lines of the street, places.js chatter, on the walk too: in the walk's glass and type, not a cartoon's) */
 .game-stage.story.walk-on .g-chatter { display: block !important; }
 .game-stage.story.walk-on .g-bubble { max-width: 260px; padding: 7px 11px 8px; border: 1px solid rgba(244, 239, 230, 0.28); border-radius: 3px; background: rgba(4, 8, 18, 0.62); color: var(--paper); font: 400 13px/1.35 var(--f-body); box-shadow: none; text-shadow: 0 1px 6px #000; }

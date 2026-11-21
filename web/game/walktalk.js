@@ -51,6 +51,8 @@ window.OEWalkTalk = (function () {
     // what someone has to say now: a part of the story under way ('story'), a word in passing ('chat': a mark of its
     // own, pale), the word of someone whose story is still to come ('wait': no mark, but E has it), or nothing
     function want(id) {
+      if (ev && ev.e.people[0] === id && (ev.phase === 'waiting' || ev.phase === 'met')) return { kind: 'event' }; // (a street moment's favour, below)
+      if (ev && ev.e.people.includes(id) && ev.phase !== 'gone') return null; // (and its others: they are with them)
       const s = current();
       if (s) { const k = of(s); if (speaker(s, k.part) === id && (k.part === 0 || k.met)) return { kind: 'story', s, k }; }
       if (chat[id] && chat[id].length) return { kind: 'chat', lines: chat[id] };
@@ -60,6 +62,10 @@ window.OEWalkTalk = (function () {
     }
     // the corner's line: what the story under way asks, with the metres to it; before a story is begun, who has it
     function errand() {
+      if (ev && (ev.phase === 'asked' || ev.phase === 'met')) { // (a favour asked of you on the street: the corner's while it lasts)
+        const me = ctx.here(), n = ctx.npc(ev.e.people[0]);
+        if (n) return { text: ev.phase === 'met' ? ev.e.back : ev.e.goal, m: Math.hypot(n.x - me.x, n.y - me.y), dir: Math.atan2(n.x - me.x, n.y - me.y), key: ev.phase === 'asked' ? 'O' : '' };
+      }
       const s = current();
       if (!s) return null;
       const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part)), to = who ? Math.hypot(who.x - me.x, who.y - me.y) : null;
@@ -90,6 +96,7 @@ window.OEWalkTalk = (function () {
       if (!w || busy) return false;
       busy = true;
       const done = () => { busy = false; };
+      if (w.kind === 'event') { busy = false; return evTalk(n); }
       if (w.kind === 'story') {
         const part = w.s.parts[w.k.part], runs = [];
         for (const l of part.lines) {
@@ -135,6 +142,10 @@ window.OEWalkTalk = (function () {
     // a photograph was taken (game.js snapPhoto): a story waiting on one of a place is met if the place is in it
     function photo(cam) {
       let hit = null;
+      if (ev && ev.phase === 'asked' && ev.e.kind === 'photo') { // (them, from close by: the favour done, and the corner sends you back to show them)
+        const n = ctx.npc(ev.e.people[0]), me = ctx.here();
+        if (n && Math.hypot(n.x - me.x, n.y - me.y) < 14 && cam.sees(n.x, n.y, n.z + 1.5)) { ev.phase = 'met'; if (ctx.met) ctx.met(null, n); }
+      }
       for (const s of people) {
         const k = of(s);
         if (k.done || k.part === 0 || k.met) continue;
@@ -164,6 +175,58 @@ window.OEWalkTalk = (function () {
       return !!hit;
     }
 
+    // ---- street moments (game.json walk.events): every two or three minutes someone of the street with a small favour to
+    // ask (a photograph of them, the way somewhere), put where they would stand at one of event_spots, out of the player's
+    // sight and between 30 and 110 m away, so that they are found, not seen arriving. One at a time; nothing to fail and
+    // nothing kept. Unanswered for two and a half minutes, or left far behind, they go, unseen; a favour asked and walked
+    // away from lapses the same way. As an open world's random encounters (Red Dead Redemption 2's strangers on the road,
+    // GTA's random events, Yakuza's street events), in the walk's own small scale.
+    const events = (ctx.data && ctx.data.events) || [], spots = (ctx.data && ctx.data.event_spots) || [];
+    const rnd = ctx.rand || Math.random;
+    let ev = null, evNext = 75 + rnd() * 45, evLast = null, evDone = 0;
+    function evBegin(e, at) {
+      if (!ctx.place || !at) return false;
+      const ns = e.people.map(id => ctx.npc(id));
+      if (ns.some(n => !n)) return false;
+      ctx.place(ns[0], at, null);
+      ns.slice(1).forEach((n, i) => ctx.place(n, [at[0] + 1.1 * (i + 1), at[1] - 0.4], ns[0]));
+      ev = { e, at, phase: 'waiting', t: 0 }; evLast = e.id;
+      return true;
+    }
+    function leave() { if (ev && ev.phase !== 'gone') { ev.phase = 'gone'; ev.t = 0; } }
+    function street(dt, hide) {
+      const me = ctx.here();
+      if (!ev) {
+        if (!events.length || me.mode !== 'foot' || hide || busy) return;
+        if ((evNext -= dt) > 0) return;
+        evNext = 12; // (none fit now: asked again in a while)
+        const pick = events.filter(e => e.id !== evLast && !e.people.some(id => people.some(s => speaker(s, of(s).part) === id)));
+        const e = pick[Math.floor(rnd() * pick.length)];
+        const at = spots.filter(p => { const d = Math.hypot(p[0] - me.x, p[1] - me.y); return d > 30 && d < 110 && Math.abs((me.z || 0) - 15) < 12 && (!ctx.unseenAt || ctx.unseenAt(p[0], p[1], 16)); })[0];
+        if (e && at) evBegin(e, at);
+        return;
+      }
+      ev.t += dt;
+      const n = ctx.npc(ev.e.people[0]), d = n ? Math.hypot(n.x - me.x, n.y - me.y) : Infinity;
+      if (ev.phase === 'waiting' && (ev.t > 150 || d > 160)) leave();
+      else if ((ev.phase === 'asked' || ev.phase === 'met') && (ev.t > 150 || d > 70)) leave(); // (a favour walked away from: they ask someone else)
+      if (ev.phase === 'gone') {
+        const ns = ev.e.people.map(id => ctx.npc(id)).filter(Boolean);
+        if (ns.every(q => Math.hypot(q.x - me.x, q.y - me.y) > 25 && (!ctx.unseen || ctx.unseen(q)))) { ns.forEach(q => ctx.hide && ctx.hide(q)); ev = null; evNext = 120 + rnd() * 80; }
+      }
+    }
+    function evTalk(n) {
+      const e = ev.e, run = lines => { const runs = []; for (const l of lines) { const who = typeof l === 'string' ? n : ctx.npc(l.npc) || n, text = ctx.fill(typeof l === 'string' ? l : l.text); if (runs.length && runs[runs.length - 1][0] === who) runs[runs.length - 1][1].push(text); else runs.push([who, [text]]); } return runs; };
+      busy = true;
+      if (ev.phase === 'met') { ctx.say(run(e.thanks), () => { busy = false; evDone++; leave(); }); return true; }
+      if (e.kind === 'photo') { ctx.say(run(e.ask), () => { busy = false; if (ev) { ev.phase = 'asked'; ev.t = 0; } }); return true; }
+      // (the way: the answers are choices, and the right one is thanked; the other, a shrug)
+      const ask = run(e.ask), last = ask.pop();
+      const choose = () => ctx.ask ? ctx.ask(last[0], last[1], e.choices, c => { const right = !!(c && c.right); ctx.say(run(right ? e.right : e.wrong), () => { busy = false; if (right) evDone++; leave(); }); }) : (busy = false);
+      if (ask.length) ctx.say(ask, choose); else choose();
+      return true;
+    }
+
     // ---- the speech marks over people's heads
     const layer = document.createElement('div');
     layer.className = 'g-walk-marks'; layer.setAttribute('aria-hidden', 'true');
@@ -179,11 +242,12 @@ window.OEWalkTalk = (function () {
       const me = ctx.here(), ids = new Set();
       for (const s of people) { ids.add(s.npc); for (const p of s.parts) if (p.npc) ids.add(p.npc); }
       for (const id of Object.keys(chat)) ids.add(id);
+      for (const e of events) for (const id of e.people) ids.add(id);
       for (const id of ids) {
         const n = ctx.npc(id), el = marks.get(id);
         if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
-        const far = w && w.kind === 'story' ? SEE_M : 18;
+        const far = w && w.kind === 'story' ? SEE_M : w && w.kind === 'event' ? 30 : 18;
         if (!w || w.kind === 'wait' || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; }
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
@@ -209,7 +273,9 @@ window.OEWalkTalk = (function () {
       },
       want, talk, photo, errand,
       // each frame on the walk: what was asked met, and the marks drawn (hide: a talk, a menu, the camera up)
-      tick(dt, hide) { if (!on) return; check(); draw(hide); },
+      tick(dt, hide) { if (!on) return; check(); street(dt, hide); draw(hide); },
+      // the street moments, for the checks: start one now (by its id, at one of event_spots), and where it stands
+      events: { start: (id, i) => { const e = events.find(q => q.id === id); return e ? evBegin(e, spots[i || 0]) : false; }, get now() { return ev ? { id: ev.e.id, phase: ev.phase } : null; }, get done() { return evDone; } },
       get busy() { return busy; },
       // where each story has got to, for the checks; and from the start again
       state: () => JSON.parse(JSON.stringify(st)),

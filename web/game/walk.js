@@ -194,10 +194,12 @@ window.OEWalk = (function () {
       told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
       toldT = 5.2;
     }
+    // one of the corner's buttons lit while it is spoken of (the walk's way in: 'car'), or none
+    function highlight(what) { for (const b of acts.querySelectorAll('button[data-do]')) b.classList.toggle('hl', b.dataset.do === what); }
     // what was asked done: the corner's line says so with a turn of its amber
     function flash() { const e = hud.querySelector('.q'); e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
     return {
-      open, titleKey, begin, tick, told: tell, flash,
+      open, titleKey, begin, tick, told: tell, flash, highlight,
       get isOpen() { return isOpen; }, get walking() { return walking; }, get spec() { return spec; },
       // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
       takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },

@@ -21,8 +21,10 @@ const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
 const byId = Object.fromEntries(G.npcs.map(n => [n.id, Object.assign({}, n, { x: n.at[0], y: n.at[1], z: n.at[2] ?? 15, rig: { root: { visible: true } } })]));
 const me = { x: 376.9, y: -1013.1, z: 15, mode: 'foot' };
 let told = [];
-const T = OEWalkTalk.create({ data: G.walk, stage: el(), project: () => null, npc: id => byId[id], here: () => me,
-  say: (runs, done) => done(), fill: t => t, unseen: () => true, move: () => {}, told: (title, n, of) => told.push(`${title} ${n}/${of}`) });
+let seed = 7; const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+const T = OEWalkTalk.create({ data: G.walk, stage: el(), project: () => null, npc: id => byId[id], here: () => me, rand,
+  say: (runs, done) => done(), fill: t => t, unseen: () => true, move: () => {}, told: (title, n, of) => told.push(`${title} ${n}/${of}`),
+  place: (n, at) => { n.x = at[0]; n.y = at[1]; n.away = false; }, hide: n => { n.away = true; }, unseenAt: () => true, ask: (n, lines, choices, done) => done(choices[0]) });
 T.begin();
 const ids = Object.keys(byId);
 const amber = () => ids.filter(id => { const w = T.want(id); return w && w.kind === 'story'; });
@@ -87,5 +89,29 @@ if (!T.views().find(v => v.id === 'edge').found) fail('the scramble from SKY EDG
 Object.assign(me, { x: 420, y: -1050, z: 15, mode: 'foot' });
 T.photo({ z: 16.5, sees: only(500, -1110) });
 if (!T.views().find(v => v.id === 'tower').found) fail('SHIBUYA SKY from the street was not found from the street');
-console.log(errors.length ? `FAIL ${errors.length}` : `ok   walk story  ${c.of} stories told in order, one at a time: ${told.join('; ')}; ${T.views().filter(v => v.found).length} of ${T.views().length} views found by their photographs`);
+// street moments: one begins on its own a while after setting out, out of sight and 30 to 110 m away; a photograph's
+// favour takes the corner while it lasts and is thanked; the way asked is answered by a choice; one ignored lapses
+T.reset();
+Object.assign(me, { x: 376.9, y: -1013.1, z: 15, mode: 'foot' });
+for (let i = 0; i < 300 && !T.events.now; i++) T.tick(1, false);
+{ const e = T.events.now; if (!e) fail('no street moment began in five minutes on foot by the crossing'); else { const n = byId[G.walk.events.find(q => q.id === e.id).people[0]], d = Math.hypot(n.x - me.x, n.y - me.y); if (d < 30 || d > 110) fail(`a street moment began ${d.toFixed(0)} m away`); } }
+for (let i = 0; i < 200 && T.events.now; i++) { Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false); } // (ignored, and walked far from: it lapses)
+if (T.events.now) fail(`a street moment ignored and walked away from is still there (${JSON.stringify(T.events.now)})`);
+Object.assign(me, { x: 376.9, y: -1013.1, z: 15, mode: 'foot' });
+T.startAt('taxi'); // (a story under way meanwhile: the favour takes the corner, and gives it back)
+if (!T.events.start('photo-endo', 1)) fail('photo-endo did not start');
+{ const w = T.want('endo'); if (!w || w.kind !== 'event') fail(`Mrs Endo with a favour: ${w && w.kind}`); }
+at('endo'); T.talk(byId.endo);
+{ const e = T.errand(); if (!/Photograph Mrs Endo/.test(e && e.text)) fail(`Mrs Endo's favour asked, the corner says "${e && e.text}"`); }
+Object.assign(me, { x: byId.endo.x + 4, y: byId.endo.y }); T.photo({ z: 16.5, sees: () => true });
+{ const e = T.errand(); if (!/Show Mrs Endo/.test(e && e.text)) fail(`her photograph taken, the corner says "${e && e.text}"`); }
+at('endo'); T.talk(byId.endo);
+Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false);
+{ const e = T.errand(); if (T.events.now) fail('Mrs Endo thanked, the moment is not over'); if (!/Mr Oda/.test(e && e.text)) fail(`after the favour the corner does not give the story back ("${e && e.text}")`); }
+Object.assign(me, { x: 376.9, y: -1013.1, z: 15 });
+if (!T.events.start('way-sky', 2)) fail('way-sky did not start');
+at('ren'); T.talk(byId.ren);
+Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false);
+if (T.events.done !== 2) fail(`two favours done, the count says ${T.events.done}`);
+console.log(errors.length ? `FAIL ${errors.length}` : `ok   walk story  ${c.of} stories told in order, one at a time: ${told.join('; ')}; ${T.views().filter(v => v.found).length} of ${T.views().length} views found by their photographs; street moments begin unseen, lapse, and are thanked`);
 process.exit(errors.length ? 1 : 0);

@@ -15,6 +15,8 @@
 //   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
 //     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
+//   - the first walk from the title: the office does not ring, or speaks of your car without its button lit, or is not
+//     kept as heard; a street moment (Ren asking the way) cannot be answered by a choice and thanked;
 //   - on foot the corner has no Your car button, or pressed, the car does not pull in at a kerb near you; the walk's menu
 //     does not list the walk's stories;
 //   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
@@ -158,6 +160,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
   if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
   await shot('4-out');
+  // the walk's way in, the first time from the title (game.js walkIntro): the office rings in its own voice, the corner's
+  // Your car lit while the car is spoken of; passed line by line, and kept as heard
+  {
+    const rang = await p.waitForFunction(() => { const b = document.getElementById('gd'); return b && !b.hidden && /office/i.test(document.getElementById('gd-name').textContent); }, null, { timeout: 120000, polling: 300 }).then(() => true, () => false);
+    if (!rang) fail('the first walk from the title: the office does not ring');
+    else {
+      let carLit = false, n = 0;
+      for (let i = 0; i < 40 && (await p.evaluate(() => window.__game.dlg.open)); i++) {
+        const r = await p.evaluate(() => { const g = window.__game; g.dlg.next(false); return { t: document.getElementById('gd-text').textContent, lit: !!document.querySelector('#g-walk-acts button.hl[data-do="car"]'), open: g.dlg.open }; });
+        if (/car/i.test(r.t) && r.lit) { if (!carLit) await shot('4a-intro'); carLit = true; }
+        if (r.open) n++;
+      }
+      const kept = await p.evaluate(() => { try { return localStorage.getItem('oe-walk-intro'); } catch (e) { return null; } });
+      if (!carLit) fail('the office speaks of your car without the corner\'s Your car lit');
+      else if (!kept) fail('the walk\'s way in is not kept as heard (it would ring every time)');
+      else ok('the walk\'s way in: the office rings, your car\'s button lit while it is spoken of, kept as heard');
+    }
+  }
   // walk: the keys, or the stick by touch
   const xy0 = s.xy;
   // (four seconds of the game's own frames with the key or the stick held: a software renderer draws a frame in seconds,
@@ -319,6 +339,32 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         }
       }
       await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+      // a street moment (walktalk.js events): Ren, lost, asks the way to SHIBUYA SKY; the answers are choices, and the
+      // right one is thanked
+      const started = await p.evaluate(() => window.__game.walkTalk().events.start('way-sky', 0));
+      if (!started) fail('a street moment (way-sky) could not be put on the street');
+      else {
+        const drawnRen = await p.waitForFunction(() => { const n = window.__game.npcs.find(q => q.id === 'ren'); return n && !n.rig.pending && n.rig.root.visible; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
+        if (!drawnRen) fail('Ren is not drawn ten minutes after his street moment began');
+        else {
+          await talk('ren', 1.6);
+          if (!(await waitPrompt(/Talk to Ren/))) fail(`beside Ren, nothing offers to talk ("${await prompt()}")`);
+          else {
+            await act();
+            await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 6 && !g.dlg.hasChoices; i++) g.dlg.next(false); });
+            const chs = await p.evaluate(() => [...document.querySelectorAll('#gd-choices button')].map(b => b.textContent));
+            if (chs.length < 2) fail(`Ren asks the way, but there are no answers to choose (${JSON.stringify(chs)})`);
+            else {
+              await shot('4f-street');
+              if (phone) await press('#gd-choices button'); else await p.keyboard.press('Digit1');
+              await through();
+              const done = await p.evaluate(() => window.__game.walkTalk().events.done);
+              if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);
+              else ok(`a street moment: Ren asks the way ("${chs[0].slice(1, 40)}" chosen) and is thanked`);
+            }
+          }
+        }
+      }
     }
     const haveCar = await p.waitForFunction(() => !!window.__game.myCar(), null, { timeout: 300000, polling: 1000 }).then(() => true, () => false);
     if (!haveCar) fail('no car of your own on the walk (five minutes after setting out)');

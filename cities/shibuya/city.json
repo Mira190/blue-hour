@@ -900,6 +900,86 @@
         "idle": [
           "Thirty years I drove these streets. I still come down at night with a hot can of coffee."
         ]
+      },
+      {
+        "id": "chloe",
+        "name": "Chloe",
+        "role": "Visiting from Melbourne",
+        "at": [
+          362.0,
+          -1035.0
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Female_Adult_08_mariniere",
+          "skin": "#f3d2bf",
+          "hair": "#6b4a32",
+          "clip": "LookAround"
+        },
+        "idle": [
+          "We came all this way to see a crossing. It was worth it."
+        ]
+      },
+      {
+        "id": "sam",
+        "name": "Sam",
+        "role": "Visiting from Melbourne",
+        "at": [
+          363.2,
+          -1035.4
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Male_Adult_10",
+          "skin": "#e8c0a4",
+          "hair": "#3a2a1e",
+          "clip": "Idle"
+        },
+        "idle": [
+          "She's got four hundred photos of this crossing already."
+        ]
+      },
+      {
+        "id": "endo",
+        "name": "Mrs Endo 遠藤さん",
+        "role": "Out for the evening",
+        "at": [
+          352.0,
+          -968.0
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Female_Adult_09_f011_grey_handbag",
+          "skin": "#e9c3a6",
+          "hair": "#c9c4be",
+          "clip": "Idle"
+        },
+        "idle": [
+          "My grandson says I never send him pictures."
+        ]
+      },
+      {
+        "id": "ren",
+        "name": "Ren 蓮",
+        "role": "Student, lost on the way",
+        "at": [
+          396.0,
+          -990.0
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Male_Adult_08_m024",
+          "skin": "#e6bd9c",
+          "hair": "#16110d",
+          "clip": "Phone"
+        },
+        "idle": [
+          "My phone says I'm standing on it."
+        ]
       }
     ],
     "walk": {
@@ -1193,7 +1273,137 @@
           "r": 22,
           "hint": "The highest point of SHIBUYA SKY."
         }
-      ]
+      ],
+      "events_note": "Street moments on the walk (walktalk.js events): one at a time, every two or three minutes, someone of the street with a small favour to ask, put where they would stand at one of event_spots out of sight of the player and between 30 and 110 m away. kind photo: a photograph of them taken from close by, then a word of thanks; kind way: they ask the way, the answers are choices, and the right one is thanked. Unanswered for two and a half minutes, or left far behind, they go, unseen. Nothing to fail and nothing kept: the street's life, not a list.",
+      "event_spots": [
+        [
+          362.0,
+          -1035.0
+        ],
+        [
+          352.0,
+          -968.0
+        ],
+        [
+          396.0,
+          -990.0
+        ]
+      ],
+      "events": [
+        {
+          "id": "photo-couple",
+          "kind": "photo",
+          "people": [
+            "chloe",
+            "sam"
+          ],
+          "ask": [
+            "Sorry! Would you take our picture? The crossing behind us, if you can get it in.",
+            {
+              "npc": "sam",
+              "text": "Press the big button. She'll want ten."
+            }
+          ],
+          "goal": "Photograph Chloe and Sam",
+          "back": "Show Chloe and Sam the picture",
+          "thanks": [
+            "Oh, that's lovely. Thank you!",
+            {
+              "npc": "sam",
+              "text": "One for the fridge."
+            }
+          ]
+        },
+        {
+          "id": "photo-endo",
+          "kind": "photo",
+          "people": [
+            "endo"
+          ],
+          "ask": [
+            "Excuse me. Would you take one of me, with the lights behind? My grandson says I never send him pictures."
+          ],
+          "goal": "Photograph Mrs Endo",
+          "back": "Show Mrs Endo the picture",
+          "thanks": [
+            "He'll think I've gone modern. Thank you, dear."
+          ]
+        },
+        {
+          "id": "way-sky",
+          "kind": "way",
+          "people": [
+            "ren"
+          ],
+          "ask": [
+            "Excuse me, is SHIBUYA SKY this way? My phone says I'm standing on it."
+          ],
+          "choices": [
+            {
+              "text": "Across the crossing: the tall tower east of the station",
+              "right": true
+            },
+            {
+              "text": "Up Dogenzaka, past 109"
+            }
+          ],
+          "right": [
+            "The tall one. Of course it's the tall one. Thank you!"
+          ],
+          "wrong": [
+            "Really? I'll ask at the koban, just to be sure."
+          ]
+        },
+        {
+          "id": "way-hachiko",
+          "kind": "way",
+          "people": [
+            "chloe",
+            "sam"
+          ],
+          "ask": [
+            "Hi! Where's the famous dog? The statue. We came all this way."
+          ],
+          "choices": [
+            {
+              "text": "Hachiko is by the station's exit, across the crossing from QFRONT",
+              "right": true
+            },
+            {
+              "text": "In Center Gai, past the arch"
+            }
+          ],
+          "right": [
+            "Across from the big screens. Got it. Thank you!",
+            {
+              "npc": "sam",
+              "text": "Told you it was by the station."
+            }
+          ],
+          "wrong": [
+            "Center Gai? Okay. We'll find him."
+          ]
+        }
+      ],
+      "intro": {
+        "note": "The walk's way in, the first time from the title (game.js walkIntro): the office rings, in the voice it rings in in the story. highlight: a line's index to the corner's button lit while it is said.",
+        "who": {
+          "name": "The office 事務所",
+          "role": "on the phone"
+        },
+        "voice": {
+          "pitch": 150
+        },
+        "lines": [
+          "Kagami? The office. Nothing on tonight. No kerbs, no clients.",
+          "Take the evening. You never take the evening.",
+          "Your car's at the kerb by Hachiko. It comes when you call it.",
+          "People round the crossing will talk to you, if you let them. Nobody's ringing you tonight. Not even me."
+        ],
+        "highlight": {
+          "2": "car"
+        }
+      }
     },
     "lines": [
       {
