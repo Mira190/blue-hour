@@ -23,6 +23,8 @@
 //     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
 //   - in SKY GATE's lobby the lift is not offered, is not ridden in the dark (its doors shut, the car's ceiling and lines),
 //     or does not end at the top stop;
+//   - on SHIBUYA SKY's roof Taro does not ask for the crossing from the helicopter (or a photograph from the roof on foot
+//     is taken for it), or over the crossing in the helicopter a photograph of it is not;
 //   - on SHIBUYA SKY's roof the helicopter does not stand on its pad, cannot be boarded, does not show its keys (on a
 //     phone: Up and Down), does not climb, the corner does not say its height, or landed, nothing lets you out
 //     (NO_RIDE=1 leaves the car and the helicopter out);
@@ -397,6 +399,19 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else if (top < lobby.top - 3) fail(`SKY GATE: the ride ended at ${top.toFixed(0)} m, not the top stop (${lobby.top.toFixed(0)} m)`);
       else ok(`SKY GATE: ridden in the dark, out at ${top.toFixed(0)} m`);
     }
+    // Taro's story (walktalk.js "Above the crossing"): on the roof he asks for the crossing photographed from the
+    // helicopter, and a photograph from the roof on foot is not it
+    const taroAsked = await p.evaluate(() => {
+      const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'taro');
+      if (!t || !n) return 'no Taro on the walk';
+      t.reset();
+      if (!t.talk(n)) return 'Taro has nothing to say';
+      for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false);
+      const e = t.errand(), roofShot = t.photo({ z: 250, sees: () => true });
+      return `${e ? e.text : 'nothing asked'}${roofShot ? ' (and a photograph from the roof on foot was taken for it)' : ''}`;
+    });
+    if (!/helicopter/i.test(taroAsked) || /on foot was taken/.test(taroAsked)) fail(`on the roof, Taro: "${taroAsked}"`);
+    else ok(`on the roof, Taro asks: "${taroAsked}"`);
     // the helicopter: up on the roof beside it (as the SKY GATE lift and the escalator bring you), fetched and drawn there
     const pad = await p.evaluate(() => { const g = window.__game, s = g.heli.st, d = g.heli.doorAt(); g.player.x = d.x + (d.x - s.x) * 0.8; g.player.y = d.y + (d.y - s.y) * 0.8; g.player.z = s.z; g.player.speed = 0; g.player.vz = 0; return { z: s.z }; });
     const seen = await p.waitForFunction(() => window.__game.heli.loaded() && window.__game.heli.group.visible, null, { timeout: 240000, polling: 500 }).then(() => true, () => false);
@@ -417,6 +432,23 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else if (!/m up/.test(up)) fail(`in the air, the corner does not say the height ("${up}")`);
         else ok(`flew: climbed ${(z1 - z0).toFixed(0)} m off the roof; the corner says "${up}"`);
         await shot('7c-heli');
+        // over the crossing with the camera up (photo mode holds the world): Taro's photograph from the air, then back
+        // over the roof to set down
+        const back = await p.evaluate(() => {
+          const g = window.__game, s = g.heli.st, was = { x: s.x, y: s.y, z: s.z };
+          Object.assign(s, { x: 368, y: -1016, z: 15 + 130 });
+          for (const k of ['vx', 'vy', 'vz', 'speed']) if (k in s) s[k] = 0;
+          for (let i = 0; i < 3; i++) g.frame(0.05);
+          g.photoMode(true); Object.assign(g.photo, { az: 0, pitch: 1.35, dist: 45 });
+          return was;
+        });
+        await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {});
+        await shot('7d-air-photo');
+        const aerial = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); g.photoMode(false); const st = g.walkTalk().state(), e = g.walkTalk().errand(); return { met: !!(st.air && st.air.met), errand: e ? e.text : '' }; });
+        if (!aerial.met) fail('over the crossing in the helicopter, a photograph of it does not meet what Taro asked');
+        else if (!/Back to Taro/.test(aerial.errand)) fail(`the aerial photograph taken, the corner does not send you back to Taro ("${aerial.errand}")`);
+        else ok(`a photograph of the crossing from the helicopter: "${aerial.errand}"`);
+        await p.evaluate(was => { const g = window.__game, s = g.heli.st; Object.assign(s, { x: was.x, y: was.y, z: was.z }); for (const k of ['vx', 'vy', 'vz', 'speed']) if (k in s) s[k] = 0; g.frame(0.05); }, back);
         await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && !g.heli.st.landed; i++) g.advance(0.5, ['KeyC']); g.advance(1); });
         if (!(await waitPrompt(/Get out/))) fail(`landed, nothing offers to get out of the helicopter ("${await prompt()}")`);
         else { await act(); await p.evaluate(() => window.__game.advance(3)); if ((await mode()) !== 'foot') fail(`out of the helicopter: still ${await mode()}`); else ok('landed and climbed out'); }

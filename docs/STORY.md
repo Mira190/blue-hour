@@ -1272,12 +1272,16 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
 - *A street with nobody to talk to is a set.* What makes a crossing a place is its people, and the walk had only the
   crowd going by. So a few people of this evening stand where they would: Mei, waiting at Hachiko for a friend who is
   late; Riko, the friend, waiting at the station's Hachiko exit across the crossing; Mr Oda, a retired taxi driver who
-  still comes down at night with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; and on the roof Taro, and Aoi at the
-  arch, with a word in passing.
+  still comes down at night with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; Taro, a
+  photographer on the roof by SKY EDGE; and Aoi at the arch, with a word in passing.
 - *Small stories in parts, each asking one thing the walk can do.* Mei's (*Which Hachiko*) crosses the scramble on the
   green, twice; Mr Oda's (*Once round by car*) drives your car to 109; Shun's (*The shot everyone takes*) is a photograph
-  of the crossing from in it or from high up; Yuna's (*Forty-five floors*) is the lift to the roof. So the side stories
-  are how the walk's ways about are found, as an open world's first side quests teach its systems.
+  of the crossing from in it or from high up; Yuna's (*Forty-five floors*) is the lift to the roof; and Taro's (*Above
+  the crossing*, added at the owner's asking) is the helicopter on the roof's pad, flown out over the crossing and the
+  crossing photographed from the air (the camera holds the world still while you frame it), then set down on the roof
+  again to show him: it takes only a photograph taken from the helicopter, over the crossing and sixty metres up or
+  more, never one from the roof on foot. So the side stories are how the walk's ways about are found, as an open
+  world's first side quests teach its systems.
 - *Nothing of the case in any of them.* Walked before the story they spoil nothing; walked after, they undo nothing.
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
@@ -1288,7 +1292,7 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
   sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
   the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
-  1 of 4*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
+  1 of 5*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
   them as a game's journal lists its side stories: each by its name, ticked when told, with what was asked while it is
   under way, and for one not yet met a word on where to look (*By Hachiko, someone is looking for a friend who is
   late*), never a pin on a map.
@@ -1310,7 +1314,7 @@ On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and 
 `game.walk` (the people's parts, their lines and what each asks: `talk`, `go`, `drive`, `up`, `photo`, `meet`), the
 walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither drawn nor loaded nor in the crowd's
 way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
-its end and calls the car from the corner.
+its end, takes Taro's photograph from the helicopter over the crossing, and calls the car from the corner.
 
 On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
 `walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of

@@ -1058,7 +1058,7 @@
       "people": [
         {
           "id": "hachiko",
-        "hint": "By Hachiko, someone is looking for a friend who is late.",
+          "hint": "By Hachiko, someone is looking for a friend who is late.",
           "npc": "mei",
           "title": "Which Hachiko",
           "parts": [
@@ -1109,7 +1109,7 @@
         },
         {
           "id": "taxi",
-        "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
+          "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
           "npc": "oda",
           "title": "Once round by car",
           "parts": [
@@ -1144,7 +1144,7 @@
         },
         {
           "id": "shot",
-        "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
+          "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
           "npc": "shun",
           "title": "The shot everyone takes",
           "parts": [
@@ -1181,7 +1181,7 @@
         },
         {
           "id": "roof",
-        "hint": "The lift at SKY GATE, east of the station.",
+          "hint": "The lift at SKY GATE, east of the station.",
           "npc": "yuna",
           "title": "Forty-five floors",
           "parts": [
@@ -1207,13 +1207,48 @@
             "The roof closes in strong wind or lightning. Tonight: {sun_line}",
             "You take people up, and you bring them down. That's the job."
           ]
+        },
+        {
+          "id": "air",
+          "hint": "A photographer on SHIBUYA SKY's roof, by SKY EDGE.",
+          "npc": "taro",
+          "title": "Above the crossing",
+          "parts": [
+            {
+              "lines": [
+                "From up here the scramble is a clock face. Everyone waits, then everyone goes.",
+                "But from this roof it's always the same angle. I want it from straight above, with the lights on.",
+                "That helicopter on the pad. You can fly it? Then take it over the crossing and photograph it from the air."
+              ],
+              "then": {
+                "photo": [
+                  368.0,
+                  -1002.0,
+                  15.0
+                ],
+                "from": "heli",
+                "above": 60,
+                "r": 80,
+                "goal": "Fly the helicopter over the crossing and photograph it from the air",
+                "back": "on the roof",
+                "key": "O"
+              }
+            },
+            {
+              "lines": [
+                "Let me see.",
+                "All four ways at once, from above. The white lines like the spokes of a wheel.",
+                "That's the one I could never take. Next time I'm coming with you."
+              ]
+            }
+          ],
+          "after": [
+            "{sun_line}",
+            "From up here the scramble is a clock face: everyone waits, then everyone goes."
+          ]
         }
       ],
       "chat": {
-        "taro": [
-          "From up here the scramble is a clock face: everyone waits, then everyone goes.",
-          "{sun_line}"
-        ],
         "aoi": [
           "Shibuya's scramble at {time}. {sun_line}",
           "Stand on one corner for a whole change of the lights, just once. Everyone should."
