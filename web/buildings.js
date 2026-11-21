@@ -229,9 +229,8 @@ window.OEBuildings = (function () {
       };
       // a lamp's light: an unlit warm colour that comes on with the street lights (U.uNight, as night.js), and the pool
       // under it, added to the deck in a disc fading from its middle
-      const lampMat = (k, add = false) => {
-        const m = new THREE.MeshBasicMaterial(Object.assign({ color: new THREE.Color(1.0, 0.78, 0.52).multiplyScalar(k), vertexColors: true, fog: true },
-          add ? { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 } : {}));
+      const lampMat = k => {
+        const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.78, 0.52).multiplyScalar(k), vertexColors: true, fog: true });
         const night = (U && U.uNight) || { value: 0 };
         m.onBeforeCompile = sh => {
           sh.uniforms.uKitNight = night;
@@ -239,12 +238,6 @@ window.OEBuildings = (function () {
             'vec4 diffuseColor = vec4( diffuse * smoothstep( 0.06, 0.32, uKitNight ), opacity );');
         };
         return m;
-      };
-      const pool = (u, v) => {
-        const g = new THREE.CircleGeometry(0.75, 20).rotateX(-Math.PI / 2).translate(u, 0.02, v), n = g.attributes.position.count, C = [];
-        for (let i = 0; i < n; i++) { const x = g.attributes.position.getX(i) - u, z = g.attributes.position.getZ(i) - v, f = Math.max(0, 1 - Math.hypot(x, z) / 0.75); C.push(f * f, f * f, f * f); }
-        g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
-        return g;
       };
       const dummy = new THREE.Object3D(), col = new THREE.Color();
       // instances: [x, z, y (world), angle, sx, sy, sz, colour]
@@ -278,12 +271,12 @@ window.OEBuildings = (function () {
         }
         if (kind === 8) { draw(M[8][0], kd, list[0], true); draw(M[8][1], kd, list[1], true); continue; }
         draw(M[kind], kd, list);
-        // after dark, the bulkhead lamp over a stair hut's door and the pool of light it throws on the deck in front:
-        // from the air at night a roof is read by these (a lamp a door, warm, as fitted)
+        // after dark, the bulkhead lamp over a stair hut's door: from the air at night a roof is read by these (a lamp a
+        // door, warm, as fitted). (Its pool on the deck was a disc of added light in a radial gradient, which took no
+        // account of the deck under it: from the air every hut had a soft round blob beside it, issue 87.)
         if (kind === 6) {
           const ux = 0.18, wl = list.map(q => { const c = q.slice(); c[7] = col.set(1, 1, 1); return c; });
           draw(model([[bx(0.09, 0.045, 0.05, ux, 0.8, -0.52), [1, 1, 1]]]), { shadow: false }, wl, false, lampMat(2.4));
-          draw(pool(ux, -1.05), { shadow: false }, wl, false, lampMat(0.3, true));
         }
         // the steel stand under each tank: four legs and the beams they carry
         if (legs.length) draw(model([...[[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]].map(([u, w]) => [bx(0.06, 1, 0.06, u, 0.5, w), L3('#4d5254')]),
@@ -522,6 +515,8 @@ window.OEBuildings = (function () {
       uPhoto: { value: new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1) }, uPhotoOn: { value: 0 },
       uFrame: { value: new THREE.Vector4(0, 0, 1, 1) }, uSigns: { value: signage }, uCoolHomes: { value: coolHomes }, uNudge: U.uNudge || { value: 4e-5 },
       uGlyphs: { value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) }, uGlyphOn: { value: 0 },
+      // round each hero level, the zone where the aerial photograph is never a roof's colour (the game sets it: game.js ZONE)
+      uZone: U.uZone || { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) },
     });
     U.uGlyphs.value.needsUpdate = true;
     // the words on the signs (pipeline/sign_glyphs.py); until they load, or if they don't, the
@@ -561,6 +556,8 @@ window.OEBuildings = (function () {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
   uniform float uNight; uniform float uSel; uniform float uMode; uniform vec3 uC0; uniform vec3 uC1; uniform vec3 uC2;
+  uniform vec4 uZone[8];
+  float photoZone(vec3 wp) { float z = 0.0; for (int i = 0; i < 8; i++) z = max(z, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(wp.xz, uZone[i].xy)))); return z; }
   uniform float uHour; uniform sampler2D uPhoto; uniform float uPhotoOn; uniform vec4 uFrame; uniform float uSigns; uniform float uCoolHomes; uniform sampler2D uGlyphs; uniform float uGlyphOn;
   varying vec2 vFac; varying vec4 vInf; varying vec3 vExt; varying float vBid; varying float vSrc;
   varying vec3 vWPos; varying vec3 vWNrm; varying vec4 vGrid; varying vec4 vLook;
@@ -947,7 +944,7 @@ window.OEBuildings = (function () {
     if (uPhotoOn > 0.5) {
       vec2 uv = vec2((vWPos.x - uFrame.x) * uFrame.z, (-vWPos.z - uFrame.y) * uFrame.w);
       vec3 ph = photoGrade(texture2D(uPhoto, uv).rgb);
-      base = mix(base, ph * 0.9, 0.35);
+      base = mix(base, ph * 0.9, 0.35 * (1.0 - photoZone(vWPos))); // (not round a hero level: issue 87)
     }
     float pat = 1.0, mean = 1.0, slope = 1.0;
     if (m > 2.5 && m < 3.5) { // terracotta tile: courses down the slope, rounded pans across
@@ -984,7 +981,8 @@ window.OEBuildings = (function () {
     if (uPhotoOn > 0.5 && mod(floor(vExt.y / 16.0 + 0.03), 2.0) > 0.5) { // (+0.03: 16 can arrive as 15.99999)
       vec2 uv = vec2((vWPos.x - uFrame.x) * uFrame.z, (-vWPos.z - uFrame.y) * uFrame.w);
       // the photo, a little softened and leaned towards the roof's median colour: close up a 1 m photo is noise
-      base = mix(base, photoGrade(texture2D(uPhoto, uv, 1.0).rgb) * 0.92, 0.65);
+      // (round a hero level the roof is its own colour: the photo's blur, shadows and lean were blotches there, issue 87)
+      base = mix(base, photoGrade(texture2D(uPhoto, uv, 1.0).rgb) * 0.92, 0.65 * (1.0 - photoZone(vWPos)));
     } else {
       float fwd = max(fwidth(vFac.x), 1e-3);
       base *= 0.9 + 0.2 * mix(vnoise(vFac * 0.35 + bidH), 0.5, smoothstep(0.7, 1.7, fwd));
