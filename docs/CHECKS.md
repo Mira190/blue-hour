@@ -94,8 +94,11 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 `origin/main` (after a pass, at what changed since that pass):
 
 - a change to the page's code or data (`web/`, but for the files in the next line) or to the story in
-  `cities/shibuya/city.json` runs `static`, `story`, `walk` and `mem`; the sound adds `audio`, the drivers, the cars and
-  the crowd `ride`, the guide and his ways `guide`;
+  `cities/shibuya/city.json` runs `static`, `story`, the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
+  the drivers, the cars and the crowd `ride`, the guide and his ways `guide`, and what a phone alone runs (its tier in
+  `quality.js`, the tour's touch words in `onboard.js`, its district under `web/data/shibuya/d/`) the walk's phone page
+  (`walk2`). In the sessions of 18 to 21 November the phone's page failed twice, both times beside the desktop's, and
+  cost 9 of a run's 42 minutes; main's full tier plays both pages and `touch` (issue 95);
 - a change of models, pictures or sounds alone (`.glb`, `.webp`, `.png`, `.jpg`, `.avif`, `.ktx2`, `.mp3` and the like
   under `web/`) runs `static`, `look` and `mem`, not the story: such a file can change how the street looks and what a
   phone holds, not where the story goes. Not so a hero level's model (`web/data/shibuya/hero/`: its ground meshes are
@@ -198,7 +201,8 @@ foreground command after 10 minutes (29 times), a watch on output after 30 (7), 
 whatever its timeout ("was stopped after reaching its background time limit": 20 times, 6 of them runs of the checks
 and 2 other browsers, the rest waits on them), and every one at a restart of the session's worker (7). A run of the checks takes, on that machine, the static checks 35 s,
 mem 3 minutes, the ride 5, the walk's two pages 18, the story 20 and the guide 20 (medians of the runs whose times they printed: 36 of the story, 37 of the walk, 8 of the guide), so
-a change to the page checks for about 42 minutes and one to `game.js` or `story.js` for 47 to 62. Until 18 November a
+a change to the page checked for about 42 minutes and one to `game.js` or `story.js` for 47 to 62 (33, and 38 to 53, since
+the fast tier plays the walk's desktop page alone, issue 95). Until 18 November a
 change to the page checked for about 24 (the story and mem); the walk joined it then, and a run started as the tool's
 child was stopped near its end from that day on. 183 of the 201 runs were started that way. Each stopped run was started
 again from the beginning, and what it left behind took cores from the next one's story clock: the sessions ran 92 commands
