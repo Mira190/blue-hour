@@ -469,7 +469,11 @@ colours and what it carries before its face, and to look like Tokyo in October:
   own working camera (the job sheet's photograph is taken with it), not the one of 1964, which is only ever seen
   through. It hangs where the arms do not swing; a camera bag on the hip, tried first, was in the hand's way at every
   step. Modelled with the body (`neck_camera`): the strap round the back of the neck on the collar and over the
-  collarbones, kept off the cloth, and the camera riding on the chest.
+  collarbones, kept off the cloth, and the camera riding on the chest. Long hair lies over the strap, as it does on
+  anyone: the strap is laid on the collar under the hair (the hair cards, and the hair that is part of the head's own
+  mesh and falls down the back), and comes out beside it on each shoulder. It was once laid on the outermost surface
+  there, which is the hair, and read from behind as a black band across it; `tools/strap_shot.js` looks at it from
+  behind, standing, walking and running, and fails when the hair does not cover it.
 - **His camera round the neck.** From the first frame's photograph, once Sumiko has given it, Akira's camera of 1964
   hangs round Kagami's neck in place of their own, which they put away with its strap (the frame's goal says so): flat
   on the chest, nearly level, as a light camera hangs, on a thin brown leather strap of its own. A 35 mm rangefinder
