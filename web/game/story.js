@@ -1489,8 +1489,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
       get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
-      get subject() { // what the frame is of, where the raised camera comes up onto: the middle of the thing and all that stands with it, at its point's height (not one too big for the print: the dome in its tower, the river); in the first frame's job, her corner
-        if (st.phase === 'go' && st.beat === 'job' && st.cam) return jobAt();
+      get subject() { // what the frame is of, where the raised camera comes up onto: the middle of the thing and all that stands with it, at its point's height (not one too big for the print: the dome in its tower, the river)
+        if (st.phase === 'go' && st.beat === 'job' && st.cam) return jobAt(); // (your own camera, before the first Stop)
         if (!(st.phase === 'stop' && st.beat === 'shoot' && st.cam && st.fr)) return null;
         const T = st.fr.task, S = subjectOf(T), m = S && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null;
         return m ? [m[0], m[1], S[2]] : S;
