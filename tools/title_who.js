@@ -20,7 +20,7 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
   const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const title = async () => {
     await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden && getComputedStyle(t).opacity > 0.9; }, null, { timeout: 900000, polling: 500 });
@@ -31,12 +31,12 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
     return { title: !document.getElementById('g-title').hidden, shown: !!who && !who.hidden && who.offsetParent !== null,
       tiles: [...document.querySelectorAll('#gt-who .gt-who-row [data-c]')].map(x => [x.dataset.c, x.getAttribute('aria-checked'), x.querySelector('img').naturalWidth > 0]),
       ask: (document.querySelector('#gt-who .gt-who-ask') || {}).textContent || '', choose: document.getElementById('g-title').hasAttribute('data-choose'),
-      kept: (() => { try { return localStorage.getItem('oe3d-player'); } catch (e) { return 'blocked'; } })(), rig: g && g.player && g.player.rig ? g.player.rig.character : null };
+      kept: (() => { try { return localStorage.getItem('bh-player'); } catch (e) { return 'blocked'; } })(), rig: g && g.player && g.player.rig ? g.player.rig.character : null };
   });
   const press = async sel => { const r = await p.locator(sel).boundingBox(); if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
   const shot = n => p.screenshot({ path: `${out}/${n}.png`, timeout: 120000 }).catch(() => console.log(`(no still ${n})`));
   // someone who has never played: nothing kept
-  await p.addInitScript(() => { if (!sessionStorage.getItem('tw-once')) { sessionStorage.setItem('tw-once', '1'); try { localStorage.removeItem('oe3d-player'); } catch (e) { /* storage blocked */ } } });
+  await p.addInitScript(() => { if (!sessionStorage.getItem('tw-once')) { sessionStorage.setItem('tw-once', '1'); try { localStorage.removeItem('bh-player'); } catch (e) { /* storage blocked */ } } });
   const screen = () => p.evaluate(() => window.__game.screen());
   // (the press: a key, or on a phone a tap anywhere, opens the menu)
   const toMenu = async () => { if (phone) await p.touchscreen.tap(w / 2, h / 2); else await p.keyboard.press('Enter'); await p.waitForTimeout(1500); if ((await screen()) !== 'menu') fail(`the press did not open the menu (on "${await screen()}")`); };
@@ -104,7 +104,7 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
   await press('#gt-play'); await p.waitForTimeout(1500);
   if ((await state()).title) fail('opened again, the episode did not begin at once');
   // a case left going by someone who never chose (before the title asked): the evening again and Continue wait too
-  await p.evaluate(() => { try { localStorage.setItem('oe3d-player', ''); localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: '17:14', cap: '' }, { src: null, stamp: '17:19', cap: '' }] })); } catch (e) { /* storage blocked */ } });
+  await p.evaluate(() => { try { localStorage.setItem('bh-player', ''); localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: '17:14', cap: '' }, { src: null, stamp: '17:19', cap: '' }] })); } catch (e) { /* storage blocked */ } });
   await title();
   await toMenu();
   // (the menu's Continue, first while a case is going, asks too, and Back gives the menu again)
@@ -121,7 +121,7 @@ const [,, out = '/tmp/title-who', size = '1440x900'] = process.argv;
     if (!(await state()).title || (await screen()) !== 'who') fail('the evening again began without asking who you play');
     await press('#gt-who-back'); await p.waitForTimeout(1000);
     if (!(await state()).title || (await screen()) !== 'story') fail("Back on who you play did not give the story's screen back");
-    if (!(await p.evaluate(() => { try { return !!localStorage.getItem('oe-story-late'); } catch (e) { return false; } }))) fail('the case was lost before who you play was chosen');
+    if (!(await p.evaluate(() => { try { return !!localStorage.getItem('bh-story-late'); } catch (e) { return false; } }))) fail('the case was lost before who you play was chosen');
   } else fail("a case going: no way on the story's screen to the evening again");
   if (await p.evaluate(() => document.getElementById('gt-eps').classList.contains('sure'))) await press('#gt-anew-no');
   await p.waitForTimeout(500);

@@ -5,11 +5,12 @@
 // A local checkout has no version.json, so the footer stays empty and About says "Local build";
 // served from this machine it is not asked for, as the 404 would fail every page check.
 (function () {
-  const REPO = 'https://github.com/Mira190/open-earth-3d';
+  const REPO = 'https://github.com/Mira190/blue-hour';
   if (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
   // (from the page's own folder up to the site's root: reef/index.html loads this too, for the telemetry's app version)
   const root = document.currentScript ? new URL('.', document.currentScript.src).href : '';
-  fetch(root + 'version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(v => {
+  // (asked for once: the guard at the top of index.html reads it first, to see that the page is the site's commit)
+  (window.OEBoot && OEBoot.version || fetch(root + 'version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null))).then(v => {
     if (!v || !v.version) return;
     window.OE_VERSION = v;
     const sha = (v.commit || '').slice(0, 7);

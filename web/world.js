@@ -27,10 +27,12 @@ window.OEWorld = (function () {
   // load is at, which the caller can name (a third argument) or which follows from how far along it is, so
   // that the page never sits on a finished download while the packs decode and the shaders compile.
   const STAGES = [[0.28, 'Downloading'], [0.995, 'Building the city'], [Infinity, 'Preparing the city']];
+  const V = (u, w) => (window.OEV ? window.OEV(u, w) : u); // (a file's address with its hash, on a deployed page: index.html's guard)
   function loadLine(prefix = '') {
     const msg = document.getElementById(prefix + 'load-msg'), bar = document.getElementById(prefix + 'load-bar'),
       stage = document.getElementById(prefix + 'load-stage');
     return (t, f, st) => {
+      if (window.OEBoot && OEBoot.failed) return; // (the loader says why the start failed: not written over by a step that still ran)
       if (msg) msg.textContent = t;
       if (bar) bar.style.width = `${Math.round(f * 100)}%`;
       if (stage) stage.textContent = st || (f > 0 ? STAGES.find(([to]) => f < to)[1] : '');
@@ -72,18 +74,39 @@ window.OEWorld = (function () {
     const view = { view: game ? 'game' : 'city', city: cityId };
     const mark = s => { try { performance.mark(`oe:${s}`, { detail: view }); } catch (e) { /* no User Timing */ } };
     const unpack = () => { if (--open === 0) mark('fetched'); if (open === 0) onMsg(`Unpacking ${what}: buildings, terrain and landmarks`, 0.29, 'Unpacking the city'); };
+    // A pack that stalls (issue 116). The answer's first byte is the guard's to wait for (index.html: 20 s, and a
+    // request that fails or is answered 5xx tried twice more); here the body: a download with no byte for 20 s is
+    // given up, and one that breaks off or stalls is fetched again, twice, after 0.8 and 2.4 s, as a model is
+    // (gltf.js). What still fails ends the load in the loader's error state with the file's name (game.js).
+    const NET = window.OE_NET || {}, STALL_MS = NET.stall_ms || 20000, RETRY_MS = [800, 2400];
     const fetchAll = async (r, u) => {
-      if (!r.ok) throw new Error(`${u}: HTTP ${r.status}`);
-      if (!r.body || !r.body.getReader) return new Blob([await r.arrayBuffer()]);
+      if (!r.ok) throw Object.assign(new Error(`${u}: HTTP ${r.status}`), { final: r.status < 500 });
+      if (!r.body || !r.body.getReader) return { blob: new Blob([await r.arrayBuffer()]), n: 0 };
       const reader = r.body.getReader(), parts = [];
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        parts.push(value); got += value.length; report();
-      }
-      return new Blob(parts);
+      let n = 0;
+      try {
+        for (;;) {
+          let t = 0;
+          const { done, value } = await Promise.race([reader.read(), new Promise((_, no) => { t = setTimeout(() => no(new Error(`${u}: the download stalled`)), STALL_MS); })]).finally(() => clearTimeout(t));
+          if (done) break;
+          parts.push(value); n += value.length; got += value.length; report();
+        }
+      } catch (e) { got -= n; try { reader.cancel().catch(() => {}); } catch (e2) { /* already closed */ } throw e; } // (its bytes off the count: they are downloaded again)
+      return { blob: new Blob(parts), n };
     };
-    const fetchFile = async u => { open++; try { return await fetchAll(await fetch(DATA + u), u); } finally { unpack(); } };
+    const fetchFile = async u => {
+      open++;
+      try {
+        for (let tries = 0; ; tries++) {
+          try { return (await fetchAll(await fetch(DATA + u), u)).blob; } catch (e) {
+            if (e.final || tries >= RETRY_MS.length) throw e;
+            console.warn(`${u}: ${e.message}; trying again`);
+            try { if (window.OETelemetry && OETelemetry.track) OETelemetry.track('net_retry', { why: /stalled/.test(e.message) ? 'stalled' : 'broke off', n: tries + 1, src: (DATA + u).slice(0, 120) }); } catch (e2) { /* no telemetry */ }
+            await new Promise(r => setTimeout(r, NET.retry_ms || RETRY_MS[tries]));
+          }
+        }
+      } finally { unpack(); }
+    };
     const getJSON = async u => JSON.parse(await (await fetchFile(u)).text());
     // the buildings, landmarks, game, terrain, places and scene as packed by pipeline/pack.py (a quarter to a
     // third of the JSON's download, issues 148, 201 and 259) and decoded in a Worker (pack-worker.js), so that the loader's bar
@@ -726,11 +749,12 @@ vec3 steepRock(vec3 c, float k) {
   function groundPictures(scene, dir, { at = null, near = 1000 } = {}) {
     const tiles = scene.ground || [];
     const load = t => avif().then(ok => new Promise(res => {
-      const im = new Image(), tryJpeg = () => { if (im.src.endsWith(t.file)) return res(null); im.src = dir + t.file; };
+      let jpeg = false;
+      const im = new Image(), tryJpeg = () => { if (jpeg) return res(null); jpeg = true; im.src = V(dir + t.file); };
       im.decoding = 'async';
       im.onload = () => (im.decode ? im.decode() : Promise.resolve()).then(() => res(im), () => res(im));
       im.onerror = tryJpeg;
-      im.src = dir + (ok && t.avif ? t.avif : t.file);
+      jpeg = !(ok && t.avif); im.src = V(dir + (jpeg ? t.file : t.avif));
     }));
     const dist = t => at ? Math.hypot(Math.max(t.x0 - at[0], 0, at[0] - t.x1), Math.max(t.y0 - at[1], 0, at[1] - t.y1)) : 0;
     const first = tiles.map(t => !at || !scene.ground_lo || dist(t) <= near);
@@ -1191,7 +1215,7 @@ vec3 woodsFloor(vec3 c) {
       // G: the game's surface model (sun.js buildDSM, with ids)
       farSun.init = G => {
         if (farSun.worker) return;
-        try { farSun.worker = new Worker(new URL('visibility-worker.js', document.baseURI)); } catch (e) { return; }
+        try { farSun.worker = new Worker(V(new URL('visibility-worker.js', document.baseURI), true)); } catch (e) { return; }
         const built = new Uint8Array(G.nx * G.ny);
         if (G.ids) for (let i = 0; i < built.length; i++) built[i] = G.ids[i] >= 0 ? 1 : 0;
         const data = G.data.slice();
@@ -2925,7 +2949,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   function bvhIn(geo) {
     return new Promise((ok, fail) => {
       let w;
-      try { w = new Worker(new URL('bvh-worker.js', here), { type: 'module' }); } catch (e) { fail(e); return; }
+      try { w = new Worker(V(new URL('bvh-worker.js', here), true), { type: 'module' }); } catch (e) { fail(e); return; }
       const t0 = performance.now();
       w.onmessage = e => { w.terminate(); if (e.data.error) fail(new Error(e.data.error)); else { console.info(`bounds-tree: ${Math.round(e.data.ms)} ms in a worker, back after ${Math.round(performance.now() - t0)} ms`); ok(e.data.data); } };
       w.onerror = e => { e.preventDefault(); w.terminate(); fail(new Error(e.message || 'worker failed')); };

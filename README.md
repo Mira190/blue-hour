@@ -84,7 +84,9 @@ A commit on main is published once the checks pass on it (`.github/workflows/che
 `.github/workflows/pages.yml`): `web/` goes to GitHub Pages, and the branch `live` moves to the commit,
 which Vercel's production deploys (`vercel.json`). A main the checks fail is not published. Each
 deploy gets a version: the major.minor in `VERSION` plus the workflow's run number (`0.1.42`),
-written with the commit and the build time to `web/version.json` and tagged.
+written with the commit and the build time to `web/version.json` and tagged. Both deploys stamp the page
+(`tools/stamp.js`): every address it asks for carries the hash of its file, so one page load is of one commit
+whatever a browser kept from the one before (docs/CHECKS.md, "A load is of one commit").
 
 ## The world before
 

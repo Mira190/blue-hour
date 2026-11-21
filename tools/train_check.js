@@ -12,7 +12,7 @@ const [,, city = 'shibuya'] = process.argv;
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: 800, height: 500 } });
   await pinClock(p, city);
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   const fails = [];
   p.on('pageerror', e => { console.log('pageerror', String(e).slice(0, 300)); fails.push('page error'); });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });

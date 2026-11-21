@@ -19,12 +19,12 @@ const PLACES = (process.env.PLACES || '0.55,-0.5,1.3;0.5,-0.45,1.9;-0.45,-0.4,2.
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log(`pageerror: ${String(e).slice(0, 300)}`); });
   fs.mkdirSync(out, { recursive: true });
   // the walk as a player has it (the title's Walk Shibuya: its own buttons and words, not ?walk=1's bare map), at blue hour
-  await p.addInitScript(() => { try { if (!sessionStorage.getItem('oe-lens-near')) { sessionStorage.setItem('oe-lens-near', '1'); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'blue', w: 'clear' })); } } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { if (!sessionStorage.getItem('oe-lens-near')) { sessionStorage.setItem('oe-lens-near', '1'); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'blue', w: 'clear' })); } } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => window.__game && document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 200 && g.arriving && g.arriving(); i++) { g.settleArrival(); g.advance(0.1); } if (g.cine && g.cine.active) g.cine.skip(); }); // (the walk's opening shot of the Scramble, skipped: the chase view)

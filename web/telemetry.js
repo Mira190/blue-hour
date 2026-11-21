@@ -71,16 +71,16 @@ window.OETelemetry = (function () {
   const now = () => performance.now();
   const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); };
   let vid = null;
-  try { vid = localStorage.getItem('oe3d-vid'); if (!vid) { vid = rid(); localStorage.setItem('oe3d-vid', vid); } } catch (e) { vid = null; }
+  try { vid = localStorage.getItem('bh-vid'); if (!vid) { vid = rid(); localStorage.setItem('bh-vid', vid); } } catch (e) { vid = null; }
   const fresh = !vid;
   if (!vid) vid = rid();                 // storage blocked: a visitor id for this page only
   const sid = rid();                     // one page load
   // how many page loads this browser has made, and the days since the last: return visits without a profile
   let visit = { n: 1, days: null };
   try {
-    const o = JSON.parse(localStorage.getItem('oe3d-visits') || 'null'), t = Date.now();
+    const o = JSON.parse(localStorage.getItem('bh-visits') || 'null'), t = Date.now();
     if (o && o.n > 0) visit = { n: o.n + 1, days: Math.round((t - o.t) / 864e5 * 10) / 10 };
-    localStorage.setItem('oe3d-visits', JSON.stringify({ n: visit.n, t }));
+    localStorage.setItem('bh-visits', JSON.stringify({ n: visit.n, t }));
   } catch (e) { /* storage blocked */ }
 
   // the device, coarse: what the quality tiers and the SLO targets are split by
@@ -142,10 +142,10 @@ window.OETelemetry = (function () {
   };
   function phSession() {
     const t = Date.now();
-    if (!phs) { try { phs = JSON.parse(sessionStorage.getItem('oe3d-phs') || 'null'); } catch (e) { phs = null; } }
+    if (!phs) { try { phs = JSON.parse(sessionStorage.getItem('bh-phs') || 'null'); } catch (e) { phs = null; } }
     if (!phs || !phs.id || t - phs.t > 30 * 60e3) phs = { id: uuid7(), t };
     phs.t = t;
-    try { sessionStorage.setItem('oe3d-phs', JSON.stringify(phs)); } catch (e) { /* storage blocked */ }
+    try { sessionStorage.setItem('bh-phs', JSON.stringify(phs)); } catch (e) { /* storage blocked */ }
     return phs.id;
   }
   const referrer = (() => { try { return document.referrer && new URL(document.referrer).host !== location.host ? document.referrer : ''; } catch (e) { return ''; } })();
@@ -292,7 +292,7 @@ window.OETelemetry = (function () {
     cur = { kind: w.kind, city: w.city, t0: views ? now() : 0, ready: w.kind === 'globe', failed: false, active: 0, since: null, frames: frames(),
       restored: restored === true, here: null, dwell: new Map(), tourMax: 0, tourDone: false, stamps: null };
     // (gl_reload: the page was loaded again by glcare.js after its WebGL context was lost, in the last minute)
-    let glr = 0; if (!views) try { glr = Date.now() - (Number(sessionStorage.getItem('oe3d-gl-reload')) || 0) < 60000 ? 1 : 0; } catch (e) { /* storage blocked */ }
+    let glr = 0; if (!views) try { glr = Date.now() - (Number(sessionStorage.getItem('bh-gl-reload')) || 0) < 60000 ? 1 : 0; } catch (e) { /* storage blocked */ }
     track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days, gl_reload: glr || undefined }, prev));
     prev = {};
     while (crashes.length) crashes.shift()();
@@ -624,7 +624,7 @@ window.OETelemetry = (function () {
   // when the tab is put away or the page closes. A note left behind, and older than half a minute (another
   // tab of the site keeps its own fresh), means the page ended without closing: the browser or the GPU
   // process crashed, or the system killed it for memory. The next page load reports it.
-  const ALIVE = 'oe3d-alive-', crashes = [];   // the reports wait for the first view, so they carry its tier
+  const ALIVE = 'bh-alive-', crashes = [];   // the reports wait for the first view, so they carry its tier
   // (lv: the level of a phone's set the page runs at, quality.js level: a death is counted against that level)
   const lvNow = () => { try { const Q = window.OEQuality; return Q && Q.lean() ? Q.city().lighter : undefined; } catch (e) { return undefined; } };
   // (mb: what the view has downloaded, decoded, in MB: the browsers that give no heap (Safari, iOS) still say how much a
@@ -637,7 +637,7 @@ window.OETelemetry = (function () {
   // went uncounted; the second load was then as heavy as the first, died the same way, and left the visitor on
   // "A problem repeatedly occurred" (issue 443). A note of this tab's own is a dead page's at any age.
   let before = null;
-  try { before = sessionStorage.getItem('oe3d-sid'); sessionStorage.setItem('oe3d-sid', sid); } catch (e) { /* storage blocked */ }
+  try { before = sessionStorage.getItem('bh-sid'); sessionStorage.setItem('bh-sid', sid); } catch (e) { /* storage blocked */ }
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
@@ -649,11 +649,11 @@ window.OETelemetry = (function () {
       // the memory loop (quality.js died; issue 443): a map whose page died on this device loads lighter the next
       // time, one step for each death, so that a phone it killed once is not killed the same way again
       if (o && o.city && (o.view === 'game' || o.view === 'city') && age < 14 * 864e5) try {
-        let d = null; try { d = JSON.parse(localStorage.getItem(`oe3d-died-${o.city}`)); } catch (e) { d = null; }
+        let d = null; try { d = JSON.parse(localStorage.getItem(`bh-died-${o.city}`)); } catch (e) { d = null; }
         // (lv: the lightest level a page of this map has died at, for quality.js level; a page from before levels
         // were written died at 0 or 1, the sets of that time)
         const was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, lv = Math.max(was, o.lv != null ? o.lv : 1);
-        localStorage.setItem(`oe3d-died-${o.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!o.ready, lv }));
+        localStorage.setItem(`bh-died-${o.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!o.ready, lv }));
       } catch (e) { /* storage blocked */ }
       if (age < 3 * 864e5) crashes.push(() => track('crash', { prev_view: o.view, prev_city: o.city, prev_spot: o.spot, prev_mode: o.mode, prev_ready: o.ready, prev_stage: o.stage || undefined, prev_lv: o.lv, prev_mb: o.mb, prev_up_s: o.up, ago_s: Math.round(age / 1000) }));
     }

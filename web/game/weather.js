@@ -89,7 +89,7 @@ window.OEWeather = (function () {
   // 15 minutes (the service's own step), and when it fails the season's weather carries on, silently.
   // WMO weather codes: 0-1 clear, 2 fair, 3 overcast, 45/48 fog, 51-57 drizzle, 61-67 and 80-82 rain,
   // 71-77 and 85-86 snow, 95-99 thunderstorm.
-  const NOW_KEY = 'oe3d-weather-now', NOW_TTL = 15 * 60e3;
+  const NOW_KEY = 'bh-weather-now', NOW_TTL = 15 * 60e3;
   const nowUrl = (lat, lon) => `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&current=temperature_2m,precipitation,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,visibility&wind_speed_unit=ms`;
   // an Open-Meteo "current" block as the amounts the weather eases to
   function fromNow(c) {
@@ -658,7 +658,7 @@ void main() {
     const known = v => !!(KINDS[v] || v === 'live' || v === 'off' || v === 'now');
     let mode = known(asked) ? asked : navigator.webdriver ? 'clear' : 'live';
     let chosen = !!asked; // the visitor (or the page's address) chose the weather: the guard never turns it off then
-    try { if (!asked && !navigator.webdriver) { const v = localStorage.getItem('oe3d-weather'); if (v && known(v)) { mode = v; chosen = true; } } } catch (e) { /* storage blocked */ }
+    try { if (!asked && !navigator.webdriver) { const v = localStorage.getItem('bh-weather'); if (v && known(v)) { mode = v; chosen = true; } } } catch (e) { /* storage blocked */ }
     // Weather the device cannot carry is not started. Rain costs a second render of the scene for the
     // wet street's reflections (mirror.js, high tier), a pass from above for the occlusion map, and
     // thousands of streaks; a wet street costs its puddles' noise and reflections for minutes after
@@ -668,11 +668,11 @@ void main() {
     //  - 2, off: a clear sky and dry streets, as when the season's weather never started (its shaders
     //    stay out of the materials). A weather the visitor chose stays, wet and grey, without drops.
     // On the low tier (a software renderer, a phone, a device with 4 GB or less: quality.js) the
-    // season's weather starts off. What was shed is remembered (localStorage oe3d-weather-guard), so
+    // season's weather starts off. What was shed is remembered (localStorage bh-weather-guard), so
     // the next visit starts there, and said once in a toast that points at the menu, where any weather
     // the visitor picks is kept as picked. Automated runs remember nothing and start as the tier says
     // (light on the low tier) unless the address asks for the device rules (?weatherguard).
-    const GUARD_KEY = 'oe3d-weather-guard';
+    const GUARD_KEY = 'bh-weather-guard';
     let guardOn = !navigator.webdriver || params.has('weatherguard');
     let level = tier === 'low' ? 1 : 2; // 2 the full weather, 1 light, 0 off
     let dropless = false; // a chosen weather shed to its wet streets and sky
@@ -1041,7 +1041,7 @@ void main() {
           // the visitor's own pick, from the menu: kept as picked, and what was remembered forgotten
           chosen = true; dropless = false;
           if (m !== 'off') { level = 2; remember(null); }
-          try { localStorage.setItem('oe3d-weather', m); } catch (e) { /* storage blocked */ }
+          try { localStorage.setItem('bh-weather', m); } catch (e) { /* storage blocked */ }
         }
       },
       // the clock, so the season can choose (local date and minutes)

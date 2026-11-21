@@ -4,6 +4,8 @@
 // the blocks back. Where the encoder's own count says the picture would lose too much (floor, dB), or there is no
 // canvas to read it with, the picture goes back as it came and the page keeps it uncompressed.
 'use strict';
+// (a deployed page gives its workers the build, ?b=: what a worker imports is asked for by it, so that it is that commit's; index.html's guard)
+{ const b = /[?&]b=(\w+)/.exec(self.location.search), raw = self.importScripts; if (b) self.importScripts = (...u) => raw.apply(self, u.map(x => `${x}?b=${b[1]}`)); }
 importScripts('astc.js');
 self.onmessage = e => {
   const { id, bitmap, max, flipY, srgb, mips, floor, alphaFloor } = e.data;

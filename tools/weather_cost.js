@@ -26,7 +26,7 @@ const STATES = [
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const tier = process.env.TIER || 'high';
   const p = await b.newPage({ viewport: tier === 'low' ? { width: 390, height: 844 } : { width: 1280, height: 800 } });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, tier);
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, tier);
   // count what a frame draws
   await p.addInitScript(() => {
     const C = window.__draws = { draws: 0, tris: 0, full: 0 };

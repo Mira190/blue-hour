@@ -475,7 +475,7 @@ follows the arrival (`web/onboard.js`): walking and looking, the map, travel,
 taxis and rides, the passport, the phone, photo mode, the menu and the route line,
 one step each, pointing at the control with a ring and a card, with touch wording
 on a phone. Enter or → moves on, ← goes back, Esc or "Skip tour" ends it. The flag
-(`oe3d-onboard` in `localStorage`) is shared by every map, so on a later one the
+(`bh-onboard` in `localStorage`) is shared by every map, so on a later one the
 title card offers "Skip the intro", ticked, and the guide greets you with a short
 local welcome instead. "Show the intro again" in the menu runs the tour at any
 time. While the tour shows nothing can be started (no talk, no boarding), and it
@@ -2750,7 +2750,7 @@ drop or into the water.
   moves, when you stray from it (6 m on foot, 14 m by car, 70 m in the air) and as
   a ride goes on.
 - **Shown:** the menu's Route line is On, Only when I ask or Off, remembered in
-  the browser (`oe-route-line`). When it isn't On, <kbd>L</kbd> or Show route in
+  the browser (`bh-route-line`). When it isn't On, <kbd>L</kbd> or Show route in
   the quest card brings the line up for eight seconds. Whichever, the minimap
   keeps the route, as the quiet reference. The line eases out while a
   conversation, the menu, a map, photo mode or a camera shot is up, and comes back

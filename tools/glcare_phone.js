@@ -21,7 +21,7 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
   });
   // the tab put away and back, as the page sees it (document.hidden and a visibilitychange)
   await ctx.addInitScript(() => {
-    try { localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ }
     window.__hid = false;
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__hid });
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (window.__hid ? 'hidden' : 'visible') });
@@ -35,7 +35,7 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
     await p.waitForFunction(() => { const l = document.getElementById('g-loader'); return !l || l.hidden || l.classList.contains('out'); }, null, { timeout: 900000, polling: 1000 });
     await p.waitForTimeout(1500);
   };
-  const died = () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('oe3d-died-shibuya')); } catch (e) { return null; } });
+  const died = () => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('bh-died-shibuya')); } catch (e) { return null; } });
   const lose = () => p.evaluate(() => { const gl = document.getElementById('game-gl').getContext('webgl2'); window.__lc = gl.getExtension('WEBGL_lose_context'); window.__lc.loseContext(); });
   const restore = () => p.evaluate(() => window.__lc.restoreContext());
   const noteText = () => p.evaluate(() => { const n = document.querySelector('#game-stage .gl-note'); return n && !n.hidden ? n.textContent : ''; });
@@ -44,9 +44,9 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
   await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => window.OEQuality, null, { timeout: 120000 });
   const lv = await p.evaluate(() => {
-    const Q = window.OEQuality, t = Date.now(), at = notes => { for (const k of ['oe3d-died-shibuya', 'oe3d-held-shibuya']) localStorage.removeItem(k); for (const [k, v] of Object.entries(notes)) localStorage.setItem(k, JSON.stringify(v)); return Q.level(); };
-    const r = { lean: Q.lean(), map: document.documentElement.dataset.map, none: at({}), died2: at({ 'oe3d-died-shibuya': { n: 1, t, lv: 2 } }), held2: at({ 'oe3d-held-shibuya': { lv: 2, t } }),
-      held3: at({ 'oe3d-held-shibuya': { lv: 3, t } }), old: at({ 'oe3d-died-shibuya': { n: 1, t: t - 15 * 864e5, lv: 2 } }) };
+    const Q = window.OEQuality, t = Date.now(), at = notes => { for (const k of ['bh-died-shibuya', 'bh-held-shibuya']) localStorage.removeItem(k); for (const [k, v] of Object.entries(notes)) localStorage.setItem(k, JSON.stringify(v)); return Q.level(); };
+    const r = { lean: Q.lean(), map: document.documentElement.dataset.map, none: at({}), died2: at({ 'bh-died-shibuya': { n: 1, t, lv: 2 } }), held2: at({ 'bh-held-shibuya': { lv: 2, t } }),
+      held3: at({ 'bh-held-shibuya': { lv: 3, t } }), old: at({ 'bh-died-shibuya': { n: 1, t: t - 15 * 864e5, lv: 2 } }) };
     at({});
     return r;
   });
@@ -74,7 +74,7 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
   // 3. lost while the page is seen
   const errs0 = errors.length;
   await loaded();
-  await p.evaluate(() => { try { sessionStorage.removeItem('oe3d-gl-reload'); } catch (e) { /* storage blocked */ } window.__same = true; });
+  await p.evaluate(() => { try { sessionStorage.removeItem('bh-gl-reload'); } catch (e) { /* storage blocked */ } window.__same = true; });
   const lv1 = await p.evaluate(() => window.OEQuality.city().lighter);
   await lose();
   await p.waitForTimeout(300);
@@ -89,7 +89,7 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
   let room = '';
   for (let i = 0; i < 40 && !/Making room/.test(room); i++) { room = await p.evaluate(() => (document.getElementById('g-load-msg') || {}).textContent || '').catch(() => ''); await p.waitForTimeout(250); }
   const lv2 = await p.evaluate(() => window.OEQuality.city().lighter);
-  const first = await p.evaluate(() => { try { return Number(sessionStorage.getItem('oe3d-gl-reload')) > 0; } catch (e) { return false; } });
+  const first = await p.evaluate(() => { try { return Number(sessionStorage.getItem('bh-gl-reload')) > 0; } catch (e) { return false; } });
   check(/Making room/.test(room) && lv2 === Math.min(3, lv1 + 1), `the reload makes room ("${room.slice(0, 50)}") and loads level ${lv2} (was ${lv1}; the first load ${lv0})`);
   check(first, 'and knows it is a reload after a lost context (telemetry gl_reload)');
   await b.close();

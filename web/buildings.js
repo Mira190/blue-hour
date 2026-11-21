@@ -491,7 +491,7 @@ window.OEBuildings = (function () {
       const im = new Image();
       im.onload = () => res(im);
       im.onerror = () => res(null);
-      im.src = dir + t.file;
+      im.src = window.OEV ? window.OEV(dir + t.file) : dir + t.file;
     }));
     const lo = pics && pics.overview ? pics.overview.then(im => draw(scene.ground_lo, im)) : Promise.resolve(false);
     const draws = scene.ground.map((t, i) => lo.then(() => tiles[i]).then(im => draw(t, im))); // (each tile over the overview)

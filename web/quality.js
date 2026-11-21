@@ -13,7 +13,7 @@
 // The visitor can override the tier in About; the override is kept in localStorage.
 'use strict';
 window.OEQuality = (function () {
-  const KEY = 'oe3d-quality';
+  const KEY = 'bh-quality';
   const TIERS = {
     high: { tex: 4096, clouds: 4096, lights8k: true, samples: 4, hdr: true, prMax: 1.75, budget: 4.2e6, atmo: [14, 6], seg: 256, bloom: true },
     medium: { tex: 4096, clouds: 2048, lights8k: false, samples: 0, hdr: true, prMax: 1.5, budget: 2.4e6, atmo: [12, 5], seg: 192, bloom: true },
@@ -168,20 +168,20 @@ window.OEQuality = (function () {
   const DAYS = 14 * 864e5, START = 2, LIGHTEST = 3, TOP = START;
   const note = k => { try { const d = JSON.parse(localStorage.getItem(k)); return d && Date.now() - d.t < DAYS ? d : null; } catch (e) { return null; } };
   function died(id = mapId()) {
-    const d = id ? note(`oe3d-died-${id}`) : null;
+    const d = id ? note(`bh-died-${id}`) : null;
     return d && d.n > 0 ? d.n : 0;
   }
   // milliseconds since this map's page last died here (Infinity: never): a load straight after waits a moment
   // for the system to take the dead page's memory back (world.js load)
   function sinceDeath(id = mapId()) {
-    const d = id ? note(`oe3d-died-${id}`) : null;
+    const d = id ? note(`bh-died-${id}`) : null;
     return d && d.n > 0 ? Date.now() - d.t : Infinity;
   }
-  // a phone's level for this map (see above). oe3d-lv in localStorage sets it, for the tools
+  // a phone's level for this map (see above). bh-lv in localStorage sets it, for the tools
   function level(id = mapId()) {
-    try { const f = localStorage.getItem('oe3d-lv'); if (f != null && f !== '') return Math.max(0, Math.min(LIGHTEST, +f || 0)); } catch (e) { /* storage blocked */ }
+    try { const f = localStorage.getItem('bh-lv'); if (f != null && f !== '') return Math.max(0, Math.min(LIGHTEST, +f || 0)); } catch (e) { /* storage blocked */ }
     if (!id) return START;
-    const d = note(`oe3d-died-${id}`), h = note(`oe3d-held-${id}`);
+    const d = note(`bh-died-${id}`), h = note(`bh-held-${id}`);
     // (a death noted before pages wrote their level was at level 0 or 1, the sets of that time)
     const bad = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1;
     return Math.max(TOP, Math.min(LIGHTEST, Math.max(h && h.lv != null ? h.lv - 1 : START, bad + 1)));
@@ -191,8 +191,8 @@ window.OEQuality = (function () {
     const c = probe();
     if (!id || !lean(c)) return;
     try {
-      const lv = level(id), h = note(`oe3d-held-${id}`);
-      localStorage.setItem(`oe3d-held-${id}`, JSON.stringify({ lv: h && h.lv != null ? Math.min(h.lv, lv) : lv, t: Date.now() }));
+      const lv = level(id), h = note(`bh-held-${id}`);
+      localStorage.setItem(`bh-held-${id}`, JSON.stringify({ lv: h && h.lv != null ? Math.min(h.lv, lv) : lv, t: Date.now() }));
     } catch (e) { /* storage blocked */ }
   }
   // the page lost its WebGL context and reloads (glcare.js): on a phone, a death at the level it ran at, written as
@@ -202,8 +202,8 @@ window.OEQuality = (function () {
     const c = probe();
     if (!id || !lean(c)) return;
     try {
-      const d = note(`oe3d-died-${id}`), was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, now = city();
-      localStorage.setItem(`oe3d-died-${id}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: true, lv: Math.max(was, now.lean ? now.lighter : 0), gl: true }));
+      const d = note(`bh-died-${id}`), was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, now = city();
+      localStorage.setItem(`bh-died-${id}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: true, lv: Math.max(was, now.lean ? now.lighter : 0), gl: true }));
     } catch (e) { /* storage blocked */ }
   }
   // budget.map by level. (2, a phone's first: the middle distance kept to 1.1 km, since from the helicopter the

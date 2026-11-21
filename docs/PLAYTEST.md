@@ -14,7 +14,7 @@ session with a person is the same session each time and its notes can be set bes
 
 ## Before they start
 
-- A fresh profile or a private window: the story keeps a case left half way (`oe-story-late`), and a second
+- A fresh profile or a private window: the story keeps a case left half way (`bh-story-late`), and a second
   player must not inherit the first one's roll.
 - Sound on, headphones if they have them. The page at its address as a player would open it (no `?walk=1`,
   no `?preface=0`).

@@ -41,14 +41,14 @@ window.OEVis = (() => {
   function create(opt) {
     if (api.off || worker || !window.Worker || typeof DecompressionStream === 'undefined') return api;
     try {
-      worker = new Worker(new URL('visibility-worker.js', srcBase));
+      worker = new Worker(window.OEV ? window.OEV(new URL('visibility-worker.js', srcBase), true) : new URL('visibility-worker.js', srcBase));
     } catch (e) { worker = null; return api; }
     beams = opt.tier === 'low' ? 360 : 720;
     indoors = opt.solids ? footprints(opt.solids, opt.hidden) : () => false;
     const t = opt.terrain;
     worker.onmessage = onMessage;
     worker.onerror = () => { stop(); };
-    worker.postMessage({ init: { url: new URL(`${opt.packs || `data/${opt.city}/`}vis.bin`, document.baseURI).href,
+    worker.postMessage({ init: { url: (u => (window.OEV ? window.OEV(u) : u))(new URL(`${opt.packs || `data/${opt.city}/`}vis.bin`, document.baseURI).href),
       keep: opt.tier === 'low' ? 1 : 2, // (each shrunk copy is the raster's size and a third again: 24 MB for Shibuya)
       terrain: t ? { data: Float32Array.from(t.data), nx: t.nx, ny: t.ny, cell: t.cell, x0: t.x0, y1: t.y1 } : null } });
     return api;

@@ -21,7 +21,7 @@ const [w, h] = size.split('x').map(Number);
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--enable-precise-memory-info'] });
   const phone = w < 600;
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await ctx.addInitScript(on => {
     // the WebGL calls that block the main thread, timed where they are made
     const gl = window.__gl = { on, calls: {}, log: [] };

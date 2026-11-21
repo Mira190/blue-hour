@@ -12,7 +12,7 @@ const [,, out = '/tmp/file-shot'] = process.argv;
   for (const [w, h] of [[1440, 900], [390, 844]]) {
     const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: w < 500, isMobile: w < 500 });
     p.on('pageerror', e => console.log('pageerror:', String(e).slice(0, 300)));
-    await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'low'); } catch (e) { /* storage blocked */ } });
+    await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'low'); } catch (e) { /* storage blocked */ } });
     await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.waitForFunction(() => window.__game && window.__game.story && window.__game.story.state, null, { timeout: 900000, polling: 500 });
     await p.evaluate(() => {
