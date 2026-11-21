@@ -2149,9 +2149,9 @@ What was done (`web/game/atmosphere.js`, `web/lens.js`):
   their picture and distance from it and draw back into the scene's own target, whose colour is free once merged (its
   depth, attached there, is not read, so there is no feedback loop); the lens reads that onto the canvas. The same
   passes in the same order as before. `tools/fx_ab.js` draws a held frame both ways at frame 5's place: a near focus
-  identical to the pixel; a far focus and the motion blur differ by more than 4/255 on 0.016% and 0.004% of the frame
-  (the distance is a half float there: a tie between neighbouring samples on a far edge goes the other way); each way
-  drawn twice is identical to itself.
+  identical to the pixel; a far focus and the motion blur differ by more than 4/255 on at most 0.016% of the frame in two
+  runs (the distance is a half float there: a tie between neighbouring samples on a far edge goes the other way); each
+  way drawn twice is identical to itself.
 
 | Phone, frame 5's place (`mem_check.js`, `AT=521.9,-1074.1`) | Main | Now |
 |---|---|---|
