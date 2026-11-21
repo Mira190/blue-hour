@@ -1281,10 +1281,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     blendFrom(0.7, true); // (from the seat's eyes out to over your shoulder, not a cut)
     player.rig.root.visible = true;
   }
+  // The stop a ride has just set you down at offers no ride until you have walked out of it once, as a lift you have just
+  // stepped out of in a game does not ask you straight back in: the player is set down on the stop itself, and at
+  // SHIBUYA SKY 46F "Take the lift to Shibuya Scramble Square, street level" stood in the middle of a phone's screen the
+  // moment you were up, over the way on to the roof (the owner's phone, November 2026). liftLeft: { l, i }, or null
+  let liftLeft = null;
   function liftStop(x, y, z) {
     for (const l of lifts) for (let i = 0; i < l.stops.length; i++) {
-      const s = l.stops[i];
-      if (Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5) return { l, i };
+      const s = l.stops[i], at = Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5;
+      if (liftLeft && liftLeft.l === l && liftLeft.i === i) { if (at) continue; liftLeft = null; } // (out of it: it offers the ride again)
+      if (at) return { l, i };
     }
     return null;
   }
@@ -8401,6 +8407,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         player.speed = 0; player.vz = 0; player.ground = true;
         cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
         groundLod(player.x, player.y);
+        liftLeft = { l, i: to }; // (no ride offered back until you have walked out of the stop: liftStop)
         save();
       }]],
       onEnd: () => H.toast(`${b.name}.`) });
@@ -8441,6 +8448,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           player.speed = 0; player.vz = 0; player.ground = true;
           cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
           groundLod(player.x, player.y);
+          liftLeft = { l, i: to }; // (no ride offered back until you have walked out of the stop: liftStop)
           save();
         }],
         [0.88, () => { A.chime(); end(); }]],
@@ -8524,7 +8532,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       player.h += angDiff(Math.atan2(R.out[0], R.out[1]), player.h) * Math.min(1, dt * 4);
       if (k >= 1) { R.phase = 'open2'; R.t = 0; }
     } else if (R.phase === 'done') {
-      liftRide = null;
+      liftRide = null; liftLeft = { l: R.l, i: R.to }; // (no ride offered back until you have walked out of the stop: liftStop)
       if (R.b.face) player.h = Math.atan2(R.b.face[0], R.b.face[1]);
       player.mode = 'foot'; player.speed = 0; player.vz = 0; player.ground = true;
       cam.distTo = FOOT.dist; cam.yawTo = player.h;
