@@ -11,7 +11,7 @@ What the frame's camera sees, and so what is built here (the city's ground, soli
 are; the level is drawn over them, as the Scramble is):
 
   * the Ginza line's station (2020) overhead: its underside as built, a steel deck on cross girders every 3 m with
-    linear lights between them, the box girders along its edges clad in white panels; its piers as round steel
+    linear lights between them, (the edge girders' cladding and the station over them are hero_ginza.py's); its piers as round steel
     columns on granite collars with a flared head under the girders (the city's square piers stand inside them);
   * the ground of the east exit: the bus terminal's carriageways in clean asphalt with their gutters and flush granite
     kerbs, the plaza and pavements in grey blocks, the tactile lines OpenStreetMap maps, guard pipes and lamp posts
@@ -47,86 +47,22 @@ H.FRONTS.update({
     "w116806280": {"wall": "wall_cream", "ribbon": False},  # 渋谷パークサイド共同ビル
 })
 
-# The street's signs (issue 57). Up Meiji-dori from Miyamasuzaka-shita the photographs show fronts dense with tenant
-# signs: tall vertical signs standing out from the buildings' corners, a tenant to each panel floor by floor (Shibuya's
-# 袖看板, as city.py's tenant stacks round the crossing), lit boxes over the shops, and Toei Plaza's name high on its
-# face. The trades are typical and the tenants invented (city.py TENANTS); the one name is a building's own, set in an
-# open font, not its logo. Only the faces the frame looks at carry them, a few to a building: the photographs' street
-# is busy, but each sign is one a tenant put up, never a pattern laid over the wall.
+# The street's signs (issue 57; hero.py "the street's signs"): on the faces frame 5 looks at up Meiji-dori, as the
+# photographs show them (docs/HERO.md "Miyamasu"). The west side's fronts up the street (渋谷パークサイド共同ビル and the
+# slim towers beyond it) are within the Scramble level's reach and dressed by it, skip_front: their signs are in
+# hero.py's own SIGNED.
 SIGNED = {
-    "w120105804": {"blades": 3, "boxes": 3, "name": "渋谷東映プラザ"},   # 渋谷東映プラザ, the cinema and Bic Camera's block
+    "w120105804": {"blades": 4, "boxes": 4, "name": "渋谷東映プラザ"},   # 渋谷東映プラザ, the cinema and Bic Camera's block
     "w116806279": {"blades": 1, "boxes": 1},                            # FPG links SHIBUYA, closing the view
-    "w155749492": {"blades": 1, "boxes": 1},
+    "w155749492": {"blades": 2, "boxes": 2},
+    # the east side's mid-rises up the street, seen in the view up it and back down (tools/views/shibuya-miyamasu.json)
+    "w138589860": {"blades": 2, "boxes": 2},
+    "w123592007": {"blades": 1, "boxes": 1},
+    "w123592018": {"blades": 1, "boxes": 1},
+    "w355252205": {"boxes": 1},
+    "w120105789": {"blades": 1, "boxes": 1},
+    "w155797253": {"blades": 1, "boxes": 1},
 }
-# (the west side's fronts up the street, 渋谷パークサイド共同ビル and the towers beyond it, are within the Scramble level's
-# reach and dressed by it, skip_front: their signs are that level's to hang)
-STAND = (521.9, -1074.1)                 # the frame's standpoint (city.json frame 5 task.stand)
-BLADES, BOXES = 8, 6
-# the lit boxes over the shops: (words, ground, letters); invented, of the trades on such a street
-BOX_SIGNS = [("ドラッグストア", "#ffffff", "#0050a0"), ("らーめん 宮益", "#ffe600", "#c8000a"), ("CAFE  珈琲", "#3a2a20", "#f4e2c8"),
-             ("メガネ", "#ffffff", "#333333"), ("居酒屋  灯", "#1a1a1a", "#ffcf3a"), ("携帯  SHOP", "#e60012", "#ffffff")]
-
-
-def _city():
-    spec = importlib.util.spec_from_file_location("shibuya_city", os.path.join(HERE, "city.py"))
-    C = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(C)
-    return C
-
-
-def draw_blade(k):
-    """A tall sign's face: five or six tenants, one to a panel, set vertically (city.py's tenant stacks)."""
-    def draw(img, r):
-        from PIL import ImageDraw
-        C = _city()
-        x, y, w, h = r
-        d = ImageDraw.Draw(img)
-        rng = np.random.default_rng(5700 + k)
-        picks = [C.TENANTS[j] for j in rng.choice(len(C.TENANTS), int(rng.integers(5, 7)), replace=False)]
-        ph = h / len(picks)
-        d.rectangle([x, y, x + w - 1, y + h - 1], fill=(30, 30, 34))
-        for i, (txt, bg, fg) in enumerate(picks):
-            y0 = y + i * ph
-            d.rectangle([x + 2, y0 + 2, x + w - 3, y0 + ph - 2], fill=bg)
-            C.draw_vertical(d, txt, x + w / 2, y0 + 4, y0 + ph - 4, "rocknroll" if len(txt) > 3 or txt.isascii() else "mincho", fg, width=w - 8)
-    return draw
-
-
-BOX_H = 41                               # a lit box's face in the atlas: BOXES of them, one over another, in one cell
-
-
-def draw_boxes(img, r):
-    """The lit boxes' faces over the shops, one over another: each its words on its ground."""
-    from PIL import ImageDraw
-    C = _city()
-    x, y, w, _ = r
-    d = ImageDraw.Draw(img)
-    for k, (txt, bg, fg) in enumerate(BOX_SIGNS[:BOXES]):
-        y0 = y + k * BOX_H
-        d.rectangle([x, y0, x + w - 1, y0 + BOX_H - 2], fill=bg)
-        f, _ = C.fit_lines(d, [txt], "rocknroll", w - 16, BOX_H - 8, max_size=int(BOX_H * 0.68))
-        d.text((x + w / 2, y0 + BOX_H / 2), txt, font=f, fill=fg, anchor="mm")
-
-
-def box_uv(A, k):
-    """Box k's part of the boxes' cell, as Atlas.uv's corners (v up: the cell's top row is vb)."""
-    (ua, va), (ub, _), (_, vb), _ = A.uv("boxes")
-    f0, f1 = (k * BOX_H) / (BOXES * BOX_H), (k * BOX_H + BOX_H - 2) / (BOXES * BOX_H)
-    top, bot = vb + (va - vb) * f0, vb + (va - vb) * f1
-    return [(ua, bot), (ub, bot), (ub, top), (ua, top)]
-
-
-def draw_name(name):
-    """A building's name in lit letters on a dark band, as the street's office blocks carry theirs high up."""
-    def draw(img, r):
-        from PIL import ImageDraw
-        C = _city()
-        x, y, w, h = r
-        d = ImageDraw.Draw(img)
-        d.rectangle([x, y, x + w - 1, y + h - 1], fill=(26, 28, 32))
-        f, _ = C.fit_lines(d, [name], "rocknroll", w - 20, h - 8, max_size=int(h * 0.72))
-        d.text((x + w / 2, y + h / 2), name, font=f, fill=(246, 244, 236), anchor="mm")
-    return draw
 
 
 ID = "miyamasu"
@@ -134,7 +70,6 @@ CENTRE = (512.0, -1052.0)
 R = 50.0
 STATION = {"w810356690"}                 # the Ginza line's station over the east exit (pipeline/stations.py UNDERSIDE)
 GIRDER_EVERY, GIRDER_D, GIRDER_W = 3.0, 0.72, 0.42   # cross girders: spacing, depth under the deck, flange width (m)
-EDGE_D, EDGE_UP = 1.15, 1.4              # the edge box girders' cladding: below the deck, above it
 PIER_R, COLLAR_R, HEAD_R = 0.68, 0.8, 1.02   # a pier's shaft (round over the city's 0.9 m square one), its collar, its head
 
 
@@ -144,7 +79,6 @@ def materials():
         # the deck's underside and its girders: steel painted a warm pale grey, as Tokyo Metro's new stations are
         "steel_soffit": {"color": (0.36, 0.365, 0.37), "rough": 0.62, "metal": 0.1},
         "steel_girder": {"color": (0.48, 0.485, 0.49), "rough": 0.5, "metal": 0.15},
-        "clad_white": {"tex": "clad", "maps": "cn", "rough": 0.4, "metal": 0.3},
         "steel_pier": {"color": (0.56, 0.565, 0.57), "rough": 0.42, "metal": 0.2},
         "stone_collar": {"tex": "granite", "maps": "cn", "rough": 0.45},
         # the linear lights between the girders: on as dusk falls (hero.js lamp*), their light on the street baked
@@ -167,6 +101,7 @@ class Level(H.Level):
     # a solid stands on the ground when its underside is under 2.5 m: the station over the east exit does not, and the
     # ground under it is the bus terminal's, drawn
     standing = staticmethod(lambda s: s.get("base", 0) < 2.5)
+    SIGNED = SIGNED
 
     def __init__(self, K):
         from shapely.geometry import Point
@@ -189,14 +124,7 @@ class Level(H.Level):
             A.cell(f"room{k}", 124, 160, H.draw_room(700 + k, k % 5 != 0 and k % 3 != 0))
         for k in range(H.SHOPS):
             A.cell(f"shop{k}", 480, 256, H.draw_shop(k))
-        # the street's signs (issue 57), on the atlas's last shelf after the shops: no bigger an atlas on a phone
-        for k in range(BLADES):
-            A.cell(f"blade{k}", 44, 254, draw_blade(k))
-        A.cell("boxes", 176, BOXES * BOX_H, draw_boxes)
-        for osm, sp in SIGNED.items():
-            if sp.get("name"):
-                A.cell(f"name_{osm}", 360, 50, draw_name(sp["name"]))
-        self.signed = {}
+        self.sign_cells()                  # (the street's signs, issue 57: hero.py)
         self.carriageway()
         self.markings()
         self.pavements()
@@ -217,68 +145,6 @@ class Level(H.Level):
                 f[k] += alu[k]
             f["tri"] += [(a + n0, b + n0, c + n0) for a, b, c in alu["tri"]]
         return self.geo, self.A
-
-    def front(self, F, Ln, g, top, wall, rep, ribbon, rng, hung=()):
-        super().front(F, Ln, g, top, wall, rep, ribbon, rng, hung)
-        osm = (self.cur or {}).get("osm")
-        spec = SIGNED.get(osm)
-        if not spec or Ln < 4.0:
-            return
-        mid = (F.a + F.b) / 2
-        to = np.asarray(STAND) - mid
-        if to @ F.n < 0.3 * np.linalg.norm(to):        # only the faces the frame looks at
-            return
-        self.signs(osm, spec, F, Ln, g, top, hung)
-
-    def signs(self, osm, spec, F, Ln, g, top, hung):
-        """A front's signs (SIGNED): its name high on its longest face, lit boxes over its shops, and its tall
-        tenant signs standing out from an end of the face, read from up and down the street."""
-        G, A = self.geo, self.A
-        done = self.signed.setdefault(osm, {"blades": 0, "boxes": 0, "name": 0})
-        free = lambda u0, u1, z0, z1: not any(u0 < h[1] and u1 > h[0] and z0 < h[3] and z1 > h[2] for h in hung)
-        Hh = top - g
-        gf = 4.3 if Hh > 11 else 3.3
-        o = H.OUT
-        lit = lambda key, *P, uv=None: G.quad("glow_shop", *P, uv=uv or A.uv(key), emit=(A.mean[key], 1.0))
-        # the name, once, on a face long enough for it
-        if spec.get("name") and not done["name"] and Ln >= 12 and Hh > 16:
-            w = min(Ln * 0.6, 15.0)
-            h = w / 7.2
-            u0, z1 = (Ln - w) / 2, top - 1.4
-            if free(u0, u0 + w, z1 - h, z1):
-                PT.fbox(G, "wall_char", F, u0 - 0.15, u0 + w + 0.15, o, o + 0.2, z1 - h - 0.15, z1 + 0.15, faces=("front", "left", "right", "top", "bottom"))
-                lit(f"name_{osm}", F.P(u0, o + 0.205, z1 - h), F.P(u0 + w, o + 0.205, z1 - h), F.P(u0 + w, o + 0.205, z1), F.P(u0, o + 0.205, z1))
-                done["name"] = 1
-        # lit boxes on the band over the shops
-        z0, z1 = g + gf - 0.8, g + gf - 0.22
-        for u in (Ln * 0.28, Ln * 0.72):
-            if done["boxes"] >= spec.get("boxes", 0):
-                break
-            w = min(Ln * 0.38, 4.8)
-            a = u - w / 2
-            if w < 2.0 or not free(a, a + w, z0, z1):
-                continue
-            k = (len(self.signed) * 3 + done["boxes"]) % BOXES
-            PT.fbox(G, "wall_char", F, a, a + w, o, o + 0.16, z0, z1, faces=("front", "left", "right", "top", "bottom"))
-            lit("boxes", F.P(a + 0.04, o + 0.165, z0 + 0.04), F.P(a + w - 0.04, o + 0.165, z0 + 0.04), F.P(a + w - 0.04, o + 0.165, z1 - 0.04), F.P(a + 0.04, o + 0.165, z1 - 0.04), uv=box_uv(A, k))
-            done["boxes"] += 1
-        # the tall tenant signs, 0.9 m out from the wall at an end of the face, from over the shops' band
-        h = min(Hh - gf - 2.5, 16.0)
-        for u in (Ln - 0.9, 0.9):
-            if done["blades"] >= spec.get("blades", 0) or h < 5.0:
-                break
-            b0, b1 = g + gf + 0.4, g + gf + 0.4 + h
-            if not free(u - 0.3, u + 0.3, b0, b1):
-                continue
-            key = f"blade{(len(self.signed) * 2 + done['blades']) % BLADES}"
-            u0, u1, q0, q1 = u - 0.09, u + 0.09, o + 0.12, o + 1.02
-            PT.fbox(G, "metal_alu", F, u0, u1, o, q0, b0 + 0.6, b0 + 0.75, faces=("front", "left", "right", "top", "bottom"))   # its brackets
-            PT.fbox(G, "metal_alu", F, u0, u1, o, q0, b1 - 0.75, b1 - 0.6, faces=("front", "left", "right", "top", "bottom"))
-            PT.fbox(G, "wall_char", F, u0, u1, q0, q1, b0, b1, faces=("front", "top", "bottom"))
-            e = 0.005
-            lit(key, F.P(u0 - e, q0, b0), F.P(u0 - e, q1, b0), F.P(u0 - e, q1, b1), F.P(u0 - e, q0, b1))   # read from one way up the street
-            lit(key, F.P(u1 + e, q1, b0), F.P(u1 + e, q0, b0), F.P(u1 + e, q0, b1), F.P(u1 + e, q1, b1))   # and from the other
-            done["blades"] += 1
 
     def skip_front(self, s, poly):
         # the Scramble level's buildings (those within its reach of its centre) are its own to dress; the station
@@ -309,7 +175,7 @@ class Level(H.Level):
 
     def underside(self):
         """The deck seen from the street: a steel soffit on cross girders every 3 m across the station's width, a
-        linear light in every second bay, and the box girders along its edges clad in white panels. All of it hangs
+        linear light in every second bay. All of it hangs
         from the city's underside (pipeline/stations.py UNDERSIDE), a few centimetres in front of it."""
         from shapely.geometry import LineString, Point
         if not self.deck:
@@ -363,21 +229,8 @@ class Level(H.Level):
                     G.quad("lamp_soffit", q[0], q[3], q[2], q[1], uv=[(0, 0), (1, 0), (1, 1), (0, 1)], n=np.array([0.0, 0.0, -1.0]),
                            emit=((1.0, 0.94, 0.86), 30.0))
                     n_l += 1
-            # the edge girders, clad: white panels 1.8 m wide with an open joint, from the girders' foot to above the
-            # deck, standing 0.12 m out from the city's wall; their underside closed back to the soffit
-            ring = np.asarray(poly.exterior.coords)[:-1]
-            if poly.exterior.is_ccw:
-                ring = ring[::-1]
-            rep = self.K.TEXTURES["clad"][1]
-            for i in range(len(ring)):
-                a, b = ring[i], ring[(i + 1) % len(ring)]
-                Ln = float(np.linalg.norm(b - a))
-                mid = (a + b) / 2
-                if Ln < 1.5 or not reach.contains(Point(*mid)):
-                    continue
-                F = PT.Frame(b, a)
-                PT.fbox(G, "clad_white", F, -0.12, Ln + 0.12, 0.0, 0.12, zs - EDGE_D, zs + EDGE_UP, rep, faces=("front", "bottom", "top", "left", "right"))
-                G.walls.append((a, b, zs - EDGE_D, zs + EDGE_UP))
+            # (the edge girders' white cladding, and the station's walls and roof over them, are the Ginza line's own
+            # level: hero_ginza.py, fetched wherever the story walks)
         print(f"underside: {n_g} girders, {n_l} lights")
 
     def piers(self):
@@ -415,7 +268,7 @@ def build(K):
                            ("ground_kerb", "granite", (160, 160, 158)), ("ground_gutter", "conc", (152, 152, 150)),
                            ("wall_white", "tile", (192, 192, 188)), ("wall_cream", "tile", (190, 180, 164)), ("wall_grey", "clad", (158, 160, 162)),
                            ("wall_clad", "clad", (176, 180, 184)), ("wall_char", "clad", (62, 64, 68)),
-                           ("clad_white", "clad", (206, 208, 208)), ("stone_collar", "granite", (96, 96, 98))):
+                           ("stone_collar", "granite", (96, 96, 98))):
         M[mat]["tint"] = K.tint_to(key, srgb)
     meta = {"id": ID, "at": list(CENTRE), "r": R, "z": 16.0, "glb": f"hero/{ID}.glb", "bake_gain": 1.0, "cell": 24.0,
             "sky_rays": 20, "sky_reach": 9.0, "sky_strength": 1.0}
