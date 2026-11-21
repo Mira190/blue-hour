@@ -1832,8 +1832,7 @@ Sydney's traffic stood still a third of the time.
       - Each one waiting has a place of its own (`slotAt`). The crowd at a kerb stands
         in loose rows: the front row is the stripes' width and a pace past either
         edge, each row behind it 0.7 m further back. Every place is 0.9 m from any
-        other taken at that corner, about 1.4 people a square metre (each one's own
-        pace since issue 75, below). That is Fruin's
+        other taken at that corner, about 1.4 people a square metre. That is Fruin's
         comfortable waiting density (level of service C to D for queues: 0.7 to
         1 m² a person); a line in a queue keeps 0.6 to 0.9 m. A spot in the road is
         moved back from the kerb before it is moved sideways. A corner with no room
@@ -1891,8 +1890,8 @@ Sydney's traffic stood still a third of the time.
       for a mate more than 2.5 m behind, unless the crowd round it is thick: then
       it goes on with the flow, and a mate in a crowd never stands still in the
       way to keep its place. Mates do not see one another as in their
-      way. At a scramble a mate waits beside its leader along the kerb, 0.65 m
-      off (else a step behind; issue 75 below), steps out when it does, crosses beside it, waits for it on the far
+      way. At a scramble a mate waits beside its leader along the kerb, 0.85 m
+      off (else a step behind), steps out when it does, crosses beside it, waits for it on the far
       side if over first, and stands about the square with it in a ring, each
       turned to the others. Whichever of them reaches a scramble's kerb first
       brings the rest; the leader going off along a footway takes them along. A
@@ -1955,8 +1954,35 @@ Sydney's traffic stood still a third of the time.
       taken. Lingering and leaning as a street's people do: Whyte, *The Social
       Life of Small Urban Spaces* (1980), on people standing at edges and at
       objects rather than in the open.
-  - *A street, not a simulation* (November 2026, issues 85, 75 and 82: the crowd is in
-    every beat of the story, and three things made it read as a program).
+  - *The wait at a kerb* (November 2026, issue 75: in the episode's stills the front
+    row at a kerb stood ruled along its edge, one person every 0.6 to 0.7 m, all square
+    to the road; a photograph of the Scramble at a red light shows a ragged mass several
+    deep, people turned to each other and at their phones):
+    - **Each its own room.** A place at a kerb is kept from a stranger's by the mean of
+      the two's own room, each walker's from 0.8 to 1.25 m (`room`), and from one of its
+      own group by a shoulder's width (0.62 m, `MATE_NEAR`; the press keeps a group's own
+      0.55 m apart, strangers 0.68). From 0.72 m and 0.58 m, the densest kerbs held seven
+      in a 2 m circle for 20 s (`tools/crowd_spread.js`). All at one pace, 0.9 m, the places had packed into a
+      lattice.
+    - **A ragged front.** Each place is chosen by its distance from where the walker
+      comes, the front preferred by as much as that walker wants it (`keen`, 0.15 to 1.25
+      a metre of depth) and by a little left to chance; the front row stands 0.45 to
+      0.95 m behind the kerb's line.
+    - **Turned their own ways.** Each stands turned from square to the road by up to 25
+      degrees (`wf`, mostly less), and one waiting with its group turned a third of the
+      way to them.
+    - **At their phones.** Three in ten of the crowd, the right hand free, look at a
+      phone when they stand: the cast's `Phone` clip (Rocketbox's text message) with a
+      phone in the hand, put away while an umbrella is up.
+    - The traits come from each walker's place in the crowd, not from its random draws,
+      so the crowd's other draws are as they were.
+    - Measured with `tools/kerb_shape.js` (Shibuya at 17:41 by Hachiko, 150 s, the kerbs
+      with eight or more waiting while the walk is off): the spread of how each faces
+      from 5 to 24 degrees; the spread of the nearest neighbour's distance over its mean
+      from 0.34 to 0.56 (the mean 0.96 m before, 0.95 after); 14 waiting at a kerb
+      against 12, the crowd 6.6 m deep against 6.1.
+  - *Passing, not jamming* (November 2026, issues 85 and 82: the crowd is in every
+    beat of the story, and walkers met head on stood jammed for minutes).
     - **Passing head on (issue 85).** Walkers met head on on a footway stood jammed for
       minutes, groups among them: 13 standing within 1.5 m of one another for 200 s by
       Hachiko. The causes, found with `tools/crowd_spread.js` (its new `footway:` line)
@@ -2008,46 +2034,18 @@ Sydney's traffic stood still a third of the time.
         8 s without making half a metre, away from a kerb, a stop or a seat, or four
         so held 5 s within 1.5 m of one another (a knot), and prints the held one's
         last seconds and what held it.
-    - **Waiting as a photograph shows it (issue 75).** The crowd at a kerb stood in a
-      ruled line, a person every 0.6 to 0.9 m, all square to the road. Now each one has
-      a pace of its own, 0.85 to 1.25 m from the next (`paceOf`), so the gaps are
-      uneven; the front row stands anywhere from 0.45 to 0.85 m behind the kerb's
-      edge and the rows behind as ragged (drawn in towards the stripes' middle as
-      well, the band stood eight to a 2 m circle there, so it is not); a pair waits
-      shoulder to shoulder, 0.65 m apart, turned in to each other. Each one stands turned up to 25° from square
-      across the road. The near ones stood still are given something to do from the
-      cast's own clips (`waitPose`, `q.idle`, drawn by `people.js`): about a third at a
-      phone (the phone in the hand), one in seven looking about, and of a pair one
-      talking and the other listening; not under an umbrella. Those standing about
-      Hachiko's square are given the same. The density stays inside the clump check
-      (no more than six standing in a 2 m circle for more than six seconds).
-    - **Out of the lens's way (issue 82).** With the camera at a shoulder, someone of
-      the crowd walking a pace beside or in front of the lens filled a corner of a
-      phone's upright frame. As the talk camera keeps the crowd out of its shots, the
-      walkers now keep out of the lens's way: the renderer tells the crowd where the
-      lens stands and looks (`crowdRenderer().lens`), and a segment from it to a pace
-      and a half along its look is gone round as one of the people not of the crowd
-      is (footway walkers steer round it, never turning back from it; those crossing
-      or strolling the square are pushed gently off it; those stood waiting are left
-      where they are). Where a footway is too narrow to go round it (under the
-      viaduct by the station), whoever still comes within 2.6 m of the lens
-      dissolves, as games do with an NPC that close to the camera rather than
-      pop it out: whole at 2.6 m, gone at 0.8 m (within 0.55 m the game already stops
-      drawing whoever the lens is inside), cut by a dither fixed to the screen's
-      pixels, so nothing crawls or flickers while time is held (`rig.fade`, the
-      `uFade` every person's material takes in `litMaterial`, `people.js`).
-      It is on only for a camera on foot behind the player (within 9 m of them and
-      4.5 m over them), and nobody is put out of it at once. `tools/foot_cam.js` now
-      prints, for each walk, the most of the frame one of the crowd within 2.5 m of
-      the lens covered (`lensMax`) and the frames where one covered more than 6%
-      (`lensFrames`); none of its walks brought anyone that close, on main either, so
-      `tools/crowd_lens.js` sends walkers past the lens on two footways by the
-      Scramble and measures the same, as drawn. On a phone (390x844) at the station's
-      footway, on main someone covered up to 14 to 18% of the frame, more than 6% of it
-      for 48 to 150 frames of 14 s (the one walking on 2 to 2.5 m ahead of the lens
-      after passing it); here up to 11 to 12% (dissolving), over 6% for 0 to 28 frames.
-      By Hachiko the camera stands over the crowd and nobody came within 2.8 m on
-      either. On a desktop's wide frame nobody covered 6% on either.
+    - **Out of the lens's way (issue 82).** Who still comes near the lens dissolves
+      (docs/HERO.md, "someone at the lens"); as the talk camera keeps the crowd out of
+      its shots, the walkers also keep out of the lens's way, so that fewer need to:
+      the renderer tells the crowd where the lens stands and looks
+      (`crowdRenderer().lens`), and a segment from it to a pace and a half along its
+      look is steered round as one of the people not of the crowd is (footway walkers
+      never turn back from it; those crossing or strolling the square are pushed
+      gently off it; those stood waiting are left where they are). It is on only for a
+      camera on foot behind the player (within 9 m of them and 4.5 m over them), and
+      nobody is put out of it at once. `tools/crowd_lens.js` sends walkers past the
+      lens on two footways by the Scramble, you standing with the chase camera behind,
+      and measures the most of a phone's frame one within 2.5 m of the lens covers.
     - Research (ideas only, no code): Moussaïd, Helbing and Theraulaz, *How simple
       rules determine pedestrian behavior and crowd disasters* (PNAS 2011), on
       walkers turning the shoulder and sidestepping by the first body in their way;

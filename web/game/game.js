@@ -264,14 +264,25 @@ window.OpenEarthGame = async function game(cityId) {
   // ground gets pavers (stretcher bond, joints anti-aliased by their screen size, each paver its
   // own shade), roads a fine aggregate, the rest a fine grain; all of it fades out with distance,
   // so from the air the ground is the photograph.
+  // Round each hero level, out to ZONE_M past its circle, the ground is drawn from the street data and not from the
+  // aerial photograph, at every height a player reaches (issue 87; the shader below): the level's paving goes on in
+  // the same family of tones instead of meeting a blurred photograph at its edge. (x, -y in the world's frame, the
+  // zone's outer radius, on.) zoneTile(i): whether ground tile i lies under a zone, so its drawn streets stay on in
+  // the helicopter and from any height
+  const ZONE_M = 320, ZONE = { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) };
+  (G.hero || []).filter(h => h.at && h.r).slice(0, 8).forEach((h, k) => ZONE.value[k].set(h.at[0], -h.at[1], h.r + ZONE_M, 1));
+  if (U.uZone) U.uZone.value = ZONE.value; // (the roofs' photo too: buildings.js photoZone)
+  const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
     if (Wd.sea) Wd.sea.patchGround(sh); // the wet band and swash along the shore
     sh.uniforms.uStreet = m.material.userData.street = m.material.userData.street || { value: null };
     sh.uniforms.uStreetOn = m.material.userData.streetOn = m.material.userData.streetOn || { value: 0 };
+    sh.uniforms.uZone = ZONE;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn;
+varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8];
+#define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
@@ -290,6 +301,9 @@ vec2 pavers(vec2 p) {
 float camD = distance(vWP, cameraPosition);
 float near = 1.0 - smoothstep(12.0, 70.0, camD);
 float street = 1.0 - smoothstep(60.0, 420.0, camD); // street level, out to where the photo takes over
+// round a hero level (ZONE): how far the ground is drawn from the street data alone, whatever the height
+float zn = 0.0;
+for (int i = 0; i < 8; i++) zn = max(zn, uZone[i].w * (1.0 - smoothstep(uZone[i].z - 110.0, uZone[i].z, distance(vWP.xz, uZone[i].xy))));
 const vec3 LUM = vec3(0.2126, 0.7152, 0.0722);
 // the photo's baked shadows and blotches, flattened towards the ground around them
 float l0 = dot(texture2D(map, vMapUv).rgb, LUM), l4 = dot(texture2D(map, vMapUv, 4.0).rgb, LUM);
@@ -356,10 +370,30 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
   diffuseColor.rgb = mix(diffuseColor.rgb, st.rgb, k);
   roadway = k * smoothstep(0.12, 0.07, sl);           // asphalt (dark), not the footways and kerbs drawn beside it
   paved = mix(paved, 1.0 - roadway, k);
+  // Round a hero level the photograph is not the ground at any height (issue 87): from the air its blur, its baked
+  // shadows and the buses on its terminal read as wet blotches beside the level's crisp paving. There the ground is
+  // what the street data says it is, in the level's tones: asphalt, kerbs and footways as drawn, and between them
+  // paving of one tone. The drawn edges are taken back to a pixel's width where the drawing is magnified (from a
+  // car or on foot), so where one surface meets the next stays crisp
+  if (zn > 0.0) {
+    // (the drawing's colour without the black of its empty pixels, which a filtered edge takes in: no dark seam
+    // where a footway meets the paving of its own tone)
+    vec4 r0 = texture2D(uStreet, vMapUv);
+    // (and without the gaps filled from its blurred levels, which laid a soft band of asphalt over the paving)
+    vec4 sz = vec4(sRGBTransferEOTF(vec4(r0.rgb / max(r0.a, 0.02), 1.0)).rgb, r0.a);
+    float wa = fwidth(sz.a);
+    sz.a = mix(sz.a, smoothstep(0.5 - wa, 0.5 + wa, sz.a), smoothstep(0.02, 0.2, wa));
+    vec3 zc = mix(ZONE_PAVE, sz.rgb, sz.a);
+    diffuseColor.rgb = mix(diffuseColor.rgb, zc, zn);
+    float zr = sz.a * smoothstep(0.12, 0.07, dot(sz.rgb, LUM));
+    roadway = mix(roadway, zr, zn);
+    paved = mix(paved, 1.0 - zr, zn);
+    green *= 1.0 - zn;
+  }
 }
 // paving at the albedo it has, not the photo's near-white: a soft knee from 0.28
 float L = dot(diffuseColor.rgb, LUM);
-if (L > 0.28) diffuseColor.rgb *= mix(1.0, (0.28 + (L - 0.28) * 0.3) / L, street * mix(0.6, 1.0, paved));
+if (L > 0.28) diffuseColor.rgb *= mix(1.0, (0.28 + (L - 0.28) * 0.3) / L, max(street, zn) * mix(0.6, 1.0, paved));
 // pavers on paved ground, a fine aggregate on the roads, a grain on the rest
 vec2 pv = pavers(vWP.xz);
 float pnear = 1.0 - smoothstep(8.0, 32.0, camD);
@@ -367,7 +401,7 @@ diffuseColor.rgb *= mix(1.0, (0.9 + 0.14 * pv.y) * mix(0.7, 1.0, pv.x), paved * 
 float agg = vn(vWP.xz * 31.0) * 0.6 + vn(vWP.xz * 7.0) * 0.4;
 diffuseColor.rgb *= mix(1.0, 0.86 + 0.26 * agg, roadway * near${window.OESurface && OESurface.active ? ' * 0.3' : ''}); // (the scanned asphalt carries it near: surface.js)
 float grain = vn(vWP.xz * 2.7) * 0.55 + vn(vWP.xz * 9.0) * 0.3 + vn(vWP.xz * 0.6) * 0.15;
-diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * pnear));`);
+diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * pnear) * (1.0 - zn)); // (none round a hero level: tone the material does not explain)`);
     // photographed asphalt and paving at eye level (surface.js; not on the low tier)
     if (window.OESurface) OESurface.ground(sh, { road: 'roadway', paved: 'paved' });
     // in the rain: darker, glossier ground, and puddles on the roads and the paving (weather.js)
@@ -447,7 +481,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const ud = Wd.groundMeshes[i].material.userData;
       if (near && ud.street && !ud.street.value) ud.street.value = streetTexture(i);
       else if (d > 700 && ud.street && ud.street.value) { ud.street.value.dispose(); ud.street.value = null; } // (drawn again if you come back: 24 MB a tile)
-      if (ud.streetOn) ud.streetOn.value = near && player.mode !== 'heli' && !(ud.street && ud.street.value && ud.street.value.userData.pending) ? 1 : 0;
+      // (under a hero level's zone the drawn streets stay on from the helicopter too: the photograph is never that ground)
+      if (ud.streetOn) ud.streetOn.value = near && (player.mode !== 'heli' || zoneTile(i)) && !(ud.street && ud.street.value && ud.street.value.userData.pending) ? 1 : 0;
       Wd.groundMeshes[i].visible = !near;
     });
   }
@@ -1199,6 +1234,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // briskly while it is well out of your sight. The phone shows it coming as a ride app does: the
   // car on the map moving along its route to the pick-up, and the time it will take.
   const keepSign = KEEP === 'left' ? 1 : -1, kerbSeat = KEEP === 'left' ? 'rear_left' : 'rear_right';
+  // the seat you take in a ride: behind the driver's mate, on the kerb side; in a car with no back seat (the story sends your
+  // own two-seat supercar round), the front one beside the driver, on the kerb side too. (#94: it fell back to the driver's
+  // own seat, where the chauffeur sits, and you got in and out on the side of the traffic, in the lane beside the car.)
+  const rideSeat = o => (o.C.seats[kerbSeat] ? kerbSeat : o.C.seats.passenger ? 'passenger' : 'driver');
   const CARS_OK = !!(vlib && vlib.cars && Object.values(vlib.info.cars.models).some(m => m.seats));
   const carCfg = Object.assign({ model: 'Car_Super', colour: '#0b0d11', accent: '#d9a441', seat: '#6e4228' }, (G.vehicles || {}).car);
   if (vlib && vlib.info.cars && !vlib.info.cars.models[carCfg.model]) carCfg.model = 'Car_Hatch';
@@ -2192,7 +2231,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (ride) { ride.drv.leave(); ride.C.dispose(); } // the last one, still driving off
     ride = o;
     const walk = Math.hypot(o.pickup.x - player.x, o.pickup.y - player.y); // (the pick-up it was given, which may be across the street or round the corner)
-    H.toast(`<b>${o.name}</b> is on the way in a ${rideCar(o)}, ${o.plate}: about ${fmtSec(eta(o))}.${walk > 25 ? ` Meet at the pick-up point, ${Math.round(walk)} m from you.` : ''}`);
+    // (the story's car is sent by the story, whose goal has said it is coming: not a ride-hailing app's notice, with its
+    // make, plate and minutes, which frame 6 showed under the story's own line; only where it will stop, if that is not here)
+    if (dest && dest.id === 'story') { if (walk > 25) H.toast(`It will pull in at the kerb ${Math.round(walk)} m from you.`); }
+    else H.toast(`<b>${o.name}</b> is on the way in a ${rideCar(o)}, ${o.plate}: about ${fmtSec(eta(o))}.${walk > 25 ? ` Meet at the pick-up point, ${Math.round(walk)} m from you.` : ''}`);
     return true;
   }
   // the ride you got out of on the way (in the traffic), still stopped beside you: yours to get back
@@ -2217,7 +2259,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const o = ride;
     o.phase = 'boarding'; player.auto = null; player.speed = 0;
     player.mode = 'ride'; player.vehicle = o;
-    o.C.sit(player.rig, kerbSeat);
+    o.C.sit(player.rig, rideSeat(o));
     if (headlamp) o.C.carry(headlamp);
     const turn = Math.abs(angDiff(o.drv.st.h, cam.yaw));
     cam.mode = 'chase'; cam.dist = 8; cam.pitch = 0.24; cam.yaw = o.drv.st.h;
@@ -2282,7 +2324,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!o) return;
     if (player.mode === 'ride') {
       if (o.drv.st.v > 0.5) { H.toast('Wait until the car stops.'); return; }
-      if (!stepOut(o, kerbSeat)) { H.toast('No room to get out here.'); return; }
+      if (!stepOut(o, rideSeat(o))) { H.toast('No room to get out here.'); return; }
       o.inLane = o.phase === 'driving' && !o.drv.st.done; // (out on the way, held up in the traffic: it stands in its lane)
       if (o.phase === 'arrived') H.toast(`<b>${o.name}:</b> ${OEActors.pick(['Enjoy!', 'Have a good one.', 'Take care.', 'Thanks!'])}`);
       save();
@@ -4527,14 +4569,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     $('#g-touch').hidden = false;
     const pad = $('#gt-joy'), knob = $('#gt-knob');
     let jid = null, c0 = null;
-    on(pad, 'pointerdown', e => { jid = e.pointerId; c0 = [e.clientX, e.clientY]; pad.setPointerCapture(jid); A.start(); settleArrival(); });
+    on(pad, 'pointerdown', e => { jid = e.pointerId; c0 = [e.clientX, e.clientY]; pad.setPointerCapture(jid); pad.classList.add('on'); A.start(); settleArrival(); });
     on(pad, 'pointermove', e => {
       if (e.pointerId !== jid) return;
       let dx = (e.clientX - c0[0]) / 50, dy = (e.clientY - c0[1]) / 50;
       const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
       joy = { x: dx, y: -dy }; knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
     });
-    const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; };
+    const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; pad.classList.remove('on'); };
     on(pad, 'pointerup', end); on(pad, 'pointercancel', end);
     const hold = (id, down, up) => { on($(id), 'pointerdown', e => { e.preventDefault(); down(); }); on($(id), 'pointerup', up || (() => {})); on($(id), 'pointercancel', up || (() => {})); };
     hold('#gt-act', () => (dlg.open ? dlg.next(false) : interact()));
@@ -5722,7 +5764,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         stepOut(myCar, 'driver', [to.x, to.y, to.z]);
         if (park) { parkMyCar(park.pose); H.toast(`Your car is on the nearest street, ${fmtDist(Math.hypot(park.pose.x - to.x, park.pose.y - to.y))} away.`); }
       }
-      if (was === 'ride' && ride && player.mode === 'ride') { stepOut(ride, kerbSeat, [to.x, to.y, to.z]); rideAway(); }
+      if (was === 'ride' && ride && player.mode === 'ride') { stepOut(ride, rideSeat(ride), [to.x, to.y, to.z]); rideAway(); }
       [player.x, player.y, player.z] = [to.x, to.y, to.z];
       player.speed = 0; player.vz = 0; player.ground = true;
       if (to.face != null) player.h = to.face;
@@ -6298,7 +6340,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on($('#gm-reset'), 'click', () => {
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
     if (life) life.reset();
-    if ((player.mode === 'car' || player.mode === 'ride') && !stepOut(player.vehicle, player.mode === 'car' ? 'driver' : kerbSeat)) { player.vehicle.C.body.remove(player.rig.root); world.add(player.rig.root); player.rig.root.scale.setScalar(1); player.mode = 'foot'; player.vehicle = null; }
+    if ((player.mode === 'car' || player.mode === 'ride') && !stepOut(player.vehicle, player.mode === 'car' ? 'driver' : rideSeat(player.vehicle))) { player.vehicle.C.body.remove(player.rig.root); world.add(player.rig.root); player.rig.root.scale.setScalar(1); player.mode = 'foot'; player.vehicle = null; }
     if (ride) rideAway();
     goals.reset(); renderPassport(); spawn(); H.toast('A fresh start: a new passport.'); $('#g-menu').hidden = true;
   });
@@ -7280,8 +7322,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     const m = Math.min(1, Math.hypot(fwd, side));
     const run = k('ShiftLeft') || k('ShiftRight');
-    const target = m > 0.05 ? (fpOn ? GAIT.walk : run ? GAIT.sprint : player.walking ? GAIT.walk : GAIT.run) * m : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
-    gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
+    // (and with a stick, how far it is pushed is how fast you go: to three quarters of the way a walk, its pace with the push,
+    // and past that on to a run at the edge, so a phone needs no Run button. Pushed all the way, as a key is, a run)
+    const pace = GAIT.walk * Math.min(1, m / 0.75) + (GAIT.run - GAIT.walk) * Math.max(0, (m - 0.75) / 0.25);
+    const target = m > 0.05 ? (fpOn ? GAIT.walk * m : run ? GAIT.sprint * m : player.walking ? GAIT.walk * m : pace) : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
+    gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking || m < 0.75 ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
     player.speed += (target - player.speed) * Math.min(1, dt * (target > player.speed ? 6 : 10));
     if (m > 0.05) {
       let dir = cam.yaw + Math.atan2(side, fwd);
@@ -7494,6 +7539,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   let titleMustered = false;
   function updateCamera(dt, titleOn) {
+    OEPeople.setNear(-2, -1); // (nobody dissolved at the lens, unless the chase view on foot below says so: issue 82)
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
       camera.position.copy(flyCam.pos);
@@ -7702,6 +7748,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); // (a frame's own lens is given back when the finder's view ends)
       if (!shot) blendFrom(0.22);
     }
+    // (someone a pace beside the lens dissolved over its last metre, in the chase view on foot: people.js setNear, issue 82.
+    // Not in a talk's shot, a film, a scripted shot or the finder, whose framing is made with whoever is in it)
+    // (whole from 3.2 m, gone at 2 m, from the lens to the person's middle: with the eye 2.5 m up, nearer than 2 m a person
+    // is mostly under a phone's frame, and from 2 to 3 m their head and shoulders fill a corner of it. Its far edge 1.2 m
+    // short of you, so that a lens pulled in close by a wall never dissolves the one you play)
+    if (player.mode === 'foot' && cam.mode === 'chase' && !shot && !talkShot && !fpOn && !photo.on) {
+      const me = Math.hypot(camera.position.x - player.x, camera.position.y - player.z - 1, -camera.position.z - player.y), far = Math.min(3.2, me - 1.2);
+      if (far > 0.6) OEPeople.setNear(Math.max(0.3, Math.min(2, far - 1.2)), far);
+    }
     lensClear();
     Wd.fitShadow(live.look, live.half);
   }
@@ -7728,7 +7783,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       root.traverse(q => q.layers.disable(0)); lensHid.add(root);
     };
     for (const n of npcs) if (n.rig && n.rig.root) near(n.rig.root, n.x, n.y, n.z, 1.95, 0.62); // (a body's reach from its middle, 0.3 m, and the near plane's, 0.3)
-    for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, 0.62);
+    // (behind you, one of the story's people within a metre of the lens is not drawn either: an afterimage there, a pace off
+    // where frame 5's stand is, filled a phone's whole frame with his back. Not in a film or a talk, which frame them)
+    for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, film || talkShot ? 0.62 : 1.0);
     const gd = guideMade; if (gd && gd.root && !film) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75); // (in a film of him, he is what it is of)
     if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) || inShot(x, y))) crowdDraw.hide(i); }
   }
@@ -7904,8 +7961,29 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       return f;
     };
+    // a trunk or a lamp post at the lens. The probe above does not see them (nav.clearFraction: the buildings, the
+    // landmarks, the decks), and one between that is away from the lens is looked past, as a post is; but within 1.5 m of
+    // it a trunk filled half a phone's frame and hid you (the planters' trees round Hachiko, since the camera came down
+    // to the shoulder in issue 71): the camera comes in to stand in front of it, eased as for a wall
+    const postAtLens = (a, b) => {
+      if (!close || player.mode !== 'foot' || fpOn) return 1;
+      const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
+      if (L < 0.8) return 1;
+      let t = 1;
+      for (const q of postsNear(b.x, -b.z, 2.5)) {
+        if (q.kind !== 'tree' && q.kind !== 'lamp') continue; // (a planter's low rail and a queue belt are under the lens)
+        if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
+        const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
+        if (d2 > R * R || (1 - s) * L > 1.5) continue;
+        t = Math.min(t, Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L));
+      }
+      return t;
+    };
     // (riding a glass lift, the camera holds outside it, looking in through its glass: not pulled in by the shaft)
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && thin(a, b) ? 1 : f, g); };
+    // (a post is looked past only where it stands away from the lens: within 1.5 m of it, since the camera came down to the
+    // shoulder (issue 71), a trunk or a pole filled half a phone's frame and hid you behind it, at Hachiko and frame 7's
+    // corner; there the camera comes in past it, as for a wall)
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && thin(a, b) ? 1 : f, g); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
     // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
@@ -7932,7 +8010,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if (want.lift > cam.lift) { cam.lift = Math.min(want.lift, cam.lift + Math.min((want.lift - cam.lift) * dt * 4, dt * 0.8)); cam.liftHold = 0.6; }
     else if (want.lift > cam.lift - 0.01) cam.liftHold = 0.6;
     else if ((cam.liftHold -= dt) <= 0) cam.lift = Math.max(want.lift, cam.lift - Math.min((cam.lift - want.lift) * dt * 2, dt * 0.5));
-    const f = clear(camTarget, orbit(cam.lift, camPos)), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
+    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos)), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
     else cam.pull += pull < cam.pull ? -Math.min(cam.pull - pull, Math.max(dt * 2, (cam.pull - pull) * dt * 4)) : Math.min(pull - cam.pull, dt * 0.8);
     if (cam.pull < 1) camPos.lerpVectors(camTarget, camPos, cam.pull);
@@ -7982,11 +8060,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // round; the look comes back ahead when let go)
   const eye = new THREE.Vector3();
   function cabinView(dt, o, st) {
-    const seat = o === myCar ? 'driver' : kerbSeat, back = clockT - cam.lastInput > 1.2 ? Math.max(0, 1 - dt * 3) : 1;
+    const seat = o === myCar ? 'driver' : rideSeat(o), back = clockT - cam.lastInput > 1.2 ? Math.max(0, 1 - dt * 3) : 1;
     o.C.body.updateWorldMatrix(true, false); // where the car is this frame, not where it was last drawn
     // (from the back seat, leaning in towards the middle, as a passenger does to see the road between the front seats' headrests)
     const s0 = o.C.seats[seat];
-    o.C.body.localToWorld(seat === 'driver' ? eye.copy(s0).add(new THREE.Vector3(0, 0.7, 0.08)) : eye.set(s0.x * 0.3, s0.y + 0.66, s0.z + 0.12));
+    o.C.body.localToWorld(seat === 'driver' || seat === 'passenger' ? eye.copy(s0).add(new THREE.Vector3(0, 0.7, 0.08)) : eye.set(s0.x * 0.3, s0.y + 0.66, s0.z + 0.12));
     cam.yaw = st.h + angDiff(cam.yaw, st.h) * back;
     cam.pitch = 0.2 + (cam.pitch - 0.2) * back;
     const p = -(cam.pitch - 0.2) * 0.8 - 0.06;
@@ -8573,7 +8651,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
-     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
+     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
   return {
     stop() { if (window.OEMetro) OEMetro.close(); if (window.OEVis) OEVis.dispose(); keep(); if (fish && fish.api) fish.api.dispose(); running = false; ac.abort(); ro.disconnect(); care.dispose(); if (atmos) atmos.dispose(); if (weather) weather.dispose(); renderer.dispose(); Wd.dispose(); A.stop(); window.__game = null; },
   };

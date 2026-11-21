@@ -31,6 +31,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
 | A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
+| A level over the street, fetched by its height off the camera as well (`zr`) | `cities/shibuya/hero_skyroof.py`; below, "SKY STAGE" |
 
 ## How it works
 
@@ -41,6 +42,18 @@ go. Its glass and its recesses lie between its face and the city's wall. What th
 level draws again finely (Kabukicho's tenant stacks and fascias on Ichibangai) is built into landmark
 meshes of their own (`kbhero_*`, `cities/shinjuku/kabukicho.py` `in_hero`) and hidden while the level is
 shown (`game.hero[].hide`).
+
+**Its surroundings drawn from the street data, not the photograph** (issue 87). Past a level's circle the city's ground
+was the 1 m aerial photograph, and from the air (the story's flight, the helicopter, any camera past 140 m, where the
+drawn streets had faded out) its blur, the towers' shadows baked into it and the buses on the west exit's terminal read
+as wet blotches beside the level's crisp paving. Now, out to 320 m past each level's circle (fading over its last
+110 m), the ground shader in `game.js` takes no colour from the photograph at any height: asphalt, kerbs and footways
+are the drawn streets (`streetTexture`), between them is paving in the footways' tone, the drawing's edges are taken
+back to a pixel where it is magnified, and no grain is laid over it (`ZONE`, `zn`). The drawn streets of a tile under a
+zone stay on in the helicopter. Roofs and piers in the zone take none of the photograph either (`buildings.js`
+`photoZone`, `world.js` piers). It holds with any photograph the map is given. Its views: `tools/views/aerial-ground-87.json`.
+
+![Before and after, from 200 m over the station, by day and at dusk](images/hero/aerial-ground-87.jpg)
 
 **Streamed.** It is fetched when the camera comes within 260 m of its edge, shown within 420 m, and let go
 (geometry and textures freed) past 520 m. On the low tier (phones) every texture is halved before it is
@@ -440,6 +453,19 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
 - Stills: `tools/foot_cam.js` walks each frame's way at its hour and takes the same moment with the camera as it is
   and as it was, on a desktop and a phone. Frame 3's walk from Center Gai had climbed to 8 m over a wall at the old
   pose; at the new one someone crossed the line to the head for 0.6 s of a 4 s walk, and the lift went to 0.15.
+- Someone at the lens (issue 82). At a shoulder, someone of the crowd walking a pace or two in front of the lens and
+  to its side filled a corner of a phone's upright frame: not across the line to the head, so no lift, and not inside
+  the lens, so `lensClear` left them. As third-person games do with what comes close to the camera (screen-door
+  transparency: an ordered dither, as Unreal's dithered opacity masks and Unity's dither fades do it; the technique
+  only, no code), every person, whole or a far copy, and what they carry, is dissolved as they near the lens in a
+  fixed 4x4 Bayer pattern: whole at 3.2 m from the lens to their middle, gone at 2 m (`people.js` `setNear`; the
+  distance is the person's, worked out in the vertex shader from where they stand, so the whole of them goes at once,
+  not the head first; with the eye 2.5 m up, someone nearer than 2 m is mostly under a phone's frame, and from 2 to
+  3 m their head and shoulders fill a corner of it). `game.js` `updateCamera` sets the band for the chase view on foot only, its far edge 1.2 m
+  short of the one you play (a lens pulled in by a wall never dissolves you); a talk's, a film's, a scripted shot's
+  and the finder's framing is composed with whoever is in it, and there it is off. The pattern is fixed in the frame,
+  so held still nothing flickers. `tools/lens_near.js` puts one of the crowd at points of the frame near the lens
+  and takes it with the dissolve off, on, and five seconds of held time later.
 
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
@@ -601,6 +627,77 @@ is lower than the real 2F deck (7.7 m over 1F); the forecourt's striped planks w
 the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
 renderer only.
 
+## SKY STAGE: the roof frame 4 is played on (Shibuya, issue 72)
+
+Frame 4 of the story is played on the roof of Shibuya Scramble Square (the lift up, Kanbara at the glass, the find, the
+frame looking down on the scramble) and frame 5 lifts off from its pad. The roof was the city's landmark mesh in flat
+colours (`city.py` `sky_meshes`): pale tiles in two random tones, a grey block for GEO COMPASS under a small picture of
+its compass, nets as a coarse grid, a glass fence on posts; at 17:31 it read as a pale void with nothing on it to give
+the eye its size. It is now a hero level of its own, `cities/shibuya/hero_skyroof.py` (`python blender/build_hero.py
+--city shibuya --level skyroof`).
+
+**The place, from the research** (November 2026; sources below). SKY STAGE is about 2,500 m² open to the sky at
+229 m, walled in tall glass; the heliport is part of the roof's walk (Travel Watch's report from the opening, 2019),
+raised in its middle as GEO COMPASS, the highest point, whose floor points the way to far places; CLOUD HAMMOCK is
+nets to lie in over a bed of lawn; SKY EDGE is the corner over the scramble where the glass is lowest; CROSSING LIGHT is
+18 searchlights after dark; in the photographs the deck is dark grey, benches stand along the glass, and at night the
+roof is lit low, by lines of light at the glass's foot and under the steps, the city being the light. No plan with the
+furniture's dimensions is published: the deck's size and the channels are the city's (PLATEAU and OpenStreetMap,
+`sky_plan`), the pad is the landmark's 24 m square 2 m up, the paint is a heliport's (ICAO Annex 14's touchdown circle
+and H, the edge line), and the compass's places and bearings are the ones `city.py` `COMPASS_TO` already names.
+
+**What was built** (in the roof's frame, scene.json `landmarks.shibuya_sky`):
+
+- **The deck**: dark grey porcelain pavers 600 mm square in straight courses, 5 mm open joints over a dark slab, each
+  paver its own part of the stone (one tone, the stone's own speckle: no random tones), cut clean round the channels,
+  the pad and its steps; a 0.3 m slot drain of dark steel along the glass's foot.
+- **GEO COMPASS**: its top in a drawn picture (`skypad`, 2048 px over 24 m, about 1.2 cm a pixel): a dark non-slip coat
+  whose only grain is its aggregate's, the heliport's white edge line, yellow touchdown circle and white H, and round
+  them the compass (a white ring, its degrees, N, E, S and W at true north, a gold line to each far place with its
+  name and distance set beside it, each name in the first place along its line clear of the others: Mt Fuji, Osaka,
+  Kyoto and Hong Kong lie within 14° of one another). The paint stands half a millimetre proud in the normal map and
+  is a little smoother than the coat. A stainless coping round the edge; the sides in dark metal panels 1.2 m wide
+  over a reveal; green flush lights round the edge, as a heliport has. The steps up each side in the deck's stone
+  with a pale honed nosing and a line of light in the shadow under each.
+- **The glass**: frameless panes 1.5 m wide and 2 m high on a dark aluminium shoe, a slim stainless cap, and in the
+  shoe's face toward the deck a line of warm light, baked onto the deck after dark (its face held low, 0.5, so it
+  glows instead of drawing a white bar). Where the channels run out and at SKY EDGE the city's lower glass stays.
+- **CLOUD HAMMOCK**: the landmark's three, at its places and its net's sag (the poses lie in it): a bed of short
+  artificial lawn in a timber kerb, four dark steel posts and rails at 0.9 m, and the net as white ropes 12 cm apart.
+- **Benches**: 3 m of oiled timber slats on dark flat steel, 1 m in from the glass wherever its foot is clear of the
+  searchlights, the nets, the channels' ends and the steps (twelve).
+- **CROSSING LIGHT**: at each of the landmark's 18 points (the beams `lights.js` throws) a plinth, a turntable, a yoke
+  and a finned drum tilted 20° out over the city, its lens lit after dark (`lamp*`).
+- **The escalators' heads**: a stainless landing plate and a yellow line before each.
+
+46,000 triangles, 3.0 MB (the granite is the Scramble's, held once); no fine model. While it is shown it hides the
+landmark meshes it draws again (`sky_deck`, `sky_deck_light`, `sky_glass`, `sky_steel_dark`, `sky_compass_atlas`,
+`sky_steps_deck_light`, `sky_net`, `sky_lit_lamp`); the channels, the escalators and the stairs stay the landmark's,
+and so does the walking: the level is drawn 5 cm over the deck's solids.
+
+**The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
+the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
+with a fine line along the parapet), drawn 0.3 m outside the tower's walls up to the deck, seen through the glass. A
+tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) now has no crown.
+
+**Only near, in height too.** The roof stands within 80 m in plan of frame 5's place at the tower's foot, and a level
+was fetched by its distance in plan. `hero.js` now takes a level's `zr` (its half-height about its `z`): the camera's
+height off it is counted as well (`d = hypot(max(0, plan), dz)`), and the opening's anchor, which is a point on the
+ground, does not fetch it. SKY STAGE is fetched once the camera is within 110 m of it (a third of the way up in SKY
+GATE's lift), shown within 120 m, and let go past 160 m: on the flight down in frame 5, never from the street.
+
+Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY's pages (shibuya-scramble-square.com/sky/:
+the zones SKY STAGE, SKY EDGE, CLOUD HAMMOCK, GEO COMPASS, CROSSING LIGHT; about 2,500 m²); Travel Watch (Impress),
+the opening's report, 2019 (travel.watch.impress.co.jp, docs 1214943: the heliport within the roof's walk, the glass
+round it, photographs 16 to 19); nippon.com's guide (gu900265) and Go Tokyo (gotokyo.org, 191015); ICAO Annex 14 vol. II
+(heliports: the touchdown/positioning circle, the H, the TLOF and FATO edge markings). Photographs on Wikimedia Commons
+of SKY STAGE, 2019-2024, looked at for the deck's tone, the glass and the benches.
+
+Where it still falls short: the furniture's sizes and places are read from photographs and the landmark's plan, not
+measured; whether the heliport's paint is the H and circle drawn here, or the compass alone, could not be settled from
+the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
+there; and it has been seen on a software renderer only.
+
 ## Scramble Square's curtain wall (Shibuya)
 
 The owner's ask (November 2026): the building the story climbs should be the real one. The city drew Shibuya Scramble
@@ -623,19 +720,60 @@ What the research found (sources below):
   side of the 550 m² LED screen that faces the crossing (Panasonic). No elevation or dimension of it is published.
 
 **What was built** (`cities/shibuya/hero_scramblesq.py`, `python blender/build_hero.py --city shibuya --level
-scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 92 triangles in one
-material (`win_scrsq`: hero.js win*, the glass mirroring the sky by day, the offices lit after dark) on a tile drawn
-here, 12 m across and eight office storeys high: each 1.5 m pane its own tone within a few percent and its own small
-tilt in the normal map (the tilt is the cause of the tone), the mullions as ribs, every second heavier, the joints
-stepping 0.75 m at each floor, the spandrel recessed and fritted, the frit thinning up each pane; after dark a ceiling's
-light in each lit bay, floors lit or dark as a working evening leaves them. The shop floors take the same tile at
-their 5.4 m storeys. Fetched anywhere in the story's streets (load_m 900): 0.21 MB, three 512 by 1536 pictures (two on
-a phone, halved). The ground floor round SKY's lobby is left to the lobby's own level.
+scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street to the roof's deck, 62 triangles in one
+material (`win_scrsq`: hero.js win*, the glass mirroring the sky) on a tile drawn here, 12 m across and eight office
+storeys high: each 1.5 m pane its own tone within a few percent and its own small tilt in the normal map (the tilt is
+the cause of the tone), the mullions as ribs, every second heavier, the joints stepping 0.75 m at each floor, the
+spandrel recessed and fritted, the frit thinning up each pane. The shop floors take the same tile at their 5.4 m
+storeys. The tower's wing outside its ring (PLATEAU's slab on the west, over the crossing, from the street to 218 m)
+takes the same skin, its faces against the tower left out: drawn as the city's generic wall, it was the face the
+crossing and the flight see, dark among lit floors. Fetched anywhere in the story's streets (load_m 900): 0.04 MB, the
+tile's colour, normal and roughness pictures (the colour alone on a phone, at a quarter). The ground floor round SKY's
+lobby is left to the lobby's own level.
 
-**Not built, and why**: the north face's concave sweep, the LED screen and the overhang over the Urban Core (with its
-faceted mirror-metal ceiling and lit slots over the forecourt) need the tower's solids cut below 15F to a measured
-shape, which nobody publishes; drawn from the photographs alone it would be a guess at the largest thing in the frame.
-It waits in issue 66 with the plans and photographs gathered here.
+### Its floors after dark
+
+The owner's ask (November 2026, from a phone's still of the flight): the tower read as a dark block among lit ones; each
+storey should have a real interior's light, as the city's other buildings do. On seeing the first passes: the rooms
+should be plain, not busy, and the tower's light one family, not cool offices over warm shop floors. Before, the tile
+carried an emissive picture of lit bays, eight storeys of it repeated up the tower, flat and without depth; on a phone it
+did not show at all.
+
+Now the page draws the storeys (`web/interior.js` offices, called by `web/game/hero.js` for a win* material whose level
+has `offices` in game.json; `hero_scramblesq.py` offices() writes it). Each storey is a room the eye's ray is traced
+into, as the city's own windows are (`buildings.js`, interior mapping: Joost van Dongen, "Interior Mapping", CGI 2008;
+the same idea as Unreal's InteriorCubemap and the cities of recent open-world games, which draw a room behind a pane
+without a model of it; ideas only, no code taken). A storey is open along the facade, so a ray through one pane can end
+deeper in the next. Every storey is the same plain room: an evenly lit floor, a white ceiling with unbroken rows of
+line luminaires along the glass (3.2 m apart in the offices, the system ceilings of Japanese offices; 2.4 m in the
+halls), the core's wall at the back (15 m in), and the plenum over the ceiling dark. The shops to 11F and SKY's counter
+on 14F, the restaurants on 12F and 13F, the sky lobby on 17F and SKY GALLERY on 45F and 46F differ only in their height
+and depth, the tone of their floor and how bright they are (shops a little brighter, the restaurants lower, the gallery
+dim for the view out); the plant over it is dark.
+
+What was tried and taken out, and why (the AAA read of a hero tower at night: one silhouette with one light, its storeys
+told apart by value and rhythm, never by hue; colour and detail are kept for the street, the signs and the screens):
+
+- desks, monitors, chairs, partitions and doors: through the glass, at the distances the story sees the tower from,
+  they read as clutter;
+- warm shop and restaurant floors (3000 K and 2700 K under 4500 K offices): two buildings stacked, not one;
+- lighting zones along a floor, a dark zone beside a lit one: seen into the room at a slant the edge read as a cut, and
+  softened, as a smudge. A storey is lit whole or dark;
+- the shops' downlights in a grid and the restaurants' pendants: from outside, a field of bright dots; and blinds
+  lowered here and there: pale patches. Every storey has the same unbroken lines of light instead;
+- the rows of light deep in a room at a graze, filtered by a guess at their footprint: they broke into dots. They are
+  filtered over the pixel's own neighbours (`fwidth` of where the ray ends) and settle into an even glow.
+
+So: one neutral cool white (about 4500 K, the city's offices' and the night's blue) on every storey. Each storey is lit
+by its use's hours: offices empty through the evening as the city's do (buildings.js occupancy, the tower a little
+busier: `busy` 1.15), each lit storey a little brighter or dimmer than the next; shops until 21:00, the restaurants
+until 23:00, the gallery until 22:30, the sky lobby until midnight. The glass in front is the tile's own, drawn again in the same
+places: no light through the spandrel or a mullion (stepping along at each storey as the tile steps them), less through
+the frit and a haze of the room's light on it. Farther off the room settles to its mean, and where a storey is under a
+pixel or two its light to the share lit, so a far tower keeps its tone and does not sparkle. The same shader on every
+tier.
+
+**Its base (issue 66)** is in the next section.
 
 Sources: nikken.co.jp (Shibuya Scramble Square, first phase), kkaa.co.jp (the project page), data.shinkenchiku.online
 (SK 2019-12), designboom 2021-05-04, gooood.cn, komaihaltec.co.jp (vol10_2-2.pdf), ibecs.or.jp (CASBEE
@@ -646,6 +784,106 @@ Shibuya Station 191129a (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Scramb
 CC0); Hikarie and Shibuya scramble square buildings, 2025-06 (Nesnad, CC BY 4.0); Shibuya Scramble Square building,
 taken from Shibuya Stream, 2022-06 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance, 2019-12 (Wpcpey, CC BY 4.0);
 Shibuya Scramble Square 191101a1 (江戸村のとくぞう, CC BY-SA 4.0).
+
+## Scramble Square's base: the skirts, the screen and the overhang (issue 66)
+
+The city stood the tower straight down to the street. The real north face, the one the crossing, Miyamasuzaka-shita and
+Hikarie look at, is straight from the roof to 15F and below it carries the Urban Core's "くぼみ": a stepped void seen from
+the plaza over the Ginza line, behind two glass skirts that flare out of the face as they come down, with the screen
+between them and the floors 2F to 4F carried out over the forecourt in front of SKY's street lift.
+
+**What the research found** (November 2026). No elevation, section or dimension of the base is published online. The
+2013 urban-plan drawings (都市再生特別地区 渋谷駅街区: 計画図, 壁面の位置) are not online; Shibuya City's urban-planning section
+shows them only at the ward office. The 2012-13 environmental assessment is no longer online either (the developer
+asked for its web publication to end). What there is:
+
+- Shibuya City's design council summary for the east building (渋谷駅中心地区デザイン会議, "東口アーバン・コア"): the recess
+  was carved so that the Urban Core is seen from the plaza over the Ginza line, "a stepped void cut from underground to
+  the upper floors, with stacked soffits"; its renders show a skirt sweeping from the Skyway deck at 4F up to the corner
+  at about 15F, and a lower glass lobe at the other end. Its corners are to differ, the north-west one, toward Hachiko,
+  "large and distinctive".
+- Tokyo's environmental assessment change notice of July 2025 (変更届, 渋谷駅街区開発事業): ground level T.P.+15.5 m, the
+  east building GL+230 m (約), a 1:2000 site plan and an east-west section (schematic: no recess drawn); Shibuya City's
+  district page: the height limits (GL+230, 80, 65 and 35 m).
+- Elevator Journal 28: the escalators' rises, so the storeys over 1F: 2F 7.7 m, 3F 13.3, 4F 19.3, 5F 25.0, 6F 30.0,
+  7F 35.0, 8F 40.0, 9F 45.0, 10F 50.5, 11F 55.5, 12F 60.5, 13F 65.9, 14F 71.3, 15F 76.5, 17F 84.0.
+- The screen: Shibuya Scramble Square Vision (Panasonic LS Engineering, August 2019): LEDs behind the windows, the
+  mullions' width of pixels skipped so the picture is not stretched, 16 mm pitch, about 550 m2, "irregular"; Tokyu OOH's
+  sheet gives 552.6 m2 in a box 40.05 by 25.24 m. The box was entered in city.py as 25.24 wide and 40.05 high; the
+  photographs show it wider than high, so it is 40.05 wide.
+- KKAA and secondary sources: the lower volume "carved out at the Urban Core", an organic curtain wall carrying
+  aluminium fins 250, 400 and 550 mm deep, graded across it.
+
+**How it was measured.** The face is 59.3 m from the west slab's north-west corner (PLATEAU's slab over the crossing,
+whose north edge and the tower's are one straight line) to the tower's north-east corner, on OpenStreetMap's footprint.
+The edges were read off a near-frontal photograph from the north ("Shibuya Scramble Square-1", 2019-01, the north face
+bare before the screen went in), where the skirt stands on the right, the west (a first reading put it on the left, and
+the stills from Miyamasuzaka-shita beside "Shibuya Station 191129a" showed the mirror image): the skirt's top at 15F and its big terrace at 4F give the storey scale (eleven storeys
+of 52 to 60 px between them), the face's width the scale across (595 px), so each edge point is a share of the width at
+a counted storey. Then checked from Miyamasuzaka-shita ("Shibuya Station 191129a", 2019-11; "宮益坂下交差点 ...
+IMG 0569", 2026-02, at night): the screen's top straight across about 44 m up, its foot hidden behind the Ginza line's
+roof, its lower left cut by the tent and its right by the skirt; and against the screen's published box, which fits
+between the skirt's edge at its top and the tent.
+
+| Part | Measure | Uncertainty |
+|---|---|---|
+| North-west skirt | from 15F (76.5 m) down to 4F (19.3 m); its east edge on the face, measured from the north-east corner, at 53.5 m at 15F, 52.4 at 61 m, 46.8 at 43 m, 42.6 at 29 m, 38.7 at 4F (so 21 m in from the north-west corner at its foot) | +-1.5 m along, +-1 storey |
+| Its flare | 6.5 m out of the face at the corner at 4F, growing as (depth below 15F)^1.6; it stops at the west face's line | +-2 m: the least certain number, seen edge-on in no photograph |
+| North-east tent | 4F to a point at 38 m, its foot from the north-east corner to 17.7 m along, 4 m out at its ridge, over the Urban Core | +-2 m up, +-1.5 m out |
+| Screen | 40.05 x 25.24 m box from 4F, its west side 47.3 m from the north-east corner; its outline (847 m2) the windows' between the tent and the skirt, stepping by storey; 552.6 m2 of it LEDs (the rest the windows' frames and the slabs) | the box published; the outline +-1 storey at each step |
+| Overhang | 2F (7.7 m) to 4F, 6.5 m out from the north-east corner (the east face's line, past which SKY's hall and lift stand) to 17.4 m along, then on an S back to the face at 35 m; a slot of sky left to the Ginza line's station; kept clear of SKY's street hall, its canopy and the way to its doors (4.6 m either side of the hall's axis, from 6 m in front of its doors to past its shaft), since its edge ran through the lift's door point, where a walker is stood on the highest floor | +-2 m out |
+| Forecourt ceiling | from 5.6 m over 1F at the shop fronts up to 7.35 m at the overhang's edge | read off the photograph at the entrance, +-0.5 m |
+
+**What was built**:
+
+- **The solids** (`cities/shibuya/scrsq_base.py`, run after `pipeline/lobby.py`, then `pipeline/pack.py`): the flares
+  as new solids of the tower's building, one a storey band from 4F to 15F and one for the overhang, each the outline at
+  its band's top (so the glass drawn through the outlines stands outside it), all passages (an underside, no posts),
+  half a metre clear of every other building's solid (the Ginza line's station, the station's concourse); every solid
+  keeps its index, and running the pass again rewrites them in place. The tower's own solids are untouched: its roof
+  is SHIBUYA SKY's deck, its curtain wall and rooms are built on them.
+- **The glass** (`hero_scramblesq.py` `base_glass`): the north-west skirt and the north-east tent as smooth surfaces
+  through their outlines, three rows a storey, in the tower's own glass (its offices traced behind it after dark, its
+  joints running down the trumpet in diagonals as its girth grows), with aluminium fins along them, 250 mm deep at the
+  skirt's edge to 550 mm at the corner; the skirt's side in the west face's plane; their undersides at 4F; the
+  overhang's walls in the same skin. 3,600 triangles in all, 0.12 MB.
+- **The screen** (city.py `CROSSING_SCREENS`, built by `pipeline/landmarks.py`): on the north face's line, its box as
+  published, its parts the outline's rows (`scrsq_base.screen_parts`).
+- **The forecourt's ceiling** (`hero_skylobby.py` `soffit`): under the overhang, long facets of mirror-polished steel
+  0.34 m wide and 1.6 to 4.8 m long, laid at 32 degrees to the face, each tipped a few degrees about its long axis (the
+  cause of each one's tone) in two finishes a shade apart, on a dark backing; a slot of blue-white light under one joint
+  in seven (as the photograph at dusk, and the joints' lines in the planks under it); a fascia at the edge up to the
+  overhang's underside. 1,000 triangles.
+
+Stills: `tools/views/scrsq-base-66.json` (`tools/game_shot.js`): from Hachiko, Miyamasuzaka-shita, the deck to Hikarie,
+the forecourt and under its ceiling, and the face from the north, at dusk and at night, on a desktop and a phone.
+
+![The base from the north at dusk, from Miyamasuzaka-shita at night, from the deck to Hikarie, under the forecourt's ceiling at night, the forecourt, and Hachiko](images/shibuya/scrsq-base-66-desktop.jpg)
+
+![The same on a phone (390 x 844)](images/shibuya/scrsq-base-66-phone.jpg)
+
+**Where it still falls short**: the skirts' depth and the tent are measured from photographs, not drawn from plans
+(above); the skirt's lowest band, 4F to 5F, is clipped where the station's concourse blocks stand by the north-west
+corner (its glass is drawn whole, through their roofs); the overhang and its ceiling stop short of SKY's hall, which in
+the photographs stands under them; the Urban Core's stepped void behind the glass (the stacked floors seen through it) is the offices'
+traced rooms, not the void; the Skyway's deck at 4F along the face, and the Ginza line's station in front (a white box
+with glass bands under an M-shaped roof, drawn with the city's generic office wall; issue 66's comment) are not
+modelled here; it has been seen on a software renderer only.
+
+Sources (looked at, none reproduced, no texture taken): files.city.shibuya.tokyo.jp (渋谷駅中心地区デザイン会議 協議内容,
+the east building: municipal publication, the developers' copyright); kankyo.metro.tokyo.lg.jp and
+assess-toshokohyo.metro.tokyo.lg.jp (環境影響評価 変更届, 渋谷駅街区開発事業, 2025-07: public filing, for viewing);
+city.shibuya.tokyo.jp (都市再生特別地区 概要); n-elekyo.or.jp (Elevator Journal 28); www2.panasonic.biz (Shibuya SS Vision,
+the works page and its PDF); w0w.co.jp (the screen's opening programme, 2020); shibuya-scramble-square.com (the 2014
+construction release); ja.wikipedia.org (渋谷スクランブルスクエア, CC BY-SA). Photographs (Wikimedia Commons, compared,
+none reproduced): Shibuya Scramble Square-1, 2019-01-26 (江戸村のとくぞう, CC BY-SA 4.0); Shibuya Station 191129a,
+2019-11-29 (江戸村のとくぞう, CC BY-SA 4.0); 宮益坂下交差点 2026年2月19日の渋谷 202602191904 IMG 0569 (ウィ貴公子, CC BY-SA
+4.0); SHIBUYA SCRAMBLE SQUARE East Tower, 2023-05-05 (Sakura Torch, CC BY-SA 4.0); Shibuya Scramble Square 191101a,
+2019-11-01 (江戸村のとくぞう, CC BY-SA 4.0); Hikarie and Shibuya scramble square buildings 2025 June 15 (Nesnad, CC BY 4.0);
+Shibuya Scramble Square, seen from Hikarie (23784), 2025-03-11 (Syced, CC0); Shibuya Scramble Square Level 1 Entrance
+2019, 2019-12 (Wpcpey, CC BY 4.0); Shibuya scramble square from in front of Shibuya Station - Oct 28 2019 (Nesnad, CC BY
+4.0); 渋谷スクランブル交差点 2026年11月5日の渋谷 202611051900 IMG 8322 (ウィ貴公子, CC BY-SA 4.0). Page:
+https://commons.wikimedia.org/wiki/File: and the title.
 
 ## Only what the first frame sees (issue 358)
 

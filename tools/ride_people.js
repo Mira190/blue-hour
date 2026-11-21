@@ -8,6 +8,8 @@
 // PIN=n: the skip's case (#50): once the ride is under way, n of the crowd are held standing where the car would stand at
 // its stop (pulled in to the kerb, off its way's line) and the trip is skipped (F); they are let go when it is set down.
 // A set-down on them fails as any overlap does.
+// SIDE=road: you stand to get in off the car's road-side flank, in the lane beside it, as before #94 (default: by the kerb
+// seat's door). PASS=1: that stand made when a car of the traffic is passing over it (#94's failure, made to happen).
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
@@ -82,6 +84,21 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       W.pinned = W.pin.at.length;
       return { pinned: W.pinned, stop: W.pin.stop, offLine: W.pin.offLine };
     };
+    // where you stand to get in: beside the door of the seat the ride gives you, on the kerb side (game.js rideSeat and
+    // doorAt). (#94, and 0f1d8d8 on its own: it stood you 2.4 m off the car's other flank, in the lane of the traffic beside
+    // it, and in some runs a car of the traffic was passing there as you were put down: counted in you for the one frame before the
+    // traffic's step moved you out of it.) SIDE=road stands you off the other flank, as it was. PASS=1 makes that case
+    // happen: the world stepped on (up to 240 s) until a car of the traffic is passing over the spot, you put down there
+    // then and the frame tested before the world moves, as a frame of the page's is that the world did not move in.
+    window.__rpBoard = (side, pass) => {
+      const r = g.ride(), st = r.drv.st, C = r.C, seat = C.seats[g.rideSeat(r)], fx = Math.sin(st.h), fy = Math.cos(st.h);
+      const l = (side === 'road' ? -1 : 1) * Math.sign(seat.x || 1) * (C.hw + 0.55), f = seat.z + 0.2, x = st.x + fx * f - fy * l, y = st.y + fy * f + fx * l;
+      let steps = 0, by = null;
+      if (pass) for (; steps < 30 * 240 && !by; steps++) { g.frame(1 / 30); check(1 / 30); for (const c of g.cars.live) if (c.line >= 0 && c.v > 1 && Math.abs(c.z - st.z) < 2 && inBox(c, c.half, c.hw, x, y, -0.1)) { by = c; break; } }
+      g.player.x = x; g.player.y = y;
+      if (by) check(0);
+      return { side, seat: g.rideSeat(r), at: [+x.toFixed(1), +y.toFixed(1)], steps, passing: by ? { at: [+by.x.toFixed(1), +by.y.toFixed(1)], v: +by.v.toFixed(1) } : null, worst: W.worst };
+    };
     requestAnimationFrame(tick);
   });
   await p.evaluate(() => { const pl = window.__game.player; pl.x = 498; pl.y = -1046; }); // (where the flight sets you down)
@@ -95,7 +112,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     if (s.phase === 'dressed') { await p.keyboard.press('KeyQ'); continue; } // (the opening shots: a key ends them, many minutes of frames on a software renderer)
     // the cards before the ride (as tools/story_play.js answers them)
     if (s.dlg) { await p.evaluate(() => { const st = window.__game.story.state, B = document.querySelectorAll('#gd-choices button'); if (B.length) (B[st.want] || B[0]).click(); }); if (!s.choices) await p.keyboard.press('KeyE'); continue; }
-    if (s.mode === 'foot' && s.ride && (s.ride.phase === 'waiting') && !rode) { await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st; g.player.x = st.x + 2.4 * Math.cos(st.h); g.player.y = st.y - 2.4 * Math.sin(st.h); }); await p.waitForTimeout(600); await p.keyboard.press('KeyE'); }
+    if (s.mode === 'foot' && s.ride && (s.ride.phase === 'waiting') && !rode) { const at = await p.evaluate(([side, pass]) => window.__rpBoard(side, pass), [process.env.SIDE || 'kerb', +process.env.PASS || 0]); console.log('board', JSON.stringify(at)); await p.waitForTimeout(600); await p.keyboard.press('KeyE'); }
     if (s.mode === 'ride') {
       if (+process.env.PIN && !pinned && s.ride && s.ride.phase === 'driving') { pinned = await p.evaluate(n => window.__rpPin(n), +process.env.PIN); console.log('pinned', JSON.stringify(pinned)); await p.waitForTimeout(300); await p.keyboard.press('KeyF'); }
       if (!rode) { rode = true; await p.evaluate(() => { const g = window.__game; if (g.cam && g.cam.mode === 'cabin' && g.keys) {} }); }

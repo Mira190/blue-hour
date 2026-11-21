@@ -415,7 +415,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     // (with a controller in the hand: its sticks)
-    const KEYS = () => (ctx.padOn && ctx.padOn() ? `<span><kbd class="pad">${K('Left stick')}</kbd>walk</span><span><kbd class="pad">${K('Right stick')}</kbd>look</span>` : ctx.touch ? '<span>Left thumb · walk</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>');
+    const KEYS = () => (ctx.padOn && ctx.padOn() ? `<span><kbd class="pad">${K('Left stick')}</kbd>walk</span><span><kbd class="pad">${K('Right stick')}</kbd>look</span>` : ctx.touch ? '<span>Left thumb · walk, pushed further · run</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>');
     let keysAre = '';
     function keysHint(on) { if (on) { keysAre = KEYS(); keys.innerHTML = keysAre; } keys.classList.toggle('on', on); }
     const voiceOf = a => Object.assign(a.year ? { pitch: 170, past: 1 } : a.age >= 70 ? { pitch: 160, breath: 1 } : { pitch: 200 }, a.voice || {}); // (someone of another year is heard twice; the old have breath in it)

@@ -293,10 +293,12 @@
 #g-story-end button.go:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
 #g-story-end button:focus-visible { outline: 1px solid var(--amber); outline-offset: 4px; }
 
-/* ---- by touch: the left thumb walks, the right thumb has the release; the map's other buttons are put away */
+/* ---- by touch: the left thumb walks, the right thumb has the release; the map's other buttons are put away, and on foot
+   Run too: how far the stick is pushed is how fast you go, a walk to a run (game.js walkStep), and a Run button stood
+   alone over the right thumb doing what the stick does (the owner, November 2026: "I don't think it needs Run") */
 .game-stage.story:has(#g-title:not([hidden])) .g-touch { display: none; }
 .game-stage.story .gt-btns { grid-template-columns: 56px; }
-.game-stage.story .gt-btns button:not(#gt-run) { display: none; }
+.game-stage.story .gt-btns button { display: none; }
 @media (pointer: coarse), (max-width: 640px) {
   #g-story-finder { inset: 21% 8% 16%; } /* (its top under the goal's four lines: at 16% the goal lay over the year and the corner) */
   #g-story-keys { gap: 16px; letter-spacing: 0.12em; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); }
@@ -1245,3 +1247,24 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .gt-scr-back { top: max(8px, env(safe-area-inset-top, 0px)); }
   .gt-opts { padding-top: 48px; } .gt-opts-in { gap: 14px; } .gt-opts-list { gap: 12px; }
 }
+
+/* ---- a phone's foot of the frame, as the whole episode showed it in November 2026 (a review at 390x844) */
+@media (pointer: coarse), (max-width: 640px) {
+  /* (the roll's ask on one line beside the strip: in a grid's last column it broke into four, TAP / · / THE / ROLL) */
+  #g-story-frames em { white-space: nowrap; letter-spacing: 0.14em; }
+  /* (a word said is kept inside the screen and wraps: frame 7's "...at a corner that sees both kerbs" ran off both edges,
+     nowrap at 0.4em; and with the camera up it sits over the shutter, not across it) */
+  #g-story-chip { white-space: normal; width: max-content; max-width: calc(100% - 40px); box-sizing: border-box; text-align: center; line-height: 1.55; padding: 7px 12px; letter-spacing: 0.22em; }
+  #g-story-chip.on { animation-name: g-story-chip-narrow; }
+  .game-stage.story:has(#g-story-shutter.on) #g-story-chip { bottom: max(184px, calc(env(safe-area-inset-bottom) + 184px)); }
+  .game-stage.story:has(#g-story-shutter.on):has(#g-story-teach.on:not(.done)) #g-story-chip { bottom: max(306px, calc(env(safe-area-inset-bottom) + 306px)); padding: 5px 10px; } /* (between the place's mark and the card's heading) */
+  /* (the lift's and the helicopter's prompt clear of the run button beside it, at the same height) */
+  .game-stage.story .g-prompt { max-width: calc(100% - 172px); }
+  /* (a phone has no E: the prompt's button is a tap, marked as one) */
+  .oe-touch .game-stage.story #gp-key { font-size: 0; }
+  .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  /* (while someone speaks, a line said over the picture goes to the top of the screen: the talk's shot puts the face on
+     the upper third of what the words leave, where 19vh laid the line across it: Yuna at SKY GATE, Sumiko in the rain) */
+  .game-stage.story:has(.g-dialog:not([hidden])) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
+}
+@keyframes g-story-chip-narrow { 0% { opacity: 0; letter-spacing: 0.36em; } 14%, 72% { opacity: 1; letter-spacing: 0.22em; } 100% { opacity: 0; } }

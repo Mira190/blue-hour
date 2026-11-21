@@ -99,9 +99,9 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
   const geo = (k, f) => GEO[k] || (GEO[k] = f());
   // 'clear': the vinyl of a convenience-store umbrella: see-through with a milky haze, glossy enough to carry the screens'
   // and the signs' light as a sheen (at 0.82 opaque and half rough it read as a white paper canopy)
-  const stdMat = hex => MAT[hex] || (MAT[hex] = hex === 'clear'
+  const stdMat = hex => MAT[hex] || (MAT[hex] = nearMaterial(hex === 'clear'
     ? new THREE.MeshStandardMaterial({ color: 0xe9eff3, roughness: 0.16, metalness: 0, transparent: true, opacity: 0.52, depthWrite: false, side: THREE.DoubleSide })
-    : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide }));
+    : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide })));
   // an open umbrella's canopy: eight panels over a cone, open underneath (the apex up)
   const canopyGeo = () => new THREE.ConeGeometry(0.56, 0.24, 8, 1, true);
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -571,51 +571,55 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     return out;
   }
 
+  // ------------------------------------------------------------ someone at the lens (issue 82)
+  // With the chase camera on foot at a shoulder, 2.5 m up and 5.5 m back, someone of the crowd walking a pace beside the
+  // lens filled a quarter of a phone's upright frame: not between the lens and you, so the rig's lift over the crowd did
+  // nothing, and not inside the lens, so lensClear left them drawn. As games do with someone close to the camera, a
+  // person is dissolved as they come near the lens: whole at uNear.y from it, gone at uNear.x, in a fixed 4x4 ordered
+  // dither (no noise in time: held still, nothing flickers). The distance is the person's, not each pixel's: from the lens
+  // to their middle, a metre over where they stand (each instance's own for the far copies), so that the whole of them
+  // goes at once; by the pixel's, the head, nearer a lens 2.5 m up, went before the body. game.js sets the band only for
+  // the chase view on foot; a film's, a talk's and the finder's framing is composed with whoever is in it, and there it
+  // is off. Every person's material takes it (litMaterial below, and what they carry: stdMat, measured from where it is)
+  const nearU = { uNear: { value: null } };
+  function setNear(a, b) { if (!nearU.uNear.value) nearU.uNear.value = new THREE.Vector2(); nearU.uNear.value.set(a, b); }
+  const nearBand = () => (nearU.uNear.value ? nearU.uNear.value.toArray() : null); // (as last set: tools/lens_near.js)
+  const NEAR_GLSL = `
+  { float nrK = smoothstep(uNear.x, uNear.y, vNearD);
+    if (nrK < 1.0) {
+      const float NR_B[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+      ivec2 nrP = ivec2(mod(floor(gl_FragCoord.xy), 4.0));
+      if (nrK <= (NR_B[nrP.x + nrP.y * 4] + 0.5) / 16.0) discard;
+    } }`;
+  function nearPatch(sh, lift = 1.0) {
+    if (!nearU.uNear.value) setNear(-2, -1);
+    sh.uniforms.uNear = nearU.uNear;
+    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying float vNearD;\nvoid main() {')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+  { vec4 nrO = vec4(0.0, 0.0, 0.0, 1.0);
+  #ifdef USE_INSTANCING
+    nrO = instanceMatrix * nrO;
+  #endif
+    nrO = modelMatrix * nrO; nrO.y += ${lift.toFixed(2)}; vNearD = length((viewMatrix * nrO).xyz); }`);
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', `uniform vec2 uNear;\nvarying float vNearD;\nvoid main() {${NEAR_GLSL}`);
+  }
+  function nearMaterial(m) { // (one of the things a person carries, hung from a hand or the chest: dissolved with them)
+    const own = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); nearPatch(sh, 0); };
+    m.customProgramCacheKey = () => `person-near|${key ? key.call(m) : ''}`;
+    return m;
+  }
+
   // ------------------------------------------------------------ the street lights on people
   // setLight(patch): a shader patch every person's material takes from then on (world.js
   // streetLit: after dark the street lights' pool where they stand lights them as it lights the
   // pavement, so the player and the people they meet are not silhouettes under a lamp)
   let streetLit = null;
   function setLight(patch) { streetLit = patch; }
-  // ... and a fade (issue 82): one of the crowd walking within a pace and a half of the lens on foot, where a footway is
-  // too narrow to go round it, filled a corner of a phone's upright frame. Games dissolve an NPC that close to the camera
-  // rather than pop it out: here the near crowd's rig (rig.fade, 1 drawn whole, 0 gone) is cut by a dither fixed to the
-  // screen's pixels (interleaved gradient noise: no pattern that crawls, nothing that flickers while time is held). One
-  // uniform shared by every person's program, set by the material itself before each draw (a material's onBeforeRender
-  // runs for every draw of it, whatever the mesh: the rig is found up the drawn object's parents, fadeOf,
-  // and anything with none, the far crowd's instances, is whole), and sent to the GPU again only when it changes from
-  // the last draw's (three.js sends a material's uniforms again on a change of material, or when asked). A hook on the
-  // rig's meshes alone left a mesh added after the rig was made drawing with the last rig's value: a man six metres
-  // off drawn without his head
-  const FADE = { value: 1 }, fadeOf = new WeakMap(); // (fadeOf: a rig's root to the rig)
-  let fadeWas = 1;
-  const FADE_GLSL = '\n  if (uFade < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) > uFade) discard;';
-  function fadeBefore(material, object) {
-    let v = 1;
-    for (let o = object; o; o = o.parent) { const r = fadeOf.get(o); if (r) { v = r.fade ?? 1; break; } }
-    FADE.value = v;
-    if (v !== fadeWas) { fadeWas = v; material.uniformsNeedUpdate = true; }
-  }
-  // (every person's material takes the fade, whether or not the street lights' patch has come yet: the crowd's clothes,
-  // copied before it had, were drawn whole under a dissolving head)
-  function fadeMaterial(m) {
-    if (!m || !m.isMeshStandardMaterial || m.userData.oeFade) return;
-    m.userData.oeFade = true;
-    const own = m.onBeforeCompile, key = m.customProgramCacheKey, ownR = m.onBeforeRender;
-    m.onBeforeRender = function (renderer, scene, camera, geometry, object, group) { if (ownR) ownR.call(this, renderer, scene, camera, geometry, object, group); fadeBefore(this, object); };
-    m.onBeforeCompile = (sh, r) => {
-      if (own) own.call(m, sh, r);
-      sh.uniforms.uFade = FADE;
-      if (!/uniform float uFade;/.test(sh.fragmentShader)) sh.fragmentShader = ('uniform float uFade;\n' + sh.fragmentShader).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + FADE_GLSL); // (once, whatever wraps it)
-    };
-    m.customProgramCacheKey = () => `fade|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
-    m.needsUpdate = true;
-  }
   function litMaterial(m) {
-    fadeMaterial(m);
     if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
     const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
-    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); };
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); nearPatch(sh); };
     // three.js keys a program by the text of onBeforeCompile, which this wrapper makes alike for all
     m.customProgramCacheKey = () => `person-lit|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.userData.streetLit = true;
@@ -680,8 +684,7 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint) {
     if (!m || m.userData.oeStrand) return;
     m.userData.oeStrand = true;
     m.alphaToCoverage = true; // (where the target has no samples the GPU ignores it: the shader cuts as before)
-    const ownR = m.onBeforeRender; // (and whatever it did before: the fade, litMaterial)
-    m.onBeforeRender = function (r, ...a) { if (ownR) ownR.call(this, r, ...a); const t = r.getRenderTarget(); hairMS.value = (t ? t.samples > 0 : r.getContext().getContextAttributes().antialias) ? 1 : 0; };
+    m.onBeforeRender = r => { const t = r.getRenderTarget(); hairMS.value = (t ? t.samples > 0 : r.getContext().getContextAttributes().antialias) ? 1 : 0; };
     const own = m.onBeforeCompile, key = m.customProgramCacheKey;
     m.onBeforeCompile = (sh, r) => {
       if (own) own.call(m, sh, r);
@@ -989,8 +992,7 @@ ${PAT_GLSL}`)
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);
     let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false;
-    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character, fade: 1 };
-    fadeOf.set(root, rig); // (the fade: litMaterial)
+    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
     model.traverse(o => { if (o.isBone) bones[o.name] = o; });
@@ -1569,6 +1571,11 @@ transformed = crowdPose(transformed, false);`);
     const worn = {}; // (the last of DRESS each cast member was dealt)
     P.forEach((p, i) => {
       p.look = randomLook(lib, pickCharacter(lib, style), style);
+      // (three in ten, the right hand free, look at a phone when they stand: the cast's Phone clip, texting, a phone in the
+      // hand. A kerb's crowd all in Idle and square to the road read as a parade, issue 75. Chosen by its place, not by
+      // rnd: the looks dealt after it as they were)
+      let ph = Math.imul(i + 1, 2654435761) >>> 0; ph = Math.imul(ph ^ (ph >>> 15), 2246822519) >>> 0;
+      if (((ph ^ (ph >>> 13)) >>> 0) % 100 < 30 && !(p.look.acc || []).some(a => ACC[a] && ACC[a].bone === 'WristR')) p.look.clip = 'Phone';
       const gs = lib.info.ground_speed[lib.info.characters[p.look.character].pack].Walk;
       p.speed = gs * p.look.scale * (0.95 + rnd() * 0.25);
       // (the clothes they wear, far and near: DRESS. Dealt round each cast member's walkers in turn, from a start of
@@ -1722,7 +1729,7 @@ transformed = crowdPose(transformed, false);`);
         if (rn && !lib.tpl[name]) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
         if (!lib.tpl[name]) { lib.require(name); continue; }
         const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look));
-        r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null }, look));
+        r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null, clip: null }, look)); // (clip: a person taken from the pool keeps none of the last one's phone)
         if (rn) r.dress(p.dress);
         r.standFor = rn && name !== rn ? rn : null;
         r.umbOn = false;
@@ -1745,19 +1752,11 @@ transformed = crowdPose(transformed, false);`);
       const ut = umbStep(p);
       if (r) {
         const u = ut > 0;
-        if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null }); }
+        if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null, clip: u ? null : p.look.clip || null }); } // (the phone put away while the umbrella's hand holds it up)
         if (u && r.umbOpen) r.umbOpen(ut);
-        // (stood waiting: at a phone, looking about, talking, as actors.js gives it, p.idle; none under an umbrella, the
-        // hand that holds it being the phone's, issue 75)
-        const ic = u ? null : p.idle || null;
-        if (r.idleK !== ic) { r.idleK = ic; r.setLook({ clip: ic }); }
         unshow(p);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
-        // (2.6 m from the lens and nearer: dissolved, whole at 2.6 m, gone at 0.8; at 2 to 2.5 m one still covered a
-        // seventh of a phone's upright frame. The player stands 4 to 6 m from it, so those by them are whole. Whoever the
-        // lens is inside, within 0.55 m, the game stops drawing; issue 82)
-        r.fade = camera ? Math.max(0, Math.min(1, (Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z) - 0.8) / 1.8)) : 1;
         if (p.wave) { p.wave = false; r.wave(tNow); }
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
@@ -1832,8 +1831,8 @@ transformed = crowdPose(transformed, false);`);
     }
     // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
     const shows = i => active.has(i) || !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count);
-    // where the lens stands and the way it looks, in the crowd's ground plan (x, y, z up; fx, fy): actors.js keeps the
-    // walkers out of its way, issue 82. false with no camera
+    // where the lens stands and the way it looks, in the crowd's ground plan (x, y, z up; fx, fy): actors.js steers the
+    // walkers out of its way, issue 82 (and those who still come near it dissolve: nearPatch). false with no camera
     let lensDir = null;
     function lens(out) {
       if (!camera) return false;
@@ -1844,5 +1843,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, setNear, nearBand, uncovered, exposure };
 })();

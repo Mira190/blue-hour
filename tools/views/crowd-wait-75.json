@@ -1,6 +1,0 @@
-[
- {"name": "hachiko-kerb-dusk", "at": [381, -1032], "eye": [381, -1032], "look": [370, -1016], "time": "17:40", "date": [10, 10], "scramble": "wait"},
- {"name": "nw-kerb-down-dusk", "at": [381, -1032], "eye": [392, -1040, 24.5], "look": [372, -1014], "lookUp": 0, "time": "17:40", "date": [10, 10], "scramble": "wait"},
- {"name": "far-kerb-qfront-dusk", "at": [378, -1012], "eye": [378, -1012], "look": [352, -984], "time": "17:46", "date": [10, 10], "scramble": "wait"},
- {"name": "hachiko-kerb-night", "at": [381, -1032], "eye": [381, -1032], "look": [370, -1016], "time": "21:00", "date": [10, 10], "scramble": "wait"}
-]

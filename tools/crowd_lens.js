@@ -6,11 +6,11 @@
 // phone's upright frame: here the most any one covers, and the frames where one covers more than 6% of it (on main the one
 // filling the frame was walking on 2 to 2.5 m ahead of the lens, after passing it: shown apart too).
 // A still is taken (the frame held) into out_dir the moment the first of them is level with the lens. The share is counted as
-// drawn: one within 2.6 m of the lens dissolves (people.js rig.fade; FADE=0 counts them whole, as main draws them).
+// drawn: one near the lens dissolves (people.js nearPatch, by the band the game sets; FADE=0 counts them whole).
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/crowd_lens.js out_dir [WxH, default 390x844] [seconds per case, default 14]
 // Fails (exit 1) when one of the crowd covers more than 6% of the frame, as drawn, in more than MAXF frames (default 30, a
-// second): on main 48 to 150 frames of a phone's at the station's footway, here 0 to 28.
+// second): drawn whole, 48 to 150 frames of a phone's at the station's footway before the walkers kept out of its way.
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
 const fs = require('fs');
@@ -59,6 +59,7 @@ const CASES = [
       });
       const cover = () => {
         let worst = 0, far = 0, near = Infinity;
+        const band = window.OEPeople && OEPeople.nearBand ? OEPeople.nearBand() : null; // (the dissolve's band: gone at [0], whole at [1] from the lens to a person's middle)
         const cx = cam.position.x, cy = -cam.position.z;
         for (let j = 0; j < C.active; j++) {
           const q = C.P[j]; if (q.line < 0 && !q.pz) continue;
@@ -73,7 +74,8 @@ const CASES = [
             x0 = Math.min(x0, v3.x); x1 = Math.max(x1, v3.x); y0 = Math.min(y0, v3.y); y1 = Math.max(y1, v3.y);
           }
           if (!ok) continue;
-          const a = Math.max(0, Math.min(1, x1) - Math.max(-1, x0)) * Math.max(0, Math.min(1, y1) - Math.max(-1, y0)) / 4 * (FADES ? Math.max(0, Math.min(1, (d - 0.8) / 1.8)) : 1); // (as drawn: dissolved within 2.6 m of the lens, people.js rig.fade)
+          const d3 = Math.hypot(qx - cx, qy - cy, qz + 1 - cam.position.y), t = band ? Math.max(0, Math.min(1, (d3 - band[0]) / (band[1] - band[0]))) : 1;
+          const a = Math.max(0, Math.min(1, x1) - Math.max(-1, x0)) * Math.max(0, Math.min(1, y1) - Math.max(-1, y0)) / 4 * (FADES ? t * t * (3 - 2 * t) : 1); // (as drawn: dissolved near the lens, people.js nearPatch, by the band the game set)
           worst = Math.max(worst, a); if (d > 2) far = Math.max(far, a); // (and of those 2 to 2.5 m off, walking on ahead of the lens)
         }
         return { worst, far, near };

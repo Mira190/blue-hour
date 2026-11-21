@@ -70,6 +70,7 @@ PILLAR = (-2.4, -1.9, 1.1, 3.6)    # the sign pillar: u, v of its middle (north-
 LINES_U = (-2.2, -0.75, 0.75, 2.2)  # the hall's lines of light, running east
 WARM = (1.0, 0.93, 0.82)                # 3500 K, the lines' light
 DOWN = (1.0, 0.95, 0.88)                # the canopy's downlights, 4000 K
+GLOW_SLOT = (0.62, 0.66, 1.0)           # the slots in the forecourt's ceiling, blue-white as the joints' lines
 
 
 def materials(K):
@@ -84,6 +85,10 @@ def materials(K):
         "ground_plank_dark": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((128, 129, 131))},
         "ground_plank_pale": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((168, 167, 165))},
         "glow_strip": {"color": (0.8, 0.82, 0.95), "emissive": (0.62, 0.66, 1.0), "glow": 1.4},
+        # the forecourt's ceiling: facets of mirror-polished stainless steel, two finishes a shade apart (the photograph's
+        # slivers, some brighter than others as they catch the street)
+        "metal_facet": {"color": (0.5, 0.51, 0.53), "rough": 0.1, "metal": 1.0, "sky": 0.4},
+        "metal_facet_b": {"color": (0.36, 0.37, 0.39), "rough": 0.14, "metal": 1.0, "sky": 0.3},
         # the hall's floor: polished granite, charcoal; under it the joints' slab
         "room_floor_stone": {"tex": "granite", "maps": "cn", "rough": 0.14, "tint": granite((30, 30, 32)), "sky": 0.12},
         "room_floor_joint": {"color": (0.008, 0.008, 0.009), "rough": 0.7},
@@ -368,7 +373,103 @@ class Level:
         self.lifts()
         self.shaft()
         self.queue()
+        self.soffit()
         return self.geo, self.A
+
+    def soffit(self):
+        """The ceiling over the forecourt, under the overhang of 2F to 4F (cities/shibuya/scrsq_base.py; issue 66; the
+        photograph of the entrance at dusk, Wpcpey 2019): long narrow facets of mirror-polished metal laid at a slant to
+        the face, each its own length and its own small tilt (the tilt is why each gives back the street in its own
+        tone), on a dark backing; between them here and there a slot of blue-white light; the ceiling sloping up from
+        the shop fronts to the overhang's edge, and a fascia there up to the overhang's underside."""
+        import sys as _sys
+        from shapely.geometry import Point as SPoint, Polygon as SPoly, box as sbox
+        from shapely.affinity import rotate as srot
+        from shapely.ops import triangulate, unary_union
+        _sys.path.insert(0, HERE)
+        import scrsq_base as SB
+        B = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "buildings.json")))
+        Fa = SB.Face(B)
+        key = (round(SB.OVER["z0"] * 10), round(SB.OVER["z1"] * 10))
+        ov = unary_union([SPoly(SB.ring_of(s)).buffer(0) for s in B["s"] if s[0] == Fa.bi and (s[2], s[3]) == key])
+        if ov.is_empty:
+            return
+        top = Fa.base + SB.OVER["z0"]          # the overhang's underside
+        z_in, z_out = Fa.base + 5.6, top - 0.35   # the ceiling at the shop fronts, and at the edge
+        out = SB.OVER["out"]
+        def zc(x, y):
+            return z_in + (z_out - z_in) * min(max(Fa.sn(x, y)[1] / out, 0.0), 1.0)
+        geo = self.geo
+        under = ov.difference(Fa.ring.buffer(0.02))   # (what is over the forecourt, not over the tower's own floor)
+        def fill(mat, P, dz, n_down=True):
+            for g in getattr(P, "geoms", [P]):
+                if g.geom_type != "Polygon" or g.area < 0.01:
+                    continue
+                for tr in triangulate(g):
+                    if not g.buffer(1e-6).contains(tr.representative_point()):
+                        continue
+                    pts = [np.array([x, y, zc(x, y) + dz]) for x, y in list(tr.exterior.coords)[:3]]
+                    if np.cross(pts[1] - pts[0], pts[2] - pts[0])[2] > 0:   # (wound to face down)
+                        pts = [pts[0], pts[2], pts[1]]
+                    geo.mesh(mat, pts, [(0, 1, 2)], n=np.array([0, 0, -1.0]))
+        # the backing, a hand's depth over the facets
+        fill("metal_soffit", under, 0.06)
+        # the facets: in courses 0.34 m wide at 32 degrees to the face, each 1.6 to 4.8 m long, 25 mm apart
+        ang = math.degrees(math.atan2(Fa.u[1], Fa.u[0])) + 32.0
+        c = under.centroid
+        flat = srot(under, -ang, origin=c, use_radians=False)
+        x0, y0, x1, y1 = flat.bounds
+        rng = np.random.default_rng(2019)
+        ca, sa = math.cos(math.radians(-ang)), math.sin(math.radians(-ang))
+        w, gap = 0.34, 0.025
+        y = y0
+        row = 0
+        while y < y1:
+            x = x0 - rng.random() * 3.0
+            while x < x1:
+                L = 1.6 + rng.random() * 3.2
+                strip = sbox(x + gap / 2, y + gap / 2, x + L - gap / 2, y + w - gap / 2)
+                piece = srot(strip, ang, origin=c, use_radians=False).intersection(under.buffer(-0.05))
+                if not piece.is_empty and piece.area > 0.05:
+                    tilt = rng.normal(0, 0.035)            # (each facet tipped about its long axis: a few degrees)
+                    mats = ("metal_facet", "metal_facet_b")
+                    for g in getattr(piece, "geoms", [piece]):
+                        if g.geom_type != "Polygon":
+                            continue
+                        for tr in triangulate(g):
+                            if not g.buffer(1e-6).contains(tr.representative_point()):
+                                continue
+                            pts = []
+                            for px, py in list(tr.exterior.coords)[:3]:
+                                qy = c.y + (px - c.x) * sa + (py - c.y) * ca   # (the point in the courses' frame)
+                                across = (qy - (y + w / 2)) / w
+                                pts.append(np.array([px, py, zc(px, py) - 0.02 + tilt * across]))
+                            if np.cross(pts[1] - pts[0], pts[2] - pts[0])[2] > 0:
+                                pts = [pts[0], pts[2], pts[1]]
+                            nn = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+                            nn = nn / (np.linalg.norm(nn) or 1.0)
+                            geo.mesh(mats[row % 2 if rng.random() < 0.7 else 1 - row % 2], pts, [(0, 1, 2)], n=nn)
+                # a slot of light along the facet after one in seven: 60 mm of blue-white under the joint, as photographed
+                if rng.random() < 1 / 7:
+                    sl = sbox(x + 0.3, y + w - 0.03, x + L - 0.3, y + w + 0.03)
+                    sp = srot(sl, ang, origin=c, use_radians=False).intersection(under.buffer(-0.1))
+                    if not sp.is_empty and sp.area > 0.01:
+                        fill("glow_strip", sp, -0.045)
+                        cc = sp.centroid
+                        geo.emitters.append((np.array([cc.x, cc.y, zc(cc.x, cc.y) - 0.05]), np.array([0, 0, -1.0]), sp.area * 4, np.array(GLOW_SLOT) * 1.2))
+                x += L
+            y += w
+            row += 1
+        # the fascia at the overhang's edge: from the ceiling up to the overhang's underside, its face outward
+        ring = np.asarray(under.exterior.coords) if under.geom_type == "Polygon" else np.asarray(max(under.geoms, key=lambda g: g.area).exterior.coords)
+        if not SPoly(ring).exterior.is_ccw:
+            ring = ring[::-1]
+        for a, b in zip(ring[:-1], ring[1:]):
+            mid = (a + b) / 2
+            if Fa.ring.buffer(0.3).contains(SPoint(*mid)) or np.linalg.norm(b - a) < 0.05:   # (its side against the tower)
+                continue
+            za, zb = zc(*a), zc(*b)
+            geo.quad("metal_soffit", np.r_[a, za - 0.03], np.r_[b, zb - 0.03], np.r_[b, top + 0.02], np.r_[a, top + 0.02])
 
     def post_line(self, u0, v0, u1, v1, skip=()):
         """posts every 0.25 m along a wall, but in a doorway (skip: (u0, u1) ranges along the west front)"""
