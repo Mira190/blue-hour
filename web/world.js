@@ -874,6 +874,10 @@ vec3 steepRock(vec3 c, float k) {
     envSky.scale.setScalar(50); // inside the PMREM cube camera's far plane
     envScene.add(envSky);
     const pmrem = new THREE.PMREMGenerator(renderer);
+    // The generator keeps a second target of the environment map's size to blur through (768 x 1024 in half floats,
+    // 6 MB), and it stood idle between one sky and the next: a phone's textures at frame 7 lay on their budget for it
+    // (#162). Its memory is given back once a map is made; three.js sets the target up again when the next one is.
+    const envSpare = () => { const t = pmrem._pingPongRenderTarget; if (t && t.dispose) t.dispose(); };
     // its programs (the background box, the GGX filter, the blur) compiled now, off the frame, rather than by the first
     // light from the sky in the middle of the game's set-up (issue 299: 1.5 s there on a software renderer). They are
     // three.js r186's PMREMGenerator's own parts, so only where they are as there; else the first sky compiles them
@@ -2319,7 +2323,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // (game.js earlyWarm), and before the game's first setSun the ground's tiles and the far land were compiled with no
     // environment, two programs of the phone loader's that were never drawn with. The first setSun draws it again for its hour
     const skyReady = (renderer.capabilities.isWebGL2 ? compile(renderer, envScene, hazeCam, { target: hazeTarget(), shadows: false }) : Promise.resolve())
-      .then(() => { if (!world.environment && pmrem) try { envRT = pmrem.fromScene(envScene); world.environment = envRT.texture; } catch (e) { /* set by the first setSun */ } });
+      .then(() => { if (!world.environment && pmrem) try { envRT = pmrem.fromScene(envScene); envSpare(); world.environment = envRT.texture; } catch (e) { /* set by the first setSun */ } });
     // The pixels hazeOf works out, drawn and read back from the GPU (synchronously: it waits for the GPU's queue): only
     // for tools/haze_check.js (api.hazeProbe), which holds the CPU's sum to this one. The three views side by side in
     // one target. Returns the colour, or null.
@@ -2628,7 +2632,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
           if (envRT) envRT.dispose();
           const skySat = su.uSkySat.value;
           su.uSkySat.value = 1; // the light from the sky as the materials were tuned under; only its look is bluer
-          envRT = pmrem.fromScene(envScene);
+          envRT = pmrem.fromScene(envScene); envSpare();
           su.uSkySat.value = skySat;
           world.environment = envRT.texture;
         }
