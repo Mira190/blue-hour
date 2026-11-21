@@ -1170,6 +1170,40 @@ The 1964 plates were given up for the things the camera sees (above), and with t
 described a picture nobody could see: **a line may speak only of what is in the finder**, so the
 things are the evidence and the rest is testimony. Not yet: the old woman's clear umbrella, and voices.
 
+### The words on the picture, one line at a time, and the story's own pause (issue 114, November 2026)
+
+The launch review played the episode at 1440x900 and 390x844 and found the story's words lost wherever the picture
+behind them was bright: the goal across the lit SHIBUYA CENTER-GAI sign, its hint on pale paving, the finder's caption
+through the station's sign. Measured (`tools/legible.js`, docs/CHECKS.md) the goal stood at 2.9:1 on the palest paving
+of the dusk and its hint at 2.3:1; the words had one thin shadow each and a faint corner of shade.
+
+- *What was looked at.* The Xbox Accessibility Guidelines, 102 (contrast): text on a picture is checked against what
+  is behind it, borders or outlines round letters are recommended, and a player may be given a solid ground behind
+  the words. Unity's accessibility basics and WCAG 1.4.3: 4.5:1 for words of ordinary size, 3:1 for large ones. The
+  Game Accessibility Guidelines ("present subtitles in a clear, easy to read way"): a ground or an outline and
+  shadow, about 40 characters a line and two lines. A developer's note in the same search: one drop shadow
+  alone leaves much of each letter against the picture. Nothing was copied; these are guidance, not code.
+- *What was adopted.* Each line on the picture carries its own ground, in the story's night colour (`--halo`,
+  `--halo-small` in `web/game/story.css`): shadows laid one on another, close ones that give every stroke a dark edge
+  and wide ones that join into a shade the shape of the lines. No box: the owner's rule for the story's screens, and
+  the shade stops where the words stop, so the picture keeps its sky and its street. The numbers are the guidance's:
+  4.5:1 on the palest paving and on the play's own pictures, 3:1 on white. The solid ground is there for who wants
+  it: the log's Backing, now in the pause too, and it holds for what is said over the picture as well as the dialogue
+  and the goal.
+- *One line at a time.* What a frame leaves you with and where the car will pull in came up together on a phone, one
+  over the other across the player. In the story `web/game/hud.js` now says one line, lets it stay for as long as it
+  takes to read (2.8 to 7 s by its length), then the next; a line is not said twice while it is up or waiting. The
+  walk keeps its stack of three short notes.
+- *The log is read by itself.* While it came up, the line being said showed under its last entry, the same words
+  twice; a slip entered in the file slid over its first entries; its last line was read through the Back button.
+  The dialogue, the goal and the slip are not drawn while the log is open, and the foot of the sheet is solid.
+- *The story's own pause.* The pause offered the hour, the date, the weather, the clock's speed (30x, 120x), who is
+  played, the crowd and the route line: the builder's tools, in a story set at 17:14 on 10 October. They stay on the
+  walk's menu (`?walk=1`). The story's pause holds the frame the case is at, Resume, the sound, the frame rate, the
+  words' size and Backing, the keys (with the camera's, the hint's, the roll's and the log's) or on a phone the thumbs'
+  controls, the case begun again (asked twice: the frames taken go with it), and a place for the credits
+  (`#gm-credits`, filled by issue 115).
+
 ### The walk: the map with no story in it (November 2026)
 
 The owner asked for a way to be in Shibuya without the case: after who you play, the story or a walk of your own. Worked
