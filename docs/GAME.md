@@ -2042,7 +2042,12 @@ Sydney's traffic stood still a third of the time.
       the lens covered (`lensMax`) and the frames where one covered more than 6%
       (`lensFrames`); none of its walks brought anyone that close, on main either, so
       `tools/crowd_lens.js` sends walkers past the lens on two footways by the
-      Scramble and measures the same, as drawn. RESULTS_82
+      Scramble and measures the same, as drawn. On a phone (390x844) at the station's
+      footway, on main someone covered up to 14 to 18% of the frame, more than 6% of it
+      for 48 to 150 frames of 14 s (the one walking on 2 to 2.5 m ahead of the lens
+      after passing it); here up to 11 to 12% (dissolving), over 6% for 0 to 28 frames.
+      By Hachiko the camera stands over the crowd and nobody came within 2.8 m on
+      either. On a desktop's wide frame nobody covered 6% on either.
     - Research (ideas only, no code): Moussaïd, Helbing and Theraulaz, *How simple
       rules determine pedestrian behavior and crowd disasters* (PNAS 2011), on
       walkers turning the shoulder and sidestepping by the first body in their way;
