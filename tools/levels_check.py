@@ -6,11 +6,11 @@ street and a paved mound are one fault: a thing whose heights were read point by
 share with the rest (docs/LEVELS.md). Each was found by the owner in a still. These find them in the data, with
 places:
 
-  runs    every run built by the rule (pipeline/levels.py, landmarks.json "runs") against the ground as it is now:
+  runs    every run built by the rule (pipeline/levels.py, cities/<id>/levels.json "runs") against the ground as it is now:
           each bay's top level and between its height and its height plus its slack over the highest ground under it,
           its foot under the lowest; no tooth in its tops (a level that rises and falls again within two bays). A run
           whose ground was changed after it was built fails here: build the landmarks again.
-  feet    every footing (landmarks.json "feet"): its base on the highest ground under it, its foot under the lowest.
+  feet    every footing (its "feet"): its base on the highest ground under it, its foot under the lowest.
   tops    every landmark mesh, however it was built: the level top edges of its upright faces, chained end to end;
           a panel whose top stands over or under both its neighbours' is a tooth (a top that copies the ground's
           noise). This is what catches a generator that does not use the rule.
@@ -51,8 +51,8 @@ def check_runs(L, G):
             at = f"{(ax + bx) / 2:.0f},{(ay + by) / 2:.0f}"
             if top - hi < h - TOL:
                 fails.append((hi + h - top, f"{r['kind']} at {at}: its top is {top - hi:.2f} m over the ground, {h} m asked (buried {hi + h - top:.2f} m)"))
-            elif top - hi > h + slack + TOL:
-                fails.append((top - hi - h - slack, f"{r['kind']} at {at}: its top stands {top - hi:.2f} m over the ground, at most {h + slack:.2f} m by its rule"))
+            elif top - hi > h + slack + levels.FILL_M + TOL:
+                fails.append((top - hi - h - slack, f"{r['kind']} at {at}: its top stands {top - hi:.2f} m over the ground, at most {h + slack + levels.FILL_M:.2f} m by its rule"))
             if foot > lo - 0.05:
                 fails.append((foot - lo + 0.05, f"{r['kind']} at {at}: its foot hangs {foot - lo:+.2f} m from the lowest ground under it"))
         tops = [b[4] for b in bays]
@@ -71,9 +71,8 @@ def check_runs(L, G):
 def check_feet(L, G):
     fails = []
     for x, y, base, foot, rad in L.get("feet", []):
-        a = np.linspace(0, 2 * np.pi, 9)[:-1]
-        z = np.atleast_1d(G.at(np.r_[x, x + rad * np.cos(a)], np.r_[y, y + rad * np.sin(a)]))
-        if base < z.max() - 0.15 or base > z.max() + 0.15:
+        z = G.stand(*levels.ring_of(x, y, rad).T)
+        if base < z.max() - 0.05 or base > z.max() + 0.05:
             fails.append((abs(base - z.max()), f"a footing at {x:.0f},{y:.0f}: its base {base - z.max():+.2f} m from the ground under it"))
         if foot > z.min() - 0.05:
             fails.append((foot - z.min(), f"a footing at {x:.0f},{y:.0f}: its foot hangs {foot - z.min():+.2f} m over the lowest ground under it"))
@@ -157,7 +156,7 @@ def check_bases(city, G, game, scene, L):
         by.setdefault(sd[k_b], []).append(i)
     fails, n = [], 0
     for bi, idxs in by.items():
-        if bi in skip or any(B["s"][i][k_min] > 0 for i in idxs):
+        if bi in skip or B["b"][bi][5] == "R" or any(B["s"][i][k_min] > 0 for i in idxs):
             continue
         low, base, c = np.inf, np.inf, None
         for i in idxs:
@@ -178,44 +177,12 @@ def check_bases(city, G, game, scene, L):
 
 def steep_cells(city, G, game, scene):
     """The paved cells steeper than a street: (their number, the places of the worst clusters)."""
-    from PIL import Image, ImageDraw
     from scipy import ndimage
     T, cell = G.T, G.cell
     gx, gy = np.abs(np.diff(T, axis=1))[:-1, :] / cell, np.abs(np.diff(T, axis=0))[:, :-1] / cell
     s = np.hypot(gx, gy)
-    ny, nx = s.shape
-    out = np.zeros((ny, nx), bool)
-    wm = game.get("water")
-    if wm:
-        w = np.unpackbits(np.frombuffer(base64.b64decode(wm["bits"]), np.uint8))[:T.size].reshape(T.shape).astype(bool)
-        out |= ndimage.binary_dilation(w)[:ny, :nx]
-    img = Image.new("L", (nx, ny), 0)
-    d = ImageDraw.Draw(img)
-    px = lambda x, y: ((x - G.x0) / cell - 0.5, (G.y1 - y) / cell - 0.5)
-    bp = os.path.join(ROOT, "web", "data", city, "buildings.json")
-    B = json.load(open(bp, encoding="utf8"))
-    kr = B["s_fields"].index("ring_dm")
-    for sd in B["s"]:
-        r = sd[kr]
-        d.polygon([px(r[i] / 10, r[i + 1] / 10) for i in range(0, len(r) - 1, 2)], fill=1, outline=1)
-    bld = np.asarray(img, bool)
-    # (a cell half under a building's wall is the wall's: the slope there is hidden in it)
-    out |= ndimage.binary_dilation(bld)
-    # open land (a park, a railway's corridor, a hillside) is not paved: beyond 15 m of any building
-    out |= ndimage.distance_transform_edt(~bld) * cell > 15.0
-    # a mapped stair or ramp, and a line off the ground (a deck's ramp)
-    img = Image.new("L", (nx, ny), 0)
-    d = ImageDraw.Draw(img)
-    for kind in ("foot", "road"):
-        for e in game["paths"][kind]:
-            p = np.asarray(e["p"], np.float64).reshape(-1, 3) / 10
-            if e.get("c") in ("steps", "stairs", "ramp") or e.get("st"):
-                d.line([px(x, y) for x, y, _ in p], fill=1, width=3)
-    out |= np.asarray(img, bool)
-    for h in game.get("hero", []):
-        if h.get("at") and h.get("r"):
-            yy, xx = np.mgrid[0:ny, 0:nx]
-            out |= np.hypot(G.x0 + (xx + 0.5) * cell - h["at"][0], G.y1 - (yy + 0.5) * cell - h["at"][1]) < h["r"]
+    B = json.load(open(os.path.join(ROOT, "web", "data", city, "buildings.json"), encoding="utf8"))
+    out = ~levels.paved(G, game, B, scene, blocks=True)
     steep = (s > STEEP) & ~out
     lab, k = ndimage.label(steep)
     places = []
@@ -255,8 +222,9 @@ def main():
         else:
             print(f"ok {name}: {n} {what}" + (f", {len(fails)} within the budget of {allow}" if fails else ""))
 
-    say("runs", *check_runs(L, G), "bays built by the rule stand level on the ground as it is")
-    say("feet", *check_feet(L, G), "footings on the ground as it is")
+    R = levels.record(a.city)
+    say("runs", *check_runs(R, G), "bays built by the rule stand level on the ground as it is")
+    say("feet", *check_feet(R, G), "footings on the ground as it is")
     say("tops", *check_tops(L, tuple(budget.get("tops_skip", []))), "top edges of the landmarks' upright faces without a tooth", budget.get("teeth", 0))
     say("bases", *check_bases(a.city, G, game, scene, L), "buildings with their base on the lowest ground along their walls", budget.get("bases", 0))
     n, places = steep_cells(a.city, G, game, scene)

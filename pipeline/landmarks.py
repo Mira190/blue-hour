@@ -57,8 +57,7 @@ def main():
     # footing, for tools/levels_check.py to hold against the ground as it is, and for street_ground.py, which does not
     # keep the survey's lumps under what follows the ground by rule
     import levels
-    if levels.RUNS or levels.FEET:
-        out["runs"], out["feet"] = levels.RUNS, levels.FEET
+    levels.save(city.id)   # (beside the city's sources, cities/<id>/levels.json: the page has no use for it)
     if city.hook("landmark_glows"):
         out["glows"] = city.hook("landmark_glows")(scene)
     if bridges.glows(scene):

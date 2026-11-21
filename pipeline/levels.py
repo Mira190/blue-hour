@@ -18,7 +18,7 @@ ground was graded under it the thing was left hanging. This module is what they 
     ground under its feet, and how far the highest stands over that (what its base has to take up);
   - walls(M, bays, ...) and posts(...) draw bays as panels and uprights into a mesh that has quad(a, b, c, d), so that
     a generator of a new kind of thing draws it by calling these and inherits the rule;
-  - every run made is kept (RUNS) and written with the landmarks (landmarks.json "runs"), and tools/levels_check.py
+  - every run made is kept (RUNS) and written beside the city's sources (cities/<id>/levels.json), and tools/levels_check.py
     holds each to the ground as it is now: a run whose ground was changed after it was built fails there, with its
     place, instead of hanging in a still.
 
@@ -39,6 +39,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BAY_M = 2.0      # a panel between two posts
 SLACK_M = 0.45   # how much higher than asked a level top may stand over its ground before it steps down
+FILL_M = 1.0     # ... and how much higher still, to keep a top level over a dip a bay or two long
 EMBED_M = 0.25   # a foot goes this far under the lowest ground along its bay
 SAMPLE_M = 0.5   # the ground is read this often along a bay (and at its ends)
 
@@ -58,6 +59,7 @@ class Levels:
         self.cell, self.nx, self.ny = t["cell"], t["nx"], t["ny"]
         self.T = np.frombuffer(base64.b64decode(t["data"]), "<i2").astype(np.float64).reshape(self.ny, self.nx) * t["scale"]
         self.x0, self.y1 = scene["frame"]["x"][0], scene["frame"]["y"][1]
+        self.city, self._blocks = city_id, None
 
     def at(self, x, y):
         """The ground under (x, y), scalars or arrays: the triangle of the cell the game walks."""
@@ -72,12 +74,47 @@ class Levels:
 
     __call__ = at
 
+    def blocks(self):
+        """The retaining blocks on the ground's breaks (pipeline/terraces.py): (their polygons' tree, polygons, tops)."""
+        if self._blocks is None:
+            import shapely
+            from shapely.geometry import Polygon
+            B = json.load(open(os.path.join(ROOT, "web", "data", self.city, "buildings.json"), encoding="utf8"))
+            P, Z = [], []
+            for sd in B["s"]:
+                if B["b"][sd[0]][5] == "R":
+                    P.append(Polygon(np.asarray(sd[4], np.float64).reshape(-1, 2) / 10))
+                    Z.append((sd[1] + sd[3]) / 10)
+            self._blocks = (shapely.STRtree(P) if P else None, P, Z)
+        return self._blocks
+
+    def on_break(self, a, b):
+        """Does the segment a-b touch a retaining block? (A wall, a fence or a hoarding does not run over one: the
+        retaining wall is the enclosure there, and the line stops against it.)"""
+        from shapely.geometry import LineString
+        tree, P, Z = self.blocks()
+        return tree is not None and len(tree.query(LineString([tuple(a[:2]), tuple(b[:2])]), predicate="intersects")) > 0
+
+    def stand(self, x, y):
+        """What a built thing stands on at (x, y): the ground, or the top of the retaining block over a break of it (the
+        cell a break is drawn in is a ramp only because the grid cannot hold an edge: nothing stands on it)."""
+        import shapely
+        x, y = np.atleast_1d(np.asarray(x, np.float64)), np.atleast_1d(np.asarray(y, np.float64))
+        z = np.atleast_1d(self.at(x, y)).copy()
+        tree, P, Z = self.blocks()
+        if tree is not None:
+            pts = shapely.points(x, y)
+            ip, ib = tree.query(pts, predicate="within")
+            for i, b in zip(ip.tolist(), ib.tolist()):
+                z[i] = max(z[i], Z[b])
+        return z
+
     def along(self, a, b, step=SAMPLE_M):
         """The ground along the segment a-b: its lowest and its highest, read every `step` and at both ends."""
         a, b = np.asarray(a, np.float64)[:2], np.asarray(b, np.float64)[:2]
         n = max(2, int(math.ceil(float(np.hypot(*(b - a))) / step)) + 1)
         p = a + (b - a) * np.linspace(0.0, 1.0, n)[:, None]
-        z = self.at(p[:, 0], p[:, 1])
+        z = self.stand(p[:, 0], p[:, 1])
         return float(z.min()), float(z.max())
 
 
@@ -117,10 +154,11 @@ def stepped(line, ground, height, bay=BAY_M, slack=SLACK_M, embed=EMBED_M, close
 
     Every bay's top is level, at least `height` over the highest ground under it and at most `height + slack` over
     it; the tops change only at posts and as seldom as that allows; every foot is `embed` under the lowest ground of
-    its bay. keep(a, b) -> False leaves a bay out (a gap: a gate, a building against the line), and the tops start
-    afresh past it. With `kind` the run is kept for the check (RUNS)."""
+    its bay. keep(a, b) -> False leaves a bay out (a gap: a gate, a building against the line), and so does a retaining
+    block the bay would cross (the break of level is the wall's, pipeline/terraces.py); the tops start afresh past a
+    gap. With `kind` the run is kept for the check (RUNS)."""
     bays = split(line, bay, closed)
-    use = [i for i, (a, b) in enumerate(bays) if keep is None or keep(a, b)]
+    use = [i for i, (a, b) in enumerate(bays) if (keep is None or keep(a, b)) and not ground.on_break(a, b)]
     if not use:
         return []
     g = [ground.along(*bays[i]) for i in use]
@@ -136,6 +174,19 @@ def stepped(line, ground, height, bay=BAY_M, slack=SLACK_M, embed=EMBED_M, close
             if lo <= min(hi + height + slack for _, hi in g[:k0] + g[k1:]):
                 tops[:k0] = [lo] * k0
                 tops[k1:] = [lo] * (len(tops) - k1)
+    # no tooth: a level of one or two bays that stands under both its neighbours (a dip of the ground a bay or two
+    # long, less than a break) is raised to the lower of them, up to FILL_M: a level top matters more than its height
+    for _ in range(3):
+        k = 1
+        while k < len(tops) - 1:
+            j = k
+            while j + 1 < len(tops) - 1 and tops[j + 1] == tops[k] and j + 1 not in breaks:
+                j += 1
+            if j - k < 2 and k not in breaks and j + 1 not in breaks and tops[k - 1] > tops[k] < tops[j + 1]:
+                up = min(tops[k - 1], tops[j + 1])
+                if up - tops[k] <= FILL_M:
+                    tops[k:j + 1] = [up] * (j + 1 - k)
+            k = j + 1
     out = [Bay(bays[i][0], bays[i][1], round(tops[k], 3), round(g[k][0] - embed, 3), g[k][0], g[k][1]) for k, i in enumerate(use)]
     if kind:
         RUNS.append({"kind": kind, "height": height, "slack": slack,
@@ -147,11 +198,18 @@ def footing(points, ground, embed=EMBED_M):
     """What a thing with feet at `points` stands on: (the level of its base: the highest ground under it, so that
     nothing of it is buried; how far down its feet go to reach under the lowest: base - foot)."""
     p = np.asarray(points, np.float64).reshape(-1, 2)
-    z = np.atleast_1d(ground.at(p[:, 0], p[:, 1]))
+    c = p.mean(0)
+    rad = float(np.hypot(p[:, 0] - c[0], p[:, 1] - c[1]).max())
+    z = ground.stand(*ring_of(c[0], c[1], rad).T)
     base, deep = float(np.max(z)), float(np.max(z) - np.min(z)) + embed
-    FEET.append([round(float(p[:, 0].mean()), 2), round(float(p[:, 1].mean()), 2), round(base, 3), round(base - deep, 3),
-                 round(float(np.hypot(p[:, 0] - p[:, 0].mean(), p[:, 1] - p[:, 1].mean()).max()), 2)])
+    FEET.append([round(float(c[0]), 2), round(float(c[1]), 2), round(base, 3), round(base - deep, 3), round(rad, 2)])
     return base, deep
+
+
+def ring_of(x, y, rad):
+    """The points a footing is read at: its middle, and eight round it at its radius."""
+    a = np.linspace(0, 2 * np.pi, 9)[:-1]
+    return np.stack([np.r_[x, x + rad * np.cos(a)], np.r_[y, y + rad * np.sin(a)]], 1) if rad > 0 else np.array([[x, y]])
 
 
 def walls(M, bays, both=True, z_from=None, z_to=None):
@@ -188,3 +246,64 @@ def steps_of(bays):
     ch = [(k, v) for k, v in enumerate(d) if abs(v) > 1e-6]
     teeth = sum(1 for (k0, v0), (k1, v1) in zip(ch, ch[1:]) if k1 - k0 <= 3 and v0 * v1 < 0)
     return len(ch), max((abs(v) for _, v in ch), default=0.0), teeth
+
+
+def paved(G, game, B, scene=None, blocks=False):
+    """The cells of the ground (ny - 1, nx - 1) that are paved: town ground a player sees as a surface somebody laid.
+    Not the water, not under a building (a cell its wall crosses is the wall's), not open land (further than 15 m
+    from every building: a park, a railway's corridor, a hillside keep the land's shape), not a mapped stair or ramp,
+    not a hero level (it draws its own floor: docs/HERO.md). With blocks, not under a retaining block either
+    (pipeline/terraces.py): what is left steep is a slope somebody would have to walk."""
+    from PIL import Image, ImageDraw
+    from scipy import ndimage
+    T, cell = G.T, G.cell
+    ny, nx = T.shape[0] - 1, T.shape[1] - 1
+    out = np.zeros((ny, nx), bool)
+    wm = game.get("water")
+    if wm:
+        w = np.unpackbits(np.frombuffer(base64.b64decode(wm["bits"]), np.uint8))[:T.size].reshape(T.shape).astype(bool)
+        out |= ndimage.binary_dilation(w)[:ny, :nx]
+    px = lambda x, y: ((x - G.x0) / cell - 0.5, (G.y1 - y) / cell - 0.5)
+    kr, kb = B["s_fields"].index("ring_dm"), B["s_fields"].index("building")
+    img, wal = Image.new("L", (nx, ny), 0), Image.new("L", (nx, ny), 0)
+    d, dw = ImageDraw.Draw(img), ImageDraw.Draw(wal)
+    for sd in B["s"]:
+        r = sd[kr]
+        made = B["b"][sd[kb]][5] == "R"
+        if made and not blocks:
+            continue
+        (dw if made else d).polygon([px(r[i] / 10, r[i + 1] / 10) for i in range(0, len(r) - 1, 2)], fill=1, outline=1)
+    bld = np.asarray(img, bool)
+    out |= ndimage.binary_dilation(bld)
+    out |= ndimage.distance_transform_edt(~bld) * cell > 15.0
+    out |= np.asarray(wal, bool)
+    img = Image.new("L", (nx, ny), 0)
+    d = ImageDraw.Draw(img)
+    for kind in ("foot", "road"):
+        for e in game["paths"][kind]:
+            if e.get("c") in ("steps", "stairs", "ramp"):
+                p = np.asarray(e["p"], np.float64).reshape(-1, 3) / 10
+                d.line([px(x, y) for x, y, _ in p], fill=1, width=3)
+    out |= np.asarray(img, bool)
+    yy, xx = np.mgrid[0:ny, 0:nx]
+    for h in game.get("hero", []):
+        if h.get("at") and h.get("r"):
+            out |= np.hypot(G.x0 + (xx + 0.5) * cell - h["at"][0], G.y1 - (yy + 0.5) * cell - h["at"][1]) < h["r"]
+    return ~out
+
+
+def record_path(city_id):
+    return os.path.join(ROOT, "cities", city_id, "levels.json")
+
+
+def save(city_id):
+    """What this process built by the rule, kept beside the city's sources (not served): its runs and its footings."""
+    if RUNS or FEET or os.path.exists(record_path(city_id)):
+        json.dump({"note": "What the landmarks build by the rule of levels (pipeline/levels.py): written by pipeline/landmarks.py, held by tools/levels_check.py, read by pipeline/street_ground.py.",
+                   "runs": RUNS, "feet": FEET}, open(record_path(city_id), "w", encoding="utf8"), separators=(",", ":"))
+
+
+def record(city_id):
+    """The runs and footings of the city's landmarks as last built: {"runs": [...], "feet": [...]}."""
+    p = record_path(city_id)
+    return json.load(open(p, encoding="utf8")) if os.path.exists(p) else {"runs": [], "feet": []}

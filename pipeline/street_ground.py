@@ -111,7 +111,10 @@ COVER = 0.4          # the share of a node's cell a landmark's flat faces cover 
 HOLE_M = 2.0         # a closed hollow deeper than this under its rim is a hole of the survey's (see holes())
 HOLE_NODES = 80      # and this many nodes at most (2000 m2): a larger hollow is the land's shape
 LOT_OPEN_M = 15.0    # ground further than this from every building is open land (a park, a railway's corridor): surveyed
-VERSION = 3
+CUT_M = 1.2          # two streets' levels further apart than this meet at a wall, not on a slope (issue 158)
+CUT_GRADE = 0.12     # ... where the way between them is too short for a slope of this (a small street's limit, 道路構造令)
+CUTS = [None, None]  # the cuts of the last lots(): between each node and the one east of it, and the one south
+VERSION = 4
 
 
 def grid(t):
@@ -600,21 +603,21 @@ def standing(G, out):
         k_min, k_ring = f.index("min_dm"), f.index("ring_dm")
         d = ImageDraw.Draw(img)
         for sd in B["s"]:
-            if sd[k_min] <= 0:
+            if sd[k_min] <= 0 and B["b"][sd[0]][5] != "R":   # (not a retaining block: terraces.py puts it on the break)
                 r = sd[k_ring]
                 d.polygon([((r[i] / 10 - G.x0) / G.cell, (G.y1 - r[i + 1] / 10) / G.cell) for i in range(0, len(r) - 1, 2)], fill=1, outline=1)
     return np.asarray(img, bool)
 
 
-def stood(landmarks, G):
+def stood(landmarks, G, built=None):
     """The nodes round a landmark's feet: a cell round every vertex of it within LANDMARK_M of the ground."""
     img = np.zeros((G.ny, G.nx), bool)
     F = []
-    for r in (landmarks or {}).get("runs", []):
+    for r in (built or {}).get("runs", []):
         for ax, ay, bx, by, *_ in r["bays"]:
             n = max(2, int(np.hypot(bx - ax, by - ay) / 0.5) + 1)
             F.append(np.stack([np.linspace(ax, bx, n), np.linspace(ay, by, n)], 1))
-    for x, y, _, _, rad in (landmarks or {}).get("feet", []):
+    for x, y, _, _, rad in (built or {}).get("feet", []):
         a = np.linspace(0, 2 * np.pi, 9)[:-1]
         F.append(np.vstack([[[x, y]], np.stack([x + rad * np.cos(a), y + rad * np.sin(a)], 1)]))
     F = np.vstack(F) if F else np.zeros((0, 2))
@@ -627,8 +630,7 @@ def stood(landmarks, G):
             continue
         P = P[np.abs(P[:, 2] - G.at(P[:, 0], P[:, 1])) < LANDMARK_M]
         if len(P) and len(F):
-            # (what was built by the rule of levels follows the ground: pipeline/levels.py, landmarks.json "runs" and
-            # "feet". It is built again after the grading and holds no lump of the survey under itself)
+            # (what was built by the rule of levels follows the ground: pipeline/levels.py, landmarks.json cities/<id>/levels.json. It is built again after the grading and holds no lump of the survey under itself)
             P = P[tree.query(P[:, :2])[0] > 0.6]
         rr, cc = nodes_of(G, P[:, :2])
         img[rr, cc] = True
@@ -666,26 +668,49 @@ def lots(new, G, game, keep, alpha, water, out, on=None):
         fixed = fixed | water
     fixed[0, :] = fixed[-1, :] = fixed[:, 0] = fixed[:, -1] = True
     Z = new
+    cut_e = cut_s = None
     for _ in range(4):
         free = ~fixed
+        # A plot is levelled to the street it fronts, and where two levels meet there is a made thing (issue 158). The
+        # membrane alone carried the whole difference between two streets as one incline, 50 % of paving between a
+        # street at 30 m and one at 16.5 m. So each free node first takes the level of the fixed ground nearest it
+        # (its street's), and wherever two neighbours' streets differ by more than CUT_M the membrane is cut between
+        # them: each side is stretched from its own street up to the cut, and the difference stands in the one cell
+        # across it, where pipeline/terraces.py builds the retaining wall. Less than CUT_M is a step or a ramp a
+        # forecourt has, and stays in the membrane.
+        # Only where there is no room for a slope a street could have: the difference over the way between the two
+        # streets (through this edge) steeper than CUT_GRADE. A hillside's blocks keep the hill.
+        D, (ir, ic) = ndimage.distance_transform_edt(free, return_indices=True)
+        V, D = new[ir, ic], D * cell
+        steep = lambda dv, room: (np.abs(dv) > CUT_M) & (np.abs(dv) > CUT_GRADE * (room + cell))
+        cut_e = steep(V[:, 1:] - V[:, :-1], D[:, 1:] + D[:, :-1]) & (free[:, 1:] | free[:, :-1])   # between a node and the one east of it
+        cut_s = steep(V[1:, :] - V[:-1, :], D[1:, :] + D[:-1, :]) & (free[1:, :] | free[:-1, :])   # ... and the one south of it
         n = int(free.sum())
         idx = np.full((ny, nx), -1)
         idx[free] = np.arange(n)
         rr, cc = np.nonzero(free)
-        me, b, rows, cols = idx[rr, cc], np.zeros(n), [], []
+        me, b, deg, rows, cols = idx[rr, cc], np.zeros(n), np.zeros(n), [], []
         for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             r2, c2 = rr + dr, cc + dc
-            f = free[r2, c2]
+            open_ = ~(cut_s[np.minimum(rr, r2), cc] if dr else cut_e[rr, np.minimum(cc, c2)])
+            f = free[r2, c2] & open_
+            g = ~free[r2, c2] & open_
             rows.append(me[f]); cols.append(idx[r2, c2][f])
-            np.add.at(b, me[~f], new[r2, c2][~f])
+            np.add.at(b, me[g], new[r2, c2][g])
+            np.add.at(deg, me[open_], 1.0)
         rows, cols = np.concatenate(rows), np.concatenate(cols)
-        A = sparse.coo_matrix((-np.ones(len(rows)), (rows, cols)), shape=(n, n)).tocsc() + 4 * sparse.eye(n, format="csc")
+        lone = deg == 0   # (a node cut off on every side keeps its street's level)
+        b[lone], deg[lone] = V[rr, cc][lone], 1.0
+        A = sparse.coo_matrix((-np.ones(len(rows)), (rows, cols)), shape=(n, n)).tocsc() + sparse.diags(deg, format="csc")
         Z = new.copy()
-        Z[free] = spsolve(A, b)
+        # (a pocket cut off from every street has no level of its own in the system: a whisper of its street's)
+        A = A + 1e-6 * sparse.eye(n, format="csc")
+        Z[free] = spsolve(A, b + 1e-6 * V[rr, cc])
         far = free & (np.abs(Z - new) > MAX_MOVE_M)
         if not far.any():
             break
         fixed = fixed | far
+    CUTS[:] = [cut_e, cut_s]
     return Z, ~fixed
 
 
@@ -719,7 +744,7 @@ def rebase(cid, Gn, lot, game, scene, dry=False):
         by.setdefault(sd[k_b], []).append(i)
     moved, shifts = 0, []
     for bi, idxs in by.items():
-        if bi in skip:
+        if bi in skip or B["b"][bi][5] == "R":
             continue
         low, base, touched, ok = np.inf, np.inf, False, True
         for i in idxs:
@@ -842,7 +867,8 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False, dry=Fal
     # (and the ground a landmark stands on: protected() keeps what lies under its flat faces for the streets, but a
     # hoarding, a crane's mast or a wall has only its feet on the ground, and with a lump of the survey taken from
     # under them the story's frame 5 hoarding hung 3 m in the air)
-    held |= stood(landmarks, Gc) & ~(alpha >= 0.999)
+    import levels
+    held |= stood(landmarks, Gc, levels.record(cid)) & ~(alpha >= 0.999)
     new = np.where(held, Tc, new)
     streets_only = new
     new, lot = lots(new, G, game, keep | held, alpha, water, out, Gc)
