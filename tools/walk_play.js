@@ -12,10 +12,13 @@
 //   - you cannot walk (the player does not move), or a key of the old free game opens one of its panels (the map,
 //     the passport, the lens);
 //   - the walk's menu does not offer the story, or still offers the old game's tour and passport;
-//   - the camera (photo mode) does not open from the walk's own button;
+//   - the camera (photo mode) does not open from the walk's own button, or a photograph of Hachiko from beside him is not
+//     the first of the views of Shibuya with its picture in the menu's album;
 //   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
 //     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
+//   - the first walk from the title: the office does not ring, or speaks of your car without its button lit, or is not
+//     kept as heard; a street moment (Ren asking the way) cannot be answered by a choice and thanked;
 //   - beside the end of Hachiko's wall nothing offers to sit and watch the crossing, or seated the camera does not stand
 //     behind your shoulder framing the scramble, a drag does not turn it (and left alone it does not come back), the
 //     time-lapse held (Space; on a phone its button) does not run the clock fast, or E (or a tap) does not stand you up
@@ -103,14 +106,14 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   s = await state();
   if (s.screen !== 'menu') fail(`a ${phone ? 'tap' : 'key'} on the press did not open the menu (on "${s.screen}")`);
   else ok(`a ${phone ? 'tap' : 'key'} on the press opens the menu`);
-  if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya over the episode');
+  if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya under the episode');
   else ok(`the title offers two ways in: "${(await p.textContent('#gt-walk-go', { timeout: 180000 })).trim()}" and "${(await p.textContent('#gt-play', { timeout: 180000 })).trim()}"`); // (a software renderer can hold the page's thread for half a minute behind the title, compiling)
-  // (the ways in are one list: the walk first and the one Enter takes, while the episodes are being finished; every row
-  // the same width and height, none bigger than another, on a desktop and a phone alike)
+  // (the ways in are one list: the story first and the one Enter takes, the walk under it (the owner's word for the launch,
+  // November 2026); every row the same width and height, none bigger than another, on a desktop and a phone alike)
   { const rows = await p.$$eval('#g-title .gt-go > .btn', bs => bs.filter(b => b.offsetParent).map(b => { const r = b.getBoundingClientRect(); return { id: b.id, w: Math.round(r.width), h: Math.round(r.height), lead: b.classList.contains('primary') }; }));
-    if (!rows.length || rows[0].id !== 'gt-walk-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1) fail(`the title's list does not lead with the walk: ${JSON.stringify(rows)}`);
+    if (!rows.length || rows[0].id !== 'gt-story-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1 || !rows[1] || rows[1].id !== 'gt-walk-go') fail(`the title's list does not lead with the story, the walk under it: ${JSON.stringify(rows)}`);
     else if (rows.some(r => Math.abs(r.w - rows[0].w) > 1 || Math.abs(r.h - rows[0].h) > 1)) fail(`the title's ways in are not all one size: ${JSON.stringify(rows)}`);
-    else ok(`the title's ways in, one list led by the walk, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
+    else ok(`the title's ways in, one list led by the story, the walk under it, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
   await shot('1-title');
   await press('#gt-walk-go'); await until(() => window.__game.screen() === 'who');
   s = await state();
@@ -182,6 +185,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
   if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
   await shot('4-out');
+  // the walk's way in, the first time from the title (game.js walkIntro): the office rings in its own voice, the corner's
+  // Your car lit while the car is spoken of; passed line by line, and kept as heard
+  {
+    const rang = await p.waitForFunction(() => { const b = document.getElementById('gd'); return b && !b.hidden && /office/i.test(document.getElementById('gd-name').textContent); }, null, { timeout: 120000, polling: 300 }).then(() => true, () => false);
+    if (!rang) fail('the first walk from the title: the office does not ring');
+    else {
+      let carLit = false, n = 0;
+      for (let i = 0; i < 40 && (await p.evaluate(() => window.__game.dlg.open)); i++) {
+        const r = await p.evaluate(() => { const g = window.__game; g.dlg.next(false); return { t: document.getElementById('gd-text').textContent, lit: !!document.querySelector('#g-walk-acts button.hl[data-do="car"]'), open: g.dlg.open }; });
+        if (/car/i.test(r.t) && r.lit) { if (!carLit) await shot('4a-intro'); carLit = true; }
+        if (r.open) n++;
+      }
+      const kept = await p.evaluate(() => { try { return localStorage.getItem('bh-walk-intro'); } catch (e) { return null; } });
+      if (!carLit) fail('the office speaks of your car without the corner\'s Your car lit');
+      else if (!kept) fail('the walk\'s way in is not kept as heard (it would ring every time)');
+      else ok('the walk\'s way in: the office rings, your car\'s button lit while it is spoken of, kept as heard');
+    }
+  }
   // walk: the keys, or the stick by touch
   const xy0 = s.xy;
   // (four seconds of the game's own frames with the key or the stick held: a software renderer draws a frame in seconds,
@@ -228,12 +249,33 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await press('#g-menu-close'); await gone('#g-menu');
     if (await visible('#g-menu')) fail('the menu\'s close button does not shut it (off the screen, or under something)');
   }
-  // the camera
+  // the camera, by Hachiko and facing him: the photograph is the first of the views of Shibuya (walktalk.js views), its
+  // name put up over the street and its picture in the menu's album
+  await p.evaluate(() => { const g = window.__game, t = g.walkTalk(); if (t) t.reset(); g.spawn([381, -1040]); g.player.h = Math.atan2(374.79 - g.player.x, -1046.45 - g.player.y); g.cam.yaw = g.player.h; g.cam.pitch = 0.12; for (let i = 0; i < 10; i++) g.frame(0.05); });
   await press('#g-walk-acts [data-do="photo"]'); await until(() => document.getElementById('game-stage').classList.contains('photo'), undefined, 20000);
   if (!(await p.evaluate(() => document.getElementById('game-stage').classList.contains('photo')))) fail('the walk\'s camera button does not open photo mode');
-  else { ok('the camera opens photo mode'); await shot('7-photo'); }
+  else {
+    ok('the camera opens photo mode'); await shot('7-photo');
+    const view = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); const v = g.walkTalk().views().find(q => q.id === 'hachiko'); return v ? { found: v.found, pic: !!v.pic } : null; });
+    if (!view || !view.found) fail('a photograph of Hachiko from beside him is not among the views of Shibuya');
+    else if (!view.pic) fail('Hachiko found, but no picture of him kept for the album');
+    else ok('a photograph of Hachiko: the first of the views of Shibuya, with its picture');
+  }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
+  // (the camera cranes back to the chase view, 0.9 s of the game's frames, many seconds of a software renderer's; the
+  // walk's buttons take no press while it moves. Read from the game, not the stage's class: the frame puts .cine on, and
+  // a software renderer's next frame can be seconds after photo mode is left)
+  await until(() => { const g = window.__game; return !g.photo.on && !g.cine.active; }, undefined, 120000);
   await p.waitForTimeout(800);
+  { // (the menu's album: Hachiko as his picture)
+    await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
+    const album = await p.evaluate(() => [...document.querySelectorAll('#gm-tales .gm-album li')].map(l => `${l.dataset.f}${l.querySelector('img') ? 'p' : ''}`));
+    if (album.length < 6 || album[0] !== '1p') fail(`the walk's menu album: ${JSON.stringify(album)} (want Hachiko's picture first of six)`);
+    else ok(`the menu's album: ${album.filter(a => a[0] === '1').length} of ${album.length} views, Hachiko's picture in it`);
+    await shot('7e-album');
+    await press('#g-menu-close'); await gone('#g-menu');
+    await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+  }
   // somewhere to sit and watch the crossing (perch.js; docs/STORY.md "The walk", *Somewhere to sit*): beside the end of
   // Hachiko's wall, E (or a tap on the prompt) sits you on it; seated, the camera stands behind your shoulder and frames
   // the scramble, a drag turns the view, Space held (on a phone the Time-lapse button) runs the evening's clock fast, the
@@ -406,6 +448,41 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         }
       }
       await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+      // a street moment (walktalk.js events): Ren, lost, asks the way to SHIBUYA SKY; the answers are choices, and the
+      // right one is thanked
+      const started = await p.evaluate(() => window.__game.walkTalk().events.start('way-sky', 0));
+      if (!started) fail('a street moment (way-sky) could not be put on the street');
+      else {
+        // (he walks in to his corner from out of sight: his steps are the walk's own frames', run here as a player's would be)
+        const walkedIn = await p.evaluate(() => { const g = window.__game, t = g.walkTalk(), was = t.events.moving; for (let i = 0; i < 120 && t.events.moving; i++) t.tick(0.25, false); return { was, now: t.events.moving }; });
+        if (!walkedIn.was) console.log('(no clear way in for Ren from out of sight here: he stands at his corner)');
+        else if (walkedIn.now) fail('Ren walking in to his corner never arrives');
+        else ok('Ren walks in to his corner from out of sight');
+        const drawnRen = await p.waitForFunction(() => { const n = window.__game.npcs.find(q => q.id === 'ren'); return n && !n.rig.pending && n.rig.root.visible; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
+        if (!drawnRen) fail('Ren is not drawn ten minutes after his street moment began');
+        else {
+          await talk('ren', 1.6);
+          if (!(await waitPrompt(/Talk to Ren/))) fail(`beside Ren, nothing offers to talk ("${await prompt()}")`);
+          else {
+            await act();
+            await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 6 && !g.dlg.hasChoices; i++) g.dlg.next(false); });
+            const chs = await p.evaluate(() => [...document.querySelectorAll('#gd-choices button')].map(b => b.textContent));
+            if (chs.length < 2) fail(`Ren asks the way, but there are no answers to choose (${JSON.stringify(chs)})`);
+            else {
+              await shot('4f-street');
+              if (phone) await press('#gd-choices button'); else await p.keyboard.press('Digit1');
+              await through();
+              const done = await p.evaluate(() => window.__game.walkTalk().events.done);
+              if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);
+              else {
+                const off = await p.evaluate(() => window.__game.walkTalk().events.moving);
+                if (!off) fail('Ren thanked, he does not walk off (no clear way 14 or 26 m from his corner)');
+                else ok(`a street moment: Ren asks the way ("${chs[0].slice(1, 40)}" chosen), is thanked, and walks off`);
+              }
+            }
+          }
+        }
+      }
     }
     const haveCar = await p.waitForFunction(() => !!window.__game.myCar(), null, { timeout: 300000, polling: 1000 }).then(() => true, () => false);
     if (!haveCar) fail('no car of your own on the walk (five minutes after setting out)');
@@ -493,7 +570,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const taroAsked = await p.evaluate(() => {
       const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'taro');
       if (!t || !n) return 'no Taro on the walk';
-      t.reset();
+      t.startAt('air'); // (his turn in the walk's line: every story before his told)
       if (!t.talk(n)) return 'Taro has nothing to say';
       for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false);
       const e = t.errand(), roofShot = t.photo({ z: 250, sees: () => true });
