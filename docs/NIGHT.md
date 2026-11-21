@@ -164,6 +164,40 @@ now blends to the designed sky. The environment light is drawn from it, after th
 for the hour is set: it used to keep the previous hour's haze, so a night kept the day's
 bright horizon in every reflection (the cause of the grey nights in the game too).
 
+## The air between: the city from a height (issue 125)
+
+Frame 4's Stop and the walk to the helicopter are played on SHIBUYA SKY's roof, the one place in the story that looks
+over the whole city, and from it the city was a field of small lit blocks in one blue-grey tone: no haze, nothing
+between near and far, a hard horizon. The map is 4 km across and the view's fog began at 6 km, so inside the map there
+was no air at all; the far skyline past it had its own (`OE_FAR`), and stood pale against a sky as deep at the horizon
+as overhead.
+
+What photographs from the roof at that hour show (Wikimedia Commons, taken 6 to 30 minutes after sunset; listed in
+docs/HERO.md, "SKY STAGE at blue hour"): buildings lose their contrast within 3 to 5 km and are flat shapes with lights
+past 8; the horizon dissolves into a pale band, the palest thing in the picture; the arterial roads are amber and the
+strongest colour, their light standing in the air over them; offices are cool white, often a little green, flats and
+hotels warm.
+
+How real-time cities draw it, and what was taken (ideas and constants; no code):
+
+| Source | Idea | Here |
+|---|---|---|
+| Inigo Quilez, "Better fog" (iquilezles.org/articles/fog; an article) | fog whose density falls off with height, integrated along the ray in closed form; its colour by direction | `world.js` `edgeHaze`, `AIR`: an exponential layer 240 m deep over the streets, the optical depth from the camera's height to the fragment's in closed form |
+| Unreal Engine's Exponential Height Fog (Epic's documentation) | a second, lower layer; a most opacity; a start distance | the low air's own colour (below); `AIR.most` 0.86, so a far street's lights are never painted out |
+| Wronski, "Volumetric Fog", SIGGRAPH 2014 (slides) | light scattered in by the lamps under the air, not by the sky alone | the lowest 110 m of the air take the streets' light, a warm amber, fading into the sky's own haze over 5 km; one colour for the map (its lamps and screens are within a few percent of their mean, above), not a march through the light map |
+| Hillaire 2020; Bruneton 2008 (BSD-3, not used) | the twilight sky has an earth shadow and a pale band over the horizon that a Preetham sky lacks | from a height the sky's last degrees take the haze's colour and a little of the glow (`uAirSky`): the far towers stand dark against it |
+| van Dongen, "Interior Mapping" (CGI 2008); three.js `SkyscraperGenerator` (MIT, not used) | a window's light from a small palette by a hash of its building and floor | `farcity.js`: the far towers in four lights by the building (cool white, neutral, the tubes' green-white, warm) and a floor in five of an office warmer; they were all one cool white |
+
+- **Only from a height.** The air comes in as the camera rises from 70 to 190 m over the streets (`AIR.gate`): nothing
+  of it on foot, where the street's own lamps and the edge haze are the picture, and all of it on SKY's roof and in the
+  flight. It is in from the hour the lamps come on (`uNight`), not by day.
+- **One uniform for every material** (`uOeAir`: its strength, and the glow's colour). three.js copies a uniform's value
+  by reference when it is a typed array, so one `Float32Array` put into each of `ShaderLib`'s uniform sets that carries
+  the fog's is read by every built-in material compiled after, with no patch to any of them. A `ShaderMaterial` of the
+  page's own (the lamps' points, the water) leaves it at nought and takes no air: a far lamp shines through.
+- **What it costs.** Two exponentials in the fog of a fragment when the camera is high, a test of a uniform when it is
+  not; no texture, no pass, no memory: the same on a phone. `?air=0` leaves it out, for a still beside one with it.
+
 ## A wet street after dark
 
 A city in the rain at night is mostly its reflections: every sign, screen and lamp drawn again in the street as a long

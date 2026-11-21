@@ -798,7 +798,7 @@ what it does before it is done (`task.teach` on frame 1; `story.js` `teach`):
 
 | Step | What it says it does | How the world answers, the moment it is done |
 |---|---|---|
-| Stand in the light | the camera sees 1964 only from where it was seen; anywhere else, tonight | the column goes, the edge of the place is lit on the ground and a ring goes out to it from your feet (`game.js` `here`); *In the light*; the rangefinder's line joins |
+| Stand in the light | the camera sees 1964 only from where it was seen; anywhere else, tonight | the column goes, the edge of the place is lit on the ground, a fine line 8 cm wide laid on the ground as it is, kerbs and all (`game.js` `storyDrape`), and a ring goes out to it from your feet (`game.js` `here`); *In the light*; the rangefinder's line joins |
 | Raise the camera (R, the button, LT) | from the light, what stood there comes up in the finder out of the grain | the board forms inside the lines in 0.8 s, with its glass |
 | Turn it into the frame lines | an arrow on their edge points to it while it is outside them | the lines go amber; *In the frame · the planetarium's board* |
 | Take the picture (F, the shutter, RT) | the print comes up as tonight, and 1964 through it; seven frames, no eighth | the print develops in the hand |
@@ -1018,7 +1018,8 @@ where he went, Hachi was something walking beside the instructions. So while he 
 (`story.js` `ledBy`, `st.guided`) there is no light standing in the street, no gold line, and no mark while he is
 in the frame; out of it, the arrow at the frame's edge points to him, not to the goal. The signs come back
 where he cannot show it: before he is met in the first Stop, when the goal is a thing to frame (turned to, not
-walked to), and when the player has gone thirty seconds without getting any nearer, whatever the reason (the
+walked to: its mark, never a gold line, which ran from Kagami's feet across the zebra to the thing to photograph
+until `game.js` `updateRoute` left the kind `frame` out; `tools/story_play.js` holds it at every standpoint), and when the player has gone thirty seconds without getting any nearer, whatever the reason (the
 net under him: he is a dog, and the player may not be following). Someone to talk to is marked *Talk* only when
 near (12 m) and in sight (`ctx.seen`, a ray against the collision world): a speech mark across a wall 116 m off
 said only that someone stood behind it. He rides a lift at the player's side, and is not lost at the bottom and
