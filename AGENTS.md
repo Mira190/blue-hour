@@ -225,12 +225,20 @@ thirty is drawn). So:
   stops a job with every process it started, its browsers too.
 - **Play only what you changed while you work on it** (`FROM=n UPTO=n`, one screen, then the other once it is right),
   and run the whole `tools/check.sh` once, when the branch is ready to land.
-- **Let the router and the cache choose.** A browser check whose last pass in this clone read nothing that has changed
-  since is kept, not played again (`tools/check_cache.py`, from the server's log of what the page fetched), so a run
-  after a fix plays only what the fix touched; and models, pictures or sounds alone run `look` and `mem`, minutes, not
-  the story (docs/CHECKS.md, "The router and the cache"). Run plain `tools/check.sh` rather than naming targets, and
-  read its first line, how long the run will take on this machine (from this clone's last passes), and its last, the
-  time each check took.
+- **Let the router and the cache choose.** Since issue 131 a check is played only where the change can reach it
+  (docs/CHECKS.md, "Checks by reach"): the browser counts which functions each check runs, and a pass stands when what
+  changed since is main's as main has it, a comment, inside a function the check never ran, a model behind its
+  contract, or the story's prose of a frame it does not play. The pass is this clone's or, in a fresh session, main's
+  (the branch `check-passes`). The story plays in three parts and the browser checks two side by side, without stills.
+  Measured on 21 November 2026: every check of a page change played, 16 minutes (38 to 43 before); one function of
+  `game.js` or `story.js`, 8 to 10 at the median (36 to 51); main moved under a branch it did not reach, 55 seconds.
+  So run plain `tools/check.sh` rather than naming targets, and read its lines: each check kept or played says why
+  (`python3 tools/check_cache.py why story2` for all of it). When main moves, merge it and run `tools/check.sh` again:
+  it is the static checks unless main changed a function you changed.
+- **Keep to the seams.** A new script under `web/` is given its part in `contracts/parts.json`, and a name asked of
+  another part is added there (`python3 tools/seams.py --write`): the static checks fail otherwise (docs/SEAMS.md). A
+  people's model that gives what `contracts/people.json` asks, and a hero level whose names and ground are as they
+  were, are looked at and weighed, not played.
 - **Keep the context light.** A still or a log read into the conversation stays in it for every later step: look at a
   contact sheet of stills (`tools/contact_sheet.py`), and read logs through `grep` or `tail`.
 
