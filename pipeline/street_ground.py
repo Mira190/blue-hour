@@ -169,7 +169,8 @@ def half_width(e, kind):
 def runs(e, G):
     """The pieces of a line (game.json path, decimetres) that lie on the ground, each resampled every metre: [(xy, n)]."""
     p = np.asarray(e["p"], np.float64).reshape(-1, 3) / 10
-    on = np.abs(p[:, 2] - G.at(p[:, 0], p[:, 1])) < ON_GROUND_M
+    # (which of its points lie on the ground was settled once, against the survey: on_ground())
+    on = e["_on"] if "_on" in e else np.abs(p[:, 2] - G.at(p[:, 0], p[:, 1])) < ON_GROUND_M
     out, cur = [], []
     for i in range(len(p) - 1):
         if not (on[i] and on[i + 1]):
@@ -290,6 +291,38 @@ def save_survey(cid, t):
     json.dump({"note": "The game's 5 m walking grid as surveyed (game_data.py), before pipeline/street_ground.py graded its streets.",
                "cell": t["cell"], "nx": t["nx"], "ny": t["ny"], "scale": t["scale"], "encoding": "int16le-zlib-base64",
                "data": base64.b64encode(zlib.compress(raw, 9)).decode()}, open(survey_path(cid), "w", encoding="utf8"))
+
+
+def on_ground(cid, game, G):
+    """Which points of the game's lines lie on the ground, settled once and kept with the survey (its "on": a string
+    of 0 and 1 for each line): e["_on"] on every line, in memory only.
+
+    Whether a point lies on the ground or on a deck was read from its height over the ground as it is now, and the
+    grading then moved both the ground and the points on it: a point 0.2 m over the ground was a street for the
+    grading but was not laid on the new ground, so that the next run found it a deck, left the ground there as
+    surveyed, and the run after found it a street again. A second grading moved 7,586 nodes and 420 buildings, a third
+    2,919 and 175, and it never settled (issue 163): the ground was a function of itself. Now it is a function of
+    the survey and of this record, and a second run writes the same. The record is made from the lines as they are
+    when there is none (after game_data.py: against the survey itself), and made again when the lines change."""
+    sp = survey_path(cid)
+    sv = json.load(open(sp, encoding="utf8")) if os.path.exists(sp) else {}
+    kinds = {k: game["paths"][k] for k in ("road", "foot")}
+    mark = [[len(e["p"]) // 3 for e in v] for v in kinds.values()]
+    rec = sv.get("on")
+    if not rec or rec.get("points") != mark:
+        rec = {"points": mark, "lines": []}
+        for v in kinds.values():
+            row = []
+            for e in v:
+                p = np.asarray(e["p"], np.float64).reshape(-1, 3) / 10
+                row.append("".join("1" if o else "0" for o in np.abs(p[:, 2] - G.at(p[:, 0], p[:, 1])) < ON_GROUND_M))
+            rec["lines"].append(row)
+        if sv:
+            sv["on"] = rec
+            json.dump(sv, open(sp, "w", encoding="utf8"))
+    for v, row in zip(kinds.values(), rec["lines"]):
+        for e, bits in zip(v, row):
+            e["_on"] = np.frombuffer(bits.encode(), np.uint8) == 49
 
 
 def load_survey(cid, t):
@@ -576,11 +609,27 @@ def standing(G, out):
 def stood(landmarks, G):
     """The nodes round a landmark's feet: a cell round every vertex of it within LANDMARK_M of the ground."""
     img = np.zeros((G.ny, G.nx), bool)
+    F = []
+    for r in (landmarks or {}).get("runs", []):
+        for ax, ay, bx, by, *_ in r["bays"]:
+            n = max(2, int(np.hypot(bx - ax, by - ay) / 0.5) + 1)
+            F.append(np.stack([np.linspace(ax, bx, n), np.linspace(ay, by, n)], 1))
+    for x, y, _, _, rad in (landmarks or {}).get("feet", []):
+        a = np.linspace(0, 2 * np.pi, 9)[:-1]
+        F.append(np.vstack([[[x, y]], np.stack([x + rad * np.cos(a), y + rad * np.sin(a)], 1)]))
+    F = np.vstack(F) if F else np.zeros((0, 2))
+    if len(F):
+        from scipy.spatial import cKDTree
+        tree = cKDTree(F)
     for m in (landmarks or {}).get("meshes", []):
         P = np.asarray(m["position"], np.float64).reshape(-1, 3)
         if not len(P):
             continue
         P = P[np.abs(P[:, 2] - G.at(P[:, 0], P[:, 1])) < LANDMARK_M]
+        if len(P) and len(F):
+            # (what was built by the rule of levels follows the ground: pipeline/levels.py, landmarks.json "runs" and
+            # "feet". It is built again after the grading and holds no lump of the survey under itself)
+            P = P[tree.query(P[:, :2])[0] > 0.6]
         rr, cc = nodes_of(G, P[:, :2])
         img[rr, cc] = True
     return ndimage.binary_dilation(img, structure=np.ones((3, 3)))
@@ -693,7 +742,9 @@ def rebase(cid, Gn, lot, game, scene, dry=False):
             c0, r0 = np.clip(np.floor((P[:, 0] - Gn.x0) / cell).astype(int), 0, Gn.nx - 2), np.clip(np.floor((Gn.y1 - P[:, 1]) / cell).astype(int), 0, Gn.ny - 2)
             touched = touched or bool((lot[r0, c0] | lot[r0, c0 + 1] | lot[r0 + 1, c0] | lot[r0 + 1, c0 + 1]).any())
             low, base = min(low, float(Gn.at(P[:, 0], P[:, 1]).min())), min(base, sd[k_base] / 10)
-        if not ok or not touched or not np.isfinite(low):
+        # (every building, not only one the lots' membrane touched: a building beside a graded street whose base was
+        # the survey's lowest point under its corners stood 1 to 1.7 m over its street, 50 of them: issue 163)
+        if not ok or not np.isfinite(low):
             continue
         d = int(round(max(low, 0.0) * 10)) - int(round(base * 10))
         if d:
@@ -749,7 +800,7 @@ def report(T, G, game, centre, radius, keep, on):
     return {k: evenness(T, G, game, centre, radius, keep, on, (k,)) for k in ("road", "foot")}
 
 
-def run(cid, measure=False, force=False, radius=300.0, only_holes=False):
+def run(cid, measure=False, force=False, radius=300.0, only_holes=False, dry=False):
     out = os.path.join(ROOT, "web", "data", cid)
     gp, sp, tp, lp = (os.path.join(out, f) for f in ("game.json", "scene.json", "terrain.json", "landmarks.json"))
     game, scene = json.load(open(gp, encoding="utf8")), json.load(open(sp, encoding="utf8"))
@@ -761,6 +812,7 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False):
     T = load_survey(cid, t) if os.path.exists(survey_path(cid)) else Tc
     x0, y1 = scene["frame"]["x"][0], scene["frame"]["y"][1]
     G, Gc = Ground(T, x0, y1, t["cell"]), Ground(Tc, x0, y1, t["cell"])
+    on_ground(cid, game, Gc)
     keep, laid = protected(game, scene, landmarks, G, out)
     centre = game["start"]["at"]
     rep = {"city": cid, "graded": t.get("levelled", 0), "radius_m": radius, "now": report(Tc, G, game, centre, radius, keep, Gc),
@@ -808,15 +860,20 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False):
     if a["road"]["creases_over_15pc"] > b["road"]["creases_over_15pc"] or a["road"]["crossfall_over_15pc"] > b["road"]["crossfall_over_15pc"]:
         rep["kept_as_surveyed"] = True
         return rep
+    if dry:   # (--settled: what a second grading would move; nothing is written)
+        rep["would_move"] = int((np.abs(new - Tc) >= 0.05).sum())
+        rep["would_rebase"] = rebase(cid, Ground(new, x0, y1, t["cell"]), lot, game, scene, dry=True).get("buildings", 0)
+        return rep
     # the paths' and the props' points on the old ground, onto the new (within 15 cm of it: a deck stays)
     Gn = Ground(new, x0, y1, t["cell"])
     pts = 0
-    def reground(flat):
+    def reground(flat, on=None):
         nonlocal pts
         a = np.asarray(flat, np.float64).reshape(-1, 3) / 10
         if not len(a):
             return
-        on = np.abs(a[:, 2] - Gc.at(a[:, 0], a[:, 1])) < 0.15
+        if on is None:
+            on = np.abs(a[:, 2] - Gc.at(a[:, 0], a[:, 1])) < 0.15
         nz = np.round(Gn.at(a[:, 0], a[:, 1]) * 10)
         ch = on & (nz != np.round(a[:, 2] * 10))
         for i in np.nonzero(ch)[0]:
@@ -824,7 +881,7 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False):
         pts += int(ch.sum())
     for kind in game["paths"].values():
         for e in kind:
-            reground(e["p"])
+            reground(e["p"], e.pop("_on", None))
     for flat in game.get("props", {}).values():
         reground(flat)
     rep["points"] = pts
@@ -960,12 +1017,21 @@ def main():
     ap.add_argument("--force", action="store_true", help="grade a city again")
     ap.add_argument("--holes", action="store_true", help="only list the survey's holes the test finds on the grid as it is (the grading fills those in the hero levels)")
     ap.add_argument("--check", action="store_true", help="fail where a map's ground is not graded by this method, or its roads are not as even as that leaves them (tools/check.sh)")
+    ap.add_argument("--settled", action="store_true", help="grade again without writing: fail if the ground or a building would move (the grading is a function of the survey, not of itself)")
     ap.add_argument("--radius", type=float, default=300.0, help="the measure's radius round the start (m)")
     a = ap.parse_args()
     if a.check:
         lines = [ln for cid in (live() if a.live else [a.city]) for ln in check(cid)]
         print("\n".join(lines))
         raise SystemExit(any(ln.startswith("FAIL") for ln in lines))
+    if a.settled:
+        bad = 0
+        for cid in (live() if a.live else [a.city]):
+            r = run(cid, force=True, dry=True)
+            n, b = r.get("would_move", 0), r.get("would_rebase", 0)
+            bad += n + b
+            print(f"{'FAIL' if n + b else 'ok'} {cid}: a second grading would move {n} nodes and {b} buildings")
+        raise SystemExit(bad > 0)
     for cid in (live() if a.live else [a.city]):
         print(json.dumps(run(cid, a.measure, a.force, a.radius, a.holes)), flush=True)
 
