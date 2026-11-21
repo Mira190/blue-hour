@@ -1176,8 +1176,11 @@ first principles:
   softened, since at the full rate the high part was a rush.
 - *The beats.* `over` (8.5 s): from 600 m over Omotesando, the whole district to the horizon and the title. `glide`
   (8 s): down towards the station's towers. `edge` (5 s): over the north edge of SHIBUYA SKY's roof at the deck's height,
-  its people and the helicopter on its pad below. `dive` (8.5 s): down the tower's face to the crossing, the crowd
-  gathered at every kerb, and the walk turns green under you. `land` (6 s): down into the surge onto your shoulder.
+  its people and the helicopter on its pad below. `dive` (8.5 s): down the tower's face and out over the crossing to
+  above where you stand, the crowd gathered at every kerb, and the walk turns green under you. `land` (6 s): straight
+  down into the surge onto your shoulder, still looking across the crossing until the last second (`lookHold`), never
+  tipped onto the tops of heads. Its way keeps clear of the roofs and of the trees' crowns: a first way down from the
+  station's side passed through the twenty-metre zelkova on that corner.
 - *A map without a map.* A few of the places the walk can take you are named as the camera passes over them (the
   National Gymnasium, SHIBUYA SKY at 229 m, Hikarie, Cerulean Tower, Dogenzaka's 109, Center Gai, Hachiko): a point on
   the place, an amber stem, its name in its own script and in the title's type, faded in and out over its seconds and
@@ -1186,7 +1189,8 @@ first principles:
   story's is a minor piano alone; rising, never striking; the crossing's birds as it turns green; let go into the
   street's own sound as you land. The loading cue goes as the walk sets out.
 - *Never in the way.* Any key or a tap eases down to your shoulder in under a second. With reduced motion or
-  `?overture=0` the crane comes down from the title's view as before. The walk's own people are out in it already. The
+  `?overture=0` the crane comes down from the title's view as before; taken up from the story's last card, on a fresh
+  page too, the walk goes on at the kerb without it, as it does in place. The walk's own people are out in it already. The
   camera does not come down to the kerb before the level you stand in is drawn: the film holds at the top of its last
   shot while it is not, six seconds at most. Its score is rendered and its parts compiled while the hour and the sky are
   chosen, so Set out plays it at once.
@@ -1199,7 +1203,7 @@ whole building); the fly-to of web maps and globes for its pace (above; the idea
 viewpoints of the *Assassin's Creed* games, from which the city round you is shown and its places put on your map, for
 the names. On the page: `cities/shibuya/city.json` `game.walk.overture`, `web/game/overture.js` (`fly`, `marks`, guide
 `none`, the title's `style: card`, `{tokens}` the game fills, the hold for the level), `web/game/game.js` (`startWalk`,
-`walkFilmMake`). `tools/walk_open.js` takes a still of each shot and checks the camera's clearance over the roofs
+`walkFilmMake`). `tools/walk_open.js` takes a still of each shot and checks the camera's clearance over the roofs and from the trees' crowns
 (`FILM=1`: the whole film with its score); `tools/walk_play.js` sees it play and a key or a tap end it.
 
 **The title's ways in, one list (November 2026).** On a phone the walk's button stood taller than the episode's (its

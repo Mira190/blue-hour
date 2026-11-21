@@ -37,7 +37,7 @@ twelve metres with their speech mark and from three in front, printing where eac
 The walk's opening (`game.walk.overture`, STORY.md "The walk's opening") is looked at shot by shot: `tools/walk_open.js out
 [WxH] [hour] [sky]` sets out as the story's last card does on a fresh page, holds the film on a virtual clock, takes a still at
 a few points of each shot (`K`, `SHOTS`) with the bars, the title and the names, prints the camera's clearance over the
-roofs (failing under 4 m) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
+roofs and from the trees' crowns (failing under 4 m) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
 cameras over the walk for scouting. The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
 

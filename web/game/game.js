@@ -6564,7 +6564,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the walk's opening (game.walk.overture, docs/STORY.md "The walk's opening"): the city from the air at the hour and under
     // the sky chosen, flown down in one flight to your shoulder at the kerb; any key or a tap eases down to you at once.
     // Not with reduced motion or ?overture=0, where the crane comes down from the title's view as before
-    if (walkFilmDue()) {
+    if (walkFilmDue() && !walkNoFilm) {
       const film = walkFilmMake(), was = overture;
       overture = film;
       if (film.play(() => { overture = was; walkUi.begin(); })) return;
@@ -6579,13 +6579,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the walk's film, made the first time the walk's step opens (its score rendered and its things compiled while the hour
   // and the sky are chosen, so that Set out plays it at once), and played as the walk sets out (startWalk)
   const WALK_OV = story && G.walk && G.walk.overture;
-  let walkFilm = null;
+  let walkFilm = null, walkNoFilm = false; // (no film for a walk taken up from the story's last card on a fresh page: it goes on at the kerb, as in place)
   const walkFilmDue = () => !!(WALK_OV && window.OEOverture && makeFilm && !reduced && !/[?&]overture=0\b/.test(location.search));
   const SKY_WORD = { clear: 'Clear', overcast: 'Overcast', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', storm: 'Storm', snow: 'Snow' };
   const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   function walkFilmMake() {
     if (!walkFilm) walkFilm = makeFilm(WALK_OV, null, { own: true, walk: true,
-      fill: k => (k === 'hour' ? fmtMin(clock.min) : k === 'date' ? `${clock.d} ${MONTH[clock.m - 1]}` : k === 'sky' ? SKY_WORD[weather ? weather.state.kind : 'clear'] || 'Clear' : null) });
+      fill: k => (k === 'hour' ? fmtMin(clock.min) : k === 'date' ? `${clock.d} ${MONTH[clock.m - 1]}` : k === 'sky' ? SKY_WORD[(walk && walk.w) || (weather ? weather.state.kind : 'clear')] || 'Clear' : null) }); // (the sky chosen: the weather's own word comes a frame or two after it is set)
     return walkFilm;
   }
   const walkFilmReady = () => { if (!walkFilmDue() || playing) return; const f = walkFilmMake(); if (!f) return; f.prepareScore(); if (f.prewarm) f.prewarm(o => compileFor(o)); };
@@ -6703,7 +6703,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (auto) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
     // come from the story's last card (its Walk Shibuya, story ctx free): no card to press, the walk sets out
     { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('oe-walk-auto') || 'null') : null; sessionStorage.removeItem('oe-walk-auto'); } catch (e) { sp = null; }
-      if (sp && !playing) { stage.classList.add('story-auto'); setTimeout(() => walkUi.auto(sp), 0); } }
+      if (sp && !playing) { stage.classList.add('story-auto'); walkNoFilm = !sp.film; setTimeout(() => walkUi.auto(sp), 0); } } // (sp.film: a harness's, tools/walk_open.js)
     $('#g-loader').classList.add('out');
     setTimeout(() => {
       $('#g-loader').hidden = true; OEPlate.stop($('#g-loader'));

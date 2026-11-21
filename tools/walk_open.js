@@ -1,10 +1,10 @@
 // The walk's opening (cities/shibuya/city.json game.walk.overture, played by web/game/overture.js from game.js
 // startWalk; docs/STORY.md "The walk's opening"), looked at as a player sees it: the page opened as the story's last card
-// opens it for a walk (no title to press, the walk set out at the hour and under the sky given), the film let run, and
+// opens it for a walk (no title to press, the walk set out at the hour and under the sky given, here with its film), the film let run, and
 // then held on a virtual clock (tools/film/clock.js) while each shot is sought and a still of the page taken at a few
 // points through it, with the bars, the title and the names over it. Prints, shot by shot, the camera's lowest
 // clearance over the map's surface model and its height, and fails a shot that goes within 4 m of a roof (the land
-// shot, which comes down to the chase camera, is left out), a film that does not play, or an error on the page.
+// shot, which comes down to the chase camera, is left out) or of a tree's crown (any shot), a film that does not play, or an error on the page.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_open.js out_dir [WxH] [hour] [sky]        (hour blue|night|live, sky clear|rain)
 // K=0.1,0.5,0.9 (the points of each shot), SHOTS=a,b (those shots only), TIER=high|medium|low, GAME_TIME=13:00 (the
@@ -33,7 +33,7 @@ const FPS = +(process.env.FPS || 24);
   await p.addInitScript({ path: path.join(__dirname, 'film', 'clock.js') });
   await p.addInitScript(([t, spec]) => {
     try { localStorage.setItem('oe3d-quality', t); sessionStorage.setItem('oe-walk-auto', JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
-  }, [process.env.TIER || 'high', { t: hour, w: sky }]);
+  }, [process.env.TIER || 'high', { t: hour, w: sky, film: true }]); // (film: as Set out plays it; from the last card it does not)
   if (pinClock) await pinClock(p, 'shibuya');
   const t0 = Date.now();
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.VIEWS ? '?overture=0' : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -42,6 +42,9 @@ const FPS = +(process.env.FPS || 24);
     await p.screenshot({ path: f, type: jpeg ? 'jpeg' : 'png', quality: jpeg ? 90 : undefined, timeout: 180000 });
     return f;
   };
+  // (the page's frame back on the virtual clock: its next frame, asked of the real one before the clock was started, has
+  // come and asked again. Stepped before that, nothing ran, and a still was of the frame drawn last: two stills alike)
+  const vtOn = () => p.waitForFunction(() => __vt.pending > 0, null, { timeout: 180000, polling: 50 }).catch(() => console.log('  (no frame came back to the virtual clock)'));
   const step = (n, ms = 1000 / FPS) => p.evaluate(([n, ms]) => { for (let i = 0; i < n; i++) __vt.step(ms); }, [n, ms]);
   // a hero level near the camera still loading: the page let run in real time until it is drawn (its warm-up runs in the
   // page's own frames, which a software renderer draws a second or more apart), the film held where it was meanwhile
@@ -53,6 +56,7 @@ const FPS = +(process.env.FPS || 24);
     const t = Date.now();
     while (Date.now() - t < 900000 && await busy()) { if (k != null) await p.evaluate(k => window.__game.cine.seek(k), k); await p.waitForTimeout(1000); }
     await p.evaluate(() => __vt.start());
+    await vtOn();
     if (k != null) await p.evaluate(k => window.__game.cine.seek(k), k);
     console.log(`  (a level drawn ${Math.round((Date.now() - t) / 1000)} s later)`);
     return Date.now() - t;
@@ -91,7 +95,9 @@ const FPS = +(process.env.FPS || 24);
   // the film: it must start as the walk sets out
   const began = await p.waitForFunction(() => { const g = window.__game, o = g && g.overture && g.overture(); return !!(o && o.active && o.walk); }, null, { timeout: 900000, polling: 200 }).then(() => true, () => false);
   if (!began) { console.log('FAIL the walk set out and its opening did not play'); await shoot('no-film'); await b.close(); process.exit(1); }
-  const info = await p.evaluate(() => { __vt.start(); window.__game.cine.seek(0); const o = window.__game.overture(); return { total: o.total, t: o.t, shots: o.shots.map(s => ({ id: s.id, t0: s.t0, dur: s.dur, type: s.type })) }; });
+  await p.evaluate(() => __vt.start());
+  await vtOn();
+  const info = await p.evaluate(() => { window.__game.cine.seek(0); const o = window.__game.overture(); return { total: o.total, t: o.t, shots: o.shots.map(s => ({ id: s.id, t0: s.t0, dur: s.dur, type: s.type })) }; });
   await level(); // (the level under the player, which a player's title fetches while they choose: drawn before the film is looked at)
   console.log(`the walk's opening began ${Math.round((Date.now() - t0) / 1000)} s after the page opened: ${info.total.toFixed(1)} s, ${info.shots.map(s => `${s.id} ${s.dur}`).join(', ')}`);
   // the cut against the surface model: the lowest clearance of the camera over what is under it, and its height
@@ -99,6 +105,9 @@ const FPS = +(process.env.FPS || 24);
     const G = window.__game, o = G.overture(), D = G.DSM, res = [];
     const dsm = (x, y) => { const c = Math.floor((x - D.x0) / D.cell), r = Math.floor((D.y1 - y) / D.cell); return c < 0 || r < 0 || c >= D.nx || r >= D.ny ? 0 : D.data[r * D.nx + c]; };
     for (const s of o.shots) {
+      // (a land shot comes down from where the shot before it ends, which the film sets as it cuts: set here, as the cut would)
+      const i = o.shots.indexOf(s);
+      if (s.type === 'land' && i > 0) { const e = o.sample(o.shots[i - 1], 1); o.setFrom({ pos: e.pos, look: e.look }); }
       let lo = Infinity, at = 0, top = -Infinity, bot = Infinity, where = null;
       for (let j = 0; j <= 60; j++) {
         const q = o.sample(s, j / 60), x = q.pos.x, y = -q.pos.z, z = q.pos.y;
@@ -107,14 +116,30 @@ const FPS = +(process.env.FPS || 24);
         if (m < lo) { lo = m; at = j / 60; where = [Math.round(x), Math.round(y), Math.round(z)]; }
         top = Math.max(top, z); bot = Math.min(bot, z);
       }
-      res.push({ id: s.id, type: s.type, clear: +lo.toFixed(1), at: +at.toFixed(2), where, z: [Math.round(bot), Math.round(top)] });
+      // and the trees: how near the camera comes to a crown (its foot, how high its lowest leaves hang, how far out it
+      // reaches and how high its top is, as web/trees.js draws it); a crown close under a low camera fills the frame
+      let tree = { d: Infinity };
+      const T = G.Wd && G.Wd.trees, tr = T ? T.trunks() : [], cw = T && T.crowns ? T.crowns() : [];
+      for (let j = 0; j <= 60; j++) {
+        const q = o.sample(s, j / 60), x = q.pos.x, y = -q.pos.z, z = q.pos.y;
+        for (let i = 0, c = 0; i < tr.length; i += 4, c += 3) {
+          const h = Math.hypot(tr[i] - x, tr[i + 1] - y);
+          if (h > 60) continue;
+          const lo = tr[i + 2] + cw[c], hi = tr[i + 2] + cw[c + 2], dz = z < lo ? lo - z : z > hi ? z - hi : 0, d = Math.hypot(Math.max(0, h - cw[c + 1]), dz);
+          if (d < tree.d) tree = { d, k: j / 60, at: [Math.round(tr[i]), Math.round(tr[i + 1])], top: Math.round(hi) };
+        }
+      }
+      res.push({ id: s.id, type: s.type, clear: +lo.toFixed(1), at: +at.toFixed(2), where, z: [Math.round(bot), Math.round(top)], tree });
+      if (s.type === 'land') o.setFrom(null);
     }
     return res;
   });
   for (const c of clear) {
     const bad = c.type !== 'land' && c.clear < 4;
-    console.log(`${bad ? 'FAIL' : 'ok  '} ${c.id.padEnd(8)} clearance ${String(c.clear).padStart(6)} m (at k ${c.at}, ${c.where.join(', ')}), height ${c.z[0]}-${c.z[1]} m`);
+    const tb = c.tree.d < 4; // (through a crown, or within 4 m of one: its leaves fill the frame)
+    console.log(`${bad || tb ? 'FAIL' : 'ok  '} ${c.id.padEnd(8)} clearance ${String(c.clear).padStart(6)} m (at k ${c.at}, ${c.where.join(', ')}), height ${c.z[0]}-${c.z[1]} m; nearest crown ${c.tree.d === Infinity ? '-' : `${c.tree.d.toFixed(1)} m (at k ${c.tree.k.toFixed(2)}, the tree at ${c.tree.at.join(', ')}, top ${c.tree.top} m)`}`);
     if (bad) errors.push(`${c.id}: the camera passes ${c.clear} m over a roof`);
+    if (tb) errors.push(`${c.id}: the camera passes ${c.tree.d.toFixed(1)} m from a tree's crown (at ${c.tree.at.join(', ')})`);
   }
   if (process.env.FILM) {
     const dir = path.join(out, 'frames'); fs.mkdirSync(dir, { recursive: true });

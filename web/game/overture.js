@@ -10,7 +10,7 @@
 //     orbit  {at, az: [a, b] (compass degrees of the camera from at), dist, h, look?}
 //     move   {from, to, look | lookFrom + lookTo}
 //     chase  {dist, h, side}               behind the guide along its path, looking at it
-//     land   {via}                        from the last shot's end down to over the player's shoulder
+//     land   {via, lookHold}              from the last shot's end down to over the player's shoulder
 //     fly    {}                            a window on the film's own flight (spec.fly, below): the camera runs on through
 //                                          every cut, and the shot gives only its type, its cues and its seconds
 //     escort {az, dist, h, lag, lead_s}    a camera ship flying with the guide: dist metres from it, az degrees round
@@ -503,7 +503,7 @@ window.OEOverture = (function () {
         const v = s._via ? W(...s._via) : a.pos.clone().lerp(ctx.live.pos, 0.5).setY(Math.max(a.pos.y, ctx.live.pos.y) * 0.6);
         const b = ctx.live;
         pose.pos.set(0, 0, 0).addScaledVector(a.pos, (1 - q) * (1 - q)).addScaledVector(v, 2 * q * (1 - q)).addScaledVector(b.pos, q * q);
-        pose.look.lerpVectors(a.look, g || b.look, EASE.smooth(clamp(k * 2.2)));
+        pose.look.lerpVectors(a.look, g || b.look, EASE.smooth(clamp((k - (s.lookHold || 0)) / (1 - (s.lookHold || 0)) * 2.2))); // (lookHold: the look kept where the last shot left it until then, coming down, not tipping onto the player from above)
         if (k > 0.55) pose.look.lerp(b.look, EASE.smooth((k - 0.55) / 0.45));
       }
       fov = ch(s.fov ?? 45, k, e);
