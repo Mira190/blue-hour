@@ -37,7 +37,7 @@ window.OEFace = (function () {
   const DEFAULT = { mouthSmile: 0.06 };
   // what a line says, from its words: the strongest that is found
   const CUES = [
-    { re: /\b(dead|died|die|dying|never|lost|alone|gone|grave|sorry|waited|late|nobody|no one|killed|cold|forgot|forget|cannot see|sixty years|could not|last)\b|遅かった/i,
+    { re: /\b(dead|died|die|dying|never|lost|alone|gone|grave|sorry|waited|late|nobody|no one|killed|cold|forgot|forget|cannot see|sixty(?:-two)? years|could not|last)\b|遅かった/i,
       w: { browInnerUp: 0.42, mouthFrown: 0.22, browDown: -0.1 } },
     { re: /\b(no|not|don't|lie|lied|liar|must|closed|police|stop|enough|wrong|nothing|deny|refuse)\b/i, w: { browDown: 0.3, mouthPress: 0.26 } },
     { re: /\b(thank|thanks|glad|good|kind|love|smile|laugh|beautiful|lovely|welcome|hope|careful|friend|grandmother|chose)\b|ありがとう/i,

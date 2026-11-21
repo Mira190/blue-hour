@@ -2162,6 +2162,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
+  // the print: the middle of the picture, three by two, as fractions of it from its top left. The story's photograph is
+  // cut from it (snap), and its finder's lines are kept inside it (story.js fitFinder), so that what stands in the lines is
+  // in the print. On a phone held upright the lines stood twice as tall as the print, and a thing framed in their lower
+  // half was ready to be taken and was cut off the print (frame 2's shoeshine pitch, at the foot of the finder)
+  const printRect = () => { const W = Math.max(1, canvas.width), H = Math.max(1, canvas.height), sw = Math.min(W, H * 1.5), sh = sw / 1.5; return [(1 - sw / W) / 2, (1 - sh / H) / 2, (1 + sw / W) / 2, (1 + sh / H) / 2]; };
+  const relicV = new THREE.Vector3(), relicD = new THREE.Vector3(), relicF = new THREE.Vector3();
   // a disc or a ring of radius r (from r0 to r, shares of r) laid on the ground a walker stands on round at (x, y, its floor z0),
   // 3 cm over it, in the frame of a group placed at (x, y, z0): a polar grid fine enough (20 cm round, 17 cm out at a
   // 4 m place) that a kerb crossed is a step in it. aP: where each point is in the unit disc, for a shader. Flat at
@@ -2689,8 +2695,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       mirrorTick();
       const out = document.createElement('canvas'), h = Math.min(480, canvas.height);
       out.height = h; out.width = Math.round(h * 1.5);
-      const sw = Math.min(canvas.width, canvas.height * 1.5), sh = sw / 1.5;
-      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, (canvas.width - sw) / 2, (canvas.height - sh) / 2, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
+      const P = printRect(), sx = P[0] * canvas.width, sy = P[1] * canvas.height, sw = (P[2] - P[0]) * canvas.width, sh = (P[3] - P[1]) * canvas.height;
+      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
       // (tonight alone first, smaller: the print comes up as tonight, and the other year comes up in it, story.js showPrint)
       let base = null;
       const later = ghosts ? [...storyFigs].filter(f => f.ghost && f.rig && f.rig.root.visible) : [];
@@ -2703,6 +2709,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return src;
     },
     snapBase: () => storySnapBase,
+    printRect, // (the print's rectangle in the picture: story.js keeps the finder's lines inside it)
     again: () => { try { sessionStorage.setItem('bh-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
     // the last card's "Walk Shibuya": the walk (walk.js), taken up where the case ended, in the same night (walkOnFromStory).
     // Only where that cannot be, from a fresh page at the hour it ended in and under its sky. It was the map's old free
@@ -2828,7 +2835,30 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
-    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); } }; }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1)
+    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one);
+      return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); }, get missing() { return all.every(q => q.missing); },
+        // (where it stands in the picture: the box round all of it, as fractions from the picture's top left, and whether all of
+        // it is in front of the lens; null while its model is loading)
+        frame: () => {
+          camera.getWorldDirection(relicF);
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, front = true, any = false;
+          const corner = v => {
+            if (relicD.copy(v).sub(camera.position).dot(relicF) < 0.05) front = false;
+            relicV.copy(v).project(camera); const x = relicV.x * 0.5 + 0.5, y = 0.5 - relicV.y * 0.5;
+            x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+          };
+          for (const q of all) if (q.corners && q.corners(corner)) any = true;
+          return any ? { x0, y0, x1, y1, front } : null;
+        },
+        // (the middle of all of it on the map, x and y: what the raised camera comes up onto, the pillar box, her umbrella and
+        // the board of frame 6 together, and not the pillar box alone with the board off the print's edge)
+        middle: () => {
+          let x0 = Infinity, z0 = Infinity, h0 = Infinity, x1 = -Infinity, z1 = -Infinity, h1 = -Infinity, any = false;
+          const corner = v => { x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); z0 = Math.min(z0, v.z); z1 = Math.max(z1, v.z); h0 = Math.min(h0, v.y); h1 = Math.max(h1, v.y); };
+          for (const q of all) if (q.corners && q.corners(corner)) any = true;
+          return any ? [(x0 + x1) / 2, -(z0 + z1) / 2, h0, h1] : null; // (x, y on the map; and the heights of its foot and its top)
+        } };
+    }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1; missing: its model is not to be had)
     clear: (a, b, half) => clearSight(a, b, half), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to; half: a lane for someone to walk)
     clearRound: (x, y, r) => clearRound(x, y, r), // (and out of a ring round someone the frame is of)
     finder: (q, open = true) => { if (past) { past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); past.open(open); } }, // (open: the lens stands where the other year was seen from; off it the finder has tonight only)
@@ -2890,7 +2920,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let walk = null, walkUi = null, tonight = null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
-  const padOpen = () => (window.OECredits && OECredits.open() ? OECredits.el : null) || [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
+  const padOpen = () => (window.OECredits && OECredits.open() ? OECredits.el : null) || [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-spend', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
     || (!$('#g-menu').hidden ? $('#g-menu') : !$('#g-title').hidden && !preTitle ? $('#g-title') : null);
   const gamepad = window.OEPad ? OEPad.create({ stage, open: padOpen,
     dialogue: () => (dlg.hasChoices ? [...document.querySelectorAll('#gd-choices button')] : null),
@@ -6478,6 +6508,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the lens, slower as the lens is longer; the wheel is the lens's ring: 12 degrees, a long lens, to 60, a wide one
     if (story && story.finder && player.mode === 'foot' && !shot) {
       const hold = story.hold, eyeZ = player.z + 1.56 + (hold ? hold[1] : 0);
+      // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
+      // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it).
+      // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
+      // narrow screen through that angle across its width, so that on a phone the thing is a little larger in the finder
+      // than in a desktop's, and its lettering can be read. It was 0.7 of the angle while the finder was drawn for the whole
+      // screen; with the finder's lines inside the print, a band across a phone held upright (story.js fitFinder), the
+      // board of frame 1 stood taller than the print through 0.7, and frame 6's pillar box, umbrella and board wider
+      const lensOf = (v, ring) => camera.aspect >= 1.5 ? v : Math.min(lensWas != null && (ring >= 45 || lensWide) ? 105 : 95, 2 * Math.atan(Math.tan(v * Math.PI / 360) * (lensWas != null && ring < 45 && !lensWide ? 1 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
       if (!fpOn) {
         // (from the view as it was: where it stood, which way it looked, its lens)
         fp.from = { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
@@ -6488,7 +6526,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const at = story.subject;
         if (at) {
           const dx = at[0] - player.x, dy = at[1] - player.y, ys = Math.atan2(dx, dy);
-          if (Math.abs(angDiff(ys, yaw0)) < 1.75) { yaw = ys; pitch = Math.max(-1.32, Math.min(0.8, Math.atan2((at[2] ?? player.z + 1.2) - eyeZ, Math.hypot(dx, dy)))); } /* (down to 75 degrees: from SKY's roof the dome's building is 67 under the lens, and at 57 it sat on the picture's lower edge) */ // (within 100 degrees of where you looked; behind you, the view is not spun round: the arrow on the frame lines points there)
+          if (Math.abs(angDiff(ys, yaw0)) < 1.75) { yaw = ys; pitch = Math.max(-1.32, Math.min(0.8, Math.atan2((at[2] ?? player.z + 1.2) - eyeZ, Math.hypot(dx, dy)))); /* (down to 75 degrees: from SKY's roof the dome's building is 67 under the lens, and at 57 it sat on the picture's lower edge) */ // (within 100 degrees of where you looked; behind you, the view is not spun round: the arrow on the frame lines points there)
+            // (and tilted, if it must be, so that all of the thing is in the print: story.span, its foot and its top. Aimed at
+            // the red lamp on its post, 7 m off on a phone, the post's foot was below the print's band and the frame was not
+            // ready. Its point stays where the frame puts it wherever all of it fits from there)
+            const span = story.span;
+            if (span) {
+              const d = Math.hypot(dx, dy), P = printRect(), f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5)), a = Math.atan(0.88 * Math.tan(lensOf(f0, f0) * Math.PI / 360) * (P[3] - P[1]));
+              const top = Math.atan2(span[1] - eyeZ, d), foot = Math.atan2(span[0] - eyeZ, d);
+              pitch = top - foot < 2 * a ? Math.max(top - a, Math.min(foot + a, pitch)) : (top + foot) / 2;
+            }
+          }
         }
         fp.yaw = fp.yawT = yaw; fp.pitch = fp.pitchT = pitch; fp.k = 0; fp.eyeZ = eyeZ;
         fp.dur = 0.28 + 0.25 * Math.abs(angDiff(yaw, yaw0)) / (Math.PI / 2); // (a shooter's aim is 0.25 to 0.38 s; a turn onto the thing takes its time, never a whip)
@@ -6516,12 +6564,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       fp.reach = hold && fp.reach != null ? fp.reach + (reach - fp.reach) * (1 - Math.exp(-dt / 0.12)) : reach;
       const eye = W(player.x + hx * fp.reach, player.y + hy * fp.reach, fp.eyeZ);
       fpUp.copy(eye).add(fpDir.set(hx * cp, Math.sin(fp.pitch), -hy * cp));
-      // (the lens's angle is across a film frame, three by two; a screen narrower than that, a phone held upright, keeps
-      // the frame's width and sees more above and below, or the last picture, both kerbs in one frame, cannot be taken on it).
-      // A frame with a lens of its own (task.lens: a thing of 1964 that should fill a third of the finder) is seen on a
-      // narrow screen through about 0.7 of that angle across its width, so that on a phone the thing is near the size it
-      // is in a desktop's finder, and its lettering can be read
-      const lensOf = (v, ring) => camera.aspect >= 1.5 ? v : Math.min(lensWas != null && (ring >= 45 || lensWide) ? 105 : 95, 2 * Math.atan(Math.tan(v * Math.PI / 360) * (lensWas != null && ring < 45 && !lensWide ? 0.7 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
       const f0 = Math.max(12, Math.min(60, 22 + (cam.dist - 2.5) * 5.5));
       // (it comes up at an eye's own angle, 40 degrees, a 35 mm lens, and the ring is turned to the frame's lens once it is up)
       if (fp.fov == null) fp.fov = 40;
