@@ -164,6 +164,7 @@ window.OEStory = (function () {
       { const row = cont && cont.closest('.gt-go'); let why = q('#gt-stale');
         if (stale && row && !why) { why = document.createElement('p'); why.id = 'gt-stale'; why.className = 'gt-stale'; why.setAttribute('role', 'status'); row.after(why); }
         if (why) { why.hidden = !stale; why.textContent = stale ? `${WHY} Your evening starts again from its first frame.` : ''; } }
+      if (sg) sg.classList.toggle('primary', !going); // (the story leads the title's list, Enter's and a pad's A, unless a case is going: then Continue does)
       // the story's screen: the episode, its picture and its line; how far, on the roll (a cell a frame, the photograph in
       // each one taken); Begin, Continue or Play it again; the evening again, asked twice, since what was taken tonight is
       // lost; and a closed case's frames, each a way back in

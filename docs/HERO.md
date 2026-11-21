@@ -55,6 +55,40 @@ zone stay on in the helicopter. Roofs and piers in the zone take none of the pho
 
 ![Before and after, from 200 m over the station, by day and at dusk](images/hero/aerial-ground-87.jpg)
 
+**From the air by day** (issue 148). The walk's review found the map by day, from 80 m up, "pale grey boxes on black
+roads". Three causes, each a matter of what the surface is:
+
+- *The roads were black because the drawing was decoded twice.* `streetTexture` is an sRGB texture, which the sampler
+  hands over linear; the zone's branch of the ground shader decoded it again, and asphalt drawn at an albedo of 0.075
+  came out at 0.007, the footways a brown. The zone now takes the drawing as it is given, and the asphalt is drawn as a
+  worn city road is under the sun (`#5c5f63`, an albedo near 0.11: the hero level's own tone, so the level's roads go
+  on into the map's without a step). Past the zones the first branch is as it was: its thresholds were tuned on the
+  twice-decoded values, and nothing a player reaches lies there on foot.
+- *The roads had no paint.* The drawing now carries what a Tokyo road carries, from the road data and nothing else:
+  edge lines half a metre in from the kerbs, a broken line between two lanes of one way (`nl`), the centre line of a
+  two-way road (unbroken where it has two lanes each way), the bars of a zebra where the data has a crossing
+  (`props.crossing_zebra`, laid across the nearest road), and a junction cleared of the lines that would run through
+  it. Each line is drawn at its own width (0.2 m, less than a pixel of the drawing), so from 400 m it is as faint as
+  it is from there. The scramble's own paint is the hero level's, as before.
+- *Every flat roof was one grey lid.* Where the photograph is not a deck's colour (round a hero level, and on a
+  tower), the deck is what `roof_material` says it is, in that material's tone: a waterproofing sheet or coating
+  (grey, the green urethane of half the city's small roofs, or a pale reflective coat: one per building), laid in
+  runs 1.2 m wide; a ballasted roof in the warm grey of its gravel, with nothing to rule it; a protective concrete
+  slab cut by its expansion joints into 3 m bays. The joints are square to the building (`buildings-geo.js` `cap`
+  gives a deck its own axes along its longest edge), a joint finer than a pixel settles to its mean, and the value
+  noise that lay over a tower's deck is gone: no tone without a cause.
+
+It costs a phone nothing it did not already hold: the same drawing at the same size, and a few lines of shader.
+Night and dusk are as they were but for the roads, which under their lamps are now lit asphalt instead of a black
+band. Views: `tools/views/walk-heights.json`.
+
+![From 80, 230 and 400 m by day, before and after; dusk and night after](images/walk-review/air-day-148.jpg)
+![A phone's tier from 230 and 400 m by day, before and after](images/walk-review/air-day-148-phone.jpg)
+
+Not done here, and why: the far field beyond the zones is still the aerial photograph under plain boxes (it reads as
+a city in haze from 300 m, and nothing nearer is owed where no player lands); the square south of the crossing is
+still bare from 30 m (the crowd's density, issue 92).
+
 **Streamed.** It is fetched when the camera comes within 260 m of its edge, shown within 420 m, and let go
 (geometry and textures freed) past 520 m. On the low tier (phones) every texture is halved before it is
 sent to the GPU, a quarter of the memory, and on a phone's lean sub-tier no side is over 1024; it is resized by
