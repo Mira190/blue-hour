@@ -175,7 +175,7 @@ else
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
-      pipeline/district.py|tools/mem_check.js) static=1; add mem ;;
+      pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
@@ -297,6 +297,9 @@ run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+  # (a phone's lost WebGL context counts as a death at once: the next load is a level lighter, tools/lost_check.js)
+  if timeout 300 $X node tools/lost_check.js >"$OUT/lost.log" 2>&1; then echo "ok   mem    a lost context on a phone counts as a death at once, once"
+  else echo "FAIL mem    $(grep '^FAIL' "$OUT/lost.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/lost.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {
