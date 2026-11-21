@@ -409,11 +409,11 @@ up the stair behind him*).
 
 | Where | What the player does | What answers it |
 |---|---|---|
-| 3, the police box | says who they are to a detective of 1964, from three answers laid out in a new order each time the frame is taken up. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
+| 3, the police box | says who they are to a detective of 1964, from three answers laid out in a new order each time the frame is taken up. The truth opens him; either lie is seen through, and is not on the table the next time | **failure**: a card that says what it cost (a line in the file against the player, a minute of the Stop), and he asks again where he stood: nothing is played twice (issue 93, below) |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above |
-| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns back to the station | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above: the card has the roll at hand, and he is pressed again |
+| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns to go | failure, as above: he looks again |
 | 3, after the print | the detective waits for her name; thirty seconds of silence is an answer too (`wait_s`, `silent`) | as *not yet*, and the file says the player said nothing |
 | 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`); the roll and the file open from inside the question (`atHand`). Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | never a failure: a wrong answer is answered for what was named or shown and written in the file, struck through; the second also says more and marks the print on the roll (`wrong2`); the third, she says it herself (`told`). The last card counts both |
 | 2 to 6, the camera | the release pressed twice from the wrong place asks, once, whether to **spend the frame** (a card over the finder, the hand on *Keep the frame*; the release is not an answer to it, so a double tap on a phone spends nothing); spent, it is a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
@@ -957,8 +957,9 @@ and *Return of the Obra Dinn* give no hints at all, and the *Professor Layton* g
 to a puzzle, each saying more than the last. In each the clue is the place's own and the answer is given on the spot. Nothing of theirs is copied; the split-image line is a camera's own (the focusing screens of the 1950s
 and the rangefinders' coincident images).
 
-Failure costs the minute and is seen: nobody is sent back further than the frame they are in, and the flight or the ride
-to it is not made twice. `tools/story_play.js` plays these too (`SLIP=n`, `SPEND=n`).
+Failure is seen and costs something, and nothing is played twice for it: the one who saw through the player is still
+there and asks again (*Seen through, and asked again*, below). `tools/story_play.js` plays these too (`SLIP=n` or a
+list, `SPEND=n`).
 
 **How the case was worked, and going back in.** The last card says, in the file's hand, what the player said and what
 they took back (struck through), which frames were spent and what stood there, which of the five pairs were never set
@@ -1923,6 +1924,41 @@ roll and the file from inside it and must be asked again; `SILENT=3` leaves the 
 `AFTER=1` with `UPTO=n` plays on past frame n's print, through what is said after it, so that a frame's call is played
 with it.
 
+### Seen through, and asked again (issue 93, 21 November 2026)
+
+Frame 7's summation stopped sending anyone back (above), and frames 3, 5 and 6 still did: one lie to the detective, or
+two guesses at the foreman or at Mr Tanaka's pitch, and the card *Seen through* took the frame up from its beginning:
+the walk to them, the call, the Stop falling and every line they had said, for one answer. Telemetry had one such
+failure at frame 5, and the owner was sent back there twice in one evening. Their failure is part of the scene, a liar
+who sees a guess and an old man who turns to go, so it keeps its card; what changed is where the player is when the
+card is put down (`story.js` `failed`, `retry`; the question's `fail`):
+
+- **Asked again where they stand.** The one who saw through the player has not left, and neither has the player. He
+  says one line of his own (`fail.again`: *Still standing there. A liar who stays is rarer than one who lies*) and the
+  question is put again. Nothing said before it is said twice, the Stop does not fall twice, and nobody walks anywhere.
+- **Each time round is narrower.** What a wrong answer took off the table stays off it: a lie told to the detective
+  is not offered again, a statement of Tatsuo's that stood and a print that was not it stay struck. The question ends
+  by elimination for whoever cannot work it out, and each elimination costs a card.
+- **What it costs is on the card**, under its line: *Entered in the file, against you* (`fail.file`, written into the
+  file in the pen's ink and struck through, as frame 7's wrong answers are, and read back on the last card), and in a
+  Stop *a minute of the Stop gone* (`fail.cost_s`, 60; the Stop's own clock on the goal line, never its last minute and
+  a half, so a card cannot run a Stop out by itself). The last card counts the cards: *Seen through twice, and asked
+  again*.
+- **The roll first.** The card's second button opens the roll and the file, and shutting them asks the question:
+  frame 5's card had always said *look at it before you go back to him*, with no way to do so but to go back. Tab is
+  that button; the arrows go between the two.
+
+| Frame | Before | Now |
+|---|---|---|
+| 3, the police box | one lie: the Stop let go, and the walk to the box, the Stop and his six lines again | one lie: the card, a line in the file, a minute of the Stop; he asks again, and that lie is gone |
+| 5, Tatsuo | two guesses: the roof again from the Stop's fall, his statement again | two guesses: the card (the roll at hand from it), the file, a minute; he is pressed again with what was struck off still off |
+| 6, Mr Tanaka | two wrong prints: back to the kerb where the car set you down, the walk to him, his lines again | two wrong prints: the card, the file; he looks again, those prints off the roll |
+
+A frame's data can still ask for the old way (`fail.from: "start"`), and nothing does. `tools/story_play.js` plays all
+three (`SLIP=3,5,6`): at each card it reads what the card says it cost, that it fits the screen and that the file has
+the line; after it, that the talk was taken up at the question (no line of the talk's beginning heard again, nobody
+moved); at frame 5 it goes by the roll; and the last card must count them.
+
 ### The case read for agreement (issue 117, 21 November 2026)
 
 The launch review read every line of `game.story` as a reader of detective stories does, for whether its facts agree.
@@ -1976,7 +2012,7 @@ The owner was stuck twice in one evening: on frame 4's glass, not seeing that a 
 | Game | Wrong, and stuck | Taken, or not |
 |---|---|---|
 | *Ace Attorney* (2001–) | Pressing a statement is free and is how the player learns; only evidence presented wrongly costs, one of five marks. *The Great Ace Attorney Chronicles* adds a Story Mode that presents the right evidence itself | Taken: a statement that stands is answered in his own words and struck off for the next try. Not taken: five marks (the question has four statements) and a mode that plays itself |
-| *Return of the Obra Dinn* (2018) | Nothing is ever failed; fates are confirmed three at a time, so a guess is not told right or wrong alone | Its principle is kept: guessing must cost. Here the cost is the frame taken up again, after two |
+| *Return of the Obra Dinn* (2018) | Nothing is ever failed; fates are confirmed three at a time, so a guess is not told right or wrong alone | Its principle is kept: guessing must cost. Here the cost was the frame taken up again, after two; since issue 93 it is a card, a line in the file against the player and a minute of the Stop, and the question asked again |
 | *The Case of the Golden Idol* (2022) | Hints exist, are limited, and are behind a warning and a small task, so that they are asked for on purpose | Already the rule here (a hint is asked for, never given). What was wrong was that the offer was not seen |
 | *L.A. Noire* (2011) | A case goes on whatever is answered; reviewers faulted that it was rarely clear why a mistake was a mistake | Taken as a warning: `near`, below |
 | *Professor Layton* (2007–) | Three hints to a puzzle, each saying more, bought by the player | Already here |
@@ -1992,7 +2028,8 @@ What was changed:
   broken by the roof's print (nailed boots on the stair, and every man on the works wore them). It is not: boots are
   not a face, and the foreman is careful to say *my gang*. Pressed, it is answered so, struck off, and not counted
   (`near` on the statement).
-- Failing after two counted wrong answers is unchanged: a guesser still fails, and the frame is short to take up again.
+- Failing after two counted wrong answers is unchanged: a guesser still fails. (What failing costs changed with issue
+  93: *Seen through, and asked again*, above.)
 
 Sources read: the *Return of the Obra Dinn* article on Wikipedia and Film Stories' "Exploring Return of the Obra Dinn's
 rule of three"; PC Gamer's guide to *The Great Ace Attorney Chronicles* (Story Mode) and StrategyWiki's *Ace Attorney*
