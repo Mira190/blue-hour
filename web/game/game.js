@@ -4527,14 +4527,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     $('#g-touch').hidden = false;
     const pad = $('#gt-joy'), knob = $('#gt-knob');
     let jid = null, c0 = null;
-    on(pad, 'pointerdown', e => { jid = e.pointerId; c0 = [e.clientX, e.clientY]; pad.setPointerCapture(jid); A.start(); settleArrival(); });
+    on(pad, 'pointerdown', e => { jid = e.pointerId; c0 = [e.clientX, e.clientY]; pad.setPointerCapture(jid); pad.classList.add('on'); A.start(); settleArrival(); });
     on(pad, 'pointermove', e => {
       if (e.pointerId !== jid) return;
       let dx = (e.clientX - c0[0]) / 50, dy = (e.clientY - c0[1]) / 50;
       const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
       joy = { x: dx, y: -dy }; knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
     });
-    const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; };
+    const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; pad.classList.remove('on'); };
     on(pad, 'pointerup', end); on(pad, 'pointercancel', end);
     const hold = (id, down, up) => { on($(id), 'pointerdown', e => { e.preventDefault(); down(); }); on($(id), 'pointerup', up || (() => {})); on($(id), 'pointercancel', up || (() => {})); };
     hold('#gt-act', () => (dlg.open ? dlg.next(false) : interact()));
@@ -7305,8 +7305,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     const m = Math.min(1, Math.hypot(fwd, side));
     const run = k('ShiftLeft') || k('ShiftRight');
-    const target = m > 0.05 ? (fpOn ? GAIT.walk : run ? GAIT.sprint : player.walking ? GAIT.walk : GAIT.run) * m : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
-    gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
+    // (and with a stick, how far it is pushed is how fast you go: to three quarters of the way a walk, its pace with the push,
+    // and past that on to a run at the edge, so a phone needs no Run button. Pushed all the way, as a key is, a run)
+    const pace = GAIT.walk * Math.min(1, m / 0.75) + (GAIT.run - GAIT.walk) * Math.max(0, (m - 0.75) / 0.25);
+    const target = m > 0.05 ? (fpOn ? GAIT.walk * m : run ? GAIT.sprint * m : player.walking ? GAIT.walk * m : pace) : 0; // run, walk (X) or sprint (hold Shift); with the camera at your eye, a walk
+    gaitChip(m > 0.05 ? (run ? 'sprint' : player.walking || m < 0.75 ? 'walk' : 'run') : player.walking ? 'walk' : 'run');
     player.speed += (target - player.speed) * Math.min(1, dt * (target > player.speed ? 6 : 10));
     if (m > 0.05) {
       let dir = cam.yaw + Math.atan2(side, fwd);
@@ -7519,6 +7522,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   let titleMustered = false;
   function updateCamera(dt, titleOn) {
+    OEPeople.setNear(-2, -1); // (nobody dissolved at the lens, unless the chase view on foot below says so: issue 82)
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
       camera.position.copy(flyCam.pos);
@@ -7726,6 +7730,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       cam.yaw = fp.yaw; cam.pitch = Math.max(-0.25, Math.min(1.35, 0.3 - fp.pitch)); cam.yawTo = cam.pitchTo = null;
       if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); // (a frame's own lens is given back when the finder's view ends)
       if (!shot) blendFrom(0.22);
+    }
+    // (someone a pace beside the lens dissolved over its last metre, in the chase view on foot: people.js setNear, issue 82.
+    // Not in a talk's shot, a film, a scripted shot or the finder, whose framing is made with whoever is in it)
+    // (whole from 3.2 m, gone at 2 m, from the lens to the person's middle: with the eye 2.5 m up, nearer than 2 m a person
+    // is mostly under a phone's frame, and from 2 to 3 m their head and shoulders fill a corner of it. Its far edge 1.2 m
+    // short of you, so that a lens pulled in close by a wall never dissolves the one you play)
+    if (player.mode === 'foot' && cam.mode === 'chase' && !shot && !talkShot && !fpOn && !photo.on) {
+      const me = Math.hypot(camera.position.x - player.x, camera.position.y - player.z - 1, -camera.position.z - player.y), far = Math.min(3.2, me - 1.2);
+      if (far > 0.6) OEPeople.setNear(Math.max(0.3, Math.min(2, far - 1.2)), far);
     }
     lensClear();
     Wd.fitShadow(live.look, live.half);
