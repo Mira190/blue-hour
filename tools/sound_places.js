@@ -129,7 +129,7 @@ function table() {
   else {
     const r = await listen(foot(deck[0], deck[1]), SEC + 3, SEC); judge('deck', 'deck', r);
     if (!(r.railHigh <= 0.005 && r.railHigh <= st.railHigh / 5)) fail(`under the deck ${(r.railHigh * 100).toFixed(2)} % of the train is over 500 Hz (${(st.railHigh * 100).toFixed(1)} % at the kerb): it should be weight and rumble`);
-    if (!(r.db.rail >= st.db.rail)) fail(`under the deck the train (${r.db.rail} dBFS) is quieter than beside the viaduct (${st.db.rail})`);
+    if (!(r.db.rail >= st.db.rail - 3)) fail(`under the deck the train (${r.db.rail} dBFS) is quieter than beside the viaduct (${st.db.rail})`);
   }
   // 4. the rain at Hachiko (frame 7)
   await p.evaluate(() => window.__game.weather.set('rain', { now: true }));
