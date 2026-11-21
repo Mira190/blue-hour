@@ -544,6 +544,45 @@ side at the moment of New Game; a dossier beside the picture; and the film's let
 begins. Nothing of those games' look, words or assets is used; the screens are the story's own (its viewfinder's type,
 the sodium amber of a street lamp against the blue hour, `story.css` "the title in three screens").
 
+**A mark for each screen (November 2026).** The owner asked why the street behind the menu was the same as behind the
+press, and how a AAA game would do it. It was the same shot: the press's camera went on under the menu, and only the type
+changed, so the press got no answer from the world, and the menu's name and list stood over the brightest thing in the
+frame, the screens the press had centred. The owner remembered other games with the options on the left, details on the
+right and a dark background, and asked for that to be weighed critically against a better design if there was one.
+
+- *What was found.* Santa Monica Studio's GDC 2023 talk on *God of War Ragnarök*'s interface: while the menus are
+  navigated "the camera zooms in or pulls back" with the menu or item, so the player knows where to look; Kratos was moved
+  to the side of the frame because the earlier game's menus covered him, and buttons not being chosen were hidden to give
+  him room. *The Last of Us Part II*'s menu scene follows the story's progress (the fog-bound boat, the beach after the
+  end; a later patch fixed a scene that "may not correctly match" progress). *Dragon Age: Inquisition*'s menu is a scene
+  that its New Game sets off. Microsoft's Xbox Accessibility Guideline 114: every screen under the menu keeps a way back.
+- *The press is a promise, the menu a place to read.* Two jobs, so two frames. The press stays centred and low, looking
+  up past the screens. Pressed, as the score comes in, the camera stands up, steps back and steps aside (`game.js`
+  `MARK`: 1.4 m up, 6 m back, 4 m to the left) and turns so that the screens go to the frame's upper right third, and
+  the crossing and its crowd come into the frame: the subject moved aside for the list, as Kratos was. Upright on a phone
+  the frame is a third as wide and the tower fills it, so the camera goes 2.2 m up and 10 m back and the tower's crown
+  and screens stand at the top, over the list. (Further back on a desktop, 10 m, a street lamp came into the left of
+  the frame and through the name; 3 m back, the tower's crown was cut by the frame's top.)
+  The screens behind the menu (who you play, the story, options) take it 2 m further in, and Back brings it out again,
+  Ragnarök's zoom by depth. Each move is two critically damped springs in a row, so it sets off and settles gently and a
+  press made mid-move turns it round without a jolt; reduced motion cuts. The crane down to your shoulder starts from
+  wherever the mark has left the camera (`craneIn` reads `titleLook`), so setting out is one move.
+- *Left list, right details, dark: where each belongs.* A details panel earns its place where there is something to
+  compare before choosing: saves, chapters, modes, difficulty. The menu has three ways in, each row already carries its
+  word on itself (*No story · any hour, any sky*), and a panel on the right would cover the screens the camera has just
+  put there, which is what the street is for. So the list stays on the left, alone; where a choice does need a picture and
+  a file, the screen behind it has them in the same two halves (the story: the episode's key art beside its roll; who you
+  play: the two portraits beside the file). Dark goes where reading is: a scrim from the left behind the list (upright,
+  from the foot), fading in with the move (`story.css` "the menu's scrim"), the right of the frame left as the living
+  street; the screens behind the menu, where reading is the whole task, darker still. A dark menu over the whole frame
+  would spend the one thing the title has that type does not.
+- *Considered, not done.* The camera turning to what the hand is on (the crossing for the walk, the kerb for the story):
+  a move for every press of a key is motion that says nothing; the camera answers decisions, not the cursor. The menu's
+  street following the story's progress, as *The Last of Us Part II*'s does: once there is more than one episode.
+
+Design only: nothing of those games' look, words or code is used. Checked by `tools/title_marks.js` (each screen's
+frame, the move settling without overshoot, Back undoing it, and no jump where the crane takes over).
+
 **The menu, by what this browser has done (November 2026).** The owner asked for the choices after the press (the walk
 or the story, continuing a case, the evening again) to be thought through as a AAA game's menu is. From first principles:
 a player arrives at the menu in one of a few states, and the menu's first row is the thing that player most likely came
