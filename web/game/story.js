@@ -1244,6 +1244,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
         const T = st.fr.task, S = subjectOf(T), m = S && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null;
         return m ? [m[0], m[1], S[2]] : S;
       },
+      get span() { const T = st.fr && st.fr.task, m = T && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null; return m ? [m[2], m[3]] : null; }, // (the heights of the thing's foot and top: the raised camera tilts so that all of it is in the print, where it fits)
       // (where the lens is eased onto while it is up: the middle of the crossing as the last frame's two walk to it, so that
       // the lens closing on them does not close on the road beside them)
       get steer() { return st.phase === 'stop' && st.meet === 'walk' && st.cam && st.mid ? st.mid : null; },
