@@ -3703,6 +3703,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const past = window.OEPast ? OEPast.create({ THREE, world }) : null; // what only the story's camera sees (past.js)
   // someone the story places: an afterimage (someone of another year, in an old exposure laid over tonight, who moves in the stopped
   // world) or, with a.alive, a living person of this evening. Stood where there is room near `at`, or at at[2] exactly
+  // An afterimage looked for across a held street (story.js seek: glow): the halation an old exposure has round its
+  // brightest part, a soft pale column about them that the eye finds among the held crowd from across the crossing, and
+  // that fades as you come near, so that close to they are only a person. In the first Stop players looked for her for
+  // four minutes among hundreds of people standing as still as she did (November 2026)
+  let haloTex = null;
+  const haloMap = () => {
+    if (haloTex) return haloTex;
+    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+    const x = c.getContext('2d'), g = x.createRadialGradient(32, 64, 0, 32, 64, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.setTransform(1, 0, 0, 2, 0, -64); x.fillStyle = g; x.fillRect(0, 0, 64, 128); // (an ellipse twice as tall as it is wide: a standing figure's)
+    haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    return haloTex;
+  };
   const storyFigure = (a, at) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
     const old = a.alive && a.age >= 70, bend = [], look = [];
@@ -3746,8 +3760,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const hq = new THREE.Quaternion(), hp = new THREE.Quaternion(), hv = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
     let hYaw = 0, hPitch = 0;
     f.walkTo = (x, y, speed = 1.15) => { f.to = [x, y, speed]; };
+    let halo = null;
+    f.glow = on => {
+      if (on && !halo && !a.alive) { halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xd6e4ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); halo.scale.set(2.4, 4.2, 1); halo.visible = false; world.add(halo); }
+      if (halo) halo.userData.on = !!on;
+    };
+    const haloTick = dt => {
+      if (!halo) return;
+      const d = Math.hypot(f.x - player.x, f.y - player.y), want = halo.userData.on ? 0.45 * Math.max(0, Math.min(1, (d - 6) / 18)) : 0; // (none within six metres, all of it from twenty-four)
+      const o = halo.material.opacity + (want - halo.material.opacity) * Math.min(1, dt * 2.5);
+      halo.material.opacity = o; halo.visible = o > 0.004; if (halo.visible) halo.position.copy(W(f.x, f.y, f.z + 1.3));
+    };
     f.animate = dt => {
-      t += dt;
+      t += dt; haloTick(dt);
       let v = 0;
       if (f.to) {
         const dx = f.to[0] - f.x, dy = f.to[1] - f.y, d = Math.hypot(dx, dy);
@@ -3785,7 +3810,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       faceAfter(rig, dt);
     };
-    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); }; // (its face let go: face.js frees what a moving face holds)
+    f.remove = () => { gone = true; if (rig.face) rig.face.rest(); world.remove(rig.root); storyFigs.delete(f); if (halo) { world.remove(halo); halo.material.dispose(); halo = null; } }; // (its face let go: face.js frees what a moving face holds; and the halation round it)
+    f.haloNow = () => (halo && halo.visible ? halo.material.opacity : 0); // (tools/story_play.js, the first Stop)
     f.rig = rig; f.look = look; // (for tools/afterimage_shot.js: the bones the head turn lays its pose on)
     return f;
   };
@@ -4075,6 +4101,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // where that car is and what it is doing: {at: [x, y, z], state: 'coming' | 'waiting' | 'in'}, or null once it has gone
     rideNow: () => (!ride || ride.phase === 'leaving' ? null : { at: [ride.drv.st.x, ride.drv.st.y, ride.drv.st.z], state: player.mode === 'ride' ? 'in' : ride.phase === 'coming' ? 'coming' : 'waiting', arrived: ride.phase === 'arrived' }),
     hold: on => { if (!stopFx) return; if (on) stopFx.start(W(player.x, player.y, player.z), { rain: !!(weather && weather.state && weather.state.rain > 0.15) }); else stopFx.release(); },
+    asking: () => dlg.hasChoices, unask: () => dlg.quit(), // (a question's answers up and waiting; and closed with none given, story.js silence)
     ask: (who, lines, choices, done) => (talkLine(who, choices), talkPrint = choices.some(c => /class="pr"/.test(c.text)), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), choices, done)), // (a question: the lines, then answers to pick from)
     dress: (date, light, wx) => {
       const [m, d] = date || [clock.m, clock.d];
@@ -7038,7 +7065,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
     if (storyHere && storyHere.visible) { const U = storyHere.userData, t = (performance.now() - U.t0) / 900, e = 1 - Math.pow(1 - Math.min(1, t), 3); U.disc.material.uniforms.uT.value = performance.now() / 1000; U.wave.visible = t < 1; U.wave.scale.setScalar(U.r * (0.15 + 0.85 * e)); U.wave.material.opacity = 0.7 * (1 - Math.min(1, t)); }
-    if (!simHold) dlg.tick(dt); // (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
+    if (!simHold) dlg.tick(paused || uiOpen() || document.querySelector('#g-story-log.on, #g-story-album.on') ? 0 : dt); // (not under the menu, the log or the roll: a call that goes on by itself waits while they are up) (held by a harness: a conversation goes on only as it asks, dlg.tick, so that one closing on the real clock starts nothing at another step of its run)
     // HUD
     const ob = titleOn || walk ? null : objective(); // (the walk owes nobody anything: no objective, no line, no light)
     const target = waypoint || (ob && ob.at);
