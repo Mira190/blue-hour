@@ -1307,6 +1307,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
+      // the pause's own lines (game.js, issue 114): the frame the case is at, and the case begun again from its first card
+      // (before the first frame's own beats, the office's call and the order in the hand, the case is at its first frame all the same)
+      get at() { const F = (st.ep && st.ep.frames) || [], fr = st.fr || F[st.fi | 0]; return fr && st.phase !== 'idle' && st.phase !== 'dressed' && st.phase !== 'done' ? { fi: st.fi | 0, of: F.length, stamp: fr.stamp || '', taken: st.prints.length } : null; },
+      beginAgain() { forget(); ctx.again(); },
       // the last card's Walk, taken up where the case ended (game.js walkOnFromStory): the card goes, and so does the
       // evening's cast, each once out of the frame (tick); the dog is already on his way home
       // (the walk from the title: the street as tonight has it, with the set dressing the story puts up, and no case)
