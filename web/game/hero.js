@@ -84,7 +84,7 @@ window.OEHero = (function () {
     // a shop front's light box (glow_shop*) keeps its shop's hours (buildings.js SHOP_HOURS, docs/STORY.md "Tonight"):
     // each box, a piece of the mesh joined by its faces, is given a number of its own from where it stands (a shop's
     // boxes, a few metres apart, share it), so the street's shop fronts go dark one shop at a time at their hours
-    const SHOP_V = 'attribute vec2 _shop;\nvarying vec2 vHeroShop;\n';
+    const SHOP_V = 'attribute float _shop;\nvarying float vHeroShop;\n';
     function shopIds(o) {
       const ms = Array.isArray(o.material) ? o.material : [o.material];
       if (!ms.some(m => m && /^glow_shop/i.test(m.name || '')) || o.geometry.attributes._shop) return;
@@ -98,10 +98,10 @@ window.OEHero = (function () {
       const id = new Map();
       o.updateWorldMatrix(true, false); // (in metres: a meshopt-packed position is in the node's own units)
       const w = new THREE.Vector3();
-      for (const [r, c] of sum) { w.set(c[0] / c[3], c[1] / c[3], c[2] / c[3]).applyMatrix4(o.matrixWorld); const x = Math.floor(w.x / 4), z = Math.floor(w.z / 4); id.set(r, [h(x, z), h(x + 17.3, z - 5.1)]); }
-      const a = new Float32Array(n * 2);
-      for (let i = 0; i < n; i++) { const v = id.get(find(i)); a[i * 2] = v[0]; a[i * 2 + 1] = v[1]; }
-      g.setAttribute('_shop', new THREE.BufferAttribute(a, 2));
+      for (const [r, c] of sum) { w.set(c[0] / c[3], c[1] / c[3], c[2] / c[3]).applyMatrix4(o.matrixWorld); const x = Math.floor(w.x / 4), z = Math.floor(w.z / 4); id.set(r, Math.min(255, Math.floor(h(x, z) * 256))); }
+      const a = new Uint8Array(n); // (a byte a vertex: a phone's memory is near its budget, tools/mem_check.js)
+      for (let i = 0; i < n; i++) a[i] = id.get(find(i));
+      g.setAttribute('_shop', new THREE.BufferAttribute(a, 1, true));
     }
 
     // a hero material, patched once: its baked light and occlusion, then the city's street lights
@@ -130,8 +130,8 @@ window.OEHero = (function () {
           sh.uniforms.uHour = uHour;
           sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${SHOP_V}`)
             .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vHeroShop = _shop;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec2 vHeroShop; uniform float uHour;\nfloat h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\n${OEBuildings.SHOP_HOURS}\n`)
-            .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= mix(0.03, 1.0, shopOpen(vHeroShop.x, vHeroShop.y, uHour)); // (its shutter down: a night light behind it)');
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying float vHeroShop; uniform float uHour;\nfloat h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }\n${OEBuildings.SHOP_HOURS}\n`)
+            .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= mix(0.03, 1.0, shopOpen(vHeroShop, fract(vHeroShop * 37.0 + 0.31), uHour)); // (its shutter down: a night light behind it)');
         }
         // a room (room*: a hall inside a building) is lit by its own lamps by day too, and takes a share of the sky's
         // light through its windows, not all of it as a street does. Its lamps are no brighter at night: the eye is,
