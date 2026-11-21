@@ -237,6 +237,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     else ok('a photograph of Hachiko: the first of the views of Shibuya, with its picture');
   }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
+  // (the camera cranes back to the chase view, 0.9 s of the game's frames, many seconds of a software renderer's; the
+  // walk's buttons take no press while it moves)
+  await until(() => !document.getElementById('game-stage').classList.contains('photo') && !document.getElementById('game-stage').classList.contains('cine'), undefined, 120000);
   await p.waitForTimeout(800);
   { // (the menu's album: Hachiko as his picture)
     await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
@@ -367,7 +370,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);
               else {
                 const off = await p.evaluate(() => window.__game.walkTalk().events.moving);
-                if (!off) fail('Ren thanked, he does not walk off');
+                if (!off) fail('Ren thanked, he does not walk off (no clear way 14 or 26 m from his corner)');
                 else ok(`a street moment: Ren asks the way ("${chs[0].slice(1, 40)}" chosen), is thanked, and walks off`);
               }
             }

@@ -199,12 +199,13 @@ window.OEWalkTalk = (function () {
       ev = { e, at, phase: 'waiting', t: 0 }; evLast = e.id;
       return true;
     }
-    // a point d metres from p along a clear way (ctx.clear: on foot, off the road, nothing in the way), unseen, else null
-    function away(p, d, tries = 12) {
+    // a point d metres from p along a clear way (ctx.clear: on foot, off the road, nothing in the way), else null; unseen
+    // too where they come from (a walk in is found, not seen arriving), but not where they go (a walk off is seen going)
+    function away(p, d, tries = 12, unseen = true) {
       const a0 = rnd() * Math.PI * 2;
       for (let k = 0; k < tries; k++) {
         const a = a0 + k * 2.4, q = [p[0] + Math.sin(a) * d, p[1] + Math.cos(a) * d];
-        if (ctx.clear(p[0], p[1], q[0], q[1]) && (!ctx.unseenAt || ctx.unseenAt(q[0], q[1], 16))) return q;
+        if (ctx.clear(p[0], p[1], q[0], q[1]) && (!unseen || !ctx.unseenAt || ctx.unseenAt(q[0], q[1], 16))) return q;
       }
       return null;
     }
@@ -225,7 +226,7 @@ window.OEWalkTalk = (function () {
       if (!ev || ev.phase === 'gone') return;
       ev.phase = 'gone'; ev.t = 0;
       const ns = ev.e.people.map(id => ctx.npc(id)).filter(Boolean);
-      const to = ns[0] && ctx.clear ? away([ns[0].x, ns[0].y], 26, 12) : null;
+      const to = ns[0] && ctx.clear ? away([ns[0].x, ns[0].y], 26, 12, false) || away([ns[0].x, ns[0].y], 14, 12, false) : null;
       if (to) ns.forEach(n => walk(n, [to[0] + (n.x - ns[0].x), to[1] + (n.y - ns[0].y)], 1.3, null));
     }
     function street(dt, hide) {
