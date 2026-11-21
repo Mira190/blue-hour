@@ -110,6 +110,9 @@ The static checks:
 - the story's guide without a browser: round a held crowd by its gap, never through a person, and in front of a player
   who runs, stops and overtakes him (`tools/guide_unit.js`);
 - the building solids valid on their decimetre grid (`pipeline/solid_rings.py --check`);
+- the ground graded by the method as it is, its roads' cross-falls and creases within their limits
+  (`pipeline/street_ground.py --check`: lost from the script in a merge of 18 November 2026, after which the map
+  stood on an older grading for three days and nothing said so; back on 21 November);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
   (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);
 - no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;

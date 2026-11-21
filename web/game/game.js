@@ -344,19 +344,12 @@ float paved = smoothstep(0.32, 0.18, sat) * smoothstep(0.07, 0.16, dot(diffuseCo
 float roadway = 0.0;
 if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows baked into the photo
   vec4 st = sRGBTransferEOTF(texture2D(uStreet, vMapUv));
-  // Gaps in the drawn carriageway (where the photo's road is wider than the width drawn, or where a
-  // way stops short of a junction) are filled from the drawn streets 8 m round: a blurred level of
-  // them, where it is mostly asphalt and no footway or kerb is drawn at the pixel itself
-  // and 16 m round (where footways are drawn near, their pale paint keeps the wider level from
-  // counting as carriageway, so it does not spread over a pavement or a forecourt)
-  vec4 sb = textureLod(uStreet, vMapUv, 4.0), sc = textureLod(uStreet, vMapUv, 5.0);
-  sb.rgb = sRGBTransferEOTF(vec4(sb.rgb / max(sb.a, 0.05), 1.0)).rgb; // (a mip averages in the empty pixels' black)
-  sc.rgb = sRGBTransferEOTF(vec4(sc.rgb / max(sc.a, 0.05), 1.0)).rgb;
-  float hb = smoothstep(0.4, 0.75, sb.a) * smoothstep(0.13, 0.09, dot(sb.rgb, LUM));
-  float hc = smoothstep(0.3, 0.6, sc.a) * smoothstep(0.12, 0.09, dot(sc.rgb, LUM));
-  if (hc > hb) sb.rgb = sc.rgb;
-  float hole = (1.0 - st.a) * max(hb, hc) * (1.0 - green);
-  st = vec4(mix(st.rgb, sb.rgb, hole / max(st.a + hole, 1e-3)), max(st.a, hole));
+  // (Gaps in the drawn carriageway were once filled from the drawing's blurred levels, 8 and 16 m round: where those
+  // were mostly asphalt, asphalt was laid. A threshold on a field of 8 m texels has a scalloped edge 8 m to a wave, and
+  // on a street with no footway drawn it carried the asphalt past the kerb over the paving and the forecourts: a dark
+  // patch with a saw-toothed edge that read as neither a shadow nor a lamp's pool, darkest under the street lamps,
+  // where pale paving takes the light and asphalt does not. The hero levels dropped it first, below; now nowhere. A
+  // gap in the drawing shows the ground under it, in its own tone.)
   float sl = dot(st.rgb, LUM);
   // The photo's own road paint (zebras, stop lines, arrows, the bright concrete of a junction) under
   // the drawn asphalt is flattened to the asphalt's albedo before the two are mixed, or it shows
@@ -7574,7 +7567,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { perch, tonight: () => tonight, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { perch, tonight: () => tonight, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },

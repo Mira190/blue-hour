@@ -12,6 +12,8 @@
 #           - the frame-time governor on modelled devices (tools/governor_unit.js);
 #           - the story's guide round a held crowd and ahead of a running player (tools/guide_unit.js);
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
+#           - the ground graded by the method as it is: the streets level across, the lots between them stretched from
+#             the streets, the roads' cross-falls and creases within their limits (pipeline/street_ground.py --check);
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
 #           - nothing standing in a lift's street lobby, and its hall's posts and belts inside it (tools/lobby_check.py);
@@ -558,6 +560,7 @@ rm -rf "$OUT/keep"
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
+    st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
