@@ -149,7 +149,8 @@ function table() {
   else {
     // (to the ride itself: the car called, its doors, the steps in)
     await p.evaluate(async () => { const g = window.__game; for (let i = 0; i < 400 && !(g.soundPlace() === 'lift' && (g.player.mode !== 'lift' || i > 40)); i++) g.advance(0.05); });
-    judge('lift', 'lift', await listen(null, 3.2, 2.2, { }));
+    // (read from 2 s in: an analyser holds the last 0.7 s, and the roof's city, the point before, is 28 dB to close)
+    judge('lift', 'lift', await listen(null, 3.6, 1.6, { }));
     await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 600 && (g.player.mode === 'lift' || g.soundPlace() === 'lift'); i++) g.advance(0.1); });
   }
   // 7. the helicopter's cabin, at its stick on the roof's pad, the rotor run up
