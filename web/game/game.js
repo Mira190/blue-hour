@@ -1213,10 +1213,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // seats you can take (a table by the glass, a chair in a foyer, the stalls), and what plays before one (show.js)
   const shows = window.OEShow && ((G.seats || []).length || (G.shows || []).length) ? OEShow.create({ G, A, world, host: $('#g-toasts').parentNode, toast: (...a) => H.toast(...a), npcs: () => npcs,
     people: lib ? { make: look => makeRig(look), need: c => lib.require(c), max: { high: 28, medium: 18, low: 10 }[QC.name] || 12 } : null }) : null;
+  // somewhere to sit and watch the crossing on the walk (perch.js; game.json hero[].perches): the stone the hero level has
+  const perch = window.OEPerch ? OEPerch.create({ G, floorAt: (x, y) => { const f = nav.floorAt(x, y, Math.max(0, nav.terrain(x, y)) + 1); return f ? f.z : null; } }) : null;
+  let perchFov = 0;
   function sitDown(st) {
     player.seatFrom = { x: player.x, y: player.y, z: player.z, h: player.h };
-    Object.assign(player, { mode: 'seat', x: st.at[0], y: st.at[1], z: st.at[2], h: st.h, speed: 0, ground: true, vz: 0 });
+    Object.assign(player, { mode: 'seat', x: st.at[0], y: st.at[1], z: st.perch ? st.z : st.at[2], h: st.h, speed: 0, ground: true, vz: 0 });
     cam.lookYaw = 0; cam.lookPitch = st.pitch || 0; cam.lastInput = -10;
+    if (st.perch) { // (on a low wall, perch.js: its rake, the feet further out so the hips come down onto the stone, laid each frame in simulate)
+      perch.sit(st); seatTouch(true); if (touch) $('#gt-jump').hidden = false; stage.classList.add('at-perch'); // (story.css: its button shown)
+      blendFrom(1.1, true); // (from over your shoulder round to the seat's tripod, not a cut)
+      return;
+    }
     // (straight into your own eyes, as before the hand-overs blended: and a hand-over still easing, a stand-up from the
     // seat before, which held a view in the world the eyes are no longer near, is ended)
     viewBlend.t = 1;
@@ -1227,12 +1235,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // round and the action button stands you up
   function seatTouch(on) { if (touch) for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-down', '#gt-lens']) $(id).hidden = on; }
   function standUp() {
-    const st = shows.seat, f = player.seatFrom;
-    shows.stand();
+    const st = (perch && perch.seat) || shows.seat, tri = st && st.perch ? perch.tripod : null;
+    if (st && st.perch) { perch.stand(); player.rig.legRake = player.rig.reach = null; stage.classList.remove('at-perch'); player.seatFrom = { x: st.at[0] + st.face[0] * 0.7, y: st.at[1] + st.face[1] * 0.7, z: st.z }; } else shows.stand(); // (off the wall: up onto your feet at its foot, facing the crossing)
+    const f = player.seatFrom;
     seatTouch(false);
     const p = (f && nav.stand(f.x, f.y, f.z + 0.5, { rMax: 3 })) || nav.stand(player.x, player.y, player.z + 0.5, { rMax: 4 }) || f || player;
     Object.assign(player, { mode: 'foot', x: p.x, y: p.y, z: p.z, h: st ? st.h : player.h, speed: 0, ground: true, vz: 0 });
-    cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
+    // (off a perch the camera stays on the tripod's side of you, never swung round over the wall and its lantern behind)
+    cam.mode = 'chase'; cam.yaw = tri ? Math.atan2(player.x - tri[0], player.y - tri[1]) : player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
     blendFrom(0.7, true); // (from the seat's eyes out to over your shoulder, not a cut)
     player.rig.root.visible = true;
   }
@@ -1459,7 +1469,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (rail && rail.trainBoxes) for (const b of rail.trainBoxes()) if (Math.abs(b.x - x) < r + b.hl && Math.abs(b.y - y) < r + b.hl) out.push(b); // (a train's bodies)
     // (and the helicopter's hull, cabin and tail boom, wherever it stands or hovers within reach, unless you are in it: a
     // walker, a guide dog and a car are kept out of it as out of a car; nothing kept anyone out of it before)
-    if (heli.group.visible && player.mode !== 'heli' && player.mode !== 'board' && Math.hypot(heli.st.x - x, heli.st.y - y) < r + 8) for (const b of heli.boxes()) out.push(b);
+    if (heli.group.visible && player.mode !== 'heli' && Math.hypot(heli.st.x - x, heli.st.y - y) < r + 8) for (const b of heli.boxes()) out.push(b);
     if (rail && rail.gateBoxes) for (const b of rail.gateBoxes(x, y, r)) out.push(b); // (and a closed crossing's arms)
     return out;
   }
@@ -1496,9 +1506,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     [player.x, player.y, player.z] = p;
     player.h = st.h;
     player.rig.root.visible = true;
-    if (cam.mode === 'cabin') cam.mode = 'chase';
+    const inside = cam.mode === 'cabin';
+    if (inside) cam.mode = 'chase';
     cam.dist = 6.5; camera.up.set(0, 1, 0);
-    blendFrom(0.6, true); // (the head it looks at drops from the seat to yours beside the door)
+    // (the head it looks at drops from the seat to yours beside the door; from the cabin view a cut to outside, as a film
+    // cuts, where a move went out through the roof or the pillar beside you)
+    if (inside) viewBlend.t = 1; else blendFrom(0.6, true);
     if (headlamp) o.C.drop(headlamp);
     A.car(0, 0, 0); A.skid(0); A.thump();
     return true;
@@ -1537,7 +1550,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function carComing(dt) {
     const c = carCome;
     if (!c || !myCar) { carCome = null; return; }
-    if (player.mode === 'car' || player.mode === 'board') { carCome = null; return; } // (got in as it came: it stops where it is)
+    if (player.mode === 'car' || player.mode === 'heli') { carCome = null; return; } // (got in as it came: it stops where it is)
     c.t += dt;
     const u = Math.min(1, c.t / c.dur), e = 1 - (1 - u) * (1 - u);
     const pose = kerbPose(Object.assign({}, c.pl, { s: c.s0 + (c.s1 - c.s0) * e }));
@@ -4310,7 +4323,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const goal = titled ? null : storyWay ? { x: storyWay[0], y: storyWay[1], z: storyWay[3] != null ? storyWay[3] : null, kind: 'waypoint' } : auto ? { x: auto.dest.at[0], y: auto.dest.at[1], z: null, kind: 'pilot' } : routeGoal(target, ob);
     const here = goal && Math.hypot(goal.x - me.x, goal.y - me.y) < (m === 'heli' ? 30 : 12) && (m !== 'heli' || heli.st.landed);
     // (in a story no line is drawn on the ground but the story's own way: the map's routes are not the story's way, and a line that leads elsewhere is worse than none)
-    if ((story && !storyWay) || !goal || here || m === 'rail' || m === 'board') { if (guide.pts) gold.set(null);  guide.key = ''; guide.pts = null; return; }
+    if ((story && !storyWay) || !goal || here || m === 'rail') { if (guide.pts) gold.set(null);  guide.key = ''; guide.pts = null; return; }
     const off = gold.follow(me.x, me.y, m === 'heli' ? me.z : null);
     const key = `${m}|${Math.round(goal.x)},${Math.round(goal.y)}|${goal.kind}|${m === 'ride' && ride ? `${ride.phase}${ride.drv.path ? (ride.drv.path.rid ??= ++guide.n) : ''}` : auto ? `${auto.join ? 'join' : (auto.drv.path.rid ??= ++guide.n)}` : ''}|${m === 'ferry' && me ? me.ci : ''}`;
     const stray = auto ? Infinity : { foot: 6, car: 14, heli: 70 }[m] ?? Infinity;
@@ -4568,6 +4581,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (closeup) { closeup.c.turn(-dx * 0.004, -dy * 0.003); return; }
     if (player.mode === 'heli' && cam.mode === 'cockpit') { cam.lookYaw = Math.max(-2.4, Math.min(2.4, cam.lookYaw - dx * 0.005)); cam.lookPitch = Math.max(-1.1, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
     else if (onTrain() && cam.mode !== 'chase') { cam.lookYaw = Math.max(-2.6, Math.min(2.6, cam.lookYaw + dx * 0.005)); cam.lookPitch = Math.max(-0.9, Math.min(0.8, cam.lookPitch - dy * 0.004)); }
+    else if (player.mode === 'seat' && perch && perch.seat) perch.turn(dx, dy); // (on a perch: your head, and the tripod's aim with it)
     else if (player.mode === 'seat') { cam.lookYaw = Math.max(-1.9, Math.min(1.9, cam.lookYaw + dx * 0.004)); cam.lookPitch = Math.max(-0.7, Math.min(0.9, cam.lookPitch - dy * 0.0035)); } // in a seat: you turn your head
     else { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006 * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + dy * 0.005 * ls)); } // (through the lens, slower the longer it is, and up as far as the eye looks)
     cam.lastInput = clockT;
@@ -4707,10 +4721,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (dlg.open || uiOpen() || cine.active || OEOnboard.active()) return null; // nothing to start while the tour is showing
     // a story's helicopter on its pad: E beside it and you are in (story ctx board), before anyone near it is talked to
     if (heliWait && heliWait.then && player.mode === 'foot' && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < HELI_REACH && Math.abs(heli.st.z - player.z) < 4) return { key: 'E', story: true, text: 'Get in the helicopter', act: () => { const w = heliWait; heliWait = null; A.thump(); w.then(); } };
-    if (player.mode === 'seat') return { key: 'E', text: 'Stand up', act: standUp };
+    if (player.mode === 'seat') return { key: 'E', walk: !!(perch && perch.seat), text: 'Stand up', act: standUp }; // (off a perch on the walk too)
     if (fish && fish.api && fish.api.busy()) return fish.api.action(); // a line is out (fishing.js)
     if (player.mode === 'lift') return { key: '', text: liftRide && liftRide.phase === 'ride' ? `To ${liftRide.b.name}…` : liftRide && liftRide.phase === 'call' ? 'The car is coming…' : '' };
-    if (player.mode === 'board') return { key: '', text: boarding.dir > 0 ? (boarding.t < 0.3 ? 'Opening the door…' : 'Climbing aboard…') : (boarding.t < 0.25 ? 'Engine off. Opening the door…' : 'Climbing out…') };
     if (player.mode === 'heli') {
       if (heli.st.landed && heli.st.speed < 1) return { key: 'E', walk: true, text: 'Get out', act: exitHeli };
       return null;
@@ -4735,6 +4748,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
     // (on the walk: whoever has something to say, a part of a story or a word in passing; walktalk.js)
     if (bn && walk && walkTalk && !walkTalk.busy && !bn.rig.pending && walkTalk.want(bn.id)) return { key: 'E', walk: true, text: `Talk to ${bn.name.replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '')}`, act: () => walkTalk.talk(bn) };
+    // (on the walk: a stretch of stone to sit on and watch the crossing from; perch.js)
+    const ph = walk && perch && player.mode === 'foot' && perch.near(player.x, player.y, player.z);
+    if (ph) return { key: 'E', walk: true, text: ph.verb, act: () => sitDown(ph) };
     if (fish) { // at a fishing spot (the first time, the code comes with the key press)
       const sp = fish.api ? null : fishSpot(14), a = fish.api ? fish.api.action() : sp && { key: 'E', text: `Fish at ${sp.name}`, act: () => fishLoad().then(api => (api ? api.start() : H.toast('The tackle did not arrive. Try again in a moment.'))) };
       if (a) return a;
@@ -4745,7 +4761,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     // (your car at the kerb and the helicopter on its pad: on the walk too, as a free ride's own car and a sim's aircraft are)
     if (myCar && offCar(myCar, player.x, player.y) < 2.5 && Math.abs(myCar.D.st.z - player.z) < 2) return { key: 'E', walk: true, text: 'Drive your car', act: enterCar };
-    if (Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 10 && Math.abs(heli.st.z - player.z) < 3 && (!story || heli.group.visible)) return { key: 'E', walk: true, text: 'Board the helicopter', act: enterHeli };
+    if (Math.abs(heli.st.z - player.z) < 3 && (!story || heli.group.visible) && offHeli(player.x, player.y) < HELI_STEPS) return { key: 'E', walk: true, text: 'Board the helicopter', act: enterHeli }; // (a few steps from its cabin or its boom, wherever you stand round it: in at once, enterHeli)
     const st = railStation(player.x, player.y, 25, player.z);
     if (st && (rail.cars.length || st.deck)) {
       // (a railway's station: the train standing nearest you, of the two directions' at a loop)
@@ -4924,89 +4940,61 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     v.helm = { manual: false, throttle: 0.6, input: {} };
     H.toast('The skipper hands you the wheel for the next wharf. Autopilot until the approach, then it\'s yours: ' + (touch ? 'the stick is her throttle and her rudder.' : 'W/S throttle, A/D rudder.'));
   }
-  // Getting in, as GTA and Sketchbook do it: walk round to the pilot's door, which swings open;
-  // step up onto the skid and slide into the seat; the door shuts at once and the rotor spools
-  // up. Out the same way round. The moves are in the helicopter's own frame (heli.way), with
-  // the player riding in its group, so they work wherever it has landed. A line on screen
-  // says what is happening, and the door is open for only a second.
-  let boarding = null; // { dir: 1 in or -1 out, t, ... } while getting in or out (player.mode 'board')
-  const HALF_PI = Math.PI / 2, ease = (t, a, b) => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+  // Getting in, as your car and a taxi are got into, and as the open-world games on a phone do it (a Get in button,
+  // and you are in the seat): E within a few steps of the helicopter and you are in the pilot's seat, the view going
+  // round behind it from where you stood, the door seen swinging shut and the rotor spooling up. It was once a walk round
+  // to the pilot's door (round the nose from the far side) and a climb onto the skid and into the seat, posed from the
+  // walk and the sitting clips with nothing of its own for the climb: seconds of nothing between the key and the seat;
+  // on a phone the camera was pressed into the hull as you climbed, and from behind the tail the walk round never got
+  // to the door at all. The games whose climb in is shown (GTA) have a captured clip for each door of each machine and
+  // fit the hands to it; without one, the cut hidden in a move of the camera is what reads as getting in. Out the same
+  // way: on your feet beside the door, the view coming down to you there, the door swinging shut behind you.
+  const HALF_PI = Math.PI / 2, HELI_STEPS = 4;
+  // how far (x, y) is from the helicopter's hull, its cabin or its boom, in metres (0 under it)
+  function offHeli(x, y) {
+    let d = Infinity;
+    for (const q of heli.boxes()) {
+      const dx = x - q.x, dy = y - q.y, f = dx * Math.sin(q.h) + dy * Math.cos(q.h), s = dx * Math.cos(q.h) - dy * Math.sin(q.h);
+      d = Math.min(d, Math.hypot(Math.max(0, Math.abs(f) - q.hl), Math.max(0, Math.abs(s) - q.hw)));
+    }
+    return d;
+  }
   function enterHeli() {
     if (!heli.loaded()) { heli.want(); heli.show(); } // in before its model has come: the simple one until you are out again
-    const w = heli.way, me = heli.toLocal(player.x, player.y, player.z);
-    // from the far side, round the nose (the tail boom is too low to walk under)
-    const legs = [];
-    if (me.x > -1.1) { if (me.x > 0) legs.push(new THREE.Vector3(1.6, 0, 5)); legs.push(new THREE.Vector3(-1.6, 0, 5)); }
-    legs.push(w.stand);
-    const go = () => {
-      if (!legs.length) { // at the door, unless something was in the way
-        const s = heli.toWorld(w.stand);
-        if (Math.hypot(s.x - player.x, s.y - player.y) > 2.5) H.toast('You can\'t get round to the pilot\'s door from here.');
-        else climbIn();
-        return;
-      }
-      const q = heli.toWorld(legs.shift());
-      player.auto = { x: q.x, y: q.y, t: 0, label: 'To the pilot\'s door…', then: go };
-    };
-    go();
-  }
-  function climbIn() {
-    const root = player.rig.root;
-    heli.group.attach(root); // the player rides in the helicopter's frame from here
-    boarding = { dir: 1, t: 0, p0: root.position.clone(), yaw0: root.rotation.y };
-    player.mode = 'board'; player.vehicle = heli; player.speed = 0;
-    heli.st.doorTo = 1;
-    cam.yawTo = heli.st.h - HALF_PI + 0.55; // look in at the door from behind it
-  }
-  function exitHeli() {
-    const d = heli.doorAt(), p = placeNear(d.x, d.y, heli.st.z + 0.5, heli.boxes()); // (beside its door, outside its hull)
-    if (!p) { H.toast('Land somewhere you can step out.'); return; }
-    // step down beside the door, or as near it as there is ground to stand on
-    const out = heli.toLocal(...p), near = out.distanceTo(heli.way.stand) < 2;
-    boarding = { dir: -1, t: 0, out: near ? out : heli.way.stand.clone(), land: p };
-    player.mode = 'board'; heli.st.on = false; heli.st.doorTo = 1;
-    if (coachHeli && coachHeli.active && coachHeli.id !== 'land') coachHeli.end(); // out before the end: again next flight
-    if (cam.mode !== 'chase') { // from the cockpit or the bird's-eye view, a crane out to the chase camera
-      const from = { pos: camera.position.clone(), look: live.look.clone() };
-      cam.mode = 'chase'; camera.up.set(0, 1, 0);
-      cine.play(OECine.mix(() => from, () => live, k => OECine.ease.smooth(k)), 0.9, { label: 'crane' });
-    }
-    cam.dist = Math.max(14, cam.dist); cam.distTo = FOOT.dist; cam.yawTo = heli.st.h - HALF_PI + 0.55; // and in close by the door as you climb out
-  }
-  function boardStep(dt) {
-    const b = boarding, w = heli.way, root = player.rig.root, step = w.step || w.stand;
-    const inSeat = new THREE.Vector3(step.x, w.seat.y, step.z); // sitting down where the step is: the hips stay where they were
-    b.t += dt;
-    let pos, yaw, sit = false, speed = 0;
-    if (b.dir > 0) {
-      if (b.t < 0.55) { // face the door as it opens, then up onto the step
-        const s = ease(b.t, 0, 0.3), u = ease(b.t, 0.25, 0.55);
-        pos = b.p0.clone().lerp(w.stand, s).lerp(step, u); yaw = b.yaw0 + angDiff(HALF_PI, b.yaw0) * s; speed = u > 0 && u < 1 ? 1.6 : 0;
-      } else { // and slide into the seat, turning to face forward
-        const s = ease(b.t, 0.55, 1.15);
-        pos = inSeat.clone().lerp(w.seat, s); yaw = HALF_PI * (1 - s); sit = true;
-      }
-    } else if (b.t < 0.8) { // turn to the door as it opens and slide out onto the step
-      const s = ease(b.t, 0.25, 0.8);
-      pos = w.seat.clone().lerp(inSeat, s); yaw = -HALF_PI * s; sit = true;
-    } else { // and step down
-      const s = ease(b.t, 0.8, 1.15);
-      pos = step.clone().lerp(b.out, s); yaw = -HALF_PI; speed = s < 1 ? 1.6 : 0;
-    }
-    root.position.copy(pos); root.rotation.set(0, yaw, 0);
-    player.rig.animate(dt, speed, sit ? 'sit' : 'ground', clockT);
-    const q = heli.toWorld(pos);
-    player.x = q.x; player.y = q.y; player.z = q.z; player.h = heli.st.h - yaw;
-    if (b.dir > 0 && b.t >= 1.15) seated();
-    else if (b.dir < 0 && b.t >= 1.15) stepOff();
-  }
-  function seated() { // in: the door shuts behind you and the rotor spools up
-    boarding = null;
-    player.mode = 'heli'; heli.st.on = true; heli.st.doorTo = 0;
-    player.rig.root.position.copy(heli.way.seat); player.rig.root.rotation.set(0, 0, 0);
-    cam.mode = 'chase'; cam.distTo = 20; // pull back to the chase view (near enough that the helicopter fills a sixth of the picture's height); it swings behind once under way
+    const root = player.rig.root, st = heli.st;
+    player.auto = null; player.speed = 0;
+    heli.group.attach(root); // (you ride in the helicopter's frame from here)
+    root.position.copy(heli.way.seat); root.rotation.set(0, 0, 0);
+    player.mode = 'heli'; player.vehicle = heli;
+    st.on = true; st.door = 1; st.doorTo = 0; // (shut behind you, a third of a second, as the view comes round)
+    // the chase view behind it (near enough that it fills a sixth of the picture's height), come round to from where you
+    // stood by bearing, height and distance (blendFrom), longer the farther round: a straight line went through the cabin
+    const turn = Math.abs(angDiff(st.h, cam.yaw));
+    cam.mode = 'chase'; cam.dist = 20; cam.distTo = 0; cam.yawTo = null; cam.pitchTo = null; cam.pitch = 0.24; cam.yaw = st.h;
+    blendFrom(0.9 + turn * 0.16, true);
+    A.thump();
     if (!walk && !heliCoach()) H.toast(touch ? 'Door shut, rotor spooling up: it lifts at 90%. Hold <b>Up</b> to climb and <b>Down</b> to descend; the stick flies and turns; <b>View</b> changes the view.'
       : 'Door shut, rotor spooling up: it lifts at 90%. <kbd>Space</kbd> climb, <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd>, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> change view.');
+  }
+  function exitHeli() {
+    const st = heli.st, d = heli.doorAt(), p = placeNear(d.x, d.y, st.z + 0.5, heli.boxes()); // (beside its door, outside its hull)
+    if (!p) { H.toast('Land somewhere you can step out.'); return; }
+    if (coachHeli && coachHeli.active && coachHeli.id !== 'land') coachHeli.end(); // out before the end: again next flight
+    world.attach(player.rig.root);
+    player.mode = 'foot'; player.vehicle = null; player.speed = 0; player.ground = true; player.vz = 0; player.auto = null;
+    [player.x, player.y, player.z] = p;
+    player.h = st.h + HALF_PI; // (facing out from the door: three-quarters to the view)
+    player.rig.root.rotation.set(0, Math.PI - player.h, 0);
+    st.on = false; st.door = 1; st.doorTo = 0; // (engine off, and the door shut behind you)
+    // the view down to you from the chase view or the bird's-eye view, from outside the door and a little behind it, the
+    // helicopter beside you (from the other side of you it would stand in the cabin); from the pilot's eyes a cut to it,
+    // as a film cuts: a move from there went out through the door's pillar
+    const inside = cam.mode === 'cockpit';
+    if (cam.mode !== 'chase') { cam.mode = 'chase'; camera.up.set(0, 1, 0); }
+    cam.dist = FOOT.dist; cam.distTo = 0; cam.pitchTo = null; cam.pitch = FOOT.pitch; cam.yawTo = null; cam.yaw = st.h - HALF_PI + 0.55;
+    if (inside) viewBlend.t = 1; else blendFrom(0.8, true);
+    A.thump();
+    save();
   }
   // the first flight in this browser (any map): a short coach, a step at a time, each ticked off as you do
   // it (onboard.js): wait for the rotor, climb, fly and turn, come down and land. Out before the end, it
@@ -5032,16 +5020,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         touch: 'Hold <b>Down</b> to descend and set it down on open ground or a roof. Once down, <b>E</b> gets out.' },
     ], { label: 'First flight', onEnd: () => { coachHeli = null; } });
     return coachHeli;
-  }
-  function stepOff() { // out: on your feet beside it, and the door swings shut
-    const p = boarding.land;
-    boarding = null;
-    heli.st.doorTo = 0;
-    world.attach(player.rig.root);
-    player.rig.root.rotation.set(0, Math.PI - player.h, 0);
-    player.mode = 'foot'; player.vehicle = null; player.speed = 0; player.ground = true; player.vz = 0;
-    [player.x, player.y, player.z] = p;
-    save();
   }
   function unstuck() {
     const p = placeNear(player.x, player.y, player.z) || placeNear(G.start.at[0], G.start.at[1]);
@@ -7010,7 +6988,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // enough to see it, on the roof or round it, and drawn once it has come; out of sight, not drawn)
       const near = !!walk && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 260 && Math.abs(heli.st.z - player.z) < 60;
       if (near && !heli.loaded()) heli.want();
-      heli.group.visible = !!heliWait || (near && heli.loaded()) || player.mode === 'board';
+      heli.group.visible = !!heliWait || (near && heli.loaded());
       heli.st.idle = heliWait && heliWait.idle && heli.loaded() ? HELI_IDLE : 0;
     }
     if (storyBeacon && storyBeacon.visible) storyBeacon.userData.col.material.uniforms.uT.value = performance.now() / 1000;
@@ -7184,6 +7162,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function simulate(dt) {
     faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
+    // (on a perch, Space or the Time-lapse button held: the evening runs fast, the crowd at its own pace; perch.js warp)
+    { const wm = perch && !clock.frozen ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
@@ -7196,7 +7176,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const angling = !!fish && !!fish.api && fish.api.on(); // standing with a line out: the rod has the keys
     if (player.mode === 'foot' && angling) { player.speed = 0; gaitChip(player.walking ? 'walk' : 'run'); player.rig.animate(dt, 0, 'ground', clockT); }
     else if (player.mode === 'foot') walkStep(dt, held ? 0 : fwd, held ? 0 : side);
-    else if (player.mode === 'board') boardStep(dt);
     else if (player.mode === 'heli') {
       const lift = (k('Space') ? 1 : 0) - (k('KeyC') || k('ShiftLeft') || k('ShiftRight') ? 1 : 0) + touchLift;
       const events = [];
@@ -7215,6 +7194,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       A.wind(Math.min(1, heli.st.speed / 60));
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'seat') {
+      if (perch && perch.seat) { // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
+        const l = perch.lap(); player.rig.legRake = perch.seat.rake; player.rig.reach = l ? W(...l) : null; // (the hands in the lap, not down through the stone)
+      }
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'lift') {
       liftStep(dt);
@@ -7234,7 +7216,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (fish) fishTick(dt, held ? 0 : Math.max(-1, Math.min(1, side)));
     if (coachHeli) coachHeli.update(dt); // (on into the step out, once landed)
     if (player.mode !== 'heli') { heli.update(dt, {}, []); A.rotor(heli.st.rotor * Math.max(0, 1 - Math.hypot(heli.st.x - player.x, heli.st.y - player.y) / 300)); }
-    if (player.mode !== 'heli' && player.mode !== 'board') heliToPad();
+    if (player.mode !== 'heli') heliToPad();
     if (waitFerry && (player.mode !== 'foot' || !nearWharf(player.x, player.y, 40))) waitFerry = null;
     const wantTo = waitFerry && rideTarget(waitFerry);
     const here = waitFerry && fer.vessels.find(q => fer.stopOf(q) === waitFerry && (!wantTo || q.stops.includes(wantTo)));
@@ -7283,7 +7265,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (v.phase === 'dwell') skip = false;
     }
     carsTick(dt);
-    if (player.mode !== 'heli' && player.mode !== 'board' && player.mode !== 'car' && player.mode !== 'ride') { player.rig.root.position.copy(W(player.x, player.y, player.z)); player.rig.root.rotation.y = Math.PI - player.h;
+    if (player.mode !== 'heli' && player.mode !== 'car' && player.mode !== 'ride') { player.rig.root.position.copy(W(player.x, player.y, player.z)); player.rig.root.rotation.y = Math.PI - player.h;
       // on a stair or an escalator the floor walked on is the slope under the steps: the feet are set on the tread, not in it
       // (a stair: the tread you are over, its top the slope's height at its upper edge; an escalator, whose treads are not
       // modelled moving: most of a riser up)
@@ -7675,7 +7657,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const shot = cine.step(clockT), cockpit = !shot && player.mode === 'heli' && cam.mode === 'cockpit';
     // (and in the helicopter's chase view with its speed, up to 6 degrees at top speed: the sense of speed in the air)
     heliFov += ((player.mode === 'heli' && cam.mode === 'chase' ? Math.min(6, heli.st.speed * 0.12) : 0) - heliFov) * Math.min(1, dt * 1.5);
-    const fov = shot && cine.label === 'overture' ? overture.fov : shot && cine.label === 'survey' ? surveyFov : cockpit ? COCKPIT.fov : BASE_FOV + (shot ? 0 : Math.round((carFov + heliFov) * 4) / 4) + (seated && !shot ? 6 : 0) + (story && !shot ? story.push : 0), near = cockpit || seated ? 0.12 : 0.3;
+    const fov = shot && cine.label === 'overture' ? overture.fov : shot && cine.label === 'survey' ? surveyFov : cockpit ? COCKPIT.fov : BASE_FOV + (shot ? 0 : Math.round((carFov + heliFov) * 4) / 4) + (seated && !shot ? 6 : 0) + (story && !shot ? story.push : 0) + (shot ? 0 : perchFov), near = cockpit || seated ? 0.12 : 0.3;
     if (camera.fov !== fov || camera.near !== near) { camera.fov = fov; camera.near = near; camera.updateProjectionMatrix(); }
     if (shot) {
       camera.up.set(0, 1, 0);
@@ -7949,6 +7931,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       camTarget.copy(eye); camSmooth.copy(eye);
       return;
     }
+    if (player.mode === 'seat' && perch && perch.seat) { // on a perch: the tripod behind your shoulder, framing the scramble (perch.js)
+      const j = junctions.scrambles.find(q => Math.hypot(q.x - player.x, q.y - player.y) < 120);
+      const s = perch.camera(dt, !!(j && j.ph === 3), camera.aspect || 1.6, BASE_FOV + perchFov);
+      eye.copy(W(...s.pos));
+      live.pos.copy(eye); live.look.copy(W(...s.look));
+      live.half = 170; perchFov = s.fovAdd;
+      camTarget.copy(eye); camSmooth.copy(eye);
+      player.rig.root.visible = true;
+      return;
+    }
+    perchFov = 0;
     if (player.mode === 'seat' && shows && shows.seat) { // from the seat, through your own eyes
       const st = shows.seat, yaw = st.h + cam.lookYaw, p = cam.lookPitch;
       eye.copy(W(st.at[0] + st.face[0] * 0.08, st.at[1] + st.face[1] * 0.08, st.at[2] + (st.eye || 1.12)));
@@ -8008,7 +8001,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (in a car it stands back a little more with the speed, eased: a knock that stopped the car dead brought it in half a metre in a frame)
     cam.back = veh ? (cam.back || 0) + (Math.min(2.5, Math.abs(vs.v) * 0.05) - (cam.back || 0)) * Math.min(1, dt * 3) : 0;
     const dist = player.mode === 'heli' ? Math.max(cam.distTo ? cam.dist : 14, cam.dist) + Math.min(4, heli.st.speed * 0.08) : player.mode === 'ferry' || player.mode === 'rail' ? Math.max(25, cam.dist) : veh ? Math.max(5, cam.dist) + cam.back : cam.dist;
-    const close = player.mode === 'foot' || player.mode === 'board';
+    const close = player.mode === 'foot';
     // (at the wheel: on the car along the ground, its bumps eased; a lag behind a moving car that is
     // eased frame by frame grows and shrinks with the frame time, and the car seems to lurch back and
     // forth in the picture whenever the frames come unevenly)
@@ -8571,7 +8564,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (pass !== riding) {
       riding = pass; vhudT = -1;
       stage.classList.toggle('riding', pass);
-      for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-lens']) $(id).hidden = pass;
+      for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-lens']) $(id).hidden = pass && !(id === '#gt-jump' && perch && perch.seat); // (on a perch the Time-lapse button stays)
     }
     if (clockT - vhudT < 0.3) return;
     vhudT = clockT;
@@ -8589,7 +8582,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const dt_ = m === 'heli' ? 'Down' : m === 'car' ? 'Horn' : rides ? 'Skip' : 'Guess';
       if (dn.textContent !== dt_) dn.textContent = dt_;
       dn.setAttribute('aria-pressed', String((m === 'ferry' || m === 'rail') && skip));
-      $('#gt-jump').textContent = player.mode === 'heli' ? 'Up' : player.mode === 'car' ? 'Hand brake' : (fish && fish.api && fish.api.button()) || 'Jump'; // (Cast and Reel with a line out: fishing.js)
+      $('#gt-jump').textContent = player.mode === 'seat' ? 'Time-lapse' : player.mode === 'heli' ? 'Up' : player.mode === 'car' ? 'Hand brake' : (fish && fish.api && fish.api.button()) || 'Jump'; // (Cast and Reel with a line out: fishing.js)
       // (at the wheel there is nothing to run: the button is the autopilot's)
       const run = $('#gt-run'), txt = player.mode === 'car' ? 'Auto' : 'Run';
       if (run.textContent !== txt) run.textContent = txt;
@@ -8741,7 +8734,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { perch, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
