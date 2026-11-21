@@ -307,17 +307,24 @@ def reach(path, was, fns):
                 elif a < o:
                     return None
             return o + d
-        own_fns, spots = set(), [(to_new(f[0]), to_new(f[1]), f) for f in fns]
+        # (a closure that holds a script's functions, eight or more of them, is a scope as a file is, not a function: two
+        # of its own statements are no nearer each other than two of its functions; game.js is one such, 8,700 lines)
+        scope = {(f[0], f[1]) for f in fns if sum(1 for h in fns if f[0] <= h[0] and h[1] <= f[1]) > 8}
+        fns_ = [f for f in fns if (f[0], f[1]) not in scope]
+        own_fns, spots = set(), [(to_new(f[0]), to_new(f[1]), f) for f in fns_]
         for a, b in own:
             s_, e_ = new.off[min(a, len(new.off) - 1)], new.off[min(b, len(new.off) - 1)]
             best = None
             for ns, ne, f in spots:   # (a function whose ends main moved has no place to compare: then the whole script's)
                 if ns is not None and ne is not None and ns <= s_ and e_ <= ne and (best is None or f[1] - f[0] < best[1] - best[0]):
                     best = f
-            own_fns.add((best[0], best[1]) if best else None)
+            if best:
+                own_fns.add((best[0], best[1]))
+            elif not scope:
+                own_fns.add(None)
         for h in list(mains):
             c = chars(old, new, h)
-            f = inner(fns, c[0], c[1])
+            f = inner(fns_, c[0], c[1])
             if None in own_fns or (f and (f[0], f[1]) in own_fns):
                 mains.remove(h)
                 mine.append(h)
