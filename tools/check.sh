@@ -21,6 +21,9 @@
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
+#           - the rules by which a check's pass is kept though a file it read changed (tools/reach_unit.py);
+#           - the seams between the page's parts: each asks another only for what its contract offers (tools/seams.py),
+#             and the people's models give what the page asks of them (tools/people_contract.py);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
@@ -71,6 +74,9 @@
 #   CHECK_TIER=full tools/check.sh      # as main runs it after landing (.github/workflows/checks.yml): clip, gl and touch too
 #   CHECK_BASE=<commit> tools/check.sh  # what changed since that commit, not since origin/main
 #   CHECK_STATIC=0 tools/check.sh ...   # without the static checks (a runner's shard)
+#   CHECK_LANES=1 tools/check.sh ...    # one browser check at a time (by default as many side by side as the cores and the memory allow)
+#   CHECK_SHARED=0 tools/check.sh ...   # without main's passes: only this clone's own are kept
+#   CHECK_STORE=dir tools/check.sh ...  # each pass kept in that folder, on any tier (a runner's, for main's passes to share)
 #   GAME_TIME=22:40 tools/check.sh clip # the free game's clock pinned to another hour (tools/pin_clock.js; live: the real clock)
 set -u
 cd "$(dirname "$0")/.."
@@ -101,6 +107,8 @@ if [ $plan -eq 0 ] && [ -z "${CI:-}" ] && [ "${CHECK_INLINE:-0}" != 1 ] && comma
 fi
 case "${1:-}" in --wait|--status|--stop) echo "$1: no run to wait on here (on a runner, without setsid or with CHECK_INLINE=1 a run plays in the foreground)"; exit 2 ;; esac
 mkdir -p "$OUT"
+# main's passes, for the checks this clone has no pass of (tools/check_cache.py passes): asked for once a run, and gone without when the remote does not answer
+[ -z "${CI:-}" ] && [ "${CHECK_SHARED:-1}" != 0 ] && [ $plan -eq 0 ] && timeout 20 git fetch -q origin check-passes 2>/dev/null
 export NODE_PATH=${NODE_PATH:-$(npm root -g 2>/dev/null)}
 # (macOS has no timeout: there a check runs for as long as it takes)
 command -v timeout >/dev/null || timeout() { shift; "$@"; }
@@ -153,7 +161,9 @@ else
   # the page or the map changed. On the fast tier the walk's desktop page only (walk1, 9 minutes of its 18), its phone's
   # (walk2) for what a phone alone runs, below: in the sessions of 18 to 21 November the phone's page failed twice, both
   # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
-  page() { if [ "$TIER" = full ]; then add story budget walk mem clip gl touch; else add story walk1 mem; fi; return 0; }
+  # (the story in its three parts on the fast tier: side by side where the machine has the cores and the memory, each
+  # kept or played by itself, so that a change only frame 7 runs plays frame 7; docs/CHECKS.md, "Checks by reach")
+  page() { if [ "$TIER" = full ]; then add story budget walk mem clip gl touch; else add story1 story2 story3 walk1 mem; fi; return 0; }
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -167,9 +177,12 @@ else
   # A harness, or a module harnesses share: the checks that require it (tools/check_cache.py users); on the fast tier only
   # the quickest of several, which shows the module still works, and on main all of them
   harness() {
-    local u k; u=$(python3 tools/check_cache.py users "$1" | tr ' ' '\n' | grep -vx game | paste -sd ' ' -)
+    local u k one; u=$(python3 tools/check_cache.py users "$1" | tr ' ' '\n' | grep -vx game | paste -sd ' ' -)
     [ -n "$u" ] || return 0
-    if [ "$TIER" = full ] || [ "$(echo "$u" | wc -w)" -eq 1 ]; then add $u; return 0; fi
+    one=$(echo "$u" | wc -w)
+    # (on the fast tier the story in its parts and the walk's desktop page, as for a change to the page)
+    [ "$TIER" = full ] || u=$(echo " $u " | sed 's/ story / story1 story2 story3 /; s/ walk / walk1 /' | xargs)
+    if [ "$TIER" = full ] || [ "$one" -eq 1 ]; then add $u; return 0; fi
     for k in $KINDS; do is_in "$k" "$u" && { add "$k"; return 0; }; done
   }
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
@@ -183,7 +196,16 @@ else
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide ;;   # (the guide, the ways, the marks)
-      web/data/$MAP/hero/*) static=1; page ;;   # (a hero level's ground meshes are what everyone walks on: game.js heroCover)
+      # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
+      # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
+      # asks of it is loaded, looked at and weighed, and the story is not played, whatever its nodes are called
+      web/assets/people/*) static=1; if [ "$TIER" = full ]; then page; add look; else add look mem; fi
+        case "$f" in *.glb|*.webp|*.png|*.jpg) [ -e "$f" ] && looks="$looks $f" ;; esac ;;
+      # (a hero level's ground meshes are what everyone walks on, game.js heroCover: where they lie is in the model's
+      # contract, tools/model_contract.py, so a level rebuilt with its ground and its names as they were is looked at and
+      # weighed like any model, and one whose ground moved is played)
+      web/data/$MAP/hero/*.glb) static=1; asset "$f" ;;
+      web/data/$MAP/hero/*) static=1; page ;;
       web/*.glb|web/*.webp|web/*.png|web/*.jpg|web/*.jpeg|web/*.avif|web/*.ktx2) static=1; asset "$f" ;;
       web/*.mp3|web/*.ogg|web/*.m4a|web/*.wav) static=1; add audio; asset "$f" ;;
       web/*|cities/$MAP/city.json) static=1; page ;;   # (tools/story_play.js reads the city's story from city.json itself)
@@ -195,9 +217,9 @@ else
   if [ -n "$glbs" ] && [ "$TIER" != full ]; then
     changed=$(python3 tools/model_contract.py "$base" $glbs | tee "$OUT/contract.txt" | grep '^CHANGED')
     if [ -n "$changed" ]; then
-      echo "a model's names, flags or attributes changed, so the page's checks too: $(echo "$changed" | head -2 | cut -c9-140 | paste -sd ';' -) ($OUT/contract.txt)" >&2
+      echo "a model's names, flags, attributes or ground changed, so the page's checks too: $(echo "$changed" | head -2 | cut -c9-140 | paste -sd ';' -) ($OUT/contract.txt)" >&2
       page
-    elif ! is_in story "$want"; then echo "the models changed keep their names, flags and attributes ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
+    elif ! is_in story1 "$want"; then echo "the models changed keep their names, flags, attributes and ground ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
   is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2' | paste -sd ' ' -)   # (both pages already)
   [ "$skipped" -gt 0 ] && echo "$skipped files changed since the last pass are main's, as main has it: the static checks for them, the rest on main (CHECK_FULL=1 plays them here)" >&2
@@ -208,7 +230,9 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
   for k in $want; do
     # (a runner's plan: the story in three parts, one a runner, which together play every frame and the last card; the
     # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
-    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3 ;; walk) echo walk1; echo walk2 ;; guide) echo guide1; echo guide2 ;; *) echo "$k" ;; esac
+    # (and the story whole on a runner of its own: a case carried in one page from frame 4 to 5 and from 6 to 7, which the
+    # fast tier, playing the parts, no longer plays before landing)
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; walk) echo walk1; echo walk2 ;; guide) echo guide1; echo guide2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
   done
   exit 0
@@ -220,15 +244,31 @@ if [ $static -eq 0 ] && [ -z "$want" ]; then
   exit 0
 fi
 
+# Lanes: the browser checks side by side, as many as the machine has cores and memory for (CHECK_LANES=n; on a runner
+# one, a target a runner). A check's page takes one core for its script and, drawing, the software renderer's threads,
+# and 5 to 6 GB with the map loaded at a desktop's tier: three side by side on a session's 16 GB had one killed for
+# memory, two play (docs/CHECKS.md, "The checks faster"). Each lane has its own server, so that its log is what its
+# check read, and the renderer is held to its share of the cores (LP_NUM_THREADS).
+lanes() {
+  local n l; n=$(nproc 2>/dev/null || echo 2)
+  l=$(( $(awk '/MemAvailable/ { print int($2 / 1048576) }' /proc/meminfo 2>/dev/null || echo 6) / 6 ))
+  [ "$l" -gt $((n / 2)) ] && l=$((n / 2)); [ "$l" -lt 1 ] && l=1; echo "$l"
+}
+L=${CHECK_LANES:-$([ -n "${CI:-}" ] && echo 1 || lanes)}
+[ "$(echo $want | wc -w)" -lt "$L" ] && L=$(echo $want | wc -w); [ "$L" -lt 1 ] && L=1
 started=
 if [ -n "$want" ] && ! curl -s -o /dev/null "http://localhost:$PORT/index.html"; then
   # (its log is what each check read: tools/check_cache.py keeps a pass for as long as all of that is as it was)
-  python3 -u -m http.server "$PORT" --directory web >"$OUT/server.log" 2>&1 &
-  started=$!
-  for _ in $(seq 50); do curl -s -o /dev/null "http://localhost:$PORT/index.html" && break; sleep 0.2; done
-fi
+  for i in $(seq 0 $((L - 1))); do
+    python3 -u -m http.server "$((PORT + i))" --directory web >"$OUT/server-$i.log" 2>&1 &
+    started="$started $!"
+  done
+  for _ in $(seq 50); do curl -s -o /dev/null "http://localhost:$((PORT + L - 1))/index.html" && break; sleep 0.2; done
+else L=1; fi
 trap '[ -n "$started" ] && kill $started 2>/dev/null' EXIT
 export PORT
+PORT0=$PORT
+[ "$L" -gt 1 ] && export LP_NUM_THREADS=${LP_NUM_THREADS:-$(( $(nproc) / L ))}
 # the free game's clock pinned to a date and an hour (tools/pin_clock.js): the weather is a hash of the date and the
 # traffic follows the hour, so a run does not depend on when it is started
 export GAME_TIME=${GAME_TIME:-2026-11-02T10:00}
@@ -264,11 +304,17 @@ story_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # renderer's frame a second the story's clock ran twenty times slow and the play did not fit the hour; the frames
   # between run the game without their draw calls, and every still is of frames drawn whole, tools/story_play.js)
   local n=$1 log="$OUT/$1.log"
-  # (and every still's frame counted, BUDGET: each beat it played against the desktop's budget, tools/beat_budget.py)
-  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" FROM=$2 UPTO=$3 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 30)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then
+  # On the fast tier no still is taken and no frame drawn between them (STILLS=0, DRAW=1000): the check reads the story's
+  # state, and a play spent half its time drawing what nothing looked at, 187 stills at 2.1 s and one frame in thirty
+  # (issue 131). The photographs the story takes are drawn as ever, and every still's frame is counted all the same
+  # (BUDGET: each beat it played against the desktop's budget, tools/beat_budget.py): asked for whole and its calls
+  # counted, not rasterised. Main's full tier takes the stills and draws one frame in thirty, as the budgets were
+  # measured, and its pictures are in a failed run's artifacts. STILLS=1 DRAW=30 tools/check.sh story3: a part so here.
+  local still=${STILLS:-$([ "$TIER" = full ] && echo 1 || echo 0)} draw=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || { [ "$TIER" = full ] && echo 30 || echo 1000; })}
+  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" FROM=$2 UPTO=$3 STILLS=$still DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 800x500 >"$log" 2>&1; then
     printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
     beats_of "$n" desktop "$OUT/$n-budget.jsonl"
-  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
+  else printf 'FAIL %-6s %s   (see %s%s)\n' "$n" "$(why "$log")" "$log" "$([ "$still" = 0 ] && echo "; STILLS=1 DRAW=30 tools/check.sh $n for its pictures")"; fi
 }
 # a play's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat"); the play's counts are kept in
 # this clone, so that a budget changed later is held against them while the play itself is kept (budgets_kept)
@@ -283,7 +329,7 @@ budgets_kept() {   # (static: the counts of each play whose pass is kept, agains
   for f in "$BUDGETS"/*.jsonl; do
     [ -e "$f" ] || continue
     k=$(basename "$f" .jsonl); k=${k%-*}
-    CHECK_FN=$(declare -f "run_$k" story_part beats_of walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k" >/dev/null 2>&1 || continue
+    CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k" >/dev/null 2>&1 || continue
     python3 tools/beat_budget.py check "$f" "$(basename "$f" .jsonl | sed 's/.*-//')" --map "$MAP" | grep '^FAIL' && return 1
     n=$((n + 1))
   done
@@ -313,14 +359,15 @@ run_walk2() { walk_on 390x844; }
 walk_on() {
   local ok=1 d said=
   for d in "$@"; do
-    if ! CHROME_LOG="$OUT/walk-$d-chrome.log" timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
+    # (one frame in twenty drawn and no still taken, tools/draw_skip.js: the beats read the page's state; STILLS=1 DRAW=0 for its pictures)
+    if ! CHROME_LOG="$OUT/walk-$d-chrome.log" STILLS=${STILLS:-$([ "$TIER" = full ] && echo 1 || echo 0)} DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 20)} timeout 2400 $X node tools/walk_play.js "$OUT/walk" $d night rain >"$OUT/walk-$d.log" 2>&1; then ok=0; echo "FAIL walk   $d: $(why "$OUT/walk-$d.log")   (see $OUT/walk-$d.log)"; fi
     said="${said:+$said and }$(grep -c '^ok' "$OUT/walk-$d.log") $([ "$d" = 390x844 ] && echo "beats on a phone's page" || echo "beats on a desktop's page")"
   done
   [ $ok -eq 1 ] && echo "ok   walk   $said: two ways in, the hour and the sky, out with no story"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
-  if CHROME_LOG="$OUT/ride-chrome.log" LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
+  if CHROME_LOG="$OUT/ride-chrome.log" DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 20)} LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
@@ -414,34 +461,64 @@ parts() {   # the parts of the shared models loaded before playable and after, a
 # fetched, by the server's log; its harness; its settings) is byte for byte as it is now, it would play the same page
 # (tools/check_cache.py). CHECK_CACHE=0 or CHECK_FULL=1 plays it all the same; the full tier on main keeps nothing.
 cache_on() { [ "${CHECK_CACHE:-1}" != 0 ] && [ -z "${CHECK_FULL:-}" ] && [ "$TIER" != full ]; }
-run_one() {
-  local k=$1 t0 n0=0 hit res
-  # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
-  CHECK_FN=$(declare -f "run_$k" story_part beats_of walk_on twice why fails_of | sha1sum | cut -c1-16) && export CHECK_FN
-  if cache_on && hit=$(python3 tools/check_cache.py hit "$k"); then
-    printf 'ok   %-6s kept from its pass at %s: nothing it read has changed since (CHECK_CACHE=0 plays it again)\n' "$k" "$hit"
+# What this script does for a check, as a key: the check's own function and the helpers it calls, and theirs; not the
+# rest of the script (a change to the walk's function is no change to how the story is run)
+fnkey() {
+  local body h; body=$(declare -f "run_$1")
+  for _ in 1 2 3; do for h in story_part beats_of walk_on twice why fails_of run_guide1 run_guide2; do
+    case "$body" in *"$h ()"*) ;; *"$h"*) body="$body
+$(declare -f "$h")" ;; esac
+  done; done
+  echo "$body" | sha1sum | cut -c1-16
+}
+# Whether a check's pass is kept, asked once a run: the answer in $OUT/keep/<check> (its first line kept or played, then
+# why: what changed since the pass and whether any of it can reach the check; docs/CHECKS.md, "Checks by reach")
+kept() {
+  local k=$1 f="$OUT/keep/$1" hit
+  if [ ! -s "$f" ]; then
+    mkdir -p "$OUT/keep"
+    # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
+    if ! cache_on; then printf 'played\n\n' >"$f"
+    elif hit=$(CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k"); then printf 'kept\n%s\n' "$hit" >"$f"
+    else printf 'played\n%s\n' "$hit" >"$f"; fi
+  fi
+  [ "$(head -1 "$f")" = kept ]
+}
+run_one() {   # <check> [lane]
+  local k=$1 lane=${2:-0} t0 n0=0 res
+  PORT=$((PORT0 + lane)); export PORT
+  CHECK_FN=$(fnkey "$k") && export CHECK_FN
+  if kept "$k"; then
+    printf 'ok   %-6s kept from its pass at %s (CHECK_CACHE=0 plays it again)\n' "$k" "$(sed -n 2p "$OUT/keep/$k")"
     return 0
   fi
-  t0=$(date +%s); [ -n "$started" ] && n0=$(wc -l <"$OUT/server.log")
-  echo "... $k from $(date +%H:%M), about $(( ($(eta "$k") + 30) / 60 )) min here" >&2
+  t0=$(date +%s); [ -n "$started" ] && n0=$(wc -l <"$OUT/server-$lane.log")
+  echo "... $k from $(date +%H:%M), about $(( ($(eta "$k") + 30) / 60 )) min here$(sed -n '2s/^\(..*\)$/: \1/p' "$OUT/keep/$k")" >&2
+  # (which of the page's functions it runs, counted by the browser: tools/browser_watch.js)
+  rm -rf "$OUT/cover/$k"; export COVER="$OUT/cover/$k"
   res=$("run_$k"); echo "$res"
   echo "$k $(( $(date +%s) - t0 ))" >>"$OUT/times.txt"
   echo "$res" | grep -q '^FAIL\|^FLAKY' || echo "$k $(( $(date +%s) - t0 )) $(date +%s)" >>"$HIST"
   if echo "$res" | grep -q '^FAIL\|^FLAKY'; then python3 tools/check_cache.py drop "$k"
-  elif [ -n "$started" ] && cache_on; then python3 tools/check_cache.py save "$k" "$OUT/server.log" "$n0" "$t0" "$(( $(date +%s) - t0 ))"; fi
+  elif [ -n "$started" ] && { cache_on || [ -n "${CHECK_STORE:-}" ]; }; then python3 tools/check_cache.py save "$k" "$OUT/server-$lane.log" "$n0" "$t0" "$(( $(date +%s) - t0 ))" "$COVER"; fi
 }
+rm -rf "$OUT/keep"
 : >"$OUT/times.txt"
 # what this run plays and how long that takes here (a pass kept from the cache costs nothing)
 { total=0; said=
   [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && { total=$(eta static); said=static; }
   for k in $KINDS; do
     is_in "$k" "$want" || continue
-    if cache_on && CHECK_FN=$(declare -f "run_$k" story_part beats_of walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k" >/dev/null 2>&1; then said="$said $k(kept)"; else total=$((total + $(eta "$k"))); said="$said $k"; fi
+    if kept "$k"; then said="$said $k(kept)"; else e=$(eta "$k"); total=$((total + e)); [ "$e" -gt "${long:-0}" ] && long=$e; said="$said $k"; fi
   done
-  echo "checks: ${said# }: about $(( (total + 30) / 60 )) min on this machine" >&2; }
+  # (side by side, no sooner than the longest of them)
+  [ "$L" -gt 1 ] && { st0=$([ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ] && eta static || echo 0); total=$(( st0 + (total - st0 + L - 1) / L )); [ "${long:-0}" -gt "$total" ] && total=$long; }
+  echo "checks: ${said# }: about $(( (total + 30) / 60 )) min on this machine$([ "$L" -gt 1 ] && echo ", $L side by side")" >&2; }
 {
   t_static=$(date +%s)
-  if [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ]; then
+  # (the static checks beside the browser checks, on a session's machine: they take one core for a minute, which a run
+  # of a few minutes should not wait out first; a runner has them on a shard of their own)
+  if [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ]; then (
     st voice voice - '^FAIL' python3 tools/voice_check.py
     st goals goals - '^FAIL' node tools/goals_check.js
     st pack pack "the packs up to date" '^FAIL' python3 pipeline/pack.py --check
@@ -461,11 +538,27 @@ run_one() {
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st reach reach - '^FAIL|Error' python3 tools/reach_unit.py
+    st seams seams - '^FAIL|Error' python3 tools/seams.py
+    st people people - '^FAIL|Error' python3 tools/people_contract.py
     st vendor vendor "three.js carries its fixes (an ImageBitmap made smaller sent unturned)" '^FAIL|Error' python3 pipeline/fetch_vendor.py --check
     echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"; echo "static $(( $(date +%s) - t_static )) $(date +%s)" >>"$HIST"
+  ) & fi
+  [ -n "${CI:-}" ] && wait
+  t_all=$(date +%s)
+  if [ "$L" -le 1 ]; then for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done; wait
+  else
+    # the passes kept first (they cost nothing), then the longest first, each in the lane that comes free
+    order=$(for k in $KINDS; do is_in "$k" "$want" || continue; if kept "$k"; then echo "0 $k"; else echo "$(( 100000 - $(eta "$k") )) $k"; fi; done | sort -n | cut -d' ' -f2)
+    mkfifo "$OUT/.lanes" 2>/dev/null; exec 9<>"$OUT/.lanes"; rm -f "$OUT/.lanes"
+    for i in $(seq 0 $((L - 1))); do echo "$i" >&9; done
+    for k in $order; do
+      read -r -u 9 lane
+      ( run_one "$k" "$lane" >"$OUT/res-$k.txt"; cat "$OUT/res-$k.txt"; echo "$lane" >&9 ) &
+    done
+    wait
   fi
-  for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done
-  [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", (NR > 1 ? ", " : ""), $1, $2; t += $2 } END { printf "; %d min in all", (t + 30) / 60 }' "$OUT/times.txt")"
+  [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", (NR > 1 ? ", " : ""), $1, $2; t += $2 } END { printf "; %d min of checks", (t + 30) / 60 }' "$OUT/times.txt") in $(( ($(date +%s) - t_static + 30) / 60 )) min of the wall"
 } | tee "$OUT/summary.txt"
 grep -q '^FAIL' "$OUT/summary.txt" && exit 1
 stamp "$@"

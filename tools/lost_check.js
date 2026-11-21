@@ -6,6 +6,7 @@
 //   xvfb-run -a node tools/lost_check.js
 const { chromium, devices } = require('playwright');
 const { startPlay } = require('./start_play');
+require('./browser_watch'); // (which functions the page ran, for tools/check_cache.py)
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=gl', '--ignore-gpu-blocklist'] });
   const d = devices['iPhone 13'], ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, userAgent: d.userAgent });
