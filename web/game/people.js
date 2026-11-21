@@ -742,7 +742,7 @@ varying float vHairK;
 #else
 #define vHairK 1.0
 #endif
-float hairA = 1.0, hairJ = 0.0;
+float hairA = 1.0, hairJ = 0.0, hairOcc = 1.0;
 // the strands: clumps side by side round the head (vHairS: the way round it, in clumps), each its own shade, a finer
 // grain over them, and both gone where a pixel spans several clumps (no shimmer as the head goes away)
 float hairHash(float x) { return fract(sin(x * 127.1) * 43758.5453); }
@@ -753,15 +753,27 @@ float hairStrands() {
 }
 // Kajiya-Kay's highlight along a strand of way t, at half vector h (Scheuermann's form: sin^e of the angle to h)
 float hairKK(vec3 t, vec3 h, float e) { float th = dot(t, h); return smoothstep(-1.0, 0.0, th) * pow(max(1.0 - th * th, 0.0), 0.5 * e); }
+// what light keeps of its colour through a fibre and out again (Marschner's TT and TRT), from the hair's albedo (light
+// scattered many times among the strands): black hair's pigment takes nearly all of it, grey and blonde let most of it
+// through; black hair a little warm, as eumelanin is (the relation is Chiang et al.'s, 2016, in a power's form)
+vec3 hairPass(vec3 a) {
+  a = max(a, vec3(1e-4));
+  return pow(a, vec3(0.8)) * mix(vec3(1.5, 1.0, 0.65), vec3(1.0), smoothstep(0.004, 0.03, dot(a, vec3(0.3333))));
+}
+// Marschner's R and TRT as Scheuermann's two shifted Kajiya-Kay lobes, weighted as a fibre of index 1.55 weights them:
+// R, the cuticle's own reflection, white, some 6% at its peak and narrow (5 degrees), toward the root; TRT, into the
+// fibre and back off its far wall, twice as broad and toward the tip, in the colour the pigment lets through twice (c2:
+// next to none from black hair, whose only highlight is R). Each strand's highlight moved and its strength set by its
+// clump's shade (a band that breaks into strands near, and is whole only where a pixel spans many). And none on the side
+// of the head away from the light: the hair's own mass shadows it (the normal here is the head of hair's, out from its
+// middle, as hair on cards is shadowed: the underside of a bun, the hem of a fringe, lit from above, stay dark)
 // (env: 1 for the light of the street round the head, which comes from a lit front's or a screen's whole width, not a
-// lamp's point: both lobes broader, and the second, through the strand, as strong as a broad source makes it)
-vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint, float env) {
+// lamp's point: both lobes broader)
+vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 c2, float env) {
   vec3 t = normalize(vHairT), h = normalize(v + l);
-  vec3 t1 = normalize(t + n * (-0.06 + 0.08 * hairJ)), t2 = normalize(t + n * (0.14 + 0.08 * hairJ));
-  float spark = 0.7 + 0.6 * clamp(0.5 + hairJ, 0.0, 1.0); // (the strands' own breakup)
-  // (the second lobe has been through the strand: its pigment's colour, which black hair has too, a dark warm brown)
-  vec3 tt = max(sqrt(max(tint, 0.0)) * 0.4, vec3(0.03, 0.022, 0.017) * (1.0 + env));
-  return (vec3(mix(0.1, 0.05, env) * hairKK(t1, h, mix(110.0, 56.0, env))) + tt * (mix(0.5, 1.0, env) * hairKK(t2, h, mix(30.0, 16.0, env)))) * spark * vHairK;
+  vec3 t1 = normalize(t + n * (-0.07 + 0.1 * hairJ)), t2 = normalize(t + n * (0.12 + 0.1 * hairJ));
+  float spark = 0.3 + 1.4 * clamp(0.5 + hairJ, 0.0, 1.0);
+  return (vec3(mix(0.07, 0.06, env) * hairKK(t1, h, mix(110.0, 64.0, env))) + c2 * (0.14 * hairKK(t2, h, mix(30.0, 20.0, env)))) * spark * vHairK * smoothstep(-0.25, 0.35, dot(n, l));
 }`;
   // head: the head's own mesh (its hair painted on it, hairSK.y), not the cards
   function hairMaterial(m, head = false) {
@@ -791,6 +803,13 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint, float env) {
 }
 #endif
 diffuseColor.rgb *= mix(1.0, mix(1.0, 0.55, vHairRoot) * (1.0 + 0.08 * (1.0 - vHairRoot) * (1.0 - smoothstep(0.5, 1.0, hairA))) * (1.0 + 0.12 * hairJ), vHairK);
+// (how much of the light round the head reaches a strand: a card near the scalp lies under the others, half of it; the
+// head's painted hair shows only where it is the outside, slicked back or tied, and takes nearly all)
+#ifdef HAIR_HEAD
+hairOcc = 0.9;
+#else
+hairOcc = mix(1.0, 0.5, vHairRoot);
+#endif
 ${cast}`)
         // the cards' edge (material.alphaTest stays, for the shadow's depth and the define)
         .replace('#include <alphatest_fragment>', `#ifdef USE_ALPHATEST
@@ -823,16 +842,35 @@ if (uHairMS > 0.5 && vHairK > 0.01) {
   if (diffuseColor.a < 0.12) discard;
 }
 #endif`)
-        // every light the game has: the strand's two lobes, and a softer wrap of its diffuse (light passes into hair)
+        // every light the game has: the strand's two lobes, and a softer wrap of its diffuse (light passes into hair).
+        // The physical model's own highlight (a round GGX lobe on the head's normal, which points out from the middle
+        // of the head) is a plastic cap on a head of hair: it is kept for the skin of the head's mesh alone
         .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
 void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
-  RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+  ReflectedLight hP = ReflectedLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+  RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, hP);
+  reflectedLight.directDiffuse += hP.directDiffuse;
+  reflectedLight.directSpecular += hP.directSpecular * (1.0 - vHairK);
   float nl = dot(geometryNormal, directLight.direction);
   reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * 0.3 * vHairK * clamp(1.0 - abs(nl) * 1.6, 0.0, 1.0);
-  reflectedLight.directSpecular += directLight.color * smoothstep(-0.25, 0.35, nl) * hairLobes(geometryNormal, geometryViewDir, directLight.direction, material.diffuseColor, 0.0);
+  reflectedLight.directSpecular += directLight.color * hairLobes(geometryNormal, geometryViewDir, directLight.direction, hairPass(material.diffuseColor), 0.0) * hairOcc;
 }
 #undef RE_Direct
-#define RE_Direct RE_Direct_Hair`)
+#define RE_Direct RE_Direct_Hair
+#if NUM_RECT_AREA_LIGHTS > 0
+// (a screen's light, neon.js: on hair its band across the strands in the screen's colour, toward the screen's middle,
+// at the light the screen gives here as its diffuse measured it, in place of the round sheen)
+void RE_Direct_RectArea_Hair(const in RectAreaLight rectAreaLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+  ReflectedLight hP = ReflectedLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+  RE_Direct_RectArea_Physical(rectAreaLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, hP);
+  reflectedLight.directDiffuse += hP.directDiffuse;
+  reflectedLight.directSpecular += hP.directSpecular * (1.0 - vHairK);
+  vec3 hEr = hP.directDiffuse / max(material.diffuseContribution, vec3(1e-3)) * PI;
+  reflectedLight.directSpecular += hEr * hairLobes(geometryNormal, geometryViewDir, normalize(rectAreaLight.position - geometryPosition), hairPass(material.diffuseColor), 1.0) * hairOcc;
+}
+#undef RE_Direct_RectArea
+#define RE_Direct_RectArea RE_Direct_RectArea_Hair
+#endif`)
         // the street round the head: the sky, and the street lights' and screens' light where it stands (from above and
         // behind the lens, as the screens and lit fronts all round a crossing light it), and that light through the
         // thin strands at the edge
@@ -841,24 +879,32 @@ void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPo
 #if NUM_HEMI_LIGHTS > 0
   // (from dusk the lit fronts and screens round a street are most of what a head of hair reflects, and the sky's own
   // light, which is all the game's lights say of them before the street lights come on, is a quarter of it)
-  hE += hemisphereLights[0].skyColor * mix(1.0, 2.5, 1.0 - smoothstep(0.25, 0.6, dot(hemisphereLights[0].skyColor, vec3(0.3333))));
+  // (the lit fronts' share in their own warm white at the sky's brightness: in the sky's blue it laid a blue sheen on black hair)
+  { vec3 hSky = hemisphereLights[0].skyColor; float hSl = dot(hSky, vec3(0.3333));
+    hE += hSky + vec3(1.1, 0.95, 0.8) * (1.5 * hSl * (1.0 - smoothstep(0.25, 0.6, hSl))); }
 #endif
-${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz)) * 1.6;' : ''}
-  vec3 hV = normalize(vViewPosition), hUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-  vec3 hL = normalize(hV - hUp * dot(hV, hUp) + hUp * 0.55);
-  reflectedLight.indirectSpecular += hE * hairLobes(normal, hV, hL, material.diffuseColor, 1.0) * 0.85;
-  // (the lit fronts to one side, as the cast's key, and the screens behind on the other: a band each across the strands)
-  vec3 hSd = normalize(cross(hUp, hV));
-  reflectedLight.indirectSpecular += hE * (hairLobes(normal, hV, normalize(hV * 0.5 + hUp * 0.6 + hSd * 0.65), material.diffuseColor, 1.0) * 0.45
-    + hairLobes(normal, hV, normalize(hUp * 0.5 - hSd * 0.8 - hV * 0.35), material.diffuseColor, 1.0) * 0.8);
-  // (light scattered among the strands: Karis's stand-in, a wrap round the strand's own normal toward the lens, in the pigment's colour)
+${street ? `  // (the street's light where the head is goes from a lamp's pool to the dark between two lamps in a few steps: on hair,
+  // whose highlight is broad light reflected, it is taken with a knee, so that walking from one pool to the next the
+  // highlight breathes rather than coming and going)
+  { vec3 hSt = streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz)); hE += hSt * 1.6 / (1.0 + 2.0 * dot(hSt, vec3(0.3333))); }` : ''}
+  vec3 hV = normalize(vViewPosition), hUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), hSd = normalize(cross(hUp, hV));
+  vec3 hL = normalize(hV - hUp * dot(hV, hUp) + hUp * 0.55), hC2 = hairPass(material.diffuseColor);
+  // (the lit fronts behind the lens: one band across the head where the lens sees its strands broadside; and the screens
+  // behind on the other side, a fainter one. A third band, from the cast's key to the lens's side, and a second lobe in
+  // a warm grey that black hair was given too, laid a sheen over the whole head: a wig's, or wet plastic's)
+  reflectedLight.indirectSpecular += hE * hairOcc * (hairLobes(normal, hV, hL, hC2, 1.0) * 0.9 + hairLobes(normal, hV, normalize(hUp * 0.5 - hSd * 0.8 - hV * 0.35), hC2, 1.0) * 0.35);
+  // (light scattered among the strands: Karis's stand-in, a wrap round the strand's own normal toward the lens, in the
+  // colour the pigment lets through)
   { vec3 hT = normalize(vHairT), hFn = normalize(hV - hT * dot(hV, hT));
-    reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.2, 0.15, 0.12)) * 0.015 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
+    reflectedLight.indirectDiffuse += hE * sqrt(hC2) * 0.03 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
   float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = 1.0 - smoothstep(0.35, 1.0, hairA);
-  // (light through hair takes the warm brown of its pigment, even through black hair)
-  reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.3, 0.2, 0.14)) * (0.12 * hThin + 0.3 * hRim) * (1.0 - 0.8 * vHairRoot) * vHairK; }`);
+  // (light through the thin strands and the outline, TT, in the colour the pigment lets through twice: a grey or blonde
+  // head glows at its edge against a lit front, a black one stays dark there, as in a photograph; and off the strands at
+  // a grazing angle a little of the cuticle's own white, as Fresnel rises toward grazing)
+  reflectedLight.indirectDiffuse += hE * hC2 * (0.2 * hThin + 0.3 * hRim) * (1.0 - 0.8 * vHairRoot) * vHairK;
+  reflectedLight.indirectSpecular += hE * 0.03 * hRim * hRim * hairOcc * vHairK; }`);
     };
-    m.customProgramCacheKey = () => `strand-hair6${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `strand-hair7${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.needsUpdate = true;
   }
   // The strand's way at each vertex, how near the scalp it is (hairTR: xyz, w) and on the head's mesh whether it is hair

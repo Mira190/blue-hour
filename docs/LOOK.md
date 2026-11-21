@@ -594,13 +594,22 @@ phone's memory is unchanged.
   fade where a pixel spans several clumps, so a head far off does not shimmer. On the head's mesh, a vertex is hair
   where its picture is dark or without the warmth of skin, above the brows or behind the ears; the face is left as
   it was.
-- **The light.** Kajiya-Kay's strand highlight, in Scheuermann's two-lobe form: a narrow white lobe shifted toward
-  the root and a broader one tinted by the hair shifted toward the tip, both jittered by the clumps. It is taken from
-  every light three.js has (the moon or sun, the street lights' fill, a car's lamps; `RE_Direct` wrapped, so their
-  shadows hold), and from the street round the head: the hemisphere's sky and the street lights' and screens' own
-  light where the head is (world.js `streetLight`), coming from above and behind the lens as the lit fronts round a
-  crossing light it. The same light comes through the thin strands and the outline in the warm brown of hair's
-  pigment, as a backlit head of hair glows at its rim. A wrap of the diffuse lets light into the hair.
+- **The light.** Kajiya-Kay's strand highlight, in Scheuermann's two-lobe form, weighted as Marschner's fibre weights
+  its paths: R, the cuticle's own reflection, white, some 6% at its peak and about 5 degrees wide, shifted toward the
+  root; TRT, into the fibre and back off its far wall, twice as broad and toward the tip, in the colour the pigment lets
+  through twice (`hairPass`: the albedo to the power 0.8, so black hair gives next to none and its only highlight is R,
+  while grey and blonde hair carry a coloured second band). Both are moved and their strength set strand by strand by
+  the clumps' shade, so the band breaks into strands near and is whole only where a pixel spans many. It is taken
+  from every light three.js has (the moon or sun, the street lights' fill, a car's lamps; `RE_Direct` wrapped, so
+  their shadows hold), from the screens' area lights (neon.js; `RE_Direct_RectArea` wrapped: a band in the screen's
+  colour toward its middle), and from the street round the head: the sky, and the street lights' and screens' own
+  light where the head is (world.js `streetLight`), coming from behind the lens as the lit fronts round a crossing
+  light it, with a fainter band from the screens behind on the other side. A strand on the side of the head away from
+  a light takes none of it (the head of hair's own normal: the underside of a bun stays dark lit from above), and a
+  card near the scalp, under the others, half. The light through the thin strands and the outline (TT) is in the same
+  twice-passed colour: a grey head glows at its edge against a lit front, a black one stays dark. A wrap of the diffuse
+  lets light into the hair. The physical model's own highlight, a round GGX lobe on the head's normal, is kept off
+  the hair (it was a plastic cap on every head lit by the sun or a screen) and kept for the skin of the head's mesh.
 - **The tone.** The root is darker (0.55 at the scalp), the ends a little lighter.
 - **The edge.** With MSAA (a desktop's composer) the cards use alpha to coverage: each strand cut at its own alpha
   (a third of the old cut to one and a quarter of it, by its clump's shade), so where the picture's strands thin out
@@ -613,6 +622,20 @@ phone's memory is unchanged.
 - **Cost.** One more program for the head and one for the cards (they had their own already); two vertex
   attributes a hair vertex; a few dozen instructions in the hair's fragments. No texture.
 
+**Why the light was weighed again** (the owner's report, November 2026). At the Hachiko plaza at 17:39 the crowd's
+black hair and Kagami's read as a grey, silver wig, and walking on, the sheen came and went. The cards' and the
+head's pictures are black (sRGB 20 to 28); the shader had laid over them a second lobe in a warm grey that black hair
+was given too, three bands from the street (lit fronts behind the lens, the cast's key to its side, the screens
+behind) whose broad lobes together covered the whole head, an outline that glowed in that same grey, and the
+physical model's GGX highlight: some fifty times what the hair's own colour gave back, so the street's light where
+the head stood decided whether a head was black or silver, and that light goes from a lamp's pool to the dark between
+two lamps in a few steps (`streetLight` is a plan of the pools). Now black hair is black wherever it stands, with
+one narrow white band that moves with the light and the lens, the street's share taken with a knee so it breathes
+from one pool to the next, and the sky's stand-in for the lit fronts in their warm white, not the sky's blue.
+`tools/hair_shot.js` and `tools/game_shot.js` take `PEOPLE=<file>` to draw an older `people.js` beside the new one;
+`tools/views/hair-plaza.json` is Kagami at the Hachiko kerb from the front and over the shoulder at 17:39, 17:55,
+night and day, and the crowd on the plaza.
+
 `tools/hair_shot.js` sets a character's head before a lit shop front over the shoulder of another, with and
 without MSAA, and from the front (the lashes and brows are cards too), with the game's own people.
 
@@ -624,7 +647,11 @@ written here from the article. Kajiya and Kay, "Rendering fur with three dimensi
 Thorsten Scheuermann, "Practical Real-Time Hair Rendering and Shading" (ATI, SIGGRAPH 2004 sketch): the strand
 highlight and its two shifted lobes; adopted, written from the papers. Marschner et al., "Light Scattering from Human
 Hair Fibers" (2003), and Karis's UE4 approximation of it, model the R, TT and TRT lobes physically: here R and TRT
-are Scheuermann's two lobes and TT the rim's warm transmission, a fraction of the cost. three.js's
+are Scheuermann's two lobes and TT the rim's transmission, a fraction of the cost, and since the owner's report their
+weights are the fibre's (R some 6% and white; TRT and TT in the colour the pigment lets through). Chiang, Bitterli,
+Tappan and Burley, "A Practical and Controllable Hair and Fur Model for Production Path Tracing" (EGSR 2016), relate
+the colour a head of hair shows to its fibres' absorption; adopted as a power of the albedo (`hairPass`), not their
+polynomial. three.js's
 `MeshPhysicalMaterial.anisotropy` (KHR_materials_anisotropy) stretches a GGX lobe along a tangent; it costs the
 physical material's whole program on every person and has no second lobe or transmission, so it was not used. No
 code was copied from any of them.
