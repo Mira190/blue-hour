@@ -680,13 +680,13 @@ window.OERail = (function () {
         for (const [m, p] of c.lamps) { const want = alarm && p === ph ? lampOn : lampOff; if (m.material !== want) m.material = want; }
         const e = arm * arm * (3 - 2 * arm);
         for (const [g] of c.arms) g.rotation.z = -1.4 * (1 - e);
-        if (alarm && me) { const d = Math.hypot(c.x - me.x, c.y - me.y); if (d < nd) { nd = d; near = c; } }
+        if (alarm && me) { const d = Math.hypot(c.x - me.x, c.y - me.y, me.z != null && c.z != null ? c.z + 2 - me.z : 0); if (d < nd) { nd = d; near = c; } } // (through the air, height in it)
       }
       shut = crossings.filter(c => c.closed);
       out.bellAt = near;
       if (near && window.OEAudio && OEAudio.kan) { // the electronic bell, by the clock so that every crossing strikes together
         const n = Math.floor(st.clk / TRAIN.bell);
-        if (n !== st.rang) { st.rang = n; OEAudio.kan(Math.max(0, 1 - nd / 160) ** 1.6); }
+        if (n !== st.rang) { st.rang = n; const R = OEAudio.reach && me.z != null && near.z != null ? OEAudio.reach({ x: near.x, y: near.y, z: near.z + 2 }, me) : null; OEAudio.kan(Math.max(0, 1 - nd / 160) ** 1.6 * (R ? R.g : 1)); }
       }
     };
     for (const c of slots) place(c);

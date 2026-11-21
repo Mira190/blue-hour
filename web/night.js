@@ -150,6 +150,7 @@ void main() {
     const onGround = (x, y, z) => { let g = -Infinity; for (const t of grounds) g = Math.max(g, S.terrainTri(t, x, y)); return z - g > 3 ? z : Math.max(z, g); };
     const group = new THREE.Group();
     group.name = 'night';
+    group.userData.oeStill = true; // (the lamps' own lights stand where they are: the rain's cover map keeps them, weather.js occStill)
 
     // ------------------------------------------------------------ the lamps
     // x, y, z (local, the lamp head), colour, brightness, pool along (ux, uy) and its height

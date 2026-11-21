@@ -127,7 +127,8 @@ def main(argv):
             continue
         lost, added = sorted(a - b), sorted(b - a)
         if lost:
-            print(f'CHANGED {p}: {len(lost)} lost or changed, e.g. {"; ".join(x[:80] for x in lost[:3])}')
+            # ([ground]: where what is walked on lies; the router plays the guide's ways over it, his feet on what is drawn)
+            print(f'CHANGED {p}{" [ground]" if any(x.startswith("ground ") for x in lost) else ""}: {len(lost)} lost or changed, e.g. {"; ".join(x[:80] for x in lost[:3])}')
         elif added:
             print(f'added   {p}: {len(added)} new, nothing lost ({"; ".join(x[:60] for x in added[:2])})')
         else:
