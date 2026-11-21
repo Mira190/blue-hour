@@ -92,7 +92,7 @@ old browser, or a page that is not a secure context) the Stop only hushes the st
 
 `place(kind)` (game.js, every frame from `weatherTick`; it acts only on a change): `inside` in a lift
 or a room (`doors.roomAt`), `roof` with the ears more than 40 m over the ground (the deck, the
-helicopter), `viaduct` on foot under a roof (the rain's occlusion map while it rains, the surface model at any time: `game.js` `roofOver`), `open` otherwise. What the place does to each kind of sound is "The mix, place by place", below.
+helicopter), `viaduct` on foot under a roof (the surface model over the ears: `game.js` `roofOver`), `open` otherwise. What the place does to each kind of sound is "The mix, place by place", below.
 
 | Room | RT60 | Wet (against the dry sound) | Early reflections |
 |---|---|---|---|
@@ -391,8 +391,9 @@ pan (`tools/audio_thread_check.py`).
 
 Between the kerb and the roof the mix follows the ears' height over the ground (25 to 150 m), so a helicopter rising
 from the street loses it by degrees. "Under a deck" is read from the surface model (something 2.5 to 14 m over the ears
-and over three of the four points round them): the weather's own answer is drawn only while it rains, and on a dry
-evening the street under the deck had been heard, and had rung, as the open crossing. The tall lift of SHIBUYA SKY is
+and over three of the four points round them): the weather's own answer is drawn only while it rains, lags a walker and
+stands after the rain has stopped: on a dry evening the street under the deck had been heard, and had rung, as the
+open crossing, and the listening points' check found the roof mixed as under a deck once rain had fallen. The tall lift of SHIBUYA SKY is
 ridden as a camera's move outside the tower; it is mixed as the lift for as long as the ride lasts.
 
 **The same train, three places**: at the kerb beside the viaduct a pass-by (its bogies' rhythm, 3 % of its power over
@@ -422,7 +423,7 @@ still has its wheels in it, and on anything heard past the tape at a Stop. "Sile
 | `roof` SHIBUYA SKY's deck, 229 m, the train 235 m below | silent | silent | −47 to −36 | silent | −48 to −37 |
 | `lift` SHIBUYA SKY's lift, riding | silent | silent | silent | −43 to −32 | silent |
 | `heli` the helicopter's cabin, hovering over the pad | silent | silent | silent | −37 to −26 | silent |
-| `car` the car's cabin, standing at the kerb, its engine running | −66 to −55 | −72 to −55 | silent | −43 to −32 | −60 to −49 |
+| `car` the car's cabin, standing at the kerb, its engine running | −66 to −55 | −78 to −55 | silent | −43 to −32 | −60 to −49 |
 
 At Hachiko the `rail` bus moves by 25 dB from run to run (−35 to −61 in the runs so far): the check's train is behind
 the station there, and the game's own trains on the open viaduct, and a platform's departure melody 65 m off (−35),
