@@ -475,7 +475,9 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     const R = I.rotor_radius_m;
     // (the blur discs unlit, their light set by the hour in animate(): a lit transparent disc took every light in the
     // scene in each of its pixels, the searchlight a metre under it among them, for a smear of grey a few percent opaque)
-    const discMat = new THREE.MeshBasicMaterial({ map: rotorBlurTexture(4, colours.blade_tip || '#f2c53d'), transparent: true, depthWrite: false,
+    // (256 px across: a blur, its finest line the tips' ring, 8 px wide at that size; at 512 it was a megabyte more of a
+    // phone's GPU, at its budget, issue 110)
+    const discMat = new THREE.MeshBasicMaterial({ map: rotorBlurTexture(4, colours.blade_tip || '#f2c53d', 256), transparent: true, depthWrite: false,
       side: THREE.DoubleSide, opacity: 0 });
     const disc = new THREE.Mesh(new THREE.RingGeometry(0.3, R, 96, 1).rotateX(-Math.PI / 2), discMat);
     disc.renderOrder = 4;
