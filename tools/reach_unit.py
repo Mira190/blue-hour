@@ -112,6 +112,19 @@ def main():
         case("main's file as main has it", False, theirs, main=theirs, was=BASE)
         case("the branch's change undone, the file main's again", False, BASE, main=BASE, was=mine)
         case('a function that did run', True, BASE.replace('x * 2', 'x * 3'), ran=('ran', 'idle', 'late'))
+        # a model whose ground main moved: main's file as main has it, before the model's own contract is asked
+        glb = os.path.join(d, 'web/m.glb')
+        open(glb, 'wb').write(b'glTF as the pass read it')
+        was = cc.keep_blobs(['web/m.glb'])['web/m.glb']
+        open(glb, 'wb').write(b'glTF as main has it now')
+        sh(d, 'git', 'add', '-A'); sh(d, 'git', 'commit', '-q', '-m', 'main moved a model')
+        sh(d, 'git', 'update-ref', 'refs/remotes/origin/main', 'HEAD')
+        j = cc.judge('a-check', {'blobs': {'web/m.glb': was}, 'cover': {}})
+        if [r for _, r, _ in j] != [False]:
+            fails += 1
+            print(f'FAIL a model that is main\'s as main has it: {j}')
+        else:
+            print(f'ok   a model that is main\'s as main has it: apart, {j[0][2]}')
     wholes = cc.node([], ['function a() { return 1; }', 'x => x }; evil(); (y => { y', 'get g() { return 3; }', 'function(){} , evil()', 'function a() {} function b() {}'])
     if wholes != [True, False, True, False, False]:
         fails += 1

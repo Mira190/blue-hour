@@ -100,8 +100,9 @@ he stands in `Idle`. Building the clip or recasting him removes the line.
 heights from the meshes whose material is named `ground*`. So a level's interface is its names, flags and
 attributes, as for any model, and where its ground lies: each ground primitive's vertex count, bounds and placing
 (`tools/model_contract.py`, read from the GLB's header in milliseconds). A level rebuilt with all of that as it was
-(a facade sculpted, a sign redrawn, an atlas repainted) is loaded, looked at and weighed; one whose ground moved,
-or that lost a name, is played. Until November 2026 any change to a hero level played the story.
+(a facade sculpted, a sign redrawn, an atlas repainted) is loaded, looked at and weighed; one that lost a name is
+played, and one whose ground moved is played and the guide led over it (`guide1`: his feet against what is drawn
+under them; a forecourt's new planks left him 7.7 cm in the air on main, issue 155, before the ground was a seam). Until November 2026 any change to a hero level played the story.
 
 ## The story's data
 
@@ -131,6 +132,8 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | Cut | Lines | Part | Asks of the game | Gives back |
 |---|---|---|---|---|
 | `web/game/pilot.js`, November 2026 | 342 (the autopilot of your own car, the driver assists) | traffic | 38 names | 11 |
+| `web/game/rides.js`, November 2026 | 1,005 (taxis and rides: the drivers' step, the story's car, boarding, the helicopter's reach) | traffic | 60 | 24 |
+| `web/game/routeline.js`, November 2026 | 165 (the route to go: the gold line, the way on foot) | crowd | 21 | 3 |
 
 What a cut is not: a redesign. The section asks for what it used, which for the sections woven into the loop is most
 of the game (`tools/cut_survey.js`: the loop asks 198 names, the camera's shots 249). Those want their state gathered
