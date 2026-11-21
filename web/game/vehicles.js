@@ -94,7 +94,10 @@ window.OEVehicles = (function () {
   }
   const glowTex = once(() => {
     const [c, g] = canvas(64, 64), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.18)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    // (a hot core a tenth of the sprite across and a soft halo round it, as a lamp is seen through a lens: the core
+    // was a fifth of it and the halo half, a coloured disc that read as a blot over the body, not a lamp)
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.08, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.2, 'rgba(255,255,255,0.32)');
+    gr.addColorStop(0.45, 'rgba(255,255,255,0.07)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     return new THREE.CanvasTexture(c);
   });
@@ -470,24 +473,35 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     rotor.position.set(0, 0, 0);
     const blades = [0, 1, 2, 3].map(k => node(`Blade_${k}`)), q0 = blades.map(b => b.quaternion.clone());
     const R = I.rotor_radius_m;
-    const discMat = new THREE.MeshStandardMaterial({ map: rotorBlurTexture(4, colours.blade_tip || '#f2c53d'), transparent: true, depthWrite: false,
-      side: THREE.DoubleSide, roughness: 0.6, metalness: 0.2, opacity: 0 });
+    // (the blur discs unlit, their light set by the hour in animate(): a lit transparent disc took every light in the
+    // scene in each of its pixels, the searchlight a metre under it among them, for a smear of grey a few percent opaque)
+    const discMat = new THREE.MeshBasicMaterial({ map: rotorBlurTexture(4, colours.blade_tip || '#f2c53d'), transparent: true, depthWrite: false,
+      side: THREE.DoubleSide, opacity: 0 });
     const disc = new THREE.Mesh(new THREE.RingGeometry(0.3, R, 96, 1).rotateX(-Math.PI / 2), discMat);
     disc.renderOrder = 4;
     tpp.add(disc);
     const tail = node('TailRotor'), duct = I.duct_radius_m;
-    const fanMat = new THREE.MeshStandardMaterial({ map: rotorBlurTexture(10, '#2a2d31', 128), transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.6, opacity: 0 });
+    const fanMat = new THREE.MeshBasicMaterial({ map: rotorBlurTexture(10, '#2a2d31', 128), transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 });
     const fan = new THREE.Mesh(new THREE.CircleGeometry(duct - 0.01, 40).rotateY(Math.PI / 2), fanMat);
     fan.position.copy(tail.position);
     src.add(fan);
     // lights: position lights steady, beacons and strobes flashing, all visible by day
     const L = {};
+    // Each lamp is seen as a lamp is (FAA and EASA position lights; a game's night flight, design only): a small hot point
+    // with a halo round it, the halo's size in metres at night but never less than a few pixels across, so that a far
+    // helicopter is its lights; and seen only from where it shines. The position lights each light a sector, red to
+    // port and green to starboard from dead ahead round 110 degrees, white aft over 140; the landing light and the
+    // searchlight are lamps aimed down ahead, their glass bright only to an eye in their beam (from behind, the beam
+    // and its pool, not a disc of light over the cabin). Beacons and strobes shine all round. dir: the way it shines
+    // in the model's frame (+z forward, +x left, +y up), and the cosines of its sector's edge, soft from cos0 to cos1.
     // (hidden until animate() lights them, so nothing shows at full size before the first frame)
-    const spot = (name, colour, size) => { const s = glow(colour); s.position.copy(p(name)); s.userData.size = size; s.visible = false; src.add(s); L[name] = s; return s; };
-    spot('Nav_Red', '#ff3030', 1.1); spot('Nav_Green', '#30ff70', 1.1); spot('Nav_White', '#ffffff', 0.9);
-    spot('Beacon_Top', '#ff2020', 1.6); spot('Beacon_Bottom', '#ff2020', 1.6);
-    spot('Strobe_L', '#ffffff', 2.6); spot('Strobe_R', '#ffffff', 2.6);
-    spot('Landing_Light', '#fff3da', 2.2); spot('Searchlight', '#fff3da', 2.6);
+    const spot = (name, colour, size, dir = null, cos0 = 0, cos1 = 0) => { const s = glow(colour); s.position.copy(p(name)); Object.assign(s.userData, { size, at: p(name).clone(), dir, cos0, cos1 }); s.visible = false; src.add(s); L[name] = s; return s; };
+    const V3 = (x, y, z) => new THREE.Vector3(x, y, z).normalize(), side = Math.sign(p('Nav_Red').x) || 1; // (port is the side the red lamp is on)
+    spot('Nav_Red', '#ff3030', 0.55, V3(side * 0.82, 0, 0.57), Math.cos(1.25), Math.cos(0.85)); spot('Nav_Green', '#30ff70', 0.55, V3(-side * 0.82, 0, 0.57), Math.cos(1.25), Math.cos(0.85));
+    spot('Nav_White', '#ffffff', 0.5, V3(0, 0, -1), Math.cos(1.35), Math.cos(1.0));
+    spot('Beacon_Top', '#ff2020', 0.8); spot('Beacon_Bottom', '#ff2020', 0.8);
+    spot('Strobe_L', '#ffffff', 1.1); spot('Strobe_R', '#ffffff', 1.1);
+    spot('Landing_Light', '#fff3da', 1.2, V3(0, -0.85, 0.5), Math.cos(0.75), Math.cos(0.3)); spot('Searchlight', '#fff3da', 1.4, V3(0, -0.72, 0.7), Math.cos(0.6), Math.cos(0.22));
     // the searchlight: a real spot light, kept in the world all the time so no shader recompiles when it
     // switches or when the model arrives (helicopter() makes it), carried to the lamp while it shines;
     // and a faint beam you can see in the night air
@@ -522,7 +536,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // the pilot's door turns about an upright line through its node, outward as the angle grows
     const DI = I.door || {}, doorNode = DI.node ? node(DI.node) : null;
     const doorQ0 = doorNode && doorNode.quaternion.clone(), doorAxis = new THREE.Vector3().fromArray(DI.axis || [0, 1, 0]).normalize(), doorQ = new THREE.Quaternion();
-    const tmpV = new THREE.Vector3(), flapQ = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0);
+    const tmpV = new THREE.Vector3(), flapQ = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0), lampW = new THREE.Vector3(), toEye = new THREE.Vector3(), dirW = new THREE.Vector3();
     let t = 0, spin = 0, discSpin = 0;
     function animate(dt, st, nav) {
       t += dt;
@@ -537,6 +551,9 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
       for (const b of blades) b.visible = blurA < 0.98;
       disc.rotation.y = discSpin;
       discMat.opacity = blurA;
+      // (the discs' light: the day's, and at night the city's glow on their undersides and the moon's on top)
+      const lit = 0.07 + 0.93 * day;
+      discMat.color.setScalar(lit); fanMat.color.setScalar(lit);
       const beta = -0.03 + rpm * rpm * (0.05 + 0.03 * Math.max(0, st.lift));
       blades.forEach((b, k) => b.quaternion.copy(q0[k]).multiply(flapQ.setFromAxisAngle(X, -beta)));
       // the tip-path plane tilts with the cyclic: forward with speed, into turns
@@ -549,24 +566,37 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
       // its glow fades out with distance (seen from afar it would be a coloured blot)
       const powered = rpm > 0.05, flying = !st.landed;
       const seen = opts.camera ? night + day * smooth(260, 110, opts.camera.position.distanceTo(g.getWorldPosition(tmpV))) : 1;
+      const eye = opts.camera ? opts.camera.position : null, px = eye && opts.renderer ? 2 * Math.tan((opts.camera.fov || 55) * Math.PI / 360) / Math.max(1, opts.renderer.domElement.height) : 0;
+      if (eye) src.updateWorldMatrix(true, false);
       const show = (name, on, k = 1) => {
-        const s = L[name];
-        s.visible = on * seen > 0.01;
+        const s = L[name], u = s.userData;
+        let a = on * seen;
+        let d = 20;
+        if (eye && a > 0.01) {
+          lampW.copy(u.at).applyMatrix4(src.matrixWorld);
+          toEye.copy(eye).sub(lampW); d = Math.max(0.1, toEye.length()); toEye.multiplyScalar(1 / d);
+          // (its sector: from outside it, a lamp is a dark lens, but for a glint of its glass)
+          if (u.dir) a *= 0.06 + 0.94 * smooth(u.cos0, u.cos1, dirW.copy(u.dir).transformDirection(src.matrixWorld).dot(toEye));
+          // (drawn a little toward the eye: a halo whose middle is on the skin is cut by the skin round it, half a
+          // disc, ragged where the two lie at one depth; a lamp on the far side stays behind the body)
+          s.position.copy(src.worldToLocal(lampW.addScaledVector(toEye, Math.min(0.35, d * 0.02))));
+        }
+        s.visible = a > 0.01;
         if (!s.visible) return;
-        const size = s.userData.size * (0.45 + 0.9 * night) * k;
+        const size = Math.max(u.size * (0.5 + 0.5 * night) * k, d * px * 12); // (at least a dozen pixels across: its core two)
         s.scale.setScalar(size);
-        s.material.opacity = on * seen * (0.35 + 0.65 * night);
+        s.material.opacity = a * (0.35 + 0.65 * night);
       };
       const nav3 = powered ? 1 : 0;
       show('Nav_Red', nav3); show('Nav_Green', nav3); show('Nav_White', nav3);
       const beacon = powered && t % 1.0 < 0.12 ? 1 : 0;
       show('Beacon_Top', beacon); show('Beacon_Bottom', beacon);
       const strobe = flying && (t % 1.3 < 0.05 || (t % 1.3 > 0.14 && t % 1.3 < 0.19)) ? 1 : 0;
-      show('Strobe_L', strobe, 1.4); show('Strobe_R', strobe, 1.4);
+      show('Strobe_L', strobe); show('Strobe_R', strobe);
       const agl = st.z - nav.groundBelow(st.x, st.y, st.z);
       const search = powered && flying && night > 0.25 ? 1 : 0, landing = powered && night > 0.25 && agl < 80 ? 1 : 0;
       show('Searchlight', search, 1); show('Landing_Light', landing, 1);
-      sl.intensity = search * (PHYS() ? 25000 : 2.2);
+      sl.intensity = search * (PHYS() ? 16000 : 1.6); // (bright on the street from a hundred metres up; from twenty, on a wall, not a white sheet)
       if (search) { src.updateWorldMatrix(true, false); sl.position.copy(slAt).applyMatrix4(src.matrixWorld); sl.target.position.copy(slAim).applyMatrix4(src.matrixWorld); }
       beam.material.opacity = search * 0.035 * night;
       for (const [n, ms] of Object.entries(lamps)) for (const m of ms) {
@@ -650,7 +680,9 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
   }
   // the helicopter's searchlight: a spot light and its target, in the world
   function searchlight(world) {
-    const sl = new THREE.SpotLight(lin('#fff1d6'), 0, 420, 0.2, 0.55, PHYS() ? 2 : 1);
+    // (its pool a disc with an edge, as a searchlight's is, the width of the faint beam drawn with it (7 degrees off
+    // its axis): it was 11 with half of that its soft edge, a blur over a block, green on a lawn)
+    const sl = new THREE.SpotLight(lin('#fff1d6'), 0, 420, 0.13, 0.3, PHYS() ? 2 : 1);
     world.add(sl, sl.target);
     return sl;
   }

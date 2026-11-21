@@ -2204,6 +2204,19 @@ quality tier runs a third of the cars.
     after you let go of the mouse (1.6 s before), faster the faster it flies,
     and looks a little ahead into a turn. It sits 20 m back (24 before), pulls
     back by up to 4 m and the lens widens by up to 6° with speed.
+    A tower never comes between it and the helicopter (November 2026: the owner saw
+    the helicopter "hidden and shown again as it passed the tall buildings", and
+    took it for a fault in the model). The probe from the helicopter to the lens
+    looks past nothing in the air (on foot a post between is looked past, and a
+    tower's corner was taken for one), it is cast to the helicopter's body as well as
+    to the point over it the lens looks at, and it looks half a second ahead along
+    the helicopter's way so that the lens is already coming in, eased, when the tower
+    comes between; what is in the way now brings the lens in front of it in that
+    frame, and it eases back out after. A hundred straight runs through the towers
+    round the station at 50 to 150 m and 40 to 180 km/h (`SURVEY=1
+    tools/heli_night.js`): on main the helicopter was hidden in 74 frames, in seven
+    spells of 4 to 18 frames each (a blink to two thirds of a second); now in none,
+    and the lens jumped (more than its speed would move it) once.
   - **Changing view** (<kbd>V</kbd>: chase, cockpit, bird's-eye) is a 0.45 s
     ease-out from the old view to the new, which travels with the helicopter,
     not a cut. The reef sites' helicopter (`reef/boats/control.js`) also turns
@@ -2901,9 +2914,24 @@ in the city's Cycles renders where the game puts them.
     Australia and `JA` in Japan) and each vessel's name on its hull are drawn
     at load time.
   - **Rotor:** the blades droop at rest, spin up with the engine, cone as they
-    lift and blur into a disc. The disc tilts with the controls.
+    lift and blur into a disc. The disc tilts with the controls. The discs (and the
+    tail's fan) are unlit, their light set by the hour: a transparent disc lit by
+    every light in the scene, the searchlight a metre under it among them, cost a
+    phone each light in each of its pixels for a smear of grey a few percent opaque.
   - **Lights:** position lights, a flashing beacon and strobes, and after dark a
-    searchlight that lights the ground. The ferries' sidelights swap ends when
+    searchlight that lights the ground. Each lamp is a small hot point with a halo
+    (a tenth of the sprite its core; at night about half a metre across for a position
+    light, never less than a dozen pixels, so a far helicopter is its lights), drawn
+    a third of a metre toward the eye so the skin round it does not cut it, and seen
+    only from where it shines: red to port and green to starboard from dead ahead
+    round 110 degrees, white aft over 140 (FAA and EASA position lights), the landing
+    light and the searchlight only to an eye in their beams. Before (the owner's
+    phone, November 2026) the halos were one and a half metres across and the strobes
+    five, coloured discs over the body, and from behind the landing light and the
+    searchlight were white discs over the cabin; on the phone they were also full of
+    coloured dots. The searchlight's pool is a disc with an edge, 7 degrees off its
+    axis like the faint beam drawn with it (it was 11, half of that soft edge, a blur
+    over a block that read green on a lawn), at 16,000 cd (25,000). The ferries' sidelights swap ends when
     they reverse, so red is always to port. Their cabins light up after dark.
   - **Your car, taxis and rides** (`web/game/cars.js`): the wheels are split
     off the body at load time, so they roll and steer. The body leans on its
