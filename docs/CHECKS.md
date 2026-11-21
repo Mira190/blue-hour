@@ -186,6 +186,49 @@ depend on the hour it is started at. Under `xvfb-run` (when it is installed) Chr
 Mesa's llvmpipe; without it, headless with SwiftShader. Where `timeout` is missing (macOS) a check
 runs for as long as it takes.
 
+## A run is a job
+
+On a session's machine `tools/check.sh` does not play the run in the shell that asked for it: it hands it to
+`tools/job.sh`, which starts it forked off and in a process session of its own, its output in a file
+(`/tmp/oe-jobs/check/log`), and only waits on it.
+
+Why, from the 48 sessions' transcripts of 18 to 21 November 2026 (every event of each, read through the sessions' own
+event logs). The shell tool a session runs commands with stops what it started, and the whole tree under it: a
+foreground command after 10 minutes (29 times), a watch on output after 30 (7), a background command after 30 to 60
+whatever its timeout ("was stopped after reaching its background time limit": 20 times, 6 of them runs of the checks
+and 2 other browsers, the rest waits on them), and every one at a restart of the session's worker (7). A run of the checks takes, on that machine, the static checks 35 s,
+mem 3 minutes, the ride 5, the walk's two pages 18, the story 20 and the guide 20 (medians of the runs whose times they printed: 36 of the story, 37 of the walk, 8 of the guide), so
+a change to the page checks for about 42 minutes and one to `game.js` or `story.js` for 47 to 62. Until 18 November a
+change to the page checked for about 24 (the story and mem); the walk joined it then, and a run started as the tool's
+child was stopped near its end from that day on. 183 of the 201 runs were started that way. Each stopped run was started
+again from the beginning, and what it left behind took cores from the next one's story clock: the sessions ran 92 commands
+killing stray browsers, servers and harnesses and 45 looking for them, and the walk's two pages took up to 33 minutes
+against a median of 18. Started as a
+child of the waiting script, even in a session of its own, a run was stopped with the wait: the tool stops every process
+under the shell, so the job is forked off it (`setsid -f`) and belongs to the machine.
+
+What the job gives:
+
+- **A wait is cut off, the run is not.** `tools/check.sh` waits up to nine minutes (`JOB_WAIT`), printing each check as it
+  ends, and before them how long the run will take on this machine: each target's median over its last five passes in
+  this clone (`.git/oe-check-times`), a pass kept from the cache counting nothing. If the run is still going when the wait
+  ends it says so and exits 75; `tools/check.sh --wait [seconds]`, or the same command again, attaches and goes on from
+  the last line it printed. A run whose result has been told once is started afresh by the next command.
+- **Never twice, never two.** The same command (the same tree, the same settings) attaches to the run that is going. An
+  edit since it started makes another run, refused while the first goes: `tools/check.sh --stop` first. A second job of
+  any kind is refused while one runs, and a browser that no job started is named, so that no check runs at half speed.
+- **Stopped whole.** Every process a job starts carries its mark in its environment, a browser that puts itself in a
+  session of its own too, and `tools/check.sh --stop` (`tools/job.sh stop <name>`) stops them all.
+- **Any long command.** `tools/job.sh run <name> -- <command>` does the same for a story's frames played, a film, stills or
+  a build; `JOB_LIGHT=1` for the page's server, which neither waits for nor holds back another job and outlives the turn.
+  `tools/job.sh status` lists the jobs and the strays.
+
+A runner (where `CI` is set), a machine without `setsid` (macOS) and `CHECK_INLINE=1` play the run in the foreground, as
+before. A job outlives its wait and the end of a turn (tried: a wait stopped after 30 s, its job ran on), and being no longer
+under the session's worker it should outlive the worker's restart too (not yet seen). It does not outlive the machine (a
+session started afresh has neither the job nor the cache), and a run stopped anyhow keeps the passes of the checks it had
+finished (`tools/check_cache.py`), so the next run plays only the rest.
+
 ## The router and the cache
 
 Where the time went, measured on 20 November 2026 (main's run of every target, and the sessions' own reports in main's
