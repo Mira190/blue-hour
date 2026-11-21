@@ -791,6 +791,20 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const from = +process.env.FROM || 0, backs = from ? 7 - from + 1 : 7;
     if (c.back !== backs) { errors.push(`the last card offers ${c.back} frames to go back into, not ${backs}${from ? ` (a play from frame ${from + 1})` : ''}`); console.log(errors[errors.length - 1]); }
     await snap('end-worked'); await p.evaluate(() => { const e = document.getElementById('g-story-end'), n = e.querySelector('nav.back'); if (n) e.scrollTop = Math.max(0, n.offsetTop - e.clientHeight / 2); }); await snap('end-back');
+    { // the last card's Credits (credits.js): the screen comes up over the card with the map's sources on it, and Esc gives the card back
+      const got = await p.evaluate(async () => {
+        const b = document.querySelector('#g-story-end [data-credits]'); if (!b) return { no: 'the last card has no Credits' };
+        b.click();
+        const c = document.getElementById('g-credits');
+        for (let i = 0; i < 100 && !(c && c.querySelector('.cr-place .cr-row')); i++) await new Promise(r => setTimeout(r, 100));
+        return { up: !!c && !c.hidden, rows: c ? c.querySelectorAll('.cr-row').length : 0, attr: c ? c.querySelectorAll('.cr-attr li').length : 0, sw: c ? c.querySelectorAll('[data-measure]').length : 0, ver: c ? (c.querySelector('#g-credits-ver') || {}).textContent : '' };
+      });
+      if (got.no || !got.up || got.rows < 12 || got.attr < 4 || got.sw !== 2 || !got.ver) { errors.push(`the last card's Credits: ${JSON.stringify(got)}`); console.log(errors[errors.length - 1]); }
+      else { await snap('end-credits'); console.log('credits', JSON.stringify(got)); }
+      await p.keyboard.press('Escape');
+      const after = await p.evaluate(() => ({ up: !document.getElementById('g-credits').hidden, card: document.getElementById('g-story-end').classList.contains('on') }));
+      if (after.up || !after.card) { errors.push(`Esc on the Credits did not give the last card back: ${JSON.stringify(after)}`); console.log(errors[errors.length - 1]); }
+    }
     if (!(+process.env.BACKTO > 1)) { // the last card's Walk Shibuya: the walk (walk.js) taken up where the case ended, in the same night, on the same page
       await p.evaluate(() => { window.__samePage = true; document.querySelector('#g-story-end button.go').click(); });
       // (the card goes 1.2 s after the walk is taken up, by the page's own timer; on a software renderer the walk's first
