@@ -616,6 +616,13 @@ frame rate. They are the pause menu's own controls, lent to the screen while it 
 stay in the pause menu. Every screen has its Back at the top left and on Esc or B, and the hand comes back to the row that
 opened it. Who you play, asked from the story's screen, returns to it.
 
+*Credits* is the menu's last row, and is also in the pause menu and on the story's last card: one screen in the title's
+look (`web/credits.js`, `web/credits.css`) that lies over whatever was up and gives it back on Back, Esc or B. It leads
+with the credit lines the map's data asks for (OpenStreetMap, Overture, PLATEAU, Tokyo's ortho photographs, GSI), then
+the map's sources as the pipeline wrote them (`scene.json` `sources`), the third-party works the page ships with their
+licences (`web/credits.json`), what was made for the story, what the page measures and why with its switch, and the
+build's version. A game's credits scroll past; these are read, so they are a page that scrolls under the reader's hand.
+
 Taken from story games of that kind (the *Uncharted* and *The Last of Us* games among them): Continue first when there is
 something to continue, a chapter select opened from the menu with each chapter named and its progress shown, and a
 question before a new game overwrites a save. Nothing of their look or words is used.
@@ -844,7 +851,7 @@ Taken off: **Run**, a button alone over the right thumb doing what the stick doe
 for). The walk adds where and when you are, which is what the walk is for, and at the top right your car, the camera
 and the menu, three small icons. The map without the story (`?walk=1`, a tool for building and checking) still has
 the old free game's six buttons (Lens, View, Run, Guess, Jump, E); they are not the game's, and stills meant to show
-the game are taken on the game's own page (`tools/lens_near.js` sets out on the walk as a player does).
+the game are taken on the game's own page (`tools/foot_cam.js` and `tools/story_play.js`).
 
 What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
 old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose

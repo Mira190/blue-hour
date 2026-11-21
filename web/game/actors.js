@@ -783,14 +783,21 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // player. As the talk camera's shots keep the crowd out of their way, the walkers keep out of the lens's: a segment
     // from where it stands to a pace and a half along the way it looks, gone round as one of those not of the crowd is
     // (KW: K and it, for walk()'s steering only; nobody is put out of it at once, nor refused a place to wait by it)
+    // The lens's room (issue 129): whoever of the crowd comes within 2 m of the lens, from it to their middle, is out of
+    // the picture, whole (game.js lensClear: 1.3 m from under a lens 2.5 m up), and back 2.3 m off (1.75 m). So that it
+    // is rare, the room the walkers give the lens is that and a little more (r 0.75: 1.85 m from the segment, where it
+    // was 1.55), and those stood waiting make room for it too, a step, once it has come to rest by them (still: under
+    // half a metre a second for half a second; a lens swung round you is past before anyone could move for it)
     let LN = null, KW = K;
-    const lensAt = { x: 0, y: 0, z: 0, fx: 0, fy: 0 }, lensSeg = { ax: 0, ay: 0, bx: 0, by: 0, r: 0.45, lens: true };
-    function lensUpdate(player) {
+    const lensAt = { x: 0, y: 0, z: 0, fx: 0, fy: 0 }, lensSeg = { ax: 0, ay: 0, bx: 0, by: 0, r: 0.75, lens: true, still: 0 };
+    function lensUpdate(player, dt) {
       LN = null;
+      const lx0 = lensAt.x, ly0 = lensAt.y;
       if (!player || !R.lens || !R.lens(lensAt)) return;
       const dx = lensAt.x - player.x, dy = lensAt.y - player.y, d = Math.hypot(dx, dy), up = lensAt.z - (player.z || 0), fl = Math.hypot(lensAt.fx, lensAt.fy);
       if (d < 0.8 || d > 9 || up > 4.5 || up < -1 || fl < 0.2) return; // (on foot, behind the player: not a view from the air, through someone's eyes, or a car's)
       lensSeg.ax = lensAt.x; lensSeg.ay = lensAt.y; lensSeg.bx = lensAt.x + lensAt.fx / fl * 1.5; lensSeg.by = lensAt.y + lensAt.fy / fl * 1.5;
+      lensSeg.still = dt > 0 && Math.hypot(lensAt.x - lx0, lensAt.y - ly0) < 0.5 * dt ? Math.min(1, lensSeg.still + dt) : 0;
       LN = lensSeg;
     }
     const kp = { x: 0, y: 0 };
@@ -1481,8 +1488,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const ex = q.x - kp.x, ey = q.y - kp.y, e = Math.hypot(ex, ey), rr = 1.1 + k.r;
         if (e < rr) { if (e < 1e-4) { fx += 1; continue; } const f = (rr - e) / e * 2.5; fx += ex * f; fy += ey * f; }
       }
-      // (and, on the move, out of the lens's way: issue 82; those stood waiting are not shoved about by a camera)
-      if (LN && !((q.ph === 'wait' || q.lst) && sp === 0) && Math.abs(LN.ax - q.x) < 5 && Math.abs(LN.ay - q.y) < 5) {
+      // (and, on the move, out of the lens's way: issue 82; those stood waiting, only of a lens come to rest: issue 129)
+      if (LN && (LN.still > 0.5 || !((q.ph === 'wait' || q.lst) && sp === 0)) && Math.abs(LN.ax - q.x) < 5 && Math.abs(LN.ay - q.y) < 5) {
         keepPt(LN, q.x, q.y);
         const ex = q.x - kp.x, ey = q.y - kp.y, e = Math.hypot(ex, ey), rr = 1.1 + LN.r;
         if (e < rr && e > 1e-4) { const f = (rr - e) / e * 1.5; fx += ex * f; fy += ey * f; }
@@ -1666,7 +1673,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // any map's opening (issue 494), whatever the map's numbers.
       const fresh = api.fresh > 0 || !opened; opened = true; if (api.fresh > 0) api.fresh -= dt;
       K = api.bodies || [];
-      lensUpdate(player); KW = LN ? K.concat([LN]) : K;
+      lensUpdate(player, dt); KW = LN ? K.concat([LN]) : K;
       const pvx = player ? Math.sin(player.h) * player.speed : 0, pvy = player ? Math.cos(player.h) * player.speed : 0;
       for (let i = 0; i < n; i++) {
         p = P[i];

@@ -687,6 +687,11 @@ class Level:
     standing = None   # (scramble.Plan's test of what stands on the ground; a level under a deck gives its own)
     cur = None        # the building whose walls fronts() is dressing
 
+    def sills(self, F, Ln):
+        """Whether a wall's windows get their sills (4 cm of stone under each: a level whose fronts stand far from where
+        it is walked leaves them off the far ones, hero_miyamasu.py)."""
+        return True
+
     def skip_front(self, s, poly):
         """Whether a building's walls are another level's to dress (a second level, hero_miyamasu.py, leaves the
         Scramble's own alone, so that no wall is drawn twice)."""
@@ -959,7 +964,8 @@ class Level:
             t = 0.045
             for (m0, m1, y0, y1) in ((u0, u1, z0, z0 + t), (u0, u1, z1 - t, z1), (u0, u0 + t, z0, z1), (u1 - t, u1, z0, z1)):
                 PT.fbox(G, "metal_alu", F, m0, m1, 0.02, 0.065, y0, y1, faces=("front", "left", "right", "top", "bottom"))
-            PT.fbox(G, wall, F, u0 - 0.06, u1 + 0.06, OUT, OUT + 0.04, z0 - 0.1, z0, rep)                            # the sill
+            if self.sills(F, Ln):
+                PT.fbox(G, wall, F, u0 - 0.06, u1 + 0.06, OUT, OUT + 0.04, z0 - 0.1, z0, rep)                        # the sill
         # a band over the shops, and the parapet's coping
         if free(0.0, Ln, g + gf - 0.2, g + gf + 0.1):
             PT.fbox(G, wall, F, 0.0, Ln, OUT, OUT + 0.04, g + gf - 0.12, g + gf, rep, faces=("front", "top", "bottom"))
