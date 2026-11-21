@@ -29,7 +29,7 @@ const ROOT = path.join(__dirname, '..');
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   await p.addInitScript(() => {
-    try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe-route-line', 'off'); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-route-line', 'off'); } catch (e) { /* storage blocked */ }
     const get = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, opts) {
       return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts);

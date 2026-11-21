@@ -19,7 +19,7 @@ const [X, Y] = at.split(',').map(Number), STORY = !!process.env.STORY, MARGIN = 
     const p = await b.newPage({ viewport: { width: 640, height: 400 } });
     p.on('pageerror', e => { bad++; console.log('pageerror', String(e).slice(0, 300)); });
     if (STORY) { // (as tools/ride_people.js starts: frame 6 of the story, from Play, every step from the first watched)
-      await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe-story-late', JSON.stringify({ fi: 5, left: 2, prints: [0, 1, 2, 3, 4].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
+      await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-story-late', JSON.stringify({ fi: 5, left: 2, prints: [0, 1, 2, 3, 4].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
       await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
       await p.evaluate(() => { window.__game.hold(true); document.getElementById('gt-play').click(); });

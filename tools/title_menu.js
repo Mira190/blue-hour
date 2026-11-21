@@ -26,8 +26,8 @@ const ok = m => console.log(`ok   ${m}`);
     const p = await ctx.newPage();
     p.on('pageerror', e => fail(`pageerror (${screen}): ${String(e).slice(0, 200)}`));
     const open = async going => {
-      await p.addInitScript(`try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-player', 'M'); localStorage.removeItem('oe-story-late-closed');
-        ${going ? `localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: '17:14', cap: '' }, { src: null, stamp: '17:19', cap: '' }] }));` : `localStorage.removeItem('oe-story-late');`} } catch (e) {}`);
+      await p.addInitScript(`try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-player', 'M'); localStorage.removeItem('bh-story-late-closed');
+        ${going ? `localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: '17:14', cap: '' }, { src: null, stamp: '17:19', cap: '' }] }));` : `localStorage.removeItem('bh-story-late');`} } catch (e) {}`);
       await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden && document.getElementById('gt-walk-go'); }, null, { timeout: 900000, polling: 500 });
       await p.waitForTimeout(3000);
@@ -148,7 +148,7 @@ const ok = m => console.log(`ok   ${m}`);
     if (touch) await hit('#gt-anew-no'); else await p.keyboard.press('Escape');
     await p.waitForTimeout(800);
     if ((await sure()) || (await scr()) !== 'story') fail(`${screen}: ${touch ? 'Keep the case' : 'Esc'} on the question did not keep the case on the story's screen`);
-    else if (!(await p.evaluate(() => { try { return !!localStorage.getItem('oe-story-late'); } catch (e) { return false; } }))) fail(`${screen}: the case was lost by asking`);
+    else if (!(await p.evaluate(() => { try { return !!localStorage.getItem('bh-story-late'); } catch (e) { return false; } }))) fail(`${screen}: the case was lost by asking`);
     else ok(`${screen}: the evening again asks first, and ${touch ? 'Keep the case' : 'Esc'} keeps it`);
     await ctx.close();
   }

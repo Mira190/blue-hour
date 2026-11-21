@@ -10,7 +10,7 @@ const { startPlay } = require('./start_play');
 (async () => {
   const b = await chromium.launch({ args: process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] : ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'], headless: !process.env.DISPLAY });
   const p = await b.newPage({ viewport: { width: 960, height: 600 } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   const errors = [];
   p.on('pageerror', e => errors.push(String(e).slice(0, 200)));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });

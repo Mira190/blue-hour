@@ -15,7 +15,7 @@ const [,, city = 'shibuya', secs = '60', outDir = '', weather = 'rain'] = proces
 (async () => {
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', process.env.TIER || 'low'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', process.env.TIER || 'low'); } catch (e) { /* storage blocked */ } });
   p.on('pageerror', e => console.log('pageerror', String(e).slice(0, 300)));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game', null, { timeout: 600000 });

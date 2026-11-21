@@ -113,7 +113,7 @@ Open-Meteo.com"). It is a request from the visitor's browser to a third party, s
   like any other weather pick, and picking anything else stops the requests;
 - it carries the city's own coordinates rounded to 0.01° and the list of fields, nothing else: not the
   visitor's position, no cookies, no referrer (`credentials: 'omit'`, `referrerPolicy: 'no-referrer'`);
-- the answer is kept for 15 minutes (the service's own step) in `localStorage` `oe3d-weather-now`, and
+- the answer is kept for 15 minutes (the service's own step) in `localStorage` `bh-weather-now`, and
   asked again only while Live stays picked;
 - when it fails (offline, blocked, the service down) the season's weather carries on with no error
   shown beyond one toast at the pick.
@@ -145,7 +145,7 @@ frame rate and sheds what a slow device can do without, one step every 4 s below
 | Shed, step 2 | **Off**: a clear sky and dry streets, with a toast. A weather the visitor picked stays, wet and grey, and loses only its drops |
 
 The frame rate is counted only in play: not on the title screen, in the menu or in photo mode. What
-was shed is remembered (`localStorage` `oe3d-weather-guard`: `light` or `off`), so the next visit
+was shed is remembered (`localStorage` `bh-weather-guard`: `light` or `off`), so the next visit
 starts there. A weather picked in the menu, which now also has **Off**, is the visitor's: kept as
 picked, and picking one forgets what was remembered. `?weather=` counts as a pick. Automated runs
 remember nothing and start as the tier says (light on the low tier) unless the address carries

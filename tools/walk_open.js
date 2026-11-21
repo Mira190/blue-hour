@@ -32,7 +32,7 @@ const FPS = +(process.env.FPS || 24);
   p.on('console', m => { if (m.type() === 'error' || /overture|walk film/.test(m.text())) console.log(`  [page] ${m.type()}: ${m.text().slice(0, 240)}`); });
   await p.addInitScript({ path: path.join(__dirname, 'film', 'clock.js') });
   await p.addInitScript(([t, spec]) => {
-    try { localStorage.setItem('oe3d-quality', t); sessionStorage.setItem('oe-walk-auto', JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-quality', t); sessionStorage.setItem('bh-walk-auto', JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
   }, [process.env.TIER || 'high', { t: hour, w: sky, film: true }]); // (film: as Set out plays it; from the last card it does not)
   if (pinClock) await pinClock(p, 'shibuya');
   const t0 = Date.now();

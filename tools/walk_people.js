@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 8800;
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
-  await p.addInitScript(([t, s]) => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-player', 'W'); localStorage.removeItem('oe-walk-talk'); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t, w: s })); } catch (e) { /* storage blocked */ } }, [hour, sky]);
+  await p.addInitScript(([t, s]) => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-player', 'W'); localStorage.removeItem('bh-walk-talk'); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t, w: s })); } catch (e) { /* storage blocked */ } }, [hour, sky]);
   p.on('pageerror', e => console.log(`page error: ${String(e).slice(0, 200)}`));
   await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => document.getElementById('game-stage') && document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 1200000, polling: 1000 });

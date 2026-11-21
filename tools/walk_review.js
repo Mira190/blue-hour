@@ -41,7 +41,7 @@ const RINGS = (process.env.RINGS || '60,100,140,200,300,500,800').split(',').map
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e).slice(0, 200)); console.log(`pageerror: ${String(e).slice(0, 200)}`); });
   p.on('crash', () => { console.log('the page crashed'); process.exit(1); });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-player', 'W'); if (!sessionStorage.getItem('wr-once')) { sessionStorage.setItem('wr-once', '1'); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'blue', w: 'clear' })); } } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-player', 'W'); if (!sessionStorage.getItem('wr-once')) { sessionStorage.setItem('wr-once', '1'); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'blue', w: 'clear' })); } } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const t0 = Date.now(), el = () => `${Math.round((Date.now() - t0) / 1000)}s`;
   await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   const set = await p.waitForFunction(() => { const s = document.getElementById('game-stage'); return !!s && /\bwalk-on\b/.test(s.className) && window.__game; }, null, { timeout: 40 * 60000, polling: 1000 }).then(() => true, () => false);

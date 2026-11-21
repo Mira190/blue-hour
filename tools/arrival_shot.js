@@ -21,7 +21,7 @@ const VIEW = { desktop: { width: 1440, height: 900 }, phone: { width: 390, heigh
   const ctx = await b.newContext({ viewport: { width: VIEW.width, height: VIEW.height }, isMobile: !!VIEW.isMobile, hasTouch: !!VIEW.hasTouch, deviceScaleFactor: VIEW.deviceScaleFactor || 1 });
   const p = await ctx.newPage();
   await p.addInitScript(() => {
-    try { localStorage.setItem('oe3d-quality', 'desktop'); localStorage.removeItem('oe3d-onboard'); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-quality', 'desktop'); localStorage.removeItem('bh-onboard'); } catch (e) { /* storage blocked */ }
     const get = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, opts) { return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts); };
   });

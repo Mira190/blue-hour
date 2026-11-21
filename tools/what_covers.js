@@ -14,7 +14,7 @@ const V = JSON.parse(spec), [W, H] = size.split('x').map(Number);
   const ctx = lean ? await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: +(process.env.DPR || 2), isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' }) : b;
   const p = lean ? await ctx.newPage() : await b.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (lean ? 'low' : 'high'));
+  await p.addInitScript(t => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (lean ? 'low' : 'high'));
   const logs = [];
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.QS || '?walk=1'}#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });

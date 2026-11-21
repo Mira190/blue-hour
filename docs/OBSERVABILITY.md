@@ -41,12 +41,16 @@ already exposes (`window.__city`, `window.__game`, `window.__reef`).
 | `page` | once per page load | `ttfb`, `fcp`, `dom` (ms) |
 | `error` | a script error, an unhandled rejection or a resource that failed (5 per page at most); a shader that failed to compile or link (three.js says so only on the console: `kind: "shader"`, the first line, the material's type and name; version 5); a WebGL error the game's own check found after a frame (`kind: "gl"`, `web/game/game.js` `glCheck`); from the game, a call WebGL refused (`kind: gl`: the error, then the call, its arguments and the lines that made it once the next frames, or the next load, have been traced: docs/PERFORMANCE.md, "A choice that settles") | `kind`, `msg`, `src` |
 | `gl_lost` | a WebGL context is lost, except in the seconds after a view stops and gives its context up | `ready`, `stage` (the last step of the load), `up_s`, `mb` (as `crash`): lost while loading is a GPU out of memory mid-build, lost in play a driver's reset (version 5). On a phone a loss while the page is seen also counts as a death of that level at once (`quality.js` `lost`, from `telemetry.js` `noteLost` and `glcare.js`; `tools/lost_check.js`, `tools/glcare_phone.js`): iOS often takes the page a moment later, and the next load is a level lighter without waiting for the second death Safari allows; the dead page found afterwards is not counted again. The game then reloads (its walls live on the GPU alone), and not before the page is seen again (docs/PERFORMANCE.md, "Measure, then grant") |
+| `boot_fail` | the start failed before the first frame and the loader said so (the guard at the top of `index.html`, issue 116) | `why` (`net`: a script did not arrive, or a fetch failed; `error`: an error after which the loader stood still, or the boot's own rejection; `old`: a browser without import maps), `msg`, `build` |
+| `net_retry` | a fetch of the page's own was tried again (no answer in 20 s, a failure, a 5xx; a pack whose download stalled or broke off) | `why`, `n` (the try), `src` |
+| `stale_page` | the page was of another commit than the site (a host that kept `index.html`), and loaded itself anew | `page`, `site` (commits) |
+| `story_save` | the case could not be kept whole in this browser (storage full) | `how` (`lean`: without its pictures; `none`), `frame` |
 
 A checkout served on this machine (`localhost`) sends nothing unless asked (`?telemetry=debug` or `?telemetry=<url>`):
 the checks' software renderer, driven without the automation flag, once put its slow loads and "crashes" on the
 real devices' dashboard (version 5).
 
-Every event carries a random visitor id (`oe3d-vid` in localStorage), a page-load id (`sid`), the device
+Every event carries a random visitor id (`bh-vid` in localStorage), a page-load id (`sid`), the device
 class (phone / tablet / desktop from the pointer and screen size), the quality tier (`web/quality.js`),
 WebGL 2 and software-renderer flags, WebGPU support, the viewport, the language, the time zone (`tz`, from version 6), the referring site and
 the deployed version. From version 4 also the device, coarsely: `gpu` (the GPU's family and model as the
@@ -103,7 +107,7 @@ The sampler reads the view once a second while it is ready and on screen:
 camera move playing. A tab left open on a game counts in `s` but not in `eng_s`.
 
 **A page that died on screen.** While the page is visible it keeps a small note in localStorage
-(`oe3d-alive-<sid>`, refreshed every 5 s) and removes it when the tab is put away or the page closes. A
+(`bh-alive-<sid>`, refreshed every 5 s) and removes it when the tab is put away or the page closes. A
 note older than 30 s that is still there when the site next opens means the page ended without closing:
 the browser or its GPU process crashed, or the system killed it for memory. The next page load sends a
 `crash` with where it was. A tab killed in the background is normal and is not counted.

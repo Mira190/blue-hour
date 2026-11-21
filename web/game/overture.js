@@ -53,7 +53,7 @@ window.OEOverture = (function () {
     in: t => t * t * t,
   };
   const ch = (v, k, e = EASE.glide) => (Array.isArray(v) ? lerp(v[0], v[1], e(k)) : v);
-  const KEY = 'oe3d-overture'; // the maps whose overture this browser has seen
+  const KEY = 'bh-overture'; // the maps whose overture this browser has seen
   const seen = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { return {}; } };
   const markSeen = id => { try { const s = seen(); s[id] = Date.now(); localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* storage blocked */ } };
 
@@ -650,7 +650,7 @@ window.OEOverture = (function () {
     // ------------------------------------------------------------ the score (film-score.js, rendered offline and played)
     let audio = null, scoreBuf = null, scoreSrc = null, scoreFor = null;
     function loadScript(src) {
-      return new Promise((ok, no) => { if (window.OEFilmScore) return ok(); const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = no; document.head.appendChild(el); });
+      return new Promise((ok, no) => { if (window.OEFilmScore) return ok(); const el = document.createElement('script'); el.src = window.OEV ? window.OEV(src) : src; el.onload = ok; el.onerror = no; document.head.appendChild(el); });
     }
     function scorePlan() {
       const sc = Object.assign({}, spec.score || {});

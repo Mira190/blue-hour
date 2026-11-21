@@ -16,7 +16,7 @@ require('./browser_watch'); // (which functions the page ran, for tools/check_ca
   await startPlay(p);
   await p.waitForTimeout(6000); // (past the four seconds a view change is not counted)
   const r = await p.evaluate(async () => {
-    const lv = () => OEQuality.level('shibuya'), note = () => JSON.parse(localStorage.getItem('oe3d-died-shibuya') || 'null');
+    const lv = () => OEQuality.level('shibuya'), note = () => JSON.parse(localStorage.getItem('bh-died-shibuya') || 'null');
     const o = { lvBefore: lv(), noteBefore: note(), lean: OEQuality.lean() };
     document.querySelector('canvas').dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     await new Promise(r => setTimeout(r, 300));
@@ -24,14 +24,14 @@ require('./browser_watch'); // (which functions the page ran, for tools/check_ca
     document.querySelector('canvas').dispatchEvent(new Event('webglcontextlost', { cancelable: true })); // (a second loss in the same page: not counted again)
     await new Promise(r => setTimeout(r, 200));
     o.noteTwice = note();
-    const alive = Object.keys(localStorage).filter(k => k.startsWith('oe3d-alive-')).map(k => JSON.parse(localStorage.getItem(k)));
+    const alive = Object.keys(localStorage).filter(k => k.startsWith('bh-alive-')).map(k => JSON.parse(localStorage.getItem(k)));
     o.aliveLost = alive.some(a => a.lost);
     return o;
   });
   // the page is taken (a reload of the same tab finds its alive note left behind): the death is not counted a second time
   await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game', null, { timeout: 400000 });
-  r.afterReload = await p.evaluate(() => JSON.parse(localStorage.getItem('oe3d-died-shibuya') || 'null'));
+  r.afterReload = await p.evaluate(() => JSON.parse(localStorage.getItem('bh-died-shibuya') || 'null'));
   console.log(JSON.stringify(r));
   if (!r.lean) fails.push('the page is not a phone to quality.js');
   if (!(r.noteAfter && r.noteAfter.n === 1)) fails.push(`a lost context left the note ${JSON.stringify(r.noteAfter)}, not one death`);

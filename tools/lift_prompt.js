@@ -16,7 +16,7 @@ const { startPlay } = require('./start_play');
   const ctx = lean ? await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' }) : b;
   const p = lean ? await ctx.newPage() : await b.newPage({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1 });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, lean ? 'low' : 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, lean ? 'low' : 'high');
   if (shots) require('fs').mkdirSync(shots, { recursive: true });
   const shot = async name => { if (shots) { await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await p.screenshot({ path: `${shots}/${name}.png` }); } };
   const logs = [];
