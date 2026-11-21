@@ -278,6 +278,10 @@ turns the loader to its error state with Reload when a start fails before the fi
 import maps that it cannot run the page, and copies the storage keys of before the split (`oe-*`, `oe3d-*`) to the
 page's own (`bh-*`) once. A harness shortens the waits with `window.OE_NET = { head_ms, stall_ms, retry_ms, still_ms }`.
 
+A harness that sets a case at a frame by hand (`bh-story-late` with no `v`: `tools/story_play.js` `FROM=n`, the ride,
+the guide) is taken up as before: under automation a case with no shape is the harness's. A player's case with no
+shape is of a build before the change and is not taken up; `launch` plays that with another shape, not with none.
+
 `tools/launch_check.js` (`tools/check.sh launch`) holds all of it. Run by hand: `xvfb-run -a node
 tools/launch_check.js [keys] [start] [save] [cache]`, `SCREEN=phone` for one screen, stills in `$OUT`. It was seen
 to fail: with `OEV` returning its address unchanged, the second load used the commit before's `data/cities.json`,
