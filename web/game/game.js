@@ -373,12 +373,14 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
     // where a footway meets the paving of its own tone)
     vec4 r0 = texture2D(uStreet, vMapUv);
     // (and without the gaps filled from its blurred levels, which laid a soft band of asphalt over the paving)
-    vec4 sz = vec4(sRGBTransferEOTF(vec4(r0.rgb / max(r0.a, 0.02), 1.0)).rgb, r0.a);
+    // (the drawing is an sRGB texture, so the sampler has already made it linear: decoding it a second time here took
+    // the asphalt to an albedo of 0.007 and the footways to a brown, and from the air the roads were black, issue 148)
+    vec4 sz = vec4(r0.rgb / max(r0.a, 0.02), r0.a);
     float wa = fwidth(sz.a);
     sz.a = mix(sz.a, smoothstep(0.5 - wa, 0.5 + wa, sz.a), smoothstep(0.02, 0.2, wa));
     vec3 zc = mix(ZONE_PAVE, sz.rgb, sz.a);
     diffuseColor.rgb = mix(diffuseColor.rgb, zc, zn);
-    float zr = sz.a * smoothstep(0.12, 0.07, dot(sz.rgb, LUM));
+    float zr = sz.a * smoothstep(0.2, 0.14, dot(sz.rgb, LUM));
     roadway = mix(roadway, zr, zn);
     paved = mix(paved, 1.0 - zr, zn);
     green *= 1.0 - zn;
@@ -413,6 +415,39 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // streets drawn from the footway and road data at 0.5 m per pixel, for the tiles near the player
   const ROADW = { motorway: 14, trunk: 12, primary: 12, secondary: 10, tertiary: 9, residential: 7, unclassified: 6, living_street: 5 };
   const FOOTW = OEActors.FOOTW;
+  // where three or more road ends meet [x, y, the widest road's half width there], and each zebra crossing of the
+  // data on the road it crosses [x, y, the road's direction there, half the road's width less the gutters]
+  let nodesMemo = null, zebrasMemo = null;
+  function streetNodes() {
+    if (nodesMemo) return nodesMemo;
+    const at = new Map();
+    for (const r of G.paths.road.concat((G.paths.far || {}).road || [])) {
+      const w = r.cw || ROADW[r.c] || 7, p = r.p;
+      if (z3(p, 0) || z3(p, p.length - 3)) continue;
+      for (const k of [0, p.length - 3]) { const key = Math.round(p[k] / 10) + ',' + Math.round(p[k + 1] / 10), e = at.get(key) || [p[k] / 10, p[k + 1] / 10, 0, 0]; e[2] = Math.max(e[2], w / 2); e[3]++; at.set(key, e); }
+    }
+    return nodesMemo = [...at.values()].filter(e => e[3] >= 3 && e[2] >= 4.5);
+  }
+  function z3(p, k) { const x = p[k] / 10, y = p[k + 1] / 10; return p[k + 2] / 10 - nav.terrain(x, y) > 3; } // (on a deck)
+  function streetZebras() {
+    if (zebrasMemo) return zebrasMemo;
+    const Z = (G.props || {}).crossing_zebra || [], out = [], roads = G.paths.road;
+    for (let i = 0; i < Z.length; i += 3) {
+      const x = Z[i] / 10, y = Z[i + 1] / 10;
+      let best = null, bd = 12 * 12;
+      for (const r of roads) {
+        const p = r.p;
+        for (let k = 0; k + 5 < p.length; k += 3) {
+          const ax = p[k] / 10, ay = p[k + 1] / 10, bx = p[k + 3] / 10 - ax, by = p[k + 4] / 10 - ay, l2 = bx * bx + by * by;
+          if (l2 < 0.01 || Math.abs(ax - x) > 80 || Math.abs(ay - y) > 80) continue;
+          const u = Math.max(0, Math.min(1, ((x - ax) * bx + (y - ay) * by) / l2)), dx = ax + bx * u - x, dy = ay + by * u - y, d = dx * dx + dy * dy;
+          if (d < bd && !z3(p, k)) { bd = d; const l = Math.sqrt(l2); best = [ax + bx * u, ay + by * u, bx / l, by / l, (r.cw || ROADW[r.c] || 7) / 2 - 0.6]; }
+        }
+      }
+      if (best) out.push(best);
+    }
+    return zebrasMemo = out;
+  }
   function streetTexture(i) {
     const t = scene.ground[i], PX = QC.lean ? 0.75 : 0.5, w = Math.round((t.x1 - t.x0) / PX), h = Math.round((t.y1 - t.y0) / PX);
     const cv = document.createElement('canvas');
@@ -435,9 +470,40 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const foot = G.paths.foot.concat(FAR.foot || []).filter(f => inTile(f.p)), roads = G.paths.road.concat(FAR.road || []).filter(r => inTile(r.p));
     for (const f of foot) { path(f.p); g.strokeStyle = '#b3ada1'; g.lineWidth = (FOOTW[f.c] || 3) / PX; g.stroke(); }
     for (const r of roads) { path(r.p); g.strokeStyle = '#9d988d'; g.lineWidth = ((r.cw || ROADW[r.c] || 7) + 1) / PX; g.stroke(); } // kerbs
-    for (const r of roads) { path(r.p); g.strokeStyle = '#4b4e52'; g.lineWidth = (r.cw || ROADW[r.c] || 7) / PX; g.stroke(); }
-    g.setLineDash([3 / PX, 6 / PX]);
-    for (const r of roads) if ((ROADW[r.c] || 0) >= 9) { path(r.p); g.strokeStyle = '#e6e2d6'; g.lineWidth = 0.15 / PX; g.stroke(); }
+    // Asphalt as a worn city road is under the sun (an albedo near 0.11: from the air the roads were black ribbons at
+    // 0.07, issue 148), in the hero level's own tone, and on it the paint a Tokyo road carries, each line where the
+    // road's lanes put it: the edge lines half a metre in from the kerbs, a broken line between two lanes of one way,
+    // the centre line of a two-way road (unbroken where it has two lanes each way), and a zebra's bars where the data
+    // has a crossing. A line is drawn at its own width (0.2 m, less than a pixel here), so from the air it is as
+    // faint as it is from there, and a junction is cleared of the lines that would run through it.
+    const ASPHALT = '#5c5f63', PAINT = '#e4e1d8', LW = 0.2;
+    const rw = r => r.cw || ROADW[r.c] || 7;
+    for (const r of roads) { path(r.p); g.strokeStyle = ASPHALT; g.lineWidth = rw(r) / PX; g.stroke(); }
+    g.lineCap = 'butt';
+    const pair = (r, off, dash) => { // two lines, off metres either side of the road's middle
+      g.setLineDash(dash ? [3 / PX, 5 / PX] : []);
+      path(r.p); g.strokeStyle = PAINT; g.lineWidth = (2 * off + LW) / PX; g.stroke();
+      g.setLineDash([]);
+      path(r.p); g.strokeStyle = ASPHALT; g.lineWidth = (2 * off - LW) / PX; g.stroke();
+    };
+    const lined = roads.filter(r => rw(r) >= 9).sort((a, b) => rw(b) - rw(a));
+    for (const r of lined) pair(r, rw(r) / 2 - 0.5, false);
+    for (const r of lined) {
+      const w = rw(r), nl = r.nl || 1;
+      if (r.o) { if (nl === 2) { g.setLineDash([3 / PX, 5 / PX]); path(r.p); g.strokeStyle = PAINT; g.lineWidth = LW / PX; g.stroke(); g.setLineDash([]); } continue; }
+      if (nl >= 2) pair(r, (w - 1) / 4, true);
+      g.setLineDash(nl >= 2 ? [] : [5 / PX, 5 / PX]);
+      path(r.p); g.strokeStyle = PAINT; g.lineWidth = LW / PX; g.stroke();
+      g.setLineDash([]);
+    }
+    for (const [x, y, rad] of streetNodes()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
+      g.beginPath(); g.arc((x - t.x0) / PX, (t.y1 - y) / PX, rad / PX, 0, 6.2832); g.fillStyle = ASPHALT; g.fill();
+    }
+    g.setLineDash([0.45 / PX, 0.45 / PX]);
+    for (const [x, y, ux, uy, half] of streetZebras()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
+      g.beginPath(); g.moveTo((x - uy * half - t.x0) / PX, (t.y1 - (y + ux * half)) / PX); g.lineTo((x + uy * half - t.x0) / PX, (t.y1 - (y - ux * half)) / PX);
+      g.strokeStyle = PAINT; g.lineWidth = 4 / PX; g.stroke();
+    }
     g.setLineDash([]);
     if (window.OETex && OETex.stats.on && typeof createImageBitmap === 'function') {
       // a phone (tex.js): the overlay in ASTC blocks, a quarter of the GPU's memory; the aerial photo shows until it is in (groundLod)
