@@ -18,7 +18,7 @@ const [,, city = 'shibuya', outDir = '.', size = '1440x900'] = process.argv;
     const get = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, opts) { return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts); };
   });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const logs = [];
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
   p.on('console', m => { if (m.type() === 'error') logs.push(`error: ${m.text().slice(0, 300)}`); });

@@ -27,7 +27,7 @@ window.OEMusic = (function () {
     lydian: [0, 2, 4, 6, 7, 9, 11], ionian: [0, 2, 4, 5, 7, 9, 11], mixolydian: [0, 2, 4, 5, 7, 9, 10],
     dorian: [0, 2, 3, 5, 7, 9, 10], aeolian: [0, 2, 3, 5, 7, 8, 10],
   };
-  const KEY = 'oe3d-music', AHEAD = 0.3, TRIM = 0.58;
+  const KEY = 'bh-music', AHEAD = 0.3, TRIM = 0.58;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);

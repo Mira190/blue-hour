@@ -36,6 +36,8 @@ exports.hook = () => {
       e.levels[`${target}:${level}`] = bytes;
       if (label) e.label = label;
       e.bytes = Object.values(e.levels).reduce((a, b) => a + b, 0);
+      // (mem_check.js OWN: where in the page's scripts a big one was made: the first lines of its stack outside three.js)
+      if (window.__memOwn && e.bytes > 1 << 20 && !e.stack) e.stack = (new Error().stack || '').split('\n').filter(l => /\.js/.test(l) && !/three|mem_check|gl_mem|__puppeteer|playwright/.test(l)).slice(0, 3).map(l => l.replace(/^.*\/(\w[\w.-]*\.js):(\d+):\d+\)?$/, '$1:$2').trim()).join(' < ');
       bump();
     };
     proto.texImage2D = function (target, level, ifmt, ...r) {

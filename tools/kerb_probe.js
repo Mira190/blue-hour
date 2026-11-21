@@ -10,7 +10,7 @@ const [,, city = 'shibuya', ...spots] = process.argv;
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: 800, height: 500 } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'low'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'low'); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 600000 });
   await startPlay(p); // (the title card up, Play pressed and the game started: tools/start_play.js, #423)

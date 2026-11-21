@@ -19,7 +19,7 @@ const [W, H] = size.split('x').map(Number);
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   for (const t of times.split(',')) {
     const p = await b.newPage({ viewport: { width: W, height: H }, isMobile: W < 600, hasTouch: W < 600 });
-    await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+    await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
     await p.addInitScript(() => {
       const get = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function (type, opts) {

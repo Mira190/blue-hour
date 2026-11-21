@@ -58,6 +58,45 @@
 window.OEStory = (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  // The shape of an episode, kept with a case left going (`v` in `bh-story-<id>`): a hash of what a save's frame
+  // number, flags and pairs mean. Each frame's stamp, and in its task, its meeting and its file the names a save
+  // refers to: the flags set and asked for, the questions and their options by count, who is asked about, which
+  // frames are proof. Not the words, the places or the distances: a line rewritten or a kerb moved leaves a case
+  // good, a frame added or a question changed does not. A site published many times a day meets a save from the
+  // commit before every time (issue 116): a case of another shape is not taken up, and the title says why.
+  const STRUCT = new Set(['stamp', 'if', 'not', 'set', 'id', 'key', 'model', 'answer', 'frame', 'of', 'proof', 'who', 'choice', 'npc', 'cast', 'finale']);
+  function shape(ep) {
+    const out = [];
+    const walk = (o, path, k) => {
+      if (Array.isArray(o)) {
+        if (o.some(v => v && typeof v === 'object' && !Array.isArray(v))) { out.push(`${path}#${o.length}`); o.forEach((v, i) => walk(v, `${path}.${i}`, k)); }
+        else if (STRUCT.has(k)) out.push(`${path}=${JSON.stringify(o)}`);
+      } else if (o && typeof o === 'object') { for (const key of Object.keys(o).sort()) walk(o[key], `${path}.${key}`, key); }
+      else if (STRUCT.has(k) && o != null) out.push(`${path}=${o}`);
+    };
+    walk({ frames: ep.frames || [], people: ep.people || [], pairs: ep.pairs || [] }, '', '');
+    let h = 0x811c9dc5; // (FNV-1a over the list, as eight hex digits)
+    for (const ch of out.join('|')) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+  // (is a kept case of this shape? One with no shape at all is of a build before cases carried one, and is not; but
+  // a harness's is: the tools set a case at a frame by hand, tools/story_play.js FROM=n and twenty more, and under
+  // automation such a case is theirs, of the story as it is)
+  const same = (k, sig) => !!k && (k.v === sig || (k.v == null && !!navigator.webdriver));
+  // A case written to this browser. The prints are photographs kept as data: images, a few hundred kB an evening,
+  // and a browser's few MB can be full (of this site's own keys, or on github.io of another project's): setItem
+  // throws then. The case is written again without its pictures (the frames, the notes, the flags and the file
+  // are a few kB), so a page closed is still taken up where it was, its prints as blank frames; and if that fails
+  // too the evening is played in one go. Returns 'full', 'lean' or 'none'; the game is never stopped by it.
+  function save(key, o) {
+    const put = v => { try { localStorage.setItem(key, JSON.stringify(v)); return true; } catch (e) { return false; } };
+    if (put(o)) return 'full';
+    const bare = p => { const c = Object.assign({}, p); delete c.src; return c; };
+    if (put(Object.assign({}, o, { prints: (o.prints || []).map(bare), lean: true }))) return 'lean';
+    try { localStorage.removeItem(key); } catch (e) { /* storage blocked */ } // (not an older state of the case, to be taken up as if it were this one)
+    return 'none';
+  }
+
   // ctx: { story (the data), stage, player, touch, toast(html), say(who, lines, done), ask(who, lines, choices, done), hush(on),
   //        hold(on): time held or let go (what hangs in the air), air(opts): the scene's leaves and birds, ride({to, name}): a car sent for you, film(spec, then): a flight, dress(date, light, weather), weather(kind), walkIn(seconds), floor(x, y) -> the ground's height there,
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
@@ -94,9 +133,13 @@ window.OEStory = (function () {
       // how far this browser has got: a case left going (the frame it takes up at; nobody opens the page into the rain of
       // the last frame without being told), or a case closed, any of whose frames can be gone back into
       let left = null;
-      try { left = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
-      const going = !!(left && left.fi > 0 && left.fi < (ep0.frames || []).length);
-      const shut = !going && (() => { try { const c = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? c : null; } catch (e) { return null; } })();
+      try { left = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
+      // (a case of another shape, kept by a build before the story changed or before cases carried their shape: not
+      // taken up at a frame that may no longer be the one it was left at. The title says so, and offers tonight again)
+      const sig = shape(ep0), inPlay = !!(left && left.fi > 0), stale = inPlay && !same(left, sig);
+      const going = inPlay && !stale && left.fi < (ep0.frames || []).length;
+      const shut = !going && !stale && (() => { try { const c = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? Object.assign(c, { old: !same(c, sig) }) : null; } catch (e) { return null; } })();
+      const WHY = 'The story has changed since you left this evening, so it cannot be taken up where it was.';
       const name = `${ep0.no ? `Episode ${ep0.no} · ` : ''}${ep0.title || ''}`, taken = going ? left.prints || [] : shut ? shut.prints || [] : [];
       const photoOf = p => (p && typeof p.src === 'string' && /^data:image\//.test(p.src) ? p.src : null); // (a photograph the player took, kept with the case)
       const lastAt = going ? ((left.prints || [])[left.prints.length - 1] || {}).stamp || '' : '';
@@ -104,8 +147,10 @@ window.OEStory = (function () {
       // save first with a picture of where it was left (walk.js puts the walk under it); the story's row says how far
       const cont = q('#gt-cont-go');
       if (cont) {
-        cont.hidden = !going;
-        cont.classList.toggle('primary', going);
+        cont.hidden = !(going || stale);
+        cont.classList.toggle('primary', going || stale);
+        cont.classList.toggle('stale', stale);
+        if (stale) { cont.querySelector('span').textContent = 'Start tonight again'; cont.querySelector('small').textContent = 'The story has changed since you left'; cont.title = WHY; }
         if (going) {
           cont.querySelector('small').textContent = `${ep0.no ? `Episode ${ep0.no} · ` : ''}frame ${left.fi + 1} of ${N}${lastAt ? ` · ${lastAt}` : ''}`; // (short, so that the row holds one line beside the photograph on a phone)
           const ph = [...taken].reverse().map(photoOf).find(Boolean), im = cont.querySelector('img');
@@ -114,7 +159,11 @@ window.OEStory = (function () {
       }
       const sg = q('#gt-story-go');
       const epNo = ep0.no ? `Episode ${ep0.no}` : ep0.title || ''; // (short, so that the row holds one line on a phone)
-      if (sg) sg.querySelector('small').textContent = going ? `${epNo} · ${left.fi} of ${N} frames taken` : shut ? `${epNo} · the case is closed` : name;
+      if (sg) sg.querySelector('small').textContent = going ? `${epNo} · ${left.fi} of ${N} frames taken` : stale ? `${epNo} · changed since you left` : shut ? `${epNo} · the case is closed` : name;
+      // (said in words on the title itself, under its buttons: a button's small print is not an explanation)
+      { const row = cont && cont.closest('.gt-go'); let why = q('#gt-stale');
+        if (stale && row && !why) { why = document.createElement('p'); why.id = 'gt-stale'; why.className = 'gt-stale'; why.setAttribute('role', 'status'); row.after(why); }
+        if (why) { why.hidden = !stale; why.textContent = stale ? `${WHY} Your evening starts again from its first frame.` : ''; } }
       // the story's screen: the episode, its picture and its line; how far, on the roll (a cell a frame, the photograph in
       // each one taken); Begin, Continue or Play it again; the evening again, asked twice, since what was taken tonight is
       // lost; and a closed case's frames, each a way back in
@@ -125,9 +174,9 @@ window.OEStory = (function () {
         E.querySelector('.cap .when').textContent = T.eyebrow || '';
         E.querySelector('.line').textContent = ep0.line || T.line || '';
         E.querySelector('.state').textContent = going ? `In progress · ${left.fi} of ${N} frames taken${lastAt ? ` · the last at ${lastAt}` : ''}`
-          : shut ? `The case is closed · go back into any frame` : `Not begun · ${N} frames, one evening`;
+          : stale ? WHY : shut ? (shut.old ? 'The case is closed · the story has changed since: play it again to go back into its frames' : `The case is closed · go back into any frame`) : `Not begun · ${N} frames, one evening`;
         E.querySelector('.gt-roll').innerHTML = Array.from({ length: N }, (_, i) => {
-          const p = taken[i], src = photoOf(p), back = shut && (shut.snaps[i] || i === 0);
+          const p = taken[i], src = photoOf(p), back = shut && !shut.old && (shut.snaps[i] || i === 0);
           const inner = `${src ? `<img src="${src}" alt="">` : ''}<b>${i + 1}</b>${shut && shut.stamps[i] ? `<small>${esc(shut.stamps[i])}</small>` : ''}`;
           return `<li class="${p ? 'got' : ''}${going && i === left.fi ? ' now' : ''}">${back ? `<button type="button" data-back="${i}" aria-label="Go back into frame ${i + 1}${shut.stamps[i] ? `, ${esc(shut.stamps[i])}` : ''}">${inner}</button>` : inner}</li>`;
         }).join('');
@@ -136,6 +185,7 @@ window.OEStory = (function () {
         if (play && acts) {
           acts.prepend(play); play.type = 'button'; play.classList.add('primary');
           play.innerHTML = going ? `<span>Continue</span><small>Frame ${left.fi + 1} of ${N}${lastAt ? `, after ${lastAt}` : ''}</small><kbd>↵</kbd>`
+            : stale ? '<span>Start tonight again</span><small>From 17:14, the first frame</small><kbd>↵</kbd>'
             : shut ? '<span>Play it again</span><small>The evening from its first frame</small><kbd>↵</kbd>' : `<span>Begin</span><small>${esc(name)}</small><kbd>↵</kbd>`;
         }
         if (anew) {
@@ -143,7 +193,7 @@ window.OEStory = (function () {
           const sure = on => { E.classList.toggle('sure', on); const f = q(on ? '#gt-anew-no' : '#gt-anew'); if (f) f.focus({ preventScroll: true }); };
           anew.addEventListener('click', () => sure(true));
           q('#gt-anew-no').addEventListener('click', () => sure(false));
-          q('#gt-anew-yes').addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }); // (who you play chosen first)
+          q('#gt-anew-yes').addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`bh-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }); // (who you play chosen first)
           E.sure = () => E.classList.contains('sure') && (sure(false), true); // (Esc or B on the question: keep the case; game.js)
         }
         E.querySelector('.gt-roll').addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); });
@@ -181,7 +231,10 @@ window.OEStory = (function () {
     const say = text => { sfx('word'); chip.textContent = text; chip.classList.remove('on'); void chip.offsetWidth; chip.classList.add('on'); };
     const camLabel = () => { camBtn.innerHTML = st.cam ? `<i></i>Lower the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}` : `<i></i>Raise the camera${ctx.touch ? '' : ' <kbd>R</kbd>'}`; };
     function raise(on) {
+      if (st.phase === 'go' && st.beat === 'job') return jobRaise(on); // (the first frame's job: your own camera, before the world stops)
       if (st.phase !== 'stop' || st.beat !== 'shoot' || st.cam === on) return;
+      if (on && camWait()) return; // (a press left over from the talk: nothing)
+      if (on && !camCan(framed())) { teachNudge(); say('Not from here · the light first'); goal((st.fr.task.goals || {}).stand || 'Not from here. Go to the light.'); st.miss = 2.5; return; } // (off the light: the step to do shakes, and the goal says where)
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? (st.meet ? st.lensNow : st.fr.task.lens) : null, !!st.meet); // (a frame taken through a long lens: task.lens, degrees; the last frame's, closed on the two of them as they meet)
       shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
@@ -190,6 +243,59 @@ window.OEStory = (function () {
       say(on ? (finder.dataset.year ? (from ? `Camera up · it sees ${finder.dataset.year}` : 'Camera up · not from here') : 'Camera up') : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
     camBtn.addEventListener('click', () => raise(!st.cam));
+    // When the camera may come up: once the talk is over, and in a frame whose light stands from the start (frames 1 and 6;
+    // not one whose place the rangefinder finds, where the camera is how it is found), only in the light. A frame goes:
+    // the talk ends, the place is found, the camera comes up, the picture is taken. The talk's last press raised it before
+    // the place was found (the owner, November 2026): on a phone the button comes up where the words were, so the tap after
+    // the last line was a tap on it, and F passes a line and is the release, which raises a camera that is down.
+    const lit0 = T => !!(T && T.stand && !T.find);
+    const camWait = () => performance.now() < (st.camAfter || 0);
+    const camCan = f => !camWait() && (!lit0(st.fr && st.fr.task) || !!st.meet || f.placed);
+    // The first frame's job (fr.job), while the street still runs. The order is put away and the phone buzzes: the office,
+    // heard hands-free (hud.js free) while the player walks and looks and the crowd crosses round them, with the goal and
+    // the mark on her corner across the road from the first word. Its last line (prologue.push) asks for the photograph,
+    // and from then the player's own camera comes up (R, the button, the left trigger, the release): raised to her corner
+    // and held on it for a moment, the world stops in the finder (rule 4: a camera raised to her corner at the hour, as his
+    // was), the office's voice cut off with it; once the street has braked to nothing the camera comes down for the Stop's
+    // turn round you. It used to stop a second after the order, before the player had walked a step of the live street
+    // or knew why they were there, and the office rang only after the first print, ten seconds after time ran again
+    // (the owner, 21 November 2026: the call first, as a buffer, and not the Stop at once).
+    const jobAt = () => { const J = st.fr && st.fr.job; if (!J) return null; const a = J.at; return [a[0], a[1], (a[2] != null ? a[2] : ctx.floor(a[0], a[1])) + (J.eye ?? 1.3)]; };
+    const officeOf = P => Object.assign({ alive: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {});
+    function jobBegin() {
+      const fr = st.fr, J = fr.job, P = st.ep.prologue || {};
+      st.beat = 'job'; st.t = 0; st.jobReady = false; st.jobT = 0; st.cutCall = false; st.cam = false; camLabel(); camBtn.classList.remove('up', 'on'); finder.classList.remove('on');
+      finder.dataset.year = ''; delete finder.dataset.fix; delete finder.dataset.off;
+      goal(J.goal || ''); aimAt(spot(J.at), true, 'frame');
+      if (!st.hinted) { st.hinted = true; st.from = [ctx.player.x, ctx.player.y]; keysHint(true); } // (the street is the player's now: the walking keys)
+      const ready = () => { if (st.fr !== fr || st.beat !== 'job') return; st.jobReady = true; st.camAfter = performance.now() + 400; };
+      const lines = L(P.lines), push = L(P.push);
+      if (st.rang || !(lines.length || push.length)) return ready();
+      st.rang = true;
+      later(700, () => { if (st.beat === 'job') sfx('phone'); });
+      later(1700, () => {
+        if (st.fr !== fr || st.beat !== 'job') return;
+        ctx.say(officeOf(P), lines, () => { if (st.fr !== fr || st.beat !== 'job') return; ready(); if (push.length) ctx.say(officeOf(P), push, () => {}, { free: true }); }, { free: true });
+      });
+    }
+    function jobRaise(on) {
+      if (st.cam === on) return;
+      if (on && (!st.jobReady || camWait())) return; // (not before the office has asked for the picture, nor on a press that passed a line)
+      st.cam = on; st.jobT = 0; camLabel(); camBtn.classList.toggle('up', on); finder.classList.toggle('on', on);
+      say(on ? 'Camera up' : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
+    }
+    // her corner inside the frame lines, and near enough to be the picture of it
+    const jobFramed = () => { const J = st.fr.job, at = jobAt(), q = ctx.screen(at), r = finderRect(); return !!st.cam && q.front && q.x > r[0] && q.x < r[2] && q.y > r[1] && q.y < r[3] && Math.hypot(at[0] - ctx.player.x, at[1] - ctx.player.y) < (J.within_m || 80); };
+    function jobTick(dt) {
+      const J = st.fr.job;
+      if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; keysHint(false); }
+      camBtn.classList.toggle('on', st.cam || (st.jobReady && !camWait()));
+      const on = jobFramed();
+      st.jobT = on ? st.jobT + dt : 0;
+      const text = !st.jobReady ? J.goal || '' : !st.cam ? J.raise || 'Raise your camera to her corner.' : on ? J.held || 'Hold it there.' : J.aim || 'Turn to her corner.';
+      if (text !== goalText) goal(text);
+      if (st.jobT >= (J.hold_s || 0.8)) stop();
+    }
     // a print's postmark: struck on it when it is taken, as a letter's stamp is cancelled; the place round the top,
     // the hour in the middle, the frame under it, and the wavy lines of the cancel running off to the side
     let pmN = 0;
@@ -302,9 +408,16 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       later(secs * 1000, () => card.classList.remove('on'));
     }
     // the case kept in this browser: the frame it is at and the prints so far
-    const KEY = () => `oe-story-${st.ep ? st.ep.id : ''}`;
-    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
-    const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
+    const KEY = () => `bh-story-${st.ep ? st.ep.id : ''}`;
+    let keptAs = 'full';
+    const keep = () => {
+      const how = save(KEY(), { v: shape(st.ep), fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 });
+      // (said once, when it first happens: what is lost if the page is closed, and that the evening goes on)
+      if (how !== 'full' && keptAs === 'full' && ctx.toast) ctx.toast(how === 'lean' ? 'This browser\'s storage is full. Your photographs stay on the roll while this page is open; your place in the evening is still kept.'
+        : 'This browser will not keep the evening. Play on: it lasts as long as this page is open.');
+      if (how !== keptAs) { keptAs = how; try { if (window.OETelemetry && OETelemetry.track) OETelemetry.track('story_save', { how, frame: st.fi + 1 }); } catch (e) { /* no telemetry */ } }
+    };
+    const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && same(k, shape(st.ep)) && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
     let goalText = '';
@@ -475,6 +588,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // as the player is given the street
     function begin() {
       const ep = st.ep || dress();
+      if (ep && !kept()) forget(); // (a case of another shape, or one that cannot be read: gone before the evening starts again, the log's lines with it; log.js restore)
       if (!ep) return;
       ctx.stage.classList.add('story-on');
       setDress(ep);
@@ -487,7 +601,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       show(); if (k) frames.classList.add('on');
       // a case begun at its first frame opens on a voice: who you are, why you are on this kerb at this hour, and the one
       // odd thing about the job (ep.prologue: {who, voice, lines}); a case taken up again goes straight to its frame
-      const P = !k && ep.prologue && !ep.prologue.after && ep.prologue; // (after: the office rings once the first Stop has let go, not before it)
+      const P = !k && ep.prologue && !ep.prologue.after && !(ep.frames[0] || {}).job && ep.prologue; // (a first frame with a job says the call in it, hands-free: jobBegin)
       if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
       else if (!k) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
       else frame(k.fi);
@@ -556,6 +670,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     const living = m => (m.cast ? st.cast[m.cast] : ctx.person(m.npc));
     function approach() {
       const fr = st.fr, a = fr.afterimage;
+      if (fr.job && !st.late) return jobBegin(); // (a Stop that ran out comes again where it stopped, without the job)
       st.beat = 'approach'; st.t = 0;
       goal(fr.goal || '');
       // (a frame whose place the player finds, fr.find: no ring stands there; the goal says what is known of it, the roll
@@ -728,7 +843,13 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     const hear = (m, w, done) => { st.slips = 0; st.qmiss = 0; st.hot = []; st.settled = 0; st.own = 0; const go = () => { st.asked = 0; ask(m, w, () => { const T = L(m.then); return T.length ? ctx.say(w, T, done) : done(); }); }, first = runs(m.lines); return first.length ? sayRuns(first, w, go) : go(); };
     function stop() {
       const ep = st.ep, fr = st.fr, a = fr.afterimage, first = st.fi === 0 && !st.late;
-      st.phase = 'stop'; st.t = 0; st.beat = 'still';
+      const job = st.phase === 'go' && st.beat === 'job', lens = job && st.cam, HOLD = lens ? 1100 : 0; // (raised to her corner: the world stops in the finder)
+      if (job && ctx.cut && ctx.cut()) st.cutCall = true; // (the office, cut off with the world)
+      st.phase = 'stop'; st.t = 0; st.beat = 'still'; st.lensHold = lens;
+      // (once the street has braked to nothing, the camera comes down: in the story's own time, in the stop's tick, so that a
+      // slow frame does not take the lens down before the street has stopped in it)
+      if (job && !lens) { camBtn.classList.remove('on', 'up'); finder.classList.remove('on'); st.cam = false; }
+      if (job) { goal(''); aimAt(null); keysHint(false); } // (nothing written over the moment itself)
       veil.classList.add('on'); ctx.stage.classList.add('story-stop');
       ctx.hush(true); ctx.hold(true); sfx('stop'); if (ctx.held) ctx.held(true); if (ctx.score) ctx.score({ held: true }); // (the beat is time's: it stops with it)
       if (fr.light && ctx.light) ctx.light(fr.light); // (a Stop that goes back to an hour: the last one, to the blue hour she waited at)
@@ -736,7 +857,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // (no word over the moment itself: the street held, its sound braked, and for 2.5 s nothing written on it)
       // the view turns through the held street: once round the first time, a quarter turn every time after, so that
       // what hangs in the air is seen to hang (it is the camera moving that shows a moment is held)
-      st.orbit = first ? 0.5 : 0.32; later(first ? 4200 : 1500, () => { st.orbit = 0; }); // (the first time, the view turns round you through the held street)
+      later(HOLD, () => { st.orbit = first ? 0.5 : 0.32; later(first ? 4200 : 1500, () => { st.orbit = 0; }); }); // (the first time, the view turns round you through the held street)
       if (a && !st.ghost) { st.ghost = ctx.figure(a, a.at); st.ghost.face(ctx.player.x, ctx.player.y); }
       // (someone to go to, across the held street: under the flash, where nobody is seen to move, the held crowd stands
       // out of a lane from you to them a little wider than two walking abreast, so that they are seen at the end of it and
@@ -747,11 +868,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // the world holds a breath (the first time, the title falls on it), and then the one thing to do
       // (a Stop in which something moves that should not, fr.stirs: { cast, line, after_s }: one of the living turns to look)
       if (fr.stirs && st.cast[fr.stirs.cast]) later((fr.stirs.after_s || 7) * 1000, () => { if (st.phase !== 'stop' || st.fr !== fr) return; const c = st.cast[fr.stirs.cast]; if (c.face) c.face(ctx.player.x, ctx.player.y); if (fr.stirs.line) ctx.toast(esc(fr.stirs.line)); sfx('ghost'); });
-      if (first) later(900, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
+      if (first) later(900 + HOLD, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
       // (the guide's model asked for now, while the view turns: he is seen first close to, and must be there at the cut)
       const gd0 = ep.guide, film = first && gd0 && gd0.meet !== false && ctx.guide && !st.dog && !ctx.reduced;
       if (film) st.dogNext = ctx.guide(gd0);
-      later(first ? 4300 : 2500, () => {
+      later((first ? 4300 : 2500) + HOLD, () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
         if (film && st.dogNext) { const d = st.dogNext; st.dogNext = null; return meetGuide(gd0, d, seek); }
         seek();
@@ -928,7 +1049,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       { const T = st.fr.task, from = T.stand || [ctx.player.x, ctx.player.y]; if (ctx.clear) for (const c of T.clear || []) ctx.clear(from, c); if (T.clear_round && ctx.clearRound && T.relic) ctx.clearRound(T.relic.at[0], T.relic.at[1], T.clear_round); } // (task.clear: the way on past the thing kept clear too, to points beyond it; task.clear_round: a ring round it. Frame 2's stool had a held walker a metre off and the crowd standing on it from behind)
       if (st.fr.task.relic && ctx.relic && !st.relic) st.relic = ctx.relic(Object.assign({ from: st.fr.task.stand }, st.fr.task.relic)); // (what the camera sees here that tonight does not have; from: where it is seen from)
       { const R = st.fr.task.relic; finder.dataset.year = (R ? R.year || 1964 : st.fr.afterimage && st.fr.afterimage.year) || ''; } // (the year the finder shows is the year of what it sees: a thing of 1964 even where the one who asks for it is of 2024) // (the year the finder shows: the camera sees the evening it was loaded for)
-      st.cam = false; camLabel(); camBtn.classList.remove('up'); camBtn.classList.add('on');
+      st.cam = false; camLabel(); camBtn.classList.remove('up', 'on'); st.camAfter = performance.now() + 700; // (the button comes up in the tick, when the camera may: camCan)
       teach(st.fr.task.teach);
       // (the guide goes to sit where the picture is taken from, or beside what it is of, looking at it)
       if (st.dog) { const T = st.fr.task, R = T.relic, px = ctx.player.x, py = ctx.player.y; let to = T.stand && !T.find ? [T.stand[0] + 1.2, T.stand[1] + 0.8] : null; if (!to && R && Math.hypot(R.at[0] - px, R.at[1] - py) < 30) { const l = Math.hypot(px - R.at[0], py - R.at[1]) || 1, ux = (px - R.at[0]) / l, uy = (py - R.at[1]) / l, q = [R.at[0] + ux * 1.2 - uy * 2.2, R.at[1] + uy * 1.2 + ux * 2.2]; to = (st.dog.free && st.dog.free(q[0], q[1], 1.5)) || q; } /* (beside it, off the line from the lens: on that line, 2.2 m before the lamp, his head filled the foot of the third print) */ if (to) st.dog.go(to, R ? [R.at[0], R.at[1], (R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1])) + 0.8] : T.subject || null); } // (in the hand: the player raises it)
@@ -949,6 +1070,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       return { placed, aimed };
     }
     function shoot() {
+      if (st.phase === 'go' && st.beat === 'job') { if (!st.cam) jobRaise(true); else if (jobFramed()) stop(); return; } // (your own camera: up, then her corner framed is the moment)
       if (st.phase !== 'stop' || st.beat !== 'shoot') return;
       const fr = st.fr, T = fr.task, G = T.goals || {};
       if (!st.cam) return raise(true); // (the release with the camera down brings it up)
@@ -1071,7 +1193,11 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       if (st.dog) st.dog.heel(); // (the guide stays with you as the world runs on, to lead you to the next frame)
       if (ctx.finder) ctx.finder(null);
       const said = late ? [fr.late || 'The lights changed. Come back to where it stopped, and it will stop again.'] : L(fr.after);
-      said.forEach((line, i) => later(1400 + i * 4200, () => ctx.toast(esc(line))));
+      // (the first frame: the office's line comes back as time runs, if the Stop cut it off, and the next goal follows at once:
+      // the call was said before the Stop now, so nothing is waited for)
+      const P0 = st.ep.prologue || {}, back = !late && st.fi === 0 && st.cutCall ? L(P0.back) : [];
+      if (back.length) { st.cutCall = false; later(900, () => ctx.say(officeOf(P0), back, () => {}, { free: true })); }
+      said.forEach((line, i) => later(1400 + (back.length ? 3200 : 0) + i * 4200, () => ctx.toast(esc(line))));
       st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
       if (!late && fr.finale && st.meet && ctx.walkIn) ctx.walkIn(0); // (the lights went to walk in the Stop: now the street crosses on them)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
@@ -1105,20 +1231,20 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
       return li.length ? `<section class="worked" aria-label="How the case was worked"><h3>How the case was worked</h3><ul>${li.join('')}</ul></section>` : '';
     }
     // Going back in: a case closed in this browser keeps its prints and the snapshot of each frame on arriving at it
-    // (`oe-story-<ep>-closed`), so that any frame can be entered again with the roll and the flags as they were then, and
+    // (`bh-story-<ep>-closed`), so that any frame can be entered again with the roll and the flags as they were then, and
     // another answer tried, from the last card or from the title. Entering frame n writes the case as it stood at n and
     // opens the page again (ctx.again); the first frame is the evening from its beginning.
-    const CLOSED = id => `oe-story-${id}-closed`;
-    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
+    const CLOSED = id => `bh-story-${id}-closed`;
+    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && same(c, shape(eps.find(e => e.id === id) || {})) && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
     const closedNow = () => (st.ep ? closedOf(st.ep.id) : null);
-    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
+    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
     const goBack = C => (C ? `<nav class="back" aria-label="Go back into a frame"><small>Go back into a frame</small><span>${C.stamps.map((t, i) => (C.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span></nav>` : '');
     enterLater = (i) => enter(i, eps[0]);
     function enter(i, ep = st.ep) {
-      const C = closedOf(ep.id), s = C && C.snaps[i], key = `oe-story-${ep.id}`;
+      const C = closedOf(ep.id), s = C && C.snaps[i], key = `bh-story-${ep.id}`;
       try {
         if (!s || i === 0) localStorage.removeItem(key);
-        else localStorage.setItem(key, JSON.stringify({ fi: i, left: s.left, prints: C.prints.slice(0, s.n), flags: s.flags, pairs: s.pairs, file: s.file, failed: s.failed, snaps: C.snaps.slice(0, i + 1) }));
+        else localStorage.setItem(key, JSON.stringify({ v: shape(ep), fi: i, left: s.left, prints: C.prints.slice(0, s.n), flags: s.flags, pairs: s.pairs, file: s.file, failed: s.failed, snaps: C.snaps.slice(0, i + 1) }));
       } catch (e) { /* storage blocked */ }
       ctx.again();
     }
@@ -1147,8 +1273,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
     failEl.addEventListener('click', e => { if (e.target.closest('button')) retry(); });
     frames.type = 'button'; frames.addEventListener('click', () => albumOpen(true));
     const onKey = e => {
-      if (e.code === 'KeyF' && !e.repeat && st.beat === 'shoot') { e.preventDefault(); e.stopPropagation(); shoot(); }
-      else if (e.code === 'KeyR' && !e.repeat && st.phase === 'stop' && st.beat === 'shoot') { e.preventDefault(); e.stopPropagation(); raise(!st.cam); }
+      if (e.code === 'KeyF' && !e.repeat && (st.beat === 'shoot' || (st.phase === 'go' && st.beat === 'job'))) { e.preventDefault(); e.stopPropagation(); shoot(); }
+      else if (e.code === 'KeyR' && !e.repeat && ((st.phase === 'stop' && st.beat === 'shoot') || (st.phase === 'go' && st.beat === 'job'))) { e.preventDefault(); e.stopPropagation(); raise(!st.cam); }
       else if (e.code === 'KeyH' && !e.repeat && hunting()) { e.preventDefault(); e.stopPropagation(); hint(); }
       else if ((e.code === 'Tab' || (e.code === 'Escape' && album.classList.contains('on'))) && !e.repeat && st.phase !== 'idle' && st.phase !== 'dressed' && st.phase !== 'done') { e.preventDefault(); e.stopPropagation(); albumOpen(!album.classList.contains('on')); }
     };
@@ -1180,6 +1306,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
         const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
+          : st.beat === 'job' ? (!st.jobReady ? `The call is hands-free: walk and look while it is said${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '' : `; ${K('E')} passes a line`}.` : !st.cam ? (ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap Raise the camera.' : `Raise the camera: ${K('R')}.`) : 'Hold her corner inside the frame lines.')
           : st.beat === 'ride' ? (st.inCar ? ((ctx.rideNow() || {}).arrived ? `You are there. ${ctx.touch ? 'Tap Get out.' : `Press ${K('E')} to get out.`}` : `${ctx.touch ? 'Tap Skip' : `Press ${K('F')}`} to be there now.`) : `Walk to the car and ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} to get in. Or walk the whole way.`)
           : st.beat === 'board' ? `${dogN ? `Follow ${dogN} to it, and` : 'Walk to it and'} ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} beside it.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'Raise the camera: the two halves of the line in the middle of the finder come together as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
         if (how !== st.how) { st.how = how; goalEl.querySelector('em').textContent = how; }
@@ -1209,7 +1336,8 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
             const w = { name: m.name || '', role: [m.age ? `${m.age}` : '', m.role || ''].filter(Boolean).join(' · '), alive: true, voice: voiceOf(Object.assign({}, m, { voice: m.voice || fr.meet.voice })) }; // (the living: their age tonight)
             hear(fr.meet, w, () => approach());
           }
-        } else if (st.beat === 'approach') {
+        } else if (st.beat === 'job') jobTick(dt);
+        else if (st.beat === 'approach') {
           const a = fr.afterimage, at = fr.stop_at || (a && a.at);
           if (!st.lit && at) { st.findT += dt; nudge(); }
           if (fr.lead_s != null && !st.late ? st.t >= fr.lead_s : !at || (near(at, fr.stop_r || 12) && st.t > (st.late ? 6 : 0.5))) stop();
@@ -1228,6 +1356,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
             sfx('ghost'); hear(a, who(a), () => task());
           }
         }
+        if (st.lensHold && st.t >= 1.1) { st.lensHold = false; st.cam = false; camLabel(); camBtn.classList.remove('on', 'up'); finder.classList.remove('on'); sfx('cam-down'); } // (the first Stop, seen in your own camera's finder: then it comes down)
         if (st.beat === 'guide') movTick(dt);
         // (the finder's lines, and whether the lens stands where the other year was seen from: off it, nothing of that year forms)
         const inPlace = st.beat !== 'shoot' || !fr.task || framed().placed;
@@ -1254,11 +1383,12 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
             if (finder.dataset.fix !== fix) { finder.dataset.fix = fix; finder.querySelector('.rf small').textContent = fix === 'on' ? 'The place · here' : fix === 'near' ? 'The place · nearer' : 'The place · far'; }
             if (f.placed && !st.placedOnce) { st.placedOnce = true; if (!st.lit) { sfx('found'); say('This is the place'); } }
             // (stepping into the light: said, and heard, each time it is come into after a while out of it)
-            if (f.placed !== st.wasPlaced) { if (f.placed && st.lit && st.t - (st.outAt ?? -9) > 2) { sfx('goal'); say('In the light'); } if (!f.placed) st.outAt = st.t; st.wasPlaced = f.placed; }
+            if (f.placed !== st.wasPlaced) { if (f.placed && lit0(T)) st.miss = 0; /* (a word that sent you to the light goes once you are in it) */ if (f.placed && st.lit && st.t - (st.outAt ?? -9) > 2) { sfx('goal'); say('In the light'); } if (!f.placed) st.outAt = st.t; st.wasPlaced = f.placed; }
             if (ctx.here) ctx.here(f.placed ? spot(T.stand) : null, w);
           }
           else if (finder.dataset.fix) delete finder.dataset.fix;
           teachTick(f);
+          camBtn.classList.toggle('on', st.cam || camCan(f)); // (the button: to raise it once it may come up, and to lower it)
           const standGoal = hunt ? (st.hintText || G.find || 'No light stands where this one was taken from. Find the place.') : G.stand || 'Find where this was taken from.';
           const raiseText = G.raise || `Raise the camera${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '.' : `: ${K('R')}.`}`;
           const text = st.meet === 'walk' ? G.wait || 'Wait.' : st.meet === 'met' ? (!st.cam ? raiseText : shot ? G.ready || 'Now.' : G.aim || 'Turn back to them.')
@@ -1286,6 +1416,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
     }
     return {
       dress, begin, tick, shoot, raise, state: st,
+      tidy() { if (st.ep && !kept()) forget(); }, // (before the log restores its lines: a case that is not taken up has none)
       get stopped() { return st.phase === 'stop'; },
       get guided() { return !!st.guided; }, // the dog shows the way, and nothing else does: the game draws no gold line
       // the story's own film (the guide coming to you, meetGuide): the lens's place, what it looks at (the map's x, y and
@@ -1300,11 +1431,11 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
-      get subject() { return st.phase === 'stop' && st.beat === 'shoot' && st.cam && st.fr ? subjectOf(st.fr.task) : null; }, // what the frame is of, where the raised camera comes up onto
+      get subject() { return st.phase === 'go' && st.beat === 'job' && st.cam ? jobAt() : st.phase === 'stop' && st.beat === 'shoot' && st.cam && st.fr ? subjectOf(st.fr.task) : null; }, // what the frame is of, where the raised camera comes up onto
       // (where the lens is eased onto while it is up: the middle of the crossing as the last frame's two walk to it, so that
       // the lens closing on them does not close on the road beside them)
       get steer() { return st.phase === 'stop' && st.meet === 'walk' && st.cam && st.mid ? st.mid : null; },
-      get finder() { return (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
+      get finder() { return (st.phase === 'go' && st.beat === 'job' && !!st.cam) || (st.phase === 'stop' && !!st.lensHold) || (st.phase === 'stop' && ((st.beat === 'shoot' && !!st.cam) || (st.beat === 'shown' && !!(st.fr && st.fr.finale)))) || (st.phase === 'after' && !!(st.fr && st.fr.finale)); }, // the camera is raised: the game shows the lens's view
       get hold() { const T = st.fr && st.fr.task; return (st.phase === 'stop' && st.beat === 'shoot' && T && T.hold) || null; }, // (where a frame's camera is held: [forward, up] from the eye, metres)
       get on() { return st.phase !== 'idle' && st.phase !== 'done'; },
       // the pause's own lines (game.js, issue 114): the frame the case is at, and the case begun again from its first card
@@ -1332,5 +1463,5 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       },
     };
   }
-  return { create };
+  return { create, shape, save };
 })();

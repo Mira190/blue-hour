@@ -68,7 +68,7 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
     await press('A'); await p.waitForTimeout(300);
     if (!(await p.evaluate(() => document.getElementById('g-title').hidden === false && document.activeElement && document.activeElement.dataset.c === 'W'))) fail('the first A on who you play did not put the hand on the first portrait');
     await press('RIGHT'); await p.waitForTimeout(200); await press('A');
-    await p.waitForFunction(() => { try { return localStorage.getItem('oe3d-player') === 'M'; } catch (e) { return false; } }, null, { timeout: 120000 }).catch(() => fail('the pad did not choose the second portrait'));
+    await p.waitForFunction(() => { try { return localStorage.getItem('bh-player') === 'M'; } catch (e) { return false; } }, null, { timeout: 120000 }).catch(() => fail('the pad did not choose the second portrait'));
     await snap('0-title-chosen');
     await press('A');
   }
@@ -76,7 +76,13 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   // the order in the hand: A puts it away
   const ord = await until(async s => s.beat === 'order' || (s.phase === 'stop'), 900, 'the order in the hand');
   if (ord && ord.beat === 'order') { await p.waitForTimeout(2500); await snap('1-order-pad'); const em = await p.evaluate(() => (document.querySelector('#g-story-order em') || {}).textContent || ''); if (!/^A\b/.test(em.trim())) fail(`the order's prompt says "${em}" to a pad`); await press('A'); await until(async s => s.beat !== 'order', 30, 'A to put the order away'); console.log('the order: A put it away'); }
-  // the opening plays itself out; then the first Stop, and the afterimage to walk to
+  // the office on the phone, hands-free: A passes its lines; then the left trigger raises your own camera, turned onto her
+  // corner, and the world stops in it (docs/STORY.md, "The opening rebuilt"); then the first Stop, and the afterimage to walk to
+  for (let i = 0; i < 120; i++) { const s = await st(); if (s.phase !== 'go' || await p.evaluate(() => !!window.__game.story.state.jobReady)) break; if (s.dlg) await press('A'); await p.waitForTimeout(800); }
+  await p.evaluate(() => { const g = window.__game, J = g.story.state.fr.job, pl = g.player; if (J) { g.cam.yaw = Math.atan2(J.at[0] - pl.x, J.at[1] - pl.y); g.cam.pitch = 0.3; } });
+  await p.waitForTimeout(800); await set('LT', 1); await frames(4);
+  if (!(await p.evaluate(() => !!window.__game.story.state.cam || window.__game.story.state.phase === 'stop'))) fail('the left trigger did not raise your camera to her corner');
+  await until(async s => s.phase === 'stop', 600, 'the world to stop in the finder'); await set('LT', 0);
   await until(async s => s.phase === 'stop' && s.beat === 'seek', 1500, 'the first Stop');
   console.log('the first Stop; rumbles so far:', await p.evaluate(() => window.__vpad.rumbles.length));
   if (!(await p.evaluate(() => window.__vpad.rumbles.length))) fail('no rumble on the Stop');
@@ -138,7 +144,7 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   await p.keyboard.press('KeyA'); await p.waitForTimeout(500); await snap('9-keys-again');
 
   // a question with choices: the case taken up at frame 3, the detective asks who you are; the d-pad to the answer, and A
-  await p.evaluate(() => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); });
+  await p.evaluate(() => { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); });
   await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);

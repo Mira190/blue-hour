@@ -18,7 +18,7 @@ const [,, out = '/tmp/guide-meet', size = '1440x900'] = process.argv;
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ')); });
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.removeItem('oe-story-late'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.removeItem('bh-story-late'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const DRAW = +(process.env.DRAW || 0);
   if (DRAW > 1) await p.addInitScript(n => {
     const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0 };
@@ -40,6 +40,7 @@ const [,, out = '/tmp/guide-meet', size = '1440x900'] = process.argv;
     if (s.beat === 'guide' || s.film) break;
     if (s.phase === 'stop' && s.beat === 'seek') { errors.push('the first Stop went to its afterimage without the film of the guide'); break; }
     if (s.dlg) await p.keyboard.press('KeyE');
+    else if (s.phase === 'go' && s.beat === 'job') await p.evaluate(() => { const g = window.__game, st = g.story.state, J = st.fr.job; if (!st.jobReady) return; const pl = g.player; g.cam.yaw = Math.atan2(J.at[0] - pl.x, J.at[1] - pl.y); g.cam.pitch = 0.3; g.story.raise(true); }); // (the opening's job: your own camera raised to her corner)
     else if (s.phase === 'dressed') await p.keyboard.press('Space');
     else if (s.phase === 'go' && s.beat === 'order') await p.keyboard.press('KeyE');
     await p.waitForTimeout(500);

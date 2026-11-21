@@ -59,7 +59,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
   const DRAW = +(process.env.DRAW || 0);
@@ -171,8 +171,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const BUDGET = process.env.BUDGET || '';
   if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
   // FROM=n: as a case left at frame n (counted from 0) and opened again
-  if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('oe-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
-  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
+  if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
@@ -410,7 +410,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     }
     // (a call is heard, not answered, hud.js dialogue `auto`: at the office's call nothing is pressed, and its first line
     // must go on by itself. It waited on a key at every line, and one player sat on it for twenty-five minutes)
-    if (s.dlg && s.beat === 'prologue' && !seen.has('call-auto')) {
+    if (s.dlg && (s.beat === 'prologue' || (s.phase === 'go' && s.beat === 'job')) && !seen.has('call-auto')) { // (the office's call: since the opening was rebuilt, said hands-free in the first frame's job)
       seen.add('call-auto'); await snap(`${s.fi + 1}-call`);
       const was = await p.evaluate(() => document.getElementById('gd-text').textContent);
       const went = await p.waitForFunction(w => { const d = document.getElementById('gd'), t = document.getElementById('gd-text').textContent; return d.hidden || (!t.startsWith(w) && !w.startsWith(t)); }, was, { timeout: 240000, polling: 250 }).then(() => true, () => false);
@@ -545,6 +545,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         continue;
       }
     }
+    // the first frame's job (docs/STORY.md, "The opening rebuilt"): the office said hands-free while the street runs (the
+    // lines above, passed by E), then the player's own camera raised to her corner across the road: raised turned away it
+    // does not stop; turned onto the corner and held, the world stops in the finder, and the view is the lens's as it does
+    if (s.phase === 'go' && s.beat === 'job') {
+      const J = await p.evaluate(() => { const g = window.__game, st = g.story.state, J = st.fr.job; return { ready: !!st.jobReady, at: [J.at[0], J.at[1], g.player.z + 1.3], btn: document.getElementById('g-story-cam').classList.contains('on') }; });
+      if (!J.ready) { await p.waitForTimeout(500); continue; }
+      if (!seen.has('job')) {
+        seen.add('job'); await frames(3); await mark(s, 'job-raise');
+        if (!J.btn) { errors.push('frame 1: the office has asked for the picture, and there is no button to raise the camera'); console.log(errors[errors.length - 1]); }
+        await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + Math.PI; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.3; }, J.at);
+        await frames(3); await p.evaluate(() => window.__game.story.raise(true)); await frames(30);
+        const away = await p.evaluate(() => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder }));
+        console.log('frame 1: the camera raised away from her corner:', JSON.stringify(away));
+        if (away.phase !== 'go' || !away.finder) { errors.push(`frame 1: raised away from her corner, ${JSON.stringify(away)} (the world still running, the lens's view)`); console.log(errors[errors.length - 1]); }
+        await face(J.at);
+        for (let k = 0; k < 200 && await p.evaluate(() => window.__game.story.state.phase === 'go'); k++) await frames(2);
+        const st0 = await p.evaluate(() => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder, cut: document.getElementById('gd').classList.contains('cut') }));
+        console.log('frame 1: her corner held in the finder:', JSON.stringify(st0));
+        if (st0.phase !== 'stop' || !st0.finder) { errors.push(`frame 1: her corner held in the finder, ${JSON.stringify(st0)} (the world stopped, seen in the lens)`); console.log(errors[errors.length - 1]); }
+        await snap('1-stop-in-the-finder');
+      }
+      continue;
+    }
     if (s.phase === 'go' && s.beat === 'meet') {
       // while the dog leads, he alone shows the way: no light standing in the street, no gold line, and no mark while he is in the frame
       if (!seen.has(`led-${s.fi}`)) { await frames(4); const g = await p.evaluate(() => { const G = window.__game, st = G.story.state, d = st.dog; return d && d.ready ? { guided: !!st.guided, light: st.lightK || '', gold: G.guide().n, mark: document.getElementById('g-story-mark').classList.contains('on'), kind: document.getElementById('g-story-mark').dataset.kind } : null; });
@@ -612,6 +635,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
       if (+process.env.SPEND === s.fi + 1 && !spent) { // from the wrong place, the release twice: the frame is spent, and the story goes on without it
         spent = true;
+        if (T.stand && !T.find) { await goTo(T.stand, 0.6); await frames(3); } // (where a light stands from the start the camera comes up only in it: raised there, and turned away)
         await p.evaluate(() => { const g = window.__game; g.story.raise(true); g.player.h += Math.PI; if (g.cam) g.cam.yaw = g.player.h; });
         await frames(3); await p.evaluate(() => window.__game.story.shoot()); await frames(2); await snap(`${s.fi + 1}-spend-warned`);
         await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false);
@@ -626,17 +650,19 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // the finder from anywhere while the goal said to step into the light, and the light meant nothing
       if (T.stand && T.subject && !seen.has(`teach-${s.fi}`) && await p.evaluate(() => !!window.__game.story.state.teach)) {
         seen.add(`teach-${s.fi}`);
-        const card = () => p.evaluate(() => { const g = window.__game, st = g.story.state, e = document.getElementById('g-story-teach'), L = [...e.querySelectorAll('li')]; return { on: e.classList.contains('on'), now: L.findIndex(l => l.classList.contains('now')), done: L.map(l => (l.classList.contains('done') ? 1 : 0)).join(''), formed: st.relic ? +st.relic.k.toFixed(2) : -1, off: 'off' in document.getElementById('g-story-finder').dataset, here: g.lights().here, ready: !!st.ready }; });
+        const card = () => p.evaluate(() => { const g = window.__game, st = g.story.state, e = document.getElementById('g-story-teach'), L = [...e.querySelectorAll('li')]; return { on: e.classList.contains('on'), now: L.findIndex(l => l.classList.contains('now')), done: L.map(l => (l.classList.contains('done') ? 1 : 0)).join(''), formed: st.relic ? +st.relic.k.toFixed(2) : -1, off: 'off' in document.getElementById('g-story-finder').dataset, here: g.lights().here, ready: !!st.ready, cam: !!st.cam, btn: document.getElementById('g-story-cam').classList.contains('on') }; });
         const side = await p.evaluate(([st, sub]) => { const g = window.__game, pl = g.player, dx = sub[0] - st[0], dy = sub[1] - st[1], l = Math.hypot(dx, dy) || 1, r = (g.story.state.fr.task.within_m || 4) * 2 + 1; pl.x = st[0] + dy / l * r; pl.y = st[1] - dx / l * r; return r; }, [T.stand, T.subject]);
         await face(T.subject); await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1200);
         const off = await card(); await snap(`${s.fi + 1}-teach-off-the-light`);
         console.log(`frame ${s.fi + 1} taught, raised ${side} m off the light:`, JSON.stringify(off));
-        if (!off.on || off.now !== 0 || off.done !== '0100' || off.formed !== 0 || !off.off || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the card on its first step with the raise ticked, nothing of 1964 formed, the year saying not from here, no light underfoot)`); console.log(errors[errors.length - 1]); }
+        // (the camera comes up only in the light: off it the raise is refused, the card stays on its first step, and the button
+        // is not offered. It was offered at once, where the talk's words had been, and the talk's last tap raised it)
+        if (!off.on || off.now !== 0 || off.done !== '0000' || off.cam || off.btn || off.formed !== 0 || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the camera still down and no button for it, the card on its first step, nothing of 1964 formed, no light underfoot)`); console.log(errors[errors.length - 1]); }
         await p.evaluate(() => window.__game.story.raise(false)); await frames(4);
         await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
         const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
-        if (inL.now !== 1 || inL.done !== '1000' || !inL.here) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do, the ground lit)`); console.log(errors[errors.length - 1]); }
+        if (inL.now !== 1 || inL.done !== '1000' || !inL.here || !inL.btn) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do and its button up, the ground lit)`); console.log(errors[errors.length - 1]); }
         await p.evaluate(() => window.__game.story.raise(true)); await frames(24); await p.waitForTimeout(1500);
         const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));

@@ -9,7 +9,7 @@ const [city = 'shibuya', at = '3.5', out = 'load.heapsnapshot'] = process.argv.s
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
   const p = await ctx.newPage(), cdp = await ctx.newCDPSession(p);
   const t0 = Date.now();
   p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.QUERY || '?walk=1'}#play-${city}`).catch(() => {});

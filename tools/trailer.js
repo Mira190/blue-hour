@@ -44,8 +44,8 @@ async function open() {
   await p.addInitScript({ path: path.join(__dirname, 'film', 'clock.js') });
   await p.addInitScript(q => {
     try {
-      localStorage.setItem('oe3d-quality', q); localStorage.setItem('oe3d-fps', '0'); localStorage.setItem('oe-route-line', 'off');
-      localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-overture', JSON.stringify({ shibuya: 1 }));
+      localStorage.setItem('bh-quality', q); localStorage.setItem('bh-fps', '0'); localStorage.setItem('bh-route-line', 'off');
+      localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-overture', JSON.stringify({ shibuya: 1 }));
     } catch (e) { /* storage blocked */ }
   }, opt('tier', 'high'));
   await p.goto(`http://localhost:${PORT}/?walk=1&gov=1/1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });

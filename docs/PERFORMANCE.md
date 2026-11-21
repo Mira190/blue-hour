@@ -514,7 +514,7 @@ own beside it. Both are replaced by one governor (`web/quality.js` `OEQuality.go
 
 - It runs on the title's orbit as well as in play (the telemetry's slowest frames were Shibuya's title screen,
   where nothing held them), reports each step to the telemetry (scale, what was shed, MSAA, the cap) and keeps
-  the scale the device held on each map (`localStorage` `oe3d-gov-<city>`), so the next visit starts there
+  the scale the device held on each map (`localStorage` `bh-gov-<city>`), so the next visit starts there
   and climbs again if it can.
 
 `tools/governor_probe.js` feeds it frames on a clock of its own (fast: it stays; 40 ms: 1.00 to 0.80, extras
@@ -828,7 +828,7 @@ shadow pass), the sea's reflection (every frame while the camera moves, every se
 and the crowd (whole, whole, three in four). A device with no record of its own starts at 0.8 of the scene's
 resolution with half the extras, and tries a step up every second and a half until one does not fit; a fast device
 is at its ceiling in about thirteen seconds (`governor.simulate`). The record kept per map is now the scale and the
-extras (`oe3d-gov-<city>`: `0.85/0.5`), and a device that has one starts there. Under automation the governor stands
+extras (`bh-gov-<city>`: `0.85/0.5`), and a device that has one starts there. Under automation the governor stands
 still, as before, so checks and stills start at the ceiling. `tools/game_check.js` sees the shadow map, the
 reflection and the crowd move with the extras and come back.
 
@@ -1701,7 +1701,7 @@ last chosen.
 **A second chance instead of a crash loop** (`quality.js` `died`, `telemetry.js`). A phone gives no reading of
 the memory it has left. The one signal is that the system killed the tab, and the next page load finds it: the
 note a visible page leaves every five seconds is still there. That load now counts the death against the map
-(`oe3d-died-<map>`, kept fourteen days), and on the low tier each one makes the next load of that map lighter;
+(`bh-died-<map>`, kept fourteen days), and on the low tier each one makes the next load of that map lighter;
 the loader says "a lighter set: the last visit ran out of memory here". This is the closed loop of issue 358's
 Layer A applied to memory: measure, then grant.
 
@@ -2138,6 +2138,46 @@ Faces that move cost memory and vertex work, so they are given only where a face
 - **Measured** (`tools/mem_check.js`, an iPhone on the low tier, November 2026, at `tools/check.sh`'s spot by the river):
   main without the faces 269 MB of GPU at its peak; with every face drawn moving at once 271, with the player's face always
   moving 270 (over the 270 budget); as above, the same as without.
+
+### Frame 5's place: what is held there, and what of it is seen (issue 105)
+
+Main on 21 November held 268 MB settled and 270 MB at its peak at frame 5's place on a phone (`AT=521.9,-1074.1
+tools/mem_check.js shibuya`, rain at ten at night), against a 270 MB budget: any change that added a megabyte there
+failed `mem` on noise. Measured first: `mem_check.js` now prints, at `AT`, what each hero level loaded there holds
+(textures and geometry), and with `OWN=n` the n largest textures with the meshes that hold them or the script line that
+made them (a render target, a pass, a uniform). What was held at frame 5, largest first:
+
+| Held | MB | Seen there? |
+|---|---|---|
+| The scene's target and the lens's two half-float ping targets (760 x 1644 each) | 3 x 9.5 | the scene's: always. The two pings: drawn into only while a camera effect is on (a conversation, the camera raised, the arrival's crane), and kept from the first arrival to the end of play |
+| The Scramble level, 70 m off its edge | 12.2 textures, 12.7 geometry | 25 of its 56 squares from the stand and the ground round it, more from where the helicopter sets you down |
+| The two PMREM targets (the light from the sky, and three.js's ping-pong for baking it) | 2 x 6.0 | both while the sky is baked again, which the measure's own change of hour does |
+| The inland channels' hole mask, the far land's two pictures, the night map, the roofs' photo | 6.0, 5.3 + 5.0, 4.8, 4.8 | map-wide, sampled by whatever ground, sky or roof is drawn |
+| The player's face, body and hair (1024 each) | 3 x 5.3 | yes, up close |
+
+The Scramble level was the issue's first suspect, but from frame 5's ground much of it can be seen: down Miyamasu-zaka
+under the Ginza line's deck and up Meiji-dori, 2,000 to 30,000 of the 393,216 pixels of a cube round the eye.
+`tools/hero_unseen.js scramble` asks the GPU: from a grid of eyes at four heights, the level's meshes each in a colour of
+its own against the depth of everything else the page draws, the crowd and the trees left out. From the stand alone 31
+of its squares are hidden: 4.2 MB of geometry and none of its pictures, since every material it has is also on a square
+that is seen. The visibility sweep (`visibility.js`) cannot say even that much: the station's landmarks hide nothing in
+its raster, so it counts 455 of the level's 486 meshes as seen from the stand.
+
+The biggest holder no draw read was the two ping targets, 19 MB. A first cut here let them go when idle and gave the
+depth of field one target; issue 130's cut, which landed first, does both and more (the blur reads the scene itself, one
+pass; "The depth of field in one pass" below), and is what main has. On top of it, the measure now plays frame 5's own
+worst moment: at `AT`, a conversation's depth of field for six seconds (`FX=0` leaves it out), then the rain at ten while
+its target is still held, so a change that adds to the one target or to what a talk there holds is seen.
+
+| Phone, frame 5's place (`mem_check.js`, `AT=521.9,-1074.1`) | Main before (21 Nov, f11cc12) | Main with issue 130 |
+|---|---|---|
+| The load and the first play | 252 MB | 237 MB |
+| Settled at frame 5's place | 268 MB | 247 MB |
+| A conversation's depth of field there | 268 MB (the pings already held) | 257 MB |
+| The peak | 270 MB, in the rain | 259 MB, the rain with the conversation's target still held |
+
+Not done, by what it would save: the Scramble's squares hidden from the stand parked off the GPU there (4.2 MB, at the
+stand only); the sky's PMREM ping-pong let go between bakes (6 MB settled, nothing at a bake, which needs both).
 
 ## A desktop's map round the player (issue 20)
 

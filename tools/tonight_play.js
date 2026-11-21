@@ -29,7 +29,7 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed'));
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-player', 'W'); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-player', 'W'); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const t0 = Date.now(), el = () => `${Math.round((Date.now() - t0) / 1000)}s`;
   await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   // (set out: the walk's corner up; a minute's word on where the page is meanwhile)

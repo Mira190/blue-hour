@@ -18,7 +18,7 @@ takes over without a cut.
 | Engine | `web/game/overture.js` (the shots, the guide, the air, the type, the score's playback), started by `web/game/game.js` from Play |
 | Score | `web/film-score.js` (shared with the city films): the plan in `overture.score` |
 | Tool | `tools/overture_film.js <city>`: `--stills` (each shot, and a clearance check), or the whole film with its score |
-| Plays | the first time on that map in this browser (`oe3d-overture` in `localStorage`), and with `?overture=1`. Not on Continue, an arrival from the subway map, or with reduced motion (the plain crane plays). Any key or tap eases down to the player in under a second |
+| Plays | the first time on that map in this browser (`bh-overture` in `localStorage`), and with `?overture=1`. Not on Continue, an arrival from the subway map, or with reduced motion (the plain crane plays). Any key or tap eases down to the player in under a second |
 
 ## Why it can move people: what the Shinkai films do, from first principles
 
