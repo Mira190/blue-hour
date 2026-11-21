@@ -1,0 +1,22 @@
+{
+ "tokyo_tower": {
+  "height": 333.0,
+  "width": 96.0,
+  "px": [
+   592,
+   2048
+  ],
+  "picture": "far/tokyo_tower.webp",
+  "night": "far/tokyo_tower_night.webp"
+ },
+ "skytree": {
+  "height": 634.0,
+  "width": 80.0,
+  "px": [
+   256,
+   2048
+  ],
+  "picture": "far/skytree.webp",
+  "night": "far/skytree_night.webp"
+ }
+}
