@@ -1324,8 +1324,9 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   walks in to where they would stand at one of three corners of the crossing (`event_spots`), from a dozen metres off
   along a clear way on foot (off the road, nothing in the way), out of your sight and 30 to 110 m from you; their mark
   is paper with amber dots, between the story's amber and a word's pale one, and when you first come within eighteen
-  metres they call out (*Excuse me, dear?*). Done, or given up on, they walk off together the way they can, and are put
-  away once nobody sees them. A photograph's favour takes the corner's line while it lasts (*Photograph Mrs
+  metres they call out (*Excuse me, dear?*). Done, or given up on, they walk off together along the first clear way, 26
+  m off or else 14, in your sight (only a walk in has to start where you cannot see: a walk off that waited for a way
+  out of sight kept the thanked standing in front of you), and are put away once nobody sees them. A photograph's favour takes the corner's line while it lasts (*Photograph Mrs
   Endo*, then *Show Mrs Endo the picture*) and gives it back to the story after; the way is asked with two answers to
   choose, and the right one is thanked, the other shrugged at. One at a time, never during a talk, and nothing kept:
   left for two and a half minutes or walked away from, they go, unseen.
