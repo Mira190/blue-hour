@@ -1239,7 +1239,11 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       get soft() { return st.soft > 0.02 ? st.soft : 0; },
       // the camera's own view: while it is raised; and through the last frame's ending (the two of them meeting, and the
       // words after), which is watched from where the picture was taken, not from a camera behind you that has a wall in it
-      get subject() { return st.phase === 'stop' && st.beat === 'shoot' && st.cam && st.fr ? subjectOf(st.fr.task) : null; }, // what the frame is of, where the raised camera comes up onto
+      get subject() { // what the frame is of, where the raised camera comes up onto: the middle of the thing and all that stands with it, at its point's height (not one too big for the print: the dome in its tower, the river)
+        if (!(st.phase === 'stop' && st.beat === 'shoot' && st.cam && st.fr)) return null;
+        const T = st.fr.task, S = subjectOf(T), m = S && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null;
+        return m ? [m[0], m[1], S[2]] : S;
+      },
       // (where the lens is eased onto while it is up: the middle of the crossing as the last frame's two walk to it, so that
       // the lens closing on them does not close on the road beside them)
       get steer() { return st.phase === 'stop' && st.meet === 'walk' && st.cam && st.mid ? st.mid : null; },
