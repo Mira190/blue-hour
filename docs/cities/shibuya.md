@@ -297,7 +297,7 @@ them, and are dark after that.
 | Shibuhachi Hit Vision | SW, roof of the Oto building, south of it | 24.32 × 17.28 m | HIT |
 | Starts Vision SHIBUYA (formerly Glico Vision) | NE, top of the Sanzenri building beside MAGNET | 6.356 × 3.456 m | Shibuya Television |
 | 109 Forum Vision, and its banner screen | NE, MAGNET by SHIBUYA109 | 8.64 × 4.8 m | media sheet |
-| Shibuya Scramble Square Vision | SE, lower floors of the east tower, behind its glass | 552.6 m² in a 25.24 × 40.05 m box; 13.79 × 20.24 m on the east face | Tokyu OOH; Panasonic |
+| Shibuya Scramble Square Vision | SE, lower floors of the east tower, behind its glass | 552.6 m² in a box 40.05 m wide and 25.24 m high, its foot at 4F (issue 66); 13.79 × 20.24 m on the east face | Tokyu OOH; Panasonic |
 | Shibuya Nishiguchi Sky Vision (May 2026) | W, roof of the Shibuya Mitsubishi building | 15.2 × 11.4 m | Shibuya Television |
 | Synchro7 | E, seven faces on three buildings at Miyamasuzaka-shita | not published: estimated | HIT |
 

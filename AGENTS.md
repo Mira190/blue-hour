@@ -276,12 +276,13 @@ thirty is drawn). So:
   Both scripts also write the parts the pages load before playable and after (`cars_far.glb`,
   `trees_far.glb`, `trees_near.glb`: `python pipeline/meshopt.py split <model.glb>`);
   `tools/check.sh` fails on a stale part.
-- After a step that writes `buildings.json`, three passes keep what the map's raw data lacks:
+- After a step that writes `buildings.json`, four passes keep what the map's raw data lacks:
   `python pipeline/stations.py --city shibuya` (Japan's stations in panel and glass, and piers under a
   building that stands off the ground), `python pipeline/lobby.py --city shibuya` (a lift's street
-  door set inside its building: `game.lobbies` in `cities/shibuya/city.json`) and, last,
-  `python pipeline/roofkit.py --city shibuya` (the stair huts, condenser rows and the fire service's R and H
-  on the flat roofs, docs/BUILDINGS.md). All three change nothing when run again.
+  door set inside its building: `game.lobbies` in `cities/shibuya/city.json`),
+  `python cities/shibuya/scrsq_base.py` (Scramble Square's base as measured: its skirts and its overhang, docs/HERO.md)
+  and, last, `python pipeline/roofkit.py --city shibuya` (the stair huts, condenser rows and the fire service's R and H
+  on the flat roofs, docs/BUILDINGS.md). All four change nothing when run again.
 - What hangs in the air of a stopped world (`web/assets/stop/stop.glb`: a ginkgo leaf, a zelkova leaf, a
   handbill, and a pigeon in five parts) is built by `blender -b -P blender/build_stop.py`;
   `web/game/stopfx.js` places it. What only the story's camera sees (`web/assets/past/past.glb`: the things

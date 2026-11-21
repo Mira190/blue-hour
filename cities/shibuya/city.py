@@ -2270,10 +2270,14 @@ CROSSING_SCREENS = [
     {"name": "109 Forum Vision banner", "building": "MAGNET SHIBUYA", "edge": [[388.0, -979.0], [395.0, -988.0]], "w": 8.64, "h": 1.5, "z": 11.7,
      "clips": ["fashion", "beauty", "shoe", "live"], "phase": 5.5, "pitch": 0.01},
     # SE, over the tracks: Shibuya Scramble Square's vision, LEDs behind the glass of the east tower's lower
-    # floors: on the face towards the crossing, an irregular screen of 552.6 m2 in a 25.24 x 40.05 m box
-    # (its outline here is stepped, an estimate), and a 13.79 x 20.24 m one on the east face; 16 mm pitch
-    {"name": "Shibuya Scramble Square Vision", "building": "渋谷スクランブルスクエア", "w": 25.24, "h": 40.05, "z": 8.0, "along": 6.0,
-     "parts": [[0.0, 1.0, 0.0, 0.3], [0.3, 0.775, 0.3, 0.65], [0.55, 0.785, 0.65, 1.0]],
+    # floors: on the north face, towards the crossing, an irregular screen of 552.6 m2 in a box 40.05 m wide and
+    # 25.24 m high (Tokyu OOH), its foot at 4F behind the Ginza line's roof, its outline the windows' between the
+    # north-east tent and the north-west skirt, stepping with the storeys (cities/shibuya/scrsq_base.py
+    # screen_parts, issue 66), and a 13.79 x 20.24 m one on the east face; 16 mm pitch
+    {"name": "Shibuya Scramble Square Vision", "building": "渋谷スクランブルスクエア", "edge": [[477.9, -1103.0], [533.2, -1081.4]],
+     "w": 40.05, "h": 25.24, "z": 19.3, "along": -2.42,
+     "parts": [[0.1828, 0.7974, 0.0, 0.2258], [0.0679, 0.8517, 0.2258, 0.4239], [0.0114, 0.9162, 0.4239, 0.622], [0.0094, 0.9557, 0.622, 0.8201],
+               [0.0087, 0.9908, 0.8201, 1.0]],
      "clips": ["movie", "info", "music", "phone", "live"], "phase": 20.0, "pitch": 0.016, "sync": False, "off": 0.3, "frame": 0.0},
     {"name": "Shibuya Scramble Square Vision east", "building": "渋谷スクランブルスクエア", "toward": [900.0, -1200.0], "w": 13.79, "h": 20.24, "z": 10.0,
      "clips": ["fashion", "soda", "game"], "phase": 5.0, "pitch": 0.016, "sync": False, "off": 0.3, "frame": 0.0},
