@@ -126,6 +126,18 @@ junction, and its first part is what fills most of the frame from eye level: the
   photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks
   with their bars and domes in relief (JIS T 9251's pattern, `tactile_texture`), laid as Japan lays them
   (`scramble.tactile_layout`, below); a cast-iron grate round each mapped tree.
+- **The stone blossoms in Hachiko Square** (`cities/shibuya/city.py` `blossom`, the landmark's): four five-petalled
+  cherry blossoms of pale stone set flush in the red-brown blocks, each outlined by a band of dark grey stone, as a
+  photograph of 23 March 2025 shows them in the foreground (Wikimedia Commons, *Demolition of Tokyu Toyoko (Hachiko
+  square) 2025-03-23*, Asanagi, CC0 1.0: at least three near the seats and the tactile line, about 1.2 to 1.6 m
+  across, the joints between their petals faint). Until November 2026 each was one flat fan of one pale tone 1.7 m
+  across, the brightest thing in frame 2's photograph, and read as a sticker on the ground (issue 101). Now each is
+  1.5 m across and is cut stone: five petals, each a piece, a mortar joint of 12 mm between one and the next, a small
+  dark stone at the heart and a 50 mm band of dark grey granite (`hk_rim`) round the outline; the petals'
+  stone is a tone darker (`hk_inlay` `#a59e92`), so that on the low tier, which draws no grain and adds the screens'
+  pooled light to the albedo, it stays stone beside the blocks. They are flush, as the real ones are: an inlay shows no
+  thickness, and what says stone is the joints and the band. Not known: the stone, and whether the inlays survived
+  the square's repaving of summer 2025 (the blocks were reported changed by 27 August; nothing was said of them).
 - **On the kerbs**: white guard pipes between the crosswalks, and steel lamp posts whose light is baked.
 - **The fronts** (`Level.fronts`, `front`): each wall a player can see from the junction's roads and pavements
   (eye points on a 7 m grid within 70 m, no building between), of the buildings the landmarks do not draw whole
@@ -446,6 +458,19 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
   its reach (`folkNear`, `folkAcross`: a body 0.28 m round and 1.75 m tall across the line from the lens to the head),
   up to `CROWD_LIFT` (0.3 rad, about the old view); past that the view waits a moment for them to pass rather than
   climb again, and it is never pulled in for them. Never over a wall for them either.
+- Hemmed in (issue 99). Where a wall behind is higher than any lift clears (the deck's flank 9 m over the foot of
+  SHIBUYA SKY's escalators, a tower's face on the street), or only the highest lift clears it, the rig took the highest lift, because the steeper line gets
+  a little further before it meets the wall, and then came in along it: a metre over your head looking straight down,
+  the frame your hair and one flat floor. A passage narrower than the camera stands back is looked along instead: the
+  view turns to the nearest side that is open at shoulder height (`cam.yawTo`, towards behind where you face first), at
+  once where the view was just put there, after a third of a second where you walked into it. A hand on the view is
+  not fought: not for a second after, and not while you stand where you, or the story, turned it to (`cam.hand`). Where no side
+  within 1.8 rad is open, it is as it was. `tools/lift_top_shot.js` stands at SKY's 46F stop and prints the rig's own
+  account (`TABLE=1`: how far the probe gets by bearing and lift), turns the view into the flank, walks to the
+  escalator and holds time for five stills; `tools/story_play.js` fails a still there taken from over the head.
+  What it does not mend: at the start of frame 5 you stand 0.9 m from the roof's east glass (2.4 m tall) and the
+  story turns the view to the pad, away from the glass: that turn is kept, and the view still stands over you until
+  you walk off; the collision world does not tell glass from wall, so the camera cannot look in through it.
 - Measured (`tools/frame_cost.js` `POSE=7.5/0.36,5.5/0.17,...`, both poses in one sitting at the start, 17:38 in the
   rain): on a phone's tier at 390x844 the new pose draws 411 to 412 calls and 1.14 M triangles against the old pose's
   420 and 1.16 M, in the same time within the software renderer's noise; on the desktop tier 1451 and 1465 ms in two
@@ -453,19 +478,39 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
 - Stills: `tools/foot_cam.js` walks each frame's way at its hour and takes the same moment with the camera as it is
   and as it was, on a desktop and a phone. Frame 3's walk from Center Gai had climbed to 8 m over a wall at the old
   pose; at the new one someone crossed the line to the head for 0.6 s of a 4 s walk, and the lift went to 0.15.
-- Someone at the lens (issue 82). At a shoulder, someone of the crowd walking a pace or two in front of the lens and
-  to its side filled a corner of a phone's upright frame: not across the line to the head, so no lift, and not inside
-  the lens, so `lensClear` left them. As third-person games do with what comes close to the camera (screen-door
-  transparency: an ordered dither, as Unreal's dithered opacity masks and Unity's dither fades do it; the technique
-  only, no code), every person, whole or a far copy, and what they carry, is dissolved as they near the lens in a
-  fixed 4x4 Bayer pattern: whole at 3.2 m from the lens to their middle, gone at 2 m (`people.js` `setNear`; the
-  distance is the person's, worked out in the vertex shader from where they stand, so the whole of them goes at once,
-  not the head first; with the eye 2.5 m up, someone nearer than 2 m is mostly under a phone's frame, and from 2 to
-  3 m their head and shoulders fill a corner of it). `game.js` `updateCamera` sets the band for the chase view on foot only, its far edge 1.2 m
-  short of the one you play (a lens pulled in by a wall never dissolves you); a talk's, a film's, a scripted shot's
-  and the finder's framing is composed with whoever is in it, and there it is off. The pattern is fixed in the frame,
-  so held still nothing flickers. `tools/lens_near.js` puts one of the crowd at points of the frame near the lens
-  and takes it with the dissolve off, on, and five seconds of held time later.
+- Someone at the lens (issues 82 and 129). At a shoulder, someone of the crowd walking a pace or two in front of the
+  lens and to its side filled a corner of a phone's upright frame: not across the line to the head, so no lift, and
+  not inside the lens, so `lensClear` left them. Issue 82 dissolved them, as third-person games do with what comes
+  close to the camera (screen-door transparency in a fixed 4x4 ordered dither over a band of distance, whole at 3.2 m
+  and gone at 2 m). The owner's still of 21 November (17:41 in the rain, at Center Gai's mouth) showed what that is in
+  a held crowd: the three people nearest the lens stood in the band, so they stayed in it, drawn as a screen of dots
+  at a desktop's size, the paving and the people behind seen through their bodies and through a clear umbrella's
+  canopy, itself see-through. From first principles a camera in a crowd does not see through the people beside it:
+  a person is in the picture, whole, or out of it. So (issue 129):
+  - **No fade in any material.** The dither is gone from every person's shader and from what they carry. Nothing
+    of the story's people, the named cast, the guide or the one you play can be see-through.
+  - **A near plane that takes whole people.** In the chase view on foot (not a talk's shot, a film, a scripted shot
+    or the finder, which are composed with whoever is in them), each of the crowd is out of the picture once their
+    middle is within 2 m of the lens, and back, whole, once it is 2.3 m away (`game.js` `lensClear`, `LENS_NEAR`):
+    body, umbrella and shadow together, in one frame; the 0.3 m between keeps someone at the edge from blinking as
+    the camera eases. With the eye 2.5 m up, 2 m is 1.3 m from under the lens, where a person is mostly under a
+    phone's frame. The far edge stays 1.2 m short of the one you play, so a lens pulled in by a wall takes out nobody
+    standing by you. It is a cut, not a dissolve: there is no state between to be held, and no pattern to be read at
+    any resolution.
+  - **So that it is rare**, the crowd gives the lens that room (docs/GAME.md, "Out of the lens's way").
+  - **The crowd's renderer takes them out for good that frame** (`people.js` `hide`): a far figure hidden after the
+    frame's places had gone to the GPU was drawn all the same while the figure whose slot it took was not, and its
+    umbrella stayed in the air; what a late hide changes is now sent again, and the umbrella goes with its holder.
+  - **The clear umbrella is a material of its own** (`people.js` `vinylMaterial`): a thin film, nearly nothing looked
+    through square on and a sheen where it curves away from the eye, the light it carries kept whole; the eight white
+    ribs along its panels' seams and its hem; in the rain, drops beaded on it that go as one wetness where a pixel
+    spans several. It is blended over the person under it, who is drawn first and whole, and nothing else of a person
+    is see-through, so two transparencies never lie over each other.
+  - `tools/lens_crowd.js` stands you in the rain among a kerb's crowd at Center Gai's mouth (17:41) and at the kerb of
+    the story's seventh frame (17:53), puts three of those waiting at 2.2, 2.6 and 3.1 m from the lens, plays five
+    seconds and takes a still each half second; it fails when someone inside the near space is drawn or someone
+    beyond it, in the frame, is not. Not checkable on a session's machine: a real GPU's antialiasing and a phone's
+    screen (there is no longer a pattern for either to resolve, but the cut itself was only seen in software WebGL).
 
 ## Miyamasu (Shibuya): frame 5's place (issue 33)
 
@@ -545,9 +590,102 @@ move), Tokyo Metro news 2019-10-28 (the M-shaped arch frame), ja.wikipedia 宮�
 panels (上流から宮益橋を見る, 1959, all rights reserved: looked at, not used), Tokyo Metropolitan University's paper on
 the river's improvement works (akira.fpark.tmu.ac.jp, 263.pdf).
 
+(Issue 124 dressed the tower's foot and the ground under the deck: the next section.)
+
 Where it still falls short: the bus terminal's islands, shelters and signs are not modelled (the game's ground has no islands there);
 the piers stand on the city's grid at 18 m, placed by rule, not where the real deck's three stand; and it has been seen on a
 software renderer only.
+
+### The east side under the deck: frames 5 and 6 (issue 124)
+
+The launch review found this the barest place in the episode: behind Tatsuo "a long white hoarding in flat panels" and one
+grey paving, the deck's underside a flat grey with strip lights, and in frame 6's wide view a pale floor washed out by the
+lights, two bare columns. It is where the case turns, and where a player stands longest in the second half.
+
+**What the white wall was.** Not a hoarding: the tower's own street floor, which the city draws as its generic white
+panels under a dark band, 9 m behind Tatsuo. Scramble Square's curtain wall (`hero_scramblesq.py`) starts over it and SKY's
+hall (`hero_skylobby.py`) stands at its east end with the forecourt's planks and the faceted ceiling, which stopped 1.5 m
+past Tatsuo.
+
+**The place, from the research** (November 2026). One photograph of 2024 shows the ground under the deck as it is while
+the east plaza is rebuilt (渋谷駅東口バスターミナル, 3 December 2024, ウィ貴公子, Commons, CC BY-SA 4.0): a round board-marked
+concrete pier flaring upward, the deck's fascia in tall pale panels, its soffit in smooth silver planks with a few small
+recessed fittings, dark asphalt, white flat-panel hoardings 2 to 3 m high with green and white striped end panels and a
+folding mesh gate, white tube guard pipes on precast bases, striped cones. From Hikarie's ninth floor (渋谷ヒカリエから見た
+渋谷駅東口, 23 September 2025, Misei sen, CC BY 4.0) and from above the terminal (Bus station in Shibuya 2, 19 November
+2023, Syced, CC0): the works' compounds in white hoarding with boards on them, bus shelters with flat roofs on green and
+white posts, yellow tactile lines, guard pipes on the islands. The tower's street floor in 2019 (Shibuya Scramble Square
+Level 1 Entrance, Wpcpey, CC BY 4.0): glass from the floor to a dark fascia between slim piers onto lit shops, the
+building's name in lit letters over the doors, a wayfinding wall of lit maps, the striped planks with lines of light in
+their joints. The operator's rules for the Urban Core (April 2025) give its ceiling as about 3,000 mm and say the east
+exit's bus rotary is "under construction". Phase II of the station's rebuilding (the central and west buildings) began in
+May 2025 and is to be complete in fiscal 2031 (Tokyu, JR East and Tokyo Metro, 9 May 2025). The river under the east exit
+was moved east and made a sewer trunk in August 2015; a 4,000 t rain tank lies 25 m under the plaza (Tokyu's
+redevelopment pages). No marker of the river at street level was found, and no published clearance of the deck.
+
+**What was built** (`cities/shibuya/hero_miyamasu.py`; `python blender/build_hero.py --city shibuya --level miyamasu`):
+
+- **The tower's street floor** (`shopfront`), 44 m of its north face from SKY's hall west to the works: twelve bays of
+  3.7 m, glass from a dark stone foot to a charcoal fascia 0.8 m deep at the forecourt ceiling's height (5.6 m over the
+  tower's base), slim piers in pale panel between the bays, a mullion at each third and a transom at 2.5 m, a pair of
+  doors in every third bay, the lit shops behind (the level's own shop pictures, the warm ones) and SHIBUYA SCRAMBLE
+  SQUARE in lit letters on the fascia over the middle doors (the building's name in an open face, not its logotype). Its
+  frame stands 7 cm in front of the record's line: the rings are in decimetres, and glass 3 cm off the line lay behind
+  the city's wall.
+- **The forecourt's planks carried on west** (`forecourt`), 22 m more of them in the hall's own frame so that each stripe
+  runs through: honed stone 0.3 m wide and 1.2 to 3 m long in the hall's three close greys (128, 150 and 168), a line of
+  blue-white light in one joint in seven. The blocks are cut out under every plank, here and before the hall: a plank is
+  flat from end to end and the blocks follow the ground every 2 m, so where the ground swells they stood through.
+- **The works' hoarding** (`hoarding`) along the station's works west of the forecourt, 35 m in three runs 0.9 m off the
+  city's walls: flat steel panels 0.5 m wide and 3 m high with a joint between each (the rental catalogues' size: W500,
+  H2,000 or 3,000, t1.2), end posts banded green and white, and on its longest run the boards a site in Tokyo carries:
+  the notice of the building plan (建築計画のお知らせ, 0.9 m square, Tokyo's minimum), the works' board, the builder's
+  permit and the workers' insurance board (each no smaller than 25 by 35 cm), 安全第一 round the green cross, and no entry.
+  Their words are the works' own (渋谷駅街区 中央棟・西棟, begun May 2025, due fiscal 2031); no company is named. Five LED
+  battens on arms light it after dark, in the bake. It is solid: 129 points along it are `game.hero[].posts`.
+- **Under the deck**: three signs hung on rods from the girders, 2.67 m by 0.3 m, lit on both faces, their feet 4 m up
+  (the east exit and Meiji-dori in black on yellow as exits are signed, the Ginza line's platforms on 3F and the JR
+  lines' Miyamasuzaka gate in white on dark; words, no marks), set off the line frame 5 photographs; two conduits and a
+  cable tray along the deck under the girders' flanges; on each pier a brushed stainless wrap to 2.1 m and the deck's
+  rainwater pipe in three clamps.
+- **The ground** (`drains`): a cast-iron slot drain 0.25 m wide along the deck's drip line on its south side, 59 m of
+  it, and two access covers on the line the river ran (through frame 5's relic, 21 degrees west of north), 23 and 39 m
+  up it from where the print shows the water. Both are things a ground has because of the water under and over it.
+- **The light.** The linear lights' radiance for the bake went from 30 to 16 and the blocks from a pale grey (150) to a
+  mid grey (122), beside the planks' 128 to 168: under the evening's lamps the pale blocks were the "washed out" floor
+  of frame 6's wide view, five times as bright as the forecourt beside them. The baked light on the blocks within 15 m
+  of the standpoint is now 0.12 at the mean and 0.24 at the ninetieth centile (0.20 and 0.43 before).
+
+**On a phone.** Main was at the budget at frame 5 (issues 105 and 110), so what was added is paid for in the level
+itself: a front's windows keep their sills only within 60 m of the standpoint (`sills`: 4 cm of stone, under a pixel
+across the plaza, 20 vertices a window; hero.py's hook, the Scramble's level unchanged). The level went from 79,047
+vertices to 69,014 with everything above in it, and no texture was added: the signs' faces, the name and the boards are
+small cells laid where the atlas's shelves had left room (`place_free`), in the same 2048 by 1024. `tools/mem_check.js`
+`AT=521.9,-1074.1`: 267 MB settled at the frame, 270 at the peak in the rain, inside the budget as main was.
+
+Stills: frames 5 and 6 of `tools/story_play.js` (`FROM=4 UPTO=6`, 1440x900 and 390x844 on the low tier), before and
+after beside the photographs' description; free cameras in `tools/views/shibuya-east-124.json`.
+
+![Frames 5 and 6 before and after, on a desktop](images/shibuya/east-124-desktop.jpg)
+
+![Frames 5 and 6 before and after, on a phone](images/shibuya/east-124-phone.jpg)
+
+Sources (looked at and measured from, none reproduced, no texture taken from one): the four Commons photographs named
+above (CC BY-SA 4.0, CC BY 4.0, CC0, CC BY 4.0); Shibuya Scramble Square, Urban Core Space rules of use, April 2025
+(shibuya-scramble-square.com, the operator's copyright: facts only); Tokyu's release of 9 May 2025 (tokyu.co.jp/company/
+news/detail/56376.html) and its redevelopment pages (the river, the rain tank); HSK Rental's catalogue, p. 113 (flat
+panels and gates); Tokyo's rules for the notice of a building plan (toshiseibi.metro.tokyo.lg.jp); JIS T 9251 for the
+tactile blocks the level already had; Ota City's standard drawings of 2026 for guard pipes (posts 850 mm over the
+ground, rails at 250 mm) and MonotaRO's listings for cones (380 mm square, 700 mm high), neither built here.
+
+Where it still falls short: the bus terminal's islands, shelters and stops, the taxi bay and the guard pipes on them are
+not there, because the game's ground has no carriageway under the deck (the helicopter lands on that plaza); the piers
+are painted steel on granite, not the board-marked concrete flare of the photograph, and the soffit keeps its girders
+and linear lights where the photograph has smooth silver planks; the shops behind the glass are the level's generic
+pictures, not the food hall, and the lit map wall is not built; the 1F plan could not be fetched, so the bays' rhythm
+is from the photograph; no tactile line crosses the plaza (its real route is not known, and the one line that would
+serve crosses frame 5's print); the shadow the low sun throws across the forecourt at 17:39 has a stepped edge (the
+shadow map's, not this level's); and it has been seen on a software renderer only.
 
 ## The Ginza line's station (Shibuya): the box over Meiji-dori (issue 57)
 
@@ -643,23 +781,23 @@ wrong, and redone.
   `game.lobbies` `"outside": {"door", "at"}`): the lobby once cut into the tower is filled back (each solid keeps its
   index; the ground floor's two solids take their passages' feet again) and the stop put at the hall's doors and before
   its cars. scene.json's `shibuya_sky.door` moved with it, and Yuna stands by the pillar.
-- **The hall**: 6.2 m north to south, 4.2 m west to east, under the station deck (its ceiling 2.65 m up, under the
-  deck's underside). Its west front glass in stainless frames, fritted to a metre, with two doorways 1.2 m clear under a
-  transom whose sliding leaves stand open behind the lites outside them (a door that is always open is what a player
-  walking up to an automatic one sees); its north side glass onto the forecourt; its roof carried 1.6 m out over the
-  doors as a canopy with a line of round downlights (the photographs'); its south side dark metal against the tower.
-  All of it solid (`game.hero[].posts`), the doorways open.
-- **Inside**: SKY's own black and lines of light (SKY GATE's cars, the 45F LEADING LINE), since its finishes are in no
-  photograph. A floor of polished charcoal granite in 1.2 by 0.6 m slabs, each its own part of the stone; black
-  lacquered panels with an 8 mm reveal, a line of light at the south wall's foot; a matt black ceiling with four lines
-  of light running east from over the doors to the cars, baked onto the floor and walls, and their reflections in the
-  polished floor (`refl*`: light added over the stone, without depth, dimmed by day as a glow is). The environment map
-  is the sky's, which inside a hall is wrong, so its surfaces take little of it.
+- **The hall, open** (November 2026). It was built first as a box under its own roof: a glass west front in stainless
+  frames with two doorways, a glass north side, a roof carried out over the doors as a canopy with downlights, inside
+  SKY's black, a polished charcoal floor and lines of light in a black ceiling, all of it solid but the doorways. The
+  owner, from the street lift as it is, asked for no roof and none of the glass, and found the box an odd thing to walk
+  into (the chase camera came down inside it). Now: a floor 6.2 m by 4.2 m open to the sky and to the west and the
+  north, in honed granite slabs 1.2 by 0.6 m a step darker than the tiles before it (the polished charcoal, under the open
+  sky, read as a black hole in the street); a step down into it from the forecourt's planks along its north side, whose
+  floor stands 0.2 to 0.4 m higher, in the hall's stone with a stainless nosing; a stainless kick plate where the ground
+  falls away at its south-west corner; to the south the black lacquered wall against the tower, an 8 mm reveal between
+  its panels and a line of light at its foot, capped in stainless. Solid where it is wall and shaft (`game.hero[].posts`,
+  138 to 108).
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
-  to 14F; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts run east to the
-  cars (`game.hero[].belts`, solid).
+  to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
+  run east to the cars (`game.hero[].belts`, solid).
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
@@ -727,7 +865,7 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
 - **CLOUD HAMMOCK**: the landmark's three, at its places and its net's sag (the poses lie in it): a bed of short
   artificial lawn in a timber kerb, four dark steel posts and rails at 0.9 m, and the net as white ropes 12 cm apart.
 - **Benches**: 3 m of oiled timber slats on dark flat steel, 1 m in from the glass wherever its foot is clear of the
-  searchlights, the nets, the channels' ends and the steps (twelve).
+  searchlights, the nets, the channels' ends and the steps, and 6 m clear past each flight's head (ten).
 - **CROSSING LIGHT**: at each of the landmark's 18 points (the beams `lights.js` throws) a plinth, a turntable, a yoke
   and a finned drum tilted 20° out over the city, its lens lit after dark (`lamp*`).
 - **The escalators' heads**: a stainless landing plate and a yellow line before each.
@@ -736,6 +874,29 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
 landmark meshes it draws again (`sky_deck`, `sky_deck_light`, `sky_glass`, `sky_steel_dark`, `sky_compass_atlas`,
 `sky_steps_deck_light`, `sky_net`, `sky_lit_lamp`); the channels, the escalators and the stairs stay the landmark's,
 and so does the walking: the level is drawn 5 cm over the deck's solids.
+
+**What stands on it is solid** (November 2026). The landmark under the level has no benches, and its nets and
+searchlights are thinner than the level's, so the walking knew nothing of what the level adds: the owner's phone showed
+the walk's player standing in a bench to the knee at the glass, and a walker went through every bench and partly into
+the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level now says what it stands on the deck as
+boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
+layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
+nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
+thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
+railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
+gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
+pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the
+escalators' heads, where a walker stepping off was then stopped by one: the benches keep 6 m clear past each flight's
+head, the whole width of the channel (ten benches, not twelve).
+
+**The black cover over the west flight.** The owner's phone, climbing to the roof from 46F, showed the character under
+a black sheet at the deck's height. It was the joints' dark slab under the pavers: laid as rectangles over the free deck
+(`rects`, the deck cut into strips at its corners' u), and the corners' u were rounded to 0.1 mm. The west channel's notch
+began a hair past its rounded u, the strip beside it was an L of the deck and a hairline up the notch, and the L's bounds
+laid 44 m² of the near-black slab over the top of the west flight. `rects` now cuts at the corners' exact u and cuts a
+strip that is not one rectangle again at its own corners' v, so a rectangle is never more than the polygon: the slab
+covers the free deck exactly (3,122.87 m², nothing over a channel). `tools/what_covers.js` names what a ray from the
+camera meets through each point of a grid over a still, and found it.
 
 **The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
 the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
@@ -759,6 +920,42 @@ Where it still falls short: the furniture's sizes and places are read from photo
 measured; whether the heliport's paint is the H and circle drawn here, or the compass alone, could not be settled from
 the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
 there; and it has been seen on a software renderer only.
+
+### SKY STAGE at blue hour (issue 125)
+
+From the launch review: at 17:31 the roof was a near-black floor with no material to read, the glass a thin line, and
+from above (frame 5's walk to the helicopter) black with the dog's ring on it. What the photographs taken on the roof
+at dusk show, and what was changed to it:
+
+- **The floor is dark, and gives back the sky.** In every photograph the deck is near black, far darker than the sky or
+  the city, and reads by the sky's sheen at a low angle, in which its courses show. The pavers were matt (roughness
+  0.62, half of the sky mirrored): now honed (0.44, 0.85), the steps with them. Nothing lights the deck from above: the
+  roof is lit low, and it is the lines of light that draw it.
+- **The lines of light are the brightest thing on the roof**: warm white under every step's nosing and along the glass's
+  foot, each with its light on the stone beside it. They were there, their light on the deck too faint to see on a
+  stone this dark: the level's baked light is eight times what it was (`bake_gain`), the lines themselves brighter.
+- **CLOUD HAMMOCK is lit from beneath**, amber, the net and whoever lies in it dark over a glowing bed: a line of light
+  along the inside of each long kerb (`lamp_under`) and its light on the lawn.
+- **The glass is nearly invisible, and is drawn by its top edge.** A thin bright line along the top, faint joints, the
+  sky in the pane: the cap is brighter and mirrors all of the sky, the pane a little more of it.
+- **The city under it** has its air (docs/NIGHT.md, "The air between").
+
+Photographs (Wikimedia Commons; looked at, set beside the stills, nothing taken from them into the model):
+Wei-Te Wong, 21 December 2019, CC BY-SA 2.0: `Shibuya Sky (49287086252).jpg` (west-south-west, 18 minutes after
+sunset: Cerulean Tower, Route 246 in amber, the haze), `(49287081607)` (north: Yoyogi Park and Shinjuku),
+`(49287094497)` (south), `(49286403613)` (the heliport at dusk), `(49287104532)` (GEO COMPASS). Dick Thomas Johnson,
+CC BY 2.0: `Shibuya Scramble Square SHIBUYA SKY (53002565398).jpg` (23 February 2023, 30 minutes after sunset: the lit
+hammock, the deck, the glass), `(53002565413)` (the steps' lines of light), `(53443766384)` (2 December 2023: SKY
+EDGE's glass, its reflections and the glow at its foot), `(53443585538)` (east, 6 minutes after sunset). Read only, all
+rights reserved: Impress Watch (docs/news/1203947), nippon.com (gu900265), Time Out Tokyo.
+
+Where it still falls short. The photographs show the heliport as green artificial turf with yellow paint (a circle and
+H, a square boundary, "MAX 5t") and GEO COMPASS as a separate disc of radial stone round an etched glass map; here
+they are one dark pad with a white and yellow marking and the compass round it (above), which is wrong and is its own
+piece of work. The glass shows no reflection of the people standing at it, nor of the city's lights behind the camera:
+that needs a picture of the scene from behind the glass, which a phone cannot pay for. CROSSING LIGHT's lamps stand
+along the glass on plinths; the photographs show moving heads under clear domes in a trench. The photographs are of
+December and February, not October. Seen on a software renderer only.
 
 ## Scramble Square's curtain wall (Shibuya)
 

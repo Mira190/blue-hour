@@ -27,10 +27,12 @@ window.OEWorld = (function () {
   // load is at, which the caller can name (a third argument) or which follows from how far along it is, so
   // that the page never sits on a finished download while the packs decode and the shaders compile.
   const STAGES = [[0.28, 'Downloading'], [0.995, 'Building the city'], [Infinity, 'Preparing the city']];
+  const V = (u, w) => (window.OEV ? window.OEV(u, w) : u); // (a file's address with its hash, on a deployed page: index.html's guard)
   function loadLine(prefix = '') {
     const msg = document.getElementById(prefix + 'load-msg'), bar = document.getElementById(prefix + 'load-bar'),
       stage = document.getElementById(prefix + 'load-stage');
     return (t, f, st) => {
+      if (window.OEBoot && OEBoot.failed) return; // (the loader says why the start failed: not written over by a step that still ran)
       if (msg) msg.textContent = t;
       if (bar) bar.style.width = `${Math.round(f * 100)}%`;
       if (stage) stage.textContent = st || (f > 0 ? STAGES.find(([to]) => f < to)[1] : '');
@@ -72,18 +74,39 @@ window.OEWorld = (function () {
     const view = { view: game ? 'game' : 'city', city: cityId };
     const mark = s => { try { performance.mark(`oe:${s}`, { detail: view }); } catch (e) { /* no User Timing */ } };
     const unpack = () => { if (--open === 0) mark('fetched'); if (open === 0) onMsg(`Unpacking ${what}: buildings, terrain and landmarks`, 0.29, 'Unpacking the city'); };
+    // A pack that stalls (issue 116). The answer's first byte is the guard's to wait for (index.html: 20 s, and a
+    // request that fails or is answered 5xx tried twice more); here the body: a download with no byte for 20 s is
+    // given up, and one that breaks off or stalls is fetched again, twice, after 0.8 and 2.4 s, as a model is
+    // (gltf.js). What still fails ends the load in the loader's error state with the file's name (game.js).
+    const NET = window.OE_NET || {}, STALL_MS = NET.stall_ms || 20000, RETRY_MS = [800, 2400];
     const fetchAll = async (r, u) => {
-      if (!r.ok) throw new Error(`${u}: HTTP ${r.status}`);
-      if (!r.body || !r.body.getReader) return new Blob([await r.arrayBuffer()]);
+      if (!r.ok) throw Object.assign(new Error(`${u}: HTTP ${r.status}`), { final: r.status < 500 });
+      if (!r.body || !r.body.getReader) return { blob: new Blob([await r.arrayBuffer()]), n: 0 };
       const reader = r.body.getReader(), parts = [];
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        parts.push(value); got += value.length; report();
-      }
-      return new Blob(parts);
+      let n = 0;
+      try {
+        for (;;) {
+          let t = 0;
+          const { done, value } = await Promise.race([reader.read(), new Promise((_, no) => { t = setTimeout(() => no(new Error(`${u}: the download stalled`)), STALL_MS); })]).finally(() => clearTimeout(t));
+          if (done) break;
+          parts.push(value); n += value.length; got += value.length; report();
+        }
+      } catch (e) { got -= n; try { reader.cancel().catch(() => {}); } catch (e2) { /* already closed */ } throw e; } // (its bytes off the count: they are downloaded again)
+      return { blob: new Blob(parts), n };
     };
-    const fetchFile = async u => { open++; try { return await fetchAll(await fetch(DATA + u), u); } finally { unpack(); } };
+    const fetchFile = async u => {
+      open++;
+      try {
+        for (let tries = 0; ; tries++) {
+          try { return (await fetchAll(await fetch(DATA + u), u)).blob; } catch (e) {
+            if (e.final || tries >= RETRY_MS.length) throw e;
+            console.warn(`${u}: ${e.message}; trying again`);
+            try { if (window.OETelemetry && OETelemetry.track) OETelemetry.track('net_retry', { why: /stalled/.test(e.message) ? 'stalled' : 'broke off', n: tries + 1, src: (DATA + u).slice(0, 120) }); } catch (e2) { /* no telemetry */ }
+            await new Promise(r => setTimeout(r, NET.retry_ms || RETRY_MS[tries]));
+          }
+        }
+      } finally { unpack(); }
+    };
     const getJSON = async u => JSON.parse(await (await fetchFile(u)).text());
     // the buildings, landmarks, game, terrain, places and scene as packed by pipeline/pack.py (a quarter to a
     // third of the JSON's download, issues 148, 201 and 259) and decoded in a Worker (pack-worker.js), so that the loader's bar
@@ -547,13 +570,14 @@ vec3 scrCell(float cell, vec2 uv) {
   // way (FAR_EDGE) instead of into a wall of haze
   // boxes: landings past the frame (outposts.js: {x0, x1, y0, y1, band}), clear inside like the frame,
   // hazing over their band to the far land's air at their edge
-  function edgeHaze(frame, near = 150, farLand = false, boxes = []) {
+  function edgeHaze(frame, near = 150, farLand = false, boxes = [], base = 0) {
     const C = THREE.ShaderChunk;
     if (!FOG0) FOG0 = { pv: C.fog_pars_vertex, v: C.fog_vertex, pf: C.fog_pars_fragment, f: C.fog_fragment };
     const w = frame.x[1] - frame.x[0], h = frame.y[1] - frame.y[0], fade = Math.min(500, Math.max(250, 0.1 * Math.min(w, h)));
     const n = v => v.toFixed(1), last = (chunk, add) => chunk.replace(/#endif\s*$/, `\t${add}\n#endif`); // inside the outer USE_FOG block
-    C.fog_pars_vertex = last(FOG0.pv, 'varying vec2 vEdgeXZ;');
-    C.fog_vertex = last(FOG0.v, 'vEdgeXZ = ( transpose( mat3( viewMatrix ) ) * ( mvPosition.xyz - viewMatrix[ 3 ].xyz ) ).xz;');
+    C.fog_pars_vertex = last(FOG0.pv, 'varying vec2 vEdgeXZ; varying float vEdgeY;');
+    C.fog_vertex = last(FOG0.v, '{ vec3 oeWp = transpose( mat3( viewMatrix ) ) * ( mvPosition.xyz - viewMatrix[ 3 ].xyz ); vEdgeXZ = oeWp.xz; vEdgeY = oeWp.y; }');
+    airUniform();
     // how far out into the haze a point is (0 inside, 1 at the frame and beyond); the camera's own
     // value lifts the near exemption once it is out there itself, at the frame's edge and past it,
     // so the sea in front of it hazes too. (Lifted from the band's inner edge, it hazed the whole
@@ -573,7 +597,7 @@ vec3 scrCell(float cell, vec2 uv) {
     // the open sea follows the real shore near the frame and meets the haze over land softly far
     // out. Only the water's materials take it (OE_SEA, uSeaOpen).
     const c = `vec2( ${n((frame.x[0] + frame.x[1]) / 2)}, ${n(-(frame.y[0] + frame.y[1]) / 2)} )`, hx = w / 2 - fade, hz = h / 2 - fade;
-    C.fog_pars_fragment = last(FOG0.pf, `varying vec2 vEdgeXZ;
+    C.fog_pars_fragment = last(FOG0.pf, `varying vec2 vEdgeXZ; varying float vEdgeY; uniform vec4 uOeAir;
 #ifdef OE_SEA
 	uniform sampler2D uSeaOpen;
 #endif`);
@@ -618,6 +642,19 @@ vec3 scrCell(float cell, vec2 uv) {
 	// the far land goes into it as everything else does, and is not left standing as a dark shore beyond the mist)
 	fogFactor = max( fogFactor, smoothstep( fogNear, fogFar, vFogDepth ) * ( 1.0 - smoothstep( 6000.0, 20000.0, fogFar ) ) );
 #endif
+	// The city's own air, seen from a height after dark (uOeAir, AIR below; docs/NIGHT.md "The air between"): the haze
+	// lies in a layer over the streets, so the further a street and the lower, the more of it the eye looks through, and
+	// a far tower stands out of it with its foot paler than its top; and low down that air is lit by the streets under
+	// it, warm, where higher it holds only the sky's blue. Nothing of it from the street (the camera's height gates it).
+	if ( uOeAir.x > 0.0 && cameraPosition.y > ${n(base + AIR.gate[0])} ) {
+	  float oeHc = max( cameraPosition.y - ${n(base)}, 0.0 ) / ${n(AIR.layer)}, oeHf = max( vEdgeY - ${n(base)}, 0.0 ) / ${n(AIR.layer)}, oeDh = oeHf - oeHc;
+	  float oeDen = abs( oeDh ) > 0.02 ? ( exp( -oeHc ) - exp( -oeHf ) ) / oeDh : exp( -oeHc );
+	  float oeUp = uOeAir.x * smoothstep( ${n(base + AIR.gate[0])}, ${n(base + AIR.gate[1])}, cameraPosition.y );
+	  oeHaze += uOeAir.yzw * oeUp * exp( -oeHf * ${n(AIR.layer / AIR.glow)} ) * exp( -vFogDepth / ${n(AIR.glowFar)} );
+#ifndef OE_FAR
+	  fogFactor = max( fogFactor, oeUp * ${AIR.most.toFixed(2)} * ( 1.0 - exp( -vFogDepth * oeDen / ${n(AIR.clear)} ) ) );
+#endif
+	}
 	gl_FragColor.rgb = mix( gl_FragColor.rgb, oeHaze, fogFactor );
 #ifdef OE_SEA
 	gl_FragColor.a = mix( gl_FragColor.a, 1.0, fogFactor ); // the haze hides what lies under the water too, so nothing shows through it from below
@@ -635,6 +672,18 @@ vec3 scrCell(float cell, vec2 uv) {
   let FAR_HALF = (window.OEFarLand || {}).HALF || 40000; // the far land's half width (far.json half_m where it gives one)
   // the air's 63% distance, and in the ground haze's layer (m); a city's clear air stretches both (far.json clarity)
   let FAR_AIR = (window.OEFarLand || {}).AIR || 30000, FAR_AIR_LOW = 15000;
+  // The city's own air from a height after dark (edgeHaze; docs/NIGHT.md "The air between"). layer: the haze layer's
+  // scale height over the streets (m); clear: how far along the street the eye sees to 63% of it; most: the most of a
+  // thing it takes; glow: the height over the streets within which the air holds their light, and glowFar how far off
+  // that glow is still told from the sky's own haze; gate: the camera's height over the streets from which it comes
+  // in, and is whole. Its strength and the glow's colour are uOeAir (x; yzw), one array every material's fog reads:
+  // three.js copies a uniform's value by reference when it is neither one of its own classes nor an Array, so the one
+  // Float32Array put into each of ShaderLib's sets that has the fog's uniforms is the value of every built-in material
+  // compiled after. A ShaderMaterial of the page's own leaves it at nought, and takes none.
+  const AIR = { layer: 240, clear: 2600, most: 0.86, glow: 110, glowFar: 5000, gate: [70, 190], v: new Float32Array(4) };
+  function airUniform() {
+    for (const k in THREE.ShaderLib) { const u = THREE.ShaderLib[k].uniforms; if (u && u.fogColor && !u.uOeAir) u.uOeAir = { value: AIR.v }; }
+  }
 
   // Aerial photos are taken through a kilometre of air: their darkest tones are lifted by haze
   // and their colours are thin, which on the ground and the flat roofs reads as a grey wash.
@@ -726,11 +775,12 @@ vec3 steepRock(vec3 c, float k) {
   function groundPictures(scene, dir, { at = null, near = 1000 } = {}) {
     const tiles = scene.ground || [];
     const load = t => avif().then(ok => new Promise(res => {
-      const im = new Image(), tryJpeg = () => { if (im.src.endsWith(t.file)) return res(null); im.src = dir + t.file; };
+      let jpeg = false;
+      const im = new Image(), tryJpeg = () => { if (jpeg) return res(null); jpeg = true; im.src = V(dir + t.file); };
       im.decoding = 'async';
       im.onload = () => (im.decode ? im.decode() : Promise.resolve()).then(() => res(im), () => res(im));
       im.onerror = tryJpeg;
-      im.src = dir + (ok && t.avif ? t.avif : t.file);
+      jpeg = !(ok && t.avif); im.src = V(dir + (jpeg ? t.file : t.avif));
     }));
     const dist = t => at ? Math.hypot(Math.max(t.x0 - at[0], 0, at[0] - t.x1), Math.max(t.y0 - at[1], 0, at[1] - t.y1)) : 0;
     const first = tiles.map(t => !at || !scene.ground_lo || dist(t) <= near);
@@ -770,6 +820,7 @@ vec3 steepRock(vec3 c, float k) {
     // a phone's pictures as ASTC blocks, a quarter of the GPU's memory (tex.js, issue 443): the game's, where the GPU decodes them
     const ASTC = !!(window.OETex && OETex.on(renderer, LEAN && game));
     if (ASTC && window.OETelemetry && OETelemetry.set) OETelemetry.set({ astc: 1 }); // (rides on the view's events: which phones run packed)
+    if (LEAN && window.OETelemetry && OETelemetry.set) OETelemetry.set({ lv: QW.lighter }); // (and the level of a phone's set it runs at: quality.js level)
     const SHADOW = Math.min(renderer.capabilities.maxTextureSize, shadow || (renderer.capabilities.maxTextureSize >= 8192 && !small ? 4096 : 2048));
 
     const world = new THREE.Scene();
@@ -786,7 +837,7 @@ vec3 steepRock(vec3 c, float k) {
     // civil twilight: `twilight` (set in setSun) adds that blue, strongest toward the horizon.
     su.twilight = { value: new THREE.Color(0, 0, 0) };
     sky.material.fragmentShader = 'uniform vec3 twilight;\n' + sky.material.fragmentShader
-      .replace('varying float vSunE;', 'varying float vSunE;\n varying float vSunfade;\n uniform float uGold, uGoldBeltK; uniform vec3 uGoldWarm, uGoldCool, uGoldCream, uGoldBelt;\n uniform vec3 uHaze; uniform float uHazeOn; uniform float uHazeH; uniform float uSkySat;\n uniform float uNightSky; uniform vec3 uNightZenith; uniform vec3 uNightHorizon;')
+      .replace('varying float vSunE;', 'varying float vSunE;\n varying float vSunfade;\n uniform float uGold, uGoldBeltK; uniform vec3 uGoldWarm, uGoldCool, uGoldCream, uGoldBelt;\n uniform vec3 uHaze, uAirSky; uniform vec2 uAirGate; uniform float uHazeOn; uniform float uHazeH; uniform float uSkySat;\n uniform float uNightSky; uniform vec3 uNightZenith; uniform vec3 uNightHorizon;')
       .replace('vec3 texColor = ( Lin + L0 ) * 0.04 + sundiscColor', 'L0 += ( vSunE * 19000.0 * Fex ) * sundisc;\n vec3 texColor = ( Lin + L0 ) * 0.04')
       .replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( pow( texColor, vec3( 1.0 / ( 1.2 + ( 1.2 * vSunfade ) ) ) ) + twilight * ( 0.45 + 0.55 * pow( 1.0 - max( direction.y, 0.0 ), 2.0 ) ), 1.0 );' +
         // that curve leaves the sky nearly white under a filmic tone curve: uSkySat gives the blue back
@@ -804,8 +855,12 @@ vec3 steepRock(vec3 c, float k) {
         '\n   gl_FragColor.rgb = mix( gl_FragColor.rgb, gHue / dot( gHue, vec3( 0.2126, 0.7152, 0.0722 ) ) * gL, uGold ); }' +
         // after dark, the night sky of a city (setSun): deep blue overhead, the city's glow low down
         '\n gl_FragColor.rgb = mix( gl_FragColor.rgb, mix( uNightHorizon, uNightZenith, pow( clamp( direction.y, 0.0, 1.0 ), 0.6 ) ), uNightSky );' +
-        '\n gl_FragColor.rgb = mix( gl_FragColor.rgb, uHaze, uHazeOn * ( 1.0 - smoothstep( -0.01, uHazeH, direction.y ) ) );');
-    Object.assign(su, { uHaze: { value: new THREE.Color() }, uHazeOn: { value: 0 }, uHazeH: { value: 0.05 }, uSkySat: { value: 1 },
+        '\n gl_FragColor.rgb = mix( gl_FragColor.rgb, uHaze, uHazeOn * ( 1.0 - smoothstep( -0.01, uHazeH, direction.y ) ) );' +
+        // from a height after dark, the air over the far city against the sky (AIR; setSun): the horizon is the palest
+        // thing in a photograph from a tower at blue hour, and the far towers stand dark against it, where they stood
+        // pale against a sky as deep at the horizon as overhead (issue 125). Not from the street, nor in the sky's light
+        '\n gl_FragColor.rgb += uAirSky * smoothstep( uAirGate.x, uAirGate.y, cameraPosition.y ) * exp( -max( direction.y, 0.0 ) * 20.0 );');
+    Object.assign(su, { uAirSky: { value: new THREE.Color(0, 0, 0) }, uAirGate: { value: new THREE.Vector2(1e6, 2e6) }, uHaze: { value: new THREE.Color() }, uHazeOn: { value: 0 }, uHazeH: { value: 0.05 }, uSkySat: { value: 1 },
       uGold: { value: 0 }, uGoldBeltK: { value: 0 }, uGoldWarm: { value: new THREE.Color(1.0, 0.6, 0.3) }, uGoldCool: { value: new THREE.Color(0.24, 0.48, 1.0) }, uGoldCream: { value: new THREE.Color(1.0, 0.8, 0.6) },
       uGoldBelt: { value: new THREE.Color(0.86, 0.68, 0.7) }, uNightSky: { value: 0 }, uNightZenith: { value: new THREE.Color(0.0028, 0.0075, 0.019) }, uNightHorizon: { value: new THREE.Color(0.03, 0.026, 0.024) } });
     // the cloud layers, the Milky Way and shooting stars in place of the Sky's own cloud layer (clouds.js): off until
@@ -871,6 +926,8 @@ vec3 steepRock(vec3 c, float k) {
     world.add(sunLight, sunLight.target);
     const hemi = new THREE.HemisphereLight(0xc3d6e6, 0x4d463a, 0.25 * Math.PI);
     world.add(hemi);
+    // (the streets' light in the low air from above: ?air=0 leaves the air out, for a still beside one with it)
+    const AIR_GLOW = new THREE.Color(0.07, 0.05, 0.033), airK = +(new URLSearchParams(location.search).get('air') ?? 1);
     const TWI_SKY = new THREE.Color(0.03, 0.075, 0.24), TWI_LIGHT = new THREE.Color(0x4a72c8), TWI_FOG = new THREE.Color(0x23385e);   // the blue hour (setSun)
     world.fog = new THREE.Fog(0xc6d3dc, 6000, 26000);
     // whether there is land past the frame to draw (farland.js), before the haze is written
@@ -887,7 +944,10 @@ vec3 steepRock(vec3 c, float k) {
     world.fog.near *= clarity; world.fog.far *= clarity;
     // landings past the frame (outposts.js): the far land leaves them open and the haze treats them as the frame
     const outHoles = window.OEOutposts && D.G ? OEOutposts.list(D.G).map(o => ({ x0: o.x0, x1: o.x1, y0: o.y0, y1: o.y1, band: o.band })) : [];
-    const edgeFade = edgeHaze(scene.worldFrame, 150, farOn, outHoles);
+    // (the streets' height, for the air seen from above: the lowest of the landmarks' own grounds, where the map has any)
+    const airBase = Math.min(...Object.values(scene.landmarks || {}).map(l => (l && isFinite(l.ground_m) ? l.ground_m : Infinity)), scene.air_base ?? Infinity);
+    const edgeFade = edgeHaze(scene.worldFrame, 150, farOn, outHoles, isFinite(airBase) ? airBase : 0);
+    su.uAirGate.value.set((isFinite(airBase) ? airBase : 0) + AIR.gate[0], (isFinite(airBase) ? airBase : 0) + AIR.gate[1]);
 
     // ------------------------------------------------------------ terrain and imagery
     loadMsg('Draping aerial imagery on the terrain', 0.35);
@@ -1190,7 +1250,7 @@ vec3 woodsFloor(vec3 c) {
       // G: the game's surface model (sun.js buildDSM, with ids)
       farSun.init = G => {
         if (farSun.worker) return;
-        try { farSun.worker = new Worker(new URL('visibility-worker.js', document.baseURI)); } catch (e) { return; }
+        try { farSun.worker = new Worker(V(new URL('visibility-worker.js', document.baseURI), true)); } catch (e) { return; }
         const built = new Uint8Array(G.nx * G.ny);
         if (G.ids) for (let i = 0; i < built.length; i++) built[i] = G.ids[i] >= 0 ? 1 : 0;
         const data = G.data.slice();
@@ -1357,6 +1417,7 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
     };
     function groundMesh(g, material) {
       const m = new THREE.Mesh(shed(g), material);
+      m.userData.oeStill = true; // (it never moves: the rain's cover map keeps it, weather.js occStill)
       if (g.userData.underlay) m.add(new THREE.Mesh(shed(g.userData.underlay), quayBed));
       return m;
     }
@@ -2546,6 +2607,10 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
             .lerp(TWI_FOG, tw * 0.7).lerp(new THREE.Color(0xd2b49c), day * 2)).getHex());
         // and at night a little more air between the camera and the far city, so its lights soften
         // into that glow with distance (the view's own fog distances by day)
+        // the air seen from a height (edgeHaze, AIR): in from the hour the lamps come on, and lit low down by the streets
+        // under it, in the lamps' and the screens' mean light, which is warmer than the sky's glow over them
+        { const k = night ? U.uNight.value : 0, g = AIR_GLOW; AIR.v[0] = k * airK; AIR.v[1] = g.r * k; AIR.v[2] = g.g * k; AIR.v[3] = g.b * k; }
+        su.uAirSky.value.copy(AIR_GLOW).multiplyScalar(0.5 / 0.9).add(world.fog.color).multiplyScalar(0.9 * AIR.v[0]);
         if (!fogBase) fogBase = [world.fog.near, world.fog.far];
         world.fog.near = fogBase[0] * (1 - 0.55 * su.uNightSky.value); world.fog.far = fogBase[1] * (1 - 0.3 * su.uNightSky.value);
         // by day the sky's own horizon; through dusk back to the night's blue, which the sky's red night horizon would not give
@@ -2924,7 +2989,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   function bvhIn(geo) {
     return new Promise((ok, fail) => {
       let w;
-      try { w = new Worker(new URL('bvh-worker.js', here), { type: 'module' }); } catch (e) { fail(e); return; }
+      try { w = new Worker(V(new URL('bvh-worker.js', here), true), { type: 'module' }); } catch (e) { fail(e); return; }
       const t0 = performance.now();
       w.onmessage = e => { w.terminate(); if (e.data.error) fail(new Error(e.data.error)); else { console.info(`bounds-tree: ${Math.round(e.data.ms)} ms in a worker, back after ${Math.round(performance.now() - t0)} ms`); ok(e.data.data); } };
       w.onerror = e => { e.preventDefault(); w.terminate(); fail(new Error(e.message || 'worker failed')); };

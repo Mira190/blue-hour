@@ -26,8 +26,11 @@
 //           unseen, goes to stand by the next part's speaker }
 'use strict';
 window.OEWalkTalk = (function () {
-  const KEEP = 'oe-walk-talk', ROLL = 'oe-walk-roll';
-  const SEE_M = 42, NAME_M = 11; // (a speech mark seen from this far; the name under it from this close)
+  const KEEP = 'bh-walk-talk', ROLL = 'bh-walk-roll';
+  // (a speech mark seen from this far, and only over someone in sight; the name under it from this close. It was 42 m:
+  // on a phone a person there is a few pixels tall, and on SHIBUYA SKY's roof Taro's mark stood over the glass with
+  // him out of sight behind the heliport's deck, a mark over nobody. As an open world's: near enough to see who it is)
+  const SEE_M = 24, NAME_M = 11;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const first = name => String(name || '').replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '').trim(); // (the name as it is read: "Mr Oda 小田さん" is Mr Oda)
 
@@ -61,29 +64,36 @@ window.OEWalkTalk = (function () {
       return null;
     }
     // the corner's line: what the story under way asks, with the metres to it; before a story is begun, who has it
-    // the metres and the way to someone for the corner: on the map's bearing where they stand on your level, and where they
-    // do not (Yuna at the lift's foot, 230 m under SHIBUYA SKY's roof), up or down and the metres through the air, not a
-    // bearing and a distance on the map that would say she is 25 m off
-    function toward(me, n) {
-      const dz = (n.z || 0) - (me.z || 0), m = Math.hypot(n.x - me.x, n.y - me.y);
-      if (Math.abs(dz) > 6) return { m: Math.hypot(m, dz), dir: null, lvl: dz > 0 ? 'up' : 'down' };
-      return { m, dir: Math.atan2(n.x - me.x, n.y - me.y) };
+    // the metres and the way to someone for the corner, and its arrow: on your level, the map's bearing and the metres in
+    // plan. On another level (Yuna at the lift's foot while you are on SHIBUYA SKY's roof 226 m over her, where it read
+    // "Back to Yuna 15 m", the metres in plan to a point under your feet): the way to them is the lift, so the line says so,
+    // and the metres and the arrow are to its stop on your level (ctx.via); with no lift between the two, the arrow stands
+    // up or down and the metres are the whole way, the height counted. In the air or a car, the bearing to them and the
+    // metres through the air: you can fly or drive there
+    function toward(me, n, e = {}) {
+      const dz = (n.z || 0) - (me.z || 0);
+      Object.assign(e, { m: Math.hypot(n.x - me.x, n.y - me.y), dir: Math.atan2(n.x - me.x, n.y - me.y) });
+      if (Math.abs(dz) <= 12) return e;
+      if (me.mode !== 'foot') return Object.assign(e, { m: Math.hypot(e.m, dz) });
+      const v = ctx.via ? ctx.via(me, n) : null;
+      if (v) return Object.assign(e, { text: `${dz < 0 ? 'Down' : 'Up'} the lift to ${first(n.name)}`, m: Math.hypot(v.x - me.x, v.y - me.y), dir: Math.atan2(v.x - me.x, v.y - me.y) });
+      return Object.assign(e, { m: Math.hypot(e.m, dz), dir: null, lvl: dz > 0 ? 'up' : 'down' });
     }
     function errand() {
       if (ev && (ev.phase === 'asked' || ev.phase === 'met')) { // (a favour asked of you on the street: the corner's while it lasts)
         const me = ctx.here(), n = ctx.npc(ev.e.people[0]);
-        if (n) return Object.assign({ text: ev.phase === 'met' ? ev.e.back : ev.e.goal, key: ev.phase === 'asked' ? 'O' : '' }, toward(me, n));
+        if (n) return toward(me, n, { text: ev.phase === 'met' ? ev.e.back : ev.e.goal, key: ev.phase === 'asked' ? 'O' : '' });
       }
       const s = current();
       if (!s) return null;
-      const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part)), tw = who ? toward(me, who) : {};
+      const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part));
       // (dir: the way to it on the map, a bearing from north, for the corner's arrow)
       const dirTo = (x, y) => Math.atan2(x - me.x, y - me.y);
-      if (k.part === 0) return who ? Object.assign({ text: `${first(who.name)} has something to say`, key: '', next: true }, tw) : null;
+      if (k.part === 0) return who ? toward(me, who, { text: `${first(who.name)} has something to say`, key: '', next: true }) : null;
       const then = s.parts[k.part - 1].then || {};
       // (sent on to someone, or what was asked done: the metres are to the one who speaks next)
-      if (then.talk && who) return Object.assign({ text: then.goal, key: '' }, tw);
-      if (k.met && who) return Object.assign({ text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, key: '' }, tw);
+      if (then.talk && who) return toward(me, who, { text: then.goal, key: '' });
+      if (k.met && who) return toward(me, who, { text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, key: '' });
       const at = then.go || then.drive || then.photo;
       return { text: then.goal || '', m: at ? Math.hypot(at[0] - me.x, at[1] - me.y) : null, dir: at ? dirTo(at[0], at[1]) : null, key: then.key || '' };
     }
@@ -311,6 +321,16 @@ window.OEWalkTalk = (function () {
       return el;
     }
     const fade = (el, v) => { if (el && el._o !== v) { el._o = v; el.style.opacity = v; } }; // (written only when it changes: a style set each frame is a style pass each frame)
+    // whether someone's head is in the player's sight (ctx.seen: no wall, deck or floor between the camera and it), asked
+    // again every eighth frame and kept between: a ray through the city's solids each frame for each mark is not free
+    const sightOf = new Map();
+    function sight(id, n) {
+      if (!ctx.seen) return true;
+      let s = sightOf.get(id);
+      if (!s) sightOf.set(id, s = { ok: false, n: 0 });
+      if (--s.n <= 0) { s.ok = ctx.seen(n.x, n.y, (n.z || 0) + 1.6); s.n = 8; }
+      return s.ok;
+    }
     function draw(hide, dt = 0) {
       const me = ctx.here(), ids = new Set();
       bClock += dt;
@@ -330,11 +350,11 @@ window.OEWalkTalk = (function () {
         const n = ctx.npc(id), el = marks.get(id);
         if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
-        const far = w && w.kind === 'story' ? SEE_M : w && w.kind === 'event' ? 30 : 18;
-        if (!w || w.kind === 'wait' || d > far || dz > 6 || me.mode !== 'foot') { fade(el, '0'); continue; }
+        const far = w && (w.kind === 'story' || w.kind === 'event') ? SEE_M : 18;
+        if (!w || w.kind === 'wait' || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; } // (and not through a floor: sight)
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
-        if (!p) { fade(e, '0'); continue; }
+        if (!p || !sight(id, n)) { fade(e, '0'); continue; }
         const k = w.kind;
         if (e._k !== k) { e._k = k; e.dataset.k = k; }
         const name = d < NAME_M ? `${first(n.name)}${n.role ? ` · ${String(n.role).replace(/\s*[　-鿿＀-￯].*$/, '')}` : ''}` : '';

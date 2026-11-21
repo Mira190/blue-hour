@@ -3,6 +3,8 @@
 // Out: { ready, head, grid } or { failed }, then { id, x, y, z, eps, S (Float32Array, handed over), grid, ms }
 // with S null when the eye stands in an occluder.
 'use strict';
+// (a deployed page gives its workers the build, ?b=: what a worker imports is asked for by it, so that it is that commit's; index.html's guard)
+{ const b = /[?&]b=(\w+)/.exec(self.location.search), raw = self.importScripts; if (b) self.importScripts = (...u) => raw.apply(self, u.map(x => `${x}?b=${b[1]}`)); }
 importScripts('visibility-sweep.js');
 let M = null, DSM = null;
 

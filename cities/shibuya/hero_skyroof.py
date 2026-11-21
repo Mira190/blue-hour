@@ -57,6 +57,7 @@ LIFT = 0.05          # the deck drawn this far over the landmark's (which is 3 c
 GLASS_H = 2.0        # the glass round the deck (city.py SKY fence_m)
 SHOE_H = 0.16        # its aluminium shoe
 WARM = (1.0, 0.86, 0.66)        # 3000 K, the lines of light at the glass's foot and under the steps
+AMBER = (1.0, 0.72, 0.42)       # the light under CLOUD HAMMOCK's nets
 GREEN = (0.35, 1.0, 0.45)       # a heliport's perimeter lights
 
 
@@ -77,20 +78,21 @@ def _lobby():
 def materials(K):
     granite = lambda srgb: K.tint_to("granite", srgb)
     return {
-        # the deck: dark grey porcelain, the stone's fine speckle, matt (wet in the rain: ground*)
-        "ground_deck": {"tex": "granite", "maps": "cn", "rough": 0.62, "tint": granite((70, 72, 75)), "sky": 0.5},
+        # the deck: dark grey porcelain, the stone's fine speckle, honed: at dusk it is near black and gives back the sky
+        # at a low angle, which is how its courses read in the photographs (issue 125; wet in the rain: ground*)
+        "ground_deck": {"tex": "granite", "maps": "cn", "rough": 0.44, "tint": granite((70, 72, 75)), "sky": 0.85},
         "ground_deck_joint": {"color": (0.012, 0.012, 0.013), "rough": 0.9},
         # the pad's top: its coat and its paint, drawn here
-        "ground_pad": {"tex": "skypad", "maps": "cn", "rough": 0.68, "sky": 0.5},
+        "ground_pad": {"tex": "skypad", "maps": "cn", "rough": 0.6, "sky": 0.7},
         # the steps: the deck's stone, a pale honed nosing
-        "ground_step": {"tex": "granite", "maps": "cn", "rough": 0.6, "tint": granite((70, 72, 75)), "sky": 0.5},
+        "ground_step": {"tex": "granite", "maps": "cn", "rough": 0.46, "tint": granite((70, 72, 75)), "sky": 0.85},
         "ground_nosing": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((168, 166, 160)), "sky": 0.5},
         # the lawn under the nets: short artificial turf, one even green
         "ground_lawn": {"tex": "grass", "maps": "c", "rough": 0.85, "tint": K.tint_to("grass", (74, 104, 52)), "sky": 0.3},
         # stainless: the drain's grate, the landing plates, the cap on the glass
         "metal_grate": {"color": (0.16, 0.165, 0.17), "rough": 0.4, "metal": 1.0, "sky": 0.6},
         "metal_plate": {"color": (0.55, 0.56, 0.57), "rough": 0.32, "metal": 1.0, "sky": 0.6},
-        "metal_cap": {"color": (0.6, 0.61, 0.62), "rough": 0.28, "metal": 1.0, "sky": 0.6},
+        "metal_cap": {"color": (0.72, 0.73, 0.74), "rough": 0.2, "metal": 1.0, "sky": 1.0},
         # dark anodised aluminium and painted steel: the glass's shoe, the pad's cladding, the frames, the lights' bodies
         "metal_dark": {"color": (0.045, 0.047, 0.05), "rough": 0.45, "metal": 0.6, "sky": 0.5},
         "metal_panel": {"color": (0.075, 0.078, 0.082), "rough": 0.4, "metal": 0.55, "sky": 0.5},
@@ -101,10 +103,11 @@ def materials(K):
         # the nets' rope, white
         "net_rope": {"color": (0.78, 0.78, 0.76), "rough": 0.9},
         # the glass round the deck: clear, a little of the sky in it
-        "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.16, "sky": 0.7},
+        "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.2, "sky": 1.0},
         # what gives light after dark (lamp*: off by day): the lines along the glass and under the steps, the
         # searchlights' lenses, the pad's green lights
-        "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.5},
+        "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.85},
+        "lamp_under": {"color": (0.4, 0.33, 0.24), "emissive": AMBER, "glow": 0.7},
         "lamp_lens": {"color": (0.5, 0.5, 0.5), "emissive": (1.0, 0.97, 0.92), "glow": 0.7},
         "lamp_green": {"color": (0.3, 0.5, 0.3), "emissive": GREEN, "glow": 1.6},
         "yellow_line": {"color": (0.78, 0.6, 0.08), "rough": 0.55},
@@ -347,9 +350,17 @@ class Level:
                 self.q("ground_deck_joint", (a0, b0, z - 0.004), (a1_, b0, z - 0.004), (a1_, b1, z - 0.004), (a0, b1, z - 0.004), n=up)
 
     def rects(self, g):
-        """A rectilinear polygon as rectangles: cut into vertical strips at its corners' u."""
+        """A rectilinear polygon as rectangles: cut into vertical strips at its corners' u, and a strip that is not one
+        rectangle (a corner a hair off its neighbour's u leaves a sliver in it) cut again at its own corners' v, so that
+        no rectangle is ever more than the polygon. The corners' u were rounded to 0.1 mm: the west channel's notch began a
+        hair past its rounded u, the strip beside it was an L of the deck and a hairline up the notch, and its bounds laid
+        the joints' black slab over the top of the west flight, 44 m2 of it at the deck's height (the owner's phone: "a
+        black cover over the escalator")."""
         from shapely.geometry import box as sbox
-        xs = sorted({round(x, 4) for x, _ in g.exterior.coords} | {round(x, 4) for r in g.interiors for x, _ in r.coords})
+        def cuts(vals):
+            vals = sorted(vals)
+            return [v for i, v in enumerate(vals) if i == 0 or v - vals[i - 1] > 1e-6]
+        xs = cuts({x for x, _ in g.exterior.coords} | {x for r in g.interiors for x, _ in r.coords})
         out = []
         b = g.bounds
         for x0, x1 in zip(xs, xs[1:]):
@@ -357,8 +368,17 @@ class Level:
                 continue
             strip = g.intersection(sbox(x0, b[1] - 1, x1, b[3] + 1))
             for s in getattr(strip, "geoms", [strip]):
-                if s.geom_type == "Polygon" and s.area > 1e-4:
+                if s.geom_type != "Polygon" or s.area <= 1e-4:
+                    continue
+                if s.area >= sbox(*s.bounds).area * (1 - 1e-6):
                     out.append(sbox(*s.bounds))
+                    continue
+                ys = cuts({y for _, y in s.exterior.coords} | {y for r in s.interiors for _, y in r.coords})
+                for y0, y1 in zip(ys, ys[1:]):
+                    cell = s.intersection(sbox(s.bounds[0] - 1, y0, s.bounds[2] + 1, y1))
+                    for c in getattr(cell, "geoms", [cell]):
+                        if c.geom_type == "Polygon" and c.area > 1e-4:
+                            out.append(sbox(*c.bounds))
         return out
 
     def pad(self):
@@ -416,7 +436,7 @@ class Level:
                 zb = zz - 0.2
                 self.q("ground_step", Q(s1 - 0.014, -2.5, zb), Q(s1 - 0.014, 2.5, zb), Q(s1 - 0.014, 2.5, zz - 0.035), Q(s1 - 0.014, -2.5, zz - 0.035))
                 self.q("lamp_line", Q(s1 - 0.012, -2.45, zz - 0.035), Q(s1 - 0.012, 2.45, zz - 0.035), Q(s1 - 0.012, 2.45, zz - 0.02), Q(s1 - 0.012, -2.45, zz - 0.02),
-                       emit=(WARM, 1.2))
+                       emit=(WARM, 12.0))
                 self.q("ground_nosing", Q(s1 + 0.006, -2.5, zz - 0.02), Q(s1 + 0.006, 2.5, zz - 0.02), Q(s1 + 0.006, 2.5, zz), Q(s1 + 0.006, -2.5, zz))
             # the cheeks: dark panels either side, from the deck to each step's top
             for t, sgn in ((-2.5 - 0.03, -1), (2.5 + 0.03, 1)):
@@ -464,7 +484,10 @@ class Level:
         for k in range(max(1, int(L_ / 0.75))):
             t = (k + 0.5) / max(1, int(L_ / 0.75))
             m = off((pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t), 0.4)
-            self.geo.emitters.append((self.P(*m, top - 0.04), np.array([0, 0, -1.0]), 0.015, np.array(WARM) * 8.0))
+            # (thrown out across the deck, as a line of light in a shoe's face is: pointed straight down it lit one
+            # course of pavers and no more, a wash nobody could see from across the roof, issue 125)
+            wi = self.a1 * iu + self.a2 * iv
+            self.geo.emitters.append((self.P(*m, top - 0.04), np.array([wi[0] * 0.8, wi[1] * 0.8, -0.6]), 0.015, np.array(WARM) * 125.0))
         self.q("metal_dark", (*b1, top - 0.035), (*a1_, top - 0.035), (*a1_, top), (*b1, top))
         self.q("metal_dark", (*a0, top), (*b0, top), (*b1, top), (*a1_, top), n=np.array([0, 0, 1.0]))
         # the pane, both faces, 12 mm short of its neighbours
@@ -500,6 +523,15 @@ class Level:
             for a, b, c, d in ((u - hu - k, u + hu + k, v - hv - k, v - hv), (u - hu - k, u + hu + k, v + hv, v + hv + k),
                                (u - hu - k, u - hu, v - hv, v + hv), (u + hu, u + hu + k, v - hv, v + hv)):
                 self.box("wood_slat", a, b, c, d, z - 0.01, z + 0.1)
+            # the light under the net (in the photographs at dusk the nets are lit from beneath, amber, and whoever lies
+            # in one is dark on a glowing mesh): a line along the inside of each long kerb, and its light on the lawn
+            for sv in (-1, 1):
+                vv = v + sv * (hv - 0.004)
+                a, b = ((u - hu, vv, z + 0.05), (u + hu, vv, z + 0.05)) if sv < 0 else ((u + hu, vv, z + 0.05), (u - hu, vv, z + 0.05))
+                self.q("lamp_under", a, b, (b[0], b[1], z + 0.085), (a[0], a[1], z + 0.085))
+                for t in np.arange(-hu + 0.25, hu, 0.5):
+                    nn = self.a2 * -sv * 0.8
+                    self.geo.emitters.append((self.P(u + t, v + sv * (hv - 0.3), z + 0.35), np.array([nn[0], nn[1], -0.6]), 0.015, np.array(AMBER) * 20.0))
             for du in (-2.6, 2.6):
                 for dv in (-1.4, 1.4):
                     self.box("steel_frame", u + du - 0.045, u + du + 0.045, v + dv - 0.045, v + dv + 0.045, z, z + 0.92)
@@ -568,9 +600,20 @@ class Level:
         h1, h2, z = self.h1, self.h2, self.z + LIFT
         obs = self.obstacles()
         nets = [(-h1 + 9, h2 - 9), (-h1 + 9, -h2 + 22), (h1 - 24, -h2 + 7)]
+        # (and none where the flights come up onto the deck: 6 m clear past each channel's end, the whole width of its
+        # escalator and stair. Two benches stood 3 m in line past the escalators' heads, and once the benches were solid,
+        # a walker stepping off was stopped by one)
+        F = self.F
+        n_, w_ = F["north"], F["west"]
+        nu = (min(p[0] for p in n_) - 0.3, max(p[0] for p in n_) + 1.0)
+        nv0 = min(p[1] for p in n_) - 0.3
+        wu0 = min(p[0] for p in w_) - 0.3
+        wv = (min(p[1] for p in w_) - 0.3, max(p[1] for p in w_) + 1.0)
+        exits = [(nu[0], nu[1], nv0 - 6.0, nv0), (wu0 - 6.0, wu0, wv[0], wv[1])]
         clear = lambda u, v, r: (all(math.hypot(u - a, v - b) > r + 1.2 for a, b in self.beams)
                                  and all(abs(u - a) > 3.0 + r or abs(v - b) > 1.75 + 1.5 for a, b in nets)
-                                 and all(not (a - r - 0.5 < u < b + r + 0.5 and c - r - 0.5 < v < d + r + 0.5) for a, b, c, d in obs))
+                                 and all(not (a - r - 0.5 < u < b + r + 0.5 and c - r - 0.5 < v < d + r + 0.5) for a, b, c, d in obs)
+                                 and all(not (a - r < u < b + r and c - r < v < d + r) for a, b, c, d in exits))
         self.bench_at = []
         for (axis, fixed, lo, hi) in (("u", -h2 + 1.0, -h1 + 4, h1 - 4), ("u", h2 - 1.0, -h1 + 4, h1 - 4), ("v", -h1 + 1.0, -h2 + 4, h2 - 4), ("v", h1 - 1.0, -h2 + 4, h2 - 4)):
             t = lo
@@ -613,7 +656,40 @@ class Level:
         self.q("yellow_line", (wu0 - 1.75, h2 - 1.85, z), (wu0 - 1.65, h2 - 1.85, z), (wu0 - 1.65, h2 - 0.55, z), (wu0 - 1.75, h2 - 0.55, z), n=up)
 
 
+    # what stands on the deck and is solid to a walker (game.json hero[].boxes, game.js): the benches, the nets' frames
+    # with their kerbs, the searchlights. The level is drawn, not walked: the landmark under it keeps the deck, the pad,
+    # its steps, the channels and the glass, but nothing of what this level adds, so a walker went through the benches to
+    # the knee (the owner's phone, at the glass where the walk's Yuna waits). Each a box in the city's frame:
+    # [x, y, heading (to the box's length, from north toward east), half its length, half its width, z bottom, z top],
+    # its top over a walker's knee (nav.js KNEE) however low the thing is, so that it is a thing to walk round, never a
+    # step to take onto it
+    def boxes(self):
+        z, out = self.z + LIFT, []
+        ang = lambda d: math.atan2(float(d[0]), float(d[1]))      # (a direction in the city's frame as a heading from north)
+        def put(u, v, axis, hl, hw, top):
+            x, y = self.c + self.a1 * u + self.a2 * v
+            out.append([round(float(x), 2), round(float(y), 2), round(ang(self.a1 if axis == "u" else self.a2), 4), hl, hw, round(z - 0.05, 2), round(max(z + 0.6, top), 2)])
+        for (u, v) in self.bench_at:                                 # 3 m of slats, 0.5 m deep (bench)
+            axis = "u" if abs(abs(v) - (self.h2 - 1.0)) < 0.01 else "v"
+            put(u, v, axis, 1.55, 0.27, z + 0.44)
+        h1, h2 = self.h1, self.h2
+        for (u, v) in ((-h1 + 9, h2 - 9), (-h1 + 9, -h2 + 22), (h1 - 24, -h2 + 7)):   # the nets: their frames and the kerbs round the lawn
+            put(u, v, "u", 3.1, 1.85, z + 0.92)
+        for (u, v) in self.beams:                                    # the searchlights: the plinth, the yoke and the drum
+            put(u, v, "u", 0.34, 0.34, z + 1.0)
+        return out
+
+
 HIDE = ["sky_deck", "sky_deck_light", "sky_glass", "sky_steel_dark", "sky_compass_atlas", "sky_steps_deck_light", "sky_net", "sky_lit_lamp"]
+
+
+def boxes_only():
+    """The solids alone, without Blender: python cities/shibuya/hero_skyroof.py --boxes writes them into
+    cities/shibuya/city.json game.hero (skyroof) .boxes (then pipeline/game_text.py and pipeline/pack.py)."""
+    import hero_kit as K
+    L = Level(K)
+    L.benches()
+    return L.boxes()
 
 
 def build(K):
@@ -622,6 +698,27 @@ def build(K):
     geo, atlas = L.build()
     r = round(math.hypot(L.h1, L.h2) + 1.0, 1)
     meta = {"id": ID, "at": [round(float(L.c[0]), 2), round(float(L.c[1]), 2)], "r": r, "z": round(L.z, 2), "glb": f"hero/{ID}.glb",
-            "bake_gain": 1.0, "hide": HIDE}
-    print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z")}), f"{len(L.bench_at)} benches")
+            "bake_gain": 8.0, "hide": HIDE, "boxes": L.boxes()}
+    print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z")}), f"{len(L.bench_at)} benches, {len(meta['boxes'])} solid boxes")
     return geo, atlas, materials(K), meta
+
+
+if __name__ == "__main__" and "--boxes" in sys.argv:
+    # (written into city.json's own lines, as its other hand-kept lists are: the file is not reflowed)
+    import re
+    sys.path.insert(0, os.path.join(ROOT, "blender"))
+    B = boxes_only()
+    path = os.path.join(HERE, "city.json")
+    text = open(path, encoding="utf-8").read()
+    at = text.index('"id": "%s",' % ID)
+    note = text.index('"note":', at)
+    ind = re.search(r"\n( *)\"note\":", text[at:note + 8]).group(1)
+    head, body = text[:at], text[at:note]
+    body = re.sub(r'\n *"boxes(_note)?": .*,(?=\n)', "", body)
+    lines = (f'{ind}"boxes": {json.dumps(B)},\n'
+             f'{ind}"boxes_note": "What stands on the deck and is solid to a walker (cities/shibuya/hero_skyroof.py boxes, game.js): the benches, '
+             "the nets' frames and kerbs, the searchlights. [x, y, heading of its length from north toward east, half length, half width, "
+             'z bottom, z top], its top over a walker\'s knee: a thing to walk round, never a step.",\n')
+    body = body[:body.rstrip(" ").rfind("\n") + 1] + lines + ind
+    open(path, "w", encoding="utf-8").write(head + body + text[note:])
+    print(f"{len(B)} boxes into {path}")

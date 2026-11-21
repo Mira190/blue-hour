@@ -7,6 +7,8 @@ model's interface. A model rebuilt with the same interface (a sculpt, a texture,
 down another path, so tools/check.sh routes it to the checks that load and measure it (look, mem) rather than to the
 story played through; one whose interface lost or changed something goes to the page's checks like any code change.
 What a model adds (a new node, a new clip) is reported and allowed: nothing in the code can be waiting for it.
+A hero level's ground (its materials named ground*) is part of its interface by where it lies: the walking heights
+are taken from it, so ground moved, added or taken away runs as code, and ground left alone does not.
 
 Reads only the GLB's JSON chunk: no buffer is decoded, so a meshopt-compressed model costs what its header does.
   python3 tools/model_contract.py <base-commit> <file.glb>...   # one line each: same, new, added, or CHANGED
@@ -66,6 +68,24 @@ def interface(g):
             out.add(f'mesh {name} attributes {",".join(sorted(p.get("attributes", {})))}')
             if p.get('targets'):
                 out.add(f'mesh {name} morphs {len(p["targets"])}')
+    # The ground: what is walked on (a hero level's materials named ground*, hero.js; game.js heroCover takes the walking
+    # heights from those meshes). Its interface is where it lies: each such primitive's vertex count, its bounds, and
+    # where its nodes put it. A hero level rebuilt with its ground as it was cannot move anyone's feet.
+    mats = g.get('materials', [])
+    parent = {c: i for i, n in enumerate(nodes) for c in n.get('children', [])}
+    for i, n in enumerate(nodes):
+        if 'mesh' not in n or n['mesh'] >= len(g.get('meshes', [])):
+            continue
+        for p in g['meshes'][n['mesh']].get('primitives', []):
+            m = mats[p['material']].get('name', '') if 0 <= p.get('material', -1) < len(mats) else ''
+            if not m.lower().startswith('ground') or 'POSITION' not in p.get('attributes', {}):
+                continue
+            a = acc[p['attributes']['POSITION']]
+            chain, j = [], i
+            while j is not None:
+                chain.append({k: nodes[j][k] for k in ('translation', 'rotation', 'scale', 'matrix') if k in nodes[j]})
+                j = parent.get(j)
+            out.add(f'ground {m} on {nn(i)}: {a.get("count")} vertices, {json.dumps(a.get("min"))} to {json.dumps(a.get("max"))}, placed {json.dumps(chain, sort_keys=True)}')
     for k in ('extensionsRequired',):
         for e in g.get(k, []):
             out.add(f'{k} {e}')
@@ -107,7 +127,8 @@ def main(argv):
             continue
         lost, added = sorted(a - b), sorted(b - a)
         if lost:
-            print(f'CHANGED {p}: {len(lost)} lost or changed, e.g. {"; ".join(x[:80] for x in lost[:3])}')
+            # ([ground]: where what is walked on lies; the router plays the guide's ways over it, his feet on what is drawn)
+            print(f'CHANGED {p}{" [ground]" if any(x.startswith("ground ") for x in lost) else ""}: {len(lost)} lost or changed, e.g. {"; ".join(x[:80] for x in lost[:3])}')
         elif added:
             print(f'added   {p}: {len(added)} new, nothing lost ({"; ".join(x[:60] for x in added[:2])})')
         else:

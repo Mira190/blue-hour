@@ -104,25 +104,7 @@ function audit() {
   return { bad: [...new Set(bad)], warn: [...new Set(warn)] };
 }
 
-// A screen written down by ui_dump.js, laid in over the live page: the overlays, the classes, the scroll, the animations
-function lay(d) {
-  const stage = document.getElementById('game-stage'), gl = document.getElementById('game-gl');
-  for (const e of [...stage.children]) if (e !== gl) e.remove();
-  let before = true;
-  for (const h of d.html) { if (h === null) { before = false; continue; } const t = document.createElement('template'); t.innerHTML = h; const e = t.content.firstElementChild; if (before) stage.insertBefore(e, gl); else stage.appendChild(e); }
-  stage.className = d.stage; stage.setAttribute('style', d.stageStyle || '');
-  document.documentElement.className = d.root; document.body.className = d.body;
-  const at = p => p.reduce((e, i) => (e ? e.children[i] : null), stage);
-  for (const s of d.scrolled || []) { const e = at(s.p); if (e) { e.scrollTop = s.top; e.scrollLeft = s.left; } }
-  // (each animation where it was at the still; one the still did not have had finished)
-  const was = new Map((d.anims || []).map(a => [`${a.p.join('.')}|${a.name}`, a]));
-  for (const a of document.getAnimations()) {
-    const t = a.effect && a.effect.target; if (!t || !stage.contains(t)) continue;
-    let p = []; for (let e = t; e && e !== stage; e = e.parentElement) p.unshift([...e.parentElement.children].indexOf(e));
-    const k = `${p.join('.')}|${a.animationName || a.transitionProperty || ''}`, r = was.get(k);
-    try { if (r && r.t != null) { a.currentTime = r.t; a.pause(); } else if (a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* not seekable */ }
-  }
-}
+const { lay } = require('./ui_dump'); // (a screen written down by ui_dump.js, laid in over the live page)
 const setWords = n => { const s = document.getElementById('game-stage'); s.classList.remove('words-1', 'words-2'); if (n) s.classList.add(`words-${n}`); };
 
 (async () => {
@@ -141,18 +123,18 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
   const report = [];
   let fails = 0, checked = 0;
   const TITLES = process.env.TITLE === '0' ? [] : [
-    ['title-press', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }],
-    ['title-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }, 'menu'],
-    ['title-who-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }, 'who'],
-    ['title-story-first', () => { for (const k of ['oe3d-player', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }, 'story'],
-    ['title-opts', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); }, 'opts'],
-    ['title-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', 'M'); }, 'menu'],
-    ['title-who-chosen', () => { for (const k of ['oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('oe3d-player', 'M'); }, 'who'],
-    ['title-going', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'menu'],
-    ['title-story-going', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'story'],
-    ['title-story-sure', () => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'sure'],
-    ['title-closed', () => { localStorage.removeItem('oe-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('oe-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }, 'menu'],
-    ['title-story-closed', () => { localStorage.removeItem('oe-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('oe-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }, 'story'],
+    ['title-press', () => { for (const k of ['bh-player', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); }],
+    ['title-first', () => { for (const k of ['bh-player', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); }, 'menu'],
+    ['title-who-first', () => { for (const k of ['bh-player', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); }, 'who'],
+    ['title-story-first', () => { for (const k of ['bh-player', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); }, 'story'],
+    ['title-opts', () => { for (const k of ['bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); }, 'opts'],
+    ['title-chosen', () => { for (const k of ['bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('bh-player', 'M'); }, 'menu'],
+    ['title-who-chosen', () => { for (const k of ['bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); localStorage.setItem('bh-player', 'M'); }, 'who'],
+    ['title-going', () => { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'menu'],
+    ['title-story-going', () => { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'story'],
+    ['title-story-sure', () => { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); }, 'sure'],
+    ['title-closed', () => { localStorage.removeItem('bh-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('bh-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }, 'menu'],
+    ['title-story-closed', () => { localStorage.removeItem('bh-story-late'); const st = ['Hachikō · 17:14', 'The scramble · 17:19', 'Tsutaya · 17:26', 'Under the screens · 17:31', 'Center-gai · 17:40', 'The bridge · 17:52', 'The scramble · 18:03']; localStorage.setItem('bh-story-late-closed', JSON.stringify({ prints: st.map(s => ({ src: null, stamp: s, cap: '' })), snaps: st.map(() => 'x'), stamps: st })); }, 'story'],
   ];
   for (const ctxName of ['touch', 'tablet', 'desk']) {
     const src = ctxName === 'tablet' ? 'touch' : ctxName; // (a tablet lays out a phone's recordings: both by touch)
@@ -169,7 +151,7 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
       p.on('pageerror', e => console.log(`pageerror (${ctxName}):`, String(e).slice(0, 200)));
       // (the street held still while the screens are measured, a frame of it drawn only for a still: window.__hold)
       await p.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window), q = []; window.__hold = false; window.requestAnimationFrame = fn => (window.__hold ? (q.push(fn), 0) : raf(fn)); window.__release = () => { window.__hold = false; q.splice(0).forEach(f => raf(f)); }; });
-      await p.addInitScript(`try { localStorage.setItem('oe3d-quality', ${JSON.stringify(process.env.TIER || 'high')}); (${prep || (() => {})})(); } catch (e) {}`);
+      await p.addInitScript(`try { localStorage.setItem('bh-quality', ${JSON.stringify(process.env.TIER || 'high')}); (${prep || (() => {})})(); } catch (e) {}`);
       await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
       await p.waitForTimeout(3000);

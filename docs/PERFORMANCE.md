@@ -514,7 +514,7 @@ own beside it. Both are replaced by one governor (`web/quality.js` `OEQuality.go
 
 - It runs on the title's orbit as well as in play (the telemetry's slowest frames were Shibuya's title screen,
   where nothing held them), reports each step to the telemetry (scale, what was shed, MSAA, the cap) and keeps
-  the scale the device held on each map (`localStorage` `oe3d-gov-<city>`), so the next visit starts there
+  the scale the device held on each map (`localStorage` `bh-gov-<city>`), so the next visit starts there
   and climbs again if it can.
 
 `tools/governor_probe.js` feeds it frames on a clock of its own (fast: it stays; 40 ms: 1.00 to 0.80, extras
@@ -828,7 +828,7 @@ shadow pass), the sea's reflection (every frame while the camera moves, every se
 and the crowd (whole, whole, three in four). A device with no record of its own starts at 0.8 of the scene's
 resolution with half the extras, and tries a step up every second and a half until one does not fit; a fast device
 is at its ceiling in about thirteen seconds (`governor.simulate`). The record kept per map is now the scale and the
-extras (`oe3d-gov-<city>`: `0.85/0.5`), and a device that has one starts there. Under automation the governor stands
+extras (`bh-gov-<city>`: `0.85/0.5`), and a device that has one starts there. Under automation the governor stands
 still, as before, so checks and stills start at the ceiling. `tools/game_check.js` sees the shadow map, the
 reflection and the crowd move with the extras and come back.
 
@@ -1701,7 +1701,7 @@ last chosen.
 **A second chance instead of a crash loop** (`quality.js` `died`, `telemetry.js`). A phone gives no reading of
 the memory it has left. The one signal is that the system killed the tab, and the next page load finds it: the
 note a visible page leaves every five seconds is still there. That load now counts the death against the map
-(`oe3d-died-<map>`, kept fourteen days), and on the low tier each one makes the next load of that map lighter;
+(`bh-died-<map>`, kept fourteen days), and on the low tier each one makes the next load of that map lighter;
 the loader says "a lighter set: the last visit ran out of memory here". This is the closed loop of issue 358's
 Layer A applied to memory: measure, then grant.
 
@@ -1786,6 +1786,27 @@ lightest, granted the way a congestion window is:
 A phone with the room climbs to the full set in two visits; one without stays where it lives. The `crash` event
 carries `prev_lv`, and the load's last step is `held` once a level has been held, so the owner's phone says which
 level it lives at.
+
+**On the story's page none of this ran** until 21 November 2026. `quality.js` read the map from the address alone
+(`#play-shibuya`), and the story's page has nothing after the `#`: its deaths were written and never read, so a phone
+the system had killed loaded the same set again, and the minutes it held never let it climb. The owner's iPhone that
+evening (telemetry, app 0.1.137): the context lost 35 s in, during the opening's shot from above; the page reloaded at
+level 2 and was killed at `built` 12 s later; Safari's own reload at level 2 again took 139 s to get in. Now:
+
+- the page names its map (`<html data-map="shibuya">`), which `quality.js` reads where the address has none;
+- a lost WebGL context on a phone is a death at its level too, counted as it is lost (`quality.js` `lost`, once a page,
+  asked by `telemetry.js` `noteLost` and by `glcare.js`, which works with the telemetry off): on a phone it is the GPU's
+  memory run out, and the reload makes room and loads a level lighter. A loss while the tab is put away is not counted (the tab in front took the memory), and the page does not reload until it is seen:
+  a phone keeps every tab's WebGL in one GPU process, and that evening a tab of the story in the background lost its
+  context, reloaded and built the whole map beside the tab being played, which then lost its own;
+- once `glcare.js` has given up, the frames hold: a restored context that is not rebuilt drew walls whose arrays the
+  phone had let go of, and three.js threw (`null is not an object (evaluating 'r.byteLength')`);
+- the climb stops at level 2 (`TOP`), the set the budget is measured at: at frame 5 a phone at level 2 holds 269 of
+  its 270 MB (issue 105), and level 1 keeps pictures at 2048 where level 2 keeps 1024. It goes up when a fuller set is
+  measured within the budget there.
+
+`tools/glcare_phone.js` plays all of it as a phone (the levels from the notes, a loss with the tab put away, a loss
+seen), and fails on the code before.
 
 | Level | Buildings whole / simplified / skyline from | Largest picture | Sun's shadow map | Signs / NPC pictures | Aerial tiles of their own | Scanned walkers | Fetched ahead |
 |---|---|---|---|---|---|---|---|
@@ -2118,6 +2139,46 @@ Faces that move cost memory and vertex work, so they are given only where a face
   main without the faces 269 MB of GPU at its peak; with every face drawn moving at once 271, with the player's face always
   moving 270 (over the 270 budget); as above, the same as without.
 
+### Frame 5's place: what is held there, and what of it is seen (issue 105)
+
+Main on 21 November held 268 MB settled and 270 MB at its peak at frame 5's place on a phone (`AT=521.9,-1074.1
+tools/mem_check.js shibuya`, rain at ten at night), against a 270 MB budget: any change that added a megabyte there
+failed `mem` on noise. Measured first: `mem_check.js` now prints, at `AT`, what each hero level loaded there holds
+(textures and geometry), and with `OWN=n` the n largest textures with the meshes that hold them or the script line that
+made them (a render target, a pass, a uniform). What was held at frame 5, largest first:
+
+| Held | MB | Seen there? |
+|---|---|---|
+| The scene's target and the lens's two half-float ping targets (760 x 1644 each) | 3 x 9.5 | the scene's: always. The two pings: drawn into only while a camera effect is on (a conversation, the camera raised, the arrival's crane), and kept from the first arrival to the end of play |
+| The Scramble level, 70 m off its edge | 12.2 textures, 12.7 geometry | 25 of its 56 squares from the stand and the ground round it, more from where the helicopter sets you down |
+| The two PMREM targets (the light from the sky, and three.js's ping-pong for baking it) | 2 x 6.0 | both while the sky is baked again, which the measure's own change of hour does |
+| The inland channels' hole mask, the far land's two pictures, the night map, the roofs' photo | 6.0, 5.3 + 5.0, 4.8, 4.8 | map-wide, sampled by whatever ground, sky or roof is drawn |
+| The player's face, body and hair (1024 each) | 3 x 5.3 | yes, up close |
+
+The Scramble level was the issue's first suspect, but from frame 5's ground much of it can be seen: down Miyamasu-zaka
+under the Ginza line's deck and up Meiji-dori, 2,000 to 30,000 of the 393,216 pixels of a cube round the eye.
+`tools/hero_unseen.js scramble` asks the GPU: from a grid of eyes at four heights, the level's meshes each in a colour of
+its own against the depth of everything else the page draws, the crowd and the trees left out. From the stand alone 31
+of its squares are hidden: 4.2 MB of geometry and none of its pictures, since every material it has is also on a square
+that is seen. The visibility sweep (`visibility.js`) cannot say even that much: the station's landmarks hide nothing in
+its raster, so it counts 455 of the level's 486 meshes as seen from the stand.
+
+The biggest holder no draw read was the two ping targets, 19 MB. A first cut here let them go when idle and gave the
+depth of field one target; issue 130's cut, which landed first, does both and more (the blur reads the scene itself, one
+pass; "The depth of field in one pass" below), and is what main has. On top of it, the measure now plays frame 5's own
+worst moment: at `AT`, a conversation's depth of field for six seconds (`FX=0` leaves it out), then the rain at ten while
+its target is still held, so a change that adds to the one target or to what a talk there holds is seen.
+
+| Phone, frame 5's place (`mem_check.js`, `AT=521.9,-1074.1`) | Main before (21 Nov, f11cc12) | Main with issue 130 |
+|---|---|---|
+| The load and the first play | 252 MB | 237 MB |
+| Settled at frame 5's place | 268 MB | 247 MB |
+| A conversation's depth of field there | 268 MB (the pings already held) | 257 MB |
+| The peak | 270 MB, in the rain | 259 MB, the rain with the conversation's target still held |
+
+Not done, by what it would save: the Scramble's squares hidden from the stand parked off the GPU there (4.2 MB, at the
+stand only); the sky's PMREM ping-pong let go between bakes (6 MB settled, nothing at a bake, which needs both).
+
 ## A desktop's map round the player (issue 20)
 
 The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the
@@ -2332,3 +2393,203 @@ back to the idle, or any clip the rig has, since 17 November; the other `reset()
 
 Not checked: a real Apple GPU, Safari, iOS, WebGPU. The vertex stage's units are not counted (no patch reads a
 texture in a vertex shader; three.js's skinning, morph and batching textures are within any GPU's sixteen there).
+
+## Every millisecond and megabyte on what the player sees now (issue 130, November 2026)
+
+The owner's ask: from first principles, all the compute on the blade's edge; a picture that goes up while the frame and
+the memory go down. Where it stood on real devices (three days of telemetry to 21 November): an iPhone at a median of
+27 frames a second with 40% of its frames slower than 50 ms, held by the GPU 73% of the time, a frame of some 376
+draws, 1.26 million triangles and 11 passes over 1.09 million pixels, four WebGL contexts lost in five minutes
+(issue 118) and the GPU's memory at frame 5 at 269 MB of 270 (issue 105); an M3 at 59 frames a second with the
+governor at its floor (scale 0.6), 13 passes over 3.9 million pixels and 29 ms of GPU a frame.
+
+**The principle.** A frame's cost is set by what is in this picture at this moment, at the detail this picture can
+show, and by nothing else: not the size of the map, not the number of things that exist, not what the last beat
+needed. Memory the same (resident is what the next minute of play can show) and the download (what the first beat
+shows comes before it). Three questions follow, asked of everything in a frame:
+
+1. *Is it in the picture?* A thing behind a wall, on a roof seen from the street, behind the camera or under a
+   pixel is not. Its triangles, its draw and its textures are owed nothing.
+2. *How much of it can the picture show?* A triangle smaller than a pixel, a texel smaller than a pixel, a pass at
+   a resolution finer than what it computes (occlusion, bloom, fog and a wet street's reflection are soft by
+   nature) are paid for and not seen.
+3. *Is it paid for once?* A pixel shaded and then covered, a target stored and loaded again between two passes, a
+   pose worked out for a walker nobody sees, a texture kept after its beat: each is the same cost twice.
+
+### What the frontier does, and what is taken from it
+
+Surveyed 21 November 2026 (rendering in a browser, and what shipped games do within a fixed frame). What is adopted
+is the design; no code was copied.
+
+| Topic | What was found | Here |
+|---|---|---|
+| Hidden surfaces on a phone's GPU | Apple's GPUs remove hidden surfaces themselves: "if you only perform a depth pre-pass for performance, then hidden surface removal serves the same purpose on Apple GPUs... without any additional costs" (WWDC 2020, session 10632). Opaque first, then anything that discards, then the translucent; the opaque order does not matter there. Arm's Mali and Qualcomm's Adreno do reward front to back, and a `discard` stops both of their early rejections ([Arm](https://developer.arm.com/community/arm-community-blogs/b/mobile-graphics-and-gaming-blog/posts/hidden-surface-graphics-removal-methods-in-mali-gpus), [Mesa's notes on Adreno](https://docs.mesa3d.org/drivers/freedreno/hw/lrz.html)). | **No depth prepass**: on an iPhone it would shade 1.26 million triangles' vertices twice for nothing. Opaque sorted front to back as three.js does already; alpha-tested things kept after the opaque. |
+| Passes on a tile-based GPU | Each render pass loads its target into the tile memory and stores it after; Apple: load and store actions "consume the majority of your app's system bandwidth". Meta measured a pass on an Adreno at 1216 x 1344 with 2x MSAA: 10.6 ms, of which 3.9 ms was load and store that could be avoided ([Meta](https://developers.meta.com/horizon/blog/loads-stores-passes-and-advanced-gpu-pipelines/)). | **Adopted as the first cost to cut on a phone**: fewer passes and fewer full-size ones, the soft ones at half size, targets invalidated when their contents are done with. The budget counts passes and the pixels they shade, per beat. |
+| Triangles within a frame | Epic's guideline for mobile: at most 700 draws and 500,000 triangles in view ([Unreal Engine, performance guidelines for mobile](https://dev.epicgames.com/documentation/en-us/unreal-engine/performance-guidelines-for-mobile-devices-in-unreal-engine)). Virtualised geometry in a browser exists on WebGPU only ([Scthe/nanite-webgpu](https://github.com/Scthe/nanite-webgpu), MIT; no streaming, no skinning). On WebGL 2: three.js's `BatchedMesh` (per-object culling, multi-draw), [agargaro/instanced-mesh](https://github.com/agargaro/instanced-mesh) (MIT: per-instance culling, a BVH, levels of detail), meshoptimizer's simplifier (MIT, already in the pipeline). | **A level of detail by projected size for every kind of thing**, built in the pipeline with meshoptimizer, chosen by the height in pixels a thing has on this screen; a phone's beat aims at Epic's half million. The draws are within the guideline; the triangles were 2.5 times over it. Nanite-like clusters: not taken (WebGPU only, and the level is small enough for discrete levels). |
+| Resolution | three.js has a temporal upscaler (`TAAUNode`) and FSR 1 (`FSR1Node`) for its WebGPU renderer. FSR 1's two passes (EASU, RCAS; AMD, MIT) run on WebGL 2 (Babylon.js ships it). Arm's ASR (MIT, from FSR 2) is the temporal one on phones. | The governor's render scale is kept. A sharpening upscale when the scale is under 0.8 is the candidate, to be judged on the devices (it costs a pass, and a pass is what a phone is short of). |
+| Lights | three.js's tiled and clustered lighting are WebGPU only; no measured gain was found under some tens of lights. | **Not taken.** The ten screens' lights are in closed form already ("The device's own numbers"); the street's lamps are a baked map. |
+| Texture memory | A 4096 x 4096 RGBA texture with its mips is about 90 MB on the GPU whatever its file's size; block formats cut that four to eight times ([Don McCurdy, 2024](https://www.donmccurdy.com/2024/02/11/web-texture-formats/)). iOS gives a tab no fixed limit; context loss is reported there without growth, too. | ASTC on a phone is done ("A phone's pictures in ASTC blocks"). **Next: what a beat leaves behind is freed**, and a desktop's textures (1.25 GB resident in frame 1 here, none of it in blocks). |
+| Crowds | Past a hundred skinned meshes the cost is the skeletons' update on the CPU; bone matrices baked to a texture with instancing is the standard answer (GPU Gems 3, chapter 2). | The far crowd is instanced from baked poses already (issue 475); the near cast stays skinned. |
+| Shaders at load | `KHR_parallel_shader_compile` is exposed by Safari, but compiling is reported to block there still (WebKit bug 251514). | Programs are compiled behind the loading plate ("The loader's compile"), never counted on to be asynchronous. |
+| WebGPU | Safari 26 ships it on iOS, Chrome on Android since 121. three.js's WebGPU renderer is slower than its WebGL one with many separate meshes (682 against 2,562 meshes at 60 frames a second in one comparison, [ICS, 2025](https://ics.media/en/entry/250501/)). | **Not moved to.** At 400 draws it buys nothing by itself; its worth would be compute culling and a temporal upscale, to be measured on one beat before any move. WebGL 2 stays the path every device has. |
+| Budgets | Studios play their levels through every night and collect what each costs (Epic's Automated Performance Tests). | **Adopted**: below. |
+
+### A budget for every beat
+
+Until now the budget was one number for the map (`tools/mem_check.js`: a phone's GPU memory at one place). Now every
+beat of the episode has its own, on a phone's tier and a desktop's.
+
+- **Counted where the story is played.** `tools/story_play.js` with `BUDGET=file` counts, at every still it takes, the
+  still's own frame (`tools/beat_count.js`; the harness draws that one whole, so the count costs a play no frame more): draw calls, triangles, full-screen passes (as the telemetry counts
+  them), the pixels shaded at least once (every pass's target, and every target the scene is drawn into: the canvas
+  itself is 1), and what WebGL holds (`tools/gl_mem.js`: textures, buffers, renderbuffers). `BUDGET_BY=1` adds what
+  was drawn, by name; `BUDGET_TOP=n` the largest textures and buffers held.
+- **A beat is one of the episode's frames** (and the title); its cost is the heaviest of its stills, measure by measure
+  (of what a frame draws, the second heaviest: work done once, the mirror's warm-up drawing the scene again as the game
+  settles, falls in whichever frame it falls in, and a cost that stays shows in more stills than one). A still's frame
+  is the heavy kind of frame: the wet street's mirror and the rain's cover map are drawn in it.
+- **These are the page's own asks**, so they are the same under this machine's software renderer as on a GPU, and they
+  are what the telemetry reports from a device (`draws`, `tris_k`, `passes`, `px_k`): the session's counts and the
+  owner's iPhone's agree (here 390 to 520 draws and 1.3 to 1.7 million triangles a beat; there 376 and 1.26 million).
+  What a frame costs in milliseconds only a device says.
+- **The check.** `tools/budgets/shibuya.json` holds each beat's ceiling. The story's own check counts its stills and
+  fails a beat over the desktop's budget; `tools/check.sh budget` plays the episode as an iPhone (390 x 844 at three
+  pixels to the point, the low tier) and fails a beat over a phone's (main's checks run it for every change to the
+  page). A budget is set a little above what the beat costs (`tools/beat_budget.py set`: 12% over for draws and
+  triangles, which differ from play to play with the crowd; 3% for memory; none for passes) and goes down as the
+  work lands. It only goes up on purpose, with the reason in the commit.
+
+**The budgets as first set** (21 November, main at `e48d974`; each beat's cost with the room above it: what was
+counted is 12% under these for draws and triangles, 3% for memory).
+Counted on a session's machine (Chromium on Mesa's software renderer), which changes none of these counts; the phone
+is an iPhone emulated (its size, three pixels to the point, its user agent, touch), without ASTC, so its textures are
+weighed uncompressed as `tools/mem_check.js` weighs them. The script's time is this machine's, a guide only, and is
+not held to a budget.
+
+phone (390x844, the low tier, canvas 760 x 1644):
+
+| beat | draws | triangles | passes | pixels shaded, canvases | textures | textures, MB | buffers, MB | GPU memory, MB | script, ms |
+|---|---|---|---|---|---|---|---|---|---|
+| title | 216 | 0.95 M | 11 | 2.41 | 106 | 145 | 49.4 | 198 | 15.7 |
+| frame 1 | 440 | 1.63 M | 13 | 4.51 | 318 | 202 | 88 | 296 | 28.9 |
+| frame 2 | 582 | 1.83 M | 13 | 4.51 | 323 | 203 | 89.1 | 297 | 30.7 |
+| frame 3 | 529 | 1.63 M | 13 | 4.51 | 334 | 205 | 90.1 | 300 | 34.4 |
+| frame 4 | 460 | 1.47 M | 13 | 4.51 | 354 | 219 | 103.5 | 329 | 55 |
+| frame 5 | 895 | 1.59 M | 13 | 4.51 | 354 | 219 | 103.5 | 329 | 38.3 |
+| frame 6 | 492 | 1.78 M | 13 | 4.51 | 366 | 211 | 101.2 | 318 | 47.9 |
+| frame 7 | 973 | 2.68 M | 13 | 4.52 | 383 | 211 | 97.5 | 314 | 46 |
+
+desktop (800x500, the high tier, canvas 800 x 500):
+
+| beat | draws | triangles | passes | pixels shaded, canvases | textures | textures, MB | buffers, MB | GPU memory, MB | script, ms |
+|---|---|---|---|---|---|---|---|---|---|
+| title | 329 | 2.02 M | 17 | 4.38 | 137 | 683 | 132.3 | 846 | 29.8 |
+| frame 1 | 759 | 3.07 M | 19 | 6.48 | 761 | 1288 | 174.8 | 1496 | 60.7 |
+| frame 2 | 833 | 3.17 M | 19 | 6.48 | 771 | 1289 | 182.3 | 1504 | 93.8 |
+| frame 3 | 845 | 2.96 M | 19 | 6.48 | 786 | 1299 | 183.3 | 1515 | 99.4 |
+| frame 4 | 746 | 2.78 M | 19 | 6.48 | 805 | 1375 | 196 | 1605 | 122.2 |
+| frame 5 | 1072 | 3.08 M | 19 | 6.48 | 818 | 1375 | 196.8 | 1605 | 88.1 |
+| frame 6 | 836 | 3.23 M | 19 | 6.48 | 830 | 1315 | 196.9 | 1546 | 112.3 |
+| frame 7 | 2392 | 8.10 M | 19 | 6.77 | 857 | 1310 | 189.5 | 1533 | 107.6 |
+
+**What the first count found**, largest first:
+
+- *A phone's memory is not what one place holds; it is what the story has left behind.* `mem_check.js` puts the
+  player at frame 5's place and reads 266 MB. Played from the title, the same phone holds 253 MB as frame 1 opens,
+  296 by frame 4 and **320 MB at frame 4's lift and through frame 5**: fifty megabytes over the budget the check
+  held it to, in the frames where the owner's iPhone lost its context. Nothing a beat brings is given back.
+- *Depth of field costs two more full-size passes and two full-size targets, and the targets are kept for good.* A
+  conversation's shot, the camera raised, a print and the flight all blur by depth (a third of a play's stills). The
+  frame then draws the bloom's merge into one full-size half-float target, the blur into a second, and the lens to the
+  canvas: on a phone 4.29 canvases of pixels shaded against 2.29 without it, and 19 MB (two targets of 760 x 1644)
+  that stay after the first conversation; on a desktop at 2560 x 1440, 59 MB.
+- *A desktop holds 1.25 GB of textures in frame 1* (1.45 GB of GPU memory in all), none of it in blocks.
+- *Triangles by what they are*, a phone's mean of 1.32 million a still: the ground's tiles 256,000 (19%, most of them
+  under the hero level's paving); the far crowd 165,000 (12%); the guide dog 113,000 with its guard hairs (8.5%, one
+  animal); the roof kit 72,000, the same in every still of the play (never culled); the trains 100,000. A desktop's
+  mean of 2.72 million: the roof kit 430,000 (16%, on roofs the street cannot see), the wet street's mirror 250,000
+  more (the scene drawn again at a third of the size), the dog 120,000, the far land 127,000 in one draw.
+- *Frame 7 in the rain draws the scene three times.* On a desktop a still's frame there is 7.2 million triangles and
+  2,135 draws: 3.0 million for the picture, 2.9 million again for the wet street's mirror, a target of 267 x 167
+  pixels (sixty triangles a pixel; every other frame), and 1.2 million for the rain's cover map, 256 x 256, seen from
+  above (weather.js: every half second while it rains). On a phone, which has no mirror, the cover map alone adds
+  0.9 million triangles to a frame of 1.45 million, into 128 x 128 pixels: one frame in fifteen two thirds heavier.
+- *Passes.* A phone's eleven are the scene, ten small ones of the bloom (a quarter of the size and down) and the
+  lens: 2.29 canvases in all, already lean. A desktop's seventeen to nineteen shade 4.2 to 6.2 canvases.
+
+**The order of work**, by what was counted: the depth of field's passes and targets; the scene drawn again for the
+rain's cover and the mirror, from what a picture of that size can show; what a beat leaves behind in a phone's memory; the triangles nobody can see (the roof kit from the street, the ground under the paving) and the
+ones no screen can show (the dog, the far crowd, the trains by projected size); a desktop's textures in blocks.
+Each lands by itself with its beats' numbers before and after, and the budgets come down with it.
+
+**On the devices** (what a session cannot measure: a GPU's milliseconds). After each release:
+
+1. iPhone: open the story, play into frame 1 until the world has stopped, add `?perf` to the address (with
+   `?story=shibuya` for the story's evening), stand still for a minute; the table appears on the page and is sent
+   with the telemetry as a `perf` event. The same on the M3 in Chrome and in Safari.
+2. `python3 tools/slo_report.py --posthog --days 3`: "the levels by release" sets each version's frame rate, slow
+   frames, GPU and script time, draws, triangles and passes side by side, by device; a release is better when its
+   phone rows show fewer slow frames at the same or a higher governor scale, and no `gl_lost`.
+
+### The depth of field in one pass (issue 130, the first cut)
+
+A conversation's shot, the camera raised, a print and the flight blur by depth (`atmosphere.js` `camFx`; a third of a
+play's stills). With it on, the frame drew the scene, the occlusion and the bloom together into one full-size
+half-float target (`lens.js` `merge`), blurred that into a second, and the lens read the second: two full-size passes
+and two full-size targets more than a frame without it, and the targets, made at the first conversation, were kept
+for good.
+
+Now the blur reads the scene itself (`camFx.merged`): each tap is rolled off as the merge rolled it off and shaded by
+the occlusion (the pixel's own with the depth-aware upsample; a neighbour's as the occlusion's texel has it, which
+under a blur reads alike), and the bloom's sum, soft already, is added after the blur. One pass, one target; a pixel
+in focus is what the merge made it. Eight seconds after the last frame that needed it the target is let go. Any other
+tail (the opening's animated lens, a film's own pass) draws as before.
+
+`tools/dof_compare.js` holds the walk at 19:30 in photo mode and draws the same frame both ways
+(`composer.camFxPasses`, or `?camfx=two` on the address):
+
+| the same held frame | passes | pixels shaded, canvases | full-size targets | GPU memory while on | after |
+|---|---|---|---|---|---|
+| a phone (760 x 1644, the low tier), before | 13 | 4.29 | 2 | 260.7 MB | 260.7 MB (kept) |
+| after | 12 | 3.29 | 1 | 244.0 MB | 241.7 MB (let go) |
+| a desktop (1440 x 900, the high tier), before | 19 | 6.17 | 2 | 1104 MB | kept |
+| after | 18 | 5.17 | 1 | 1084 MB | let go |
+
+The picture: on the phone's page the two ways differ by 0.93 levels of 255 on average, where the old way drawn twice
+differs from itself by 0.92 (the film's grain); the largest difference of any channel is 17. On the desktop's page
+4.6 against 3.7 (the screens play on between the two draws). Stills of both are side by side in the branch's report.
+Measured on a session's machine (the counts and the megabytes are the page's own; the milliseconds a full-size pass
+costs an iPhone or an M3 are for `?perf` and the telemetry to say).
+
+### The rain's cover map: what stands still is kept (issue 130, the second cut)
+
+While it rains the game keeps a map of the tops of things from straight above, 80 m square round the camera
+(`weather.js` `occRT`: 128 x 128 on a phone, 256 x 256 on a desktop), so that no drop falls under a roof and the
+ground is dry there. It was drawn whole every half second of rain, and whenever the camera had gone four metres: the
+ground's tiles, the buildings, the hero level, the roofs' kit, the trains. At the Scramble that is 660,000 triangles
+and 345 draws on a phone into 16,384 pixels, in one frame of every fifteen, on top of a picture of 1.45 million; on a
+desktop 1.07 million.
+
+Almost none of it moves. What stands still (the shadows' cache's mark, `userData.shadowStatic`, and
+`userData.oeStill` for the ground's tiles, the far land and the lamps, which cast no shadow) now has a map of its own
+(`occStill`), drawn when the map's place changes and every six seconds (for what the map round the player has built
+or let go). Each time the map is due, that one is copied, colour and depth, and what moves (the cars, the trains, a
+door) is drawn over it. The map keeps its place while the camera stays within two metres of where it was set; set
+afresh at every draw, as it was, a camera's sway moved it a texel each time. `?occ=whole` draws it whole as before.
+
+`tools/rain_cover.js` holds the walk at the Scramble in the rain and draws the map three ways from one place:
+
+| each time the map is due | draws | triangles | the map against the whole |
+|---|---|---|---|
+| a phone, whole, as before | 345 | 659,000 | |
+| a phone, the moving over the map kept | 86 | 111,000 | no texel differs |
+| a desktop, whole, as before | 220 | 1,074,000 | |
+| a desktop, the moving over the map kept | 118 | 297,000 | no texel differs |
+
+Standing in the rain for ten seconds of the game's time, the map is due nineteen times; the still things are drawn
+once where they were drawn nineteen times. Walking, the still things are drawn again every two metres (a second and
+a half on foot), where the whole was drawn every half second. The picture is the same by construction: the three maps
+are compared texel by texel (height and cover) and must not differ. What is left in the moving pass on a phone: the
+trains (57,000), and instanced things nobody has marked as still (45,000). A still's frame in the story's check is
+usually a frame that draws the still things too (the play has just put the camera somewhere new), so frame 7's budget
+does not show this; the harness's count does. Measured on a session's machine; the counts are the page's own.

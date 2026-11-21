@@ -32,7 +32,10 @@
 //     next page load ("crash").
 // Nothing is stored but a random visitor id in localStorage (no cookies, no fingerprinting, no IP kept by
 // this code); nothing is sent at all until CONFIG names an endpoint, nor when the browser asks not to be
-// tracked (Do Not Track or Global Privacy Control), nor from automated browsers (the checks in tools/).
+// tracked (Do Not Track or Global Privacy Control), nor from automated browsers (the checks in tools/), nor once the
+// visitor has switched it off on the Credits screen (credits.js; OETelemetry.consent): the switch is kept in
+// localStorage ("oe3d-telemetry" = "off"), and turning it off removes the visitor id and the visit count and drops what
+// was waiting to be sent.
 // Events go in batches with navigator.sendBeacon (fetch keepalive as the fallback), in one of two formats:
 //   "posthog": PostHog's /batch/ capture API (a project's public key is meant to sit in page code);
 //   "jsonl":   { events: [...] } to a collector of your own (tools/telemetry_server.py, which writes
@@ -64,23 +67,52 @@ window.OETelemetry = (function () {
   const optOut = navigator.doNotTrack === '1' || window.doNotTrack === '1' || navigator.globalPrivacyControl === true;
   // (a checkout served on this machine sends nothing unless asked: the checks' software renderer once reported its
   // slow loads and its "crashes" as a visitor's, on the real devices' dashboard)
-  const on = arg !== 'off' && !optOut && (debug || (!!endpoint && (asked || (!navigator.webdriver && !local))));
-  const noop = { on: false, track() {}, flush() {}, view() {}, set() {}, gpu() {}, here() { return null; } };
+  // the visitor's own switch (the Credits screen): off is kept, and nothing this code keeps to tell visits apart stays
+  const CONSENT = 'oe3d-telemetry';
+  let refused = false, stopped = false, again = false;
+  try { refused = localStorage.getItem(CONSENT) === 'off'; } catch (e) { /* storage blocked */ }
+  const forget = () => {
+    for (const k of ['bh-vid', 'bh-visits']) try { localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
+    try { sessionStorage.removeItem('bh-phs'); } catch (e) { /* storage blocked */ }
+  };
+  if (refused) forget();
+  const on = arg !== 'off' && !optOut && !refused && (debug || (!!endpoint && (asked || (!navigator.webdriver && !local))));
+  let halt = () => {};   // (what a running page stops when it is switched off: set below, once there is something to stop)
+  // state: "on" (measuring), "off" (the visitor's switch), "browser" (Do Not Track or Global Privacy Control: no switch
+  // can turn it on), "next" (switched back on in a page that loaded with it off: from the next time the page is opened),
+  // "idle" (this copy of the page sends nothing anyway: a local checkout or an automated browser)
+  const consent = {
+    state: () => (optOut ? 'browser' : refused ? 'off' : again ? 'next' : on && !stopped ? 'on' : 'idle'),
+    set(v) {
+      if (optOut) return consent.state();
+      if (!v) {
+        refused = true; again = false;
+        try { localStorage.setItem(CONSENT, 'off'); } catch (e) { /* storage blocked: off for this page */ }
+        halt(); forget();
+      } else {
+        try { localStorage.removeItem(CONSENT); } catch (e) { /* storage blocked */ }
+        again = refused && (stopped || !on) && arg !== 'off' && (debug || (!!endpoint && (asked || (!navigator.webdriver && !local))));
+        refused = false;
+      }
+      return consent.state();
+    },
+  };
+  const noop = { on: false, consent, track() {}, flush() {}, view() {}, set() {}, gpu() {}, here() { return null; } };
   if (!on) return noop;
 
   const now = () => performance.now();
   const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); };
   let vid = null;
-  try { vid = localStorage.getItem('oe3d-vid'); if (!vid) { vid = rid(); localStorage.setItem('oe3d-vid', vid); } } catch (e) { vid = null; }
+  try { vid = localStorage.getItem('bh-vid'); if (!vid) { vid = rid(); localStorage.setItem('bh-vid', vid); } } catch (e) { vid = null; }
   const fresh = !vid;
   if (!vid) vid = rid();                 // storage blocked: a visitor id for this page only
   const sid = rid();                     // one page load
   // how many page loads this browser has made, and the days since the last: return visits without a profile
   let visit = { n: 1, days: null };
   try {
-    const o = JSON.parse(localStorage.getItem('oe3d-visits') || 'null'), t = Date.now();
+    const o = JSON.parse(localStorage.getItem('bh-visits') || 'null'), t = Date.now();
     if (o && o.n > 0) visit = { n: o.n + 1, days: Math.round((t - o.t) / 864e5 * 10) / 10 };
-    localStorage.setItem('oe3d-visits', JSON.stringify({ n: visit.n, t }));
+    localStorage.setItem('bh-visits', JSON.stringify({ n: visit.n, t }));
   } catch (e) { /* storage blocked */ }
 
   // the device, coarse: what the quality tiers and the SLO targets are split by
@@ -142,10 +174,10 @@ window.OETelemetry = (function () {
   };
   function phSession() {
     const t = Date.now();
-    if (!phs) { try { phs = JSON.parse(sessionStorage.getItem('oe3d-phs') || 'null'); } catch (e) { phs = null; } }
+    if (!phs) { try { phs = JSON.parse(sessionStorage.getItem('bh-phs') || 'null'); } catch (e) { phs = null; } }
     if (!phs || !phs.id || t - phs.t > 30 * 60e3) phs = { id: uuid7(), t };
     phs.t = t;
-    try { sessionStorage.setItem('oe3d-phs', JSON.stringify(phs)); } catch (e) { /* storage blocked */ }
+    try { sessionStorage.setItem('bh-phs', JSON.stringify(phs)); } catch (e) { /* storage blocked */ }
     return phs.id;
   }
   const referrer = (() => { try { return document.referrer && new URL(document.referrer).host !== location.host ? document.referrer : ''; } catch (e) { return ''; } })();
@@ -153,10 +185,12 @@ window.OETelemetry = (function () {
   // ---------------------------------------------------------------- the queue
   let queue = [];
   function track(event, props) {
+    if (stopped) return;
     queue.push({ event, ts: new Date().toISOString(), url: location.origin + location.pathname + location.hash, props: Object.assign(base(), cur ? { view: cur.kind, city: cur.city } : {}, snap(), props || {}) });
     if (queue.length >= 20) flush();
   }
   function flush() {
+    if (stopped) { queue = []; return; }
     if (!queue.length) return;
     const events = queue; queue = [];
     if (debug) { console.info('[telemetry]', events); if (!endpoint) return; }
@@ -291,7 +325,9 @@ window.OETelemetry = (function () {
     // the first view is timed from the navigation itself (the page's own download is part of its wait)
     cur = { kind: w.kind, city: w.city, t0: views ? now() : 0, ready: w.kind === 'globe', failed: false, active: 0, since: null, frames: frames(),
       restored: restored === true, here: null, dwell: new Map(), tourMax: 0, tourDone: false, stamps: null };
-    track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days }, prev));
+    // (gl_reload: the page was loaded again by glcare.js after its WebGL context was lost, in the last minute)
+    let glr = 0; if (!views) try { glr = Date.now() - (Number(sessionStorage.getItem('bh-gl-reload')) || 0) < 60000 ? 1 : 0; } catch (e) { /* storage blocked */ }
+    track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days, gl_reload: glr || undefined }, prev));
     prev = {};
     while (crashes.length) crashes.shift()();
     if (cur.ready) bank();
@@ -534,7 +570,7 @@ window.OETelemetry = (function () {
         // the story (game.js story.js): where in the case, as the spot; and what to count as its steps
         const S = g.story && g.story.state;
         if (S && S.phase && S.phase !== 'idle' && S.phase !== 'dressed') {
-          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: S.phase === 'stop' || !!(document.getElementById('gd') && !document.getElementById('gd').hidden),
+          return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: ['still', 'guide', 'flight', 'prologue', 'call'].includes(S.beat), // (watched with no hand on anything: the Stop falling, the dog's film, a flight, a call; a line or a question that waits on a key, or a Stop walked in, counts as engaged only with input, as everywhere: an open box once counted a player half an hour away as playing)
             story: { fi: S.fi, phase: S.phase, prints: (S.prints || []).length, spent: (S.prints || []).filter(q => q.plain).length, failed: S.failed || 0, pairs: (S.pairs || []).length, ep: S.ep && S.ep.id } };
         }
         const p = g.player, a = g.places && g.places.area && g.places.area();
@@ -622,20 +658,24 @@ window.OETelemetry = (function () {
   // when the tab is put away or the page closes. A note left behind, and older than half a minute (another
   // tab of the site keeps its own fresh), means the page ended without closing: the browser or the GPU
   // process crashed, or the system killed it for memory. The next page load reports it.
-  const ALIVE = 'oe3d-alive-', crashes = [];   // the reports wait for the first view, so they carry its tier
+  const ALIVE = 'bh-alive-', crashes = [];   // the reports wait for the first view, so they carry its tier
   // (lv: the level of a phone's set the page runs at, quality.js level: a death is counted against that level)
+  // a phone whose WebGL context is lost is counted as having died there at once (noteLost, below): iOS often takes the whole
+  // page a moment later, and Safari gives a page two deaths before it stops loading it, so the next load must already be a
+  // level lighter. The note says so (lost), and the next load, which finds the page dead, does not count it twice.
+  let lostNoted = false;
   const lvNow = () => { try { const Q = window.OEQuality; return Q && Q.lean() ? Q.city().lighter : undefined; } catch (e) { return undefined; } };
   // (mb: what the view has downloaded, decoded, in MB: the browsers that give no heap (Safari, iOS) still say how much a
   // page held when it died, the memory signal for a phone killed mid-load)
   const held = () => { let b = 0; try { const t0 = cur ? cur.t0 : 0; for (const r of performance.getEntriesByType('resource')) if (r.startTime >= t0) b += r.decodedBodySize || 0; } catch (e) { /* no Resource Timing */ } return Math.round(b / 1048576); };
-  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held() }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
+  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held(), lost: (lostNoted || !!(window.OEQuality && OEQuality.lostHere && OEQuality.lostHere())) || undefined }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
   const gone = () => { try { localStorage.removeItem(ALIVE + sid); } catch (e) { /* storage blocked */ } };
   // This tab's last page load, by the tab's own session storage, which outlives a page that was killed: Safari
   // loads a tab again the moment its page dies, so the note it left is seconds old, and taken for another tab's it
   // went uncounted; the second load was then as heavy as the first, died the same way, and left the visitor on
   // "A problem repeatedly occurred" (issue 443). A note of this tab's own is a dead page's at any age.
   let before = null;
-  try { before = sessionStorage.getItem('oe3d-sid'); sessionStorage.setItem('oe3d-sid', sid); } catch (e) { /* storage blocked */ }
+  try { before = sessionStorage.getItem('bh-sid'); sessionStorage.setItem('bh-sid', sid); } catch (e) { /* storage blocked */ }
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
@@ -647,11 +687,12 @@ window.OETelemetry = (function () {
       // the memory loop (quality.js died; issue 443): a map whose page died on this device loads lighter the next
       // time, one step for each death, so that a phone it killed once is not killed the same way again
       if (o && o.city && (o.view === 'game' || o.view === 'city') && age < 14 * 864e5) try {
-        let d = null; try { d = JSON.parse(localStorage.getItem(`oe3d-died-${o.city}`)); } catch (e) { d = null; }
+        let d = null; try { d = JSON.parse(localStorage.getItem(`bh-died-${o.city}`)); } catch (e) { d = null; }
         // (lv: the lightest level a page of this map has died at, for quality.js level; a page from before levels
         // were written died at 0 or 1, the sets of that time)
+        if (o.lost) throw 0; // (counted when its context was lost: noteLost)
         const was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, lv = Math.max(was, o.lv != null ? o.lv : 1);
-        localStorage.setItem(`oe3d-died-${o.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!o.ready, lv }));
+        localStorage.setItem(`bh-died-${o.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!o.ready, lv }));
       } catch (e) { /* storage blocked */ }
       if (age < 3 * 864e5) crashes.push(() => track('crash', { prev_view: o.view, prev_city: o.city, prev_spot: o.spot, prev_mode: o.mode, prev_ready: o.ready, prev_stage: o.stage || undefined, prev_lv: o.lv, prev_mb: o.mb, prev_up_s: o.up, ago_s: Math.round(age / 1000) }));
     }
@@ -670,7 +711,14 @@ window.OETelemetry = (function () {
   // a change of view, or once the page is going, is not counted
   let going = false, changed = 0;
   // (how far the view had come: a context lost while loading is a GPU out of memory mid-build, one in play a driver's reset)
-  addEventListener('webglcontextlost', () => { if (going || now() - changed < 4000) return; track('gl_lost', { ready: !!(cur && cur.ready), stage: stage || undefined, up_s: Math.round(now() / 1000), mb: held() }); flush(); }, true);
+  addEventListener('webglcontextlost', () => { if (going || now() - changed < 4000) return; track('gl_lost', { ready: !!(cur && cur.ready), stage: stage || undefined, up_s: Math.round(now() / 1000), mb: held() }); noteLost(); flush(); }, true);
+  function noteLost() {
+    try {
+      const Q = window.OEQuality;
+      if (lostNoted || !cur || !cur.city || (cur.kind !== 'game' && cur.kind !== 'city') || !Q || !Q.lost) return;
+      if (Q.lost(cur.city, !!cur.ready)) { lostNoted = true; alive(); } // (quality.js lost: once a page, and not while put away)
+    } catch (e) { /* storage blocked */ }
+  }
   // a shader that fails to compile or link: three.js says so on the console and draws the material black or not at
   // all, with no exception for "error" to catch; the first line and the material's name are kept
   try {
@@ -710,5 +758,9 @@ window.OETelemetry = (function () {
   // the first view once the page's scripts are in (so its events carry the quality tier)
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', view, { once: true }); else view();
   alive();
-  return { on: true, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample };   // frames, here, sample: for tools/telemetry_check.js
+  // (switched off: nothing waits and nothing more is taken. The page's note to itself that it is alive stays: it is not
+  // sent, and it is how a phone whose page died loads a level lighter the next time, quality.js)
+  halt = () => { queue = []; stopped = true; api.on = false; };
+  const api = { on: true, consent, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample };   // frames, here, sample: for tools/telemetry_check.js
+  return api;
 })();

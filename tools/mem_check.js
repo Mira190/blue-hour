@@ -23,7 +23,10 @@
 // `buffers: n objects, N MB`) against MEM_DESK (default 140 MB: the map round the player, docs/PERFORMANCE.md "A desktop's
 // map round the player", sent 125 where the whole map sent 283), with the time to the title and the GPU's buffers then.
 // QUERY='?district=off' measures the whole map on the phone tier, to compare with its district (pipeline/district.py).
-// AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1).
+// AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1),
+// with what each hero level loaded there holds, and then a conversation's depth of field there (FX=0 leaves it out).
+// OWN=n: at AT, the n largest textures, each with the meshes that hold it or the script line that made it. HERO_SEEN=1: at AT,
+// how many of each level's meshes the visibility sweep (visibility.js) says may be seen (tools/hero_unseen.js asks the GPU).
 // TIER=low|medium|high (default low). QUERY=?a=b adds a query to the page's address. LV=n: the phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest). SNAP=file (%c for the city) writes a heap snapshot at the end (tools/heap_owners.js). JSON=1 prints the result as JSON. TOP=n lists n largest (default 8).
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
@@ -58,84 +61,23 @@ async function measure(b, city) {
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1',
   });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
   // LV=n: a phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest)
-  if (process.env.LV) await ctx.addInitScript(n => { try { localStorage.setItem('oe3d-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
-  await ctx.addInitScript(() => {
-    // bytes per texel of the uncompressed internal formats (as tools/tex_mem.js); a buffer's own bytes; a renderbuffer's samples
-    const BPP = { 0x8058: 4, 0x8C43: 4, 0x1908: 4, 0x8051: 3, 0x8C41: 3, 0x1907: 3, 0x8229: 1, 0x1909: 1, 0x1903: 1, 0x822B: 2,
-      0x881A: 8, 0x8814: 16, 0x822F: 4, 0x822E: 4, 0x8230: 8, 0x822D: 2, 0x8D62: 2, 0x8056: 2, 0x8057: 2, 0x8C3A: 4, 0x8C3D: 4,
-      0x81A5: 2, 0x81A6: 3, 0x88F0: 4, 0x8CAC: 4, 0x8CAD: 8, 0x1902: 4, 0x8D9F: 4, 0x8F94: 4, 0x8059: 4, 0x8236: 4, 0x8235: 4, 0x8234: 2, 0x8233: 1,
-      0x8232: 1, 0x8231: 1, 0x823C: 8, 0x823B: 4, 0x823A: 4, 0x8239: 2, 0x8238: 2, 0x8237: 2, 0x8D70: 16, 0x8D76: 16, 0x8D7C: 4, 0x8D82: 16, 0x8D88: 16, 0x8D8E: 4,
-      0x93B0: 1, 0x93D0: 1 }; // (ASTC 4x4, linear and sRGB: sixteen bytes a block of sixteen texels)
-    const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0 };
-    const total = () => { let s = 0; for (const m of [M.tex, M.buf, M.rb]) for (const e of m.values()) s += e.bytes; return s; };
-    const bump = () => { M.sum = total(); if (M.sum > M.peak) { M.peak = M.sum; M.peakAt = (performance.now() / 1000).toFixed(1); } };
-    const nameOf = a => { for (const x of a) if (x && (x.src || x.currentSrc)) return String(x.src || x.currentSrc).split('/').slice(-2).join('/'); return ''; };
-    for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
-      const tex = new Map(), bufs = new Map();
-      let unit = 0, rbBound = null;
-      const o = {};
-      for (const k of ['activeTexture', 'bindTexture', 'deleteTexture', 'texImage2D', 'texStorage2D', 'texImage3D', 'texStorage3D', 'compressedTexImage2D',
-        'bindBuffer', 'bufferData', 'deleteBuffer', 'bindRenderbuffer', 'renderbufferStorage', 'renderbufferStorageMultisample', 'deleteRenderbuffer']) o[k] = proto[k];
-      if (!o.activeTexture) continue;
-      proto.activeTexture = function (u) { unit = u; return o.activeTexture.call(this, u); };
-      proto.bindTexture = function (t, x) { tex.set(`${unit}:${t}`, x); return o.bindTexture.call(this, t, x); };
-      proto.deleteTexture = function (x) { M.tex.delete(x); bump(); return o.deleteTexture.call(this, x); };
-      const put = (gl, target, level, bytes, label) => {
-        const bindT = target >= 0x8515 && target <= 0x851A ? 0x8513 : target; // a cube's face: the cube map
-        const x = tex.get(`${unit}:${bindT}`);
-        if (!x) return;
-        let e = M.tex.get(x);
-        if (!e) M.tex.set(x, e = { levels: {}, bytes: 0, label: '' });
-        e.levels[`${target}:${level}`] = bytes;
-        if (label) e.label = label;
-        e.bytes = Object.values(e.levels).reduce((a, b) => a + b, 0);
-        bump();
-      };
-      proto.texImage2D = function (target, level, ifmt, ...r) {
-        let w, h;
-        if (r.length >= 6) { w = r[0]; h = r[1]; } else { const s = r[r.length - 1]; w = s.naturalWidth || s.videoWidth || s.width || s.displayWidth; h = s.naturalHeight || s.videoHeight || s.height || s.displayHeight; }
-        put(this, target, level, w * h * (BPP[ifmt] || 4), level ? '' : `${w}x${h} ${nameOf(r)}`);
-        return o.texImage2D.call(this, target, level, ifmt, ...r);
-      };
-      proto.texStorage2D = function (target, levels, ifmt, w, h) {
-        let s = 0; for (let l = 0, a = w, c = h; l < levels; l++, a = Math.max(1, a >> 1), c = Math.max(1, c >> 1)) s += a * c * (BPP[ifmt] || 4);
-        put(this, target, 0, s, `${w}x${h} storage`);
-        return o.texStorage2D.call(this, target, levels, ifmt, w, h);
-      };
-      const sub = proto.texSubImage2D;
-      proto.texSubImage2D = function (target, level, ...r) {
-        const n = level ? '' : nameOf(r.slice(4));
-        if (n) { const x = tex.get(`${unit}:${target >= 0x8515 && target <= 0x851A ? 0x8513 : target}`), e = x && M.tex.get(x); if (e && !/ \S+\.\w+$/.test(e.label)) e.label += ` ${n}`; }
-        return sub.call(this, target, level, ...r);
-      };
-      if (o.texImage3D) proto.texImage3D = function (target, level, ifmt, w, h, d, ...r) { put(this, target, level, w * h * d * (BPP[ifmt] || 4), level ? '' : `${w}x${h}x${d} 3D`); return o.texImage3D.call(this, target, level, ifmt, w, h, d, ...r); };
-      if (o.texStorage3D) proto.texStorage3D = function (target, levels, ifmt, w, h, d) { put(this, target, 0, w * h * d * (BPP[ifmt] || 4) * (levels > 1 ? 4 / 3 : 1), `${w}x${h}x${d} 3D storage`); return o.texStorage3D.call(this, target, levels, ifmt, w, h, d); };
-      proto.compressedTexImage2D = function (target, level, ifmt, w, h, b, data) { put(this, target, level, data ? data.byteLength : 0, level ? '' : `${w}x${h} compressed`); return o.compressedTexImage2D.apply(this, arguments); };
-      proto.bindBuffer = function (t, x) { bufs.set(t, x); return o.bindBuffer.call(this, t, x); };
-      proto.bufferData = function (t, d) {
-        const x = bufs.get(t);
-        if (x) { M.buf.set(x, { bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex' }); bump(); }
-        return o.bufferData.apply(this, arguments);
-      };
-      proto.deleteBuffer = function (x) { M.buf.delete(x); bump(); return o.deleteBuffer.call(this, x); };
-      proto.bindRenderbuffer = function (t, x) { rbBound = x; return o.bindRenderbuffer.call(this, t, x); };
-      proto.renderbufferStorage = function (t, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4), label: `${w}x${h} rb` }); bump(); } return o.renderbufferStorage.call(this, t, f, w, h); };
-      if (o.renderbufferStorageMultisample) proto.renderbufferStorageMultisample = function (t, s, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4) * Math.max(1, s), label: `${w}x${h} rb x${s}` }); bump(); } return o.renderbufferStorageMultisample.call(this, t, s, f, w, h); };
-      proto.deleteRenderbuffer = function (x) { M.rb.delete(x); bump(); return o.deleteRenderbuffer.call(this, x); };
-    }
-    // the largest of each kind now, and what the canvases' own buffers hold (colour, depth, at their size)
-    window.__memReport = top => {
-      const list = m => [...m.values()].sort((a, b) => b.bytes - a.bytes).slice(0, top).map(e => `${(e.bytes / 1048576).toFixed(1)} MB ${e.label}`);
-      const sum = m => [...m.values()].reduce((a, e) => a + e.bytes, 0);
-      const canv = [...document.querySelectorAll('canvas')].reduce((a, c) => a + (c.__gl ? c.width * c.height * 8 * 2 : 0), 0);
-      return { tex: sum(M.tex), buf: sum(M.buf), rb: sum(M.rb), now: M.sum, peak: M.peak, peakAt: M.peakAt, canvas: canv,
-        topTex: list(M.tex), topBuf: list(M.buf), topRb: list(M.rb), nTex: M.tex.size, nBuf: M.buf.size };
+  if (process.env.LV) await ctx.addInitScript(n => { try { localStorage.setItem('bh-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
+  // (OWN: every texture given a picture is noted with where in the page's scripts that was, to name those no material holds)
+  if (process.env.OWN) await ctx.addInitScript(() => {
+    window.__memOwn = true; window.__texAll = new Set();
+    const hook = () => {
+      const T = window.THREE, d = T && Object.getOwnPropertyDescriptor(T.Texture.prototype, 'needsUpdate');
+      if (!d || !d.set) return;
+      Object.defineProperty(T.Texture.prototype, 'needsUpdate', { configurable: true, get: d.get, set(v) {
+        if (v && !this.__memAt) { this.__memAt = (new Error().stack || '').split('\n').filter(l => /\.js/.test(l) && !/three|mem_check/.test(l)).slice(0, 3).map(l => l.replace(/^.*\/(\w[\w.-]*\.js):(\d+):\d+\)?$/, '$1:$2').trim()).join(' < '); window.__texAll.add(new WeakRef(this)); }
+        d.set.call(this, v);
+      } });
     };
-    const get = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (type, opts) { const r = get.call(this, type, opts); if (r && /webgl/.test(type)) this.__gl = true; return r; };
+    if (window.THREE) hook(); else addEventListener('three-ready', hook, { once: true });
   });
+  await ctx.addInitScript(require('./gl_mem').hook); // (every texture, buffer and renderbuffer WebGL is asked for, summed: window.__mem)
   // TRACK=1: every array buffer of a megabyte or more the page makes, receives from a Worker or fetches, with where, kept
   // as a weak reference: those still alive at the end (after a collection), summed by where they came from
   if (process.env.TRACK) await ctx.addInitScript(() => {
@@ -261,7 +203,7 @@ async function measure(b, city) {
         g.player.heading = Math.atan2(ux, uy); if (g.cam) g.cam.yaw = g.player.heading;
         for (let i = 0; i < 25 * 15; i++) g.advance(1 / 15, ['KeyW']);
         out.walked = { end: [x, y], to: [Math.round(g.player.x), Math.round(g.player.y)], held: inF([g.player.x, g.player.y], 8) };
-        out.said = [...document.querySelectorAll('#g-toasts > *')].some(e => /edge of this district/.test(e.textContent));
+        out.said = [...document.querySelectorAll('#g-toasts > *')].some(e => /edge of this district/.test(e.textContent)) || /edge of this district/.test(document.getElementById('g-toasts').dataset.next || ''); // (said, or waiting its turn behind another line: hud.js says one at a time in the story)
         g.spawn(was.slice(0, 2), was[2] + 0.5);
         for (let i = 0; i < 10; i++) g.advance(1 / 30);
       }
@@ -283,7 +225,78 @@ async function measure(b, city) {
       await p.waitForTimeout(+(process.env.SETTLE || 8) * 1000 + 6000);
       const lv = await p.evaluate(() => { const g = window.__game, H = g.hero && g.hero(); return H ? H.state().map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : 'no levels'; });
       console.log(`  at ${at.join(', ')}: ${lv}`);
+      // what each loaded level holds there: its textures (texels, four bytes each, a third more for the mips) and its
+      // geometry (vertex and index bytes), each counted once, shared pictures where they are held (issue 105)
+      const held = await p.evaluate(() => {
+        const g = window.__game, H = g.hero && g.hero();
+        if (!H || !H.levels) return [];
+        const seenT = new Set(), seenG = new Set();
+        return H.levels.filter(L => L.root).map(L => {
+          let tex = 0, geo = 0, verts = 0, nTex = 0;
+          const top = [];
+          for (const r of [L.root, L.fineRoot]) if (r) r.traverse(o => {
+            if (!o.isMesh) return;
+            if (!seenG.has(o.geometry)) {
+              seenG.add(o.geometry);
+              for (const a of Object.values(o.geometry.attributes)) geo += a.array.byteLength;
+              if (o.geometry.index) geo += o.geometry.index.array.byteLength;
+              verts += o.geometry.attributes.position ? o.geometry.attributes.position.count : 0;
+            }
+            for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
+              const t = m && m[k];
+              if (!t || seenT.has(t) || !t.image || !t.image.width) continue;
+              seenT.add(t); nTex++;
+              const b = t.image.width * t.image.height * 4 * (t.generateMipmaps === false ? 1 : 4 / 3);
+              tex += b; top.push([b, `${t.name || '?'} ${t.image.width}x${t.image.height}`]);
+            }
+          });
+          top.sort((a, b) => b[0] - a[0]);
+          return `${L.h.id}: textures ${(tex / 1048576).toFixed(1)} MB (${nTex}; ${top.slice(0, 4).map(q => `${(q[0] / 1048576).toFixed(1)} ${q[1]}`).join(', ')}), geometry ${(geo / 1048576).toFixed(1)} MB (${verts.toLocaleString()} vertices)`;
+        });
+      }).catch(e => [String(e)]);
+      for (const l of held) console.log(`    ${l}`);
+      // OWN=n: the n largest textures held there, each with the three.js texture and the meshes (or the pass) that hold it
+      if (process.env.OWN) console.log(`    held by:\n      ${(await p.evaluate(n => {
+        const g = window.__game, R = g.renderer, scene = g.Wd.world.parent || g.Wd.world, by = new Map();
+        const note = (t, who) => { if (!t || !t.isTexture) return; const w = R.properties.get(t).__webglTexture; if (!w) return; if (!by.has(w)) by.set(w, { t, who: new Set() }); by.get(w).who.add(who); };
+        scene.traverse(o => {
+          if (!o.material) return;
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+            for (const k in m) if (m[k] && m[k].isTexture) note(m[k], `${o.name || o.type}${o.visible ? '' : ' (hidden)'}/${m.name || m.type}.${k}`);
+            if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) note(v, `${o.name || o.type}/${m.name || m.type}.u.${k}`); }
+          }
+        });
+        for (const r of window.__texAll || []) { const t = r.deref(); if (t) note(t, `made at ${t.__memAt}`); }
+        return [...window.__mem.tex].sort((a, b) => b[1].bytes - a[1].bytes).slice(0, n).map(([w, e]) => {
+          const h = by.get(w);
+          return `${(e.bytes / 1048576).toFixed(1)} MB ${e.label} ${h ? `"${h.t.name || ''}" ${[...h.who].slice(0, 3).join(', ')}${h.who.size > 3 ? ` +${h.who.size - 3}` : ''}` : '(no material: a target or a pass)'}${e.stack ? ` [${e.stack}]` : ''}`;
+        });
+      }, +process.env.OWN).catch(e => [String(e)])).join('\n      ')}`);
+      if (process.env.HERO_SEEN) console.log(`    seen: ${await p.evaluate(() => {
+        const g = window.__game, H = g.hero && g.hero(), V = window.OEVis, T = window.THREE;
+        const box = new T.Box3(), c = new T.Vector3(), s = new T.Vector3();
+        return H.levels.filter(L => L.root).map(L => {
+          let n = 0, k = 0, vb = 0, vs = 0;
+          L.root.traverse(o => {
+            if (!o.isMesh) return;
+            box.setFromObject(o); box.getCenter(c); box.getSize(s);
+            const b = Object.values(o.geometry.attributes).reduce((a, q) => a + q.array.byteLength, 0) + (o.geometry.index ? o.geometry.index.array.byteLength : 0);
+            n++; vb += b;
+            if (!V || V.seen(c.x, -c.z, box.max.y, Math.hypot(s.x, s.z) / 2)) { k++; vs += b; }
+          });
+          return `${L.h.id} ${k}/${n} meshes (${(vs / 1048576).toFixed(1)} of ${(vb / 1048576).toFixed(1)} MB) live=${V && V.live} where=${V && JSON.stringify(V.where())}`;
+        }).join('; ');
+      }).catch(e => String(e))}`);
       await part(`at ${at.join(', ')}, settled`);
+      // then a conversation's shot there, the camera's depth of field drawn for a few seconds (atmosphere.js: the post
+      // stack's target made for it, let go a few seconds after it ends), held in the peak: frame 5's talk (issue 105). FX=0 leaves it out
+      if (process.env.FX !== '0') {
+        await p.evaluate(() => { const A = window.__game.atmos, f = A.camFx; A.__fx = f; A.camFx = o => f.call(A, o || { focus: 3, aperture: 0.08 }); });
+        await p.waitForTimeout(6000);
+        await p.evaluate(() => { const A = window.__game.atmos; A.camFx = A.__fx; });
+        await part(`at ${at.join(', ')}, a conversation's depth of field`);
+        await p.waitForTimeout(6000);
+      }
     }
     // the heaviest hour: rain at ten at night, on the game's own clock and weather, drawn for WET seconds
     const wet = await p.evaluate(() => {
@@ -310,6 +323,7 @@ async function measure(b, city) {
     smaps = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${MB(v)}`).join(', ');
   } catch (e) { /* gone */ }
   const r = await p.evaluate(top => window.__memReport(top), TOP).catch(() => null);
+  const steps = await p.evaluate(() => window.__steps || []).catch(() => []);
   // the pictures packed as ASTC blocks on the device (web/tex.js), where the renderer decodes them (SwiftShader does: run without xvfb-run)
   const astc = await p.evaluate(() => (window.OETex && OETex.stats.on ? { packed: OETex.stats.packed, kept: OETex.stats.kept, mb: OETex.stats.bytes / 1048576, worst: OETex.stats.worst, s: OETex.stats.ms / 1000, log: OETex.stats.log } : null)).catch(() => null);
   try { await cdp.send('HeapProfiler.collectGarbage'); } catch (e) { /* */ }
@@ -363,13 +377,13 @@ async function measure(b, city) {
   }).catch(e => [String(e)]);
   const pr = await p.evaluate(() => { const c = document.getElementById('game-gl'); return c ? { w: c.width, h: c.height } : null; }).catch(() => null);
   await ctx.close();
-  return { city, ok, map, district, parts, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: hasProc ? peakRss : null, gl: r, canvas: pr, errors };
+  return { city, ok, map, district, parts, steps, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: hasProc ? peakRss : null, gl: r, canvas: pr, errors };
 }
 
 // the desktop's load to the title: the loader's upload before it, by its own log line
 async function desktop(b, city) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
-  await ctx.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } });
   await ctx.addInitScript(() => {
     const M = window.__deskBuf = { buf: new Map(), sum: 0 }, P = WebGL2RenderingContext.prototype, bind = P.bindBuffer, data = P.bufferData, del = P.deleteBuffer, bound = new Map();
     P.bindBuffer = function (t, x) { bound.set(t, x); return bind.call(this, t, x); };
@@ -426,11 +440,12 @@ async function desktop(b, city) {
     if (heap > HEAP_MB * 1048576) over.push(`heap ${MB(heap)} MB over ${HEAP_MB}`);
     if (over.length) fail = true;
     if (process.env.JSON) continue;
-    console.log(`${over.length ? 'FAIL' : 'ok  '} ${city}: GPU peak ${MB(gpu)} MB (textures ${m.gl ? MB(m.gl.tex) : '?'}, buffers ${m.gl ? MB(m.gl.buf) : '?'}, renderbuffers ${m.gl ? MB(m.gl.rb) : '?'} at the end; canvas ${m.canvas ? `${m.canvas.w}x${m.canvas.h}` : '?'}), JS heap peak ${MB(m.heap)} MB (${MB(m.heapEnd)} at the end after a collection: page objects ${MB(m.split.usedSize || 0)}, its array buffers ${MB(m.split.backingStorageSize || 0)}), ${m.rss ? `renderer process ${MB(m.rss.renderer)} MB, GPU process ${MB(m.rss.gpu)} MB` : 'process memory unavailable'}, ${m.s.toFixed(0)} s${over.length ? ` - ${over.join('; ')}` : ''}`);
+    console.log(`${over.length ? 'FAIL' : 'ok  '} ${city}: GPU peak ${Math.abs(gpu / 1048576 - GPU_MB) < 3 ? (gpu / 1048576).toFixed(1) : MB(gpu)} MB (textures ${m.gl ? MB(m.gl.tex) : '?'}, buffers ${m.gl ? MB(m.gl.buf) : '?'}, renderbuffers ${m.gl ? MB(m.gl.rb) : '?'} at the end; canvas ${m.canvas ? `${m.canvas.w}x${m.canvas.h}` : '?'}), JS heap peak ${MB(m.heap)} MB (${MB(m.heapEnd)} at the end after a collection: page objects ${MB(m.split.usedSize || 0)}, its array buffers ${MB(m.split.backingStorageSize || 0)}), ${m.rss ? `renderer process ${MB(m.rss.renderer)} MB, GPU process ${MB(m.rss.gpu)} MB` : 'process memory unavailable'}, ${m.s.toFixed(0)} s${over.length ? ` - ${over.join('; ')}` : ''}`);
     if (m.astc) {
       console.log(`     pictures in ASTC blocks: ${m.astc.packed} packed (${m.astc.mb.toFixed(1)} MB of blocks, the worst ${m.astc.worst.toFixed(1)} dB), ${m.astc.kept} kept as they were`);
       if (process.env.ASTC_LOG) for (const l of m.astc.log) console.log(`       ${l.kept ? 'kept  ' : 'packed'} ${String(l.w).padStart(4)}x${String(l.h).padEnd(4)} ${l.db == null ? '' : `${l.db} dB`}${l.adb ? ` alpha ${l.adb}` : ''} ${l.name}${l.why ? ` (${l.why})` : ''}`);
     }
+    if (process.env.STEPS && m.steps && m.steps.length) console.log(`     the load's steps (second, GPU MB, heap MB): ${m.steps.map(q => `${q.step} ${q.t}s ${MB(q.gpu)}/${MB(q.heap)}`).join(' | ')}`);
     if (m.parts && m.parts.length) { // (the part the peak rose in last is the one it fell in)
       let at = m.parts[0].name;
       for (let i = 1; i < m.parts.length; i++) if (m.parts[i].peak > m.parts[i - 1].peak) at = m.parts[i].name;

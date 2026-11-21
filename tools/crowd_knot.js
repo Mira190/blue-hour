@@ -24,7 +24,7 @@ const CASES = [
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 300 } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } });
   p.on('pageerror', e => console.log(`pageerror: ${String(e).slice(0, 300)}`));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game', null, { timeout: 400000 });

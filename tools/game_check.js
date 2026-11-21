@@ -103,7 +103,7 @@ const { camRun, jumps: camJumps, SHORT: CAM_WALK } = require('./cam_jumps');
   // (the tiles round you laid by advance() while held, game.js, and the route network built, route.js: the roads it finds a car
   // can't get along are kept off by the traffic as it finds them, so a run started before it is done meets another traffic)
   if (lockstep) await p.evaluate(async () => { const g = window.__game; g.hold(true, true); await g.ways.build(); if (g.heli && g.heli.want) await g.heli.want(); if (g.lateReady) await g.lateReady(); }); // (and the cars' near models, your car and the near trees, issue 335; and the helicopter on its pad: fetched while the title shows, it may be there or not by the time the check holds the game)
-  await p.evaluate(() => { try { localStorage.removeItem('oe3d-onboard'); } catch (e) { /* storage blocked */ } }); // a first-time player
+  await p.evaluate(() => { try { localStorage.removeItem('bh-onboard'); } catch (e) { /* storage blocked */ } }); // a first-time player
   // the lights in the scene by kind, as three.js counts them for its shaders (one under a hidden parent does
   // not count). The count is built into every lit material's shader, so it must stay what it was on the
   // title: a light that comes, goes or hides later recompiles the whole city at once, seconds of frozen
@@ -537,16 +537,16 @@ const { camRun, jumps: camJumps, SHORT: CAM_WALK } = require('./cam_jumps');
     // live weather: one request, to Open-Meteo, with the city's coordinates to 0.01 degree and nothing else;
     // what comes back is the weather; when nothing does, the season's carries on
     const realFetch = window.fetch, asked = [];
-    try { localStorage.removeItem('oe3d-weather-now'); } catch (e) { /* storage blocked */ }
+    try { localStorage.removeItem('bh-weather-now'); } catch (e) { /* storage blocked */ }
     window.fetch = (u, o) => { asked.push([String(u), o || {}]); return Promise.resolve({ ok: true, json: () => Promise.resolve({ current: { weather_code: 73, temperature_2m: -2, precipitation: 0.3, snowfall: 0.2, cloud_cover: 100, wind_speed_10m: 4, wind_direction_10m: 300, visibility: 900 } }) }); };
     W.set('now', { now: true }); await new Promise(r => setTimeout(r, 60)); tick(1); tick(1);
     out.live = { kind: S.kind, source: S.source, temp: S.temp, n: asked.length, url: asked[0] && asked[0][0], cred: asked[0] && asked[0][1].credentials, ref: asked[0] && asked[0][1].referrerPolicy };
-    try { localStorage.removeItem('oe3d-weather-now'); } catch (e) { /* storage blocked */ }
+    try { localStorage.removeItem('bh-weather-now'); } catch (e) { /* storage blocked */ }
     window.fetch = () => Promise.reject(new Error('offline'));
     W.set('clear', { now: true }); W.set('now', { now: true }); await new Promise(r => setTimeout(r, 60)); tick(1);
     out.liveDown = { source: S.source, kind: S.kind };
     window.fetch = realFetch;
-    try { localStorage.removeItem('oe3d-weather-now'); } catch (e) { /* storage blocked */ }
+    try { localStorage.removeItem('bh-weather-now'); } catch (e) { /* storage blocked */ }
     W.set('clear', { now: true }); tick(1);
     W.set('live');
     return out;
@@ -587,7 +587,7 @@ const { camRun, jumps: camJumps, SHORT: CAM_WALK } = require('./cam_jumps');
     const light = { level: W.level, near: W.meshes.near.visible, far: W.meshes.far.visible, splash: W.meshes.splash.visible };
     W.shed = 2;
     let kept = null;
-    try { kept = localStorage.getItem('oe3d-weather-guard'); } catch (e) { /* storage blocked */ }
+    try { kept = localStorage.getItem('bh-weather-guard'); } catch (e) { /* storage blocked */ }
     const off = { level: W.level, mode: W.mode, kept };
     W.update(0.1, 2, null);
     const dry = W.state;
@@ -602,7 +602,7 @@ const { camRun, jumps: camJumps, SHORT: CAM_WALK } = require('./cam_jumps');
     W.guardReset(); W.set('live'); W.shed = 1; W.shed = 2;
     const again = { off: W.level }; W.shed = 1; again.light = W.level; W.shed = 0; again.full = W.level; again.mode = W.mode;
     W.guardReset(); W.guardForce(false);
-    try { localStorage.removeItem('oe3d-weather'); } catch (e) { /* storage blocked */ }
+    try { localStorage.removeItem('bh-weather'); } catch (e) { /* storage blocked */ }
     W.set('clear', { now: true }); W.update(0.1, 4, null); W.set('live');
     return { full, light, off, dry: { rain: dry.rain, wet: dry.wet }, note, back, picked, again };
   });
@@ -1201,7 +1201,7 @@ const { camRun, jumps: camJumps, SHORT: CAM_WALK } = require('./cam_jumps');
       const seen = () => g.gold.mesh.visible;
       const menu = document.getElementById('g-menu');
       document.querySelector('#gm-route button[data-r="off"]').click(); g.advance(0.2);
-      out.offHidden = !seen(); out.offMinimap = !!g.guide().pts; out.saved = (() => { try { return localStorage.getItem('oe-route-line'); } catch (e) { return 'blocked'; } })();
+      out.offHidden = !seen(); out.offMinimap = !!g.guide().pts; out.saved = (() => { try { return localStorage.getItem('bh-route-line'); } catch (e) { return 'blocked'; } })();
       out.button = !document.getElementById('gq-route').hidden;
       out.tappable = (() => { const r = document.getElementById('gq-route').getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!(e && e.closest('#gq-route')); })();
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyL' })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyL' }));

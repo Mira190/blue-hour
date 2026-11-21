@@ -21,7 +21,7 @@ window.OEWalk = (function () {
   // night after it, or the hour it is now in Tokyo. The sky: clear, or rain (the wet street that mirrors the screens).
   const HOURS = [['blue', 'Blue hour'], ['night', 'Night'], ['live', 'Now']];
   const SKIES = [['clear', 'Clear'], ['rain', 'Rain']];
-  const KEEP = 'oe-walk'; // (the last walk's hour and sky, kept in this browser: the next one is offered at them)
+  const KEEP = 'bh-walk'; // (the last walk's hour and sky, kept in this browser: the next one is offered at them)
   const SKY_WORD = { clear: 'Clear', overcast: 'Overcast', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', storm: 'Storm', snow: 'Snow' };
 
   function create(ctx) {

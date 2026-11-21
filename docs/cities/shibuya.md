@@ -169,14 +169,27 @@ the roof's west and north edges, into a channel walled in glass and open to the 
   is not seen costs nothing); the 1F hall, the 14F counter and the 45F corridor are folded into one lobby and one ride,
   as games fold a building's lifts. What is built is what is seen: the street lift's own hall where it is, just outside the
   tower's north-east corner (pipeline/lobby.py, city.json game.lobbies `outside`), as a hero level
-  (`cities/shibuya/hero_skylobby.py`, docs/HERO.md "SKY's street entrance", issue 53): entered from the west through
-  its glass front's two doors under a canopy, the queue facing east, toward the outside, to two scenic cars whose
-  indicators say 14F (the street lift's top: SKY GATE runs on from 14F to 45F), their glass shaft up the tower's east
-  face; the tiles, the sign pillar and the forecourt's planks in front, on the walk as in the story; and the ride is SKY GATE's own, in the
-  dark (`game.json` lifts[].pod, `web/game/game.js` podRide), not the camera climbing the tower's face outside, which
-  read as a jump across the map and spent the view before the roof's escalator gives it. The station's way through the
+  (`cities/shibuya/hero_skylobby.py`, docs/HERO.md "SKY's street entrance", issue 53): open to the sky and to the west
+  and the north (no glass box and no roof over it, as the owner remembers the street lift), the queue facing east,
+  toward the outside, to two scenic cars whose indicators say 14F (the street lift's top: SKY GATE runs on from 14F to
+  45F), their glass shaft up the tower's east face; the tiles, the sign pillar and the forecourt's planks in front, on
+  the walk as in the story; and the ride is watched from outside the tower as it climbs (`web/game/game.js` rideLift),
+  in one shot from the shoulder you had to the shoulder you get (issue 99): the camera leaves you at the doors looking
+  up the face to where the lift goes, climbs the north face beside the shaft with the floors going by, standing 22 m
+  off it in the middle of the climb, and comes in over the corner's glass as you walk out of the 46F doors (the stop's
+  `face`: the three metres to where the camera has room behind your shoulder, `liftOut`, the game's own walk), with the
+  escalator and the stair ahead and the city through the glass. It was a spiral about the line between the two stops,
+  which runs inside the tower (20 m off at once, looking at a point nobody could see), and at the top the view stood
+  over your head, 2.5 m from the corner's glass. `tools/story_play.js` takes the ride as a player does (the prompt's
+  own action from the hall) with stills along it, and fails a shot that goes through a building. It was ridden in the dark for a while, as SKY GATE's
+  cars are (`lifts[].pod`, podRide: black walls and a ceiling that is one screen), and the owner found it odd, the screen
+  black when the doors opened and the camera somewhere else, and the tower climbed from outside the better (November
+  2026); a lift with `pod` is still ridden so. The station's way through the
   building (the urban core from B2) is a real and fine space, but nobody in the story comes by subway and the walk sets
   out on the street; it waits in an issue labelled `later`.
+  West of the hall the tower's street floor is glass onto its shops under the building's name, the forecourt's planks run
+  on along it to the works' hoarding, and the deck over the east exit has its hung signs, its conduits and its drains
+  (`cities/shibuya/hero_miyamasu.py`, docs/HERO.md "The east side under the deck", issue 124): where frames 5 and 6 are played.
 - **Built.** `cities/shibuya/city.py` (`sky_flights`, `sky_channels`, `sky_doors`)
   draws the channels and cuts them into the roof when the scene is built;
   `cities/shibuya/sky_refit.py` cut them into the built roof of November 2026
@@ -316,7 +329,9 @@ them, and are dark after that.
 
   These are lit boxes:
   - MAGNET's name over its corner, in words and not its logo.
-  - SHIBUYA TSUTAYA's name on QFRONT (placement estimated).
+  - A bookshop's name on QFRONT where its real tenant's is (placement estimated). The two shops named over
+    QFRONT's canopy are invented, TASOGARE COFFEE and SHIBUYA HONDANA, in the places and sizes of the real
+    tenants' signs: a building keeps its own name, a tenant's trademark is not drawn (issue 119).
   - SHIBU HACHI BOX, the ward's tourist information on Hachiko Square since October 2020.
 
   The trades' stacked signs (袖看板) and lit prints on the fronts round the crossing are
@@ -373,7 +388,7 @@ are, checked against photographs from the same viewpoints (the comparison stills
 | Guard rails | White guard pipes (0.8 m, posts every 2 m) on the kerbs between crosswalks; short stainless bollards on QFRONT's forecourt | Photographs 2024-25 | Their exact runs |
 | The Ginza line | Its concrete viaduct on piers clear of the roads, two tracks with their third rail and no wires | OSM's line (bridge=viaduct, layer 2) | Rails 12 m over the street, the deck 9 m wide |
 | The JR lines | The Yamanote Line's two tracks and the freight line's two: the steel plate-girder bridge over the road (stiffeners, flanges, its clearance sign), north of it a concrete viaduct on three rows of columns with the Hachiko-exit bicycle lot under it (city bicycles, instanced), rails on sleepers, the overhead line on portal masts | OSM's track lines, bridge and the bicycle lot under the tracks | Rails 7.4 m over the road, the girder 2 m deep, masts every 46 m, the 4.5 m clearance |
-| QFRONT | A double skin curved round its corners: glass on silver fins every 0.9 m in front of the floors (lit after dark), the glass crown with a roof advert, Q FRONT under it, the canopy with SHIBUYA TSUTAYA and STARBUCKS COFFEE. Q'S EYE (12.96 × 7.289 m) and its banner screen are moved up to where the photographs put them, 30.8 and 20.4 m over the street | PLATEAU 52.2 m to the crown; R.I.A. design, 1999, 8 floors | Fins, storeys, the gap between the skins |
+| QFRONT | A double skin curved round its corners: glass on silver fins every 0.9 m in front of the floors (lit after dark), the glass crown with a roof advert, Q FRONT under it, the canopy with two invented shops in the real tenants' places (TASOGARE COFFEE, SHIBUYA HONDANA). Q'S EYE (12.96 × 7.289 m) and its banner screen are moved up to where the photographs put them, 30.8 and 20.4 m over the street | PLATEAU 52.2 m to the crown; R.I.A. design, 1999, 8 floors | Fins, storeys, the gap between the skins |
 | SHIBUYA109 | The aluminium block and the cylinder at its point, the printed advert on its front and the pink 109 in a ring on its silver top | PLATEAU: 33.6 m roof, the cylinder 49.7 m; OSM's footprint rounds the point on a 13.7 m circle (PLATEAU's generalised model, 11.5 m); drawn 13 m across | The advert's size; the panels' joints |
 | MAGNET | Its glazed corner under a sloping silver fascia with its name in red serif letters | Photographs 2025 | The fascia's height and slope |
 | Center Gai's gate | Two grey posts bending over like shepherd's crooks, disc lamps at their tips, センター街 on the posts and the basketball banner between them | Photographs 2024-25 (no dimensions are published) | 5.5 m posts, the street's 9 m |

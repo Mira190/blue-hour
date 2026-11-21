@@ -15,7 +15,7 @@ const TOP = +(process.env.TOP || 20);
   const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
   const p = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => {
     const M = window.__up = { buf: new Map(), sum: 0 };
     const P = WebGL2RenderingContext.prototype, bind = P.bindBuffer, data = P.bufferData, del = P.deleteBuffer, bound = new Map();

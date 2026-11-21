@@ -1431,7 +1431,7 @@ BOARDS = [("いらっしゃいませ", (200, 30, 40), (255, 255, 255)), ("営業
 # buildings' own names, set in open fonts, not their logos; the adverts are invented.
 CROSSING_SIGNS = [
     # QFRONT's Q'S WALL: on each glass side wall a print of up to 100 m2, lit by lamps from the top (11 on the
-    # Center Gai side, 8 on the Jinnan side); SHIBUYA TSUTAYA's name is on the canopy (scramble.py)
+    # Center Gai side, 8 on the Jinnan side); the bookshop's name is on the canopy (scramble.py)
     {"building": "Q-FRONT", "edge": [[332.0, -956.0], [346.0, -969.0]], "toward": [320.0, -990.0], "kind": "print", "w": 10.5, "h": 9.5, "z": 13.0,
      "lamps": 11, "art": "qwall_c"},
     {"building": "Q-FRONT", "edge": [[363.0, -967.0], [367.0, -951.0]], "toward": [400.0, -960.0], "kind": "print", "w": 9.0, "h": 10.5, "z": 13.0,
@@ -2189,7 +2189,9 @@ MATERIALS.update({
     "hk_step": {"color": "#45474a", "roughness": 0.6, "metalness": 0.0, "pattern": "granite", "joints_m": [0.2, 0.2]},
     "hk_setts": {"color": "#696b6e", "roughness": 0.85, "metalness": 0.0, "pattern": "granite", "joints_m": [0.11, 0.11], "decal": True, "street_lit": True},
     "hk_band": {"color": "#2f3133", "roughness": 0.8, "metalness": 0.0, "decal": True, "street_lit": True},
-    "hk_inlay": {"color": "#b8b2a7", "roughness": 0.75, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.0], "decal": True, "street_lit": True},
+    "hk_inlay": {"color": "#a59e92", "roughness": 0.75, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.0], "decal": True, "street_lit": True},
+    "hk_joint": {"color": "#6a665f", "roughness": 0.9, "metalness": 0.0, "decal": True, "street_lit": True},
+    "hk_rim": {"color": "#55575a", "roughness": 0.8, "metalness": 0.0, "pattern": "granite", "joints_m": [0.0, 0.0], "decal": True, "street_lit": True},
     "hk_wall": {"color": "#626467", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.16, 0.0]},
     "hk_cap": {"color": "#55575a", "roughness": 0.6, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.0]},
     "hk_soil": {"color": "#3a3128", "roughness": 1.0, "metalness": 0.0},
@@ -3221,17 +3223,41 @@ def rail_ring(m, c, r, a0, a1, z, seg_deg=6.0, radius=0.028):
     m.tube([np.array([c[0] + r * math.cos(t), c[1] + r * math.sin(t), z]) for t in np.linspace(a0, a1, n + 1)], radius, 6)
 
 
-def blossom(m, c, R, z, turn=0.0):
-    """A cherry blossom of pale stone set in the paving: five petals, each notched at its tip."""
+def blossom(K, c, R, z, turn=0.0):
+    """A cherry blossom set flush in the paving, as the square's are (a photograph of March 2025, docs/HERO.md): five
+    petals of pale stone, each a piece of its own and notched at its tip, with a mortar joint between one and the next,
+    a small dark stone at the heart, and a band of dark grey granite round the whole outline. Each tone is a piece of
+    stone: nothing is laid over them."""
+    from shapely.geometry import LineString, Point, Polygon
     pts = []
     for k in range(80):
         t = 2 * math.pi * k / 80
         phi = ((t - turn) * 5 / (2 * math.pi)) % 1.0 - 0.5          # -0.5..0.5 across a petal
         r = R * (0.42 + 0.58 * math.cos(phi * math.pi) ** 0.7) * (1 - 0.16 * math.exp(-(phi / 0.07) ** 2))
         pts.append((c[0] + r * math.cos(t), c[1] + r * math.sin(t)))
-    for k in range(80):
-        a, b = pts[k], pts[(k + 1) % 80]
-        m.tri(np.array([c[0], c[1], z]), np.array([*a, z]), np.array([*b, z]), [list(c), list(a), list(b)])
+    whole = Polygon(pts)
+    inner = whole.buffer(-0.05, join_style=2)
+    heart = Point(c).buffer(0.06, 3)
+    joints = [LineString([c, (c[0] + R * math.cos(turn + k * 2 * math.pi / 5), c[1] + R * math.sin(turn + k * 2 * math.pi / 5))]).buffer(0.006, cap_style=2) for k in range(5)]
+    seam = inner.intersection(joints[0].union(joints[1]).union(joints[2]).union(joints[3]).union(joints[4])).difference(heart)
+    from shapely.geometry.polygon import orient
+    from shapely.ops import triangulate
+    for key, shape in (("hk_rim", whole.difference(inner)), ("hk_rim", heart), ("hk_joint", seam), ("hk_inlay", inner.difference(seam).difference(heart))):
+        m = K(key)
+        for g in getattr(shape, "geoms", [shape]):
+            if g.is_empty or g.geom_type != "Polygon":
+                continue
+            g, at = g.simplify(0.004), {}  # (a piece's triangles share its points: a phone's memory is at its budget, issue 105)
+            for t in triangulate(g):
+                if t.area < 1e-5 or not g.contains(t.representative_point()):
+                    continue
+                for x, y in list(orient(t).exterior.coords)[:-1]:
+                    k = (round(x, 3), round(y, 3))
+                    if k not in at:
+                        at[k] = len(m.v)
+                        m.v.append(np.array([x, y, z]))
+                        m.t.append([float(x), float(y)])
+                    m.i.append(at[k])
 
 
 def sculpt_into(m, f, lo, hi, cell, P, z0, seed_relax=0.3):
@@ -3297,7 +3323,7 @@ def hachiko_square(K, h, lm):
     for r in (3.1, HK_DISC_M - 0.15):
         ring_top(K("hk_band"), at, r - 0.08, r + 0.08, 0.0, 2 * math.pi, lambda x, y: zd(x, y) + 0.015, 5.0)
     for k, (bx, by) in enumerate(HK_BLOSSOMS):
-        blossom(K("hk_inlay"), (bx, by), 0.85, gz(bx, by) + 0.08, turn=0.4 * k)
+        blossom(K, (bx, by), 0.75, gz(bx, by) + 0.08, turn=0.4 * k)
     # the bed behind him: the low wall people sit on, its cap, the soil, stainless rails, lamps in the wall
     B = HK_BED
     ang = math.atan2(face[1], face[0])
@@ -4433,11 +4459,11 @@ def game_extras(scene):
     face = W2(*north["uv"](1.0, 0.0)) - W2(*north["uv"](0.0, 0.0))
     eu, ev = F["edge"]
     edge = W2(eu - 4.0, ev - 4.0)                                 # on the deck behind SKY EDGE
-    # pod: SKY GATE is ridden in the dark, as the real cars are (two of them, 14F to 45F, about 30 s at 360 m a minute;
-    # black walls, a ceiling that is one screen keeping pace with the climb, the floor lamps dark until it stops: Hitachi,
-    # Elevator Journal 28), not watched from outside the tower (web/game/game.js podRide)
+    # (no pod: SKY GATE is watched from outside the tower as it climbs, web/game/game.js rideLift. It was ridden in the
+    # dark as the real cars are, black walls and a ceiling that is one screen, podRide; the owner found it odd, the screen
+    # black when the doors opened and the camera somewhere else, and the tower climbed from outside the better, November
+    # 2026. A lift with "pod" is still ridden so)
     return out | {"lifts": [{"id": "sky-gate", "name": "SHIBUYA SKY", "line": "SKY GATE · TRANSITION POD · 14F → 45F", "m_per_min": s["lift_m_per_min"],
-                       "pod": {"name": "SKY GATE", "from": "14F", "to": "45F", "s": 30},
                        "stops": [{"name": "Shibuya Scramble Square, street level", "at": [*s["door"], s["door_z"]]},
                                  {"name": "SHIBUYA SKY 46F, the escalator to the roof", "at": [round(float(land[0]), 2), round(float(land[1]), 2), s["z0"]],
                                   "face": [round(float(face[0]), 5), round(float(face[1]), 5)]}]}],

@@ -127,7 +127,9 @@
       const url = require('url').pathToFileURL(require('path').join(__dirname, '..', 'pipeline', 'vendor', 'meshoptimizer', 'meshopt_decoder.mjs')).href;
       M = (await import(url)).MeshoptDecoder;
     } else {
-      const at = f => new URL(f, base).href;
+      // (in a worker, which has no import map, by the build the page gave it: index.html's guard)
+      const b = typeof document === 'undefined' && /[?&]b=(\w+)/.exec(self.location.search);
+      const at = f => new URL(f, base).href + (b ? `?b=${b[1]}` : '');
       let D = null;
       if (typeof WebAssembly === 'object') {
         try { D = (await import(at('vendor/three/addons/libs/meshopt_decoder.module.js'))).MeshoptDecoder; await D.ready; } catch (e) { D = null; }
@@ -186,7 +188,7 @@
   function post(msg, transfer, retry) {
     if (!worker && here && typeof Worker === 'function') {
       try {
-        worker = new Worker(new URL('pack-worker.js', here));
+        worker = new Worker(self.OEV ? self.OEV(new URL('pack-worker.js', here), true) : new URL('pack-worker.js', here));
         worker.onmessage = e => { const w = waiting.get(e.data.id); if (!w) return; waiting.delete(e.data.id); if (e.data.error) w.fail(new Error(e.data.error)); else w.ok(e.data.obj); };
         worker.onerror = e => { e.preventDefault(); worker = false; keptThere.clear(); for (const w of waiting.values()) w.retry(); waiting.clear(); };
       } catch (e) { worker = false; }

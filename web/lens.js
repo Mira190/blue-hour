@@ -438,5 +438,5 @@ ${t}}`);
   function patchChunks() { guardShaders(); loopAreaLights(); skipDarkSpots(); diffusePoints(); }
   if (window.THREE) patchChunks(); else addEventListener('three-ready', patchChunks, { once: true });
 
-  return { shader, merge, bright, stack, sunOnScreen, guardShaders };
+  return { shader, merge, bright, stack, sunOnScreen, guardShaders, TAP, ROLLOFF }; // (TAP, ROLLOFF: for a pass that reads the scene as the merge does, atmosphere.js)
 })();

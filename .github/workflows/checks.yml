@@ -1,6 +1,6 @@
 # The full tier of tools/check.sh, on main after work lands (docs/CHECKS.md). A branch lands on the fast
 # tier (the static checks, the story and the phone's memory); this adds the clip, gl and touch checks, and
-# gives every target (static, look, story, walk, guide, mem, clip, gl, touch, astc; the story, the walk and the
+# gives every target (static, look, launch, story, walk, guide, mem, clip, gl, touch, astc; the story, the walk and the
 # guide split in parts) its own runner, so that nobody waits for it. What it checks is
 # what changed since the last run of it that passed, so a run that was skipped while another was going,
 # or that failed, is made up by the next. A failure opens an issue labelled main-red (or adds to the open
@@ -143,7 +143,15 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           [ "$TARGET" = static ] || export CHECK_STATIC=0
-          CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
+          CHECK_STORE="$RUNNER_TEMP/passes" CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
+      # (the shard's pass, as a session keeps its own: what the check read and which functions it ran, for the job below)
+      - uses: actions/upload-artifact@v4
+        if: success() && matrix.target != 'static' && github.event_name == 'push'
+        with:
+          name: passes-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/passes/*.json
+          if-no-files-found: ignore
+          retention-days: 1
       # (how long the play took and how many frames it ran: the same story played in 22 minutes on a session's
       # machine and in 75 on a runner, with llvmpipe on both)
       - name: What the browser took
@@ -166,6 +174,41 @@ jobs:
             ${{ runner.temp }}/check/flaky.txt
             ${{ runner.temp }}/check/*.log
           retention-days: 7
+
+  # Main's passes, shared (docs/CHECKS.md): each shard that passed leaves what it read and the functions it ran, and
+  # they are pushed, one small file a check, to the branch check-passes (one commit, replaced every time; the passes of
+  # shards this run did not play stay as they were). A session's tools/check.sh fetches it and starts from main's
+  # passes: it plays a check only where its own change reaches it. Nothing waits on this job and it cannot fail the run.
+  passes:
+    needs: [plan, shard]
+    if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.shard.result != 'cancelled'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: passes-*
+          path: passes-in
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls passes-in/*.json >/dev/null 2>&1 || { echo "no pass to share from this run"; exit 0; }
+          python3 tools/check_cache.py pack passes-in
+          mkdir shared
+          if git fetch -q --depth 1 origin check-passes 2>/dev/null; then git archive FETCH_HEAD | tar -x -C shared; fi
+          cp passes-in/*.json.gz shared/
+          cd shared
+          git init -q -b check-passes
+          git add -A
+          git -c user.name=Mira190 -c user.email=163523387+Mira190@users.noreply.github.com commit -q \
+            -m "Main's passes at ${GITHUB_SHA:0:8}" -m "What each of main's checks read and ran at its last pass, for tools/check_cache.py (docs/CHECKS.md, Main's passes, shared)."
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" check-passes
+          ls -la
 
   report:
     needs: [plan, shard]

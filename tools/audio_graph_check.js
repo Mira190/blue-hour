@@ -46,7 +46,7 @@ const { chromium } = require('playwright');
     const calls = {
       blip: () => A.beep(1), step: () => A.step(), thump: () => A.thump(), honk: () => A.honk(1, 1), kan: () => A.kan(1), bell: () => A.bell(), chime: () => A.chime(),
       piyo: () => A.walkCall('piyopiyo', 1, 0.4), kakko: () => A.walkCall('kakakko', 1, -0.4), clack: () => A.clack(1, 0.2, 14, 1, 1), announce: () => A.announce(1),
-      platform: () => A.platformChime(1, 0.2), doors: () => A.doorChime(1, -0.2), melody: () => A.melody(1, 0, 0), thunder: () => A.thunder(800), penguin: () => A.penguin(1), gull: () => A.gull(1),
+      platform: () => A.platformChime(1, 0.2), doors: () => A.doorChime(1, -0.2), melody: () => A.melody(1, 0, 0), thunder: () => A.thunder(800), far: () => A.far('siren', 400, 0.3), horn: () => A.far('horn', 350, -0.3), lift: () => A.liftChime(), blink: () => A.indicator(true), penguin: () => A.penguin(1), gull: () => A.gull(1),
       cues: () => { for (const k of ['shutter', 'stamp', 'right', 'wrong', 'found', 'goal', 'cam-up', 'cam-down', 'run', 'ghost']) A.sfx(k); },
     };
     const made = {};
@@ -73,7 +73,15 @@ const { chromium } = require('playwright');
     await wait(300);
     const left = A.health();
     delete document.hidden; delete A.ctx.currentTime;
-    return { before, during, after, made, early: window.__early.slice(0, 8), nearly: window.__early.length, xr, left };
+    // a page put away is silent (its context suspended), and seen again sounds (resumed)
+    const vis = h => { Object.defineProperty(document, 'hidden', { get: () => h, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); };
+    await A.ctx.resume(); await wait(200);
+    vis(true); await wait(400);
+    const hidden = A.ctx.state;
+    vis(false); await wait(800);
+    const shown = A.ctx.state;
+    delete document.hidden;
+    return { before, during, after, made, early: window.__early.slice(0, 8), nearly: window.__early.length, xr, left, away: { hidden, shown } };
   });
   console.log(`nodes the audio thread visits: ${r.before} with the street's beds; ${r.during} while every one-shot sounds; ${r.after} once they have ended`);
   const fails = [], fail = m => fails.push(m);
@@ -84,6 +92,8 @@ const { chromium } = require('playwright');
   if (!(r.xr.snd_xrun >= 2) || !(r.xr.snd_gap >= 6) || !/^opening above \d+/.test(r.xr.snd_xat || '')) fail(`two steps of the output's clock read as ${r.xr.snd_xrun} underruns of ${r.xr.snd_gap} ms at "${r.xr.snd_xat}", not 2 of 6 ms at "opening above"`);
   console.log(`the context's clock stopped for the last half second before the page was hidden: ${JSON.stringify(r.left)}`);
   if (r.left.snd_stall || r.left.snd_late >= 25) fail(`a clock stopped as the page was left read as a stall: snd_late ${r.left.snd_late}, snd_stall ${r.left.snd_stall}`);
+  console.log(`the page put away: its context ${r.away.hidden}; seen again: ${r.away.shown}`);
+  if (r.away.hidden !== 'suspended' || r.away.shown !== 'running') fail(`a page put away should suspend its sound and resume it when seen: ${r.away.hidden}, then ${r.away.shown}`);
   for (const e of errors) fails.push(`page error: ${e}`);
   for (const f of fails) console.log('FAIL', f);
   console.log(fails.length ? `FAIL ${fails.length}` : 'PASS');

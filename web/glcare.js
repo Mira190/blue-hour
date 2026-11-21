@@ -13,7 +13,7 @@
 // The reef pages (WebGPURenderer, which cannot restore a lost device) reload with the same note.
 'use strict';
 window.OEGLCare = (function () {
-  const KEY = 'oe3d-gl-reload';
+  const KEY = 'bh-gl-reload';
   const now = () => Date.now();
   // the note in the title screen's language: the loader's dark veil over the whole view (the
   // labels of the last frame drawn would float on it otherwise), a card on it with the heading in
@@ -61,7 +61,13 @@ body > .gl-note { position: fixed; }
       hide() { note.hidden = true; },
     };
   }
-  // reload once, with the note up while it goes; a second time inside a minute, stay on the note
+  // reload once, with the note up while it goes; a second time inside a minute, stay on the note.
+  // (On a phone a loss while the page was seen is a death at the level it ran at, counted as it is lost: watch, below.
+  // The reload then loads a level lighter, after a wait for the lost memory to come back.)
+  // Never from a tab that is put away: the reload waits until the page is seen. A phone keeps every tab's WebGL in one
+  // GPU process, and a tab in the background that lost its context and reloaded built the whole map there, beside the
+  // tab being played, which then lost its own (the owner's iPhone, 21 November 2026: two tabs of the story, each
+  // reloading the other out).
   function reload(note, why) {
     let prev = 0;
     try { prev = Number(sessionStorage.getItem(KEY)) || 0; } catch (e) { /* storage blocked */ }
@@ -70,9 +76,11 @@ body > .gl-note { position: fixed; }
         { text: 'Reload', on: () => location.reload() });
       return false;
     }
-    try { sessionStorage.setItem(KEY, String(now())); } catch (e) { /* storage blocked */ }
     note.say('Reloading the view', `${why}; starting the view again.`);
-    setTimeout(() => location.reload(), 1200);
+    const go = () => { try { sessionStorage.setItem(KEY, String(now())); } catch (e) { /* storage blocked */ } location.reload(); };
+    if (!document.hidden) { setTimeout(go, 1200); return true; }
+    const back = () => { if (document.hidden) return; document.removeEventListener('visibilitychange', back); setTimeout(go, 600); };
+    document.addEventListener('visibilitychange', back);
     return true;
   }
 
@@ -81,22 +89,33 @@ body > .gl-note { position: fixed; }
   // may stay away before the page reloads
   function watch({ renderer, host, onLost = () => {}, onRestored = () => {}, waitMs = 8000 }) {
     const canvas = renderer.domElement, gl = renderer.getContext(), note = noteIn(host);
-    let lost = false, check = 0, timer = 0, losses = 0, restores = 0;
+    // gone: given up (the page reloads, or waits on the note): the frames hold from then on, since a restored context
+    // that is not rebuilt draws what it no longer has (a phone's walls, let go of once uploaded, threw "null is not
+    // an object (evaluating 'r.byteLength')" from three.js in the frame after the restore)
+    let lost = false, gone = false, check = 0, timer = 0, losses = 0, restores = 0;
     const stats = { losses: 0, restores: 0, drawn: 0, reloads: 0 };
-    const giveUp = why => { check = 0; stats.reloads++; reload(note, why); };
+    const giveUp = why => { check = 0; gone = true; stats.reloads++; still(); reload(note, why); };
+    // and nothing draws again, whoever asks: the frame loop holds on care.lost, but a slice of buffers sent ahead of its
+    // first draw (world.js uploadBuffers), a tree's impostor or a level's warm-up runs on its own clock, and drew what the
+    // phone had let go of (the same error, from a render outside the frame, in tools/glcare_phone.js one run in three)
+    const still = () => { renderer.render = () => {}; renderer.compile = () => {}; if (renderer.compileAsync) renderer.compileAsync = () => Promise.resolve(); if (renderer.initTexture) renderer.initTexture = () => {}; };
     const onLostE = e => {
       e.preventDefault(); // without it the browser never offers the context back
       lost = true; check = 0; stats.losses = ++losses;
+      if (gone) return; // (the note says what happens next already)
+      // on a phone, a death at its level, at once and whatever the telemetry (quality.js lost: once a page, not while put away)
+      try { if (window.OEQuality && OEQuality.lost) OEQuality.lost(); } catch (err) { /* storage blocked */ }
       note.say('The picture was lost', 'The graphics card took its memory back. Getting it back…');
       try { onLost(losses); } catch (err) { console.warn('glcare: onLost', err); }
       clearTimeout(timer);
-      timer = setTimeout(() => { if (lost) giveUp('The graphics card did not give the picture back'); }, waitMs);
+      timer = setTimeout(() => { if (lost && !gone) giveUp('The graphics card did not give the picture back'); }, waitMs);
     };
     // three.js listens first (it was made before this), so its state is rebuilt by now
     spareTheDead(renderer.getContext());
     const onRestoredE = () => {
       lost = false; clearTimeout(timer); stats.restores = ++restores;
       renderer.getContext().__restored = true; // (spareTheDead, below)
+      if (gone) return;
       try { onRestored(losses); } catch (err) { console.warn('glcare: onRestored', err); giveUp('The view could not be redrawn'); return; }
       check = 4; // frames to read back before the picture counts as black
     };
@@ -117,7 +136,7 @@ body > .gl-note { position: fixed; }
       return on > n * 0.01;
     }
     return {
-      get lost() { return lost || gl.isContextLost(); },
+      get lost() { return lost || gone || gl.isContextLost(); },
       stats,
       note,
       // after each render: while a restore is being checked, is the frame drawn?
@@ -336,7 +355,7 @@ body > .gl-note { position: fixed; }
     });
   }
   if (window.THREE) guard(); else window.addEventListener('three-ready', guard, { once: true });
-  const FIT_KEY = 'oe3d-fit';
+  const FIT_KEY = 'bh-fit';
   function fitWatch(renderer, { roots = () => [], key = '' } = {}) {
     const gl = renderer.getContext();
     const asked = +(new URLSearchParams(location.search).get('units') || 0);

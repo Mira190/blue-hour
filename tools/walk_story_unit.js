@@ -73,8 +73,13 @@ talkTo('taro', 'Taro');
 if (T.photo({ z: 243, sees: () => true })) fail('a photograph from the roof on foot was taken for the helicopter\'s');
 Object.assign(me, { x: 370, y: -1010, z: 140, mode: 'heli' }); if (!T.photo({ z: 150, sees: () => true })) fail('a photograph from the helicopter over the crossing did not meet what Taro asked');
 { const e = T.errand(); if (!/Back to Taro/.test(e && e.text)) fail(`after the aerial photograph the corner says "${e && e.text}"`);
-  // (Taro on the roof, 100 m over the helicopter: up, and the metres through the air, not a bearing on the map)
-  else if (e.lvl !== 'up' || e.dir != null || !(e.m > 100)) fail(`Taro on the roof from the helicopter: ${JSON.stringify({ lvl: e.lvl, dir: e.dir, m: e.m })} (want up, no bearing, over 100 m)`); }
+  // (Taro on the roof, 100 m over the helicopter: the bearing to fly on, and the metres through the air)
+  else if (e.lvl || e.dir == null || !(e.m > 100)) fail(`Taro on the roof from the helicopter: ${JSON.stringify({ lvl: e.lvl, dir: e.dir, m: e.m })} (want the bearing, over 100 m)`); }
+// (and on foot in the street under him, with no lift named between: the needle up, no bearing on the map, the metres
+// counting the 226 m of height)
+Object.assign(me, { x: 372, y: -1012, z: 15, mode: 'foot' });
+{ const e = T.errand(); if (!e || e.lvl !== 'up' || e.dir != null || !(e.m > 200)) fail(`Taro on the roof from the street on foot: ${JSON.stringify(e && { text: e.text, lvl: e.lvl, dir: e.dir, m: e.m })} (want up, no bearing, over 200 m)`); }
+Object.assign(me, { x: 370, y: -1010, z: 140, mode: 'heli' });
 talkTo('taro', 'back to Taro');
 // the end
 const c = T.count();

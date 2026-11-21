@@ -20,12 +20,14 @@ browser on a phone.
 | On a phone, algorithmic late reverb after a convolved head | Moorer 1979 (early reflections, then low-passed combs); M. R. Schroeder, "Natural sounding artificial reverberation" (1962); mobile game engines' algorithmic reverbs (Wwise RoomVerb, FMOD's) | `reverb()` on a touch screen: the head convolved, the tail from six combs a side fitted to the response (Every sound on the audio thread). A feedback delay network (Jot and Chaigne, 1991) and swaying delays (J. Dattorro, "Effect Design", 1997) were tried and measured, and dropped. The ideas only: no code was taken |
 | HRTF spatialisation of point sources | Wwise and FMOD's 3D panners, Steam Audio (Apache-2.0), Resonance Audio (Apache-2.0) | Web Audio's own HRTF `PannerNode` for the walk signals' calls with a mouse; a stereo pan on a touch screen. Resonance Audio and Omnitone (ambisonics, Apache-2.0) were considered and not adopted: a dependency and a cost a phone does not need for a handful of sources |
 | Ducking (sidechain) of ambience and score under dialogue | Wwise auto-ducking and HDR audio (DICE's Battlefield) | The street and the score step back 8 dB under each line of dialogue and the preface's type (25 ms in), released half a second after it. It was 5 dB, which left the ticks under the score: "Listened to", below |
+| A sound's path to the ear: attenuation by distance, the air's loss of the highs, occlusion by what stands between, read by rays at a slower rate than the frame and eased | Unreal's Sound Attenuation (its air absorption low-pass and its occlusion trace, volume and low-pass, interpolated); Wwise's obstruction and occlusion and Spatial Audio's diffraction round edges; Steam Audio's air absorption (Apache-2.0: three bands' exponential loss a metre, 0.0002, 0.0017 and 0.0182); ISO 9613-1 (the air) and 9613-2 (a barrier's loss); Bullington's single knife edge (ITU-R P.526) | **Distance, the air and what stands between** (below): each street sound heard from where it is made, through the air, with the height in it; the middle band's loss and the high band's as one low-pass; the line to the ear read against the collision world and the ground, the edge that most lengthens the way round it taken as the one it bends over, and ISO 9613-2's loss for that path difference, muffled with it. The ideas and the published coefficients only: no code was taken |
+| Several points for a long source | Wwise's multi-position emitters, Unreal's spread and its focus | A train heard from its nearest car and from whichever of its cars the air and the city leave the most of |
 | Loudness targets | ITU-R BS.1770-4 (K-weighting, gating), EBU R128; the Audio Standards Working Group's ASWG-R001 for games (−24 LUFS ±2 at home, −18 on a phone) | `tools/sound_render.js` measures every cue's peak, its loudest 400 ms (momentary) and its gated integrated loudness, with BS.1770's filters |
 
 ## The mix
 
 ```
-street sources ─► master (the world's bus) ─► tape (AudioWorklet; the deck on a touch screen) ─┬─► duck ─► main (Sound switch) ─► out
+street sources ─► their bus (near, rail, weather, self, city: the mix of the place) ─► master (the world's bus) ─► tape (AudioWorklet; the deck on a touch screen) ─┬─► duck ─► main (Sound switch) ─► out
                                                                     └─► place's room (reverb(): convolver, or on a touch screen its head and combs) ─► duck
 score (music.js), the opening's score ─► musicBus ─────────────────────► duck
 story cues, dialogue ticks ─► storyBus ─────────────────────────────────────────────────────────────► out
@@ -90,7 +92,7 @@ old browser, or a page that is not a secure context) the Stop only hushes the st
 
 `place(kind)` (game.js, every frame from `weatherTick`; it acts only on a change): `inside` in a lift
 or a room (`doors.roomAt`), `roof` with the ears more than 40 m over the ground (the deck, the
-helicopter), `viaduct` on foot under a roof (`weather.covered()`), `open` otherwise.
+helicopter), `viaduct` on foot under a roof (the surface model over the ears: `game.js` `roofOver`), `open` otherwise. What the place does to each kind of sound is "The mix, place by place", below.
 
 | Room | RT60 | Wet (against the dry sound) | Early reflections |
 |---|---|---|---|
@@ -102,6 +104,56 @@ helicopter), `viaduct` on foot under a roof (`weather.covered()`), `open` otherw
 On a touch screen each room is the hybrid of "Every sound on the audio thread" (below): its first quarter of a second
 convolved as it is, which holds every early reflection in the table, and the rest from feedback combs fitted to it. The
 roof's response is 37 dB down by then: a phone hears its head alone.
+
+## Distance, the air and what stands between
+
+On SHIBUYA SKY's roof the owner heard the street below as if standing in it (November 2026): "theoretically you can't
+hear the trains up there any more; set how near or far a sound is, or whether it is heard at all, as AAA games do".
+What came up was the station's announcement, which was read in plan: the roof is 104 m from the station in plan, so it
+played at nine tenths of its level, though the station is 250 m away through the air with the tower between. Each sound
+had its own way of reading its distance (in plan for the announcements, a honk and a level crossing's bell; through the
+air for the trains and the walk signals' calls), and nothing stood between any of them and the ear.
+
+So every street sound with a place is heard from it through `audio.js` `reach(src, ear)`, as a game's sound engine
+treats an emitter:
+
+- **The distance** through the air, height in it. Each sound keeps its own curve (the trains' `(1 − d/240)^2.2`, the
+  announcements' `(260 − d)/160`, the calls' `ref/d`), now on the true distance.
+- **The air** takes the high sound first: Steam Audio's default coefficients (ISO 9613-1's at 20 °C), its middle band's
+  loss as a gain (`exp(−0.0017 d)`) and its high band's as a second-order low-pass, `18 kHz · exp(−0.0083 d)`: 7 kHz at
+  100 m, 2 kHz at 250 m.
+- **What stands between**: the line from the sound to the ear is read in plan every 3 m (60 reads at most) against the
+  collision world (the buildings as published, the landmarks' cells: SHIBUYA SKY's deck and glass among them) and the
+  ground. Where it passes through something, the way over that thing's top; where it is clear, by how much. The point
+  that most lengthens the way round is the edge the sound bends over (Bullington's single knife edge), and its path
+  difference δ gives ISO 9613-2's barrier loss, `10 lg(3 + 20 δ/λ)` at 500 Hz, at most 25 dB (the standard's limit for a
+  thick barrier, a building or a roof's two edges), nothing where the line clears with room to spare and a little where it
+  grazes. The sound is muffled with it, its low-pass falling to 1.8 kHz at the full loss. The solids say what blocks, not
+  the 2 m surface model alone: that is a height field, solid under a platform's canopy or a viaduct, and a train under
+  Shibuya's platform roof lost 18 dB to the roof over it. Not the first 6 m from the sound (a train's viaduct, its
+  station's canopy), nor 45 m round the station for its announcements (they come out of its doors all round it), nor
+  the metre and a half round the ear.
+- A sound that goes on (a train) reads its line four times a second and eases to it, as games read occlusion rays at a
+  slower rate than the frame; a short one reads it once. A train is 200 m of sound: it is heard from its nearest car and
+  from whichever of its cars (every third and the last) the air and the city leave the most of.
+
+What the street sounds like from where (`tools/roof_hear.js`, which reads the page's own `reach`; levels against a sound
+at its loudest):
+
+| Where | Announcement, was → now | A train passing, was → now |
+|---|---|---|
+| the Scramble, at Hachiko | 0 → −1 dB (65 m, in the open) | −4 → −28 dB (behind the station's west front and the buildings north of it, 8 m round them) |
+| the street by the station | 0 → 0 dB | +2 → +2 dB (8 m off, in the open) |
+| SHIBUYA SKY, the deck's middle | −1 → −62 dB (26 m round the roof's edge) | −67 → −95 dB |
+| SHIBUYA SKY, at the glass over the station | 0 → −46 dB | −52 → −75 dB |
+| SHIBUYA SKY, at the east glass | −3 → silent | −72 → −101 dB |
+
+On the roof the street is gone, as it is from a real observation deck, and **the wind** is what the deck is heard as:
+the weather's wind is the wind at 10 m, and over a city it grows with height by the power law (Hellmann's exponent 0.3),
+2.5 times as strong at 230 m, and never quite still there (`game.js` `weatherTick`: at least 0.34 of the wind's level from
+200 m up, none in a lift or a room). A honk is heard within 90 m of its car, the walk signals' calls and a level
+crossing's bell through `reach` too. One line costs about 0.1 ms on a software renderer (the trains, at most 84 a second:
+under 10 ms a second).
 
 ## Every sound on the audio thread
 
@@ -208,6 +260,18 @@ each `time` event):
   `deck hybrid 48000`). A phone's story read no clock at all for six minutes (19 November): the context was not running,
   or the sound was off, and nothing said which.
 
+**A page put away is silent.** The context is suspended as the page is hidden and resumed as it is seen again (and asked
+again every two seconds while it is seen, should the resume not take). The game stands still in a tab put away, and its
+street's beds had gone on behind another tab or app; on a phone a context left running there is an audio thread beside the
+page being played. The owner's iPhone had two tabs of the story open on 21 November 2026 when the one in front read three
+underruns and a 32.6 s step of the output's clock in the opening's shot from above, as the WebGL contexts of both were
+lost. `tools/audio_graph_check.js` puts the page away and back.
+
+The readings of the owner's iPhone from 19 to 21 November (every phone `time` event with sound): three to six underruns a
+minute wherever the phone was, walking the map as much as in the opening (20 in 242 s in 渋谷, 35 in 240 s in 原宿), most at
+frame 1's Stop (21 in 62 s), and none in some long pieces at the same frame rate (frame 3's approach, 60 s at 18 fps). The
+page's load starving the audio thread, as issue 59 put it first, but everywhere and not in step with the frame rate.
+
 A reading from the last second before the page is hidden or the context stops is dropped. The owner's iPhone (iOS 27,
 19 November 2026, the episode played to its first Stop and left for a screenshot) read `snd_late 258, snd_stall 3`:
 three readings 58, 158 and 258 ms behind, one tenth of a second apart, and then the page hidden. That is not the audio
@@ -250,6 +314,126 @@ crossing from above (it leaves the bed to the loading cue), where it rises with 
 walk calls until the green. The mix is quiet (its loudest second −24 dBFS RMS, its peak −14.7 dBFS) and mostly low: 50 to
 80% of its energy under 150 Hz, which a phone's speaker does not play. Not checked: a real iPhone's audio thread, its
 speaker, WebKit's real-time scheduling, its vDSP convolver.
+
+## Giving up sound before a click
+
+A block missed is a click whatever the sound costs, because what starves the audio thread (a busy page, heat, a
+low-power mode, a page being killed for memory) is not the page's to lift. What the page can do is ask less of the thread
+while it is starved. On a touch screen (`audio.js` `shed`; `?shed=0..3` fixes a level on any device, for the tools):
+
+- the street's one-shots (steps, beeps of the world, calls, horns, chimes) are capped at 28 at once, taken from `take()`;
+  the dialogue's beeps, the story's bus and the score are never given up;
+- when the output's clock steps three times within twenty seconds (`snd_xrun`, above), the sound gives up a level, and at
+  least eight seconds later another: **1** lets go of the room's reverb and halves the street's voices (14), **2** lets go
+  of the crowd's murmur, the screens' song, the cicadas and the animals (8 voices), **3** keeps four voices of the street;
+- ninety seconds without a step bring a level back, and the room with it;
+- telemetry says what the phone is (`snd_dev`) and what was given up (`snd_shed`, `snd_shed_s`, `snd_drop`).
+
+`tools/audio_shed_check.js` plays it as a phone's page. **What this does not do:** a page killed for memory. On 21 November
+2026 an iPhone's page was taken twice within a minute of entering the story (`gl_lost` at `late trees` and `late in`,
+then `crash`), its audio clock stepping by 32 s in the opening just before: the crackle there was the page dying, and no
+sound's cost explains it (docs/PERFORMANCE.md, "On a phone").
+
+## The mix, place by place
+
+Issue 127, the owner on SHIBUYA SKY's roof (21 November 2026): the trains and the light rail were heard there as at
+the kerb, "not real"; the background sound is to stand beside a AAA game's. `reach` (above) had by then taken each
+*point* of sound through the air and round what stands between. What was left is what a *place* does to every sound of
+a kind at once, and that is how games mix: every sound belongs to a bus, and where the listener is sets each bus's level
+and low-pass.
+
+**What was learned from** (November 2026; the ideas and the published figures only, no code and no recording was taken):
+
+| Practice or measurement | Source | Taken here |
+|---|---|---|
+| A mix per place: buses by kind of sound, their levels and filters set by the listener's state | Wwise's states over bus volume and low-pass, FMOD's snapshots, Unreal's sound mixes and interior volumes (all proprietary; their documented design only) | `audio.js` `mix(place, up)`: five buses in the world's bus, six places |
+| A loudness window: what is far under the loudest thing at the listener is not played | DICE's HDR audio (Frostbite, GDC 2009) | In the cabin and the lift the street's buses are shut, not merely lowered: under a rotor nothing of the city is audible |
+| A city heard from height | W. Meyerson's 39-storey tower (USDA Forest Service, 1977): low floors hear the street below, high floors a wide area; Benocci and others, *Noise Mapping* 2020 (a balloon over Milan: 3 to 9 dB between 20 and 150 m); Insomniac's GDC 2019 talk on Spider-Man's New York (the city falls away and calms as you rise; known here from summaries of it, not the talk) | From 25 to 150 m over the street the `near` and `rail` buses fall to nothing and the `city` bus rises: 229 m up the city is 8 to 10 dB under the kerb's street, one sound, under 700 Hz |
+| The air | ISO 9613-1 at 20 C, 70 %: 1.1 dB a kilometre at 250 Hz, 5.0 at 1 kHz, 9.0 at 2 kHz, 23 at 4 kHz, 78 at 8 kHz. Over 229 m that is 1 dB at 1 kHz and 5 at 4 kHz: the air is not what dulls a roof, the geometry is | A far event's level and low-pass (`far`); the roof's dullness is the mix, not an air filter |
+| Sound is late | 343 m a second: 0.67 s from the street to the deck, 2 s from 700 m | `far(kind, d)` begins d / 343 s after it is asked for |
+| A railway bridge | Thompson, *Railway Noise and Vibration* (2009), ch. 11; Liu, Thompson and others, *J. Sound Vib.* 2020: a bridge is about 5 dB (concrete) to 10 dB (steel) louder than plain track, the concrete's sound under 200 Hz, the steel's 200 Hz to 1 kHz | Under the deck the `rail` bus is 3 dB up through a low-pass at 300 Hz, the deck's drum and each axle's boom reach to 70 m, and the wheels' edge is a fifth of what it is beside the viaduct |
+| A closed cabin | Car door panels are built for 25 dB or more of transmission loss from 100 Hz to 1 kHz (Akyol, Keller and Geissler, Institute of Acoustics); structure-borne sound under 400 Hz comes through | In the car the street is 12 to 14 dB down through a low-pass at 900 Hz (350 Hz for the trains): the level set against the engine's so that the street is still there, the slope by the figure |
+| A helicopter's cabin | AS350: main rotor blade-pass 19.5 Hz; cabin noise is the gearbox's and the turbine's tones, 500 Hz to 3 kHz (NASA's SA 365 study) | The rotor's bed has a turbine's whine and a gearbox's tone in it, and in the cabin stands 8 dB up, the loudest place in the episode |
+
+**Listened to as references** (their pages read, not adopted: nothing is sampled, every sound is still made in the
+browser): the crossing, Freesound 79670 by daniele-salvati (CC BY-NC 4.0) and 31791 by Heigh-hoo (CC0); under a metal
+railway bridge, Freesound pack 31484 by Pfannkuchn (Berlin's S-Bahn, CC BY 4.0); a car's cabin in night traffic with
+its indicator, Freesound 149429 by conleec (CC0); a small helicopter's cabin, Freesound 390647 by gladkiy (CC0). No
+recording from a high roof or an observation deck, nor one from under a Tokyo viaduct, was found. These were read as
+descriptions and by their uploaders' notes from a session that cannot hear: nobody has yet compared them by ear with
+the page.
+
+**The buses** (each a level and a low-pass into the world's bus, so all of it is braked by the Stop):
+
+| Bus | What plays into it |
+|---|---|
+| `near` | the crowd round you, the walk signals' calls, horns, the station's announcements, the crossing's bell, the birds |
+| `rail` | the trains (rumble, wheels, the deck under them), the platforms' chimes and melodies |
+| `weather` | rain, wind, thunder, cicadas |
+| `self` | your steps, the car's engine, its tyres on the road (`road`), its indicator (`indicator`), the lift's hum and chime (`lift`, `liftChime`), the rotor with its turbine |
+| `city` | the city as one sound (`city`: two beds of low noise that share nothing, one a side, each swelling slowly on its own) and its far events (`far`: an ambulance's two notes or a train's horn from 350 to 900 m, every minute or two) |
+
+**The places** (`game.js` `weatherTick` says which, each frame; `audio.js` `MIX`: level in dB and low-pass for each bus):
+
+| Place | Frames | What is heard | `near` | `rail` | `weather` | `self` | `city` |
+|---|---|---|---|---|---|---|---|
+| The kerb, the crossing | 1, 2, 3, 6, 7 | The crowd by how many stand round you (a third of the level the owner once found too loud and always there; nothing where nobody is), the walk signals' calls from their own posts, a train on the viaduct at its distance and behind the station, the city's hum under it all, in frame 7 the rain | 0 | 0 | 0 | 0 | −10 dB, 260 Hz |
+| Under the railway's deck | 5, 6 | A train overhead is the deck: its drum and a boom at every axle, no wheels' edge; the street's voices a little down; the viaduct's close reflections (its room) | −3 dB, 9 kHz | +3 dB, 300 Hz | −4 dB, 6 kHz | 0 | −6 dB, 320 Hz |
+| A lift, a room | 4 | The street gone; the machine's hum, the fan's air, two notes as it arrives; the doors open on the roof's wind | shut | shut | shut | 0 | shut |
+| The roof, 229 m | 4, 5 | Wind first; the city as one low, wide bed; no car, voice or train; a siren or a horn, far, dulled and late; the helicopter's rotor when it is there | shut | shut | 0 | 0 | −2 dB, 700 Hz |
+| The helicopter's cabin | 5 | Rotor, turbine and gearbox over everything, the air's rush with speed; the city silent | shut | shut | −8 dB, 1.8 kHz | +8 dB | shut |
+| A car's cabin | 6 | Engine, the road under the tyres, the indicator's relay; the street outside low and dull; rain on the roof | −12 dB, 900 Hz | −14 dB, 350 Hz | −6 dB, 2.5 kHz | −5 dB | −14 dB, 220 Hz |
+
+A phone's cap on voices holds: the far events and the indicator take a voice from the cap as every one-shot of the
+street does, and the city's bed and its far events are given up at level 2 with the street's other beds ("Giving up
+sound before a click"). Nothing here is off the audio thread: gains, biquads, oscillators, looped noise and a stereo
+pan (`tools/audio_thread_check.py`).
+
+Between the kerb and the roof the mix follows the ears' height over the ground (25 to 150 m), so a helicopter rising
+from the street loses it by degrees. "Under a deck" is read from the surface model (something 2.5 to 14 m over the ears
+and over three of the four points round them): the weather's own answer is drawn only while it rains, lags a walker and
+stands after the rain has stopped: on a dry evening the street under the deck had been heard, and had rung, as the
+open crossing, and the listening points' check found the roof mixed as under a deck once rain had fallen. The tall lift of SHIBUYA SKY is
+ridden as a camera's move outside the tower; it is mixed as the lift for as long as the ride lasts.
+
+**The same train, three places**: at the kerb beside the viaduct a pass-by (its bogies' rhythm, 3 % of its power over
+500 Hz); under the deck 4 dB louder and all weight (0.1 to 0.2 % over 500 Hz); on the roof not played at all.
+
+**The Stop.** Every bus is inside the world's bus, before the tape, so nothing of the moving world can pass a Stop:
+measured past the tape with a train going by, a touch screen's deck is digitally silent while held (the world's bus
+still at −26 dBFS behind it) and a mouse's tape plays only its shimmer of the last moment, 14 to 20 dB under the running
+street; let go, the street is back within a decibel. One sound was outside the graph and went on through a Stop: a
+platform's announcement spoken by the browser's own voice (`trains.js`). A Stop now cuts it, and the place's mix is
+taken off its level, so none is spoken into a lift, a cabin or the roof.
+
+**Levels at the listening points** (`tools/sound_places.js`, in `tools/check.sh`'s `audio`, as a desktop and as a touch
+screen): the player stood at each point on the real page (`?walk=1`, 17:30, clear unless the row says rain), the game
+driving its own sound, a train run past the nearest point of the real tracks at 54 km/h on a voice of its own, and each
+bus's level read from the graph (an AnalyserNode on its output, RMS over four seconds, dBFS). The check reads this
+table and fails on a bus outside its range, on a place the game takes for another, on a train under the deck that
+still has its wheels in it, and on anything heard past the tape at a Stop. "Silent" is under −70 dBFS.
+
+<!-- sound_places:table -->
+| Listening point | near | rail | weather | self | city |
+|---|---|---|---|---|---|
+| `kerb` Hachiko's kerb, about 160 people round you, the train 40 m off behind the station | −51 to −40 | −67 to −30 | silent | silent | −57 to −45 |
+| `kerb-station` the kerb by the station, the train 6 m off on the viaduct | −51 to −40 | −36 to −21 | silent | silent | −57 to −45 |
+| `deck` under the railway's deck, the train 8 m overhead | −54 to −43 | −31 to −20 | silent | silent | −53 to −41 |
+| `kerb-rain` Hachiko's kerb in frame 7's rain | −51 to −40 | −67 to −30 | −39 to −28 | silent | −57 to −45 |
+| `roof` SHIBUYA SKY's deck, 229 m, the train 235 m below | silent | silent | −47 to −36 | silent | −48 to −37 |
+| `lift` SHIBUYA SKY's lift, riding | silent | silent | silent | −43 to −32 | silent |
+| `heli` the helicopter's cabin, hovering over the pad | silent | silent | silent | −37 to −26 | silent |
+| `car` the car's cabin, standing at the kerb, its engine running | −66 to −55 | −78 to −55 | silent | −43 to −32 | −60 to −49 |
+
+At Hachiko the `rail` bus moves by 25 dB from run to run (−35 to −61 in the runs so far): the check's train is behind
+the station there, and the game's own trains on the open viaduct, and a platform's departure melody 65 m off (−35),
+come and go over it. `self` is silent on foot because the player stands still (steps are its only sound there); the helicopter hovers, so
+the air's rush with speed (`weather`) is not in its row.
+
+**Not checked by anyone yet**: how any of this sounds. The levels are read from the graph on a machine with no
+speaker; nobody has listened on the owner's iPhone speaker or on headphones, where the city's bed (most of it under
+300 Hz) will be all but absent on the speaker and whole on headphones. What to listen for, place by place, is in issue
+127's closing note.
 
 ## Trains
 

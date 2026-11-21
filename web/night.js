@@ -52,15 +52,19 @@ window.OENight = (function () {
   // The screens' light is in the map's alpha (one sampler where it had two: the ground of a GPU with sixteen texture
   // units asked for seventeen, glcare.js fit). It is the screens' brightness alone: their colours are near-white pinks
   // and blues (Shibuya's 21 timed glows are within a few percent of their mean), so their mean colour is a uniform.
-  const GLSL = `uniform sampler2D uNightMap; uniform vec4 uNightXf; uniform float uNightOn, uGlowOn; uniform vec3 uGlowCol;
+  // The map is the light on the street, a plan: it has no height. So it fades out over the 25 m above the street lamps'
+// heads (uNightTop: their heads' height, the highest but a few, and 10 m), and a surface or a person high over a lit
+// street does not take its light: on SHIBUYA SKY's roof, 229 m up, whoever stood over the lit street at the tower's
+// north foot was lit orange by its lamps, and so was the deck round them (the owner's report, November 2026)
+const GLSL = `uniform sampler2D uNightMap; uniform vec4 uNightXf; uniform float uNightOn, uGlowOn, uNightTop; uniform vec3 uGlowCol;
 vec3 streetLight(vec3 wp) {
-  if (uNightOn <= 0.0) return vec3(0.0);
+  if (uNightOn <= 0.0 || wp.y > uNightTop + 25.0) return vec3(0.0);
   vec2 uv = vec2((wp.x - uNightXf.x) * uNightXf.z, (-wp.z - uNightXf.y) * uNightXf.w);
   vec4 c = texture2D(uNightMap, uv); vec3 g = texture2D(uNightMap, uv, 6.0).rgb; // the pools and the screens, and the district's glow
-  return (c.rgb * c.rgb + 0.4 * g * g + c.a * c.a * uGlowCol * uGlowOn) * ${VMAX.toFixed(1)} * uNightOn;
+  return (c.rgb * c.rgb + 0.4 * g * g + c.a * c.a * uGlowCol * uGlowOn) * ${VMAX.toFixed(1)} * uNightOn * (1.0 - smoothstep(uNightTop, uNightTop + 25.0, wp.y));
 }`;
   // the uniforms that GLSL reads; world.js shares them with every material it patches
-  const uniforms = () => ({ uNightMap: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uNightXf: { value: new THREE.Vector4(0, 0, 1, 1) }, uNightOn: { value: 0 },
+  const uniforms = () => ({ uNightMap: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uNightXf: { value: new THREE.Vector4(0, 0, 1, 1) }, uNightOn: { value: 0 }, uNightTop: { value: 1e5 },
     uGlowOn: { value: 0 }, uGlowCol: { value: new THREE.Vector3(1, 1, 1) } });
 
   // the edge haze (world.js) on an additive light: fog mixes towards the haze, a light just fades
@@ -146,11 +150,20 @@ void main() {
     const onGround = (x, y, z) => { let g = -Infinity; for (const t of grounds) g = Math.max(g, S.terrainTri(t, x, y)); return z - g > 3 ? z : Math.max(z, g); };
     const group = new THREE.Group();
     group.name = 'night';
+    group.userData.oeStill = true; // (the lamps' own lights stand where they are: the rain's cover map keeps them, weather.js occStill)
 
     // ------------------------------------------------------------ the lamps
     // x, y, z (local, the lamp head), colour, brightness, pool along (ux, uy) and its height
     const L = { x: [], y: [], z: [], c: [], b: [], ux: [], uy: [], h: [], pole: [] };
-    const lamp = (x, y, z, c, b, ux, uy, h, pole) => { L.x.push(x); L.y.push(y); L.z.push(z); L.c.push(c); L.b.push(b); L.ux.push(ux); L.uy.push(uy); L.h.push(h); L.pole.push(pole); };
+    // a lamp h over its pole's foot. The foot stands on the ground drawn where the pole is (the game's 5 m grid where there
+    // is one: what is walked and driven on), not at the height of the road's line beside it: a line's height is a chord
+    // between its simplified points, and a pole set by it hung up to 3 m over the kerb or stood as deep in it, its head at
+    // the road's surface (met by a car, and not seen). One more than 3 m off the ground is on a bridge's deck, and stays.
+    const footGround = D.Tfine || D.T;
+    const lamp = (x, y, z, c, b, ux, uy, h, pole) => {
+      if (footGround) { const g = S.terrainTri(footGround, x, y); if (Math.abs(z - h - g) <= 3) z = g + h; }
+      L.x.push(x); L.y.push(y); L.z.push(z); L.c.push(c); L.b.push(b); L.ux.push(ux); L.uy.push(uy); L.h.push(h); L.pole.push(pole);
+    };
     const roads = [];
     for (let i = 0, k = 0; i < roadsI.length; i += 3) {
       const cls = N.classes[roadsI[i]], n = roadsI[i + 2], pts = [];
@@ -348,6 +361,7 @@ void main() {
     Object.assign(map, { magFilter: THREE.LinearFilter, minFilter: THREE.LinearMipmapLinearFilter, generateMipmaps: true, needsUpdate: true });
     NU.uNightMap.value = map;
     NU.uNightXf.value.set(fr.x[0], fr.y[0], 1 / (mw * mpp), 1 / (mh * mpp));
+    if (nL) { const zs = Array.from(L.z).sort((a, b) => a - b); NU.uNightTop.value = zs[Math.min(nL - 1, Math.floor(nL * 0.995))] + 10; } // (the heads' height but for the highest few: a lamp on a deck)
 
     // ------------------------------------------------------------ the lamps as points of light
     const common = { uOn: { value: 0 }, uScale: { value: 600 }, uMinPx: { value: 1.6 }, uTime: { value: 0 } }, lights = [];

@@ -28,8 +28,8 @@
 //   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
 //     frame (on a phone: the hand brake, the horn and the view by the stick), it does not drive, the corner does not say
 //     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
-//   - in SKY GATE's lobby the lift is not offered, is not ridden in the dark (its doors shut, the car's ceiling and lines),
-//     or does not end at the top stop;
+//   - in SKY GATE's lobby the lift is not offered, is not watched from outside the tower as it climbs (mid-ride the
+//     camera high over the street and in no building), or does not end at the top stop;
 //   - on SHIBUYA SKY's roof Taro does not ask for the crossing from the helicopter (or a photograph from the roof on foot
 //     is taken for it), or over the crossing in the helicopter a photograph of it is not;
 //   - on SHIBUYA SKY's roof the helicopter does not stand on its pad, cannot be boarded, does not show its keys (on a
@@ -41,6 +41,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_play.js out_dir [WxH] [hour] [sky]     (390x844: a phone, by touch; hour blue|night|live, sky clear|rain)
 const { chromium } = require('playwright');
+const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
@@ -52,15 +53,18 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
   watchPage(p);
+  // DRAW=n: one frame in n drawn (tools/draw_skip.js); STILLS=0: no still taken. The walk's beats read the page's state,
+  // and at night in the rain every frame drawn whole was all of its time on a software renderer (issue 131)
+  await skip(p, +(process.env.DRAW || 0));
   const errors = [];
   const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
-  await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['oe3d-player', 'oe-walk', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
+  await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
   const PORT = process.env.PORT || 8800;
   // (a beat waits for what it tests, up to a minute, not for a fixed time: on a slow runner the desktop page took the press
   // and read Back's state 2.5 s later, a frame before Back had been drawn, and every beat after failed with it; issue 49)
@@ -78,7 +82,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   };
   const visible = sel => p.evaluate(s => { const e = document.querySelector(s); if (!e || e.hidden) return false; const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0.05; }, sel);
   const press = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
-  const shot = async n => { await p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${n}.png`, timeout: 120000 }).catch(() => console.log(`(no still ${n})`)); if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/walk-${n}.json`, { ctx: phone ? 'touch' : 'desk' }).catch(() => {}); };
+  const shot = async n => { if (process.env.STILLS !== '0') await whole(p, () => p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${n}.png`, timeout: 120000 })).catch(() => console.log(`(no still ${n})`)); if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/walk-${n}.json`, { ctx: phone ? 'touch' : 'desk' }).catch(() => {}); };
   const state = () => p.evaluate(() => {
     const g = window.__game, c = g.clock, wx = g.weather ? g.weather.state : {};
     const pad = n => String(n).padStart(2, '0'), hm = m => `${pad(Math.floor(m / 60) % 24)}:${pad(Math.floor(m) % 60)}`;
@@ -193,7 +197,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         if (/car/i.test(r.t) && r.lit) { if (!carLit) await shot('4a-intro'); carLit = true; }
         if (r.open) n++;
       }
-      const kept = await p.evaluate(() => { try { return localStorage.getItem('oe-walk-intro'); } catch (e) { return null; } });
+      const kept = await p.evaluate(() => { try { return localStorage.getItem('bh-walk-intro'); } catch (e) { return null; } });
       if (!carLit) fail('the office speaks of your car without the corner\'s Your car lit');
       else if (!kept) fail('the walk\'s way in is not kept as heard (it would ring every time)');
       else ok('the walk\'s way in: the office rings, your car\'s button lit while it is spoken of, kept as heard');
@@ -538,10 +542,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else ok(`Bring your car: at the kerb ${far.toFixed(0)} m away`);
       }
     }
-    // SKY GATE: in its hall (a hero level: the glass, the lines of light, its two lifts), E or a tap takes the lift, ridden in
-    // the dark as the real one is (the doors shut, the car's ceiling and its lines; game.js podRide), out at the top stop
-    const lobby = await p.evaluate(() => { const g = window.__game, l = (g.G.lifts || []).find(q => q.pod), s = l && l.stops[0]; if (!s) return null; const [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.player.x = ax - (ax - dx) / n * 1.2; g.player.y = ay - (ay - dy) / n * 1.2; g.player.z = az; g.player.h = Math.atan2(ax - dx, ay - dy); g.player.speed = 0; return { top: l.stops[l.stops.length - 1].at[2] }; });
-    if (!lobby) fail('no lift ridden in the dark (game.json lifts[].pod) on the map');
+    // SKY GATE: in its hall (a hero level open to the sky: its floor, its two lifts and their shaft), E or a tap takes the
+    // lift, watched from outside the tower as it climbs (game.js rideLift; the owner found the ride in the dark odd and the
+    // tower climbed from outside the better, November 2026), out at the top stop
+    const lobby = await p.evaluate(() => { const g = window.__game, l = (g.G.lifts || []).find(q => q.id === 'sky-gate'), s = l && l.stops[0]; if (!s) return null; const [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.player.x = ax - (ax - dx) / n * 1.2; g.player.y = ay - (ay - dy) / n * 1.2; g.player.z = az; g.player.h = Math.atan2(ax - dx, ay - dy); g.player.speed = 0; return { top: l.stops[l.stops.length - 1].at[2], street: az }; });
+    if (!lobby) fail('no SKY GATE lift (game.json lifts "sky-gate") on the map');
     else if (!(await waitPrompt(/lift/i))) fail(`in SKY GATE's lobby on the walk, nothing offers the lift ("${await prompt()}")`);
     else {
       // (the hall is a hero level of its own, cities/shibuya/hero_skylobby.py: loaded and shown round you, its floor stood on)
@@ -551,14 +556,14 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
       await shot('7a-hall');
       await act();
-      await p.evaluate(() => window.__game.advance(1.6));
-      const mid = await p.evaluate(() => { const e = document.getElementById('g-pod'); return e ? e.className : ''; });
-      await shot('7b-pod');
+      await p.evaluate(() => window.__game.advance(2.8)); // (the shot eases off from your shoulder: by now it is well up the face)
+      const mid = await p.evaluate(() => { const g = window.__game, c = g.camera.position, x = c.x, y = -c.z, z = c.y; return { z: +z.toFixed(1), inside: !!g.nav.col.overlap(x, y, 0.3, z - 0.3, z + 0.3), riding: !!g.cine.active }; });
+      await shot('7b-climb');
       await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40 && g.cine.active; i++) g.advance(0.25); });
       const top = await p.evaluate(() => window.__game.player.z);
-      if (!/ride/.test(mid)) fail(`SKY GATE: mid-ride the car is not dark round you (the pod's "${mid}")`);
+      if (!mid.riding || mid.z < lobby.street + 20 || mid.inside) fail(`SKY GATE: mid-ride the camera is not climbing outside the tower (${JSON.stringify(mid)})`);
       else if (top < lobby.top - 3) fail(`SKY GATE: the ride ended at ${top.toFixed(0)} m, not the top stop (${lobby.top.toFixed(0)} m)`);
-      else ok(`SKY GATE: ridden in the dark, out at ${top.toFixed(0)} m`);
+      else ok(`SKY GATE: watched from outside the tower, the camera at ${mid.z} m mid-ride, out at ${top.toFixed(0)} m`);
     }
     // Taro's story (walktalk.js "Above the crossing"): on the roof he asks for the crossing photographed from the
     // helicopter, and a photograph from the roof on foot is not it
@@ -604,6 +609,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           return was;
         });
         await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {});
+        // (and the lens come to rest over the crossing before the release: a still used to take the seconds it needed. At rest
+        // over the game's own frames, six alike, not over the wall's time: beside another check a frame drawn whole takes a
+        // second or two, and a lens read twice inside one frame has not moved)
+        await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, same = 0, n = 0; const f = () => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); same = now === was ? same + 1 : 0; was = now; if (same >= 6 || ++n > 900) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
         await shot('7d-air-photo');
         const aerial = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); g.photoMode(false); const st = g.walkTalk().state(), e = g.walkTalk().errand(); return { met: !!(st.air && st.air.met), errand: e ? e.text : '' }; });
         if (!aerial.met) fail('over the crossing in the helicopter, a photograph of it does not meet what Taro asked');
@@ -618,7 +627,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   }
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {
-    await p.evaluate(() => { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
+    await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     // (the loader's words are written once the page's boot has the map's list: waited for, not read at once)
     const roll = await p.waitForFunction(() => { const e = document.querySelector('#g-loader .roll-title span'); return e && e.textContent; }, null, { timeout: 120000, polling: 100 }).then(h => h.jsonValue()).catch(() => '');

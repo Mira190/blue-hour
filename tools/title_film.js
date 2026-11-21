@@ -23,7 +23,7 @@ const SCREENS = (process.env.SCREENS || 'desk,touch').split(',');
     const p = await ctx.newPage();
     p.on('pageerror', e => console.log(`pageerror (${screen}): ${String(e).slice(0, 200)}`));
     // (the page's frames get the held clock once the film starts: every requestAnimationFrame is given __vt, not the time)
-    await p.addInitScript(`try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-player', 'M'); localStorage.removeItem('oe-story-late'); localStorage.removeItem('oe-story-late-closed'); } catch (e) {}
+    await p.addInitScript(`try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-player', 'M'); localStorage.removeItem('bh-story-late'); localStorage.removeItem('bh-story-late-closed'); } catch (e) {}
       (() => { const raf = window.requestAnimationFrame.bind(window); window.__vt = null; window.__ts = 0;
         window.requestAnimationFrame = cb => raf(ts => { window.__ts = ts; cb(window.__vt == null ? ts : window.__vt); }); })();`);
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
