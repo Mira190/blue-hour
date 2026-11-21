@@ -643,6 +643,55 @@ what it sees. The walk signals' bird calls are no longer part of it: they play a
 signalled crossing, from the signal heads (`web/game/walkcalls.js`, [GAME.md](GAME.md), "Walk
 signals' calls"), and `sound.signal` is ignored.
 
+### The far skyline (`web/farcity.js`)
+
+The owner's ask (November 2026): the far Tokyo, Tokyo Tower and the Skytree, as pictures if need be, for the depth the
+views from SHIBUYA SKY and the flight lack. The map's buildings end at its frame; past it the far land (`farland.js`) is
+flat, its built-up land a glow: from 229 m the eye looked over it to Shinjuku, Roppongi and the bay and found nothing
+standing.
+
+What the games do (looked at, no code taken): a far landmark is an impostor, the model drawn once into a picture with its
+own coverage and turned to the camera (Epic's octahedral impostors, Ryan Brucks 2018, for objects seen from every side; a
+card turned about its own axis for one seen from a narrow range of directions, as these are from Shibuya, 4 to 11 km
+off); a far city is its massing from data, low prisms whose facades are what a facade is at that distance (bands of
+storeys, a share of lit windows), under the air's haze. A photograph as a backdrop was not used: it cannot follow the
+hour, the weather or the season, and its own haze and light would sit under the scene's.
+
+What was built:
+
+- `pipeline/far_city.py`: every roof face of Project PLATEAU's LOD2 models of the 23 wards (MLIT, CC BY 4.0; the
+  vector-tile mirror the map's own heights come from, indigo-lab, MIT) within 14 km of the frame's middle and outside the
+  frame, at least 45 m tall 2 km out and 5.5 m more a kilometre beyond, simplified to a few corners, stood on the far
+  land's ground: 4,300 faces, 123 kB (`farcity.bin`). The tiles are PLATEAU's 2020 models; the towers finished since
+  (Azabudai Hills' Mori JP Tower, Japan's tallest, between the Scramble and Tokyo Tower; Toranomon Hills' Station and
+  Residential towers; Tokyu Kabukicho Tower; Tokiwabashi Tower; Takanawa Gateway's Linkpillar) are added from
+  OpenStreetMap's footprints and heights (ODbL) wherever no PLATEAU face as tall stands.
+- `web/farcity.js` draws them in sixteen sectors round the frame's middle (what is behind the camera is not drawn),
+  under the far land's own air (`OE_FAR`, world.js edgeHaze). A face is glass in most towers, stone or tile in some,
+  each its own tone; its storeys a band of glass over a spandrel, settled to their mean once a storey is under a pixel.
+  After dark its offices light as the map's own do (buildings.js occupancy: most at dusk, a few by midnight), by the
+  9 m run along a floor, at the map's own lit rooms' level, under cool white, a building in five warmer. Two things
+  first drew every far tower as a pale grey block against a darker sky, and were corrected: a storey there is about a
+  pixel, so whole floors lit at twice the map's level summed to a half-lit facade (now runs, and the map's level; a
+  lit storey's line dims as it spreads under a pixel); and the edge haze's colour, lit for the plain under it, is
+  taken darker over the towers by night (`nightHaze`), so a far tower stays a dark mass with its lights in it. A light on each tower's top over 60 m (one a tower, night.js
+  `D.farTops`) flashes with the map's own, forty times a minute.
+- `blender/build_far_towers.py`: Tokyo Tower (the lattice Open Earth 3D modelled, from its published outline: 333 m, a
+  base 80 m a side, the decks at 150 m and 250 m, seven bands of International Orange and white) and TOKYO SKYTREE (634 m,
+  a triangle 68 m a side turning round by 320 m, the Tembo Deck at 350 m and the Tembo Galleria at 450 m, the gain tower
+  over 497 m, white tubes round the concrete core) modelled and drawn square on and orthographic: their colour and
+  coverage by day under an even sky and a sun from the upper left, and the masks of what lights them after dark
+  (`web/assets/far/`, 0.4 MB). The page stands each at its real place, turned about its axis to the camera, under the
+  same air, and tints the masks by the date: Tokyo Tower's Landmark Light orange from October to early July and white in
+  summer, the decks' windows warm; the Skytree's Iki (a pale indigo blue) one night and Miyabi (Edo purple) the next.
+- What it costs. The geometry carries no normals (flat shading takes each face's from its slope) and its facade
+  attributes as 16-bit whole numbers: 20 bytes a vertex. On the low tier (phones) only the faces over 100 m, the cards at
+  a quarter of their size (a tower is a hundred pixels on a phone's screen at most) and packed to ASTC where the GPU
+  takes it; and, since the far skyline is seen from SHIBUYA SKY and the flight and hardly at all from the street, it is
+  built only once the camera is over 90 m and let go five seconds after it is back under 60 m. A phone's GPU peak
+  (tools/mem_check.js) stays at the 268 MB it had without it; with it built at once it was 275, over the 270 budget.
+  `?farcity=off` leaves the far skyline out, to compare.
+
 ## Frame time by tier
 
 Measured with `tools/scramble_shot.js` (the median of a run of frames at each view). In this

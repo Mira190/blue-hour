@@ -434,6 +434,8 @@ void main() {
       const zt = (s[1] + s[3]) / 10, t = tops.get(s[0]);
       if (!t || zt > t.zt) tops.set(s[0], { zt, ring: s[4] });
     }
+    // the far skyline's towers (farcity.js), a light on each top over the country's height
+    for (const [x, y, z] of D.farTops || []) { const p = W(x, y, z + 0.6); aPos.push(p.x, p.y, p.z); }
     for (const { zt, ring } of tops.values()) {
       // the ring's corners furthest out on the diagonals; one light on a slender top
       const best = [[-Infinity], [-Infinity], [-Infinity], [-Infinity]];

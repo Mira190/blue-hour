@@ -76,7 +76,7 @@ window.OEHero = (function () {
       L.shared = new Set();
     }
     const halving = new WeakMap(); // (a picture being made smaller, once whichever level asked first)
-    const uBake = { value: 1 }, uStreet = { value: 1 }, uNight = U && U.uNight ? U.uNight : { value: 0 }, uHour = U && U.uHour ? U.uHour : { value: 12 };
+    const uBake = { value: 1 }, uStreet = { value: 1 }, uNight = U && U.uNight ? U.uNight : { value: 0 }, uHour = U && U.uHour ? U.uHour : { value: 20 };
     const aniso = Math.min(tier === 'high' ? 8 : tier === 'medium' ? 4 : 2, renderer && renderer.capabilities ? renderer.capabilities.getMaxAnisotropy() : 1);
 
     // a shop front's light box (glow_shop*) keeps its shop's hours (buildings.js SHOP_HOURS, docs/STORY.md "Tonight"):
@@ -227,7 +227,10 @@ window.OEHero = (function () {
             patch(m, L.h);
             const n = (m.name || '').toLowerCase();
             if (/^tube/.test(n)) L.tubes.push({ m, seed: Math.random() * 1000, off: 0 });
-            if (/^win/.test(n)) { m.userData.heroWin = m.emissiveIntensity || 1; L.wins.push(m); }
+            // a tower's skin whose storeys are offices (game.json hero[].offices: Scramble Square): its rooms traced behind
+            // the glass by the hour (interior.js offices), not an emissive picture
+            if (/^win/.test(n) && L.h.offices && window.OEInterior && OEInterior.offices) OEInterior.offices(m, L.h.offices, { night: uNight, hour: uHour });
+            else if (/^win/.test(n)) { m.userData.heroWin = m.emissiveIntensity || 1; L.wins.push(m); }
             if (/^chase/.test(n) && m.emissiveMap) { m.emissiveMap = m.emissiveMap.clone(); m.emissiveMap.wrapS = THREE.RepeatWrapping; m.emissiveMap.needsUpdate = true; L.chases.push(m); }
             if (opts.mirror && /^ground/.test(n)) opts.mirror.patch(m);
           }
