@@ -163,7 +163,8 @@ def main():
     hidden = set()
     lmp = os.path.join(d, "landmarks.json")
     if os.path.exists(lmp):
-        hidden = set(json.load(open(lmp, encoding="utf8")).get("hidden", []))
+        L = json.load(open(lmp, encoding="utf8"))
+        hidden = set(L.get("hidden", [])) | set(L.get("demolished", []))   # (a demolished building's roof is gone with it)
     pitched = {r[0] for r in B.get("r", [])}
     styles = B["styles"]
     flat_styles = {"office", "glass", "apartment", "heritage", "retail", "civic", "mixed", "industrial", "plain"}

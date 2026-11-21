@@ -293,10 +293,12 @@
 #g-story-end button.go:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; }
 #g-story-end button:focus-visible { outline: 1px solid var(--amber); outline-offset: 4px; }
 
-/* ---- by touch: the left thumb walks, the right thumb has the release; the map's other buttons are put away */
+/* ---- by touch: the left thumb walks, the right thumb has the release; the map's other buttons are put away, and on foot
+   Run too: how far the stick is pushed is how fast you go, a walk to a run (game.js walkStep), and a Run button stood
+   alone over the right thumb doing what the stick does (the owner, November 2026: "I don't think it needs Run") */
 .game-stage.story:has(#g-title:not([hidden])) .g-touch { display: none; }
 .game-stage.story .gt-btns { grid-template-columns: 56px; }
-.game-stage.story .gt-btns button:not(#gt-run) { display: none; }
+.game-stage.story .gt-btns button { display: none; }
 @media (pointer: coarse), (max-width: 640px) {
   #g-story-finder { inset: 21% 8% 16%; } /* (its top under the goal's four lines: at 16% the goal lay over the year and the corner) */
   #g-story-keys { gap: 16px; letter-spacing: 0.12em; bottom: max(170px, calc(env(safe-area-inset-bottom) + 170px)); }

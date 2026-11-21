@@ -805,6 +805,26 @@ line through the patch, and hints asked for. The walking keys (W A S D, Shift, t
 first Stop gives the street to the player; for a while they never were, because a second function took the name of
 the one that showed them (`keysHint`).
 
+**On a phone, what is on the picture** (November 2026; the owner, of the buttons: "too many, it looks cluttered; analyse
+each from first principles"). Something stays on the picture only if it is a verb the player uses often that no gesture
+already does, or something read at a glance; what is needed only sometimes comes when it is needed and goes after.
+
+| On the picture | For | Kept because |
+|---|---|---|
+| The stick, left thumb | walking | the one verb always in use; how far it is pushed is how fast, a walk to three quarters of the way and on to a run at the edge (`game.js` `walkStep`). A faint ring until the thumb is on it |
+| A drag on the picture | looking | a gesture, nothing drawn |
+| What can be done here, as words where it is (talk to her, get in, get out, skip) | acting | only when there is something to do; tapped |
+| The camera, and its shutter | the episode's own verb | the camera only at a standpoint, the shutter only with it raised |
+| The hint | being stuck | only after a while stuck |
+| The goal line, and the roll's count | knowing what to do, and how far | read at a glance; the roll opens the prints |
+| The menu | the hour, the sound, who you play | one small icon |
+
+Taken off: **Run**, a button alone over the right thumb doing what the stick does (a sprint the episode never asks
+for). The walk adds where and when you are, which is what the walk is for, and at the top right your car, the camera
+and the menu, three small icons. The map without the story (`?walk=1`, a tool for building and checking) still has
+the old free game's six buttons (Lens, View, Run, Guess, Jump, E); they are not the game's, and stills meant to show
+the game are taken on the game's own page (`tools/lens_near.js` sets out on the walk as a player does).
+
 What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
 old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose
 camera alone sees what is gone and whose first capture is taught one step at a time, with the finder answering each;
