@@ -30,7 +30,8 @@
 #   walk    the title's first way in, on a desktop's page and a phone's (tools/walk_play.js): Walk Shibuya after who you play,
 #           its hour and sky as the street behind the card, out on the street with nothing of the story or the old free game,
 #           SKY's hall drawn round you in its lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
-#   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js);
+#   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js), and its memory loop
+#           through a lost context (tools/glcare_phone.js);
 #   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
 #           (tools/reverb_check.js), the graph as small after every one-shot has sounded as before, and no sound begun
 #           before the audio thread can take it up (tools/audio_graph_check.js), and the opening and the story's own sound
@@ -297,6 +298,10 @@ run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB' "$OUT/mem.log" | head -1), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+  # and the memory loop on the story's page: a death makes the next load lighter, a lost context reloads lighter and
+  # never from a tab put away (tools/glcare_phone.js, docs/PERFORMANCE.md "Measure, then grant")
+  if timeout 900 $X node tools/glcare_phone.js >"$OUT/glcare_phone.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/glcare_phone.log") steps of a phone's lost context and its next load"
+  else echo "FAIL mem    $(grep '^FAIL' "$OUT/glcare_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/glcare_phone.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {

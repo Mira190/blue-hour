@@ -291,7 +291,9 @@ window.OETelemetry = (function () {
     // the first view is timed from the navigation itself (the page's own download is part of its wait)
     cur = { kind: w.kind, city: w.city, t0: views ? now() : 0, ready: w.kind === 'globe', failed: false, active: 0, since: null, frames: frames(),
       restored: restored === true, here: null, dwell: new Map(), tourMax: 0, tourDone: false, stamps: null };
-    track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days }, prev));
+    // (gl_reload: the page was loaded again by glcare.js after its WebGL context was lost, in the last minute)
+    let glr = 0; if (!views) try { glr = Date.now() - (Number(sessionStorage.getItem('oe3d-gl-reload')) || 0) < 60000 ? 1 : 0; } catch (e) { /* storage blocked */ }
+    track('view', Object.assign({ first: !views++, new_visitor: fresh, visit_n: visit.n, days_since: visit.days, gl_reload: glr || undefined }, prev));
     prev = {};
     while (crashes.length) crashes.shift()();
     if (cur.ready) bank();
