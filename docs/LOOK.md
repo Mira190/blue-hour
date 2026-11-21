@@ -629,6 +629,58 @@ are Scheuermann's two lobes and TT the rim's warm transmission, a fraction of th
 physical material's whole program on every person and has no second lobe or transmission, so it was not used. No
 code was copied from any of them.
 
+### People in the street's light (`web/game/people.js` `castPatch`, issue 123)
+
+Issue 74's hair took its highlight from the game's lights, and the launch review still found Kagami's hair one black
+shape in every over-the-shoulder shot, her cardigan flat, and the cast's skin and cloth flat. `tools/cast_probe.js`
+gave the reason in numbers: at 17:14, the first frame's hour, the scene has no sun or moon to speak of, one point light
+at 0.25 and the hemisphere; everything else that lights a person is the street's own light where they stand (world.js
+`streetLight`: the lamps, the shop fronts, the screens) and that was laid on them evenly, as on paving, with no
+direction. A strand highlight from a light that is not there is nothing, and an even light gives a fold or a cheek no
+form. So a person is lit as a film lights one in a street at night, from the light that is there, with no new picture,
+no new pass and no new program (the patch goes into the one every person's material already had):
+
+- **A key.** The street's light comes from the lens's side, above and to one side, wrapped: 0.3 round cloth (a knit
+  lets light round), and on skin further in the red than in the blue (0.8, 0.42, 0.28), so the terminator on a cheek
+  is warm, as light scattered under skin leaves it. The far side keeps four tenths. From dusk, before the street's
+  lamps are up, the lit fronts round a street are already most of a person's light and the game's lights say nothing
+  of them but the sky's: the sky's light stands in for them, warmed, and fades out as the day brightens (above a mean
+  sky of 0.25 to 0.6), so the day is as it was.
+- **A rim.** The screens and the sky behind, on the outline that faces up and to the other side, in their own colour.
+- **Cloth's sheen.** The fibres standing off a knit or a wool catch light at grazing angles all round: a fourth-power
+  Fresnel-like term in the cloth's colour, half desaturated.
+- **Skin's highlight** (not on a phone: `quality.js` `lean`). A broad lobe toward the key: a cheekbone, the bridge of a nose.
+- **Hair.** The light round the head (the same sky and street) now gives three broad bands across the strands: from
+  above and behind the lens, from the key's side and from the screens behind on the other. A broad source makes both
+  of Scheuermann's lobes wider and the second (through the strand, in the pigment's dark warm brown, which black hair
+  has too) as strong as the first. A little of that light is scattered among the strands, wrapped round the strand's
+  own normal toward the lens. A card's colour is matched to the head's hair under it by channel, within a quarter of
+  their tone's ratio (a card of brown strands over black hair read as a patch at the nape).
+- **Skin from cloth.** By the character's mask where its body's picture has one (`OE_SKIN_MASK`), by the head's own
+  material (everything on it that `strandHair` did not mark as hair), otherwise by colour.
+- **Cost.** A phone: about thirty instructions more in a person's fragments, no texture, no uniform, no program more
+  (`tools/mem_check.js` unchanged). Nothing moves in time.
+
+`tools/hair_shot.js` is lit at the game's own levels for dusk (from the probe) with the street's light as the game
+gives it; `NOLIGHT=1` leaves that out.
+
+**What was surveyed** (November 2026; written here from the papers and talks, no code copied).
+| What | Source | Licence of its code | Taken |
+| --- | --- | --- | --- |
+| Skin's warm terminator as a wrap per channel | Penner, "Pre-Integrated Skin Shading" (SIGGRAPH 2011 course); a LUT-free fit described on Simon's Tech Blog (2015) | none used | the three-term wrap; no curvature term |
+| Light scattered among strands, a fake normal round the strand | Karis, "Physically Based Hair Shading in Unreal" (SIGGRAPH 2016 course) | slides only (Unreal's source is under Epic's EULA and was not read) | the wrap round the strand's normal, in the pigment's colour; not his three Gaussian lobes |
+| Rim from the light that is there | Mitchell, Francke, Eng, "Illustrative Rendering in Team Fortress 2" (NPAR 2007) | paper only | a Fresnel rim on the outline facing up and away, coloured by the street and sky |
+| Cloth's sheen | Estevez and Kulla, "Production Friendly Microfacet Sheen BRDF" (2017); three.js `MeshPhysicalMaterial.sheen` | three.js MIT (not used: the physical material's program on every person) | its shape at grazing angles as one term |
+| Translucency without a thickness map | Barré-Brisebois and Bouchard (GDC 2011); three.js `SubsurfaceScatteringShader` | three.js MIT | not taken: ears and nostrils are too small in these shots to pay for it |
+| Hair in a browser | Scthe `frostbitten-hair-webgpu` and `WebFX` (TressFX strands) | MIT | not taken: strands and WebGPU; a phone's memory is full (issue 105) |
+| Shells | Babylon.js `FurMaterial` | Apache-2.0 | not taken: shells suit fur and cropped hair, not an avatar's cards |
+| Two passes for cards (opaque core, blended fringe) | common practice | - | not taken yet: twice the hair's draws; the next step for the hem (below) |
+
+**What is left** (issue 123's comment has the stills). The hem of a long head of hair is still the avatar's own
+cut: cards over the head's painted hair, ending in a few broad points; a soft hem wants new cards built in
+`blender/build_people.py` or the two passes above. Cloth has the avatars' own normal maps and no weave of its own.
+The crowd takes the same light (it is one patch) but none of this was tuned on it.
+
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 
 The constant beds are off in play: the crowd's murmur and the screens' music were too loud and
