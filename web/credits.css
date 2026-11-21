@@ -1,0 +1,79 @@
+/* The Credits screen (credits.js), in the story's own tokens (game/story.css): off-white paper on the night's blue-black,
+   the sun's amber for what names a thing, small capitals in the mono face over hairlines, no boxes but one: what the
+   page measures, which a reader should not have to look for. It lies over whatever is up (the title, the pause menu,
+   the last card), and scrolls as one page. A desktop sets the place beside the rest; a phone runs them in one column. */
+#g-credits { --amber: #ffcf8a; --paper: #f4efe6; position: absolute; inset: 0; z-index: 40; overflow: hidden;
+  color: var(--paper); background: linear-gradient(90deg, rgba(4, 8, 18, 0.95), rgba(4, 8, 18, 0.88) 50%, rgba(4, 8, 18, 0.95));
+  -webkit-backdrop-filter: blur(10px) saturate(0.6); backdrop-filter: blur(10px) saturate(0.6); animation: g-credits-in 0.45s ease both; text-align: left; }
+#g-credits[hidden] { display: none; }
+/* (it comes up by an animation of its own, which starts as it is shown: not by a class a busy frame adds late) */
+@keyframes g-credits-in { from { opacity: 0; } }
+/* the page scrolls under its way back, which keeps to the top on the night behind it */
+#g-credits .cr-scroll { position: absolute; inset: 0; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; outline: none; }
+#g-credits::before { content: ""; position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: max(76px, calc(env(safe-area-inset-top, 0px) + 68px)); pointer-events: none;
+  background: linear-gradient(rgb(5, 9, 19) 62%, rgba(5, 9, 19, 0)); }
+#g-credits .cr-in { width: min(1240px, 100%); margin: 0 auto; display: grid; gap: 38px; outline: none;
+  padding: max(10vh, 78px) max(4vw, 24px, env(safe-area-inset-right, 0px)) max(8vh, 44px, env(safe-area-inset-bottom, 0px)) max(4vw, 24px, env(safe-area-inset-left, 0px)); }
+#g-credits :is(.eyebrow, h3) { display: flex; gap: 14px; align-items: center; margin: 0; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+#g-credits :is(.eyebrow, h3)::after { content: ""; flex: 1; height: 1px; background: rgba(244, 239, 230, 0.18); }
+#g-credits .cr-head { display: grid; gap: 16px; }
+#g-credits h2 { margin: 6px 0 0; font: 200 clamp(30px, 4.6vw, 58px)/1 var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper); text-shadow: 0 0 60px rgba(120, 150, 255, 0.28); }
+#g-credits .cr-line { margin: 0; max-width: 52ch; font: 300 clamp(15px, 1.4vw, 17px)/1.6 var(--f-body); color: rgba(244, 239, 230, 0.86); }
+#g-credits .cr-ver { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font: 400 10px/1.5 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.78); font-variant-numeric: tabular-nums; }
+#g-credits .cr-ver > span { color: var(--amber); }
+#g-credits .cr-attr a { text-decoration-color: transparent; }
+#g-credits a { color: inherit; text-decoration: underline; text-decoration-color: rgba(255, 207, 138, 0.5); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: color 0.2s, text-decoration-color 0.2s; }
+#g-credits a:is(:hover, :focus-visible) { color: var(--amber); text-decoration-color: var(--amber); outline: none; }
+#g-credits .cr-wait { margin: 0; font: 400 10px/1.5 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
+
+#g-credits .cr-cols { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: 40px clamp(36px, 5vw, 72px); align-items: start; }
+#g-credits .cr-side { display: grid; gap: 40px; }
+#g-credits .cr-sec { display: grid; gap: 18px; min-width: 0; }
+/* the credit lines the licences ask for, first and in the story's serif: they are the page's thanks, not small print */
+#g-credits .cr-attr { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font: 400 16px/1.5 var(--f-serif); color: var(--paper); }
+#g-credits dl { margin: 0; display: grid; }
+#g-credits .cr-row { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 6px 22px; padding: 13px 0; border-top: 1px solid rgba(244, 239, 230, 0.12); }
+#g-credits .cr-row:last-child { border-bottom: 1px solid rgba(244, 239, 230, 0.12); }
+#g-credits dt { padding-top: 3px; font: 400 9.5px/1.5 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(244, 239, 230, 0.62); }
+#g-credits dd { margin: 0; min-width: 0; font: 300 14px/1.6 var(--f-body); color: rgba(244, 239, 230, 0.86); overflow-wrap: anywhere; }
+#g-credits dd > :is(span, b) { display: block; }
+#g-credits dd > b { font-weight: 400; color: var(--paper); }
+#g-credits dd .cr-by { margin-top: 2px; font-size: 12.5px; color: rgba(244, 239, 230, 0.62); }
+
+/* what the page measures, and its switch: the one framed thing on the screen */
+#g-credits .cr-measure { padding: 22px 22px 20px; border: 1px solid rgba(244, 239, 230, 0.22); border-radius: 2px; background: rgba(4, 8, 18, 0.42); }
+#g-credits .cr-measure p { margin: 0; font: 300 14px/1.65 var(--f-body); color: rgba(244, 239, 230, 0.86); }
+#g-credits .cr-switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 4px; }
+#g-credits .cr-switch > span { font: 400 9.5px/1.2 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.62); }
+#g-credits .cr-switch .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(84px, 1fr); gap: 6px; }
+#g-credits .cr-switch button { min-height: 44px; padding: 10px 18px; border: 1px solid rgba(244, 239, 230, 0.26); border-radius: 2px; background: rgba(4, 8, 18, 0.42); color: rgba(244, 239, 230, 0.8);
+  font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s; }
+#g-credits .cr-switch button:is(:hover, :focus-visible) { border-color: rgba(255, 207, 138, 0.7); color: var(--paper); outline: none; }
+#g-credits .cr-switch button[aria-pressed="true"] { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber); background: rgba(255, 207, 138, 0.08); }
+#g-credits .cr-switch button:disabled { opacity: 0.45; cursor: default; }
+#g-credits .cr-measure .cr-measure-state { font: 400 9.5px/1.6 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); min-height: 1.6em; }
+#g-credits .cr-measure .cr-measure-state[data-s="off"], #g-credits .cr-measure .cr-measure-state[data-s="browser"] { color: rgba(244, 239, 230, 0.78); }
+
+/* the ways in: the title's row only where the story's menu is (the map without the story keeps its pause menu's) */
+.game-stage:not(.story) #gt-credits-go { display: none !important; }
+#g-story-end .row button[data-credits] { border-color: transparent; color: rgba(244, 239, 230, 0.72); }
+#g-story-end .row button[data-credits]:is(:hover, :focus-visible) { border-color: rgba(244, 239, 230, 0.4); color: var(--paper); }
+
+/* one column: what the page measures comes first, ahead of the long list of the place's sources */
+@media (max-width: 900px) {
+  #g-credits .cr-cols { grid-template-columns: minmax(0, 1fr); }
+  #g-credits .cr-side { display: contents; }
+  #g-credits .cr-measure { order: -1; }
+}
+@media (max-width: 640px) {
+  #g-credits .cr-in { gap: 28px; padding-top: max(70px, calc(env(safe-area-inset-top, 0px) + 60px)); }
+  #g-credits .cr-row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 12px 0; }
+  #g-credits dt { padding-top: 0; }
+  #g-credits .cr-attr { font-size: 15px; }
+  #g-credits .cr-measure { padding: 18px 16px 16px; }
+  #g-credits .cr-side { gap: 32px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #g-credits .cr-in { padding-top: 54px; gap: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { #g-credits { animation: none; } }
