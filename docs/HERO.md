@@ -575,7 +575,7 @@ was cut three ways, since main had come to 269 MB of the 270 budget there before
 stands proud of the skin (its back and sides as strips that share their points; the end frames to their full depth,
 seen across the gables), the cladding's panels are one face to a wall with each open joint a dark line in front of it,
 and the M has eleven points to a half. That took the level from 35,500 vertices to 13,500 with no change a still
-shows. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
+shows. A phone at frame 5 (`tools/mem_check.js` `AT=521.9,-1074.1`) then peaks at 269 MB, as main does without it. It is seen from far (frame 4's roof, the helicopter), so it is fetched as Scramble Square's skin is, wherever the
 story walks (`game.hero[].load_m` 900).
 
 Its stills: `station`, `west` and `ginza_air` in `tools/views/shibuya-miyamasu.json`, and frame 5's beat.
