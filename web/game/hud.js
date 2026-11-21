@@ -266,12 +266,12 @@ window.OEHud = (function () {
     }
     const hintFor = () => (cur.free ? '' : cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : '<kbd>E</kbd> or click to continue') : ''); // (a call's lines pass by themselves)
     const readS = t => Math.max(2.4, Math.min(7.5, 1.4 + 0.045 * t.length)); // (a line held for as long as it takes to read, after it is typed)
-    function next(first) {
+    function next(first, hand) { // (hand: passed by a key or a tap, not by the story or a check)
       if (!cur) return;
       if (!first && view > 0) { view--; return view ? recall() : present(); } // (stepping back: on is forward through what was said, to the line being said)
       if (!first && cur.typed < cur.full.length) { cur.typed = cur.full.length; textEl.textContent = cur.full; showChoices(); return; } // finish the line at once
       if (!first) cur.i++;
-      if (cur.i >= cur.lines.length) { if (cur.choices.length) return; close(); return; }
+      if (cur.i >= cur.lines.length) { if (cur.choices.length) return; close(undefined, hand); return; }
       cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0;
       textEl.textContent = '';
       choicesEl.innerHTML = '';
@@ -304,12 +304,12 @@ window.OEHud = (function () {
       if (!cur || view || !cur.choices[k] || cur.typed < cur.full.length) return;
       const c = cur.choices[k], done = cur.done;
       if (cur.npc.log && api.log) api.log.answer(cur.npc, c);
-      close(c);
+      close(c, true);
       if (done) done(c);
     }
-    function close(choice) {
+    function close(choice, hand) {
       const d = cur && !choice ? cur.done : null;
-      cur = null; view = 0; shutAt = performance.now();
+      cur = null; view = 0; if (hand) shutAt = performance.now(); // (quiet after a talk a hand ended: its next press is still the talk's)
       box.hidden = true; box.classList.remove('back', 'free', 'cut');
       choicesEl.innerHTML = '';
       if (d) d(null);
@@ -336,7 +336,7 @@ window.OEHud = (function () {
     }
     choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
     // (the dialogue's own buttons, a story's: a step back, and the log)
-    box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false); });
+    box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false, true); });
     // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
     // (quiet: just closed. The press that passed the last line, or the one after it from a hand still passing lines, is not
     // also the next thing: E passes a line and gets you into a helicopter beside you, F passes one and is the shutter)
