@@ -40,7 +40,7 @@ window.OEPerch = (function () {
       }
       return best;
     }
-    let seat = null, push = 0, t = 0, back = 0;
+    let seat = null, push = 0, t = 0, back = 0, last = null;
     const look = { yaw: 0, pitch: 0, idle: 99 };
     function sit(p) { seat = p; push = 0; t = 0; back = 0; look.yaw = 0; look.pitch = 0; look.idle = 99; }
     function stand() { seat = null; }
@@ -64,9 +64,11 @@ window.OEPerch = (function () {
       const z0 = p.z ?? 0;
       // the tripod, breathing a little (a hand-held calm, a few centimetres over ten seconds)
       const bx = Math.sin(t * 0.21) * 0.035, bz = Math.sin(t * 0.33 + 1) * 0.02;
-      // (the seat's own tripod, out past whatever stands behind it; its side narrowed on a narrow screen, a phone held
-      // upright, whose frame is a third as wide: there you are seen from nearly behind, the crossing over your shoulder)
-      const c = p.cam || {}, back = c.back ?? BACK, side = (c.side ?? SIDE) * Math.max(0.62, Math.min(1, aspect / 1.6)), up = c.up ?? HIGH;
+      // (the seat's own tripod, out past whatever stands behind it: the bed's lantern stays off the line to you)
+      // (and on a tall screen further back and higher, so that the whole of you sits in its lower corner and the crossing
+      // fills the rest: close in, a phone's frame was your back from the shoulders, cut off at its edge)
+      const tall = Math.max(0, Math.min(1, (1.6 - aspect) / 1.15));
+      const c = p.cam || {}, back = (c.back ?? BACK) + 1.0 * tall, side = c.side ?? SIDE, up = (c.up ?? HIGH) + 0.6 * tall;
       const pos = [p.at[0] - fx * back + rx * (side + bx), p.at[1] - fy * back + ry * (side + bx), z0 + up + bz];
       // the aim: at the crossing, turned by the head
       let dx = p.look[0] - pos[0], dy = p.look[1] - pos[1];
@@ -74,16 +76,22 @@ window.OEPerch = (function () {
       let a0 = Math.atan2(dx, dy);
       // (and you kept in the frame: where the crossing's bearing would leave you past seven tenths of the half-width, the
       // aim swings towards you by the difference)
-      const H = Math.atan(Math.tan(fov * Math.PI / 360) * aspect) * 0.7, ap = Math.atan2(p.at[0] - pos[0], p.at[1] - pos[1]);
+      const H = Math.atan(Math.tan(fov * Math.PI / 360) * aspect) * (0.7 - 0.4 * tall), // (on a tall screen nearer the middle, clear of the buttons at its edge)
+        ap = Math.atan2(p.at[0] - pos[0], p.at[1] - pos[1]);
       const off = Math.atan2(Math.sin(ap - a0), Math.cos(ap - a0));
       if (Math.abs(off) > H) a0 += off - Math.sign(off) * H;
-      const a = a0 + look.yaw, el = Math.atan2(dz, L) + look.pitch;
+      // (and tilted further down on a tall screen: you above the prompt, the crossing in the upper half of the frame)
+      const a = a0 + look.yaw, el = Math.atan2(dz, L) - 0.15 * tall + look.pitch;
       const aim = [pos[0] + Math.sin(a) * Math.cos(el) * 30, pos[1] + Math.cos(a) * Math.cos(el) * 30, pos[2] + Math.sin(el) * 30];
+      last = pos;
       return { pos, look: aim, fovAdd: -6 - 7 * push * push * (3 - 2 * push) };
     }
+    // where your hands rest seated: on your lap, a quarter of a metre out from the hips and over the thighs (x, y, z),
+    // for people.js rig.reach; without it the standing clip's arms hung straight down into the stone
+    const lap = () => (seat && seat.z != null ? [seat.at[0] + seat.face[0] * 0.26, seat.at[1] + seat.face[1] * 0.26, seat.z + 0.5] : null);
     // the clock held fast: minutes to add this frame
     const warp = (dt, held) => (seat && held ? dt * WARP / 60 : 0);
-    return { list, near, sit, stand, turn, camera, warp, get seat() { return seat; }, look, WARP };
+    return { list, near, sit, stand, turn, camera, warp, lap, get seat() { return seat; }, get tripod() { return last; }, look, WARP };
   }
   return { create };
 })();

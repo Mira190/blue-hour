@@ -1178,12 +1178,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // round and the action button stands you up
   function seatTouch(on) { if (touch) for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-down', '#gt-lens']) $(id).hidden = on; }
   function standUp() {
-    const st = (perch && perch.seat) || shows.seat, f = player.seatFrom;
-    if (st && st.perch) { perch.stand(); delete player.rig.legRake; stage.classList.remove('at-perch'); } else shows.stand();
+    const st = (perch && perch.seat) || shows.seat, tri = st && st.perch ? perch.tripod : null;
+    if (st && st.perch) { perch.stand(); player.rig.legRake = player.rig.reach = null; stage.classList.remove('at-perch'); player.seatFrom = { x: st.at[0] + st.face[0] * 0.7, y: st.at[1] + st.face[1] * 0.7, z: st.z }; } else shows.stand(); // (off the wall: up onto your feet at its foot, facing the crossing)
+    const f = player.seatFrom;
     seatTouch(false);
     const p = (f && nav.stand(f.x, f.y, f.z + 0.5, { rMax: 3 })) || nav.stand(player.x, player.y, player.z + 0.5, { rMax: 4 }) || f || player;
     Object.assign(player, { mode: 'foot', x: p.x, y: p.y, z: p.z, h: st ? st.h : player.h, speed: 0, ground: true, vz: 0 });
-    cam.mode = 'chase'; cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
+    // (off a perch the camera stays on the tripod's side of you, never swung round over the wall and its lantern behind)
+    cam.mode = 'chase'; cam.yaw = tri ? Math.atan2(player.x - tri[0], player.y - tri[1]) : player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist;
     blendFrom(0.7, true); // (from the seat's eyes out to over your shoulder, not a cut)
     player.rig.root.visible = true;
   }
@@ -7094,7 +7096,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       A.wind(Math.min(1, heli.st.speed / 60));
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'seat') {
-      if (perch && perch.seat) player.rig.legRake = perch.seat.rake; // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
+      if (perch && perch.seat) { // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
+        const l = perch.lap(); player.rig.legRake = perch.seat.rake; player.rig.reach = l ? W(...l) : null; // (the hands in the lap, not down through the stone)
+      }
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'lift') {
       liftStep(dt);

@@ -233,11 +233,14 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           const g = window.__game, P = g.perch, st = P.seat, c = g.camera, d = new THREE.Vector3(); c.getWorldDirection(d);
           if (!st) return { mode: g.player.mode };
           const toLook = Math.atan2(st.look[0] - c.position.x, st.look[1] + c.position.z), aim = Math.atan2(d.x, -d.z), off = Math.abs(((aim - toLook) * 180 / Math.PI + 540) % 360 - 180);
-          return { mode: g.player.mode, back: Math.hypot(c.position.x - st.at[0], -c.position.z - st.at[1]), up: c.position.y - st.z, off, seen: g.player.rig.root.visible, feet: g.player.z - st.z, fov: c.fov, inFrame: (() => { const v = g.player.rig.root.getWorldPosition(new THREE.Vector3()); v.y += 0.8; v.project(c); return Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 && v.z < 1; })() };
+          return { mode: g.player.mode, back: Math.hypot(c.position.x - st.at[0], -c.position.z - st.at[1]), up: c.position.y - st.z, off, seen: g.player.rig.root.visible, feet: g.player.z - st.z, fov: c.fov, hand: g.player.rig.fist ? +(g.player.rig.fist(new THREE.Vector3()).y - st.z).toFixed(2) : null, inFrame: (() => { const v = g.player.rig.root.getWorldPosition(new THREE.Vector3()); v.y += 0.8; v.project(c); return Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 && v.z < 1; })() };
         });
         if (s.mode !== 'seat' || s.off == null) fail(`E beside ${seat.name}: not seated (${JSON.stringify(s)})`);
         else if (s.back > 4 || s.up < 0.8 || s.up > 2.2 || s.off > (phone ? 40 : 25) || !s.seen || !s.inFrame) fail(`seated, the camera does not frame the crossing over your shoulder (${JSON.stringify(s)})`);
         else ok(`seated on ${seat.name}: the camera ${s.back.toFixed(1)} m behind, ${s.up.toFixed(1)} m up, ${s.off.toFixed(0)}° off the crossing, fov ${s.fov.toFixed(0)}, you in the frame`);
+        // (the hands in the lap, over the stone's top 0.4 m above the feet: hung straight down from a standing clip they went into it)
+        if (s.hand != null && s.hand < 0.44) fail(`seated, your hand is ${s.hand} m over your feet: in the stone, not in your lap`);
+        else if (s.hand != null) ok(`seated, the hands in the lap (${s.hand} m over the feet)`);
         if (!(await waitPrompt(/Stand up/))) fail(`seated, nothing offers to stand up ("${await prompt()}")`);
         await shot('4f-sit');
         // a drag turns the head (on a phone a finger, by touch)
