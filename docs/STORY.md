@@ -63,7 +63,7 @@ studied, what makes each one work, and what Blue Hour adopts. Nothing of their l
 | *428: Shibuya Scramble* (2008) | Shibuya itself as the board; hour stamps; "to be continued" as a weapon | Real hours on every print, the district as the map of the case, every frame ending on a question |
 | *Life is Strange* (2015) | A photograph as the hinge of time; an ending that is one act, not a boss | The last frame is one photograph, and taking it is the ending |
 | *Paranormasight* (2023), *AI: The Somnium Files* (2019) | Local history turned into the engine of the mystery | 1964 Shibuya is not set dressing: each real fact is a clue (section 4) |
-| K. Higashino, *The Devotion of Suspect X* (2005) | A howdunit whose last turn is not who did it but what someone gave up, and for whom | Two people each took the other's guilt on themselves and kept silent for sixty years, each for the same reason |
+| K. Higashino, *The Devotion of Suspect X* (2005) | A howdunit whose last turn is not who did it but what someone gave up, and for whom | Two people each took the other's guilt on themselves and kept silent for sixty-two years, each for the same reason |
 | A. Christie; the Knox and Van Dine rules | Fair play: every clue before the reader, the answer the least expected of the people already met | Section 9: every answer is shown at least a frame before it is needed |
 | Short serial dramas (vertical dramas, 2022–) | A hook in the first thirty seconds, one reversal per episode, an ending on the worst possible second, a secret identity paid off late, feeling stated plainly | The shape of every frame: a hook, one task, one reversal, a question. No frame over six minutes |
 | M. Shinkai, *Your Name* (2016) | The hour of twilight as the only time two worlds touch | The blue hour as the door, and rain kept for the last frame |
@@ -233,7 +233,7 @@ confessed to me that politely.*
 - **Secret.** Three years ago today their mother died while Kagami was out on a job, and Kagami came too late. At the
   funeral their sister said *don't bother coming any more*. Kagami took it at its word. Every tenth of October since,
   Kagami has taken a job, and has the office tell the sister what it always tells her: *out on a job*. The man who would
-  not cross, sixty years on, in someone else.
+  not cross, sixty-two years on, in someone else.
 - **Arc.** Late (17:15), as at the funeral, and greeted with it: *You came late*. The first person in sixty-two years to
   turn and look at the girl. Carries his camera across the road, which he never could. Hears the sister's message in the
   middle of the evening (*I didn't mean for the rest of our lives*), and then Akira's own (*I did not mean for the rest
