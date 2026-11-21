@@ -511,6 +511,7 @@ window.OEAtmos = (function () {
           if (sizedW === w && sizedH === h) return; // (nothing to make again: a resize that changed nothing)
           sizedW = w; sizedH = h;
           rt.setSize(w, h);
+          rt.depthTexture.image.width = w; rt.depthTexture.image.height = h; // (three.js leaves it at the old size: world.js sizeTarget)
           if (pingA) { pingA.setSize(w, h); pingB.setSize(w, h); }
           for (const p of passes) if (p !== bloom && p.setSize) p.setSize(w, h);
           bloom.setSize(lowBloom ? Math.round(w / 2) : w, lowBloom ? Math.round(h / 2) : h);
