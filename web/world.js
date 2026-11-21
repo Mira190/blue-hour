@@ -2586,7 +2586,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
         n = Math.max(1024, Math.min(SHADOW, n | 0));
         if (n === sunLight.shadow.mapSize.x) return n;
         sunLight.shadow.mapSize.set(n, n);
-        if (sunLight.shadow.map) sunLight.shadow.map.setSize(n, n);
+        if (sunLight.shadow.map) sizeTarget(sunLight.shadow.map, n, n);
         if (shadowStill && shadowStill.resize) shadowStill.resize(n);
         shR = -1; // (the box is placed again on its new texel grid)
         renderer.shadowMap.needsUpdate = true;
@@ -3019,6 +3019,19 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     });
   }
 
+  // A render target resized with its depth texture (issue 103). three.js r186's setSize gives the new size to the
+  // target's colour textures but not to its depth texture's image, and it allocates a depth texture's storage once,
+  // at that image's size (texStorage2D: immutable). The target's own set-up corrects the image when it comes first;
+  // but a material that samples the depth texture (every lit one samples the shadow map) between the resize and the
+  // target's next use uploads it at the old size, and the framebuffer then holds a colour of one size and a depth of
+  // another: every blit and draw into it refused as incomplete (GL_INVALID_FRAMEBUFFER_OPERATION) for that frame.
+  // Seen when the governor's ladder halved the shadow map at night; the order of the two depended on timing.
+  function sizeTarget(rt, w, h) {
+    rt.setSize(w, h);
+    const d = rt.depthTexture;
+    if (d && d.image) { d.image.width = w; d.image.height = h; }
+  }
+
   // A PCF shadow map as three.js (r186) makes it is a render target with an RGBA8 colour texture beside
   // the depth texture it samples, and that colour is never read: 64 MB of GPU memory at 4096 px, 16 at
   // 2048. WebGLShadowMap builds its own only while shadow.map is null, so the same target made here
@@ -3239,7 +3252,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
         return orig.call(this, lights, scene, camera);
       }
     };
-    api.resize = n => { still.setSize(n, n); built = false; };
+    api.resize = n => { sizeTarget(still, n, n); built = false; };
     api.dispose = () => { SM.render = orig; SM.__cached = false; still.dispose(); };
     return api;
   }
