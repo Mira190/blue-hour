@@ -8,6 +8,7 @@ its stills (of what a frame draws, the second heaviest: a thing drawn once is no
 
   tools/beat_budget.py check <samples.jsonl> <desktop|phone> [--map shibuya]   exit 1 on a beat over its budget
   tools/beat_budget.py set   <samples.jsonl> <desktop|phone> [--margin 0.1]    the budgets from a play (only its beats)
+                                                    --down: only where the play is under the budget it has (after a cut)
   tools/beat_budget.py table [--map shibuya]                                    the budgets as a table for the docs
   tools/beat_budget.py show  <samples.jsonl>                                    a play's beats as measured
 
@@ -80,6 +81,9 @@ def main(a):
     margin = None
     if '--margin' in a:
         i = a.index('--margin'); margin = float(a[i + 1]); del a[i:i + 2]
+    down = '--down' in a
+    if down:
+        a.remove('--down')
     if not a:
         print(__doc__); return 2
     cmd = a[0]
@@ -116,7 +120,7 @@ def main(a):
                     r = GATED[k] if margin is None else (0.0 if GATED[k] == 0 else margin)
                     v = v * (1 + r)
                     v = int(math.ceil(v / 1000.0) * 1000) if k == 'tris' else int(math.ceil(v)) if k in ('draws', 'passes', 'tex_mb', 'gpu_mb') else round(v + 0.005, 2)
-                b[k] = v
+                b[k] = min(v, b[k]) if down and k in b and k in GATED else v
         d['beats'] = {n: d['beats'][n] for n in order(d['beats'])}
         os.makedirs(os.path.dirname(path), exist_ok=True)
         json.dump(B, open(path, 'w'), indent=1); open(path, 'a').write('\n')

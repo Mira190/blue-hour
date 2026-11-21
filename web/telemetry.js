@@ -32,7 +32,10 @@
 //     next page load ("crash").
 // Nothing is stored but a random visitor id in localStorage (no cookies, no fingerprinting, no IP kept by
 // this code); nothing is sent at all until CONFIG names an endpoint, nor when the browser asks not to be
-// tracked (Do Not Track or Global Privacy Control), nor from automated browsers (the checks in tools/).
+// tracked (Do Not Track or Global Privacy Control), nor from automated browsers (the checks in tools/), nor once the
+// visitor has switched it off on the Credits screen (credits.js; OETelemetry.consent): the switch is kept in
+// localStorage ("oe3d-telemetry" = "off"), and turning it off removes the visitor id and the visit count and drops what
+// was waiting to be sent.
 // Events go in batches with navigator.sendBeacon (fetch keepalive as the fallback), in one of two formats:
 //   "posthog": PostHog's /batch/ capture API (a project's public key is meant to sit in page code);
 //   "jsonl":   { events: [...] } to a collector of your own (tools/telemetry_server.py, which writes
@@ -64,8 +67,37 @@ window.OETelemetry = (function () {
   const optOut = navigator.doNotTrack === '1' || window.doNotTrack === '1' || navigator.globalPrivacyControl === true;
   // (a checkout served on this machine sends nothing unless asked: the checks' software renderer once reported its
   // slow loads and its "crashes" as a visitor's, on the real devices' dashboard)
-  const on = arg !== 'off' && !optOut && (debug || (!!endpoint && (asked || (!navigator.webdriver && !local))));
-  const noop = { on: false, track() {}, flush() {}, view() {}, set() {}, gpu() {}, here() { return null; } };
+  // the visitor's own switch (the Credits screen): off is kept, and nothing this code keeps to tell visits apart stays
+  const CONSENT = 'oe3d-telemetry';
+  let refused = false, stopped = false, again = false;
+  try { refused = localStorage.getItem(CONSENT) === 'off'; } catch (e) { /* storage blocked */ }
+  const forget = () => {
+    for (const k of ['oe3d-vid', 'oe3d-visits']) try { localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
+    try { sessionStorage.removeItem('oe3d-phs'); } catch (e) { /* storage blocked */ }
+  };
+  if (refused) forget();
+  const on = arg !== 'off' && !optOut && !refused && (debug || (!!endpoint && (asked || (!navigator.webdriver && !local))));
+  let halt = () => {};   // (what a running page stops when it is switched off: set below, once there is something to stop)
+  // state: "on" (measuring), "off" (the visitor's switch), "browser" (Do Not Track or Global Privacy Control: no switch
+  // can turn it on), "next" (switched back on in a page that loaded with it off: from the next time the page is opened),
+  // "idle" (this copy of the page sends nothing anyway: a local checkout or an automated browser)
+  const consent = {
+    state: () => (optOut ? 'browser' : refused ? 'off' : again ? 'next' : on && !stopped ? 'on' : 'idle'),
+    set(v) {
+      if (optOut) return consent.state();
+      if (!v) {
+        refused = true; again = false;
+        try { localStorage.setItem(CONSENT, 'off'); } catch (e) { /* storage blocked: off for this page */ }
+        halt(); forget();
+      } else {
+        try { localStorage.removeItem(CONSENT); } catch (e) { /* storage blocked */ }
+        again = refused && (stopped || !on) && arg !== 'off' && (debug || (!!endpoint && (asked || (!navigator.webdriver && !local))));
+        refused = false;
+      }
+      return consent.state();
+    },
+  };
+  const noop = { on: false, consent, track() {}, flush() {}, view() {}, set() {}, gpu() {}, here() { return null; } };
   if (!on) return noop;
 
   const now = () => performance.now();
@@ -153,10 +185,12 @@ window.OETelemetry = (function () {
   // ---------------------------------------------------------------- the queue
   let queue = [];
   function track(event, props) {
+    if (stopped) return;
     queue.push({ event, ts: new Date().toISOString(), url: location.origin + location.pathname + location.hash, props: Object.assign(base(), cur ? { view: cur.kind, city: cur.city } : {}, snap(), props || {}) });
     if (queue.length >= 20) flush();
   }
   function flush() {
+    if (stopped) { queue = []; return; }
     if (!queue.length) return;
     const events = queue; queue = [];
     if (debug) { console.info('[telemetry]', events); if (!endpoint) return; }
@@ -724,5 +758,9 @@ window.OETelemetry = (function () {
   // the first view once the page's scripts are in (so its events carry the quality tier)
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', view, { once: true }); else view();
   alive();
-  return { on: true, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample };   // frames, here, sample: for tools/telemetry_check.js
+  // (switched off: nothing waits and nothing more is taken. The page's note to itself that it is alive stays: it is not
+  // sent, and it is how a phone whose page died loads a level lighter the next time, quality.js)
+  halt = () => { queue = []; stopped = true; api.on = false; };
+  const api = { on: true, consent, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample };   // frames, here, sample: for tools/telemetry_check.js
+  return api;
 })();
