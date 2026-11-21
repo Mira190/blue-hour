@@ -2215,3 +2215,76 @@ coarser copy, read as the crowd did. The iPhone's own frame time waits for `?per
 
 Also found on the way: on the low tier the hero level's asphalt, crossings' paint, pavers and setts were drawn as a
 rough metal (docs/HERO.md, "Streamed"), lit by the sky's reflection and not by a lamp; fixed.
+
+## Sixteen texture units (issue 485, second round, November 2026)
+
+The owner's Apple M3 MacBook, in Chrome and in Safari, kept logging over a week (telemetry, `event = 'error'`):
+12 times `THREE.WebGLProgram: did not link (FRAGMENT shader texture image units count exceeds
+MAX_TEXTURE_IMAGE_UNITS(16)); 20 materials, MeshStandardMaterial; 16 units; rung 1 to 2 (without floor)`, the last on
+Blue Hour's own build of 20 November; 8 times `Shader Error 0 - VALIDATE_STATUS false`; and the consequences, `WebGL
+refused, each frame: useProgram 0x502 x3 at RenderPass.js:165 < atmosphere.js:502` and `WebGL error 0x502 after a
+frame` with every shadow map size and extras level. The "rung" in the first message is not the governor's: it is
+the ladder of `glcare.js` `fit`, which, after a program had failed to link, compiled the materials that wore it again
+without one more layer. So every load on an Apple GPU sent the ground's twenty tile materials to be linked with too
+many samplers, every draw of them was refused for a frame or more (the 0x502s, whichever governor state the frame
+was in), and then they came back without the parks' floors.
+
+**What each sampler of the ground is for.** The ground (the photo-draped tiles, `game.js` and `world.js`) is the
+material with the most; counted by `tools/sampler_probe.js` with `?units=16` before the change:
+
+| sampler | what for | where |
+|---|---|---|
+| `map` | the aerial photograph | three.js |
+| `envMap`, `dfgLUT` | the sky's reflection, and the table of its multiple scattering (every standard material reads it in r186) | three.js |
+| `directionalShadowMap[0]` | the sun's shadow | three.js |
+| `spotLightMap[0]` | the pattern of the player's car's headlamps (`cars.js` `beamPattern`) | three.js |
+| `uMirror` | the wet street's reflection (`mirror.js`, the governor's `mirror` rung) | patch |
+| `uNightMap`, `uGlowMap` | the street lights' pools, and the screens' light while they play (`night.js`) | patch |
+| `uSkyVis` | how much of the sky the ground sees (`skyvis.webp`) | patch |
+| `uWoods`, `uFloorMap` | the woods' mask, and the parks' own floors (earth, lawn, gravel) | patch |
+| `uClip`, `uHole` | where the water and the walled channels cut the ground away | patch |
+| `uOeOcc`, `uOeTrail` | the rain's cover under roofs, and the snow's tracks round the player (`weather.js`) | patch |
+| `uSf` | the asphalt's and the concrete's surface (`surface.js`) | patch |
+| `uStreet` | the street's paint and kerbs near the player (`game.js` `streetTexture`) | patch |
+| `uShore` | the wet band along a shore (`water.js`) | patch |
+
+Seventeen without the snow's tracks, eighteen with: the five of three.js's depend on the scene's lights (a second
+headlamp's pattern, `?arealight=ltc`'s two tables, a spot light's shadow would add theirs), the rest on what the map
+has.
+
+**What was done.**
+
+- *Merged:* the screens' light is in the alpha of the street lights' map (`night.js`): the same frame at a quarter of
+  its resolution, drawn up into it, as brightness alone, with the screens' mean colour as a uniform. Shibuya's 21
+  timed screens are near-white pinks and blues within a few percent of their mean, so the light on the street reads
+  as it did (a still of the crossing at 21:00 beside one before). One sampler less in every material the street
+  lights fall on: the ground, the walls, the piers.
+- *Counted as it is compiled:* every material's `onBeforeCompile` is guarded (`glcare.js` `guard`, a property of
+  three.js's `Material` that hands three.js a wrapper of each material's own function, its text the function's, so the
+  program cache keys as before). The wrapper counts the samplers the program will have: three.js's from the program's
+  parameters (each map, the environment's two, each shadow map and spot light pattern, the area lights' tables, a
+  probe grid) and the patches' from the uniform lines they wrote, through their `#ifdef`s. A program over the GPU's
+  units is compiled again, that program alone, a rung further down the layers' ladder (the snow's tracks, the parks'
+  floors, the shore, the mirror, the surface, the woods: the least missed first), until it fits. Nothing is sent to be
+  linked with more samplers than the GPU has, whatever lights the scene has, and no other material goes without the
+  layer. The count errs high (a sampler declared and never read is counted), never low: the probe compares it with
+  what every program linked with. The ladder after a failed link (`onShaderError`) stays as the net under it; a run of
+  the checks that needs it fails.
+- So on a GPU with sixteen units the ground has sixteen, and goes without the snow's tracks alone (it had gone
+  without them and the parks' floors); with 32 (most desktop GPUs other than Apple's) it has every layer.
+
+**Checked.** `tools/check.sh gl` plays the map as a GPU with sixteen units (`?units=16`: a program with more reads as
+not linked, as on the M3). `tools/sampler_probe.js` walks noon, dusk and night, clear, rain and snow, and at each the
+governor's three states (extras 1, 0.5 and 0: the weather's level, the mirror, the AO, the multisampling, the shadow
+map's size and the crowd move together) and fails on a program over sixteen, one that did not link, one the page counted
+lower than it linked, and any the ladder had to catch: 135 programs, the most samplers in one 16, none failed.
+`tools/gl_error_probe.js` opens with the extras shed and multisampling on as a sixteen-unit GPU, walks the ladder down
+and up by day and again in rain at night, and fails on any WebGL error or any failed link: none.
+
+**Also found.** The two `Cannot read properties of undefined (reading 'reset')` were Open Earth's build on Vercel
+(`people.js:589`, 14 November): a walker asked for a clip its rig had no action for. `people.js` `play` has fallen
+back to the idle, or any clip the rig has, since 17 November; the other `reset()` calls ask for an action that exists
+(`companion.js`) or call their own object's.
+
+Not checked: a real Apple GPU, Safari, iOS, WebGPU. The vertex stage's units are not counted (no patch reads a
+texture in a vertex shader; three.js's skinning, morph and batching textures are within any GPU's sixteen there).
