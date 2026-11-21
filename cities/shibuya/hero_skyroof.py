@@ -57,6 +57,7 @@ LIFT = 0.05          # the deck drawn this far over the landmark's (which is 3 c
 GLASS_H = 2.0        # the glass round the deck (city.py SKY fence_m)
 SHOE_H = 0.16        # its aluminium shoe
 WARM = (1.0, 0.86, 0.66)        # 3000 K, the lines of light at the glass's foot and under the steps
+AMBER = (1.0, 0.72, 0.42)       # the light under CLOUD HAMMOCK's nets
 GREEN = (0.35, 1.0, 0.45)       # a heliport's perimeter lights
 
 
@@ -77,20 +78,21 @@ def _lobby():
 def materials(K):
     granite = lambda srgb: K.tint_to("granite", srgb)
     return {
-        # the deck: dark grey porcelain, the stone's fine speckle, matt (wet in the rain: ground*)
-        "ground_deck": {"tex": "granite", "maps": "cn", "rough": 0.62, "tint": granite((70, 72, 75)), "sky": 0.5},
+        # the deck: dark grey porcelain, the stone's fine speckle, honed: at dusk it is near black and gives back the sky
+        # at a low angle, which is how its courses read in the photographs (issue 125; wet in the rain: ground*)
+        "ground_deck": {"tex": "granite", "maps": "cn", "rough": 0.44, "tint": granite((70, 72, 75)), "sky": 0.85},
         "ground_deck_joint": {"color": (0.012, 0.012, 0.013), "rough": 0.9},
         # the pad's top: its coat and its paint, drawn here
-        "ground_pad": {"tex": "skypad", "maps": "cn", "rough": 0.68, "sky": 0.5},
+        "ground_pad": {"tex": "skypad", "maps": "cn", "rough": 0.6, "sky": 0.7},
         # the steps: the deck's stone, a pale honed nosing
-        "ground_step": {"tex": "granite", "maps": "cn", "rough": 0.6, "tint": granite((70, 72, 75)), "sky": 0.5},
+        "ground_step": {"tex": "granite", "maps": "cn", "rough": 0.46, "tint": granite((70, 72, 75)), "sky": 0.85},
         "ground_nosing": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((168, 166, 160)), "sky": 0.5},
         # the lawn under the nets: short artificial turf, one even green
         "ground_lawn": {"tex": "grass", "maps": "c", "rough": 0.85, "tint": K.tint_to("grass", (74, 104, 52)), "sky": 0.3},
         # stainless: the drain's grate, the landing plates, the cap on the glass
         "metal_grate": {"color": (0.16, 0.165, 0.17), "rough": 0.4, "metal": 1.0, "sky": 0.6},
         "metal_plate": {"color": (0.55, 0.56, 0.57), "rough": 0.32, "metal": 1.0, "sky": 0.6},
-        "metal_cap": {"color": (0.6, 0.61, 0.62), "rough": 0.28, "metal": 1.0, "sky": 0.6},
+        "metal_cap": {"color": (0.72, 0.73, 0.74), "rough": 0.2, "metal": 1.0, "sky": 1.0},
         # dark anodised aluminium and painted steel: the glass's shoe, the pad's cladding, the frames, the lights' bodies
         "metal_dark": {"color": (0.045, 0.047, 0.05), "rough": 0.45, "metal": 0.6, "sky": 0.5},
         "metal_panel": {"color": (0.075, 0.078, 0.082), "rough": 0.4, "metal": 0.55, "sky": 0.5},
@@ -101,10 +103,11 @@ def materials(K):
         # the nets' rope, white
         "net_rope": {"color": (0.78, 0.78, 0.76), "rough": 0.9},
         # the glass round the deck: clear, a little of the sky in it
-        "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.16, "sky": 0.7},
+        "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.2, "sky": 1.0},
         # what gives light after dark (lamp*: off by day): the lines along the glass and under the steps, the
         # searchlights' lenses, the pad's green lights
-        "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.5},
+        "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.85},
+        "lamp_under": {"color": (0.4, 0.33, 0.24), "emissive": AMBER, "glow": 0.7},
         "lamp_lens": {"color": (0.5, 0.5, 0.5), "emissive": (1.0, 0.97, 0.92), "glow": 0.7},
         "lamp_green": {"color": (0.3, 0.5, 0.3), "emissive": GREEN, "glow": 1.6},
         "yellow_line": {"color": (0.78, 0.6, 0.08), "rough": 0.55},
@@ -416,7 +419,7 @@ class Level:
                 zb = zz - 0.2
                 self.q("ground_step", Q(s1 - 0.014, -2.5, zb), Q(s1 - 0.014, 2.5, zb), Q(s1 - 0.014, 2.5, zz - 0.035), Q(s1 - 0.014, -2.5, zz - 0.035))
                 self.q("lamp_line", Q(s1 - 0.012, -2.45, zz - 0.035), Q(s1 - 0.012, 2.45, zz - 0.035), Q(s1 - 0.012, 2.45, zz - 0.02), Q(s1 - 0.012, -2.45, zz - 0.02),
-                       emit=(WARM, 1.2))
+                       emit=(WARM, 12.0))
                 self.q("ground_nosing", Q(s1 + 0.006, -2.5, zz - 0.02), Q(s1 + 0.006, 2.5, zz - 0.02), Q(s1 + 0.006, 2.5, zz), Q(s1 + 0.006, -2.5, zz))
             # the cheeks: dark panels either side, from the deck to each step's top
             for t, sgn in ((-2.5 - 0.03, -1), (2.5 + 0.03, 1)):
@@ -464,7 +467,10 @@ class Level:
         for k in range(max(1, int(L_ / 0.75))):
             t = (k + 0.5) / max(1, int(L_ / 0.75))
             m = off((pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t), 0.4)
-            self.geo.emitters.append((self.P(*m, top - 0.04), np.array([0, 0, -1.0]), 0.015, np.array(WARM) * 8.0))
+            # (thrown out across the deck, as a line of light in a shoe's face is: pointed straight down it lit one
+            # course of pavers and no more, a wash nobody could see from across the roof, issue 125)
+            wi = self.a1 * iu + self.a2 * iv
+            self.geo.emitters.append((self.P(*m, top - 0.04), np.array([wi[0] * 0.8, wi[1] * 0.8, -0.6]), 0.015, np.array(WARM) * 125.0))
         self.q("metal_dark", (*b1, top - 0.035), (*a1_, top - 0.035), (*a1_, top), (*b1, top))
         self.q("metal_dark", (*a0, top), (*b0, top), (*b1, top), (*a1_, top), n=np.array([0, 0, 1.0]))
         # the pane, both faces, 12 mm short of its neighbours
@@ -500,6 +506,15 @@ class Level:
             for a, b, c, d in ((u - hu - k, u + hu + k, v - hv - k, v - hv), (u - hu - k, u + hu + k, v + hv, v + hv + k),
                                (u - hu - k, u - hu, v - hv, v + hv), (u + hu, u + hu + k, v - hv, v + hv)):
                 self.box("wood_slat", a, b, c, d, z - 0.01, z + 0.1)
+            # the light under the net (in the photographs at dusk the nets are lit from beneath, amber, and whoever lies
+            # in one is dark on a glowing mesh): a line along the inside of each long kerb, and its light on the lawn
+            for sv in (-1, 1):
+                vv = v + sv * (hv - 0.004)
+                a, b = ((u - hu, vv, z + 0.05), (u + hu, vv, z + 0.05)) if sv < 0 else ((u + hu, vv, z + 0.05), (u - hu, vv, z + 0.05))
+                self.q("lamp_under", a, b, (b[0], b[1], z + 0.085), (a[0], a[1], z + 0.085))
+                for t in np.arange(-hu + 0.25, hu, 0.5):
+                    nn = self.a2 * -sv * 0.8
+                    self.geo.emitters.append((self.P(u + t, v + sv * (hv - 0.3), z + 0.35), np.array([nn[0], nn[1], -0.6]), 0.015, np.array(AMBER) * 20.0))
             for du in (-2.6, 2.6):
                 for dv in (-1.4, 1.4):
                     self.box("steel_frame", u + du - 0.045, u + du + 0.045, v + dv - 0.045, v + dv + 0.045, z, z + 0.92)
@@ -622,6 +637,6 @@ def build(K):
     geo, atlas = L.build()
     r = round(math.hypot(L.h1, L.h2) + 1.0, 1)
     meta = {"id": ID, "at": [round(float(L.c[0]), 2), round(float(L.c[1]), 2)], "r": r, "z": round(L.z, 2), "glb": f"hero/{ID}.glb",
-            "bake_gain": 1.0, "hide": HIDE}
+            "bake_gain": 8.0, "hide": HIDE}
     print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z")}), f"{len(L.bench_at)} benches")
     return geo, atlas, materials(K), meta
