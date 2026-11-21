@@ -1914,10 +1914,10 @@ transformed = crowdPose(transformed, false);`);
     // Canopies give way to each other (issue 165): the crowd's steering keeps two people under umbrellas an umbrella's
     // room apart (actors.js umbRoom, from p.umbR here), and where they are pressed closer all the same, or someone
     // taller stands with their head at a canopy's rim, each umbrella leans away from what it would touch, at the wrist,
-    // up to LEAN_MAX: the rim on that side rises and the canopy's middle moves off, as people do it. From who stood
+    // up to LEAN_MAX (fourteen degrees): the rim on that side rises and the canopy's middle moves off, as people do it. From who stood
     // where a frame ago (umbGrid, in cells), eased over a third of a second, in the world's plan (p.umbLx, p.umbLy,
     // radians); not worked past LEAN_M from the lens
-    const LEAN_MAX = 0.21, LEAN_K = 0.8, LEAN_M = 40, UCELL = 1.3;
+    const LEAN_MAX = 0.24, LEAN_K = 1.3, LEAN_M = 40, UCELL = 1.3;
     let umbGrid = new Map(), umbNext = new Map();
     const ucell = (cx, cy) => (cx * 73856093) ^ (cy * 19349663);
     function lean(p) {
@@ -2162,7 +2162,7 @@ transformed = crowdPose(transformed, false);`);
         if (p.rx == null || !shows(i) || p.mode === 'sit') continue;
         const d = camera ? Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) : 0;
         if (d > within) continue;
-        const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), character: r ? r.character : p.far || p.look.character };
+        const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
         if (r) {
           const q = r.umbOn && r.umbParts ? r.umbParts() : null;
           if (q) Object.assign(row, { umb: true, held: q.held, hand: arr(q.hand), handle: arr(q.handle), shaft: q.shaft.map(arr), canopy: { c: arr(q.canopy.c), n: arr(q.canopy.n), r: +q.canopy.r.toFixed(3), h: +q.canopy.h.toFixed(3) }, head: { c: arr(q.head.c), r: +q.head.r.toFixed(3) }, torso: { a: arr(q.torso.a), b: arr(q.torso.b), r: +q.torso.r.toFixed(3) } });

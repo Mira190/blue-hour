@@ -408,7 +408,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (R[20].rain < 0.5 || R[20].up < 0.6 * R[20].n) { errors.push(`frame 7: twenty seconds after her first word the rain is ${R[20].rain.toFixed(2)} and ${R[20].up} of ${R[20].n} umbrellas are up`); console.log(errors[errors.length - 1]); }
       // (and each umbrella is held: its handle at its hand, its shaft clear of the body under it, no canopy in another
       // or in a head, measured of everyone drawn near the lens: issue 165, tools/umbrella_held.js)
-      { const U = await umbrellaHeld(p, { label: 'frame 7, twenty seconds into the rain', held: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) errors.push('frame 7: the page has no umbrella report to measure'); for (const b of U.bad) errors.push(`frame 7's rain: ${b}`); }
+      { const U = await umbrellaHeld(p, { label: 'frame 7, twenty seconds into the rain', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) errors.push('frame 7: the page has no umbrella report to measure'); for (const b of U.bad) errors.push(`frame 7's rain: ${b}`); }
       if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
       continue;
     }

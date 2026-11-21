@@ -451,7 +451,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   const KERB = 0.45;   // how far a walker keeps from a car's side or bumper (m, centre to body)
   // People under umbrellas take an umbrella's room (issue 165). A canopy is a metre across: while two walkers'
   // umbrellas are up (p.umbR, the canopy's radius as it is now, which the crowd's renderer writes: people.js) they
-  // keep the two radii between them, less a rim's width, so that canopies touch at most at their rims (where they are
+  // keep the two radii between them and a little more, so that canopies touch at most at their rims (where they are
   // pressed closer a taller one's rides over a shorter one's and each leans from the other: people.js lean), and
   // someone with none whose head stands as high as a neighbour's rim keeps out from under it. 0: nothing
   // more than one of the crowd gives another. It is kept between the canopies' middles, which stand a hand off the
@@ -463,7 +463,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   const UMB_RIM = 0.06;
   function umbRoom(p, o) {
     const a = p.umbR || 0, b = o.umbR || 0;
-    if (a > 0 && b > 0) return a + b - UMB_RIM;
+    if (a > 0 && b > 0) return a + b + UMB_RIM / 3;
     if (a > 0) return o.crown > p.umbRim - 0.03 ? a + 0.12 : 0;
     if (b > 0) return p.crown > o.umbRim - 0.03 ? b + 0.12 : 0;
     return 0;

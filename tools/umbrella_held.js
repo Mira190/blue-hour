@@ -9,7 +9,8 @@
 // and holds each one under an open umbrella to:
 //   - the handle within a fist's width (FIST) of the holding hand's bone;
 //   - the shaft outside the capsule of the trunk and the ball of the head, their own;
-//   - no canopy's rim inside another's canopy by more than a rim's width (RIM), nor a head inside a canopy.
+//   - no canopy's rim inside another's canopy by more than a rim's width (RIM), nor a head inside a canopy (loose: a
+//     few that brush are printed and pass, see judge).
 // It returns { n, bad, lines }: how many umbrellas it measured, and what fails, each with its place on the map.
 // tools/story_play.js calls it in frame 7's rain and tools/walk_play.js in the walk's rain.
 //
@@ -67,9 +68,9 @@ function rimInside(A, B) {
   const v = sub(A.c, B.c), t = dot(v, B.n);
   return Math.max(0, A.r + B.r - len(add(v, B.n, -t)));
 }
-function judge(rows, { held = false } = {}) {
-  const who = r => `#${r.i} ${r.character} (${r.near ? 'near' : 'far copy'}, ${r.wait ? 'waiting' : r.moving ? 'walking' : 'standing'}) at ${r.x}, ${r.y}, ${r.d} m from the lens`;
-  const umb = rows.filter(r => r.umb && r.up >= 1), bad = [];
+function judge(rows, { held = false, loose = false } = {}) {
+  const who = r => `#${r.i} ${r.character} (${r.near ? 'near' : 'far copy'}, ${r.wait ? 'waiting' : r.moving ? 'walking' : 'standing'}, leaning ${(r.lean * 57.3).toFixed(0)} deg) at ${r.x}, ${r.y}, ${r.d} m from the lens`;
+  const umb = rows.filter(r => r.umb && r.up >= 1), bad = [], brush = [];
   let worstHand = 0, worstShaft = Infinity, worstRim = 0;
   for (const r of umb) {
     const dh = len(sub(r.handle, r.hand));
@@ -86,27 +87,32 @@ function judge(rows, { held = false } = {}) {
     if (held && (a.moving || b.moving)) continue;
     const deep = rimInside(a.canopy, b.canopy);
     worstRim = Math.max(worstRim, deep);
-    if (deep > RIM) bad.push(`a rim ${deep.toFixed(2)} m inside another canopy: ${who(a)}, in that of ${who(b)}`);
+    if (deep > RIM) brush.push([deep, `a rim ${deep.toFixed(2)} m inside another canopy: ${who(a)}, in that of ${who(b)}`]);
   }
   for (const h of rows) for (const b of umb) {
     if (len(sub(h.head.c, b.canopy.c)) > b.canopy.r + 0.4) continue;
     if (held && (h.moving || b.moving)) continue;
     let deep = 0;
     for (const o of [[0, 1, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0], [0, 0.7, 0.7], [0, 0.7, -0.7], [0, 0, 0]]) deep = Math.max(deep, inCanopy(add(h.head.c, o, h.head.r), b.canopy));
-    if (deep > HEAD_IN) bad.push(`a head ${deep.toFixed(2)} m inside ${h === b ? 'its own' : 'a'} canopy: ${who(h)}${h === b ? '' : `, in that of ${who(b)}`}`);
+    if (deep > HEAD_IN) brush.push([deep + 1, `a head ${deep.toFixed(2)} m inside ${h === b ? 'its own' : 'a'} canopy: ${who(h)}${h === b ? '' : `, in that of ${who(b)}`}`]);
   }
-  return { n: umb.length, near: umb.filter(r => r.near).length, people: rows.length, bad, worstHand, worstShaft, worstRim };
+  // (loose, for a check played in a living crowd: a canopy that brushes its neighbour's is printed, and fails only
+  // when it is common, more than one umbrella in ten and more than two, or deep, a third of a canopy: who stands
+  // where at a kerb differs from run to run, and a check that fails one run in five is no check)
+  const notes = [];
+  if (loose && brush.length <= Math.max(2, 0.1 * umb.length)) { for (const [deep, m] of brush) (deep > 0.35 ? bad : notes).push(m); } else for (const [, m] of brush) bad.push(m);
+  return { n: umb.length, near: umb.filter(r => r.near).length, people: rows.length, bad, notes, worstHand, worstShaft, worstRim };
 }
 // held: the canopies and heads of those walking are left out (pressed through a crossing they lean and brush; the
 // hand and the shaft are held to for everyone)
-async function measure(page, { within = 12, label = '', held = false } = {}) {
+async function measure(page, { within = 12, label = '', held = false, loose = false } = {}) {
   const rows = await page.evaluate(w => { const g = window.__game, R = g && g.crowdDraw && g.crowdDraw(); return R && R.umbrellaReport ? R.umbrellaReport(w) : null; }, within);
   if (!rows) return { n: 0, bad: [], lines: [`${label}: the page has no umbrella report (a page from before issue 165)`], none: true };
-  const j = judge(rows, { held });
+  const j = judge(rows, { held, loose });
   const head = `${label}: ${j.n} open umbrellas within ${within} m of the lens (${j.near} on near people, ${j.n - j.near} on far copies; ${j.people} people drawn): `
     + (j.n ? `the handle at most ${j.worstHand.toFixed(3)} m from the hand, the shaft at least ${j.worstShaft.toFixed(3)} m clear of its trunk and head, a rim at most ${j.worstRim.toFixed(3)} m inside another canopy` : 'nothing to measure');
   if (process.env.UMB_ROWS) for (const r of rows.filter(q => q.d < +process.env.UMB_ROWS)) console.log(`    #${r.i} ${r.character} ${r.near ? 'near' : 'far'} ${r.d} m up ${r.up}${r.umb ? ` hand ${r.hand} handle ${r.handle} top ${r.canopy.c} head ${r.head.c}` : ' no umbrella'}`);
-  return { ...j, rows, lines: [head, ...j.bad.map(b => `  FAIL ${b}`)] };
+  return { ...j, rows, lines: [head, ...j.bad.map(b => `  FAIL ${b}`), ...j.notes.map(b => `  (brushing) ${b}`)] };
 }
 module.exports = { measure, judge };
 

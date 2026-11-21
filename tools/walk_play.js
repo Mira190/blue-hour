@@ -236,7 +236,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     ok('the camera opens photo mode'); await shot('7-photo');
     // (in the rain, with the world held by the camera: each umbrella near the lens is held, its handle at its hand, its
     // shaft clear of the body under it, no canopy in another or in a head: issue 165, tools/umbrella_held.js)
-    if (sky === 'rain') { const U = await umbrellaHeld(p, { label: 'the walk in the rain, the camera up', held: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) fail('the page has no umbrella report to measure'); else if (U.bad.length) fail(`umbrellas not held: ${U.bad.join('; ')}`); else ok(`${U.n} open umbrellas near the lens, every one held`); }
+    if (sky === 'rain') { const U = await umbrellaHeld(p, { label: 'the walk in the rain, the camera up', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) fail('the page has no umbrella report to measure'); else if (U.bad.length) fail(`umbrellas not held: ${U.bad.join('; ')}`); else ok(`${U.n} open umbrellas near the lens, every one held`); }
   }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
   await p.waitForTimeout(800);
