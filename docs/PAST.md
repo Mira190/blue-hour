@@ -74,7 +74,8 @@ faces are today's, and Sumiko is not cast as who she is. That waits on faces and
 
 Each frame with a thing of 1964 has a stand point (`task.stand`) and a lens (`task.lens`, the finder's vertical
 field in degrees, set when the camera is raised and given back when it is lowered), chosen so that the thing fills
-about a third of the finder at 1440x900 and reads on a 390x844 phone: the board at 6.5 m through 40 degrees; the boy's
+about a third of the finder at 1440x900 and reads on a 390x844 phone (where the print is a band across the middle of
+the screen held upright, and the finder's lines are drawn inside it: docs/STORY.md, "The lines are the print"): the board at 6.5 m through 40 degrees; the boy's
 box and stool at the kerb, 9.4 m from the stone cherry blossom nearest the crossing, through 20, turned to the lens and on
 the line to her corner, which stands across the road behind them (until November 2026 a tram stood broadside behind the
 box, at 14 m through 50: see the tram above); the building and its dome from the Scramble

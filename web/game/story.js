@@ -183,7 +183,7 @@ window.OEStory = (function () {
       if (st.phase !== 'stop' || st.beat !== 'shoot' || st.cam === on) return;
       st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? (st.meet ? st.lensNow : st.fr.task.lens) : null, !!st.meet); // (a frame taken through a long lens: task.lens, degrees; the last frame's, closed on the two of them as they meet)
-      shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
+      if (on) fitFinder(); shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
       // (the lens comes up onto the thing, at its height, unless it is behind you: game.js reads story.subject as it raises it)
       const from = on && st.fr.task.stand ? framed().placed : true; // (raised off the place: the finder has tonight only, and says so)
       say(on ? (finder.dataset.year ? (from ? `Camera up · it sees ${finder.dataset.year}` : 'Camera up · not from here') : 'Camera up') : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
@@ -821,7 +821,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // under your feet, the other year forming in the lines, the lines going amber, the print), and the card ticks it.
     // The steps are live, not a list that only goes forward: with the camera up off the light, the first is not ticked
     // and the second is, and the finder holds tonight only. A release pressed early shakes the step not yet done.
-    const TEACH_IS = { stand: f => f.placed, raise: () => !!st.cam, frame: f => f.placed && f.aimed && !!st.cam, shoot: () => st.beat === 'shown' };
+    const TEACH_IS = { stand: f => f.placed, raise: () => !!st.cam, frame: f => f.placed && f.aimed && f.formed && !!st.cam, shoot: () => st.beat === 'shown' };
     function teach(T) {
       st.teach = T && (T.steps || []).length ? T : null; st.teachK = ''; st.teachHand = KEYS();
       if (!st.teach) { teachEl.classList.remove('on', 'done'); return; }
@@ -863,18 +863,43 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     }
     // the finder's rectangle in the picture, as fractions from its top left
     const finderRect = () => { const f = finder.getBoundingClientRect(), s = ctx.stage.getBoundingClientRect(); return [(f.left - s.left) / s.width, (f.top - s.top) / s.height, (f.right - s.left) / s.width, (f.bottom - s.top) / s.height]; };
+    // the print's rectangle in the picture (game.js printRect: the middle of it, three by two), and the finder's lines kept
+    // inside it (story.css, --print-x and --print-y): what stands in the lines is what the print has. On a phone held upright
+    // the lines were drawn for the screen, twice as tall as the print, and frame 2's shoeshine pitch, framed in their lower
+    // half, was ready to be taken and was not in the print
+    const printRect = () => (ctx.printRect ? ctx.printRect() : [0, 0, 1, 1]);
+    let printAt = '';
+    function fitFinder() {
+      const P = printRect(), x = `${(P[0] * 100).toFixed(2)}%`, y = `${(P[1] * 100).toFixed(2)}%`;
+      if (x + y === printAt) return;
+      printAt = x + y; finder.style.setProperty('--print-x', x); finder.style.setProperty('--print-y', y);
+    }
     // what the shot is of, as the mark points at it and the frame is judged on it: the relic itself when there is one
     // (a task's own subject point was left standing beside a relic, 21 m off and 14 m up, and the mark sent the player there)
     const subjectOf = T => { const R = T.relic; if (!R) return T.subject || null; const z = R.at[2] != null ? R.at[2] : ctx.floor(R.at[0], R.at[1]); return [R.at[0], R.at[1], z + (R.eye ?? 0.6)]; };
-    // where the frame stands: in place, and on its subject
+    // where the frame stands: in place, on its subject, and the thing of the other year formed in the lines (formed). Its
+    // point inside the bright lines, and nine tenths of it in the print (game.js relic frame: the box round its model, where it
+    // stands). Judged by the point alone, at the top of frame 2's box and stool, the release was ready with the box and the
+    // stool under the print's edge. One too big for the print (the dome in its tower, the river under the street) is judged
+    // by its point. And the release is ready once it has come up in the lines (past.js, 0.8 s), never before: in the place,
+    // the camera raised, the lens turned onto it, it forms, and then it is taken
     function framed() {
       const T = st.fr.task, placed = !T.stand || near(T.stand, T.within_m || 4);
-      let aimed;
+      let aimed, formed = true;
       if (!st.cam) aimed = false; // (nothing is framed with the camera down)
-      else if (T.relic) { const q = ctx.screen(subjectOf(T)), r = finderRect(); aimed = q.front && q.x > r[0] && q.x < r[2] && q.y > r[1] && q.y < r[3]; } // (the thing itself, inside the bright lines)
-      else if (T.both) aimed = [st.ghost, st.ghost2].every(g => { if (!g) return true; const at = [g.x, g.y, g.z + 1.2], q = ctx.screen(at); return q.front && q.x > 0.06 && q.x < 0.94 && q.y > 0.06 && q.y < 0.94 && q.dist < 60 && (!ctx.seen || ctx.seen(at)); }); // (on the screen, near enough to be told, and in sight: a kiosk between the lens and both of them was taken as the last picture)
+      else if (T.relic) {
+        const r = finderRect(), P = printRect(), q = ctx.screen(subjectOf(T)), b = st.relic && st.relic.frame ? st.relic.frame() : null;
+        const inR = (R, x, y) => x > R[0] && x < R[2] && y > R[1] && y < R[3];
+        aimed = q.front && inR(r, q.x, q.y); // (the thing itself, inside the bright lines)
+        if (aimed && b && b.front && b.x1 - b.x0 < (P[2] - P[0]) * 0.9 && b.y1 - b.y0 < (P[3] - P[1]) * 0.9) { // (and nine tenths of it in the print: all of it, to a hair, was a lens to be held to a tenth of a degree where it nearly filled the frame)
+          const ix = Math.max(0, Math.min(b.x1, P[2]) - Math.max(b.x0, P[0])), iy = Math.max(0, Math.min(b.y1, P[3]) - Math.max(b.y0, P[1]));
+          aimed = ix * iy >= 0.9 * (b.x1 - b.x0) * (b.y1 - b.y0);
+        }
+        formed = !st.relic || !!st.relic.missing || st.relic.k >= 1; // (a model not to be had forms nothing, and is not waited for)
+      }
+      else if (T.both) { const P = printRect(), mx = (P[2] - P[0]) * 0.06, my = (P[3] - P[1]) * 0.06; aimed = [st.ghost, st.ghost2].every(g => { if (!g) return true; const at = [g.x, g.y, g.z + 1.2], q = ctx.screen(at); return q.front && q.x > P[0] + mx && q.x < P[2] - mx && q.y > P[1] + my && q.y < P[3] - my && q.dist < 60 && (!ctx.seen || ctx.seen(at)); }); } // (in the print, near enough to be told, and in sight: a kiosk between the lens and both of them was taken as the last picture; on the screen of a phone held upright, above and below the print's band, they were not in the print)
       else aimed = !T.subject || ctx.aim(T.subject) <= (T.within_deg || 40);
-      return { placed, aimed };
+      return { placed, aimed, formed };
     }
     function shoot() {
       if (st.phase !== 'stop' || st.beat !== 'shoot') return;
@@ -889,6 +914,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // without what stood here. Not the first frame, which teaches the camera, nor the last, which is the ending.
       const spare = st.fi > 0 && !T.both && !fr.finale, off = !f.placed || !f.aimed, spend = off && spare && st.spendT > 0;
       if (off && !spend) { teachNudge(); goal(`${!f.placed ? (T.find && !st.lit ? 'Not from here. ' + (G.find || 'Find the place.') : G.stand || 'Not from here. Go to the light.') : G.aim || 'Turn towards the light, then take the picture.'}${spare ? ' The release again spends the frame as it is.' : ''}`); st.miss = spare ? 5 : 2.5; st.spendT = spare ? 5 : 0; return; }
+      if (!off && !f.formed) { teachNudge(); goal(G.forming || 'Hold it there: it is coming up in the lines.'); st.miss = 1.5; return; } // (the release before the thing has come up in the lines: it is waited for, not taken without it)
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
       light(null);
       let print = null;
@@ -1142,6 +1168,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
         }
         if (st.beat === 'guide') movTick(dt);
         // (the finder's lines, and whether the lens stands where the other year was seen from: off it, nothing of that year forms)
+        if (st.beat === 'shoot') fitFinder(); // (a phone turned, a window resized: the lines kept inside the print)
         const inPlace = st.beat !== 'shoot' || !fr.task || framed().placed;
         if (ctx.finder) ctx.finder(st.beat === 'shoot' && st.cam ? finderRect() : null, inPlace);
         if (st.beat === 'shoot') { if (inPlace) delete finder.dataset.off; else finder.dataset.off = ''; }
@@ -1154,7 +1181,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
           if (hunt || (T.hint_at && !on && !st.lit && !st.meet)) { st.findT += dt; nudge(); }
           // (the last frame, taken as they meet: both framed begins it, and then it is the picture only once they have met)
           if (T.meet) meetTick(dt, on);
-          const shot = on && (!T.meet || st.meet === 'met');
+          const shot = on && f.formed && (!T.meet || st.meet === 'met'); // (and the thing of the other year has come up in the lines)
           // (and it reads at every distance, not only the last nine metres: a split-image rangefinder's line through the
           // patch, its two halves as far apart as the place is far off, closing as you come to it and one line on it; a
           // patch that only warmed within 9 m said nothing to a player 44 m off, and nothing about which way was nearer)

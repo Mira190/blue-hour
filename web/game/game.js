@@ -3412,6 +3412,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
+  // the print: the middle of the picture, three by two, as fractions of it from its top left. The story's photograph is
+  // cut from it (snap), and its finder's lines are kept inside it (story.js fitFinder), so that what stands in the lines is
+  // in the print. On a phone held upright the lines stood twice as tall as the print, and a thing framed in their lower
+  // half was ready to be taken and was cut off the print (frame 2's shoeshine pitch, at the foot of the finder)
+  const printRect = () => { const W = Math.max(1, canvas.width), H = Math.max(1, canvas.height), sw = Math.min(W, H * 1.5), sh = sw / 1.5; return [(1 - sw / W) / 2, (1 - sh / H) / 2, (1 + sw / W) / 2, (1 + sh / H) / 2]; };
+  const relicV = new THREE.Vector3(), relicD = new THREE.Vector3(), relicF = new THREE.Vector3();
   let guideMade = null; // (the story's guide as last made: tools/lobby_shot.js)
   const GUIDE_BODY = 0.7; // (the guide's reach from where it stands until his model has said: blender/build_dog.py's Akita, 0.52 m behind to 0.72 m in front)
   // (and once it has, his own: companion.js measures it from the model, so another animal is kept off posts by its size)
@@ -3860,8 +3866,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       mirrorTick();
       const out = document.createElement('canvas'), h = Math.min(480, canvas.height);
       out.height = h; out.width = Math.round(h * 1.5);
-      const sw = Math.min(canvas.width, canvas.height * 1.5), sh = sw / 1.5;
-      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, (canvas.width - sw) / 2, (canvas.height - sh) / 2, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
+      const P = printRect(), sx = P[0] * canvas.width, sy = P[1] * canvas.height, sw = (P[2] - P[0]) * canvas.width, sh = (P[3] - P[1]) * canvas.height;
+      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
       // (tonight alone first, smaller: the print comes up as tonight, and the other year comes up in it, story.js showPrint)
       let base = null;
       const later = ghosts ? [...storyFigs].filter(f => f.ghost && f.rig && f.rig.root.visible) : [];
@@ -3874,6 +3880,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return src;
     },
     snapBase: () => storySnapBase,
+    printRect, // (the print's rectangle in the picture: story.js keeps the finder's lines inside it)
     again: () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
     // the last card's "Walk Shibuya": the walk (walk.js), taken up where the case ended, in the same night (walkOnFromStory).
     // Only where that cannot be, from a fresh page at the hour it ended in and under its sky. It was the map's old free
@@ -3998,7 +4005,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // what only the camera sees (past.js): a thing of the frame's year stood where it stood (a frame's task.relic:
     // {model, at: [x, y, z?], h: degrees, over, scale}), and the finder's rectangle it is seen in ([x0, y0, x1, y1] as
     // fractions of the picture from its top left, or null with the camera down)
-    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one); return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); } }; }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1)
+    relic: r => { if (!past) return null; if (r.from) for (const q of [r, ...(r.with || [])]) clearSight(r.from, q.at); /* (and to what stands with it: someone stood between the pillar box and the board behind it) */ const one = q => past.relic(q.model, W(q.at[0], q.at[1], (q.at[2] ?? Math.max(0, nav.terrain(q.at[0], q.at[1]))) + 0.04), (q.h || 0) * Math.PI / 180, q), all = [r].concat(r.with || []).map(one);
+      return { remove: () => all.forEach(q => q.remove()), get k() { return Math.max(0, ...all.map(q => q.k || 0)); }, get missing() { return all.every(q => q.missing); },
+        // (where it stands in the picture: the box round all of it, as fractions from the picture's top left, and whether all of
+        // it is in front of the lens; null while its model is loading)
+        frame: () => {
+          camera.getWorldDirection(relicF);
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, front = true, any = false;
+          const corner = v => {
+            if (relicD.copy(v).sub(camera.position).dot(relicF) < 0.05) front = false;
+            relicV.copy(v).project(camera); const x = relicV.x * 0.5 + 0.5, y = 0.5 - relicV.y * 0.5;
+            x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+          };
+          for (const q of all) if (q.corners && q.corners(corner)) any = true;
+          return any ? { x0, y0, x1, y1, front } : null;
+        } };
+    }, // (r.with: other things that stand with it; k: how far it has formed in the finder, 0..1; missing: its model is not to be had)
     clear: (a, b, half) => clearSight(a, b, half), // (the held crowd out of the way from a to b: the last frame's two sightlines, from the corner its hints lead to; half: a lane for someone to walk)
     clearRound: (x, y, r) => clearRound(x, y, r), // (and out of a ring round someone the frame is of)
     finder: (q, open = true) => { if (past) { past.rect(q ? [q[0] * 2 - 1, 1 - q[3] * 2, q[2] * 2 - 1, 1 - q[1] * 2] : null); past.open(open); } }, // (open: the lens stands where the other year was seen from; off it the finder has tonight only)
