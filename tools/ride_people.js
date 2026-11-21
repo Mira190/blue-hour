@@ -10,6 +10,7 @@
 // A set-down on them fails as any overlap does.
 // SIDE=road: you stand to get in off the car's road-side flank, in the lane beside it, as before #94 (default: by the kerb
 // seat's door). PASS=1: that stand made when a car of the traffic is passing over it (#94's failure, made to happen).
+const { skip, whole } = require('./draw_skip');
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
@@ -20,6 +21,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: w < 500, isMobile: w < 500 });
+  await skip(p, +(process.env.DRAW || 0)); // (DRAW=n: one frame in n drawn, the stills drawn whole: tools/draw_skip.js)
   watchPage(p);
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
@@ -116,9 +118,9 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     if (s.mode === 'ride') {
       if (+process.env.PIN && !pinned && s.ride && s.ride.phase === 'driving') { pinned = await p.evaluate(n => window.__rpPin(n), +process.env.PIN); console.log('pinned', JSON.stringify(pinned)); await p.waitForTimeout(300); await p.keyboard.press('KeyF'); }
       if (!rode) { rode = true; await p.evaluate(() => { const g = window.__game; if (g.cam && g.cam.mode === 'cabin' && g.keys) {} }); }
-      if (shots < 24 && s.ride && s.ride.phase === 'driving' && (++tick % (s.ride.v < 0.5 ? 6 : 3) === 1)) { try { await p.screenshot({ path: `${out}/ride-${String(shots).padStart(2, '0')}.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); } shots++; }
+      if (shots < 24 && s.ride && s.ride.phase === 'driving' && (++tick % (s.ride.v < 0.5 ? 6 : 3) === 1)) { try { await whole(p, () => p.screenshot({ path: `${out}/ride-${String(shots).padStart(2, '0')}.png`, timeout: 120000 })); } catch (e) { console.log('(no still)'); } shots++; }
       if (s.ride && s.ride.phase === 'arrived' && !arrivedShot) { arrivedShot = true; const camAt = () => p.evaluate(() => { const g = window.__game, c = g.camera.position, st = g.ride().drv.st; return { t: +g.t().toFixed(1), cine: g.cine.active, camH: +c.y.toFixed(0), off: +Math.hypot(c.x - st.x, -c.z - st.y).toFixed(0) }; });
-        const was = await camAt(); let now = was; for (let k = 0; k < 60 && (now.cine || now.off > 15); k++) { await p.waitForTimeout(2000); now = await camAt(); } await p.waitForTimeout(4000); console.log('settle', JSON.stringify({ was, now })); try { await p.screenshot({ path: `${out}/arrived.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); }
+        const was = await camAt(); let now = was; for (let k = 0; k < 60 && (now.cine || now.off > 15); k++) { await p.waitForTimeout(2000); now = await camAt(); } await p.waitForTimeout(4000); console.log('settle', JSON.stringify({ was, now })); try { await whole(p, () => p.screenshot({ path: `${out}/arrived.png`, timeout: 120000 })); } catch (e) { console.log('(no still)'); }
         // (#54: at its stop the car stands on the carriageway the hero level draws, not over the kerb on a square's paving; and the
         // goal line says to get out, no longer to skip a ride that has arrived)
         const stop = await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st, C = r.C, hx = Math.sin(st.h), hy = Math.cos(st.h), cw = g.nav.carriageway, off = [];
@@ -131,7 +133,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
             const k = Math.sign(st.lat || 1), pose = { pos: W(st.x + hx * back - hy * side * k, st.y + hy * back + hx * side * k, st.z + up), look: W(st.x, st.y, st.z + 0.6) };
             g.cine.stop(); g.cine.play(() => pose, 1e9, { label: 'film' }); }, [back, side, up]);
           await p.waitForTimeout(3000);
-          try { await p.screenshot({ path: `${out}/${n}.png`, timeout: 120000 }); } catch (e) { console.log('(no still)'); }
+          try { await whole(p, () => p.screenshot({ path: `${out}/${n}.png`, timeout: 120000 })); } catch (e) { console.log('(no still)'); }
         }
         await p.evaluate(() => window.__game.cine.stop());
         if (stop.off.length) errors.push(`the car at its stop has ${stop.off.length} corners off the carriageway: ${JSON.stringify(stop.off)}`);
