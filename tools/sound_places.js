@@ -57,7 +57,9 @@ function table() {
     const g = window.__game, A = window.OEAudio;
     if (g.overture && g.overture() && g.overture().active && g.overture().skip) g.overture().skip();
     A.start(); if (A.ctx && A.ctx.state !== 'running') await A.ctx.resume();
-    g.clock.scale = 1; g.clock.min = 17 * 60 + 30; // (the episode's hour)
+    // (the episode's hour, whatever hour the walk opened at: it opens at the place's own, and after midnight the
+    // street is empty; the crowd mustered again for the hour)
+    g.clock.scale = 1; g.clock.min = 17 * 60 + 30; g.clock.own = true; g.crowdAuto(true); for (let i = 0; i < 20; i++) g.advance(0.5);
     g.hold(true);
   });
   await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 60000 });
@@ -92,7 +94,7 @@ function table() {
     }
     const db = {}; for (const k of Object.keys(pw)) db[k] = pw[k] > 0 ? +(10 * Math.log10(pw[k] / n)).toFixed(1) : -Infinity;
     const c = g.camera.position, W = g.weather && g.weather.state;
-    return { db, place: g.soundPlace(), mix: A.mixNow, mode: g.player.mode, ear: [+c.x.toFixed(0), +(-c.z).toFixed(0), +c.y.toFixed(0)], train: tr ? +tr.d.toFixed(0) : null, railLow: railAll > 0 ? +(railLow / railAll).toFixed(2) : null, railHigh: railAll > 0 ? +(railHigh / railAll).toFixed(3) : null, rain: W ? W.rain : 0, near: g.sound() ? g.sound().near : 0 };
+    return { db, place: g.soundPlace(), mix: A.mixNow, mode: g.player.mode, ear: [+c.x.toFixed(0), +(-c.z).toFixed(0), +c.y.toFixed(0)], train: tr ? +tr.d.toFixed(0) : null, railLow: railAll > 0 ? +(railLow / railAll).toFixed(2) : null, railHigh: railAll > 0 ? +(railHigh / railAll).toFixed(3) : null, rain: W ? W.rain : 0, hour: +(g.clock.min / 60).toFixed(2), near: g.sound() ? g.sound().near : 0 };
   }, [pin, sec, read, o]);
   const foot = (x, y, z) => `if (g.player.mode !== 'foot') return; const f = g.nav.floorAt(${x}, ${y}, 400); g.player.x = ${x}; g.player.y = ${y}; g.player.z = ${z != null ? z : `f ? f.z : g.nav.terrain(${x}, ${y})`}; g.player.speed = 0; g.player.vz = 0; g.player.ground = true;`;
   // under the railway's deck east of the station: the first place along the main line where the rail is 4 m or more
@@ -115,7 +117,7 @@ function table() {
     const row = T[key];
     if (!row) { fail(`docs/SOUND.md's table has no row \`${key}\``); return; }
     const cells = ['near', 'rail', 'weather', 'self', 'city'].map((k, i) => { const v = r.db[k], [lo, hi] = row[i], ok = (v >= lo || (lo === -Infinity && !(v > hi))) && v <= hi; if (!ok) fail(`${key}: the ${k} bus at ${v} dBFS, outside ${lo === -Infinity ? 'silent (under -70)' : `${lo} to ${hi}`}`); return `${k} ${String(v).padStart(6)}${ok ? '' : '!'}`; });
-    console.log(`${key.padEnd(13)} ${cells.join('  ')}   (mix ${r.mix}, ${r.mode}, ear ${r.ear}, the train ${r.train} m off, ${r.near} people near, rail under 200 Hz ${r.railLow}, over 500 Hz ${r.railHigh})`);
+    console.log(`${key.padEnd(13)} ${cells.join('  ')}   (mix ${r.mix}, ${r.mode}, ear ${r.ear}, the train ${r.train} m off, ${r.near} people near at ${r.hour} h, rail under 200 Hz ${r.railLow}, over 500 Hz ${r.railHigh})`);
     if (want && r.place !== want) fail(`${key}: the game mixes this place as "${r.place}", not "${want}"`);
     out.push({ key, ...r });
   };
