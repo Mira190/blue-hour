@@ -39,6 +39,10 @@ UNDERSIDE = {"w810356690": 7.0}
 # Piers further apart than the grid's 9 m where the record of the building says so: the same station stands on fewer,
 # heavier piers than the one it replaced (seven over Meiji-dori became three, Tokyo Metro, 2019)
 SPACING = {"w810356690": 18.0}
+# A station whose own walls and roof a hero level draws above its deck caps the city's box under them: the Ginza line's
+# box over Meiji-dori is a deck, a white band and an M-shaped arched roof 9 m high (cities/shibuya/hero_ginza.py), and
+# the record's flat box 15 m tall stood through the arches. Its top (over the ground, m) at the arches' feet.
+TOP = {"w810356690": 11.4}
 HALF = {"motorway": 8.0, "trunk": 8.0, "primary": 7.0, "secondary": 6.0, "tertiary": 4.5}  # a carriageway's half-width where its lanes are not given
 
 
@@ -82,6 +86,10 @@ def piers(B, game):
         # slab's edge. One underside for the whole building (the lowest its solids have), the ground floor that high,
         # and the storeys above it shared out over what is left
         low = max(min(B["s"][k][2] for k in ks), round(UNDERSIDE.get(B["b"][bi][6], 0) * 10))
+        cap = TOP.get(B["b"][bi][6])
+        if cap:
+            for k in ks:
+                B["s"][k][3] = min(B["s"][k][3], round(cap * 10))
         for k in ks:
             B["s"][k][2] = low
         m, wall = B["b"][bi], (max(B["s"][k][3] for k in ks) - low) / 10
