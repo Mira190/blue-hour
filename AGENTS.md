@@ -238,7 +238,10 @@ thirty is drawn). So:
 - **Keep to the seams.** A new script under `web/` is given its part in `contracts/parts.json`, and a name asked of
   another part is added there (`python3 tools/seams.py --write`): the static checks fail otherwise (docs/SEAMS.md). A
   people's model that gives what `contracts/people.json` asks, and a hero level whose names and ground are as they
-  were, are looked at and weighed, not played.
+  were, are looked at and weighed, not played. The offers in `contracts/parts.json` are written by the tool, so when a
+  merge conflicts there take either side and run `python3 tools/seams.py --write`. `game.js` is being cut into parts
+  (`tools/cut.js`; `pilot.js`, `rides.js`, `routeline.js` so far): inside a part the game's names are `g.name`, and a
+  name not yet handed over is added where `game.js` makes the part.
 - **Keep the context light.** A still or a log read into the conversation stays in it for every later step: look at a
   contact sheet of stills (`tools/contact_sheet.py`), and read logs through `grep` or `tail`.
 
