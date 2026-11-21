@@ -479,7 +479,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
       await shot('7a-hall');
       await act();
-      await p.evaluate(() => window.__game.advance(1.6));
+      await p.evaluate(() => window.__game.advance(2.8)); // (the shot eases off from your shoulder: by now it is well up the face)
       const mid = await p.evaluate(() => { const g = window.__game, c = g.camera.position, x = c.x, y = -c.z, z = c.y; return { z: +z.toFixed(1), inside: !!g.nav.col.overlap(x, y, 0.3, z - 0.3, z + 0.3), riding: !!g.cine.active }; });
       await shot('7b-climb');
       await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40 && g.cine.active; i++) g.advance(0.25); });

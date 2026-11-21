@@ -251,7 +251,7 @@ window.OEAudio = (function () {
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
   }
-  function blip(freq, dur, type = 'square', vol = 0.05, fc = 20000, must = false, bus = 'near') {
+  function blip(freq, dur, type = 'square', vol = 0.05, must = false, fc = 20000, bus = 'near') {
     if (!ctx || muted || (!must && !take(dur + 0.1))) return;
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     o.type = type; o.frequency.value = freq; g.gain.value = 0;
@@ -259,7 +259,7 @@ window.OEAudio = (function () {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(into(fc, dur, bus)); o.start(t); o.stop(t + dur + 0.02); free(o, g);
   }
-  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035, 20000, true, 'self'); }
+  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035, true, 20000, 'self'); }
   function step() {
     if (!ctx || muted || !take(0.2)) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
@@ -269,7 +269,7 @@ window.OEAudio = (function () {
   }
   function horn() { blip(196, 1.3, 'sawtooth', 0.06); blip(247, 1.3, 'sawtooth', 0.04); }
   // your horn; another driver's at a gain (its distance) and a pitch (a bus's is lower)
-  function honk(gain = 1, pitch = 1, fc = 20000) { if (gain <= 0.01) return; blip(415 * pitch, 0.32, 'square', 0.045 * gain, fc); blip(523 * pitch, 0.32, 'square', 0.035 * gain, fc); }
+  function honk(gain = 1, pitch = 1, fc = 20000) { if (gain <= 0.01) return; blip(415 * pitch, 0.32, 'square', 0.045 * gain, false, fc); blip(523 * pitch, 0.32, 'square', 0.035 * gain, false, fc); }
   function shutter() { sfx('shutter'); } // (the photo mode's: the story's camera, below)
   function thump() { // a rubber stamp on paper: a short low knock and a slap of noise
     if (!ctx || muted) return;
@@ -458,7 +458,7 @@ window.OEAudio = (function () {
     ramp(liftCh.o.frequency, 100 + 16 * speed, 0.5); ramp(liftCh.o2.frequency, 200 + 32 * speed, 0.5); ramp(liftCh.og.gain, 0.25 + 0.5 * speed, 0.4);
   }
   // its arrival: two soft notes falling, in the car with you
-  function liftChime() { blip(659.3, 0.9, 'sine', 0.05, 20000, true, 'self'); setTimeout(() => blip(523.3, 1.2, 'sine', 0.05, 20000, true, 'self'), 380); }
+  function liftChime() { blip(659.3, 0.9, 'sine', 0.05, true, 20000, 'self'); setTimeout(() => blip(523.3, 1.2, 'sine', 0.05, true, 20000, 'self'), 380); }
   // the road under a car's tyres, level 0..1 with its speed: a low roar, in the cabin with you
   function road(level) {
     if (!ctx) return;

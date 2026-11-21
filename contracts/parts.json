@@ -82,7 +82,6 @@
      "mix",
      "polar",
      "span",
-     "spiral",
      "turn"
     ],
     "OELens": [
@@ -349,7 +348,9 @@
      "train",
      "trainAt",
      "wind",
-     "world"
+     "world",
+     "x",
+     "z"
     ],
     "OEFilmScore": [],
     "OEMusic": [
