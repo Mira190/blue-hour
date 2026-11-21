@@ -22,6 +22,8 @@
 // OEAstc.mips(rgba, w, h, alpha, srgb) -> [{ data, width, height }, ...] down to 1x1, each level box-filtered from
 //   the one above (in linear light when srgb), as the GPU's own mipmaps of an sRGB texture are
 // OEAstc.opaque(rgba) -> whether every alpha is 255
+// OEAstc.bleed(rgba, w, h) -> rgba, its cut-away texels given the colour of the nearest that show (before encode and
+//   half of a picture with alpha: a canvas hands those back black, and a filter and the mipmaps read them)
 // OEAstc.stats: the error of what encode() and mips() wrote since stats.reset(): stats.db(), stats.alphaDb()
 (function (root) {
   'use strict';
@@ -53,7 +55,7 @@
     else { t2 = C >> 4; t1 = (C >> 2) & 3; t0 = (((C >> 1) & 1) << 1) | ((C & 1) & ~((C >> 1) & 1)); }
     TRITS[t0 + 3 * t1 + 9 * t2 + 27 * t3 + 81 * t4] = T;
   }
-  const vq = new Uint8Array(8), wa = new Uint8Array(16), show = new Uint8Array(16);
+  const vq = new Uint8Array(8), wa = new Uint8Array(16), show = new Uint8Array(16), own = new Float32Array(64);
 
   // the error of what was encoded since reset(): se, the colour's squared error (weighted by alpha where a block
   // has any), over n texels' worth; sa, the alpha's, over texels. db() is the colour's peak signal to noise, and
@@ -81,15 +83,17 @@
     // each block names its own layout, so a cut-out's inside is as sharp as an opaque picture and only its edge is coarser)
     if (solid) alpha = false;
     const C = 3;
+    let swapped = false;
     if (alpha) {
       // what is cut away has no colour of its own (whatever the file holds there is never seen): it takes the mean
-      // of the block's texels that show, by how much they show, so the endpoints are spent on those
+      // of the block's texels that show, by how much they show, so the endpoints are spent on those. A block where
+      // nothing shows keeps the colour it was given (bleed(): its neighbours'), which a filter still reads at its edge
       let wr = 0, wg = 0, wb = 0, ws = 0;
       for (let k = 0; k < 64; k += 4) { const a = px[k + 3]; wr += px[k] * a; wg += px[k + 1] * a; wb += px[k + 2] * a; ws += a; }
       if (ws > 0) { wr /= ws; wg /= ws; wb /= ws; }
       m[0] = m[1] = m[2] = 0;
       for (let k = 0; k < 64; k += 4) {
-        if (px[k + 3] < 8) { px[k] = wr; px[k + 1] = wg; px[k + 2] = wb; show[k >> 2] = 0; } else show[k >> 2] = 1;
+        if (px[k + 3] < 8) { if (ws > 0) { own[k] = px[k]; own[k + 1] = px[k + 1]; own[k + 2] = px[k + 2]; px[k] = wr; px[k + 1] = wg; px[k + 2] = wb; swapped = true; } show[k >> 2] = 0; } else show[k >> 2] = 1;
         m[0] += px[k]; m[1] += px[k + 1]; m[2] += px[k + 2];
       }
     }
@@ -120,6 +124,9 @@
     }
     e0[0] = m[0] + ax * lo; e0[1] = m[1] + ay * lo; e0[2] = m[2] + az * lo; e0[3] = m[3] + aw * lo;
     e1[0] = m[0] + ax * hi; e1[1] = m[1] + ay * hi; e1[2] = m[2] + az * hi; e1[3] = m[3] + aw * hi;
+    // (the endpoints found, what is cut away has its own colour back, bleed()'s: it takes the step of the line nearest
+    // it, which a filter reads at the cut-out's edge, and still has no say in where the line lies)
+    if (swapped) for (let k = 0; k < 64; k += 4) if (!show[k >> 2]) { px[k] = own[k]; px[k + 1] = own[k + 1]; px[k + 2] = own[k + 2]; }
     const WT = dual ? W2 : W3, L = WT.length;
     // weights against the endpoints as they will be stored, then the endpoints once more by least squares
     for (let pass = 0; pass < 2; pass++) {
@@ -226,8 +233,54 @@
     return true;
   }
 
+  // Colour where nothing shows. A picture read back from a canvas has none where its alpha is 0 (a canvas holds its
+  // pixels premultiplied, so they come back black), and that colour is read all the same: a filter mixes a cut-out's
+  // edge with the texels cut away beside it, and the block encoder spends endpoints on them where nothing in a block
+  // shows. On a phone the guide's guard hairs (thin white strands in a picture two thirds cut away) were drawn with a
+  // black rim and went grey a level at a time (November 2026). So each texel that does not show (alpha under 8, as
+  // block() counts it) takes the colour of the nearest that do, by push-pull: what shows averaged down by halves to
+  // one texel, each average by how much of it shows, then each hidden texel given the colour of the level below it.
+  // What shows is left as it was. In place; returns rgba.
+  function bleed(rgba, w, h) {
+    const HIDE = 8;
+    let hidden = 0;
+    for (let i = 3; i < rgba.length; i += 4) if (rgba[i] < HIDE) hidden++;
+    if (!hidden || hidden === w * h) return rgba;
+    // the levels, each half the one above rounded up (every texel has one under it): colour by how much shows, and
+    // alpha the mean of the four (1 at least where anything shows, so that a faint edge is not lost on the way down)
+    const levels = [{ d: rgba, w, h }];
+    for (let lw = w, lh = h, src = rgba, first = true; lw > 1 || lh > 1; first = false) {
+      const nw = (lw + 1) >> 1, nh = (lh + 1) >> 1, sum = new Float32Array(nw * 4), d = new Uint8ClampedArray(nw * nh * 4);
+      for (let ny = 0; ny < nh; ny++) { // (a row at a time: a large picture's sums are a row's, not a level's)
+        sum.fill(0);
+        for (let y = 2 * ny; y < Math.min(lh, 2 * ny + 2); y++) for (let x = 0; x < lw; x++) {
+          const i = 4 * (y * lw + x), o = 4 * (x >> 1), a = src[i + 3];
+          if (first && a < HIDE) continue;
+          sum[o] += src[i] * a; sum[o + 1] += src[i + 1] * a; sum[o + 2] += src[i + 2] * a; sum[o + 3] += a;
+        }
+        for (let x = 0, o = 4 * ny * nw; x < nw; x++, o += 4) {
+          const s = sum[4 * x + 3];
+          if (s > 0) { d[o] = sum[4 * x] / s; d[o + 1] = sum[4 * x + 1] / s; d[o + 2] = sum[4 * x + 2] / s; d[o + 3] = Math.max(1, s / 4); }
+        }
+      }
+      levels.push({ d, w: nw, h: nh });
+      src = d; lw = nw; lh = nh;
+    }
+    // down again, coarsest first: a texel where nothing shows takes its parent's colour (already filled)
+    for (let l = levels.length - 2; l >= 0; l--) {
+      const { d, w: lw, h: lh } = levels[l], up = levels[l + 1], pd = up.d, pw = up.w, cut = l === 0 ? HIDE : 1;
+      for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) {
+        const i = 4 * (y * lw + x);
+        if (d[i + 3] >= cut) continue;
+        const p = 4 * ((y >> 1) * pw + (x >> 1));
+        d[i] = pd[p]; d[i + 1] = pd[p + 1]; d[i + 2] = pd[p + 2];
+      }
+    }
+    return rgba;
+  }
+
   // the next level down: each texel the mean of the two by two above it (the last row or column alone where the
-  // size is odd), colour in linear light when srgb
+  // size is odd), colour in linear light when srgb, and by how much of it shows where the four's alpha differ
   let TO = null, FROM = null;
   function half(src, w, h, srgb) {
     const nw = Math.max(1, w >> 1), nh = Math.max(1, h >> 1), out = new Uint8ClampedArray(nw * nh * 4);
@@ -241,7 +294,13 @@
       const y0 = Math.min(h - 1, 2 * y) * w, y1 = Math.min(h - 1, 2 * y + 1) * w;
       for (let x = 0; x < nw; x++) {
         const x0 = Math.min(w - 1, 2 * x), x1 = Math.min(w - 1, 2 * x + 1), a = 4 * (y0 + x0), b = 4 * (y0 + x1), c = 4 * (y1 + x0), d = 4 * (y1 + x1), o = 4 * (y * nw + x);
-        if (srgb) for (let k = 0; k < 3; k++) out[o + k] = FROM[Math.round((TO[src[a + k]] + TO[src[b + k]] + TO[src[c + k]] + TO[src[d + k]]) * 1024)];
+        const wa = src[a + 3], wb = src[b + 3], wc = src[c + 3], wd = src[d + 3], ws = wa + wb + wc + wd;
+        if (ws > 0 && !(wa === wb && wb === wc && wc === wd)) {
+          // colour by how much of it shows (as a premultiplied picture is filtered): what is cut away adds none
+          const f = 1 / ws;
+          if (srgb) for (let k = 0; k < 3; k++) out[o + k] = FROM[Math.round((TO[src[a + k]] * wa + TO[src[b + k]] * wb + TO[src[c + k]] * wc + TO[src[d + k]] * wd) * f * 4096)];
+          else for (let k = 0; k < 3; k++) out[o + k] = Math.round((src[a + k] * wa + src[b + k] * wb + src[c + k] * wc + src[d + k] * wd) * f);
+        } else if (srgb) for (let k = 0; k < 3; k++) out[o + k] = FROM[Math.round((TO[src[a + k]] + TO[src[b + k]] + TO[src[c + k]] + TO[src[d + k]]) * 1024)];
         else for (let k = 0; k < 3; k++) out[o + k] = (src[a + k] + src[b + k] + src[c + k] + src[d + k] + 2) >> 2;
         out[o + 3] = (src[a + 3] + src[b + 3] + src[c + 3] + src[d + 3] + 2) >> 2;
       }
@@ -251,6 +310,7 @@
 
   function mips(rgba, w, h, alpha = false, srgb = true, levels = true) {
     const out = [];
+    if (alpha) rgba = bleed(rgba.slice(), w, h); // (the caller's picture left as it was)
     let cur = { data: rgba, width: w, height: h };
     for (;;) {
       out.push({ data: encode(cur.data, cur.width, cur.height, alpha), width: cur.width, height: cur.height });
@@ -260,7 +320,7 @@
     return out;
   }
 
-  const api = { encode, mips, opaque, half, stats, W3, W2 };
+  const api = { encode, mips, opaque, half, bleed, stats, W3, W2 };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.OEAstc = api;
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -1981,6 +1981,79 @@ Sydney's traffic stood still a third of the time.
       from 5 to 24 degrees; the spread of the nearest neighbour's distance over its mean
       from 0.34 to 0.56 (the mean 0.96 m before, 0.95 after); 14 waiting at a kerb
       against 12, the crowd 6.6 m deep against 6.1.
+  - *Passing, not jamming* (November 2026, issues 85 and 82: the crowd is in every
+    beat of the story, and walkers met head on stood jammed for minutes).
+    - **Passing head on (issue 85).** Walkers met head on on a footway stood jammed for
+      minutes, groups among them: 13 standing within 1.5 m of one another for 200 s by
+      Hachiko. The causes, found with `tools/crowd_spread.js` (its new `footway:` line)
+      and `tools/crowd_knot.js`:
+      - A leader and its mate a step ahead of it each stood at the keep-distance
+        (0.56 m) from the other's next step: the mate waited for the leader to come
+        level, the leader could not step past the mate. A group's own members are now
+        passed a turn of the shoulder closer (0.4 m), and a mate never waits on a
+        leader that is itself held.
+      - A group abreast met people coming the other way across the whole footway. It
+        now falls into single file behind its leader as soon as anyone comes the other
+        way within 4 m ahead, before they meet; and people coming the other way are
+        passed, not turned back from (the turn after a few seconds stood still was
+        meant for a dead end: in a knot each one turned into those behind it, and back).
+      - A wall's pull-in after a step, checked again against posts and people, put the
+        step back and stopped the walker: by a post where a wall narrows the footway,
+        one stood there all run. The squeeze below is checked the same way there.
+      - A walker stood exactly at the keep-distance from someone: every step shaved a
+        ten-thousandth off it and was refused. A hair's tolerance now. The sidestep
+        looked only at the crowd, not at the player or the map's standing NPCs, and
+        stepped into them; it now steps away from whichever is nearest. One at the
+        footway's edge with a post in front had no sidestep at all: a step in towards
+        the middle now.
+      - And, whatever holds it, a walker that has made no ground (half a metre) for a
+        while, not waiting at a kerb or stopped along the way, does as people in a
+        press do: after 1.5 s it squeezes (no braking for anyone, a shoulder closer);
+        after 2.5 s it moves over to its own side's edge, where those coming the other
+        way are not (after 4 s to the middle instead, out of the edge's posts); after
+        4.5 s, for two seconds, it sidles on through the walkers and past a post or a
+        standing NPC a shoulder off, never into a car, the player or the story's
+        people; after 6.5 s, out of sight, it is put somewhere else 25 to 70 m off, out
+        of sight as a new walker is (put 270 m off at first, the footways round you emptied over
+        two minutes, 79 people within 45 m to 22), and in sight it
+        turns and takes another way (held 1.5 s more, it is put somewhere else all
+        the same: a footway's node with one of the map's NPCs standing on it held one
+        whichever way it turned). A held mate walks on, parting from its group if
+        it ends up too far off.
+      - Measured with `tools/crowd_spread.js` at its four spots, 150 s each. On main at
+        17:41 the longest a footway walker stood without making half a metre was 74,
+        32, 35 and 117 s, with knots of 4 to 7 held 5 s and more. Here, over 12:30,
+        17:41, 17:47 and 21:00, at most 3 to 8 s, no knot; the last two spots run on
+        the final code held 7 and 5 s. `tools/crowd_knot.js`, groups of one to four
+        met head on by Hachiko, at the station's kerb and at QFRONT: everyone through,
+        nobody turned back, the longest held 1.9 to 3.2 s.
+      - `tools/crowd_knot.js` puts two parties face to face on footways round the
+        Scramble (groups of one to four, both ways) with the crowd running round them,
+        and fails on anyone held more than 6 s, anyone not through, or more than one
+        turning back. `tools/crowd_spread.js` fails on a footway walker held more than
+        8 s without making half a metre, away from a kerb, a stop or a seat, or four
+        so held 5 s within 1.5 m of one another (a knot), and prints the held one's
+        last seconds and what held it.
+    - **Out of the lens's way (issue 82).** Who still comes near the lens dissolves
+      (docs/HERO.md, "someone at the lens"); as the talk camera keeps the crowd out of
+      its shots, the walkers also keep out of the lens's way, so that fewer need to:
+      the renderer tells the crowd where the lens stands and looks
+      (`crowdRenderer().lens`), and a segment from it to a pace and a half along its
+      look is steered round as one of the people not of the crowd is (footway walkers
+      never turn back from it; those crossing or strolling the square are pushed
+      gently off it; those stood waiting are left where they are). It is on only for a
+      camera on foot behind the player (within 9 m of them and 4.5 m over them), and
+      nobody is put out of it at once. `tools/crowd_lens.js` sends walkers past the
+      lens on two footways by the Scramble, you standing with the chase camera behind,
+      and measures the most of a phone's frame one within 2.5 m of the lens covers.
+    - Research (ideas only, no code): Moussaïd, Helbing and Theraulaz, *How simple
+      rules determine pedestrian behavior and crowd disasters* (PNAS 2011), on
+      walkers turning the shoulder and sidestepping by the first body in their way;
+      the side-preference that makes counterflows form lanes (Helbing and Molnár,
+      above); Detour Crowd's and Unreal Mass's avoidance (a stuck agent is given a
+      new corridor rather than left pushing); and, for the lens, how games keep NPCs
+      out of a third-person camera (a soft avoidance volume round the camera, as the
+      talk camera here already does for its shots) rather than popping them out.
   - `tools/scramble_step.js`, run by `tools/game_check.js` in every city with a
     scramble, checks that in the walk every arm's light is red, the walk signals
     are green and the crowd is out on the crosswalks and the diagonals; that in

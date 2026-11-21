@@ -273,6 +273,86 @@ FRONTS = {
 }
 
 
+# ---------------------------------------------------------------- the street's signs (issue 57)
+
+# Up Meiji-dori from Miyamasuzaka-shita the photographs show fronts dense with tenant signs: tall vertical signs standing
+# out from the buildings' corners, a tenant to each panel floor by floor (Shibuya's 袖看板, as city.py's tenant stacks
+# round the crossing), lit boxes over the shops, and a building's name high on its face. The trades are typical and
+# the tenants invented (city.py TENANTS); a name is a building's own, set in an open font, not its logo. Each level
+# hangs them on its own fronts (Level.SIGNED, by the building's OpenStreetMap way), only on the faces the frame looks
+# at, a few to a building: the street is busy, but each sign is one a tenant put up, never a pattern laid over a wall.
+STAND = (521.9, -1074.1)                 # frame 5's standpoint (city.json frame 5 task.stand): the faces turned to it
+BLADES = 8                               # the tall signs' faces in the atlas
+BOX_H, BOXES = 41, 6                     # a lit box's face in the atlas: BOXES of them, one over another, to a cell
+# the lit boxes over the shops: (words, ground, letters); invented, of the trades on such a street, BOXES to a cell
+BOX_SIGNS = [("ドラッグストア", "#ffffff", "#0050a0"), ("らーめん 宮益", "#ffe600", "#c8000a"), ("CAFE  珈琲", "#3a2a20", "#f4e2c8"),
+             ("メガネ", "#ffffff", "#333333"), ("居酒屋  灯", "#1a1a1a", "#ffcf3a"), ("携帯  SHOP", "#e60012", "#ffffff"),
+             ("カラオケ", "#7a0f8c", "#ffffff"), ("歯科  2F", "#ffffff", "#00843d"), ("焼肉", "#141414", "#ff5a1f"),
+             ("BOOKS", "#f2efe6", "#1f3a6e"), ("不動産", "#1d5fa8", "#ffffff"), ("うどん  そば", "#f6f0e0", "#7a1a12")]
+
+
+def _city():
+    spec = importlib.util.spec_from_file_location("shibuya_city", os.path.join(HERE, "city.py"))
+    C = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(C)
+    return C
+
+
+def draw_blade(k):
+    """A tall sign's face: five or six tenants, one to a panel, set vertically (city.py's tenant stacks)."""
+    def draw(img, r):
+        from PIL import ImageDraw
+        C = _city()
+        x, y, w, h = r
+        d = ImageDraw.Draw(img)
+        rng = np.random.default_rng(5700 + k)
+        picks = [C.TENANTS[j] for j in rng.choice(len(C.TENANTS), int(rng.integers(5, 7)), replace=False)]
+        ph = h / len(picks)
+        d.rectangle([x, y, x + w - 1, y + h - 1], fill=(30, 30, 34))
+        for i, (txt, bg, fg) in enumerate(picks):
+            y0 = y + i * ph
+            d.rectangle([x + 2, y0 + 2, x + w - 3, y0 + ph - 2], fill=bg)
+            C.draw_vertical(d, txt, x + w / 2, y0 + 4, y0 + ph - 4, "rocknroll" if len(txt) > 3 or txt.isascii() else "mincho", fg, width=w - 8)
+    return draw
+
+
+def draw_boxes(c):
+    """Cell c of the lit boxes' faces over the shops, one over another: each its words on its ground."""
+    def draw(img, r):
+        from PIL import ImageDraw
+        C = _city()
+        x, y, w, _ = r
+        d = ImageDraw.Draw(img)
+        for k, (txt, bg, fg) in enumerate(BOX_SIGNS[c * BOXES:(c + 1) * BOXES]):
+            y0 = y + k * BOX_H
+            d.rectangle([x, y0, x + w - 1, y0 + BOX_H - 2], fill=bg)
+            f, _ = C.fit_lines(d, [txt], "rocknroll", w - 16, BOX_H - 8, max_size=int(BOX_H * 0.68))
+            d.text((x + w / 2, y0 + BOX_H / 2), txt, font=f, fill=fg, anchor="mm")
+    return draw
+
+
+def box_uv(A, k):
+    """Box k's face (k over all the boxes' cells), as Atlas.uv's corners (v up: a cell's top row is vb)."""
+    c, k = divmod(k, BOXES)
+    (ua, va), (ub, _), (_, vb), _ = A.uv(f"boxes{c}")
+    f0, f1 = (k * BOX_H) / (BOXES * BOX_H), (k * BOX_H + BOX_H - 2) / (BOXES * BOX_H)
+    top, bot = vb + (va - vb) * f0, vb + (va - vb) * f1
+    return [(ua, bot), (ub, bot), (ub, top), (ua, top)]
+
+
+def draw_name(name):
+    """A building's name in lit letters on a dark band, as the street's office blocks carry theirs high up."""
+    def draw(img, r):
+        from PIL import ImageDraw
+        C = _city()
+        x, y, w, h = r
+        d = ImageDraw.Draw(img)
+        d.rectangle([x, y, x + w - 1, y + h - 1], fill=(26, 28, 32))
+        f, _ = C.fit_lines(d, [name], "rocknroll", w - 20, h - 8, max_size=int(h * 0.72))
+        d.text((x + w / 2, y + h / 2), name, font=f, fill=(246, 244, 236), anchor="mm")
+    return draw
+
+
 # ---------------------------------------------------------------- the level
 
 class Level:
@@ -318,6 +398,7 @@ class Level:
             A.cell(f"room{k}", 124, 160, draw_room(700 + k, k % 5 != 0 and k % 3 != 0))
         for k in range(SHOPS):
             A.cell(f"shop{k}", 480, 256, draw_shop(k))
+        self.sign_cells()
         self.carriageway()
         self.markings()
         self.pavements()
@@ -667,6 +748,96 @@ class Level:
                     n_cols += 1
         print(f"QFRONT's street floor: {n_bays} bays of glass, {n_cols} columns")
 
+    # -- the street's signs (issue 57)
+    # {osm way: {"blades": n, "boxes": n, "name": text}}: the signs a level hangs on a building's fronts. The Scramble's:
+    # the west side of Meiji-dori up from Miyamasuzaka-shita, within this level's reach (hero_miyamasu.py skip_front),
+    # as the photographs show it: 渋谷パークサイド共同ビル's south front over the street with its tall signs and boxes,
+    # and the slim towers behind it, each a tall sign down its narrow south face
+    SIGNED = {
+        "w116806280": {"blades": 2, "boxes": 3},    # 渋谷パークサイド共同ビル
+        "w138670889": {"blades": 1},                # the slim tower beyond it (47 m)
+        "w749184350": {"blades": 1},                # and its low neighbour
+    }
+
+    def sign_cells(self):
+        """The signs' faces, on the atlas's last shelf after the shops (no bigger an atlas on a phone)."""
+        if not self.SIGNED:
+            return
+        A = self.A
+        for k in range(BLADES):
+            A.cell(f"blade{k}", 44, 254, draw_blade(k))
+        for c in range(len(BOX_SIGNS) // BOXES):
+            A.cell(f"boxes{c}", 176, BOXES * BOX_H, draw_boxes(c))
+        for osm, sp in self.SIGNED.items():
+            if sp.get("name"):
+                A.cell(f"name_{osm}", 360, 50, draw_name(sp["name"]))
+        self.signed = {}
+
+    def hang(self, F, Ln, g, top, hung):
+        """After a front is dressed: its signs, if its building has some (SIGNED) and the face is one frame 5 looks at."""
+        osm = (self.cur or {}).get("osm")
+        spec = self.SIGNED.get(osm)
+        if not spec or Ln < 3.2:
+            return
+        mid = (F.a + F.b) / 2
+        to = np.asarray(STAND) - mid
+        if to @ F.n < 0.3 * np.linalg.norm(to):        # only the faces the frame looks at
+            return
+        self.signs(osm, spec, F, Ln, g, top, hung)
+
+    def signs(self, osm, spec, F, Ln, g, top, hung):
+        """A front's signs (SIGNED): its name high on its longest face, lit boxes over its shops, and its tall
+        tenant signs standing out from an end of the face, read from up and down the street."""
+        G, A = self.geo, self.A
+        done = self.signed.setdefault(osm, {"blades": 0, "boxes": 0, "name": 0})
+        free = lambda u0, u1, z0, z1: not any(u0 < h[1] and u1 > h[0] and z0 < h[3] and z1 > h[2] for h in hung)
+        Hh = top - g
+        gf = 4.3 if Hh > 11 else 3.3
+        o = OUT
+        nbox = len(BOX_SIGNS)
+        lit = lambda key, *P, uv=None: G.quad("glow_shop", *P, uv=uv or A.uv(key), emit=(A.mean[key], 1.0))
+        # the name, once, on a face long enough for it
+        if spec.get("name") and not done["name"] and Ln >= 12 and Hh > 16:
+            w = min(Ln * 0.6, 15.0)
+            h = w / 7.2
+            u0, z1 = (Ln - w) / 2, top - 1.4
+            if free(u0, u0 + w, z1 - h, z1):
+                PT.fbox(G, "wall_char", F, u0 - 0.15, u0 + w + 0.15, o, o + 0.2, z1 - h - 0.15, z1 + 0.15, faces=("front", "left", "right", "top", "bottom"))
+                lit(f"name_{osm}", F.P(u0, o + 0.205, z1 - h), F.P(u0 + w, o + 0.205, z1 - h), F.P(u0 + w, o + 0.205, z1), F.P(u0, o + 0.205, z1))
+                done["name"] = 1
+        # lit boxes on the band over the shops, one to each shop's width along the face
+        z0, z1 = g + gf - 0.8, g + gf - 0.22
+        slots = max(1, min(3, int(Ln // 5.5)))
+        for i in range(slots):
+            if done["boxes"] >= spec.get("boxes", 0):
+                break
+            u = Ln * (i + 0.5) / slots
+            w = min(Ln / slots * 0.62, 4.8)
+            a = u - w / 2
+            if w < 2.0 or not free(a, a + w, z0, z1):
+                continue
+            k = (sum(ord(ch) for ch in osm) + done["boxes"] * 5) % nbox
+            PT.fbox(G, "wall_char", F, a, a + w, o, o + 0.16, z0, z1, faces=("front", "left", "right", "top", "bottom"))
+            lit("boxes0", F.P(a + 0.04, o + 0.165, z0 + 0.04), F.P(a + w - 0.04, o + 0.165, z0 + 0.04), F.P(a + w - 0.04, o + 0.165, z1 - 0.04), F.P(a + 0.04, o + 0.165, z1 - 0.04), uv=box_uv(A, k))
+            done["boxes"] += 1
+        # the tall tenant signs, 0.9 m out from the wall at an end of the face, from over the shops' band
+        h = min(Hh - gf - 2.5, 16.0)
+        for u in (Ln - 0.9, 0.9):
+            if done["blades"] >= spec.get("blades", 0) or h < 5.0:
+                break
+            b0, b1 = g + gf + 0.4, g + gf + 0.4 + h
+            if not free(u - 0.3, u + 0.3, b0, b1):
+                continue
+            key = f"blade{(sum(ord(ch) for ch in osm) + done['blades'] * 3) % BLADES}"
+            u0, u1, q0, q1 = u - 0.09, u + 0.09, o + 0.12, o + 1.02
+            PT.fbox(G, "metal_alu", F, u0, u1, o, q0, b0 + 0.6, b0 + 0.75, faces=("front", "left", "right", "top", "bottom"))   # its brackets
+            PT.fbox(G, "metal_alu", F, u0, u1, o, q0, b1 - 0.75, b1 - 0.6, faces=("front", "left", "right", "top", "bottom"))
+            PT.fbox(G, "wall_char", F, u0, u1, q0, q1, b0, b1, faces=("front", "top", "bottom"))
+            e = 0.005
+            lit(key, F.P(u0 - e, q0, b0), F.P(u0 - e, q1, b0), F.P(u0 - e, q1, b1), F.P(u0 - e, q0, b1))   # read from one way up the street
+            lit(key, F.P(u1 + e, q1, b0), F.P(u1 + e, q0, b0), F.P(u1 + e, q0, b1), F.P(u1 + e, q1, b1))   # and from the other
+            done["blades"] += 1
+
     def behind(self, F, Ln):
         """The parts of a wall that a landmark's picture hangs on: [(u0, u1, z0, z1)] in the wall's frame, for each
         upright picture face that lies along the wall within 1.6 m in front of it (or 0.6 m inside it: a wall the
@@ -793,6 +964,7 @@ class Level:
         if free(0.0, Ln, g + gf - 0.2, g + gf + 0.1):
             PT.fbox(G, wall, F, 0.0, Ln, OUT, OUT + 0.04, g + gf - 0.12, g + gf, rep, faces=("front", "top", "bottom"))
         PT.fbox(G, "metal_alu", F, -0.05, Ln + 0.05, -0.3, OUT + 0.1, top + 0.5, top + 0.62, faces=("front", "left", "right", "top", "bottom"))
+        self.hang(F, Ln, g, top, hung)
 
 
 def build(K):
