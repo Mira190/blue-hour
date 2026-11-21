@@ -26,7 +26,9 @@ One model of levels that every generator reads, in the pipeline (nothing is adde
 
 1. **The ground is a function of the survey.** `street_ground.py` settles once which path points lie on the ground
    (kept with the survey, `cities/<id>/ground_survey.json` "on"), and no longer keeps the survey under what is built by
-   rule. `--settled` grades again without writing and fails if a node or a building would move: 0 and 0.
+   rule. `--settled` grades again without writing and fails if a node or a building would move: 0 and 0. (The landmarks
+   stand on the ground and the grading keeps the ground under their paving, so after a change `tools/regrade.sh` makes
+   the two in turn until that holds: the second round, from every start seen.)
 2. **A plot is levelled to its street, and a break is a wall.** In the lots' membrane, where the streets either side
    differ by more than 1.2 m with no room between them for a slope of 12 % (the limit for a small street), the
    membrane is cut: each side is levelled to its own street. `pipeline/terraces.py` then builds a retaining block

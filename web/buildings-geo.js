@@ -429,7 +429,14 @@
       let faces;
       try { faces = triangulate(contour, holes); } catch (e) { faces = []; }
       const all = contour.concat(...holes), base = buf.n;
-      for (const p of all) buf.v(p.x, p.y, z, 0, 0, down ? -1 : 1, colour, p.x, p.y, kind * 16 + P.si, P.storey, P.ground, P.u, 1, flags, P.mat, bi, P.code);
+      // a flat deck's own axes, along its longest edge and across it: what is laid on a roof (sheets, slabs and their
+      // joints) is laid square to the building, not to the map (buildings.js, the flat deck)
+      let ax = 1, ay = 0;
+      if (kind === K_DECK) {
+        let best = 0;
+        for (let k = 0; k < contour.length; k++) { const a = contour[k], b = contour[(k + 1) % contour.length], l = Math.hypot(b.x - a.x, b.y - a.y); if (l > best) { best = l; ax = (b.x - a.x) / l; ay = (b.y - a.y) / l; } }
+      }
+      for (const p of all) buf.v(p.x, p.y, z, 0, 0, down ? -1 : 1, colour, kind === K_DECK ? p.x * ax + p.y * ay : p.x, kind === K_DECK ? p.y * ax - p.x * ay : p.y, kind * 16 + P.si, P.storey, P.ground, P.u, 1, flags, P.mat, bi, P.code);
       for (const f of faces) {
         const a = all[f[0]], b = all[f[1]], c = all[f[2]];
         const ccw = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) > 0;

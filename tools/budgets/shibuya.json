@@ -46,8 +46,8 @@
     "js_ms": 73.5
    },
    "frame 4": {
-    "draws": 746,
-    "tris": 2784000,
+    "draws": 1255,
+    "tris": 3343000,
     "passes": 18,
     "px_x": 5.43,
     "tex_n": 788,
@@ -111,7 +111,7 @@
     "js_ms": 19.6
    },
    "frame 1": {
-    "draws": 440,
+    "draws": 508,
     "tris": 1627000,
     "passes": 12,
     "px_x": 3.46,
@@ -144,7 +144,7 @@
     "js_ms": 30.9
    },
    "frame 4": {
-    "draws": 504,
+    "draws": 702,
     "tris": 1424000,
     "passes": 12,
     "px_x": 3.46,
