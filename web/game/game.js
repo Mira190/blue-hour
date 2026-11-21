@@ -6958,7 +6958,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     weather.update(dt, clockT, W(fx, fy, fz));
     if (weather.tread && OEWeather.S.snowDepth > 0.02) weather.tread(treaders(fx, fy), dt); // tracks in the snow (weather.js)
     const wS = OEWeather.S, inside = player.mode === 'car' || player.mode === 'ride' || player.mode === 'heli';
-    if ((sndCoverT -= dt) <= 0 || dt === 0) { sndCoverT = 0.25; sndCover = weather.covered() || roofOver(fx, fy, fz); } // (four times a second)
+    if ((sndCoverT -= dt) <= 0 || dt === 0) { sndCoverT = 0.25; sndCover = (OEWeather.S.rain > 0.02 && weather.covered()) || roofOver(fx, fy, fz); } // (four times a second; the weather's answer only while it rains: its map is not drawn after, and its last answer stood, so that the roof was heard as under a deck once the rain had stopped)
     // the room the street's sound rings in (audio.js place): a lift or a room, high in the open air (a deck, the
     // helicopter), under a roof outside (the viaduct, an arcade), or the open crossing
     if (A.place) A.place(player.mode === 'lift' || room ? 'inside' : fz - Math.max(0, nav.terrain(fx, fy) || 0) > 40 ? 'roof' : sndCover && player.mode === 'foot' ? 'viaduct' : 'open');
