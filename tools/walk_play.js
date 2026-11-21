@@ -344,6 +344,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       const started = await p.evaluate(() => window.__game.walkTalk().events.start('way-sky', 0));
       if (!started) fail('a street moment (way-sky) could not be put on the street');
       else {
+        // (he walks in to his corner from out of sight: his steps are the walk's own frames', run here as a player's would be)
+        const walkedIn = await p.evaluate(() => { const g = window.__game, t = g.walkTalk(), was = t.events.moving; for (let i = 0; i < 120 && t.events.moving; i++) t.tick(0.25, false); return { was, now: t.events.moving }; });
+        if (!walkedIn.was) console.log('(no clear way in for Ren from out of sight here: he stands at his corner)');
+        else if (walkedIn.now) fail('Ren walking in to his corner never arrives');
+        else ok('Ren walks in to his corner from out of sight');
         const drawnRen = await p.waitForFunction(() => { const n = window.__game.npcs.find(q => q.id === 'ren'); return n && !n.rig.pending && n.rig.root.visible; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
         if (!drawnRen) fail('Ren is not drawn ten minutes after his street moment began');
         else {
@@ -360,7 +365,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await through();
               const done = await p.evaluate(() => window.__game.walkTalk().events.done);
               if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);
-              else ok(`a street moment: Ren asks the way ("${chs[0].slice(1, 40)}" chosen) and is thanked`);
+              else {
+                const off = await p.evaluate(() => window.__game.walkTalk().events.moving);
+                if (!off) fail('Ren thanked, he does not walk off');
+                else ok(`a street moment: Ren asks the way ("${chs[0].slice(1, 40)}" chosen), is thanked, and walks off`);
+              }
             }
           }
         }

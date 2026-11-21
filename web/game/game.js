@@ -3619,7 +3619,29 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       npcMove(n, at);
       const t = faceTo || { x: 368, y: -1002 }; n.h = Math.atan2(t.x - n.x, t.y - n.y); n.rig.root.rotation.y = Math.PI - n.h;
     },
-    hide: n => { n.away = true; n.talking = false; n.rig.root.visible = false; if (n.post) posts.move(n.post, 1e7, 1e7, 0); },
+    hide: n => { n.away = true; n.talking = false; n.walkSpeed = 0; n.rig.root.visible = false; if (n.post) posts.move(n.post, 1e7, 1e7, 0); },
+    // someone of a street moment walking: a step on the ground (its floor or the terrain), turned the way they go, in the
+    // crowd's way as they go, and walking as fast as the step (the NPCs' loop animates them by n.walkSpeed)
+    step: (n, x, y, h, speed) => {
+      const f = nav.floorAt(x, y, (n.z || 0) + 1);
+      n.x = x; n.y = y; n.z = f ? f.z : Math.max(0, nav.terrain(x, y)); n.h = h; n.walkSpeed = speed;
+      n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h;
+      if (n.post) posts.move(n.post, n.x, n.y, n.z);
+    },
+    // a clear way on foot from one point to another: a floor all along, no step up or down a person would not take, off
+    // the road, and no post, trunk or bench in the way
+    clear: (x0, y0, x1, y1) => {
+      const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.ceil(d / 0.8));
+      const f0 = nav.floorAt(x0, y0, (groundZ(x0, y0) ?? Math.max(0, nav.terrain(x0, y0))) + 1);
+      let z = f0 ? f0.z : null;
+      if (z == null) return false;
+      for (let i = 1; i <= n; i++) {
+        const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n, f = nav.floorAt(x, y, z + 0.6);
+        if (!f || Math.abs(f.z - z) > 0.35 || inRoad(x, y, f.z, 0.3) || posts.pushOut(x, y, 0.35, f.z).hit) return false;
+        z = f.z;
+      }
+      return true;
+    },
     unseenAt: (x, y, z) => !sees(x, y, z),
     ask: (n, lines, choices, done) => { n.talking = true; A.start(); talkLine({ name: n.name }, choices); dlg.show(n, lines, choices, c => { n.talking = false; done(c); }); } }) : null;
   const stopFx = window.OEStopFX ? OEStopFX.create({ THREE, world, audio: () => A.ctx, sound: () => { const c = $('#gm-sound'); return !c || c.checked; } }) : null; // what hangs in the air of a stopped world (stopfx.js)
@@ -6595,11 +6617,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     let i = 0;
     const next = () => {
       if (walkUi.highlight) walkUi.highlight(null);
-      if (i >= I.lines.length) return;
+      if (i >= I.lines.length) { introEnd(); return; }
       if (hl[i] && walkUi.highlight) walkUi.highlight(hl[i]);
       dlg.show(who, [fill(I.lines[i++])], null, next);
     };
     next();
+  }
+  // the call over, the street takes it up (no line that tells you people will talk: one of them does): the view eased round
+  // to whoever has the first story, if they are near, and they call you over. Any turn of the mouse or the stick takes the
+  // view back at once (cam.yawTo)
+  function introEnd() {
+    const s = walkTalk ? walkTalk.people.find(q => !(walkTalk.state()[q.id] || {}).done) : null, n = s ? npcById(s.npc) : null;
+    if (!n || player.mode !== 'foot' || Math.hypot(n.x - player.x, n.y - player.y) > 70) return;
+    cam.yawTo = Math.atan2(n.x - player.x, n.y - player.y);
+    setTimeout(() => { if (walkTalk && s.bark) walkTalk.bark(n.id, s.bark); }, 700);
   }
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
   // kerb, so that is where the walk begins. No page again, no title, no crane down from the air: the card fades off the
@@ -7205,12 +7236,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) {
       if (n.away) continue; // (the walk's own, while it is not the walk)
       const d = Math.hypot(player.x - n.x, player.y - n.y);
-      if (d < 5 && player.mode === 'foot' && !n.sit) n.h += angDiff(Math.atan2(player.x - n.x, player.y - n.y), n.h) * Math.min(1, dt * 4);
+      if (d < 5 && player.mode === 'foot' && !n.sit && !n.walkSpeed) n.h += angDiff(Math.atan2(player.x - n.x, player.y - n.y), n.h) * Math.min(1, dt * 4); // (not while walking: walktalk.js events)
       n.rig.root.rotation.y = Math.PI - n.h;
       // look at the player when close; the player looks at whoever they are talking to
       n.rig.lookTarget = d < 9 && player.mode === 'foot' ? n.eyes.copy(W(player.x, player.y, player.z + 1.55)) : null;
       if (n.talking) gaze = W(n.x, n.y, n.z + 1.55);
-      n.rig.animate(dt, 0, n.sit ? 'sit' : n.talking ? 'talk' : 'ground', clockT + n.pitch);
+      n.rig.animate(dt, n.walkSpeed || 0, n.sit ? 'sit' : n.talking ? 'talk' : 'ground', clockT + n.pitch);
     }
     player.rig.lookTarget = gaze;
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;

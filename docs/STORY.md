@@ -1279,9 +1279,11 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   2*'s strangers, GTA's random events, the *Yakuza* series' street events): Chloe and Sam from Melbourne want their
   picture taken with the crossing behind them, Mrs Endo one of herself for a grandson who says she never sends him any,
   Ren asks whether SHIBUYA SKY is this way, and Chloe and Sam where the famous dog is (`game.json` `walk.events`). Each
-  is put where they would stand at one of three corners of the crossing (`event_spots`), out of your sight and 30 to
-  110 m off, so that they are found rather than seen arriving; their mark is paper with amber dots, between the
-  story's amber and a word's pale one. A photograph's favour takes the corner's line while it lasts (*Photograph Mrs
+  walks in to where they would stand at one of three corners of the crossing (`event_spots`), from a dozen metres off
+  along a clear way on foot (off the road, nothing in the way), out of your sight and 30 to 110 m from you; their mark
+  is paper with amber dots, between the story's amber and a word's pale one, and when you first come within eighteen
+  metres they call out (*Excuse me, dear?*). Done, or given up on, they walk off together the way they can, and are put
+  away once nobody sees them. A photograph's favour takes the corner's line while it lasts (*Photograph Mrs
   Endo*, then *Show Mrs Endo the picture*) and gives it back to the story after; the way is asked with two answers to
   choose, and the right one is thanked, the other shrugged at. One at a time, never during a talk, and nothing kept:
   left for two and a half minutes or walked away from, they go, unseen.
@@ -1301,11 +1303,17 @@ worlds do and against this story:
   order); a scene on every walk is a toll on the second; and a companion who runs up and walks beside you through the
   crowd is a person to animate, path and keep out of the crowd for a scene of thirty seconds.
 - *Adopted:* the office rings, the one voice Kagami answers, in the voice it rings in in the story, as you come down to
-  your shoulder (`game.js` `walkIntro`, `game.json` `walk.intro`): *Nothing on tonight. No kerbs, no clients. / Take
-  the evening. You never take the evening. / Your car's at the kerb by Hachiko. It comes when you call it.* (the
-  corner's *Your car* lit and breathing while it is said) */ People round the crossing will talk to you, if you let
-  them. Nobody's ringing you tonight. Not even me.* Four lines, each passed with E or a tap; then the corner already
-  says who has the first story (*Mei has something to say*) and its amber mark is in view. The first time from the title
+  your shoulder (`game.js` `walkIntro`, `game.json` `walk.intro`): *Kagami? The office. Thursday's kerb is off; they've
+  moved the works. So there's nothing on tonight. / You're at the crossing already, aren't you. Of course you are. /
+  Your car's at the kerb by Hachiko if you want it. Call it and it'll come.* (the corner's *Your car* lit and breathing
+  while it is said) */ Take the evening. Photograph something nobody's paying you for.* Four lines, each passed with E
+  or a tap. A first version ended on *People round the crossing will talk to you, if you let them*, and the owner found
+  it abrupt: a line that explains the game to the player, in a voice that would not say it. The call now ends on the
+  street instead (`introEnd`): the view eases round to whoever has the first story, Mei by the dog, and she calls out
+  (*Excuse me! Sorry, have you got a minute?*), her amber mark over her and the corner saying *Mei has something to
+  say*. Any turn of the mouse or the stick takes the view back at once. What the line said, the street now shows: every
+  story's giver calls you over the first time you come near while it is their turn (`bark`), as the people of an open
+  world bark. The first time from the title
   only: not from the story's last card, not on a page opened straight onto the walk, never a second time in a browser.
   The warmth is the office giving the one who is always *out on a job* an evening, which is Kagami's arc touched once,
   lightly, without a word of the case.

@@ -24,7 +24,9 @@ let told = [];
 let seed = 7; const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
 const T = OEWalkTalk.create({ data: G.walk, stage: el(), project: () => null, npc: id => byId[id], here: () => me, rand,
   say: (runs, done) => done(), fill: t => t, unseen: () => true, move: () => {}, told: (title, n, of) => told.push(`${title} ${n}/${of}`),
-  place: (n, at) => { n.x = at[0]; n.y = at[1]; n.away = false; }, hide: n => { n.away = true; }, unseenAt: () => true, ask: (n, lines, choices, done) => done(choices[0]) });
+  place: (n, at) => { n.x = at[0]; n.y = at[1]; n.away = false; }, hide: n => { n.away = true; }, unseenAt: () => true, ask: (n, lines, choices, done) => done(choices[0]),
+  step: (n, x, y, h, speed) => { n.x = x; n.y = y; n.h = h; n.walkSpeed = speed; }, clear: () => true });
+const arrive = () => { for (let i = 0; i < 80 && T.events.moving; i++) T.tick(0.5, false); return !T.events.moving; };
 T.begin();
 const ids = Object.keys(byId);
 const amber = () => ids.filter(id => { const w = T.want(id); return w && w.kind === 'story'; });
@@ -38,6 +40,10 @@ function step(label) {
   return { a, e };
 }
 const talkTo = (id, label) => { const r = step(label); if (!r.a.includes(id)) fail(`${label}: ${id} has no part for you (the part is ${r.a.join(', ') || 'nobody'}'s)`); at(id); if (!T.talk(byId[id])) fail(`${label}: talking to ${id} said nothing`); };
+// the first story's giver calls you over once you come near, and not again at once
+Object.assign(me, { x: byId.mei.x + 9, y: byId.mei.y, z: byId.mei.z }); T.tick(0.1, false); T.tick(0.1, false);
+if (!T.barked.includes('mei')) fail('nine metres from Mei, she does not call out');
+Object.assign(me, { x: 376.9, y: -1013.1, z: 15, mode: 'foot' });
 // the start: one person with the amber mark, and the corner says who, and which way (Mei is south of the start)
 { const r = step('the start'); if (r.a.join() !== 'mei') fail(`at the start the amber mark is over ${r.a.join(', ') || 'nobody'}, not Mei`); if (!/Mei has something to say/.test(r.e && r.e.text)) fail(`at the start the corner says "${r.e && r.e.text}"`);
   if (!(r.e && typeof r.e.dir === 'number' && Math.cos(r.e.dir) < -0.7)) fail(`at the start the corner's arrow does not point south to Mei (${r.e && r.e.dir})`); }
@@ -100,18 +106,20 @@ if (T.events.now) fail(`a street moment ignored and walked away from is still th
 Object.assign(me, { x: 376.9, y: -1013.1, z: 15, mode: 'foot' });
 T.startAt('taxi'); // (a story under way meanwhile: the favour takes the corner, and gives it back)
 if (!T.events.start('photo-endo', 1)) fail('photo-endo did not start');
+{ const sp = G.walk.event_spots[1], d0 = Math.hypot(byId.endo.x - sp[0], byId.endo.y - sp[1]); if (!T.events.moving || d0 < 8) fail(`Mrs Endo does not walk in to her corner (${d0.toFixed(1)} m from it, ${T.events.moving} walking)`); if (!arrive()) fail('Mrs Endo never arrives at her corner'); else if (Math.hypot(byId.endo.x - sp[0], byId.endo.y - sp[1]) > 0.1) fail('Mrs Endo stops short of her corner'); }
 { const w = T.want('endo'); if (!w || w.kind !== 'event') fail(`Mrs Endo with a favour: ${w && w.kind}`); }
 at('endo'); T.talk(byId.endo);
 { const e = T.errand(); if (!/Photograph Mrs Endo/.test(e && e.text)) fail(`Mrs Endo's favour asked, the corner says "${e && e.text}"`); }
 Object.assign(me, { x: byId.endo.x + 4, y: byId.endo.y }); T.photo({ z: 16.5, sees: () => true });
 { const e = T.errand(); if (!/Show Mrs Endo/.test(e && e.text)) fail(`her photograph taken, the corner says "${e && e.text}"`); }
 at('endo'); T.talk(byId.endo);
-Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false);
+if (!T.events.moving) fail('Mrs Endo thanked, she does not walk off');
+for (let i = 0; i < 80 && T.events.now; i++) { Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false); }
 { const e = T.errand(); if (T.events.now) fail('Mrs Endo thanked, the moment is not over'); if (!/Mr Oda/.test(e && e.text)) fail(`after the favour the corner does not give the story back ("${e && e.text}")`); }
 Object.assign(me, { x: 376.9, y: -1013.1, z: 15 });
 if (!T.events.start('way-sky', 2)) fail('way-sky did not start');
-at('ren'); T.talk(byId.ren);
-Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false);
+arrive(); at('ren'); T.talk(byId.ren);
+for (let i = 0; i < 80 && T.events.now; i++) { Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false); }
 if (T.events.done !== 2) fail(`two favours done, the count says ${T.events.done}`);
 console.log(errors.length ? `FAIL ${errors.length}` : `ok   walk story  ${c.of} stories told in order, one at a time: ${told.join('; ')}; ${T.views().filter(v => v.found).length} of ${T.views().length} views found by their photographs; street moments begin unseen, lapse, and are thanked`);
 process.exit(errors.length ? 1 : 0);

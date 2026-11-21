@@ -188,13 +188,48 @@ window.OEWalkTalk = (function () {
       if (!ctx.place || !at) return false;
       const ns = e.people.map(id => ctx.npc(id));
       if (ns.some(n => !n)) return false;
-      ctx.place(ns[0], at, null);
-      ns.slice(1).forEach((n, i) => ctx.place(n, [at[0] + 1.1 * (i + 1), at[1] - 0.4], ns[0]));
+      const spot = (n, i) => (i ? [at[0] + 1.1 * i, at[1] - 0.4] : at);
+      // (they walk in to where they stop, from a dozen metres off along a clear way, out of sight; with none, they are there)
+      const from = ctx.clear ? away(at, 12, 16) : null;
+      ns.forEach((n, i) => {
+        const to = spot(n, i);
+        if (from) { ctx.place(n, [from[0] + (to[0] - at[0]), from[1] + (to[1] - at[1])], null); walk(n, to, 1.25, () => face(n, i ? ns[0] : null)); }
+        else ctx.place(n, to, i ? ns[0] : null);
+      });
       ev = { e, at, phase: 'waiting', t: 0 }; evLast = e.id;
       return true;
     }
-    function leave() { if (ev && ev.phase !== 'gone') { ev.phase = 'gone'; ev.t = 0; } }
+    // a point d metres from p along a clear way (ctx.clear: on foot, off the road, nothing in the way), unseen, else null
+    function away(p, d, tries = 12) {
+      const a0 = rnd() * Math.PI * 2;
+      for (let k = 0; k < tries; k++) {
+        const a = a0 + k * 2.4, q = [p[0] + Math.sin(a) * d, p[1] + Math.cos(a) * d];
+        if (ctx.clear(p[0], p[1], q[0], q[1]) && (!ctx.unseenAt || ctx.unseenAt(q[0], q[1], 16))) return q;
+      }
+      return null;
+    }
+    const face = (n, to) => { const t = to || { x: 368, y: -1002 }; if (ctx.step) ctx.step(n, n.x, n.y, Math.atan2(t.x - n.x, t.y - n.y), 0); };
+    // someone walking from where they are to `to` at `speed`, then `then`: stepped each frame by street()
+    const moving = new Map();
+    function walk(n, to, speed, then) { moving.set(n.id, { n, to, speed, then }); }
+    function stepWalkers(dt) {
+      for (const [id, m] of moving) {
+        const dx = m.to[0] - m.n.x, dy = m.to[1] - m.n.y, d = Math.hypot(dx, dy), h = Math.atan2(dx, dy);
+        if (d <= m.speed * dt || d < 0.05) { moving.delete(id); if (ctx.step) ctx.step(m.n, m.to[0], m.to[1], h, 0); if (m.then) m.then(); continue; }
+        if (m.n.talking) { if (ctx.step) ctx.step(m.n, m.n.x, m.n.y, m.n.h, 0); continue; } // (stopped to talk)
+        if (ctx.step) ctx.step(m.n, m.n.x + dx / d * m.speed * dt, m.n.y + dy / d * m.speed * dt, h, m.speed);
+      }
+    }
+    // the moment over: they walk off along a clear way, together, and are put away once nobody sees them
+    function leave() {
+      if (!ev || ev.phase === 'gone') return;
+      ev.phase = 'gone'; ev.t = 0;
+      const ns = ev.e.people.map(id => ctx.npc(id)).filter(Boolean);
+      const to = ns[0] && ctx.clear ? away([ns[0].x, ns[0].y], 26, 12) : null;
+      if (to) ns.forEach(n => walk(n, [to[0] + (n.x - ns[0].x), to[1] + (n.y - ns[0].y)], 1.3, null));
+    }
     function street(dt, hide) {
+      stepWalkers(dt);
       const me = ctx.here();
       if (!ev) {
         if (!events.length || me.mode !== 'foot' || hide || busy) return;
@@ -212,7 +247,7 @@ window.OEWalkTalk = (function () {
       else if ((ev.phase === 'asked' || ev.phase === 'met') && (ev.t > 150 || d > 70)) leave(); // (a favour walked away from: they ask someone else)
       if (ev.phase === 'gone') {
         const ns = ev.e.people.map(id => ctx.npc(id)).filter(Boolean);
-        if (ns.every(q => Math.hypot(q.x - me.x, q.y - me.y) > 25 && (!ctx.unseen || ctx.unseen(q)))) { ns.forEach(q => ctx.hide && ctx.hide(q)); ev = null; evNext = 120 + rnd() * 80; }
+        if (ns.every(q => !moving.has(q.id) && Math.hypot(q.x - me.x, q.y - me.y) > 25 && (!ctx.unseen || ctx.unseen(q))) || (ev.t > 40 && ns.every(q => !ctx.unseen || ctx.unseen(q)))) { ns.forEach(q => { moving.delete(q.id); if (ctx.hide) ctx.hide(q); }); ev = null; evNext = 120 + rnd() * 80; }
       }
     }
     function evTalk(n) {
@@ -227,6 +262,35 @@ window.OEWalkTalk = (function () {
       return true;
     }
 
+    // ---- a call-out: someone with something for you calls you over the first time you come near (a story's giver, its
+    // `bark`; a street moment's, its event's), a few words in a small bubble over their mark for a few seconds, and again
+    // only after a minute and a half: an open world's people bark, and a player learns that the marked will talk without a
+    // line that says so
+    const barks = new Map(), barked = {};
+    let bClock = 0;
+    function bark(id, text, secs = 3.6) {
+      const n = ctx.npc(id);
+      if (!n || !text) return false;
+      let b = barks.get(id);
+      if (!b) { const el = document.createElement('div'); el.className = 'g-walk-bark'; layer.appendChild(el); b = { el }; barks.set(id, b); }
+      b.el.textContent = ctx.fill(text); b.t = secs; b.el.style.opacity = '0';
+      barked[id] = bClock;
+      return true;
+    }
+    function barkNear(me, hide) {
+      if (hide || busy || me.mode !== 'foot') return;
+      const cur = current(), k = cur ? of(cur) : null;
+      const who = [];
+      if (cur && k.part === 0 && cur.bark) who.push([cur.npc, cur.bark]);
+      if (ev && ev.phase === 'waiting' && ev.e.bark) who.push([ev.e.people[0], ev.e.bark]);
+      for (const [id, text] of who) {
+        const n = ctx.npc(id);
+        if (!n || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking || moving.has(id)) continue;
+        if (Math.hypot(n.x - me.x, n.y - me.y) > 18 || bClock - (barked[id] ?? -1e9) < 90) continue;
+        bark(id, text);
+      }
+    }
+
     // ---- the speech marks over people's heads
     const layer = document.createElement('div');
     layer.className = 'g-walk-marks'; layer.setAttribute('aria-hidden', 'true');
@@ -238,8 +302,18 @@ window.OEWalkTalk = (function () {
       return el;
     }
     const fade = (el, v) => { if (el && el._o !== v) { el._o = v; el.style.opacity = v; } }; // (written only when it changes: a style set each frame is a style pass each frame)
-    function draw(hide) {
+    function draw(hide, dt = 0) {
       const me = ctx.here(), ids = new Set();
+      bClock += dt;
+      for (const [id, b] of barks) { // (the call-outs over the marks, their few seconds)
+        const n = ctx.npc(id);
+        if (b.t <= 0) continue;
+        b.t -= dt;
+        const p = n && !hide && n.rig && n.rig.root.visible ? ctx.project(n.x, n.y, n.z + 2.62) : null;
+        const o = !p || b.t <= 0 ? '0' : b.t < 0.6 ? (b.t / 0.6).toFixed(2) : '1';
+        if (b.el._o !== o) { b.el._o = o; b.el.style.opacity = o; }
+        if (p) b.el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%)`;
+      }
       for (const s of people) { ids.add(s.npc); for (const p of s.parts) if (p.npc) ids.add(p.npc); }
       for (const id of Object.keys(chat)) ids.add(id);
       for (const e of events) for (const id of e.people) ids.add(id);
@@ -273,9 +347,11 @@ window.OEWalkTalk = (function () {
       },
       want, talk, photo, errand,
       // each frame on the walk: what was asked met, and the marks drawn (hide: a talk, a menu, the camera up)
-      tick(dt, hide) { if (!on) return; check(); street(dt, hide); draw(hide); },
+      tick(dt, hide) { if (!on) return; check(); street(dt, hide); barkNear(ctx.here(), hide); draw(hide, dt); },
       // the street moments, for the checks: start one now (by its id, at one of event_spots), and where it stands
-      events: { start: (id, i) => { const e = events.find(q => q.id === id); return e ? evBegin(e, spots[i || 0]) : false; }, get now() { return ev ? { id: ev.e.id, phase: ev.phase } : null; }, get done() { return evDone; } },
+      events: { start: (id, i) => { const e = events.find(q => q.id === id); return e ? evBegin(e, spots[i || 0]) : false; }, get now() { return ev ? { id: ev.e.id, phase: ev.phase } : null; }, get done() { return evDone; }, get moving() { return moving.size; } },
+      bark, // (someone calls out: the walk's way in ends on the first story's giver calling you over)
+      get barked() { return Object.keys(barked); }, // (who has called out, for the checks)
       get busy() { return busy; },
       // where each story has got to, for the checks; and from the start again
       state: () => JSON.parse(JSON.stringify(st)),
