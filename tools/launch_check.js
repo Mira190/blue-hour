@@ -18,14 +18,15 @@
 //          new commit's, and a case left going is still offered. vercel.json's cache rules are read the same way.
 //
 //   xvfb-run -a node tools/launch_check.js [keys] [start] [save] [cache]     (all four when none is named)
-//   OUT=/tmp/launch for the stills and the server's log; the tool serves web/ itself, on PORT (8816).
+//   OUT=/tmp/launch for the stills and the server's log; the tool serves web/ itself, on LAUNCH_PORT (8816).
 'use strict';
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), http = require('http'), os = require('os'), crypto = require('crypto');
 const { stamp } = require('./stamp.js');
 
 const ROOT = path.resolve(__dirname, '..'), WEB = path.join(ROOT, 'web');
-const PORT = +(process.env.PORT || 8816), OUT = process.env.OUT || path.join(os.tmpdir(), 'launch-check');
+const PORT = +(process.env.LAUNCH_PORT || 8816), // (its own: PORT is the page's server, which tools/check.sh has up beside it)
+   OUT = process.env.OUT || path.join(os.tmpdir(), 'launch-check');
 const want = process.argv.slice(2), on = t => !want.length || want.includes(t);
 fs.mkdirSync(OUT, { recursive: true });
 let fails = 0;
