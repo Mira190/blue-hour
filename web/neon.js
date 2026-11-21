@@ -11,7 +11,7 @@
 // reflection in a wet street (wet.js) is the screen's own rectangle. A light moving from one screen
 // to another fades out and in. (The rectangle is evaluated in closed form, not with three.js's tables: lean(), below.) The number of lights is the tier's (high 8, medium 4, low none,
 // web/quality.js): it is fixed for the session, so no material recompiles as the camera moves.
-// The street's static pools of the screens' light (night.js uGlowMap) stay for the far city; the low
+// The street's static pools of the screens' light (night.js, the alpha of its uNightMap) stay for the far city; the low
 // tier has the screens' light on the hero levels' ground worked out once instead (pooled(), below).
 'use strict';
 window.OENeon = (function () {

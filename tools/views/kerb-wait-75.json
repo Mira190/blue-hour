@@ -1,0 +1,90 @@
+[
+ {
+  "name": "hachiko-kerb-dusk",
+  "at": [
+   381,
+   -1032
+  ],
+  "eye": [
+   381,
+   -1032
+  ],
+  "look": [
+   370,
+   -1016
+  ],
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
+ },
+ {
+  "name": "above-dusk",
+  "at": [
+   381,
+   -1032
+  ],
+  "eye": [
+   400,
+   -1048,
+   36
+  ],
+  "look": [
+   368,
+   -1008
+  ],
+  "lookUp": 0,
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
+ },
+ {
+  "name": "nw-kerb-down-dusk",
+  "at": [
+   381,
+   -1032
+  ],
+  "eye": [
+   392,
+   -1040,
+   24.5
+  ],
+  "look": [
+   372,
+   -1014
+  ],
+  "lookUp": 0,
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
+ },
+ {
+  "name": "viaduct-kerb-dusk",
+  "at": [
+   386,
+   -1026
+  ],
+  "eye": [
+   386,
+   -1026
+  ],
+  "look": [
+   372,
+   -1016
+  ],
+  "time": "17:40",
+  "date": [
+   10,
+   10
+  ],
+  "scramble": "wait"
+ }
+]
