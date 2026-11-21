@@ -601,6 +601,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (T.subject && !T.both) { await frames(3); await p.waitForTimeout(300); const t = await p.evaluate(() => window.__game.story.state.target); const off = t ? Math.hypot(t[0] - T.subject[0], t[1] - T.subject[1]) : Infinity; if (off > 1.5) { errors.push(`frame ${s.fi + 1}: the mark is ${off.toFixed(1)} m from the subject`); console.log(errors[errors.length - 1]); } }
       // and it is the mark of a thing to photograph, with no metres on it (on the roof it read "143 m": a place to walk to)
       if (T.subject && !T.both) { const m = await p.evaluate(() => { const e = document.getElementById('g-story-mark'); return { kind: e.dataset.kind, text: e.querySelector('b').textContent }; }); if (m.kind !== 'frame' || /\d/.test(m.text)) { errors.push(`frame ${s.fi + 1}: at the standpoint the mark is "${m.kind}", reading "${m.text}"`); console.log(errors[errors.length - 1]); } }
+      // and no route line runs from the player's feet to the thing to photograph: the way ends at the standpoint, and the
+      // thing is framed from there, not walked to (a pale band ran from Kagami across the zebra to the kerb in the Stop)
+      if (T.subject) { await frames(8); const r = await p.evaluate(() => { const g = window.__game.gold; return { shown: +g.shown.toFixed(3), pts: g.pts ? g.pts.length : 0, kind: window.__game.story.state.kind }; }); if (r.shown > 0.01 || r.pts) { errors.push(`frame ${s.fi + 1}: at the standpoint a route line is drawn to the ${r.kind} (${JSON.stringify(r)})`); console.log(errors[errors.length - 1]); } }
       await snap(`${s.fi + 1}-cam-down`); await p.evaluate(() => window.__game.story.raise(true)); // (the camera to the eye: R)
       await p.waitForTimeout(1500); await mark(s, 'aimed');
       // from the first frame's photograph to the last card, the camera of 1964 is round Kagami's neck (game.js, people.js camera1964)
@@ -742,6 +745,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (+process.env.SPEND && !spent) { errors.push(`frame ${process.env.SPEND}: was to be spent, and was not`); console.log(errors[errors.length - 1]); }
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
+  if (done) {
+    // under the last card time runs: whoever of tonight's people was on their way as it came up (the old woman, crossing)
+    // goes on walking. She stood held in mid-step, and a player who walked on from the card found her so.
+    const cast = () => p.evaluate(() => Object.entries(window.__game.story.state.cast).map(([id, f]) => ({ id, x: f.x, y: f.y, to: !!f.to })));
+    const a = await cast();
+    await p.waitForFunction(was => Object.entries(window.__game.story.state.cast).every(([id, f]) => { const w = was.find(q => q.id === id); return !w || !w.to || !f.to || Math.hypot(f.x - w.x, f.y - w.y) > 0.3; }), a, { timeout: 60000, polling: 250 }).catch(() => {});
+    const b = await cast(), held = a.filter(w => w.to).filter(w => { const f = b.find(q => q.id === w.id); return f && f.to && Math.hypot(f.x - w.x, f.y - w.y) <= 0.3; });
+    console.log(`under the last card: ${a.filter(w => w.to).length} of tonight's ${a.length} people on their way, ${held.length} held in mid-step`);
+    if (held.length) errors.push(`under the last card ${held.map(w => w.id).join(', ')} stood held in mid-step: the story's people are to go on once the case is closed`);
+  }
   // (not where UPTO=n stopped at a print: the case is still open there, and the camera rightly round the neck)
   if (done && !upto && await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam))) { errors.push('the case is closed, and the camera of 1964 is still round Kagami\'s neck: it is hers again'); console.log(errors[errors.length - 1]); }
   if (!done) console.log('FAIL the last card was not reached', JSON.stringify(await state())); // (its own test: as the camera's else, it was said of every case that closed rightly)
