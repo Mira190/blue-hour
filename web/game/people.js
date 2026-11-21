@@ -484,9 +484,12 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
       }
       if (n < 12) return;
       const lum = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], ratio = lum(under) / Math.max(1e-4, lum(sum));
-      if (ratio < 1.2 && ratio > 0.8) return; // (they agree already)
-      const k = Math.min(1.6, Math.max(0.7, ratio)); // (their tone, not their hue: on black hair a channel's ratio is noise)
-      hm.color.setRGB(k, k, k);
+      // (even where their tones agree their hues may not: the channels are matched below)
+      const k = Math.min(1.6, Math.max(0.7, ratio));
+      // (their tone, and as much of their hue as the mean of the samples can be trusted with: a card's brown strands over
+      // black hair read as a patch at the nape, issue 123; a channel moves at most a quarter from the tone's own ratio)
+      const ch = i => Math.min(k * 1.25, Math.max(k * 0.75, under[i] / Math.max(1e-4, sum[i])));
+      hm.color.setRGB(ch(0), ch(1), ch(2));
     };
     const ready = (name, tpl, npc = false) => {
       let hair = null, head = null;
@@ -617,12 +620,78 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
   // pavement, so the player and the people they meet are not silhouettes under a lamp)
   let streetLit = null;
   function setLight(patch) { streetLit = patch; }
+
+  // ------------------------------------------------------------ a person in the street's light (issue 123)
+  // The street lights, shop windows and screens reach a person as one colour where they stand (world.js streetLight),
+  // and it was laid on them evenly, as on the paving: a face, a cardigan and a head of hair with no form in the light
+  // that is most of what lights them from dusk on. A person is lit here as a film lights one in a street at night
+  // (docs/LOOK.md, "People in the street's light"), from that same colour and the sky's, with no new picture and no
+  // new program:
+  // - a key: the street's light from the lens's side, above and to one side, wrapped (cloth: a knit lets light round;
+  //   skin: further in the red than the blue, as light scattered under skin leaves the terminator warm: Penner's
+  //   pre-integrated skin as a three-term wrap), and the far side left at four tenths of it;
+  // - a rim: the screens and the sky behind on the other side, on the outline that faces them (Mitchell et al.'s rim
+  //   term in Team Fortress 2, coloured by the light that is there);
+  // - cloth's sheen: the fibres standing off a knit or a wool catch light at grazing angles, all round (the shape of
+  //   Estevez and Kulla's sheen lobe, as a Fresnel-like term: no second BRDF);
+  // - on a desktop (castFull), skin's broad highlight toward the key: the oil on a cheekbone and the bridge of a nose.
+  // Skin is told from cloth by the character's mask where its picture has one (OE_SKIN_MASK), by the head's own
+  // material (its hair marked by strandHair), or by its colour.
+  const castFull = () => { const Q = window.OEQuality && OEQuality.city ? OEQuality.city() : null; return !(Q && Q.lean); };
+  const CAST_LINE = 'totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz));';
+  const CAST_FS = `vec3 oeCastSt = vec3(0.0); float oeCastHair = 0.0, oeCastSkin = -1.0;
+float oeCastIsSkin(vec4 c) {
+#ifdef OE_SKIN_MASK
+  return 1.0 - smoothstep(0.86, 0.95, c.a);
+#else
+  float s = c.r + c.g + c.b, w = (c.r - c.b) / max(s, 1e-3);
+  return step(c.g, c.r) * step(c.b, c.g) * smoothstep(0.1, 0.16, w) * (1.0 - smoothstep(0.36, 0.44, w)) * smoothstep(0.1, 0.2, c.r);
+#endif
+}`;
+  const CAST_END = `
+{ vec3 cV = normalize(vViewPosition), cN = normal;
+  vec3 cUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), cR = normalize(cross(cUp, cV));
+  vec3 cSky = vec3(0.0);
+#if NUM_HEMI_LIGHTS > 0
+  cSky = hemisphereLights[0].skyColor;
+#endif
+  // (from dusk the lit fronts round a street light a person before the street lights do: the sky's light stands for
+  // them, warmed, until the day is bright enough to drown them)
+  float cDk = 1.0 - smoothstep(0.25, 0.6, dot(cSky, vec3(0.3333)));
+  cSky *= mix(1.0, 4.0, cDk);
+  vec3 cSt = oeCastSt + cSky * vec3(1.0, 0.88, 0.74) * (0.3 * cDk);
+  float cSkin = (oeCastSkin < 0.0 ? oeCastIsSkin(diffuseColor) : oeCastSkin) * (1.0 - oeCastHair), cCloth = (1.0 - cSkin) * (1.0 - oeCastHair);
+  vec3 cAlb = material.diffuseColor;
+  float cNV = clamp(dot(cN, cV), 0.0, 1.0);
+  // the key
+  vec3 cK = normalize(cV * 0.5 + cUp * 0.6 + cR * 0.65);
+  float cKd = dot(cN, cK);
+  vec3 cW = mix(vec3(0.3), vec3(0.8, 0.42, 0.28), cSkin);
+  vec3 cKey = clamp((cKd + cW) / (1.0 + cW), 0.0, 1.0);
+  vec3 cOut = cAlb * (oeCastSt * (0.4 + 1.1 * cKey) + (cSt - oeCastSt) * (1.3 * cKey - 0.25));
+  // the rim: the outline that faces the screens behind, on the other side
+  vec3 cE = cSky * 0.5 + oeCastSt * 1.3;
+  float cF = 1.0 - cNV, cRim = cF * cF * cF * smoothstep(-0.25, 0.55, dot(cN, normalize(cUp * 0.45 - cR * 0.8)));
+  cOut += cE * cRim * (cAlb * 0.7 + mix(0.03, 0.05, cSkin)) * (1.0 - oeCastHair);
+  // cloth's sheen
+  cOut += cE * (cF * cF * cF * cF) * cCloth * mix(cAlb, vec3(dot(cAlb, vec3(0.3333))), 0.5) * 0.45;
+#ifdef OE_CAST_FULL
+  // skin's broad highlight toward the key
+  cOut += cE * cSkin * 0.035 * pow(max(dot(cN, normalize(cK + cV)), 0.0), 22.0);
+#endif
+  totalEmissiveRadiance += cOut; }`;
+  function castPatch(sh) {
+    if (!sh.fragmentShader.includes(CAST_LINE) || !sh.fragmentShader.includes('#include <lights_fragment_end>')) return;
+    sh.fragmentShader = sh.fragmentShader.replace(CAST_LINE, 'oeCastSt = streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz));')
+      .replace('#include <common>', `#include <common>\n${castFull() ? '#define OE_CAST_FULL\n' : ''}${CAST_FS}`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>${CAST_END}`);
+  }
   function litMaterial(m) {
     if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
     const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
-    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); nearPatch(sh); };
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); castPatch(sh); nearPatch(sh); };
     // three.js keys a program by the text of onBeforeCompile, which this wrapper makes alike for all
-    m.customProgramCacheKey = () => `person-lit|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `person-lit2${castFull() ? 'f' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.userData.streetLit = true;
     m.needsUpdate = true;
   }
@@ -674,11 +743,15 @@ float hairStrands() {
 }
 // Kajiya-Kay's highlight along a strand of way t, at half vector h (Scheuermann's form: sin^e of the angle to h)
 float hairKK(vec3 t, vec3 h, float e) { float th = dot(t, h); return smoothstep(-1.0, 0.0, th) * pow(max(1.0 - th * th, 0.0), 0.5 * e); }
-vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint) {
+// (env: 1 for the light of the street round the head, which comes from a lit front's or a screen's whole width, not a
+// lamp's point: both lobes broader, and the second, through the strand, as strong as a broad source makes it)
+vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint, float env) {
   vec3 t = normalize(vHairT), h = normalize(v + l);
   vec3 t1 = normalize(t + n * (-0.06 + 0.08 * hairJ)), t2 = normalize(t + n * (0.14 + 0.08 * hairJ));
   float spark = 0.7 + 0.6 * clamp(0.5 + hairJ, 0.0, 1.0); // (the strands' own breakup)
-  return (vec3(0.07 * hairKK(t1, h, 140.0)) + tint * (0.6 * hairKK(t2, h, 32.0))) * spark * vHairK;
+  // (the second lobe has been through the strand: its pigment's colour, which black hair has too, a dark warm brown)
+  vec3 tt = max(sqrt(max(tint, 0.0)) * 0.4, vec3(0.03, 0.022, 0.017) * (1.0 + env));
+  return (vec3(mix(0.1, 0.05, env) * hairKK(t1, h, mix(110.0, 56.0, env))) + tt * (mix(0.5, 1.0, env) * hairKK(t2, h, mix(30.0, 16.0, env)))) * spark * vHairK;
 }`;
   // head: the head's own mesh (its hair painted on it, hairSK.y), not the cards
   function hairMaterial(m, head = false) {
@@ -690,6 +763,7 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint) {
     m.onBeforeCompile = (sh, r) => {
       if (own) own.call(m, sh, r);
       const street = /vec3 streetLight\(/.test(sh.fragmentShader), H = head ? '#define HAIR_HEAD\n' : '';
+      const cast = /float oeCastHair/.test(sh.fragmentShader) ? (head ? 'oeCastHair = vHairK; oeCastSkin = 1.0;' : 'oeCastHair = 1.0;') : ''; // (castPatch: hair is not skin or cloth; the rest of a head is skin)
       sh.uniforms.uHairMS = hairMS;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${H}${HAIR_VS[0]}`)
         .replace('#include <defaultnormal_vertex>', `#include <defaultnormal_vertex>${HAIR_VS[1]}`);
@@ -706,7 +780,8 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint) {
 #endif
 }
 #endif
-diffuseColor.rgb *= mix(1.0, mix(1.0, 0.55, vHairRoot) * (1.0 + 0.08 * (1.0 - vHairRoot) * (1.0 - smoothstep(0.5, 1.0, hairA))) * (1.0 + 0.12 * hairJ), vHairK);`)
+diffuseColor.rgb *= mix(1.0, mix(1.0, 0.55, vHairRoot) * (1.0 + 0.08 * (1.0 - vHairRoot) * (1.0 - smoothstep(0.5, 1.0, hairA))) * (1.0 + 0.12 * hairJ), vHairK);
+${cast}`)
         // the cards' edge (material.alphaTest stays, for the shadow's depth and the define)
         .replace('#include <alphatest_fragment>', `#ifdef USE_ALPHATEST
 if (uHairMS > 0.5) {
@@ -744,7 +819,7 @@ void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPo
   RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
   float nl = dot(geometryNormal, directLight.direction);
   reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * 0.3 * vHairK * clamp(1.0 - abs(nl) * 1.6, 0.0, 1.0);
-  reflectedLight.directSpecular += directLight.color * smoothstep(-0.25, 0.35, nl) * hairLobes(geometryNormal, geometryViewDir, directLight.direction, material.diffuseColor);
+  reflectedLight.directSpecular += directLight.color * smoothstep(-0.25, 0.35, nl) * hairLobes(geometryNormal, geometryViewDir, directLight.direction, material.diffuseColor, 0.0);
 }
 #undef RE_Direct
 #define RE_Direct RE_Direct_Hair`)
@@ -754,17 +829,26 @@ void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPo
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
 { vec3 hE = vec3(0.0);
 #if NUM_HEMI_LIGHTS > 0
-  hE += hemisphereLights[0].skyColor;
+  // (from dusk the lit fronts and screens round a street are most of what a head of hair reflects, and the sky's own
+  // light, which is all the game's lights say of them before the street lights come on, is a quarter of it)
+  hE += hemisphereLights[0].skyColor * mix(1.0, 2.5, 1.0 - smoothstep(0.25, 0.6, dot(hemisphereLights[0].skyColor, vec3(0.3333))));
 #endif
 ${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz)) * 1.6;' : ''}
   vec3 hV = normalize(vViewPosition), hUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
   vec3 hL = normalize(hV - hUp * dot(hV, hUp) + hUp * 0.55);
-  reflectedLight.indirectSpecular += hE * hairLobes(normal, hV, hL, material.diffuseColor) * 0.55;
+  reflectedLight.indirectSpecular += hE * hairLobes(normal, hV, hL, material.diffuseColor, 1.0) * 0.55;
+  // (the lit fronts to one side, as the cast's key, and the screens behind on the other: a band each across the strands)
+  vec3 hSd = normalize(cross(hUp, hV));
+  reflectedLight.indirectSpecular += hE * (hairLobes(normal, hV, normalize(hV * 0.5 + hUp * 0.6 + hSd * 0.65), material.diffuseColor, 1.0) * 0.3
+    + hairLobes(normal, hV, normalize(hUp * 0.5 - hSd * 0.8 - hV * 0.35), material.diffuseColor, 1.0) * 0.5);
+  // (light scattered among the strands: Karis's stand-in, a wrap round the strand's own normal toward the lens, in the pigment's colour)
+  { vec3 hT = normalize(vHairT), hFn = normalize(hV - hT * dot(hV, hT));
+    reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.2, 0.15, 0.12)) * 0.015 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
   float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = 1.0 - smoothstep(0.35, 1.0, hairA);
   // (light through hair takes the warm brown of its pigment, even through black hair)
-  reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.3, 0.2, 0.14)) * (0.12 * hThin + 0.18 * hRim) * (1.0 - vHairRoot) * vHairK; }`);
+  reflectedLight.indirectDiffuse += hE * max(sqrt(max(material.diffuseColor, 0.0)), vec3(0.3, 0.2, 0.14)) * (0.12 * hThin + 0.15 * hRim) * (1.0 - 0.8 * vHairRoot) * vHairK; }`);
     };
-    m.customProgramCacheKey = () => `strand-hair${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `strand-hair5${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.needsUpdate = true;
   }
   // The strand's way at each vertex, how near the scalp it is (hairTR: xyz, w) and on the head's mesh whether it is hair
