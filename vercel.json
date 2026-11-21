@@ -4,7 +4,7 @@
   "installCommand": "true",
   "buildCommand": "bash tools/vercel_build.sh",
   "outputDirectory": "web",
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"live\" ]",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"live\" ]",
   "headers": [
     { "source": "/(data|assets|vendor)/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }] }
   ]
