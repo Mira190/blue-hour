@@ -1,0 +1,81 @@
+{
+ "_": "Scramble Square's storeys after dark (docs/HERO.md, \"Its floors after dark\"): the tower from the flight's height, near, close along a face and from low under it. 'warm' is a throwaway first still: the first view of a run can come out from the arrival's camera.",
+ "times": {
+  "dusk": "17:39",
+  "night": "19:30",
+  "late": "22:30",
+  "day": "13:00"
+ },
+ "views": [
+  {
+   "name": "warm",
+   "eye": [
+    372,
+    -1000,
+    1.7
+   ],
+   "look": [
+    380,
+    -1000,
+    1.7
+   ],
+   "fov": 50
+  },
+  {
+   "name": "air_wide",
+   "eye": [
+    330,
+    -900,
+    230
+   ],
+   "look": [
+    540,
+    -1140,
+    90
+   ],
+   "fov": 50
+  },
+  {
+   "name": "air_near",
+   "eye": [
+    420,
+    -1010,
+    170
+   ],
+   "look": [
+    525,
+    -1125,
+    120
+   ],
+   "fov": 40
+  },
+  {
+   "name": "close",
+   "eye": [
+    470,
+    -1080,
+    140
+   ],
+   "look": [
+    515,
+    -1115,
+    130
+   ],
+   "fov": 40
+  },
+  {
+   "name": "low",
+   "eye": [
+    455,
+    -1085,
+    45
+   ],
+   "look": [
+    516,
+    -1120,
+    110
+   ],
+   "fov": 50
+  }
+ ]
+}

@@ -1,0 +1,83 @@
+{
+ "_": "The far skyline (web/farcity.js; docs/LOOK.md, \"The far skyline\"): from SHIBUYA SKY's deck east to Tokyo Tower and Toranomon, north to Shinjuku, north-east to the Skytree, and from the flight's height. 'warm' is a throwaway first still: the first view of a run can come out from the arrival's camera. With a view's 'floor' its eye and its look are both metres over that height (the deck's).",
+ "times": {
+  "day": "13:00",
+  "dusk": "17:39",
+  "night": "19:30"
+ },
+ "views": [
+  {
+   "name": "warm",
+   "eye": [
+    372,
+    -1000,
+    1.7
+   ],
+   "look": [
+    380,
+    -1000,
+    1.7
+   ],
+   "fov": 50
+  },
+  {
+   "name": "sky_east",
+   "eye": [
+    540,
+    -1120,
+    1.7
+   ],
+   "floor": 243.5,
+   "look": [
+    4431,
+    -1098,
+    -80
+   ],
+   "fov": 45
+  },
+  {
+   "name": "sky_north",
+   "eye": [
+    520,
+    -1100,
+    1.7
+   ],
+   "floor": 243.5,
+   "look": [
+    -433,
+    2337,
+    -95
+   ],
+   "fov": 50
+  },
+  {
+   "name": "sky_ne",
+   "eye": [
+    540,
+    -1100,
+    1.7
+   ],
+   "floor": 243.5,
+   "look": [
+    10335,
+    4615,
+    40
+   ],
+   "fov": 30
+  },
+  {
+   "name": "flight",
+   "eye": [
+    330,
+    -900,
+    230
+   ],
+   "look": [
+    2500,
+    -600,
+    60
+   ],
+   "fov": 50
+  }
+ ]
+}

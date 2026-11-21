@@ -56,7 +56,7 @@
 # Prints one line per check and the time each took, and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
 # A browser check whose last pass in this clone read nothing that has changed since is not played again: its pass is
 # kept (tools/check_cache.py, from the server's log of what the page fetched).
-#   tools/check.sh                      # the fast tier: static, and story and mem when the page or the map changed;
+#   tools/check.sh                      # the fast tier: static, and story, walk1 and mem when the page or the map changed;
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
 #   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
@@ -148,7 +148,10 @@ else
   fi
   mains() { [ "$(git rev-parse -q --verify "HEAD:$1" 2>/dev/null)" = "$(git rev-parse -q --verify "origin/main:$1" 2>/dev/null)" ] && git diff --quiet HEAD -- "$1" 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard -- "$1")" ]; }
   skipped=0
-  page() { add story walk mem; [ "$TIER" = full ] && add clip gl touch; return 0; }   # the page or the map changed
+  # the page or the map changed. On the fast tier the walk's desktop page only (walk1, 9 minutes of its 18), its phone's
+  # (walk2) for what a phone alone runs, below: in the sessions of 18 to 21 November the phone's page failed twice, both
+  # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
+  page() { if [ "$TIER" = full ]; then add story walk mem clip gl touch; else add story walk1 mem; fi; return 0; }
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -171,7 +174,9 @@ else
     if [ "${frommain:-0}" = 1 ] && mains "$f"; then static=1; skipped=$((skipped + 1)); continue; fi
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc ;;
-      web/data/$MAP/d/*|pipeline/district.py|tools/mem_check.js) static=1; add mem ;;   # what a phone loads
+      web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
+      pipeline/district.py|tools/mem_check.js) static=1; add mem ;;
+      web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
@@ -192,6 +197,7 @@ else
       page
     elif ! is_in story "$want"; then echo "the models changed keep their names, flags and attributes ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
+  is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2' | paste -sd ' ' -)   # (both pages already)
   [ "$skipped" -gt 0 ] && echo "$skipped files changed since the last pass are main's, as main has it: the static checks for them, the rest on main (CHECK_FULL=1 plays them here)" >&2
 fi
 
