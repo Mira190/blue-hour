@@ -250,7 +250,7 @@ window.OEHud = (function () {
   // was being said, and the question with it.
   function dialogue(audio) {
     const box = $('#gd'), nameEl = $('#gd-name'), roleEl = $('#gd-role'), textEl = $('#gd-text'), choicesEl = $('#gd-choices'), hint = $('#gd-hint');
-    let cur = null, view = 0;
+    let cur = null, view = 0, shutAt = -1e9;
     const said = []; // (the lines said, latest last: for the step back, across one speaker's talk and the next)
     const touchy = () => matchMedia('(pointer: coarse)').matches;
     const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
@@ -304,7 +304,7 @@ window.OEHud = (function () {
     }
     function close(choice) {
       const d = cur && !choice ? cur.done : null;
-      cur = null; view = 0;
+      cur = null; view = 0; shutAt = performance.now();
       box.hidden = true; box.classList.remove('back');
       choicesEl.innerHTML = '';
       if (d) d(null);
@@ -324,7 +324,9 @@ window.OEHud = (function () {
     // (the dialogue's own buttons, a story's: a step back, and the log)
     box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false); });
     // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
-    return { show, next, back, choose, tick, get open() { return !!cur; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    // (quiet: just closed. The press that passed the last line, or the one after it from a hand still passing lines, is not
+    // also the next thing: E passes a line and gets you into a helicopter beside you, F passes one and is the shutter)
+    return { show, next, back, choose, tick, get open() { return !!cur; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts

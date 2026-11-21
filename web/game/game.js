@@ -4782,7 +4782,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } };
     return null;
   }
-  function interact() { const a = currentAction(); if (a && a.act) { A.start(); a.act(); } }
+  function interact() { if (dlg.quiet) return; const a = currentAction(); if (a && a.act) { A.start(); a.act(); } } // (not the press that ended a talk: hud.js dialogue quiet)
   // a spot (places.js): its lines, and a step waiting for it ("spot": its id) moves on
   function lookAt(sp) {
     if (sp.look && places) { closeupStart(sp); return; }
