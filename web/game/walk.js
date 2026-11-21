@@ -4,7 +4,7 @@
 //
 // It is the story's own interface, not a second game's: the title's card and type, the goal's corner for where and
 // when you are, the keys' line the first time. Nothing here draws the world or names a city: game.js lends what the
-// walk needs (the clock, the weather, the crane down to the street) and keeps what the walk does not offer out of it.
+// walk needs (the clock, the weather, the flight down to the street: the walk's opening, game.walk.overture) and keeps what the walk does not offer out of it.
 //
 //   ctx: { stage, touch, place: { name, native }, date: [month, day] (the evening the story is set in),
 //          hourAt(kind) -> minutes on that evening ('live': now, where the map is), fmt(min) -> '17:14',

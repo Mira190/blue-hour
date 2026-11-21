@@ -6411,7 +6411,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (a film: the overture, or a flight a story plays between two places; `guideAt` is given the film's guide each frame)
   // (a film played while the story's score is: the loading cue through the opening, the score itself in a flight. Its
   // own score then leaves the bed to that one: film-score.js plan.under)
-  makeFilm = (ov, guideAt = null) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
+  // (opts.own: a film whose score is the only music while it plays, its own bed and all, whatever plays now: the walk's, which
+  // lets the loading cue go as it sets out; opts.walk, opts.fill: the walk's film, and what its type's {tokens} say)
+  makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
+    walk: !!opts.walk, fill: opts.fill || null, levelReady: () => levelReady(), get levelWait() { return LEVEL_WAIT_S; }, // (both read when played: they are declared further on)
     junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
@@ -6556,14 +6559,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     walkDress(sp);
     $('#g-title').hidden = true;
     try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: sp.t, sky: sp.w } }); } catch (e) { /* no User Timing */ }
+    if (story.dressSet) story.dressSet(); // (an episode's own set dressing, as the story has it, on the walk too)
+    walkPeople(); if (walkTalk) walkTalk.begin(); // (the walk's own people out on the street, and their speech marks)
+    // the walk's opening (game.walk.overture, docs/STORY.md "The walk's opening"): the city from the air at the hour and under
+    // the sky chosen, flown down in one flight to your shoulder at the kerb; any key or a tap eases down to you at once.
+    // Not with reduced motion or ?overture=0, where the crane comes down from the title's view as before
+    if (walkFilmDue()) {
+      const film = walkFilmMake(), was = overture;
+      overture = film;
+      if (film.play(() => { overture = was; walkUi.begin(); })) return;
+      overture = was;
+    }
     if (openingHere()) { // (down from the title's view to your shoulder, the scramble turning to walk as you come down, as the story's opening does without its film)
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
-    if (story.dressSet) story.dressSet(); // (an episode's own set dressing, as the story has it, on the walk too)
-    walkPeople(); if (walkTalk) walkTalk.begin(); // (the walk's own people out on the street, and their speech marks)
     craneIn(() => walkUi.begin());
   };
+  // the walk's film, made the first time the walk's step opens (its score rendered and its things compiled while the hour
+  // and the sky are chosen, so that Set out plays it at once), and played as the walk sets out (startWalk)
+  const WALK_OV = story && G.walk && G.walk.overture;
+  let walkFilm = null;
+  const walkFilmDue = () => !!(WALK_OV && window.OEOverture && makeFilm && !reduced && !/[?&]overture=0\b/.test(location.search));
+  const SKY_WORD = { clear: 'Clear', overcast: 'Overcast', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', storm: 'Storm', snow: 'Snow' };
+  const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function walkFilmMake() {
+    if (!walkFilm) walkFilm = makeFilm(WALK_OV, null, { own: true, walk: true,
+      fill: k => (k === 'hour' ? fmtMin(clock.min) : k === 'date' ? `${clock.d} ${MONTH[clock.m - 1]}` : k === 'sky' ? SKY_WORD[weather ? weather.state.kind : 'clear'] || 'Clear' : null) });
+    return walkFilm;
+  }
+  const walkFilmReady = () => { if (!walkFilmDue() || playing) return; const f = walkFilmMake(); if (!f) return; f.prepareScore(); if (f.prewarm) f.prewarm(o => compileFor(o)); };
   // The walk taken up where the story ends (its last card's Walk Shibuya): the case is closed and you are standing at a
   // kerb, so that is where the walk begins. No page again, no title, no crane down from the air: the card fades off the
   // street, the score lets go into the street's own sound over a few bars, the evening's people go once the lens has
@@ -6587,7 +6612,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   if (story && window.OEWalk) {
     walkUi = OEWalk.create({ stage, touch, place: walkPlace, date: walkDate(), hourAt: walkHour, fmt: fmtMin, whoGate: () => whoGate(),
-      preview: sp => { if (!walkWas) walkWas = { w: weather ? weather.state.mode : null }; walkDress(sp); },
+      preview: sp => { if (!walkWas) walkWas = { w: weather ? weather.state.mode : null }; walkDress(sp); walkFilmReady(); },
       restore: () => { story.dress(); if (weather && walkWas && walkWas.w) weather.set(walkWas.w, { now: true }); walkWas = null; },
       start: startWalk,
       clock: () => ({ m: clock.m, d: clock.d, min: clock.min }),
