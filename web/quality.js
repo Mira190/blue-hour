@@ -153,10 +153,19 @@ window.OEQuality = (function () {
   // the game) lets the next load try the one above it, and a death at a level (telemetry.js writes the level the
   // dead page ran at) rules that level and the heavier ones out for fourteen days. A phone with the room climbs
   // to the full set in two visits; one without stays where it lives.
+  // The climb stops at TOP, the set the phone's budget is measured at (tools/mem_check.js, at START), while the sets
+  // above it are not: at frame 5 a phone at START holds 269 of its 270 MB (issue 105), and the next set up keeps
+  // 2048-pixel pictures where START keeps 1024. Until 21 November 2026 no climb happened on the story's page (below), so
+  // TOP keeps the sets a phone plays at as they were; it goes up when a fuller set is measured within the budget.
+  // A lost WebGL context is a death too (lost(), as it is lost): on a phone it is the GPU's memory run out (iOS keeps
+  // every tab's WebGL in one process), and the page that reloaded at the same level lost it again or was killed
+  // mid-load (the owner's iPhone, 21 November 2026: lost at 35 s, the reload killed at "built" 12 s in).
   // died(map): how many times this map's page died on this device in the last fourteen days (the map in the
-  // address by default). A low-tier device that is not a phone gets the phone's sets after its first death.
-  const mapId = () => (/^#(?:play-)?([a-z0-9-]+)/.exec(location.hash) || [])[1];
-  const DAYS = 14 * 864e5, START = 2, LIGHTEST = 3;
+  // address, else the page's own, <html data-map>). A low-tier device that is not a phone gets the phone's sets after
+  // its first death. (The story's page has no address after #: the map was read from the address alone, so on that
+  // page no death and no minute held was ever counted, and a phone killed there loaded the same set again.)
+  const mapId = () => (/^#(?:play-)?([a-z0-9-]+)/.exec(location.hash) || [])[1] || document.documentElement.dataset.map || undefined;
+  const DAYS = 14 * 864e5, START = 2, LIGHTEST = 3, TOP = START;
   const note = k => { try { const d = JSON.parse(localStorage.getItem(k)); return d && Date.now() - d.t < DAYS ? d : null; } catch (e) { return null; } };
   function died(id = mapId()) {
     const d = id ? note(`bh-died-${id}`) : null;
@@ -175,7 +184,7 @@ window.OEQuality = (function () {
     const d = note(`bh-died-${id}`), h = note(`bh-held-${id}`);
     // (a death noted before pages wrote their level was at level 0 or 1, the sets of that time)
     const bad = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1;
-    return Math.max(0, Math.min(LIGHTEST, Math.max(h && h.lv != null ? h.lv - 1 : START, bad + 1)));
+    return Math.max(TOP, Math.min(LIGHTEST, Math.max(h && h.lv != null ? h.lv - 1 : START, bad + 1)));
   }
   // the game, after a minute of play on a phone: this level fits this map on this device
   function held(id = mapId()) {
@@ -185,6 +194,24 @@ window.OEQuality = (function () {
       const lv = level(id), h = note(`bh-held-${id}`);
       localStorage.setItem(`bh-held-${id}`, JSON.stringify({ lv: h && h.lv != null ? Math.min(h.lv, lv) : lv, t: Date.now() }));
     } catch (e) { /* storage blocked */ }
+  }
+  // The page's WebGL context was lost while it was seen: on a phone, a death at the level it runs at, at once (iOS often
+  // takes the whole page a moment later, and Safari gives a page two deaths before it stops loading it), written as
+  // telemetry.js writes the death of a page the system killed, so that the next load is a level lighter and first waits
+  // for the lost memory to be taken back (sinceDeath, world.js). Once a page: telemetry.js (noteLost, which marks its
+  // alive note so the dead page is not counted again) and glcare.js (which works with the telemetry off) both ask.
+  // Not while the page is put away: a tab in the background can lose its context to the one in front, which says
+  // nothing of its own set. Returns whether this page's loss is counted.
+  let lostHere = false;
+  function lost(id = mapId(), ready = true) {
+    if (lostHere) return true;
+    if (!id || !lean(probe()) || document.hidden) return false;
+    try {
+      const d = note(`bh-died-${id}`), was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, now = city();
+      localStorage.setItem(`bh-died-${id}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!ready, lv: Math.max(was, now.lean ? now.lighter : 0), gl: true }));
+      lostHere = true;
+    } catch (e) { /* storage blocked */ }
+    return lostHere;
   }
   // budget.map by level. (2, a phone's first: the middle distance kept to 1.1 km, since from the helicopter the
   // aerial photograph past it reads as a blue band under the horizon at dusk when it starts at 600 m)
@@ -427,5 +454,5 @@ window.OEQuality = (function () {
     }
     return g;
   }
-  return { probe, auto, tier, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, governor, TIERS, ORDER, NAMES };
+  return { probe, auto, tier, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, lostHere: () => lostHere, governor, TIERS, ORDER, NAMES };
 })();

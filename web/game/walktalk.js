@@ -25,7 +25,10 @@
 'use strict';
 window.OEWalkTalk = (function () {
   const KEEP = 'bh-walk-talk';
-  const SEE_M = 42, NAME_M = 11; // (a speech mark seen from this far; the name under it from this close)
+  // (a speech mark seen from this far, and only over someone in sight; the name under it from this close. It was 42 m:
+  // on a phone a person there is a few pixels tall, and on SHIBUYA SKY's roof Taro's mark stood over the glass with
+  // him out of sight behind the heliport's deck, a mark over nobody. As an open world's: near enough to see who it is)
+  const SEE_M = 24, NAME_M = 11;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const first = name => String(name || '').replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '').trim(); // (the name as it is read: "Mr Oda 小田さん" is Mr Oda)
 
@@ -56,13 +59,24 @@ window.OEWalkTalk = (function () {
       const list = people.filter(s => { const k = of(s); return !k.done && k.part > 0; });
       return list.find(s => s.id === lastAsked) || list[0] || null;
     }
+    // the corner's line when the one to go back to is on another level, as Yuna is at the lift's foot while you are on
+    // SHIBUYA SKY's roof 226 m over her: it read "Back to Yuna 15 m", the metres in plan to a point under your feet. The way
+    // to them is the lift: the line says so, and the metres are to its stop on your level (ctx.via); with no lift between
+    // the two, the metres are the whole way, the height counted
+    function level(e, who, me) {
+      const dz = (who.z || 0) - (me.z || 0);
+      if (Math.abs(dz) <= 12 || me.mode !== 'foot') return e;
+      const v = ctx.via ? ctx.via(me, who) : null;
+      if (!v) return Object.assign(e, { m: Math.hypot(e.m || 0, dz) });
+      return Object.assign(e, { text: `${dz < 0 ? 'Down' : 'Up'} the lift to ${first(who.name)}`, m: Math.hypot(v.x - me.x, v.y - me.y) });
+    }
     function errand() {
       const s = open();
       if (!s) return null;
       const k = of(s), then = s.parts[k.part - 1].then || {}, me = ctx.here();
       const who = ctx.npc(speaker(s, k.part));
       // (sent on to someone, or what was asked done: the metres are to the one who speaks next)
-      if ((then.talk || k.met) && who) return { text: then.talk ? then.goal : `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: Math.hypot(who.x - me.x, who.y - me.y), key: '' };
+      if ((then.talk || k.met) && who) return level({ text: then.talk ? then.goal : `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: Math.hypot(who.x - me.x, who.y - me.y), key: '' }, who, me);
       const at = then.go || then.drive || then.photo;
       return { text: then.goal || '', m: at ? Math.hypot(at[0] - me.x, at[1] - me.y) : null, key: then.key || '' };
     }
@@ -155,6 +169,16 @@ window.OEWalkTalk = (function () {
       return el;
     }
     const fade = (el, v) => { if (el && el._o !== v) { el._o = v; el.style.opacity = v; } }; // (written only when it changes: a style set each frame is a style pass each frame)
+    // whether someone's head is in the player's sight (ctx.seen: no wall, deck or floor between the camera and it), asked
+    // again every eighth frame and kept between: a ray through the city's solids each frame for each mark is not free
+    const sightOf = new Map();
+    function sight(id, n) {
+      if (!ctx.seen) return true;
+      let s = sightOf.get(id);
+      if (!s) sightOf.set(id, s = { ok: false, n: 0 });
+      if (--s.n <= 0) { s.ok = ctx.seen(n.x, n.y, (n.z || 0) + 1.6); s.n = 8; }
+      return s.ok;
+    }
     function draw(hide) {
       const me = ctx.here(), ids = new Set();
       for (const s of people) { ids.add(s.npc); for (const p of s.parts) if (p.npc) ids.add(p.npc); }
@@ -167,7 +191,7 @@ window.OEWalkTalk = (function () {
         if (!w || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; }
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
-        if (!p) { fade(e, '0'); continue; }
+        if (!p || !sight(id, n)) { fade(e, '0'); continue; }
         const k = w.kind;
         if (e._k !== k) { e._k = k; e.dataset.k = k; }
         const name = d < NAME_M ? `${first(n.name)}${n.role ? ` · ${String(n.role).replace(/\s*[　-鿿＀-￯].*$/, '')}` : ''}` : '';

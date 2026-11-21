@@ -1787,6 +1787,27 @@ A phone with the room climbs to the full set in two visits; one without stays wh
 carries `prev_lv`, and the load's last step is `held` once a level has been held, so the owner's phone says which
 level it lives at.
 
+**On the story's page none of this ran** until 21 November 2026. `quality.js` read the map from the address alone
+(`#play-shibuya`), and the story's page has nothing after the `#`: its deaths were written and never read, so a phone
+the system had killed loaded the same set again, and the minutes it held never let it climb. The owner's iPhone that
+evening (telemetry, app 0.1.137): the context lost 35 s in, during the opening's shot from above; the page reloaded at
+level 2 and was killed at `built` 12 s later; Safari's own reload at level 2 again took 139 s to get in. Now:
+
+- the page names its map (`<html data-map="shibuya">`), which `quality.js` reads where the address has none;
+- a lost WebGL context on a phone is a death at its level too, counted as it is lost (`quality.js` `lost`, once a page,
+  asked by `telemetry.js` `noteLost` and by `glcare.js`, which works with the telemetry off): on a phone it is the GPU's
+  memory run out, and the reload makes room and loads a level lighter. A loss while the tab is put away is not counted (the tab in front took the memory), and the page does not reload until it is seen:
+  a phone keeps every tab's WebGL in one GPU process, and that evening a tab of the story in the background lost its
+  context, reloaded and built the whole map beside the tab being played, which then lost its own;
+- once `glcare.js` has given up, the frames hold: a restored context that is not rebuilt drew walls whose arrays the
+  phone had let go of, and three.js threw (`null is not an object (evaluating 'r.byteLength')`);
+- the climb stops at level 2 (`TOP`), the set the budget is measured at: at frame 5 a phone at level 2 holds 269 of
+  its 270 MB (issue 105), and level 1 keeps pictures at 2048 where level 2 keeps 1024. It goes up when a fuller set is
+  measured within the budget there.
+
+`tools/glcare_phone.js` plays all of it as a phone (the levels from the notes, a loss with the tab put away, a loss
+seen), and fails on the code before.
+
 | Level | Buildings whole / simplified / skyline from | Largest picture | Sun's shadow map | Signs / NPC pictures | Aerial tiles of their own | Scanned walkers | Fetched ahead |
 |---|---|---|---|---|---|---|---|
 | 0 | 500 m / 1.5 km / 25 m | 2048 | 2048 | 1024 / 512 | 6 | 8 | all |
@@ -2469,3 +2490,33 @@ Each lands by itself with its beats' numbers before and after, and the budgets c
 2. `python3 tools/slo_report.py --posthog --days 3`: "the levels by release" sets each version's frame rate, slow
    frames, GPU and script time, draws, triangles and passes side by side, by device; a release is better when its
    phone rows show fewer slow frames at the same or a higher governor scale, and no `gl_lost`.
+
+### The depth of field in one pass (issue 130, the first cut)
+
+A conversation's shot, the camera raised, a print and the flight blur by depth (`atmosphere.js` `camFx`; a third of a
+play's stills). With it on, the frame drew the scene, the occlusion and the bloom together into one full-size
+half-float target (`lens.js` `merge`), blurred that into a second, and the lens read the second: two full-size passes
+and two full-size targets more than a frame without it, and the targets, made at the first conversation, were kept
+for good.
+
+Now the blur reads the scene itself (`camFx.merged`): each tap is rolled off as the merge rolled it off and shaded by
+the occlusion (the pixel's own with the depth-aware upsample; a neighbour's as the occlusion's texel has it, which
+under a blur reads alike), and the bloom's sum, soft already, is added after the blur. One pass, one target; a pixel
+in focus is what the merge made it. Eight seconds after the last frame that needed it the target is let go. Any other
+tail (the opening's animated lens, a film's own pass) draws as before.
+
+`tools/dof_compare.js` holds the walk at 19:30 in photo mode and draws the same frame both ways
+(`composer.camFxPasses`, or `?camfx=two` on the address):
+
+| the same held frame | passes | pixels shaded, canvases | full-size targets | GPU memory while on | after |
+|---|---|---|---|---|---|
+| a phone (760 x 1644, the low tier), before | 13 | 4.29 | 2 | 260.7 MB | 260.7 MB (kept) |
+| after | 12 | 3.29 | 1 | 244.0 MB | 241.7 MB (let go) |
+| a desktop (1440 x 900, the high tier), before | 19 | 6.17 | 2 | 1104 MB | kept |
+| after | 18 | 5.17 | 1 | 1084 MB | let go |
+
+The picture: on the phone's page the two ways differ by 0.93 levels of 255 on average, where the old way drawn twice
+differs from itself by 0.92 (the film's grain); the largest difference of any channel is 17. On the desktop's page
+4.6 against 3.7 (the screens play on between the two draws). Stills of both are side by side in the branch's report.
+Measured on a session's machine (the counts and the megabytes are the page's own; the milliseconds a full-size pass
+costs an iPhone or an M3 are for `?perf` and the telemetry to say).

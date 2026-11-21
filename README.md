@@ -84,9 +84,10 @@ A commit on main is published once the checks pass on it (`.github/workflows/che
 `.github/workflows/pages.yml`): `web/` goes to GitHub Pages, and the branch `live` moves to the commit,
 which Vercel's production deploys (`vercel.json`). A main the checks fail is not published. Each
 deploy gets a version: the major.minor in `VERSION` plus the workflow's run number (`0.1.42`),
-written with the commit and the build time to `web/version.json` and tagged. Both deploys stamp the page
-(`tools/stamp.js`): every address it asks for carries the hash of its file, so one page load is of one commit
-whatever a browser kept from the one before (docs/CHECKS.md, "A load is of one commit").
+written with the commit and the build time to `web/version.json` and tagged. The Credits screen
+shows it (`web/version.js`), with a link to the commit. Both deploys stamp the page (`tools/stamp.js`): every
+address it asks for carries the hash of its file, so one page load is of one commit whatever a browser kept from
+the one before (docs/CHECKS.md, "A load is of one commit").
 
 ## The world before
 
@@ -103,13 +104,21 @@ so at its top.
 
 ## Data and licences
 
+The page says this itself: its Credits screen (the title's menu, the pause menu, the story's last card;
+`web/credits.js`) shows the map's sources as the pipeline wrote them (`web/data/shibuya/scene.json`
+`sources`), the third-party works it ships with their licences (`web/credits.json`), what it measures
+with a switch for it, and its version. `tools/credits_check.py` holds the list, the licence texts and
+this section together.
+
 - **Buildings, land use, water, roads, trees:** Overture Maps Foundation, which is OpenStreetMap
   contributors (ODbL) and Microsoft ML Buildings (ODbL). A derived database must stay under ODbL.
 - **Building heights and massing:** MLIT Project PLATEAU, Tokyo 23 wards LOD2 building models
   (CC BY 4.0; 出典：国土交通省 PLATEAU), read as the vector tiles published by indigo-lab (MIT).
 - **Terrain:** Geospatial Information Authority of Japan (GSI), Fundamental Geospatial Data DEM5A,
   5 m airborne laser survey, bare earth; the 10 m DEM where 5A is absent (GSI terms of use).
-- **Aerial photographs:** GSI seamless photographs (GSI terms of use, source attribution).
+- **Aerial photographs:** Tokyo Metropolitan Government, Digital Twin project: the 2023 aerial survey's
+  ortho photographs at 0.2 m (CC BY 4.0), through `pipeline/fetch_tokyo_ortho.py`; outside the map's
+  frame, GSI seamless aerial photographs (GSI terms of use, source attribution; 出典：国土地理院).
 - **Landmarks:** modelled in code from published dimensions and checked against photographs:
   SHIBUYA SKY (229 m), the scramble's screens at their operators' published sizes, Yoyogi National
   Gymnasium from OpenStreetMap and Tange's drawings. Signs, screens and shop fronts are indicative.
@@ -130,13 +139,31 @@ so at its top.
 - **Vehicles, trains and trees:** modelled from code in this repository (`blender/build_vehicles.py`,
   `build_trains.py`, `build_railstock.py`, `build_trees.py`), with no third-party assets.
 - **Surfaces:** Poly Haven's CC0 textures for the landmarks' tiled PBR materials
-  (`pipeline/fetch_pbr.py`).
+  (`pipeline/fetch_pbr.py`; `web/assets/pbr/LICENSE-PolyHaven.txt`); ambientCG's CC0 PBR sets for
+  the hero level's surfaces (`blender/hero_kit.py`, the list in [docs/HERO.md](docs/HERO.md)) and for
+  the trees' bark near the camera (`web/assets/trees/bark/`, `blender/build_trees.py`).
+- **Music and sound:** written for Blue Hour and synthesised with Web Audio by the page's own code
+  (`web/game/music.js`, `web/game/audio.js`); there are no recordings and no samples. The one sound
+  file, `web/assets/story/late/cue.mp3` (the loading screen's music), is eight bars of that same
+  score rendered offline by `tools/load_cue.js` and encoded to MP3, so it has no third-party source
+  ([docs/SOUND.md](docs/SOUND.md)).
+- **Live weather** (the walk's "now" only): Open-Meteo (CC BY 4.0).
 - **Water:** the wave spectrum and FFT are ported from Tidewater by Daniel Greenheck
   (github.com/dgreenheck/tidewater, MIT, © 2026 DRG Software Solutions LLC); its licence notice is
   at the top of `web/water.js`.
-- **3D library:** three.js r186 (MIT) and three-mesh-bvh (MIT), vendored in `web/vendor`.
-- **Fonts:** Google Fonts under the SIL Open Font License, for the interface and for the lettering
-  on signs, plaques and ema (listed in `cities/shibuya/city.json` `sources.fonts`).
+- **3D library:** three.js r186 (MIT), three-mesh-bvh 0.9.16 (MIT) and meshoptimizer's decoder (MIT),
+  vendored in `web/vendor`, each beside its licence (`web/vendor/three/LICENSE`,
+  `web/vendor/three-mesh-bvh/LICENSE`, `web/vendor/meshoptimizer/LICENSE.md`).
+- **Fonts:** Google Fonts under the SIL Open Font License, for the interface
+  (`web/assets/fonts/`, with each font's copyright line and the licence's text in
+  `web/assets/fonts/OFL.txt`) and for the lettering on signs, plaques and ema (listed in
+  `cities/shibuya/city.json` `sources.fonts`).
+- **Measurements:** the page counts visits and measures how it runs (load times, frame rate, errors,
+  the kind of device, how far the story was played) to find where it is slow or broken; the events go
+  to PostHog (EU) under a random id kept in the browser, with no name, account or cookie
+  (`web/telemetry.js`, [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)). Do Not Track and Global
+  Privacy Control switch it off, and so does the switch on the Credits screen, which also removes
+  the id.
 
 No licence has been chosen for the code yet. Until one is added, the default copyright applies.
 
