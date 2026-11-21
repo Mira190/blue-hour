@@ -240,7 +240,7 @@ window.OpenEarthGame = async function game(cityId) {
     root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) { ms.push([o, o.layers.mask]); o.layers.set(30); } });
     root.visible = true;
     const put = () => { root.visible = was; for (const [o, m] of ms) o.layers.mask = m; };
-    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
+    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { late: true, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
   };
   // the weather: dry, overcast, drizzle or rain, as the city's climate brings it for the date (weather.js)
   // a far land that reaches past the default far plane (Kamakura's, out to Mount Fuji at 70 km): the camera takes it in

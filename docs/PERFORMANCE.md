@@ -2235,7 +2235,10 @@ district), so its stills were not taken again.
 
 **A budget** (`tools/mem_check.js`, run by `tools/check.sh mem`): after the phone, the story is opened as a desktop to
 its title and fails if the loader's log says more than **140 MB** of vertex buffers were sent (MEM_DESK), or if the
-map does not come back whole under the player after a trip to the far corner. `DESK=0` leaves it out.
+map does not come back whole under the player after a trip to the far corner. `DESK=0` leaves it out. The loader's
+set is its own line (`buffers:`); a hero level's model comes behind the title, a minute or two later on a software
+renderer, and its upload is logged apart (`late buffers:`) and listed, not counted: counted with the loader's, the
+same page read 130, 142 or 156 MB by how long the check went on watching it (issue 159).
 
 **Not checked:** a real GPU, Safari, WebGPU, a mid laptop's time to the title. Every number here is Chromium under
 llvmpipe.
