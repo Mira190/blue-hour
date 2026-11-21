@@ -525,6 +525,19 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+- Whether the words on the picture can be read: `tools/legible.js`, by hand after a change to the story's goal, its
+  hint, what is said over the picture, the finder's words or their styles (it is not a target either: it lays out the
+  same recordings). Each screen a play wrote down (`UI_DUMP=dir`) is laid in with the page's stylesheets and no game
+  over pale paving at dusk (#cbc6d0), over white, and over the picture the still was of where the play kept it
+  (`BARE=regex` on `tools/story_play.js` saves the canvas alone in `out/bare`; `BARE_DIR=` here). Every line is
+  measured where a letter is read: the letters are found as what differs between the screen and the same screen with
+  its glyphs left out, and the contrast is the letter's colour against what lies under it and for two pixels round
+  each stroke, backing and shadows drawn. It fails a line under 4.5:1 on the paving or the picture, or under 3:1 on
+  white, and prints the least of each kind of words. Before issue 114 the goal measured 2.9:1 on the paving and its
+  hint 2.3:1; after, 6.2:1 and 5.5:1, and 1949 lines on 226 screens of frames 1, 2, 5 and 6 (a desktop and a phone)
+  pass. `tools/story_play.js` itself now fails a play where two lines are said over the picture at once, and one
+  where the dialogue, the goal or a slip is still drawn with the log open; `LOGAT=n LOGSECS=5` opens the log after
+  frame n and takes a still of it each second.
 - The Credits screen: `tools/credits_shot.js`, by hand after a change to `web/credits.js`, `credits.css`, `credits.json`
   or telemetry's switch. On a desktop's page (1440x900) and a phone's (390x844, by touch) it opens the Credits from the
   title's menu (by the keys on the desktop) and from the pause menu, and fails a screen without the map's sources, the
