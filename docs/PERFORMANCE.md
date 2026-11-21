@@ -2074,6 +2074,33 @@ On a phone the district answers it by building less: Shibuya's walking model 762
 roads 221 -> 82; Tokyo's 2,445 -> 1,655, 800 -> 364 and 291 -> 81 (the table under "A phone's district").
 
 
+### The speaking cast's faces (issue 12)
+
+Faces that move cost memory and vertex work, so they are given only where a face is seen to speak:
+
+- **Who has them.** The characters who speak to the player (`pipeline/fetch_rocketbox.py` `face_cast`: the story's
+  people, the NPCs a frame meets and the walk's talkers; and Kagami, whom the reverse shot sees): 13 NPCs and the two
+  Kagamis. Every other model has no morph targets. The far crowd's copy of a speaking character the crowd also wears
+  (Yuna, Taro, Riko) takes the face's mesh as before (`pipeline/crowd_cast.mjs`).
+- **Only what is used.** Fourteen shapes of HeadBox's 176 (`build_people.py` `FACE_KEYS`): each eye's or side's pair summed
+  into one, positions only (no normal or tangent targets). The face is a mesh of its own (the head and the lashes), so the
+  body carries none: 1,755 to 2,447 vertices a face. The files grew by 10 to 70 kB.
+- **Only the faces in play cost the GPU.** three.js keeps a mesh's shapes as a float texture (16 bytes a vertex a shape, 0.4
+  to 0.55 MB a character), made the first time it is drawn with them and kept as long as its geometry. So every face mesh
+  is drawn from a still geometry (the same buffers without the shapes: the program the crowd's faces use, people.js
+  `ready` calls `face.js` `prepare`), and a face chosen to move is given a live geometry with the shapes (its own small
+  copies of the buffers), disposed, texture and all, when it is let go (`face.js` `live`). The crowd's copies of a speaking
+  character are never chosen and stay still. With every speaking character's texture made at once, the phone measured
+  271 MB against its 270; with only the faces in play, 252 to 253.
+- **Only the nearest animated.** `game.js` `faceChoose` poses the face of whoever is saying the line on screen (or whom the
+  talk is with while a question waits), the player's in a talk or with the camera within 3.5 m of it (from the chase view
+  it is the back of a head), and the nearest one other within 8 m of the camera on a phone (two within 14 m on a desktop).
+  The first time a character's face moves its program with shapes is compiled; the nearest-within-reach rule usually
+  brings that on as the player walks up, before the talk's cut.
+- **Measured** (`tools/mem_check.js`, an iPhone on the low tier, November 2026, at `tools/check.sh`'s spot by the river):
+  main without the faces 269 MB of GPU at its peak; with every face drawn moving at once 271, with the player's face always
+  moving 270 (over the 270 budget); as above, the same as without.
+
 ## A desktop's map round the player (issue 20)
 
 The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the

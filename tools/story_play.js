@@ -348,6 +348,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     }
     if (s.dlg) {
       { const who =await p.evaluate(() => ((document.getElementById('gd-name') || {}).textContent || '').replace(/[^A-Za-z]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 24)); await mark(s, `said-${s.phase}-${s.beat}${who ? `-${who}` : ''}`); }
+      // (the speaker's face moves while they speak: web/game/face.js, issue 12; a voice with nobody in the shot is not asked)
+      for (let k = 0, f = null; k < 4 && (!f || !f.on); k++) { if (k) await new Promise(r => setTimeout(r, 300)); f = await p.evaluate(() => { const g = window.__game, sp = g && g.talkCam && g.talkCam.talk && g.talkCam.talk.speaker; if (!sp || !g.faces) return null; for (const [r, o] of g.faces()) if (o.talk) return { on: true, n: Object.values(r.face.state.shapes).filter(x => x > 0.01).length }; return { on: false, name: sp.name }; });
+        if (!f) break; if (f.on) console.log(`  the face moves (${f.n} shapes on)`); else if (k === 3) console.log(`  NOTE frame ${s.fi + 1}: ${f.name}'s face does not move while they speak (a stand-in still loading, or no face: tools/face_check.js fails it)`); }
       // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
       if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
