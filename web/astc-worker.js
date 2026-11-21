@@ -16,6 +16,7 @@ self.onmessage = e => {
     g.drawImage(bitmap, 0, 0, w, h);
     const px = g.getImageData(0, 0, w, h).data, alpha = !self.OEAstc.opaque(px), S = self.OEAstc.stats;
     cv.width = cv.height = 0;
+    if (alpha) self.OEAstc.bleed(px, w, h); // (what the canvas handed back black where nothing shows, given its neighbours' colour)
     S.reset();
     const top = self.OEAstc.encode(px, w, h, alpha), db = S.db(), adb = S.alphaDb();
     if (db < floor || (alpha && adb < alphaFloor)) { self.postMessage({ id, keep: true, bitmap, db, adb }, [bitmap]); return; }
