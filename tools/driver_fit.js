@@ -32,7 +32,7 @@ const [,, city = 'shibuya'] = process.argv;
       C.place(g.player.x, g.player.y, g.player.z + 50, 0);
       for (const n of names) {
         if (!lib.tpl[n]) { out.push({ model, n, missing: true }); continue; }
-        for (const seat of ['driver', g.KEEP === 'left' ? 'rear_left' : 'rear_right']) {
+        for (const seat of ['driver', g.rideSeat({ C })]) { // (and yours, as a ride seats you: game.js rideSeat)
           const rig = OEPeople.person(lib, OEPeople.randomLook(lib, n, (g.G.crowd || {}).style));
           C.sit(rig, seat);
           const room0 = C.clearance(rig, seat);
