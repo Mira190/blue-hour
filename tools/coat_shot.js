@@ -50,14 +50,14 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStan
 floor.rotation.x = -Math.PI / 2; scene.add(floor);
 // three of him: near, a few metres off and across the square, each facing the camera (he looks along +x)
 const { clone } = await import('three/addons/utils/SkeletonUtils.js');
-const views = [[1.3, 0], [4.5, 1], [12, 2]];
+const views = [[2.2, 0], [5, 1], [12, 2]];
 const third = H / 3;
 for (const [d, k] of views) {
   const m = k ? clone(g.scene) : g.scene;
   m.rotation.y = -Math.PI / 2;
   scene.add(m);
   const cam = new THREE.PerspectiveCamera(50, W / third, 0.05, 100);
-  cam.position.set(0, 0.62, d); cam.lookAt(0, 0.45, 0);
+  cam.position.set(0, 0.7, d); cam.lookAt(0, 0.5, 0);
   const y = (2 - k) * third;
   renderer.setViewport(0, y, W, third); renderer.setScissor(0, y, W, third);
   renderer.render(scene, cam);
