@@ -118,15 +118,19 @@ const FPS = +(process.env.FPS || 24);
       }
       // and the trees: how near the camera comes to a crown (its foot, how high its lowest leaves hang, how far out it
       // reaches and how high its top is, as web/trees.js draws it); a crown close under a low camera fills the frame
+      // (a crown as an ellipsoid between its lowest leaves and its top, as wide as it reaches: inside it the lens is in the
+      // leaves; near it, it counts only if it is ahead of the lens, within 60 degrees of where it looks)
       let tree = { d: Infinity };
       const T = G.Wd && G.Wd.trees, tr = T ? T.trunks() : [], cw = T && T.crowns ? T.crowns() : [];
       for (let j = 0; j <= 60; j++) {
-        const q = o.sample(s, j / 60), x = q.pos.x, y = -q.pos.z, z = q.pos.y;
+        const q = o.sample(s, j / 60), x = q.pos.x, y = -q.pos.z, z = q.pos.y, lx = q.look.x - q.pos.x, ly = -q.look.z + q.pos.z, lz = q.look.y - q.pos.y, ll = Math.hypot(lx, ly, lz) || 1;
         for (let i = 0, c = 0; i < tr.length; i += 4, c += 3) {
           const h = Math.hypot(tr[i] - x, tr[i + 1] - y);
           if (h > 60) continue;
-          const lo = tr[i + 2] + cw[c], hi = tr[i + 2] + cw[c + 2], dz = z < lo ? lo - z : z > hi ? z - hi : 0, d = Math.hypot(Math.max(0, h - cw[c + 1]), dz);
-          if (d < tree.d) tree = { d, k: j / 60, at: [Math.round(tr[i]), Math.round(tr[i + 1])], top: Math.round(hi) };
+          const lo = tr[i + 2] + cw[c], hi = tr[i + 2] + cw[c + 2], cz = (lo + hi) / 2, rz = Math.max(0.5, (hi - lo) / 2), rr = Math.max(0.5, cw[c + 1]);
+          const e = Math.hypot(h / rr, (z - cz) / rz), d = e <= 1 ? 0 : (e - 1) * Math.min(rr, rz);
+          const dx = tr[i] - x, dy = tr[i + 1] - y, dz = cz - z, dl = Math.hypot(dx, dy, dz) || 1, ahead = (dx * lx + dy * ly + dz * lz) / (dl * ll) > 0.5;
+          if ((d === 0 || ahead) && d < tree.d) tree = { d, k: j / 60, at: [Math.round(tr[i]), Math.round(tr[i + 1])], top: Math.round(hi) };
         }
       }
       res.push({ id: s.id, type: s.type, clear: +lo.toFixed(1), at: +at.toFixed(2), where, z: [Math.round(bot), Math.round(top)], tree });
