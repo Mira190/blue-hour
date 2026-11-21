@@ -1318,7 +1318,7 @@
                 "Taro's up there most nights with his tripod, by SKY EDGE. Say hello from me."
               ],
               "then": {
-                "up": 200,
+                "up": 238,
                 "goal": "Up to the roof: the lift is behind Yuna",
                 "next": "Find Taro on the roof, by SKY EDGE"
               }

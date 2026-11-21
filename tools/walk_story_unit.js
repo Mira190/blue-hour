@@ -62,6 +62,9 @@ Object.assign(me, { x: 368, y: -1004, z: 15, mode: 'foot' }); if (!T.photo({ z: 
 talkTo('shun', 'back to Shun');
 // 4. Forty-five floors: up on the roof, and the next part is Taro's
 talkTo('yuna', 'Yuna');
+// (out of the lift at 46F, under the roof: not up yet, the deck is 9 m higher, up the escalator)
+Object.assign(me, { x: 530.5, y: -1077, z: 232.8, mode: 'foot' }); T.tick(0.1, true);
+{ const e = T.errand(); if (!/Up to the roof/.test(e && e.text)) fail(`out of the lift at 46F the corner already says "${e && e.text}" (the roof is the deck, 241.8 m)`); }
 Object.assign(me, { x: 495, y: -1110, z: 241.8, mode: 'foot' }); T.tick(0.1, true);
 { const e = T.errand(); if (!/Taro/.test(e && e.text)) fail(`up on the roof the corner says "${e && e.text}"`); }
 talkTo('taro', 'Taro for Yuna');
@@ -69,7 +72,9 @@ talkTo('taro', 'Taro for Yuna');
 talkTo('taro', 'Taro');
 if (T.photo({ z: 243, sees: () => true })) fail('a photograph from the roof on foot was taken for the helicopter\'s');
 Object.assign(me, { x: 370, y: -1010, z: 140, mode: 'heli' }); if (!T.photo({ z: 150, sees: () => true })) fail('a photograph from the helicopter over the crossing did not meet what Taro asked');
-{ const e = T.errand(); if (!/Back to Taro/.test(e && e.text)) fail(`after the aerial photograph the corner says "${e && e.text}"`); }
+{ const e = T.errand(); if (!/Back to Taro/.test(e && e.text)) fail(`after the aerial photograph the corner says "${e && e.text}"`);
+  // (Taro on the roof, 100 m over the helicopter: up, and the metres through the air, not a bearing on the map)
+  else if (e.lvl !== 'up' || e.dir != null || !(e.m > 100)) fail(`Taro on the roof from the helicopter: ${JSON.stringify({ lvl: e.lvl, dir: e.dir, m: e.m })} (want up, no bearing, over 100 m)`); }
 talkTo('taro', 'back to Taro');
 // the end
 const c = T.count();

@@ -63,7 +63,7 @@
  },
  "files": {
   "buildings.bin": 884286,
-  "game.bin": 225409,
+  "game.bin": 225410,
   "landmarks.bin": 320227,
   "places.bin": 83701,
   "scene.bin": 32149,
@@ -71,7 +71,7 @@
   "vis.bin": 234052,
   "woods.webp": 191728
  },
- "bytes": 1976487,
- "whole_bytes": 4763216,
- "sha256": "44aa0bfb64f7a34242ef249576d0fe3c76f9bdaa1c60aba6c48030aa83d320ec"
+ "bytes": 1976488,
+ "whole_bytes": 4763214,
+ "sha256": "41db333eafb4f2d4228962424e5d76e47603c78ab6427d5eedcfcc8978b3a8c2"
 }

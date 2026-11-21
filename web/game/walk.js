@@ -171,10 +171,10 @@ window.OEWalk = (function () {
       // your car's button on foot; and what someone on the walk asked of you (walktalk.js), with the metres to it
       if (carBtn && carBtn.hidden !== (r.mode !== 'foot')) carBtn.hidden = r.mode !== 'foot';
       const er = ctx.errand ? ctx.errand() : null;
-      const q = er && er.text ? `<span>${esc(er.text)}</span>${er.m != null ? `<i>${er.dir != null ? '<b class="dir" aria-hidden="true"></b>' : ''}${er.m < 950 ? `${Math.max(5, Math.round(er.m / 5) * 5)} m` : `${(er.m / 1000).toFixed(1)} km`}</i>` : ''}${er.key && !ctx.touch ? `<kbd>${esc(ctx.key(er.key))}</kbd>` : ''}` : '';
+      const q = er && er.text ? `<span>${esc(er.text)}</span>${er.m != null ? `<i>${er.dir != null ? '<b class="dir" aria-hidden="true"></b>' : er.lvl ? `<b class="dir ${er.lvl}" aria-hidden="true"></b>` : ''}${er.m < 950 ? `${Math.max(5, Math.round(er.m / 5) * 5)} m` : `${(er.m / 1000).toFixed(1)} km`}</i>` : ''}${er.key && !ctx.touch ? `<kbd>${esc(ctx.key(er.key))}</kbd>` : ''}` : '';
       if (force || q !== shown.q) { const e = hud.querySelector('.q'); e.innerHTML = q; e.hidden = !q; e.classList.toggle('next', !!(er && er.next)); shown.dir = null; } // (next: who has the story to come, before it is begun)
       // the way to it, an arrow beside the metres turned as you turn (a compass needle's job, not a map's: up is ahead)
-      if (er && er.dir != null && ctx.yaw) {
+      if (er && er.dir != null && ctx.yaw) { // (someone on another level: the arrow stands up or down, story.css, and does not turn)
         const deg = Math.round(((er.dir - ctx.yaw()) * 180 / Math.PI % 360 + 540) % 360 - 180);
         if (shown.dir == null || Math.abs(deg - shown.dir) >= 3) { const a = hud.querySelector('.q .dir'); if (a) a.style.transform = `rotate(${deg}deg)`; shown.dir = deg; }
       }

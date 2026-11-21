@@ -61,21 +61,29 @@ window.OEWalkTalk = (function () {
       return null;
     }
     // the corner's line: what the story under way asks, with the metres to it; before a story is begun, who has it
+    // the metres and the way to someone for the corner: on the map's bearing where they stand on your level, and where they
+    // do not (Yuna at the lift's foot, 230 m under SHIBUYA SKY's roof), up or down and the metres through the air, not a
+    // bearing and a distance on the map that would say she is 25 m off
+    function toward(me, n) {
+      const dz = (n.z || 0) - (me.z || 0), m = Math.hypot(n.x - me.x, n.y - me.y);
+      if (Math.abs(dz) > 6) return { m: Math.hypot(m, dz), dir: null, lvl: dz > 0 ? 'up' : 'down' };
+      return { m, dir: Math.atan2(n.x - me.x, n.y - me.y) };
+    }
     function errand() {
       if (ev && (ev.phase === 'asked' || ev.phase === 'met')) { // (a favour asked of you on the street: the corner's while it lasts)
         const me = ctx.here(), n = ctx.npc(ev.e.people[0]);
-        if (n) return { text: ev.phase === 'met' ? ev.e.back : ev.e.goal, m: Math.hypot(n.x - me.x, n.y - me.y), dir: Math.atan2(n.x - me.x, n.y - me.y), key: ev.phase === 'asked' ? 'O' : '' };
+        if (n) return Object.assign({ text: ev.phase === 'met' ? ev.e.back : ev.e.goal, key: ev.phase === 'asked' ? 'O' : '' }, toward(me, n));
       }
       const s = current();
       if (!s) return null;
-      const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part)), to = who ? Math.hypot(who.x - me.x, who.y - me.y) : null;
+      const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part)), tw = who ? toward(me, who) : {};
       // (dir: the way to it on the map, a bearing from north, for the corner's arrow)
-      const dirTo = (x, y) => Math.atan2(x - me.x, y - me.y), toWho = who ? dirTo(who.x, who.y) : null;
-      if (k.part === 0) return who ? { text: `${first(who.name)} has something to say`, m: to, dir: toWho, key: '', next: true } : null;
+      const dirTo = (x, y) => Math.atan2(x - me.x, y - me.y);
+      if (k.part === 0) return who ? Object.assign({ text: `${first(who.name)} has something to say`, key: '', next: true }, tw) : null;
       const then = s.parts[k.part - 1].then || {};
       // (sent on to someone, or what was asked done: the metres are to the one who speaks next)
-      if (then.talk && who) return { text: then.goal, m: to, dir: toWho, key: '' };
-      if (k.met && who) return { text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, m: to, dir: toWho, key: '' };
+      if (then.talk && who) return Object.assign({ text: then.goal, key: '' }, tw);
+      if (k.met && who) return Object.assign({ text: then.next || `Back to ${first(who.name)}${then.back ? `, ${then.back}` : ''}`, key: '' }, tw);
       const at = then.go || then.drive || then.photo;
       return { text: then.goal || '', m: at ? Math.hypot(at[0] - me.x, at[1] - me.y) : null, dir: at ? dirTo(at[0], at[1]) : null, key: then.key || '' };
     }
@@ -287,7 +295,7 @@ window.OEWalkTalk = (function () {
       for (const [id, text] of who) {
         const n = ctx.npc(id);
         if (!n || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking || moving.has(id)) continue;
-        if (Math.hypot(n.x - me.x, n.y - me.y) > 18 || bClock - (barked[id] ?? -1e9) < 90) continue;
+        if (Math.hypot(n.x - me.x, n.y - me.y) > 18 || Math.abs((n.z || 0) - (me.z || 0)) > 6 || bClock - (barked[id] ?? -1e9) < 90) continue; // (not through a floor)
         bark(id, text);
       }
     }
@@ -323,7 +331,7 @@ window.OEWalkTalk = (function () {
         if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
         const far = w && w.kind === 'story' ? SEE_M : w && w.kind === 'event' ? 30 : 18;
-        if (!w || w.kind === 'wait' || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; }
+        if (!w || w.kind === 'wait' || d > far || dz > 6 || me.mode !== 'foot') { fade(el, '0'); continue; }
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
         if (!p) { fade(e, '0'); continue; }
