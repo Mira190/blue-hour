@@ -593,6 +593,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await drawAll(true); await p.evaluate(() => window.__game.story.shoot()); await drawAll(false); // (the photograph is the game's own picture of its canvas, taken as the shutter goes: of a frame drawn whole)
       await p.waitForTimeout(1300); await snap(`${s.fi + 1}-print-developing`); await p.waitForTimeout(1900); await snap(`${s.fi + 1}-print`); // (it develops: tonight, then the other year through it; the print in the hand, its postmark struck)
       { const src = await p.evaluate(() => { const P = window.__game.story.state.prints; return (P[P.length - 1] || {}).src || ''; }); const m = /^data:image\/(\w+);base64,(.*)$/.exec(src); if (m) fs.writeFileSync(`${out}/${s.fi + 1}-print-own.${m[1] === 'jpeg' ? 'jpg' : m[1]}`, Buffer.from(m[2], 'base64')); } // (the print itself, as the roll keeps it: on a slow renderer the still above may be taken after it has gone to the roll)
+      // (a frame spent that was not to be: the release refused twice, the second time spending it, and the play went on. Frame 3
+      // was spent so on a phone, its lamp not framed from where the player stood, and nothing failed)
+      { const q = await p.evaluate(() => { const P = window.__game.story.state.prints, q = P[P.length - 1]; return q ? { plain: !!q.plain, n: P.length } : null; }); if (q && q.n === s.fi + 1 && q.plain && +process.env.SPEND !== s.fi + 1) { errors.push(`frame ${s.fi + 1}: spent, and it was to be taken`); console.log(errors[errors.length - 1]); } }
       if (upto && s.fi + 1 >= upto) { done = true; break; } // (UPTO=n: stop after frame n's print)
     }
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)

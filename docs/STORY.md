@@ -779,9 +779,15 @@ once it has come up there: in the place, the camera raised, the lens turned onto
 go amber with *In the frame*, and then it is taken; a release pressed while it forms is held (*Hold it there*). On a
 phone held upright the lines were drawn for the screen, twice as tall as the print, and frame 2's box and stool, framed
 in their lower half, made the release ready while the print had the crossing and none of them (the owner's iPhone,
-November 2026). The last frame's two are judged in the print as well, not on the screen. `tools/story_play.js` tilts
-and turns the raised lens over each thing a step at a time and fails a step where the release is ready with less than
-nine tenths of the thing in the print.
+November 2026). The last frame's two are judged in the print as well, not on the screen. The raised camera comes up
+onto the middle of the thing and what stands with it, at its point's height, tilted where it must be so that its foot
+and its top are both in the print (`story.js` `subject` and `span`; `game.js`, the raise): raised on the pillar box
+alone, frame 6's board was off a phone's print, and raised on the red lamp of frame 3 from seven metres, its post's
+foot. On a screen narrower than three by two a frame's lens (`task.lens`) is seen through its own angle across the
+screen's width, the thing a little larger in a phone's finder than in a desktop's; it was 0.7 of the angle while the
+lines were drawn for the whole screen, and frame 1's board stood taller than the print's band. `tools/story_play.js`
+tilts and turns the raised lens over each thing a step at a time and fails a step where the release is ready with less
+than nine tenths of the thing in the print, and a frame not ready when raised onto its thing in its place.
 
 | Frame | Where | What the camera sees | Why it is there |
 |---|---|---|---|
