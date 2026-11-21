@@ -541,8 +541,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await p.evaluate(() => window.__game.story.raise(true));
-        const R = await p.evaluate(at => new Promise(r => { const g = window.__game, c = g.camera, V = window.THREE.Vector3, out = [], t0 = performance.now();
-          const f = () => { const d = c.getWorldDirection(new V()), q = new V(at[0], at[2], -at[1]).project(c); out.push({ t: performance.now() - t0, d: [d.x, d.y, d.z], q: [q.x, q.y, q.z] }); if (performance.now() - t0 < 2500 || out.length < 45) requestAnimationFrame(f); else r(out); };
+        // (one sample a frame of the game's: a phone's frames are capped at 30 a second, game.js PHONE_FPS, and the display's
+        // frames between them do not move the camera, so counted by the display's the raise was still coming up in "settle")
+        const R = await p.evaluate(at => new Promise(r => { const g = window.__game, c = g.camera, V = window.THREE.Vector3, out = [], t0 = performance.now(), D = window.__draw; let last = -1;
+          const f = () => { const n = D ? D.steps : out.length; if (n !== last) { last = n; const d = c.getWorldDirection(new V()), q = new V(at[0], at[2], -at[1]).project(c); out.push({ t: performance.now() - t0, d: [d.x, d.y, d.z], q: [q.x, q.y, q.z] }); } if (performance.now() - t0 < 2500 || out.length < 45) requestAnimationFrame(f); else r(out); };
           requestAnimationFrame(f); }), T.subject);
         const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180 / Math.PI;
         // (counted in frames, not the wall's time: the game moves 0.05 s a frame at most, so on a software renderer the raise's
