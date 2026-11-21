@@ -10,6 +10,7 @@
   window.__vt = {
     start() { vt = rNow(); virt = true; },
     step(ms) { vt += ms; const run = q; q = []; for (const cb of run) cb(vt); return run.length; },
+    stop() { virt = false; const run = q; q = []; for (const cb of run) rRAF(cb); }, // (real time again, as before start: a wait for something the page loads in its own frames)
     get on() { return virt; },
     get pending() { return q.length; },
   };
