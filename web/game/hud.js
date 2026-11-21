@@ -265,7 +265,7 @@ window.OEHud = (function () {
       next(true);
     }
     const hintFor = () => (cur.free ? '' : cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : '<kbd>E</kbd> or click to continue') : ''); // (a call's lines pass by themselves)
-    const readS = t => Math.max(2.4, Math.min(7.5, 1.4 + 0.045 * t.length)); // (a line held for as long as it takes to read, after it is typed)
+    const readS = t => Math.max(2.4, Math.min(7.5, 1.6 + 0.045 * t.length)); // (a line held for as long as it takes to read, after it is typed)
     function next(first, hand) { // (hand: passed by a key or a tap, not by the story or a check)
       if (!cur) return;
       if (!first && view > 0) { view--; return view ? recall() : present(); } // (stepping back: on is forward through what was said, to the line being said)
@@ -318,12 +318,17 @@ window.OEHud = (function () {
     function cut() {
       if (!cur) return false;
       const n = Math.max(1, Math.floor(cur.typed)), c = cur;
-      c.full = n < c.full.length ? `${c.full.slice(0, n).replace(/[\s,.;:]+$/, '')}—` : c.full; c.typed = c.full.length; // (said to its end: only gone) c.done = null; c.free = false; textEl.textContent = c.full; hint.innerHTML = '';
+      c.full = n < c.full.length ? `${c.full.slice(0, n).replace(/[\s,.;:]+$/, '')}—` : c.full; // (said to its end: only gone)
+      c.typed = c.full.length; c.done = null; c.cut = true; textEl.textContent = c.full; hint.innerHTML = ''; // (it goes, and is not read on)
       box.classList.add('cut'); clearTimeout(cutT); cutT = setTimeout(() => { if (cur === c) close(); }, 900);
       return true;
     }
+    // A line heard, not answered (a call said hands-free, opts.free; or npc.auto, a phone call or a message that holds the
+    // player): once it is whole it goes on by itself after the time it takes to read, so that the box never waits on a key
+    // nobody knew to press; a press still goes on at once. The office's first call sat on its first line for twenty-five
+    // minutes on a player's page (November 2026)
     function tick(dt) {
-      if (cur && cur.free && !view && cur.typed >= cur.full.length) { cur.t += dt; if (cur.t >= readS(cur.full)) next(false); return; } // (read: on to the next)
+      if (cur && !view && !cur.cut && (cur.free || cur.npc.auto) && cur.typed >= cur.full.length && !(cur.choices.length && cur.i >= cur.lines.length - 1)) { cur.t += dt; if (cur.t >= readS(cur.full)) next(false); return; } // (read: on to the next)
       if (!cur || view || cur.typed >= cur.full.length) return;
       const before = Math.floor(cur.typed);
       cur.typed = Math.min(cur.full.length, cur.typed + dt * 55);
@@ -340,7 +345,7 @@ window.OEHud = (function () {
     // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
     // (quiet: just closed. The press that passed the last line, or the one after it from a hand still passing lines, is not
     // also the next thing: E passes a line and gets you into a helicopter beside you, F passes one and is the shutter)
-    return { show, next, back, choose, tick, cut, get open() { return !!cur; }, get free() { return !!(cur && cur.free); }, get holds() { return !!cur && !cur.free; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    return { show, next, back, choose, tick, cut, quit: () => { if (cur) close(); }, get open() { return !!cur; }, get free() { return !!(cur && cur.free); }, get holds() { return !!cur && !cur.free; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts
