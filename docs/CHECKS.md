@@ -118,16 +118,19 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 `origin/main` (after a pass, at what changed since that pass):
 
 - a change to the page's code or data (`web/`, but for the files in the next line) or to the story in
-  `cities/shibuya/city.json` runs `static`, `story`, the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
+  `cities/shibuya/city.json` runs `static`, the story in its three parts (`story1`, `story2`, `story3`), the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
   the drivers, the cars and the crowd `ride`, the guide and his ways `guide`, and what a phone alone runs (its tier in
   `quality.js`, the tour's touch words in `onboard.js`, its district under `web/data/shibuya/d/`) the walk's phone page
   (`walk2`). In the sessions of 18 to 21 November the phone's page failed twice, both times beside the desktop's, and
   cost 9 of a run's 42 minutes; main's full tier plays both pages and `touch` (issue 95);
 - a change of models, pictures or sounds alone (`.glb`, `.webp`, `.png`, `.jpg`, `.avif`, `.ktx2`, `.mp3` and the like
   under `web/`) runs `static`, `look` and `mem`, not the story: such a file can change how the street looks and what a
-  phone holds, not where the story goes. Not so a hero level's model (`web/data/shibuya/hero/`: its ground meshes are
-  what everyone walks on), the guide dog's (his body's size is taken from it), a file removed, or a model that lost or
-  changed a name, a flag or an attribute the code can ask for (`tools/model_contract.py`): those run as code does;
+  phone holds, not where the story goes. Not so the guide dog's model (his body's size is taken from it), a file
+  removed, or a model that lost or changed a name, a flag or an attribute the code can ask for, or whose ground moved
+  (`tools/model_contract.py`; a hero level's ground meshes are what everyone walks on): those run as code does. The
+  people's models and their index (`web/assets/people/`) are behind their own contract (`tools/people_contract.py`,
+  with the static checks): a set that gives what the page asks of it is looked at and weighed, whatever its nodes
+  are called ([SEAMS.md](SEAMS.md));
 - a change to a check's harness runs the checks that require it (`tools/check_cache.py users`); of a module several
   share (`browser_watch.js`, `start_play.js`, `pin_clock.js`) the quickest of them, and on main all of them;
 - a change to the build or the plumbing (`pipeline/`, `blender/`, the builders' sources under `cities/`, `tools/`,
@@ -138,9 +141,12 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
   is not published. The branch's own change since the pass, or a file both sides changed, is routed as it would
   have been, file by file (until November 2026 one such file, even a doc, sent all of main's change through the
   story and the walk again). `CHECK_FULL=1` runs it all.
-- a browser check whose last pass in this clone read nothing that has changed since is not played again: its line says
-  `kept from its pass at <commit>` ("The router and the cache", below). After a fix to one check, a run plays that
-  check and whatever the fix touched, not the rest again.
+- a browser check whose last pass read nothing that has changed since, or nothing whose change can reach it, is not
+  played again: its line says `kept from its pass at <commit>` and why ("The router and the cache" and "Checks by
+  reach", below). The pass is this clone's, or main's where the clone has none ("Main's passes, shared"). After a fix
+  to one check, a run plays that check and whatever the fix reaches, not the rest again;
+- the browser checks play side by side, as many as the machine has cores and memory for (two on a session's
+  machine), and the static checks beside them ("The checks faster").
 
 **After landing: the full tier, on main, in GitHub Actions** (`.github/workflows/checks.yml`). Each
 push to main runs `CHECK_TIER=full tools/check.sh --plan` against the commit of the last run that
@@ -357,6 +363,112 @@ script in a clone of its own, with the static checks.
 same check: the story is seeded and its clock pinned, but which frame a load finishes in is the machine's. Such a
 function is rare (the count is of a whole play), and main's full tier plays everything after landing. A script the
 page evaluates from a string, and a page a page opens by itself, are not counted; the page has neither.
+
+## Main moved
+
+Fifteen sessions land on one main, most of them through `web/game/game.js`; each landing moved main under the others,
+and each of the others merged and checked again. What a branch owes when main moves, decided by `tools/check.sh` and
+printed with its reason:
+
+- A file that is main's as main has it runs the static checks only (the rule since November 2026, by files).
+- A file both sides changed is judged by its functions: main's lines, in functions the branch has not changed against
+  main, are main's. The branch's kept passes stand: `kept from its pass at ...: what changed since cannot reach it:
+  web/game/game.js: 3 changes main's`. Until issue 131 one such file sent the branch through the story and the walk again.
+- Main's lines in a function the branch changed too are the branch's to check, as its own change is.
+
+Measured on 21 November 2026: main moved three times while the first step of issue 131 was being landed; the last
+merge (seven files of main's, `web/game/people.js` among them) checked in 55 s, the static checks and the contracts.
+What stands behind this is unchanged: main's full tier plays main's change with the branch's once it lands, and only a
+commit it passes is published.
+
+### A merge queue, weighed
+
+GitHub's merge queue checks each queued pull request once, on a temporary branch holding main and those ahead of it
+in the queue (the `merge_group` event), and merges only what passed. It would move the branch-side question ("main
+moved: do I check again?") to the server, with an exact answer.
+
+- **It cannot be turned on here.** GitHub offers merge queues "in any public repository owned by an organization, or
+  in private repositories owned by organizations using GitHub Enterprise Cloud" (docs.github.com, "Managing a merge
+  queue"). This repository is owned by a personal account. Moving it to an organization is the owner's to decide.
+- **What it would cost.** The checks worth queueing on are the full tier: fourteen runners for up to twenty minutes,
+  for every landing, in order. At thirty landings a day that is a queue hours long unless landings are batched, and
+  a batch that fails is split and run again. Landing would also go through pull requests, where today a session
+  merges and pushes. A landing that takes a minute here would take twenty there.
+- **What it would buy.** Main never red. Today main can be red until the next landing fixes it (issue `main-red`),
+  and nothing red is published.
+
+Decided: not now. The same question is answered on the branch side by reach, in a minute, and the exact check runs
+after landing. If the repository moves to an organization, the queue to try is one that runs `tools/check.sh` with
+main's passes on `merge_group`, so that a queued change plays only what it reaches.
+
+## Main's passes, shared
+
+A session's machine is new: it has no pass of its own, and before issue 131 its first run of the checks played
+everything, 33 to 62 minutes, to learn what main's own run had already shown. Now each shard of main's full tier
+that passes leaves what a session's pass leaves (the files it read, by their git blob ids, and the functions it ran),
+and the workflow's last job pushes them to the branch `check-passes`: one small file a check, one commit, replaced
+every time; a shard a run did not play keeps its last pass. `tools/check.sh` fetches the branch (twenty seconds at
+most; `CHECK_SHARED=0` goes without) and, for a check this clone has no pass of, judges by main's: the lines main has
+changed since are main's, so what is left to reach the check is the branch's own change. A check kept so says `kept
+from its pass at main's <commit>`. This is Bazel's remote cache in small: the result of a test kept under what it
+read, on a store every machine can reach.
+
+The pass is of a runner's play, not this machine's. What a check runs is the page's script, the same on both; what
+differs is timing, and a function one machine's play reaches and the other's does not is the rule's known blind spot
+(above), covered by main's full tier after landing. The job that pushes the branch cannot fail the run, and nothing
+waits for it.
+
+## The checks faster
+
+Where a play's time went, measured on a session's machine (four cores, 16 GB, WebGL in software) on 21 November 2026:
+the whole story took 1,015 s, of which 534 s were the script of 8,197 frames not drawn, 107 s were 281 frames drawn
+between the stills (one in thirty), and 397 s were 187 stills at 2.1 s each. So two fifths of the play was drawing for
+pictures nobody looks at unless the play fails, and a tenth was drawing nothing looks at at all.
+
+- **No drawing where a check does not look.** On the fast tier the story takes no still and draws no frame between
+  them (`STILLS=0`, `DRAW=1000`); the photographs the story itself takes are drawn as ever. Where a still's frame is
+  counted against the beat's budget (issue 130) the frame is asked for whole all the same, dry: the page makes every
+  call of it and the counts are of the calls, and no draw or clear is passed on to the renderer. The walk and the
+  ride draw one frame in twenty (`tools/draw_skip.js`); the walk takes no still. `STILLS=1 DRAW=30 tools/check.sh
+  story3` plays a part with its pictures, and main's full tier plays them so, as the budgets were measured, with its
+  pictures in a failed run's artifacts. A still was also a wait: with none taken, the walk's photograph from the
+  helicopter was released before the lens had come to rest, and now waits for that.
+- **The story from frame n.** The parts start from a case left at a frame (`FROM`, `UPTO`: a state the game itself
+  saves and opens), as main's runners have played them since issue 51: `story1` frames 1 to 4, `story2` 5 and 6,
+  `story3` 7 and the last card. The fast tier plays the parts too, each kept or played by itself; the whole story in
+  one page (a case carried from frame 4 to 5 and from 6 to 7) is a shard of main's.
+- **Side by side.** A check's page takes one core for its script and the renderer's threads when it draws, and 5 to
+  6 GB with the map at a desktop's tier. Three side by side had one killed for memory; two play. `tools/check.sh`
+  runs as many lanes as half the cores and a sixth of the free gigabytes allow (`CHECK_LANES`), each with its own
+  server (its log is what its check read) and the renderer held to its share of the cores (`LP_NUM_THREADS`), the
+  longest check first; the static checks run beside them. A check that draws every frame starves beside another:
+  the walk took 29 minutes so, against 9 alone, which is why it draws one frame in twenty now.
+- **The clock.** The game under test already steps a twentieth of a second a frame at most, from seeded draws and a
+  pinned date; with nothing drawn a frame costs 60 to 80 ms of script, so the story's clock runs at 0.6 to 0.7 of the
+  wall's, and that is what a part's four to five minutes are. A virtual clock (Chromium's, or Playwright's
+  `page.clock`) would not shorten the script of a frame; a longer step would change what is played. The fixed wait of
+  1.2 s before a beat's still was tried at none (`MARKWAIT=0`): no shorter, the play waits on the game. So the next
+  gain here is in the game's own frame (the crowd, the skinning, the world's matrices), which a player gains too.
+- **The long checks to main.** The whole story, the walk's phone page, `touch`, `clip`, `gl` and the phone's budget
+  run on main's runners after landing, a runner each; a session plays what its change reaches.
+
+What the same change costs, before and after (a session's machine; "before" from the medians above):
+
+| Change | Before | After |
+|---|---|---|
+| Every check of a page change played (`story`, `walk1`, `ride`, `mem`, `look`, static) | 38 to 43 min | 31 min of checks in 16 min of the wall |
+| One function of `web/game/story.js` (routed to static, mem, story, walk1 and guide: 52 min on 21 November) | 51 min | 10 min at the median: the checks that ran it, side by side (from the passes' counts of 163 functions; 23 min where every part and the guide ran it) |
+| One function of `web/game/game.js` | 36 min | 8.5 min at the median, 16 at the worst |
+| Main moved, the branch's own change not reached | static only when no file was shared, else 33 min or more | 55 s |
+| A model or a people's set replaced, its contract kept | 4 to 6 min since the router of November; 35 to 40 before it | the same 4 to 6 min (static beside `look` and `mem`; `mem` is 250 s of it), and no longer the story when another change in the branch routes there |
+| A hero level rebuilt with its ground and names as they were | 33 min (played as code) | 4 to 6 min |
+| A fresh session's first run, the branch's change reaching one part of the story | 33 to 62 min | that part, and what else it reaches (main's passes) |
+
+The target of issue 131 was ten minutes for a typical change to one part, five for a model, one for main moving. The
+last is met; a model is at four to six, held there by `mem`'s own four minutes; a typical change is at the median
+of ten, and a change to the frame's own hot code (the crowd's step, the people's rigs: what every check runs) is
+sixteen, because it reaches every check and two play at a time. What would bring that under ten is a third lane
+(memory: a page lighter than 5 GB under the software renderer) or a cheaper frame.
 
 ## Unsteady steps
 

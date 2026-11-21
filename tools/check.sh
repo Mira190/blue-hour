@@ -518,7 +518,9 @@ rm -rf "$OUT/keep"
   echo "checks: ${said# }: about $(( (total + 30) / 60 )) min on this machine$([ "$L" -gt 1 ] && echo ", $L side by side")" >&2; }
 {
   t_static=$(date +%s)
-  if [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ]; then
+  # (the static checks beside the browser checks, on a session's machine: they take one core for a minute, which a run
+  # of a few minutes should not wait out first; a runner has them on a shard of their own)
+  if [ $static -eq 1 ] && [ "${CHECK_STATIC:-1}" != 0 ]; then (
     st voice voice - '^FAIL' python3 tools/voice_check.py
     st goals goals - '^FAIL' node tools/goals_check.js
     st pack pack "the packs up to date" '^FAIL' python3 pipeline/pack.py --check
@@ -544,9 +546,10 @@ rm -rf "$OUT/keep"
     st people people - '^FAIL|Error' python3 tools/people_contract.py
     st vendor vendor "three.js carries its fixes (an ImageBitmap made smaller sent unturned)" '^FAIL|Error' python3 pipeline/fetch_vendor.py --check
     echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"; echo "static $(( $(date +%s) - t_static )) $(date +%s)" >>"$HIST"
-  fi
+  ) & fi
+  [ -n "${CI:-}" ] && wait
   t_all=$(date +%s)
-  if [ "$L" -le 1 ]; then for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done
+  if [ "$L" -le 1 ]; then for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done; wait
   else
     # the passes kept first (they cost nothing), then the longest first, each in the lane that comes free
     order=$(for k in $KINDS; do is_in "$k" "$want" || continue; if kept "$k"; then echo "0 $k"; else echo "$(( 100000 - $(eta "$k") )) $k"; fi; done | sort -n | cut -d' ' -f2)

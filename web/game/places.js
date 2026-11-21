@@ -4,7 +4,7 @@
 //            areas either side you can walk to)
 //   spots    things to look at closely: E opens a few lines about them (a votive tablet's wish, a bathhouse's
 //            price list), one picked at random where the spot has many
-//   chatter  conversations you overhear as you pass, in bubbles over where they are said
+//   chatter  conversations you overhear as you pass, in bubbles over the heads of whoever stands there saying them
 // A spot with a "look" is a photo spot: E brings the camera in to look closer (closer(), below),
 // a metre from the thing, and you look along it (a shrine's ema rack, rail by rail).
 // The model viewer does not use it.
@@ -12,7 +12,7 @@
 window.OEPlaces = (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  function create({ G, W, camera, stage }) {
+  function create({ G, W, camera, stage, speakers = null }) {
     let seed = 4099; // (a seeded run for the line picked: the same caption on every run of a held clock, #420)
     const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const areas = G.areas || [], spots = G.spots || [], chatter = (G.chatter || []).map(c => Object.assign({ i: -1, t: 0, heard: -1e9 }, c));
@@ -70,7 +70,9 @@ window.OEPlaces = (function () {
     const tmp = new THREE.Vector3();
     function place(el, x, y, z) {
       tmp.copy(W(x, y, z)).project(camera);
-      const r = stage.getBoundingClientRect(), behind = tmp.z > 1;
+      // (behind the camera, or off the side of the screen: not shown. It was kept at the screen's edge wherever it was
+      // said, and so a line said behind your shoulder hung in the sky with nobody under it)
+      const r = stage.getBoundingClientRect(), behind = tmp.z > 1 || Math.abs(tmp.x) > 1.02 || Math.abs(tmp.y) > 1.02;
       el.style.display = behind ? 'none' : '';
       // (kept on the screen: a line said at its edge, on a phone's narrow screen, was cut off mid-word; a bubble is at
       // most 260 px wide, so its middle stays 138 px in from either side)
@@ -120,6 +122,17 @@ window.OEPlaces = (function () {
           if (!c.el) { c.el = document.createElement('div'); c.el.className = 'g-bubble'; layer.appendChild(c.el); }
           const html = `${who ? `<b>${esc(who)}</b>` : ''}${esc(text)}`;
           if (c.el.innerHTML !== html) c.el.innerHTML = html;
+          // said by someone standing there: of those in sight within a few metres of where it is said, the nearest, and
+          // the next nearest for the other side of a conversation (game.js speakers, looked for again every half second
+          // and followed as they walk). With nobody there in sight, nobody says it: on SHIBUYA SKY's empty deck at night a
+          // visitor's line hung over the glass, a bubble over nobody (owner's report, November 2026)
+          if (speakers) {
+            if (c.si !== c.i || (c.st -= dt) <= 0) { const list = speakers(c.at[0], c.at[1], c.at[2] ?? pz, c.reach || 5); c.who = (c.side && list.length > 1 ? list[c.i % 2] : list[0]) || null; c.si = c.i; c.st = 0.5; }
+            const q = c.who && c.who();
+            if (!q) { c.el.style.display = 'none'; continue; }
+            place(c.el, q.x, q.y, q.z + 2.25);
+            continue;
+          }
           const off = c.side ? (c.i % 2 ? 1.2 : -1.2) : 0;
           place(c.el, c.at[0] + off, c.at[1], (c.at[2] ?? pz) + 2.4);
         }
