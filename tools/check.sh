@@ -222,6 +222,9 @@ else
     if [ -n "$changed" ]; then
       echo "a model's names, flags, attributes or ground changed, so the page's checks too: $(echo "$changed" | head -2 | cut -c9-140 | paste -sd ';' -) ($OUT/contract.txt)" >&2
       page
+      # (ground moved: the guide led along his ways, his feet measured against what is drawn under them. A forecourt's
+      # planks carried on under a deck left him 7.7 cm in the air on frame 6's way, found on main, issue 155)
+      echo "$changed" | grep -q '\[ground\]' && add guide1
     elif ! is_in story1 "$want"; then echo "the models changed keep their names, flags, attributes and ground ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
   is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2' | paste -sd ' ' -)   # (both pages already)

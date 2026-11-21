@@ -100,8 +100,9 @@ he stands in `Idle`. Building the clip or recasting him removes the line.
 heights from the meshes whose material is named `ground*`. So a level's interface is its names, flags and
 attributes, as for any model, and where its ground lies: each ground primitive's vertex count, bounds and placing
 (`tools/model_contract.py`, read from the GLB's header in milliseconds). A level rebuilt with all of that as it was
-(a facade sculpted, a sign redrawn, an atlas repainted) is loaded, looked at and weighed; one whose ground moved,
-or that lost a name, is played. Until November 2026 any change to a hero level played the story.
+(a facade sculpted, a sign redrawn, an atlas repainted) is loaded, looked at and weighed; one that lost a name is
+played, and one whose ground moved is played and the guide led over it (`guide1`: his feet against what is drawn
+under them; a forecourt's new planks left him 7.7 cm in the air on main, issue 155, before the ground was a seam). Until November 2026 any change to a hero level played the story.
 
 ## The story's data
 
