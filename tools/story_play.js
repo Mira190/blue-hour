@@ -23,7 +23,8 @@
 // A frame without its draws takes a few tens of ms: the story keeps its time, and every still is of drawn frames.
 // Where a frame's time goes (#51): PROFILE=still:seconds profiles the page's script after that still (the top functions to
 // the log); with TRACE=1, a trace of the browser's processes instead (trace.json); GLCOUNT=1 counts the WebGL calls made
-// in frames not drawn and outside the frames; GPUCOST=still times a frame drawn whole after that still (#70). TASKS=0: every frame waits for the display, as it did before; HOLD=0: the
+// in frames not drawn and outside the frames; GPUCOST=still times a frame drawn whole after that still (#70); SHOTCOST=still each part of taking a still after it (#78). ONE=0: a still of the
+// second of two frames drawn whole, as before #78 (ONETEST=still: stills of two and of one from the same held state, for tools/still_diff.py). TASKS=0: every frame waits for the display, as it did before; HOLD=0: the
 // frames run on, drawn whole, while a still is taken.
 // Bodies (issue 65): every frame of the play, the game notes each of the crowd drawn (near or far copy) within 0.45 m of one
 // of the story's people, the player or the guide (game.js bodiesCheck); any one fails the play. One within that of a map's
@@ -64,11 +65,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       due = false; if (D.hold) return; // (held while a still is taken: below)
       const q = queue; queue = new Map();
       last = Math.max(last, t || performance.now()); // (one clock, never back: a display's frame is stamped as it began)
+      D.twice = D.all && D.one; if (D.twice) oneFrame();
       D.frames++; D.on = D.all || D.steps % n === 0; // (n counts the game's frames: not those the frame-rate cap passes over, game.js gov.due)
       const t0 = performance.now(); D.rendered = false; D.inFrame = true;
       for (const fn of q.values()) { try { fn(last); } catch (e) { setTimeout(() => { throw e; }); } }
       D.js += performance.now() - t0; if (D.rendered) { D.steps++; if (D.on) { D.drawn++; if (!D.all) D.own++; } split(t0, performance.now() - t0); }
-      D.on = true; D.inFrame = false;
+      // (the still's frame drawn, below: the page's frames held at once, so that the still is of it and no frame drawn whole
+      // after it is begun while the harness hears of it, a second of llvmpipe's that the screenshot then waited for)
+      if (D.twice && D.rendered) { D.one = false; if (D.oneHold) { D.hold = true; D.splitHeld(); } const w = D.oneDone; D.oneDone = null; if (w) w(); }
+      D.on = true; D.inFrame = false; D.twice = false;
     };
     // (where the wall's time went, #70: from the start of one of the game's frames to the next, by the kind of the first:
     // drawn or not, and those drawn whole for a still or that its hold fell in; and how far the game's clock moved in it, a twentieth of a second at most)
@@ -78,7 +83,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       prev = { t0, js, on: D.on, all: D.all, last, held: false };
     };
     D.splitHeld = () => { if (prev) prev.held = true; };
-    mc.port1.onmessage = () => flush(performance.now());
+    mc.port1.onmessage = () => flush(performance.now()); D.raf = raf;
     window.requestAnimationFrame = fn => {
       queue.set(++id, fn);
       if (!due) { due = true; if (!tasks || D.all || D.steps % n === 0) raf(flush); else mc.port2.postMessage(0); }
@@ -92,7 +97,23 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     D.holdOff = () => { D.hold = false; if (queue.size && !due) { due = true; raf(flush); } };
     if (glcount) { D.glIn = {}; D.glOut = {}; for (const k of Object.getOwnPropertyNames(P)) { const d = Object.getOwnPropertyDescriptor(P, k); if (typeof d.value !== 'function' || k === 'constructor') continue; const f = d.value; P[k] = function (...a) { const w = !D.on ? D.glIn : D.inFrame ? null : D.glOut; if (w) w[k] = (w[k] || 0) + 1; return f.apply(this, a); }; } }
     // (a clear is drawing too: a frame not drawn cleared its targets a dozen times, each a pass of llvmpipe's)
-    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements', 'blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+    for (const k of ['blitFramebuffer', 'clear', 'clearBufferfv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfi']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+    for (const k of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) { const f = P[k]; P[k] = function (...a) { if (D.on) return f.apply(this, a); }; }
+    // A still of one frame drawn whole (#78). It was of the second of two, for what the first leaves the second in targets
+    // of its own: the ambient occlusion's history (ao.js: the first frame's occlusion, reprojected, is nine tenths of the
+    // second's), and the street mirror's picture (mirror.js: drawn every other frame, so one of the two drew it). The
+    // shadows' cache and the rain's cover map are drawn in whichever frame finds them stale, the first drawn as well as
+    // the second. So in the one frame the occlusion is worked out twice, as the first frame would and then as the second,
+    // from the history the first leaves (the camera has not moved between the two: the history lands where it was taken),
+    // and the mirror is drawn, by asking for it as after a frame without it. llvmpipe draws a frame whole in 1.1 to 1.6 s,
+    // nearly all of it the scene's vertices and the shadows' (tools/gpu_cost.js): one a still, not two. ONE=0: two, as before.
+    D.one = false; D.twice = false; D.oneDone = null; D.ones = 0;
+    const oneFrame = () => {
+      const g = window.__game, ao = g && g.atmos && g.atmos.ao, m = g && g.mirror;
+      if (ao && !ao.__twice) { const f = ao.compute; ao.__twice = true; ao.compute = function (...a) { if (D.twice && !D.twiceDone) { D.twiceDone = true; D.ones++; f.apply(this, a); } return f.apply(this, a); }; }
+      D.twiceDone = false;
+      if (m && m.uniforms && m.uniforms.uMirrorOn) m.uniforms.uMirrorOn.value = 0; // (mirror.js keeps its last picture only while it is on)
+    };
     // (and a frame not drawn does not ask WebGL for its error, #70: the asking waits for the GPU to finish all it was given,
     // the frame drawn last on llvmpipe, and was a sixth of a frame's script in frame 2. An error stays in the context until
     // asked, so the game's glCheck still finds it, in the next ask made in a frame drawn)
@@ -140,7 +161,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await p.waitForTimeout(2000);
   // (a still is of frames drawn whole: every frame drawn from the one before it until it is taken)
   let whole = 0;
-  const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(on => new Promise(r => { window.__draw.all = on; if (!on) return r(); requestAnimationFrame(() => requestAnimationFrame(r)); }), whole > 0) : null; };
+  const ONE = process.env.ONE !== '0';
+  const drawAll = on => { whole += on ? 1 : -1; return DRAW > 1 ? p.evaluate(([on, one, held]) => new Promise(r => { const D = window.__draw; D.all = on; if (!on) { if (D.hold) D.holdOff(); return r(); } if (one) { D.one = true; D.oneDone = r; D.oneHold = held; } else requestAnimationFrame(() => requestAnimationFrame(r)); if (!D.inFrame) requestAnimationFrame(() => {}); }), [whole > 0, ONE, process.env.HOLD !== '0']) : null; };
   // PROFILE=still:seconds: the page's script profiled for that long after that still is taken (where a frame's time goes,
   // #51); the functions that took the most of it, by their own time and with what they call, to the log (and profile.cpuprofile)
   const [profAt, profS] = (process.env.PROFILE || '').split(':');
@@ -173,9 +195,46 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await hold(false);
     }
   };
+  // SHOTCOST=still: after that still, with the page's frames held, what each part of taking a still costs, three times each (#78)
+  const shotCost = async () => {
+    await hold(true); await p.waitForTimeout(2000);
+    const c = await p.context().newCDPSession(p), T = async (k, f) => { const r = []; for (let i = 0; i < 3; i++) { const t = Date.now(); await f(); r.push(Date.now() - t); } console.log(`shot cost ${k}: ${r.join(' ')} ms`); };
+    await T('evaluate', () => p.evaluate(() => 1));
+    await T('fonts.ready', () => p.evaluate(() => document.fonts.ready.then(() => 1)));
+    await T('getLayoutMetrics', () => c.send('Page.getLayoutMetrics'));
+    await T('p.screenshot png', () => p.screenshot({ path: `${out}/shotcost-a.png` }));
+    await T('cdp png fast', async () => fs.writeFileSync(`${out}/shotcost-b.png`, Buffer.from((await c.send('Page.captureScreenshot', { format: 'png', optimizeForSpeed: true })).data, 'base64')));
+    await T('cdp png', () => c.send('Page.captureScreenshot', { format: 'png' }));
+    await T('cdp jpeg', () => c.send('Page.captureScreenshot', { format: 'jpeg', quality: 90 }));
+    await T('cdp png fromSurface:false', () => c.send('Page.captureScreenshot', { format: 'png', optimizeForSpeed: true, fromSurface: false }).catch(e => console.log(String(e).slice(0, 100))));
+    await hold(false);
+    const pix = () => p.evaluate(() => { const D = window.__draw, gl = D.gls.filter(g => g.canvas.isConnected).sort((a, b) => b.canvas.width * b.canvas.height - a.canvas.width * a.canvas.height)[0], px = new Uint8Array(4), t = performance.now(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return performance.now() - t; });
+    const vsync = () => p.evaluate(() => new Promise(r => window.__draw.raf(() => window.__draw.raf(r))));
+    for (const [k, f] of [['read back', pix], ['wait 500', () => p.waitForTimeout(500)], ['two display frames', vsync], ['nothing', () => null]]) for (let i = 0; i < 2; i++) {
+      await drawAll(true); await hold(true); const t = Date.now(); const x = await f(); const t1 = Date.now(); await p.screenshot({ path: `${out}/shotcost-d.png` }); const t2 = Date.now(); await hold(false); await drawAll(false);
+      console.log(`shot cost after the frames, ${k}: ${t1 - t} ms${typeof x === 'number' ? ` (read ${x.toFixed(0)})` : ''}, then the screenshot ${t2 - t1} ms`); }
+    for (let k = 0; k < 3; k++) { const t = Date.now(); await drawAll(true); const t1 = Date.now(); await hold(true); const t2 = Date.now(); await p.screenshot({ path: `${out}/shotcost-c.png` }); const t3 = Date.now(); await hold(false); await drawAll(false); console.log(`shot cost a still: frames whole ${t1 - t} ms, hold ${t2 - t1}, screenshot ${t3 - t2}, release ${Date.now() - t3}`); }
+    await c.detach();
+  };
+  // ONETEST=still: after that still, with the world held (its clock, the lens's grain and the sky's on one time, and no
+  // frame passed over by the cap), stills of two frames drawn whole, as before, and of one (#78), each from the same
+  // state (the occlusion's noise and the mirror's turn at the same step, the history forgotten), to onetest-*.png for a
+  // pixel diff (tools/still_diff.py), with what each took
+  const oneTest = async () => {
+    const cap = await p.evaluate(() => { const G = window.__game, g = G.governor, c = g.cap; g.cap = 0; G.hold(true); const A = G.atmos, up = A.update, t = performance.now() / 1000; A.__up = up; A.update = (u, s, U) => up.call(A, u, t, U); return c; });
+    for (const [k, one] of [['two1', false], ['two2', false], ['one1', true], ['one2', true], ['two3', false]]) {
+      await p.evaluate(() => new Promise(r => { const f = () => (window.__draw.steps % 64 === 0 ? r() : requestAnimationFrame(f)); f(); }));
+      const t0 = Date.now(), n0 = await p.evaluate(() => window.__draw.drawn);
+      await p.evaluate(one => new Promise(r => { const D = window.__draw, a = window.__game.atmos; if (a && a.ao) a.ao.reset(); D.all = true; if (one) { D.one = true; D.oneDone = r; D.oneHold = true; } else requestAnimationFrame(() => requestAnimationFrame(r)); }), one);
+      await hold(true); const t1 = Date.now(); await p.screenshot({ path: `${out}/onetest-${k}.png` }); const t2 = Date.now();
+      const n1 = await p.evaluate(() => window.__draw.drawn); await hold(false); await p.evaluate(() => { window.__draw.all = false; });
+      console.log(`one test ${k}: frames ${t1 - t0} ms, screenshot ${t2 - t1} ms, ${t2 - t0} ms in all; ${n1 - n0} drawn`);
+    }
+    await p.evaluate(c => { const G = window.__game, A = G.atmos; G.hold(false); G.governor.cap = c; A.update = A.__up; }, cap);
+  };
   const hold = on => (DRAW > 1 && process.env.HOLD !== '0' ? p.evaluate(on => (on ? window.__draw.holdOn() : window.__draw.holdOff()), on) : null); // (HOLD=0: the frames run on while a still is taken)
   const ST = { n: 0, whole: 0, shot: 0 }; // (a still's time: its frames drawn whole, and the screenshot, #70)
-  const snap = async name => { const t0 = Date.now(); await drawAll(true); await hold(true); const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); await drawAll(true); await hold(true); const t1 = Date.now(); try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); await drawAll(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)

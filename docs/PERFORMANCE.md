@@ -182,6 +182,69 @@ two of them and the screenshot waits for both. The stills alone are over 350 s, 
 on top, so a play under 600 s would mean fewer stills, a lighter tier for them, or a frame drawn whole for less on llvmpipe
 (the frame budget's own work, issue 352 and after), not cheaper frames not drawn.
 
+## The story check's stills (issue 78)
+
+After issue 70 the play's stills were 472 to 502 s of it: each a second of two frames drawn whole, since the ambient
+occlusion carries its history from one frame drawn to the next (ao.js). Measured on a session's machine, one browser at
+a time, with the play's last line and `SHOTCOST=still` (each part of taking a still, after that still, with the page's
+frames held):
+
+- **The screenshot is not what is slow.** With the page idle Playwright's screenshot takes 60 to 90 ms at 800x500 (CDP's
+  PNG fast 50 to 70, a JPEG 30 to 45, a PNG at its best compression 160 to 200; the page's round trip, `fonts.ready` and
+  the layout's metrics 1 ms each). Taken straight after the frames drawn whole it took 1.4 to 3.5 s: llvmpipe draws in
+  the GPU process behind the page's script, and the screenshot waits until the frames it was given are drawn. Read back
+  a pixel there instead and the read waits as long. So the 278 to 333 s of "taking them" was llvmpipe drawing the
+  still's frames, not the screenshot.
+- **Where a frame drawn whole goes** (`tools/gpu_cost.js`, 800x500, high tier, night): the scene into its multisampled
+  target 71%, the sun's shadow map 26% (its still casters' cache drawn again whenever the sun or the box has moved, which
+  after thirty frames not drawn it always has), the occlusion, the bloom and the lens together 3%. Nothing past the
+  scene is worth lightening.
+- **Tried, not kept: the first frame's scene drawn into its depth alone.** The second frame needs of the first only its
+  depth (for the occlusion's history), so the first frame's scene was drawn with its colour masked, which lets llvmpipe
+  compile its shaders without their shading. The same stills, but no faster: llvmpipe's frame here is its vertices (some
+  eight million triangles a frame with the shadow pass), not its pixels.
+- **Kept: a still is of one frame drawn whole.** What the first of two frames left the second, in targets of their
+  own, is the occlusion's history (nine tenths of the second's occlusion, where it lands) and the street mirror's
+  picture (mirror.js draws it every other frame). The shadows' cache and the rain's cover map are drawn in whichever
+  frame finds them stale. So in the one frame the occlusion is worked out twice from the frame's depth, as the first
+  frame would (its noise, the history as it was) and then as the second (its noise, the history the first left, where
+  the camera has not moved), and the mirror is asked for as after a frame without it. This costs two half-size passes,
+  a few ms.
+- **Kept: the page's frames are held as that frame is drawn**, not when the harness next asks: while the harness heard
+  of the frame and asked for the hold, the page began another frame drawn whole, so a still had cost three frames drawn
+  (384 frames drawn for 136 stills), and the screenshot waited for the third.
+
+Only the harness does this: `window.__draw` is set by `tools/story_play.js` alone, and the page a player opens is not
+touched. `ONE=0` takes stills as before.
+
+**The same stills.** No two plays' stills are the same pixels (the crowd stands where a frame's step on the wall clock
+put it, and the lens's grain and the lights' easing run on the wall clock too), so the stills were compared from one held
+state (`ONETEST=still`: the world held, the lens's grain on one time, the occlusion's noise at the same step and its
+history forgotten, stills of two frames and of one, `tools/still_diff.py`). At frame 2's talk, two stills of two frames
+differ from each other by 1.0 to 1.9 levels on average and 8 at most; a still of one frame from a still of two by 1.1 to
+2.7 on average, 9 to 14 at most, spread over the frame in the grain's and the occlusion's noise, with no shape moved or
+lost. A contact sheet of the play's beats before and after shows the same light, grade, occlusion, wet street mirror and
+interface. Where a beat reads a card on the wall clock it can fall otherwise: at frame 2's print the print is now still
+in the hand, as the step meant it to be, where the slower stills had let it go.
+
+**Before and after, the whole play** (`DRAW=30 node tools/story_play.js out 800x500` under `xvfb-run -a`; after: the same,
+in `tools/check.sh`):
+
+| | before | after |
+|---|---|---|
+| played in | 1115 s | 817 s |
+| stills | 136: 169 s drawing their frames whole, 333 s taking them | 137: 30 s, 225 s |
+| frames drawn whole for the stills | 384 | 184 |
+| a still in all | 3.7 s | 1.9 s |
+
+The rest is the frames not drawn (472 s, the game's clock at 0.83 of the wall's) and the frames drawn between the stills
+(53 s), as after issue 70. The 600 s #70 set is not reached: under it would take fewer stills, a lighter tier for them, or
+fewer frames' worth of the story's own clock.
+
+Not cut: `mark`'s 1.2 s on the wall clock before a beat's still. The dialogue types on the game's clock (55 letters a
+second) and the cards come and go on the wall's, so a still taken sooner shows less of its line or another card: it is
+what the still shows, not a wait for nothing.
+
 ## The far trees as impostors
 
 Past the mid distance (520 m; a wood's trees from 200 m) a tree was a trunk and an 80-triangle crown hull in its
