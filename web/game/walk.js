@@ -136,7 +136,7 @@ window.OEWalk = (function () {
     const keyLine = (m = 'foot') => {
       if (m === 'car') return ctx.touch ? '<span>The stick drives, brakes and steers</span><span>At the right: the hand brake, the horn, the view</span><span>Stopped: tap Get out</span>'
         : `<span>${K('W')}${K('S')}drive · brake</span><span>${K('A')}${K('D')}steer</span><span>${K('Space')}hand brake</span><span>${K('H')}horn</span><span>${K('V')}view</span><span>${K('E')}get out</span>`;
-      if (m === 'seat') return ctx.touch ? '<span>Drag to look round</span><span>Hold Time-lapse: the evening passes</span><span>Tap Stand up when you are ready</span>' // (on a perch: game.js, perch.js)
+      if (m === 'seat') return ctx.touch ? '<span>Drag to look round</span><span>Hold Time-lapse: the evening passes</span>' // (on a perch: game.js, perch.js)
         : `<span>drag to look round</span><span>${K('Space')}hold: the evening passes</span><span>${K('E')}stand up</span>`;
       if (m === 'heli') return ctx.touch ? '<span>Up and Down climb and descend</span><span>The stick flies and turns</span><span>Set down: tap Get out</span>'
         : `<span>${K('Space')}climb</span><span>${K('Shift')}descend</span><span>${K('W')}${K('S')}fly · slow</span><span>${K('A')}${K('D')}turn</span><span>${K('V')}view</span><span>${K('E')}get out, landed</span>`;

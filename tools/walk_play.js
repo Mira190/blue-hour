@@ -261,9 +261,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           const tl = await p.evaluate(() => { const b = document.getElementById('gt-jump'); return b && !b.hidden && b.getBoundingClientRect().width > 0 ? b.textContent : ''; });
           if (!/Time-lapse/.test(tl)) fail(`seated on a phone, no Time-lapse button ("${tl}")`);
           const r = await p.locator('#gt-jump').boundingBox(), cdp = await ctx.newCDPSession(p);
-          if (r) await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x + r.width / 2, y: r.y + r.height / 2 }] });
+          if (r && r.width) await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x + r.width / 2, y: r.y + r.height / 2 }] });
           await frames(40);
-          await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+          if (r && r.width) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         } else { await p.keyboard.down('Space'); await frames(40); await p.keyboard.up('Space'); }
         const m1 = await p.evaluate(() => window.__game.clock.min), dm = ((m1 - m0) + 1440) % 1440;
         if (dm < 3) fail(`held, the time-lapse does not run the clock fast (${dm.toFixed(1)} minutes in two seconds)`);

@@ -1165,7 +1165,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     cam.lookYaw = 0; cam.lookPitch = st.pitch || 0; cam.lastInput = -10;
     if (st.perch) { // (on a low wall: the feet further out, so the hips come down onto the stone; perch.js rake)
       player.legRakeWas = player.rig.legRake; player.rig.legRake = st.rake;
-      perch.sit(st); seatTouch(true); if (touch) $('#gt-jump').hidden = false;
+      perch.sit(st); seatTouch(true); if (touch) $('#gt-jump').hidden = false; stage.classList.add('at-perch'); // (story.css: its button shown)
       blendFrom(1.1, true); // (from over your shoulder round to the seat's tripod, not a cut)
       return;
     }
@@ -1180,7 +1180,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function seatTouch(on) { if (touch) for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-down', '#gt-lens']) $(id).hidden = on; }
   function standUp() {
     const st = (perch && perch.seat) || shows.seat, f = player.seatFrom;
-    if (st && st.perch) { perch.stand(); player.rig.legRake = player.legRakeWas; } else shows.stand();
+    if (st && st.perch) { perch.stand(); player.rig.legRake = player.legRakeWas; stage.classList.remove('at-perch'); } else shows.stand();
     seatTouch(false);
     const p = (f && nav.stand(f.x, f.y, f.z + 0.5, { rMax: 3 })) || nav.stand(player.x, player.y, player.z + 0.5, { rMax: 4 }) || f || player;
     Object.assign(player, { mode: 'foot', x: p.x, y: p.y, z: p.z, h: st ? st.h : player.h, speed: 0, ground: true, vz: 0 });
