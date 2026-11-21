@@ -1,5 +1,5 @@
 {
- "_": "Today's city (pipeline/plateau_today.py, pipeline/ortho_tokyo.py): what the update changes, from where the first episode sees it. SHIBUYA SKY's deck (frame 4) east, north and south-west toward Sakura Stage; the flight over Sakuragaoka toward the station and over the station toward Dogenzaka's two sites; the crossing toward Dogenzaka. floor 0: heights over sea level, else dz over the ground. The deck's eyes stand 4 m inside its parapet (the roof's outline in buildings.json), 3.7 m over the deck.",
+ "_": "Today's city (pipeline/plateau_today.py, pipeline/ortho_tokyo.py): what the update changes, from where the first episode sees it. SHIBUYA SKY's deck (frame 4) east, north and south-west toward Sakura Stage; the flight over Sakuragaoka toward the station and over the station toward Dogenzaka's two sites; the crossing toward Dogenzaka. floor 0: heights over sea level, else dz over the ground. The first view, warmup, is the first frame after the world settles (it comes out blank) and is not compared. lift-sw is the helicopter 30 m over the deck as it lifts off toward Sakura Stage (frame 5). The deck's eyes stand 4 m inside its parapet (the roof's outline in buildings.json), 3.7 m over the deck.",
  "date": [
   11,
   14
@@ -10,6 +10,21 @@
   "night": "21:00"
  },
  "views": [
+  {
+   "name": "warmup",
+   "eye": [
+    543.33,
+    -1108.84,
+    245.5
+   ],
+   "look": [
+    2600.0,
+    -1500.0,
+    0.0
+   ],
+   "floor": 0,
+   "fov": 60
+  },
   {
    "name": "sky-north",
    "eye": [
@@ -41,11 +56,11 @@
    "fov": 60
   },
   {
-   "name": "sky-sw",
+   "name": "lift-sw",
    "eye": [
-    497.0,
-    -1134.0,
-    245.5
+    505.0,
+    -1130.0,
+    275.0
    ],
    "look": [
     420.0,
