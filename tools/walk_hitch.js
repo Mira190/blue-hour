@@ -14,7 +14,7 @@ const [,, city = 'shibuya', secs = '40', speed = '9'] = process.argv;
 (async () => {
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: +(process.env.W || 640), height: +(process.env.H || 400) }, deviceScaleFactor: 1 });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await ctx.addInitScript(STACK => {
     const gl = window.__gl = { on: false, calls: {}, log: [] };
     const P = WebGL2RenderingContext.prototype;

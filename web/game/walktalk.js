@@ -24,7 +24,7 @@
 //           unseen, goes to stand by the next part's speaker }
 'use strict';
 window.OEWalkTalk = (function () {
-  const KEEP = 'oe-walk-talk';
+  const KEEP = 'bh-walk-talk';
   const SEE_M = 42, NAME_M = 11; // (a speech mark seen from this far; the name under it from this close)
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const first = name => String(name || '').replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '').trim(); // (the name as it is read: "Mr Oda 小田さん" is Mr Oda)

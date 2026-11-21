@@ -45,7 +45,7 @@ const wrap = every => {
   const b = await chromium.launch(process.env.SWIFT || !process.env.DISPLAY ? { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }
     : { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const p = await b.newPage({ viewport: { width: 1001, height: 894 }, deviceScaleFactor: +(process.env.DPR || 1) });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(wrap, EVERY);
   p.on('pageerror', e => console.log(`pageerror: ${String(e).slice(0, 300)}`));
   p.on('console', m => { if (/WebGL|GL_|INVALID/.test(m.text())) console.log(`console: ${m.text().slice(0, 300)}`); });

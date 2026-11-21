@@ -77,8 +77,9 @@ window.OEPlate = (function () {
     map.querySelectorAll('img').forEach(img => {
       const t = pics[+img.dataset.i], jpeg = `data/${city.id}/${t.file}`;
       img.onload = () => img.classList.add('in');
-      img.onerror = () => { if (!img.src.endsWith(jpeg)) img.src = jpeg; }; // (no AVIF here: the JPEG)
-      img.src = t.avif ? `data/${city.id}/${t.avif}` : jpeg;
+      const V = u => (window.OEV ? window.OEV(u) : u);
+      img.onerror = () => { if (!img.dataset.jpeg) { img.dataset.jpeg = '1'; img.src = V(jpeg); } }; // (no AVIF here: the JPEG)
+      img.src = V(t.avif ? `data/${city.id}/${t.avif}` : jpeg);
       run.imgs.push(img);
     });
     const src = scene.sources || {};

@@ -27,7 +27,7 @@ const [,, out = '/tmp/entry-cost', size = '390x844'] = process.argv;
   p.on('console', m => { const t = m.text(); if (/^(compile|buffers|upload|rain warm-up|warm)/.test(t)) console.log(`  [page] ${t.slice(0, 200)}`); });
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
   // every frame's time, and the long animation frames with their scripts
   await p.addInitScript(() => {
     Error.stackTraceLimit = 40; // (to see whether a link came from a warm-up's compile or from a draw)

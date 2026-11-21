@@ -29,7 +29,7 @@ const MAXNODES = +(process.env.MAXNODES || 400), MAXLIVE = +(process.env.MAXLIVE
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, userAgent: IOS_UA });
   const errors = [], fail = m => { errors.push(m); console.log('FAIL', m); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 300)}`));
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
   const DRAW = +(process.env.DRAW || 0);
   if (DRAW > 1) await p.addInitScript(n => {
     const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { frames: 0 };

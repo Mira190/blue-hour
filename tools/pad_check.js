@@ -68,7 +68,7 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
     await press('A'); await p.waitForTimeout(300);
     if (!(await p.evaluate(() => document.getElementById('g-title').hidden === false && document.activeElement && document.activeElement.dataset.c === 'W'))) fail('the first A on who you play did not put the hand on the first portrait');
     await press('RIGHT'); await p.waitForTimeout(200); await press('A');
-    await p.waitForFunction(() => { try { return localStorage.getItem('oe3d-player') === 'M'; } catch (e) { return false; } }, null, { timeout: 120000 }).catch(() => fail('the pad did not choose the second portrait'));
+    await p.waitForFunction(() => { try { return localStorage.getItem('bh-player') === 'M'; } catch (e) { return false; } }, null, { timeout: 120000 }).catch(() => fail('the pad did not choose the second portrait'));
     await snap('0-title-chosen');
     await press('A');
   }
@@ -138,7 +138,7 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   await p.keyboard.press('KeyA'); await p.waitForTimeout(500); await snap('9-keys-again');
 
   // a question with choices: the case taken up at frame 3, the detective asks who you are; the d-pad to the answer, and A
-  await p.evaluate(() => { localStorage.setItem('oe-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); });
+  await p.evaluate(() => { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [{ src: null, stamp: 'frame 1', cap: '' }, { src: null, stamp: 'frame 2', cap: '' }] })); });
   await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);

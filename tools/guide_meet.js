@@ -18,7 +18,7 @@ const [,, out = '/tmp/guide-meet', size = '1440x900'] = process.argv;
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ')); });
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.removeItem('oe-story-late'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.removeItem('bh-story-late'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const DRAW = +(process.env.DRAW || 0);
   if (DRAW > 1) await p.addInitScript(n => {
     const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0 };

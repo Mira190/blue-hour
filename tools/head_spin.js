@@ -13,7 +13,7 @@ const [,, size = '1440x900'] = process.argv;
   const p = await b.newPage({ viewport: { width: w, height: h }, hasTouch: w < 500, isMobile: w < 500 });
   const errors = [];
   p.on('pageerror', e => errors.push(String(e)));
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'low'); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'low'); } catch (e) { /* storage blocked */ } });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => window.__game && window.__game.npcs && window.__game.npcs.length && window.__game.npcs.some(n => n.rig && n.rig.head), null, { timeout: 900000, polling: 1000 });
   const r = await p.evaluate(() => {

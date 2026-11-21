@@ -20,6 +20,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); walks the governor's ladder down and up by day and in rain at night, and fails on any error or any program that did not link; all of it as a GPU with sixteen texture units (`?units=16`, an Apple GPU's or a phone's), where `tools/sampler_probe.js` also walks noon, dusk and night, clear, rain and snow, at each of the governor's states, and fails on a program over sixteen samplers, one that did not link, or one the page counted lower than it linked (docs/PERFORMANCE.md, "Sixteen texture units") | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
 | `touch` | Plays the free game by touch on a phone's page, where no key can be pressed | `tools/touch_check.js` |
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder: each picture's quality, and a cut-out's mipmaps and edge against its own colour (the guide's coat went grey on a phone where they strayed) | `tools/astc_check.js` |
+| `launch` | What a player who comes back meets (issue 116). The site as two commits, each stamped as a deploy stamps it, from a server that keeps what GitHub Pages keeps: the second loaded in a browser whose cache holds the first, and every file it used the second's, every request with its file's hash, the page the second's, the case left going still offered. A start that fails saying so, on a desktop and a phone: a script that does not arrive, an error before the first frame, a browser without import maps, a pack that stalls or is never answered (given up, asked twice more, the loader's error state), a pack answered 503 once (asked again, the load goes on). A case kept by another build of the story not taken up, the title saying why; storage full; the page's storage keys its own, the old ones copied once | `tools/launch_check.js` |
 | `look` | The models, pictures and sounds a branch changed, each loaded as the page loads it (its own three.js and GLTFLoader, meshopt in WebAssembly), every texture decoded and every material compiled and drawn, and a still of it as it was (left) beside it as it is (right), lit and framed alike, with its triangles, textures and bytes before and after. Fails on a file that does not load or decode, a texture left undecoded, a shader error or an error on the page. Named with no change to look at (as a runner's shard is), it decodes every model, picture and sound under `web/assets` and the hero levels, without stills: half a minute | `tools/look_check.js` |
 | `game` | The free game's long scenario: walk, talk, the helicopter, your car, a taxi, the trains | `tools/game_check.js` |
 
@@ -165,7 +166,7 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   `walk2` the phone's (together 17 minutes on one runner), `guide1` his ways and `guide2` his body (19).
 - **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
   push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
-  `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
+  `live` to it, which Vercel's production deploys (`vercel.json` builds `live`; the Vercel project's
   production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
   hand publishes main as it is.
 - Each browser shard prints which renderer it got and on which CPU (`tools/gl_renderer.js`): llvmpipe, or SwiftShader
@@ -259,6 +260,43 @@ before. A job outlives its wait and the end of a turn (tried: a wait stopped aft
 under the session's worker it should outlive the worker's restart too (not yet seen). It does not outlive the machine (a
 session started afresh has neither the job nor the cache), and a run stopped anyhow keeps the passes of the checks it had
 finished (`tools/check_cache.py`), so the next run plays only the rest.
+
+## A load is of one commit
+
+The site is published many times a day and nothing is compiled: `web/` is served as it is. Until issue 116 no
+address carried a version, Vercel kept `/data`, `/assets` and `/vendor` an hour (and a day of stale-while-revalidate)
+and GitHub Pages keeps everything ten minutes, so a player who came back ran the new scripts on the packs and models
+the browser had kept. What holds it now:
+
+- **The stamp** (`tools/stamp.js`, run by both deploys: `tools/vercel_build.sh` and `.github/workflows/pages.yml`).
+  It hashes every file under `web/` and writes the commit and `{ path: hash }` into the guard at the top of
+  `web/index.html`; gives `index.html`'s own `src=`, `href=` and `url()` their `?v=<hash>`, and `url()` in the
+  stylesheets; puts every module in the import map (by its address, and by its bare name under each prefix the map
+  gives, so that no module is loaded twice under two addresses); and writes `version.json`. The hash is of the
+  file's content, so a file that did not change keeps its address from deploy to deploy and is not downloaded again.
+- **The guard** (the first script in `web/index.html`, in the oldest JavaScript). `OEV(url)` gives one of the page's
+  files its address with its hash. `fetch` of the page's own files goes through it, three.js's loaders through
+  `DefaultLoadingManager.setURLModifier`, and the few places that make an `Image`, a `Worker` or a `<script>`
+  themselves call it. A worker is given the build as well (`?b=`), and asks for what it imports by it. A new place
+  that asks for a file some other way is found by the check: every request of the page's own must carry `v=` or `b=`.
+- **A page older than the site.** Pages keeps `index.html` ten minutes too. The guard reads `version.json`
+  (never cached); when it names another commit than the page's, the page loads itself anew once, with the commit in
+  its address so that no cache answers.
+- **The hosts.** `vercel.json`: an address without a hash is asked for again every time (`max-age=0,
+  must-revalidate`), one with a hash is kept a day. Pages' ten minutes cannot be set, and no longer matter.
+- **Not covered:** a deploy while a page is open. What that page asks for afterwards, by the old hashes, is answered
+  with the new files. Only a site whose every deploy keeps its own files (addresses under the commit) ends that.
+
+The same guard gives every fetch of the page's own an end (no answer in 20 s is given up; a failure or a 5xx is
+tried twice more, after 0.8 and 2.4 s; `world.js` does the same for a pack whose download stalls or breaks off),
+turns the loader to its error state with Reload when a start fails before the first frame, tells a browser without
+import maps that it cannot run the page, and copies the storage keys of before the split (`oe-*`, `oe3d-*`) to the
+page's own (`bh-*`) once. A harness shortens the waits with `window.OE_NET = { head_ms, stall_ms, retry_ms, still_ms }`.
+
+`tools/launch_check.js` (`tools/check.sh launch`) holds all of it. Run by hand: `xvfb-run -a node
+tools/launch_check.js [keys] [start] [save] [cache]`, `SCREEN=phone` for one screen, stills in `$OUT`. It was seen
+to fail: with `OEV` returning its address unchanged, the second load used the commit before's `data/cities.json`,
+`pack.js` and `pack-worker.js`, and 93 requests carried no hash.
 
 ## The router and the cache
 
@@ -489,6 +527,9 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
 - The story past its first episode: `tools/story_play.js` plays episode one. A new episode adds its
   beats there.
 - A real GPU, WebGPU, Safari and iOS: the checks run Chromium on a software renderer.
+- The hosts themselves: `launch` reads `vercel.json`'s cache rules as Vercel documents them and plays GitHub Pages'
+  ten minutes from a server of its own. That Vercel applies a header by `has: query`, and what Safari's cache does
+  with a page reloaded by `location.replace`, are not seen until a deploy.
 - What a person sees. For a visual change take stills (`tools/game_shot.js`, `tools/story_play.js`,
   `tools/scramble_shot.js`) on a desktop and a phone, at day, dusk and night, and look at them.
   The roll's file (its kraft paper and hand) without playing the episode: `tools/file_shot.js`.

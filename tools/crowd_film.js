@@ -22,7 +22,7 @@ const [,, city = 'shibuya', outDir = '.', secs = '40', ax, ay] = process.argv;
     HTMLCanvasElement.prototype.getContext = function (type, opts) {
       return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts);
     };
-    try { localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ }
   });
   p.on('pageerror', e => console.log(`pageerror: ${String(e).slice(0, 300)}`));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });

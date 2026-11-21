@@ -43,8 +43,9 @@ jobs:
         run: |
           base=$(tr -d '[:space:]' < VERSION)
           version="$base.${{ github.run_number }}"
-          printf '{"version":"%s","commit":"%s","built":"%s"}\n' \
-            "$version" "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > web/version.json
+          # (tools/stamp.js, issue 116: version.json, and every address the page asks for given the hash of its
+          # file, so that one page load is of one commit whatever a browser kept from the one before)
+          node tools/stamp.js --commit "$SHA" --version "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           cat web/version.json
 

@@ -13,7 +13,7 @@
 // The reef pages (WebGPURenderer, which cannot restore a lost device) reload with the same note.
 'use strict';
 window.OEGLCare = (function () {
-  const KEY = 'oe3d-gl-reload';
+  const KEY = 'bh-gl-reload';
   const now = () => Date.now();
   // the note in the title screen's language: the loader's dark veil over the whole view (the
   // labels of the last frame drawn would float on it otherwise), a card on it with the heading in
@@ -336,7 +336,7 @@ body > .gl-note { position: fixed; }
     });
   }
   if (window.THREE) guard(); else window.addEventListener('three-ready', guard, { once: true });
-  const FIT_KEY = 'oe3d-fit';
+  const FIT_KEY = 'bh-fit';
   function fitWatch(renderer, { roots = () => [], key = '' } = {}) {
     const gl = renderer.getContext();
     const asked = +(new URLSearchParams(location.search).get('units') || 0);

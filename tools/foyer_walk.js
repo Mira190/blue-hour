@@ -40,7 +40,7 @@ if (require.main === module) {
     const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl'] });
     const p = await b.newPage({ viewport: { width: 640, height: 400 } });
     const errs = []; p.on('pageerror', e => errs.push(String(e).slice(0, 300)));
-    await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* blocked */ } });
+    await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* blocked */ } });
     await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.waitForFunction('window.__game', null, { timeout: 300000 });
     await p.evaluate(() => { const g = window.__game; g.hold(true, true); for (let i = 0; i < 80; i++) g.advance(0.25); });

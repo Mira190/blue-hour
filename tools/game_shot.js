@@ -46,13 +46,13 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' }) : b;
   const p = lean ? await ctx.newPage() : await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +(process.env.DPR || 1) }); // (DPR=2: a dense display)
   // a software renderer picks the low tier for itself; stills are taken at the desktop one
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (lean ? 'low' : 'high'));
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (lean ? 'low' : 'high'));
   // LV=n: a phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest), with LEAN=1
-  if (process.env.LV) await p.addInitScript(n => { try { localStorage.setItem('oe3d-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
+  if (process.env.LV) await p.addInitScript(n => { try { localStorage.setItem('bh-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
   // PLAYER=W or M: Kagami as a woman or a man (the menu's Play as; tools/kagami_views.json looks at them)
-  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('oe3d-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
+  if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   // a player who has been through the HUD tour (web/onboard.js), so that its card is not in the stills
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   await p.addInitScript(() => {
     const get = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, opts) {

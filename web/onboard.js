@@ -21,7 +21,7 @@
 //   OEOnboard.coached(id)      that coach has been finished or skipped; forgetCoaches() runs them all again
 'use strict';
 window.OEOnboard = (function () {
-  const KEY = 'oe3d-onboard';
+  const KEY = 'bh-onboard';
   const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } };
   const write = o => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) { /* storage blocked: the intro shows again next time */ } };
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);

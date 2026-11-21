@@ -514,7 +514,7 @@ own beside it. Both are replaced by one governor (`web/quality.js` `OEQuality.go
 
 - It runs on the title's orbit as well as in play (the telemetry's slowest frames were Shibuya's title screen,
   where nothing held them), reports each step to the telemetry (scale, what was shed, MSAA, the cap) and keeps
-  the scale the device held on each map (`localStorage` `oe3d-gov-<city>`), so the next visit starts there
+  the scale the device held on each map (`localStorage` `bh-gov-<city>`), so the next visit starts there
   and climbs again if it can.
 
 `tools/governor_probe.js` feeds it frames on a clock of its own (fast: it stays; 40 ms: 1.00 to 0.80, extras
@@ -828,7 +828,7 @@ shadow pass), the sea's reflection (every frame while the camera moves, every se
 and the crowd (whole, whole, three in four). A device with no record of its own starts at 0.8 of the scene's
 resolution with half the extras, and tries a step up every second and a half until one does not fit; a fast device
 is at its ceiling in about thirteen seconds (`governor.simulate`). The record kept per map is now the scale and the
-extras (`oe3d-gov-<city>`: `0.85/0.5`), and a device that has one starts there. Under automation the governor stands
+extras (`bh-gov-<city>`: `0.85/0.5`), and a device that has one starts there. Under automation the governor stands
 still, as before, so checks and stills start at the ceiling. `tools/game_check.js` sees the shadow map, the
 reflection and the crowd move with the extras and come back.
 
@@ -1701,7 +1701,7 @@ last chosen.
 **A second chance instead of a crash loop** (`quality.js` `died`, `telemetry.js`). A phone gives no reading of
 the memory it has left. The one signal is that the system killed the tab, and the next page load finds it: the
 note a visible page leaves every five seconds is still there. That load now counts the death against the map
-(`oe3d-died-<map>`, kept fourteen days), and on the low tier each one makes the next load of that map lighter;
+(`bh-died-<map>`, kept fourteen days), and on the low tier each one makes the next load of that map lighter;
 the loader says "a lighter set: the last visit ran out of memory here". This is the closed loop of issue 358's
 Layer A applied to memory: measure, then grant.
 
