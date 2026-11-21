@@ -796,6 +796,7 @@ vec3 steepRock(vec3 c, float k) {
     // a phone's pictures as ASTC blocks, a quarter of the GPU's memory (tex.js, issue 443): the game's, where the GPU decodes them
     const ASTC = !!(window.OETex && OETex.on(renderer, LEAN && game));
     if (ASTC && window.OETelemetry && OETelemetry.set) OETelemetry.set({ astc: 1 }); // (rides on the view's events: which phones run packed)
+    if (LEAN && window.OETelemetry && OETelemetry.set) OETelemetry.set({ lv: QW.lighter }); // (and the level of a phone's set it runs at: quality.js level)
     const SHADOW = Math.min(renderer.capabilities.maxTextureSize, shadow || (renderer.capabilities.maxTextureSize >= 8192 && !small ? 4096 : 2048));
 
     const world = new THREE.Scene();
