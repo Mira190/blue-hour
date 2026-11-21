@@ -8,7 +8,7 @@ const [,, city = 'shibuya', mode = 'viewer'] = process.argv;
 (async () => {
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const p = await b.newPage({ viewport: { width: 960, height: 600 } });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, 'high');
   if (process.env.NOWORKER) await p.addInitScript(() => { window.Worker = undefined; });
   p.on('console', m => { if (/worker|buildings:|nav:|footways:/i.test(m.text())) console.log('  page:', m.text()); });
   p.on('pageerror', e => console.log('  page error:', e.message));

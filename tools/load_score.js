@@ -22,7 +22,7 @@ const [,, out = '/tmp/load-score', size = '1440x900'] = process.argv;
   const errors = [], fail = m => { errors.push(m); console.log('FAIL', m); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 300)}`));
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   const waiting = () => p.evaluate(() => document.getElementById('g-loader').classList.contains('no-sound'));
   // the level on the music bus over a second

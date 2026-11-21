@@ -13,7 +13,7 @@ const fs = require('fs');
   const city = process.argv[2] || 'shibuya', secs = +(process.argv[3] || 40), out = process.argv[4] || `${city}-audio.wav`;
   const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'], headless: !process.env.DISPLAY });
   const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
-  await p.addInitScript(() => { try { localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } });
   await p.addInitScript(() => {
     // each context's output, recorded; each gain node, with the script line that made it
     const recs = window.__recs = [], gains = window.__gains = [];

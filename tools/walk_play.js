@@ -59,9 +59,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
   fs.mkdirSync(out, { recursive: true });
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
-  await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['oe3d-player', 'oe-walk', 'oe-story-late', 'oe-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
+  await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
   const PORT = process.env.PORT || 8800;
   // (a beat waits for what it tests, up to a minute, not for a fixed time: on a slow runner the desktop page took the press
   // and read Back's state 2.5 s later, a frame before Back had been drawn, and every beat after failed with it; issue 49)
@@ -550,7 +550,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   }
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {
-    await p.evaluate(() => { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
+    await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     // (the loader's words are written once the page's boot has the map's list: waited for, not read at once)
     const roll = await p.waitForFunction(() => { const e = document.querySelector('#g-loader .roll-title span'); return e && e.textContent; }, null, { timeout: 120000, polling: 100 }).then(h => h.jsonValue()).catch(() => '');

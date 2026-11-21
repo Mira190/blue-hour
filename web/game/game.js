@@ -138,8 +138,8 @@ window.OpenEarthGame = async function game(cityId) {
   if (window.OEGLCare && OEGLCare.fitWatch) OEGLCare.fitWatch(renderer, { roots: () => [fitRoot], key: `game|${cityId}` });
   let glLoad = null;
   try {
-    const asked = /[?&]gltrace=1\b/.test(location.search), due = asked || localStorage.getItem('oe3d-gl-trace') === '1';
-    if (due && !asked) localStorage.removeItem('oe3d-gl-trace');
+    const asked = /[?&]gltrace=1\b/.test(location.search), due = asked || localStorage.getItem('bh-gl-trace') === '1';
+    if (due && !asked) localStorage.removeItem('bh-gl-trace');
     if (due && window.OEGLCare && OEGLCare.trace) glLoad = OEGLCare.trace(renderer.getContext());
   } catch (e) { /* storage blocked */ }
   const BASE_FOV = 55, camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.3, 40000);
@@ -155,8 +155,8 @@ window.OpenEarthGame = async function game(cityId) {
   // At the ordinary floor of 0.6 an M3 MacBook drew the story's street at 1.2 pixels to the CSS pixel and thirty frames
   // a second, its GPU's frame growing with the pixels drawn (telemetry, November 2026); at 0.45 it draws half as many)
   const DENSE = Math.min(window.devicePixelRatio || 1, 2) >= 1.75 && !QC.lean;
-  const gov = OEQuality.governor({ min: DENSE ? 0.45 : 0.6, mid: DENSE ? 0.7 : 0.8, cap: (() => { try { const v = localStorage.getItem('oe3d-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
-  const GOV_KEY = `oe3d-gov-${cityId}`;
+  const gov = OEQuality.governor({ min: DENSE ? 0.45 : 0.6, mid: DENSE ? 0.7 : 0.8, cap: (() => { try { const v = localStorage.getItem('bh-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
+  const GOV_KEY = `bh-gov-${cityId}`;
   // What this device held on this map before ("scale/extras"; a bare scale from before issue 375 kept its extras): it
   // starts there. A device with no record starts low and climbs (quality.js startLow, issue 375), not at its ceiling.
   let govRecord = null;
@@ -823,7 +823,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // realistic characters (people.js); the box-built rigs are the fallback if their files can't be loaded
   // Kagami, whom you play, as a woman or a man (W, M): the main characters (H_Kagami_W, H_Kagami_M); where their
   // file does not load, the crowd's casual characters stand in (never a worker in a hi-vis vest: that was the surveyor)
-  const PLAYER_KEY = 'oe3d-player', PLAYER_LOOKS = {
+  const PLAYER_KEY = 'bh-player', PLAYER_LOOKS = {
     W: { character: 'W_Casual', skin: '#e0b494', hair: '#2a211c', scale: 0.92 },
     M: { character: 'M_Casual2', skin: '#d9a984', hair: '#1c1714', scale: 0.97 } };
   for (const [k, v] of Object.entries(G.player_looks || {})) if (PLAYER_LOOKS[k]) Object.assign(PLAYER_LOOKS[k], v); // a city's own look for the player
@@ -1813,7 +1813,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const gold = OERoute.line(world, lin(G.story && !new URLSearchParams(location.search).has('walk') ? '#9fd0ff' : '#f2bd52'));
   // The route line in the world: always on, only when asked (L, or Show route in the quest card), or
   // off. The minimap keeps its route whichever: the quiet reference. Remembered in this browser.
-  const ROUTE_KEY = 'oe-route-line', ROUTE_MODES = { on: 'On', ask: 'Only when I ask', off: 'Off' };
+  const ROUTE_KEY = 'bh-route-line', ROUTE_MODES = { on: 'On', ask: 'Only when I ask', off: 'Off' };
   let routeMode = 'on', routePeek = -1; // (clockT until which a line asked for stays up)
   try { const v = localStorage.getItem(ROUTE_KEY); if (ROUTE_MODES[v]) routeMode = v; } catch (e) { /* storage blocked */ }
   function setRouteMode(m) {
@@ -2125,7 +2125,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ save (this browser only)
-  const KEY = `oe3d-game-${cityId}`;
+  const KEY = `bh-game-${cityId}`;
   function save() {
     const car = myCar && [myCar.D.st.x, myCar.D.st.y, myCar.D.st.z, myCar.D.st.h].map(v => Math.round(v * 100) / 100);
     try { localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), qs, pos: [player.x, player.y, player.z], car, clock: { y: clock.y, m: clock.m, d: clock.d, min: clock.min, scale: clock.scale, own: clock.own } })); } catch (e) { /* storage blocked */ }
@@ -2703,11 +2703,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return src;
     },
     snapBase: () => storySnapBase,
-    again: () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
+    again: () => { try { sessionStorage.setItem('bh-story-auto', cityId); } catch (e) { /* storage blocked */ } location.reload(); },
     // the last card's "Walk Shibuya": the walk (walk.js), taken up where the case ended, in the same night (walkOnFromStory).
     // Only where that cannot be, from a fresh page at the hour it ended in and under its sky. It was the map's old free
     // game, under another game's name and with its quests
-    free: () => { if (walkOnFromStory()) return; try { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: sun && sun.altitude < -10 ? 'night' : 'blue', w: weather && /rain|drizzle|storm/.test(weather.state.kind) ? 'rain' : 'clear' })); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); location.href = u.toString(); },
+    free: () => { if (walkOnFromStory()) return; try { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: sun && sun.altitude < -10 ? 'night' : 'blue', w: weather && /rain|drizzle|storm/.test(weather.state.kind) ? 'rain' : 'clear' })); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); location.href = u.toString(); },
     say: (who, lines, done, opts) => ((opts && opts.free) || talkLine(who), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done, opts)), // (opts.free: a call said hands-free, hud.js)
     cut: () => dlg.cut(), // (a call cut off by the Stop) // (log: kept in the evening's log)
     hush: on => { if (A.hush) A.hush(on); },
@@ -4842,10 +4842,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the player left them
   const moreTray = (open, keep = true) => {
     $('#g-btns').classList.toggle('open', open); $('#g-more-btn').setAttribute('aria-expanded', String(open));
-    if (keep) { try { localStorage.setItem('oe3d-hud-more', open ? '1' : '0'); } catch (e) { /* storage blocked */ } }
+    if (keep) { try { localStorage.setItem('bh-hud-more', open ? '1' : '0'); } catch (e) { /* storage blocked */ } }
   };
   on($('#g-more-btn'), 'click', () => moreTray(!$('#g-btns').classList.contains('open')));
-  try { if (localStorage.getItem('oe3d-hud-more') === '1') moreTray(true, false); } catch (e) { /* storage blocked */ }
+  try { if (localStorage.getItem('bh-hud-more') === '1') moreTray(true, false); } catch (e) { /* storage blocked */ }
   on($('#gq-lines'), 'click', e => { const b = e.target.closest('button'); if (b) cycleTrack(b.dataset.line); });
   on($('#g-pass-btn'), 'click', togglePass);
   on($('#g-menu-btn'), 'click', toggleMenu);
@@ -4879,7 +4879,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const b = e.target.closest('button');
     if (!b) return;
     gov.cap = +b.dataset.f; gov.reset();
-    try { localStorage.setItem('oe3d-fps', String(gov.cap)); } catch (err) { /* storage blocked */ }
+    try { localStorage.setItem('bh-fps', String(gov.cap)); } catch (err) { /* storage blocked */ }
     $$('#gm-fps button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
   on($('#gm-route'), 'click', e => { const b = e.target.closest('button'); if (b) setRouteMode(b.dataset.r); });
@@ -5204,7 +5204,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const dv = W(player.x, player.y, player.z).sub(W(...was));
     if (dv.lengthSq() > 1) { camera.position.add(dv); titleLook.add(dv); }
     const skip = OEOnboard.done() && $('#gt-skip-on').checked;
-    const then = () => (story && !cont ? (storyLog && storyLog.restore(story.state.ep && story.state.ep.id), story.begin()) : cont ? OEOnboard.markDone(CITY.id) : skip ? welcome(true) : startTour(() => welcome(false)));
+    const then = () => (story && !cont ? (story.tidy(), storyLog && storyLog.restore(story.state.ep && story.state.ep.id), story.begin()) : cont ? OEOnboard.markDone(CITY.id) : skip ? welcome(true) : startTour(() => welcome(false)));
     if (story && !cont) story.dress(); // (the evening its first episode is set in, before the opening shot)
     // the map's overture (overture.js) the first time here, unless you continue or arrive at a district; else the opening shot
     // (a story opens on the overture every time, in the evening its first episode is set in; ?overture=0 goes straight to the street)
@@ -5380,7 +5380,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     { const gc = $('#gm-car'); if (gc) on(gc, 'click', () => { toggleMenu(); bringCar(); }); }
     // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
     const gs = $('#gm-story');
-    if (gs) { gs.querySelector('span').textContent = `${EP0.no ? `Episode ${EP0.no} · ` : ''}${EP0.title || 'The story'}`; on(gs, 'click', () => { try { sessionStorage.setItem('oe-story-auto', cityId); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); location.href = u.toString(); }); }
+    if (gs) { gs.querySelector('span').textContent = `${EP0.no ? `Episode ${EP0.no} · ` : ''}${EP0.title || 'The story'}`; on(gs, 'click', () => { try { sessionStorage.setItem('bh-story-auto', cityId); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); location.href = u.toString(); }); }
   }
   on($('#gt-continue'), 'click', () => startGame(true));
   on($('#gt-timechoice'), 'click', e => { const b = e.target.closest('button'); if (b) $$('#gt-timechoice button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
@@ -5449,12 +5449,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
     $('#g-title').hidden = false;
     // come from a story's link on the globe (title.js): no card to press, the story starts
-    { let auto = false; try { auto = !!story && sessionStorage.getItem('oe-story-auto') === cityId; if (auto) sessionStorage.removeItem('oe-story-auto'); } catch (e) { /* storage blocked */ }
+    { let auto = false; try { auto = !!story && sessionStorage.getItem('bh-story-auto') === cityId; if (auto) sessionStorage.removeItem('bh-story-auto'); } catch (e) { /* storage blocked */ }
       if (auto) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
     // come from the story's last card (its Walk Shibuya, story ctx free): no card to press, the walk sets out
-    { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('oe-walk-auto') || 'null') : null; sessionStorage.removeItem('oe-walk-auto'); } catch (e) { sp = null; }
+    { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('bh-walk-auto') || 'null') : null; sessionStorage.removeItem('bh-walk-auto'); } catch (e) { sp = null; }
       if (sp && !playing) { stage.classList.add('story-auto'); walkNoFilm = !sp.film; setTimeout(() => walkUi.auto(sp), 0); } } // (sp.film: a harness's, tools/walk_open.js)
     $('#g-loader').classList.add('out');
+    if (window.OEBoot) OEBoot.done(); // (the first frame is behind the loader: what fails from here is the game's to say, not the loader's)
     setTimeout(() => {
       $('#g-loader').hidden = true; OEPlate.stop($('#g-loader'));
     }, reduced ? 0 : 700);
@@ -7485,7 +7486,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // arguments and the lines that made it. An error the first frame had and those three do not was raised once,
   // while the map loaded: the next load of this map on this device is traced from its first call instead (glLoad,
   // a slower load, once). ?gltrace=1 asks for that trace; a check reads what it found in __game.glTrace.
-  const GL_KEY = 'oe3d-gl-trace';
+  const GL_KEY = 'bh-gl-trace';
   const glState = () => { const st = Wd.shadowState ? Wd.shadowState() : {}; return `shadow map ${st.tex ? 'on the GPU' : 'not on the GPU'}, ${st.size} px, pass ${st.auto ? 'on' : 'off'}; extras ${gov.extras}, scale ${gov.scale}, msaa ${atmos && atmos.composer ? atmos.composer.samples : '-'}; ${weather ? weather.state.kind || '' : ''} ${fmtMin(clock.min)}`; };
   const glNames = list => list.slice(0, 4).map(o => `${o.call}(${o.args}) ${o.err} x${o.n} at ${o.at}`).join(' | ');
   const glSay = msg => { console.warn(msg); glFound.push(msg); if (window.OETelemetry && OETelemetry.track) OETelemetry.track('error', { kind: 'gl', msg: msg.slice(0, 900), src: 'game.js glCheck' }); };
@@ -7558,7 +7559,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ?perf: this device's own frame, part by part (perf.js), a few seconds after the street is the player's
   if (/[?&]perf\b/.test(location.search)) {
     const ps = document.createElement('script');
-    ps.src = 'game/perf.js';
+    ps.src = window.OEV('game/perf.js');
     // (ready: the loader gone and the title down, the walk or the story set out, the crane and any cut over: perf.js waits on it)
     const ready = () => !preTitle && playing && $('#g-title').hidden && $('#g-loader').hidden && !arriving && !levelHold && !cine.active && !(overture && overture.active) && !photo.on && !closeup && $('#g-menu').hidden;
     ps.onload = () => OEPerf.run({ renderer, world, camera, atmos, gov, mirror, weather, hero, stage, tick: mirrorTick, ready, label: o => (Wd.groundMeshes && Wd.groundMeshes.includes(o) ? 'the ground\'s tiles' : fineTiles.includes(o) ? 'the ground\'s fine tiles' : null) }).catch(e => console.warn('perf', e));

@@ -58,6 +58,45 @@
 window.OEStory = (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  // The shape of an episode, kept with a case left going (`v` in `bh-story-<id>`): a hash of what a save's frame
+  // number, flags and pairs mean. Each frame's stamp, and in its task, its meeting and its file the names a save
+  // refers to: the flags set and asked for, the questions and their options by count, who is asked about, which
+  // frames are proof. Not the words, the places or the distances: a line rewritten or a kerb moved leaves a case
+  // good, a frame added or a question changed does not. A site published many times a day meets a save from the
+  // commit before every time (issue 116): a case of another shape is not taken up, and the title says why.
+  const STRUCT = new Set(['stamp', 'if', 'not', 'set', 'id', 'key', 'model', 'answer', 'frame', 'of', 'proof', 'who', 'choice', 'npc', 'cast', 'finale']);
+  function shape(ep) {
+    const out = [];
+    const walk = (o, path, k) => {
+      if (Array.isArray(o)) {
+        if (o.some(v => v && typeof v === 'object' && !Array.isArray(v))) { out.push(`${path}#${o.length}`); o.forEach((v, i) => walk(v, `${path}.${i}`, k)); }
+        else if (STRUCT.has(k)) out.push(`${path}=${JSON.stringify(o)}`);
+      } else if (o && typeof o === 'object') { for (const key of Object.keys(o).sort()) walk(o[key], `${path}.${key}`, key); }
+      else if (STRUCT.has(k) && o != null) out.push(`${path}=${o}`);
+    };
+    walk({ frames: ep.frames || [], people: ep.people || [], pairs: ep.pairs || [] }, '', '');
+    let h = 0x811c9dc5; // (FNV-1a over the list, as eight hex digits)
+    for (const ch of out.join('|')) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+  // (is a kept case of this shape? One with no shape at all is of a build before cases carried one, and is not; but
+  // a harness's is: the tools set a case at a frame by hand, tools/story_play.js FROM=n and twenty more, and under
+  // automation such a case is theirs, of the story as it is)
+  const same = (k, sig) => !!k && (k.v === sig || (k.v == null && !!navigator.webdriver));
+  // A case written to this browser. The prints are photographs kept as data: images, a few hundred kB an evening,
+  // and a browser's few MB can be full (of this site's own keys, or on github.io of another project's): setItem
+  // throws then. The case is written again without its pictures (the frames, the notes, the flags and the file
+  // are a few kB), so a page closed is still taken up where it was, its prints as blank frames; and if that fails
+  // too the evening is played in one go. Returns 'full', 'lean' or 'none'; the game is never stopped by it.
+  function save(key, o) {
+    const put = v => { try { localStorage.setItem(key, JSON.stringify(v)); return true; } catch (e) { return false; } };
+    if (put(o)) return 'full';
+    const bare = p => { const c = Object.assign({}, p); delete c.src; return c; };
+    if (put(Object.assign({}, o, { prints: (o.prints || []).map(bare), lean: true }))) return 'lean';
+    try { localStorage.removeItem(key); } catch (e) { /* storage blocked */ } // (not an older state of the case, to be taken up as if it were this one)
+    return 'none';
+  }
+
   // ctx: { story (the data), stage, player, touch, toast(html), say(who, lines, done), ask(who, lines, choices, done), hush(on),
   //        hold(on): time held or let go (what hangs in the air), air(opts): the scene's leaves and birds, ride({to, name}): a car sent for you, film(spec, then): a flight, dress(date, light, weather), weather(kind), walkIn(seconds), floor(x, y) -> the ground's height there,
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
@@ -94,9 +133,13 @@ window.OEStory = (function () {
       // how far this browser has got: a case left going (the frame it takes up at; nobody opens the page into the rain of
       // the last frame without being told), or a case closed, any of whose frames can be gone back into
       let left = null;
-      try { left = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
-      const going = !!(left && left.fi > 0 && left.fi < (ep0.frames || []).length);
-      const shut = !going && (() => { try { const c = JSON.parse(localStorage.getItem(`oe-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? c : null; } catch (e) { return null; } })();
+      try { left = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}`) || 'null'); } catch (e) { left = null; }
+      // (a case of another shape, kept by a build before the story changed or before cases carried their shape: not
+      // taken up at a frame that may no longer be the one it was left at. The title says so, and offers tonight again)
+      const sig = shape(ep0), inPlay = !!(left && left.fi > 0), stale = inPlay && !same(left, sig);
+      const going = inPlay && !stale && left.fi < (ep0.frames || []).length;
+      const shut = !going && !stale && (() => { try { const c = JSON.parse(localStorage.getItem(`bh-story-${ep0.id}-closed`) || 'null'); return c && Array.isArray(c.snaps) && Array.isArray(c.stamps) ? Object.assign(c, { old: !same(c, sig) }) : null; } catch (e) { return null; } })();
+      const WHY = 'The story has changed since you left this evening, so it cannot be taken up where it was.';
       const name = `${ep0.no ? `Episode ${ep0.no} · ` : ''}${ep0.title || ''}`, taken = going ? left.prints || [] : shut ? shut.prints || [] : [];
       const photoOf = p => (p && typeof p.src === 'string' && /^data:image\//.test(p.src) ? p.src : null); // (a photograph the player took, kept with the case)
       const lastAt = going ? ((left.prints || [])[left.prints.length - 1] || {}).stamp || '' : '';
@@ -104,8 +147,10 @@ window.OEStory = (function () {
       // save first with a picture of where it was left (walk.js puts the walk under it); the story's row says how far
       const cont = q('#gt-cont-go');
       if (cont) {
-        cont.hidden = !going;
-        cont.classList.toggle('primary', going);
+        cont.hidden = !(going || stale);
+        cont.classList.toggle('primary', going || stale);
+        cont.classList.toggle('stale', stale);
+        if (stale) { cont.querySelector('span').textContent = 'Start tonight again'; cont.querySelector('small').textContent = 'The story has changed since you left'; cont.title = WHY; }
         if (going) {
           cont.querySelector('small').textContent = `${ep0.no ? `Episode ${ep0.no} · ` : ''}frame ${left.fi + 1} of ${N}${lastAt ? ` · ${lastAt}` : ''}`; // (short, so that the row holds one line beside the photograph on a phone)
           const ph = [...taken].reverse().map(photoOf).find(Boolean), im = cont.querySelector('img');
@@ -114,7 +159,11 @@ window.OEStory = (function () {
       }
       const sg = q('#gt-story-go');
       const epNo = ep0.no ? `Episode ${ep0.no}` : ep0.title || ''; // (short, so that the row holds one line on a phone)
-      if (sg) sg.querySelector('small').textContent = going ? `${epNo} · ${left.fi} of ${N} frames taken` : shut ? `${epNo} · the case is closed` : name;
+      if (sg) sg.querySelector('small').textContent = going ? `${epNo} · ${left.fi} of ${N} frames taken` : stale ? `${epNo} · changed since you left` : shut ? `${epNo} · the case is closed` : name;
+      // (said in words on the title itself, under its buttons: a button's small print is not an explanation)
+      { const row = cont && cont.closest('.gt-go'); let why = q('#gt-stale');
+        if (stale && row && !why) { why = document.createElement('p'); why.id = 'gt-stale'; why.className = 'gt-stale'; why.setAttribute('role', 'status'); row.after(why); }
+        if (why) { why.hidden = !stale; why.textContent = stale ? `${WHY} Your evening starts again from its first frame.` : ''; } }
       // the story's screen: the episode, its picture and its line; how far, on the roll (a cell a frame, the photograph in
       // each one taken); Begin, Continue or Play it again; the evening again, asked twice, since what was taken tonight is
       // lost; and a closed case's frames, each a way back in
@@ -125,9 +174,9 @@ window.OEStory = (function () {
         E.querySelector('.cap .when').textContent = T.eyebrow || '';
         E.querySelector('.line').textContent = ep0.line || T.line || '';
         E.querySelector('.state').textContent = going ? `In progress · ${left.fi} of ${N} frames taken${lastAt ? ` · the last at ${lastAt}` : ''}`
-          : shut ? `The case is closed · go back into any frame` : `Not begun · ${N} frames, one evening`;
+          : stale ? WHY : shut ? (shut.old ? 'The case is closed · the story has changed since: play it again to go back into its frames' : `The case is closed · go back into any frame`) : `Not begun · ${N} frames, one evening`;
         E.querySelector('.gt-roll').innerHTML = Array.from({ length: N }, (_, i) => {
-          const p = taken[i], src = photoOf(p), back = shut && (shut.snaps[i] || i === 0);
+          const p = taken[i], src = photoOf(p), back = shut && !shut.old && (shut.snaps[i] || i === 0);
           const inner = `${src ? `<img src="${src}" alt="">` : ''}<b>${i + 1}</b>${shut && shut.stamps[i] ? `<small>${esc(shut.stamps[i])}</small>` : ''}`;
           return `<li class="${p ? 'got' : ''}${going && i === left.fi ? ' now' : ''}">${back ? `<button type="button" data-back="${i}" aria-label="Go back into frame ${i + 1}${shut.stamps[i] ? `, ${esc(shut.stamps[i])}` : ''}">${inner}</button>` : inner}</li>`;
         }).join('');
@@ -136,6 +185,7 @@ window.OEStory = (function () {
         if (play && acts) {
           acts.prepend(play); play.type = 'button'; play.classList.add('primary');
           play.innerHTML = going ? `<span>Continue</span><small>Frame ${left.fi + 1} of ${N}${lastAt ? `, after ${lastAt}` : ''}</small><kbd>↵</kbd>`
+            : stale ? '<span>Start tonight again</span><small>From 17:14, the first frame</small><kbd>↵</kbd>'
             : shut ? '<span>Play it again</span><small>The evening from its first frame</small><kbd>↵</kbd>' : `<span>Begin</span><small>${esc(name)}</small><kbd>↵</kbd>`;
         }
         if (anew) {
@@ -143,7 +193,7 @@ window.OEStory = (function () {
           const sure = on => { E.classList.toggle('sure', on); const f = q(on ? '#gt-anew-no' : '#gt-anew'); if (f) f.focus({ preventScroll: true }); };
           anew.addEventListener('click', () => sure(true));
           q('#gt-anew-no').addEventListener('click', () => sure(false));
-          q('#gt-anew-yes').addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`oe-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }); // (who you play chosen first)
+          q('#gt-anew-yes').addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`bh-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }); // (who you play chosen first)
           E.sure = () => E.classList.contains('sure') && (sure(false), true); // (Esc or B on the question: keep the case; game.js)
         }
         E.querySelector('.gt-roll').addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); });
@@ -358,9 +408,16 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       later(secs * 1000, () => card.classList.remove('on'));
     }
     // the case kept in this browser: the frame it is at and the prints so far
-    const KEY = () => `oe-story-${st.ep ? st.ep.id : ''}`;
-    const keep = () => { try { localStorage.setItem(KEY(), JSON.stringify({ fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 })); } catch (e) { /* storage full or blocked: the case is played in one go */ } };
-    const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
+    const KEY = () => `bh-story-${st.ep ? st.ep.id : ''}`;
+    let keptAs = 'full';
+    const keep = () => {
+      const how = save(KEY(), { v: shape(st.ep), fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 });
+      // (said once, when it first happens: what is lost if the page is closed, and that the evening goes on)
+      if (how !== 'full' && keptAs === 'full' && ctx.toast) ctx.toast(how === 'lean' ? 'This browser\'s storage is full. Your photographs stay on the roll while this page is open; your place in the evening is still kept.'
+        : 'This browser will not keep the evening. Play on: it lasts as long as this page is open.');
+      if (how !== keptAs) { keptAs = how; try { if (window.OETelemetry && OETelemetry.track) OETelemetry.track('story_save', { how, frame: st.fi + 1 }); } catch (e) { /* no telemetry */ } }
+    };
+    const kept = () => { try { const k = JSON.parse(localStorage.getItem(KEY()) || 'null'); return k && same(k, shape(st.ep)) && k.fi > 0 && k.fi < (st.ep.frames || []).length && Array.isArray(k.prints) ? k : null; } catch (e) { return null; } };
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
     let goalText = '';
@@ -531,6 +588,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // as the player is given the street
     function begin() {
       const ep = st.ep || dress();
+      if (ep && !kept()) forget(); // (a case of another shape, or one that cannot be read: gone before the evening starts again, the log's lines with it; log.js restore)
       if (!ep) return;
       ctx.stage.classList.add('story-on');
       setDress(ep);
@@ -1173,20 +1231,20 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
       return li.length ? `<section class="worked" aria-label="How the case was worked"><h3>How the case was worked</h3><ul>${li.join('')}</ul></section>` : '';
     }
     // Going back in: a case closed in this browser keeps its prints and the snapshot of each frame on arriving at it
-    // (`oe-story-<ep>-closed`), so that any frame can be entered again with the roll and the flags as they were then, and
+    // (`bh-story-<ep>-closed`), so that any frame can be entered again with the roll and the flags as they were then, and
     // another answer tried, from the last card or from the title. Entering frame n writes the case as it stood at n and
     // opens the page again (ctx.again); the first frame is the evening from its beginning.
-    const CLOSED = id => `oe-story-${id}-closed`;
-    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
+    const CLOSED = id => `bh-story-${id}-closed`;
+    const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && same(c, shape(eps.find(e => e.id === id) || {})) && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
     const closedNow = () => (st.ep ? closedOf(st.ep.id) : null);
-    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
+    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
     const goBack = C => (C ? `<nav class="back" aria-label="Go back into a frame"><small>Go back into a frame</small><span>${C.stamps.map((t, i) => (C.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span></nav>` : '');
     enterLater = (i) => enter(i, eps[0]);
     function enter(i, ep = st.ep) {
-      const C = closedOf(ep.id), s = C && C.snaps[i], key = `oe-story-${ep.id}`;
+      const C = closedOf(ep.id), s = C && C.snaps[i], key = `bh-story-${ep.id}`;
       try {
         if (!s || i === 0) localStorage.removeItem(key);
-        else localStorage.setItem(key, JSON.stringify({ fi: i, left: s.left, prints: C.prints.slice(0, s.n), flags: s.flags, pairs: s.pairs, file: s.file, failed: s.failed, snaps: C.snaps.slice(0, i + 1) }));
+        else localStorage.setItem(key, JSON.stringify({ v: shape(ep), fi: i, left: s.left, prints: C.prints.slice(0, s.n), flags: s.flags, pairs: s.pairs, file: s.file, failed: s.failed, snaps: C.snaps.slice(0, i + 1) }));
       } catch (e) { /* storage blocked */ }
       ctx.again();
     }
@@ -1358,6 +1416,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
     }
     return {
       dress, begin, tick, shoot, raise, state: st,
+      tidy() { if (st.ep && !kept()) forget(); }, // (before the log restores its lines: a case that is not taken up has none)
       get stopped() { return st.phase === 'stop'; },
       get guided() { return !!st.guided; }, // the dog shows the way, and nothing else does: the game draws no gold line
       // the story's own film (the guide coming to you, meetGuide): the lens's place, what it looks at (the map's x, y and
@@ -1404,5 +1463,5 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.next ? `<p clas
       },
     };
   }
-  return { create };
+  return { create, shape, save };
 })();

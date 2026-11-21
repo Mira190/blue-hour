@@ -24,7 +24,7 @@ const [W, H] = String(opt('size', '1440x900')).split('x').map(Number);
 const FPS = +opt('fps', 24);
 const [DM, DD] = String(opt('date', '4-2')).split('-').map(Number);
 const TIME = String(opt('time', 'sunset-25'));
-const FRAMES = opt('frames', path.join(os.tmpdir(), `oe3d-overture-${city}-${W}x${H}-${DM}-${DD}-${TIME}`));
+const FRAMES = opt('frames', path.join(os.tmpdir(), `bh-overture-${city}-${W}x${H}-${DM}-${DD}-${TIME}`));
 const OUT = opt('out', path.join(FRAMES, `${city}-overture.mp4`));
 const PORT = process.env.PORT || 8800;
 fs.mkdirSync(FRAMES, { recursive: true });
@@ -39,7 +39,7 @@ async function open() {
   p.on('pageerror', e => errs.push(String(e).slice(0, 400)));
   p.on('console', m => { if (m.type() === 'error' || /overture/.test(m.text())) errs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
   await p.addInitScript({ path: path.join(__dirname, 'film', 'clock.js') });
-  await p.addInitScript(q => { try { localStorage.setItem('oe3d-quality', q); localStorage.removeItem('oe3d-overture'); } catch (e) { /* storage blocked */ } }, opt('tier', 'high'));
+  await p.addInitScript(q => { try { localStorage.setItem('bh-quality', q); localStorage.removeItem('bh-overture'); } catch (e) { /* storage blocked */ } }, opt('tier', 'high'));
   await p.goto(`http://localhost:${PORT}/index.html?overture=1#play-${city}`);
   await p.waitForFunction(() => window.__game && document.getElementById('g-loader') && document.getElementById('g-loader').classList.contains('out'), null, { timeout: 900000, polling: 1000 })
     .catch(e => { console.error(errs.join('\n')); throw e; });

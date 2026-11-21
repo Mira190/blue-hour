@@ -61,9 +61,9 @@ async function measure(b, city) {
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1',
   });
-  await ctx.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
+  await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
   // LV=n: a phone's set at level n (quality.js level: 0 the fullest, 2 what a phone starts at, 3 the lightest)
-  if (process.env.LV) await ctx.addInitScript(n => { try { localStorage.setItem('oe3d-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
+  if (process.env.LV) await ctx.addInitScript(n => { try { localStorage.setItem('bh-lv', n); } catch (e) { /* storage blocked */ } }, process.env.LV);
   // (OWN: every texture given a picture is noted with where in the page's scripts that was, to name those no material holds)
   if (process.env.OWN) await ctx.addInitScript(() => {
     window.__memOwn = true; window.__texAll = new Set();
@@ -383,7 +383,7 @@ async function measure(b, city) {
 // the desktop's load to the title: the loader's upload before it, by its own log line
 async function desktop(b, city) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
-  await ctx.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-onboard', '1'); } catch (e) { /* storage blocked */ } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-onboard', '1'); } catch (e) { /* storage blocked */ } });
   await ctx.addInitScript(() => {
     const M = window.__deskBuf = { buf: new Map(), sum: 0 }, P = WebGL2RenderingContext.prototype, bind = P.bindBuffer, data = P.bufferData, del = P.deleteBuffer, bound = new Map();
     P.bindBuffer = function (t, x) { bound.set(t, x); return bind.call(this, t, x); };

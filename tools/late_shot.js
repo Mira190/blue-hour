@@ -14,7 +14,7 @@ const LATE = /\/assets\/(vehicles\/(cars|helicopter)\.glb|trees\/trees_near\.glb
   const [w, h] = size.split('x').map(Number), phone = w < 600;
   const b = await chromium.launch({ headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
-  await ctx.addInitScript(() => { try { localStorage.setItem('oe3d-quality', 'high'); } catch (e) { /* storage blocked */ } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('bh-quality', 'high'); } catch (e) { /* storage blocked */ } });
   const p = await ctx.newPage();
   process.env.GAME_TIME = process.env.GAME_TIME || time;
   await pinClock(p, city);

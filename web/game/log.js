@@ -5,7 +5,7 @@
 //
 // It is the dialogue's record (hud.js dialogue calls line and answer for a story's speakers; game.js's story ctx
 // calls aside for what is said over the picture). It is kept in this browser beside the case (story.js keeps
-// `oe-story-<episode>`; this keeps `oe-story-log-<episode>`), and only as far as the case is: a case taken up at
+// `bh-story-<episode>`; this keeps `bh-story-log-<episode>`), and only as far as the case is: a case taken up at
 // frame n has what was said before frame n, as the frame is played again from its beginning.
 //
 // The words: three sizes and an opaque backing for the dialogue and the goal (classes on the stage, story.css),
@@ -13,7 +13,7 @@
 'use strict';
 window.OELog = (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const WORDS = 'oe-words', SIZES = ['As set', 'Larger', 'Largest'];
+  const WORDS = 'bh-words', SIZES = ['As set', 'Larger', 'Largest'];
   const words = () => { try { const w = JSON.parse(localStorage.getItem(WORDS) || 'null') || {}; return { size: Math.max(0, Math.min(2, w.size | 0)), solid: !!w.solid }; } catch (e) { return { size: 0, solid: false }; } };
   // ctx: { stage, touch, at() -> { fi, stamp } (the frame the story is at), ep() -> the episode's id, can() -> the log may be
   //        opened now, opened(on) (the game lets go of the pointer, and holds its keys) }
@@ -23,7 +23,7 @@ window.OELog = (function () {
     const box = document.createElement('div');
     box.id = 'g-story-log'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'The log of the evening');
     stage.appendChild(box);
-    const KEY = () => `oe-story-log-${ep}`;
+    const KEY = () => `bh-story-log-${ep}`;
     const save = () => { if (!ep) return; try { localStorage.setItem(KEY(), JSON.stringify(list)); } catch (e) { /* storage full or blocked: the log lasts the page */ } };
     // the words, as this browser has them: on the stage, for the dialogue and the goal
     function applyWords(w) {
@@ -59,7 +59,7 @@ window.OELog = (function () {
     function restore(id) {
       ep = id || ''; list.length = 0;
       let k = null, saved = [];
-      try { k = JSON.parse(localStorage.getItem(`oe-story-${ep}`) || 'null'); saved = JSON.parse(localStorage.getItem(KEY()) || '[]'); } catch (e) { k = null; }
+      try { k = JSON.parse(localStorage.getItem(`bh-story-${ep}`) || 'null'); saved = JSON.parse(localStorage.getItem(KEY()) || '[]'); } catch (e) { k = null; }
       if (k && k.fi > 0 && Array.isArray(saved)) for (const e of saved) if (e && e.fi < k.fi) list.push(e);
       save();
     }

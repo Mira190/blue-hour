@@ -28,7 +28,7 @@ const ok = m => console.log(`ok   ${m}`);
     const ctx = await b.newContext({ viewport: size, deviceScaleFactor: 1, hasTouch: touch, isMobile: touch });
     const p = await ctx.newPage();
     p.on('pageerror', e => fail(`pageerror (${screen}): ${String(e).slice(0, 200)}`));
-    await p.addInitScript(`try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-player', 'M'); localStorage.removeItem('oe-story-late'); localStorage.removeItem('oe-story-late-closed'); } catch (e) {}`);
+    await p.addInitScript(`try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-player', 'M'); localStorage.removeItem('bh-story-late'); localStorage.removeItem('bh-story-late-closed'); } catch (e) {}`);
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && window.__game.flyover && t && !t.hidden && document.getElementById('gt-walk-go'); }, null, { timeout: 900000, polling: 500 });
     await p.waitForTimeout(3000);

@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 8800;
   const p = await ctx.newPage();
   // (Yuna's story asked, Taro's told: as the owner had it when they came up)
   const st = { roof: { part: 1, met: false, done: false }, air: { part: 2, met: false, done: true } };
-  await p.addInitScript(([t, st]) => { try { localStorage.setItem('oe3d-quality', 'high'); localStorage.setItem('oe3d-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('oe3d-player', 'W'); localStorage.setItem('oe-walk-talk', JSON.stringify(st)); sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t, w: 'clear' })); } catch (e) { /* storage blocked */ } }, [hour, st]);
+  await p.addInitScript(([t, st]) => { try { localStorage.setItem('bh-quality', 'high'); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-player', 'W'); localStorage.setItem('bh-walk-talk', JSON.stringify(st)); sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t, w: 'clear' })); } catch (e) { /* storage blocked */ } }, [hour, st]);
   p.on('pageerror', e => console.log(`page error: ${String(e).slice(0, 200)}`));
   await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => document.getElementById('game-stage') && document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 1200000, polling: 1000 });

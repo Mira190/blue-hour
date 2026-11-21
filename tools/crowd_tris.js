@@ -13,7 +13,7 @@ const [,, size = '390x844'] = process.argv;
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   p.on('pageerror', e => console.log('pageerror:', String(e).slice(0, 300)));
-  await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
   // the renderer, for its count of the frame's triangles, read after each frame's render
   await p.addInitScript(() => {
     addEventListener('three-ready', () => {

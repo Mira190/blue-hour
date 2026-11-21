@@ -7,6 +7,8 @@
 // decks (buildings-geo.js, issue 344) and sends their vertex arrays back, handed over, then lets the pack go;
 // { raster: key, opt } lays the landmarks on the walking model's grid (game/navcells.js) in the same way.
 'use strict';
+// (a deployed page gives its workers the build, ?b=: what a worker imports is asked for by it, so that it is that commit's; index.html's guard)
+{ const b = /[?&]b=(\w+)/.exec(self.location.search), raw = self.importScripts; if (b) self.importScripts = (...u) => raw.apply(self, u.map(x => `${x}?b=${b[1]}`)); }
 importScripts('pack.js');
 // the buffers under the typed arrays in v, each once
 function buffers(v, out) {
@@ -24,7 +26,7 @@ async function build(key, opt) {
   kept.delete(key);
   if (!self.OEBuildingsGeo) importScripts('sun.js', 'buildings-geo.js');
   if (!triangulate) { // three.js's own triangulation (Earcut), as the page's: the same faces
-    const { ShapeUtils } = await import(new URL('vendor/three/three.core.min.js', self.location.href).href);
+    const { ShapeUtils } = await import(new URL(`vendor/three/three.core.min.js${(/[?&]b=(\w+)/.exec(self.location.search) || [''])[0].replace(/^&/, '?')}`, self.location.href).href);
     triangulate = (c, h) => ShapeUtils.triangulateShape(c, h);
   }
   // as the page does to its copy (world.js load): demolished solids flat, the roofs unpacked
