@@ -1794,9 +1794,9 @@ evening (telemetry, app 0.1.137): the context lost 35 s in, during the opening's
 level 2 and was killed at `built` 12 s later; Safari's own reload at level 2 again took 139 s to get in. Now:
 
 - the page names its map (`<html data-map="shibuya">`), which `quality.js` reads where the address has none;
-- a lost WebGL context on a phone is a death at its level too (`quality.js` `lost`, from `glcare.js` as it gives up and
-  reloads): on a phone it is the GPU's memory run out, and the reload makes room and loads a level lighter. A loss while
-  the tab is put away is not counted (the tab in front took the memory), and the page does not reload until it is seen:
+- a lost WebGL context on a phone is a death at its level too, counted as it is lost (`quality.js` `lost`, once a page,
+  asked by `telemetry.js` `noteLost` and by `glcare.js`, which works with the telemetry off): on a phone it is the GPU's
+  memory run out, and the reload makes room and loads a level lighter. A loss while the tab is put away is not counted (the tab in front took the memory), and the page does not reload until it is seen:
   a phone keeps every tab's WebGL in one GPU process, and that evening a tab of the story in the background lost its
   context, reloaded and built the whole map beside the tab being played, which then lost its own;
 - once `glcare.js` has given up, the frames hold: a restored context that is not rebuilt drew walls whose arrays the

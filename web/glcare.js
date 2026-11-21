@@ -62,17 +62,15 @@ body > .gl-note { position: fixed; }
     };
   }
   // reload once, with the note up while it goes; a second time inside a minute, stay on the note.
-  // On a phone a loss while the page was seen is a death at the level the page ran at (quality.js lost): the reload
-  // loads a level lighter, after a wait for the lost memory to come back, instead of the set that just ran out of it.
-  // (A tab in the background can lose its context to the one in front, which says nothing of its own set: not counted.)
+  // (On a phone a loss while the page was seen is a death at the level it ran at, counted as it is lost: watch, below.
+  // The reload then loads a level lighter, after a wait for the lost memory to come back.)
   // Never from a tab that is put away: the reload waits until the page is seen. A phone keeps every tab's WebGL in one
   // GPU process, and a tab in the background that lost its context and reloaded built the whole map there, beside the
   // tab being played, which then lost its own (the owner's iPhone, 21 November 2026: two tabs of the story, each
   // reloading the other out).
-  function reload(note, why, death = false) {
+  function reload(note, why) {
     let prev = 0;
     try { prev = Number(sessionStorage.getItem(KEY)) || 0; } catch (e) { /* storage blocked */ }
-    try { if (death && window.OEQuality && OEQuality.lost) OEQuality.lost(); } catch (e) { /* storage blocked */ }
     if (now() - prev < 60000) {
       note.say('The graphics card stopped drawing', `${why}. Reload to try again, or choose a lower picture quality on the title screen.`,
         { text: 'Reload', on: () => location.reload() });
@@ -94,14 +92,15 @@ body > .gl-note { position: fixed; }
     // gone: given up (the page reloads, or waits on the note): the frames hold from then on, since a restored context
     // that is not rebuilt draws what it no longer has (a phone's walls, let go of once uploaded, threw "null is not
     // an object (evaluating 'r.byteLength')" from three.js in the frame after the restore)
-    let lost = false, gone = false, seen = true, check = 0, timer = 0, losses = 0, restores = 0;
+    let lost = false, gone = false, check = 0, timer = 0, losses = 0, restores = 0;
     const stats = { losses: 0, restores: 0, drawn: 0, reloads: 0 };
-    const giveUp = why => { check = 0; gone = true; stats.reloads++; reload(note, why, seen); };
+    const giveUp = why => { check = 0; gone = true; stats.reloads++; reload(note, why); };
     const onLostE = e => {
       e.preventDefault(); // without it the browser never offers the context back
       lost = true; check = 0; stats.losses = ++losses;
       if (gone) return; // (the note says what happens next already)
-      seen = !document.hidden;
+      // on a phone, a death at its level, at once and whatever the telemetry (quality.js lost: once a page, not while put away)
+      try { if (window.OEQuality && OEQuality.lost) OEQuality.lost(); } catch (err) { /* storage blocked */ }
       note.say('The picture was lost', 'The graphics card took its memory back. Getting it back…');
       try { onLost(losses); } catch (err) { console.warn('glcare: onLost', err); }
       clearTimeout(timer);

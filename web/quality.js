@@ -157,7 +157,7 @@ window.OEQuality = (function () {
   // above it are not: at frame 5 a phone at START holds 269 of its 270 MB (issue 105), and the next set up keeps
   // 2048-pixel pictures where START keeps 1024. Until 21 November 2026 no climb happened on the story's page (below), so
   // TOP keeps the sets a phone plays at as they were; it goes up when a fuller set is measured within the budget.
-  // A lost WebGL context is a death too (lost(), from glcare.js): on a phone it is the GPU's memory run out (iOS keeps
+  // A lost WebGL context is a death too (lost(), as it is lost): on a phone it is the GPU's memory run out (iOS keeps
   // every tab's WebGL in one process), and the page that reloaded at the same level lost it again or was killed
   // mid-load (the owner's iPhone, 21 November 2026: lost at 35 s, the reload killed at "built" 12 s in).
   // died(map): how many times this map's page died on this device in the last fourteen days (the map in the
@@ -195,16 +195,23 @@ window.OEQuality = (function () {
       localStorage.setItem(`oe3d-held-${id}`, JSON.stringify({ lv: h && h.lv != null ? Math.min(h.lv, lv) : lv, t: Date.now() }));
     } catch (e) { /* storage blocked */ }
   }
-  // the page lost its WebGL context and reloads (glcare.js): on a phone, a death at the level it ran at, written as
-  // telemetry.js writes the death of a page the system killed, so that the reload loads a level lighter and first
-  // waits for the lost memory to be taken back (sinceDeath, world.js)
-  function lost(id = mapId()) {
-    const c = probe();
-    if (!id || !lean(c)) return;
+  // The page's WebGL context was lost while it was seen: on a phone, a death at the level it runs at, at once (iOS often
+  // takes the whole page a moment later, and Safari gives a page two deaths before it stops loading it), written as
+  // telemetry.js writes the death of a page the system killed, so that the next load is a level lighter and first waits
+  // for the lost memory to be taken back (sinceDeath, world.js). Once a page: telemetry.js (noteLost, which marks its
+  // alive note so the dead page is not counted again) and glcare.js (which works with the telemetry off) both ask.
+  // Not while the page is put away: a tab in the background can lose its context to the one in front, which says
+  // nothing of its own set. Returns whether this page's loss is counted.
+  let lostHere = false;
+  function lost(id = mapId(), ready = true) {
+    if (lostHere) return true;
+    if (!id || !lean(probe()) || document.hidden) return false;
     try {
       const d = note(`oe3d-died-${id}`), was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, now = city();
-      localStorage.setItem(`oe3d-died-${id}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: true, lv: Math.max(was, now.lean ? now.lighter : 0), gl: true }));
+      localStorage.setItem(`oe3d-died-${id}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!ready, lv: Math.max(was, now.lean ? now.lighter : 0), gl: true }));
+      lostHere = true;
     } catch (e) { /* storage blocked */ }
+    return lostHere;
   }
   // budget.map by level. (2, a phone's first: the middle distance kept to 1.1 km, since from the helicopter the
   // aerial photograph past it reads as a blue band under the horizon at dusk when it starts at 600 m)
@@ -447,5 +454,5 @@ window.OEQuality = (function () {
     }
     return g;
   }
-  return { probe, auto, tier, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, governor, TIERS, ORDER, NAMES };
+  return { probe, auto, tier, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, lostHere: () => lostHere, governor, TIERS, ORDER, NAMES };
 })();
