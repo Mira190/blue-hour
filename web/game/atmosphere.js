@@ -481,6 +481,39 @@ window.OEAtmos = (function () {
       camFx.uniforms.uReversed.value = renderer.capabilities.reversedDepthBuffer ? 1 : 0;
       const drawFx = camFx.render.bind(camFx);
       camFx.render = (...a) => { camFx.uniforms.tDepth.value = sceneDepth; return drawFx(...a); }; // (the depth this frame's scene was drawn with)
+      // The camera's effect and the merge in one pass (issue 130). With depth of field on (a conversation's shot, the
+      // camera raised, a print, the flight: a third of a play's stills) the frame drew the scene, the occlusion and the
+      // bloom together into one full-size target (lens.js merge), blurred that into a second, and the lens read the
+      // second: two full-size passes and two full-size half-float targets more than a frame without it. Here the blur
+      // reads the scene itself: each tap is rolled off as the merge rolls it off and shaded by the occlusion (the pixel's
+      // own with the depth-aware upsample, a neighbour's as the occlusion's texel has it: under a blur the two read
+      // alike), and the bloom's sum, which is soft already, is added after. One pass and one target; a pixel in focus
+      // is, to the bit, what the merge made it.
+      camFx.merged = (() => {
+        const sh = CAMFX(), F = sh.fragmentShader, L = window.OELens;
+        const head = 'uniform sampler2D tDiffuse, tDepth; uniform float uReversed, uFocus, uAperture, uBlur, uFar, uAspect; uniform mat4 uInvProj, uCamWorld, uPrevVP; varying vec2 vUv;';
+        const depthU = 'uniform sampler2D tDepth; uniform mat4 uInvProj; uniform float uReversed;\n', aoU = 'uniform sampler2D tAO; uniform float uAOStrength, uFadeNear, uFadeFar;\n';
+        const NO = 'float oeShade(vec2 uv) { return 1.0; }';
+        const full = shade.upsample || NO, near = shade.coarse || NO;
+        if (!L || !L.TAP || !L.ROLLOFF || !F.includes(head) || (shade.upsample && !(full.includes(depthU) && near.includes(aoU)))) return null;
+        const centre = 'vec3 c = texture2D(tDiffuse, vUv).rgb;', end = 'gl_FragColor = vec4(c, 1.0);';
+        if (F.split(centre).length !== 2 || F.split(end).length !== 2) return null;
+        let body = F.replace(head, `${head}
+      uniform sampler2D tBloom; uniform float uBloom;
+      ${L.TAP}
+      ${L.ROLLOFF}
+      ${full.replace(depthU, '')}
+      ${near.replace(aoU, '').replace('float oeShade(', 'float oeShadeNear(')}
+      vec3 src(vec2 uv) { return rolloff(tap(uv) * oeShadeNear(uv)); }`);
+        body = body.replace(centre, 'vec3 c = rolloff(tap(vUv) * oeShade(vUv));').replace(end, `if (uBloom > 0.0) c += texture2D(tBloom, vUv).rgb;\n        ${end}`);
+        const taps = body.split('texture2D(tDiffuse, ').length - 1; // (the taps left: the blur's neighbours, and the one inside tap())
+        body = body.replace(/texture2D\(tDiffuse, (vUv \+ o|uv)\)\.rgb \* k/g, 'src($1) * k');
+        if (body.split('texture2D(tDiffuse, ').length - 1 !== taps - 2) return null;
+        return { vertexShader: sh.vertexShader, fragmentShader: body };
+      })();
+      // (its uniforms: the bloom's sum, the occlusion's, the lens's ceiling, and the effect's own last: the depth and the
+      // projection it reads are this frame's, set as it is drawn)
+      if (camFx.merged) camFx.merged = mat(camFx.merged, { uniforms: Object.assign({}, bloom.uniforms, ao ? ao.uniforms : {}, { uCap: lens.uniforms.uCap, uKnee: lens.uniforms.uKnee }, camFx.uniforms) });
       anime = new THREE.ShaderPass(ANIME());
       anime.enabled = false;
       anime.uniforms.uReversed.value = renderer.capabilities.reversedDepthBuffer ? 1 : 0;
@@ -490,7 +523,11 @@ window.OEAtmos = (function () {
       // ends it on a lens of its own, the checks look a pass up, the warm-up compiles each pass's materials): the
       // scene, the occlusion and the bloom are drawn as above whatever follows; what follows them, the tail, is
       // any pass with an EffectComposer pass's render(renderer, writeBuffer, readBuffer).
-      let pingA = null, pingB = null; // two full-size targets for a tail longer than the lens, made when one first is
+      // full-size targets for a tail longer than the lens, made when one first is: one for the camera's effect before the
+      // lens, a second for any other tail. They are let go eight seconds after the last frame that needed them: they stayed
+      // for good after the first conversation (19 MB on a phone at 760 x 1644, 59 MB at 2560 x 1440: issue 130)
+      let pingA = null, pingB = null, pingAt = 0;
+      const ping = () => new THREE.WebGLRenderTarget(rt.width, rt.height, { type: THREE.HalfFloatType, depthBuffer: false });
       // The scene's share of the canvas's resolution (the governor's, quality.js; api.setScale): the scene, and
       // with it the occlusion and the bloom, are drawn at scale times the canvas's size, and the lens, which
       // writes the canvas at its own size, brings them up with a sharpening (lens.js uSharp).
@@ -499,6 +536,7 @@ window.OEAtmos = (function () {
       // warmPasses. A camera effect after it draws the merge and the plain lens, compiled behind the title with the rest)
       bloom.firstDraws = () => ({ target: [bloom.materialHighPassFilter, ...bloom.separableBlurMaterials.slice(0, bloom.levels), bloom.compositeMaterial] });
       lens.firstDraws = () => ({ screen: [lens.merged] });
+      const oneFx = new URLSearchParams(location.search).get('camfx') !== 'two'; // (?camfx=two: the merge and the effect as two passes, as before, to set beside)
       const passes = [scenePass, ...(ao ? [ao.pass] : []), bloom, camFx, lens, anime];
       composer = {
         renderer, passes, renderTarget1: rt, renderTarget2: rt,
@@ -512,7 +550,7 @@ window.OEAtmos = (function () {
           sizedW = w; sizedH = h;
           rt.setSize(w, h);
           rt.depthTexture.image.width = w; rt.depthTexture.image.height = h; // (three.js leaves it at the old size: world.js sizeTarget)
-          if (pingA) { pingA.setSize(w, h); pingB.setSize(w, h); }
+          if (pingA) pingA.setSize(w, h); if (pingB) pingB.setSize(w, h);
           for (const p of passes) if (p !== bloom && p.setSize) p.setSize(w, h);
           bloom.setSize(lowBloom ? Math.round(w / 2) : w, lowBloom ? Math.round(h / 2) : h);
           bloom.uniforms.tBloom.value = bloom.renderTargetsHorizontal[0].texture;
@@ -529,9 +567,21 @@ window.OEAtmos = (function () {
           bloom.uniforms.uBloom.value = glow ? 1 : 0;
           if (glow) drawBloom();
           const tail = passes.filter(p => p !== scenePass && p !== bloom && !(ao && p === ao.pass) && p.enabled !== false);
-          if (tail.length === 1 && tail[0] === lens) draw(lens.merged, null, false);
-          else {
-            if (!pingA) { const t = () => new THREE.WebGLRenderTarget(rt.width, rt.height, { type: THREE.HalfFloatType, depthBuffer: false }); pingA = t(); pingB = t(); }
+          if (tail.length === 1 && tail[0] === lens) {
+            draw(lens.merged, null, false);
+            if (pingA && performance.now() - pingAt > 8000) { pingA.dispose(); pingA = null; if (pingB) { pingB.dispose(); pingB = null; } }
+          } else if (tail.length === 2 && tail[0] === camFx && tail[1] === lens && camFx.merged && camFx.merged.isMaterial && !(lens.uniforms.uShadeShow.value > 0.5) && oneFx) {
+            // the camera's effect reading the scene itself, then the lens (above: camFx.merged)
+            if (!pingA) pingA = ping();
+            pingAt = performance.now();
+            camFx.uniforms.tDiffuse.value = rt.texture; camFx.uniforms.tDepth.value = sceneDepth;
+            draw(camFx.merged, pingA);
+            lens.renderToScreen = true;
+            lens.render(renderer, null, pingA);
+          } else {
+            if (!pingA) pingA = ping();
+            if (!pingB) pingB = ping();
+            pingAt = performance.now();
             bloom.mergeMaterial.uniforms.tDiffuse.value = rt.texture;
             draw(bloom.mergeMaterial, pingA);
             let read = pingA, write = pingB;
@@ -550,7 +600,7 @@ window.OEAtmos = (function () {
         setSamples(n) { n = Math.max(0, n | 0); if (rt.samples === n) return; rt.samples = n; rt.dispose(); },
         get samples() { return rt.samples; },
         get scale() { return sceneScale; },
-        dispose() { rt.dispose(); if (pingA) { pingA.dispose(); pingB.dispose(); } bloom.dispose(); bloom.materialHighPassFilter.dispose(); bloom.mergeMaterial.dispose(); lens.merged.dispose(); tri.dispose(); },
+        dispose() { rt.dispose(); if (pingA) pingA.dispose(); if (pingB) pingB.dispose(); if (camFx.merged && camFx.merged.isMaterial) camFx.merged.dispose(); bloom.dispose(); bloom.materialHighPassFilter.dispose(); bloom.mergeMaterial.dispose(); lens.merged.dispose(); tri.dispose(); },
       };
       lens.uniforms.tDiffuse.value = rt.texture;
       composer.setSize(size.x, size.y);
