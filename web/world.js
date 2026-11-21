@@ -957,6 +957,8 @@ vec3 steepRock(vec3 c, float k) {
     const seaLoad = new Promise(res => texLoader.load(D.DATA + 'sea.jpg', t => { t.colorSpace = THREE.NoColorSpace; res(t); }, undefined, () => res(null)));
     // and the land past it (farland.js, far.*), but for ?far=off, to compare
     const farLoad = farOn ? OEFarLand.load(D.DATA) : Promise.resolve(null);
+    // and what stands on it: the towers past the frame, Tokyo Tower and the Skytree (farcity.js), but for ?farcity=off
+    const farCityLoad = farOn && window.OEFarCity && new URLSearchParams(location.search).get('farcity') !== 'off' ? OEFarCity.load(D.DATA, 'assets/') : Promise.resolve(null);
     // inland water at its own level (inland.js, scene.json "inland"): the terrain levelled to the channels' banks
     // and lowered under the ponds, in place, before anything stands on it
     let IN = null;
@@ -2196,6 +2198,15 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       }
     }
 
+    // the far skyline on the far land (farcity.js); its towers' tops get the aircraft warning lights (night.js, D.farTops)
+    let farCity = null;
+    const farCityData = far ? await farCityLoad : null;
+    if (farCityData) try {
+      farCity = OEFarCity.create(farCityData, { U, small, ASSETS: 'assets/' });
+      world.add(farCity.group);
+      D.farTops = farCity.tops;
+    } catch (e) { console.warn('far city: none drawn', e); farCity = null; }
+
     // ------------------------------------------------------------ after dark (night.js)
     let night = null;
     if (NU) {
@@ -2612,6 +2623,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
         // a floodlight that changes with the season (landmarks.json "emissive_dates": [["MM-DD", "MM-DD", colour], ...]):
         // Tokyo Tower's white metal halide lamps in summer, its orange sodium ones the rest of the year
         const md = month * 100 + day;
+        if (farCity) farCity.setSeason(month, day); // (Tokyo Tower's and the Skytree's lighting by the date, farcity.js)
         for (const [k, m] of Object.entries(floodMats)) {
           const dates = LM.materials[k].emissive_dates, cycle = LM.materials[k].emissive_cycle;
           if (!dates && !cycle) continue;
@@ -2627,6 +2639,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
         if (envWait && performance.now() - envAt >= (api.envEvery || 0)) api.setSun(envWait.sp, envWait.minutes);
         SPARKLE.t.value = SCREEN.t.value = t * 0.001;
         if (camera) for (const o of farObjs) o.visible = camera.position.distanceToSquared(o.userData.far.c) < o.userData.far.r2;
+        if (farCity && camera) farCity.update(camera);
         if (sea && camera) sea.update(t, camera, world, seaInView(camera, t)); else waterMat.normalMap.offset.set(t * 0.000004, t * 0.0000025);
         if (trees && camera) trees.update(camera, t / 1000);
         if (night && camera) night.update(camera, t / 1000);
