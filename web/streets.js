@@ -177,6 +177,12 @@ window.OEStreets = (function () {
         if (h) h.push(p); else grid.set(k, [p]);
         return p;
       },
+      // a post taken away (one of a story's people, gone with their frame)
+      remove(p) {
+        const g = grid.get(key(Math.floor(p.x / GC), Math.floor(p.y / GC))), i = g ? g.indexOf(p) : -1, j = list.indexOf(p);
+        if (i >= 0) g.splice(i, 1);
+        if (j >= 0) list.splice(j, 1);
+      },
       near(x, y, r, fn, z = null) {
         const R = r + big;
         for (let cx = Math.floor((x - R) / GC); cx <= Math.floor((x + R) / GC); cx++) for (let cy = Math.floor((y - R) / GC); cy <= Math.floor((y + R) / GC); cy++) {

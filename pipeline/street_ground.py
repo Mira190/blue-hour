@@ -33,6 +33,12 @@ pinned ground past the kerb (the outer lane and the pavement rose and fell with 
 footpaths levelled like streets (three benches down a hillside where there is one street); and every node where two
 lines disagreed by 0.4 m left as surveyed (a hole in the grading at each junction on a slope).
 
+Then the ground between the streets (lots()): under and between the buildings of a block the survey carries what its
+filter left of them, and every node there that no street holds becomes a membrane stretched from the streets round
+it; the buildings of the lots are set down on that ground (rebase(): buildings.json, so stations.py, lobby.py, the
+city's own base passes, roofkit.py and pack.py are run after it), and the street lights' roads take the new heights
+(night.json).
+
 The survey is kept, as game_data.py wrote it, in cities/<id>/ground_survey.json (not served), and every grading
 starts from it: a change to the method needs no rebuild of the city, and a second run writes the same.
 
@@ -104,7 +110,8 @@ MEDIAN_N, SIGMA_M = 13, 5.0  # the smoothing along a line (samples a metre apart
 COVER = 0.4          # the share of a node's cell a landmark's flat faces cover for the node to be the landmark's
 HOLE_M = 2.0         # a closed hollow deeper than this under its rim is a hole of the survey's (see holes())
 HOLE_NODES = 80      # and this many nodes at most (2000 m2): a larger hollow is the land's shape
-VERSION = 2
+LOT_OPEN_M = 15.0    # ground further than this from every building is open land (a park, a railway's corridor): surveyed
+VERSION = 3
 
 
 def grid(t):
@@ -451,14 +458,15 @@ def level(T, G, game, keep, on=None, laid=None, water=None):
     return new, alpha
 
 
-def by_street(G, game):
-    """The nodes a road or a footway on the ground reaches (its half width, PIN_M and FEATHER_M past it)."""
+def by_street(G, game, streets=False):
+    """The nodes a road or a footway on the ground reaches (its half width, PIN_M and FEATHER_M past it); streets: only
+    those wide enough to grade (graded())."""
     img = Image.new("L", (G.nx, G.ny), 0)
     d = ImageDraw.Draw(img)
     for kind in ("road", "foot"):
         for e in game["paths"][kind]:
             hw = half_width(e, kind)
-            if hw is None:
+            if hw is None or (streets and not graded(e, kind)):
                 continue
             w = max(1, int(round(2 * (hw + PIN_M + FEATHER_M) / G.cell)))
             for xy in runs(e, G):
@@ -549,6 +557,159 @@ def holes(T, G, game, keep, raised, on=None):
     return new, moved, found
 
 
+def standing(G, out):
+    """The nodes inside the footprint of a building's part that stands on the ground."""
+    bp = os.path.join(out, "buildings.json")
+    img = Image.new("L", (G.nx, G.ny), 0)
+    if out and os.path.exists(bp):
+        B = json.load(open(bp, encoding="utf8"))
+        f = B["s_fields"]
+        k_min, k_ring = f.index("min_dm"), f.index("ring_dm")
+        d = ImageDraw.Draw(img)
+        for sd in B["s"]:
+            if sd[k_min] <= 0:
+                r = sd[k_ring]
+                d.polygon([((r[i] / 10 - G.x0) / G.cell, (G.y1 - r[i + 1] / 10) / G.cell) for i in range(0, len(r) - 1, 2)], fill=1, outline=1)
+    return np.asarray(img, bool)
+
+
+def stood(landmarks, G):
+    """The nodes round a landmark's feet: a cell round every vertex of it within LANDMARK_M of the ground."""
+    img = np.zeros((G.ny, G.nx), bool)
+    for m in (landmarks or {}).get("meshes", []):
+        P = np.asarray(m["position"], np.float64).reshape(-1, 3)
+        if not len(P):
+            continue
+        P = P[np.abs(P[:, 2] - G.at(P[:, 0], P[:, 1])) < LANDMARK_M]
+        rr, cc = nodes_of(G, P[:, :2])
+        img[rr, cc] = True
+    return ndimage.binary_dilation(img, structure=np.ones((3, 3)))
+
+
+def lots(new, G, game, keep, alpha, water, out, on=None):
+    """The ground between the streets, as a membrane stretched from the streets round it: the grid, and the nodes of it.
+
+    A bare-earth survey is made by taking the buildings out of a laser's surface, and in a town built wall to wall
+    there is little ground left to take them out to: under and between the buildings of a block the 5 m grid carries
+    what the filter left of them, lumps of one to five metres that no street has. The streets are graded (level()), and
+    the lots were left as surveyed: a forecourt, a back lane the data does not map and the gap between two towers rose
+    and fell like dunes, the paving draped over them, a building's floor (the lowest ground under it) stood a storey
+    over the ground on one side and was buried on the other, and the ground climbed through a building's inside, where
+    a car that got under a wall was lifted into its solids. From first principles nothing is known of the ground under
+    a building but the ground round it: so every node within LOT_OPEN_M of a building that no street holds is the
+    mean of the four round it, a membrane fixed along the streets as graded, on the open land past the buildings (a
+    park, a railway's corridor: surveyed, and the survey is good there) and on everything the streets leave alone
+    (keep: the water, a hero level's ground, a landmark's paving, the clearance under a raised part; the nodes
+    by a street that it would not move, a bank or two levels). A block on a hillside keeps the hill: its streets
+    carry it. A node the membrane would move more than MAX_MOVE_M is a terrace the streets do not tell of (a campus on
+    its own hill, a cutting): it stays, and the membrane is stretched over it too."""
+    from scipy import sparse
+    from scipy.sparse.linalg import spsolve
+    ny, nx, cell = G.ny, G.nx, G.cell
+    bld = standing(G, out)
+    if not bld.any():
+        return new, np.zeros((ny, nx), bool)
+    # (a footpath is narrower than a cell and holds no node: one through a block lies on the membrane, and a node it
+    # was kept from stood up out of it as a spike)
+    near = by_street(on or G, game, streets=True)  # (the lines lie on the ground as it was: `on`)
+    fixed = keep | (near & ((alpha >= 0.999) | (alpha <= 0))) | (ndimage.distance_transform_edt(~bld) * cell > LOT_OPEN_M)
+    if water is not None:
+        fixed = fixed | water
+    fixed[0, :] = fixed[-1, :] = fixed[:, 0] = fixed[:, -1] = True
+    Z = new
+    for _ in range(4):
+        free = ~fixed
+        n = int(free.sum())
+        idx = np.full((ny, nx), -1)
+        idx[free] = np.arange(n)
+        rr, cc = np.nonzero(free)
+        me, b, rows, cols = idx[rr, cc], np.zeros(n), [], []
+        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            r2, c2 = rr + dr, cc + dc
+            f = free[r2, c2]
+            rows.append(me[f]); cols.append(idx[r2, c2][f])
+            np.add.at(b, me[~f], new[r2, c2][~f])
+        rows, cols = np.concatenate(rows), np.concatenate(cols)
+        A = sparse.coo_matrix((-np.ones(len(rows)), (rows, cols)), shape=(n, n)).tocsc() + 4 * sparse.eye(n, format="csc")
+        Z = new.copy()
+        Z[free] = spsolve(A, b)
+        far = free & (np.abs(Z - new) > MAX_MOVE_M)
+        if not far.any():
+            break
+        fixed = fixed | far
+    return Z, ~fixed
+
+
+def rebase(cid, Gn, lot, game, scene, dry=False):
+    """The buildings of the lots stood on the ground as it is now: what moved, and how far.
+
+    A building's base is the lowest ground under it (build_scene.py), and everything of it is measured from there: its
+    top, its roof, its storeys and shopfronts. Where lots() took a lump of the survey from under it, it is set down
+    with the ground: every solid of the building moves by what brings its lowest standing part to the lowest ground
+    along that part's walls now. Left where they are: a building no node of the lots touches, one a landmark draws
+    instead (scene.json hidden_solids), one with piers or posts of its own, one in or by a hero level, and one with a
+    part raised over a street (its clearance is the street's)."""
+    out = os.path.join(ROOT, "web", "data", cid)
+    bp = os.path.join(out, "buildings.json")
+    if not os.path.exists(bp):
+        return {}
+    B = json.load(open(bp, encoding="utf8"))
+    f = B["s_fields"]
+    k_b, k_base, k_min, k_ring = f.index("building"), f.index("base_dm"), f.index("min_dm"), f.index("ring_dm")
+    cell = Gn.cell
+    near = by_street(Gn, game)
+    heroes = [(h["at"], h["r"]) for h in game.get("hero", []) if h.get("at") and h.get("r")]
+    skip = set()
+    for i in scene.get("hidden_solids", []):
+        skip.add(B["s"][i][k_b])
+    for key in ("piers", "inner_posts"):
+        for i in (B.get(key) or {}):
+            skip.add(B["s"][int(i)][k_b] if key == "piers" else int(i))
+    by = {}
+    for i, sd in enumerate(B["s"]):
+        by.setdefault(sd[k_b], []).append(i)
+    moved, shifts = 0, []
+    for bi, idxs in by.items():
+        if bi in skip:
+            continue
+        low, base, touched, ok = np.inf, np.inf, False, True
+        for i in idxs:
+            sd = B["s"][i]
+            r = np.asarray(sd[k_ring], np.float64).reshape(-1, 2) / 10
+            if any(np.hypot(r[:, 0] - at[0], r[:, 1] - at[1]).min() < rad + 10 for at, rad in heroes):
+                ok = False
+                break
+            rr, cc = nodes_of(Gn, r)
+            if sd[k_min] > 0:
+                if near[rr, cc].any():
+                    ok = False
+                    break
+                continue
+            P = []
+            for a, b in zip(r, np.roll(r, -1, 0)):
+                m = max(1, int(np.ceil(np.hypot(*(b - a)))))
+                P.append(a + (b - a) * np.linspace(0, 1, m, endpoint=False)[:, None])
+            P = np.vstack(P)
+            c0, r0 = np.clip(np.floor((P[:, 0] - Gn.x0) / cell).astype(int), 0, Gn.nx - 2), np.clip(np.floor((Gn.y1 - P[:, 1]) / cell).astype(int), 0, Gn.ny - 2)
+            touched = touched or bool((lot[r0, c0] | lot[r0, c0 + 1] | lot[r0 + 1, c0] | lot[r0 + 1, c0 + 1]).any())
+            low, base = min(low, float(Gn.at(P[:, 0], P[:, 1]).min())), min(base, sd[k_base] / 10)
+        if not ok or not touched or not np.isfinite(low):
+            continue
+        d = int(round(max(low, 0.0) * 10)) - int(round(base * 10))
+        if d:
+            for i in idxs:
+                B["s"][i][k_base] += d
+            moved += 1
+            shifts.append(d / 10)
+    rep = {"buildings": moved}
+    if shifts:
+        a = np.abs(shifts)
+        rep.update(down=int((np.asarray(shifts) < 0).sum()), up=int((np.asarray(shifts) > 0).sum()), median_m=round(float(np.median(a)), 2), p99_m=round(float(np.percentile(a, 99)), 1), max_m=round(float(a.max()), 1))
+    if moved and not dry:
+        json.dump(B, open(bp, "w"), separators=(",", ":"))
+    return rep
+
+
 def evenness(T, G, game, centre, radius, keep, on=None, kinds=("road", "foot")):
     """How even the streets' ground is: along each road and footway on the ground within radius of centre (outside the
     nodes left as they are), every metre, the cross-fall over the half width each side (counts over 6 and 15 %), the change
@@ -618,6 +779,22 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False):
     # the survey's holes in the hero levels, filled on the graded ground (holes())
     new, _, rep["holes"] = fill(new)
     rep["hole_nodes"] = int(sum(h["nodes"] for h in rep["holes"] if h["filled"]))
+    # the ground between the streets, stretched from them (lots())
+    # (every hero level's ground stays as it is now, whether or not the level draws it: each was built and looked at
+    # on this ground, and the membrane is fixed along it)
+    gy, gx = np.mgrid[0:T.shape[0], 0:T.shape[1]]
+    held = np.zeros(T.shape, bool)
+    for h in game.get("hero", []):
+        if h.get("at") and h.get("r") and not h.get("graded"):
+            held |= np.hypot(x0 + gx * t["cell"] - h["at"][0], y1 - gy * t["cell"] - h["at"][1]) < h["r"] + 2 * t["cell"]
+    # (and the ground a landmark stands on: protected() keeps what lies under its flat faces for the streets, but a
+    # hoarding, a crane's mast or a wall has only its feet on the ground, and with a lump of the survey taken from
+    # under them the story's frame 5 hoarding hung 3 m in the air)
+    held |= stood(landmarks, Gc) & ~(alpha >= 0.999)
+    new = np.where(held, Tc, new)
+    streets_only = new
+    new, lot = lots(new, G, game, keep | held, alpha, water, out, Gc)
+    rep["lot_nodes"] = int((np.abs(new - streets_only) >= 0.05).sum())
     new = np.round(new / t["scale"]) * t["scale"]  # (as it is written, so that what is measured is what is walked)
     rep["nodes"] = int((np.abs(new - T) >= 0.005).sum())
     rep["moved_max_m"] = round(float(np.abs(new - T).max()), 2)
@@ -651,8 +828,15 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False):
     for flat in game.get("props", {}).values():
         reground(flat)
     rep["points"] = pts
+    rep["rebased"] = rebase(cid, Gn, lot, game, scene)  # (the buildings of the lots, set down on them)
     t.update(data=encode(new, t["scale"]), levelled=VERSION)
     json.dump(game, open(gp, "w", encoding="utf8"), separators=(",", ":"), ensure_ascii=False)
+    # the street lights stand along the roads at the roads' heights (night.json, baked from game.json): left as they
+    # were, a pole's foot hung over ground that had come down or stood under ground that had come up, its head at the
+    # road's surface, and your car met a lamp post nobody could see
+    if os.path.exists(os.path.join(out, "night.json")):
+        import night_lights
+        night_lights.write(out, game)
     # the viewer's 10 m grid: every other node where the game's changed
     if os.path.exists(tp):
         V = json.load(open(tp, encoding="utf8"))

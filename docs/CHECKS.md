@@ -78,12 +78,20 @@ tools/views/corner-night-62.json out [390x844 with LEAN=1]`, beside the desktop'
 level that is loading before a still, which on the low tier here is half a minute (before, a phone's stills of the
 Scramble were of the city's own model).
 
-Two of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
+Four of the story's probes are run by hand, when what they look at changes. The guide (`web/game/companion.js`, his
 film in `story.js` `meetGuide`): `tools/guide_meet.js` plays the first Stop, takes stills of his film, fails if his way
 to you passes within 0.42 m of a held person's middle or ends away from you, then runs after him at the game's own run
 and fails if he is behind the player more than a quarter of the time. A frame whose place is found (`task.find`):
 `tools/find_probe.js` plays it to its camera and takes stills, with what the finder says, from where the world stops,
 from the standpoint and from points given (`AT=x,y;x,y`), so that the words and the place are seen to agree.
+The end of the first talk (`story.js` `camCan`, `camWait`): `tools/talk_end_probe.js` plays to Sumiko and passes her
+lines as a hand does (E on a desktop, a tap on the words on a phone; `MASH=1` presses F or taps several times a second and
+on past the last line), then fails if the camera came up or its button was offered off the light, or if in the light the
+button is not there or does not raise it. Stills of each.
+The opening (`story.js` `jobBegin`, `hud.js` dialogue `free`; docs/STORY.md, *The opening rebuilt*): `tools/opening_play.js`
+plays the first frame from the order to the second frame's goal and fails if the player cannot walk while the office's
+call is said, if the camera comes up before the call asks for the picture, if the world stops with her corner behind the
+camera or not in the finder once it is held there, or if a call holds the player after the first print. Stills of each beat.
 The title in three screens and who you play (`web/game/game.js` `titleScreen`, `whoAsk`, `whoPick`; docs/STORY.md *The title, as a game opens*): `tools/title_who.js` opens the page as someone who has never played and presses as a hand does (a key or a tap past the press, mouse or touch, Enter, the arrows), and fails a title that does not open on its press, a first press of a way in that begins without bringing who you play up, portraits or a file on Kagami not shown whole, a Confirm with none chosen that goes on, a choice that is not who you then are, is not kept or does not set the file's lines, a Confirm that does not take the way in asked for, and a page opened again that asks again or does not name the choice under the menu. A rig's look (`web/game/people.js` `rig.animate`, the head turned to what an NPC or the player looks at): `tools/head_spin.js` holds every NPC's rig and the player's looking beside them, with time running and then held, and fails a head that goes on turning (a look laid over the last frame's look wound Aoi's head round by the Center Gai arch, on a phone, November 2026); `tools/story_play.js` reads every head at the first beat of each Stop as well. A train's sound (`web/game/audio.js` `trainAt`, `web/game/trains.js`): `tools/train_sound.js` renders one going by under
 the Yamanote bridge and beside its viaduct, offline, to WAV, and reads its rhythm, its hiss far off and its deck's boom.
 
@@ -101,6 +109,9 @@ The static checks:
 - the story's guide without a browser: round a held crowd by its gap, never through a person, and in front of a player
   who runs, stops and overtakes him (`tools/guide_unit.js`);
 - the building solids valid on their decimetre grid (`pipeline/solid_rings.py --check`);
+- the ground graded by the method as it is, its roads' cross-falls and creases within their limits
+  (`pipeline/street_ground.py --check`: lost from the script in a merge of 18 November 2026, after which the map
+  stood on an older grading for three days and nothing said so; back on 21 November);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
   (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);
 - no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
@@ -610,3 +621,41 @@ the roof's rim glass from eight directions, and measures every frame the skin of
 part, against the glass's plane and the collision world's walls; it fails on any part more than a centimetre in. With
 an out dir, stills close and from the chase camera at each, and five with time held.
 
+
+## One body in another (issue 126)
+
+On 21 November 2026 the owner's still of frame 6 showed Kagami and Mr Tanaka in one body on the stone blossom. The play
+checked only the crowd against the story's people (`bodiesCheck`, issue 65); nothing measured the player against them.
+
+- **`tools/clip_probe.js`** is put into the page by `tools/story_play.js` and called by the game every frame
+  (`window.__probe.frame`, `web/game/game.js`). It measures, from what the game holds and from the bones as they are
+  posed: the player, the story's people (the living and the afterimages), the guide and the map's NPCs against each
+  other (middle to middle; under 0.45 m is one body in another); each model's hands, forearms, feet, calves, head and
+  what it carries against its own body (less the rest pose's own depth) and its neighbours' (each part an ellipsoid
+  fitted to the vertices its bone carries); the lowest of each foot against the floor it stands on; each body against
+  walls, posts, cars and a floor at its head; in a helicopter or a car, the seat, the floor and the roof by rays. Every
+  case is printed once with its frame, beat, place, greatest depth and how many frames it lasted.
+- **The play fails** on one body in another and on a foot more than 15 cm under or over its floor. A foot read 3 to
+  15 cm off its floor is printed as a note, not failed: the first whole play after the fix read 3 to 10 cm under for
+  the walkers of frame 7, for Yuna and for the guide's paws, and the one such reading looked at closely (Yuna, in the
+  map without the story) was the measure's and not the model's; the others are not yet looked at (issue 126's
+  follow-up). The rest are printed as notes too: the ellipsoids are fitted, not the skin itself, so a limb case is a place to look, with
+  `tools/clip_look.js` (a close still of someone's feet and body, and the ground as it is drawn under each foot by a
+  ray through the world's meshes).
+- **Walked into.** After each talk and in each Stop the play walks the player straight at everyone within 14 m with the
+  key held, takes a still from the side (`into-*.png`) and fails when the player comes within 0.45 m of their middle.
+- **`tools/standpoints.py`** (static): no place the story sends the player to stand lies inside one of its people or
+  its things of 1964, and no two of its people stand in each other.
+
+What the first measure found, a whole play on a desktop (9164 frames, 231 cases): the player walked into every one of
+the story's people, living or afterimage, to 0.05 to 0.12 m from their middle (nothing held the player out of them);
+the guide sat with his flank inside Mr Tanaka and inside Akira's afterimage; and nothing else of the kind: nobody of
+the story stood in a wall, a post or a car, and the feet the first measure called sunk (the map's NPCs, 5 to 9 cm) were
+its own error (it took a kerb beside a foot for the foot's floor; `tools/clip_look.js` has their soles within a
+centimetre of the paving drawn). The cause was fixed in `storyFigure`: each of the story's people holds a place as a
+map's NPC does (`posts`, kind `story`), so the player's step stops at their shoulder (0.63 m, middle to middle), the
+guide keeps his body off them, one of them who walks goes round whoever stands in the way, and a player on whom
+someone is set down steps out of them at a walk.
+
+Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
+crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.

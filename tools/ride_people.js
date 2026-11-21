@@ -41,6 +41,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     // (and the world stepped on without drawing, checked at every step: a software renderer draws a frame in two seconds)
     window.__rpStep = n => { for (let i = 0; i < n; i++) { g.frame(1 / 30); check(1 / 30); } };
     function check(dt) {
+      if (!W.was) return; // (the watch is over: the harness has taken its tally, and a frame drawn after that wrote into nothing, a page error that failed a ride that had arrived)
       if (g.held && g.held()) return;
       W.frames++;
       pin();

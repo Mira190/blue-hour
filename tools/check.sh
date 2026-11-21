@@ -12,6 +12,8 @@
 #           - the frame-time governor on modelled devices (tools/governor_unit.js);
 #           - the story's guide round a held crowd and ahead of a running player (tools/guide_unit.js);
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
+#           - the ground graded by the method as it is: the streets level across, the lots between them stretched from
+#             the streets, the roads' cross-falls and creases within their limits (pipeline/street_ground.py --check);
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
 #           - nothing standing in a lift's street lobby, and its hall's posts and belts inside it (tools/lobby_check.py);
@@ -20,6 +22,7 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - no place the story sends the player to stand inside one of its people or its things (tools/standpoints.py);
 #           - the credits: every shipped work with its licence text, the fonts' OFL, the map's sources beside the README's,
 #             a link's picture and its tags, the version's repository, the three ways to the Credits (tools/credits_check.py);
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
@@ -550,12 +553,14 @@ rm -rf "$OUT/keep"
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
+    st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
     st flight flight_frames "the story's flight in every frame of its shots, from one side of it and clear of the buildings" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
+    st stands standpoints - '^FAIL|Error' python3 tools/standpoints.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
