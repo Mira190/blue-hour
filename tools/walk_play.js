@@ -255,8 +255,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   }
   if (phone) await press('#ph-done'); else await p.keyboard.press('Escape');
   // (the camera cranes back to the chase view, 0.9 s of the game's frames, many seconds of a software renderer's; the
-  // walk's buttons take no press while it moves)
-  await until(() => !document.getElementById('game-stage').classList.contains('photo') && !document.getElementById('game-stage').classList.contains('cine'), undefined, 120000);
+  // walk's buttons take no press while it moves. Read from the game, not the stage's class: the frame puts .cine on, and
+  // a software renderer's next frame can be seconds after photo mode is left)
+  await until(() => { const g = window.__game; return !g.photo.on && !g.cine.active; }, undefined, 120000);
   await p.waitForTimeout(800);
   { // (the menu's album: Hachiko as his picture)
     await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
