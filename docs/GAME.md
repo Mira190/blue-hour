@@ -1959,9 +1959,10 @@ Sydney's traffic stood still a third of the time.
     to the road; a photograph of the Scramble at a red light shows a ragged mass several
     deep, people turned to each other and at their phones):
     - **Each its own room.** A place at a kerb is kept from a stranger's by the mean of
-      the two's own room, each walker's from 0.72 to 1.2 m (`room`), and from one of its
-      own group by a shoulder's width (0.58 m, `MATE_NEAR`; the press keeps a group's own
-      0.5 m apart, strangers 0.68). All at one pace, 0.9 m, the places had packed into a
+      the two's own room, each walker's from 0.8 to 1.25 m (`room`), and from one of its
+      own group by a shoulder's width (0.62 m, `MATE_NEAR`; the press keeps a group's own
+      0.55 m apart, strangers 0.68). From 0.72 m and 0.58 m, the densest kerbs held seven
+      in a 2 m circle for 20 s (`tools/crowd_spread.js`). All at one pace, 0.9 m, the places had packed into a
       lattice.
     - **A ragged front.** Each place is chosen by its distance from where the walker
       comes, the front preferred by as much as that walker wants it (`keen`, 0.15 to 1.25

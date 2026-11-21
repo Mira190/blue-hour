@@ -471,11 +471,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     for (let i = 0; i < n; i++) P.push({ line: -1, s: 0, dir: 1, speed: 1.1 + rnd() * 0.6, phase: rnd() * 6.28, side: 0.6 + rnd() * 1.2, spread: rnd() * 2 - 1, lat: null, dodge: 0, v: 0, vx: 0, vy: 0,
       pause: 0, x: 0, y: 0, z: 0, h: 0, scale: 0.92 + rnd() * 0.16, state: 'walk', mode: 'ground', seat: null, t: 0, rest: rnd() * 30,
       id: i, lead: -1, mates: null, browse: 20 + rnd() * 160, // (id: its place in P; lead, mates: its walking group; browse: seconds to a stop along the way)
-      // (waiting at a kerb, issue 75: room, the space it keeps from a stranger, from 0.72 to 1.2 m centre to centre; keen,
+      // (waiting at a kerb, issue 75: room, the space it keeps from a stranger, from 0.8 to 1.25 m centre to centre; keen,
       // how much it wants the front row over a nearer place further back; wf, how far it stands turned from square to
       // the road, up to 25 degrees either way and mostly less. Drawn from its place in P, not from rnd, so that every
       // other draw the crowd makes is as it was)
-      room: 0.72 + 0.48 * h01(i, 1), keen: 0.15 + 1.1 * h01(i, 2), wf: (h01(i, 3) + h01(i, 4) - 1) * 0.44 });
+      room: 0.8 + 0.45 * h01(i, 1), keen: 0.15 + 1.1 * h01(i, 2), wf: (h01(i, 3) + h01(i, 4) - 1) * 0.44 });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -929,7 +929,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     const SLOT = 0.9;
     function slotFree(q, x, y, r = SLOT) {
       if (keepRoom(x, y, r) < r) return false; // (nor on one of those not of the crowd: a pace past the room each needs)
-      // (a place at a kerb, r the pace: kept from each stranger by the mean of the two's own room, from 0.72 to 1.2 m, and
+      // (a place at a kerb, r the pace: kept from each stranger by the mean of the two's own room, from 0.8 to 1.25 m, and
       // from one of its own group by a shoulder's width. All at one pace, 0.9 m, the front row stood ruled along the
       // kerb one person every pace, issue 75)
       const own = r === SLOT && q, gq = q ? (q.lead >= 0 ? q.lead : q.id) : -1;
@@ -1119,7 +1119,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // elsewhere (out of sight, by the story's clearing, or into a bus). Each group has a leader, who walks as anyone
     // does; each of the others (lead: the leader's id, gk: its place, 1 to 3) keeps its place by it.
     const GROUP = 0.3;                    // the chance someone put out on the street leads a group (with its mates about half the crowd)
-    const MATE = 0.75, MATE_DENSE = 0.62, MATE_NEAR = 0.58; // abreast, centre to centre (m): at ease, in a crowd, and stood waiting together
+    const MATE = 0.75, MATE_DENSE = 0.62, MATE_NEAR = 0.62; // abreast, centre to centre (m): at ease, in a crowd, and stood waiting together
     const mateOf = (p, o) => (p.lead >= 0 && (o.id === p.lead || o.lead === p.lead)) || (!!p.mates && o.lead === p.id);
     function partGroup(p) { // p leaves its group: a leader's mates go on as a group of their own, the first of them leading
       if (p.mates) {
@@ -1447,7 +1447,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (k === i) continue;
           const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey);
           if (e > 2.4 || e < 1e-4) continue;
-          const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.5 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
+          const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
