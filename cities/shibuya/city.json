@@ -31,7 +31,15 @@
     "url": "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
     "zoom": 17,
     "format": "jpg",
-    "attribution": "Geospatial Information Authority of Japan (GSI) seamless aerial photographs (GSI terms of use, source attribution)"
+    "attribution": "Geospatial Information Authority of Japan (GSI) seamless aerial photographs (GSI terms of use, source attribution)",
+    "tokyo_ortho": {
+      "note": "The ground tiles inside the frame are Tokyo's 2023 0.2 m ortho, laid over the GSI build by pipeline/ortho_tokyo.py (pipeline/fetch_tokyo_ortho.py fetches the sheets)",
+      "url": "https://gic-tokyo.s3.ap-northeast-1.amazonaws.com/2024/dig/ortho/{sheet}.zip",
+      "sun": [150, 45],
+      "sun_note": "The sun when the photograph was flown (March-April 2023, late morning), fitted to its shadows: azimuth from north and elevation, degrees",
+      "site_rgb": [134, 133, 130],
+      "attribution": "Tokyo Metropolitan Government, Digital Twin project: 2023 aerial survey ortho photographs, 0.2 m (CC BY 4.0); outside the frame GSI seamless aerial photographs"
+    }
   },
   "terrain": {
     "type": "gsi_dem_png",
@@ -55,6 +63,26 @@
     "tiles": "https://indigo-lab.github.io/plateau-lod2-mvt/{z}/{x}/{y}.pbf",
     "zoom": 14,
     "attribution": "MLIT Project PLATEAU Tokyo 23 wards LOD2 building models (CC BY 4.0), as vector tiles by indigo-lab (MIT)"
+  },
+  "today": {
+    "note": "A targeted update of the map's buildings to a newer PLATEAU release, where a player sees it (pipeline/plateau_today.py; docs/BUILDINGS.md, \"Today's city\")",
+    "citygml": "https://assets.cms.plateau.reearth.io/assets/48/e684f3-fb86-44d4-b7e3-a3d72d54582d/13113_shibuya-ku_pref_2025_citygml_1_op.zip",
+    "ward": "13113-",
+    "resurveyed": 1,
+    "near": {"at": [520.0, -1125.0], "r": 1000.0, "note": "SHIBUYA SKY's deck: below tall_h the update reaches this far"},
+    "keep": [
+      {"name": "the Tokyu Toyoko department store's West and South buildings, kept standing behind Hachiko Square (the owner's choice, November 2026; city.py TOYOKO_SITE)",
+       "ring": [[354.0, -1056.0], [420.0, -1056.0], [434.0, -1080.0], [452.0, -1160.0], [405.0, -1168.0], [372.0, -1112.0], [354.0, -1075.0]]}
+    ],
+    "sites": [
+      {"way": 1194193924, "name": "Shibuya Upper West Project, on the Tokyu main store's site", "opening": "FY2029"},
+      {"way": 1159013859, "name": "Dogenzaka 2-chome South redevelopment", "opening": "2027-02"},
+      {"way": 1558469714, "name": "MITAKE Link Park", "opening": "2027-06"}
+    ],
+    "osm": [
+      {"way": 1031373713, "keep": true, "name": "SHIBUYA AXSH, opened 2024-07-08: the release has it half built (50.8 m, flown March 2023); OpenStreetMap's outline at 120 m, as the map has it"}
+    ],
+    "attribution": "MLIT Project PLATEAU, Shibuya-ku FY2025 (spec v5, published 2026-03-16; LOD2 from Tokyo's FY2023 LiDAR, footprints from the FY2022 1/2500 base map), CC BY 4.0"
   },
   "water": {
     "classes": [],

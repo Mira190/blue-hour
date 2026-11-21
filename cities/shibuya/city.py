@@ -2132,6 +2132,7 @@ def districts_meshes(lm):
         crossing_signs(K, lm)
         if TOYOKO_WORKS:
             toyoko_site(K, lm)
+        today_sites(K, lm)
         # (QFRONT itself, its glass and its signs: scramble.py)
         if "signs" in lm:
             crossing_wall_signs(K, lm)
@@ -2974,8 +2975,15 @@ def demolished_solids():
 
 
 def landmark_demolished(scene):
-    """The Toyoko buildings pulled down since PLATEAU's survey (web/world.js leaves them out)."""
-    return demolished_solids() if TOYOKO_WORKS and "scramble" in scene["landmarks"] else []
+    """The buildings pulled down since the map's survey (web/world.js leaves them out): those PLATEAU's FY2025 release
+    and today's construction sites say are gone (cities/shibuya/today.json, pipeline/plateau_today.py), and the Toyoko
+    buildings when TOYOKO_WORKS is set."""
+    import cityctx
+    import today_diff
+    out = set(today_diff.demolished(cityctx.City(CITY))) if CITY == "shibuya" else set()
+    if TOYOKO_WORKS and "scramble" in scene["landmarks"]:
+        out |= set(demolished_solids())
+    return sorted(out)
 
 
 def toyoko_site(K, lm):
@@ -3007,6 +3015,91 @@ def toyoko_site(K, lm):
         z = gz(mx, my)
         K("steel").tube([np.array([mx, my, z]), np.array([mx, my, z + 16.0])], 0.15, 6)
         block(K("lamp", "lit"), frame((mx, my), (1, 0)), -0.5, 0.5, -0.5, 0.5, z + 16.0, z + 16.6)
+    c = np.asarray(CRANE["at"])
+    z = gz(*c)
+    top = z + CRANE["mast_m"]
+    S = K("crane_yellow")
+    for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):    # the mast: four chords and their bracing
+        S.tube([np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, z]), np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, top])], 0.09, 4)
+    for k in range(int(CRANE["mast_m"] / 3.0)):
+        z1, z2 = z + k * 3.0, z + (k + 1) * 3.0
+        for (x1, y1), (x2, y2) in (((-0.9, -0.9), (0.9, -0.9)), ((0.9, -0.9), (0.9, 0.9)), ((0.9, 0.9), (-0.9, 0.9)), ((-0.9, 0.9), (-0.9, -0.9))):
+            S.tube([np.array([c[0] + x1, c[1] + y1, z1]), np.array([c[0] + x2, c[1] + y2, z2])], 0.04, 3)
+    a = math.radians(CRANE["jib_deg"])
+    f = np.array([math.cos(a), math.sin(a)])
+    jib = lambda u, h=0.0: np.array([*(c + f * u), top + 1.5 + h])
+    S.tube([jib(-CRANE["counter_m"]), jib(CRANE["jib_m"])], 0.35, 4)                       # the jib and counter-jib
+    S.tube([jib(-CRANE["counter_m"], 1.6), jib(CRANE["jib_m"], 0.0)], 0.06, 3)
+    S.tube([jib(0.0, 6.0), jib(CRANE["jib_m"] * 0.7, 0.4)], 0.05, 3)                          # the ties from the peak
+    S.tube([jib(0.0, 6.0), jib(-CRANE["counter_m"] + 1, 0.4)], 0.05, 3)
+    S.tube([jib(0.0, 0.0), jib(0.0, 6.0)], 0.25, 4)
+    block(K("concrete"), frame(c - f * (CRANE["counter_m"] - 2.5), f), -2.0, 2.0, -1.2, 1.2, top + 0.2, top + 2.6)   # its counterweight
+    block(K("white_wall"), frame(c + f * 2.0, f), -1.0, 1.0, -1.1, 1.1, top - 2.2, top + 0.6)                 # the cab
+    K("wire").tube([jib(CRANE["jib_m"] * 0.6), jib(CRANE["jib_m"] * 0.6, -CRANE["mast_m"] * 0.7)], 0.03, 3)  # the hook's line
+    for u, hh in ((CRANE["jib_m"], 0.5), (0.0, 6.5), (-CRANE["counter_m"], 0.5)):              # red lights at its ends and peak
+        q = jib(u, hh)
+        block(K("aviation", "lit"), frame(q[:2], f), -0.25, 0.25, -0.25, 0.25, q[2], q[2] + 0.5)
+
+
+def today_sites(K, lm):
+    """The construction sites of today's city (cities/shibuya/today.json "sites", from OpenStreetMap's outlines; the
+    buildings that stood on them are taken down): each a white hoarding round its edge with the developer's notice,
+    floodlights on masts at its corners and a tower crane over its middle (position and height illustrative)."""
+    import json
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "today.json")
+    if CITY != "shibuya" or not os.path.exists(path):
+        return
+    for st in json.load(open(path, encoding="utf8")).get("sites", []):
+        ring = [[float(x), float(y)] for x, y in st["ring"]]
+        site = Polygon(ring)
+        if site.area < 400:
+            continue
+        works_site(K, lm, ring, site)
+
+
+def works_site(K, lm, ring, site, standing=(), masts=None, crane=None, notice=None):
+    """A works site's hoarding along the edges of ring (not where a standing building is against it), a notice (an
+    atlas cell) on it every third panel when one is given, floodlights on 16 m masts and a tower crane."""
+    gz = lambda x, y: lm_ground_at(lm, x, y)
+    W, A = K("white_wall"), K("atlas_print", "lit")
+    closed = ring + ring[:1]
+    for (ax, ay), (bx, by) in zip(closed, closed[1:]):
+        a, b = np.array([ax, ay]), np.array([bx, by])
+        L = float(np.linalg.norm(b - a))
+        if L < 0.5:
+            continue
+        f = (b - a) / L
+        for k in range(max(int(L / 4.0), 1)):
+            p, q = a + f * (k * 4.0), a + f * min((k + 1) * 4.0, L)
+            m = (p + q) / 2
+            if any(g.contains(Point(*m)) for g in standing):
+                continue
+            z = gz(*m)
+            W.quad(np.array([*p, z]), np.array([*q, z]), np.array([*q, z + 3.5]), np.array([*p, z + 3.5]))
+            W.quad(np.array([*q, z]), np.array([*p, z]), np.array([*p, z + 3.5]), np.array([*q, z + 3.5]))
+            if notice and k % 3 == 1 and float(np.linalg.norm(q - p)) > 3.9:   # the notice, on the side away from the site
+                nrm = -left_of(f) if site.contains(Point(*(m + left_of(f) * 2))) else left_of(f)
+                facade_panel(A, m, nrm, 3.8, z + 0.6, z + 3.1, notice, off=0.05)
+    if masts is None:   # one inside each of the outline's corners that turn most, four at most
+        inner = site.buffer(-4.0)
+        pts = [np.asarray(c) for c in (inner.exterior.coords[:-1] if inner.geom_type == "Polygon" and not inner.is_empty else [])]
+        masts = [tuple(c) for c in pts[:: max(1, len(pts) // 4)]][:4]
+    for mx, my in masts:
+        z = gz(mx, my)
+        K("steel").tube([np.array([mx, my, z]), np.array([mx, my, z + 16.0])], 0.15, 6)
+        block(K("lamp", "lit"), frame((mx, my), (1, 0)), -0.5, 0.5, -0.5, 0.5, z + 16.0, z + 16.6)
+    if crane is None:
+        c = site.representative_point()
+        L = max(min(math.sqrt(site.area) * 0.7, 55.0), 25.0)
+        crane = {"at": [c.x, c.y], "mast_m": round(L * 1.25, 1), "jib_m": round(L, 1), "counter_m": 14.0,
+                 "jib_deg": float(int(abs(c.x * 7 + c.y * 3)) % 360)}
+    tower_crane(K, lm, crane)
+
+
+def tower_crane(K, lm, CRANE):
+    """A tower crane: a braced square mast, its jib and counter-jib, the counterweight, the cab, the hook's line and the
+    red lights at its ends."""
+    gz = lambda x, y: lm_ground_at(lm, x, y)
     c = np.asarray(CRANE["at"])
     z = gz(*c)
     top = z + CRANE["mast_m"]
