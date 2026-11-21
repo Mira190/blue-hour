@@ -1152,6 +1152,9 @@ window.OEAudio = (function () {
         break;
       }
       case 'cam-down': burst(0, { dur: 0.15, f: 2000, q: 0.6, vol: 0.03, att: 0.05 }); knock(0.1, 200, 0.1, 0.06); break;
+      // the phone in a pocket, on silent in a loud street: its motor's buzz, twice, and the case rattling against what it
+      // lies on (a few dry grains over the hum). No ringtone
+      case 'phone': for (const t of [0, 0.55]) { burst(t, { dur: 0.36, f: 175, q: 3, vol: 0.1, att: 0.02 }); for (let k = 0; k < 9; k++) burst(t + k * 0.04, { dur: 0.012, f: 1400 + R() * 400, q: 2, vol: 0.012 }); } break;
       // it is in the frame: the Stop's glass crystallising. Grains of high glass, quick and sparse then settling, and
       // one clear note held under them
       case 'found': {

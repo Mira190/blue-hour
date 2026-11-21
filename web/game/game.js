@@ -2708,7 +2708,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // Only where that cannot be, from a fresh page at the hour it ended in and under its sky. It was the map's old free
     // game, under another game's name and with its quests
     free: () => { if (walkOnFromStory()) return; try { sessionStorage.setItem('oe-walk-auto', JSON.stringify({ t: sun && sun.altitude < -10 ? 'night' : 'blue', w: weather && /rain|drizzle|storm/.test(weather.state.kind) ? 'rain' : 'clear' })); } catch (e) { /* storage blocked */ } const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); location.href = u.toString(); },
-    say: (who, lines, done) => (talkLine(who), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done)), // (log: kept in the evening's log)
+    say: (who, lines, done, opts) => ((opts && opts.free) || talkLine(who), dlg.show(Object.assign({ color: who.alive ? '#ffcf8a' : '#9fc4ff', log: true }, who), lines.map(l => fill(l)), null, done, opts)), // (opts.free: a call said hands-free, hud.js)
+    cut: () => dlg.cut(), // (a call cut off by the Stop) // (log: kept in the evening's log)
     hush: on => { if (A.hush) A.hush(on); },
     // the score under the story (music.js), set to the scene: {slot: 'evening' | 'night', hour, rain, mode: 'foot' | 'ride' | 'heli'}
     score: state => { if (!window.OEMusic || !A.ctx) return; if (!storyMusic) { cueOut(); storyMusic = OEMusic.create(); storyMusic.start(A.ctx, A.musicBus()); } storyMusic.set(Object.assign({ palette: G.story.palette || 'tokyo' }, state)); },
@@ -3184,12 +3185,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       else if (!$('#g-bigmap').hidden && /^(Equal|NumpadAdd|Minus|NumpadSubtract)$/.test(c)) zoomMap(/Equal|Add/.test(c) ? 1.6 : 1 / 1.6); // + and − zoom the map
       return;
     }
-    if (dlg.open) {
+    if (dlg.free && (c === 'KeyE' || c === 'Enter')) { dlg.next(false, true); return; } // (a call said hands-free: E passes a line, every other key is the street's)
+    if (dlg.holds) {
       // the answers by the arrows, as a pad's d-pad goes through them (pad.js): the hand on one, then E, Enter or Space takes it
       const B = dlg.hasChoices ? [...document.querySelectorAll('#gd-choices button')] : [], f = document.activeElement;
       if (B.length && /^Arrow(Up|Down|Left|Right)$/.test(c)) { const d = /Up|Left/.test(c) ? -1 : 1, i = B.indexOf(f); B[i < 0 ? (d > 0 ? 0 : B.length - 1) : (i + d + B.length) % B.length].focus({ preventScroll: true }); return; }
       if (B.length && B.includes(f) && (c === 'KeyE' || c === 'Enter' || c === 'Space')) { e.preventDefault(); f.click(); return; }
-      if (c === 'KeyE' || c === 'Enter' || c === 'Space' || c === 'KeyF') dlg.next(false);
+      if (c === 'KeyE' || c === 'Enter' || c === 'Space' || c === 'KeyF') dlg.next(false, true);
       if (c === 'KeyQ' || c === 'Backspace') dlg.back(); // (one step back: the line said before)
       if (/^Digit[1-9]$/.test(c)) dlg.choose(+c.slice(5) - 1);
       return;
@@ -3245,7 +3247,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006 * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + dy * 0.005 * ls)); } // (through the lens, slower the longer it is, and up as far as the eye looks)
     cam.lastInput = clockT;
   });
-  on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.open) dlg.next(false); drag = null; });
+  on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.holds) dlg.next(false, true); drag = null; });
   on($('#gp-alt'), 'click', () => { const a = altAction(); if (a) { A.start(); a.act(); } });
   // on a phone the prompt is a button too, and two fingers on the picture zoom as the wheel does
   if (touch) on($('#gp-main'), 'click', () => interact());
@@ -3282,7 +3284,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const end = () => { jid = null; joy = { x: 0, y: 0 }; knob.style.transform = ''; pad.classList.remove('on'); };
     on(pad, 'pointerup', end); on(pad, 'pointercancel', end);
     const hold = (id, down, up) => { on($(id), 'pointerdown', e => { e.preventDefault(); down(); }); on($(id), 'pointerup', up || (() => {})); on($(id), 'pointercancel', up || (() => {})); };
-    hold('#gt-act', () => (dlg.open ? dlg.next(false) : interact()));
+    hold('#gt-act', () => (dlg.open ? dlg.next(false, true) : interact()));
     hold('#gt-jump', () => { if (player.mode === 'heli') touchLift = 1; else keys.add('Space'); }, () => { touchLift = 0; keys.delete('Space'); });
     // Down in the air, the horn in a car, Skip for a passenger (a taxi's trip, a ferry's or a train's leg), Guess on foot
     hold('#gt-down', () => {
@@ -3457,7 +3459,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } };
     return null;
   }
-  function interact() { const a = currentAction(); if (a && a.act) { A.start(); a.act(); } }
+  function interact() { if (dlg.quiet) return; const a = currentAction(); if (a && a.act) { A.start(); a.act(); } } // (not the press that ended a talk: hud.js dialogue quiet)
   // a spot (places.js): its lines, and a step waiting for it ("spot": its id) moves on
   function lookAt(sp) {
     if (sp.look && places) { closeupStart(sp); return; }
@@ -5876,12 +5878,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
-      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.open && !uiOpen()) { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt * ls)); cam.lastInput = clockT; }
+      if ((lk.x || lk.y) && player.mode === 'foot' && !photo.on && !closeup && !dlg.holds && !uiOpen()) { const ls = fpOn ? lensTurn() : 1; cam.yawTo = cam.pitchTo = null; cam.yaw += lk.x * 2.6 * dt * ls; cam.pitch = Math.max(fpOn ? -0.6 : -0.25, Math.min(1.35, cam.pitch + lk.y * 1.7 * dt * ls)); cam.lastInput = clockT; }
     }
     if (D.district && playing && (player.mode === 'foot' || player.mode === 'car') && !inFrame(player.x, player.y, 8)) districtEdge(); // (a phone's district: its edge, said)
     const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + joy.y + (gamepad ? gamepad.move.y : 0);
     const side = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0) + joy.x + (gamepad ? gamepad.move.x : 0);
-    const held = dlg.open || !!closeup || cine.label === 'hop' || cine.label === 'survey' || cine.label === 'closer' || (cine.active && cine.label === 'overture') || !!(story && story.film);
+    const held = dlg.holds || !!closeup || cine.label === 'hop' || cine.label === 'survey' || cine.label === 'closer' || (cine.active && cine.label === 'overture') || !!(story && story.film);
     const angling = !!fish && !!fish.api && fish.api.on(); // standing with a line out: the rod has the keys
     if (player.mode === 'foot' && angling) { player.speed = 0; gaitChip(player.walking ? 'walk' : 'run'); player.rig.animate(dt, 0, 'ground', clockT); }
     else if (player.mode === 'foot') walkStep(dt, held ? 0 : fwd, held ? 0 : side);
@@ -6428,7 +6430,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // eased back over half a second when the talk is over
     talkShot = null;
     if (talkCam && talkCam.talk) {
-      if (!dlg.open || player.mode !== 'foot' || shot) { talkCam.close(); blendFrom(0.5, true); player.rig.root.visible = true; }
+      if (!dlg.holds || player.mode !== 'foot' || shot) { talkCam.close(); blendFrom(0.5, true); player.rig.root.visible = true; }
       else if (!(story && story.finder)) {
         // (a new line of what is said: the text in the box is no longer the last frame's carried on; hud.js types each line out)
         const typed = talkText ? talkText.textContent : '';

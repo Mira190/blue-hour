@@ -40,6 +40,7 @@ const [,, out = '/tmp/guide-meet', size = '1440x900'] = process.argv;
     if (s.beat === 'guide' || s.film) break;
     if (s.phase === 'stop' && s.beat === 'seek') { errors.push('the first Stop went to its afterimage without the film of the guide'); break; }
     if (s.dlg) await p.keyboard.press('KeyE');
+    else if (s.phase === 'go' && s.beat === 'job') await p.evaluate(() => { const g = window.__game, st = g.story.state, J = st.fr.job; if (!st.jobReady) return; const pl = g.player; g.cam.yaw = Math.atan2(J.at[0] - pl.x, J.at[1] - pl.y); g.cam.pitch = 0.3; g.story.raise(true); }); // (the opening's job: your own camera raised to her corner)
     else if (s.phase === 'dressed') await p.keyboard.press('Space');
     else if (s.phase === 'go' && s.beat === 'order') await p.keyboard.press('KeyE');
     await p.waitForTimeout(500);
