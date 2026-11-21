@@ -95,7 +95,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     if (s.phase === 'dressed') { await p.keyboard.press('KeyQ'); continue; } // (the opening shots: a key ends them, many minutes of frames on a software renderer)
     // the cards before the ride (as tools/story_play.js answers them)
     if (s.dlg) { await p.evaluate(() => { const st = window.__game.story.state, B = document.querySelectorAll('#gd-choices button'); if (B.length) (B[st.want] || B[0]).click(); }); if (!s.choices) await p.keyboard.press('KeyE'); continue; }
-    if (s.mode === 'foot' && s.ride && (s.ride.phase === 'waiting') && !rode) { await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st; g.player.x = st.x + 2.4 * Math.cos(st.h); g.player.y = st.y - 2.4 * Math.sin(st.h); }); await p.waitForTimeout(600); await p.keyboard.press('KeyE'); }
+    if (s.mode === 'foot' && s.ride && (s.ride.phase === 'waiting') && !rode) { await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st; g.player.x = st.x - 2.4 * Math.cos(st.h); g.player.y = st.y + 2.4 * Math.sin(st.h); }); /* (put by its kerb's side, its left: Tokyo keeps left. Put on its right, in the lane, a car held there had the player inside it, one run in two) */ await p.waitForTimeout(600); await p.keyboard.press('KeyE'); }
     if (s.mode === 'ride') {
       if (+process.env.PIN && !pinned && s.ride && s.ride.phase === 'driving') { pinned = await p.evaluate(n => window.__rpPin(n), +process.env.PIN); console.log('pinned', JSON.stringify(pinned)); await p.waitForTimeout(300); await p.keyboard.press('KeyF'); }
       if (!rode) { rode = true; await p.evaluate(() => { const g = window.__game; if (g.cam && g.cam.mode === 'cabin' && g.keys) {} }); }

@@ -25,9 +25,12 @@ POS = re.compile(r"<gml:posList>([^<]*)</gml:posList>")
 G = lambda tag: re.compile(rf"<{tag}[^>]*>([^<]*)</{tag}>")
 RX = {k: G(t) for k, t in dict(id='gen:value', name='gml:name', usage='bldg:usage', h='bldg:measuredHeight', st='bldg:storeysAboveGround',
                                struct='uro:buildingStructureType', year='uro:surveyYear').items()}
+# the footprint: lod0FootPrint up to spec v4; v5 (FY2025 on) has lod0RoofEdge (the roof's outline) in its place
 FOOT = re.compile(r"<bldg:lod0FootPrint>(.*?)</bldg:lod0FootPrint>", re.S)
+EDGE = re.compile(r"<bldg:lod0RoofEdge>(.*?)</bldg:lod0RoofEdge>", re.S)
 SOLID = re.compile(r"<bldg:lod1Solid>(.*?)</bldg:lod1Solid>", re.S)
 ID = re.compile(r'name="建物ID">\s*<gen:value>([^<]*)</gen:value>')
+UID = re.compile(r"<uro:buildingID>([^<]*)</uro:buildingID>")   # spec v2 on
 
 
 def mesh_bounds(code):
@@ -41,7 +44,7 @@ def parse(text):
     out = []
     for m in B.finditer(text):
         b = m.group(0)
-        foot = FOOT.search(b)
+        foot = FOOT.search(b) or EDGE.search(b)
         solid = SOLID.search(b)
         if not foot or not solid:
             continue
@@ -52,7 +55,7 @@ def parse(text):
         lat, lon, z0 = v[0::3], v[1::3], v[2::3]
         zt = max(float(x) for p in POS.findall(solid.group(1)) for x in p.split()[2::3])
         g = {k: (rx.search(b).group(1) if rx.search(b) else None) for k, rx in RX.items()}
-        pid = ID.search(b)
+        pid = ID.search(b) or UID.search(b)
         num = lambda s: float(s) if s not in (None, "") else None
         out.append([pid.group(1) if pid else None, g["name"], g["usage"], num(g["h"]), int(g["st"]) if g["st"] else None, round(min(z0), 2),
                     round(zt - min(z0), 2), g["struct"], int(g["year"]) if g["year"] else None,
@@ -89,7 +92,7 @@ def read(city, cfg):
     z = zipfile.ZipFile(RangeFile(cfg["citygml"]))
     todo = []
     for info in z.infolist():
-        if "/udx/bldg/" in info.filename and info.filename.endswith(".gml"):
+        if ("/udx/bldg/" in info.filename or info.filename.startswith("udx/bldg/")) and info.filename.endswith(".gml"):  # v5 has no top folder
             a = mesh_bounds(os.path.basename(info.filename)[:8])
             if a[0] < e and a[2] > w and a[1] < n and a[3] > s:
                 todo.append(info.filename)
