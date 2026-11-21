@@ -501,6 +501,9 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
   // says it in Japanese and then in English, at the level the distance gives; false where the browser has no voice
   function say(ja, en, level, deep) {
     const ss = window.speechSynthesis, A = window.OEAudio;
+    // (a spoken announcement is not in the sound's graph: the mix of the place is taken off its level here, so that none
+    // is spoken into a lift, a cabin or the roof 229 m up: audio.js mix, heard)
+    if (A && A.heard) level *= A.heard('rail');
     if (!ss || !window.SpeechSynthesisUtterance || (A && (A.muted || !A.on)) || level <= 0.03) return false;
     if (ss.speaking || ss.pending) return false; // one announcement at a time: a second is only shown
     let any = false;
@@ -939,7 +942,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         // (and where its nearest car is, its body's middle over the rail, and your ear: what the air and what stands between
         // take off it, audio.js reach)
         if (A.trainAt) A.trainAt(i, { near: tr.near, above: (tr.nz ?? l.z) - l.z, v: tr.v, a: tr.a, len: tr.s.S.len, pan, fast: !!tr.s.S.shinkansen,
-          at: { x: tr.nx, y: tr.ny, z: (tr.nz ?? l.z) + 1.5 }, pts: (tr.pts || []).slice(0, tr.pn), ear: l }, dt);
+          under: !!l.under, at: { x: tr.nx, y: tr.ny, z: (tr.nz ?? l.z) + 1.5 }, pts: (tr.pts || []).slice(0, tr.pn), ear: l }, dt);
         else A.train(i, level, pan, tr.v, tr.a, !!tr.s.S.shinkansen);
       }
       // the announcements, while you are in hearing of a station

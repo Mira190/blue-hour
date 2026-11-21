@@ -82,6 +82,10 @@ window.OEAudio = (function () {
     duck = ctx.createGain(); duck.connect(main);
     verbIn = ctx.createGain();
     master = ctx.createGain(); master.connect(duck); master.connect(verbIn);
+    // the world's five buses, by what a sound is and so by what a place does to it (mix(), below): each a level and a
+    // low-pass into the world's bus
+    for (const k of BUSES) { const g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000; lp.Q.value = 0.707; g.connect(lp); lp.connect(master); B[k] = g; busOut[k] = lp; }
+    mixNow = null; mixLin = null; cityCh = null; liftCh = null; roadCh = null; tickAt = 0;
     room = null; sbus = null; mbus = null; verbs.length = 0; placeNow = null; irs = {}; tape = null; deck = null; ready = Promise.resolve();
     for (const k of Object.keys(ch)) delete ch[k];
     place('open');
@@ -118,35 +122,41 @@ window.OEAudio = (function () {
       bp.type = 'bandpass'; bp.frequency.value = 140; bp.Q.value = 0.8;
       chop.type = 'square'; chop.frequency.value = 4; cg.gain.value = 0.5; rg.gain.value = 0.5; rv.gain.value = 0;
       chop.connect(cg); cg.connect(rg.gain); chop.start();
-      rn.connect(bp); bp.connect(rg); rg.connect(rv); rv.connect(master);
-      return { vol: rv, chop };
+      rn.connect(bp); bp.connect(rg); rg.connect(rv); rv.connect(B.self);
+      // the turbine's whine (a narrow band of air, high) and the gearbox under it (a tone with its teeth): with the
+      // blades, what a helicopter is from inside its cabin, where the machinery is louder than the rotor
+      const tn = noiseSource(), tb = ctx.createBiquadFilter(), tg = ctx.createGain(), go = ctx.createOscillator(), gl = ctx.createBiquadFilter(), gg = ctx.createGain();
+      tb.type = 'bandpass'; tb.frequency.value = 2400; tb.Q.value = 11; tg.gain.value = 0.22;
+      go.type = 'sawtooth'; go.frequency.value = 380; gl.type = 'lowpass'; gl.frequency.value = 1100; gl.Q.value = 1; gg.gain.value = 0.035;
+      tn.connect(tb); tb.connect(tg); tg.connect(rv); go.connect(gl); gl.connect(gg); gg.connect(rv); go.start();
+      return { vol: rv, chop, tb, go };
     },
     // ferry engine: a low saw hum
     engine() {
       const eo = ctx.createOscillator(), el = ctx.createBiquadFilter(), eg = ctx.createGain();
       eo.type = 'sawtooth'; eo.frequency.value = 48; el.type = 'lowpass'; el.frequency.value = 160; eg.gain.value = 0;
-      eo.connect(el); el.connect(eg); eg.connect(master); eo.start();
+      eo.connect(el); el.connect(eg); eg.connect(B.self); eo.start();
       return { vol: eg, osc: eo };
     },
     // wind at height and speed
     wind() {
       const wn = noiseSource(), wl = ctx.createBiquadFilter(), wg = ctx.createGain();
       wl.type = 'bandpass'; wl.frequency.value = 900; wl.Q.value = 0.4; wg.gain.value = 0;
-      wn.connect(wl); wl.connect(wg); wg.connect(master);
+      wn.connect(wl); wl.connect(wg); wg.connect(B.weather);
       return { vol: wg, f: wl };
     },
     // a car's engine: two saws a fifth apart through a low-pass that opens with the throttle
     car() {
       const co = ctx.createOscillator(), c2 = ctx.createOscillator(), cl = ctx.createBiquadFilter(), cv = ctx.createGain();
       co.type = c2.type = 'sawtooth'; co.frequency.value = 40; c2.frequency.value = 60; cl.type = 'lowpass'; cl.frequency.value = 300; cl.Q.value = 2; cv.gain.value = 0;
-      co.connect(cl); c2.connect(cl); cl.connect(cv); cv.connect(master); co.start(); c2.start();
+      co.connect(cl); c2.connect(cl); cl.connect(cv); cv.connect(B.self); co.start(); c2.start();
       return { vol: cv, a: co, b: c2, lp: cl };
     },
     // tyres scrubbing sideways: band-passed noise
     skid() {
       const sn = noiseSource(), sb = ctx.createBiquadFilter(), sg = ctx.createGain();
       sb.type = 'bandpass'; sb.frequency.value = 1500; sb.Q.value = 6; sg.gain.value = 0;
-      sn.connect(sb); sb.connect(sg); sg.connect(master);
+      sn.connect(sb); sb.connect(sg); sg.connect(B.self);
       return { vol: sg };
     },
     // rain: a hiss of fine drops (high-passed noise), the patter on leaves and paving (a band of
@@ -154,14 +164,14 @@ window.OEAudio = (function () {
     rain() {
       const hn = noiseSource(), hh = ctx.createBiquadFilter(), hg = ctx.createGain();
       hh.type = 'highpass'; hh.frequency.value = 3200; hg.gain.value = 0;
-      hn.connect(hh); hh.connect(hg); hg.connect(master);
+      hn.connect(hh); hh.connect(hg); hg.connect(B.weather);
       const pn = noiseSource(), pb = ctx.createBiquadFilter(), pg = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain(), pv = ctx.createGain();
       pb.type = 'bandpass'; pb.frequency.value = 1400; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
       pl.type = 'triangle'; pl.frequency.value = 7.3; plg.gain.value = 0.35; pl.connect(plg); plg.connect(pg.gain); pl.start();
-      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(master);
+      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(B.weather);
       const rn2 = noiseSource(), rb = ctx.createBiquadFilter(), rgain = ctx.createGain();
       rb.type = 'bandpass'; rb.frequency.value = 420; rb.Q.value = 0.9; rgain.gain.value = 0;
-      rn2.connect(rb); rb.connect(rgain); rgain.connect(master);
+      rn2.connect(rb); rb.connect(rgain); rgain.connect(B.weather);
       return { hiss: hg, patter: pv, roof: rgain, hp: hh };
     },
   };
@@ -174,6 +184,7 @@ window.OEAudio = (function () {
     if (!c) return;
     ramp(c.vol.gain, spin * (0.22 + 0.12 * load));
     ramp(c.chop.frequency, 4 + spin * 16, 0.4);
+    ramp(c.tb.frequency, 1500 + 1700 * spin, 0.6); ramp(c.go.frequency, 240 + 300 * spin, 0.6);
   }
   function engine(level) { const c = ctx && bed('engine', level > 0.001); if (c) { ramp(c.vol.gain, level * 0.09); ramp(c.osc.frequency, 42 + level * 18, 0.6); } }
   // level 0..1: the air's rush (a helicopter's speed, or the weather's wind and its gusts, whichever is louder)
@@ -201,7 +212,7 @@ window.OEAudio = (function () {
     // the roll: the sound of the channel's far parts arriving later, in swells
     for (let k = 1; k <= 4; k++) g.gain.exponentialRampToValueAtTime((0.05 + 0.18 * Math.random()) * far * (1 - k / 6), t + len * k / 5);
     g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    src.connect(lp); lp.connect(g); g.connect(master);
+    src.connect(lp); lp.connect(g); g.connect(B.weather);
     setTimeout(() => { try { src.stop(); src.disconnect(); g.disconnect(); } catch (e) { /* already gone */ } }, (len + 0.5) * 1000);
   }
   // summer's cicadas, level 0..1: a high, narrow band of noise rattling at a wing's rate, swelling and
@@ -214,38 +225,39 @@ window.OEAudio = (function () {
       const n = noiseSource(), bp = ctx.createBiquadFilter(), am = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(), sw = ctx.createOscillator(), sg = ctx.createGain(), out = ctx.createGain();
       bp.type = 'bandpass'; bp.frequency.value = 5400; bp.Q.value = 11; am.gain.value = 0.5; out.gain.value = 0;
       lfo.type = 'sawtooth'; lfo.frequency.value = 58; lg.gain.value = 0.45; sw.type = 'sine'; sw.frequency.value = 0.19; sg.gain.value = 0.3;
-      n.connect(bp); bp.connect(am); am.connect(out); out.connect(master); lfo.connect(lg); lg.connect(am.gain); sw.connect(sg); sg.connect(am.gain); lfo.start(); sw.start();
+      n.connect(bp); bp.connect(am); am.connect(out); out.connect(B.weather); lfo.connect(lg); lg.connect(am.gain); sw.connect(sg); sg.connect(am.gain); lfo.start(); sw.start();
       ch.cicada = out;
     }
     ramp(ch.cicada.gain, Math.min(1, level) * 0.022, 2);
   }
-  function rain(level, roof = false, inside = false) {
+  // umb (0..1): on foot in the open among umbrellas, the rain's drumming on their cloth round your head, a third of a roof's
+  function rain(level, roof = false, inside = false, umb = 0) {
     const c = ctx && bed('rain', level > 0.001);
     if (!c) return;
     const k = inside ? 0.35 : 1;
     ramp(c.hiss.gain, level * 0.05 * k * (roof ? 0.6 : 1), 0.8);
     ramp(c.patter.gain, level * 0.07 * k * (roof ? 0.5 : 1), 0.8);
-    ramp(c.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0) * Math.min(1, level * 1.4), 0.6);
+    ramp(c.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0.035 * umb) * Math.min(1, level * 1.4), 0.6);
     ramp(c.hp.frequency, inside ? 1800 : 3200, 0.5);
     // under a roof, now and then a drop off its edge
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
   }
-  function blip(freq, dur, type = 'square', vol = 0.05, fc = 20000, must = false) {
+  function blip(freq, dur, type = 'square', vol = 0.05, fc = 20000, must = false, bus = 'near') {
     if (!ctx || muted || (!must && !take(dur + 0.1))) return;
     const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     o.type = type; o.frequency.value = freq; g.gain.value = 0;
     // (up in 2 ms: it began at its full level in the first sample, a click of its own under the note)
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(into(fc, dur)); o.start(t); o.stop(t + dur + 0.02); free(o, g);
+    o.connect(g); g.connect(into(fc, dur, bus)); o.start(t); o.stop(t + dur + 0.02); free(o, g);
   }
-  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035, 20000, true); }
+  function beep(pitch) { duckFor(); blip(pitch * (0.92 + Math.random() * 0.16), 0.045, 'square', 0.035, 20000, true, 'self'); }
   function step() {
     if (!ctx || muted || !take(0.2)) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.08); free(s, g);
+    s.connect(f); f.connect(g); g.connect(B.self); s.start(t, Math.random()); s.stop(t + 0.08); free(s, g);
   }
   function horn() { blip(196, 1.3, 'sawtooth', 0.06); blip(247, 1.3, 'sawtooth', 0.04); }
   // your horn; another driver's at a gain (its distance) and a pitch (a bus's is lower)
@@ -257,7 +269,7 @@ window.OEAudio = (function () {
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + LEAD;
     s.buffer = noise; f.type = 'lowpass'; f.frequency.value = 1400; g.gain.value = 0;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + 0.14); free(s, g);
+    s.connect(f); f.connect(g); g.connect(B.self); s.start(t, Math.random()); s.stop(t + 0.14); free(s, g);
   }
   // a little penguin's bray: a run of nasal pulses, rising and falling; level 0..1 with distance
   function penguin(level = 1) {
@@ -270,7 +282,7 @@ window.OEAudio = (function () {
       o.frequency.setValueAtTime(f0 * (up ? 1 + k * 0.08 : 1.3 - (k - n / 2) * 0.1), a);
       g.gain.setValueAtTime(0.0001, a); g.gain.linearRampToValueAtTime(0.05 * level, a + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, a + 0.13);
     }
-    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + n * 0.16 + 0.05); free(o, g);
+    o.connect(f); f.connect(g); g.connect(B.near); o.start(t); o.stop(t + n * 0.16 + 0.05); free(o, g);
   }
   // a silver gull's call: a harsh, falling "kee-ar", sometimes two; level 0..1 with distance
   function gull(level = 1) {
@@ -281,7 +293,7 @@ window.OEAudio = (function () {
       o.type = 'square'; f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 2.5;
       o.frequency.setValueAtTime(f0, a); o.frequency.linearRampToValueAtTime(f0 * 1.15, a + 0.05); o.frequency.exponentialRampToValueAtTime(f0 * 0.62, a + 0.26);
       g.gain.setValueAtTime(0.0001, a); g.gain.linearRampToValueAtTime(0.045 * level, a + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, a + 0.28);
-      o.connect(f); f.connect(g); g.connect(master); o.start(a); o.stop(a + 0.3); free(o, g);
+      o.connect(f); f.connect(g); g.connect(B.near); o.start(a); o.stop(a + 0.3); free(o, g);
     }
   }
   function chime() { [660, 880, 1320].forEach((f, i) => setTimeout(() => blip(f, 0.35, 'sine', 0.07), i * 110)); }
@@ -326,13 +338,146 @@ window.OEAudio = (function () {
   }
   // where a short sound plays into: the world's bus, or a low-pass to it when the air or an edge takes its highs (taken
   // off the bus once it has sounded: life, its length)
-  function into(fc = 20000, life = 2) {
-    if (!(fc < 16000)) return master;
+  function into(fc = 20000, life = 2, bus = 'near') {
+    if (!(fc < 16000)) return B[bus];
     const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = Math.max(200, fc); lp.Q.value = 0.707; lp.connect(master);
+    lp.type = 'lowpass'; lp.frequency.value = Math.max(200, fc); lp.Q.value = 0.707; lp.connect(B[bus]);
     const c = ctx; setTimeout(() => { if (ctx === c) { try { lp.disconnect(); } catch (e) { /* already gone */ } } }, (life + 0.5) * 1000);
     return lp;
   }
+  // ---------------------------------------------------------------- the mix of the place you stand in
+  // (docs/SOUND.md "The mix, place by place"; issue 127). reach() says what the air and the city leave of one sound
+  // from one point. A place does something to every sound of a kind at once: a lift's closed car leaves nothing of the
+  // street, a car's cabin its low end, the deck over the street east of the station turns a train into the deck's own
+  // rumble, and 229 m up no car, voice or train is a sound of its own: they have fused into the city's hum (Meyerson's
+  // tower, 1977: the high floors hear a wide area, not the street below). Games mix this way: every sound belongs to a
+  // bus, and the listener's place sets each bus's level and low-pass (Wwise's states and its bus volumes and filters,
+  // FMOD's snapshots, Unreal's sound mixes and its interior volumes). The world has five:
+  //   near     the street's close life: the crowd, the screens, the walk signals' calls, horns, the announcements
+  //   rail     the trains: their rumble, their wheels, the deck under them, the platforms' chimes
+  //   weather  the rain, the wind, thunder, the cicadas
+  //   self     you and what you are in: your steps, the car's engine and tyres, its indicator, the lift's hum, the rotor
+  //   city     the city as one sound, far and wide: its hum, and its far events (a siren, a train's horn)
+  // mix(place, up) sets them (game.js, every frame; it acts on a change): place one of MIX's, up the ears' height over
+  // the ground (m), which takes the open street's mix to the roof's between 25 and 150 m. Each row: [dB, low-pass Hz].
+  const BUSES = ['near', 'rail', 'weather', 'self', 'city'], B = {}, busOut = {};
+  const MIX = {
+    kerb: { near: [0, 20000], rail: [0, 20000], weather: [0, 20000], self: [0, 20000], city: [-10, 260] },
+    deck: { near: [-3, 9000], rail: [3, 300], weather: [-4, 6000], self: [0, 20000], city: [-6, 320] },
+    lift: { near: [-40, 300], rail: [-36, 160], weather: [-60, 300], self: [0, 20000], city: [-45, 140] },
+    roof: { near: [-60, 1500], rail: [-60, 400], weather: [0, 20000], self: [0, 20000], city: [-2, 700] },
+    heli: { near: [-60, 800], rail: [-60, 300], weather: [-8, 1800], self: [8, 20000], city: [-40, 300] },
+    car: { near: [-12, 900], rail: [-14, 350], weather: [-6, 2500], self: [-5, 20000], city: [-14, 220] },
+  };
+  let mixNow = null, mixLin = null, cityCh = null, liftCh = null, roadCh = null, tickAt = 0;
+  function mix(place, up = 0) {
+    if (!ctx || !MIX[place]) return;
+    const open = place === 'kerb' || place === 'roof', x = Math.max(0, Math.min(1, (up - 25) / 125)), h = open ? x * x * (3 - 2 * x) : 0;
+    const key = open ? `open ${h.toFixed(2)}` : place;
+    if (key === mixNow) return;
+    mixNow = key;
+    const lin = {};
+    for (const k of BUSES) {
+      let [db, fc] = MIX[open ? 'kerb' : place][k];
+      if (open) { const [d1, f1] = MIX.roof[k]; db += (d1 - db) * h; fc = Math.exp(Math.log(fc) + (Math.log(f1) - Math.log(fc)) * h); }
+      lin[k] = db <= -59 ? 0 : Math.pow(10, db / 20);
+      ramp(B[k].gain, lin[k], 0.2); ramp(busOut[k].frequency, fc, 0.2);
+    }
+    mixLin = lin; city(lin.city);
+  }
+  // what the place leaves of a bus (0..1), for a sound that is not in the graph: the platforms' spoken announcements (trains.js)
+  const heard = name => (mixLin && mixLin[name] != null ? mixLin[name] : 1);
+  // The city as one sound: every engine, tyre, fan and voice for a kilometre round, summed and low (the air and the
+  // roofs' edges between take the rest: under 500 Hz is what a high floor hears), wide (two beds of noise that share
+  // nothing, one a side) and never quite steady (each side swells a little, slowly, on its own). At the kerb it is the
+  // hum under the street, at the roof the whole of the city. Made the first time it is to be heard
+  function city(level) {
+    if (!ctx) return;
+    if (shed >= 2) level = 0;
+    if (!cityCh) {
+      if (!(level > 0.003) || muted) return;
+      const outG = ctx.createGain(); outG.gain.value = 0.2; outG.connect(B.city);
+      for (const side of [-1, 1]) {
+        const n = ctx.createBufferSource(), lo = ctx.createBiquadFilter(), mid = ctx.createBiquadFilter(), mg = ctx.createGain(), g = ctx.createGain(), sw = ctx.createOscillator(), sg = ctx.createGain();
+        n.buffer = noise; n.loop = true; n.start(0, side < 0 ? 0.37 : 1.21);
+        lo.type = 'lowpass'; lo.frequency.value = 170; lo.Q.value = 0.5; mid.type = 'bandpass'; mid.frequency.value = 340; mid.Q.value = 0.6; mg.gain.value = 0.3;
+        sw.frequency.value = side < 0 ? 0.071 : 0.113; sg.gain.value = 0.22; g.gain.value = 0.8; sw.connect(sg); sg.connect(g.gain); sw.start();
+        n.connect(lo); n.connect(mid); mid.connect(mg); lo.connect(g); mg.connect(g);
+        if (ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = side * 0.75; g.connect(pn); pn.connect(outG); } else g.connect(outG);
+      }
+      cityCh = { out: outG };
+    }
+  }
+  // A far event of the city, d metres off: a siren (Japan's ambulance, two notes: 960 and 770 Hz) or a train's horn. It
+  // is heard late by the distance (343 m a second: two seconds from 700 m), small by it, and with the air's share of
+  // its highs gone (ISO 9613-1 at 20 C and 70 %: 5 dB a kilometre at 1 kHz, 23 at 4 kHz), into the city's bus: the
+  // place decides whether it is heard at all (on the roof and at the kerb; not in the lift, the cabin or the car)
+  function far(kind = 'siren', d = 600, pan = 0) {
+    if (!ctx || muted || shed >= 2) return false;
+    const len = kind === 'horn' ? 1.9 : 7.8, late = d / 343;
+    if (!take(len + late + 0.5)) return false;
+    const level = Math.min(1, 220 / d) * Math.pow(10, -4.98 * d / 1000 / 20), fc = Math.max(900, 5200 - 5 * d);
+    const dst = out((kind === 'horn' ? 0.05 : 0.035) * level, pan, len + late, fc, 'city'), t = ctx.currentTime + LEAD + late;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    g.gain.value = 0; g.gain.setValueAtTime(0.0001, t);
+    if (kind === 'horn') {
+      const o2 = ctx.createOscillator();
+      o.type = o2.type = 'sawtooth'; o.frequency.value = 311; o2.frequency.value = 370;
+      g.gain.linearRampToValueAtTime(0.5, t + 0.08); g.gain.setValueAtTime(0.5, t + 1.3); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o2.connect(g); o2.start(t); o2.stop(t + len + 0.05);
+    } else {
+      o.type = 'triangle';
+      for (let k = 0; k * 0.65 < len; k++) o.frequency.setValueAtTime(k % 2 ? 770 : 960, t + k * 0.65);
+      // (it comes up out of the hum and goes back into it: an ambulance passing a gap between buildings)
+      g.gain.linearRampToValueAtTime(1, t + len * 0.45); g.gain.linearRampToValueAtTime(0.0001, t + len);
+    }
+    o.connect(g); g.connect(dst); o.start(t); o.stop(t + len + 0.05); free(o, g);
+    return true;
+  }
+  // The lift's own sound, level 0..1 (0 out of it), speed 0..1 of its travel: the machine's hum up the shaft (100 Hz and
+  // its octave, a little higher as it runs) and the car's fan, air through a grille. The street is not in it (mix 'lift')
+  function lift(level, speed = 0) {
+    if (!ctx) return;
+    if (!liftCh) {
+      if (!(level > 0.001) || muted) return;
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), og = ctx.createGain(), n = noiseSource(), f = ctx.createBiquadFilter(), ng = ctx.createGain(), v = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = 100; o2.type = 'sine'; o2.frequency.value = 200; og.gain.value = 0.5;
+      f.type = 'bandpass'; f.frequency.value = 520; f.Q.value = 0.5; ng.gain.value = 0.16; v.gain.value = 0;
+      o.connect(og); o2.connect(og); og.connect(v); n.connect(f); f.connect(ng); ng.connect(v); v.connect(B.self); o.start(); o2.start();
+      liftCh = { v, o, o2, og };
+    }
+    ramp(liftCh.v.gain, Math.min(1, level) * 0.02, 0.3);
+    ramp(liftCh.o.frequency, 100 + 16 * speed, 0.5); ramp(liftCh.o2.frequency, 200 + 32 * speed, 0.5); ramp(liftCh.og.gain, 0.25 + 0.5 * speed, 0.4);
+  }
+  // its arrival: two soft notes falling, in the car with you
+  function liftChime() { blip(659.3, 0.9, 'sine', 0.05, 20000, true, 'self'); setTimeout(() => blip(523.3, 1.2, 'sine', 0.05, 20000, true, 'self'), 380); }
+  // the road under a car's tyres, level 0..1 with its speed: a low roar, in the cabin with you
+  function road(level) {
+    if (!ctx) return;
+    if (!roadCh) {
+      if (!(level > 0.001) || muted) return;
+      const n = noiseSource(), f = ctx.createBiquadFilter(), v = ctx.createGain();
+      f.type = 'lowpass'; f.frequency.value = 230; f.Q.value = 0.6; v.gain.value = 0;
+      n.connect(f); f.connect(v); v.connect(B.self);
+      roadCh = { v, f };
+    }
+    ramp(roadCh.v.gain, Math.min(1, level) * 0.11, 0.3); ramp(roadCh.f.frequency, 170 + 150 * Math.min(1, level), 0.3);
+  }
+  // a car's indicator while it is on (asked every frame): the relay's tick and its tock, 85 a minute
+  function indicator(on) {
+    if (!ctx || muted || !on) return;
+    const now = ctx.currentTime;
+    if (now < tickAt || !take(0.6)) return;
+    tickAt = now + 0.705;
+    for (const [dt, f, vol] of [[0, 2500, 0.05], [0.352, 1750, 0.04]]) {
+      const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(), t = now + LEAD + dt;
+      s.buffer = noise; fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 5; g.gain.value = 0;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.001); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.022);
+      s.connect(fl); fl.connect(g); g.connect(B.self); s.start(t, Math.random()); s.stop(t + 0.04); free(s, g);
+    }
+  }
+  // for the tools (tools/sound_places.js): where a bus, the world or the tape can be listened to
+  function tap(name) { return !ctx ? null : busOut[name] || (name === 'world' ? master : name === 'tape' ? (deck ? deck.output : tape || master) : null); }
   // ---------------------------------------------------------------- a busy crossing (game.look.sound)
   // the crowd's murmur: noise through two voice bands, a little of it pulsing at a syllable's rate,
   // as a thousand people talking at once sound; level 0..1 with how many are round you
@@ -344,7 +489,7 @@ window.OEAudio = (function () {
       const n = noiseSource(), a = ctx.createBiquadFilter(), b = ctx.createBiquadFilter(), g = ctx.createGain(), am = ctx.createOscillator(), ag = ctx.createGain(), out = ctx.createGain();
       a.type = 'bandpass'; a.frequency.value = 420; a.Q.value = 0.9; b.type = 'bandpass'; b.frequency.value = 1150; b.Q.value = 1.4;
       am.frequency.value = 4.3; ag.gain.value = 0.25; g.gain.value = 0.75; am.connect(ag); ag.connect(g.gain); am.start();
-      n.connect(a); n.connect(b); a.connect(g); b.connect(g); g.connect(out); out.gain.value = 0; out.connect(master);
+      n.connect(a); n.connect(b); a.connect(g); b.connect(g); g.connect(out); out.gain.value = 0; out.connect(B.near);
       crowdBed = { out, am };
     }
     if (crowdBed) { ramp(crowdBed.out.gain, Math.min(1, level) * 0.11, 0.6); ramp(crowdBed.am.frequency, 3.6 + Math.random() * 1.6, 0.8); }
@@ -358,7 +503,7 @@ window.OEAudio = (function () {
       const lp = ctx.createBiquadFilter(), out = ctx.createGain(), oscs = [];
       lp.type = 'lowpass'; lp.frequency.value = 950; lp.Q.value = 0.7; out.gain.value = 0;
       for (let i = 0; i < 3; i++) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; g.gain.value = 0.18; o.connect(g); g.connect(lp); o.start(); oscs.push(o); }
-      lp.connect(out); out.connect(master);
+      lp.connect(out); out.connect(B.near);
       screenBed = { out, oscs, lp };
     }
     if (!screenBed) return;
@@ -386,10 +531,10 @@ window.OEAudio = (function () {
   // box's locator tick (slow, on red) and its walk tick (fast, on green): Australia's with its
   // falling "zap" as the walk comes on, Hong Kong's hard pips, the Netherlands' rateltikker.
   // level 0..1 (with distance); pan -1 (left) to 1 (right)
-  function out(level, pan, life = 2, fc = 20000) {
+  function out(level, pan, life = 2, fc = 20000, bus0 = 'near') {
     const g = ctx.createGain();
     if (!take(life + 0.5)) { g.gain.value = 0; return g; } // (not connected: its notes sound into nothing)
-    const bus = into(fc, life);
+    const bus = into(fc, life, bus0);
     let last = g;
     g.gain.value = level;
     pan = Math.max(-1, Math.min(1, pan || 0));
@@ -470,7 +615,7 @@ window.OEAudio = (function () {
       const outG = ctx.createGain(), pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null, lp = mk('lowpass', 20000, 0.707);
       outG.gain.value = 0;
       outG.connect(lp); // (what the air and what stands between leave of it: reach)
-      if (pn) { lp.connect(pn); pn.connect(master); } else lp.connect(master);
+      if (pn) { lp.connect(pn); pn.connect(B.rail); } else lp.connect(B.rail);
       const rum = mk('lowpass', 200, 0.7), rg = ctx.createGain(), air = mk('bandpass', 1800, 0.5), ag = ctx.createGain();
       noiseSource().connect(rum); rum.connect(rg); rg.connect(outG);
       noiseSource().connect(air); air.connect(ag); ag.connect(outG);
@@ -526,7 +671,11 @@ window.OEAudio = (function () {
       k = M.k; fc = M.fc;
     }
     const level = trainLevel(near) * k;
-    const close = Math.max(0, Math.min(1, (45 - near) / 35)), bridge = (s.above || 0) > 3 && near < 30 ? Math.min(1, (30 - near) / 14) : 0, pan = s.pan || 0;
+    // (under the deck it runs on, s.under: the train is the deck's own sound, its drum and each axle's boom from further
+    // off and its wheels' edge all but gone, since the deck is between them and you: weight, not a pass-by)
+    const under = !!s.under && (s.above || 0) > 3, pan = s.pan || 0;
+    const close = Math.max(0, Math.min(1, (45 - near) / 35)) * (under ? 0.2 : 1);
+    const bridge = (s.above || 0) > 3 && near < 30 ? Math.min(1, (30 - near) / 14) : under && near < 70 ? Math.min(0.85, (70 - near) / 30) : 0;
     train(i, level, pan, s.v, s.a || 0, !!s.fast, close, bridge, fc);
     const R = trainRun[i] = trainRun[i] || { t: 0, k: 0 };
     if (s.fast || s.v < 1.5 || close <= 0) { R.t = 0; return; }
@@ -542,7 +691,7 @@ window.OEAudio = (function () {
     if (!ctx || muted || level <= 0.004) return;
     // (t: the first axle, after the roll has begun to swell, at now and LEAD: begun 0.12 s before the axle at now, the
     // roll started in the past, part way up its swell, in a single sample)
-    const d = out(Math.min(1, level) * 0.3, pan, 1.3, fc), t = ctx.currentTime + LEAD + 0.12, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
+    const d = out(Math.min(1, level) * 0.3, pan, 1.3, fc, 'rail'), t = ctx.currentTime + LEAD + 0.12, gap = Math.min(0.5, 2.1 / Math.max(2, v)); // (as loud as the wheels were: their rhythm, not their level, is what was missing)
     const nz = (at, type, f, q, vol, a, rel) => { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noise; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + a); g.gain.exponentialRampToValueAtTime(0.0001, at + a + rel); s.connect(fl); fl.connect(g); g.connect(d); s.start(at, Math.random() * 1.5); s.stop(at + a + rel + 0.05); free(s, g); };
     for (const [at, k] of [[t, 1], [t + gap, 0.8]]) {
       nz(at, 'bandpass', 2600, 1.4, 0.3 * k * close, 0.001, 0.012);  // (the tick: wheel on the joint's edge)
@@ -559,13 +708,13 @@ window.OEAudio = (function () {
   // before an announcement: four notes rising
   function platformChime(level = 1, pan = 0) {
     if (!ctx || muted || level <= 0) return;
-    const d = out(0.11 * Math.min(1, level), pan, 1.8), t = ctx.currentTime + LEAD;
+    const d = out(0.11 * Math.min(1, level), pan, 1.8, 20000, 'rail'), t = ctx.currentTime + LEAD;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => bar(d, t + i * 0.2, f, 0.9, 0.8));
   }
   // the doors: two notes falling, three times
   function doorChime(level = 1, pan = 0) {
     if (!ctx || muted || level <= 0) return;
-    const d = out(0.07 * Math.min(1, level), pan, 2.6), t = ctx.currentTime + LEAD;
+    const d = out(0.07 * Math.min(1, level), pan, 2.6, 20000, 'rail'), t = ctx.currentTime + LEAD;
     for (let k = 0; k < 3; k++) { bar(d, t + k * 0.62, 1318.5, 0.3, 0.8); bar(d, t + k * 0.62 + 0.24, 1046.5, 0.4, 0.8); }
   }
   // a departure melody of this game's own (seven seconds, two of them: one for each direction), on struck
@@ -577,7 +726,7 @@ window.OEAudio = (function () {
   const BASS = [[[0, 48], [1.2, 53], [2.4, 55], [3.6, 53], [4.8, 48]], [[0, 43], [1.0, 48], [2.0, 50], [3.0, 55], [4.0, 50], [5.0, 48]]];
   function melody(level = 1, pan = 0, which = 0) {
     if (!ctx || muted || level <= 0) return;
-    const d = out(0.085 * Math.min(1, level), pan, 8.3), t = ctx.currentTime + LEAD, hz = n => 440 * Math.pow(2, (n - 69) / 12), w = which ? 1 : 0;
+    const d = out(0.085 * Math.min(1, level), pan, 8.3, 20000, 'rail'), t = ctx.currentTime + LEAD, hz = n => 440 * Math.pow(2, (n - 69) / 12), w = which ? 1 : 0;
     for (const [at, n] of MELODY[w]) bar(d, t + at, hz(n), 1.1, 0.75);
     for (const [at, n] of BASS[w]) tone(d, t + at, 1.3, 'triangle', hz(n), 0, 0.5, 0.02);
     bar(d, t + 5.9, hz(MELODY[w][MELODY[w].length - 1][1] + (w ? 5 : 0)), 2.2, 0.7);
@@ -1246,5 +1395,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, city, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo };
 })();
