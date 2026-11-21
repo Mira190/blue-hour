@@ -2093,11 +2093,13 @@ Faces that move cost memory and vertex work, so they are given only where a face
   character are never chosen and stay still. With every speaking character's texture made at once, the phone measured
   271 MB against its 270; with only the faces in play, 252 to 253.
 - **Only the nearest animated.** `game.js` `faceChoose` poses the face of whoever is saying the line on screen (or whom the
-  talk is with while a question waits), the player's, and the nearest one other within 14 m of the camera on a phone (two on
-  a desktop). The first time a character's face moves its program with shapes is compiled; the nearest-within-14-m rule
-  usually brings that on as the player walks up, before the talk's cut.
-- **Measured** (`tools/mem_check.js`, an iPhone on the low tier, November 2026): GPU peak 252 to 253 MB (budget 270), the
-  settled JS heap 280 MB.
+  talk is with while a question waits), the player's in a talk or with the camera within 3.5 m of it (from the chase view
+  it is the back of a head), and the nearest one other within 8 m of the camera on a phone (two within 14 m on a desktop).
+  The first time a character's face moves its program with shapes is compiled; the nearest-within-reach rule usually
+  brings that on as the player walks up, before the talk's cut.
+- **Measured** (`tools/mem_check.js`, an iPhone on the low tier, November 2026, at `tools/check.sh`'s spot by the river):
+  main without the faces 269 MB of GPU at its peak; with every face drawn moving at once 271, with the player's face always
+  moving 270 (over the 270 budget); as above, the same as without.
 
 ## A desktop's map round the player (issue 20)
 

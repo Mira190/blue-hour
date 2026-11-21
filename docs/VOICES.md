@@ -83,8 +83,9 @@ face generated from a photograph of anyone.
   as each line begins. While a line is typed the jaw opens and closes a syllable at a time (4 to 5 a second), each shaped by
   the vowel being typed (kana too), the lips meeting before an m, b or p, shut at a comma or a stop: a placeholder for the
   recorded mouths, which replace it from Rhubarb's track (issue 11).
-- *Who is animated.* The one whose line is on screen, the player, and the nearest one other within 14 m of the camera on a
-  phone (two on a desktop); the rest keep still faces (`game.js` `faceChoose`).
+- *Who is animated.* The one whose line is on screen, the player (in a talk, or with the camera close), and the nearest
+  one other within 8 m of the camera on a phone (two within 14 m on a desktop); the rest keep still faces (`game.js`
+  `faceChoose`).
 
 **Prior art surveyed, and what was taken.** Nothing below is copied; the ideas are.
 

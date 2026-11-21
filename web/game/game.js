@@ -7079,9 +7079,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (A.wind && player.mode !== 'heli') A.wind(titleOn ? 0 : Math.max(0, Math.min(1, (wS.windSpeed - 4.5) / 14)) * (inside ? 0.35 : 1), wS.gust);
   }
   // whose face moves this frame (faceWho, read by faceAfter as each is posed): the one whose line is being said, looking
-  // at the player; the player, looking back at them; and the nearest FACE_NEAR others within FACE_R of the camera, at
+  // at the player; the player, looking back at them (or with the camera close); and the nearest FACE_NEAR others within FACE_R of the camera, at
   // whomever their head turns to. In the Stop the held world's faces hold too (the afterimages', who move in it, do not)
-  const FACE_NEAR = touch ? 1 : 2, FACE_R = 14;
+  const FACE_NEAR = touch ? 1 : 2, FACE_R = touch ? 8 : 14;
   const faceRigOf = who => {
     if (!who) return null;
     if (who.rig && who.rig.face) return who.rig;
@@ -7112,7 +7112,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) if (!n.away) cand(n.rig, n.x, n.y, n.z, 1.58, n.name, held, n.rig.lookTarget || null);
     near.sort((a, b) => a.d - b.d);
     for (const c of near.slice(0, FACE_NEAR)) faceWho.set(c.rig, c.o);
-    if (player.rig.face) faceWho.set(player.rig, { name: 'Kagami', look: spEye || player.rig.lookTarget || null, listen: !!sp, held: false });
+    // (the player's own face in a talk, or with the camera close to it: from the chase view it is the back of a head)
+    if (player.rig.face && (spEye || W(player.x, player.y, player.z + 1.55).distanceTo(camera.position) < 3.5)) faceWho.set(player.rig, { name: 'Kagami', look: spEye || player.rig.lookTarget || null, listen: !!sp, held: false });
   }
   function simulate(dt) {
     faceChoose();
