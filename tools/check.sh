@@ -325,19 +325,20 @@ run_game() {   # (every step takes about half an hour on a software renderer)
   else twice game "$OUT/game-first.log" "$OUT/game.log"; fi
 }
 run_gl() {   # the governor's extras shed from the first frame, the scene multisampled, the ladder walked, every WebGL call asked for its error
-  if START=0.8/0.5 Q=msaa=on WALK=1 timeout 1800 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; then
-    echo "ok   gl     opened with the extras shed and multisampling on, the ladder walked: WebGL refused no call"
+  if START=0.8/0.5 Q=msaa=on\&units=16 WALK=1 timeout 2400 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; then
+    echo "ok   gl     opened with the extras shed and multisampling on, the ladder walked by day and in rain at night as a 16-unit GPU: WebGL refused no call, every program linked"
   else
     # (a refused call was found among the last few hundred: played again asking after every call, which names it and
     # where it was made, and takes most of an hour on a software renderer)
-    if grep -q 'EVERY=1 names it' "$OUT/gl.log"; then cp "$OUT/gl.log" "$OUT/gl-first.log"; EVERY=1 START=0.8/0.5 Q=msaa=on WALK=1 timeout 5400 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; fi
-    echo "FAIL gl     $(grep -o '"call":"[^"]*"' "$OUT/gl.log" "$OUT/gl-first.log" 2>/dev/null | head -2 | cut -d: -f2- | cut -c9-160 | paste -sd ';' -)   (see $OUT/gl.log)"
+    if grep -q 'EVERY=1 names it' "$OUT/gl.log"; then cp "$OUT/gl.log" "$OUT/gl-first.log"; EVERY=1 START=0.8/0.5 Q=msaa=on\&units=16 WALK=1 timeout 5400 $X node tools/gl_error_probe.js "$MAP" >"$OUT/gl.log" 2>&1; fi
+    echo "FAIL gl     $( (grep -o '"call":"[^"]*"' "$OUT/gl.log" "$OUT/gl-first.log" 2>/dev/null | cut -d: -f2- | cut -c9-160; grep -o '^programs .*"failed":[1-9].*' "$OUT/gl.log") | head -2 | paste -sd ';' -)   (see $OUT/gl.log)"
   fi
   # the same map as a GPU with sixteen texture units in a fragment shader (Apple's, most phones'; the software
-  # renderer has 32): every program that does not link there is compiled again with less until it does
-  if Q=units=16 timeout 1800 $X node tools/sampler_probe.js "$MAP" >"$OUT/units.log" 2>&1; then
-    echo "ok   gl     as a 16-unit GPU every material drawn$(grep -o 'goes without: .*' "$OUT/units.log" | sed 's/^/, /')"
-  else echo "FAIL gl     as a 16-unit GPU a material is left undrawn: $(tail -3 "$OUT/units.log" | head -1 | cut -c1-200)   (see $OUT/units.log)"; fi
+  # renderer has 32), by day, at dusk and at night, clear, in rain and in snow, at each of the governor's rungs: every
+  # program fitted to sixteen as it is compiled (glcare.js guard), none failing to link, the page's count never low
+  if Q=units=16 SKIES=clear,rain,snow timeout 2400 $X node tools/sampler_probe.js "$MAP" >"$OUT/units.log" 2>&1; then
+    echo "ok   gl     as a 16-unit GPU every program linked, at every hour, weather and rung$(grep -o 'unit device: .*' "$OUT/units.log" | sed 's/^unit device: /; it goes without: /' | cut -c1-160)"
+  else echo "FAIL gl     as a 16-unit GPU: $(grep -m2 'NOT LINKED\|counted \|pageerror' "$OUT/units.log" | cut -c1-160 | paste -sd ';' -)$(tail -2 "$OUT/units.log" | head -1 | cut -c1-120)   (see $OUT/units.log)"; fi
 }
 run_touch() {
   if timeout 1500 $X node tools/touch_check.js "$MAP" "$OUT/touch" >"$OUT/touch.log" 2>&1; then
