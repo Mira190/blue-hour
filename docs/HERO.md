@@ -55,6 +55,40 @@ zone stay on in the helicopter. Roofs and piers in the zone take none of the pho
 
 ![Before and after, from 200 m over the station, by day and at dusk](images/hero/aerial-ground-87.jpg)
 
+**From the air by day** (issue 148). The walk's review found the map by day, from 80 m up, "pale grey boxes on black
+roads". Three causes, each a matter of what the surface is:
+
+- *The roads were black because the drawing was decoded twice.* `streetTexture` is an sRGB texture, which the sampler
+  hands over linear; the zone's branch of the ground shader decoded it again, and asphalt drawn at an albedo of 0.075
+  came out at 0.007, the footways a brown. The zone now takes the drawing as it is given, and the asphalt is drawn as a
+  worn city road is under the sun (`#5c5f63`, an albedo near 0.11: the hero level's own tone, so the level's roads go
+  on into the map's without a step). Past the zones the first branch is as it was: its thresholds were tuned on the
+  twice-decoded values, and nothing a player reaches lies there on foot.
+- *The roads had no paint.* The drawing now carries what a Tokyo road carries, from the road data and nothing else:
+  edge lines half a metre in from the kerbs, a broken line between two lanes of one way (`nl`), the centre line of a
+  two-way road (unbroken where it has two lanes each way), the bars of a zebra where the data has a crossing
+  (`props.crossing_zebra`, laid across the nearest road), and a junction cleared of the lines that would run through
+  it. Each line is drawn at its own width (0.2 m, less than a pixel of the drawing), so from 400 m it is as faint as
+  it is from there. The scramble's own paint is the hero level's, as before.
+- *Every flat roof was one grey lid.* Where the photograph is not a deck's colour (round a hero level, and on a
+  tower), the deck is what `roof_material` says it is, in that material's tone: a waterproofing sheet or coating
+  (grey, the green urethane of half the city's small roofs, or a pale reflective coat: one per building), laid in
+  runs 1.2 m wide; a ballasted roof in the warm grey of its gravel, with nothing to rule it; a protective concrete
+  slab cut by its expansion joints into 3 m bays. The joints are square to the building (`buildings-geo.js` `cap`
+  gives a deck its own axes along its longest edge), a joint finer than a pixel settles to its mean, and the value
+  noise that lay over a tower's deck is gone: no tone without a cause.
+
+It costs a phone nothing it did not already hold: the same drawing at the same size, and a few lines of shader.
+Night and dusk are as they were but for the roads, which under their lamps are now lit asphalt instead of a black
+band. Views: `tools/views/walk-heights.json`.
+
+![From 80, 230 and 400 m by day, before and after; dusk and night after](images/walk-review/air-day-148.jpg)
+![A phone's tier from 230 and 400 m by day, before and after](images/walk-review/air-day-148-phone.jpg)
+
+Not done here, and why: the far field beyond the zones is still the aerial photograph under plain boxes (it reads as
+a city in haze from 300 m, and nothing nearer is owed where no player lands); the square south of the crossing is
+still bare from 30 m (the crowd's density, issue 92).
+
 **Streamed.** It is fetched when the camera comes within 260 m of its edge, shown within 420 m, and let go
 (geometry and textures freed) past 520 m. On the low tier (phones) every texture is halved before it is
 sent to the GPU, a quarter of the memory, and on a phone's lean sub-tier no side is over 1024; it is resized by
@@ -813,6 +847,32 @@ within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) 
 `tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
 entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
 hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
+
+### The ride up: the city, not the wall (issue 144)
+
+The lift is ridden from outside the tower (issue 99: one shot from the shoulder you had to the shoulder you get; the
+owner found the dark pod odd and the tower climbed from outside the better, and asked again in November 2026 for the
+camera going up all the way with the night in it). On main the shot looked up the tower's face for seven tenths of its
+length, curtain wall and sky, with the night it rose through behind the lens, and the map's labels over it. Now
+(`web/game/game.js` `rideLift`; stills `docs/images/sky/ride-144.jpg`, a desktop and a phone, before and after):
+
+- **It rises out of the hall first.** The hall is open to the sky beside the tower's overhanging base. A camera that set
+  off across at once went through the overhang (a frame of pale panel from edge to edge) or was put on the tower's
+  roofline for a frame by the shot's clamp, 230 m up and back: a jump. The way across is now held back while the camera
+  rises where it stands, by as much as it takes for the whole way to be clear (`nav.clearFraction` along it, either
+  side, the first of four holds that is clear), and a lift's climb is left out of the roofline clamp.
+- **Then it turns out to the city.** Once clear of the base the view turns from the face to the place the story is
+  played (a lift's own `view`, else where the map starts: the Scramble), which opens under the frame as the floors go
+  by: the screens, the crossing, then the far city in its amber. Over the last third it comes round to where you step
+  out, over the glass, as before. It is the direction of the view that turns, never a point looked at.
+- **It lasts as long as it has to show** (11 s here, 7 before; a key or a tap still ends it), and the map's labels are
+  put away for it, as the rest of the interface is in a shot.
+- **The checks look at the picture.** `tools/walk_play.js` fails on a hall or a climb whose frame is one flat tone
+  (`tools/tone.js`: the luma of the still a player would see) and on a camera that jumps on the way up;
+  `tools/lift_top_shot.js` settles the opening's crane before it rides (its stills of the ride were taken from the air,
+  which no player sees), fails on a jump, and with `WELL=1` prints how high the air stands clear over the hall.
+
+Not seen: a real GPU, Safari or iOS. The hall's inside is still designed, not seen (below).
 
 Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY access (shibuya-scramble-square.com/sky/access/,
 its 1F and 2F plans and the section drawing of the lift); Elevator Journal 28 (n-elekyo.or.jp, the lift schedule);
