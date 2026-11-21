@@ -141,12 +141,18 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
+  // (A on the press opens the menu, led by Continue while a case is going; A on it takes the case up)
+  await press('A'); await p.waitForTimeout(1200);
+  if ((await p.evaluate(() => window.__game.screen())) !== 'menu') fail(`a case going: A on the press did not open the menu (on "${await p.evaluate(() => window.__game.screen())}")`);
+  else if (!(await p.evaluate(() => { const b = document.querySelector('#g-title .gt-go > .btn.primary'); return !!b && b.id === 'gt-cont-go'; }))) fail(`a case going: the menu is not led by Continue (${await p.evaluate(() => { const b = document.querySelector('#g-title .gt-go > .btn.primary'); return b ? b.id : 'none'; })})`);
   await press('A');
   await until(async s => s.fi === 2 && (s.phase === 'go' || s.phase === 'stop'), 600, 'frame 3');
   // (to where the world stops, put there as tools/story_play.js puts its player: the way between places is not what this checks)
   for (let i = 0; i < 300; i++) { const s = await st(); if (s.phase === 'stop') break; if (s.dlg) await press('A'); else if (s.beat === 'approach') { const at = await p.evaluate(() => { const fr = window.__game.story.state.fr; return fr.stop_at || (fr.afterimage && fr.afterimage.at); }); if (at) await goTo(at, 4); } await p.waitForTimeout(500); }
   await until(async s => s.phase === 'stop' && s.beat === 'seek', 300, 'the Stop of frame 3');
-  await goTo(await p.evaluate(() => { const g = window.__game.story.state.ghost; return [g.x, g.y, g.z]; }), 2.2);
+  const ghostAt = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; });
+  if (!ghostAt) { fail('frame 3: no afterimage to walk to'); await b.close(); process.exit(1); }
+  await goTo(ghostAt, 2.2);
   let answered = false;
   for (let i = 0; i < 120 && !answered; i++) {
     const s = await st();
