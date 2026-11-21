@@ -841,6 +841,39 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .game-stage.walk:is(.at-car, .at-heli) #g-walk-keys { left: 24px; right: 92px; width: auto; transform: none; align-items: flex-start; text-align: left; }
   .gt-walk-row { grid-template-columns: 1fr; gap: 8px; }
 }
+/* the walk's corner read over any picture (issue 134: its date, tonight's line and what was asked lay across lit signs
+   and windows at nine pixels and seven tenths white): a denser scrim under it, the small lines a size up and nearer
+   white with a hard edge of shadow, and the options' words (Larger, Largest, the solid backing: log.js) kept by the
+   walk's corner and its cards as the story's goal keeps them */
+#g-walk-where { background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.74), rgba(4, 8, 18, 0.46) 48%, transparent 78%); }
+#g-walk-where small { text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 10px #000; }
+#g-walk-where :is(em, .tn) { font-size: 10px; color: rgba(244, 239, 230, 0.88); text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 10px #000; }
+#g-walk-where :is(.g, .q i) { text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 10px #000; }
+#g-walk-where .q { text-shadow: 0 0 2px rgba(0, 0, 0, 0.85), 0 1px 14px rgba(0, 0, 0, 0.9); }
+/* (and the names put up over the street, a story's and tonight's: thin white type at the frame's middle, which a lit
+   shop window or a billboard behind it took whole. A soft dark ground of their own under them, wider than the words) */
+:is(#g-walk-told, #g-walk-tonight)::before { content: ""; position: absolute; z-index: -1; inset: -34px -90px -40px; background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(4, 8, 18, 0.72), rgba(4, 8, 18, 0.5) 50%, transparent 100%); pointer-events: none; }
+:is(#g-walk-told, #g-walk-tonight) :is(small, b, span) { text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 18px rgba(0, 0, 0, 0.9); }
+.game-stage.words-1 :is(#g-walk-told, #g-walk-tonight) small { font-size: 12px; } .game-stage.words-2 :is(#g-walk-told, #g-walk-tonight) small { font-size: 13px; }
+.game-stage.words-1 #g-walk-tonight span { font-size: 17px; } .game-stage.words-2 #g-walk-tonight span { font-size: 20px; }
+.game-stage.words-1 #g-walk-where { width: min(100%, 500px); } .game-stage.words-2 #g-walk-where { width: min(100%, 580px); }
+.game-stage.words-1 #g-walk-where .q { font-size: clamp(17px, 1.6vw, 20px); } .game-stage.words-2 #g-walk-where .q { font-size: clamp(20px, 2vw, 24px); }
+.game-stage.words-1 #g-walk-where :is(small, em, .tn, .g, .q i) { font-size: 12px; } .game-stage.words-2 #g-walk-where :is(small, em, .tn, .g, .q i) { font-size: 13px; }
+.game-stage.words-1 #g-walk-keys { font-size: 12px; } .game-stage.words-2 #g-walk-keys { font-size: 13px; }
+/* (the keys' line in a narrow window with a mouse: one row of six ran 860 px wide and off both edges of a window 844
+   across, its first key and its last words cut. It wraps there, inside the screen) */
+@media (min-width: 641px) and (max-width: 1000px) and (pointer: fine) {
+  #g-walk-keys { left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); transform: none; flex-wrap: wrap; justify-content: center; gap: 12px 22px; }
+}
+/* (under the menu the walk's corner, buttons and keys go at once: fading out over 0.9 s they lay across the menu's own
+   heading and its first rows for its first second, on a phone the clock over "Paused") */
+.game-stage:has(.g-overlay:not([hidden])) :is(#g-walk-where, #g-walk-acts, #g-walk-keys) { transition: none; }
+.game-stage.words-solid #g-walk-where { padding-bottom: 18px; background: rgb(5, 8, 16); border-bottom-right-radius: 2px; box-shadow: 0 0 0 1px rgba(244, 239, 230, 0.12); }
+.game-stage.words-solid #g-walk-where :is(small, .t, em, .tn, .g, .q, .q i) { text-shadow: none; }
+@media (pointer: coarse), (max-width: 640px) {
+  #g-walk-where { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.5) 70%, transparent); }
+  .game-stage.words-solid #g-walk-where { background: rgb(5, 8, 16); }
+}
 @media (prefers-reduced-motion: reduce) { #g-walk-where, #g-walk-acts, #g-walk-keys, #g-walk-told { transition: none; } #g-walk-where.new small, #g-walk-where .q.new, .g-walk-mark i b { animation: none !important; } }
 /* ---- the camera taught (story.js teach; task.teach on the first frame): four steps in the order they are done, each
    saying what it does before it is done, ticked the moment it is. On the picture's left over a soft scrim, out of the
