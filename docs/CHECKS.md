@@ -16,7 +16,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
 | `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right); every one-shot the street and the story make played many times over, failing on a graph that is larger once they have ended than before them (a node left on the mix is visited in every block) or a sound begun at or before the context's time; then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/audio_graph_check.js`, `tools/phone_audio.js` |
 | `clip` | Measures what passes through what in the free game (`?walk=1`): street furniture in the roads, cars in each other and in posts, people in cars and walls | `tools/clip_check.js` |
-| `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); then as a GPU with sixteen texture units, where every material must still be drawn | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
+| `gl` | Opens the map as an ordinary device does, with the governor's extras shed and multisampling on, and asks WebGL for its error (once in 256 calls, since each asking waits for the GPU and asking after every call made the load fifteen times as long; a run that finds an error is played again with `EVERY=1`, which names the call and where it was made); walks the governor's ladder down and up by day and in rain at night, and fails on any error or any program that did not link; all of it as a GPU with sixteen texture units (`?units=16`, an Apple GPU's or a phone's), where `tools/sampler_probe.js` also walks noon, dusk and night, clear, rain and snow, at each of the governor's states, and fails on a program over sixteen samplers, one that did not link, or one the page counted lower than it linked (docs/PERFORMANCE.md, "Sixteen texture units") | `tools/gl_error_probe.js`, `tools/sampler_probe.js` |
 | `touch` | Plays the free game by touch on a phone's page, where no key can be pressed | `tools/touch_check.js` |
 | `astc` | The device-side ASTC encoder (`web/astc.js`) against a real decoder | `tools/astc_check.js` |
 | `look` | The models, pictures and sounds a branch changed, each loaded as the page loads it (its own three.js and GLTFLoader, meshopt in WebAssembly), every texture decoded and every material compiled and drawn, and a still of it as it was (left) beside it as it is (right), lit and framed alike, with its triangles, textures and bytes before and after. Fails on a file that does not load or decode, a texture left undecoded, a shader error or an error on the page. Named with no change to look at (as a runner's shard is), it decodes every model, picture and sound under `web/assets` and the hero levels, without stills: half a minute | `tools/look_check.js` |
@@ -94,8 +94,11 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 `origin/main` (after a pass, at what changed since that pass):
 
 - a change to the page's code or data (`web/`, but for the files in the next line) or to the story in
-  `cities/shibuya/city.json` runs `static`, `story`, `walk` and `mem`; the sound adds `audio`, the drivers, the cars and
-  the crowd `ride`, the guide and his ways `guide`;
+  `cities/shibuya/city.json` runs `static`, `story`, the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
+  the drivers, the cars and the crowd `ride`, the guide and his ways `guide`, and what a phone alone runs (its tier in
+  `quality.js`, the tour's touch words in `onboard.js`, its district under `web/data/shibuya/d/`) the walk's phone page
+  (`walk2`). In the sessions of 18 to 21 November the phone's page failed twice, both times beside the desktop's, and
+  cost 9 of a run's 42 minutes; main's full tier plays both pages and `touch` (issue 95);
 - a change of models, pictures or sounds alone (`.glb`, `.webp`, `.png`, `.jpg`, `.avif`, `.ktx2`, `.mp3` and the like
   under `web/`) runs `static`, `look` and `mem`, not the story: such a file can change how the street looks and what a
   phone holds, not where the story goes. Not so a hero level's model (`web/data/shibuya/hero/`: its ground meshes are
@@ -198,7 +201,8 @@ foreground command after 10 minutes (29 times), a watch on output after 30 (7), 
 whatever its timeout ("was stopped after reaching its background time limit": 20 times, 6 of them runs of the checks
 and 2 other browsers, the rest waits on them), and every one at a restart of the session's worker (7). A run of the checks takes, on that machine, the static checks 35 s,
 mem 3 minutes, the ride 5, the walk's two pages 18, the story 20 and the guide 20 (medians of the runs whose times they printed: 36 of the story, 37 of the walk, 8 of the guide), so
-a change to the page checks for about 42 minutes and one to `game.js` or `story.js` for 47 to 62. Until 18 November a
+a change to the page checked for about 42 minutes and one to `game.js` or `story.js` for 47 to 62 (33, and 38 to 53, since
+the fast tier plays the walk's desktop page alone, issue 95). Until 18 November a
 change to the page checked for about 24 (the story and mem); the walk joined it then, and a run started as the tool's
 child was stopped near its end from that day on. 183 of the 201 runs were started that way. Each stopped run was started
 again from the beginning, and what it left behind took cores from the next one's story clock: the sessions ran 92 commands

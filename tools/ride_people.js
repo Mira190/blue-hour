@@ -85,8 +85,8 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       return { pinned: W.pinned, stop: W.pin.stop, offLine: W.pin.offLine };
     };
     // where you stand to get in: beside the door of the seat the ride gives you, on the kerb side (game.js rideSeat and
-    // doorAt). (#94: it stood you 2.4 m off the car's other flank, in the lane of the traffic beside it, and once in many
-    // runs a car of the traffic was passing there as you were put down: counted in you for the one frame before the
+    // doorAt). (#94, and 0f1d8d8 on its own: it stood you 2.4 m off the car's other flank, in the lane of the traffic beside
+    // it, and in some runs a car of the traffic was passing there as you were put down: counted in you for the one frame before the
     // traffic's step moved you out of it.) SIDE=road stands you off the other flank, as it was. PASS=1 makes that case
     // happen: the world stepped on (up to 240 s) until a car of the traffic is passing over the spot, you put down there
     // then and the frame tested before the world moves, as a frame of the page's is that the world did not move in.
