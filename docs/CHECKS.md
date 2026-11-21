@@ -41,6 +41,10 @@ roofs and from the trees' crowns (failing under 4 m) and ends on your shoulder; 
 cameras over the walk for scouting. The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
 
+What lights a person (issue 123): `xvfb-run -a node tools/cast_probe.js [HH:MM]` opens the walk at that hour and prints the
+scene's lights in numbers and, for the one you play, whether each material's program carries the cast's light and the
+hair's (`web/game/people.js` `castPatch`, `hairMaterial`): for when a still of a person shows no change.
+
 The story's faces (`web/game/face.js`, issue 12): `tools/face_check.js out [WxH]` plays the episode (story_play.js's
 settings: `FROM`, `UPTO`, `DRAW`) and at every talk shot asks whether the speaker's face moves, cropping a still of it
 (`face-talk-NN-*.png`); on the first two-shot it holds time for five seconds of stills and fails if an eye bone or a shape
