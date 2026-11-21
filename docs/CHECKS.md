@@ -397,3 +397,38 @@ the roof's rim glass from eight directions, and measures every frame the skin of
 part, against the glass's plane and the collision world's walls; it fails on any part more than a centimetre in. With
 an out dir, stills close and from the chase camera at each, and five with time held.
 
+
+## One body in another (issue 126)
+
+On 21 November 2026 the owner's still of frame 6 showed Kagami and Mr Tanaka in one body on the stone blossom. The play
+checked only the crowd against the story's people (`bodiesCheck`, issue 65); nothing measured the player against them.
+
+- **`tools/clip_probe.js`** is put into the page by `tools/story_play.js` and called by the game every frame
+  (`window.__probe.frame`, `web/game/game.js`). It measures, from what the game holds and from the bones as they are
+  posed: the player, the story's people (the living and the afterimages), the guide and the map's NPCs against each
+  other (middle to middle; under 0.45 m is one body in another); each model's hands, forearms, feet, calves, head and
+  what it carries against its own body (less the rest pose's own depth) and its neighbours' (each part an ellipsoid
+  fitted to the vertices its bone carries); the lowest of each foot against the floor it stands on; each body against
+  walls, posts, cars and a floor at its head; in a helicopter or a car, the seat, the floor and the roof by rays. Every
+  case is printed once with its frame, beat, place, greatest depth and how many frames it lasted.
+- **The play fails** on one body in another and on a foot more than 3 cm under, or at rest 4 cm over, its floor. The
+  rest are printed as notes: the ellipsoids are fitted, not the skin itself, so a limb case is a place to look, with
+  `tools/clip_look.js` (a close still of someone's feet and body, and the ground as it is drawn under each foot by a
+  ray through the world's meshes).
+- **Walked into.** After each talk and in each Stop the play walks the player straight at everyone within 14 m with the
+  key held, takes a still from the side (`into-*.png`) and fails when the player comes within 0.45 m of their middle.
+- **`tools/standpoints.py`** (static): no place the story sends the player to stand lies inside one of its people or
+  its things of 1964, and no two of its people stand in each other.
+
+What the first measure found, a whole play on a desktop (9164 frames, 231 cases): the player walked into every one of
+the story's people, living or afterimage, to 0.05 to 0.12 m from their middle (nothing held the player out of them);
+the guide sat with his flank inside Mr Tanaka and inside Akira's afterimage; and nothing else of the kind: nobody of
+the story stood in a wall, a post or a car, and the feet the first measure called sunk (the map's NPCs, 5 to 9 cm) were
+its own error (it took a kerb beside a foot for the foot's floor; `tools/clip_look.js` has their soles within a
+centimetre of the paving drawn). The cause was fixed in `storyFigure`: each of the story's people holds a place as a
+map's NPC does (`posts`, kind `story`), so the player's step stops at their shoulder (0.63 m, middle to middle), the
+guide keeps his body off them, one of them who walks goes round whoever stands in the way, and a player on whom
+someone is set down steps out of them at a walk.
+
+Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
+crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.

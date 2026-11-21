@@ -30,10 +30,16 @@
 // of the story's people, the player or the guide (game.js bodiesCheck); any one fails the play. One within that of a map's
 // NPC is printed, not failed; and so is each time the game's last guard (game.js bodiesGuard) had to move one of the crowd
 // out of someone and leave it undrawn for a frame, where its steering had not kept it clear.
+// Clipping (issue 126): every frame, tools/clip_probe.js measures the player, the story's people, the guide and the map's
+// NPCs against each other, their limbs against their own bodies and their neighbours', their feet against the floor and
+// their bodies against walls, posts and cars; every case is printed with its frame, beat, place and depth, and one body in
+// another or a foot off its floor fails the play (CLIP_OUT=file: the cases as JSON). After each talk, and in each Stop, the
+// player is walked straight into everyone within 14 m (a still of each, into-*.png) and must stop at their shoulder.
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
+const clipProbe = require('./clip_probe');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
 (async () => {
@@ -49,6 +55,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('oe3d-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
+  await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
   const DRAW = +(process.env.DRAW || 0);
   if (DRAW > 1) await p.addInitScript(([n, tasks, glcount]) => {
     const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0, drawn: 0, skipped: 0, steps: 0, js: 0, rendered: false, own: 0 };
@@ -255,6 +262,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (and looking up or down at it, where it has a height: the lens looks 0.3 - cam.pitch above the level)
   const face = at => p.evaluate(at => { const g = window.__game, pl = g.player, d = Math.hypot(at[0] - pl.x, at[1] - pl.y); pl.h = Math.atan2(at[0] - pl.x, at[1] - pl.y); if (g.cam) { g.cam.yaw = pl.h; g.cam.pitch = at[2] != null ? Math.max(-0.25, Math.min(1.35, 0.3 - Math.atan2(at[2] - (pl.z + 1.6), d))) : 0.25; } }, at);
   const seen = new Set();
+  const walkInto = async label => {
+    const T = await p.evaluate(() => { const g = window.__game, pl = g.player, out = [], near = o => Math.hypot(o.x - pl.x, o.y - pl.y) < 14 && Math.abs((o.z || 0) - pl.z) < 1.5;
+      if (pl.mode !== 'foot' || g.story.state.cam) return out;
+      for (const f of g.storyFigs()) if (f.rig && f.rig.root.visible && near(f)) out.push({ name: f.name || f.character, x: f.x, y: f.y });
+      for (const n of g.npcs || []) if (n.rig && n.rig.root.visible && !n.away && near(n)) out.push({ name: `npc ${n.name || n.id}`, x: n.x, y: n.y });
+      const d = g.story.state.dog; if (d && d.ready && d.root && d.root.visible && near(d)) out.push({ name: 'the guide', x: d.x, y: d.y, guide: true });
+      return out; });
+    for (const t of T) {
+      const r = await p.evaluate(t => new Promise(res => { const g = window.__game, pl = g.player, was = { x: pl.x, y: pl.y, z: pl.z, h: pl.h, yaw: g.cam && g.cam.yaw, pitch: g.cam && g.cam.pitch };
+        let dx = pl.x - t.x, dy = pl.y - t.y, l = Math.hypot(dx, dy); if (l < 0.5) { dx = 1; dy = 0; l = 1; }
+        pl.x = t.x + dx / l * 1.3; pl.y = t.y + dy / l * 1.3; pl.h = Math.atan2(-dx, -dy); if (g.cam) g.cam.yaw = pl.h;
+        const ev = type => window.dispatchEvent(new KeyboardEvent(type, { code: 'KeyW', key: 'w', bubbles: true }));
+        ev('keydown'); let n = 50, min = 9;
+        const who = () => { if (t.guide) { const d = g.story.state.dog; return d ? Math.hypot(d.x - pl.x, d.y - pl.y) : 9; } let m = 9; for (const f of g.storyFigs()) if ((f.name || f.character) === t.name) m = Math.min(m, Math.hypot(f.x - pl.x, f.y - pl.y)); for (const q of g.npcs || []) if (`npc ${q.name || q.id}` === t.name) m = Math.min(m, Math.hypot(q.x - pl.x, q.y - pl.y)); return m; };
+        const f = () => { if (g.cam) g.cam.yaw = Math.atan2(t.x - pl.x, t.y - pl.y); min = Math.min(min, who()); if (--n > 0) requestAnimationFrame(f); else { ev('keyup'); const end = who(); window.__intoWas = was; if (g.cam) { g.cam.yaw = pl.h + 1.15; g.cam.pitch = 0.2; } res({ min: +min.toFixed(2), end: +end.toFixed(2) }); } }; // (seen from the side, where two bodies in one show)
+        requestAnimationFrame(f); }), t);
+      await frames(3); await snap(`into-${label.replace(/\D+/, '').replace(/ /g, '-')}-${t.name.replace(/[^A-Za-z]+/g, ' ').trim().replace(/ /g, '-').toLowerCase()}`);
+      await p.evaluate(() => { const g = window.__game, pl = g.player, was = window.__intoWas; Object.assign(pl, { x: was.x, y: was.y, z: was.z, h: was.h }); if (g.cam) { g.cam.yaw = was.yaw; g.cam.pitch = was.pitch; } });
+      console.log(`walked into ${t.name} at ${label}: nearest ${r.min} m from their middle, stopped at ${r.end} m`);
+      if (!t.guide && r.min < clipProbe.NEAR) { errors.push(`walked into ${t.name} at ${label}: the player came to ${r.min} m from their middle (a body is ${clipProbe.NEAR} m)`); console.log(errors[errors.length - 1]); }
+    }
+    await frames(3);
+  };
   // (one light standing in the street at a time: at every beat's still, the story's own and no other; the free game's
   // objective column stood beside it over the Center Gai arch and SHIBUYA SKY's door)
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(1200); await snap(`${s.fi + 1}-${name}`);
@@ -278,6 +308,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const play = async () => {
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
+    // walked into (issue 126): once the talk is over and the player is free (on the way to where the world stops, and in
+    // the Stop before the camera is raised), each of the story's people, the guide and the map's NPCs within 14 m is walked
+    // straight at from 1.3 m, the key held; the player must stop at their shoulder. Then the player is put back.
+    if (!s.dlg && ((s.phase === 'go' && s.beat === 'approach') || (s.phase === 'stop' && s.beat === 'shoot')) && !seen.has(`into-${s.fi}-${s.phase}`)) { seen.add(`into-${s.fi}-${s.phase}`); await walkInto(`frame ${s.fi + 1} ${s.phase} ${s.beat}`); }
     if (s.phase === 'done') { done = true; break; }
     // (the opening shots, before the first card, are not stuck while their camera still moves: on a software renderer
     // they take many minutes of frames, and were counted as a dead end)
@@ -707,6 +741,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const hard = B.filter(r => !r.who.startsWith('npc '));
     if (hard.length) errors.push(`bodies: ${hard.length} times one of the crowd was drawn inside someone not of it (${[...new Set(hard.map(r => r.who))].join(', ')})`);
     else console.log(`bodies: nobody of the crowd drawn within 0.45 m of the story's people, the player or the guide${B.length ? ` (${B.length} near a map's NPC)` : ''}`);
+  }
+  { // one body in another, a limb in a body, a foot off its floor, a body in a thing: every frame of the play (issue 126)
+    const R = await clipProbe.report(p);
+    if (process.env.CLIP_OUT && R) fs.writeFileSync(process.env.CLIP_OUT, JSON.stringify(R, null, 1));
+    const { hard } = clipProbe.print(R);
+    if (!R || R.err) errors.push(`clip: the probe did not measure (${R ? R.err : 'not in the page'})`);
+    if (hard.length) errors.push(`clip: ${hard.length} cases of a body in another or a foot off its floor (${[...new Set(hard.map(c => `${c.a} / ${c.b}`))].slice(0, 8).join('; ')})`);
   }
   for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`stills: ${ST.n}, ${(ST.whole / 1000).toFixed(0)} s drawing their frames whole, ${(ST.shot / 1000).toFixed(0)} s taking them`);

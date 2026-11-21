@@ -20,6 +20,7 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - no place the story sends the player to stand inside one of its people or its things (tools/standpoints.py);
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
@@ -418,6 +419,7 @@ run_one() {
     st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
     st flight flight_frames "the story's flight in every frame of its shots, from one side of it and clear of the buildings" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
+    st stands standpoints - '^FAIL|Error' python3 tools/standpoints.py "$MAP"
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
