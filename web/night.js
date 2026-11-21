@@ -489,7 +489,11 @@ void main() {
       }
       return inside;
     };
+    // (not a roof people walk on: an observation deck in scene.json, deck_z, SHIBUYA SKY's. From on it the wash's line at
+    // the walls' top showed through the glass at the deck's foot as a white bar along every edge, issue 72)
+    const decks = Object.values((D.scene && D.scene.landmarks) || {}).filter(l => l && typeof l.deck_z === 'number' && l.centre);
     for (const [bi, { zt, top, ring, parts: others }] of crowns) {
+      if (decks.some(l => inRing(ring, l.centre[0], l.centre[1]))) continue;
       if (rng(bi * 7 + 3)() > cr.share) continue; // the same towers lit on every visit
       const H = Math.min(14, Math.max(4, 0.08 * top)), c = crownColour(), n = ring.length / 2;
       crownsLit++;

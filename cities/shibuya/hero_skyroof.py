@@ -104,7 +104,7 @@ def materials(K):
         "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.16, "sky": 0.7},
         # what gives light after dark (lamp*: off by day): the lines along the glass and under the steps, the
         # searchlights' lenses, the pad's green lights
-        "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.22},
+        "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.5},
         "lamp_lens": {"color": (0.9, 0.9, 0.9), "emissive": (1.0, 0.97, 0.92), "glow": 2.2},
         "lamp_green": {"color": (0.3, 0.5, 0.3), "emissive": GREEN, "glow": 1.6},
         "yellow_line": {"color": (0.78, 0.6, 0.08), "rough": 0.55},
@@ -457,8 +457,14 @@ class Level:
         a0, b0, a1_, b1 = off(pa, 0.02), off(pb, 0.02), off(pa, 0.16), off(pb, 0.16)
         top = z + SHOE_H
         self.q("metal_dark", (*b1, z + 0.02), (*a1_, z + 0.02), (*a1_, top - 0.06), (*b1, top - 0.06))
-        self.q("lamp_line", (*off(pb, 0.161), top - 0.055), (*off(pa, 0.161), top - 0.055), (*off(pa, 0.161), top - 0.035), (*off(pb, 0.161), top - 0.035),
-               emit=(WARM, 5.0))
+        self.q("lamp_line", (*off(pb, 0.161), top - 0.055), (*off(pa, 0.161), top - 0.055), (*off(pa, 0.161), top - 0.035), (*off(pb, 0.161), top - 0.035))
+        # its light on the deck, baked: lights facing down a little in front of it, so that the shoe beside them (its
+        # faces upright, edge on to them) takes none of it and glows no brighter than its line
+        L_ = math.hypot(pb[0] - pa[0], pb[1] - pa[1])
+        for k in range(max(1, int(L_ / 0.75))):
+            t = (k + 0.5) / max(1, int(L_ / 0.75))
+            m = off((pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t), 0.4)
+            self.geo.emitters.append((self.P(*m, top - 0.04), np.array([0, 0, -1.0]), 0.015, np.array(WARM) * 8.0))
         self.q("metal_dark", (*b1, top - 0.035), (*a1_, top - 0.035), (*a1_, top), (*b1, top))
         self.q("metal_dark", (*a0, top), (*b0, top), (*b1, top), (*a1_, top), n=np.array([0, 0, 1.0]))
         # the pane, both faces, 12 mm short of its neighbours
@@ -616,6 +622,6 @@ def build(K):
     geo, atlas = L.build()
     r = round(math.hypot(L.h1, L.h2) + 1.0, 1)
     meta = {"id": ID, "at": [round(float(L.c[0]), 2), round(float(L.c[1]), 2)], "r": r, "z": round(L.z, 2), "glb": f"hero/{ID}.glb",
-            "bake_gain": 1.0, "cell": 24.0, "hide": HIDE}
+            "bake_gain": 1.0, "hide": HIDE}
     print("game.hero:", json.dumps({k: meta[k] for k in ("at", "r", "z")}), f"{len(L.bench_at)} benches")
     return geo, atlas, materials(K), meta

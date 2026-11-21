@@ -635,7 +635,7 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
   over a reveal; green flush lights round the edge, as a heliport has. The steps up each side in the deck's stone
   with a pale honed nosing and a line of light in the shadow under each.
 - **The glass**: frameless panes 1.5 m wide and 2 m high on a dark aluminium shoe, a slim stainless cap, and in the
-  shoe's face toward the deck a line of warm light, baked onto the deck after dark (its face held low, 0.22, so it
+  shoe's face toward the deck a line of warm light, baked onto the deck after dark (its face held low, 0.5, so it
   glows instead of drawing a white bar). Where the channels run out and at SKY EDGE the city's lower glass stays.
 - **CLOUD HAMMOCK**: the landmark's three, at its places and its net's sag (the poses lie in it): a bed of short
   artificial lawn in a timber kerb, four dark steel posts and rails at 0.9 m, and the net as white ropes 12 cm apart.
@@ -649,6 +649,11 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
 landmark meshes it draws again (`sky_deck`, `sky_deck_light`, `sky_glass`, `sky_steel_dark`, `sky_compass_atlas`,
 `sky_steps_deck_light`, `sky_net`, `sky_lit_lamp`); the channels, the escalators and the stairs stay the landmark's,
 and so does the walking: the level is drawn 5 cm over the deck's solids.
+
+**The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
+the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
+with a fine line along the parapet), drawn 0.3 m outside the tower's walls up to the deck, seen through the glass. A
+tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) now has no crown.
 
 **Only near, in height too.** The roof stands within 80 m in plan of frame 5's place at the tower's foot, and a level
 was fetched by its distance in plan. `hero.js` now takes a level's `zr` (its half-height about its `z`): the camera's
