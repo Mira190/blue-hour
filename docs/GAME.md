@@ -2034,14 +2034,18 @@ Sydney's traffic stood still a third of the time.
         8 s without making half a metre, away from a kerb, a stop or a seat, or four
         so held 5 s within 1.5 m of one another (a knot), and prints the held one's
         last seconds and what held it.
-    - **Out of the lens's way (issue 82).** Who still comes near the lens dissolves
+    - **Out of the lens's way (issues 82 and 129).** Who still comes near the lens is out of the picture, whole
       (docs/HERO.md, "someone at the lens"); as the talk camera keeps the crowd out of
       its shots, the walkers also keep out of the lens's way, so that fewer need to:
       the renderer tells the crowd where the lens stands and looks
       (`crowdRenderer().lens`), and a segment from it to a pace and a half along its
       look is steered round as one of the people not of the crowd is (footway walkers
       never turn back from it; those crossing or strolling the square are pushed
-      gently off it; those stood waiting are left where they are). It is on only for a
+      gently off it; those stood waiting make room for it too, a step, once the lens
+      has come to rest by them: half a second under half a metre a second, so a lens
+      swung round you shoves nobody about). The room is 1.85 m from that segment (r
+      0.75; 1.55 m until issue 129), a little more than the 1.75 m from under the lens
+      at which someone taken out comes back. It is on only for a
       camera on foot behind the player (within 9 m of them and 4.5 m over them), and
       nobody is put out of it at once. `tools/crowd_lens.js` sends walkers past the
       lens on two footways by the Scramble, you standing with the chase camera behind,

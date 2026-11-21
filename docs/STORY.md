@@ -820,7 +820,7 @@ Taken off: **Run**, a button alone over the right thumb doing what the stick doe
 for). The walk adds where and when you are, which is what the walk is for, and at the top right your car, the camera
 and the menu, three small icons. The map without the story (`?walk=1`, a tool for building and checking) still has
 the old free game's six buttons (Lens, View, Run, Guess, Jump, E); they are not the game's, and stills meant to show
-the game are taken on the game's own page (`tools/lens_near.js` sets out on the walk as a player does).
+the game are taken on the game's own page (`tools/foot_cam.js` and `tools/story_play.js`).
 
 What it is taken from (design only; nothing of their look, words or code): the *Horizon* games' vantages, where the
 old world's picture stands over the land only from one marked spot; the *Fatal Frame* (*Project Zero*) games, whose

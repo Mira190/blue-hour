@@ -97,11 +97,51 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
 }`;
   const GEO = {}, MAT = {};
   const geo = (k, f) => GEO[k] || (GEO[k] = f());
-  // 'clear': the vinyl of a convenience-store umbrella: see-through with a milky haze, glossy enough to carry the screens'
-  // and the signs' light as a sheen (at 0.82 opaque and half rough it read as a white paper canopy)
-  const stdMat = hex => MAT[hex] || (MAT[hex] = nearMaterial(hex === 'clear'
-    ? new THREE.MeshStandardMaterial({ color: 0xe9eff3, roughness: 0.16, metalness: 0, transparent: true, opacity: 0.52, depthWrite: false, side: THREE.DoubleSide })
-    : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide })));
+  // 'clear': the vinyl of a convenience-store umbrella, a material of its own (issue 129). A thin clear film: looked
+  // through square on it is nearly nothing (a faint milky haze), and it turns to a sheen where it curves away from the
+  // eye (a film's Fresnel) and where it carries a light (the screens', the signs', a lamp's: the highlight is kept
+  // whole, not thinned with the film). What makes it read as an umbrella is how it is made: the eight white ribs its
+  // panels are welded along and the hem round its edge; and in the rain the drops beaded on it (uVinylWet, from the
+  // crowd's setRain), which go as one wetness where a pixel spans several. Blended over the person under it, who is
+  // drawn first and whole: nobody is see-through here but the vinyl
+  const vinylWet = { value: 0 };
+  function vinylMaterial() {
+    const m = new THREE.MeshStandardMaterial({ color: 0xf2f6f8, roughness: 0.1, metalness: 0, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uVinylWet = vinylWet;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vVinylUv;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVinylUv = uv;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+uniform float uVinylWet; varying vec2 vVinylUv;
+float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }`)
+        .replace('#include <opaque_fragment>', `{
+  // the film: clear square on, a sheen at a glancing angle
+  float vnF = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0);
+  float vnA = mix(0.1, 0.62, vnF);
+  // the ribs along the panels' seams and the hem: white tape, a centimetre wide (never thinner than a pixel is drawn)
+  float vnU = vVinylUv.x * 8.0, vnW = max(fwidth(vnU), 1e-4), vnR = abs(fract(vnU + 0.5) - 0.5);
+  float vnRib = (1.0 - smoothstep(0.012, 0.012 + vnW, vnR)) * min(1.0, 0.024 / vnW);
+  float vnH = max(fwidth(vVinylUv.y), 1e-4);
+  vnRib = max(vnRib, (1.0 - smoothstep(0.03, 0.03 + vnH, vVinylUv.y)) * min(1.0, 0.06 / vnH));
+  vnA = mix(vnA, 0.85, vnRib * 0.8);
+  // the rain beaded on it: a drop in each cell of the panel, somewhere in it and of its own size; one wetness far off
+  vec2 vnP = vVinylUv * vec2(176.0, 16.0), vnC = floor(vnP);
+  vec2 vnO = vec2(vinylHash(vnC), vinylHash(vnC + 17.0)) * 0.5 + 0.25;
+  float vnD = length(fract(vnP) - vnO), vnS = 0.08 + 0.12 * vinylHash(vnC + 5.0), vnPx = max(fwidth(vnP.x), fwidth(vnP.y));
+  float vnDrop = mix(1.0 - smoothstep(vnS - vnPx, vnS + vnPx, vnD), 0.06, smoothstep(0.25, 0.8, vnPx)) * uVinylWet * step(vinylHash(vnC + 9.0), 0.6);
+  vnA += 0.14 * vnDrop;
+  outgoingLight *= 1.0 + 0.3 * vnDrop * (1.0 - smoothstep(0.0, vnS, vnD) * 0.6);
+  // the light it carries, whole: where the highlight is, the film is as opaque as the highlight is bright
+  float vnL = dot(reflectedLight.directSpecular + reflectedLight.indirectSpecular, vec3(0.3333));
+  diffuseColor.a = clamp(max(vnA, vnL * 1.4), 0.0, 0.95);
+}
+#include <opaque_fragment>`);
+    };
+    m.customProgramCacheKey = () => 'person-vinyl';
+    return m;
+  }
+  const stdMat = hex => MAT[hex] || (MAT[hex] = hex === 'clear' ? vinylMaterial()
+    : new THREE.MeshStandardMaterial({ color: lin(hex), roughness: 0.75, metalness: 0, side: THREE.DoubleSide }));
   // an open umbrella's canopy: eight panels over a cone, open underneath (the apex up)
   const canopyGeo = () => new THREE.ConeGeometry(0.56, 0.24, 8, 1, true);
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -572,44 +612,14 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     return out;
   }
 
-  // ------------------------------------------------------------ someone at the lens (issue 82)
-  // With the chase camera on foot at a shoulder, 2.5 m up and 5.5 m back, someone of the crowd walking a pace beside the
-  // lens filled a quarter of a phone's upright frame: not between the lens and you, so the rig's lift over the crowd did
-  // nothing, and not inside the lens, so lensClear left them drawn. As games do with someone close to the camera, a
-  // person is dissolved as they come near the lens: whole at uNear.y from it, gone at uNear.x, in a fixed 4x4 ordered
-  // dither (no noise in time: held still, nothing flickers). The distance is the person's, not each pixel's: from the lens
-  // to their middle, a metre over where they stand (each instance's own for the far copies), so that the whole of them
-  // goes at once; by the pixel's, the head, nearer a lens 2.5 m up, went before the body. game.js sets the band only for
-  // the chase view on foot; a film's, a talk's and the finder's framing is composed with whoever is in it, and there it
-  // is off. Every person's material takes it (litMaterial below, and what they carry: stdMat, measured from where it is)
-  const nearU = { uNear: { value: null } };
-  function setNear(a, b) { if (!nearU.uNear.value) nearU.uNear.value = new THREE.Vector2(); nearU.uNear.value.set(a, b); }
-  const nearBand = () => (nearU.uNear.value ? nearU.uNear.value.toArray() : null); // (as last set: tools/lens_near.js)
-  const NEAR_GLSL = `
-  { float nrK = smoothstep(uNear.x, uNear.y, vNearD);
-    if (nrK < 1.0) {
-      const float NR_B[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-      ivec2 nrP = ivec2(mod(floor(gl_FragCoord.xy), 4.0));
-      if (nrK <= (NR_B[nrP.x + nrP.y * 4] + 0.5) / 16.0) discard;
-    } }`;
-  function nearPatch(sh, lift = 1.0) {
-    if (!nearU.uNear.value) setNear(-2, -1);
-    sh.uniforms.uNear = nearU.uNear;
-    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying float vNearD;\nvoid main() {')
-      .replace('#include <project_vertex>', `#include <project_vertex>
-  { vec4 nrO = vec4(0.0, 0.0, 0.0, 1.0);
-  #ifdef USE_INSTANCING
-    nrO = instanceMatrix * nrO;
-  #endif
-    nrO = modelMatrix * nrO; nrO.y += ${lift.toFixed(2)}; vNearD = length((viewMatrix * nrO).xyz); }`);
-    sh.fragmentShader = sh.fragmentShader.replace('void main() {', `uniform vec2 uNear;\nvarying float vNearD;\nvoid main() {${NEAR_GLSL}`);
-  }
-  function nearMaterial(m) { // (one of the things a person carries, hung from a hand or the chest: dissolved with them)
-    const own = m.onBeforeCompile, key = m.customProgramCacheKey;
-    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); nearPatch(sh, 0); };
-    m.customProgramCacheKey = () => `person-near|${key ? key.call(m) : ''}`;
-    return m;
-  }
+  // ------------------------------------------------------------ someone at the lens (issues 82 and 129)
+  // Nobody is drawn half. Until issue 129 a person near the chase camera was dissolved in a 4x4 ordered dither over a
+  // band of distance (whole at 3.2 m, gone at 2 m): a state that someone standing in the band stayed in, read at a
+  // desktop's size as a screen of dots with the street showing through them, and laid over a clear umbrella's own
+  // see-through. A camera in a crowd does not see through the people beside it: one of the crowd is in the picture,
+  // whole, or out of it, whole, with their umbrella and their shadow (game.js lensClear decides it for each of them,
+  // with a margin between going and coming back so nobody blinks at the edge; the crowd's renderer takes them out:
+  // hide(i, true)). No material of a person's has a fade in it, so the story's people and the one you play have none.
 
   // ------------------------------------------------------------ the street lights on people
   // setLight(patch): a shader patch every person's material takes from then on (world.js
@@ -620,7 +630,7 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
   function litMaterial(m) {
     if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
     const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
-    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); nearPatch(sh); };
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); };
     // three.js keys a program by the text of onBeforeCompile, which this wrapper makes alike for all
     m.customProgramCacheKey = () => `person-lit|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.userData.streetLit = true;
@@ -1686,9 +1696,10 @@ transformed = crowdPose(transformed, false);`);
       return p.umbT;
     }
     const free = {}, active = new Map();
-    let dtNow = 0, tNow = 0;
+    let dtNow = 0, tNow = 0, frameNo = 0, ended = false, m0 = null;
     function begin(dt, cx, cy, t, nActive) {
-      dtNow = dt; tNow = t;
+      dtNow = dt; tNow = t; frameNo++; ended = false;
+      if (!m0) m0 = new THREE.Matrix4().makeScale(0, 0, 0);
       umbN.true = umbN.false = umbN.shaft = 0;
       if (umbSnap) umbSnap--;
       // the camera's frustum as it was last drawn, for this frame's culling; not across a cut (the camera somewhere else)
@@ -1756,6 +1767,7 @@ transformed = crowdPose(transformed, false);`);
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null, clip: u ? null : p.look.clip || null }); } // (the phone put away while the umbrella's hand holds it up)
         if (u && r.umbOpen) r.umbOpen(ut);
         unshow(p);
+        r.root.visible = true; // (as hide(i, true) left it, a frame ago)
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
         if (p.wave) { p.wave = false; r.wave(tNow); }
@@ -1781,6 +1793,7 @@ transformed = crowdPose(transformed, false);`);
         const clear = p.look.umbrella === 'clear', c = umbMesh(clear), k = umbN[clear]++;
         c.setMatrixAt(k, ut < 1 ? opened(ut, m4) : m4);
         if (!clear) c.setColorAt(k, umbCol[i]);
+        p.umbF = frameNo; p.umbC = clear; p.umbI = k; p.umbS = umbN.shaft; // (for hide(), should the game take them out after this)
         umbMesh('shaft').setMatrixAt(umbN.shaft++, m4);
       }
       const ua = p.mesh.geometry.attributes.iUmb;
@@ -1791,21 +1804,38 @@ transformed = crowdPose(transformed, false);`);
       else if (Math.abs(f - p.animF) > 0.02 * p.animF) { p.animO += (p.animF - f) * tNow; p.animF = f; }
       p.mesh.geometry.attributes.aAnim.setXYZ(p.slot, p.animO, p.animF, sit ? -1 : moving ? 0.42 : 0);
     }
-    function hide(i) {
-      const p = P[i];
+    // not drawn this frame. Called by the crowd's step before the places are sent (end), and after it by the game, once
+    // the camera is known (the lens inside someone, a talk's shot cleared, someone near the lens): then what it changes
+    // is sent again. Before issue 129 it was not: a far figure hidden after end() was drawn all the same (the GPU had
+    // the frame's matrices already) while the figure whose slot it took was not, and an umbrella held by a hidden
+    // figure stayed in the air. soft: a whole person kept as they are and only not drawn (someone near the lens is out
+    // for as long as they are near: giving their rig back and dressing another every frame is work for nothing)
+    function hide(i, soft = false) {
+      const p = P[i], m = p.mesh, was = m && p.slot < m.count;
       unshow(p);
+      if (was && ended) { resend(m); m.userData.swapped = false; }
+      if (p.umbF === frameNo && p.umbI >= 0) { // (its far umbrella, laid this frame: to nothing)
+        const c = umbMeshes[p.umbC], sh = umbMeshes.shaft;
+        if (c && p.umbI < c.count) { c.setMatrixAt(p.umbI, m0); c.instanceMatrix.needsUpdate = true; }
+        if (sh && p.umbS < sh.count) { sh.setMatrixAt(p.umbS, m0); sh.instanceMatrix.needsUpdate = true; }
+        p.umbI = -1;
+      }
       const r = active.get(i);
-      if (r) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
+      if (!r) return;
+      if (soft) { r.root.visible = false; return; }
+      world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i);
     }
+    const resend = m => { const A = m.geometry.attributes; for (const name of SWAP) { if (!A[name]) continue; if (A[name].clearUpdateRanges) A[name].clearUpdateRanges(); A[name].needsUpdate = true; } m.instanceMatrix.clearUpdateRanges && m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.needsUpdate = true; };
     // what changed, to the GPU: the drawn range of the matrices and the gait, and after a change of places the colours too
     const range = (a, n) => { if (a.clearUpdateRanges) { a.clearUpdateRanges(); a.addUpdateRange(0, n * a.itemSize); } a.needsUpdate = true; };
     function end() {
+      ended = true;
       for (const m of meshes) {
         // (a character with nobody drawn this frame costs no draw at all, once its program has been made)
         m.visible = m.count > 0 || !m.userData.drawn;
         const A = m.geometry.attributes, moved = m.userData.swapped;
         m.userData.swapped = false;
-        if (moved) { for (const name of SWAP) { if (!A[name]) continue; if (A[name].clearUpdateRanges) A[name].clearUpdateRanges(); A[name].needsUpdate = true; } m.instanceMatrix.clearUpdateRanges && m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.needsUpdate = true; continue; }
+        if (moved) { resend(m); continue; }
         if (!m.count) continue;
         range(m.instanceMatrix, m.count); range(A.aAnim, m.count);
       }
@@ -1821,7 +1851,7 @@ transformed = crowdPose(transformed, false);`);
     // November 2026 a third of the crowd put theirs up in the frame the rain began, and the story's last frame snapped
     // the rain on with nine in ten up at once: a switch, not a shower
     function setRain(r, soak = 1) {
-      rain = r; soaked = soak;
+      rain = r; soaked = soak; vinylWet.value = Math.min(1, r * 1.6);
       const sm = (a, b, x) => { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
       umbFrac = 0.92 * sm(0.06, 0.6, r) * sm(0.05, 1, soak);
       const on = UMBRELLAS && umbWarm && r > 0.06;
@@ -1831,9 +1861,9 @@ transformed = crowdPose(transformed, false);`);
       for (const c of UMB_KEYS) { const m = umbMesh(c); m.visible = on; if (!on) m.count = 0; }
     }
     // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
-    const shows = i => active.has(i) || !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count);
+    const shows = i => (active.has(i) ? active.get(i).root.visible : !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count));
     // where the lens stands and the way it looks, in the crowd's ground plan (x, y, z up; fx, fy): actors.js steers the
-    // walkers out of its way, issue 82 (and those who still come near it dissolve: nearPatch). false with no camera
+    // walkers out of its way, issue 82 (and who still comes near it is not drawn: game.js lensClear). false with no camera
     let lensDir = null;
     function lens(out) {
       if (!camera) return false;
@@ -1844,5 +1874,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, setNear, nearBand, uncovered, exposure };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
 })();

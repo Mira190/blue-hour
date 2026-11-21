@@ -7614,7 +7614,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   let titleMustered = false;
   function updateCamera(dt, titleOn) {
-    OEPeople.setNear(-2, -1); // (nobody dissolved at the lens, unless the chase view on foot below says so: issue 82)
+    lensNear.out = 0; // (nobody of the crowd taken out for being near the lens, unless the chase view on foot below says so: issues 82, 129)
     if (titleOn && flyCam) { // a scripted camera over the title screen, for recording the flyover
       camera.up.set(0, 1, 0);
       camera.position.copy(flyCam.pos);
@@ -7823,14 +7823,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (lensWas != null) { cam.dist = lensWas; lensWas = null; } else cam.dist = Math.max(2.5, cam.dist); // (a frame's own lens is given back when the finder's view ends)
       if (!shot) blendFrom(0.22);
     }
-    // (someone a pace beside the lens dissolved over its last metre, in the chase view on foot: people.js setNear, issue 82.
-    // Not in a talk's shot, a film, a scripted shot or the finder, whose framing is made with whoever is in it)
-    // (whole from 3.2 m, gone at 2 m, from the lens to the person's middle: with the eye 2.5 m up, nearer than 2 m a person
-    // is mostly under a phone's frame, and from 2 to 3 m their head and shoulders fill a corner of it. Its far edge 1.2 m
-    // short of you, so that a lens pulled in close by a wall never dissolves the one you play)
+    // (someone of the crowd a pace beside the lens, in the chase view on foot, is out of the picture: lensClear, issues 82
+    // and 129. Not in a talk's shot, a film, a scripted shot or the finder, whose framing is made with whoever is in it)
+    // (out within 2 m from the lens to the person's middle: with the eye 2.5 m up that is 1.3 m from under the lens, and
+    // nearer than that a person is mostly under a phone's frame; back once 2.3 m off. The far edge 1.2 m short of you,
+    // so that a lens pulled in close by a wall never takes out someone standing by the one you play)
     if (player.mode === 'foot' && cam.mode === 'chase' && !shot && !talkShot && !fpOn && !photo.on) {
-      const me = Math.hypot(camera.position.x - player.x, camera.position.y - player.z - 1, -camera.position.z - player.y), far = Math.min(3.2, me - 1.2);
-      if (far > 0.6) OEPeople.setNear(Math.max(0.3, Math.min(2, far - 1.2)), far);
+      const me = Math.hypot(camera.position.x - player.x, camera.position.y - player.z - 1, -camera.position.z - player.y), far = Math.min(LENS_NEAR.back, me - 1.2);
+      if (far > 0.6) { lensNear.out = far; lensNear.in = Math.max(0.3, far - (LENS_NEAR.back - LENS_NEAR.out)); }
     }
     lensClear();
     Wd.fitShadow(live.look, live.half);
@@ -7841,6 +7841,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // people has the lens within their body is not drawn for that frame (layer 0, which nothing else in the game
   // turns off), and is drawn again the moment it is out
   const lensHid = new Set();
+  // Someone of the crowd near the lens (issue 129). Either a person is in the picture, whole, or they are out of it:
+  // until then whoever stood between 2 and 3.2 m from the chase camera was drawn through a dither for as long as they
+  // stood there, a screen of dots at a desktop's size with the street seen through them. Now each of the crowd is out
+  // (not drawn at all: body, umbrella and shadow, in one frame) once their middle is within lensNear.in of the lens,
+  // and back, whole, once it is lensNear.out away: the half metre between keeps someone at the edge from blinking as
+  // the camera eases. It is a near plane that takes whole people, set where a person is mostly under the frame; the
+  // crowd's walkers and those waiting are steered out of that space (actors.js, the lens's room), so it is rare.
+  // Only the crowd: the story's people, the named cast, the guide and the one you play are never taken out by it
+  const LENS_NEAR = { out: 2.0, back: 2.3 }, lensNear = { in: 0, out: 0, gone: 0 };
+  let lensNearOn = true; // (false: for a harness, the frame with everyone in it)
   // A film of the story's (film: its pose) is low among people held still, and someone a pace in front of the lens filled
   // half a phone's upright frame with the back of their head as the dog walked behind them: in a film, whoever stands
   // within 3 m in front of the lens and in its line to what it looks at is not drawn either, as a film crew would ask
@@ -7862,7 +7872,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // where frame 5's stand is, filled a phone's whole frame with his back. Not in a film or a talk, which frame them)
     for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, film || talkShot ? 0.62 : 1.0);
     const gd = guideMade; if (gd && gd.root && !film) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75); // (in a film of him, he is what it is of)
-    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) { const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < (q.rz ?? q.z ?? 0) + 1.95) || inShot(x, y))) crowdDraw.hide(i); }
+    lensNear.gone = 0;
+    if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+      const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y, z = q.rz ?? q.z ?? 0;
+      if (!(q.line >= 0 || q.pz)) { q.lensOut = false; continue; }
+      if ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < z + 1.95) || inShot(x, y)) { crowdDraw.hide(i); continue; }
+      // (near the lens: out at lensNear.in, back at lensNear.out; with the band off, everyone back at once)
+      if (lensNear.out > 0 && lensNearOn) { const d = Math.hypot(x - cx, y - cy, z + 1 - cz); q.lensOut = d < (q.lensOut ? lensNear.out : lensNear.in); } else q.lensOut = false;
+      if (q.lensOut) { crowdDraw.hide(i, true); lensNear.gone++; }
+    }
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3();
@@ -8737,6 +8755,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   window.__game = { perch, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
+     lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },
      story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
   return {
     stop() { if (window.OEMetro) OEMetro.close(); if (window.OEVis) OEVis.dispose(); keep(); if (fish && fish.api) fish.api.dispose(); running = false; ac.abort(); ro.disconnect(); care.dispose(); if (atmos) atmos.dispose(); if (weather) weather.dispose(); renderer.dispose(); Wd.dispose(); A.stop(); window.__game = null; },
