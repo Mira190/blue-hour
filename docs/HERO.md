@@ -446,6 +446,19 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
   its reach (`folkNear`, `folkAcross`: a body 0.28 m round and 1.75 m tall across the line from the lens to the head),
   up to `CROWD_LIFT` (0.3 rad, about the old view); past that the view waits a moment for them to pass rather than
   climb again, and it is never pulled in for them. Never over a wall for them either.
+- Hemmed in (issue 99). Where a wall behind is higher than any lift clears (the deck's flank 9 m over the foot of
+  SHIBUYA SKY's escalators, a tower's face on the street), or only the highest lift clears it, the rig took the highest lift, because the steeper line gets
+  a little further before it meets the wall, and then came in along it: a metre over your head looking straight down,
+  the frame your hair and one flat floor. A passage narrower than the camera stands back is looked along instead: the
+  view turns to the nearest side that is open at shoulder height (`cam.yawTo`, towards behind where you face first), at
+  once where the view was just put there, after a third of a second where you walked into it. A hand on the view is
+  not fought: not for a second after, and not while you stand where you, or the story, turned it to (`cam.hand`). Where no side
+  within 1.8 rad is open, it is as it was. `tools/lift_top_shot.js` stands at SKY's 46F stop and prints the rig's own
+  account (`TABLE=1`: how far the probe gets by bearing and lift), turns the view into the flank, walks to the
+  escalator and holds time for five stills; `tools/story_play.js` fails a still there taken from over the head.
+  What it does not mend: at the start of frame 5 you stand 0.9 m from the roof's east glass (2.4 m tall) and the
+  story turns the view to the pad, away from the glass: that turn is kept, and the view still stands over you until
+  you walk off; the collision world does not tell glass from wall, so the camera cannot look in through it.
 - Measured (`tools/frame_cost.js` `POSE=7.5/0.36,5.5/0.17,...`, both poses in one sitting at the start, 17:38 in the
   rain): on a phone's tier at 390x844 the new pose draws 411 to 412 calls and 1.14 M triangles against the old pose's
   420 and 1.16 M, in the same time within the software renderer's noise; on the desktop tier 1451 and 1465 ms in two
@@ -756,23 +769,23 @@ wrong, and redone.
   `game.lobbies` `"outside": {"door", "at"}`): the lobby once cut into the tower is filled back (each solid keeps its
   index; the ground floor's two solids take their passages' feet again) and the stop put at the hall's doors and before
   its cars. scene.json's `shibuya_sky.door` moved with it, and Yuna stands by the pillar.
-- **The hall**: 6.2 m north to south, 4.2 m west to east, under the station deck (its ceiling 2.65 m up, under the
-  deck's underside). Its west front glass in stainless frames, fritted to a metre, with two doorways 1.2 m clear under a
-  transom whose sliding leaves stand open behind the lites outside them (a door that is always open is what a player
-  walking up to an automatic one sees); its north side glass onto the forecourt; its roof carried 1.6 m out over the
-  doors as a canopy with a line of round downlights (the photographs'); its south side dark metal against the tower.
-  All of it solid (`game.hero[].posts`), the doorways open.
-- **Inside**: SKY's own black and lines of light (SKY GATE's cars, the 45F LEADING LINE), since its finishes are in no
-  photograph. A floor of polished charcoal granite in 1.2 by 0.6 m slabs, each its own part of the stone; black
-  lacquered panels with an 8 mm reveal, a line of light at the south wall's foot; a matt black ceiling with four lines
-  of light running east from over the doors to the cars, baked onto the floor and walls, and their reflections in the
-  polished floor (`refl*`: light added over the stone, without depth, dimmed by day as a glow is). The environment map
-  is the sky's, which inside a hall is wrong, so its surfaces take little of it.
+- **The hall, open** (November 2026). It was built first as a box under its own roof: a glass west front in stainless
+  frames with two doorways, a glass north side, a roof carried out over the doors as a canopy with downlights, inside
+  SKY's black, a polished charcoal floor and lines of light in a black ceiling, all of it solid but the doorways. The
+  owner, from the street lift as it is, asked for no roof and none of the glass, and found the box an odd thing to walk
+  into (the chase camera came down inside it). Now: a floor 6.2 m by 4.2 m open to the sky and to the west and the
+  north, in honed granite slabs 1.2 by 0.6 m a step darker than the tiles before it (the polished charcoal, under the open
+  sky, read as a black hole in the street); a step down into it from the forecourt's planks along its north side, whose
+  floor stands 0.2 to 0.4 m higher, in the hall's stone with a stainless nosing; a stainless kick plate where the ground
+  falls away at its south-west corner; to the south the black lacquered wall against the tower, an 8 mm reveal between
+  its panels and a line of light at its foot, capped in stainless. Solid where it is wall and shaft (`game.hero[].posts`,
+  138 to 108).
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
-  to 14F; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts run east to the
-  cars (`game.hero[].belts`, solid).
+  to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
+  run east to the cars (`game.hero[].belts`, solid).
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
@@ -840,7 +853,7 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
 - **CLOUD HAMMOCK**: the landmark's three, at its places and its net's sag (the poses lie in it): a bed of short
   artificial lawn in a timber kerb, four dark steel posts and rails at 0.9 m, and the net as white ropes 12 cm apart.
 - **Benches**: 3 m of oiled timber slats on dark flat steel, 1 m in from the glass wherever its foot is clear of the
-  searchlights, the nets, the channels' ends and the steps (twelve).
+  searchlights, the nets, the channels' ends and the steps, and 6 m clear past each flight's head (ten).
 - **CROSSING LIGHT**: at each of the landmark's 18 points (the beams `lights.js` throws) a plinth, a turntable, a yoke
   and a finned drum tilted 20° out over the city, its lens lit after dark (`lamp*`).
 - **The escalators' heads**: a stainless landing plate and a yellow line before each.
@@ -849,6 +862,29 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
 landmark meshes it draws again (`sky_deck`, `sky_deck_light`, `sky_glass`, `sky_steel_dark`, `sky_compass_atlas`,
 `sky_steps_deck_light`, `sky_net`, `sky_lit_lamp`); the channels, the escalators and the stairs stay the landmark's,
 and so does the walking: the level is drawn 5 cm over the deck's solids.
+
+**What stands on it is solid** (November 2026). The landmark under the level has no benches, and its nets and
+searchlights are thinner than the level's, so the walking knew nothing of what the level adds: the owner's phone showed
+the walk's player standing in a bench to the knee at the glass, and a walker went through every bench and partly into
+the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level now says what it stands on the deck as
+boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
+layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
+nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
+thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
+railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
+gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
+pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the
+escalators' heads, where a walker stepping off was then stopped by one: the benches keep 6 m clear past each flight's
+head, the whole width of the channel (ten benches, not twelve).
+
+**The black cover over the west flight.** The owner's phone, climbing to the roof from 46F, showed the character under
+a black sheet at the deck's height. It was the joints' dark slab under the pavers: laid as rectangles over the free deck
+(`rects`, the deck cut into strips at its corners' u), and the corners' u were rounded to 0.1 mm. The west channel's notch
+began a hair past its rounded u, the strip beside it was an L of the deck and a hairline up the notch, and the L's bounds
+laid 44 m² of the near-black slab over the top of the west flight. `rects` now cuts at the corners' exact u and cuts a
+strip that is not one rectangle again at its own corners' v, so a rectangle is never more than the polygon: the slab
+covers the free deck exactly (3,122.87 m², nothing over a channel). `tools/what_covers.js` names what a ray from the
+camera meets through each point of a grid over a still, and found it.
 
 **The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
 the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
