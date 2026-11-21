@@ -2103,7 +2103,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return k;
     };
-    return Object.assign(api, { update, nearest, respawn, seen, shutLine, shut });
+    return Object.assign(api, { update, nearest, respawn, seen, shutLine, shut, reshut: () => shutLines.clear() }); // (reshut: what closes a line has changed, the walk's edge)
   }
 
   // ------------------------------------------------------------ traffic (drives on the left, or on the right)

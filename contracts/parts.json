@@ -562,7 +562,8 @@
   "hero": {
    "for": "The hero levels: their models, atlases and loading round the player.",
    "files": [
-    "web/game/hero.js"
+    "web/game/hero.js",
+    "web/game/edge.js"
    ],
    "checks": [
     "story",
@@ -570,6 +571,9 @@
     "mem"
    ],
    "offers": {
+    "OEEdge": [
+     "create"
+    ],
     "OEHero": [
      "create"
     ]
