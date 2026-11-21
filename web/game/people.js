@@ -596,19 +596,28 @@ vec3 oePattern(vec3 base, vec3 p, float id, vec3 c2) {
     FADE.value = v;
     if (v !== fadeWas) { fadeWas = v; material.uniformsNeedUpdate = true; }
   }
-  function litMaterial(m) {
-    if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
-    const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
-    const ownR = m.onBeforeRender;
+  // (every person's material takes the fade, whether or not the street lights' patch has come yet: the crowd's clothes,
+  // copied before it had, were drawn whole under a dissolving head)
+  function fadeMaterial(m) {
+    if (!m || !m.isMeshStandardMaterial || m.userData.oeFade) return;
+    m.userData.oeFade = true;
+    const own = m.onBeforeCompile, key = m.customProgramCacheKey, ownR = m.onBeforeRender;
     m.onBeforeRender = function (renderer, scene, camera, geometry, object, group) { if (ownR) ownR.call(this, renderer, scene, camera, geometry, object, group); fadeBefore(this, object); };
     m.onBeforeCompile = (sh, r) => {
       if (own) own.call(m, sh, r);
-      patch(sh);
       sh.uniforms.uFade = FADE;
-      sh.fragmentShader = ('uniform float uFade;\n' + sh.fragmentShader).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + FADE_GLSL);
+      if (!/uniform float uFade;/.test(sh.fragmentShader)) sh.fragmentShader = ('uniform float uFade;\n' + sh.fragmentShader).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + FADE_GLSL); // (once, whatever wraps it)
     };
+    m.customProgramCacheKey = () => `fade|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.needsUpdate = true;
+  }
+  function litMaterial(m) {
+    fadeMaterial(m);
+    if (!streetLit || !m || !m.isMeshStandardMaterial || m.userData.streetLit) return;
+    const own = m.onBeforeCompile, patch = streetLit, key = m.customProgramCacheKey;
+    m.onBeforeCompile = (sh, r) => { if (own) own.call(m, sh, r); patch(sh); };
     // three.js keys a program by the text of onBeforeCompile, which this wrapper makes alike for all
-    m.customProgramCacheKey = () => `person-lit-fade|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `person-lit|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.userData.streetLit = true;
     m.needsUpdate = true;
   }
@@ -1745,9 +1754,10 @@ transformed = crowdPose(transformed, false);`);
         unshow(p);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
-        // (two metres from the lens and nearer: dissolved, whole at 2 m, gone at 0.7; at 1.5 to 2.5 m one still covered a
-        // seventh of a phone's upright frame. Whoever the lens is inside, within 0.55 m, the game stops drawing; issue 82)
-        r.fade = camera ? Math.max(0, Math.min(1, (Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z) - 0.7) / 1.3)) : 1;
+        // (2.6 m from the lens and nearer: dissolved, whole at 2.6 m, gone at 0.8; at 2 to 2.5 m one still covered a
+        // seventh of a phone's upright frame. The player stands 4 to 6 m from it, so those by them are whole. Whoever the
+        // lens is inside, within 0.55 m, the game stops drawing; issue 82)
+        r.fade = camera ? Math.max(0, Math.min(1, (Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z) - 0.8) / 1.8)) : 1;
         if (p.wave) { p.wave = false; r.wave(tNow); }
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;

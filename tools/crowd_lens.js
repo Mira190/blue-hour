@@ -1,11 +1,11 @@
 // The near crowd and the lens on foot (issue 82): you stand on a footway by the Scramble with the chase camera behind
 // you, and walkers are sent along that footway from behind the camera, past it and past you, with the rest of the crowd
 // going about its business. Each frame of the game (the camera's own easing and lifts running) it measures, for the
-// crowd's people within 2.5 m of the lens, how much of the frame the nearest covers (a body 0.5 m wide and 1.7 m tall,
+// crowd's people within 3 m of the lens, how much of the frame the nearest covers (a body 0.5 m wide and 1.7 m tall,
 // projected), and how close any of them came to the lens. Someone walking a pace beside the lens filled a corner of a
 // phone's upright frame: here the most any one covers, and the frames where one covers more than 6% of it.
 // A still is taken (the frame held) into out_dir the moment the first of them is level with the lens. The share is counted as
-// drawn: one within 2 m of the lens dissolves (people.js rig.fade; FADE=0 counts them whole, as main draws them).
+// drawn: one within 2.6 m of the lens dissolves (people.js rig.fade; FADE=0 counts them whole, as main draws them).
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/crowd_lens.js out_dir [WxH, default 390x844] [seconds per case, default 14]
 // Fails (exit 1) when one of the crowd covers more than 6% of the frame in more than MAXF frames (default 3).
@@ -62,7 +62,7 @@ const CASES = [
           const q = C.P[j]; if (q.line < 0 && !q.pz) continue;
           const qx = q.rx ?? q.x, qy = q.ry ?? q.y, qz = q.rz ?? q.z, d = Math.hypot(qx - cx, qy - cy);
           if (d < near) near = d;
-          if (d > 2.5 || d < 0.55) continue; // (within 0.55 m the lens is inside them and they are not drawn: game.js lensClear)
+          if (d > 3 || d < 0.55) continue; // (within 0.55 m the lens is inside them and they are not drawn: game.js lensClear)
           let x0 = 1, x1 = -1, y0 = 1, y1 = -1, ok = false;
           for (const [a, c, hh] of [[-0.25, 0, 0], [0.25, 0, 0], [-0.25, 0, 1.7], [0.25, 0, 1.7], [0, -0.25, 0.9], [0, 0.25, 0.9]]) {
             v3.set(qx + a, qz + hh, -(qy + c)).applyMatrix4(cam.matrixWorldInverse);
@@ -71,7 +71,7 @@ const CASES = [
             x0 = Math.min(x0, v3.x); x1 = Math.max(x1, v3.x); y0 = Math.min(y0, v3.y); y1 = Math.max(y1, v3.y);
           }
           if (!ok) continue;
-          worst = Math.max(worst, Math.max(0, Math.min(1, x1) - Math.max(-1, x0)) * Math.max(0, Math.min(1, y1) - Math.max(-1, y0)) / 4 * (FADES ? Math.max(0, Math.min(1, (d - 0.7) / 1.3)) : 1)); // (as drawn: dissolved within 2 m of the lens, people.js rig.fade)
+          worst = Math.max(worst, Math.max(0, Math.min(1, x1) - Math.max(-1, x0)) * Math.max(0, Math.min(1, y1) - Math.max(-1, y0)) / 4 * (FADES ? Math.max(0, Math.min(1, (d - 0.8) / 1.8)) : 1)); // (as drawn: dissolved within 2.6 m of the lens, people.js rig.fade)
         }
         return { worst, near };
       };

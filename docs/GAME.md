@@ -2030,9 +2030,9 @@ Sydney's traffic stood still a third of the time.
       is (footway walkers steer round it, never turning back from it; those crossing
       or strolling the square are pushed gently off it; those stood waiting are left
       where they are). Where a footway is too narrow to go round it (under the
-      viaduct by the station), whoever still comes within a pace and a half of the
-      lens dissolves, as games do with an NPC that close to the camera rather than
-      pop it out: whole at 2 m, gone at 0.7 m (within 0.55 m the game already stops
+      viaduct by the station), whoever still comes within 2.6 m of the lens
+      dissolves, as games do with an NPC that close to the camera rather than
+      pop it out: whole at 2.6 m, gone at 0.8 m (within 0.55 m the game already stops
       drawing whoever the lens is inside), cut by a dither fixed to the screen's
       pixels, so nothing crawls or flickers while time is held (`rig.fade`, the
       `uFade` every person's material takes in `litMaterial`, `people.js`).
