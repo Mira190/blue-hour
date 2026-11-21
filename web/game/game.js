@@ -4105,7 +4105,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let walk = null, walkUi = null;
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
-  const padOpen = () => [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
+  const padOpen = () => [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-spend', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
     || (!$('#g-menu').hidden ? $('#g-menu') : !$('#g-title').hidden && !preTitle ? $('#g-title') : null);
   const gamepad = window.OEPad ? OEPad.create({ stage, open: padOpen,
     dialogue: () => (dlg.hasChoices ? [...document.querySelectorAll('#gd-choices button')] : null),

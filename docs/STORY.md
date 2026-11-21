@@ -85,7 +85,10 @@ from the plot, not bent; one that could not be confirmed is marked, and no line 
 |---|---|---|
 | 10 October 1964: the opening ceremony of the Tokyo Olympics, from 14:00. The country watched it on television; the streets emptied | General record | Why nobody saw what happened on a roof at ten past three |
 | Blue Impulse drew the five rings over the National Stadium: smoke due at 15:10:20, over the stadium at 15:13:20 (the Defence Agency's record) | [jiji.com, *Remember 1964*](https://www.jiji.com/jc/v4?id=202101rem64-impulse0002); [JASDF](https://www.mod.go.jp/asdf/event/blueimpulse/history/) | A clock in the sky: Kanbara fell *while they drew the rings*, about ten past three; Akira ran up the stair to photograph them |
-| Sunset in Tokyo on 10 October is about 17:14 | NAOJ tables | The hour of the promise, and of the Stop |
+| Sunset in Tokyo on 10 October is at 17:13, in 1964 and in 2026 (the sun's upper limb on the horizon; 17:14 is the ninth's) | NAOJ 暦計算室: [こよみの計算, 長期版](https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/koyomiy.cgi) for Tokyo, 1964 and 2026; [the table for October 2026](https://eco.mtk.nao.ac.jp/koyomi/dni/2026/s1310.html) | The hour of the promise and of the Stop is 17:14, the first minute after sunset: the job sheet gives sunset as 17:13 and the client's hour as 17:14, and no line says the sun sets at 17:14 |
+| A ticket from Tokyo to Osaka in October 1964 read 東京都区内から大阪市内ゆき: the two cities' zones date from 1 April 1944 and applied from 201 km from 6 April 1961 (Yokohama, Nagoya, Kyoto and Kobe were added on 10 May 1969); second class cost 1,180 yen from 1960 to 1966 | [ja.wikipedia 特定都区市内](https://ja.wikipedia.org/wiki/%E7%89%B9%E5%AE%9A%E9%83%BD%E5%8C%BA%E5%B8%82%E5%86%85); a collector's list of tickets, one of 19 September 1963 with that face, [shonan1953](http://shonan1953.sakura.ne.jp/newpage8848.html) | The face of the ticket under the base plate (the last card): 東京都区内から / 大阪市内ゆき / 2等 |
+| The Scramble at its busiest is *said* to carry as many as three thousand people at one change of the lights; nobody's count was found (the national tourist office says 1,000 to 2,500 every two minutes) | [LIVE JAPAN](https://livejapan.com/ja/in-tokyo/in-pref-tokyo/in-shibuya/spot-lj0001986/) (多い時で3千人にもなるといわれ); the Asahi Shimbun of 22 April 2016, *渋谷交差点、1回で3千人横断?* (cited by [en.wikipedia](https://en.wikipedia.org/wiki/Shibuya_Crossing), not read); [JNTO](https://www.japan.travel/en/spot/2177/) | The opening's first caption, as hearsay: *At its busiest, it is said, three thousand people cross here at one change of the lights* |
+| SHIBUYA SKY's lift runs from the 14th floor to the 45th, and an escalator goes on to the 46th and the roof; the ride of thirty-one floors takes about thirty seconds (the press's figure, not the operator's) | [SHIBUYA SKY](https://www.shibuya-scramble-square.com/sky/about/); [nippon.com](https://www.nippon.com/ja/guide-to-japan/gu900265/) | Yuna: *From the fourteenth floor to the forty-fifth in about half a minute*. The game's lift is boarded from the street (SKY GATE's hall), a liberty of the map's |
 | The Gotoh Planetarium, under a dome on the roof of the Tokyu Bunka Kaikan east of the station, 1957 to 2001; the Bunka Kaikan closed in 2003, and Shibuya Hikarie (2012) stands on its site | [Tokyu](https://www.tokyu.co.jp/area/shibuya/article/arti-01KGZVF7MVYMMBNTSKYQ9XV6VT/) | Where Akira lectured; where the fall happened; a place that can now only be seen from above (rule 2) |
 | The Osaka Municipal Electric Science Museum had Japan's first planetarium (Zeiss II, 1937 to 1989) | [Osaka Science Museum](https://www.sci-museum.jp/wp-content/uploads/2021/12/press_170602.pdf) | Where Akira had a post waiting: why Osaka |
 | The night express *Ginga* (銀河, the Milky Way) left Tokyo for Osaka and Kobe at 20:40 in the timetable of 1 October 1964, a sleeper train since 1961; the Shinkansen had opened nine days before | [trafficnews](https://trafficnews.jp/post/84586); timetable reprints | The night train after a seven o'clock lecture; an astronomer chose it for its name |
@@ -96,7 +99,7 @@ from the plot, not bent; one that could not be confirmed is marked, and no line 
 | The Shibuya River above the station was covered in the years before the Games; it comes out again south of the station at Shibuya Stream | [ja.wikipedia 渋谷川](https://ja.wikipedia.org/wiki/%E6%B8%8B%E8%B0%B7%E5%B7%9D); docs/PAST.md | The works where a boy died in the rush and was left out of the book: the root of the case |
 | Many of the men who built the Games' Tokyo were seasonal hands from the north-east (出稼ぎ), and men died on the works | General record | Kudo Masao, nineteen, from Aomori |
 | Exposed film holds a latent image until it is developed, and it fades over decades | Photographic record | The whole device; and why nobody promises what sixty-two years have left on the roll |
-| **Not confirmed:** that the police box stood on Hachiko's side of the square in 1964 (today's 渋谷駅前交番 is there; no dated photograph of its place in 1964 was found) | Searched, November 2026 | Frame 3's lamp stands where today's box is. No line says how long a box has stood there |
+| A police box stood in Hachiko's square in 1964: built in 1962 across from the stair down to the underground, its door towards the crossing, and moved later to today's place beside the Yamanote line's bridge when the square was widened | [Shibuya Bunka, *1964年の渋谷駅ハチ公前広場*](https://www.shibuyabunka.com/blog.php?id=939), with a photograph of about July 1964 (渋谷区郷土写真保存会); one source, and the box's exact spot in the square was not found | The police box by Hachiko, where he gave himself up, thirty steps from the boy's pitch. **A liberty:** frame 3's lamp stands where today's box is, not where that of 1964 was, and the lines say only that it stood in his square |
 | **Cut:** that the Shuto Expressway's Route 3 over Shibuya opened that same month (its first section, Shibuya 4-chome to Shibuya, opened in 1964; the day was not confirmed) | [trafficnews](https://trafficnews.jp/post/113559) | No longer in the plot |
 
 ## 5. The people
@@ -206,12 +209,12 @@ where the player meets them, and how they speak. Ages are as of 10 October 1964 
 - **After.** A shoe repairer in Sangenjaya's lanes. In 1977 a man with a new name came looking for the boy and asked
   whether she had heard it. He said yes. The lie became the ground of the man's peace, and Tanaka could not take it away
   and give nothing back: he did not know where she was, nor which of the old women at that corner she might be. Forty
-  years at the same bath-house. Every tenth of October he stood on the stone blossom in the square, where the man had
+  years at the same bathhouse. Every tenth of October he stood on the stone blossom in the square, where the man had
   stood with the police in 1964, behind his friend at the kerb; his friend never once turned round. He witnessed the
   will.
 - **In the case.** The old man on the blossom all evening, the one Shun speaks of (frame 2), who has been watching the
   camera (frame 5), who asks to be shown his pitch and then tells the rest (frame 6). **Voice.** Gentle, ashamed, a
-  craftsman's exactness: *the box my father made*. *Sixty years I have had it in my mouth.*
+  craftsman's exactness: *the box my father made*. *Sixty-two years I have had it in my mouth.*
 
 ### The detective (about 45 in 1964)
 
@@ -382,7 +385,7 @@ It has the movements a classical mystery has:
 | 3 | 17:24 | Hachiko, and the police box's red lamp | (the old man watches) | The detective | The confession, the suit, the glove claimed, the store's word, the minute, the camera given away | Tells the truth to a detective; then says *it was her*, or will not | *The roof can only be seen from above* |
 | 4 | 17:31 | SHIBUYA SKY: down on to the dome inside Hikarie | Yuna: one glove; the police at the store | Kanbara | The roll's danger; the match; she left him alive; the cut empty at three; boots on the stair while he watched the rings | Finds the place at the glass; names the boots, or will not | *Kanbara's works: the river* |
 | 5 | 17:39 | The tower's foot: the river open, and the works' board | (a message from the sister) | Tatsuo | The alibi, broken by the roof; Kudo Masao; the threat; the glove; the lecturer on the stair; the turn back | Shows Tatsuo what the roof saw; finds where the water ran | *What did the lecturer find at the top?* |
-| 6 | 17:46 | His kerb, through a long lens: her corner as he saw it | Mr Tanaka: the sentence, the lie, Hoshino, the bath-house, the minute a year, the will | Akira, of 2025 | The darkroom, the darn, the minute, the word *wait* | Shows Tanaka his pitch; finds his kerb from the roll | *Carry it over to her* |
+| 6 | 17:46 | His kerb, through a long lens: her corner as he saw it | Mr Tanaka: the sentence, the lie, Hoshino, the bathhouse, the minute a year, the will | Akira, of 2025 | The darkroom, the darn, the minute, the word *wait* | Shows Tanaka his pitch; finds his kerb from the roll | *Carry it over to her* |
 | 7 | 17:53, rain | The corner that sees both kerbs | Sumiko, 84: *it is in my bag*; the three questions; *looking east* | The girl and Akira | Everything, from the player | Names each answer and proves it; finds the corner that sees both kerbs; holds them in the frame while every light turns green and they walk to the middle; takes the last frame as they meet | She crosses |
 
 **How each place is reasoned to.** No place is given by a line saying where to walk; each follows from the frame before.
@@ -404,19 +407,19 @@ up the stair behind him*).
 
 | Where | What the player does | What answers it |
 |---|---|---|
-| 3, the police box | says who they are to a detective of 1964. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
+| 3, the police box | says who they are to a detective of 1964, from three answers laid out in a new order each time the frame is taken up. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
 | 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above |
 | 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns back to the station | failure, as above |
 | 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`). Two wrong and she turns back to the road. Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | failure, as above |
-| 2 to 6, the camera | the release pressed twice from the wrong place **spends the frame**: a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
+| 2 to 6, the camera | the release pressed twice from the wrong place asks, once, whether to **spend the frame** (a card over the finder, the hand on *Keep the frame*; the release is not an answer to it, so a double tap on a phone spends nothing); spent, it is a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
 
 ## 9. Fair play: every clue, and where it is first shown
 
 | What the player must be able to work out | Shown first | Needed |
 |---|---|---|
-| Sumiko is alive: the old woman at the kerb | The opening; *You came late* in an old woman's voice under no name in the first Stop; the overture's *one woman has waited at this corner*; she turns in the sixth Stop; *She has held that camera for sixty years* (6) | 7 |
+| Sumiko is alive: the old woman at the kerb | The opening; *You came late* in an old woman's voice under no name in the first Stop; the overture's *one woman has waited at this corner*; she turns in the sixth Stop; *She has held that camera for sixty-two years* (6) | 7 |
 | An afterimage need not be dead | Shun's grandfather (2) | 7 |
 | An afterimage cannot see past its place, or a print | The girl (1); Kanbara asks whether the dome is there (4); Tatsuo is told (5); Akira (6) | 5, 7 |
 | Sumiko ran a lift, and had one glove at 17:14 | The girl (1): *straight from the lift at the store, one glove on*; Yuna (4) | 3 |
@@ -591,7 +594,7 @@ back to do; everything else is one row each, in the same order every time, so th
 - **Nothing played yet:** *Walk Shibuya* (first, while the episodes are being finished: the owner's word), *The story*,
   *Options*.
 - **A case going:** *Continue* first, with the last photograph taken in that case at the end of its row and the frame it
-  takes up at (*Episode 1 · You came late · frame 3 of 7 · 17:19*), as a game's menu puts its last save first with a
+  takes up at (*You came late · frame 3 of 7 · 17:19*), as a game's menu puts its last save first with a
   picture of where it was left; then the walk, the story, the options. (A case going is a story the player has already
   chosen, so the walk's place at the top, which keeps a newcomer out of an unfinished episode, does not apply to it.)
 - **A case closed:** the story's row says so, and its screen offers every frame again.
@@ -1290,7 +1293,7 @@ finished. A main menu in a game of that kind (*The Last of Us Part II*, *Ghost o
 over the live scene: every entry in one type and size, one under another, one entry selected from the start and the
 selection the only thing lit, moved by the arrows or the d-pad and pressed by Enter or A. Adopted (`story.css` "the
 title's ways in", `walk.js`, `game.js` `titleLead`): the ways in are one list, every row the same width and height and
-each in two lines, its name and a word on it (*Walk Shibuya · No story, any hour, any sky*; *Episode 1 · You came late ·
+each in two lines, its name and a word on it (*Walk Shibuya · No story, any hour, any sky*; *You came late ·
 The story, 7 frames, one evening*). The walk is the first row and the one Enter and a pad's A take, with the amber
 hairline and the Enter key on it; the story and the options are under it, and while a case is going *Continue* stands over
 it (since: *The menu, by what this browser has done*, under *The title, as a game opens*). The
@@ -1353,7 +1356,7 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   photographer on the roof by SKY EDGE; and Aoi at the arch, with a word in passing.
 - *Small stories in parts, each asking one thing the walk can do.* Mei's (*Which Hachiko*) crosses the scramble on the
   green, twice; Mr Oda's (*Once round by car*) drives your car to 109; Shun's (*The shot everyone takes*) is a photograph
-  of the crossing from in it or from high up; Yuna's (*Forty-five floors*) is the lift to the roof; and Taro's (*Above
+  of the crossing from in it or from high up; Yuna's (*From the fourteenth floor to the forty-fifth*) is the lift to the roof; and Taro's (*Above
   the crossing*, added at the owner's asking) is the helicopter on the roof's pad, flown out over the crossing and the
   crossing photographed from the air (the camera holds the world still while you frame it), then set down on the roof
   again to show him: it takes only a photograph taken from the helicopter, over the crossing and sixty metres up or
@@ -1450,8 +1453,8 @@ On the page: `web/game/walk.js` (its step on the title and its corner of the str
   adult hand: what is established in pencil, what the player said in a fountain pen's blue-black, so a line is told
   apart by its ink, not a slant. The ticket is drawn for the story in the manner of
   a card ticket of the national railway; its wording is ours, and it carries no fare.
-- The opening's first caption gives the place's own number (as many as three thousand people cross
-  at one change of the lights at the busiest hours, the figure the ward and the press give) and the
+- The opening's first caption gives the place's own number (three thousand people at one change
+  of the lights at its busiest, given as what is said: section 4 has who says it) and the
   story's hook in the same breath.
 - No character speaks of data, surveys of buildings or how the map was made
   (`tools/voice_check.py`). The player's trade is photographing streets; that is all that is said
@@ -1546,8 +1549,10 @@ What is the owner's to decide, with the default taken until then:
   *SHIBUYA 2026* on the screens, an arena tour of 2026, the Nishiguchi Sky Vision of May 2026, 令和八年 on the ema). The
   street cannot go back, so the story came forward: tonight is Saturday 10 October 2026, sixty-two years on. Sumiko is
   84, Mr Tanaka 76, Akira died in March aged 87 and his afterimage is of 2025 (his last tenth of October alive), and the
-  two of them stood on opposite kerbs for fifty years (1976 to 2025). *Sixty years* stays in what people say, as people
-  round a long time; what is counted (an age, a year, the pairs' years) is exact.
+  two of them stood on opposite kerbs for fifty years (1976 to 2025). *Sixty years* stayed in what people said, as people
+  round a long time, until the launch review (issue 117) read five *sixty* and five *sixty-two*, some from one speaker, as
+  a case that disagrees with itself: since then every count from 1964 to tonight is *sixty-two* in every mouth, and the
+  only round number left is the fifty years the two stood on opposite kerbs.
 - **Kanbara's afterimage is on SHIBUYA SKY's roof**, 200 m from where he was left (the planetarium's roof, on Hikarie's
   site), and rule 4 says an afterimage stays within a few steps of where it was left. Default: keep him there, and let
   the words say what the frame shows: the roof he fell from is gone (frame 3's last line: *the only place it can still
@@ -1701,6 +1706,35 @@ cross-examination, a statement pressed and evidence presented, judged as a pair;
 an author's sentence. `tools/story_play.js` presses Tatsuo's statements and names Sumiko's answers as a player who knows
 them would (state `want`), with a still of each list; `SLIP=5` and `SLIP=7` answer them wrongly until the one asked sees
 through the player.
+
+### The case read for agreement (issue 117, 21 November 2026)
+
+The launch review read every line of `game.story` as a reader of detective stories does, for whether its facts agree.
+What was settled, each by sections 5 and 6 above:
+
+- **The police box** is the one by Hachiko, in every mouth; Akira says why that one (*the nearest to her corner*).
+- **A hundred-yen note**, the series B note the boy's pitch has on its lid (docs/PAST.md), never a coin.
+- **Where he stood, and where he took it.** He *stood* on the stone in the square between the detective and the
+  constable, and was let one step to the kerb at the boy's pitch for his picture. So *where the man stood* is the stone
+  blossom (frame 2), and frame 6's place is *where he took it*: the detective, Mr Tanaka, Akira and both goals now say
+  the same two places.
+- **The river** is still an open cut on the tenth of October 1964, with its pumps and the works' board over it (the
+  liberty docs/PAST.md records): Tatsuo says *We are putting it under the street. It was to be done for the Games*, and
+  the true statement he can be pressed on is that one.
+- **Sixty-two years**, wherever anyone counts from 1964 to tonight.
+- **One spelling:** Shibuya Scramble Square, bathhouse, straight apostrophes.
+- **The ending.** There is one story, and no second roll: the last card's small line is its last image (`end.last`:
+  *It rings. Across the road the lights change, and the crossing fills again*), under no *Next*; and the only episode
+  carries no number (its `no` is gone from the data, so the title, the loader, the roll and the last card say *You came
+  late* and no *Episode 1*). A second episode, if one is ever written, brings the number back with its `no`.
+- **Lines for a phone.** No line of dialogue, goal or hint is longer than 180 characters: sixteen lines were cut in two
+  or three at a full stop, with their words kept, and two goals and a hint were shortened.
+- **Goals that ask.** Frame 2's and frame 5's first goals say where to go and what to find there.
+- **The facts** the review asked sources for are in section 4: sunset is at 17:13 and the client's hour is 17:14; the
+  ticket's face stands; the three thousand is given as what is said; the lift runs from the 14th floor; the police box
+  of 1964 was in the square.
+
+A wrong answer at the police box still takes frame 3 up again from its beginning; that is issue 93's.
 
 ## 13. What is left, and the marks without colour
 

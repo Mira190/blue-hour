@@ -34,11 +34,10 @@
   ],
   "load_bytes": {
    "model": 4270705,
-   "game": 4870545
+   "game": 4870709
   },
   "story": "Blue Hour",
   "story_episode": {
-   "no": 1,
    "title": "You came late"
   },
   "lean_pack": {
@@ -51,7 +50,7 @@
     -2100,
     450
    ],
-   "bytes": 1650802
+   "bytes": 1650939
   }
  }
 ]
