@@ -11,8 +11,24 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Blue Hour">
 <meta property="og:description" content="A story in episodes at the Shibuya Scramble, rebuilt from open data. Once an evening the crossing stops.">
+<!-- a link's preview: the title's own picture (og.jpg, 1200x630: tools/og_shot.js takes it from this page), by its
+     absolute address, as the sites that draw previews ask -->
+<meta property="og:site_name" content="Blue Hour">
+<meta property="og:url" content="https://mira190.github.io/blue-hour/">
+<meta property="og:image" content="https://mira190.github.io/blue-hour/og.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Blue Hour: the Shibuya Scramble at dusk, its screens lit, a crowd waiting at the crossing under the title.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Blue Hour">
+<meta name="twitter:description" content="A story in episodes at the Shibuya Scramble, rebuilt from open data. Once an evening the crossing stops.">
+<meta name="twitter:image" content="https://mira190.github.io/blue-hour/og.jpg">
+<meta name="twitter:image:alt" content="Blue Hour: the Shibuya Scramble at dusk, its screens lit, a crowd waiting at the crossing under the title.">
+<link rel="canonical" href="https://mira190.github.io/blue-hour/">
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="game/story.css">
+<link rel="stylesheet" href="credits.css">
 <style>
 /* City: full-bleed 3D stage, a working panel on the right, a sun dial dock along the bottom.
    Game: the stage full-bleed under its HUD. Both carry on from the title screen (title.css): off-white
@@ -828,7 +844,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
           <tr class="g-metro-key" hidden><td><kbd>B</kbd></td><td>The subway map: go on to another district</td></tr>
         </tbody></table>
         <div class="row" id="gm-links"></div>
-        <div class="row"><button class="btn" id="gm-intro">Show the intro again</button><button class="btn" id="gm-overture" hidden>Play the opening</button><button class="btn" id="gm-reset">Start again</button></div>
+        <div class="row"><button class="btn" id="gm-intro">Show the intro again</button><button class="btn" id="gm-overture" hidden>Play the opening</button><button class="btn" id="gm-reset">Start again</button><button class="btn" id="gm-credits" data-credits>Credits</button></div>
       </div>
     </div>
 
@@ -839,7 +855,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
         <h1 id="gt-title">Blue Hour</h1>
         <p id="gt-blurb"></p>
         <div class="gt-time"><span class="eyebrow">Start at</span><div class="seg" id="gt-timechoice"><button data-t="live" aria-pressed="true" id="gt-now">Now</button></div></div>
-        <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button><button type="button" class="btn" id="gt-cont-go" hidden><span>Continue</span><small></small><img alt="" hidden><kbd>↵</kbd></button><button type="button" class="btn" id="gt-story-go"><span>The story</span><small></small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-opts-go"><span>Options</span><small>Sound · crowds and traffic · frame rate</small><kbd>↵</kbd></button></div>
+        <div class="gt-go"><button class="btn primary" id="gt-play">Begin <kbd>↵</kbd></button><button class="btn" id="gt-continue" hidden>Continue</button><button type="button" class="btn" id="gt-cont-go" hidden><span>Continue</span><small></small><img alt="" hidden><kbd>↵</kbd></button><button type="button" class="btn" id="gt-story-go"><span>The story</span><small></small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-opts-go"><span>Options</span><small>Sound · crowds and traffic · frame rate</small><kbd>↵</kbd></button><button type="button" class="btn" id="gt-credits-go" data-credits><span>Credits</span><small>Sources · licences · what is measured</small><kbd>↵</kbd></button></div>
         <button type="button" class="gt-who-line" id="gt-who-line" hidden><span>Playing as</span><b>Kagami</b><small></small><em>Change</em></button>
         <label class="gt-skip note" id="gt-skip" hidden><input type="checkbox" id="gt-skip-on" checked> Skip the intro: you have played before</label>
         <div class="gt-hints">
@@ -944,6 +960,7 @@ window.dispatchEvent(new Event('three-ready'));
 <script src="onboard.js"></script>
 <script src="lens.js"></script>
 <script src="version.js"></script>
+<script src="credits.js"></script>
 <script src="plate.js"></script>
 <script src="water.js"></script>
 <script src="visibility.js"></script>

@@ -362,13 +362,19 @@
     "web/game/fx.js",
     "web/game/pad.js",
     "web/onboard.js",
-    "web/plate.js"
+    "web/plate.js",
+    "web/credits.js"
    ],
    "checks": [
     "story",
     "walk"
    ],
    "offers": {
+    "OECredits": [
+     "el",
+     "open",
+     "show"
+    ],
     "OEFx": [],
     "OEHud": [
      "baseMap",
@@ -605,6 +611,7 @@
     "OETelemetry": [
      "again",
      "by",
+     "consent",
      "h",
      "held",
      "i",
@@ -616,6 +623,10 @@
      "wait",
      "x",
      "y"
+    ],
+    "OEVersion": [
+     "line",
+     "link"
     ],
     "OE_VERSION": []
    }

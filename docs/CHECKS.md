@@ -517,6 +517,14 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+- The Credits screen: `tools/credits_shot.js`, by hand after a change to `web/credits.js`, `credits.css`, `credits.json`
+  or telemetry's switch. On a desktop's page (1440x900) and a phone's (390x844, by touch) it opens the Credits from the
+  title's menu (by the keys on the desktop) and from the pause menu, and fails a screen without the map's sources, the
+  works, the version or the switch, anything wider than the screen, a switch that leaves the visitor id in the browser
+  or lets another batch out, a page that measures again once opened after it, and Esc or Back that does not give back
+  the screen beneath. The way in from the last card is the story's own step (`tools/story_play.js`, at the last card).
+  The list, the licence texts, the link's tags and `web/og.jpg` are held by the static checks
+  (`tools/credits_check.py`); the link's picture is taken from the title by `tools/og_shot.js` (`WRITE=1`).
 - The title's ways in as one list: `tools/title_menu.js`, by hand after a change to the title's buttons (`story.css`
   "the title's ways in", `walk.js`, `game.js` `titleLead`). On a desktop's page (1440x900) and a phone's (390x844, by
   touch), as a player who has chosen, with no case going and with one, the menu opened from the press by a key or a tap: it fails a menu that is not the walk, the story and the
