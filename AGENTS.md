@@ -188,25 +188,44 @@ The owner should not be the one who finds the bug.
 
 # Time
 
-Measured in November 2026 over twelve long turns of eight sessions: 81% of a turn went in tools, nearly all of it
-waiting for Chromium on the software renderer, and 17% in the model writing. On a session's machine (four cores) the
-story plays through in about 22 minutes (its clock runs at a third to a half of the wall clock's pace there: a frame costs
-80 to 140 ms though only one in thirty is drawn), and `tools/check.sh` with the story and the phone's memory takes 25 to
-33. Sessions ran it five or six times each, two runs in five only because main had moved on meanwhile (a merge
-of main that touches nothing of the branch's now runs the static checks only: "Landing work on main"). So:
+Measured over the 48 sessions of 18 to 21 November 2026, from their transcripts (docs/CHECKS.md, "A run is a job"): on a
+session's machine (four cores, WebGL in software) the story plays in 20 minutes, the walk's two pages in 18, the guide
+in 20, the ride in 5 and mem in 3, so `tools/check.sh` for a change to the page takes about 42 minutes, and for one to
+`game.js` or `story.js` 47 to 62. Four fifths of the time sessions spent in tools went in waiting on Chromium (the
+story's clock runs at a third to a half of the wall clock's pace there: a frame costs 80 to 140 ms though only one in
+thirty is drawn). So:
 
+- **Long work is a job, never a child of the shell tool.** The tool stops what it started, and everything under it: a
+  foreground command after 10 minutes, a watch on output after 30, a background command after 30 to 60 whatever its timeout
+  ("was stopped after reaching its background time limit"), all of them when the session's worker restarts. The walk
+  joined every page change's checks on 18 November and took that run past 40 minutes; in the three days after, 20
+  commands were stopped at that limit (6 runs of the checks and 2 other browsers among them, near their end) and 7 at
+  worker restarts, each run was started again from the beginning, and what they left behind slowed the next one's
+  story clock (92 commands went on killing stray browsers and servers).
+  - `tools/check.sh` makes itself a job on a session's machine (`tools/job.sh`): the run goes in a process session of
+    its own, off the shell's tree, and the command waits on it for up to nine minutes, printing each check as it ends
+    and first how long the run will take here. If the wait ends first it says so (exit 75): run the same command again,
+    or `tools/check.sh --wait`, and it attaches to the run where the last wait left it. It never starts a run twice and
+    refuses one beside another job; after an edit it is another run, refused while the first goes
+    (`tools/check.sh --stop`, then again).
+  - Anything else that runs more than a few minutes (a story's frames played, a film, stills, a Blender build):
+    `tools/job.sh run <name> -- <command>`, then `tools/job.sh wait <name>`, never a loop of your own on its output.
+  - Never start a check or a browser in the shell tool's background, and never give a foreground command more than ten
+    minutes. To end the turn while a job runs, wait on it in the background inside the limit the tool keeps
+    (`tools/check.sh --wait 1700`, in the background with a timeout of 30 minutes): you are called back when the run or
+    the wait ends, and nothing is lost either way.
 - **One browser at a time.** A software-rendered page takes two to three of the four cores. A check that shared them
-  with two films ran 66 minutes instead of 25 and failed stuck: the slower a frame, the slower the story's clock. Stop
-  your own earlier browser job (by the PID or background task you started it as) before starting another.
+  with two films ran 66 minutes instead of 25 and failed stuck: the slower a frame, the slower the story's clock.
+  `tools/job.sh` refuses a second job while one runs and names a browser no job started; `tools/job.sh stop <name>`
+  stops a job with every process it started, its browsers too.
 - **Play only what you changed while you work on it** (`FROM=n UPTO=n`, one screen, then the other once it is right),
   and run the whole `tools/check.sh` once, when the branch is ready to land.
 - **Let the router and the cache choose.** A browser check whose last pass in this clone read nothing that has changed
   since is kept, not played again (`tools/check_cache.py`, from the server's log of what the page fetched), so a run
   after a fix plays only what the fix touched; and models, pictures or sounds alone run `look` and `mem`, minutes, not
   the story (docs/CHECKS.md, "The router and the cache"). Run plain `tools/check.sh` rather than naming targets, and
-  read its last line: the time each check took.
-- **Wait once.** A background job is waited for by one `until` loop on its own output, or by ending the turn and being
-  called back when it finishes; never a loop on another loop's output, never two loops on one job.
+  read its first line, how long the run will take on this machine (from this clone's last passes), and its last, the
+  time each check took.
 - **Keep the context light.** A still or a log read into the conversation stays in it for every later step: look at a
   contact sheet of stills (`tools/contact_sheet.py`), and read logs through `grep` or `tail`.
 
@@ -214,10 +233,10 @@ of main that touches nothing of the branch's now runs the static checks only: "L
 
 - `pip install -r requirements.txt`, and `pip install bpy==5.2.3` for Blender builds.
   Playwright and Chromium are already installed.
-- Serve `web/` in the background (`python3 -m http.server 8800 --directory web`) and check that
-  it answers before each run; it dies between turns. `tools/check.sh` starts its own.
-- Wait on background jobs with `wait` or with a loop on a file or a port, not `pgrep -f`,
-  which matches its own command line.
+- Serve `web/` as a light job (`JOB_LIGHT=1 tools/job.sh run serve -- python3 -m http.server 8800 --directory web`),
+  which outlives the turn, and check that it answers before each run. `tools/check.sh` starts its own.
+- Wait on a job with `tools/job.sh wait <name>` (`tools/check.sh --wait` for the checks), not with a loop of your own
+  or `pgrep -f`, which matches its own command line.
 - `git push -u origin <branch>`, so that the branch has an upstream.
 - `web/index.html` loads three.js as a module and sets `window.THREE` when it is ready (the
   `three-ready` event). A classic script must not use `THREE` at load time; use it inside
