@@ -332,7 +332,7 @@ budgets_kept() {   # (static: the counts of each play whose pass is kept, agains
   for f in "$BUDGETS"/*.jsonl; do
     [ -e "$f" ] || continue
     k=$(basename "$f" .jsonl); k=${k%-*}
-    CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k" >/dev/null 2>&1 || continue
+    kept "$k" || continue   # (as this run keeps it: one over today's budgets is played again, above)
     python3 tools/beat_budget.py check "$f" "$(basename "$f" .jsonl | sed 's/.*-//')" --map "$MAP" | grep '^FAIL' && return 1
     n=$((n + 1))
   done
@@ -486,7 +486,12 @@ kept() {
     mkdir -p "$OUT/keep"
     # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
     if ! cache_on; then printf 'played\n\n' >"$f"
-    elif hit=$(CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k"); then printf 'kept\n%s\n' "$hit" >"$f"
+    elif hit=$(CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k"); then
+      # (a play kept, and its beats counted then: over a budget as the budgets are now, it is played again and counted
+      # again, not failed on counts of the page as it was; main may have made the beat lighter and its budget with it)
+      if over=$(for b in "$BUDGETS/$k"-*.jsonl; do [ -e "$b" ] && python3 tools/beat_budget.py check "$b" "$(basename "$b" .jsonl | sed 's/.*-//')" --map "$MAP" | grep -m1 '^FAIL'; done) && [ -n "$over" ]; then
+        printf 'played\nits kept counts are over the budgets as they are now (%s)\n' "$(echo "$over" | head -1 | cut -c6-90)" >"$f"
+      else printf 'kept\n%s\n' "$hit" >"$f"; fi
     else printf 'played\n%s\n' "$hit" >"$f"; fi
   fi
   [ "$(head -1 "$f")" = kept ]
