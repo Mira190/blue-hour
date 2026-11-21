@@ -347,9 +347,17 @@ class Level:
                 self.q("ground_deck_joint", (a0, b0, z - 0.004), (a1_, b0, z - 0.004), (a1_, b1, z - 0.004), (a0, b1, z - 0.004), n=up)
 
     def rects(self, g):
-        """A rectilinear polygon as rectangles: cut into vertical strips at its corners' u."""
+        """A rectilinear polygon as rectangles: cut into vertical strips at its corners' u, and a strip that is not one
+        rectangle (a corner a hair off its neighbour's u leaves a sliver in it) cut again at its own corners' v, so that
+        no rectangle is ever more than the polygon. The corners' u were rounded to 0.1 mm: the west channel's notch began a
+        hair past its rounded u, the strip beside it was an L of the deck and a hairline up the notch, and its bounds laid
+        the joints' black slab over the top of the west flight, 44 m2 of it at the deck's height (the owner's phone: "a
+        black cover over the escalator")."""
         from shapely.geometry import box as sbox
-        xs = sorted({round(x, 4) for x, _ in g.exterior.coords} | {round(x, 4) for r in g.interiors for x, _ in r.coords})
+        def cuts(vals):
+            vals = sorted(vals)
+            return [v for i, v in enumerate(vals) if i == 0 or v - vals[i - 1] > 1e-6]
+        xs = cuts({x for x, _ in g.exterior.coords} | {x for r in g.interiors for x, _ in r.coords})
         out = []
         b = g.bounds
         for x0, x1 in zip(xs, xs[1:]):
@@ -357,8 +365,17 @@ class Level:
                 continue
             strip = g.intersection(sbox(x0, b[1] - 1, x1, b[3] + 1))
             for s in getattr(strip, "geoms", [strip]):
-                if s.geom_type == "Polygon" and s.area > 1e-4:
+                if s.geom_type != "Polygon" or s.area <= 1e-4:
+                    continue
+                if s.area >= sbox(*s.bounds).area * (1 - 1e-6):
                     out.append(sbox(*s.bounds))
+                    continue
+                ys = cuts({y for _, y in s.exterior.coords} | {y for r in s.interiors for _, y in r.coords})
+                for y0, y1 in zip(ys, ys[1:]):
+                    cell = s.intersection(sbox(s.bounds[0] - 1, y0, s.bounds[2] + 1, y1))
+                    for c in getattr(cell, "geoms", [cell]):
+                        if c.geom_type == "Polygon" and c.area > 1e-4:
+                            out.append(sbox(*c.bounds))
         return out
 
     def pad(self):
@@ -568,9 +585,20 @@ class Level:
         h1, h2, z = self.h1, self.h2, self.z + LIFT
         obs = self.obstacles()
         nets = [(-h1 + 9, h2 - 9), (-h1 + 9, -h2 + 22), (h1 - 24, -h2 + 7)]
+        # (and none where the flights come up onto the deck: 6 m clear past each channel's end, the whole width of its
+        # escalator and stair. Two benches stood 3 m in line past the escalators' heads, and once the benches were solid,
+        # a walker stepping off was stopped by one)
+        F = self.F
+        n_, w_ = F["north"], F["west"]
+        nu = (min(p[0] for p in n_) - 0.3, max(p[0] for p in n_) + 1.0)
+        nv0 = min(p[1] for p in n_) - 0.3
+        wu0 = min(p[0] for p in w_) - 0.3
+        wv = (min(p[1] for p in w_) - 0.3, max(p[1] for p in w_) + 1.0)
+        exits = [(nu[0], nu[1], nv0 - 6.0, nv0), (wu0 - 6.0, wu0, wv[0], wv[1])]
         clear = lambda u, v, r: (all(math.hypot(u - a, v - b) > r + 1.2 for a, b in self.beams)
                                  and all(abs(u - a) > 3.0 + r or abs(v - b) > 1.75 + 1.5 for a, b in nets)
-                                 and all(not (a - r - 0.5 < u < b + r + 0.5 and c - r - 0.5 < v < d + r + 0.5) for a, b, c, d in obs))
+                                 and all(not (a - r - 0.5 < u < b + r + 0.5 and c - r - 0.5 < v < d + r + 0.5) for a, b, c, d in obs)
+                                 and all(not (a - r < u < b + r and c - r < v < d + r) for a, b, c, d in exits))
         self.bench_at = []
         for (axis, fixed, lo, hi) in (("u", -h2 + 1.0, -h1 + 4, h1 - 4), ("u", h2 - 1.0, -h1 + 4, h1 - 4), ("v", -h1 + 1.0, -h2 + 4, h2 - 4), ("v", h1 - 1.0, -h2 + 4, h2 - 4)):
             t = lo

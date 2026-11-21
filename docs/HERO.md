@@ -727,7 +727,7 @@ and H, the edge line), and the compass's places and bearings are the ones `city.
 - **CLOUD HAMMOCK**: the landmark's three, at its places and its net's sag (the poses lie in it): a bed of short
   artificial lawn in a timber kerb, four dark steel posts and rails at 0.9 m, and the net as white ropes 12 cm apart.
 - **Benches**: 3 m of oiled timber slats on dark flat steel, 1 m in from the glass wherever its foot is clear of the
-  searchlights, the nets, the channels' ends and the steps (twelve).
+  searchlights, the nets, the channels' ends and the steps, and 6 m clear past each flight's head (ten).
 - **CROSSING LIGHT**: at each of the landmark's 18 points (the beams `lights.js` throws) a plinth, a turntable, a yoke
   and a finned drum tilted 20° out over the city, its lens lit after dark (`lamp*`).
 - **The escalators' heads**: a stainless landing plate and a yellow line before each.
@@ -742,12 +742,23 @@ searchlights are thinner than the level's, so the walking knew nothing of what t
 the walk's player standing in a bench to the knee at the glass, and a walker went through every bench and partly into
 the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level now says what it stands on the deck as
 boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
-layout the model is built from, without Blender; `build()` carries them in its meta too): the twelve benches, the three
+layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
 nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
 thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
 railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
-gets in now (0 of 49). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
-pipes are the landmarks' runs, its posts and planters `posts` and `rounds`).
+gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
+pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the
+escalators' heads, where a walker stepping off was then stopped by one: the benches keep 6 m clear past each flight's
+head, the whole width of the channel (ten benches, not twelve).
+
+**The black cover over the west flight.** The owner's phone, climbing to the roof from 46F, showed the character under
+a black sheet at the deck's height. It was the joints' dark slab under the pavers: laid as rectangles over the free deck
+(`rects`, the deck cut into strips at its corners' u), and the corners' u were rounded to 0.1 mm. The west channel's notch
+began a hair past its rounded u, the strip beside it was an L of the deck and a hairline up the notch, and the L's bounds
+laid 44 m² of the near-black slab over the top of the west flight. `rects` now cuts at the corners' exact u and cuts a
+strip that is not one rectangle again at its own corners' v, so a rectangle is never more than the polygon: the slab
+covers the free deck exactly (3,122.87 m², nothing over a channel). `tools/what_covers.js` names what a ray from the
+camera meets through each point of a grid over a still, and found it.
 
 **The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
 the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
