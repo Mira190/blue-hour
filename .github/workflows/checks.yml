@@ -90,8 +90,21 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ env.PLAYWRIGHT }}
+      # (llvmpipe compiles a shader for the CPU it runs on, by the CPU's name, and files it under an id that records only
+      # the CPU's family and its SSE, AVX and AVX-512 basics: two Intels of one family share the id, and code compiled
+      # for the newer one may use instructions the older lacks. A runner loaded what a runner with another CPU had
+      # compiled, and its GPU process died of an illegal instruction (SIGILL, exit code 132) at the first context: the
+      # clip shard and the ride shard waited 13 and 15 minutes on a page with no WebGL, issue 84. So the shaders are
+      # kept a CPU apiece, by its model and its flags)
+      - name: Which CPU the runner has
+        id: cpu
+        if: matrix.target != 'static'
+        run: |
+          grep -m1 '^model name' /proc/cpuinfo || true
+          echo "id=$(grep -m2 -E '^(model name|flags)' /proc/cpuinfo | sha1sum | cut -c1-12)" >>"$GITHUB_OUTPUT"
       # (Mesa keeps what llvmpipe compiled of each shader: on a session's machine the page came to its title in 60 s
-      # with none kept and in 28 s with them; each shard keeps its own, the phone's tier's and the desktop's)
+      # with none kept and in 28 s with them; each shard keeps its own, the phone's tier's and the desktop's, and starts
+      # from another shard's on the same CPU when it has none)
       - name: The shaders llvmpipe compiled last time
         if: matrix.target != 'static'
         uses: actions/cache@v4
@@ -99,18 +112,29 @@ jobs:
           path: |
             ~/.cache/mesa_shader_cache
             ~/.cache/mesa_shader_cache_db
-          key: mesa-2404-${{ matrix.target }}-${{ github.run_id }}
-          restore-keys: mesa-2404-${{ matrix.target }}-
+          key: mesa-2404-${{ steps.cpu.outputs.id }}-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: |
+            mesa-2404-${{ steps.cpu.outputs.id }}-${{ matrix.target }}-
+            mesa-2404-${{ steps.cpu.outputs.id }}-
       - name: Chromium, Xvfb and Mesa's software renderer
         if: matrix.target != 'static'
         run: |
           npm install -g "playwright@$PLAYWRIGHT"
           npx playwright install --with-deps chromium
           sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri
+      # (a renderer that does not come up is asked again without the shaders kept from earlier runs, whatever kept them
+      # wrong; SwiftShader is slow but plays, while a browser with no WebGL at all fails every check in it, so the shard
+      # stops here, in seconds, and does not wait out a check's timeout)
       - name: Which renderer the browser gets
         if: matrix.target != 'static'
-        continue-on-error: true
-        run: NODE_PATH=$(npm root -g) xvfb-run -a node tools/gl_renderer.js
+        run: |
+          probe() { NODE_PATH=$(npm root -g) xvfb-run -a node tools/gl_renderer.js; }
+          s=0; probe || s=$?
+          [ "$s" -ne 0 ] || exit 0
+          echo "the shaders kept from earlier runs dropped, and the renderer asked again"
+          rm -rf ~/.cache/mesa_shader_cache ~/.cache/mesa_shader_cache_db
+          s=0; probe || s=$?
+          if [ "$s" -eq 2 ]; then echo "::error::The browser has no WebGL on this runner, with or without the shaders kept"; exit 1; fi
       - name: What the static checks import
         if: matrix.target == 'static'
         run: pip install numpy scipy shapely pyproj pillow   # (scipy: pipeline/street_ground.py --check)

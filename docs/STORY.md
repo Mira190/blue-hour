@@ -544,6 +544,45 @@ side at the moment of New Game; a dossier beside the picture; and the film's let
 begins. Nothing of those games' look, words or assets is used; the screens are the story's own (its viewfinder's type,
 the sodium amber of a street lamp against the blue hour, `story.css` "the title in three screens").
 
+**A mark for each screen (November 2026).** The owner asked why the street behind the menu was the same as behind the
+press, and how a AAA game would do it. It was the same shot: the press's camera went on under the menu, and only the type
+changed, so the press got no answer from the world, and the menu's name and list stood over the brightest thing in the
+frame, the screens the press had centred. The owner remembered other games with the options on the left, details on the
+right and a dark background, and asked for that to be weighed critically against a better design if there was one.
+
+- *What was found.* Santa Monica Studio's GDC 2023 talk on *God of War Ragnarök*'s interface: while the menus are
+  navigated "the camera zooms in or pulls back" with the menu or item, so the player knows where to look; Kratos was moved
+  to the side of the frame because the earlier game's menus covered him, and buttons not being chosen were hidden to give
+  him room. *The Last of Us Part II*'s menu scene follows the story's progress (the fog-bound boat, the beach after the
+  end; a later patch fixed a scene that "may not correctly match" progress). *Dragon Age: Inquisition*'s menu is a scene
+  that its New Game sets off. Microsoft's Xbox Accessibility Guideline 114: every screen under the menu keeps a way back.
+- *The press is a promise, the menu a place to read.* Two jobs, so two frames. The press stays centred and low, looking
+  up past the screens. Pressed, as the score comes in, the camera stands up, steps back and steps aside (`game.js`
+  `MARK`: 1.4 m up, 6 m back, 4 m to the left) and turns so that the screens go to the frame's upper right third, and
+  the crossing and its crowd come into the frame: the subject moved aside for the list, as Kratos was. Upright on a phone
+  the frame is a third as wide and the tower fills it, so the camera goes 2.2 m up and 10 m back and the tower's crown
+  and screens stand at the top, over the list. (Further back on a desktop, 10 m, a street lamp came into the left of
+  the frame and through the name; 3 m back, the tower's crown was cut by the frame's top.)
+  The screens behind the menu (who you play, the story, options) take it 2 m further in, and Back brings it out again,
+  Ragnarök's zoom by depth. Each move is two critically damped springs in a row, so it sets off and settles gently and a
+  press made mid-move turns it round without a jolt; reduced motion cuts. The crane down to your shoulder starts from
+  wherever the mark has left the camera (`craneIn` reads `titleLook`), so setting out is one move.
+- *Left list, right details, dark: where each belongs.* A details panel earns its place where there is something to
+  compare before choosing: saves, chapters, modes, difficulty. The menu has three ways in, each row already carries its
+  word on itself (*No story · any hour, any sky*), and a panel on the right would cover the screens the camera has just
+  put there, which is what the street is for. So the list stays on the left, alone; where a choice does need a picture and
+  a file, the screen behind it has them in the same two halves (the story: the episode's key art beside its roll; who you
+  play: the two portraits beside the file). Dark goes where reading is: a scrim from the left behind the list (upright,
+  from the foot), fading in with the move (`story.css` "the menu's scrim"), the right of the frame left as the living
+  street; the screens behind the menu, where reading is the whole task, darker still. A dark menu over the whole frame
+  would spend the one thing the title has that type does not.
+- *Considered, not done.* The camera turning to what the hand is on (the crossing for the walk, the kerb for the story):
+  a move for every press of a key is motion that says nothing; the camera answers decisions, not the cursor. The menu's
+  street following the story's progress, as *The Last of Us Part II*'s does: once there is more than one episode.
+
+Design only: nothing of those games' look, words or code is used. Checked by `tools/title_marks.js` (each screen's
+frame, the move settling without overshoot, Back undoing it, and no jump where the crane takes over).
+
 **The menu, by what this browser has done (November 2026).** The owner asked for the choices after the press (the walk
 or the story, continuing a case, the evening again) to be thought through as a AAA game's menu is. From first principles:
 a player arrives at the menu in one of a few states, and the menu's first row is the thing that player most likely came
@@ -1220,12 +1259,16 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
 - *A street with nobody to talk to is a set.* What makes a crossing a place is its people, and the walk had only the
   crowd going by. So a few people of this evening stand where they would: Mei, waiting at Hachiko for a friend who is
   late; Riko, the friend, waiting at the station's Hachiko exit across the crossing; Mr Oda, a retired taxi driver who
-  still comes down at night with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; and on the roof Taro, and Aoi at the
-  arch, with a word in passing.
+  still comes down at night with a can of hot coffee; Shun at his shop in Center Gai; Yuna at SKY GATE's lift; Taro, a
+  photographer on the roof by SKY EDGE; and Aoi at the arch, with a word in passing.
 - *Small stories in parts, each asking one thing the walk can do.* Mei's (*Which Hachiko*) crosses the scramble on the
   green, twice; Mr Oda's (*Once round by car*) drives your car to 109; Shun's (*The shot everyone takes*) is a photograph
-  of the crossing from in it or from high up; Yuna's (*Forty-five floors*) is the lift to the roof. So the side stories
-  are how the walk's ways about are found, as an open world's first side quests teach its systems.
+  of the crossing from in it or from high up; Yuna's (*Forty-five floors*) is the lift to the roof; and Taro's (*Above
+  the crossing*, added at the owner's asking) is the helicopter on the roof's pad, flown out over the crossing and the
+  crossing photographed from the air (the camera holds the world still while you frame it), then set down on the roof
+  again to show him: it takes only a photograph taken from the helicopter, over the crossing and sixty metres up or
+  more, never one from the roof on foot. So the side stories are how the walk's ways about are found, as an open
+  world's first side quests teach its systems.
 - *Nothing of the case in any of them.* Walked before the story they spoil nothing; walked after, they undo nothing.
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
@@ -1236,7 +1279,7 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   the corner, with the metres to it and the key that does it; the line turns amber when it is done, and the corner then
   sends you back to them. Someone sent on ahead (Riko) is there when you come back, never seen going. The last part said,
   the story's name comes up over the street with how many of the walk's stories you have heard (*A story of the walk ·
-  1 of 4*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
+  1 of 5*). Where each has got to is kept in this browser; no story has a clock, a fail or a reward. The walk's menu lists
   them as a game's journal lists its side stories: each by its name, ticked when told, with what was asked while it is
   under way, and for one not yet met a word on where to look (*By Hachiko, someone is looking for a friend who is
   late*), never a pin on a map.
@@ -1258,7 +1301,7 @@ On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and 
 `game.walk` (the people's parts, their lines and what each asks: `talk`, `go`, `drive`, `up`, `photo`, `meet`), the
 walk's own people in `game.npcs` (`walk: true`: not in the story at all, neither drawn nor loaded nor in the crowd's
 way), `web/game/walk.js` (the corner's line, the told card, your car's button). `tools/walk_play.js` plays Mei's story to
-its end and calls the car from the corner.
+its end, takes Taro's photograph from the helicopter over the crossing, and calls the car from the corner.
 
 On the page: `web/game/walk.js` (its step on the title and its corner of the street), `web/game/game.js` (`startWalk`,
 `walkOnFromStory`, `walkDress`, the old game's keys kept out), `web/game/story.js` (`release`), the styles at the end of

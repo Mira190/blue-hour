@@ -10,7 +10,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 |---|---|---|
 | `static` | Everything that needs no browser, half a minute together (below) | several |
 | `story` | Plays the episode frame by frame to its last card: the street runs, the Stop comes, the afterimage speaks, the photograph is taken (a frame spent only with the lens on the subject), the world runs on, the last card with its two ways on, and its Walk Shibuya taken up in the same night (the card gone, the walk's corner up, the evening's people gone once the lens turns away). A still at each beat. Without a GPU one frame in thirty is drawn (`DRAW=30`) and the rest run the game without their draw calls, their clears, their `renderer.render` (the world's matrices and every `onBeforeRender` still run) or a wait for the display's next frame, so that the story keeps its own time on a software renderer; the stills and the photographs are of frames drawn whole, and the page's frames are held while a still is taken of the frame drawn last (#51). In a frame not drawn the page asks the GPU nothing it would wait for (no `getError`, no read back of the rain's cover map) and places no minimap or street names, and the play's last line says where the wall's time went (#70; docs/PERFORMANCE.md). Every frame the game notes each of the crowd drawn (near or far copy) within 0.45 m of one of the story's people, the player or the guide (`game.js` `bodiesCheck`), and any one fails the play: the crowd keeps clear of everyone standing who is not of it (`actors.js` `api.bodies`, issue 65) | `tools/story_play.js` |
-| `walk` | The title's first way in (its list led by the walk, every row one size), on a desktop's page (800x500) and a phone's by touch (390x844): Walk Shibuya only after who you play, its hour and sky as the street behind the card, Back to the story's evening, out on the street with no goal, no light and nothing of the old free game (its keys open nothing), where and when in the corner, walking, the menu with the story in it, the camera; tonight's set dressing up in SKY GATE's lobby; Mei's story at Hachiko told to its end (her amber speech mark, her talk in the story's box, what she asks under the hour, Riko across the crossing, the story's name put up: `walktalk.js`); your car driven (its keys, its speed in the corner, out once stopped; on a phone its buttons), called from the corner's Your car (it pulls in at a kerb near you) and brought to the kerb from the menu; SKY GATE's lift ridden in the dark to the top stop; the helicopter on the roof boarded, flown up (its keys, its height) and landed; on the desktop also the last card's fresh-page way out. Stills of each beat | `tools/walk_play.js` |
+| `walk` | The title's first way in (its list led by the walk, every row one size), on a desktop's page (800x500) and a phone's by touch (390x844): Walk Shibuya only after who you play, its hour and sky as the street behind the card, Back to the story's evening, out on the street with no goal, no light and nothing of the old free game (its keys open nothing), where and when in the corner, walking, the menu with the story in it, the camera; tonight's set dressing up in SKY GATE's lobby; Mei's story at Hachiko told to its end (her amber speech mark, her talk in the story's box, what she asks under the hour, Riko across the crossing, the story's name put up: `walktalk.js`); Taro's on the roof asked, and met by a photograph of the crossing from the helicopter over it (not by one from the roof on foot); your car driven (its keys, its speed in the corner, out once stopped; on a phone its buttons), called from the corner's Your car (it pulls in at a kerb near you) and brought to the kerb from the menu; SKY GATE's lift ridden in the dark to the top stop; the helicopter on the roof boarded, flown up (its keys, its height) and landed; on the desktop also the last card's fresh-page way out. Stills of each beat | `tools/walk_play.js` |
 | `guide` | Leads the story's guide along each frame's way (frame 4's as the story gives it, and four others from the story's data) with a player behind him on his trail: every quarter second a ray down onto the drawn scene under his feet (a fault more than 6 cm above it or 8 cm into it), his room either side across the way (`ways.room`: a fault where the way is wider than 3.2 m and he, or the way he plans, runs within 0.8 m of a wall, a drop, a well, a kerb or a post for more than 1.5 m; not within 2.5 m of where the way steps onto or off a crossing, where it crosses the kerb's line), and the mark with the signs out as for a lost player, the view turned four ways: what it points at must be on the way and walkable to in a straight line, its metres the way's. Stills behind the player. Run when the guide, the routes, the walking grid or the marks change (`companion.js`, `route.js`, `nav.js`, `story.js`) | `tools/guide_way.js` |
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, settled JS heap), so that a phone's tab is not killed | `tools/mem_check.js` |
@@ -138,9 +138,15 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   `live` to it, which Vercel's production deploys (`vercel.json` builds `main` and `live`; the Vercel project's
   production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
   hand publishes main as it is.
-- Each browser shard prints which renderer it got (`tools/gl_renderer.js`): llvmpipe, or SwiftShader when the GL
-  backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled are kept
-  from one run to the next (`actions/cache`).
+- Each browser shard prints which renderer it got and on which CPU (`tools/gl_renderer.js`): llvmpipe, or SwiftShader
+  when the GL backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled
+  are kept from one run to the next (`actions/cache`), the shaders a CPU apiece (its model and its flags in the
+  cache's key). llvmpipe compiles for the CPU it runs on, by name, and files the shaders under an id that records only
+  the CPU's family and its SSE, AVX and AVX-512 basics (Mesa 25.2, `lp_screen.c`), so two Intels of one family share
+  it: a runner loaded what one with another CPU had compiled, its GPU process died of an illegal instruction (SIGILL,
+  exit code 132, in the shard's `-chrome.log`) at the first context, and the clip and ride shards waited out 13 and 15
+  minutes on a page with no WebGL (issue 84). A renderer that does not come up is asked again with the kept shaders
+  dropped, and a browser with no WebGL at all stops the shard there, in seconds.
 - The browser shards run on `ubuntu-24.04`, whose Mesa (25.2) is a session's machine's, where each check's waits were
   measured. `ubuntu-latest` became Ubuntu 26.04 in November 2026 (Mesa 26.0, LLVM 21), and main went red for a day
   and a half without a step named (issue 49): there the desktop page's walk at night in the rain had not set out in
@@ -179,6 +185,49 @@ Logs and stills go to `$CHECK_OUT` (default `/tmp/oe-check`). The free game's cl
 depend on the hour it is started at. Under `xvfb-run` (when it is installed) Chromium draws with
 Mesa's llvmpipe; without it, headless with SwiftShader. Where `timeout` is missing (macOS) a check
 runs for as long as it takes.
+
+## A run is a job
+
+On a session's machine `tools/check.sh` does not play the run in the shell that asked for it: it hands it to
+`tools/job.sh`, which starts it forked off and in a process session of its own, its output in a file
+(`/tmp/oe-jobs/check/log`), and only waits on it.
+
+Why, from the 48 sessions' transcripts of 18 to 21 November 2026 (every event of each, read through the sessions' own
+event logs). The shell tool a session runs commands with stops what it started, and the whole tree under it: a
+foreground command after 10 minutes (29 times), a watch on output after 30 (7), a background command after 30 to 60
+whatever its timeout ("was stopped after reaching its background time limit": 20 times, 6 of them runs of the checks
+and 2 other browsers, the rest waits on them), and every one at a restart of the session's worker (7). A run of the checks takes, on that machine, the static checks 35 s,
+mem 3 minutes, the ride 5, the walk's two pages 18, the story 20 and the guide 20 (medians of the runs whose times they printed: 36 of the story, 37 of the walk, 8 of the guide), so
+a change to the page checks for about 42 minutes and one to `game.js` or `story.js` for 47 to 62. Until 18 November a
+change to the page checked for about 24 (the story and mem); the walk joined it then, and a run started as the tool's
+child was stopped near its end from that day on. 183 of the 201 runs were started that way. Each stopped run was started
+again from the beginning, and what it left behind took cores from the next one's story clock: the sessions ran 92 commands
+killing stray browsers, servers and harnesses and 45 looking for them, and the walk's two pages took up to 33 minutes
+against a median of 18. Started as a
+child of the waiting script, even in a session of its own, a run was stopped with the wait: the tool stops every process
+under the shell, so the job is forked off it (`setsid -f`) and belongs to the machine.
+
+What the job gives:
+
+- **A wait is cut off, the run is not.** `tools/check.sh` waits up to nine minutes (`JOB_WAIT`), printing each check as it
+  ends, and before them how long the run will take on this machine: each target's median over its last five passes in
+  this clone (`.git/oe-check-times`), a pass kept from the cache counting nothing. If the run is still going when the wait
+  ends it says so and exits 75; `tools/check.sh --wait [seconds]`, or the same command again, attaches and goes on from
+  the last line it printed. A run whose result has been told once is started afresh by the next command.
+- **Never twice, never two.** The same command (the same tree, the same settings) attaches to the run that is going. An
+  edit since it started makes another run, refused while the first goes: `tools/check.sh --stop` first. A second job of
+  any kind is refused while one runs, and a browser that no job started is named, so that no check runs at half speed.
+- **Stopped whole.** Every process a job starts carries its mark in its environment, a browser that puts itself in a
+  session of its own too, and `tools/check.sh --stop` (`tools/job.sh stop <name>`) stops them all.
+- **Any long command.** `tools/job.sh run <name> -- <command>` does the same for a story's frames played, a film, stills or
+  a build; `JOB_LIGHT=1` for the page's server, which neither waits for nor holds back another job and outlives the turn.
+  `tools/job.sh status` lists the jobs and the strays.
+
+A runner (where `CI` is set), a machine without `setsid` (macOS) and `CHECK_INLINE=1` play the run in the foreground, as
+before. A job outlives its wait and the end of a turn (tried: a wait stopped after 30 s, its job ran on), and being no longer
+under the session's worker it should outlive the worker's restart too (not yet seen). It does not outlive the machine (a
+session started afresh has neither the job nor the cache), and a run stopped anyhow keeps the passes of the checks it had
+finished (`tools/check_cache.py`), so the next run plays only the rest.
 
 ## The router and the cache
 
@@ -286,6 +335,14 @@ one two runs disagree on names the step (`tools/game_soak.sh`).
   line, a roll of seven, the hand on Begin; with a case going, how far, the frames on the roll, Continue and the evening
   again) or not left back to its row, the evening again that does not ask first or loses the case by asking, and the
   options not lent the pause menu's controls or not giving them back. Stills of each screen.
+- The title's marks, a camera for each of its screens: `tools/title_marks.js`, by hand after a change to the title's
+  camera (`game.js` `titleMarks`, `MARK`; docs/STORY.md "A mark for each screen"). On a desktop's page (1440x900) and a
+  phone's (390x844, by touch): the press framed as it opens; pressed, the move to the menu's mark (it fails a menu framed
+  as the press is, a move that overshoots or turns back on itself); options, the story and who you play each taking the
+  camera further in and Back bringing it out; Esc giving the press its frame again; and the walk set out from the menu's
+  mark with no jump where the crane down to the shoulder takes over. `TUNES='[{...}]'` lays each object over `MARK` for
+  a still of the menu's frame with it, to try framings in one load. On a software renderer the move takes a minute of
+  the wall clock (a frame in two seconds, each a twentieth of a second of the move at most).
 
 ## How it came to this
 
