@@ -1023,6 +1023,15 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   @keyframes gt-press-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.38; } }
 }
 
+/* the menu's scrim (docs/STORY.md "A mark for each screen"): dark where the list is read, the street left alive where the
+   camera has put the screens. In a landscape frame from the left, where the list stands, to nothing past the middle;
+   upright, from the foot, where the list is. It comes in with the camera's move, not at once, and goes as the press or a
+   screen behind the menu comes up */
+.game-stage.story .g-title::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
+  background: linear-gradient(90deg, rgba(4, 8, 18, 0.72), rgba(4, 8, 18, 0.56) 32%, rgba(4, 8, 18, 0.24) 50%, rgba(4, 8, 18, 0) 68%); }
+.game-stage.story #g-title[data-screen="menu"]::before { opacity: 1; transition: opacity 1.6s ease 0.25s; }
+@media (max-aspect-ratio: 1/1) { .game-stage.story .g-title::before { background: linear-gradient(0deg, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0.3) 42%, rgba(4, 8, 18, 0) 64%); } }
+
 /* the menu: the card at the foot of the frame, its name smaller, its list, and under the list who you play */
 .gt-who-line { display: none; }
 .game-stage.story #g-title:not([data-screen="press"]) .gt-who-line:not([hidden]) { display: inline-flex; }
