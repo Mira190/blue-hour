@@ -259,6 +259,10 @@
 /* ---- the one thing the map still offers (a lift to ride): its key and its words, on the picture */
 .game-stage.story .g-prompt { border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 .game-stage.story .g-prompt #gp-alt { display: none; }
+/* (its key as the story's other keys are drawn: a thin outline in the line's paper, the letter crisp, no shadow. It was
+   the old game's filled amber block with its dark letter, and the line's black shadow laid over that letter blurred it
+   into a dark smudge: the owner, at SKY GATE's lift, November 2026) */
+.game-stage.story .g-prompt kbd { min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); color: var(--paper); font: inherit; letter-spacing: 0.06em; text-shadow: none; }
 .game-stage.story .gd-choices { max-width: 34em; margin: 0 auto 10px; text-align: left; }
 .game-stage.story .gd-choices button { border-color: rgba(244, 239, 230, 0.3); background: rgba(4, 8, 18, 0.5); font: 300 16px/1.4 var(--f-body); color: var(--paper); border-radius: 2px; }
 .game-stage.story .gd-choices button:is(:hover, :focus-visible) { border-color: var(--amber); background: rgba(255, 207, 138, 0.1); }
@@ -1409,8 +1413,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   /* (the lift's and the helicopter's prompt clear of the run button beside it, at the same height) */
   .game-stage.story .g-prompt { max-width: calc(100% - 172px); }
   /* (a phone has no E: the prompt's button is a tap, marked as one) */
-  .oe-touch .game-stage.story #gp-key { font-size: 0; }
-  .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .oe-touch .game-stage.story #gp-key { font-size: 0; min-width: 7px; width: 7px; padding: 0; border: 0; background: none; }
+  .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
   /* (while someone speaks, a line said over the picture goes to the top of the screen: the talk's shot puts the face on
      the upper third of what the words leave, where 19vh laid the line across it: Yuna at SKY GATE, Sumiko in the rain) */
   .game-stage.story:has(.g-dialog:not([hidden]):not(.free):not(.cut)) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
