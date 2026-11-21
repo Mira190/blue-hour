@@ -429,6 +429,16 @@ parts() {   # the parts of the shared models loaded before playable and after, a
 # fetched, by the server's log; its harness; its settings) is byte for byte as it is now, it would play the same page
 # (tools/check_cache.py). CHECK_CACHE=0 or CHECK_FULL=1 plays it all the same; the full tier on main keeps nothing.
 cache_on() { [ "${CHECK_CACHE:-1}" != 0 ] && [ -z "${CHECK_FULL:-}" ] && [ "$TIER" != full ]; }
+# What this script does for a check, as a key: the check's own function and the helpers it calls, and theirs; not the
+# rest of the script (a change to the walk's function is no change to how the story is run)
+fnkey() {
+  local body h; body=$(declare -f "run_$1")
+  for _ in 1 2 3; do for h in story_part walk_on twice why fails_of run_guide1 run_guide2; do
+    case "$body" in *"$h ()"*) ;; *"$h"*) body="$body
+$(declare -f "$h")" ;; esac
+  done; done
+  echo "$body" | sha1sum | cut -c1-16
+}
 # Whether a check's pass is kept, asked once a run: the answer in $OUT/keep/<check> (its first line kept or played, then
 # why: what changed since the pass and whether any of it can reach the check; docs/CHECKS.md, "Checks by reach")
 kept() {
@@ -437,7 +447,7 @@ kept() {
     mkdir -p "$OUT/keep"
     # (what this script does for it is in the key too: the target's function and the helpers it calls, not the rest)
     if ! cache_on; then printf 'played\n\n' >"$f"
-    elif hit=$(CHECK_FN=$(declare -f "run_$k" story_part walk_on twice why fails_of | sha1sum | cut -c1-16) python3 tools/check_cache.py hit "$k"); then printf 'kept\n%s\n' "$hit" >"$f"
+    elif hit=$(CHECK_FN=$(fnkey "$k") python3 tools/check_cache.py hit "$k"); then printf 'kept\n%s\n' "$hit" >"$f"
     else printf 'played\n%s\n' "$hit" >"$f"; fi
   fi
   [ "$(head -1 "$f")" = kept ]
@@ -445,7 +455,7 @@ kept() {
 run_one() {   # <check> [lane]
   local k=$1 lane=${2:-0} t0 n0=0 res
   PORT=$((PORT0 + lane)); export PORT
-  CHECK_FN=$(declare -f "run_$k" story_part walk_on twice why fails_of | sha1sum | cut -c1-16) && export CHECK_FN
+  CHECK_FN=$(fnkey "$k") && export CHECK_FN
   if kept "$k"; then
     printf 'ok   %-6s kept from its pass at %s (CHECK_CACHE=0 plays it again)\n' "$k" "$(sed -n 2p "$OUT/keep/$k")"
     return 0

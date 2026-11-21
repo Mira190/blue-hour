@@ -26,6 +26,7 @@
     "web/game/stopfx.js",
     "web/game/walk.js",
     "web/game/walktalk.js",
+    "web/game/tonight.js",
     "web/game/places.js"
    ],
    "checks": [
@@ -47,6 +48,9 @@
      "create"
     ],
     "OEStory": [
+     "create"
+    ],
+    "OETonight": [
      "create"
     ],
     "OEWalk": [
@@ -471,6 +475,7 @@
     "OEBuildings": [
      "PIER",
      "POST",
+     "SHOP_HOURS",
      "canopyPosts",
      "cellInstances"
     ],
