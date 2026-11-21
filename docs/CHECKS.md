@@ -34,6 +34,10 @@ Square and on foot at the start, at dusk and by day.
 The walk's people (`web/game/walktalk.js`, `game.json` `walk` and the `walk: true` people in `npcs`) are looked at in
 stills: `tools/walk_people.js out [WxH] [hour] [sky]` sets out on the walk, waits for each to be drawn, and takes each from
 twelve metres with their speech mark and from three in front, printing where each stands and whether that is in a road.
+The walk's night by the hour (`web/game/tonight.js`, docs/STORY.md "Tonight"): `tools/tonight_play.js out [WxH]` sets the
+clock to just before each moment (CROSSING LIGHT, the shutters, the screens, the last trains), fails if its line is not in
+the corner before, its name not over the street as it comes, the searchlights not on, a train runs after the last or none
+again in the evening, or the menu has no timetable; and takes a still of each (`ONLY=light,last` for some).
 The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
 
