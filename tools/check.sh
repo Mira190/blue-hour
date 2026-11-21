@@ -15,7 +15,8 @@
 #           - the ground graded by the method as it is: the streets level across, the lots between them stretched from
 #             the streets, the roads' cross-falls and creases within their limits (pipeline/street_ground.py --check);
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
-#             (tools/sign_clear.py), no sign reading mirrored (tools/sign_check.py);
+#             (tools/sign_clear.py), no sign reading mirrored or turned to a wall (tools/sign_check.py), no vehicle's
+#             name mirrored (tools/decal_check.js);
 #           - nothing standing in a lift's street lobby, and its hall's posts and belts inside it (tools/lobby_check.py);
 #           - the story's flight clear of the buildings, and its helicopter in every frame of its shots from one side of its
 #             way (tools/flight_clear.py, tools/flight_frames.py);
@@ -571,7 +572,8 @@ rm -rf "$OUT/keep"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
-    st signs signs "every sign reads the right way round" '^[^o]' python3 tools/sign_check.py "$MAP"
+    st signs signs "every sign reads the right way round and faces the street" '^[^o]' python3 tools/sign_check.py "$MAP"
+    st signs decals "the vehicles' names read the right way round" '^[^o]' node tools/decal_check.js
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
     st flight flight_frames "the story's flight in every frame of its shots, from one side of it and clear of the buildings" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
     st stands standpoints - '^FAIL|Error' python3 tools/standpoints.py "$MAP"
