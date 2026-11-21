@@ -81,10 +81,13 @@ window.OEWalkCalls = (function () {
     function play(call, o, ex, ey, ez, rx, ry, k) {
       const d = Math.hypot(o.x - ex, o.y - ey, (o.z + 3.3) - ez); // (the speaker 3.3 m up, as the guideline has it)
       const fade = Math.max(0, Math.min(1, (P.range - d) / (0.35 * P.range)));
-      const level = Math.min(1, P.ref / Math.max(1, d)) * fade * k;
+      let level = Math.min(1, P.ref / Math.max(1, d)) * fade * k;
       if (level <= 0.003) return;
+      // (and what the air and what stands between take off it: a call from round a corner is muffled, audio.js reach)
+      const R = audio && audio.reach ? audio.reach({ x: o.x, y: o.y, z: o.z + 3.3 }, { x: ex, y: ey, z: ez }) : null;
+      if (R) { level *= R.g; if (level <= 0.003) return; }
       const pan = ((o.x - ex) * rx + (o.y - ey) * ry) / Math.max(1, Math.hypot(o.x - ex, o.y - ey));
-      if (audio && audio.walkCall && audio.walkCall(call, level, pan * 0.8)) {
+      if (audio && audio.walkCall && audio.walkCall(call, level, pan * 0.8, R ? R.fc : 20000)) {
         stats.played++; stats.byKind[call] = (stats.byKind[call] || 0) + 1;
         stats.last = { call, level: +level.toFixed(3), d: +d.toFixed(1), t: +T.toFixed(2), j: o.a.j.id, scramble: !!o.a.j.scramble };
         if (api.tap) api.tap(call, o, level); // (tools/walkcalls_step.js listens)

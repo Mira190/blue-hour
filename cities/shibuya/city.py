@@ -4433,11 +4433,11 @@ def game_extras(scene):
     face = W2(*north["uv"](1.0, 0.0)) - W2(*north["uv"](0.0, 0.0))
     eu, ev = F["edge"]
     edge = W2(eu - 4.0, ev - 4.0)                                 # on the deck behind SKY EDGE
-    # pod: SKY GATE is ridden in the dark, as the real cars are (two of them, 14F to 45F, about 30 s at 360 m a minute;
-    # black walls, a ceiling that is one screen keeping pace with the climb, the floor lamps dark until it stops: Hitachi,
-    # Elevator Journal 28), not watched from outside the tower (web/game/game.js podRide)
+    # (no pod: SKY GATE is watched from outside the tower as it climbs, web/game/game.js rideLift. It was ridden in the
+    # dark as the real cars are, black walls and a ceiling that is one screen, podRide; the owner found it odd, the screen
+    # black when the doors opened and the camera somewhere else, and the tower climbed from outside the better, November
+    # 2026. A lift with "pod" is still ridden so)
     return out | {"lifts": [{"id": "sky-gate", "name": "SHIBUYA SKY", "line": "SKY GATE · TRANSITION POD · 14F → 45F", "m_per_min": s["lift_m_per_min"],
-                       "pod": {"name": "SKY GATE", "from": "14F", "to": "45F", "s": 30},
                        "stops": [{"name": "Shibuya Scramble Square, street level", "at": [*s["door"], s["door_z"]]},
                                  {"name": "SHIBUYA SKY 46F, the escalator to the roof", "at": [round(float(land[0]), 2), round(float(land[1]), 2), s["z0"]],
                                   "face": [round(float(face[0]), 5), round(float(face[1]), 5)]}]}],
