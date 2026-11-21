@@ -96,14 +96,14 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   s = await state();
   if (s.screen !== 'menu') fail(`a ${phone ? 'tap' : 'key'} on the press did not open the menu (on "${s.screen}")`);
   else ok(`a ${phone ? 'tap' : 'key'} on the press opens the menu`);
-  if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya over the episode');
+  if (!(await visible('#gt-walk-go'))) fail('the title has no Walk Shibuya under the episode');
   else ok(`the title offers two ways in: "${(await p.textContent('#gt-walk-go', { timeout: 180000 })).trim()}" and "${(await p.textContent('#gt-play', { timeout: 180000 })).trim()}"`); // (a software renderer can hold the page's thread for half a minute behind the title, compiling)
-  // (the ways in are one list: the walk first and the one Enter takes, while the episodes are being finished; every row
-  // the same width and height, none bigger than another, on a desktop and a phone alike)
+  // (the ways in are one list: the story first and the one Enter takes, the walk under it (the owner's word for the launch,
+  // November 2026); every row the same width and height, none bigger than another, on a desktop and a phone alike)
   { const rows = await p.$$eval('#g-title .gt-go > .btn', bs => bs.filter(b => b.offsetParent).map(b => { const r = b.getBoundingClientRect(); return { id: b.id, w: Math.round(r.width), h: Math.round(r.height), lead: b.classList.contains('primary') }; }));
-    if (!rows.length || rows[0].id !== 'gt-walk-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1) fail(`the title's list does not lead with the walk: ${JSON.stringify(rows)}`);
+    if (!rows.length || rows[0].id !== 'gt-story-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1 || !rows[1] || rows[1].id !== 'gt-walk-go') fail(`the title's list does not lead with the story, the walk under it: ${JSON.stringify(rows)}`);
     else if (rows.some(r => Math.abs(r.w - rows[0].w) > 1 || Math.abs(r.h - rows[0].h) > 1)) fail(`the title's ways in are not all one size: ${JSON.stringify(rows)}`);
-    else ok(`the title's ways in, one list led by the walk, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
+    else ok(`the title's ways in, one list led by the story, the walk under it, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
   await shot('1-title');
   await press('#gt-walk-go'); await until(() => window.__game.screen() === 'who');
   s = await state();

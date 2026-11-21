@@ -53,11 +53,10 @@ const [,, out = '/tmp/pad-check', size = '1440x900'] = process.argv;
   // (the title opens on its press: A opens the menu)
   await press('A'); await p.waitForTimeout(1200);
   if ((await p.evaluate(() => window.__game.screen())) !== 'menu') fail(`A on the press did not open the menu (on "${await p.evaluate(() => window.__game.screen())}")`);
-  // (the walk leads the menu's list while the episodes are being finished, and A takes it: down moves the hand from it,
-  // whether it is on it or on none, to the story; A opens the story's screen with the hand on its Begin, and A again begins)
-  if (await p.evaluate(() => !!document.getElementById('gt-walk-go'))) {
-    await press('DOWN'); await p.waitForTimeout(200);
-    if (!(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-story-go'))) fail(`down on the menu did not move the hand from the walk to the story (${await p.evaluate(() => (document.activeElement || {}).id)})`);
+  // (the story leads the menu's list (the owner's word for the launch, November 2026), and A takes it: the story's screen
+  // with the hand on its Begin, and A again begins)
+  if (await p.evaluate(() => !!document.getElementById('gt-story-go'))) {
+    if (!(await p.evaluate(() => { const b = document.querySelector('#g-title .gt-go > .btn.primary'); return !!b && b.id === 'gt-story-go'; }))) fail(`the menu's list is not led by the story (${await p.evaluate(() => (document.activeElement || {}).id)})`);
     await press('A'); await p.waitForTimeout(1200);
     if ((await p.evaluate(() => window.__game.screen())) !== 'story' || !(await p.evaluate(() => (document.activeElement || {}).id === 'gt-play'))) fail("A on the story's row did not open its screen with the hand on Begin");
   }

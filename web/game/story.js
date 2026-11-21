@@ -114,6 +114,7 @@ window.OEStory = (function () {
       const sg = q('#gt-story-go');
       const epNo = ep0.no ? `Episode ${ep0.no}` : ep0.title || ''; // (short, so that the row holds one line on a phone)
       if (sg) sg.querySelector('small').textContent = going ? `${epNo} · ${left.fi} of ${N} frames taken` : shut ? `${epNo} · the case is closed` : name;
+      if (sg) sg.classList.toggle('primary', !going); // (the story leads the title's list, Enter's and a pad's A, unless a case is going: then Continue does)
       // the story's screen: the episode, its picture and its line; how far, on the roll (a cell a frame, the photograph in
       // each one taken); Begin, Continue or Play it again; the evening again, asked twice, since what was taken tonight is
       // lost; and a closed case's frames, each a way back in
