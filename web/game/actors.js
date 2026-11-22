@@ -2049,6 +2049,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // for ten to twenty-five seconds (arrive's standing: gone once nobody is looking). Not held back: a turn put
       // back in the step it was made, a mate following its leader, and a walker getting out of a car's way)
       if (why === 'restore') q.turnedT = q.turnedT0;
+      else if (why === 'a car waited on them') { if (uT - (q.carT ?? -1e9) < 8) return; q.carT = uT; } // (out of a car's way once: turned again a second later it walked back into it, four turns in thirty seconds)
       else if (why !== 'the leader turned' && why !== 'a car waited on them' && why !== 'held in the road') {
         if (uT - (q.turnedT ?? -1e9) < AGAIN) { q.v = 0; q.pause = Math.max(q.pause, 10 + rnd() * 15); q.arrived = 1; api.thought = (api.thought || 0) + 1; return; }
         q.turnedT0 = q.turnedT; q.turnedT = uT;
