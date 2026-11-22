@@ -1387,6 +1387,10 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   color: var(--paper) !important; font: 300 15px/1 var(--f-body) !important; letter-spacing: 0 !important; text-transform: none !important; cursor: pointer; }
 .gt-opts-list > label input { width: 18px; height: 18px; accent-color: var(--amber); }
 .gt-opts-more { margin: 0; font: 400 9.5px/1.5 var(--f-mono); letter-spacing: 0.22em; text-transform: uppercase; color: rgba(244, 239, 230, 0.5); }
+/* (the credits and the measurements, the screen's last line: small print, as a game or an app sets its legal lines, in
+   the type of the note over it and fainter; a hand's 44 px to press, its words no larger than the note's. Issue 186) */
+.gt-opts-in > .gt-opts-credits { justify-self: start; min-height: 44px; margin: 6px 0 0 -2px; padding: 0 2px; border: 0; border-bottom: 1px solid transparent; background: none; color: rgba(244, 239, 230, 0.4); font: 400 9.5px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; text-align: left; cursor: pointer; }
+.gt-opts-in > .gt-opts-credits:is(:hover, :focus-visible) { color: var(--amber); outline: none; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: rgba(255, 207, 138, 0.5); }
 
 /* (a phone or a tablet upright: the episode's picture over its words, the roll and the ways in under them) */
 @media (max-width: 900px) and (min-height: 521px) {

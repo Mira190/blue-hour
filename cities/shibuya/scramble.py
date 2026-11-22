@@ -106,9 +106,26 @@ MATERIALS = {
     # some two to three stops over the street's fronts in a photograph of the corner at dusk, with its name the
     # deep blue it is printed in: 0.68
     "x_bk_sign": {"color": "#ffffff", "roughness": 0.6, "metalness": 0.0, "map": ATLAS_FILE, "emissive_map": True, "glow": 0.68},
+    # the station's way in from Hachiko Square (HACHIKO_EXIT): a passage lit by its own lamps by day as by night, so its
+    # surfaces glow a little at both (glow_day), as a lit room seen from the street does; its white works panels with
+    # their joints, the ceiling's panels, the floor's non-slip tiles, the LED fittings and its signs, lit from inside
+    # (by night brighter than by day: its lamps against the dark, and over the blue fill light the player carries)
+    "x_pass_wall": {"color": "#e4e4df", "roughness": 0.55, "metalness": 0.1, "pattern": "granite", "joints_m": [0.9, 0.0], "emissive": "#eef0ec", "glow": 0.6, "glow_day": 0.3},
+    "x_pass_ceil": {"color": "#dadad5", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.6], "emissive": "#eef0ec", "glow": 0.48, "glow_day": 0.24},
+    # (its floor is stood on as drawn, "pave": navcells.js. It is laid on the game's ground at the height the Scramble's paving
+    # is outside, and a walker inside stood at the ground's own height, 27 cm under the floor where it had been laid level
+    # and 4.6 cm under the setts at the threshold, where the level's paving stops at the station's front)
+    "x_pass_floor": {"color": "#9e9c96", "roughness": 0.42, "metalness": 0.0, "pattern": "granite", "joints_m": [0.3, 0.3], "emissive": "#e6e7e3", "glow": 0.32, "glow_day": 0.14, "pave": True},
+    "x_pass_lamp": {"color": "#f4f6f4", "roughness": 0.4, "metalness": 0.0, "emissive": "#f3f6ff", "glow": 2.2, "glow_day": 2.2},
+    "x_pass_sign": {"color": "#ffffff", "roughness": 0.5, "metalness": 0.0, "map": ATLAS_FILE, "emissive_map": True, "glow": 1.0, "glow_day": 0.55},
+    # its guide line: the street's tactile blocks, but its own (the Scramble's hero level hides the landmark's paving and
+    # draws its own, and took the passage's with it), lit as the floor is
+    "x_pass_gate": {"color": "#d5d8db", "roughness": 0.4, "metalness": 0.1, "emissive": "#eef0ec", "glow": 0.32, "glow_day": 0.16},   # the gate's cabinets: pale panels
+    "x_pass_tactile": {"color": "#e1b20f", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.3, 0.1], "emissive": "#f0c43a", "glow": 0.3, "glow_day": 0.14},
+    "x_pass_tactile_dot": {"color": "#e8b711", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.075, 0.075], "emissive": "#f0c43a", "glow": 0.3, "glow_day": 0.14},
 }
 MATERIALS.update(streets.MATERIALS)
-LIT = {"x_light", "x_atlas", "x_print", "x_red_lamp", "x_bk_sign"}
+LIT = {"x_light", "x_atlas", "x_print", "x_red_lamp", "x_bk_sign", "x_pass_wall", "x_pass_ceil", "x_pass_floor", "x_pass_lamp", "x_pass_sign", "x_pass_tactile", "x_pass_tactile_dot", "x_pass_gate"}
 
 
 # ---------------------------------------------------------------- data
@@ -1762,16 +1779,119 @@ def draw_bookshop(img, rects):
 # OSM maps JR Shibuya station's whole outline as one 15 m building, which the generic styles drew as a
 # yellow stone palace. Its Hachiko side is a works site in 2024-26 (the station's rebuilding): pale
 # panel walls over the concourse, hoardings at the foot, and over them steel scaffolds that carry huge
-# adverts facing the square (photographs 2024-25). Drawn so on OSM's outline, its height kept, with the
-# koban's corner left open; the advert is invented.
+# adverts facing the square (photographs 2024-25; the hoarding is still there in JR East's notices of February
+# 2026, and the works run to fiscal 2027). Drawn so on OSM's outline, its height kept, with the koban's corner left
+# open; the advert is invented.
 STATION = {"osm": "w904652357", "billboard": {"a": (407.9, -1022.5), "b": (411.4, -1052.0), "z": (8.0, 19.5), "lift": 1.5}}
+
+# The station's way through from the square, ハチ公口 (OSM's node "Hachiko Exit", beside the police box), to the
+# Miyamasuzaka exit on its east side (OSM's node 宮益坂口), along the footway OSM maps through it (the free passage, 43 m).
+# The Hachiko gate that faced the square closed on 26 January 2025 and opened again on this passage, toward
+# Miyamasuzaka; since 1 March 2026 the way in from the square is a passage through the works (JR East's notices on the
+# hoarding, February 2026). Drawn: both openings with the station's sign over them, the passage lit by its own lamps,
+# and the gate on its south side with the concourse behind it. Walked: the landmark's mesh is the station's wall to a
+# walker (nav.js: a solid a landmark draws instead is not one), so the passage is open from one street to the other
+# and the gate's closed flaps are the end of the free side. Its width and clear height (5.6 m, 3.2 m), the gate's
+# place on the passage and its six lanes are estimates; the signs are drawn in the station's pattern (a green band, a
+# black board for the gates and the lines, a yellow one for an exit), its notices and the poster invented.
+HACHIKO_EXIT = {"node": 6223298623, "east": 8401481034,
+                "way": [(420.2, -1027.8), (424.7, -1023.7), (432.4, -1022.0), (441.0, -1021.1)],   # (OSM's footway's bends)
+                "w": 5.6, "h": 3.2, "band": 0.8, "end": 0.45, "floor": 0.05,   # (its floor: that far over the game's ground, as the hero level's paving outside is)
+                "gate": {"leg": 3, "from": 0.8, "to": 0.6, "deep": 8.0, "lanes": 6}}
+_LEVELS = {}
+
+
+def ground_levels():
+    """The ground everything built stands on (pipeline/levels.py): the game's, graded."""
+    import levels
+    if "shibuya" not in _LEVELS:
+        _LEVELS["shibuya"] = levels.Levels("shibuya")
+    return _LEVELS["shibuya"]
+
+
+def face_at(O, x, inward, w):
+    """The face of outline O at the point x (within a metre) whose outside looks away from `inward`, and the middle of
+    an opening w wide on it, as near x as the face leaves 0.4 m either side: (a, b, n, L, middle), or None."""
+    best = None
+    out = unit(np.asarray(x, float) - np.asarray(inward, float))
+    for a, b, n, L in ring_edges(O):
+        f = (b - a) / L
+        t = float((x - a) @ f)
+        dd = abs(float(f[0] * (x - a)[1] - f[1] * (x - a)[0]))
+        if -1.0 < t < L + 1.0 and dd < 1.0 and L > w + 0.8 and float(n @ out) > 0.5 and (best is None or float(n @ out) > best[0]):
+            best = (float(n @ out), a, b, n, L, a + f * min(max(t, w / 2 + 0.4), L - w / 2 - 0.4))
+    return best[1:] if best else None
+
+
+def meet(p, u, q, v):
+    """Where the line p + s u meets the line q + t v."""
+    m = np.array([[u[0], -v[0]], [u[1], -v[1]]])
+    s, _ = np.linalg.solve(m, np.asarray(q, float) - np.asarray(p, float))
+    return np.asarray(p, float) + np.asarray(u, float) * s
+
+
+def way_plan(D, O):
+    """The way through the station (HACHIKO_EXIT) in the outline O: its centre line Q from the west face to the east,
+    the passage's edges either side (Lp to its left going east, Rp to its right: mitred at its bends, cut by each face),
+    the stations along Q, the floor's level at either end, and the openings it makes in the faces; None if its nodes
+    or faces are not there."""
+    E = HACHIKO_EXIT
+    nw, ne = D.by_id.get(E["node"]), D.by_id.get(E["east"])
+    if nw is None or ne is None:
+        return None
+    way = [np.asarray(p, float) for p in E["way"]]
+    fw, fe = face_at(O, nw["xy"], way[0], E["w"]), face_at(O, ne["xy"], way[-1], E["w"])
+    if fw is None or fe is None:
+        return None
+    Q = [fw[4]] + way + [fe[4]]
+    hw = E["w"] / 2
+    d = [unit(Q[i + 1] - Q[i]) for i in range(len(Q) - 1)]
+    lft = [np.array([-v[1], v[0]]) for v in d]
+    Lp, Rp = [], []
+    for i in range(len(Q)):
+        if i in (0, len(Q) - 1):
+            k, (a, b) = (0, fw[:2]) if i == 0 else (len(d) - 1, fe[:2])
+            Lp.append(meet(Q[i] + lft[k] * hw, d[k], a, b - a))
+            Rp.append(meet(Q[i] - lft[k] * hw, d[k], a, b - a))
+        else:
+            m = unit(lft[i - 1] + lft[i])
+            k = hw / float(m @ lft[i])
+            Lp.append(Q[i] + m * k)
+            Rp.append(Q[i] - m * k)
+    s = np.concatenate([[0.0], np.cumsum([np.linalg.norm(Q[i + 1] - Q[i]) for i in range(len(Q) - 1)])])
+    # the floor is laid on the game's ground (levels.Levels), not level: under the station it falls 0.4 m from the square to
+    # the passage's middle and rises again, and a level floor had walkers' feet in it
+    GL = ground_levels()
+    zw, ze = float(GL.at(*Q[0])) + E["floor"], float(GL.at(*Q[-1])) + E["floor"]
+    opens = []
+    for (a, b, n, L, _), l_, r_, z, cell in ((fw, Lp[0], Rp[0], zw, "band_w"), (fe, Lp[-1], Rp[-1], ze, "band_e")):
+        f = (b - a) / L
+        t0, t1 = sorted([float((l_ - a) @ f), float((r_ - a) @ f)])
+        opens.append({"a": a, "b": b, "n": n, "L": L, "t0": t0, "t1": t1, "z": z, "band": cell})
+    return {"Q": Q, "L": Lp, "R": Rp, "s": s, "d": d, "lft": lft, "zw": zw, "ze": ze, "open": opens}
+
+
+def station_hoarding(K, A, p, q, koban_box):
+    """The works' hoarding from p to q (0.08 m off the face): its printed panels about 9 m long, level-topped and stepped
+    at their joints, their feet in the ground (levels.stepped), none behind the police box."""
+    import levels
+    keep = (lambda a, b: koban_box.distance(Point(*((a + b) / 2))) >= 3.5) if koban_box is not None else None
+    bays = levels.stepped([p, q], ground_levels(), 3.0, bay=9.0, keep=keep, kind="hoarding")
+    u0, v0, u1, v1 = A.uv("st_hoarding")
+    for bay in bays:
+        K["x_print"].quad(np.array([*bay.a, bay.foot]), np.array([*bay.b, bay.foot]), np.array([*bay.b, bay.top]), np.array([*bay.a, bay.top]),
+                          [[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+    return bays
 
 
 def station(K, A, D, koban_box):
+    """The station's Hachiko side drawn; returns the solids it draws instead, and where the ground is not drawn (the way
+    in's passage: the ground under the station rises east of the threshold, through its level floor)."""
     sol = [s for s in D.solids if s["osm"] == STATION["osm"]]
     if not sol:
-        return []
-    wall, hoard = K["x_station"], K["x_print"]
+        return [], []
+    wall = K["x_station"]
+    low, clips = None, []                              # the scaffold's foot: over the way in's sign where there is one
     for q in sol:
         O = Polygon(q["ring"]).buffer(0)
         if koban_box is not None:
@@ -1779,20 +1899,28 @@ def station(K, A, D, koban_box):
         if O.is_empty:
             continue
         O = max(getattr(O, "geoms", [O]), key=lambda p_: p_.area)
-        zt = q["ground"] + q["base"] + q["top"] if q["base"] < q["top"] else q["ground"] + q["top"]
         zt = q["ground"] + q["top"]
+        W = way_plan(D, O) if q["top"] < 16 else None
         for a, b, n, L in ring_edges(O):
             g = min(D.ground(*a), D.ground(*b))
-            wall.quad(np.array([*a, g]), np.array([*b, g]), np.array([*b, zt]), np.array([*a, zt]), [[0, g], [L, g], [L, zt], [0, zt]])
-            if n[0] < -0.5 and L > 3.0 and q["top"] < 16:      # the side on Hachiko Square: a hoarding along its foot
-                off = a + n * 0.08, b + n * 0.08
-                u0, v0, u1, v1 = A.uv("st_hoarding")
-                reps = max(1, int(round(L / 9.0)))
-                for k in range(reps):
-                    p, r_ = off[0] + (off[1] - off[0]) * k / reps, off[0] + (off[1] - off[0]) * (k + 1) / reps
-                    if koban_box is not None and koban_box.distance(Point(*((p + r_) / 2))) < 3.5:
-                        continue                              # (no hoarding behind the police box that stands against it)
-                    hoard.quad(np.array([*p, g]), np.array([*r_, g]), np.array([*r_, g + 3.0]), np.array([*p, g + 3.0]), [[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+            f = (b - a) / L
+            spans, s0 = [], 0.0                        # the face, less the openings the way through makes in it
+            for c0, c1 in sorted((o["t0"], o["t1"]) for o in (W["open"] if W else []) if np.allclose(a, o["a"]) and np.allclose(b, o["b"])):
+                spans.append((s0, c0))
+                s0 = c1
+            spans.append((s0, L))
+            for s0, s1 in spans:
+                if s1 - s0 > 1e-3:
+                    p, r_ = a + f * s0, a + f * s1
+                    wall.quad(np.array([*p, g]), np.array([*r_, g]), np.array([*r_, zt]), np.array([*p, zt]), [[s0, g], [s1, g], [s1, zt], [s0, zt]])
+            if n[0] < -0.5 and L > 3.0 and q["top"] < 16:      # the side on Hachiko Square: a hoarding along its foot, stopping at the way in's end panels
+                for s0, s1 in spans:
+                    s0, s1 = s0 + (HACHIKO_EXIT["end"] if s0 > 0 else 0.0), s1 - (HACHIKO_EXIT["end"] if s1 < L else 0.0)
+                    if s1 - s0 > 1.5:
+                        station_hoarding(K, A, a + f * s0 + n * 0.08, a + f * s1 + n * 0.08, koban_box)
+        if W:
+            low, room = hachiko_way(K, A, D, W, zt)
+            clips.append({"ring": room})
         ak.cap(K["x_qf_roof"], ak.WORLD, [tuple(p) for p in list(O.exterior.coords)[:-1]], zt)
     # the scaffold over the square and its advert
     bb = STATION["billboard"]
@@ -1806,12 +1934,16 @@ def station(K, A, D, koban_box):
     lift = bb["lift"]
     steel = K["x_jr_steel"]
     L = float(np.linalg.norm(b - a))
+    # its standards start over the hoarding, and over the way in's sign where they pass it (their lowest ledger ran
+    # across the sign's face), tied back to the station's front at their feet
+    low = max(g + 3.0, low or 0.0)
     for k in range(int(L // 3.0) + 1):
         p = a + f * min(L, k * 3.0)
         for d in (0.3, 1.5):
             q = p + n * d
-            steel.tube([np.array([*q, g + 3.0]), np.array([*q, z1 + 0.6])], 0.05, 4)
-    for z in np.arange(g + 3.0, z1 + 0.7, 2.0):
+            steel.tube([np.array([*q, low]), np.array([*q, z1 + 0.6])], 0.05, 4)
+        steel.tube([np.array([*(p + n * 1.5), low]), np.array([*(p - n * 0.8), low])], 0.04, 4)
+    for z in np.arange(low, z1 + 0.7, 2.0):
         for d in (0.3, 1.5):
             steel.tube([np.array([*(a + n * d), z]), np.array([*(b + n * d), z])], 0.04, 4)
     q0, q1 = a + n * (lift + 0.05), b + n * (lift + 0.05)
@@ -1824,7 +1956,321 @@ def station(K, A, D, koban_box):
         box(K["x_light"], frame(p, n), -0.25, 0.25, -0.3, 0.3, z1 + 0.4, z1 + 0.7)
         q = a + f * L * (k + 0.5) / 6                      # its arm, from the frame's top rail out over the face
         steel.tube([np.array([*(q + n * 0.3), z1 + 0.6]), np.array([*(q + n * (lift + 0.6)), z1 + 0.95]), np.array([*(p - n * 0.2), z1 + 0.72])], 0.035, 4)
-    return [q["si"] for q in sol]
+    return [q["si"] for q in sol], clips
+
+
+# The cells of the way in's signs and prints, in one atlas cell ("st_hachiko", 1000 x 480: it sits in the shelf beside
+# the scaffold's advert, where the atlas has room): (x, y, w, h) in its pixels, each at its face's proportions.
+HACHIKO_CELLS = {"band_w": (0, 0, 496, 62), "band_e": (504, 0, 496, 62),
+                 "gate_up": (0, 70, 324, 53), "gate_right": (338, 70, 324, 53), "exit_up": (676, 70, 324, 53),
+                 "hexit_up": (0, 131, 324, 53), "gate_band": (338, 131, 324, 53), "lines": (676, 131, 324, 53),
+                 "notice": (0, 192, 200, 284), "plan": (212, 192, 440, 284), "stripes": (664, 192, 44, 284), "poster": (720, 192, 280, 284)}
+
+
+def cell_quad(m, A, pts, cell):
+    """A picture face a-b-c-d (counter-clockwise seen from its face, a bottom-left) showing one of HACHIKO_CELLS."""
+    x, y, _w, _h = A.rects["st_hachiko"]
+    sx, sy, sw, sh = HACHIKO_CELLS[cell]
+    u0, u1 = (x + sx + 1) / A.W, (x + sx + sw - 1) / A.W
+    v0, v1 = 1 - (y + sy + sh - 1) / A.H, 1 - (y + sy + 1) / A.H
+    m.quad(*pts, [[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+
+
+def hachiko_way(K, A, D, W, zt):
+    """The way through (way_plan's W) drawn: in each face its opening, the wall over it, its steel frame and the lit sign
+    band over it (on the square's side the hoarding's striped end panels either side); the passage, its floor laid on
+    the ground walkers stand on, white works panels with a dark kick strip, a white ceiling running evenly from one
+    threshold's height to the other's, its
+    lamps and a yellow guide line; the gate on its south side, its closed flaps, and the concourse behind it; the hung
+    signs and the prints on its walls. Returns the level the scaffold over the square starts at (over the west sign) and
+    the outline the ground is not drawn in (the ground under the station rises through the passage's floor)."""
+    E, G_ = HACHIKO_EXIT, HACHIKO_EXIT["gate"]
+    h, band, end, hw = E["h"], E["band"], E["end"], E["w"] / 2
+    Q, Lp, Rp, s, d, lft = W["Q"], W["L"], W["R"], W["s"], W["d"], W["lft"]
+    S = float(s[-1])
+    zs = lambda u: W["zw"] + (W["ze"] - W["zw"]) * float(u) / S          # the ceiling's datum at a station along the way (less h)
+    fr, Wl, Cl, Fl, Lm = K["x_frame"], K["x_pass_wall"], K["x_pass_ceil"], K["x_pass_floor"], K["x_pass_lamp"]
+    for m in (Wl, Cl, Fl, K["x_pass_tactile"], K["x_pass_tactile_dot"], K["x_pass_gate"]):   # (shut in: its own lamps light it, not the sun nor the screens across the square)
+        m.sky, m.bounce, m.direct = 0.12, "#9c9a94", 0.0
+    GL = ground_levels()
+    fz = lambda x, y: float(GL.at(x, y)) + E["floor"]                     # the floor at (x, y)
+    low = None
+    for o in W["open"]:
+        a, b, n, L, t0, t1, z = o["a"], o["b"], o["n"], o["L"], o["t0"], o["t1"], o["z"]
+        f = (b - a) / L
+        p0, p1 = a + f * t0, a + f * t1
+        P = frame((p0 + p1) / 2, -n)                   # (u: in from the face; v: to the left looking in)
+        ow = (t1 - t0) / 2
+        K["x_station"].quad(np.array([*p0, z + h]), np.array([*p1, z + h]), np.array([*p1, zt]), np.array([*p0, zt]), [[t0, z + h], [t1, z + h], [t1, zt], [t0, zt]])
+        if n[0] < -0.5:                                # on the square: the hoarding's end panels, striped as the works' are
+            for e0, e1 in ((max(0.0, t0 - end), t0), (t1, min(L, t1 + end))):
+                q0, q1 = a + f * e0 + n * 0.1, a + f * e1 + n * 0.1          # (seen from outside, f runs to the right)
+                cell_quad(K["x_print"], A, [np.array([*q0, z - 0.25]), np.array([*q1, z - 0.25]), np.array([*q1, z + h]), np.array([*q0, z + h])], "stripes")
+            low = z + h + 0.02 + band + 0.35
+        for v in (-ow, ow):                            # the steel frame, and over it the station's sign: a lit box, a line of light under it
+            box(fr, P, -0.12, 0.04, v - 0.08, v + 0.08, z - 0.1, z + h)
+        box(fr, P, -0.12, 0.04, -ow - 0.08, ow + 0.08, z + h - 0.12, z + h)
+        bv = 4.0 * band                                # (the band's face at its cell's proportions, 8 to 1)
+        box(fr, P, -0.34, -0.02, -bv, bv, z + h + 0.02, z + h + 0.02 + band)
+        cell_quad(K["x_pass_sign"], A, [P(-0.345, bv - 0.03, z + h + 0.05), P(-0.345, -bv + 0.03, z + h + 0.05),
+                                        P(-0.345, -bv + 0.03, z + h - 0.01 + band), P(-0.345, bv - 0.03, z + h - 0.01 + band)], o["band"])
+        box(Lm, P, -0.26, -0.16, -ow + 0.2, ow - 0.2, z + h - 0.01, z + h + 0.02)
+    gk = G_["leg"]
+    g0, g1 = G_["from"], float(s[gk + 1] - s[gk]) - G_["to"]        # the gate's opening along its leg
+
+    def z_on(i, p):                                    # the floor's level at a point of leg i
+        return zs(s[i] + min(max(float((p - Q[i]) @ d[i]), 0.0), float(s[i + 1] - s[i])))
+
+    def panel(p, q, top, k):                           # a wall from p to q, its foot in the floor a metre at a time, up to top(point);
+        Lw = float(np.linalg.norm(q - p))              # and its kick strip, k off it on the passage's side
+        n_ = max(1, int(math.ceil(Lw / 1.0)))
+        for j in range(n_):
+            a_, b_ = p + (q - p) * j / n_, p + (q - p) * (j + 1) / n_
+            fa, fb, ca, cb, s0, s1 = fz(*a_), fz(*b_), top(a_), top(b_), Lw * j / n_, Lw * (j + 1) / n_
+            Wl.quad(np.array([*a_, fa - 0.03]), np.array([*b_, fb - 0.03]), np.array([*b_, cb]), np.array([*a_, ca]), [[s0, fa], [s1, fb], [s1, cb], [s0, ca]])
+            fr.quad(np.array([*(a_ + k), fa - 0.03]), np.array([*(b_ + k), fb - 0.03]), np.array([*(b_ + k), fb + 0.1]), np.array([*(a_ + k), fa + 0.1]))
+
+    def run(i, p, q, side):                            # a wall of leg i, up to the ceiling
+        panel(p, q, lambda x: z_on(i, x) + h, -side * lft[i] * 0.015)
+
+    def lay(m, pts_of, nu, nv, uv_of, lift=0.0):       # a floor or a strip on it: a grid of points on the floor
+        rows, uvs = [], []
+        for j in range(nu + 1):
+            row, urow = [], []
+            for c in range(nv + 1):
+                xy = pts_of(j / nu, c / nv)
+                row.append(np.array([*xy, fz(*xy) + lift]))
+                urow.append(uv_of(xy))
+            rows.append(row)
+            uvs.append(urow)
+        m.grid(rows, uvs)
+
+    def strip(m, i, u0, u1, v0, v1, lift=0.009):       # a strip of leg i's floor, laid on it (a little proud: its grid is not the floor's)
+        P = frame(Q[i], d[i])
+        nu, nv = max(1, int(math.ceil(abs(u1 - u0) / 0.5))), max(1, int(math.ceil(abs(v1 - v0) / 0.5)))
+        lay(m, lambda a_, c_: P(u0 + (u1 - u0) * a_, v0 + (v1 - v0) * c_, 0)[:2], nu, nv,
+            lambda xy: [float((xy - Q[i]) @ d[i]), float((xy - Q[i]) @ lft[i])], lift)
+
+    for i in range(len(Q) - 1):
+        Li = float(s[i + 1] - s[i])
+        P = frame(Q[i], d[i])
+        za, zb = zs(s[i]), zs(s[i + 1])
+        uv = lambda p: [float((p - Q[i]) @ d[i] + s[i]), float((p - Q[i]) @ lft[i])]
+        quad = [Lp[i], Rp[i], Rp[i + 1], Lp[i + 1]]
+        lay(Fl, lambda a_, c_, i=i: (Lp[i] + (Lp[i + 1] - Lp[i]) * a_) * (1 - c_) + (Rp[i] + (Rp[i + 1] - Rp[i]) * a_) * c_,
+            max(1, int(math.ceil(Li / 0.5))), 8, uv)
+        Cl.quad(*[np.array([*p, z_ + h]) for p, z_ in zip(quad[::-1], (zb, zb, za, za))], [uv(p) for p in quad[::-1]])
+        run(i, Lp[i], Lp[i + 1], 1)
+        if i == gk:
+            run(i, Rp[i], Q[i] + d[i] * g0 - lft[i] * hw, -1)
+            run(i, Q[i] + d[i] * g1 - lft[i] * hw, Rp[i + 1], -1)
+        else:
+            run(i, Rp[i], Rp[i + 1], -1)
+        for v in (-1.25, 1.25):                        # its lamps: LED fittings in two lines, lit day and night
+            for u in np.arange(0.6, Li - 0.5, 1.5):
+                zu = zs(s[i] + u)
+                box(Lm, P, u, min(u + 1.2, Li - 0.3), v - 0.06, v + 0.06, zu + h - 0.05, zu + h - 0.005)
+        strip(K["x_pass_tactile"], i, 0.3, Li - 0.3, -0.15, 0.15)       # the guide line down its middle, dots at each bend
+        if i > 0:
+            strip(K["x_pass_tactile_dot"], i, -0.3, 0.3, -0.3, 0.3, 0.011)
+    # the gate: its opening in the south wall, six lanes between seven cabinets, their flaps closed, and the concourse
+    i, Li = gk, float(s[gk + 1] - s[gk])
+    P = frame(Q[i], d[i])
+    zg, dp = zs(s[i] + (g0 + g1) / 2), G_["deep"]
+    A0, A1 = Q[i] + d[i] * g0 - lft[i] * hw, Q[i] + d[i] * g1 - lft[i] * hw
+    B0, B1 = A0 - lft[i] * dp, A1 - lft[i] * dp
+    room = [(g0, -hw), (g1, -hw), (g1, -hw - dp), (g0, -hw - dp)]
+    # (its floor runs 0.15 m on under the passage's and a hair lower, so that where the two grids meet across the ground's
+    # creases there is no crack: one showed the light through it as a broken line along the gate's opening)
+    lay(Fl, lambda a_, c_: P(g0 + (g1 - g0) * a_, -hw + 0.15 - (dp + 0.15) * c_, 0)[:2], max(1, int(math.ceil((g1 - g0) / 0.5))), max(1, int(math.ceil(dp / 0.5))),
+        lambda xy: [float((xy - Q[i]) @ d[i]), float((xy - Q[i]) @ lft[i])], -0.004)
+    Cl.quad(*[P(u, v, zg + h) for u, v in room[::-1]], [[u, v] for u, v in room[::-1]])
+    for (u0, v0), (u1, v1) in (((g0, -hw), (g0, -hw - dp)), ((g0, -hw - dp), (g1, -hw - dp)), ((g1, -hw - dp), (g1, -hw))):
+        p, q = P(u0, v0, 0)[:2], P(u1, v1, 0)[:2]
+        c = (p + q) / 2
+        panel(p, q, lambda x: zg + h, unit(P((g0 + g1) / 2, -hw - dp / 2, 0)[:2] - c) * 0.015)
+    for v in (-hw - 3.0, -hw - 6.0):
+        for u in np.arange(g0 + 0.4, g1 - 0.6, 1.5):
+            box(Lm, P, u, min(u + 1.2, g1 - 0.3), v - 0.06, v + 0.06, zg + h - 0.05, zg + h - 0.005)
+    lanes = G_["lanes"]
+    cu = [g0 + 0.3 + k * (g1 - g0 - 0.6) / lanes for k in range(lanes + 1)]
+    for u in cu:                                       # the cabinets: pale panels, a black top, standing on the floor
+        zc = fz(*P(u, -hw - 1.65, 0)[:2])
+        box(K["x_pass_gate"], P, u - 0.11, u + 0.11, -hw - 2.3, -hw - 1.0, zc - 0.03, zc + 0.95)
+        box(K["x_dark"], P, u - 0.12, u + 0.12, -hw - 2.32, -hw - 0.98, zc + 0.95, zc + 1.0)
+    for ua, ub in zip(cu[:-1], cu[1:]):                # the flaps, closed across each lane
+        um = (ua + ub) / 2
+        zc = fz(*P(um, -hw - 1.65, 0)[:2])
+        for x0, x1 in ((ua + 0.11, um - 0.01), (um + 0.01, ub - 0.11)):
+            box(fr, P, x0, x1, -hw - 1.662, -hw - 1.638, zc + 0.45, zc + 0.92)
+    strip(K["x_pass_tactile"], i, (g0 + g1) / 2 - 0.15, (g0 + g1) / 2 + 0.15, -hw - 0.9, -0.3)   # (the guide line's branch to the gate)
+    uc = (g0 + g1) / 2                                 # the gate's band over its opening, facing the passage
+    zb0, zb1 = zg + h - 0.8, zg + h - 0.08
+    box(fr, P, uc - 2.2, uc + 2.2, -hw - 0.06, -hw, zb0, zb1)
+    cell_quad(K["x_pass_sign"], A, [P(uc + 2.18, -hw + 0.005, zb0 + 0.02), P(uc - 2.18, -hw + 0.005, zb0 + 0.02),
+                                    P(uc - 2.18, -hw + 0.005, zb1 - 0.02), P(uc + 2.18, -hw + 0.005, zb1 - 0.02)], "gate_band")
+    zl0, zl1 = zg + h - 0.66, zg + h - 0.3            # and inside, the lines' board hung facing the gate
+    box(fr, P, uc - 1.1, uc + 1.1, -hw - 5.54, -hw - 5.46, zl0, zl1)
+    cell_quad(K["x_pass_sign"], A, [P(uc + 1.08, -hw - 5.455, zl0 + 0.02), P(uc - 1.08, -hw - 5.455, zl0 + 0.02),
+                                    P(uc - 1.08, -hw - 5.455, zl1 - 0.02), P(uc + 1.08, -hw - 5.455, zl1 - 0.02)], "lines")
+    for du in (-0.8, 0.8):
+        K["x_jr_steel"].tube([P(uc + du, -hw - 5.5, zl1), P(uc + du, -hw - 5.5, zg + h)], 0.012, 4)
+
+    def hang(i, u, face, cells, back=(None, None)):    # a pair of boards across leg i at u, on rods, facing back along it (face 1) or on (-1)
+        P = frame(Q[i], d[i])                          # (cells: the viewer's left board, then the right; back: on their other faces, seen the other way)
+        z = zs(s[i] + u)
+        zb0, zb1 = z + h - 0.66, z + h - 0.3
+        for vc, cell, other in ((1.3 * face, cells[0], back[1]), (-1.3 * face, cells[1], back[0])):
+            box(fr, P, u - 0.04, u + 0.04, vc - 1.1, vc + 1.1, zb0, zb1)
+            uf, ub = u - 0.045 * face, u + 0.045 * face
+            l_, r_ = vc + 1.08 * face, vc - 1.08 * face
+            cell_quad(K["x_pass_sign"], A, [P(uf, l_, zb0 + 0.02), P(uf, r_, zb0 + 0.02), P(uf, r_, zb1 - 0.02), P(uf, l_, zb1 - 0.02)], cell)
+            if other:
+                cell_quad(K["x_pass_sign"], A, [P(ub, r_, zb0 + 0.02), P(ub, l_, zb0 + 0.02), P(ub, l_, zb1 - 0.02), P(ub, r_, zb1 - 0.02)], other)
+            for dv in (-0.8, 0.8):
+                K["x_jr_steel"].tube([P(u, vc + dv, zb1), P(u, vc + dv, z + h)], 0.012, 4)
+
+    hang(0, 6.0, 1, ("exit_up", "gate_up"), back=("hexit_up", "hexit_up"))     # (printed on both faces, as the station's are)
+    hang(gk - 1, float(s[gk] - s[gk - 1]) - 1.2, 1, ("exit_up", "gate_right"), back=("hexit_up", "hexit_up"))
+    hang(len(Q) - 2, float(s[-1] - s[-2]) - 4.5, -1, ("gate_up", "hexit_up"), back=("exit_up", "exit_up"))
+
+    def print_on(i, u, side, wd, z0, z1, cell, framed=False):   # a picture on a wall of leg i (side 1 its left), facing into the passage
+        P = frame(Q[i], d[i])
+        z = zs(s[i] + u)
+        v = side * (hw - 0.02)
+        a_, b_ = (u - wd / 2, u + wd / 2) if side > 0 else (u + wd / 2, u - wd / 2)
+        if framed:
+            box(fr, P, u - wd / 2 - 0.05, u + wd / 2 + 0.05, side * hw - 0.04 * side, side * hw, z + z0 - 0.05, z + z1 + 0.05)
+            v = side * (hw - 0.045)
+        cell_quad(K["x_pass_sign"] if framed else K["x_print"], A, [P(a_, v, z + z0), P(b_, v, z + z0), P(b_, v, z + z1), P(a_, v, z + z1)], cell)
+
+    print_on(0, 3.6, 1, 0.6, 1.25, 2.1, "notice")
+    print_on(0, 8.2, 1, 0.6, 1.25, 2.1, "notice")
+    print_on(gk, (g0 + g1) / 2, 1, 1.8, 1.0, 2.16, "plan", framed=True)
+    print_on(len(Q) - 2, 4.0, -1, 2.0, 0.55, 2.57, "poster", framed=True)
+    print_on(len(Q) - 2, 6.8, 1, 0.6, 1.25, 2.1, "notice")
+    from shapely.ops import unary_union
+    out = unary_union([Polygon([tuple(p) for p in Lp] + [tuple(p) for p in Rp[::-1]]).buffer(0),
+                       Polygon([tuple(A0), tuple(A1), tuple(B1), tuple(B0)]).buffer(0.01)])
+    out = max(getattr(out, "geoms", [out]), key=lambda p_: p_.area)
+    return low, [[round(float(x), 2), round(float(y), 2)] for x, y in list(out.exterior.coords)[:-1]]
+
+
+def draw_arrow(d, cx, cy, s, way, fill):
+    """An arrow s pixels long centred at (cx, cy), pointing up or right."""
+    hl, b, t = s * 0.42, s * 0.36, s * 0.12            # the head's length and half width, the shaft's half width
+    pts = [(-t, s / 2), (-t, -s / 2 + hl), (-b, -s / 2 + hl), (0, -s / 2), (b, -s / 2 + hl), (t, -s / 2 + hl), (t, s / 2)]
+    if way == "right":                                 # (turned a quarter clockwise: the image's y runs down)
+        pts = [(-y, x) for x, y in pts]
+    d.polygon([(cx + x, cy + y) for x, y in pts], fill=fill)
+
+
+def draw_hachiko(img, rects):
+    """The way in's signs and prints (HACHIKO_CELLS). The station's own words and the lines' letters; the notices'
+    wording and the poster are invented."""
+    from PIL import ImageDraw
+    X, Y, W, H = rects["st_hachiko"]
+    sheet = Image_new(W, H, (40, 42, 46))
+    green, black, yellow = (16, 138, 74), (28, 30, 33), (246, 196, 0)
+
+    def cell(k, c):
+        x, y, w, h = HACHIKO_CELLS[k]
+        im = Image_new(w, h, c)
+        return im, ImageDraw.Draw(im), w, h
+
+    def badges(im, d, x, cy, s):   # the lines through the gate: the Yamanote, the Saikyo and the Shonan-Shinjuku
+        for k, (code, col) in enumerate((("JY", (128, 194, 65)), ("JA", (0, 172, 154)), ("JS", (226, 31, 38)))):
+            x0 = x + k * (s + s * 0.18)
+            d.rectangle([x0, cy - s / 2, x0 + s, cy + s / 2], fill=(255, 255, 255), outline=col, width=max(2, int(s * 0.12)))
+            ad.text(im, (x0 + s / 2, cy), code, "zen", int(s * 0.46), fill="#1c1e21")
+
+    for k, jp, en in (("band_w", "ハチ公口", "Hachiko Exit"), ("band_e", "宮益坂口", "Miyamasuzaka Exit")):   # the sign bands over the ways in
+        im, d, w, h = cell(k, green)
+        d.rectangle([0, h - 4, w, h], fill=(10, 96, 52))
+        ad.text(im, (w * 0.14, h * 0.4), "渋谷駅", "zen", int(h * 0.42), fill="#ffffff")
+        ad.text(im, (w * 0.14, h * 0.79), "Shibuya Sta.", "zen", int(h * 0.17), fill="#ffffff")
+        d.line([(w * 0.285, h * 0.18), (w * 0.285, h * 0.82)], fill=(255, 255, 255), width=2)
+        ad.text(im, (w * 0.5, h * 0.4), jp, "zen", int(h * 0.46), fill="#ffffff")
+        ad.text(im, (w * 0.5, h * 0.8), en, "zen", int(h * 0.18), fill="#ffffff")
+        badges(im, d, w * 0.75, h * 0.47, h * 0.42)
+        sheet.paste(im, HACHIKO_CELLS[k][:2])
+    for k, way in (("gate_up", "up"), ("gate_right", "right")):   # the gate's boards: black, the words in white
+        im, d, w, h = cell(k, black)
+        ax = h * 0.55 if way == "up" else w - h * 0.55
+        draw_arrow(d, ax, h / 2, h * 0.72, way, (255, 255, 255))
+        tx = w * 0.42 if way == "up" else w * 0.36
+        ad.text(im, (tx, h * 0.38), "ハチ公改札", "zen", int(h * 0.4), fill="#ffffff")
+        ad.text(im, (tx, h * 0.78), "Hachiko Gate", "zen", int(h * 0.2), fill="#ffffff")
+        badges(im, d, (w * 0.7 if way == "up" else w * 0.6), h / 2, h * 0.36)
+        sheet.paste(im, HACHIKO_CELLS[k][:2])
+    im, d, w, h = cell("exit_up", yellow)              # the exit's: yellow, the words in black
+    draw_arrow(d, h * 0.55, h / 2, h * 0.72, "up", (28, 30, 33))
+    ad.text(im, (w * 0.56, h * 0.38), "宮益坂口", "zen", int(h * 0.4), fill="#1c1e21")
+    ad.text(im, (w * 0.56, h * 0.78), "Miyamasuzaka Exit", "zen", int(h * 0.19), fill="#1c1e21")
+    sheet.paste(im, HACHIKO_CELLS["exit_up"][:2])
+    im, d, w, h = cell("hexit_up", yellow)             # and the way back to the square
+    draw_arrow(d, h * 0.55, h / 2, h * 0.72, "up", (28, 30, 33))
+    ad.text(im, (w * 0.56, h * 0.38), "ハチ公口", "zen", int(h * 0.4), fill="#1c1e21")
+    ad.text(im, (w * 0.56, h * 0.78), "Hachiko Exit", "zen", int(h * 0.19), fill="#1c1e21")
+    sheet.paste(im, HACHIKO_CELLS["hexit_up"][:2])
+    im, d, w, h = cell("gate_band", green)             # the gate's own band
+    ad.text(im, (w * 0.36, h * 0.38), "ハチ公改札", "zen", int(h * 0.42), fill="#ffffff")
+    ad.text(im, (w * 0.36, h * 0.8), "Hachiko Gate", "zen", int(h * 0.2), fill="#ffffff")
+    badges(im, d, w * 0.66, h / 2, h * 0.4)
+    sheet.paste(im, HACHIKO_CELLS["gate_band"][:2])
+    im, d, w, h = cell("lines", black)                 # inside the gate: the way to the lines' platforms
+    draw_arrow(d, h * 0.55, h / 2, h * 0.72, "up", (255, 255, 255))
+    ad.text(im, (w * 0.46, h * 0.38), "山手線・埼京線", "zen", int(h * 0.36), fill="#ffffff", max_w=w * 0.5)
+    ad.text(im, (w * 0.46, h * 0.78), "Yamanote / Saikyo Lines", "zen", int(h * 0.18), fill="#ffffff", max_w=w * 0.52)
+    badges(im, d, w * 0.75, h / 2, h * 0.36)
+    sheet.paste(im, HACHIKO_CELLS["lines"][:2])
+    im, d, w, h = cell("notice", (250, 250, 248))      # the works' notice: the passages have changed
+    d.rectangle([0, 0, w, h * 0.09], fill=(24, 24, 26))
+    ad.text(im, (w / 2, h * 0.047), "PASSAGEWAY NOTICE", "zen", int(h * 0.045), fill="#f6d000")
+    d.rectangle([0, h * 0.09, w, h * 0.36], fill=(214, 40, 32))
+    ad.text(im, (w / 2, h * 0.15), "渋谷駅改良工事に伴い", "zen", int(h * 0.04), fill="#ffffff")
+    ad.text(im, (w / 2, h * 0.225), "通路を切り替えました", "zen", int(h * 0.06), fill="#ffffff", max_w=w * 0.92)
+    ad.text(im, (w / 2, h * 0.31), "This passageway has changed", "zen", int(h * 0.032), fill="#ffffff", max_w=w * 0.9)
+    d.rectangle([w * 0.08, h * 0.41, w * 0.92, h * 0.86], outline=(214, 40, 32), width=3)
+    d.rectangle([w * 0.16, h * 0.5, w * 0.84, h * 0.58], fill=(232, 222, 196))
+    d.rectangle([w * 0.62, h * 0.5, w * 0.72, h * 0.8], fill=(232, 222, 196))
+    d.rectangle([w * 0.5, h * 0.66, w * 0.84, h * 0.78], fill=(226, 196, 230))
+    d.line([(w * 0.18, h * 0.54), (w * 0.67, h * 0.54), (w * 0.67, h * 0.72)], fill=(214, 40, 32), width=4)
+    d.ellipse([w * 0.15, h * 0.52, w * 0.21, h * 0.56], fill=(214, 40, 32))
+    ad.text(im, (w / 2, h * 0.93), "ご理解とご協力をお願いいたします", "zen", int(h * 0.03), fill="#33363a", max_w=w * 0.9)
+    sheet.paste(im, HACHIKO_CELLS["notice"][:2])
+    im, d, w, h = cell("plan", (244, 244, 240))        # the station's plan, lit: the floor round the gate
+    d.rectangle([0, 0, w, h * 0.14], fill=green)
+    ad.text(im, (w * 0.3, h * 0.07), "構内のご案内", "zen", int(h * 0.075), fill="#ffffff")
+    ad.text(im, (w * 0.75, h * 0.07), "Station Map", "zen", int(h * 0.06), fill="#ffffff")
+    d.rectangle([w * 0.06, h * 0.22, w * 0.94, h * 0.92], fill=(226, 226, 220))
+    d.rectangle([w * 0.06, h * 0.42, w * 0.6, h * 0.54], fill=(240, 232, 204))
+    d.rectangle([w * 0.5, h * 0.42, w * 0.6, h * 0.86], fill=(240, 232, 204))
+    d.rectangle([w * 0.3, h * 0.6, w * 0.5, h * 0.86], fill=(222, 196, 228))
+    d.rectangle([w * 0.62, h * 0.26, w * 0.9, h * 0.6], fill=(196, 224, 204))
+    for k in range(4):
+        d.rectangle([w * (0.33 + k * 0.04), h * 0.63, w * (0.345 + k * 0.04), h * 0.7], fill=(70, 74, 80))
+    d.ellipse([w * 0.075, h * 0.455, w * 0.105, h * 0.505], fill=(214, 40, 32))
+    ad.text(im, (w * 0.16, h * 0.35), "現在地", "zen", int(h * 0.05), fill="#d62820")
+    ad.text(im, (w * 0.4, h * 0.82), "ハチ公改札", "zen", int(h * 0.045), fill="#3a3d42")
+    ad.text(im, (w * 0.76, h * 0.43), "宮益坂口", "zen", int(h * 0.045), fill="#3a3d42")
+    sheet.paste(im, HACHIKO_CELLS["plan"][:2])
+    im, d, w, h = cell("stripes", (250, 250, 248))     # the hoarding's end panel
+    for k in range(-2, 12):
+        y0 = k * w * 1.4
+        d.polygon([(0, y0), (w, y0 - w * 0.9), (w, y0 - w * 0.9 + w * 0.7), (0, y0 + w * 0.7)], fill=green)
+    sheet.paste(im, HACHIKO_CELLS["stripes"][:2])
+    im, d, w, h = cell("poster", (232, 120, 50))       # an invented travel poster: autumn hills at dusk
+    ad.gradient(im, "#f2a35e", "#7a3b6e", angle=90.0)
+    d = ImageDraw.Draw(im)
+    d.ellipse([w * 0.58, h * 0.16, w * 0.82, h * 0.32], fill=(255, 226, 170))
+    d.polygon([(0, h * 0.62), (w * 0.3, h * 0.42), (w * 0.55, h * 0.56), (w * 0.8, h * 0.38), (w, h * 0.5), (w, h * 0.8), (0, h * 0.8)], fill=(92, 46, 72))
+    d.polygon([(0, h * 0.74), (w * 0.4, h * 0.58), (w * 0.7, h * 0.7), (w, h * 0.62), (w, h * 0.8), (0, h * 0.8)], fill=(150, 52, 40))
+    d.rectangle([0, h * 0.8, w, h], fill=(250, 248, 242))
+    ad.text(im, (w / 2, h * 0.86), "秋の山へ、各駅で。", "zen", int(h * 0.06), fill="#3a2a30", max_w=w * 0.9)
+    ad.text(im, (w / 2, h * 0.94), "Autumn in the hills, a train away", "zen", int(h * 0.035), fill="#5a4a50", max_w=w * 0.9)
+    sheet.paste(im, HACHIKO_CELLS["poster"][:2])
+    img.paste(sheet, (X, Y))
 
 
 def draw_jr(img, rects):
@@ -1917,7 +2363,7 @@ class Build:
         items += [(k, 768, 76) for b in BANDS for _, k in b["rows"]]
         items += [("jr_clear", 384, 96), ("st_billboard", 1024, 480), ("st_hoarding", 512, 160), ("magnet_name", 768, 112), ("koban_sign", 384, 76), ("s109_wrap", 512, 768), ("s109_name", 512, 384), ("cg_banner", 768, 160), ("cg_name", 64, 384)]
         items += [("qf_crown", 1024, 320), ("qf_name", 384, 52), ("qf_coffee", 768, 92), ("qf_books", 512, 84)]
-        items += [("bk_sign", 1600, 400), ("bk_awning", 768, 48)]
+        items += [("bk_sign", 1600, 400), ("bk_awning", 768, 48), ("st_hachiko", 1000, 480)]
         items += streets.atlas_items()
         self.A = Atlas(list(dict.fromkeys(items)), width=2048)
 
@@ -1931,7 +2377,8 @@ class Build:
         hidden += shibuya109(K, self.A, self.D)
         billboards(K, self.A, self.D)
         kb = koban(K, self.A, self.D, self.node)
-        hidden += station(K, self.A, self.D, kb)
+        h_, c_ = station(K, self.A, self.D, kb)
+        hidden += h_
         magnet_front(K, self.A, self.D)
         skins(K, self.D)
         sign_bands(K, self.A, self.D)
@@ -1945,6 +2392,7 @@ class Build:
         plan = Plan(self.D, [c["ring"] for c in clip])
         tactile(K, self.D, Plan(self.D, [c["ring"] for c in clip], r=125.0), top=self.top)   # (round the scramble a little wider than the hero level)
         guard_rails(K, self.D, plan)
+        clip += c_                       # (the way in's passage: after the plan, whose clips are the stair wells)
         return K.out(), hidden, clip, getattr(self.D, "props", [])
 
     def draw(self, out_dir):
@@ -1962,6 +2410,7 @@ class Build:
         draw_bookshop(img, self.A.rects)
         streets.draw(img, self.A.rects)
         draw_station(img, self.A.rects)
+        draw_hachiko(img, self.A.rects)
         draw_jr(img, self.A.rects)
         img.save(os.path.join(out_dir, ATLAS_FILE), quality=90)
         return ATLAS_FILE

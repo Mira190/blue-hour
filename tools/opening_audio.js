@@ -42,8 +42,10 @@ const [,, size = '390x844'] = process.argv;
     addEventListener('pointerup', () => R.taps.push([performance.now(), R.phase]), { capture: true });
     const AC0 = window.AudioContext;
     if (AC0) { window.AudioContext = window.webkitAudioContext = function (...a) { R.ctxAt = [performance.now(), R.phase, (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ')]; return new AC0(...a); }; window.AudioContext.prototype = AC0.prototype; }
-    // (each step of the load as game.js marks it, and whether the opening's film was on as it began)
-    try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.name === 'oe:step' && e.detail) { const g = window.__game, o = g && g.overture && g.overture(); R.steps.push({ step: e.detail.step, t: e.startTime, film: !!(o && o.active) }); } }).observe({ type: 'mark' }); } catch (e) { /* no observer */ }
+    // (each step of the load as game.js marks it, and whether the opening's film was on at that moment: read in the mark
+    // itself, not in an observer, whose entries come later, when the film may have begun after a step taken just before it)
+    { const mark = performance.mark.bind(performance);
+      performance.mark = function (name, o) { if (name === 'oe:step' && o && o.detail) { const g = window.__game, f = g && g.overture && g.overture(); R.steps.push({ step: o.detail.step, t: performance.now(), film: !!(f && f.active) }); } return mark(name, o); }; }
     setInterval(() => {
       const A = window.OEAudio; if (!A) return;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
