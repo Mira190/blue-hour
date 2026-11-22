@@ -1892,9 +1892,9 @@
         "glow": [0.24, 1.5],
         "low_k": 0.25,
         "hide": [],
-        "offices": {"base": 14.7, "shop_top": 71.3, "shop_storey": 5.4, "storey": 4.55, "spandrel": 0.1209, "frit": 0.3077, "tile": 12.0, "rows": 8, "pane": 1.5, "shift": 0.75, "mullion": 0.06, "trans": 0.55, "busy": 1.15,
+        "offices": {"base": 14.7, "levels": [0.0, 7.7, 13.3, 19.3, 25.0, 30.0, 35.0, 40.0, 45.0, 50.5, 55.5, 60.5, 65.9, 71.3, 76.5, 80.25, 84.0], "shop_top": 71.3, "shop_storey": 5.4, "storey": 4.55, "spandrel": 0.1209, "frit": 0.3077, "tile": 12.0, "rows": 8, "pane": 1.5, "shift": 0.75, "mullion": 0.06, "trans": 0.55, "busy": 1.15,
           "floors": [[0, 10, "shop"], [11, 12, "dining"], [13, 13, "shop"], [14, 15, "office"], [16, 16, "lobby"], [17, 43, "office"], [44, 45, "gallery"], [46, 60, "plant"]],
-          "note": "The storeys behind the skin, drawn by the page after dark (web/interior.js offices; cities/shibuya/hero_scramblesq.py offices() writes it): the tile's storey coordinate (shops at 5.4 m to 71.3 m over 1F, offices at 4.55 m), its spandrel, frit and joints, and what each storey is from 1F = 0."},
+          "note": "The storeys behind the skin, drawn by the page after dark (web/interior.js offices; cities/shibuya/hero_scramblesq.py offices() writes it): the tile's storey coordinate (each storey at its real height to 17F, levels: the escalators' rises, Elevator Journal 28; the offices over it at 4.55 m), its spandrel, frit and joints, and what each storey is from 1F = 0."},
         "note": "Shibuya Scramble Square's curtain wall over the city's own tower, from the street to the roof's deck: blue-green storey-high panes each at its own slight angle, joints stepping floor by floor, the frit thinning up each pane; after dark its storeys behind the glass, offices, shops, restaurants, the sky lobby and the gallery, each lit by its hours (offices; cities/shibuya/hero_scramblesq.py, docs/HERO.md \"Scramble Square's curtain wall\"). The tallest thing in every frame: fetched anywhere in the story's streets."
       },
       {
