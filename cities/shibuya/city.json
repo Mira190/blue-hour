@@ -951,7 +951,7 @@
         ],
         "walk": true,
         "look": {
-          "character": "R_Female_Adult_08_mariniere",
+          "character": "R_Female_Adult_13_f003_brown",
           "skin": "#f1cbb0",
           "hair": "#1c1512",
           "top": "#e9e4d8",
@@ -962,6 +962,86 @@
         },
         "idle": [
           "One with the lights behind me. Every Saturday."
+        ]
+      },
+      {
+        "id": "chloe",
+        "name": "Chloe",
+        "role": "Visiting from Melbourne",
+        "at": [
+          362.0,
+          -1035.0
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Female_Adult_08_mariniere",
+          "skin": "#f3d2bf",
+          "hair": "#6b4a32",
+          "clip": "LookAround"
+        },
+        "idle": [
+          "We came all this way to see a crossing. It was worth it."
+        ]
+      },
+      {
+        "id": "sam",
+        "name": "Sam",
+        "role": "Visiting from Melbourne",
+        "at": [
+          363.2,
+          -1035.4
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Male_Adult_10",
+          "skin": "#e8c0a4",
+          "hair": "#3a2a1e",
+          "clip": "Idle"
+        },
+        "idle": [
+          "She's got four hundred photos of this crossing already."
+        ]
+      },
+      {
+        "id": "endo",
+        "name": "Mrs Endo 遠藤さん",
+        "role": "Out for the evening",
+        "at": [
+          352.0,
+          -968.0
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Female_Adult_09_f011_grey_handbag",
+          "skin": "#e9c3a6",
+          "hair": "#c9c4be",
+          "clip": "Idle"
+        },
+        "idle": [
+          "My grandson says I never send him pictures."
+        ]
+      },
+      {
+        "id": "ren",
+        "name": "Ren 蓮",
+        "role": "Student, lost on the way",
+        "at": [
+          396.0,
+          -990.0
+        ],
+        "walk": true,
+        "event": true,
+        "look": {
+          "character": "R_Male_Adult_08_m024",
+          "skin": "#e6bd9c",
+          "hair": "#16110d",
+          "clip": "Phone"
+        },
+        "idle": [
+          "My phone says I'm standing on it."
         ]
       }
     ],
@@ -1117,7 +1197,7 @@
           }
         ]
       },
-      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): a few of this evening's locals, each with a small story in parts, each part asking one thing the walk can do. Nothing of the case is in any of them. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it); meet: someone who, unseen, goes to stand by the next part's speaker.",
+      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): one storyline of a night's small stories, told one at a time in this order, each ending on the person the next is with. Only the story under way (else the first not yet told) has a part for you; its speaker has the amber mark, and the others say their \"wait\" line until their turn; bark: what a giver calls out when you first come near. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it; from \"heli\": from the helicopter, within r and above); meet: someone who, unseen, goes to stand by the next part's speaker; next: the words once it is done, when the next part is someone else's. Nothing of the case is in any of them.",
       "people": [
         {
           "id": "last",
@@ -1151,7 +1231,8 @@
             "near": 16,
             "down_s": 24,
             "help": "Help her up",
-            "corner": "He walked into her and did not stop."
+            "corner": "He walked into her and did not stop.",
+      "lead": "At the south-east kerb, a woman is photographing the screens"
           },
           "parts": [
             {
@@ -1198,9 +1279,10 @@
         },
         {
           "id": "hachiko",
-          "hint": "By Hachiko, someone is looking for a friend who is late.",
           "npc": "mei",
           "title": "Which Hachiko",
+          "hint": "By Hachiko, someone is looking for a friend who is late.",
+          "bark": "Excuse me! Sorry, have you got a minute?",
           "parts": [
             {
               "lines": [
@@ -1238,7 +1320,8 @@
                   "npc": "riko",
                   "text": "Three years in Tokyo, and I still wait at the wrong one."
                 },
-                "Thank you. We'd have stood all night on two sides of one name."
+                "Thank you. We'd have stood all night on two sides of one name.",
+                "The old man with the coffee by the station watched all of it. I think he wants a word with you."
               ]
             }
           ],
@@ -1249,12 +1332,17 @@
         },
         {
           "id": "taxi",
-          "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
           "npc": "oda",
           "title": "Once round by car",
+          "hint": "A retired taxi driver with a can of coffee, on the station side of the crossing.",
+          "bark": "You there, with the camera!",
+          "wait": [
+            "Thirty years I drove these streets. I still come down at night with a hot can of coffee."
+          ],
           "parts": [
             {
               "lines": [
+                "I watched you go back and forth across that crossing.",
                 "Thirty years I drove these streets. On foot you only see the bottoms of the signs.",
                 "Take your car up to 109 once, where Dogenzaka forks. At night it's another town.",
                 "Yours is at a kerb somewhere, isn't it? It'll come to you."
@@ -1273,7 +1361,8 @@
               "lines": [
                 "Well?",
                 "109 lit up at the fork, the two roads going up either side of it like a ship's wake.",
-                "On the way back, mind the scramble. Green there means the people, not you."
+                "On the way back, mind the scramble. Green there means the people, not you.",
+                "You've a camera on you, too. Go and see Shun at the old-clothes shop in Center Gai. He'll tell you what to shoot."
               ]
             }
           ],
@@ -1284,13 +1373,18 @@
         },
         {
           "id": "shot",
-          "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
           "npc": "shun",
           "title": "The shot everyone takes",
+          "hint": "The vintage shop in Center Gai, at the mouth of the arcade.",
+          "bark": "Hey! Is that a real camera?",
+          "wait": [
+            "Center Gai never sleeps. It does get quieter around five in the morning."
+          ],
           "parts": [
             {
               "lines": [
-                "That's a working camera on your chest. Not a phone on a strap.",
+                "Mr Oda sent you? He sends me everyone with a camera.",
+                "That's a working one on your chest. Not a phone on a strap.",
                 "Everybody shoots the crossing from the café upstairs. The same picture, ten thousand times a day.",
                 "Bring me a different one. From right in it, on the green. Or from somewhere higher than the café."
               ],
@@ -1310,7 +1404,8 @@
               "lines": [
                 "Let me see.",
                 "Huh. Nobody in it is looking at the camera.",
-                "That's the one. Everyone else's has somebody doing a peace sign."
+                "That's the one. Everyone else's has somebody doing a peace sign.",
+                "Want higher than the café? Yuna runs the lift at SKY GATE. Tell her I sent you."
               ]
             }
           ],
@@ -1321,25 +1416,31 @@
         },
         {
           "id": "roof",
-          "hint": "The lift at SKY GATE, east of the station.",
           "npc": "yuna",
           "title": "Forty-five floors",
+          "hint": "The lift at SKY GATE, east of the station.",
+          "bark": "Going up tonight?",
+          "wait": [
+            "SHIBUYA SKY's lift is behind me. The roof is open late tonight."
+          ],
           "parts": [
             {
               "lines": [
-                "Going up? The roof is open tonight.",
+                "Shun sent you? Then you'll want the roof.",
                 "Forty-five floors in the lift, then an escalator out into the air.",
-                "Mind your hat at the edge. Come and tell me what you saw."
+                "Taro's up there most nights with his tripod, by SKY EDGE. Say hello from me."
               ],
               "then": {
-                "up": 200,
-                "goal": "Up to the roof: the lift is behind Yuna"
+                "up": 238,
+                "goal": "Up to the roof: the lift is behind Yuna",
+                "next": "Find Taro on the roof, by SKY EDGE"
               }
             },
             {
+              "npc": "taro",
               "lines": [
-                "You're back. People always come down quieter than they went up.",
-                "What I like is the crossing from up there. All those people, and not a sound."
+                "Yuna rang up to say you were coming.",
+                "She says people come down quieter than they went up. Stand at the edge a minute and you'll see why."
               ]
             }
           ],
@@ -1350,9 +1451,13 @@
         },
         {
           "id": "air",
-          "hint": "A photographer on SHIBUYA SKY's roof, by SKY EDGE.",
           "npc": "taro",
           "title": "Above the crossing",
+          "hint": "A photographer on SHIBUYA SKY's roof, by SKY EDGE.",
+          "bark": "Come and look at this light.",
+          "wait": [
+            "From up here the scramble is a clock face: everyone waits, then everyone goes."
+          ],
           "parts": [
             {
               "lines": [
@@ -1378,7 +1483,8 @@
               "lines": [
                 "Let me see.",
                 "All four ways at once, from above. The white lines like the spokes of a wheel.",
-                "That's the one I could never take. Next time I'm coming with you."
+                "That's the one I could never take.",
+                "On foot, from a car, off a roof, from the air. You've had the crossing at every height tonight."
               ]
             }
           ],
@@ -1393,6 +1499,211 @@
           "Shibuya's scramble at {time}. {sun_line}",
           "Stand on one corner for a whole change of the lights, just once. Everyone should."
         ]
+      },
+      "views_note": "The views of Shibuya (walktalk.js photo, the menu's album): a photographer's list, as an open world's landmarks to photograph. Each is found the first time a photograph has its point in frame from within r metres of it (and, where given, from above metres over it, or from no higher than below); a small copy of the picture is kept in this browser for the album.",
+      "views": [
+        {
+          "id": "hachiko",
+          "name": "Hachiko",
+          "at": [
+            374.79,
+            -1046.45,
+            16.4
+          ],
+          "r": 18,
+          "hint": "The bronze dog on the station side of the crossing."
+        },
+        {
+          "id": "arch",
+          "name": "The Center Gai arch",
+          "at": [
+            345.08,
+            -979.02,
+            21.0
+          ],
+          "r": 35,
+          "hint": "The lit arch over the mouth of Center Gai."
+        },
+        {
+          "id": "fork",
+          "name": "109 at the fork",
+          "at": [
+            262.0,
+            -1001.0,
+            38.0
+          ],
+          "r": 230,
+          "hint": "The silver tower where Dogenzaka forks, west of the crossing."
+        },
+        {
+          "id": "tower",
+          "name": "SHIBUYA SKY from the street",
+          "at": [
+            500.0,
+            -1110.0,
+            200.0
+          ],
+          "r": 420,
+          "below": 40,
+          "hint": "Scramble Square's tower, from the street below it."
+        },
+        {
+          "id": "edge",
+          "name": "The scramble from SKY EDGE",
+          "at": [
+            368.0,
+            -1002.0,
+            15.0
+          ],
+          "r": 260,
+          "above": 180,
+          "hint": "The crossing, from the edge of SHIBUYA SKY's roof."
+        },
+        {
+          "id": "compass",
+          "name": "GEO COMPASS",
+          "at": [
+            518.45,
+            -1124.31,
+            244.3
+          ],
+          "r": 22,
+          "hint": "The highest point of SHIBUYA SKY."
+        }
+      ],
+      "events_note": "Street moments on the walk (walktalk.js events): one at a time, every two or three minutes, someone of the street with a small favour to ask, walking in to where they would stand at one of event_spots, out of sight of the player and between 30 and 110 m away, and calling out (bark) when you come near; done, they walk off. kind photo: a photograph of them taken from close by, then a word of thanks; kind way: they ask the way, the answers are choices, and the right one is thanked. Unanswered for two and a half minutes, or left far behind, they go, unseen. Nothing to fail and nothing kept: the street's life, not a list.",
+      "event_spots": [
+        [
+          362.0,
+          -1035.0
+        ],
+        [
+          352.0,
+          -968.0
+        ],
+        [
+          396.0,
+          -990.0
+        ]
+      ],
+      "events": [
+        {
+          "id": "photo-couple",
+          "kind": "photo",
+          "people": [
+            "chloe",
+            "sam"
+          ],
+          "bark": "Sorry! Excuse me, could you…?",
+          "ask": [
+            "Sorry! Would you take our picture? The crossing behind us, if you can get it in.",
+            {
+              "npc": "sam",
+              "text": "Press the big button. She'll want ten."
+            }
+          ],
+          "goal": "Photograph Chloe and Sam",
+          "back": "Show Chloe and Sam the picture",
+          "thanks": [
+            "Oh, that's lovely. Thank you!",
+            {
+              "npc": "sam",
+              "text": "One for the fridge."
+            }
+          ]
+        },
+        {
+          "id": "photo-endo",
+          "kind": "photo",
+          "people": [
+            "endo"
+          ],
+          "bark": "Excuse me, dear?",
+          "ask": [
+            "Excuse me. Would you take one of me, with the lights behind? My grandson says I never send him pictures."
+          ],
+          "goal": "Photograph Mrs Endo",
+          "back": "Show Mrs Endo the picture",
+          "thanks": [
+            "He'll think I've gone modern. Thank you, dear."
+          ]
+        },
+        {
+          "id": "way-sky",
+          "kind": "way",
+          "people": [
+            "ren"
+          ],
+          "bark": "Um, excuse me?",
+          "ask": [
+            "Excuse me, is SHIBUYA SKY this way? My phone says I'm standing on it."
+          ],
+          "choices": [
+            {
+              "text": "Across the crossing: the tall tower east of the station",
+              "right": true
+            },
+            {
+              "text": "Up Dogenzaka, past 109"
+            }
+          ],
+          "right": [
+            "The tall one. Of course it's the tall one. Thank you!"
+          ],
+          "wrong": [
+            "Really? I'll ask at the koban, just to be sure."
+          ]
+        },
+        {
+          "id": "way-hachiko",
+          "kind": "way",
+          "people": [
+            "chloe",
+            "sam"
+          ],
+          "bark": "Hi! Sorry, quick question?",
+          "ask": [
+            "Hi! Where's the famous dog? The statue. We came all this way."
+          ],
+          "choices": [
+            {
+              "text": "Hachiko is by the station's exit, across the crossing from QFRONT",
+              "right": true
+            },
+            {
+              "text": "In Center Gai, past the arch"
+            }
+          ],
+          "right": [
+            "Across from the big screens. Got it. Thank you!",
+            {
+              "npc": "sam",
+              "text": "Told you it was by the station."
+            }
+          ],
+          "wrong": [
+            "Center Gai? Okay. We'll find him."
+          ]
+        }
+      ],
+      "intro": {
+        "note": "The walk's way in, the first time from the title (game.js walkIntro, introEnd): the office rings, in the voice it rings in in the story, and the call ends on the street: the view eases round to the first story's giver, who calls you over (the story's bark). highlight: a line's index to the corner's button lit while it is said.",
+        "who": {
+          "name": "The office 事務所",
+          "role": "on the phone"
+        },
+        "voice": {
+          "pitch": 150
+        },
+        "lines": [
+          "Kagami? The office. Thursday's kerb is off; they've moved the works. So there's nothing on tonight.",
+          "You're at the crossing already, aren't you. Of course you are.",
+          "Your car's at the kerb by Hachiko if you want it. Call it and it'll come.",
+          "Take the evening. Photograph something nobody's paying you for."
+        ],
+        "highlight": {
+          "2": "car"
+        }
       }
     },
     "lines": [

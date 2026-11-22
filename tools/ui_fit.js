@@ -25,7 +25,7 @@ const WORDS = process.env.WORDS != null ? process.env.WORDS.split(',').map(Numbe
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const STILLS = process.env.STILLS || 'some';
 // (the screens put in front of a person at every size: one of each kind)
-const SHOW = /^(title-.*|fail-card|1-order|1-teach-in-the-light|1-raised|1-print|.*-met|.*-show-a-print|.*-seen-through|.*-hint-place|roll-file|roll-versus|log|end|end-worked|end-back|walk-2-step|walk-4-out|walk-6-menu)$/;
+const SHOW = /^(title-.*|fail-card|1-order|1-teach-in-the-light|1-raised|1-print|.*-met|.*-show-a-print|.*-seen-through|.*-hint-place|roll-file|roll-versus|log|end|end-worked|end-back|walk-2-step|walk-4-out|walk-6-menu|walk-6-menu-open|walk-7-photo|walk-7-photo-adjust)$/;
 const PORT = process.env.PORT || 8800;
 
 // The audit, in the page: what does not fit, at this size. Only what is seen counts (shown, not transparent, not
@@ -100,6 +100,24 @@ function audit() {
     const A = a.getBoundingClientRect(), B = b.getBoundingClientRect();
     const ix = Math.min(A.right, B.right) - Math.max(A.left, B.left), iy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
     if (ix > 2 && iy > 2) bad.push(`buttons overlap: "${words(a)}" (${where(a)}) and "${words(b)}" (${where(b)}) by ${Math.round(ix)}x${Math.round(iy)}`);
+  }
+  // photo mode (issue 147): the frame is the photograph's. What the camera's controls paint over is held to a share of
+  // the frame (a fifth on a desktop, a quarter on a phone with the lens's settings out, a sixteenth with them put
+  // away), and none of it lies over the middle of the frame (the centre cell of the thirds), where the subject stands
+  if (stage.classList.contains('photo')) {
+    const mid = { l: W / 3, r: W * 2 / 3, t: H / 3, b: H * 2 / 3 }, on = [], all = [...stage.querySelectorAll('#g-photo, #g-photo *')];
+    let area = 0;
+    for (const e of all) {
+      if (!shown.has(e)) continue;
+      const c = getComputedStyle(e), r = e.getBoundingClientRect();
+      const paints = c.backgroundImage !== 'none' || !/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(c.backgroundColor) || (c.backdropFilter && c.backdropFilter !== 'none');
+      if (!paints || on.some(o => o.contains(e))) continue; // (a box inside a box that paints is counted once)
+      on.push(e); area += r.width * r.height;
+      if (r.left < mid.r && r.right > mid.l && r.top < mid.b && r.bottom > mid.t) bad.push(`photo mode: ${where(e)} lies over the middle of the frame`);
+    }
+    const adj = !!stage.querySelector('#g-photo.adj'), strip = getComputedStyle(stage.querySelector('#ph-adj') || stage).display !== 'none' && !!stage.querySelector('#ph-adj');
+    const lim = strip ? (adj ? 0.25 : 0.0625) : 0.2, share = area / (W * H);
+    if (share > lim) bad.push(`photo mode: the camera's controls cover ${(share * 100).toFixed(0)}% of the frame (${(lim * 100).toFixed(0)}% allowed)`);
   }
   return { bad: [...new Set(bad)], warn: [...new Set(warn)] };
 }
