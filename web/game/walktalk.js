@@ -522,7 +522,7 @@ window.OEWalkTalk = (function () {
       // someone on the ground beside you: what is offered (the words of the prompt), and taking it
       lineAgain() { lineOff(); if (lineS) { delete st[lineS.id]; const n = ctx.npc(lineS.npc); if (n && ctx.put) ctx.put(n, lineS.at || [n.x, n.y]); } lineArm(); keep(); }, // (for the checks: the incident from its start)
       // beside her by the wall once her story is told: wait with her for her train (the words of the prompt), and taking it
-      waits: id => (lineS && lineS.wait && id === lineS.npc && of(lineS).done && of(lineS).rested && !waitOn && !gate && of(lineS).w !== 'gone' ? ctx.fill(lineS.wait.verb) : ''),
+      waits: id => (lineS && lineS.wait && id === lineS.npc && of(lineS).done && (of(lineS).rested || (n => n && lineS.rest && Math.hypot(n.x - lineS.rest[0], n.y - lineS.rest[1]) < 3)(ctx.npc(id))) && !waitOn && !gate && of(lineS).w !== 'gone' ? ctx.fill(lineS.wait.verb) : ''),
       wait(n) {
         if (!ctx.waitWith || waitOn || gate || busy) return false;
         const W = lineS.wait;
