@@ -1456,7 +1456,9 @@ ${PAT_GLSL}`)
     const upTo = (w, k) => (w.length() > k ? w.setLength(k) : w);
     // (the spring's place p and pace v, in the body's own frame, towards want, in the world; want becomes the place)
     const spring = (p, v, want, dt) => {
-      if (!(dt > 0)) { want.copy(p).applyQuaternion(cRq); return; }
+      // (time held, in a Stop: no spring, the turn as it should be, at once and still. Left where it was when the world
+      // stopped, a hand on its way out stayed 2 cm in the body for the whole of frame 7's Stop)
+      if (!(dt > 0)) { p.copy(want).applyQuaternion(cRi); v.set(0, 0, 0); return; }
       cv.copy(want).applyQuaternion(cRi);
       const w = cv.lengthSq() > p.lengthSq() ? GRIP : LET, e = Math.exp(-w * dt);
       cx2.subVectors(p, cv);                                        // (how far from where it wants to be)
