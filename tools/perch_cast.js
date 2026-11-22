@@ -4,6 +4,9 @@
 // the crowd draws it. Each figure stands a few metres out from the seat, turned to the lens, in DRESS[k].
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/perch_cast.js out_dir [WxH] [HH:MM[,HH:MM...]] [name:k,name:k...]
+// QUERY=&crowdnear=0: every walker as its far copy, to look at them close.
+// ('-' for no one: the crowd alone. WEATHER=rain, FOV=degrees, LOOK=x,y another point to look at from the seat's camera)
+// (UMB=1: each of the cast holding an open umbrella up; QUERY=&crowdnear=0: every walker drawn as its far copy, to look at the far crowd close up)
 // (390x844: a phone, its tier and memory path as tools/game_shot.js LEAN=1 takes them; PORT=n another server, to
 // take the same still of another checkout)
 const { chromium } = require('playwright');
@@ -29,10 +32,10 @@ const [,, out = 'perch-cast', size = '1440x900', time = '17:39',
     HTMLCanvasElement.prototype.getContext = function (type, opts) { return get.call(this, type, /webgl/.test(type) ? Object.assign({}, opts, { preserveDrawingBuffer: true }) : opts); };
   });
   fs.mkdirSync(out, { recursive: true });
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1${process.env.QUERY || ''}#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.perch', null, { timeout: 600000 });
   await p.waitForFunction(() => { const l = document.getElementById('g-loader'); return !l || l.hidden; }, null, { timeout: 900000, polling: 500 });
-  const cast = list.split(',').map(s => { const [name, k] = s.split(':'); return { name, k: +k }; });
+  const cast = list === '-' ? [] : list.split(',').map(s => { const [name, k] = s.split(':'); return { name, k: +k }; });
   // past the title, as tools/game_shot.js goes (tools/start_play.js)
   await p.waitForFunction(() => !document.getElementById('g-title').hidden, null, { timeout: 300000 }).catch(() => {});
   await startPlay(p);
@@ -48,9 +51,11 @@ const [,, out = 'perch-cast', size = '1440x900', time = '17:39',
     if (g.cine && g.cine.active) g.cine.skip();
   });
   console.log('playing');
-  const r = await p.evaluate(async ([time, cast]) => {
+  const umb = !!process.env.UMB, weather = process.env.WEATHER || 'clear', fov = +process.env.FOV || 0, look = process.env.LOOK ? process.env.LOOK.split(',').map(Number) : null;
+  const r = await p.evaluate(async ([time, cast, weather, fov, look, umb]) => {
     const g = window.__game;
-    if (g.weather) g.weather.set('clear', { now: true });
+    if (g.weather) g.weather.set(weather, { now: true });
+    if (weather !== 'clear') for (let i = 0; i < 40; i++) g.advance(0.5); // (twenty seconds for the crowd's umbrellas to go up)
     // the seat's own camera (game.json hero[].perches: cam back, side and up from the seat, looking at its look),
     // held in photo mode: ?walk=1, the builder's map, offers no seat, so the tripod perch.js stands there is taken
     const s = g.perch.list[0], C = s.cam, rx = s.face[1], ry = -s.face[0]; // (right of the way the seat faces)
@@ -70,6 +75,7 @@ const [,, out = 'perch-cast', size = '1440x900', time = '17:39',
       if (!lib.tpl[name]) { console.log(`[perch] ${name} never ready`); continue; }
       const rig = OEPeople.person(lib, { character: name, scale: 1 });
       if (rig.dress) rig.dress(k);
+      if (umb) rig.setLook({ acc: ['umbrella_open'] }); // (UMB=1: an open umbrella held up, people.js holdUmbrella)
       const d = 3.2 + (i % 2) * 1.6, lat = (i - (cast.length - 1) / 2) * 1.1;
       const x = s.at[0] + ux * d + uy * lat, y = s.at[1] + uy * d - ux * lat;
       const f = g.nav.floorAt(x, y, g.nav.terrain(x, y) + 1), z = f ? f.z : g.nav.terrain(x, y);
@@ -80,15 +86,16 @@ const [,, out = 'perch-cast', size = '1440x900', time = '17:39',
       made.push(name);
     }
     g.photoMode(true); // (set last: the minutes the cast takes to load move the camera on)
-    const P = g.photo, lz = sz + 1.2, dx = ex - s.look[0], dy = ey - s.look[1], hh2 = ez - lz, dd = Math.hypot(dx, dy);
-    P.focus.set(s.look[0], lz, -s.look[1]); P.anchor.copy(P.focus);
+    const L = look || s.look, P = g.photo, lz = sz + 1.2, dx = ex - L[0], dy = ey - L[1], hh2 = ez - lz, dd = Math.hypot(dx, dy);
+    P.focus.set(L[0], lz, -L[1]); P.anchor.copy(P.focus);
     Object.assign(P, { az: Math.atan2(dx, dy), pitch: Math.atan2(hh2, dd), dist: Math.hypot(dd, hh2) });
     P.fstop = 16; g.player.rig.root.visible = false;
+    if (fov) P.fov = fov;
     g.advance(0.1);
     for (let i = 0; i < 4; i++) await frame();
     const cpos = g.camera.position;
     return { made, cam: [+cpos.x.toFixed(1), +(-cpos.z).toFixed(1), +cpos.y.toFixed(1)], eye: [+ex.toFixed(1), +ey.toFixed(1), +ez.toFixed(1)] };
-  }, [time, cast]);
+  }, [time, cast, weather, fov, look, umb]);
   if (r.err) { console.log(r.err); process.exitCode = 1; }
   console.log(JSON.stringify(r));
   for (const at of time.split(',')) { // (each hour asked, on the one page)
