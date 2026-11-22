@@ -14,6 +14,10 @@
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
 #           - the ground graded by the method as it is: the streets level across, the lots between them stretched from
 #             the streets, the roads' cross-falls and creases within their limits (pipeline/street_ground.py --check);
+#           - what is built stands on that ground by rule (tools/levels_check.py, docs/LEVELS.md): every run of a wall,
+#             a fence or a hoarding level-topped and stepped at its posts with its feet in the ground, no tooth in any
+#             landmark's top, every building's base on the lowest ground along its walls, no paved ground steeper than
+#             a street beyond the budget;
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored or turned to a wall (tools/sign_check.py), no vehicle's
 #             name mirrored (tools/decal_check.js);
@@ -578,6 +582,7 @@ rm -rf "$OUT/keep"
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
+    st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"

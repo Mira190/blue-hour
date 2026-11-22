@@ -1620,23 +1620,28 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       } else q.held = 0;
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if (q.ph === 'wait' && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
+      if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)
       const fw = heading(q, q.vx, q.vy, dt);
       if (q.face != null) q.h = q.face;
       else if (q.v > (q.ph === 'wait' ? (Math.hypot(q.T.x - q.x, q.T.y - q.y) > 1.2 ? 0.45 : Infinity) : 0.15) && fw > 0.12) turnTo(q, dt, 6, fw); // (waiting, it turns only to walk back a way to its place: shoved about in the press it keeps facing the road, #283)
       else if (q.ph === 'wait') {
         // (each a little turned its own way, and one waiting with its own turned partly to them, as people talk at a kerb:
         // a whole kerb's crowd squared to the road read as a parade, issue 75)
-        let h = Math.atan2(-g.ox, -g.oy) + q.wf;
+        let h = Math.atan2(-g.ox, -g.oy) + q.wf + glance(q, dt, 0.45); // (and now and then a look along the kerb, at the lights, back over a shoulder)
         const m = q.lead >= 0 ? P[q.lead] : q.mates && q.mates.length ? P[q.mates[0]] : null;
         // (two in five of the groups stand turned in to each other, talking, 30 to 60 degrees from the road; the rest abreast,
         // facing it, a little towards their own: Kendon's side-by-side and L arrangements)
         if (m && m.pz === pz && m.ph === 'wait') { const to = Math.atan2(m.x - q.x, m.y - q.y), gid = q.lead >= 0 ? q.lead : q.id; h += Math.atan2(Math.sin(to - h), Math.cos(to - h)) * (h01(gid, 5) < 0.4 ? 0.45 + 0.25 * h01(gid, 6) : 0.2); }
         q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 0.8);
       }
-      else if (q.ph === 'linger' && q.lst && q.lface != null && !q.mates && !(q.lead >= 0)) q.h += Math.atan2(Math.sin(q.lface - q.h), Math.cos(q.lface - q.h)) * Math.min(1, dt * 2); // (leaning: the back to what it leans on)
+      else if (q.ph === 'linger' && q.lst && q.lface != null && !q.mates && !(q.lead >= 0)) { const h = q.lface + glance(q, dt, 0.55); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.2); } // (leaning: the back to what it leans on, the head and shoulders turning to look about)
+      else if (q.ph === 'linger' && q.lst && !q.mates && !(q.lead >= 0)) { // (alone, nothing to lean on: waiting for someone, it looks round for them, a while one way, a while another)
+        if (q.lh == null) q.lh = q.h;
+        const h = q.lh + glance(q, dt, 1.3); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.2);
+      }
       else if (q.ph === 'linger' && q.lst && (q.lead >= 0 || q.mates)) { // (a group standing about: each turned to the others, as people talking stand)
         const L = q.lead >= 0 ? P[q.lead] : q, M = [L, ...(L.mates || []).map(j => P[j])].filter(o => o !== q && o.pz === q.pz);
-        if (M.length) { let mx = 0, my = 0; for (const o of M) { mx += o.x; my += o.y; } mx /= M.length; my /= M.length; if (Math.hypot(mx - q.x, my - q.y) > 0.2) { const h = Math.atan2(mx - q.x, my - q.y); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.5); } }
+        if (M.length) { let mx = 0, my = 0; for (const o of M) { mx += o.x; my += o.y; } mx /= M.length; my /= M.length; if (Math.hypot(mx - q.x, my - q.y) > 0.2) { const h = Math.atan2(mx - q.x, my - q.y) + glance(q, dt, 0.6); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.5); } }
       } // (facing the road, settling round to it over a second or so, as one does in a crowd, not swung round)
       // there: on the far side, on to a kerb of that corner (or this one) to wait again
       // (over, off the road, within a couple of paces of where it was going and held there a second by those standing
@@ -1655,6 +1660,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         else if (q.ph === 'stroll') q.ph = 'wait';
         else if (q.ph === 'linger' && !q.lst) { q.lst = true; q.vx = q.vy = 0; }
       }
+    }
+    // a glance (radians, within span either way) for someone standing: held a few seconds, then another, a third of them
+    // straight ahead again. A crowd stood about the square with every head fixed for a minute read as stuck (the owner at
+    // Hachiko, tools/crowd_still.js): a real person waiting looks round, along the kerb, back over a shoulder. Drawn from
+    // the walker's own little sequence, not the crowd's rnd, so that the rest of the crowd's draws are as they were
+    function glance(q, dt, span) {
+      if (q.gzT == null) { q.gzS = (Math.imul(q.id + 7, 2654435761) >>> 0) || 1; q.gzT = 1 + (q.gzS % 600) / 100; q.gz = 0; }
+      if ((q.gzT -= dt) <= 0) {
+        const r = () => ((q.gzS = (Math.imul(q.gzS, 1664525) + 1013904223) >>> 0) / 4294967296);
+        q.gzT = 3 + r() * 8; q.gz = r() < 0.33 ? 0 : (r() * 2 - 1) * span;
+      }
+      return q.gz;
     }
     // the way the body faces, out of where it is going: its velocity eased over a good part of a second,
     // so the jostle of a crowd (a shove one way, a step back the other) averages out rather than swinging
@@ -1798,7 +1815,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // (stopped along the way: turned to the window, or with its back to the rail, over a second or so; the stop over, on)
       if (p.stop && p.stop.on && p.pause <= 0) { p.stop = null; p.stopFace = null; }
       if (p.stop && !p.stop.on && ((p.stop.try += dt) > 5 || p.detourT > 0)) { p.stop = null; p.stopFace = null; }
-      if (p.pause > 0 && p.stopFace != null) p.h += Math.atan2(Math.sin(p.stopFace - p.h), Math.cos(p.stopFace - p.h)) * Math.min(1, dt * 2.5);
+      if (p.pause > 0 && p.stopFace != null) { const h = p.stopFace + (p.stop && p.stop.on ? glance(p, dt, p.stop.kind === 'window' ? 0.3 : 0.6) : 0); p.h += Math.atan2(Math.sin(h - p.h), Math.cos(h - p.h)) * Math.min(1, dt * (p.stop && p.stop.on ? 1.2 : 2.5)); } // (stood there: along the window, or about the street from the rail, tools/crowd_still.js)
       hx = p.hx; hy = p.hy; // the lane's direction where the walker is, from the last step
       push = 0; cap = G ? p.speed + 0.5 : p.speed; nn = 0; blk = -1; // (a mate may walk a little quicker, to catch its leader up)
       const c0 = Math.floor(p.x / CELL), r0 = Math.floor(p.y / CELL);
