@@ -1628,7 +1628,10 @@ def match_skin(arm, mesh):
 
 
 KEEP = 204   # the alpha of a body texel the crowd's change of clothes leaves as it is: skin (people.js DRESS; cloth is 255)
-BARE = re.compile(r" (Hand|Finger|Forearm|UpperArm|Neck|Clavicle|Thigh|Calf|Foot|Toe)")   # the bones a body can be bare on
+BARE = re.compile(r" (Hand|Finger|Forearm|UpperArm|Neck|Clavicle|Spine2|Thigh|Calf|Foot|Toe)")   # the bones a body can be bare on
+# (Spine2, the upper chest: a neckline. Left out, a jacket's V over bare skin was marked in its middle alone, and the
+# change of clothes dyed the rest, a dark ring between the skin and the lapels, November 2026; a beige top there is told
+# from skin by whole_skin)
 LEG = re.compile(r" (Thigh|Calf|Foot|Toe)")
 
 

@@ -655,6 +655,12 @@ class Level:
             h = s["top"] - s.get("base", 0)
             if s["osm"] in whole or h < 7 or h > 62 or poly.area < 25 or np.linalg.norm(np.asarray(poly.centroid.coords[0]) - c) > 115 or self.skip_front(s, poly):
                 continue
+            # (a sliver the survey left on a footprint, a hand's breadth across, is opened away: its edges would carry
+            # windows with nothing behind them, seen from behind: tools/sign_check.py --hero)
+            opened = poly.buffer(-0.15, join_style=2).buffer(0.15, join_style=2)   # (what is under 0.3 m across)
+            opened = max(getattr(opened, "geoms", [opened]), key=lambda q: q.area) if not opened.is_empty else poly
+            if poly.symmetric_difference(opened).area > 0.05:
+                poly = opened
             self.cur = s                                   # (whose walls these are, for a level that dresses some itself)
             rng = np.random.default_rng(sum(ord(ch) for ch in (s["osm"] or str(s["si"]))) * 7919 % (2 ** 31))
             wall = ("wall_white", "wall_cream", "wall_grey")[int(rng.integers(3))]
@@ -678,11 +684,16 @@ class Level:
                 # (a wall against a neighbour is no front; nor one no player sees)
                 if allp.contains(Point(*(mid + n * 1.2))) or not self.seen(mid, n):
                     continue
+                # (nor the edge of a sliver the survey left on a footprint, a hand's breadth across: its windows would
+                # stand in the air with nothing behind them, seen from behind: tools/sign_check.py --hero)
+                if not poly.contains(Point(*(mid - n * 0.8))):
+                    self.slivers = getattr(self, "slivers", 0) + 1
+                    continue
                 F = PT.Frame(b, a)
                 self.front(F, Ln, self.T(*(mid + n * 0.8)) + LIFT, top, wall, rep, ribbon, rng, self.behind(F, Ln))
                 G.walls.append((a + n * OUT, b + n * OUT, self.T(*mid), top))
                 n_faces += 1
-        print(f"fronts: {n_faces} walls dressed, seen from {len(self.eyes)} places")
+        print(f"fronts: {n_faces} walls dressed, seen from {len(self.eyes)} places ({getattr(self, 'slivers', 0)} slivers' edges left bare)")
 
     standing = None   # (scramble.Plan's test of what stands on the ground; a level under a deck gives its own)
     cur = None        # the building whose walls fronts() is dressing
