@@ -2,7 +2,7 @@
 // the helicopter can reach. A part of the game cut out of game.js (tools/cut.js; docs/SEAMS.md, "The cut of game.js").
 // `g` is the rest of the game, by name. What this part asks of it:
 //   $, A, CARS_OK, CITY, CR, G, H, KEEP, PLAYER_LOOKS, ROAD_HALF, SCR_AT, SCR_BOX, W, angDiff, blendFrom, cam,
-//   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, hopTo, inScramble,
+//   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, heliBlock, hopTo, inScramble,
 //   junctions, keepSign, lib, life, makeRig, metro, myCar, nav, npcs, objective, phone, pickupNear, pilot, placeOf,
 //   player, resetCar, ride, rideSeat, roadNet, roads, rq, save, scene, smalltalk, stepOut, story, takeHelm, touch,
 //   vlib, waypoint, world
@@ -514,6 +514,9 @@ window.OEGameRides = function (g) {
     if (g.myCar && o !== g.pilot) { const parked = g.player.mode !== 'car' && g.myCar.D.st.speed < 0.3; out.push({ x: g.myCar.D.st.x, y: g.myCar.D.st.y, half: g.myCar.C.half, hw: g.myCar.C.hw, still: parked, stay: parked }); }
     // (the autopilot sees a ride as the ride sees your car: one pulled in for you is driven round)
     if (o === g.pilot && g.ride) { const rs = g.ride.drv.st, parked = (g.ride.phase === 'waiting' || g.ride.phase === 'arrived' || !!g.ride.hold) && rs.v < 0.3; out.push({ x: rs.x, y: rs.y, half: g.ride.C.half, hw: g.ride.C.hw, v: Math.max(0, rs.v), still: parked, stay: parked }); }
+    // (and the helicopter set down on the road: there for as long as it stands there, gone round where there is room, else waited for)
+    const hb = g.heliBlock();
+    if (hb && Math.abs(hb.x - st.x) < 60 && Math.abs(hb.y - st.y) < 60) out.push({ x: hb.x, y: hb.y, h: hb.h, half: hb.half, hw: hb.hw, v: 0, still: true, stay: true });
     if (g.player.mode === 'foot' && o.phase !== 'coming') out.push(g.player);
     return out;
   }
