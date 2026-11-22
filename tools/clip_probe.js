@@ -350,8 +350,15 @@ const FOOT = 0.15;
 // meets the body at speed in by a centimetre for a frame or two)
 const HOLD = { every: 15, r: 12, n: 10, note: 0.012 };
 const H = require('./hold_depth');
+// (issue 157: Yuna's 8 to 9 cm was real, her soles under the sky lobby's planks as drawn, for the whole story: someone
+// standing still with a foot sunk past STAND for more than STAND_N frames fails too, the player, the story's people,
+// and the map's NPCs alike. A step read a few cm for a few frames, and still prints. Not the guide: sitting, his paws
+// read 11 cm for a hundred frames on main as it was, a reading of his sit pose not yet looked at in a still, issue 157)
+// (and the guide's body in a wall for more than WALL_N frames: he stood in the roof's glass for 492 frames of frame 4)
+const STAND = 0.07, STAND_N = 60, WALL_N = 30;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
-  || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a));
+  || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
+  || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1);
 
 async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }
