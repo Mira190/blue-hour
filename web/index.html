@@ -883,8 +883,10 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
   .g-sun { padding: 6px 9px 6px 8px; }
   .g-btns .chip-btn { padding: 7px 8px; font-size: 8.5px; letter-spacing: 0.1em; }
   .g-btns kbd { display: none; }
-  .g-toasts { top: auto; bottom: calc(200px + var(--vhud-h, 0px)); width: calc(100% - 28px); min-width: 0; }
-  .g-prompt { bottom: calc(200px + var(--vhud-h, 0px)); }
+  /* (over the thumbs' controls and the home bar, and never lifted off the screen by a readout measured wrong: kept below
+     the top's goal and buttons whatever --vhud-h says, so that what is to be tapped is always on the screen) */
+  .g-toasts { top: auto; bottom: min(calc(200px + var(--vhud-h, 0px) + env(safe-area-inset-bottom, 0px)), calc(100% - 180px)); width: calc(100% - 28px); min-width: 0; }
+  .g-prompt { bottom: min(calc(200px + var(--vhud-h, 0px) + env(safe-area-inset-bottom, 0px)), calc(100% - 180px)); }
   .g-dialog { bottom: 8px; width: calc(100% - 16px); padding: 14px 16px 10px; }
   .g-dialog p { font-size: 15px; }
   .g-vhud { bottom: 196px; grid-template-columns: repeat(2, auto); }
