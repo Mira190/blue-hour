@@ -30,7 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
-| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is wall (`posts`; `belts` for a queue's belts, none now) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 | A level over the street, fetched by its height off the camera as well (`zr`) | `cities/shibuya/hero_skyroof.py`; below, "SKY STAGE" |
 
 ## How it works
@@ -830,8 +830,12 @@ wrong, and redone.
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
   to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
-  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
-  run east to the cars (`game.hero[].belts`, solid).
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. No queue belts: two
+  ran east to the cars and a third along the front 1.5 m out, as the line is held at busy times in the photographs, and
+  with nobody queuing they were ropes in a player's way (one across the way in, one fencing the open north side). The
+  owner took them away (November 2026: "the route has to be completely smooth"); `game.hero[].belts` is empty, and
+  `tools/sky_walk.js` walks the player in from the west, the south-west, the pillar, the north-west and the north and
+  fails on a path longer than 1.25 times the straight line, a hold, or no lift offered at the end.
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
@@ -844,8 +848,9 @@ wrong, and redone.
 
 3,600 triangles, 0.67 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
 within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
-`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
-entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+`tools/lobby_check.py` (its posts inside its lobby, clear of every solid), `tools/sky_walk.js` (walked into from five
+sides, above), `tools/lobby_shot.js` (the entrance from the street and either side, the threshold, the hall),
+`tools/walk_play.js` (the
 hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
 
 ### The ride up: the city, not the wall (issue 144)
@@ -962,7 +967,11 @@ the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level
 boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
 layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
 nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
-thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
+thing to walk round and never a step to take onto it; and the cheeks of the four flights up to the pad, from the second
+step to the top (the landmark has the steps as a floor and nothing as their sides, so a walker going along beside a
+flight was kept off it by their middle alone and half their body went into it: the owner's screenshot, November 2026;
+the first step, 0.2 m, stays open to be stepped onto from the side). `tools/sky_walk.js` walks into each cheek and along
+it, and fails if the walker's middle comes within 0.28 m of it. `game.js` lays them into the collision world as walls, as a
 railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
 gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
 pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the
@@ -1086,7 +1095,7 @@ scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street
 material (`win_scrsq`: hero.js win*, the glass mirroring the sky) on a tile drawn here, 12 m across and eight office
 storeys high: each 1.5 m pane its own tone within a few percent and its own small tilt in the normal map (the tilt is
 the cause of the tone), the mullions as ribs, every second heavier, the joints stepping 0.75 m at each floor, the
-spandrel recessed and fritted, the frit thinning up each pane. The shop floors take the same tile at their 5.4 m
+spandrel recessed and fritted, the frit thinning up each pane. The floors under 17F take the same tile at their real
 storeys. The tower's wing outside its ring (PLATEAU's slab on the west, over the crossing, from the street to 218 m)
 takes the same skin, its faces against the tower left out: drawn as the city's generic wall, it was the face the
 crossing and the flight see, dark among lit floors. Fetched anywhere in the story's streets (load_m 900): 0.04 MB, the
@@ -1223,6 +1232,44 @@ the forecourt and under its ceiling, and the face from the north, at dusk and at
 ![The base from the north at dusk, from Miyamasuzaka-shita at night, from the deck to Hikarie, under the forecourt's ceiling at night, the forecourt, and Hachiko](images/shibuya/scrsq-base-66-desktop.jpg)
 
 ![The same on a phone (390 x 844)](images/shibuya/scrsq-base-66-phone.jpg)
+
+### Why the base read as twisted, and what straightened it (November 2026)
+
+The owner's still from the walk's helicopter, 64 m up at 17:53 on 10 October, of the NOVA advert on the north face: "why
+does this building feel a bit distorted?" The building is Scramble Square (the screen is Shibuya Scramble Square Vision,
+city.py `CROSSING_SCREENS`, whose programme carries the NOVA clip; the arched, ribbed roof in front is the Ginza line's
+station over Meiji-dori; Hikarie carries no screen in the data). Taken apart, from first principles, against the
+photograph from Miyamasuzaka-shita ("Shibuya Station 191129a", 江戸村のとくぞう, CC BY-SA 4.0, looked at, not reproduced),
+in which every floor line runs level across the face and both skirts and the screen's sides run straight along the
+tent's edge and the skirt's:
+
+- **Two sets of floor lines crossing.** The skin's tile laid its storeys at an even 5.4 m up to 71.3 m, the rooms traced
+  behind it after dark the same, while the skirts' slab edges, their rows and the screen stood on the real storeys (2F
+  7.7 m, 3F 13.3, 4F 19.3 ...). The two drifted up to 2.6 m apart and met again: on the skirts the tile's white spandrels
+  ran between the slab edges and crossed them, and the bands seemed to wave. Now the tile, the rooms (`web/interior.js`
+  offices, `levels`) and the slabs share one list of storeys (`hero_scramblesq.LEVELS`, the escalators' rises; 16F half way
+  to 17F, the offices' even 4.55 m from 17F), every skin quad cut at each storey so its v runs true.
+- **Fins across the joints.** The skirts' fins stood at fixed shares of each row, so as the skirt widened downward they
+  fanned out and slanted across the glass's joints, which are measured in metres from the corner. Now the fins stand at
+  every pane's width from the corner, as the joints do, each ending where the skirt's edge comes in past it.
+- **A sawtooth beside the screen.** The screen's outline was cut in whole storeys, each row its mean width: against the
+  skirt's sweep and the tent's slope each storey left a wedge of glass on one side and ran under the skirt on the other.
+  Now its parts are trapezoids whose sides run along the tent's foot and the skirt's edge (`scrsq_base.screen_parts`;
+  `pipeline/screens.py` takes a part of six numbers as a trapezoid).
+
+Checked and found sound: the face's frame (straight, its verticals plumb), the facets on the curves (14 a row on the
+skirt), the screen's plane (0.43 to 0.45 m off its wall across all of it), its box within the face. The same mistakes
+were looked for on the other landmarks with banded or curved fronts: SHIBUYA109's cylinder measures its texture by arc
+and height, QFRONT's panels carry no texture, and the city's own walls keep their bands by height. Every screen's
+placement is now measured by `tools/screen_fit.py`: the wall behind a wall screen across its width at its foot, middle and
+top, and every leg of a roof screen on its roof. It found Rakuten Vision on an edge typed at 45 degrees, 0.8 to 1.4 m off
+the mapped wall and askew to it (now on the wall's own edge, its published 10.24 m overhanging the mapped 8.6 m face by
+0.84 m each end, on its frame), and the Toei Plaza's two Synchro7 faces hanging past the ends of their roof (their sizes
+estimates: now 8.4 m each). Still open: Shibuya Ekimae Vision hangs about 5 m past the north end of the Ekimae building's
+mapped roof, and moving it would run it into Shibuhachi Hit Vision; the published sizes and the mapped roof disagree (issue 172).
+
+Stills: `tools/views/nova-tower.json` (`tools/game_shot.js`): from the helicopter's height north of the face and from
+Miyamasuzaka-shita, at 17:53 and 21:00 on 10 October, on a desktop and a phone.
 
 **Where it still falls short**: the skirts' depth and the tent are measured from photographs, not drawn from plans
 (above); the skirt's lowest band, 4F to 5F, is clipped where the station's concourse blocks stand by the north-west
@@ -1461,3 +1508,13 @@ head is red out to the ear; a pale patch sits over the inner half of each eye; t
 the neck red. The red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the
 exporter of Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they
 had come out white.
+
+**The whiskers on a phone** (November 2026). A whisker is a tube 0.5 mm across at its root and 0.04 mm at its tip: at
+the story's close shot a third of a pixel. A desktop's four samples a pixel caught it as a faint line; a phone draws
+without multisampling, and a strand that narrow fell between the pixels' centres and came out as broken dark dots
+round the muzzle (the owner, on an iPhone: "black dots round the cheeks"). `web/game/companion.js` `thin()` draws each
+whisker at least a pixel wide and as faint as the share of that pixel it really covers (phone-wire anti-aliasing,
+Emil Persson, 2011: the method, no code): each vertex's offset from the middle of its ring (its two nearest vertices,
+found as the model loads) is stretched in the vertex shader after the skin has posed it, until the tube is 0.6 px
+either side, and the fragment's alpha is the true width over the drawn one. A phone and a desktop now draw the same
+faint lines (`tools/coat_shot.js FACE=1`, with `AA=1` for a desktop's samples).

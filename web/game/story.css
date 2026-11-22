@@ -52,7 +52,9 @@
 @media (max-width: 640px) { .game-stage.story .gt-go { width: 100%; } }
 /* (a screen too short for the list stood up, a phone on its side: the same rows side by side, still one size, so that
    every way in is on the screen without scrolling) */
-@media (max-height: 520px) and (min-width: 560px) { .game-stage.story .gt-go { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; } .game-stage.story .gt-go > .btn { min-height: 56px; } }
+@media (max-height: 520px) and (min-width: 560px) { .game-stage.story .gt-go { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; } .game-stage.story .gt-go > .btn { min-height: 56px; }
+  /* (five ways in on one row, between a notch and the other end of a phone on its side: closer set, or their names ran out of their boxes) */
+  .game-stage.story .gt-go > .btn { padding: 10px 10px 10px 12px; column-gap: 6px; letter-spacing: 0.16em; font-size: 10px; } .game-stage.story .gt-go > .btn > kbd { display: none; } }
 
 /* ---- the goal: the one thing to do now, under the Stop's minutes */
 /* (top left, as a game's objective sits: the middle of the frame is the picture's, never the text's) */
@@ -169,12 +171,19 @@
 /* ---- seen through: the card, and the frame taken up again (story.js failed) */
 #g-story-fail { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.86); color: var(--paper); }
 #g-story-fail.on { display: grid; animation: g-story-album-in 0.6s ease; }
+/* (a card to be read: nothing of the street's words under it. A line said over the picture as the player came up to the
+   old man was still up when the card came, and on a phone it showed through between the card's two buttons) */
+.game-stage.story:is(:has(#g-story-fail.on), :has(#g-story-spend.on)) :is(.g-toasts, #g-story-chip, #g-story-mark, .g-prompt) { visibility: hidden; }
 #g-story-fail .card { display: grid; justify-items: center; gap: 18px; max-width: min(92vw, 520px); text-align: center; }
 #g-story-fail small { font: 400 10px/1 var(--f-mono); letter-spacing: 0.4em; margin-right: -0.4em; text-transform: uppercase; color: var(--amber); }
 #g-story-fail h2 { margin: 0; font: 200 clamp(26px, 4.4vw, 46px)/1.1 var(--f-display); letter-spacing: 0.12em; margin-right: -0.12em; text-transform: uppercase; }
 #g-story-fail p { margin: 0; max-width: 40ch; font: 300 16px/1.6 var(--f-body); color: rgba(244, 239, 230, 0.84); }
-#g-story-fail button { margin-top: 10px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; }
-#g-story-fail button:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; outline: none; }
+#g-story-fail .paid { font: 400 10px/1.7 var(--f-mono); font-style: normal; letter-spacing: 0.24em; margin-right: -0.24em; text-transform: uppercase; color: rgba(244, 239, 230, 0.62); padding-top: 14px; border-top: 1px solid rgba(244, 239, 230, 0.18); }
+#g-story-fail .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 10px; }
+#g-story-fail button { min-height: 44px; padding: 15px 22px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: rgba(244, 239, 230, 0.86); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; }
+#g-story-fail button.go { border-color: var(--amber); color: var(--amber); }
+@media (max-width: 640px) { #g-story-fail .row { flex-direction: column; align-self: stretch; } }
+#g-story-fail button:is(:hover, :focus-visible) { background: var(--amber); border-color: var(--amber); color: #0b1020; outline: none; }
 /* ---- a frame about to be spent (story.js spendAsk, issue 117): asked once, on the fail card's plate, over the finder: the
    street still shows through it, the hand is on Keep, and Spend is the quiet one of the two */
 #g-story-spend { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.74); color: var(--paper); }
@@ -259,6 +268,10 @@
 /* ---- the one thing the map still offers (a lift to ride): its key and its words, on the picture */
 .game-stage.story .g-prompt { border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; text-shadow: 0 1px 10px #000, 0 0 2px #000; }
 .game-stage.story .g-prompt #gp-alt { display: none; }
+/* (its key as the story's other keys are drawn: a thin outline in the line's paper, the letter crisp, no shadow. It was
+   the old game's filled amber block with its dark letter, and the line's black shadow laid over that letter blurred it
+   into a dark smudge: the owner, at SKY GATE's lift, November 2026) */
+.game-stage.story .g-prompt kbd { min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border: 1px solid rgba(244, 239, 230, 0.6); border-radius: 2px; background: rgba(4, 8, 18, 0.45); color: var(--paper); font: inherit; letter-spacing: 0.06em; text-shadow: none; }
 .game-stage.story .gd-choices { max-width: 34em; margin: 0 auto 10px; text-align: left; }
 .game-stage.story .gd-choices button { border-color: rgba(244, 239, 230, 0.3); background: rgba(4, 8, 18, 0.5); font: 300 16px/1.4 var(--f-body); color: var(--paper); border-radius: 2px; }
 .game-stage.story .gd-choices button:is(:hover, :focus-visible) { border-color: var(--amber); background: rgba(255, 207, 138, 0.1); }
@@ -341,7 +354,7 @@
   #g-story-shutter i { width: 76px; height: 76px; box-shadow: inset 0 0 0 5px rgba(4, 8, 18, 0.6), inset 0 0 0 38px rgba(244, 239, 230, 0.22); }
   #g-story-shutter.ready i { box-shadow: inset 0 0 0 5px rgba(4, 8, 18, 0.6), inset 0 0 0 38px var(--amber), 0 0 30px rgba(255, 207, 138, 0.45); }
   .game-stage.story .gt-btns { bottom: 190px; }
-  .game-stage.story .g-title { padding-left: 20px; padding-right: 20px; }
+  .game-stage.story .g-title { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); } /* (a phone on its side: the title's card lay under the notch, cut off at the screen's left edge; tools/ui_fit.js SAFE=1) */
 }
 @media (prefers-reduced-motion: reduce) {
   #g-story-mark i, #g-story-mark i::before { animation: none; }
@@ -382,6 +395,9 @@
 #g-story-album .row button { padding: 15px 22px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; cursor: pointer; }
 #g-story-album .row button.go { border-color: var(--amber); color: var(--amber); }
 #g-story-album .row kbd { margin-left: 8px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 2px; font: inherit; }
+/* (on a phone the roll is several screens long, and its way back was at the foot of it: opened from a question, or from
+   the card of a player seen through, the way back to the question was a long scroll down. It stays at the foot of the screen) */
+@media (max-width: 640px) { #g-story-album .row { position: sticky; bottom: 0; z-index: 3; gap: 8px; margin: 0 -20px -28px; padding: 26px 20px max(16px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(6, 9, 18, 0), rgba(6, 9, 18, 0.94) 22px); } }
 
 /* ---- the print in your hand after the shutter, and its postmark: struck on it as a stamp is cancelled */
 .pm { position: absolute; right: 4%; top: 6%; width: 46%; color: #f6f1e6; opacity: 0.82; transform: rotate(-11deg); filter: drop-shadow(0 0 1.5px rgba(4, 8, 18, 0.9)); pointer-events: none; } /* (struck in white: every picture on this roll is of the night, and black ink would not be read on it) */
@@ -457,8 +473,12 @@
    its line and drops its help, which the shutter's own label says */
 .game-stage.story:has(#g-story-finder.on) #g-story-goal em { display: none; }
 @media (pointer: coarse), (max-width: 640px) {
-  /* (on a phone the thumbs' controls fill the foot of the frame: what is said sits above them) */
-  .game-stage.story .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); width: calc(100% - 40px); }
+  /* (on a phone the thumbs' controls fill the foot of the frame, and above them stands the one you play: a line said
+     over the picture lay across their legs, 262 px up from the foot of the screen (issue 154). It sits under the
+     corner's words instead, the goal's or the walk's (--under, hud.js put), over the sky and the buildings; with the
+     camera up, when the head of the frame is the finder's and nobody stands in it, it stays over the thumbs) */
+  .game-stage.story .g-toasts { top: calc(max(var(--under, 150px), env(safe-area-inset-top, 0px)) + 14px); bottom: auto; width: calc(100% - 40px); }
+  .game-stage.story:has(#g-story-finder.on) .g-toasts { top: auto; bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); }
 }
 @media (pointer: coarse), (max-width: 640px) {
   /* (the camera's button, raised, under the goal's lines and not over them) */
@@ -761,9 +781,15 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 .g-walk-mark[data-k="event"] i { border-color: var(--paper); background: rgba(16, 12, 6, 0.55); }
 .g-walk-mark[data-k="event"] i::after { border-color: var(--paper); }
 .g-walk-mark[data-k="event"] i b { background: var(--amber); }
+/* a place the street offers (a free place on Hachiko's wall, until it has been sat on once: issue 146): pale, a seat's
+   line and its two legs in place of the dots, no tail: it is over a stone, not said by anyone */
+.g-walk-mark[data-k="place"] i { width: 26px; height: 20px; gap: 0; border-color: rgba(244, 239, 230, 0.7); border-radius: 2px; background: rgba(4, 8, 18, 0.5); }
+.g-walk-mark[data-k="place"] i::after { display: none; }
+.g-walk-mark[data-k="place"] i b { display: none; }
+.g-walk-mark[data-k="place"] i b:first-child { display: block; width: 12px; height: 5px; border-radius: 0; background: none; border-top: 1.5px solid var(--paper); border-left: 1px solid var(--paper); border-right: 1px solid var(--paper); box-sizing: border-box; margin-top: 3px; }
 /* someone calling you over (walktalk.js bark): a few words in the walk's glass over their mark, for a few seconds */
-.g-walk-bark { position: absolute; left: 0; top: 0; max-width: 240px; padding: 6px 10px 7px; border: 1px solid rgba(255, 207, 138, 0.55); border-radius: 3px; background: rgba(4, 8, 18, 0.66);
-  color: var(--paper); font: 400 13px/1.3 var(--f-body); text-shadow: 0 1px 6px #000; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; will-change: transform, opacity; }
+.g-walk-bark { position: absolute; left: 0; top: 0; width: max-content; max-width: min(300px, 78vw); box-sizing: border-box; padding: 6px 10px 7px; border: 1px solid rgba(255, 207, 138, 0.55); border-radius: 3px; background: rgba(4, 8, 18, 0.66);
+  color: var(--paper); font: 400 13px/1.3 var(--f-body); text-shadow: 0 1px 6px #000; white-space: normal; text-wrap: balance; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; will-change: transform, opacity; } /* (a call longer than its box ran out of it: it wraps, tools/ui_fit.js) */
 .g-walk-bark::after { content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(4, 8, 18, 0.66); border-bottom: 0; }
 /* (a corner's button lit while the walk's way in speaks of it) */
 #g-walk-acts button.hl { border-color: var(--amber); color: var(--paper); box-shadow: 0 0 0 1px var(--amber), 0 0 22px rgba(255, 207, 138, 0.45); animation: g-walk-hl 1.6s ease-in-out infinite; }
@@ -1411,8 +1437,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   /* (the lift's and the helicopter's prompt clear of the run button beside it, at the same height) */
   .game-stage.story .g-prompt { max-width: calc(100% - 172px); }
   /* (a phone has no E: the prompt's button is a tap, marked as one) */
-  .oe-touch .game-stage.story #gp-key { font-size: 0; }
-  .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .oe-touch .game-stage.story #gp-key { font-size: 0; min-width: 7px; width: 7px; padding: 0; border: 0; background: none; }
+  .oe-touch .game-stage.story #gp-key::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
   /* (while someone speaks, a line said over the picture goes to the top of the screen: the talk's shot puts the face on
      the upper third of what the words leave, where 19vh laid the line across it: Yuna at SKY GATE, Sumiko in the rain) */
   .game-stage.story:has(.g-dialog:not([hidden]):not(.free):not(.cut)) .g-toasts { top: max(14px, calc(env(safe-area-inset-top) + 8px)); }
@@ -1450,7 +1476,7 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
    the log's last entry, the same words twice, while the log came up, and a slip entered in the file covered its first
    entries. Its last line is not read through the Back button either: the foot of the sheet is solid from the button up. */
 .game-stage.story:has(#g-story-log.on) :is(.g-dialog, #g-story-goal, .g-toasts, #g-story-chip, #g-story-keys, #g-story-frames, #g-story-mark, #g-story-hint, .g-prompt) { visibility: hidden; }
-.game-stage.story:has(#g-story-log.on) #g-story-slip { visibility: hidden; }
+.game-stage.story:is(:has(#g-story-log.on), :has(#g-story-album.on)) #g-story-slip { visibility: hidden; } /* (and over the roll, whose file has the line: on a phone the slip lay across the roll's title) */
 #g-story-log .row { padding-top: 44px; background: linear-gradient(rgba(4, 8, 18, 0), rgb(7, 11, 26) 30px); }
 #g-story-log .row button { background: rgb(7, 11, 26); }
 
@@ -1602,8 +1628,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 /* (a small phone upright, 320 by 568: the strip closer set, so that it ends over the middle third of the frame) */
 @media (max-height: 620px) and (min-height: 521px) {
   .game-stage.story .g-photo :is(#ph-done, #ph-adj) { top: max(12px, env(safe-area-inset-top, 0px)); min-height: 38px; }
-  .game-stage.story .g-photo .gph-sliders { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 46px); height: 86px; gap: 4px 16px; padding: 4px 12px; }
-  .game-stage.story .g-photo .gph-chips { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 136px); }
+  .game-stage.story .g-photo .gph-sliders { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 44px); height: 82px; gap: 2px 16px; padding: 3px 12px; }
+  .game-stage.story .g-photo .gph-chips { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 129px); }
   .game-stage.story .g-photo .gph-chips .chip-btn { min-height: 34px; padding: 0 10px; }
   .game-stage.story .g-photo .gph-sliders label { letter-spacing: 0.1em; }
   .game-stage.story .g-photo .gph-sliders output { font-size: 9.5px; white-space: nowrap; }
@@ -1616,3 +1642,23 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .game-stage.story .g-photo .gph-chips .chip-btn { min-height: 40px; }
   .game-stage.story .g-photo #ph-snap { bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px)); }
 }
+
+/* ---- the walk's first minute (issue 146) ----
+   A name over the street (a story put away, a view found) is not drawn over the menu: found from the camera and the
+   menu opened at once, "A view of Shibuya" lay across the hour and the sky. */
+.game-stage:has(.g-overlay:not([hidden])) #g-walk-told { opacity: 0 !important; transition: none; }
+/* tonight's line in the corner (tonight.js): where a moment is, in the line on a desktop; on a phone the line is its
+   name and its time, one line under the date instead of three */
+#g-walk-where .tn i { font-style: normal; }
+@media (min-width: 641px) { #g-walk-where .tn { max-width: 46ch; } }
+@media (pointer: coarse), (max-width: 640px) { #g-walk-where .tn i { display: none; } #g-walk-where .tn { max-width: none; letter-spacing: 0.2em; } }
+
+/* ---- the walk's words are read over any picture (issue 134, as the story's are since issue 114) ----
+   The walk's corner (the place, the hour, the date, tonight's line, what was asked and its metres), its keys, a name
+   over the street, the marks' names and a call lie on the world as the story's goal does, and the owner's still had
+   what was asked across a lit red sign. Each carries the story's own shade (--halo, --halo-small): no box.
+   tools/legible.js measures them with the story's. */
+.game-stage.story :is(#g-walk-where .t, #g-walk-where .q span, #g-walk-told b, #g-walk-tonight b, #g-walk-tonight span) { text-shadow: var(--halo); }
+.game-stage.story :is(#g-walk-where small, #g-walk-where em, #g-walk-where .g, #g-walk-where .tn, #g-walk-where .q i, #g-walk-keys, #g-walk-told small, #g-walk-tonight small, .g-walk-mark span, .g-walk-bark) { text-shadow: var(--halo-small); }
+.game-stage.story #g-walk-where :is(em, .tn) { color: rgba(244, 239, 230, 0.94); }
+.game-stage.story #g-walk-where .q span { color: #fff; }

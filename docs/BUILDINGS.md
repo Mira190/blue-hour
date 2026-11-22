@@ -196,6 +196,16 @@ machiya, mixed (Japanese mixed use with signs), stone, haussmann or grachtenpand
 | Awnings over 80% of Sydney's shopfronts; the street pent roof (hisashi) on machiya | City of Sydney, Kyoto machiya guidance |
 | A precinct wall (`pipeline/walls.py`, a step after `game_data.py`): one unnamed solid of no use class, at most 3.5 m thick on average and at least 80 m long, with no mapped footway along it, is drawn in the `wall` style: no windows or storeys, a stone plinth, plaster stained under its coping. An estimated height becomes a wall's (`walls.height_m`, 4 m); a measured one up to 6 m stands. With `walls.coping: "kawara"` it gets a hipped coping of glazed tiles over a 0.35 m overhang, and inside a `walls.lines` box the white lines of a suji-bei (five round the Kyoto Gosho and Sento Gosho) | OpenStreetMap, PLATEAU; Kyoto Gyoen notices (five lines, stone plinth); Sanjusangen-do's Taiko-bei, 5.3 m |
 
+**By proportion, where there is no class** (issue 163, `typology.by_proportion`, `pipeline/proportion.py` for a file
+built before). In Shibuya 37,775 of 47,952 buildings carry no class, and size alone made anything under 10.5 m and
+300 m2 a house: a footprint 36 m long and one storey high was a gabled box with a row of small windows and front
+doors. A detached house is small both ways (at most 170 m2 and 18 m here); a classless building that is larger or
+longer is, at one storey, a shed (`industrial` from 300 m2: wide bays, a band of glazing; `plain` below: no windows,
+drawn plainly) and at two or three storeys a walk-up block (`apartment`); and a classless building styled with
+windows that is low (to 9.5 m), 500 m2 or more and 16 m or more across is a hall (`industrial`). On the map: 1,545
+houses became walk-up blocks, 89 plain sheds, 62 halls. A building with a class, a named override or a landmark's own
+walls is left as it is.
+
 In the browser, `buildings.js` builds the walls:
 - **Runs.** A ring's edges are grouped into runs between corners sharper than 30°. Each run holds a whole number of bays, with a 0.6 m margin at each end, so no window wraps a corner. Normals are smoothed inside a run, so round towers look round.
 - **Bays and floors.** The shader evaluates the grammar per pixel. Floors come from the storey and ground-floor heights. Only whole floors under the eave get windows, so the top row is never cut off.
