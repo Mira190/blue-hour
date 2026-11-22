@@ -91,5 +91,14 @@ exports.sample = (p, frames = 2, by = false) => p.evaluate(([frames, by]) => new
 }), [frames, by]);
 // One frame the caller draws itself, counted from begin to end: a still's own frame, drawn whole (tools/story_play.js),
 // which costs a play no frame more.
-exports.begin = (p, by = false) => p.evaluate(by => { const B = window.__beat; B.names(by); B.begin(); }, by);
-exports.end = p => p.evaluate(() => { const B = window.__beat, c = B.end(); B.names(false); return B.report([c]); });
+// On a busy runner a second of the game's frames is now and then drawn before the count is ended, and the still was
+// given both: twice its draws, triangles and passes (22 passes of 12, 3.07 M triangles of 1.5 M, main red on it,
+// issues 151 and 162). The frames drawn between begin and end are counted (the harness's own count, __draw.drawn), and
+// a count of more than one is brought to a frame's.
+exports.begin = (p, by = false) => p.evaluate(by => { const B = window.__beat; B.names(by); B.drawn0 = window.__draw ? window.__draw.drawn : null; B.begin(); }, by);
+exports.end = p => p.evaluate(() => {
+  const B = window.__beat, c = B.end(); B.names(false);
+  const n = c && B.drawn0 != null && window.__draw ? Math.max(1, window.__draw.drawn - B.drawn0) : 1;
+  if (c && n > 1) for (const k of ['draws', 'tris', 'passes', 'pass_px', 'scene_px', 'clears', 'blits']) c[k] = Math.round(c[k] / n);
+  return { ...B.report([c]), frames: n };
+});
