@@ -215,7 +215,20 @@ window.OECompanion = (function () {
         if (n && mx * dx + my * dy < 0) against = true;
         mx += dx; my += dy; n++;
       }
-      if (!n) return;
+      if (!n) { s.wallT = 0; return; }
+      s.wallT = (s.wallT || 0) + Math.max(dt, 1 / 60);
+      // (still in it after half a second, held there by the player, a corner or his own turn: the nearest place and
+      // heading round him where both ends stand clear of every wall and he is off the player, and he steps there)
+      if (s.wallT > 0.5) {
+        const x0 = s.x, y0 = s.y, h0 = s.h, clear = () => body.spine.every(a => !wall(s.x + Math.cos(s.h) * a, s.y + Math.sin(s.h) * a, s.z, body.flank)) && offPlayer() >= -TOUCH;
+        for (let r = 0.1; r <= 1.5; r += 0.1) for (let k = 0; k < 12; k++) for (const dh of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+          const a = k * Math.PI / 6;
+          s.x = x0 + Math.cos(a) * r; s.y = y0 + Math.sin(a) * r; s.h = h0 + dh;
+          if ((!stand || stand(s.x, s.y, s.z)) && clear()) { s.wallT = 0; return; }
+        }
+        s.x = x0; s.y = y0; s.h = h0; s.wallT = 0.25; // (nowhere near: tried again in a quarter of a second)
+        return;
+      }
       if (against) { s.h += Math.min(1, dt * 2); return; }
       const m = Math.hypot(mx, my), k = Math.min(1, Math.max(dt, 1 / 60) * 1.2 / m);
       s.x += mx * k; s.y += my * k;
