@@ -11,7 +11,8 @@
 //          whoGate() -> false while who you play is still to be chosen (it asks), preview(spec): the street behind the
 //          title at that hour and under that sky, restore(): the title's own evening again, start(spec): set out,
 //          clock() -> { m, d, min }, sky() -> 'clear' | 'rain' | ..., where() -> { name, native } of the area you are
-//          in, key(k) -> the key's sign (a pad's while one is in the hand), menu(), photo(), story(),
+//          in, key(k) -> the key's sign (a pad's while one is in the hand), menu(), photo(),
+//          dress({ t } | { w } | { min }): the street at that hour, under that sky or at that minute, from the menu,
 //          ride() -> { mode: 'foot' | 'car' | 'heli' | ..., kmh, up (m above the ground), rotor (0..1) } }
 'use strict';
 window.OEWalk = (function () {
@@ -187,6 +188,90 @@ window.OEWalk = (function () {
         if ((keysT > 6 && walked > 25) || keysT > 16) keys.classList.remove('on');
       }
     }
+    // ---- the walk's menu (Esc, the corner's third button): the story's own screen, not the map's panel of settings.
+    // What a walker changes is first: the hour and the sky as the step before setting out offers them, any hour and any
+    // sky one level down; then going on, your car, the way into the story; the sound, the words and the frame rate under
+    // Options; the keys or the thumbs' controls; the credits. Beside them the walk's stories and tonight's timetable
+    // (game.js fills both). The builder's switches (the date, the clock's speed, who is played, the crowd, live weather)
+    // stay on ?walk=1. The controls that have one home on the page (the sound, the frame rate, the words) are moved here.
+    const ANY_SKY = [['clear', 'Clear'], ['overcast', 'Overcast'], ['fog', 'Fog'], ['drizzle', 'Drizzle'], ['rain', 'Rain'], ['storm', 'Thunderstorm'], ['snow', 'Snow']];
+    const menuEl = q('#g-menu');
+    let menu = null, skyNow = '';
+    const keyRows = () => (ctx.touch ? [
+      ['Left thumb', 'Walk; pushed further, run'], ['Drag', 'Look round'],
+      ['The words over someone', 'Tap them to talk, to sit down, to take a lift, to get in or out'],
+      ['Top right', 'Your car to the kerb · the camera · this menu'],
+      ['In your car', 'The stick drives, brakes and steers; at the right the hand brake, the horn, the view'],
+      ['In the helicopter', 'Up and Down climb and descend; the stick flies and turns'],
+      ['On a seat', 'Drag to look round; hold Time-lapse and the evening passes'],
+    ] : [
+      [`${K('W')}${K('A')}${K('S')}${K('D')}`, 'Walk; drag to look round, scroll to come closer'], [`${K('Shift')} ${K('X')} ${K('Space')}`, 'Run while held · walk or run · jump'],
+      [K('E'), 'Talk, sit down, take a lift, get in or out'], [K('C'), 'Your car, to the kerb nearest you'],
+      [K('O'), 'The camera: the street holds still; set the lens and the hour, and keep the picture'],
+      ['In your car', `${K('W')}${K('S')} drive, brake · ${K('A')}${K('D')} steer · ${K('Space')} hand brake · ${K('H')} horn · ${K('V')} the view`],
+      ['In the helicopter', `${K('Space')} climb · ${K('Shift')} descend · ${K('W')}${K('S')} fly, slow · ${K('A')}${K('D')} turn · ${K('V')} the view`],
+      ['On a seat', `Drag to look round · hold ${K('Space')} and the evening passes`], [K('Esc'), 'This menu'],
+    ]);
+    function menuMake() {
+      if (menu || !menuEl) return menu;
+      menu = document.createElement('div');
+      menu.className = 'gw-menu'; menu.id = 'gw-menu';
+      menu.setAttribute('role', 'dialog'); menu.setAttribute('aria-labelledby', 'gw-l');
+      menu.innerHTML = `<div class="gw-in">
+<header class="gw-head"><span class="eyebrow" id="gw-l">Walk Shibuya</span><b class="gw-t"></b><span class="gw-sub"></span></header>
+<div class="gw-cols">
+<section class="gw-now" aria-label="The hour and the sky">
+<div class="gt-walk-row"><span>The hour</span>${seg('t', HOURS)}</div>
+<div class="gt-walk-row"><span>The sky</span>${seg('w', SKIES)}</div>
+<details class="gw-fold gw-any"><summary><span>Any hour, any sky</span><i aria-hidden="true"></i></summary><div class="gw-fold-in">
+<label class="gw-range"><span>The hour <output class="num" id="gw-clock-v"></output></span><input type="range" id="gw-clock" min="0" max="1439" step="1" aria-label="The hour, by the clock"></label>
+<div class="gw-skies" role="radiogroup" aria-label="The sky">${ANY_SKY.map(([v, l]) => `<button type="button" role="radio" aria-checked="false" data-sky="${v}">${l}</button>`).join('')}</div>
+</div></details>
+<div class="gw-acts"><button type="button" class="btn primary" id="gw-continue"><span>Continue</span>${ctx.touch ? '' : `<kbd>${ctx.key('Esc')}</kbd>`}</button></div>
+<details class="gw-fold" id="gw-opts"><summary><span>Options</span><small>Sound · words · frame rate</small><i aria-hidden="true"></i></summary><div class="gw-fold-in gt-opts-list"></div></details>
+<details class="gw-fold" id="gw-keys"><summary><span>${ctx.touch ? 'Controls' : 'Keys'}</span><small>${ctx.touch ? 'Thumbs · car · helicopter' : 'On foot · car · helicopter'}</small><i aria-hidden="true"></i></summary><div class="gw-fold-in"><table class="gw-keys"><tbody>${keyRows().map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('')}</tbody></table></div></details>
+<button type="button" class="gw-row" id="gw-credits" data-credits><span>Credits</span><small>Sources · licences</small><i aria-hidden="true"></i></button>
+</section>
+<section class="gw-side" aria-label="Stories of the walk, and tonight"></section>
+</div></div>`;
+      menuEl.appendChild(menu);
+      // (what the page keeps one of: your car and the way into the story, with their handlers; the stories and tonight,
+      // which game.js fills; the sound, the frame rate and the words)
+      const acts = menu.querySelector('.gw-acts'), side = menu.querySelector('.gw-side'), opts = menu.querySelector('#gw-opts .gw-fold-in');
+      for (const id of ['#gm-car', '#gm-story']) { const e = q(id); if (e) { e.classList.remove('primary'); acts.appendChild(e); } }
+      for (const id of ['#gm-tales', '#gm-tonight']) { const e = q(id); if (e) side.appendChild(e); }
+      for (const id of ['#gm-sound', '#gm-words', '#gm-fps']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) opts.appendChild(n); }
+      menu.addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b || !menu.contains(b)) return;
+        if (b.id === 'gw-continue') return ctx.menu();
+        const s = b.closest('[data-k]');
+        if (s && b.dataset.v) { if (s.dataset.k === 'w') skyNow = b.dataset.v; ctx.dress(s.dataset.k === 't' ? { t: b.dataset.v } : { w: b.dataset.v }); return menuSync(); }
+        if (b.dataset.sky) { skyNow = b.dataset.sky; ctx.dress({ w: b.dataset.sky }); return menuSync(); }
+      });
+      menu.querySelector('#gw-clock').addEventListener('input', e => { ctx.dress({ min: +e.target.value }); menuSync(); });
+      return menu;
+    }
+    // the menu as it is opened, and after each change: the hour and the sky as they are now, each choice marked when the
+    // street is at it
+    function menuSync(opened) {
+      if (!menuMake()) return;
+      if (opened) { skyNow = ctx.sky(); menuEl.scrollTop = 0; }
+      const c = ctx.clock(), w = ctx.where(), r = ctx.ride ? ctx.ride() : { mode: 'foot' };
+      menu.querySelector('.gw-t').textContent = ctx.fmt(c.min);
+      menu.querySelector('.gw-sub').textContent = `${`${w.name} ${w.native || ''}`.trim()} · ${c.d} ${MONTHS[c.m - 1]} · ${SKY_WORD[skyNow] || 'Clear'}`;
+      for (const b of menu.querySelectorAll('[data-k="t"] button')) {
+        const at = ctx.hourAt(b.dataset.v);
+        b.setAttribute('aria-checked', String(Math.abs(at - c.min) < 2));
+        b.querySelector('small').textContent = ctx.fmt(at);
+      }
+      for (const b of menu.querySelectorAll('[data-k="w"] button')) b.setAttribute('aria-checked', String(b.dataset.v === skyNow));
+      for (const b of menu.querySelectorAll('[data-sky]')) b.setAttribute('aria-checked', String(b.dataset.sky === skyNow));
+      const range = menu.querySelector('#gw-clock');
+      range.value = String(Math.round(c.min)); range.style.setProperty('--at', `${(c.min / 1439 * 100).toFixed(2)}%`);
+      menu.querySelector('#gw-clock-v').textContent = ctx.fmt(c.min);
+      const car = menu.querySelector('#gm-car'); if (car) car.hidden = !ctx.car || r.mode !== 'foot';
+    }
     // a story of the walk put away (walktalk.js): its name over the street for a few seconds, and how many are told
     const told = document.createElement('div');
     told.id = 'g-walk-told'; told.setAttribute('role', 'status');
@@ -202,7 +287,7 @@ window.OEWalk = (function () {
     // what was asked done: the corner's line says so with a turn of its amber
     function flash() { const e = hud.querySelector('.q'); e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
     return {
-      open, titleKey, begin, tick, told: tell, flash, highlight,
+      open, titleKey, begin, tick, told: tell, flash, highlight, menuSync,
       get isOpen() { return isOpen; }, get walking() { return walking; }, get spec() { return spec; },
       // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
       takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },

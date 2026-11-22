@@ -1457,6 +1457,29 @@ steal); *Mafia: Definitive Edition*'s Free Ride and *Cyberpunk 2077*'s own car c
 parked); *Forza Horizon*'s and the flight simulators' instruments reduced to what the moment needs (one line under the
 hour); the contextual prompts already used by the story (shown when the action is possible).
 
+**The walk's menu and its camera (issue 147, November 2026).** The launch review of the walk (issue 134) found its
+menu to be the old free game's settings panel under a good head: headed "Paused", a paragraph before the first button,
+eight hours, a slider and the browser's own date field, ten weathers, the clock's speed, who is played, the crowd and a
+table of every key, two and a half screens long on a phone with the hour and the sky under the fold. It is now the
+story's own screen (`web/game/walk.js` `menuMake`, `web/game/story.css` "the walk's menu"), in the title's Options'
+tokens: headed Walk Shibuya over the hour in the display face, the place, the date and the sky; then the hour and the
+sky as the step before setting out offers them (Blue hour, Night, Now; Clear, Rain), with **Any hour, any sky** one
+level down (a slider for the minute of the same evening, seven skies); Continue, your car to the kerb and the way into
+the story; **Options** (the sound, the words' size and backing, the frame rate), **Keys** or **Controls** (the walk's
+own: on foot, the car, the helicopter, the seat) and Credits folded under them; beside these, the walk's stories and
+tonight's timetable. The page's one sound switch, frame rate and words' sizes are moved into it, each with its one
+handler. The date, the clock's speed, who is played, the crowd, live weather and the old table of keys stay in the
+map's panel, which is `?walk=1`'s.
+
+The camera's panel lay over the lower two fifths of a phone held upright and three fifths of one on its side. By touch
+the frame is now the photograph's: the shutter is the story's own round button under the right thumb, Done and Adjust
+stand at the head of the frame, the lens's settings (the hour, the lens, the aperture, the distance; Turntable, Grid,
+Show me) are a strip under them that is put away until Adjust is pressed, and the stick stays to move the camera.
+`tools/ui_fit.js` and `tools/walk_play.js` fail photo mode when its controls paint over more than a fifth of a
+desktop's frame, a sixteenth of a phone's with the settings away or a quarter with them out, or when any of them lies
+over the centre cell of the thirds. Stills: `docs/images/issue-147-phone.jpg`, `issue-147-side.jpg`,
+`issue-147-desk.jpg`. Not checked: a real phone's safe areas, Safari, iOS.
+
 **Your car in plain sight (November 2026).** The owner found the car's call too well hidden: it was a line in the menu,
 and a player who did not open the menu never learnt the car would come. Now it is the first of the walk's buttons at the
 top right (*Your car*, with C on a keyboard; on a phone its icon over the camera's), shown whenever you are on foot, and
