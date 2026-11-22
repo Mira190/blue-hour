@@ -1579,6 +1579,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (you on the seat, its corner; a copy of it, so that who sits beside you is this wait's alone)
     const seat = Object.assign({}, st);
     sitDown(seat);
+    if (touch) $('#gt-jump').hidden = true; // (no Time-lapse button: the wait passes the night by itself)
     // (beside you on the stone itself: plan.beside, a point along the wall's end block; the seat is its outer corner, so a
     // step to either side of you along the seat's own line was over the setts, and she sat on the air)
     const [x, y] = plan.beside || [st.at[0] - st.face[1] * 0.75, st.at[1] + st.face[0] * 0.75];
@@ -5928,7 +5929,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
-          : { mode: player.mode }) });
+          : { mode: waitRun && player.mode === 'seat' ? 'wait' : player.mode }) }); // (sat waiting with someone: the night passes by itself, walk.js says so)
     whoSync(); // (the walk's way in waits for who you play, as the episode's does)
     // tonight (tonight.js): the night's moments by the walk's clock, told in its corner, over the street and in its menu;
     // the last trains are the railway's own (trains.js setNight)
