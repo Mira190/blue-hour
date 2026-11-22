@@ -712,55 +712,41 @@ cut: cards over the head's painted hair, ending in a few broad points; a soft he
 `blender/build_people.py` or the two passes above. Cloth has the avatars' own normal maps and no weave of its own.
 The crowd takes the same light (it is one patch) but none of this was tuned on it.
 
-### Hair, the second pass: the head's own hair, and its hem (`web/game/people.js`, issue 123)
+### Hair, the second pass: the head's own hair (`web/game/people.js`, issue 123)
 
 The first two passes (issue 74's strands, issue 123's light) did not reach the hair that matters most. An avatar's
-long hair is part of its head's mesh, a shell down the back, and the cards only lie on it. Three things were wrong:
+long hair is part of its head's mesh, a shell down the back, and the cards only lie on it.
 
 - **The head's hair was never marked as hair.** `strandHair` finds the skull from the rig to tell hair from skin, to
   run the strands from the crown and to darken the root. It took a joint's place through `mesh.bindMatrixInverse`,
   which an attached skinned mesh sets to its node's inverse whenever the scene is updated; a face's mesh hangs on a
   node a hundredth the size and turned. Once a model had been in a scene the skull was sixty units over the pelvis,
   every vertex was "a metre and a half off the skull", and no vertex of the head was marked: Kagami's back was the
-  avatar's grey painted shell with plain shading, a hood. Now through the inverse of the bind matrix (`bindInv`).
-  `tools/hair_probe.js` prints, for the one you play, how many of the head's vertices are marked as hair and how
-  many are its hem's loose ends, and fails when none is marked (it is not one of `tools/check.sh`'s checks yet).
+  avatar's grey painted shell with plain shading. Now through the inverse of the bind matrix (`bindInv`).
+  `tools/hair_probe.js` prints, for the one you play, how many of the head's vertices are marked as hair, and fails
+  when none is (it is not one of `tools/check.sh`'s checks yet).
 - **With the strands on, black hair was silver.** The lobes were tuned on the cards, which are wisps; on a whole
   surface under a dusk sky they lit all of it. The head's hair and the cards take them at half.
-- **The hem was one smooth edge.** `hemFringe` hangs loose ends from the lowest hair all round a head whose hair
-  falls below the jaw: two layers of narrow strips in the same mesh and material (their vertices carry the hem's
-  texel, joints and strand number; `hairTR.w` runs from 0 where a strip leaves the hair to -1 at its tip), cut
-  strand by strand in the fragment shader so each ends at a length of its own. The shell's inner side at the hem,
-  which showed as a pale band, takes the root's shade. For Kagami 120 vertices and 80
-  triangles; no picture, no draw call, no pass, so every tier has it and a phone's memory is as it was.
+- **The hem is the avatar's own.** A fringe of loose ends hung from the hem (strips cut strand by strand in the
+  shader) was built and taken out again the same day at the owner's word: it looked strange. Nothing is added to
+  the hair's outline.
 
-Surveyed for it, and what was taken (ideas only; no code or asset copied):
+Surveyed (ideas only; no code or asset copied): Lengyel et al., "Real-time fur over arbitrary surfaces" (I3D 2001:
+shells and fins); Scheuermann, "Practical Real-Time Hair Rendering and Shading" (SIGGRAPH 2004) and Kajiya and Kay
+1989 (the shader's lobes since issue 74); Wyman and McGuire, "Hashed Alpha Testing" (I3D 2017); Marschner et al.
+2003 (why black hair keeps only the uncoloured first lobe: the reason the lobes were halved); Babylon.js
+`FurMaterial` (Apache-2.0, read for its cost, not adopted); three.js `MeshPhysicalMaterial.anisotropy` (MIT, r153,
+not used: Kajiya-Kay is already in the hair's own patch); Poly Haven and ambientCG offer no hair strand textures.
 
-| Work | What it does | Licence | Taken |
-|---|---|---|---|
-| Lengyel, Praun, Finkelstein, Hoppe, "Real-time fur over arbitrary surfaces" (I3D 2001) | concentric alpha shells, and fins at the silhouette where shells go see-through | paper | Fins only, at the hem: shells over the whole head multiply the fill of exactly what fills an over-the-shoulder shot |
-| Scheuermann, "Practical Real-Time Hair Rendering and Shading" (SIGGRAPH 2004 sketch); Kajiya and Kay 1989 | two shifted lobes along the strand; an opaque core drawn first, the fringe after | paper | Already the shader's lobes (issue 74); the hem is cut, not blended, so it needs no sorting |
-| Wyman and McGuire, "Hashed Alpha Testing" (I3D 2017) | order-independent alpha by a stable hash | paper | The cut per strand is a hash of the strand's number, whole or none, with samples or without |
-| Marschner et al., "Light Scattering from Human Hair Fibers" (SIGGRAPH 2003) | R, TT, TRT | paper | Why black hair keeps only the uncoloured first lobe: the reason the lobes were halved, not the albedo raised |
-| Game hair cards as published in tutorials (layers: cap, mass, hem and flyaway cards) | 50 to 200 cards a head | none adopted | The layering: two layers at the hem |
-| Babylon.js `FurMaterial` (shells) | generated shells | Apache-2.0 | Read for its cost; not adopted |
-| three.js `MeshPhysicalMaterial.anisotropy` (r153) | GGX anisotropy, needs tangents | MIT | Not used: `vehicles.js` and `cars.js` stay free of version-specific calls, and Kajiya-Kay is already in the hair's own patch |
-| Poly Haven, ambientCG | no hair strand or alpha textures offered (searched) | CC0 | Nothing to take: the strands are a function, not a picture |
+Photographs of dark hair at night beside the stills (Wikimedia Commons):
+"DSCF1184 A woman with a floral back tattoo ... at night.jpg", PattayaPatrol, CC BY-SA 4.0;
+"Neon in the streets of Shibuya (9412153000).jpg", Maarten Heerlien, CC BY 2.0.
 
-Photographs of dark hair at night beside the stills (Wikimedia Commons; in `docs/images/people/hair-123-*.jpg`):
-"DSCF1184 A woman with a floral back tattoo ... at night.jpg", PattayaPatrol, CC BY-SA 4.0 (the mass near black,
-light only as thin streaks along the strands in the signs' colour, the outline breaking into loose strands);
-"Neon in the streets of Shibuya (9412153000).jpg", Maarten Heerlien, CC BY 2.0 (heads from behind at blue hour:
-dark shapes, a cool rim on top, a soft outline). The sheets carry the first and are CC BY-SA 4.0 with it.
+Stills: `tools/game_shot.js` with `tools/views/kagami-back-123.json` (her back in focus at dusk and at 19:30),
+`docs/images/people/hair-123-back.jpg` (main beside this pass).
 
-Stills: `tools/hair_shot.js` (the hair alone, with samples and without), `tools/game_shot.js` with
-`tools/views/kagami-back-123.json` (her back in focus at dusk and at 19:30), and each speaker's close shot from
-`tools/frame_stills.sh`.
-
-Not done, and where it stands against the bar: the hair is a painted shell with shaded strands and a cut hem, not a
-groom; nothing in it moves (no strand swings as she turns); the cards' own cut (the wisps at the temple) is the
-avatar's; cloth has no weave of its own and skin no pores (a tiling detail normal for knit, Poly Haven's
-`knitted_fleece`, CC0, is the next step and costs a phone one small texture). Faces are issue 12.
+Not done: the hair is a painted shell with shaded strands, not a groom; nothing in it moves; cloth has no weave of
+its own and skin no pores. Faces are issue 12.
 
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 
