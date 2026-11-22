@@ -147,7 +147,7 @@ window.OEWalkTalk = (function () {
     }
     function errand() {
       if (inc && inc.ph === 'down') { const n = ctx.npc(lineS.npc), me = ctx.here(); return n ? toward(me, n, { text: lineS.incident.corner || '', key: '' }) : null; } // (the walk's line: what he did, and the metres to her)
-      if (inc && inc.ph !== 'up') { const n = ctx.npc(lineS.npc), me = ctx.here(); return n && lineS.incident.lead && dist(me, n) > (lineS.incident.near || 16) ? toward(me, n, { text: lineS.incident.lead, key: '', next: true }) : null; } // (before it: nothing, or from far off where she stands)
+      if (inc && inc.ph !== 'up') { const n = ctx.npc(lineS.npc), me = ctx.here(); return n && lineS.incident.lead ? toward(me, n, { text: lineS.incident.lead, key: '', next: true }) : null; } // (before it: where to look, and the way; never what is about to happen)
       if (ev && (ev.phase === 'asked' || ev.phase === 'met')) { // (a favour asked of you on the street: the corner's while it lasts)
         const me = ctx.here(), n = ctx.npc(ev.e.people[0]);
         if (n) return toward(me, n, { text: ev.phase === 'met' ? ev.e.back : ev.e.goal, key: ev.phase === 'asked' ? 'O' : '' });

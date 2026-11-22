@@ -2215,7 +2215,8 @@ stranger asks a favour after a minute or two (a photograph of them, the way some
 player, and the first photograph anyone asked for came by chance. It now opens on one story that is not found but
 seen, the first of the night's line told one at a time, and the door to the rest: *The last train*. The office's call
 ends by turning the view to whoever has the first story: that is now her, a few steps behind you, a moment before
-it happens. No street moment begins while the line has the street.
+it happens. No street moment begins while the line has the street. Before it, the corner's one line (issue 146) leads to her
+with the metres and the way (*A woman is photographing the screens*): where to look, never what is about to happen.
 
 *The incident, and how it is treated.* Deliberate shouldering in Tokyo's crowds is real and reported: a video of a man
 ramming women in Shinjuku station in May 2018; arrests for injury at Nijubashimae in 2019 (a 34-year-old woman, three
