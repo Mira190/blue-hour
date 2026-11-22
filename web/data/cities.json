@@ -34,7 +34,7 @@
   ],
   "load_bytes": {
    "model": 4279228,
-   "game": 4845811
+   "game": 4845807
   },
   "story": "Blue Hour",
   "story_episode": {
@@ -50,7 +50,7 @@
     -2100,
     450
    ],
-   "bytes": 1652355
+   "bytes": 1652358
   }
  }
 ]

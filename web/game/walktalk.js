@@ -18,7 +18,8 @@
 //            npc(id) -> the game's NPC { id, name, role, x, y, z, rig }, here() -> { x, y, z, mode },
 //            say(runs, done): a talk in runs of [npc, lines], one speaker after another; done() when the last closes,
 //            fill(text) -> the text with {time} and {sun_line} said, unseen(npc) -> true when nobody sees them now,
-//            move(npc, [x, y], faceTo) puts someone somewhere else, told(title, n, of): a story put away })
+//            move(npc, [x, y], faceTo) puts someone somewhere else, told(title, n, of): a story put away,
+//            called(npc): someone has called out to you (a wave from them) })
 //   then: { goal: the words under the hour, and one of: talk (the next part's speaker, at once), go [x, y] r on foot,
 //           drive [x, y] r in your car, up z (higher than z, as on SHIBUYA SKY's roof), photo [x, y, z] (a photograph
 //           with that point in it, taken from within `r` of it or from `above` metres over it; from 'heli': from the
@@ -377,6 +378,7 @@ window.OEWalkTalk = (function () {
       if (!b) { const el = document.createElement('div'); el.className = 'g-walk-bark'; layer.appendChild(el); b = { el }; barks.set(id, b); }
       b.el.textContent = ctx.fill(text); b.t = secs; b.el.style.opacity = '0';
       barked[id] = bClock;
+      if (ctx.called) ctx.called(n); // (and a wave from them, game.js)
       return true;
     }
     function barkNear(me, hide) {

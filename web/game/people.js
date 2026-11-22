@@ -305,6 +305,10 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
   };
   // what an NPC holds for what it does while it waits (look.clip)
   const CLIP_ACC = { Phone: ['phone'], Photo: ['camera'], Documents: ['clipboard'], Reading: ['book'], Drink: ['cup'] };
+  // gestures made to someone: a person plays them only in a conversation (mode 'talk' or 'listen'), never while they
+  // wait. Cast with one to wait in, a guide presented to nobody all evening at the Scramble, a person talking to themselves
+  // in the crowd (the owner, 22 November 2026): alone they wait as the cast's own idle does, and talk when talked to
+  const GESTURE = new Set(['Talk', 'Listen', 'Present', 'Thoughtful', 'Nod', 'Cheer', 'Wave']);
   // things held in a hand, placed in its grip (see person): nothing where the rig has no fingers
   const B3 = (x, y, z) => new THREE.BoxGeometry(x, y, z);
   Object.assign(ACC, {
@@ -1134,7 +1138,10 @@ ${PAT_GLSL}`)
     root.add(model);
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);
-    let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false;
+    let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false, convoT = -Infinity, glanceUntil = -Infinity, glanceNext = null;
+    // (when a waiting person looks round: a sequence of their own, the same each time the page is played)
+    let gs = [...String(look.character || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const grnd = () => ((gs = (gs * 1664525 + 1013904223) >>> 0) / 4294967296);
     const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
@@ -1192,7 +1199,8 @@ ${PAT_GLSL}`)
       return m;
     };
     // what the NPC does while it waits (look.clip), if this character has the clip
-    const idleClip = () => (look.clip && act[look.clip] ? look.clip : 'Idle');
+    // (never a gesture: alone, someone cast with one stands as people stand, GESTURE)
+    const idleClip = () => (look.clip && act[look.clip] && !GESTURE.has(look.clip) ? look.clip : GESTURE.has(look.clip) && act.Idle_Neutral ? 'Idle_Neutral' : 'Idle');
     function setAccessories() {
       const ids = noUmb([...(look.acc || []), ...((act[look.clip] && CLIP_ACC[look.clip]) || [])]);
       const key = JSON.stringify([ids, look.apron || '']);
@@ -1473,7 +1481,7 @@ ${PAT_GLSL}`)
         aim(a.la, a.wr, hand.sub(a.la.getWorldPosition(r3)).normalize());
       }
     }
-    rig.wave = (t = 0) => { waveUntil = t + act.Wave.getClip().duration * 0.95; play('Wave', 0.2, true); };
+    rig.wave = (t = 0) => { if (!act.Wave) return; waveUntil = t + act.Wave.getClip().duration * 0.95; play('Wave', 0.2, true); };
     // the top of the head in the world as the rig is posed: over the head's joint as it is now (seated
     // and leaning back, or sitting up), as high as the hair stood over it standing
     if (thigh && crown > 0) rig.headTop = (out = V3(0, 0, 0)) => (head && overHead > 0 ? head.getWorldPosition(out).add(sb.set(0, overHead * model.getWorldScale(sa).y, 0))
@@ -1491,14 +1499,33 @@ ${PAT_GLSL}`)
     rig.animate = (dt, speed, mode = 'ground', t = 0) => {
       const s = look.scale || 1;
       model.position.y = 0;
-      if (mode !== 'talk') talked = false;
+      // (a conversation is talked in and listened to on your feet: walking, the gait)
+      if ((mode === 'talk' || mode === 'listen') && speed >= 0.15) mode = 'ground';
+      const convo = mode === 'talk' || mode === 'listen';
+      // a nod hello once, as a conversation opens (a wave is for calling someone over from across the square, walktalk.js
+      // bark: at arm's length it went on three seconds before a word), not again at each turn of it (a speaker's runs,
+      // walktalk.js say), nor from someone in a scene already under way (rig.noWave: the story's people)
+      if (convo) convoT = t;
+      else if (t - convoT > 4 || t < convoT) talked = false;
+      if (mode === 'talk' && !talked && !rig.noWave && act.Nod) { waveUntil = t + Math.min(1.6, act.Nod.getClip().duration * 0.9); play('Nod', 0.25, true); }
+      if (convo) talked = true;
       const waving = t < waveUntil && speed < 0.3 && mode !== 'sit' && mode !== 'air';
-      if (mode === 'talk' && !talked) { talked = true; rig.wave(t); }   // a wave hello, then listen
-      else if (waving) { /* let the wave finish */ }
+      if (convo || mode !== 'ground' || speed >= 0.15) glanceUntil = -Infinity;
+      if (waving && mode !== 'listen') { /* let the wave finish (hello, or a call-out's) */ }
       else if (mode === 'talk') play(act.Talk ? 'Talk' : 'Idle', 0.35);
+      else if (mode === 'listen') play(act.Listen ? 'Listen' : 'Idle', 0.4);
       else if (mode === 'sit') play('Idle_Neutral', 0.2);
       else if (mode === 'air') play('Run', 0.15).setEffectiveTimeScale(0.3);
-      else if (speed < 0.15) play(idleClip(), 0.3);
+      else if (speed < 0.15) {
+        // Waiting (rig.waits: the map's named people). Stood alone a person does not hold one pose all evening: now and
+        // then they look round, for whoever they are waiting for, at the crossing. Not while they look at you (rig.lookTarget:
+        // their glance is yours), and only as time goes (dt: nothing stirs in a held world)
+        const base = idleClip();
+        if (glanceNext == null || glanceNext - t > 60) glanceNext = t + 5 + 11 * grnd();
+        const can = rig.waits && act.LookAround && (base === 'Idle' || base === 'Idle_Neutral') && !rig.lookTarget;
+        if (can && dt > 0 && t >= glanceNext && t >= glanceUntil) { glanceUntil = t + act.LookAround.getClip().duration * 0.92; glanceNext = glanceUntil + 9 + 14 * grnd(); play('LookAround', 0.6, true); }
+        else if (!(can && t < glanceUntil)) { glanceUntil = -Infinity; play(base, cur === act.LookAround ? 0.6 : 0.3); }
+      }
       else if (speed < 2.1) play('Walk', 0.25).setEffectiveTimeScale(Math.max(0.5, Math.min(1.7, speed / (speeds.Walk * s))));
       else if (act.Sprint && speed > 7) play('Sprint', 0.2).setEffectiveTimeScale(Math.max(0.7, Math.min(1.6, speed / (speeds.Sprint * s))));
       else play('Run', 0.2).setEffectiveTimeScale(Math.max(0.6, Math.min(2.4, speed / (speeds.Run * s)))); // up to the 8.5 m/s sprint (game.js GAIT)
