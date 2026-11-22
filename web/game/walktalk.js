@@ -474,7 +474,7 @@ window.OEWalkTalk = (function () {
         const n = ctx.npc(id), el = marks.get(id);
         if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
-        const far = w && (w.kind === 'story' || w.kind === 'event') ? SEE_M : 18;
+        const far = w && (w.kind === 'story' || w.kind === 'event' || w.kind === 'gate') ? SEE_M : 18;
         if (!w || w.kind === 'wait' || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; } // (and not through a floor: sight)
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
