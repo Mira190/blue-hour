@@ -17,6 +17,23 @@ window.OpenEarthGame = async function game(cityId) {
   const idle = () => new Promise(r => setTimeout(r, 0));
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch = matchMedia('(pointer: coarse)').matches;
+  // One tab (issue 166; docs/SOUND.md "One tab"). A phone has the memory, the GPU and the cores for one world: two tabs of
+  // the game on the owner's iPhone lost both their WebGL contexts in one second, with the sound breaking as they went.
+  // The world is held under a lock of the site's (the Web Locks API). A tab that finds it held asks the other to give way
+  // (a BroadcastChannel): that tab becomes tab.html, a page of a few kilobytes, and this one goes on. If the other does
+  // not answer within two seconds (iOS has frozen it), this tab becomes tab.html?wait=1 instead and starts by itself once
+  // the other is closed. On a touch screen only; ?tabs=many leaves it out. Tabs on two sites cannot see each other.
+  if (touch && navigator.locks && window.BroadcastChannel && !/[?&]tabs=many\b/.test(location.search)) {
+    const here = '#' + encodeURIComponent(location.search), bc = new BroadcastChannel('blue-hour-world'), hold = () => new Promise(() => {});
+    bc.onmessage = e => { if (e.data === 'give way') location.replace('tab.html' + here); };
+    navigator.locks.request('blue-hour-world', { ifAvailable: true }, lock => {
+      if (lock) return hold();
+      bc.postMessage('give way');
+      const stop = new AbortController(), t = setTimeout(() => stop.abort(), 2000);
+      navigator.locks.request('blue-hour-world', { signal: stop.signal }, () => { clearTimeout(t); return hold(); }).catch(() => location.replace('tab.html?wait=1' + here));
+      return undefined;
+    }).catch(() => {});
+  }
   const ac = new AbortController(), on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, Object.assign({ signal: ac.signal }, o));
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   // the old free game's keys, which open nothing on the story's map (in the story, or on the walk): the survey lens, the
@@ -31,16 +48,20 @@ window.OpenEarthGame = async function game(cityId) {
   let cue = null;
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
     // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
-    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
+    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', A.tunes ? !!A.needsTouch : !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
     const begin = () => {
       A.start();
+      // (a phone's: the system's own player, the context not made until the opening is over, audio.js "music outside the
+      // context". Its file is the loop six times over at the level the bus would give it: tools/load_cue.js)
+      if (A.tunes) { if (cue === null) { cue = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) on(window, ev, () => setTimeout(heard, 0), { capture: true }); } heard(); return; }
       if (cue !== null || !A.ctx) { heard(); return; } // (false: played and let go)
       cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
       on(A.ctx, 'statechange', heard); heard();
     };
+    if (A.quiet) A.quiet(true);
     begin();
     if (A.made) A.made(() => { if (cue === null) begin(); }); // (iOS: the context is made in the first touch, audio.js)
-    if (A.pending) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
+    if (A.pending && !A.tunes) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
     for (const ev of ['pointerdown', 'keydown']) on(window, ev, () => { if (cue) begin(); }, { capture: true });
   }
   const cueOut = () => { if (cue) { cue.stop(5); cue = false; } }; // (false: it has played, and is not begun again)
@@ -1745,7 +1766,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (clockT - bumpCar < 2.5 || e.speed < 3) continue;
       bumpCar = clockT;
       if (e.type === 'bump') H.toast(e.what === 'person' ? 'Watch out for people!' : e.what === 'car' ? 'Careful! That was another car.' : e.what === 'lamp' ? 'Careful! That was a lamp post.' : e.what === 'tree' ? 'Careful! That was a tree.' : 'Careful! That was a wall.');
-      if (e.type === 'edge') H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : 'Too steep a drop.');
+      if (e.type === 'edge') { const ax = st.x + Math.sin(st.h) * 3, ay = st.y + Math.cos(st.h) * 3, up = nav.floorAt(ax, ay, st.z + 2); H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : up && up.z > st.z + OECars.CAR_STEP ? 'Too high a step for the car.' : 'Too steep a drop.'); } // (a rise ahead, or the ground falling away)
     }
     Object.assign(player, { x: st.x, y: st.y, z: st.z, h: st.h, speed: st.speed });
     if (!pilot) redLight(st);
@@ -2222,7 +2243,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // where you stand is kept too, not only at a quest's steps: every half minute of play, and when the tab
   // is put away or the page closes. Not before the game has started (the title would write the spawn
   // over a saved game the player has not chosen to continue yet).
-  let playing = false;
+  let playing = false, sndQuiet = A && A.quiet && A.tunes ? 1 : 0, sndQuietAt = 0;
   const keep = () => { if (playing) save(); };
   on(document, 'visibilitychange', () => { if (document.hidden) keep(); });
   on(window, 'pagehide', keep);
@@ -5913,6 +5934,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
+    if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
+      const film = !!(overture && overture.active); if (film) sndQuiet = 2;
+      if (playing && !film && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
+    }
     weatherTick(simHold ? 0 : dt * (story ? story.scale : 1), titleOn, titleOn || paused || photo.on); // (held by a harness: the weather eases on only with advance(), which ticks it; stepped by the frames too, it eased by however many the machine drew, #420)
     if (show) show.tick(now);
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights
