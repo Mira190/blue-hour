@@ -1598,7 +1598,7 @@ vec3 crowdPose(vec3 p, bool isNormal) {
     const q1 = new THREE.Quaternion().setFromUnitVectors(d, E2.clone().sub(S).normalize());
     const q2 = new THREE.Quaternion().setFromUnitVectors(d, fist.clone().sub(E2).normalize().applyQuaternion(q1.clone().invert()));
     const aa = q => { const a = 2 * Math.acos(Math.max(-1, Math.min(1, q.w))), k = Math.sqrt(Math.max(1e-12, 1 - q.w * q.w)); return new THREE.Vector4(q.x / k, q.y / k, q.z / k, a); };
-    return (Lc.umbArm = { fist, hd, uni: { uUmbS: { value: S }, uUmbE: { value: E }, uUmbD: { value: new THREE.Vector4(d.x, d.y, d.z, L1) }, uUmbR1: { value: aa(q1) }, uUmbR2: { value: aa(q2) }, uUmbPart: { value: part } } });
+    return (Lc.umbArm = { fist, hd, rest: H, uni: { uUmbS: { value: S }, uUmbE: { value: E }, uUmbD: { value: new THREE.Vector4(d.x, d.y, d.z, L1) }, uUmbR1: { value: aa(q1) }, uUmbR2: { value: aa(q2) }, uUmbPart: { value: part } } });
   }
   function crowdMaterial(ex, U, Lc) {
     const pal = colours(ex, {}), cls = new Float32Array(N);
@@ -1928,16 +1928,30 @@ transformed = crowdPose(transformed, false);`);
       const key = p.far ? '@' + p.far : p.look.character;
       if (farHold[key]) return farHold[key];
       const Lc = p.far ? lib.far[p.far] : lib.lod[p.look.character], ex = Lc.extras, sh = ex.shoulder, arm = umbArm(Lc), hd = arm.hd, H = umbrellaHold(hd, arm.fist);
-      return (farHold[key] = { grip: H.grip, top: H.top, dir: H.dir, hd, hip: ex.hip, sh, m: new THREE.Matrix4().compose(H.top, H.q, V3(1, 1, 1)) });
+      return (farHold[key] = { grip: H.grip, top: H.top, dir: H.dir, hd, restY: arm.rest.y, hip: ex.hip, sh, m: new THREE.Matrix4().compose(H.top, H.q, V3(1, 1, 1)) });
     };
     // (a far umbrella's matrix, um: the body's, the copy's own hold, and its lean about the fist; an umbrella part of
     // the way up has its canopy scaled about its tip along the shaft, umbOpening: opened)
     const om = new THREE.Matrix4(), om2 = new THREE.Matrix4(), um = new THREE.Matrix4(), ug = new THREE.Vector3(), ux = new THREE.Vector3();
+    // (a copy that stands turns a little one way and the other and shifts its weight, CROWD_POSE's standing: the hand
+    // goes with the body, so the umbrella in it does, by the same turn and lean as the shader gives the hand)
+    const sw = new THREE.Matrix4(), sw2 = new THREE.Matrix4();
+    const sway = (p, C) => {
+      if (!p.umbStand) return null;
+      const fr = p.animO * 0.159 - Math.floor(p.animO * 0.159), t = U.uTime.value * (0.5 + 0.12 * fr) + p.animO;
+      // (the shader turns each vertex by where it is in the copy as it was made, and the hand was made hanging by the hip)
+      const x = Math.max(0, Math.min(1, (C.restY - (C.hip[0] - 0.05)) / (C.sh[0] - (C.hip[0] - 0.05)))), kf = x * x * (3 - 2 * x);
+      const yaw = (0.1 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 1.9 + 1.3)) * kf, roll = 0.02 * Math.sin(t * 0.43 + 0.4);
+      sw.makeRotationZ(roll).multiply(sw2.makeTranslation(0, 0, C.hip[1])).multiply(sw2.makeRotationY(yaw)).multiply(sw2.makeTranslation(0, 0, -C.hip[1]));
+      return sw;
+    };
     const farUmb = (p, body) => {
-      const C = holdOf(p), lx = p.umbLx || 0, ly = p.umbLy || 0, a = Math.hypot(lx, ly);
-      um.multiplyMatrices(body, C.m);
+      const C = holdOf(p), lx = p.umbLx || 0, ly = p.umbLy || 0, a = Math.hypot(lx, ly), S = sway(p, C);
+      um.copy(body);
+      if (S) um.multiply(S);
+      um.multiply(C.m);
       if (a > 1e-3) {
-        ug.copy(C.grip).applyMatrix4(body);
+        ug.copy(C.grip); if (S) ug.applyMatrix4(S); ug.applyMatrix4(body);
         om.makeRotationAxis(ux.set(-ly / a, 0, -lx / a), a);
         ux.copy(ug).applyMatrix4(om);
         om.setPosition(ug.x - ux.x, ug.y - ux.y, ug.z - ux.z);
@@ -2123,6 +2137,7 @@ transformed = crowdPose(transformed, false);`);
       const held = umbOn && ut > 0, share = held ? (ut < 1 ? umbOpening(ut).arm : 1) : 0;
       if (held) {
         const clear = p.look.umbrella === 'clear', c = umbMesh(clear), k = umbN[clear]++;
+        p.umbStand = !sit && !moving;
         farUmb(p, m4);
         c.setMatrixAt(k, ut < 1 ? opened(ut) : um);
         if (!clear) c.setColorAt(k, umbCol[i]);
@@ -2218,7 +2233,7 @@ transformed = crowdPose(transformed, false);`);
             const o = p.umbT < 1 ? umbOpening(p.umbT) : { r: 1, a: 1 };
             farUmb(p, bm);
             const top = V3(0, 0, 0).applyMatrix4(um), foot = V3(0, -UMB_LEN - UMB_END, 0).applyMatrix4(um), handle = V3(0, -UMB_LEN, 0).applyMatrix4(um), n = V3(0, 1, 0).transformDirection(um);
-            Object.assign(row, { umb: true, held: true, hand: arr(v(C.grip).applyMatrix4(bm)), handle: arr(handle), shaft: [arr(foot), arr(top)], canopy: { c: arr(top), n: arr(n), r: +(UMB_R * s * o.r).toFixed(3), h: +(UMB_H * s * o.a).toFixed(3) },
+            Object.assign(row, { umb: true, held: true, hand: arr((() => { const S = sway(p, C), h = v(C.grip); if (S) h.applyMatrix4(S); return h.applyMatrix4(bm); })()), handle: arr(handle), shaft: [arr(foot), arr(top)], canopy: { c: arr(top), n: arr(n), r: +(UMB_R * s * o.r).toFixed(3), h: +(UMB_H * s * o.a).toFixed(3) },
               torso: { a: arr(V3(0, C.hip[0], C.hip[1]).applyMatrix4(bm)), b: arr(V3(0, C.sh[0] + 0.06, C.sh[1]).applyMatrix4(bm)), r: +(0.125 * s).toFixed(3) } });
           }
         }
