@@ -390,7 +390,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       const here = await p.evaluate(() => [window.__game.player.x, window.__game.player.y]);
       await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; g.player.x = s.at[0] + s.face[0] * 9; g.player.y = s.at[1] + s.face[1] * 9; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.cam.yaw = g.player.h; g.cam.pitch = 0.1; g.advance(0.3); });
       await frames(24);
-      const pm = await p.waitForFunction(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e && +e.style.opacity > 0.4; }, null, { timeout: 60000, polling: 300 }).then(placeMark, placeMark);
+      // (waited for as it is judged, shown and named: the mark may be up already from where you stood before, pale and
+      // without its name, and beside another check the page had not drawn a frame since you were set down here; read then,
+      // it failed as "not named" one run in two with two cores kept busy: issue 159)
+      const pm = await p.waitForFunction(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e && +e.style.opacity > 0.4 && /Sit/.test(e.querySelector('span').textContent); }, null, { timeout: 60000, polling: 300 }).then(placeMark, placeMark);
       if (!pm || pm.o < 0.4) fail(`nine metres from ${seat.name}, facing it, no mark offers the seat (${JSON.stringify(pm)})`);
       else if (!/Sit/.test(pm.name)) fail(`the seat's mark is not named from nine metres ("${pm.name}")`);
       else ok(`nine metres from ${seat.name}: its mark, "${pm.name}"`);
@@ -511,7 +514,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!(await talk('mei', 14))) fail('no Mei on the walk (game.json npcs: mei)');
       else {
         await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 8; i++) g.frame(0.05); });
-        await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3), null, { timeout: 90000, polling: 500 }).catch(() => {});
+        await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3 && e.dataset.k === 'story'), null, { timeout: 90000, polling: 500 }).catch(() => {}); // (the mark that is judged, not any mark: a seat's may be up already)
         const mk = await p.evaluate(() => [...document.querySelectorAll('.g-walk-mark')].filter(e => +e.style.opacity > 0.3).map(e => e.dataset.k));
         if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (${JSON.stringify(mk)})`);
         else ok(`speech marks from fourteen metres: ${mk.join(', ')}`);
