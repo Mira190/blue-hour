@@ -481,7 +481,9 @@ window.OEJunctions = (function () {
       // into the junction behind and held it (car 184, 69 s). At the map's edge such a street is the way out of
       // the map, and stays
       const stub = e => { const far = 1 - e.m.end, l = L[e.m.line]; return (l.len < 40 || (l.ow && !atEdge(l, far))) && !armOf.get(e.m.line * 2 + far) && !net.next(e.m.line, far, true); };
-      const av = net.avoid, ok0 = out.filter(e => !(av && av[e.m.line])), ok1 = ok0.filter(e => !stub(e)), ok = ok1.length ? ok1 : ok0, pool = ok.length ? ok : out;
+      // nor a quiet street of the road plan (pipeline/road_plan.py: a cul-de-sac and what only it serves, the stub before
+      // a closure), unless the car is on one already and that is its way out
+      const av = net.avoid, ok0 = out.filter(e => !(av && av[e.m.line])), ok1 = ok0.filter(e => !stub(e) && !L[e.m.line].quiet), ok = ok1.length ? ok1 : ok0, pool = ok.length ? ok : out;
       const fwd = pool.filter(e => Math.abs(e.turn) < 2.6);
       a.exits = fwd.length ? fwd : pool;
       // the lanes a movement goes from, on a road with two each way (lane 0 is the one by the centre
@@ -521,9 +523,10 @@ window.OEJunctions = (function () {
     // choose an exit: ahead more often than a turn, and a main road more often than a lane
     let trips = null; // (where the traffic is going, trips.js: set by the game once the roads to keep off are known)
     // (trip: the place the car is bound for, trips.js, or -1: its exits are weighed by how near each brings it)
-    function choose(a, hw = 0, half = 0, trip = -1) {
+    function choose(a, hw = 0, half = 0, trip = -1, bus = false) {
       let ex = exits(a);
       if (!ex.length) return null;
+      if (bus && ex.length > 1) { const w = ex.filter(e => L[e.m.line].bus); if (w.length) ex = w; } // (a bus keeps to the streets its routes take, where one goes on from here)
       if (hw && net.fit && ex.length > 1) { const w = ex.filter(e => net.fit[e.m.line] >= hw); if (w.length) ex = w; } // (not into a street too narrow for it, if there is another way: #202)
       // (nor onto a piece shorter than it up to the next line that can't be crossed with the junction there, a piece
       // that comes straight back to this junction: a bus out of Shinjuku's 1195 onto one stood across it 69 s, at the

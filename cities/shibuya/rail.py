@@ -245,7 +245,7 @@ def underbridges():
                         continue
                     i = int(np.argmin(np.hypot(t["pts"][:, 0] - q.x, t["pts"][:, 1] - q.y)))
                     k = int(np.argmin(np.hypot(p[:, 0] - q.x, p[:, 1] - q.y)))
-                    if _open(t, i) and t["z"][i] - 0.55 - p[k, 2] >= UNDER_CLEAR and not any(u["line"].distance(q) < 12 for u in out):
+                    if _open(t, i) and t["z"][i] - 0.55 - p[k, 2] >= UNDER_CLEAR and not any(u["line"] is line and math.hypot(u["at"][0] - q.x, u["at"][1] - q.y) < 12 for u in out):
                         out.append({"line": line, "hw": (e["cw"] / 2 if e.get("cw") else ROAD_HW.get(e.get("c", ""), 3.5)) + UNDER_SIDE, "z": float(p[k, 2]), "at": (q.x, q.y)})
     _S["U"] = out
     return out

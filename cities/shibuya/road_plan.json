@@ -1,0 +1,5162 @@
+{
+ "note": "A city's road plan as pipeline/road_plan.py decided it (docs/ROADS.md): the report, and every end of the network that is not a junction.",
+ "report": {
+  "pieces": 4901,
+  "km": 360.18,
+  "closed": 9,
+  "closed_km": 0.84,
+  "closed_why": {
+   "the built model stands across it": 5,
+   "no car fits along it": 4
+  },
+  "quiet": 370,
+  "quiet_km": 24.29,
+  "bus": 1196,
+  "bus_km": 97.27,
+  "one_way": 1652,
+  "node_degrees": {
+   "1": 566,
+   "2": 139,
+   "3": 2130,
+   "4": 587,
+   "5": 33,
+   "6": 5,
+   "7": 1
+  },
+  "ends": {
+   "gate": 230,
+   "dead end": 329,
+   "closure": 7
+  },
+  "extent": [
+   -2700.0,
+   1750.0,
+   -3100.0,
+   900.0
+  ],
+  "survey": {
+   "matched": 4891,
+   "unmatched": 10,
+   "class_agrees": 4891,
+   "one_way_agrees": 4890,
+   "one_way_differs": [
+    [
+     4003,
+     [
+      1747,
+      -1800
+     ],
+     "OSM two-way"
+    ]
+   ],
+   "source": "OpenStreetMap contributors (ODbL), the OSM API's map call, fetched 2026-11-21: highway ways open to cars, the ways of route=bus relations, amenity=taxi, barrier nodes on roads; lon/lat. GTFS shapes: 都営バス (東京都交通局), feed version 20261122_030832, CC BY 4.0, from the Public Transportation Open Data Center"
+  },
+  "bus_routes": 113,
+  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-22): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
+  "one_way_from_osm": 9,
+  "gaps_joined": 0
+ },
+ "ends": [
+  {
+   "at": [
+    466.4,
+    -1197.9
+   ],
+   "kind": "closure",
+   "piece": 4287,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    471.0,
+    -1204.6
+   ],
+   "kind": "closure",
+   "piece": 4289,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    474.3,
+    -1210.2
+   ],
+   "kind": "closure",
+   "piece": 4286,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    479.8,
+    -1217.4
+   ],
+   "kind": "closure",
+   "piece": 4154,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    508.6,
+    -1181.4
+   ],
+   "kind": "closure",
+   "piece": 4288,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    513.5,
+    -1193.9
+   ],
+   "kind": "closure",
+   "piece": 4285,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    516.2,
+    -1201.2
+   ],
+   "kind": "closure",
+   "piece": 4153,
+   "class": "trunk",
+   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+  },
+  {
+   "at": [
+    -2639.0,
+    -2704.2
+   ],
+   "kind": "dead end",
+   "piece": 2751,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2629.2,
+    289.4
+   ],
+   "kind": "dead end",
+   "piece": 377,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2622.9,
+    403.2
+   ],
+   "kind": "dead end",
+   "piece": 368,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2592.0,
+    -2109.4
+   ],
+   "kind": "dead end",
+   "piece": 2719,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2590.5,
+    -2489.2
+   ],
+   "kind": "dead end",
+   "piece": 2744,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2589.7,
+    150.6
+   ],
+   "kind": "dead end",
+   "piece": 399,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2582.9,
+    -374.6
+   ],
+   "kind": "dead end",
+   "piece": 297,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2559.6,
+    628.1
+   ],
+   "kind": "dead end",
+   "piece": 360,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -2553.7,
+    602.4
+   ],
+   "kind": "dead end",
+   "piece": 359,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -2553.3,
+    181.8
+   ],
+   "kind": "dead end",
+   "piece": 388,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2550.8,
+    -9.2
+   ],
+   "kind": "dead end",
+   "piece": 319,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2549.5,
+    -923.7
+   ],
+   "kind": "dead end",
+   "piece": 235,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2549.3,
+    -2701.2
+   ],
+   "kind": "dead end",
+   "piece": 2752,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2527.8,
+    -2633.0
+   ],
+   "kind": "dead end",
+   "piece": 2749,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2509.8,
+    163.1
+   ],
+   "kind": "dead end",
+   "piece": 392,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2490.5,
+    -2919.4
+   ],
+   "kind": "dead end",
+   "piece": 13,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2482.1,
+    659.3
+   ],
+   "kind": "dead end",
+   "piece": 340,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2474.7,
+    -2391.5
+   ],
+   "kind": "dead end",
+   "piece": 2736,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2458.6,
+    399.5
+   ],
+   "kind": "dead end",
+   "piece": 599,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2438.5,
+    -290.7
+   ],
+   "kind": "dead end",
+   "piece": 1244,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2428.5,
+    -2049.8
+   ],
+   "kind": "dead end",
+   "piece": 2901,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2423.6,
+    430.0
+   ],
+   "kind": "dead end",
+   "piece": 600,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2408.8,
+    685.1
+   ],
+   "kind": "dead end",
+   "piece": 638,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2405.6,
+    667.4
+   ],
+   "kind": "dead end",
+   "piece": 637,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2398.0,
+    -853.1
+   ],
+   "kind": "dead end",
+   "piece": 1417,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2395.6,
+    -83.9
+   ],
+   "kind": "dead end",
+   "piece": 1189,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2378.0,
+    -134.9
+   ],
+   "kind": "dead end",
+   "piece": 1195,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2361.8,
+    -624.5
+   ],
+   "kind": "dead end",
+   "piece": 1385,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2358.1,
+    -343.5
+   ],
+   "kind": "dead end",
+   "piece": 1254,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2353.9,
+    -1869.6
+   ],
+   "kind": "dead end",
+   "piece": 2314,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2330.1,
+    -849.2
+   ],
+   "kind": "dead end",
+   "piece": 1416,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2327.9,
+    -833.6
+   ],
+   "kind": "dead end",
+   "piece": 1410,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2285.8,
+    -2820.9
+   ],
+   "kind": "dead end",
+   "piece": 2778,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2277.2,
+    -896.2
+   ],
+   "kind": "dead end",
+   "piece": 1423,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2273.9,
+    -84.7
+   ],
+   "kind": "dead end",
+   "piece": 1194,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2266.7,
+    -862.5
+   ],
+   "kind": "dead end",
+   "piece": 1415,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2262.7,
+    -849.6
+   ],
+   "kind": "dead end",
+   "piece": 1415,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2256.5,
+    -2768.8
+   ],
+   "kind": "dead end",
+   "piece": 2798,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2251.5,
+    146.5
+   ],
+   "kind": "dead end",
+   "piece": 423,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2222.6,
+    -2015.8
+   ],
+   "kind": "dead end",
+   "piece": 2903,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2205.8,
+    -1039.2
+   ],
+   "kind": "dead end",
+   "piece": 2605,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2204.9,
+    -2202.6
+   ],
+   "kind": "dead end",
+   "piece": 2893,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2194.8,
+    -2208.5
+   ],
+   "kind": "dead end",
+   "piece": 2893,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2168.9,
+    -406.0
+   ],
+   "kind": "dead end",
+   "piece": 1260,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2159.8,
+    -383.4
+   ],
+   "kind": "dead end",
+   "piece": 1251,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2157.9,
+    -401.8
+   ],
+   "kind": "dead end",
+   "piece": 1261,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2128.2,
+    -520.0
+   ],
+   "kind": "dead end",
+   "piece": 1375,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2043.4,
+    -1883.2
+   ],
+   "kind": "dead end",
+   "piece": 2298,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2034.2,
+    -103.2
+   ],
+   "kind": "dead end",
+   "piece": 1205,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2029.5,
+    -2172.9
+   ],
+   "kind": "dead end",
+   "piece": 2930,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2003.5,
+    -963.3
+   ],
+   "kind": "dead end",
+   "piece": 1426,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2001.9,
+    -2328.1
+   ],
+   "kind": "dead end",
+   "piece": 2884,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1999.3,
+    -907.5
+   ],
+   "kind": "dead end",
+   "piece": 1428,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1982.4,
+    -764.9
+   ],
+   "kind": "dead end",
+   "piece": 1400,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1981.3,
+    -746.9
+   ],
+   "kind": "dead end",
+   "piece": 1401,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1953.5,
+    -1858.0
+   ],
+   "kind": "dead end",
+   "piece": 2299,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1945.5,
+    -1008.2
+   ],
+   "kind": "dead end",
+   "piece": 2567,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1938.8,
+    -1288.9
+   ],
+   "kind": "dead end",
+   "piece": 2433,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1935.3,
+    -700.4
+   ],
+   "kind": "dead end",
+   "piece": 1393,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1918.5,
+    -1394.4
+   ],
+   "kind": "dead end",
+   "piece": 2451,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1910.5,
+    -533.5
+   ],
+   "kind": "dead end",
+   "piece": 1362,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1904.1,
+    -1085.3
+   ],
+   "kind": "dead end",
+   "piece": 2570,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1900.3,
+    -416.8
+   ],
+   "kind": "dead end",
+   "piece": 1265,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1898.6,
+    -564.1
+   ],
+   "kind": "dead end",
+   "piece": 1361,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1898.3,
+    -2577.2
+   ],
+   "kind": "dead end",
+   "piece": 2865,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1896.7,
+    -1298.1
+   ],
+   "kind": "dead end",
+   "piece": 2441,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1893.7,
+    -2330.4
+   ],
+   "kind": "dead end",
+   "piece": 2883,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1873.4,
+    -956.9
+   ],
+   "kind": "dead end",
+   "piece": 2564,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1838.3,
+    -2545.5
+   ],
+   "kind": "dead end",
+   "piece": 2861,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1837.6,
+    -910.7
+   ],
+   "kind": "dead end",
+   "piece": 1431,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1802.5,
+    -1555.3
+   ],
+   "kind": "dead end",
+   "piece": 2389,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1796.8,
+    -161.8
+   ],
+   "kind": "dead end",
+   "piece": 1137,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1760.6,
+    -376.7
+   ],
+   "kind": "dead end",
+   "piece": 1270,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1733.9,
+    -980.8
+   ],
+   "kind": "dead end",
+   "piece": 2562,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1717.7,
+    -1500.4
+   ],
+   "kind": "dead end",
+   "piece": 2224,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1708.2,
+    538.4
+   ],
+   "kind": "dead end",
+   "piece": 732,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1696.5,
+    -992.5
+   ],
+   "kind": "dead end",
+   "piece": 2563,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1637.3,
+    -1824.6
+   ],
+   "kind": "dead end",
+   "piece": 2258,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1630.9,
+    -956.2
+   ],
+   "kind": "dead end",
+   "piece": 2554,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1629.9,
+    -2140.3
+   ],
+   "kind": "dead end",
+   "piece": 2934,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1627.8,
+    -1868.7
+   ],
+   "kind": "dead end",
+   "piece": 2257,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1616.9,
+    518.0
+   ],
+   "kind": "dead end",
+   "piece": 733,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1615.8,
+    506.2
+   ],
+   "kind": "dead end",
+   "piece": 578,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1608.4,
+    -44.9
+   ],
+   "kind": "dead end",
+   "piece": 1143,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1595.5,
+    -1207.1
+   ],
+   "kind": "dead end",
+   "piece": 2525,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1581.2,
+    455.1
+   ],
+   "kind": "dead end",
+   "piece": 569,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1567.5,
+    47.2
+   ],
+   "kind": "dead end",
+   "piece": 476,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1562.9,
+    -2776.7
+   ],
+   "kind": "dead end",
+   "piece": 2836,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1561.5,
+    -1673.7
+   ],
+   "kind": "dead end",
+   "piece": 2235,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1542.0,
+    583.0
+   ],
+   "kind": "dead end",
+   "piece": 736,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1537.3,
+    -1553.4
+   ],
+   "kind": "dead end",
+   "piece": 2228,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1532.8,
+    -1611.4
+   ],
+   "kind": "dead end",
+   "piece": 2231,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1529.6,
+    -203.1
+   ],
+   "kind": "dead end",
+   "piece": 1287,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1523.6,
+    103.0
+   ],
+   "kind": "dead end",
+   "piece": 464,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1509.6,
+    26.7
+   ],
+   "kind": "dead end",
+   "piece": 1152,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1508.5,
+    -1313.1
+   ],
+   "kind": "dead end",
+   "piece": 2464,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1475.5,
+    98.3
+   ],
+   "kind": "dead end",
+   "piece": 469,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1474.2,
+    387.0
+   ],
+   "kind": "dead end",
+   "piece": 540,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1460.3,
+    -2669.3
+   ],
+   "kind": "dead end",
+   "piece": 2848,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1457.5,
+    271.8
+   ],
+   "kind": "dead end",
+   "piece": 520,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1446.3,
+    -2239.6
+   ],
+   "kind": "dead end",
+   "piece": 3001,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1443.2,
+    7.8
+   ],
+   "kind": "dead end",
+   "piece": 1151,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1425.5,
+    290.6
+   ],
+   "kind": "dead end",
+   "piece": 544,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1397.2,
+    -7.0
+   ],
+   "kind": "dead end",
+   "piece": 1100,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1392.3,
+    -1770.1
+   ],
+   "kind": "dead end",
+   "piece": 2269,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1384.3,
+    -661.8
+   ],
+   "kind": "dead end",
+   "piece": 1344,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1375.7,
+    -1940.6
+   ],
+   "kind": "dead end",
+   "piece": 2242,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1368.7,
+    -1969.0
+   ],
+   "kind": "dead end",
+   "piece": 2954,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1317.9,
+    443.2
+   ],
+   "kind": "dead end",
+   "piece": 561,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1273.9,
+    400.3
+   ],
+   "kind": "dead end",
+   "piece": 555,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1251.4,
+    -2031.9
+   ],
+   "kind": "dead end",
+   "piece": 2952,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1238.9,
+    149.1
+   ],
+   "kind": "dead end",
+   "piece": 494,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1234.0,
+    -242.5
+   ],
+   "kind": "dead end",
+   "piece": 1296,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1213.4,
+    -2040.2
+   ],
+   "kind": "dead end",
+   "piece": 2952,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1187.4,
+    166.9
+   ],
+   "kind": "dead end",
+   "piece": 508,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1174.7,
+    455.2
+   ],
+   "kind": "dead end",
+   "piece": 562,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1150.8,
+    -1211.2
+   ],
+   "kind": "dead end",
+   "piece": 2505,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1139.0,
+    -271.9
+   ],
+   "kind": "dead end",
+   "piece": 1302,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1135.1,
+    -1319.3
+   ],
+   "kind": "dead end",
+   "piece": 2496,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1108.9,
+    -1851.2
+   ],
+   "kind": "dead end",
+   "piece": 2238,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1105.2,
+    -506.2
+   ],
+   "kind": "dead end",
+   "piece": 1327,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1096.8,
+    -1100.6
+   ],
+   "kind": "dead end",
+   "piece": 2544,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1090.5,
+    -1078.5
+   ],
+   "kind": "dead end",
+   "piece": 2551,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1076.2,
+    -408.3
+   ],
+   "kind": "dead end",
+   "piece": 1310,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1072.1,
+    -1103.8
+   ],
+   "kind": "dead end",
+   "piece": 1782,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1069.2,
+    -1215.7
+   ],
+   "kind": "dead end",
+   "piece": 2540,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1061.6,
+    -316.0
+   ],
+   "kind": "dead end",
+   "piece": 1308,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1058.5,
+    146.3
+   ],
+   "kind": "dead end",
+   "piece": 492,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1031.6,
+    402.1
+   ],
+   "kind": "dead end",
+   "piece": 866,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1017.7,
+    -1817.3
+   ],
+   "kind": "dead end",
+   "piece": 2134,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -984.9,
+    -2177.9
+   ],
+   "kind": "dead end",
+   "piece": 3071,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -981.9,
+    -1293.7
+   ],
+   "kind": "dead end",
+   "piece": 1854,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -968.0,
+    -272.0
+   ],
+   "kind": "dead end",
+   "piece": 1011,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -947.0,
+    -124.0
+   ],
+   "kind": "dead end",
+   "piece": 1022,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -945.7,
+    -1174.0
+   ],
+   "kind": "dead end",
+   "piece": 1788,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -945.2,
+    -1156.6
+   ],
+   "kind": "dead end",
+   "piece": 1783,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -945.2,
+    -1141.1
+   ],
+   "kind": "dead end",
+   "piece": 1784,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -933.2,
+    -270.3
+   ],
+   "kind": "dead end",
+   "piece": 997,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -928.0,
+    -190.4
+   ],
+   "kind": "dead end",
+   "piece": 1015,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -924.6,
+    -1401.0
+   ],
+   "kind": "dead end",
+   "piece": 1864,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -920.9,
+    119.5
+   ],
+   "kind": "dead end",
+   "piece": 912,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -918.1,
+    -237.5
+   ],
+   "kind": "dead end",
+   "piece": 1010,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -883.5,
+    -211.3
+   ],
+   "kind": "dead end",
+   "piece": 1009,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -833.9,
+    -680.5
+   ],
+   "kind": "dead end",
+   "piece": 1486,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -829.8,
+    -1299.7
+   ],
+   "kind": "dead end",
+   "piece": 1856,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -826.1,
+    -1152.3
+   ],
+   "kind": "dead end",
+   "piece": 1789,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -821.3,
+    -50.7
+   ],
+   "kind": "dead end",
+   "piece": 1081,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -806.5,
+    171.6
+   ],
+   "kind": "dead end",
+   "piece": 901,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -800.6,
+    40.6
+   ],
+   "kind": "dead end",
+   "piece": 918,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -795.2,
+    586.1
+   ],
+   "kind": "dead end",
+   "piece": 762,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -793.7,
+    -781.6
+   ],
+   "kind": "dead end",
+   "piece": 1477,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -789.5,
+    586.1
+   ],
+   "kind": "dead end",
+   "piece": 790,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -787.5,
+    -1343.9
+   ],
+   "kind": "dead end",
+   "piece": 1859,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -785.7,
+    -403.3
+   ],
+   "kind": "dead end",
+   "piece": 1513,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -780.5,
+    -403.5
+   ],
+   "kind": "dead end",
+   "piece": 989,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -776.3,
+    -706.2
+   ],
+   "kind": "dead end",
+   "piece": 1490,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -768.1,
+    -1871.7
+   ],
+   "kind": "dead end",
+   "piece": 2123,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -764.5,
+    -2716.4
+   ],
+   "kind": "dead end",
+   "piece": 3440,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -763.1,
+    -1900.4
+   ],
+   "kind": "dead end",
+   "piece": 2128,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -761.0,
+    -1898.3
+   ],
+   "kind": "dead end",
+   "piece": 2117,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -759.3,
+    22.3
+   ],
+   "kind": "dead end",
+   "piece": 917,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -749.5,
+    -1128.4
+   ],
+   "kind": "dead end",
+   "piece": 1781,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -745.4,
+    -2058.0
+   ],
+   "kind": "dead end",
+   "piece": 3113,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -743.7,
+    -1335.2
+   ],
+   "kind": "dead end",
+   "piece": 1870,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -719.8,
+    -1709.6
+   ],
+   "kind": "dead end",
+   "piece": 2154,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -708.2,
+    -22.6
+   ],
+   "kind": "dead end",
+   "piece": 1072,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -703.0,
+    -126.3
+   ],
+   "kind": "dead end",
+   "piece": 1046,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -690.8,
+    -1850.4
+   ],
+   "kind": "dead end",
+   "piece": 2116,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -687.5,
+    -1495.7
+   ],
+   "kind": "dead end",
+   "piece": 2202,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -671.3,
+    -2045.8
+   ],
+   "kind": "dead end",
+   "piece": 3116,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -662.8,
+    -1401.0
+   ],
+   "kind": "dead end",
+   "piece": 1875,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -644.5,
+    -376.5
+   ],
+   "kind": "dead end",
+   "piece": 988,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -623.8,
+    -2851.3
+   ],
+   "kind": "dead end",
+   "piece": 3458,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -608.6,
+    -2893.8
+   ],
+   "kind": "dead end",
+   "piece": 3456,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -604.4,
+    -342.1
+   ],
+   "kind": "dead end",
+   "piece": 979,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -570.0,
+    -1529.5
+   ],
+   "kind": "dead end",
+   "piece": 2177,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -533.9,
+    -5.3
+   ],
+   "kind": "dead end",
+   "piece": 1062,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -533.4,
+    -1571.9
+   ],
+   "kind": "dead end",
+   "piece": 2179,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -533.3,
+    -2917.4
+   ],
+   "kind": "dead end",
+   "piece": 3470,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -533.1,
+    -2922.2
+   ],
+   "kind": "dead end",
+   "piece": 146,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -532.9,
+    -1525.2
+   ],
+   "kind": "dead end",
+   "piece": 2176,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -522.4,
+    -32.9
+   ],
+   "kind": "dead end",
+   "piece": 1063,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -521.9,
+    -370.2
+   ],
+   "kind": "dead end",
+   "piece": 972,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -511.7,
+    -1525.4
+   ],
+   "kind": "dead end",
+   "piece": 2183,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -507.8,
+    -56.1
+   ],
+   "kind": "dead end",
+   "piece": 1057,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -494.2,
+    -1685.1
+   ],
+   "kind": "dead end",
+   "piece": 2001,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -489.0,
+    -1703.6
+   ],
+   "kind": "dead end",
+   "piece": 2008,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -469.5,
+    -1505.1
+   ],
+   "kind": "dead end",
+   "piece": 2184,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -455.7,
+    -247.8
+   ],
+   "kind": "dead end",
+   "piece": 954,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -451.2,
+    -1424.1
+   ],
+   "kind": "dead end",
+   "piece": 2189,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -438.1,
+    -1293.8
+   ],
+   "kind": "dead end",
+   "piece": 1829,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -415.4,
+    -735.7
+   ],
+   "kind": "dead end",
+   "piece": 1472,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -412.4,
+    -3029.0
+   ],
+   "kind": "dead end",
+   "piece": 161,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -401.3,
+    -1547.4
+   ],
+   "kind": "dead end",
+   "piece": 2167,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -389.2,
+    -2284.3
+   ],
+   "kind": "dead end",
+   "piece": 3048,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -372.5,
+    -2503.8
+   ],
+   "kind": "dead end",
+   "piece": 3396,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -367.0,
+    -384.0
+   ],
+   "kind": "dead end",
+   "piece": 970,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -358.6,
+    -234.3
+   ],
+   "kind": "dead end",
+   "piece": 951,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -358.1,
+    -1820.8
+   ],
+   "kind": "dead end",
+   "piece": 2060,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -351.1,
+    -2821.4
+   ],
+   "kind": "dead end",
+   "piece": 3464,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -340.1,
+    -2834.3
+   ],
+   "kind": "dead end",
+   "piece": 3486,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -330.5,
+    -1382.1
+   ],
+   "kind": "dead end",
+   "piece": 1894,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -321.6,
+    -289.9
+   ],
+   "kind": "dead end",
+   "piece": 966,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -269.7,
+    -294.4
+   ],
+   "kind": "dead end",
+   "piece": 949,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -259.0,
+    -2184.8
+   ],
+   "kind": "dead end",
+   "piece": 3172,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -218.2,
+    -1852.6
+   ],
+   "kind": "dead end",
+   "piece": 2055,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -206.9,
+    -1393.2
+   ],
+   "kind": "dead end",
+   "piece": 1917,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -201.8,
+    -1230.7
+   ],
+   "kind": "dead end",
+   "piece": 1928,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -194.3,
+    -2232.7
+   ],
+   "kind": "dead end",
+   "piece": 3246,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -190.2,
+    -1351.1
+   ],
+   "kind": "dead end",
+   "piece": 1916,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -188.6,
+    -522.9
+   ],
+   "kind": "dead end",
+   "piece": 1552,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -179.1,
+    -476.4
+   ],
+   "kind": "dead end",
+   "piece": 1550,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -157.5,
+    -2589.3
+   ],
+   "kind": "dead end",
+   "piece": 3374,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -147.6,
+    -2836.2
+   ],
+   "kind": "dead end",
+   "piece": 3483,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -146.9,
+    -2607.5
+   ],
+   "kind": "dead end",
+   "piece": 3368,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -135.9,
+    -556.4
+   ],
+   "kind": "dead end",
+   "piece": 1555,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -133.7,
+    -2572.8
+   ],
+   "kind": "dead end",
+   "piece": 3382,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -85.2,
+    -2949.3
+   ],
+   "kind": "dead end",
+   "piece": 178,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -78.3,
+    -1397.5
+   ],
+   "kind": "dead end",
+   "piece": 2002,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -70.5,
+    -2623.2
+   ],
+   "kind": "dead end",
+   "piece": 3366,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -40.4,
+    -2159.7
+   ],
+   "kind": "dead end",
+   "piece": 3234,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -26.7,
+    -1103.5
+   ],
+   "kind": "dead end",
+   "piece": 1725,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -4.2,
+    -1110.7
+   ],
+   "kind": "dead end",
+   "piece": 1718,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    17.1,
+    -2771.5
+   ],
+   "kind": "dead end",
+   "piece": 3506,
+   "class": "residential"
+  },
+  {
+   "at": [
+    22.1,
+    -1403.9
+   ],
+   "kind": "dead end",
+   "piece": 1975,
+   "class": "residential"
+  },
+  {
+   "at": [
+    28.8,
+    -1981.9
+   ],
+   "kind": "dead end",
+   "piece": 3208,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    33.1,
+    -543.6
+   ],
+   "kind": "dead end",
+   "piece": 1559,
+   "class": "residential"
+  },
+  {
+   "at": [
+    34.4,
+    -571.7
+   ],
+   "kind": "dead end",
+   "piece": 1580,
+   "class": "residential"
+  },
+  {
+   "at": [
+    40.0,
+    -2731.0
+   ],
+   "kind": "dead end",
+   "piece": 3512,
+   "class": "residential"
+  },
+  {
+   "at": [
+    40.4,
+    -1958.2
+   ],
+   "kind": "dead end",
+   "piece": 3209,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    40.5,
+    -1386.8
+   ],
+   "kind": "dead end",
+   "piece": 1971,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    149.7,
+    -1131.2
+   ],
+   "kind": "dead end",
+   "piece": 1716,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    196.3,
+    -1815.0
+   ],
+   "kind": "dead end",
+   "piece": 2034,
+   "class": "residential"
+  },
+  {
+   "at": [
+    209.6,
+    -906.8
+   ],
+   "kind": "dead end",
+   "piece": 1662,
+   "class": "residential"
+  },
+  {
+   "at": [
+    211.2,
+    -1156.6
+   ],
+   "kind": "dead end",
+   "piece": 1712,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    221.1,
+    -1149.0
+   ],
+   "kind": "dead end",
+   "piece": 1710,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    246.6,
+    -922.8
+   ],
+   "kind": "dead end",
+   "piece": 1652,
+   "class": "residential"
+  },
+  {
+   "at": [
+    254.6,
+    -926.0
+   ],
+   "kind": "dead end",
+   "piece": 1663,
+   "class": "residential"
+  },
+  {
+   "at": [
+    306.2,
+    -1177.3
+   ],
+   "kind": "dead end",
+   "piece": 1704,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    347.5,
+    -987.2
+   ],
+   "kind": "dead end",
+   "piece": 1665,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    349.7,
+    -1539.5
+   ],
+   "kind": "dead end",
+   "piece": 1981,
+   "class": "residential"
+  },
+  {
+   "at": [
+    349.9,
+    -1620.2
+   ],
+   "kind": "dead end",
+   "piece": 2029,
+   "class": "residential"
+  },
+  {
+   "at": [
+    362.7,
+    -2837.8
+   ],
+   "kind": "dead end",
+   "piece": 3527,
+   "class": "primary"
+  },
+  {
+   "at": [
+    369.3,
+    -2833.6
+   ],
+   "kind": "dead end",
+   "piece": 3528,
+   "class": "primary"
+  },
+  {
+   "at": [
+    381.9,
+    -2115.9
+   ],
+   "kind": "dead end",
+   "piece": 3717,
+   "class": "residential"
+  },
+  {
+   "at": [
+    397.3,
+    -2888.0
+   ],
+   "kind": "dead end",
+   "piece": 3526,
+   "class": "primary"
+  },
+  {
+   "at": [
+    403.5,
+    -2884.5
+   ],
+   "kind": "dead end",
+   "piece": 3529,
+   "class": "primary"
+  },
+  {
+   "at": [
+    492.2,
+    -1385.0
+   ],
+   "kind": "dead end",
+   "piece": 4133,
+   "class": "residential"
+  },
+  {
+   "at": [
+    501.4,
+    -333.8
+   ],
+   "kind": "dead end",
+   "piece": 4630,
+   "class": "residential"
+  },
+  {
+   "at": [
+    538.4,
+    -2930.0
+   ],
+   "kind": "dead end",
+   "piece": 3532,
+   "class": "residential"
+  },
+  {
+   "at": [
+    578.3,
+    -2275.1
+   ],
+   "kind": "dead end",
+   "piece": 3703,
+   "class": "residential"
+  },
+  {
+   "at": [
+    591.4,
+    -2128.0
+   ],
+   "kind": "dead end",
+   "piece": 3716,
+   "class": "residential"
+  },
+  {
+   "at": [
+    592.5,
+    151.5
+   ],
+   "kind": "dead end",
+   "piece": 4666,
+   "class": "residential"
+  },
+  {
+   "at": [
+    594.9,
+    -1408.7
+   ],
+   "kind": "dead end",
+   "piece": 4114,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    605.2,
+    162.6
+   ],
+   "kind": "dead end",
+   "piece": 4666,
+   "class": "residential"
+  },
+  {
+   "at": [
+    611.7,
+    -2559.7
+   ],
+   "kind": "dead end",
+   "piece": 3668,
+   "class": "residential"
+  },
+  {
+   "at": [
+    613.4,
+    -2269.4
+   ],
+   "kind": "dead end",
+   "piece": 3700,
+   "class": "residential"
+  },
+  {
+   "at": [
+    614.2,
+    -2241.9
+   ],
+   "kind": "dead end",
+   "piece": 3699,
+   "class": "residential"
+  },
+  {
+   "at": [
+    627.8,
+    -2406.8
+   ],
+   "kind": "dead end",
+   "piece": 3687,
+   "class": "residential"
+  },
+  {
+   "at": [
+    630.7,
+    -2541.5
+   ],
+   "kind": "dead end",
+   "piece": 3668,
+   "class": "residential"
+  },
+  {
+   "at": [
+    653.4,
+    204.9
+   ],
+   "kind": "dead end",
+   "piece": 4668,
+   "class": "residential"
+  },
+  {
+   "at": [
+    657.5,
+    578.3
+   ],
+   "kind": "dead end",
+   "piece": 4755,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    677.8,
+    -630.1
+   ],
+   "kind": "dead end",
+   "piece": 4383,
+   "class": "residential"
+  },
+  {
+   "at": [
+    686.2,
+    -1619.9
+   ],
+   "kind": "dead end",
+   "piece": 4106,
+   "class": "residential"
+  },
+  {
+   "at": [
+    703.3,
+    -415.5
+   ],
+   "kind": "dead end",
+   "piece": 4614,
+   "class": "residential"
+  },
+  {
+   "at": [
+    710.9,
+    369.4
+   ],
+   "kind": "dead end",
+   "piece": 4753,
+   "class": "residential"
+  },
+  {
+   "at": [
+    744.0,
+    -2729.5
+   ],
+   "kind": "dead end",
+   "piece": 3551,
+   "class": "residential"
+  },
+  {
+   "at": [
+    748.8,
+    -2730.1
+   ],
+   "kind": "dead end",
+   "piece": 3552,
+   "class": "residential"
+  },
+  {
+   "at": [
+    755.5,
+    301.7
+   ],
+   "kind": "dead end",
+   "piece": 4752,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    763.1,
+    -497.5
+   ],
+   "kind": "dead end",
+   "piece": 4375,
+   "class": "residential"
+  },
+  {
+   "at": [
+    785.8,
+    281.3
+   ],
+   "kind": "dead end",
+   "piece": 4669,
+   "class": "residential"
+  },
+  {
+   "at": [
+    806.2,
+    -1690.2
+   ],
+   "kind": "dead end",
+   "piece": 4086,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    880.4,
+    -1555.8
+   ],
+   "kind": "dead end",
+   "piece": 4048,
+   "class": "residential"
+  },
+  {
+   "at": [
+    914.4,
+    -122.5
+   ],
+   "kind": "dead end",
+   "piece": 4556,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    929.3,
+    -1620.4
+   ],
+   "kind": "dead end",
+   "piece": 4050,
+   "class": "residential"
+  },
+  {
+   "at": [
+    950.0,
+    13.6
+   ],
+   "kind": "dead end",
+   "piece": 4547,
+   "class": "residential"
+  },
+  {
+   "at": [
+    959.4,
+    -34.5
+   ],
+   "kind": "dead end",
+   "piece": 4679,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    962.7,
+    -508.7
+   ],
+   "kind": "dead end",
+   "piece": 4392,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1032.5,
+    -1515.8
+   ],
+   "kind": "dead end",
+   "piece": 4034,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1035.1,
+    -492.5
+   ],
+   "kind": "dead end",
+   "piece": 4393,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1038.1,
+    -1575.3
+   ],
+   "kind": "dead end",
+   "piece": 4042,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1051.8,
+    -1122.0
+   ],
+   "kind": "dead end",
+   "piece": 3974,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1052.1,
+    -1129.9
+   ],
+   "kind": "dead end",
+   "piece": 3971,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1053.7,
+    -1367.7
+   ],
+   "kind": "dead end",
+   "piece": 4194,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1068.9,
+    6.4
+   ],
+   "kind": "dead end",
+   "piece": 4546,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1105.6,
+    -1271.1
+   ],
+   "kind": "dead end",
+   "piece": 4207,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1107.4,
+    -1117.6
+   ],
+   "kind": "dead end",
+   "piece": 3975,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1108.1,
+    -1125.3
+   ],
+   "kind": "dead end",
+   "piece": 3970,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1113.0,
+    458.1
+   ],
+   "kind": "dead end",
+   "piece": 4746,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1188.6,
+    -1293.1
+   ],
+   "kind": "dead end",
+   "piece": 4201,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1214.7,
+    705.3
+   ],
+   "kind": "dead end",
+   "piece": 4821,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1232.1,
+    -1093.3
+   ],
+   "kind": "dead end",
+   "piece": 4235,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1238.9,
+    646.8
+   ],
+   "kind": "dead end",
+   "piece": 4823,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1239.1,
+    -1102.0
+   ],
+   "kind": "dead end",
+   "piece": 3975,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1242.8,
+    -1592.5
+   ],
+   "kind": "dead end",
+   "piece": 4053,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1245.0,
+    -1963.5
+   ],
+   "kind": "dead end",
+   "piece": 3777,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1245.1,
+    -1109.0
+   ],
+   "kind": "dead end",
+   "piece": 3970,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1248.1,
+    -1996.4
+   ],
+   "kind": "dead end",
+   "piece": 3778,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1251.0,
+    -1116.4
+   ],
+   "kind": "dead end",
+   "piece": 4234,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1256.5,
+    -170.6
+   ],
+   "kind": "dead end",
+   "piece": 4564,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1266.5,
+    -2918.1
+   ],
+   "kind": "dead end",
+   "piece": 3558,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1275.8,
+    -386.2
+   ],
+   "kind": "dead end",
+   "piece": 4583,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1284.2,
+    -2871.6
+   ],
+   "kind": "dead end",
+   "piece": 3566,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1316.1,
+    -2928.8
+   ],
+   "kind": "dead end",
+   "piece": 3559,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1327.7,
+    -1993.3
+   ],
+   "kind": "dead end",
+   "piece": 3779,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1334.5,
+    762.2
+   ],
+   "kind": "dead end",
+   "piece": 4816,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1343.3,
+    -1080.4
+   ],
+   "kind": "dead end",
+   "piece": 4236,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1344.6,
+    -1089.7
+   ],
+   "kind": "dead end",
+   "piece": 3976,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1345.4,
+    -1097.2
+   ],
+   "kind": "dead end",
+   "piece": 3969,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1346.5,
+    -1105.2
+   ],
+   "kind": "dead end",
+   "piece": 4233,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1349.4,
+    -2534.6
+   ],
+   "kind": "dead end",
+   "piece": 3613,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1349.6,
+    -176.6
+   ],
+   "kind": "dead end",
+   "piece": 4568,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1357.0,
+    556.3
+   ],
+   "kind": "dead end",
+   "piece": 4862,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1358.5,
+    -1902.4
+   ],
+   "kind": "dead end",
+   "piece": 3780,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1373.3,
+    208.8
+   ],
+   "kind": "dead end",
+   "piece": 4703,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1394.1,
+    775.1
+   ],
+   "kind": "dead end",
+   "piece": 4817,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1400.7,
+    -104.7
+   ],
+   "kind": "dead end",
+   "piece": 4539,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1401.2,
+    812.3
+   ],
+   "kind": "dead end",
+   "piece": 4810,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1418.8,
+    607.9
+   ],
+   "kind": "dead end",
+   "piece": 4866,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1437.4,
+    -3024.2
+   ],
+   "kind": "dead end",
+   "piece": 222,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1439.1,
+    -54.3
+   ],
+   "kind": "dead end",
+   "piece": 4532,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1495.6,
+    -455.7
+   ],
+   "kind": "dead end",
+   "piece": 4506,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1502.7,
+    -829.3
+   ],
+   "kind": "dead end",
+   "piece": 4468,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1540.7,
+    84.4
+   ],
+   "kind": "dead end",
+   "piece": 4895,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1577.7,
+    102.3
+   ],
+   "kind": "dead end",
+   "piece": 4897,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1639.0,
+    -1768.8
+   ],
+   "kind": "dead end",
+   "piece": 4013,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1639.5,
+    -1723.7
+   ],
+   "kind": "dead end",
+   "piece": 4018,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1666.2,
+    48.7
+   ],
+   "kind": "dead end",
+   "piece": 4899,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1677.6,
+    -231.1
+   ],
+   "kind": "dead end",
+   "piece": 4521,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -3078.7
+   ],
+   "kind": "gate",
+   "piece": 4,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2998.3
+   ],
+   "kind": "gate",
+   "piece": 6,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2975.2
+   ],
+   "kind": "gate",
+   "piece": 7,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2883.7
+   ],
+   "kind": "gate",
+   "piece": 2760,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2853.1
+   ],
+   "kind": "gate",
+   "piece": 2762,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2825.6
+   ],
+   "kind": "gate",
+   "piece": 2761,
+   "class": "primary"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2573.3
+   ],
+   "kind": "gate",
+   "piece": 2748,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2506.5
+   ],
+   "kind": "gate",
+   "piece": 2742,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2430.8
+   ],
+   "kind": "gate",
+   "piece": 2740,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2371.6
+   ],
+   "kind": "gate",
+   "piece": 2741,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2274.2
+   ],
+   "kind": "gate",
+   "piece": 2727,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2170.0
+   ],
+   "kind": "gate",
+   "piece": 2718,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2030.8
+   ],
+   "kind": "gate",
+   "piece": 2715,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -2002.9
+   ],
+   "kind": "gate",
+   "piece": 2716,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1969.1
+   ],
+   "kind": "gate",
+   "piece": 2717,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1866.3
+   ],
+   "kind": "gate",
+   "piece": 2697,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1795.6
+   ],
+   "kind": "gate",
+   "piece": 2691,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1714.0
+   ],
+   "kind": "gate",
+   "piece": 2693,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1631.2
+   ],
+   "kind": "gate",
+   "piece": 2678,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1575.3
+   ],
+   "kind": "gate",
+   "piece": 2677,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1537.1
+   ],
+   "kind": "gate",
+   "piece": 2660,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1459.4
+   ],
+   "kind": "gate",
+   "piece": 2661,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1385.6
+   ],
+   "kind": "gate",
+   "piece": 2656,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1304.1
+   ],
+   "kind": "gate",
+   "piece": 2646,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1172.1
+   ],
+   "kind": "gate",
+   "piece": 2629,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -1054.5
+   ],
+   "kind": "gate",
+   "piece": 2626,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -988.2
+   ],
+   "kind": "gate",
+   "piece": 2627,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -853.7
+   ],
+   "kind": "gate",
+   "piece": 252,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -739.5
+   ],
+   "kind": "gate",
+   "piece": 273,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -737.6
+   ],
+   "kind": "gate",
+   "piece": 272,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -621.2
+   ],
+   "kind": "gate",
+   "piece": 287,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    -561.6
+   ],
+   "kind": "gate",
+   "piece": 288,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -438.7
+   ],
+   "kind": "gate",
+   "piece": 292,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -294.2
+   ],
+   "kind": "gate",
+   "piece": 300,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    -136.1
+   ],
+   "kind": "gate",
+   "piece": 313,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    29.7
+   ],
+   "kind": "gate",
+   "piece": 400,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    -2700.0,
+    39.8
+   ],
+   "kind": "gate",
+   "piece": 401,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    -2700.0,
+    187.8
+   ],
+   "kind": "gate",
+   "piece": 383,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    283.6
+   ],
+   "kind": "gate",
+   "piece": 381,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    343.1
+   ],
+   "kind": "gate",
+   "piece": 382,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    497.5
+   ],
+   "kind": "gate",
+   "piece": 367,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2700.0,
+    625.0
+   ],
+   "kind": "gate",
+   "piece": 356,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -2700.0,
+    633.3
+   ],
+   "kind": "gate",
+   "piece": 353,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -2700.0,
+    642.5
+   ],
+   "kind": "gate",
+   "piece": 352,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -2700.0,
+    651.0
+   ],
+   "kind": "gate",
+   "piece": 355,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -2700.0,
+    734.4
+   ],
+   "kind": "gate",
+   "piece": 351,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    760.2
+   ],
+   "kind": "gate",
+   "piece": 350,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    846.8
+   ],
+   "kind": "gate",
+   "piece": 328,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2700.0,
+    857.8
+   ],
+   "kind": "gate",
+   "piece": 327,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    -2698.8,
+    537.8
+   ],
+   "kind": "gate",
+   "piece": 354,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2689.5,
+    254.5
+   ],
+   "kind": "gate",
+   "piece": 384,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2677.9,
+    -2718.0
+   ],
+   "kind": "gate",
+   "piece": 2758,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2660.0,
+    -3040.8
+   ],
+   "kind": "gate",
+   "piece": 5,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2643.6,
+    598.3
+   ],
+   "kind": "gate",
+   "piece": 358,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2642.3,
+    -805.8
+   ],
+   "kind": "gate",
+   "piece": 253,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2641.9,
+    131.4
+   ],
+   "kind": "gate",
+   "piece": 396,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2624.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 3,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2569.5,
+    -3052.5
+   ],
+   "kind": "gate",
+   "piece": 16,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2532.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 322,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2531.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 2,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -2525.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 1,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -2515.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 0,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -2507.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 17,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -2460.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 18,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2433.8,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 656,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2341.6,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 657,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    -2329.9,
+    869.1
+   ],
+   "kind": "gate",
+   "piece": 653,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -2205.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 21,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2066.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 24,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2014.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 658,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -2005.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 660,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -1999.1,
+    858.3
+   ],
+   "kind": "gate",
+   "piece": 670,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1993.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 659,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -1987.8,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 23,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1982.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 352,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -1969.8,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 22,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -1958.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 661,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -1952.2,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 353,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -1928.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 662,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    -1927.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 49,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1863.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 50,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1838.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 669,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1804.5,
+    847.7
+   ],
+   "kind": "gate",
+   "piece": 667,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1762.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 663,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1752.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 51,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1732.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 60,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1706.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 690,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1670.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 58,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1622.9,
+    884.6
+   ],
+   "kind": "gate",
+   "piece": 687,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1609.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 61,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -1602.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 687,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1600.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 686,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1553.0,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 62,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1516.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 691,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -1512.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 63,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1419.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 692,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1409.7,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 64,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1397.1,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 81,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1368.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 82,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1317.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 83,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    -1302.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 693,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1267.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 88,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1238.1,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 89,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1223.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 694,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -1200.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 90,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1135.2,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 695,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1133.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 91,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1105.8,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 92,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -1078.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 696,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -1016.8,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 107,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -964.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 109,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -956.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 811,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -893.0,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 113,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -872.5,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 812,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -791.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 807,
+   "class": "primary"
+  },
+  {
+   "at": [
+    -782.6,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 790,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -773.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 813,
+   "class": "primary"
+  },
+  {
+   "at": [
+    -766.4,
+    -3097.7
+   ],
+   "kind": "gate",
+   "piece": 132,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -672.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 110,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -638.6,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 814,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -597.7,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 136,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -559.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 137,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -537.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 815,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -500.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 817,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -497.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 168,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -443.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 167,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -415.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 821,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -386.7,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 816,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -338.2,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 831,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -330.7,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 166,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -316.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4900,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    -305.5,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 780,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    -293.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 165,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -289.1,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 169,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -235.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 170,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -174.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 171,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    -152.0,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 172,
+   "class": "residential"
+  },
+  {
+   "at": [
+    -43.1,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 180,
+   "class": "residential"
+  },
+  {
+   "at": [
+    62.8,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 181,
+   "class": "residential"
+  },
+  {
+   "at": [
+    109.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 182,
+   "class": "residential"
+  },
+  {
+   "at": [
+    127.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 183,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    218.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 195,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    291.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 196,
+   "class": "residential"
+  },
+  {
+   "at": [
+    328.0,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 198,
+   "class": "residential"
+  },
+  {
+   "at": [
+    497.9,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 197,
+   "class": "residential"
+  },
+  {
+   "at": [
+    538.8,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 205,
+   "class": "primary"
+  },
+  {
+   "at": [
+    540.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 3526,
+   "class": "primary"
+  },
+  {
+   "at": [
+    550.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 3529,
+   "class": "primary"
+  },
+  {
+   "at": [
+    551.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 204,
+   "class": "primary"
+  },
+  {
+   "at": [
+    672.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 207,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    730.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4775,
+   "class": "residential"
+  },
+  {
+   "at": [
+    773.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4774,
+   "class": "residential"
+  },
+  {
+   "at": [
+    891.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4771,
+   "class": "primary"
+  },
+  {
+   "at": [
+    900.4,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4803,
+   "class": "primary"
+  },
+  {
+   "at": [
+    909.4,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4804,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    974.7,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4805,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1007.1,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4806,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1028.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4807,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1075.0,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4793,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1083.4,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4792,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1145.4,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4808,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1147.2,
+    842.7
+   ],
+   "kind": "gate",
+   "piece": 4789,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1155.7,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 217,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1169.4,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 216,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1272.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 229,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1351.5,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4809,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1414.6,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 228,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1423.1,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 219,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1434.3,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 218,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1455.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4872,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1463.7,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4873,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1557.0,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 227,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1690.5,
+    -3100.0
+   ],
+   "kind": "gate",
+   "piece": 230,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1697.0,
+    -1414.2
+   ],
+   "kind": "gate",
+   "piece": 4000,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1718.3,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4875,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1728.9,
+    900.0
+   ],
+   "kind": "gate",
+   "piece": 4874,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1748.5,
+    -376.1
+   ],
+   "kind": "gate",
+   "piece": 4522,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -3033.0
+   ],
+   "kind": "gate",
+   "piece": 230,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1750.0,
+    -2890.8
+   ],
+   "kind": "gate",
+   "piece": 231,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -2875.9
+   ],
+   "kind": "gate",
+   "piece": 3942,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -2818.5
+   ],
+   "kind": "gate",
+   "piece": 3945,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -2733.6
+   ],
+   "kind": "gate",
+   "piece": 3933,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -2648.6
+   ],
+   "kind": "gate",
+   "piece": 3929,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1750.0,
+    -2530.0
+   ],
+   "kind": "gate",
+   "piece": 3918,
+   "class": "primary"
+  },
+  {
+   "at": [
+    1750.0,
+    -2434.8
+   ],
+   "kind": "gate",
+   "piece": 3890,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -2370.9
+   ],
+   "kind": "gate",
+   "piece": 3891,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1750.0,
+    -2296.2
+   ],
+   "kind": "gate",
+   "piece": 3895,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -2228.1
+   ],
+   "kind": "gate",
+   "piece": 3897,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -2219.5
+   ],
+   "kind": "gate",
+   "piece": 3896,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -2102.3
+   ],
+   "kind": "gate",
+   "piece": 3917,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -1983.0
+   ],
+   "kind": "gate",
+   "piece": 4007,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -1954.7
+   ],
+   "kind": "gate",
+   "piece": 4007,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -1799.4
+   ],
+   "kind": "gate",
+   "piece": 4003,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1739.8
+   ],
+   "kind": "gate",
+   "piece": 4002,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -1600.6
+   ],
+   "kind": "gate",
+   "piece": 4021,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1540.3
+   ],
+   "kind": "gate",
+   "piece": 4022,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1493.0
+   ],
+   "kind": "gate",
+   "piece": 4023,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -1425.8
+   ],
+   "kind": "gate",
+   "piece": 3999,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1750.0,
+    -1284.1
+   ],
+   "kind": "gate",
+   "piece": 3990,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1245.6
+   ],
+   "kind": "gate",
+   "piece": 3991,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1195.3
+   ],
+   "kind": "gate",
+   "piece": 3987,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1099.7
+   ],
+   "kind": "gate",
+   "piece": 3989,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1057.0
+   ],
+   "kind": "gate",
+   "piece": 3948,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -1050.2
+   ],
+   "kind": "gate",
+   "piece": 3969,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1750.0,
+    -1047.9
+   ],
+   "kind": "gate",
+   "piece": 3947,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -1045.2
+   ],
+   "kind": "gate",
+   "piece": 3946,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -1041.6
+   ],
+   "kind": "gate",
+   "piece": 3976,
+   "class": "motorway"
+  },
+  {
+   "at": [
+    1750.0,
+    -1035.2
+   ],
+   "kind": "gate",
+   "piece": 3955,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -1033.9
+   ],
+   "kind": "gate",
+   "piece": 3958,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -1020.8
+   ],
+   "kind": "gate",
+   "piece": 3958,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -940.8
+   ],
+   "kind": "gate",
+   "piece": 4490,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -876.4
+   ],
+   "kind": "gate",
+   "piece": 4486,
+   "class": "tertiary"
+  },
+  {
+   "at": [
+    1750.0,
+    -848.9
+   ],
+   "kind": "gate",
+   "piece": 4484,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -824.1
+   ],
+   "kind": "gate",
+   "piece": 4482,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -678.6
+   ],
+   "kind": "gate",
+   "piece": 4483,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    -657.4
+   ],
+   "kind": "gate",
+   "piece": 4493,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -600.4
+   ],
+   "kind": "gate",
+   "piece": 4492,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    -497.3
+   ],
+   "kind": "gate",
+   "piece": 4491,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -352.7
+   ],
+   "kind": "gate",
+   "piece": 4520,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -269.7
+   ],
+   "kind": "gate",
+   "piece": 4525,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -210.3
+   ],
+   "kind": "gate",
+   "piece": 4526,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -173.7
+   ],
+   "kind": "gate",
+   "piece": 4526,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    -123.7
+   ],
+   "kind": "gate",
+   "piece": 4527,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    36.5
+   ],
+   "kind": "gate",
+   "piece": 4523,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    1750.0,
+    65.2
+   ],
+   "kind": "gate",
+   "piece": 4524,
+   "class": "trunk"
+  },
+  {
+   "at": [
+    1750.0,
+    75.5
+   ],
+   "kind": "gate",
+   "piece": 4898,
+   "class": "secondary"
+  },
+  {
+   "at": [
+    1750.0,
+    153.7
+   ],
+   "kind": "gate",
+   "piece": 4888,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    171.2
+   ],
+   "kind": "gate",
+   "piece": 4888,
+   "class": "residential"
+  },
+  {
+   "at": [
+    1750.0,
+    316.2
+   ],
+   "kind": "gate",
+   "piece": 4887,
+   "class": "unclassified"
+  },
+  {
+   "at": [
+    1750.0,
+    643.0
+   ],
+   "kind": "gate",
+   "piece": 4869,
+   "class": "tertiary"
+  }
+ ]
+}

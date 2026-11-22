@@ -266,7 +266,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // it is shut to cars (pipeline/road_rules.py); nl: OSM's count of its lanes each way (road_lanes.py);
       // wall: 1 where it starts at a wall, 2 where it ends at one (a road the data runs into a building: game.js cutAtWalls);
       // cw: its carriageway's width where narrower than its class's (a channel's bank lane: inland_water.py bank_lanes)
-      return { pts, cum, len: cum[n - 1], v: o.v || 0, c: o.c || '', deck: o.d || null, ow: o.o || 0, i0, nt: o.nt || null, tl: o.tl || null, ntw: o.ntw || null, tb: o.tb || null, nl: o.nl || 0, wall: o.w || 0, cw: o.cw || 0 };
+      // the road plan's (pipeline/road_plan.py, docs/ROADS.md): quiet: 1 where no way along it leads from one of the map's
+      // gates to another (a cul-de-sac, a stub before a closure): no traffic is made on it and none turns in; bus: 1 on a
+      // street a bus route takes; ends: what its two ends are where nothing joins them (1 a gate, 2 a dead end, 3 a closure)
+      return { pts, cum, len: cum[n - 1], v: o.v || 0, c: o.c || '', deck: o.d || null, ow: o.o || 0, i0: o.r0 != null ? o.r0 : i0, nt: o.nt || null, tl: o.tl || null, ntw: o.ntw || null, tb: o.tb || null, nl: o.nl || 0, wall: o.w || 0, cw: o.cw || 0,
+        quiet: o.q || 0, bus: o.b || 0, ends: o.e || null };
     }).filter(l => l.len > 4);
     const key = (x, y) => `${Math.round(x / 2)},${Math.round(y / 2)}`;
     const nodes = new Map(), grid = new Map(), GC = 100;
@@ -349,7 +353,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // avoid: per line, 1 for a line no one should be put on or turn into (a road through a
     // building, which route.js finds); set by the game once it knows
-    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
+    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null, planned: L.some(l => l.ends || l.quiet), busStreets: L.some(l => l.bus) }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
     return api;
   }
 
@@ -2566,6 +2570,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (c.trip >= 0) { const l2 = cand[Math.floor(rnd() * cand.length)], RK = OEJunctions.RANK, r1 = RK[net.L[line].c] || 2, r2 = RK[net.L[l2].c] || 2; if ((r2 > r1) === (rnd() < 0.8) && r1 !== r2) line = l2; }
         const L1 = net.L[line], s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (c.trip >= 0 && T.facing(c.trip, line)) || (rnd() < 0.5 ? 1 : -1);
         if (JN.inner(line) || L1.len < 15 || (net.fit && net.fit[line] < c.hw)) continue; // (nor on a street too narrow for it)
+        // (the road plan: traffic is made only on a street that leads from one of the map's gates to another, never in a
+        // cul-de-sac or on the stub before a closure, where it could only stand at the end; nor on a piece the game itself
+        // cuts at a wall; and a bus only on a street a bus route takes, issue 167)
+        if (L1.quiet || L1.wall || (c.bus && net.busStreets && !L1.bus)) continue;
         if (L1.ow && !net.next(line, dir > 0 ? 1 : 0, true)) continue; // (not on a one-way street that leads nowhere: stuck at its end)
         const ahead = dir > 0 ? L1.len - s : s, ar = JN.armAt(line, dir > 0 ? 1 : 0);
         if (ar && ahead < ar.back + 10) continue; // not at a junction's line, or over it
@@ -3037,7 +3045,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const end = c.dir > 0 ? 1 : 0, arm = JN.armAt(c.line, end);
         if (c.nx === undefined) {
           // (the way across chosen before it got here: coming up to it, or crossing the junction before with it)
-          c.ex = arm ? (c.exA && c.exA.a === arm ? c.exA.e : c.ex2 && c.ex2.a === arm ? c.ex2.e : JN.choose(arm, c.hw, c.half, tripOf(c))) : null;
+          c.ex = arm ? (c.exA && c.exA.a === arm ? c.exA.e : c.ex2 && c.ex2.a === arm ? c.ex2.e : JN.choose(arm, c.hw, c.half, tripOf(c), c.bus)) : null;
           if (c.exA && c.exA.a === arm) c.exA = null;
           if (c.ex2 && c.ex2.a === arm) c.ex2 = null;
           c.plan = c.ex ? c.ex.steps.slice(1) : null;
