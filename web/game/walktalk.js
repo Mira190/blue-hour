@@ -15,6 +15,7 @@
 //   create({ data: game.walk { people: [{ id, npc, title, parts: [{ npc?, lines: [text | { npc, text }], then? }],
 //            after? }], chat: { npcId: [lines] } },
 //            stage, project(x, y, z) -> { x, y } on the stage in CSS pixels or null behind the camera,
+//            see(x, y, z, o) -> { x, y, why } where a mark there goes and why it is not to be drawn (marks.js see),
 //            npc(id) -> the game's NPC { id, name, role, x, y, z, rig }, here() -> { x, y, z, mode },
 //            say(runs, done): a talk in runs of [npc, lines], one speaker after another; done() when the last closes,
 //            fill(text) -> the text with {time} and {sun_line} said, unseen(npc) -> true when nobody sees them now,
@@ -30,7 +31,11 @@ window.OEWalkTalk = (function () {
   // (a speech mark seen from this far, and only over someone in sight; the name under it from this close. It was 42 m:
   // on a phone a person there is a few pixels tall, and on SHIBUYA SKY's roof Taro's mark stood over the glass with
   // him out of sight behind the heliport's deck, a mark over nobody. As an open world's: near enough to see who it is)
-  const SEE_M = 24, NAME_M = 11, PLACE_M = 20; // (PLACE_M: a place the street offers, a seat, marked from this far)
+  // (and 24 m was still across the crossing: the owner asked for the talk's marks only when close, 22 November 2026. Now
+  // a part of a story from 18 m, a word in passing from 10, the name from 8; a seat from 12 and named from 11. And
+  // every mark keeps the rules of the picture, marks.js: not over the player's body or anyone in front of it, nor
+  // through a wall, a deck or a floor; it fades in over its last metres and holds its size on the screen)
+  const SEE_M = 18, CHAT_M = 10, NAME_M = 8, PLACE_M = 12, PLACE_NAME_M = 11;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const first = name => String(name || '').replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '').trim(); // (the name as it is read: "Mr Oda 小田さん" is Mr Oda)
 
@@ -305,7 +310,7 @@ window.OEWalkTalk = (function () {
       for (const [id, text] of who) {
         const n = ctx.npc(id);
         if (!n || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking || moving.has(id)) continue;
-        if (Math.hypot(n.x - me.x, n.y - me.y) > 18 || Math.abs((n.z || 0) - (me.z || 0)) > 6 || bClock - (barked[id] ?? -1e9) < 90) continue; // (not through a floor)
+        if (Math.hypot(n.x - me.x, n.y - me.y) > 14 || Math.abs((n.z || 0) - (me.z || 0)) > 6 || bClock - (barked[id] ?? -1e9) < 90) continue; // (not through a floor)
         bark(id, text);
       }
     }
@@ -317,7 +322,7 @@ window.OEWalkTalk = (function () {
     const marks = new Map(); // npc id -> element
     function mark(id) {
       let el = marks.get(id);
-      if (!el) { el = document.createElement('div'); el.className = 'g-walk-mark'; el.innerHTML = '<i><b></b><b></b><b></b></i><span></span>'; layer.appendChild(el); marks.set(id, el); el._k = ''; el._n = ''; }
+      if (!el) { el = document.createElement('div'); el.className = 'g-walk-mark'; el.dataset.id = id; el.innerHTML = '<i><b></b><b></b><b></b></i><span></span>'; layer.appendChild(el); marks.set(id, el); el._k = ''; el._n = ''; }
       return el;
     }
     const fade = (el, v) => { if (el && el._o !== v) { el._o = v; el.style.opacity = v; } }; // (written only when it changes: a style set each frame is a style pass each frame)
@@ -331,6 +336,15 @@ window.OEWalkTalk = (function () {
       if (--s.n <= 0) { s.ok = ctx.seen(n.x, n.y, (n.z || 0) + 1.6); s.n = 8; }
       return s.ok;
     }
+    // where a mark at (x, y, z) goes on the stage, or null where it is not to be drawn: behind the eye, or (marks.js) over
+    // the player's body, behind someone nearer the eye, behind a wall
+    const why = new Map(); // (why each was last hidden, for the checks: tools/mark_cover.js)
+    function at(x, y, z, o) {
+      if (!ctx.see) return ctx.project(x, y, z);
+      const v = ctx.see(x, y, z, o);
+      why.set(o.key, v.why);
+      return v.why ? null : v;
+    }
     function draw(hide, dt = 0) {
       const me = ctx.here(), ids = new Set();
       bClock += dt;
@@ -338,7 +352,7 @@ window.OEWalkTalk = (function () {
         const n = ctx.npc(id);
         if (b.t <= 0) continue;
         b.t -= dt;
-        const p = n && !hide && n.rig && n.rig.root.visible ? ctx.project(n.x, n.y, n.z + 2.62) : null;
+        const p = n && !hide && n.rig && n.rig.root.visible ? at(n.x, n.y, n.z + 2.62, { pad: 40, self: n, key: `bark:${id}` }) : null;
         const o = !p || b.t <= 0 ? '0' : b.t < 0.6 ? (b.t / 0.6).toFixed(2) : '1';
         if (b.el._o !== o) { b.el._o = o; b.el.style.opacity = o; }
         if (p) b.el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%)`;
@@ -350,17 +364,17 @@ window.OEWalkTalk = (function () {
         const n = ctx.npc(id), el = marks.get(id);
         if (!n || hide || !n.rig || n.rig.pending || !n.rig.root.visible || n.talking) { fade(el, '0'); continue; } // (nobody's mark before they are there to be seen)
         const w = want(id), d = Math.hypot(n.x - me.x, n.y - me.y), dz = Math.abs((n.z || 0) - (me.z || 0));
-        const far = w && (w.kind === 'story' || w.kind === 'event') ? SEE_M : 18;
+        const far = w && (w.kind === 'story' || w.kind === 'event') ? SEE_M : CHAT_M;
         if (!w || w.kind === 'wait' || d > far || dz > 12 || me.mode !== 'foot') { fade(el, '0'); continue; } // (and not through a floor: sight)
-        const p = ctx.project(n.x, n.y, n.z + 2.12);
+        const p = at(n.x, n.y, n.z + 2.12, { pad: 16, self: n, key: `mark:${id}` });
         const e = mark(id);
         if (!p || !sight(id, n)) { fade(e, '0'); continue; }
         const k = w.kind;
         if (e._k !== k) { e._k = k; e.dataset.k = k; }
         const name = d < NAME_M ? `${first(n.name)}${n.role ? ` · ${String(n.role).replace(/\s*[　-鿿＀-￯].*$/, '')}` : ''}` : '';
         if (e._n !== name) { e._n = name; e.querySelector('span').textContent = name; e.classList.toggle('named', !!name); }
-        fade(e, String(Math.round(Math.max(0, Math.min(1, (far - d) / 8)) * 20) / 20));
-        e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 14 / Math.max(1, d))).toFixed(3)})`;
+        fade(e, String(Math.round(Math.max(0, Math.min(1, (far - d) / 6)) * 20) / 20));
+        e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 10 / Math.max(1, d))).toFixed(3)})`;
       }
       // what the street offers besides its people (ctx.places: a free place on a wall to sit and watch the crossing
       // from, until it has been sat on once in this browser): a pale mark over the place from a little way off, named
@@ -370,13 +384,13 @@ window.OEWalkTalk = (function () {
       for (const s of places) {
         const id = `place:${s.id}`, d = Math.hypot(s.x - me.x, s.y - me.y);
         if (hide || d > PLACE_M || d < 1.2 || Math.abs((s.z || 0) - (me.z || 0)) > 3 || me.mode !== 'foot') { fade(marks.get(id), '0'); continue; }
-        const p = ctx.project(s.x, s.y, (s.z || 0) + 1.5), e = mark(id);
+        const p = at(s.x, s.y, (s.z || 0) + 1.5, { pad: 16, key: id, people: true }), e = mark(id);
         if (!p || !sight(id, { x: s.x, y: s.y, z: (s.z || 0) - 0.1 })) { fade(e, '0'); continue; }
         if (e._k !== 'place') { e._k = 'place'; e.dataset.k = 'place'; }
-        const name = d < NAME_M ? s.label : '';
+        const name = d < PLACE_NAME_M ? s.label : '';
         if (e._n !== name) { e._n = name; e.querySelector('span').textContent = name; e.classList.toggle('named', !!name); }
-        fade(e, String(Math.round(Math.max(0, Math.min(1, (PLACE_M - d) / 6)) * 20) / 20));
-        e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 14 / Math.max(1, d))).toFixed(3)})`;
+        fade(e, String(Math.round(Math.max(0, Math.min(1, (PLACE_M - d) / 5)) * 20) / 20));
+        e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 10 / Math.max(1, d))).toFixed(3)})`;
       }
     }
     return {
@@ -396,6 +410,7 @@ window.OEWalkTalk = (function () {
       // the street moments, for the checks: start one now (by its id, at one of event_spots), and where it stands
       events: { start: (id, i) => { const e = events.find(q => q.id === id); return e ? evBegin(e, spots[i || 0]) : false; }, get now() { return ev ? { id: ev.e.id, phase: ev.phase } : null; }, get done() { return evDone; }, get moving() { return moving.size; } },
       bark, // (someone calls out: the walk's way in ends on the first story's giver calling you over)
+      hidden: () => Object.fromEntries(why), // (why each mark was last kept off the picture: marks.js)
       get barked() { return Object.keys(barked); }, // (who has called out, for the checks)
       get busy() { return busy; },
       // where each story has got to, for the checks; and from the start again

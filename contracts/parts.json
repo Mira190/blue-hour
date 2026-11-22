@@ -472,7 +472,8 @@
     "web/game/pad.js",
     "web/onboard.js",
     "web/plate.js",
-    "web/credits.js"
+    "web/credits.js",
+    "web/game/marks.js"
    ],
    "checks": [
     "story",
@@ -496,6 +497,9 @@
      "rideMap",
      "stamp",
      "toast"
+    ],
+    "OEMarks": [
+     "create"
     ],
     "OEOnboard": [
      "active",

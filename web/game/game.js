@@ -1213,6 +1213,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const o = Object.assign({}, n, { rig, x: p.x, y: p.y, z: p.z, h: (n.sit || n.stand || {}).face ? Math.atan2((n.sit || n.stand).face[0], (n.sit || n.stand).face[1]) : hash(n.id) % 628 / 100, pitch: 150 + hash(n.id) % 170, color: n.look.top || n.look.shirt, eyes: new THREE.Vector3(),
       marker: OEActors.sprite('!', { bg: '#e0a21a', fg: '#1b1b1b', font: '900 44px "Public Sans", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif' }) });
     o.marker.scale.multiplyScalar(1.4);
+    o.marker.visible = false; // (shown only by npcMarks, under the rules every mark keeps: marks.js)
     o.marker.position.set(0, n.sit ? 1.95 : 2.45, 0);
     rig.root.add(o.marker);
     rig.root.position.copy(W(o.x, o.y, o.z));
@@ -1228,6 +1229,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) if (n.away && !n.event) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); } // (a street moment's people stay away until one puts them out: walktalk.js events)
   }
   const npcById = id => npcs.find(n => n.id === id);
+  // the free game's mark over someone with something for you (?walk=1, goals.js): as every mark is (marks.js), within
+  // talking distance and on your level, in sight, and not where you or anyone nearer the eye stands in front of it; the
+  // sprite is in the world, depth-tested, and fades in over its last metres
+  const NPC_MARK_M = 18;
+  function npcMarks(hide) {
+    for (const n of npcs) {
+      const m = n.marker;
+      let a = 0;
+      if (!hide && !n.away && n.rig.root.visible && player.mode === 'foot' && wantsTalk(n) && Math.abs(n.z - player.z) < 4) {
+        const v = marks.see(n.x, n.y, n.z + m.position.y, { pad: 12, self: n, key: `npc:${n.id}` });
+        if (!v.why) a = marks.fade(v.d, NPC_MARK_M, 5);
+      }
+      m.material.opacity += (a - m.material.opacity) * 0.25;
+      if (a === 0 && m.material.opacity < 0.03) m.material.opacity = 0;
+      m.visible = m.material.opacity > 0;
+    }
+  }
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
   const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : lib.require(n.look.character).catch(e => console.warn(`${n.look.character} unavailable:`, e)).then(() => {
     const old = n.rig, rig = makeRig(npcLook(n));
@@ -1365,7 +1383,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return out;
   };
-  const places = window.OEPlaces ? OEPlaces.create({ G, W, camera, stage, speakers }) : null;
+  const places = window.OEPlaces ? OEPlaces.create({ G, W, camera, stage, speakers, see: (x, y, z, o) => marks.see(x, y, z, o) }) : null;
   const lifts = G.lifts || [];
   // doors that open as you come up to them, and the rooms behind them (game.json "doors", "interiors": doors.js)
   const doors = window.OEDoors ? OEDoors.create({ G, world }) : null;
@@ -2566,10 +2584,38 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   };
   // The walk's people with something to say (walktalk.js; game.json walk): a speech mark over each, E beside them, their
   // talk in the story's box and camera, and what they ask under the hour in the walk's corner
+  // What a mark over the picture may do (marks.js, docs/MARKS.md): not over the player's body, nor anyone drawn in front
+  // of its point, nor through a wall, a deck or a floor; and only within its reach. Every world-space mark asks it
+  const marks = OEMarks.create({ camera, W, size: () => [stageW, stageH],
+    // (the player's figure: on foot her body, 1.8 m with her hair and 0.3 m round at the shoulders; in her car the car's;
+    // not drawn, or in the air, none)
+    body: () => {
+      if (!player.rig.root.visible || player.mode === 'heli' || player.mode === 'lift') return null;
+      if (player.mode === 'car' && myCar) return { x: myCar.D.st.x, y: myCar.D.st.y, z: myCar.D.st.z, h: 1.55, r: 1.0 };
+      if (player.mode !== 'foot' && player.mode !== 'seat') return null;
+      return { x: player.x, y: player.y, z: player.z, h: player.mode === 'seat' ? 1.35 : 1.8, r: 0.3 };
+    },
+    from: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return o; },
+    // (those drawn near the eye: the map's people, the story's figures and the crowd as drawn)
+    people: (cx, cy, cz, reach) => {
+      const out = [], by = (x, y) => Math.abs(x - cx) < reach && Math.abs(y - cy) < reach;
+      for (const n of npcs) if (!n.away && n.rig && n.rig.root.visible && by(n.x, n.y)) out.push({ x: n.x, y: n.y, z: n.z, h: n.sit ? 1.3 : 1.7, r: 0.26, who: n });
+      for (const f of storyFigs) if (!(f.rig && f.rig.root && !f.rig.root.visible) && by(f.x, f.y)) out.push({ x: f.x, y: f.y, z: f.z || 0, h: 1.7, r: 0.26, who: f });
+      if (guideMade && guideMade.ready && guideMade.root && guideMade.root.visible && by(guideMade.x, guideMade.y)) out.push({ x: guideMade.x, y: guideMade.y, z: guideMade.z, h: 0.75, r: 0.32, who: guideMade });
+      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+        const q = crowd.P[i];
+        if (!(q.line >= 0 || q.pz) || (crowdDraw && !crowdDraw.shows(i))) continue;
+        const qx = q.rx ?? q.x, qy = q.ry ?? q.y;
+        if (by(qx, qy)) out.push({ x: qx, y: qy, z: q.rz ?? q.z ?? 0, h: q.state === 'sit' ? 1.3 : 1.7, r: 0.24, who: q });
+      }
+      return out;
+    },
+    solid: (cx, cy, cz, x, y, z) => nav.col.pick(cx, cy, cz, x, y, z) });
   const markV = new THREE.Vector3(), seeM = new THREE.Matrix4(), seeF = new THREE.Frustum();
   const sees = (x, y, z) => { seeM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); seeF.setFromProjectionMatrix(seeM); return seeF.containsPoint(markV.set(x, z, -y)); };
   const walkTalk = window.OEWalkTalk && G.walk && G.story && !new URLSearchParams(location.search).has('walk') ? OEWalkTalk.create({ data: G.walk, stage,
     project: (x, y, z) => { markV.set(x, z, -y).project(camera); return markV.z > 1 || markV.z < -1 ? null : { x: (markV.x + 1) / 2 * stageW, y: (1 - markV.y) / 2 * stageH }; },
+    see: (x, y, z, o) => marks.see(x, y, z, o),
     npc: id => npcById(id),
     here: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return { x: o.x, y: o.y, z: o.z, mode: m }; },
     places: () => seatMarks(), // (somewhere to sit, until it has been sat on once: its mark, as the street's offer of it)
@@ -2863,6 +2909,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     way: (at, toDoor) => wayOnFoot(at, toDoor),
     // whether nothing solid (a wall, a roof, a landmark's stone) stands between the lens and a point of the map
     seen: at => { const c = camera.position; return !nav.col.pick(c.x, -c.z, c.y, at[0], at[1], at[2] ?? player.z + 1.2); },
+    see: (x, y, z, o) => marks.see(x, y, z, o), // (a mark drawn in the frame keeps its perspective: marks.js)
     // (by the compass only: how far the lens must turn to face it; nobody is asked to tilt the camera up a tower)
     aim: at => { const v = W(at[0], at[1], 0).sub(camera.position), f = camera.getWorldDirection(new THREE.Vector3()); v.y = 0; f.y = 0; if (v.lengthSq() < 1e-6 || f.lengthSq() < 1e-6) return 0; return Math.acos(Math.max(-1, Math.min(1, v.normalize().dot(f.normalize())))) * 180 / Math.PI; },
     // the frame as it is drawn now, small, for the episode's print (drawn and read back in one task: the canvas keeps no copy)
@@ -3175,7 +3222,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   for (const v of VP) addLabel(`<span class="tag t">△</span>${v.name}`, () => W(v.x, v.y, v.z + 3.2), 260, 'wharf');
   for (const f of flocks) if (!f.soaring) addLabel(`<span class="tag g">${GULL}</span>${f.flock.name}`, () => W(f.at[0], f.at[1], f.at[2] + 3.4), 220, 'wharf');
   if (fish) for (const sp of fish.spots) { const p = W(sp.at[0], sp.at[1], Math.max(0, nav.terrain(sp.at[0], sp.at[1])) + 3.2); addLabel(`<span class="tag f">≈</span>${sp.name}`, () => p, 240, 'wharf'); }
-  for (const n of npcs) addLabel(`${n.name}<span class="role">${n.role}</span>`, () => W(n.x, n.y, n.z + (n.marker.visible ? 3.0 : 2.15)), 40, 'npc');
+  // (a person's name from where they can be told apart, not across the square: within 12 m, as a talk's reach is)
+  for (const n of npcs) { const l = addLabel(`${n.name}<span class="role">${n.role}</span>`, () => W(n.x, n.y, n.z + (n.marker.visible ? 3.0 : 2.15)), 12, 'npc'); l.who = n; }
   const tmpV = new THREE.Vector3();
   function updateLabels() {
     const w = stage.clientWidth, h = stage.clientHeight, placed = [];
@@ -3188,6 +3236,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       tmpV.copy(p).project(camera);
       const d = camera.position.distanceTo(p);
       let vis = tmpV.z < 1 && Math.abs(tmpV.x) < 1.05 && Math.abs(tmpV.y) < 1.05 && d < l.maxD * far && !(l.el.classList.contains('npc') && dlg.open);
+      // (and as every mark is, marks.js: not on the player's body, nor on anyone nearer the eye; a person's name not through a wall)
+      if (vis) { const v = marks.see(p.x, -p.z, p.y, { pad: 10, self: l.who, people: !!l.who, solid: !!l.who, key: l.who ? `lbl:${l.who.id}` : null }); vis = !v.why; }
       const x = (tmpV.x * 0.5 + 0.5) * w, y = (-tmpV.y * 0.5 + 0.5) * h;
       if (vis) {
         if (!l.w) { l.el.hidden = false; l.w = l.el.offsetWidth; l.h = l.el.offsetHeight; }
@@ -3620,7 +3670,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'ride') return ride && ride.phase !== 'asking' && ride.drv.st.v < 0.5 ? { key: 'E', story: true, text: ride.phase === 'arrived' ? `Get out at ${ride.dest.name}` : 'Get out here', act: leaveRide } : null;
     if (player.auto) return player.auto.label ? { key: '', text: player.auto.label } : null;
     let bn = null, bd = 3.2;
-    for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (!n.away && d < bd && Math.abs(n.z - player.z) < 2) { bd = d; bn = n; } }
+    // (within reach, and not through a wall, a partition or a floor: someone a metre off on the far side of the hall's
+    // wall is not someone to talk to. In the frame or not: beside you on a phone held upright is out of its narrow frame)
+    for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (!n.away && d < bd && Math.abs(n.z - player.z) < 2 && !nav.col.pick(player.x, player.y, player.z + 1.5, n.x, n.y, n.z + 1.5)) { bd = d; bn = n; } }
     // (not on the story's page, which offers no talk of the old game's: there it stood first and was then put away, and
     // so hid what comes after it, your car beside someone on the walk, a lift with its attendant beside it)
     if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
@@ -5928,6 +5980,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (titleOn && titleYaw != null && !simHold) { titleT += dt; titleYaw = openingHere() ? openingView().yaw + OPENING.sway * Math.sin(titleT * 0.06) : DISTRICT ? titleYaw0 + 0.3 * Math.sin(titleT * 0.05) : titleYaw + dt * 0.05; }
     if (simHold) { /* (held by a harness: the camera too, which the traffic reads, what is in view; advance() moves it) */ } else if (photo.on) photoCamera(dt); else if (closeup && !titleOn) closeupCamera(dt); else updateCamera(dt, titleOn);
     placeNightFill();
+    marks.frame(); // (the camera as it stands for this frame, and who is drawn near it: what every mark over the picture asks, marks.js)
     stage.classList.toggle('cine', cine.active && (cine.label !== 'crane' || cine.k < 0.5));
     // world clocks and fades
     Wd.tick(now, camera);
@@ -5948,6 +6001,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
     if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
+    npcMarks(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
     // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
@@ -6015,7 +6069,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // on foot, the minimap opens out to show the car coming and the pick-up, as the app's map does
         if (player.mode === 'foot') radius = Math.max(radius, Math.min(480, 1.18 * Math.max(Math.hypot(st.x - player.x, st.y - player.y), Math.hypot(ride.pickup.x - player.x, ride.pickup.y - player.y))));
       }
-      for (const n of npcs) { const hot = wantsTalk(n); n.marker.visible = hot && !dlg.open && !photo.on && !(overture && overture.active); if (hot) icons.push({ kind: 'npc', x: n.x, y: n.y, color: '#e0a21a', pin: true }); }
+      for (const n of npcs) if (wantsTalk(n)) icons.push({ kind: 'npc', x: n.x, y: n.y, color: '#e0a21a', pin: true });
       for (const o of sideObjectives()) icons.push({ kind: 'quest2', x: o.at[0], y: o.at[1] });
       if (ob && ob.at) icons.push({ kind: 'quest', x: ob.at[0], y: ob.at[1], pin: true });
       if (waypoint) icons.push({ kind: 'waypoint', x: waypoint[0], y: waypoint[1], pin: true });
@@ -7887,7 +7941,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { perch, tonight: () => tonight, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { marks, perch, tonight: () => tonight, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },
