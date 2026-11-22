@@ -94,7 +94,7 @@ window.OECompanion = (function () {
   // between them where there is room and round the edge of the crowd where there is not. Pushing off each one in turn
   // got him nowhere in a crowd shoulder to shoulder, and after a second he went through their coats
   const GRID = 0.35, BODY = 0.5, ROOM = 1.15, SPAN = 26;
-  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
+  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
     const RUN = speeds.run || speeds.trot * 2.6;
     const root = new THREE.Group();
     root.visible = false;
@@ -197,6 +197,42 @@ window.OECompanion = (function () {
     // He was let 3 cm into the player before he said he was held, and walked or turned further in on his own tick:
     // the check's margin was that same 3 cm, so a run passed or failed by where the crowd he plans round stood.
     const TOUCH = 0.002; // (m: what two bodies set down against each other may differ by, the solver's own)
+    // ... and his body off the walls, both ends of it (issue 157). A walker's circle is at his middle, and where he was
+    // put, or sat down, with his length across a wall's line, his nose or his rump stood up to 25 cm inside it: the
+    // roof's glass for the whole of frame 4's Stop. wall(x, y, z, r) is where a circle of his flank's radius there is
+    // pushed to, or nothing where it stands clear (nav.push, as the clip probe asks). He is moved by what his two ends
+    // are pushed, a pace a second so that he is seen to shift his weight, not to jump; and where a wall holds each end
+    // from a different side (a corner, a gap narrower than he is long) he turns along it instead.
+    function wallsOff(dt) {
+      if (!wall) return;
+      const hx = Math.cos(s.h), hy = Math.sin(s.h);
+      let mx = 0, my = 0, n = 0, against = false;
+      for (const a of body.spine) {
+        const ex = s.x + hx * a, ey = s.y + hy * a, w = wall(ex, ey, s.z, body.flank);
+        if (!w) continue;
+        const dx = w.x - ex, dy = w.y - ey;
+        if (dx * dx + dy * dy < 1e-4) continue;
+        if (n && mx * dx + my * dy < 0) against = true;
+        mx += dx; my += dy; n++;
+      }
+      if (!n) { s.wallT = 0; return; }
+      s.wallT = (s.wallT || 0) + Math.max(dt, 1 / 60);
+      // (still in it after half a second, held there by the player, a corner or his own turn: the nearest place and
+      // heading round him where both ends stand clear of every wall and he is off the player, and he steps there)
+      if (s.wallT > 0.5) {
+        const x0 = s.x, y0 = s.y, h0 = s.h, clear = () => body.spine.every(a => !wall(s.x + Math.cos(s.h) * a, s.y + Math.sin(s.h) * a, s.z, body.flank)) && offPlayer() >= -TOUCH;
+        for (let r = 0.1; r <= 1.5; r += 0.1) for (let k = 0; k < 12; k++) for (const dh of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+          const a = k * Math.PI / 6;
+          s.x = x0 + Math.cos(a) * r; s.y = y0 + Math.sin(a) * r; s.h = h0 + dh;
+          if ((!stand || stand(s.x, s.y, s.z)) && clear()) { s.wallT = 0; return; }
+        }
+        s.x = x0; s.y = y0; s.h = h0; s.wallT = 0.25; // (nowhere near: tried again in a quarter of a second)
+        return;
+      }
+      if (against) { s.h += Math.min(1, dt * 2); return; }
+      const m = Math.hypot(mx, my), k = Math.min(1, Math.max(dt, 1 / 60) * 1.2 / m);
+      s.x += mx * k; s.y += my * k;
+    }
     function spineNear(px, py) {
       const hx = Math.cos(s.h), hy = Math.sin(s.h), a0 = body.spine[0], a1 = body.spine[1];
       const t = Math.max(a0, Math.min(a1, (px - s.x) * hx + (py - s.y) * hy));
@@ -477,6 +513,7 @@ window.OECompanion = (function () {
       keepOff(dt);
       // (held by a wall and further into the player than he began: his own step or turn did it, and it is not taken)
       if (s.jam && (s.x !== x0 || s.y !== y0 || s.h !== h0)) { const g1 = offPlayer(); if (g1 < -TOUCH && g1 < gap0) { s.x = x0; s.y = y0; s.h = h0; s.speed = 0; } }
+      { const wx = s.x, wy = s.y, wh = s.h, g0 = offPlayer(); wallsOff(dt); if (offPlayer() < Math.min(-TOUCH, g0)) { s.x = wx; s.y = wy; s.h = wh; } } // (off a wall, never into the player)
       s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)

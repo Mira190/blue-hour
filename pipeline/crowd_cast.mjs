@@ -6,7 +6,8 @@
 // of its sex's Idle_Neutral clip (the pose the near walker stands in between strides), and simplifies each of its
 // pictures' parts with meshoptimizer's simplifier (MIT, pipeline/vendor/), keeping the texture seams, the borders
 // between the body, the head and the hair cards, and the parts the far crowd's shader swings (people.js crowdPose:
-// 1/2 left/right thigh, 5/6 shin and foot, 3/4 arm and hand, 0 the rest, as pipeline/fetch_people.py part_of).
+// 1/2 left/right thigh, 5/6 shin and foot, 3/4 arm and hand, 0 the rest, as pipeline/fetch_people.py part_of), with
+// each vertex's share of that limb (_PARTW, below).
 // Out: per picture (body, head, hair) the posed positions and normals in the rig's root frame (metres, y up, as the
 // near walker's model is drawn), its texture coordinates, parts and triangles; and the pivots the shader swings about.
 import fs from 'fs';
@@ -73,6 +74,17 @@ function clipPose(clips, name) {
   return pose;
 }
 
+// the limb a joint is part of (0 none, 1/2 left/right leg, 3/4 left/right arm), and whether it is below the knee
+function limb(joint) {
+  const m = /^Bip01 ([LR]) (.+)$/.exec(joint);
+  if (!m) return [0, false];
+  const left = m[1] === 'L', b = m[2];
+  if (b === 'Thigh') return [left ? 1 : 2, false];
+  if (/^(Calf|Foot|Toe)/.test(b)) return [left ? 1 : 2, true];
+  if (/^(UpperArm|Forearm|Hand|Finger)/.test(b)) return [left ? 3 : 4, false];
+  return [0, false];
+}
+
 function part(joint) {
   const m = /^Bip01 ([LR]) (.+)$/.exec(joint);
   if (!m) return 0;
@@ -122,42 +134,44 @@ async function main() {
   const skinned = nodes.filter(n => n.mesh !== undefined && n.skin !== undefined).map(n => J.meshes[n.mesh]);
   const prims = (skinned.length ? skinned : [J.meshes[0]]).flatMap(m => m.primitives).map(pr => {
     const A = pr.attributes, P = g.read(A.POSITION), N = g.read(A.NORMAL), UV = g.read(A.TEXCOORD_0), Js = g.read(A.JOINTS_0), Ws = g.read(A.WEIGHTS_0), I = g.read(pr.indices);
-    const n = P.length / 3, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), prt = new Uint8Array(n);
+    const n = P.length / 3, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), prt = new Uint8Array(n), pw = new Float32Array(n * 2);
     for (let v = 0; v < n; v++) {
-      const m = new Float64Array(16); let best = 0, bw = -1, ws = 0;
+      const m = new Float64Array(16); let ws = 0;
+      const chain = [0, 0, 0, 0, 0], below = [0, 0, 0, 0, 0];
       for (let k = 0; k < 4; k++) ws += Ws[v * 4 + k];
       for (let k = 0; k < 4; k++) {
         const w = Ws[v * 4 + k] / (ws || 1), j = Js[v * 4 + k];
-        if (w > bw) { bw = w; best = j; }
+        const [L, low] = limb(jointName[j]);
+        chain[L] += w; if (low) below[L] += w;
         if (w) for (let e = 0; e < 16; e++) m[e] += w * jm[j][e];
       }
       const p = xf(m, P[v * 3], P[v * 3 + 1], P[v * 3 + 2]), q = xf(m, N[v * 3], N[v * 3 + 1], N[v * 3 + 2], 0), l = Math.hypot(...q) || 1;
-      pos.set(p, v * 3); nrm.set([q[0] / l, q[1] / l, q[2] / l], v * 3); prt[v] = part(jointName[best]);
+      pos.set(p, v * 3); nrm.set([q[0] / l, q[1] / l, q[2] / l], v * 3);
+      // The limb that carries most of the vertex's weight, and how much of it: the shader turns the vertex by that share
+      // of the limb's angle (and below the knee, by its share of the knee's), as the near walker's skinning blends its
+      // bones. Each vertex took its heaviest bone's part whole before, and the triangles were cut apart where the parts
+      // met: a coat's hem with some weight on a thigh, or a cuff on the arm holding an umbrella up, tore off the body as
+      // a spike (the owner, the Scramble in the rain, November 2026)
+      let L = 1;
+      for (let k = 2; k <= 4; k++) if (chain[k] > chain[L]) L = k;
+      if (chain[L] < 0.01) { prt[v] = 0; pw[v * 2] = 0; pw[v * 2 + 1] = 0; continue; }
+      const kw = below[L] / chain[L];
+      prt[v] = L <= 2 ? (kw >= 0.5 ? L + 4 : L) : L;
+      pw[v * 2] = chain[L]; pw[v * 2 + 1] = kw;
     }
     const mat = J.materials[pr.material].name;
-    return { mat, kind: /_opacity$/.test(mat) ? 'hair' : /_head$/.test(mat) ? 'head' : 'body', pos, nrm, uv: UV, prt, idx: Uint32Array.from(I) };
+    return { mat, kind: /_opacity$/.test(mat) ? 'hair' : /_head$/.test(mat) ? 'head' : 'body', pos, nrm, uv: UV, prt, pw, idx: Uint32Array.from(I) };
   });
-  // each triangle takes one part (two of its corners', else its first corner's); a corner on a part's edge is
-  // split, so the simplifier keeps the edge where the shader bends the body (as a texture seam is kept)
+  // (the triangles as they are: each corner turns by its own share of its limb, so nothing is cut apart where the parts
+  // meet; the shares go to the simplifier with the picture's coordinates, so it keeps where the body bends)
   const total = prims.reduce((s, p) => s + p.idx.length / 3, 0);
   for (const p of prims) {
-    const T = p.idx.length / 3, key = new Map(), V = [], tri = new Uint32Array(p.idx.length), tp = new Uint8Array(T);
-    for (let t = 0; t < T; t++) {
-      const [a, b, c] = [p.prt[p.idx[t * 3]], p.prt[p.idx[t * 3 + 1]], p.prt[p.idx[t * 3 + 2]]];
-      tp[t] = (b === c) ? b : a;
-      for (let k = 0; k < 3; k++) {
-        const v = p.idx[t * 3 + k], kk = v * 8 + tp[t];
-        if (!key.has(kk)) { key.set(kk, V.length); V.push([v, tp[t]]); }
-        tri[t * 3 + k] = key.get(kk);
-      }
-    }
-    const n = V.length, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2), prt = new Uint8Array(n);
-    V.forEach(([v, q], i) => { pos.set(p.pos.subarray(v * 3, v * 3 + 3), i * 3); nrm.set(p.nrm.subarray(v * 3, v * 3 + 3), i * 3); uv.set(p.uv.subarray(v * 2, v * 2 + 2), i * 2); prt[i] = q; });
+    const T = p.idx.length / 3, tri = p.idx, n = p.pos.length / 3, pos = p.pos, nrm = p.nrm, uv = p.uv, prt = p.prt, pw = p.pw;
     // the share of the target this picture gets: by its triangles, the hair cards held to a fifth of theirs at least
     const want = Math.round(Math.max(p.kind === 'hair' ? +hairMin * T : 0, target * T / total)) * 3;
-    const attrs = new Float32Array(n * 5);
-    for (let i = 0; i < n; i++) attrs.set([uv[i * 2], uv[i * 2 + 1], nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2]], i * 5);
-    let [idx, err] = MeshoptSimplifier.simplifyWithAttributes(tri, pos, 3, attrs, 5, [1.5, 1.5, 0.3, 0.3, 0.3], null, Math.min(tri.length, want), +error,
+    const attrs = new Float32Array(n * 8);
+    for (let i = 0; i < n; i++) attrs.set([uv[i * 2], uv[i * 2 + 1], nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2], pw[i * 2], pw[i * 2 + 1], prt[i] >= 3 && prt[i] <= 4 ? prt[i] - 3 : prt[i] % 2], i * 8);
+    let [idx, err] = MeshoptSimplifier.simplifyWithAttributes(tri, pos, 3, attrs, 8, [1.5, 1.5, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0], null, Math.min(tri.length, want), +error,
       p.kind === 'hair' ? [] : p.kind === 'body' && +error > 0.2 ? ['Permissive'] : ['LockBorder']); // (the coarser copy: the body's seams may move, a few centimetres seen from 60 m)
     // the hair cards are loose quads, which the simplifier cannot merge: below a fifth of them (the coarser copy, issue 61),
     // the largest cards are kept, the head's painted hair showing where a small one was
@@ -169,7 +183,7 @@ async function main() {
       pos: keep.flatMap(v => Array.from(pos.subarray(v * 3, v * 3 + 3), x => +x.toFixed(5))),
       nrm: keep.flatMap(v => Array.from(nrm.subarray(v * 3, v * 3 + 3), x => +x.toFixed(4))),
       uv: keep.flatMap(v => Array.from(uv.subarray(v * 2, v * 2 + 2), x => +x.toFixed(5))),
-      part: keep.map(v => prt[v]), idx: ix });
+      part: keep.map(v => prt[v]), pw: keep.flatMap(v => [+pw[v * 2].toFixed(3), +pw[v * 2 + 1].toFixed(3)]), idx: ix });
   }
   process.stdout.write(JSON.stringify(out));
 }

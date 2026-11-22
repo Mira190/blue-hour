@@ -11,7 +11,10 @@ that happen:
     of a building, its open side behind it. People stand on the open side, so they see it from behind.
     Each face is cast from its middle along its normal and back: blocked within half a metre in front
     and open behind is a fault. What blocks is every landmark's triangles and the map's buildings (their
-    walls, from buildings.json, less the ones a landmark stands in for).
+    walls, from buildings.json, less the ones a landmark stands in for);
+  - an upright face with nothing within half a metre behind it: anyone who passes behind it, looks down from a deck
+    or flies over sees it mirrored. pipeline/landmarks.py gives every upright picture a plain back (sign_back),
+    which the test before looks past.
 Meshes whose material has a picture (a "map": sign atlases, the LED screens' programmes) are looked
 at; the aerial photo draped on a landmark's ground is not a picture to read, nor are leaf cards cut out
 of an atlas ("cutout").
@@ -69,6 +72,7 @@ def faces(mesh):
     return merged
 
 
+BACKS = "sign_back"   # the mesh of the signs' back panels (pipeline/landmarks.py sign_backs)
 REACH = 0.5    # how far in front of a face, and behind it, a wall is looked for (m)
 
 
@@ -81,6 +85,7 @@ class Solids:
         """extra: more triangles, (n, 3, 3); drop: landmark meshes left out (a hero level's `hide`); near: the points
         (x, y) rays will start from, so that only what lies in their cells is put in the grid."""
         tris = [np.asarray(e, float).reshape(-1, 3, 3) for e in extra]
+        backs = [np.zeros(len(t), bool) for t in tris]
         clear = {k for k, m in L.get("materials", {}).items() if m.get("opacity", 1) < 0.9 or m.get("transparent")}
         for mesh in L.get("meshes", []):
             if mesh.get("material") in clear or mesh["name"] in drop:   # glass and nets: a sign behind a shop window is read through it
@@ -89,7 +94,9 @@ class Solids:
             I = np.asarray(mesh["index"], int).reshape(-1, 3)
             if len(I):
                 tris.append(P[I])
+                backs.append(np.full(len(I), mesh["name"] == BACKS))
         self.T = np.concatenate(tris) if tris else np.zeros((0, 3, 3))
+        self.back = np.concatenate(backs) if backs else np.zeros(0, bool)   # the signs' own backs (pipeline/landmarks.py)
         lo = np.floor(self.T.min(axis=1)[:, :2] / self.CELL).astype(int)
         hi = np.floor(self.T.max(axis=1)[:, :2] / self.CELL).astype(int)
         keep = (hi - lo).max(axis=1) <= 40 if len(self.T) else np.zeros(0, bool)   # the ground's great sheets: never a sign's wall
@@ -153,11 +160,13 @@ class Solids:
                 return True
         return False
 
-    def hit(self, o, d, length):
-        """Does the segment o + t d, 0 < t < length, cross a triangle?"""
+    def hit(self, o, d, length, backs=True):
+        """Does the segment o + t d, 0 < t < length, cross a triangle (the signs' backs too, with backs)?"""
         cx, cy = self._cell(o)
         cells = [(cx + i, cy + j) for i in (-1, 0, 1) for j in (-1, 0, 1)]   # (a segment shorter than a cell)
         idx = sorted({t for c in cells for t in self.grid.get(c, ())})
+        if idx and not backs:
+            idx = [t for t in idx if not self.back[t]]
         if not idx:
             return False
         T = self.T[idx]
@@ -173,10 +182,10 @@ class Solids:
         t = f * np.einsum("ij,ij->i", e2, q)
         return bool(np.any(ok & (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0) & (t < length)))
 
-    def blocked(self, c, n):
+    def blocked(self, c, n, backs=True):
         """Is there a wall within REACH of c along n (a triangle crossed, or a building's inside)?"""
-        o = c + n * 0.03
-        return self.hit(o, n, REACH - 0.03) or self.inside(c + n * 0.25) or self.inside(c + n * (REACH - 0.02))
+        o = c + n * 0.001   # (a picture's own plane aside: a notice 2 mm off its plate has the plate behind it)
+        return self.hit(o, n, REACH, backs) or self.inside(c + n * 0.25) or self.inside(c + n * (REACH - 0.02))
 
 
 def check(city):
@@ -231,9 +240,18 @@ def check(city):
 
 
 def turned(name, F, solids):
-    """The faces of F turned to a wall: blocked in front within REACH and open behind."""
-    return [(name, "picture turned to a wall, seen from behind", f[0]) for f in F
-            if f[4] >= 0.05 and solids.blocked(f[0], f[1]) and not solids.blocked(f[0], -f[1])]
+    """The faces of F seen from behind: turned to a wall (blocked in front within REACH and open behind, a sign's
+    own back panel aside), or upright with nothing behind them at all, where anyone who passes behind, looks down
+    from a deck or flies over sees the picture mirrored (a floor's picture aside)."""
+    bad = []
+    for f in F:
+        if f[4] < 0.05:
+            continue
+        if solids.blocked(f[0], f[1], backs=False) and not solids.blocked(f[0], -f[1], backs=False):
+            bad.append((name, "picture turned to a wall, seen from behind", f[0]))
+        elif abs(f[1][2]) < 0.7 and not solids.blocked(f[0], -f[1]) and not solids.blocked(f[0], f[1]):
+            bad.append((name, "picture with nothing behind it, seen mirrored from behind", f[0]))
+    return bad
 
 
 HERO_LEVELS = ("scramble", "miyamasu", "ginza", "scramblesq", "skylobby", "skyroof")
