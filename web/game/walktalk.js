@@ -30,7 +30,7 @@ window.OEWalkTalk = (function () {
   // (a speech mark seen from this far, and only over someone in sight; the name under it from this close. It was 42 m:
   // on a phone a person there is a few pixels tall, and on SHIBUYA SKY's roof Taro's mark stood over the glass with
   // him out of sight behind the heliport's deck, a mark over nobody. As an open world's: near enough to see who it is)
-  const SEE_M = 24, NAME_M = 11;
+  const SEE_M = 24, NAME_M = 11, PLACE_M = 20; // (PLACE_M: a place the street offers, a seat, marked from this far)
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const first = name => String(name || '').replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '').trim(); // (the name as it is read: "Mr Oda 小田さん" is Mr Oda)
 
@@ -360,6 +360,22 @@ window.OEWalkTalk = (function () {
         const name = d < NAME_M ? `${first(n.name)}${n.role ? ` · ${String(n.role).replace(/\s*[　-鿿＀-￯].*$/, '')}` : ''}` : '';
         if (e._n !== name) { e._n = name; e.querySelector('span').textContent = name; e.classList.toggle('named', !!name); }
         fade(e, String(Math.round(Math.max(0, Math.min(1, (far - d) / 8)) * 20) / 20));
+        e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 14 / Math.max(1, d))).toFixed(3)})`;
+      }
+      // what the street offers besides its people (ctx.places: a free place on a wall to sit and watch the crossing
+      // from, until it has been sat on once in this browser): a pale mark over the place from a little way off, named
+      // from close, as a word in passing is; the prompt beside it does the rest (issue 146)
+      const places = ctx.places ? ctx.places() : [];
+      for (const [id, el] of marks) if (id.startsWith('place:') && !places.some(s => `place:${s.id}` === id)) fade(el, '0');
+      for (const s of places) {
+        const id = `place:${s.id}`, d = Math.hypot(s.x - me.x, s.y - me.y);
+        if (hide || d > PLACE_M || d < 1.2 || Math.abs((s.z || 0) - (me.z || 0)) > 3 || me.mode !== 'foot') { fade(marks.get(id), '0'); continue; }
+        const p = ctx.project(s.x, s.y, (s.z || 0) + 1.5), e = mark(id);
+        if (!p || !sight(id, { x: s.x, y: s.y, z: (s.z || 0) - 0.1 })) { fade(e, '0'); continue; }
+        if (e._k !== 'place') { e._k = 'place'; e.dataset.k = 'place'; }
+        const name = d < NAME_M ? s.label : '';
+        if (e._n !== name) { e._n = name; e.querySelector('span').textContent = name; e.classList.toggle('named', !!name); }
+        fade(e, String(Math.round(Math.max(0, Math.min(1, (PLACE_M - d) / 6)) * 20) / 20));
         e.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${Math.max(0.72, Math.min(1, 14 / Math.max(1, d))).toFixed(3)})`;
       }
     }
