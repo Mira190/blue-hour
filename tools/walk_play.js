@@ -57,6 +57,7 @@ const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
+const { measure: umbrellaHeld } = require('./umbrella_held'); // (in the rain: every umbrella held, issue 165)
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
 (async () => {
@@ -326,6 +327,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!(await p.evaluate(() => document.getElementById('game-stage').classList.contains('photo')))) fail('the walk\'s camera button does not open photo mode');
   else {
     ok('the camera opens photo mode'); await p.waitForTimeout(600); await shot('7-photo');
+    // (in the rain, with the world held by the camera: each umbrella near the lens is held, its handle at its hand, its
+    // shaft clear of the body under it, no canopy in another or in a head: issue 165, tools/umbrella_held.js)
+    if (sky === 'rain') { const U = await umbrellaHeld(p, { label: 'the walk in the rain, the camera up', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) fail('the page has no umbrella report to measure'); else if (U.bad.length) fail(`umbrellas not held: ${U.bad.join('; ')}`); else ok(`${U.n} open umbrellas near the lens, every one held`); }
     // the frame is the photograph's (issue 147): what the camera's controls cover, and nothing of them over the middle
     // of the frame where the subject stands (tools/ui_fit.js holds the same at every size)
     const cover = () => p.evaluate(() => {
@@ -392,7 +396,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       const here = await p.evaluate(() => [window.__game.player.x, window.__game.player.y]);
       await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; g.player.x = s.at[0] + s.face[0] * 9; g.player.y = s.at[1] + s.face[1] * 9; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.cam.yaw = g.player.h; g.cam.pitch = 0.1; g.advance(0.3); });
       await frames(24);
-      const pm = await p.waitForFunction(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e && +e.style.opacity > 0.4; }, null, { timeout: 60000, polling: 300 }).then(placeMark, placeMark);
+      // (waited for as it is judged, shown and named: the mark may be up already from where you stood before, pale and
+      // without its name, and beside another check the page had not drawn a frame since you were set down here; read then,
+      // it failed as "not named" one run in two with two cores kept busy: issue 159)
+      const pm = await p.waitForFunction(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e && +e.style.opacity > 0.4 && /Sit/.test(e.querySelector('span').textContent); }, null, { timeout: 60000, polling: 300 }).then(placeMark, placeMark);
       if (!pm || pm.o < 0.4) fail(`nine metres from ${seat.name}, facing it, no mark offers the seat (${JSON.stringify(pm)})`);
       else if (!/Sit/.test(pm.name)) fail(`the seat's mark is not named from nine metres ("${pm.name}")`);
       else ok(`nine metres from ${seat.name}: its mark, "${pm.name}"`);
@@ -513,7 +520,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!(await talk('mei', 14))) fail('no Mei on the walk (game.json npcs: mei)');
       else {
         await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 8; i++) g.frame(0.05); });
-        await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3), null, { timeout: 90000, polling: 500 }).catch(() => {});
+        await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3 && e.dataset.k === 'story'), null, { timeout: 90000, polling: 500 }).catch(() => {}); // (the mark that is judged, not any mark: a seat's may be up already)
         const mk = await p.evaluate(() => [...document.querySelectorAll('.g-walk-mark')].filter(e => +e.style.opacity > 0.3).map(e => e.dataset.k));
         if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (${JSON.stringify(mk)})`);
         else ok(`speech marks from fourteen metres: ${mk.join(', ')}`);
@@ -756,7 +763,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         await shot('7c-heli');
         // over the crossing with the camera up (photo mode holds the world): Taro's photograph from the air, then back
         // over the roof to set down
-        const back = await p.evaluate(() => {
+        const overCrossing = () => p.evaluate(() => {
           const g = window.__game, s = g.heli.st, was = { x: s.x, y: s.y, z: s.z };
           Object.assign(s, { x: 368, y: -1016, z: 15 + 130 });
           for (const k of ['vx', 'vy', 'vz', 'speed']) if (k in s) s[k] = 0;
@@ -764,16 +771,41 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           g.photoMode(true); Object.assign(g.photo, { az: 0, pitch: 1.35, dist: 45 });
           return was;
         });
-        await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {});
-        // (and the lens come to rest over the crossing before the release: a still used to take the seconds it needed. At rest
-        // over the game's own frames, six alike, not over the wall's time: beside another check a frame drawn whole takes a
-        // second or two, and a lens read twice inside one frame has not moved)
-        await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, same = 0, n = 0; const f = () => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); same = now === was ? same + 1 : 0; was = now; if (same >= 6 || ++n > 900) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
+        // (the photo camera over the crossing before the release: what the photograph is judged by, read from the camera
+        // itself, not from its matrix reading alike over six of the display's frames: issues 142 and 153)
+        const atPose = () => until(() => { const g = window.__game, c = g.camera, f = g.photo.focus, e = c.matrixWorld.elements; return g.photo.on && Math.abs(Math.hypot(e[12] - f.x, e[13] - f.y, e[14] - f.z) - g.photo.dist) < 1.5 && e[13] - f.y > 35; }, null, 90000);
+        const sixAlike = async () => { await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {}); await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, same = 0, n = 0; const f = () => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); same = now === was ? same + 1 : 0; was = now; if (same >= 6 || ++n > 900) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); })); };
+        // the shutter, with what the page was doing as it was released and whether the crossing is in the photograph: a
+        // photograph that is not Taro's says why in its own line
+        const release = () => p.evaluate(() => {
+          const g = window.__game, T = window.THREE, c = g.camera, why = { photo: g.photo.on, talk: !!(g.dlg && g.dlg.open), film: !!(g.cine && g.cine.active), mode: g.player.mode };
+          g.snapPhoto();
+          const F = new T.Frustum().setFromProjectionMatrix(new T.Matrix4().multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse)), e = c.matrixWorld.elements, f = g.photo.focus, s = g.heli.st;
+          Object.assign(why, { sees: F.containsPoint(new T.Vector3(368, 15, 1002)), lens: [e[12], -e[14], e[13]].map(v => +v.toFixed(1)), focus: [f.x, -f.z, f.y].map(v => +v.toFixed(1)), heli: [s.x, s.y, s.z].map(v => +v.toFixed(1)) });
+          g.photoMode(false);
+          const st = g.walkTalk().state(), er = g.walkTalk().errand();
+          return { met: !!(st.air && st.air.met), errand: er ? er.text : '', why };
+        });
+        const back = await overCrossing();
+        if (!(await atPose())) fail('over the crossing with the camera up, photo mode\'s camera did not come to the pose asked for in 90 s');
         await shot('7d-air-photo');
-        const aerial = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); g.photoMode(false); const st = g.walkTalk().state(), e = g.walkTalk().errand(); return { met: !!(st.air && st.air.met), errand: e ? e.text : '' }; });
-        if (!aerial.met) fail('over the crossing in the helicopter, a photograph of it does not meet what Taro asked');
+        const aerial = await release();
+        if (!aerial.met) fail(`over the crossing in the helicopter, a photograph of it does not meet what Taro asked (${JSON.stringify(aerial.why)})`);
         else if (!/Back to Taro/.test(aerial.errand)) fail(`the aerial photograph taken, the corner does not send you back to Taro ("${aerial.errand}")`);
         else ok(`a photograph of the crossing from the helicopter: "${aerial.errand}"`);
+        // AIR_N=n: the same photograph n times more, to say how often it misses (AIR_WAIT=six: after the wait the check
+        // had, the lens's matrix alike over six frames; pose, the default: after the pose is reached; none: at once)
+        if (+process.env.AIR_N) {
+          const N = +process.env.AIR_N, W = process.env.AIR_WAIT || 'pose'; let miss = 0;
+          for (let i = 0; i < N; i++) {
+            await p.waitForTimeout(300 + (i % 7) * 130);
+            await overCrossing();
+            if (W === 'six') await sixAlike(); else if (W === 'pose') await atPose();
+            const r = await release();
+            if (!r.why.sees) { miss++; console.log(`  (${i + 1}: the crossing is not in the photograph: ${JSON.stringify(r.why)})`); }
+          }
+          (miss ? fail : ok)(`${N - miss} of ${N} more photographs from the helicopter have the crossing in them (AIR_WAIT=${W})`);
+        }
         await p.evaluate(was => { const g = window.__game, s = g.heli.st; Object.assign(s, { x: was.x, y: was.y, z: was.z }); for (const k of ['vx', 'vy', 'vz', 'speed']) if (k in s) s[k] = 0; g.frame(0.05); }, back);
         await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && !g.heli.st.landed; i++) g.advance(0.5, ['KeyC']); g.advance(1); });
         if (!(await waitPrompt(/Get out/))) fail(`landed, nothing offers to get out of the helicopter ("${await prompt()}")`);

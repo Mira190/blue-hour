@@ -540,6 +540,8 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
     ribs along its panels' seams and its hem; in the rain, drops beaded on it that go as one wetness where a pixel
     spans several. It is blended over the person under it, who is drawn first and whole, and nothing else of a person
     is see-through, so two transparencies never lie over each other.
+  - `tools/umbrella_held.js` measures that every umbrella near the lens is held (issue 165, docs/WEATHER.md "An umbrella
+    is held") and takes its stills at the same kerbs.
   - `tools/lens_crowd.js` stands you in the rain among a kerb's crowd at Center Gai's mouth (17:41) and at the kerb of
     the story's seventh frame (17:53), puts three of those waiting at 2.2, 2.6 and 3.1 m from the lens, plays five
     seconds and takes a still each half second; it fails when someone inside the near space is drawn or someone
