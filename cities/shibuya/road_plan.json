@@ -54,7 +54,7 @@
   "bus_routes": 113,
   "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-22): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
   "one_way_from_osm": 9,
-  "gaps_joined": 0,
+  "gaps_joined": 1,
   "joined_under_cover": 4,
   "solids_raised_over_a_road": 0
  },

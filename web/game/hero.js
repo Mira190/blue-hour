@@ -158,7 +158,53 @@ window.OEHero = (function () {
       // picture in the emissive map; it writes no depth and hides nothing, and dims by day as the glow does
       if (/^refl/.test(name)) { Object.assign(m, { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }); m.userData.oeDry = true; m.userData.heroGlow = m.emissiveIntensity || 1; }
       if (/^(paper|lamp)/.test(name)) { m.userData.oeDry = true; m.userData.heroDusk = m.emissiveIntensity || 1; m.emissiveIntensity = 0; }
+      // Glass that mirrors what is round it (issue 137: SKY STAGE's glass showed nothing of the roof or of the city's lights
+      // behind you, which every photograph at dusk has on its lower half). A level with a probe (h.probe) has a picture of
+      // the scene taken from one place in it, as a cube, and its glass* takes that as its environment instead of the sky
+      // alone. And the reflection is laid over the pane at full strength: the pane is 0.2 opaque, and with ordinary
+      // blending its reflection was drawn at a fifth. Premultiplied, the pane's own colour goes in at its opacity and what
+      // it mirrors on top, as glass does
+      if (h.probe && /^glass/.test(name)) {
+        m.envMap = probeOf(h).texture; m.premultipliedAlpha = true; m.userData.probeGlass = true;
+        const prev = m.onBeforeCompile;
+        m.onBeforeCompile = (sh, r) => {
+          prev.call(m, sh, r);
+          sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', 'vec3 oeSpec = reflectedLight.indirectSpecular;\n#include <opaque_fragment>')
+            .replace('#include <premultiplied_alpha_fragment>', '#include <premultiplied_alpha_fragment>\n#ifdef PREMULTIPLIED_ALPHA\n  gl_FragColor.rgb += oeSpec * (1.0 - gl_FragColor.a);\n#endif');
+        };
+      }
       m.needsUpdate = true;
+    }
+
+    // a level's reflection probe (h.probe: {at: [x, y, z], res, res_low}): a cube the size of res (on the low tier
+    // res_low) its glass mirrors, taken from `at` with the glass itself left out; when the level is first shown, and again
+    // when the night has moved on by a twelfth (a phone's by a quarter), never more than once in three seconds. Six
+    // draws of the scene from one place, once in a while: a cube 256 on a side in half floats is 3 MB, a phone's 64 is
+    // 0.2 MB. What it cannot show: whoever stands at the glass, which moves (it is taken from over the pad, where nobody
+    // stands), and the roof seen from where you are (one place's picture: the far city, which is most of what the glass
+    // mirrors at dusk, is where it should be)
+    function probeOf(h) {
+      if (h._probe) return h._probe.rt;
+      const P = h.probe, res = tier === 'low' ? (P.res_low || 64) : (P.res || 256);
+      const rt = new THREE.WebGLCubeRenderTarget(res, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+      const cc = new THREE.CubeCamera(0.5, 8000, rt);
+      cc.position.set(P.at[0], P.at[2], -P.at[1]);
+      h._probe = { rt, cc, night: -1, t: -99, n: 0 };
+      return rt;
+    }
+    function probe(L, night) {
+      const p = L.h._probe;
+      if (!p || t - p.t < 3 || Math.abs(night - p.night) < (tier === 'low' ? 0.25 : 1 / 12)) return;
+      p.t = t; p.night = night; p.n++;
+      const glass = L.mats.filter(m => m.userData.probeGlass), shadow = renderer.shadowMap.autoUpdate;
+      for (const m of glass) { m.userData.probeVis = m.visible; m.visible = false; }
+      renderer.shadowMap.autoUpdate = false;
+      const prevT = renderer.getRenderTarget();
+      try { p.cc.updateMatrixWorld(); p.cc.update(renderer, Wd.world); } finally {
+        renderer.setRenderTarget(prevT);
+        renderer.shadowMap.autoUpdate = shadow;
+        for (const m of glass) m.visible = m.userData.probeVis;
+      }
     }
 
     // a texture made smaller on the low tier before it reaches the GPU: halved, or on a phone's lean sub-tier no
@@ -298,6 +344,7 @@ window.OEHero = (function () {
       if (L.root) { group.remove(L.root); dispose(L.root); }
       if (L.fineRoot) { group.remove(L.fineRoot); dispose(L.fineRoot); }
       release(L);
+      if (L.h._probe) { L.h._probe.rt.dispose(); L.h._probe = null; }
       showHidden(L, true);
       L.h.shown = false; // (let go: nobody stands on its paving)
       Object.assign(L, { state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], fine: 'idle', fineRoot: null, fineMeshes: [] });
@@ -344,6 +391,7 @@ window.OEHero = (function () {
             o.visible = ctr.copy(bs.center).applyMatrix4(o.matrixWorld).distanceTo(eye) - bs.radius < fm;
           }
         }
+        if (L.h._probe) probe(L, night);
         // the rooms behind its windows: dark glass by day, lit after dark
         for (const m of L.wins) m.emissiveIntensity = m.userData.heroWin * (0.05 + 0.95 * night);
         uBake.value = L.h.bake == null ? 1 : L.h.bake;
@@ -367,7 +415,7 @@ window.OEHero = (function () {
       group, levels, update, tier, light: { bake: uBake, street: uStreet }, // (its baked light's gain and its share of the street lights, as update() sets them: tools/stop_grade.js)
       // (for the harnesses: whether each is loaded and shown, tools/game_check.js)
       state: () => levels.map(L => ({ id: L.h.id, state: L.state, shown: !!(L.root && L.root.visible), materials: L.mats.length,
-        fine: L.fine, fineShown: L.fineMeshes.filter(o => o.visible).length, fineMeshes: L.fineMeshes.length })),
+        fine: L.fine, fineShown: L.fineMeshes.filter(o => o.visible).length, fineMeshes: L.fineMeshes.length, probe: L.h._probe ? { res: L.h._probe.rt.width, taken: L.h._probe.n } : null })),
     };
   }
 
