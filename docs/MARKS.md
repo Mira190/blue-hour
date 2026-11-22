@@ -26,6 +26,8 @@ about the player's body:
 - The story's goal ring sat on the player's back whenever she walked straight towards the goal, because that is
   where a point ahead of her lands under a chase camera.
 
+![Before (main) and after: the old game's "!" on the back of her head, and the same placing with the rule](images/marks-before-after.jpg)
+
 ## First principles
 
 A mark drawn at a point of the world claims to be *at* that point. So it is part of the picture, and the picture is
