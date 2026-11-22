@@ -458,8 +458,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // body towards the holding hand (p.ucx, p.ucy from the body, in the plan; someone with none: their head). The rooms
   // below take it as distance already spent (umbGap: how far the canopies are from each other, with p stood at x, y,
   // less what an umbrella asks past the room they keep anyway), so each of them holds to it in its own way. Those
-  // who walk together are left to it: of two friends one carries and the other shares it (people.js wantUmb), and
-  // where both carry the canopies lean apart
+  // who walk together are left to it on the move: of two friends one carries and the other shares it (people.js
+  // wantUmb), and where both carry the canopies lean apart, and stood waiting they stand an umbrella apart
   const UMB_RIM = 0.06;
   function umbRoom(p, o) {
     const a = p.umbR || 0, b = o.umbR || 0;
@@ -1506,7 +1506,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (e > 2.4 || e < 1e-4) continue;
           const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
-          if ((q.umbR > 0 || o.umbR > 0) && (o.lead >= 0 ? o.lead : o.id) !== gq) { // (under umbrellas: an umbrella's room between the canopies, issue 165)
+          if ((q.umbR > 0 || o.umbR > 0) && ((o.lead >= 0 ? o.lead : o.id) !== gq || (q.umbR > 0 && o.umbR > 0))) { // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
             const u = umbRoom(q, o) + 0.04, cx = ex + (q.umbR > 0 ? q.ucx : 0) - (o.umbR > 0 ? o.ucx : 0), cy = ey + (q.umbR > 0 ? q.ucy : 0) - (o.umbR > 0 ? o.ucy : 0), ec = Math.hypot(cx, cy);
             if (u > 0.1 && ec < u && ec > 1e-4) { const f = (u - ec) / ec * 2.2; fx += cx * f; fy += cy * f; }
           }

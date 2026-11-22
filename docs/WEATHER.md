@@ -221,7 +221,7 @@ was somewhere else.
 - *People under umbrellas take an umbrella's room.* A canopy is a metre across (`UMB_R` 0.5 m, a 60 cm umbrella open).
   While two umbrellas are up the crowd's steering keeps the two radii between the canopies' middles
   (`actors.js` `umbRoom`, from `p.umbR`, `p.ucx`, `p.ucy` which the renderer writes), someone with none whose head
-  stands at a rim keeps out from under it, and of friends walking together every second one shares (`wantUmb`). Where
+  stands at a rim keeps out from under it, and of friends walking together the two beside the leader share the leader's (`wantUmb`). Where
   the press brings canopies closer all the same, each leans from what it would touch, at the wrist, up to eight
   degrees and never towards its holder's own head (`lean`).
 - *The far crowd* keeps the same umbrella at the same place: the step from a near person to a copy moves the canopy by

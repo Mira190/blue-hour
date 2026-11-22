@@ -1994,9 +1994,10 @@ transformed = crowdPose(transformed, false);`);
       (lib.warmLater && !lib.warm ? lib.warmed : Promise.resolve(lib.warm)).then(w => (w ? Promise.all(UMB_KEYS.map(c => w(umbMeshes[c]))) : null))
         .catch(() => {}).then(() => { umbWarm = true; const r = rain; rain = -1; setRain(r, soaked); });
     }
-    // (of those who walk together every second one shares the umbrella of the one beside them, as friends do: two
-    // canopies do not fit over two people shoulder to shoulder, issue 165)
-    const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < umbFrac && !(p.lead >= 0 && (p.gk & 1));
+    // (of those who walk together the two beside the one who leads share that one's umbrella, as friends do: two
+    // canopies do not fit over two people shoulder to shoulder; a fourth, who stands or walks a canopy's width from the
+    // leader in the group's rows, actors.js mateSpot, carries their own: issue 165)
+    const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < umbFrac && !(p.lead >= 0 && (p.gk === 1 || p.gk === 2));
     // how far up this person's umbrella is (p.umbT, 0..1): each goes up over UMB_OPEN_S once they want it, and down a
     // little faster; one not drawn a moment ago, or a rain that came in at once (umbSnap), as it is by now
     function umbStep(p) {
