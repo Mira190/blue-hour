@@ -1043,7 +1043,7 @@ scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street
 material (`win_scrsq`: hero.js win*, the glass mirroring the sky) on a tile drawn here, 12 m across and eight office
 storeys high: each 1.5 m pane its own tone within a few percent and its own small tilt in the normal map (the tilt is
 the cause of the tone), the mullions as ribs, every second heavier, the joints stepping 0.75 m at each floor, the
-spandrel recessed and fritted, the frit thinning up each pane. The shop floors take the same tile at their 5.4 m
+spandrel recessed and fritted, the frit thinning up each pane. The floors under 17F take the same tile at their real
 storeys. The tower's wing outside its ring (PLATEAU's slab on the west, over the crossing, from the street to 218 m)
 takes the same skin, its faces against the tower left out: drawn as the city's generic wall, it was the face the
 crossing and the flight see, dark among lit floors. Fetched anywhere in the story's streets (load_m 900): 0.04 MB, the
@@ -1180,6 +1180,44 @@ the forecourt and under its ceiling, and the face from the north, at dusk and at
 ![The base from the north at dusk, from Miyamasuzaka-shita at night, from the deck to Hikarie, under the forecourt's ceiling at night, the forecourt, and Hachiko](images/shibuya/scrsq-base-66-desktop.jpg)
 
 ![The same on a phone (390 x 844)](images/shibuya/scrsq-base-66-phone.jpg)
+
+### Why the base read as twisted, and what straightened it (November 2026)
+
+The owner's still from the walk's helicopter, 64 m up at 17:53 on 10 October, of the NOVA advert on the north face: "why
+does this building feel a bit distorted?" The building is Scramble Square (the screen is Shibuya Scramble Square Vision,
+city.py `CROSSING_SCREENS`, whose programme carries the NOVA clip; the arched, ribbed roof in front is the Ginza line's
+station over Meiji-dori; Hikarie carries no screen in the data). Taken apart, from first principles, against the
+photograph from Miyamasuzaka-shita ("Shibuya Station 191129a", 江戸村のとくぞう, CC BY-SA 4.0, looked at, not reproduced),
+in which every floor line runs level across the face and both skirts and the screen's sides run straight along the
+tent's edge and the skirt's:
+
+- **Two sets of floor lines crossing.** The skin's tile laid its storeys at an even 5.4 m up to 71.3 m, the rooms traced
+  behind it after dark the same, while the skirts' slab edges, their rows and the screen stood on the real storeys (2F
+  7.7 m, 3F 13.3, 4F 19.3 ...). The two drifted up to 2.6 m apart and met again: on the skirts the tile's white spandrels
+  ran between the slab edges and crossed them, and the bands seemed to wave. Now the tile, the rooms (`web/interior.js`
+  offices, `levels`) and the slabs share one list of storeys (`hero_scramblesq.LEVELS`, the escalators' rises; 16F half way
+  to 17F, the offices' even 4.55 m from 17F), every skin quad cut at each storey so its v runs true.
+- **Fins across the joints.** The skirts' fins stood at fixed shares of each row, so as the skirt widened downward they
+  fanned out and slanted across the glass's joints, which are measured in metres from the corner. Now the fins stand at
+  every pane's width from the corner, as the joints do, each ending where the skirt's edge comes in past it.
+- **A sawtooth beside the screen.** The screen's outline was cut in whole storeys, each row its mean width: against the
+  skirt's sweep and the tent's slope each storey left a wedge of glass on one side and ran under the skirt on the other.
+  Now its parts are trapezoids whose sides run along the tent's foot and the skirt's edge (`scrsq_base.screen_parts`;
+  `pipeline/screens.py` takes a part of six numbers as a trapezoid).
+
+Checked and found sound: the face's frame (straight, its verticals plumb), the facets on the curves (14 a row on the
+skirt), the screen's plane (0.43 to 0.45 m off its wall across all of it), its box within the face. The same mistakes
+were looked for on the other landmarks with banded or curved fronts: SHIBUYA109's cylinder measures its texture by arc
+and height, QFRONT's panels carry no texture, and the city's own walls keep their bands by height. Every screen's
+placement is now measured by `tools/screen_fit.py`: the wall behind a wall screen across its width at its foot, middle and
+top, and every leg of a roof screen on its roof. It found Rakuten Vision on an edge typed at 45 degrees, 0.8 to 1.4 m off
+the mapped wall and askew to it (now on the wall's own edge, its published 10.24 m overhanging the mapped 8.6 m face by
+0.84 m each end, on its frame), and the Toei Plaza's two Synchro7 faces hanging past the ends of their roof (their sizes
+estimates: now 8.4 m each). Still open: Shibuya Ekimae Vision hangs about 5 m past the north end of the Ekimae building's
+mapped roof, and moving it would run it into Shibuhachi Hit Vision; the published sizes and the mapped roof disagree.
+
+Stills: `tools/views/nova-tower.json` (`tools/game_shot.js`): from the helicopter's height north of the face and from
+Miyamasuzaka-shita, at 17:53 and 21:00 on 10 October, on a desktop and a phone.
 
 **Where it still falls short**: the skirts' depth and the tent are measured from photographs, not drawn from plans
 (above); the skirt's lowest band, 4F to 5F, is clipped where the station's concourse blocks stand by the north-west
