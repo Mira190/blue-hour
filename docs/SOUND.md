@@ -337,6 +337,20 @@ is not be on that path where it matters most:
 - Telemetry: `snd_music` (`el 1`: on elements, how many playing; `fixed` where the volume cannot be set), `snd_el`
   (`stalls/worst ms`: an element's own clock 400 ms and more behind the wall's), `snd_quiet` while there is no context.
 
+**The noise heard again with no context at all** (22 November 2026, build 0.1.215, which had all of the above). The owner
+heard a loud noise, not a crackle, in both openings on the iPhone: the walk's at its title, the story's at the shot from
+above, where its title is; once in the street it was gone. The telemetry of those plays: in the walk's film `snd` read
+`no context` and `snd_quiet` true, and eight seconds in the WebGL context was lost (`gl_lost`, step `late trees`) and the
+page reloaded itself; in the story's, no loss, the level the story starts in still loading at the film's end
+(`level_wait`) and the main thread held 1.3 s. The score itself is clean: `tools/score_peaks.js` renders it as a phone
+plays it and measures what `tuneWav()` writes, and the story's peaks at 0.21, nothing cut. So the noise is not the
+context's and not the file's. On an iPhone WebKit draws WebGL and plays a media element in one GPU process; what was
+loading under the film was the phone's late parts (the near people, cars and trees, the far aerial tiles), fetched from
+the title on and, on main, every one of them under the film, over the city seen whole from the air, the most a phone
+holds. They now wait for the film to end (`game.js` afterPlayable), and `tools/opening_audio.js` fails when one begins
+under it. What only the owner's iPhone can say is whether that was all of it: the story's own level still comes in under
+its film when Play is pressed before it is ready.
+
 After the opening the street and the live score are still Web Audio's, on the same path. Their breaks are what the
 probe counts from then on, and the sound still gives up its own load when they come ("Giving up sound before a click").
 A phone whose WebKit has 317968@main plays silence for a late block instead of its stale buffer.
