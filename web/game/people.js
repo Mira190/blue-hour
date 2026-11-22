@@ -1782,7 +1782,7 @@ transformed = crowdPose(transformed, false);`);
   // real: the textured Rocketbox characters (the NPCs' cast, build_people.py --npcs) the nearest walkers are drawn
   // as, each the sex of their far figure, instead of the far crowd's own character close up: at eye level a
   // passer-by is a person, with the scanned face, hair and clothes the NPCs have (none: the far crowd's own)
-  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null } = {}) {
+  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0 } = {}) {
     { const m = /[?&]crowdnear=(\d+)/.exec(location.search); if (m) near = +m[1]; } // (to look at the far copies close up: tools/game_shot.js QUERY=?crowdnear=0)
     // a real person's height: the Japanese adult's mean (MHLW National Health and Nutrition Survey 2019: women
     // 1.58 m, men 1.71 m; a city may say otherwise in game.crowd.height) with the far figure's own spread
@@ -2030,6 +2030,7 @@ transformed = crowdPose(transformed, false);`);
     // little faster; one not drawn a moment ago, or a rain that came in at once (umbSnap), as it is by now
     function umbStep(p) {
       const want = umbOn && wantUmb(p) ? 1 : 0;
+      p.umbW = want ? UMB_R * p.fscale : 0; // (the canopy this one will hold up, m: actors.js gives them its room at a kerb, slotFree)
       if (p.umbAt == null || tNow - p.umbAt > 0.3 || umbSnap) p.umbT = want;
       else if (p.umbT !== want) p.umbT = want ? Math.min(1, p.umbT + dtNow / UMB_OPEN_S) : Math.max(0, p.umbT - dtNow / (0.8 * UMB_OPEN_S));
       p.umbAt = tNow;
@@ -2038,7 +2039,9 @@ transformed = crowdPose(transformed, false);`);
     }
     const free = {}, active = new Map();
     let dtNow = 0, tNow = 0, frameNo = 0, ended = false, m0 = null;
-    function begin(dt, cx, cy, t, nActive) {
+    let lastBegin = null, stillMade = -1, lastPick = null; // (stillMade: how many people made in this still frame, still(); -1 in play)
+    function begin(dt, cx, cy, t, nActive, count = 0) {
+      lastBegin = [cx, cy, nActive];
       dtNow = dt; tNow = t; frameNo++; ended = false;
       if (!m0) m0 = new THREE.Matrix4().makeScale(0, 0, 0);
       umbN.true = umbN.false = umbN.shaft = 0;
@@ -2058,7 +2061,7 @@ transformed = crowdPose(transformed, false);`);
       // Through a long lens (the story's finder at 22 to 40 degrees, a conversation's 35 mm) someone 50 m off is as big in
       // the frame as someone 25 m off is in the chase view: the distance is counted as the lens sees it, and a few more
       // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
-      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = Math.round(near * Math.min(1.5, zoom));
+      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = count || Math.round(near * Math.min(1.5, zoom));
       const want = [], ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
       lodX = ex; lodY = ey; lodZoom = zoom;
       for (let i = 0; i < nActive; i++) {
@@ -2073,6 +2076,7 @@ transformed = crowdPose(transformed, false);`);
       ball.radius = 30;
       want.sort((a, b) => a[0] - b[0]);
       const keep = new Set(want.slice(0, nNear).map(w => w[1]));
+      lastPick = { nNear, culling, zoom, want: want.length, unloaded: 0, capped: 0, top: want.slice(0, nNear + 4).map(w => [w[1], +w[0].toFixed(2)]) }; // (for the checks: nearInfo)
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
       for (const i of keep) {
         // (a stand-in gives way to the walker's own character once that has come, not only when they next come near)
@@ -2083,7 +2087,10 @@ transformed = crowdPose(transformed, false);`);
         // not the far crowd's doll: at the hero spawn a dense crowd reads as real at once, and swaps to its own
         // character when it comes (begin() runs again as the player moves)
         if (rn && !lib.tpl[name]) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
-        if (!lib.tpl[name]) { lib.require(name); continue; }
+        if (!lib.tpl[name]) { lib.require(name); lastPick.unloaded++; continue; }
+        if (stillMade >= 4 && !(free[name] && free[name].length)) lastPick.capped++;
+        if (stillMade >= 4 && !(free[name] && free[name].length)) continue; // (a still frame makes four at most: the rest come in the frames after)
+        if (stillMade >= 0 && !(free[name] && free[name].length)) stillMade++;
         const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look));
         r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null, clip: null }, look)); // (clip: a person taken from the pool keeps none of the last one's phone)
         if (rn) r.dress(p.dress);
@@ -2220,7 +2227,7 @@ transformed = crowdPose(transformed, false);`);
         if (p.rx == null || !shows(i) || p.mode === 'sit') continue;
         const d = camera ? Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) : 0;
         if (d > within) continue;
-        const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
+        const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), line: p.line, pz: !!p.pz, lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
         if (r) {
           const q = r.umbOn && r.umbParts ? r.umbParts() : null;
           if (q) Object.assign(row, { umb: true, held: q.held, hand: arr(q.hand), handle: arr(q.handle), shaft: q.shaft.map(arr), canopy: { c: arr(q.canopy.c), n: arr(q.canopy.n), r: +q.canopy.r.toFixed(3), h: +q.canopy.h.toFixed(3) }, head: { c: arr(q.head.c), r: +q.head.r.toFixed(3), crown: +q.head.crown.toFixed(3) }, torso: { a: arr(q.torso.a), b: arr(q.torso.b), r: +q.torso.r.toFixed(3) } });
@@ -2252,7 +2259,29 @@ transformed = crowdPose(transformed, false);`);
       out.x = camera.position.x; out.y = -camera.position.z; out.z = camera.position.y; out.fx = lensDir.x; out.fy = -lensDir.z;
       return true;
     }
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport };
+    // A still (issue 174): with the world held for a photograph (game.js photo mode) the crowd's step does not run, so who
+    // is a whole person stayed as it was when the camera came up, ten on a phone, and everyone past them was a far copy:
+    // a blurred face and a hand of a few facets filled a phone's photograph of a kerb. The frame rate does not matter in
+    // a still, so here, every frame it is held, the people are chosen again for where the camera is now, stillNear of
+    // them (24 on a phone, 40 on a desktop), and placed as they stand, with no time passing. Whoever stands within LENS
+    // of the camera is left out of the picture whole, as in play (game.js lensClear). In play nothing changes
+    const LENS = 1.1;
+    function still() {
+      if (!stillNear || !lastBegin || !camera) return;
+      camera.updateMatrixWorld(); // (the camera as it is now, for who is in the frame: moved this frame and not yet drawn, its matrices were the last view's)
+      stillMade = 0;
+      const [cx, cy, n] = lastBegin;
+      begin(0, cx, cy, tNow, n, stillNear);
+      stillMade = -1;
+      for (let i = 0; i < n; i++) {
+        const p = P[i];
+        if (p.line < 0 && !p.pz) continue;
+        place(i, p, p.state !== 'sit' && !!p.moving);
+        if (active.has(i) && Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) < LENS) hide(i, true);
+      }
+      end();
+    }
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, nearInfo: () => Object.assign({ active: active.size }, lastPick) };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
