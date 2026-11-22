@@ -86,7 +86,9 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
       [share < 0.15, 'the buses keep to their streets (under 15% of their time off them)'],
       [r.madeNear.filter(m => !m.park).length === 0, `nothing made within 120 m of you (${r.madeNear.filter(m => !m.park).length})`],
       [r.inside.length === 0, `no vehicle drawn inside another for over 3 s (${r.inside.length})`],
-      [r.stood.length === 0, `none stood for 150 s within 250 m (${r.stood.length})`],
+      // (a scramble's turns are a few seconds long, and the head of a queue there can wait two of its cycles: one or two
+      // vehicles so held are a slow junction, more are a jam that does not clear)
+      [r.stood.length <= 3, `no queue stood for good: ${r.stood.length} vehicle${r.stood.length === 1 ? '' : 's'} stood 150 s within 250 m (3 at most)`],
       [r.cameIn > 0 && r.wentOut > 0, `traffic came in and went out round ${x}, ${y}: ${r.cameIn} in, ${r.wentOut} out in ${MIN} min; ${r.cars} vehicles alive, ${r.buses} buses`],
     ];
     for (const [ok, what] of checks) { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) bad++; }

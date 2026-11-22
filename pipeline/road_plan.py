@@ -224,7 +224,7 @@ def join_under(cid, roads, unders):
     return len(new), n_s
 
 
-def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None, closures=()):
+def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None, closures=(), keep_closed=False):
     """Write x, e, q and b on the road pieces (dicts of game.json paths.road) and return a report.
 
     extent: [x0, x1, y0, y1] in metres, the edge that gates lie on (the roads' own bounding box when not given);
@@ -237,6 +237,8 @@ def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None,
     edge = lambda x, y: min(x - extent[0], extent[1] - x, y - extent[2], extent[3] - y)
     # ---- closed pieces
     why = {}
+    if keep_closed:   # (a part of a map already planned, pipeline/district.py: what the map closed stays closed)
+        why = {i: "closed in the map's plan" for i, o in enumerate(roads) if o.get("x")}
     ends_dm = lambda o: (o["p"][0], o["p"][1], o["p"][-3], o["p"][-2])
     if measured:
         by = {}

@@ -159,7 +159,9 @@ window.OEGameRides = function (g) {
       }
     };
     if (g.crowd && g.crowd.P) for (let i = 0, n = Math.min(g.crowd.active, g.crowd.P.length); i < n; i++) { const p = g.crowd.P[i]; if (p.line >= 0 || p.pz) test(p.x, p.y, p.z); }
-    for (const n of g.npcs) test(n.x, n.y, n.z);
+    // (someone who stands on the pavement is not on its way, however near the kerb: the walk's people stand at the
+    // corners its drives turn round, and a driver waited on one for good 80 m short of 109, issue 167)
+    for (const n of g.npcs) if (!g.nav.carriageway || g.nav.carriageway(n.x, n.y) !== false) test(n.x, n.y, n.z);
     if (g.player.mode === 'foot') {
       const g0 = gap; test(g.player.x, g.player.y, g.player.z);
       if (gap < g0 && st.s + C.half + gap > st.end - 6) gap = g0;

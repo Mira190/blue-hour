@@ -63,7 +63,14 @@ function driveFor({ secs, mark }) {
     }
     if ((car.D.st.wedged || 0) > 3 && !S.wallT) { S.wallT = 1; S.bad.push({ what: 'wall', x: +st.x.toFixed(0), y: +st.y.toFixed(0) }); } // (its body held in a wall for over 3 s, cars.js drive)
     if (!(car.D.st.wedged > 0)) S.wallT = 0;
-    if (S.stood >= 150) { const o = g.pilot(); out.done = 'stood'; out.why = o ? `${o.join ? 'joining' : o.drv.st.why || '?'}` : ''; S.stood = 0; break; }
+    if (S.stood >= 150) { const o = g.pilot(); out.done = 'stood'; out.why = o ? `${o.join ? 'joining' : o.drv.st.why || '?'}` : '';
+      // (what holds it: the thing it waits on, and who stands within 5 m of it)
+      const bl = o && o.drv.st.block, near = [];
+      for (const n of g.npcs) if (Math.hypot(n.x - st.x, n.y - st.y) < 5) near.push(`${n.id || n.name} at ${n.x.toFixed(1)},${n.y.toFixed(1)}${g.nav.carriageway ? ` (carriageway ${g.nav.carriageway(n.x, n.y)})` : ''}`);
+      if (g.crowd && g.crowd.P) for (let i = 0; i < Math.min(g.crowd.active, g.crowd.P.length); i++) { const q = g.crowd.P[i]; if (Math.hypot(q.x - st.x, q.y - st.y) < 5) near.push(`walker ${i} at ${q.x.toFixed(1)},${q.y.toFixed(1)} line ${q.line} v ${(q.v || 0).toFixed(1)}`); }
+      out.why += bl ? ` | waits on ${bl.walker ? 'a person' : g.cars.C.includes(bl) ? `car ${g.cars.C.indexOf(bl)}${bl.bus ? ' (bus)' : ''} v ${(bl.v || 0).toFixed(1)} ${bl.why || ''}${bl.park ? ' parked' : ''}` : bl.id || 'something'}` : '';
+      if (near.length) out.why += ` | near: ${near.join('; ')}`;
+      S.stood = 0; break; }
   }
   out.at = [+st.x.toFixed(1), +st.y.toFixed(1)]; out.v = +st.speed.toFixed(1); out.t = S.t;
   return out;

@@ -265,7 +265,15 @@ window.OEJunctions = (function () {
       return out;
     }
     const mapped = signals && signals.length > 0;
-    if (mapped) near(signals, (x, y) => { const j = nearestJ(x, y, 22); if (j) j.mapped = (j.mapped || 0) + 1; });
+    // (a wide junction's signals are mapped at its stop lines, further back than 22 m from where its roads' lines
+    // meet: one that finds no junction that near is the junction's whose arm it stands on, within 50 m. Miyamasuzaka's
+    // crossing of Meiji-dori had its signals 27 and 37 m back and ran without lights: the cross street starved, and
+    // its queue stood back through the Scramble to 109, issue 167)
+    if (mapped) near(signals, (x, y) => {
+      let j = nearestJ(x, y, 22);
+      if (!j) { const q = net.nearest(x, y, 8); let bd = 50; if (q) for (const k of byCell(x, y)) for (const a of k.arms) { if (a.line !== q.line || !a.in) continue; const d = Math.hypot(a.x - x, a.y - y); if (d < bd) { bd = d; j = k; } } }
+      if (j) j.mapped = (j.mapped || 0) + 1;
+    });
     const signArm = (x, y, kind) => { // the arm a sign stands beside, near its stop line
       let best = null, bd = 9;
       for (const j of byCell(x, y)) for (const a of j.arms) {
@@ -286,7 +294,11 @@ window.OEJunctions = (function () {
       }
       const both = ins.some(a => a.phase === 0) && ins.some(a => a.phase === 1);
       const main2 = j.arms.filter(a => a.rank >= 3 && a.c !== 'motorway').length >= 2 && j.arms.every(a => a.c !== 'motorway');
-      j.sig = both && (mapped ? !!j.mapped : main2);
+      // (and where a primary or trunk road is crossed by a road of tertiary class or above, there are lights whether the
+      // map has them or not: no such crossing in a Japanese city runs on give-way, and the survey's signal nodes are
+      // missing at some, Meiji-dori's crossing of Route 246 among them)
+      const big = main2 && j.arms.some(a => a.phase === 0 && a.rank >= 5) && ins.some(a => a.phase === 1 && a.rank >= 3);
+      j.sig = both && (mapped ? !!j.mapped || big : main2);
       if (j.sig) {
         const top = p => Math.max(0, ...j.arms.filter(a => a.phase === p).map(a => a.rank));
         j.green = [8 + top(0), 5 + top(1), 3 + 0.25 * top(0)]; // (s: 13 on a primary road, 8 on a tertiary across it, 4 for an arrow)
