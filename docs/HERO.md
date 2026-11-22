@@ -30,7 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
-| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is wall (`posts`; `belts` for a queue's belts, none now) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 | A level over the street, fetched by its height off the camera as well (`zr`) | `cities/shibuya/hero_skyroof.py`; below, "SKY STAGE" |
 
 ## How it works
@@ -830,8 +830,12 @@ wrong, and redone.
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
   to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
-  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
-  run east to the cars (`game.hero[].belts`, solid).
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. No queue belts: two
+  ran east to the cars and a third along the front 1.5 m out, as the line is held at busy times in the photographs, and
+  with nobody queuing they were ropes in a player's way (one across the way in, one fencing the open north side). The
+  owner took them away (November 2026: "the route has to be completely smooth"); `game.hero[].belts` is empty, and
+  `tools/sky_walk.js` walks the player in from the west, the south-west, the pillar, the north-west and the north and
+  fails on a path longer than 1.25 times the straight line, a hold, or no lift offered at the end.
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
@@ -844,8 +848,9 @@ wrong, and redone.
 
 3,600 triangles, 0.67 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
 within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
-`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
-entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+`tools/lobby_check.py` (its posts inside its lobby, clear of every solid), `tools/sky_walk.js` (walked into from five
+sides, above), `tools/lobby_shot.js` (the entrance from the street and either side, the threshold, the hall),
+`tools/walk_play.js` (the
 hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
 
 ### The ride up: the city, not the wall (issue 144)
@@ -962,7 +967,11 @@ the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level
 boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
 layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
 nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
-thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
+thing to walk round and never a step to take onto it; and the cheeks of the four flights up to the pad, from the second
+step to the top (the landmark has the steps as a floor and nothing as their sides, so a walker going along beside a
+flight was kept off it by their middle alone and half their body went into it: the owner's screenshot, November 2026;
+the first step, 0.2 m, stays open to be stepped onto from the side). `tools/sky_walk.js` walks into each cheek and along
+it, and fails if the walker's middle comes within 0.28 m of it. `game.js` lays them into the collision world as walls, as a
 railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
 gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
 pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the
