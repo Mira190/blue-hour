@@ -457,8 +457,12 @@
    its line and drops its help, which the shutter's own label says */
 .game-stage.story:has(#g-story-finder.on) #g-story-goal em { display: none; }
 @media (pointer: coarse), (max-width: 640px) {
-  /* (on a phone the thumbs' controls fill the foot of the frame: what is said sits above them) */
-  .game-stage.story .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); width: calc(100% - 40px); }
+  /* (on a phone the thumbs' controls fill the foot of the frame, and above them stands the one you play: a line said
+     over the picture lay across their legs, 262 px up from the foot of the screen (issue 154). It sits under the
+     corner's words instead, the goal's or the walk's (--under, hud.js put), over the sky and the buildings; with the
+     camera up, when the head of the frame is the finder's and nobody stands in it, it stays over the thumbs) */
+  .game-stage.story .g-toasts { top: calc(max(var(--under, 150px), env(safe-area-inset-top, 0px)) + 14px); bottom: auto; width: calc(100% - 40px); }
+  .game-stage.story:has(#g-story-finder.on) .g-toasts { top: auto; bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); }
 }
 @media (pointer: coarse), (max-width: 640px) {
   /* (the camera's button, raised, under the goal's lines and not over them) */
@@ -1630,3 +1634,13 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 #g-walk-where .tn i { font-style: normal; }
 @media (min-width: 641px) { #g-walk-where .tn { max-width: 46ch; } }
 @media (max-width: 640px) { #g-walk-where .tn i { display: none; } #g-walk-where .tn { max-width: none; white-space: nowrap; letter-spacing: 0.2em; } }
+
+/* ---- the walk's words are read over any picture (issue 134, as the story's are since issue 114) ----
+   The walk's corner (the place, the hour, the date, tonight's line, what was asked and its metres), its keys, a name
+   over the street, the marks' names and a call lie on the world as the story's goal does, and the owner's still had
+   what was asked across a lit red sign. Each carries the story's own shade (--halo, --halo-small): no box.
+   tools/legible.js measures them with the story's. */
+.game-stage.story :is(#g-walk-where .t, #g-walk-where .q span, #g-walk-told b, #g-walk-tonight b, #g-walk-tonight span) { text-shadow: var(--halo); }
+.game-stage.story :is(#g-walk-where small, #g-walk-where em, #g-walk-where .g, #g-walk-where .tn, #g-walk-where .q i, #g-walk-keys, #g-walk-told small, #g-walk-tonight small, .g-walk-mark span, .g-walk-bark) { text-shadow: var(--halo-small); }
+.game-stage.story #g-walk-where :is(em, .tn) { color: rgba(244, 239, 230, 0.94); }
+.game-stage.story #g-walk-where .q span { color: #fff; }
