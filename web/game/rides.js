@@ -5,7 +5,7 @@
 //   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, heliBlock, hopTo, inScramble,
 //   junctions, keepSign, lib, life, makeRig, metro, myCar, nav, npcs, objective, phone, pickupNear, pilot, placeOf,
 //   player, resetCar, ride, rideSeat, roadNet, roads, rq, save, scene, smalltalk, stepOut, story, takeHelm, touch,
-//   vlib, waypoint, world
+//   vlib, waypoint, world, bounds
 // and what it gives back:
 //   HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta,
 //   groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard,
@@ -383,6 +383,7 @@ window.OEGameRides = function (g) {
     const out = [], seen = new Set();
     const add = (id, name, at, note) => {
       if (!at || seen.has(id) || Math.hypot(at[0] - x, at[1] - y) < 150) return;
+      if (g.bounds && !g.bounds.inside(at[0], at[1], 'ground', 25)) return; // (nowhere past the planned area's edge: bounds.js)
       const pl = g.roads.place(at[0], at[1], 300, g.keepSign, groundZ(at[0], at[1]));
       if (!pl || Math.hypot(pl.x - x, pl.y - y) < 180) return;
       seen.add(id); out.push({ id, name, at: [at[0], at[1]], note });
@@ -458,7 +459,7 @@ window.OEGameRides = function (g) {
       // (and set down moving no faster than it can stop at short of the first person on its way in: put down at 5.5 m/s
       // 6 m short, it braked for a woman waiting at the kerb by Hachiko and stopped with her in its bonnet, #50)
       const s = setDown(o) ?? setDown(o, Infinity);
-      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 0.3) o.drv.finish(); else { /* (finished only where it was found clear: two metres on, at the stop, it once stood on a walker by Hachiko) */ const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
