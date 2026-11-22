@@ -704,7 +704,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function respawn(p, cx, cy, rMin, rMax = radius) { // (rMax: no farther off than that, out of sight still: one held on a footway, walk())
       release(p);
       if (p.lead >= 0 || p.mates) partGroup(p);
-      p.stop = null; p.stopFace = null; p.arrived = 0; p.reg = null;
+      p.stop = null; p.stopFace = null; p.arrived = 0; p.reg = null; if (p.look0) { p.look = p.look0; p.look0 = null; }
       if (p.pz) { if (p.gc) { p.gc.n--; p.gc = null; } p.pz = p.g = null; } // (off a scramble's kerbs, taken off its gate's count)
       p.fx = p.gx = p.av = null; p.moving = false; // (somewhere new: nothing of the pace or the way it went before)
       p.state = 'walk'; p.mode = 'ground'; p.lat = null; p.side = 0.6 + rnd() * 1.2; p.kerbNext = null; p.kerbBack = false;
@@ -2060,20 +2060,28 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       p.reg.there = d < 0.3;
     }
     api.enlist = (want, x, y, z, h, reg) => {
-      let best = null, bd = -1;
+      // (of some forty bodies-and-clothes a crowd of a few hundred has four or five each: first one nobody sees, else
+      // the one farthest from the camera past 35 m, a figure among hundreds; one of a group leaves it)
+      let best = null, bd = -1, far = null, fd = 35;
       for (let i = 0; i < api.active; i++) {
         const q = P[i];
-        if (q.line < 0 || q.state !== 'walk' || q.pz || q.seat || q.lead >= 0 || q.mates || q.reg || !want(q) || seen(q.x, q.y, q.z)) continue;
+        if (q.line < 0 || (q.state !== 'walk' && !q.pz) || q.seat || q.reg || !want(q)) continue; // (one of a scramble's crowd too: taken off its kerb's count)
         const d = Math.hypot(q.x - x, q.y - y);
-        if (d > bd) { bd = d; best = q; }
+        if (!seen(q.x, q.y, q.z)) { if (d > bd) { bd = d; best = q; } }
+        else if (eye) { const de = Math.hypot(q.x - eye.position.x, q.y + eye.position.z); if (de > fd) { fd = de; far = q; } }
       }
-      if (!best) return null;
-      const q = best;
+      const q = best || far;
+      if (!q) return null;
+      if (q.lead >= 0 || q.mates) partGroup(q);
+      if (q.pz) { uncount(q); q.pz = q.g = null; }
       q.stop = null; q.stopFace = null; q.arrived = 0; q.pause = 0; q.kerbNext = null; q.kerbBack = false; q.fx = q.gx = q.av = null; q.moving = false; q.lat = null;
-      q.state = 'reg'; q.mode = 'ground'; q.reg = reg; q.x = x; q.y = y; q.z = z; q.h = h || 0; q.v = q.vx = q.vy = 0;
+      q.state = 'reg'; q.mode = 'ground'; q.reg = reg;
+      q.x = x; q.y = y; q.z = z; q.h = h || 0; q.v = q.vx = q.vy = 0;
+      // (what they do with their hands while they stand: one of the cast's own clips and its small shared thing, a camera, a phone)
+      if (reg.clip && q.look) { q.look0 = q.look; q.look = Object.assign({}, q.look, { clip: reg.clip }); }
       return q;
     };
-    api.dismiss = q => { if (q && q.state === 'reg') { q.state = 'walk'; q.reg = null; q.line = -1; } };
+    api.dismiss = q => { if (q && q.state === 'reg') { q.state = 'walk'; q.reg = null; q.line = -1; if (q.look0) { q.look = q.look0; q.look0 = null; } } };
     api.seen = seen;
     // turn round where it stands: the way along the line and the offset across it both flip, so the
     // walker stays on the spot (and drifts over to its own side as it walks on) rather than jump
@@ -2152,7 +2160,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       push = 0; cap = G ? p.speed + 0.5 : p.speed; nn = 0; blk = -1; // (a mate may walk a little quicker, to catch its leader up)
       const c0 = Math.floor(p.x / CELL), r0 = Math.floor(p.y / CELL);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
-        for (let j = head[bucket(c0 + a, r0 + b)]; j >= 0; j = chain[j]) if (j !== i) { const o = P[j]; if (!(p.squeeze > 0) && !mateOf(p, o)) { seeJ = j; see(o.x, o.y, o.vx, o.vy, BODY, 1); } nbr[nn++] = j; } // (its own group walks with it, not in its way)
+        for (let j = head[bucket(c0 + a, r0 + b)], jc = 0; j >= 0 && jc < n; j = chain[j], jc++) if (j !== i) { const o = P[j]; if (!(p.squeeze > 0) && !mateOf(p, o)) { seeJ = j; see(o.x, o.y, o.vx, o.vy, BODY, 1); } if (nn < nbr.length) nbr[nn++] = j; } // (bounded: a walker put into the hash twice in one step, by a respawn and a routine's lending, made a bucket's chain run on into another's and overran the list) // (its own group walks with it, not in its way)
       }
       // (squeezing through a knot it brakes and steers for no one, but still never steps inside anyone: closest() below)
       if (p.squeeze > 0) p.squeeze -= dt;

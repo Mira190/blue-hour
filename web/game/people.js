@@ -1971,7 +1971,18 @@ transformed = crowdPose(transformed, false);`);
       out.x = camera.position.x; out.y = -camera.position.z; out.z = camera.position.y; out.fx = lensDir.x; out.fy = -lensDir.z;
       return true;
     }
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens };
+    // a walker of a cast member given another of its changes of clothes (regulars.js: the street's own people wear the
+    // same clothes every night): its slot in each of its copies, and its near person if it is near. False for a doll
+    function redress(i, d) {
+      const p = P[i];
+      if (!p || !p.ms) return false;
+      p.dress = d; dressVec(d, tmpDress, tmpDye);
+      for (const m of p.ms) { const k = p.sl[m.userData.k], A = m.geometry.attributes; A.iDress.setXYZ(k, tmpDress.x, tmpDress.y, tmpDress.z); A.iDye.setXY(k, tmpDye.x, tmpDye.y); A.iDress.needsUpdate = A.iDye.needsUpdate = true; }
+      const r = active.get(i);
+      if (r && r.dress) r.dress(d);
+      return true;
+    }
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, redress };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };
