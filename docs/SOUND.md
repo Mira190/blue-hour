@@ -239,6 +239,9 @@ Gaussian's; 1 is noise. The seam is the largest difference of 60 ms windows from
   were) it fails: seven convolvers of 20,286 to 185,220 frames. Run again touched first on the title (`FIRST=title`), it
   fails on two pieces of music at once in the opening (below);
 - `tools/reverb_check.js` holds the hybrid to the table above.
+- `tools/opening_audio.js` plays a phone's opening with the main thread throttled and fails on a context before the
+  film's end, on music that is not an element's or stalls, and on a street left without sound after it;
+  `tools/snd_probe_check.js` holds the probe to a clock held back.
 
 **Seen from a phone.** A browser says nothing of the blocks it missed. What a page can see is two clocks against the
 wall's, read ten times a second while the sound runs and the page is seen (`audio.js` `health()`, given to telemetry.js with
@@ -304,6 +307,54 @@ television that has broken". That is not a click.
 - *On the phone*: any page with `?snd=1` shows the same readings in its corner as it plays (the counts since it loaded,
   the last four breaks with where they fell, the release). `tools/snd_probe_check.js` holds the context's clock back and
   reads the counts.
+
+**A phone's music, and an opening without Web Audio** (issue 166; `audio.js`, "music outside the context"). The fault
+is in the path between the page's render thread and the output, and a page cannot make that thread come on time on a
+phone that is loading a level, drawing the city from the air, or sharing its cores with a second tab. What a page can do
+is not be on that path where it matters most:
+
+- **On an iPhone the music is played by media elements** (`tune()`): the loading cue from the loading screen on, and the
+  opening's score. A media element's sound is decoded and played by the system's player in another process, buffered
+  seconds ahead; nothing in it waits on the page, and with no Web Audio playing WebKit no longer asks the hardware for one
+  block at a time. This is the one use of a media element the rule allows (`tools/audio_thread_check.py`): by itself,
+  never brought into the context (`createMediaElementSource` would put it back on the page's thread).
+- **Until the opening's film is over there is no AudioContext at all** (`quiet()`; `game.js` lets it go when the film
+  ends, or two seconds into a start that has none). No render thread, nothing to come late, nothing stale to play. The
+  context is then made in the player's next touch (iOS wants a touch for it; a tap that skipped the film is one), and
+  the street, the story's cues and the live score play on it as before. What a phone's film loses is the street under
+  it: the train behind the station from the kerb, at −35 dBFS under the score.
+- **What iOS does not allow an element**, and what was done about each. Its volume cannot be set from a page: the
+  level is in the file (`cue-phone.mp3`: one turn of the loop six times over at the cue's level on the bus, 0.33, written
+  by `tools/load_cue.js`; the opening's score as a 16-bit WAV at 0.8 made in the page from the same render,
+  `tuneWav()`), the score does not duck under a line while it is an element's, and a tune that cannot fade stops at once
+  (the loading cue as the first frame's score comes in over it). An element sounds only if a touch began it: three are
+  made and begun on a moment of silence in the first touch, and given their files later. A looped element has a gap at
+  its join: the file is three and a half minutes long. An element ignores the ringer's switch where the context obeys
+  it: the page asks for the `ambient` audio session (`navigator.audioSession.type`, Safari 16.4), so all of the game's
+  sound is silent with the switch, as a game's is. The Sound switch and a page put away pause the elements.
+- `?music=web` plays it as it was, `?music=el` this way on any device, `?session=auto|playback|ambient` the session's
+  type: for a comparison on the phone itself, with `?snd=1` showing the readings.
+- Telemetry: `snd_music` (`el 1`: on elements, how many playing; `fixed` where the volume cannot be set), `snd_el`
+  (`stalls/worst ms`: an element's own clock 400 ms and more behind the wall's), `snd_quiet` while there is no context.
+
+After the opening the street and the live score are still Web Audio's, on the same path. Their breaks are what the
+probe counts from then on, and the sound still gives up its own load when they come ("Giving up sound before a click").
+A phone whose WebKit has 317968@main plays silence for a late block instead of its stale buffer.
+
+**One tab** (`game.js`, `web/tab.html`). A phone has the memory, the GPU and the cores for one world. On a touch screen
+the world is held under a lock of the site's (the Web Locks API); a second tab of the game asks the first to give way
+(a BroadcastChannel), and the first becomes `tab.html`, a page of a few kilobytes with "Play in this tab" on it. If the
+first does not answer in two seconds (iOS has frozen it), the second becomes `tab.html?wait=1` and starts by itself when
+the first is closed. Tabs on two sites (the two hosts) cannot see each other: nothing a page has reaches across origins.
+
+**Measured, and where** (`tools/opening_audio.js`: the page as an iPhone in Chromium on a session's machine, software
+WebGL, the main thread's CPU throttled from the title on, the story's opening and the walk's; the figures are in issue
+166). It holds what the page asks for: no context from the page's load to the film's end, music on an element at every
+reading without a stall, the context made at the first touch after it. **It is not an iPhone**: Chromium's audio has no
+ring between two processes, no 128-frame hardware cycle and no stale buffer, and its throttle slows the main thread, not
+the audio thread or the system. Playwright's WebKit is not on a session's machine, and its Linux build plays through
+GStreamer, not the Cocoa path the fault is in. Low Power Mode, a second tab and the phone's own speaker are the
+owner's to hear: `?snd=1`, both openings, both hosts.
 
 **A page put away is silent.** The context is suspended as the page is hidden and resumed as it is seen again (and asked
 again every two seconds while it is seen, should the resume not take). The game stands still in a tab put away, and its

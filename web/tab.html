@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Blue Hour</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #04060b; color: #ece8e1; -webkit-font-smoothing: antialiased;
+    font: 400 14px/1.6 "Inter Tight", "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    padding: 24px calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left)); box-sizing: border-box; }
+  h1 { font: 500 12px/1 "Zalando Sans Expanded", "Michroma", system-ui, sans-serif; letter-spacing: 0.34em; text-transform: uppercase; color: #ffb066; margin: 0 0 22px; }
+  p { max-width: 30em; margin: 0 0 26px; color: #c3c6cc; }
+  a { display: inline-block; border: 1px solid rgba(236, 232, 225, 0.24); border-radius: 3px; padding: 12px 22px; color: #ece8e1; text-decoration: none;
+    font: 500 11px/1 "Zalando Sans Expanded", "Michroma", system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; }
+  a:active { background: rgba(236, 232, 225, 0.08); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Blue Hour</h1>
+  <p id="why">Blue Hour is open in another tab. A phone has the memory for one Shibuya at a time, so this tab has let its own go.</p>
+  <a id="here" href="./">Play in this tab</a>
+</main>
+<script>
+  // The page a phone's tab becomes when the game is opened in a second tab on the same site (web/game/game.js "one tab";
+  // docs/SOUND.md, "One tab"): no world, no sound, a few kilobytes. "Play in this tab" loads the game here, which asks
+  // the other tab to give way in turn. ?wait=1: this tab could not have the game yet (the other tab did not answer), and
+  // goes to it by itself as soon as that one is closed.
+  (function () {
+    var back = './' + (location.hash ? decodeURIComponent(location.hash.slice(1)) : '');
+    document.getElementById('here').setAttribute('href', back);
+    if (/[?&]wait=1\b/.test(location.search)) {
+      document.getElementById('why').textContent = 'Blue Hour is still open in another tab. Close that tab and the game starts here; a phone has the memory for one Shibuya at a time.';
+      if (navigator.locks) navigator.locks.request('blue-hour-world', function () { location.replace(back); return new Promise(function () {}); });
+    }
+  })();
+</script>
+</body>
+</html>
