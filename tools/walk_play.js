@@ -576,8 +576,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                       if (sat.me !== 'seat' || !sat.her || !sat.wait) fail(`Wait with her: not the two of them sat on the wall (${JSON.stringify(sat)})`);
                       else ok('Wait with her: the two of you on Hachiko\'s wall, the night passing');
                       await shot('4b-wait');
-                      const run = (until, max = 4000) => p.evaluate(async ([u, max]) => { const g = window.__game, f = new Function('g', `return ${u}`); for (let i = 0; i < max && !f(g); i++) { g.frame(0.05); if (i % 20 === 19) await new Promise(r => setTimeout(r, 0)); } return f(g); }, [until, max]);
-                      if (!(await run("g.walkLine().gate === 'ask'"))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
+                      if (!(await p.waitForFunction(() => window.__game.walkLine().gate === 'ask', null, { timeout: 900000, polling: 500 }).then(() => true, () => false))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
                       else {
                         const up = await p.evaluate(() => { const g = window.__game; return { me: g.player.mode, min: Math.round(g.clock.min) }; });
                         if (up.me !== 'foot' || up.min < 25 || up.min > 33) fail(`the wait did not end on your feet a few minutes before 0:33 (${JSON.stringify(up)})`);
@@ -594,9 +593,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                           else {
                             for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
                             await through(); await p.waitForTimeout(1500); await through();
-                            await run("g.walkLine().gate === 'going'", 400);
+                            await p.waitForFunction(() => window.__game.walkLine().gate === 'going', null, { timeout: 120000, polling: 250 }).catch(() => {}); // (the walkers go by the page's own frames)
                             await shot('4b-goes');
-                            const gone = await run("g.walkLine().w === 'gone'", 3000) || await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 60000, polling: 500 }).then(() => true, () => false);
+                            const gone = await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 600000, polling: 500 }).then(() => true, () => false);
                             const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
                             if (!gone || !hid) fail(`she does not go (${JSON.stringify(await line())}, hidden ${hid})`);
                             else ok('she took yours, went in along the walkway, turned round, and is gone');
