@@ -113,7 +113,7 @@ async function measure(page, { within = 12, label = '', held = false, loose = fa
   const j = judge(rows, { held, loose });
   const head = `${label}: ${j.n} open umbrellas within ${within} m of the lens (${j.near} on near people, ${j.n - j.near} on far copies; ${j.people} people drawn): `
     + (j.n ? `the handle at most ${j.worstHand.toFixed(3)} m from the hand, the shaft at least ${j.worstShaft.toFixed(3)} m clear of its trunk and head, a rim at most ${j.worstRim.toFixed(3)} m inside another canopy` : 'nothing to measure');
-  if (process.env.UMB_ROWS) for (const r of rows.filter(q => q.d < +process.env.UMB_ROWS)) console.log(`    #${r.i} ${r.character} ${r.near ? 'near' : 'far'} ${r.d} m up ${r.up}${r.umb ? ` hand ${r.hand} handle ${r.handle} top ${r.canopy.c} head ${r.head.c}` : ' no umbrella'}`);
+  if (process.env.UMB_ROWS) for (const r of rows.filter(q => q.d < +process.env.UMB_ROWS)) console.log(`    #${r.i} ${r.character} ${r.near ? 'near' : 'far'} ${r.d} m up ${r.up} line ${r.line}${r.pz ? ' pz' : ''}${r.umb ? ` hand ${r.hand} handle ${r.handle} top ${r.canopy.c} head ${r.head.c}` : ' no umbrella'}`);
   return { ...j, rows, lines: [head, ...j.bad.map(b => `  FAIL ${b}`), ...j.notes.map(b => `  (brushing) ${b}`)] };
 }
 module.exports = { measure, judge };
@@ -145,6 +145,7 @@ if (require.main === module) (async () => {
   const shot = async (name, label, held) => {
     await p.screenshot({ path: `${out}/${name}.png`, timeout: 180000 });
     const m = await measure(p, { label, held });
+    if (process.env.UMB_ROWS) console.log(`    near: ${JSON.stringify(await p.evaluate(() => { const R = window.__game.crowdDraw(); return R.nearInfo ? R.nearInfo() : null; }))}`);
     for (const l of m.lines) console.log(l);
     fail += m.bad.length;
     report.push({ name, n: m.n, bad: m.bad });
@@ -184,8 +185,9 @@ if (require.main === module) (async () => {
     const look = async (q, dist, pitch, fov, side) => p.evaluate(([q, dist, pitch, fov, side]) => {
       const g = window.__game;
       g.photo.focus.set(q.x, q.z + 1.35, -q.y); g.photo.anchor.copy(g.photo.focus);
+      // (ten frames: a still makes four of the crowd whole a frame, people.js still())
       Object.assign(g.photo, { az: Math.PI - q.h + side, pitch, dist, fov, turn: false }); // (from in front of them, a little to one side)
-      for (let i = 0; i < 4; i++) g.frame(1 / 30);
+      for (let i = 0; i < 10; i++) g.frame(1 / 30);
     }, [q, dist, pitch, fov, side]);
     // the hand on the handle, close, from either side and from in front: of the nearest near people under umbrellas
     // (HANDS=1: these alone)
@@ -199,7 +201,7 @@ if (require.main === module) (async () => {
         if (t) g.crowdDraw().active.get(q.i).umbTune(t);
         g.photo.focus.set(q.hand[0], q.hand[1] + 0.03, q.hand[2]); g.photo.anchor.copy(g.photo.focus);
         Object.assign(g.photo, { az: Math.PI - q.h + side, pitch, dist: 0.8, fov: 24, fstop: 16, turn: false });
-        for (let i = 0; i < 4; i++) g.frame(1 / 30);
+        for (let i = 0; i < 10; i++) g.frame(1 / 30);
       }, [q, side, pitch, t]);
       await p.screenshot({ path: `${out}/${name}-${size}-hand${k}${t ? `-fist${n}` : ''}-${v}.png`, timeout: 180000 });
     }

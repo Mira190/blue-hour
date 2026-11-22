@@ -1243,7 +1243,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let k = 0; k < api.active; k++) {
         const o = P[k];
         if (o === q || !o.pz || !o.T || (o.ph !== 'wait' && o.ph !== 'stroll' && o.ph !== 'linger')) continue;
-        const ex = o.T.x - x, ey = o.T.y - y, rr = (o.lead >= 0 ? o.lead : o.id) === gq ? MATE_NEAR : own ? (q.room + o.room) / 2 : r;
+        const ex = o.T.x - x, ey = o.T.y - y;
+        let rr = (o.lead >= 0 ? o.lead : o.id) === gq ? MATE_NEAR : own ? (q.room + o.room) / 2 : r;
+        // (in the rain, two who will both put an umbrella up are given an umbrella's room: the two canopies' radii and a
+        // little more, p.umbW, which the crowd's renderer writes. A crowd under umbrellas stands looser at a kerb, as it
+        // does in the rain, and canopies meet at most at their rims; issue 165)
+        if (q && q.umbW > 0 && o.umbW > 0) rr = Math.max(rr, q.umbW + o.umbW + UMB_RIM / 3);
         if (Math.abs(ex) < rr && Math.abs(ey) < rr && ex * ex + ey * ey < rr * rr) return false;
       }
       return true;
@@ -1793,6 +1798,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (q.stuck > 2) { q.squeeze = 1.5; q.stuck = 0; }
       if (q.squeeze > 0) q.squeeze -= dt;
       const gq = q.lead >= 0 ? q.lead : q.id;
+      q.umbPush = false; // (pushed off by a neighbour's umbrella this step: below, it then stays where it was pushed)
       if (!(q.squeeze > 0)) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
           if (k === i) continue;
@@ -1802,7 +1808,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
           if ((q.umbR > 0 || o.umbR > 0) && ((o.lead >= 0 ? o.lead : o.id) !== gq || (q.umbR > 0 && o.umbR > 0))) { // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
             const u = umbRoom(q, o) + 0.04, cx = ex + (q.umbR > 0 ? q.ucx : 0) - (o.umbR > 0 ? o.ucx : 0), cy = ey + (q.umbR > 0 ? q.ucy : 0) - (o.umbR > 0 ? o.ucy : 0), ec = Math.hypot(cx, cy);
-            if (u > 0.1 && ec < u && ec > 1e-4) { const f = (u - ec) / ec * 2.2; fx += cx * f; fy += cy * f; }
+            if (u > 0.1 && ec < u && ec > 1e-4) { const f = (u - ec) / ec * 2.2; fx += cx * f; fy += cy * f; q.umbPush = true; }
           }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
@@ -1908,7 +1914,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         else if (q.held > 1) { q.held = 0; if ((q.reslot || 0) < 2 && q.g && !(q.lead >= 0) && !slotFree(q, q.x, q.y)) { q.reslot = (q.reslot || 0) + 1; slotAt(q.g, q, q.T, pz.road); } else { q.T.x = q.x; q.T.y = q.y; q.ph = 'wait'; q.reslot = 0; } }
       } else q.held = 0;
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
-      if (q.ph === 'wait' && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
+      if ((q.ph === 'wait' || (q.umbPush && (q.ph === 'linger' || q.lst))) && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (one standing about whom an umbrella pushed off stays off too: walking back, the canopies met again, issue 165) // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
       if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)
       const fw = heading(q, q.vx, q.vy, dt);
       if (q.face != null) q.h = q.face;

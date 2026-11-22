@@ -1081,8 +1081,11 @@ pipeline writes. The only city-specific code is landmark geometry in
     - The feet are IK targets in these rigs, so they are moved to the ends of
       the shins, and the body is lowered until they touch the ground.
     - The far copies bend their legs the same way in the vertex shader.
-  - **Near and far:** the 14 nearest passers-by (6 on a phone) are fully
-    skinned. Everyone further away is an instanced copy of the same character,
+  - **Near and far:** the 14 nearest passers-by (10 on a phone, 24 on the high tier; a few more
+    through a long lens) are fully skinned, chosen by how big they stand in the frame. In a photograph
+    (the photo mode, the world held) they are chosen again every held frame for where the camera is,
+    24 on a phone and 40 on a desktop, four made a frame (`people.js` `still()`, issue 174): a frame
+    rate does not matter in a still, and the far copies' faces and hands did. Everyone further away is an instanced copy of the same character,
     simplified by vertex clustering. Its legs, knees and arms swing in the
     vertex shader, and the shadows move with them. That is one draw call per
     character for hundreds of people.
