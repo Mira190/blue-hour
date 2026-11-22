@@ -1525,8 +1525,10 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
 - *Found, never owed.* A speech mark over the head of whoever has something to say: amber, its dots breathing, while they
-  have a part of a story for you (seen from 24 metres), pale for a word in passing (from eighteen); their name and what
-  they are under it once you are within eleven metres. A mark is only ever over someone the player can see: their head
+  have a part of a story for you (seen from 18 metres), pale for a word in passing (from ten); their name and what
+  they are under it once you are within eight metres (24, 18 and 11 until the owner asked for the talk's marks only when
+  close, 22 November 2026). Every mark keeps the picture's perspective (docs/MARKS.md, `marks.js`): never over the
+  player's body or anyone nearer the eye than its point. A mark is only ever over someone the player can see: their head
   in sight of the lens (a ray against the city's solids, `ctx.seen`, asked every eighth frame), and it fades in and out
   over a quarter of a second as they step behind something. It was seen from 42 m and through anything: on SHIBUYA
   SKY's roof Taro's mark stood over the glass with him out of sight behind the heliport's deck, a few pixels of a man on a
