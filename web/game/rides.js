@@ -160,7 +160,9 @@ window.OEGameRides = function (g) {
       }
     };
     if (g.crowd && g.crowd.P) for (let i = 0, n = Math.min(g.crowd.active, g.crowd.P.length); i < n; i++) { const p = g.crowd.P[i]; if (p.line >= 0 || p.pz) test(p.x, p.y, p.z); }
-    for (const n of g.npcs) test(n.x, n.y, n.z);
+    // (someone who stands on the pavement is not on its way, however near the kerb: the walk's people stand at the
+    // corners its drives turn round, and a driver waited on one for good 80 m short of 109, issue 167)
+    for (const n of g.npcs) if (!g.nav.carriageway || g.nav.carriageway(n.x, n.y) !== false) test(n.x, n.y, n.z);
     if (g.player.mode === 'foot') {
       const g0 = gap; test(g.player.x, g.player.y, g.player.z);
       if (gap < g0 && st.s + C.half + gap > st.end - 6) gap = g0;
@@ -955,7 +957,10 @@ window.OEGameRides = function (g) {
     // taxi stood 30 s so)
     if (!o.turn && !o.hold && st.v < 0.3 && !st.mv && !(st.backoff > 0)) {
       const mutual = g.cars.live.some(c => c.line >= 0 && c.v < 0.3 && c.why === 'you' && (c.youBy || '').startsWith(o.blockId || 'ride') && (c.mv ? /^the line/.test(st.why || '') || st.block === c || (st.block && st.block.of === c) : st.block === c || (st.block && st.block.of === c)) && Math.hypot(c.x - st.x, c.y - st.y) < 25); // (st.block: the car itself, or its stand-in as one stopped for good)
-      o.mutJ = mutual ? (o.mutJ || 0) + dt : 0;
+      // (or one held by this car's body as it steps, a turn across it in a junction it has pulled into: the car at
+      // Dogenzaka-shita's junction held so by the autopilot's car beside it, each waiting on the other 100 s, issue 167)
+      const heldByMe = g.cars.live.some(c => c.line >= 0 && c.v < 0.3 && c.why === 'held' && c.front && !g.cars.C.includes(c.front) && (c.still || 0) > 2 && Math.hypot(c.x - st.x, c.y - st.y) < c.half + o.C.half + 3);
+      o.mutJ = mutual || heldByMe ? (o.mutJ || 0) + dt : 0;
       if (o.mutJ > 2) { o.mutJ = -3; st.backoff = 1.5; o.yielded = (o.yielded || 0) + 1; }
     } else if (!(st.backoff > 0)) o.mutJ = 0;
     return st;

@@ -862,14 +862,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // keeps from a wall; overDecks: leave what is on a deck alone, a viaduct over a building included)
   function cutAtWalls(lines, r = 0.1, overDecks = false) {
     const out = [];
-    for (const l of lines) {
+    for (let r0 = 0; r0 < lines.length; r0++) { // (r0: the piece's place in the lines given, kept on what is cut from it)
+      const l = lines[r0];
+      if (l.x) continue; // (a road the plan closes to cars, pipeline/road_plan.py: not in the traffic's graph nor the routes')
       const p = l.p, n = p.length / 3;
       let cur = null, curD = null, wallA = 0, wall = 0; // (w: 1 where a piece starts at a wall, 2 where it ends at one)
       const flush = (atWall = false) => {
         if (cur && cur.length >= 6) {
           let len = 0;
           for (let k = 3; k < cur.length; k += 3) len += Math.hypot(cur[k] - cur[k - 3], cur[k + 1] - cur[k - 2]);
-          if (len >= 40) out.push(Object.assign({}, l, { p: cur, d: l.d ? Uint8Array.from(curD) : undefined, w: wallA | (atWall ? 2 : 0) }));
+          if (len >= 40) out.push(Object.assign({}, l, { p: cur, d: l.d ? Uint8Array.from(curD) : undefined, w: wallA | (atWall ? 2 : 0), r0 }));
         }
         cur = curD = null;
         if (atWall) wall = 1;

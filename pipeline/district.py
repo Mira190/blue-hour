@@ -526,6 +526,11 @@ def cut_game(G, P, scene, R, city):
             for piece in clip_line(row["p"], Rd, 3):
                 keep.append(dict(row, p=piece))
         paths[kind] = keep
+    # (the road plan again on the roads as cut: a street cut by the district's edge leaves the level there, a gate, and
+    # what is quiet is so by the district's own gates, pipeline/road_plan.py; the map's closures and bus streets stay)
+    if paths.get("road"):
+        import road_plan
+        road_plan.plan(paths["road"], extent=[R.x0, R.x1, R.y0, R.y1], keep_closed=True)
     if "paths" in G:
         # and past the edge, to the end of the scenery band, the same roads and footways to be painted on the ground
         # there (game.js streetTexture) and nothing else: no one walks or drives them
