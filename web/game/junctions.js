@@ -950,7 +950,11 @@ window.OEJunctions = (function () {
         const held = j.hold != null && j.hold >= frame - 2 && j.ph !== 2 && j.t < Math.min(j.green[j.ph], cap) + HOLD; // (a vehicle with priority coming: held green for it)
         // gap-out (as SCATS and vehicle-actuated signals do): someone waits on another phase and no
         // car is coming on this one, so its green ends after GAP_MIN, the walk over first (FLASH)
-        if (j.st === 'g' && j.cut == null && call && !W(j.ph) && j.ph !== 2 && j.ph !== 3 && !(j.mid != null && j.ph === 1) && j.t >= GAP_MIN - FLASH) j.cut = Math.max(j.t, GAP_MIN - FLASH) + FLASH;
+        // (not at a scramble: its walk always calls, and a car is seen coming only on the last piece of its arm. Where
+        // that piece is short, as at 109's fork between two junctions 30 m apart, the queue behind stands on the pieces
+        // before it, unseen: each turn gapped out after 4 or 5 s with one car through, one turn in 80 s, and the queue
+        // stood 150 s and more, issue 167. A scramble's turns are fixed, as its cap above says)
+        if (j.st === 'g' && j.cut == null && call && !W(j.ph) && !j.scramble && j.ph !== 2 && j.ph !== 3 && !(j.mid != null && j.ph === 1) && j.t >= GAP_MIN - FLASH) j.cut = Math.max(j.t, GAP_MIN - FLASH) + FLASH;
         // capacity-aware max-pressure (Varaiya 2013; Gregoire et al. 2014), on top: a phase's pressure is the cars
         // queued at its arms' lines (a.qn, counted by the traffic, actors.js), an arm whose head car waits for
         // room beyond counting none (serving it moves nobody). A green whose queues are all blocked so ends
