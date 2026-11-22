@@ -636,6 +636,24 @@ third as light and as coloured; a thigh in a skirt's shadow is darker and greyer
 as smooth). The walk still joins skin to a hand, the head or a leg through the body's own faces, so a bare forearm
 beyond a wristband the test drops is kept. A sandal's straps and a boot's tan leather, marked before, are cloth now.
 
+**A neckline is bare** (November 2026). A woman in a navy suit worn over bare skin had a beige V at her neckline with a
+dark ring round it: only the V's middle was marked, as its rim's faces are weighted to the upper chest (Spine2), which
+was not among the bones a body can be bare on, and the change of clothes dyed the rim the suit's colour. Spine2 is
+among them now; a beige top there is told from skin by `whole_skin`.
+
+**The far crowd torn where a limb meets the body** (November 2026). In the rain at the Scramble the owner saw clothes
+"with lots of clipping or skin showing where it shouldn't": shards off a vest at the arm holding an umbrella up, tears
+at shoulders, elbows and knees with the warm inside of the model showing through. These were the far copies
+(`pipeline/crowd_cast.py`), which the shader poses by parts (people.js `crowdPose`: each leg from the hip and the knee,
+each arm from the shoulder, the umbrella's arm raised and its forearm folded). Each corner took its heaviest bone's
+part whole, and the triangles were cut apart where two parts met so the simplifier would keep the edge, so wherever
+the artist had blended a garment across a joint (a hem weighted partly to a thigh, a sleeve's top to the chest), the
+two sides went separate ways and the gap opened. From first principles the near walker's skinning does not tear: it
+blends. So does the far copy now, at no cost when drawn: each corner carries its limb and its share of it (and of the
+limb below the knee) from its skin weights (`_PARTW`), the shader turns it by that share of the limb's angle, and
+nothing is cut apart; the shares go to the simplifier beside the picture's coordinates, so it keeps where a body bends.
+A doll of the far crowd is posed as before. `tools/perch_cast.js QUERY=&crowdnear=0` draws every walker as its far copy.
+
 ### Hair: strands, not a shell (`web/game/people.js`, issue 74)
 
 Every conversation is shot over Kagami's shoulder, so the back of Kagami's head is the asset the player sees most.
