@@ -781,15 +781,27 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       const hallView = await p.evaluate(() => { const g = window.__game, l = g.G.lifts.find(q => q.id === 'sky-gate'), s = l.stops[0], want = Math.atan2(s.at[0] - s.door[0], s.at[1] - s.door[1]); let i = 0; for (; i < 120; i++) { g.frame(0.05); if (g.cam.yawTo == null && Math.abs(Math.atan2(Math.sin(g.cam.yaw - want), Math.cos(g.cam.yaw - want))) < 0.1) break; } for (let k = 0; k < 10; k++) g.frame(0.05); return { yaw: +g.cam.yaw.toFixed(2), want: +want.toFixed(2), yawTo: g.cam.yawTo, idle: +(g.t() - g.cam.lastInput).toFixed(1), s: +((i + 1) * 0.05).toFixed(2) }; });
       await shot('7a-hall');
       // (and the hall is a picture, not one flat tone from edge to edge: issue 144)
-      const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone, 0.6); // (0.6: the lacquered wall across the frame under a strip of the deck was 0.73 of it one tone, and passed at 0.85)
-      if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat}; the view ${JSON.stringify(hallView)})`);
+      // (0.6: the lacquered wall across the frame under a strip of the deck was 0.73 of it one tone, and passed at 0.85.
+      // A flat frame is kept, whatever STILLS says, with where the camera and the level stood, and taken again after three
+      // seconds of whole frames: main's checks found it flat on a phone's page now and then, which no run here has shown,
+      // and the still is what tells a level still arriving from a picture that is wrong)
+      const hallPng = () => p.screenshot({ timeout: 120000 });
+      let hallTone = await tones(p, await hallPng()), hallFlat = flat(hallTone, 0.6);
+      if (hallFlat) {
+        const where = await p.evaluate(() => { const g = window.__game, c = g.camera.position, pl = g.player, H = g.hero && g.hero(), L = H && H.levels.find(q => q.h.id === 'skylobby'); return { cam: [c.x, -c.z, c.y].map(v => +v.toFixed(2)), at: [pl.x, pl.y, pl.z].map(v => +v.toFixed(2)), pull: +(g.cam.pull || 0).toFixed(2), dist: +g.cam.dist.toFixed(2), level: L ? { state: L.state, shown: !!(L.root && L.root.visible), steps: L.steps } : null }; });
+        require('fs').writeFileSync(`${out}/${phone ? 'phone' : 'desk'}-7a-hall-flat.png`, await hallPng());
+        console.log(`(the hall's frame is flat at first: ${hallFlat}; ${JSON.stringify(where)}; kept as ${phone ? 'phone' : 'desk'}-7a-hall-flat.png, taken again after three seconds)`);
+        await p.evaluate(async () => { const g = window.__game; for (let k = 0; k < 60; k++) { g.frame(0.05); if (k % 6 === 5) await new Promise(r => requestAnimationFrame(r)); } });
+        hallTone = await tones(p, await hallPng()); hallFlat = flat(hallTone, 0.6);
+      }
+      if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat}; the view ${JSON.stringify(hallView)}; the still: ${phone ? 'phone' : 'desk'}-7a-hall-flat.png)`);
       else ok(`SKY GATE's hall: a picture (luma sd ${hallTone.sd}, ${Math.round(hallTone.share * 100)}% its commonest tone)`);
       await act();
       await p.evaluate(() => window.__game.advance(4.5)); // (the shot eases off from your shoulder: by now it is well up the face, turned out to the city)
       const mid = await p.evaluate(() => { const g = window.__game, c = g.camera.position, x = c.x, y = -c.z, z = c.y; return { z: +z.toFixed(1), inside: !!g.nav.col.overlap(x, y, 0.3, z - 0.3, z + 0.3), riding: !!g.cine.active }; });
       await shot('7b-climb');
       const climbTone = await tones(p, await p.screenshot({ timeout: 120000 })), climbFlat = flat(climbTone);
-      if (climbFlat) fail(`SKY GATE: mid-ride the frame is one flat tone (${climbFlat})`);
+      if (climbFlat) { require('fs').writeFileSync(`${out}/${phone ? 'phone' : 'desk'}-7b-climb-flat.png`, await p.screenshot({ timeout: 120000 })); fail(`SKY GATE: mid-ride the frame is one flat tone (${climbFlat}; the camera at ${await p.evaluate(() => { const c = window.__game.camera.position; return JSON.stringify([c.x, -c.z, c.y].map(v => +v.toFixed(1))); })}; the still: ${phone ? 'phone' : 'desk'}-7b-climb-flat.png)`); }
       // (the rest of the climb a quarter of a second at a time: the camera rises, and never by a jump. It was put on the
       // tower's roof for a frame when the shot's roofline clamp caught it beside the shaft)
       const rise = await p.evaluate(() => { const g = window.__game; let z = g.camera.position.y, jump = 0, drop = 0; for (let i = 0; i < 60 && g.cine.active; i++) { g.advance(0.25); const y = g.camera.position.y; jump = Math.max(jump, y - z); drop = Math.max(drop, z - y); z = y; } return { jump: +jump.toFixed(1), drop: +drop.toFixed(1) }; });

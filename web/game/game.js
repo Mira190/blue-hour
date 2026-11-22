@@ -4001,7 +4001,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       liftTurn = false;
       const sd = ls_.l.stops[ls_.i];
       // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
-      if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
+      // (the way in, or the nearest turn of it whose camera stands clear with room to spare: SKY GATE's hall is open to
+      // the west beside the tower's base, and the view straight in put the lens a hand from the base's skin, which is
+      // drawn and not solid, so on a phone the frame was that pale skin from edge to edge one run in a few)
+      if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = hallYaw(Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1])); cam.pitchTo = FOOT.pitch; }
       else cam.seek = true;
     }
     if (ls_) { const to = (ls_.i + 1) % ls_.l.stops.length; return { key: 'E', story: true, text: `${ls_.l.verb || 'Take the lift to'} ${ls_.l.stops[to].name}`, act: () => rideLift(ls_.l, ls_.i, to) }; } // (a flight of stairs the game does not draw is climbed as a lift is ridden: game.json lifts[].verb)
@@ -7866,6 +7869,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         else cam.seek = true;
       }]],
       onEnd: () => { liftHop = -1; if (A.liftChime) A.liftChime(); H.toast(`${b.name}.`); } });
+  }
+  // a view turned to yaw, or to the nearest of the turns either side of it (up to 0.6 rad) where the chase camera's place
+  // behind your shoulder, and 1.5 m past it, is clear (nav.clearFraction): the first that is, else yaw
+  function hallYaw(yaw) {
+    const hd = W(player.x, player.y, player.z + 1.55), c = new THREE.Vector3(), r = FOOT.dist + 1.5, cp = Math.cos(FOOT.pitch) * r;
+    for (const d of [0, 0.15, -0.15, 0.3, -0.3, 0.45, -0.45, 0.6, -0.6]) {
+      const y = yaw + d;
+      c.set(hd.x - Math.sin(y) * cp, hd.y + Math.sin(FOOT.pitch) * r, hd.z + Math.cos(y) * cp);
+      if (nav.clearFraction(hd, c) >= 0.99) return y;
+    }
+    return yaw;
   }
   // where to step to for a view turned to `at` [x, y]: null where the chase camera already has its place behind your
   // shoulder that way, else the nearest place toward it, within 6 m and walked to in a straight line, where it has
