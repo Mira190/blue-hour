@@ -36,6 +36,8 @@
 //     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
 //   - in SKY GATE's lobby the lift is not offered, is not watched from outside the tower as it climbs (mid-ride the
 //     camera high over the street and in no building), or does not end at the top stop;
+//   - beside Taro on SHIBUYA SKY's roof his talk's shot does not have his face in the frame over the words, or a wall or a
+//     body stands before it;
 //   - on SHIBUYA SKY's roof Taro does not ask for the crossing from the helicopter (or a photograph from the roof on foot
 //     is taken for it), or over the crossing in the helicopter a photograph of it is not;
 //   - on SHIBUYA SKY's roof the helicopter does not stand on its pad, cannot be boarded, does not show its keys (on a
@@ -628,9 +630,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!hall) fail('SKY GATE\'s hall: no hero level "skylobby" on the map');
       else if (hall.state !== 'ready' || !hall.shown) fail(`SKY GATE's hall is not drawn round you in its lobby (${JSON.stringify(hall)})`);
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
+      await p.evaluate(() => window.__game.advance(2.5)); // (the view comes round to the lift as its offer comes up: game.js, the prompt's lift)
       await shot('7a-hall');
       // (and the hall is a picture, not one flat tone from edge to edge: issue 144)
-      const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone);
+      const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone, 0.6); // (0.6: the lacquered wall across the frame under a strip of the deck was 0.73 of it one tone, and passed at 0.85)
       if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat})`);
       else ok(`SKY GATE's hall: a picture (luma sd ${hallTone.sd}, ${Math.round(hallTone.share * 100)}% its commonest tone)`);
       await act();
@@ -650,11 +653,42 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     }
     // Taro's story (walktalk.js "Above the crossing"): on the roof he asks for the crossing photographed from the
     // helicopter, and a photograph from the roof on foot is not it
+    // (his talk as a player has it: beside him on the roof, on the deck's side, and the conversation's camera on his first
+    // line. Issue 145: no still was taken of it, and the stills of the walk's people had looked at him from the street
+    // 226 m below. The shot the game cut to says where his face is in the frame, game.js talkCam.log: it is in front of
+    // the lens, inside the frame and over the words, with no wall or body before it and the lens in no wall)
+    const taroShot = await p.evaluate(async () => {
+      const g = window.__game, T3 = window.THREE, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'taro');
+      if (!t || !n) return { err: 'no Taro on the walk' };
+      t.startAt('air'); // (his turn in the walk's line: every story before his told)
+      let at = null;
+      for (const da of [0, Math.PI, Math.PI / 2, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4]) {
+        const x = n.x + Math.sin(n.h + da) * 1.6, y = n.y + Math.cos(n.h + da) * 1.6;
+        if (!g.nav.walk(x, y, n.z, true).ok || !g.nav.room(x, y, n.z, 0.35) || !g.nav.floorAt(x, y, n.z + 1)) continue;
+        if (g.nav.clearFraction(new T3.Vector3(x, n.z + 1.55, -y), new T3.Vector3(n.x, n.z + 1.55, -n.y)) < 0.99) continue;
+        at = [x, y]; break;
+      }
+      if (!at) return { err: 'nowhere on the roof to stand beside Taro' };
+      const pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = n.z; pl.vz = 0; pl.speed = 0; pl.ground = true; pl.h = Math.atan2(n.x - pl.x, n.y - pl.y); g.cam.snap = true;
+      g.advance(0.3);
+      const n0 = g.talkCam ? g.talkCam.log.length : 0;
+      if (!t.talk(n)) return { err: 'Taro has nothing to say' };
+      for (let i = 0; i < 40; i++) { g.frame(0.05); await new Promise(r => requestAnimationFrame(r)); }
+      const L = g.talkCam && g.talkCam.log.length > n0 ? g.talkCam.log[g.talkCam.log.length - 1] : null;
+      return L ? { kind: L.kind, x: L.x, y: L.y, front: L.front, block: L.block || null, inWall: !!L.inWall, panel: L.panel || 0 } : { err: 'the talk cut to no shot of its own' };
+    });
+    if (taroShot.err) fail(`on the roof, Taro's talk: ${taroShot.err}`);
+    else {
+      await p.waitForTimeout(1500);
+      await shot('8-taro-talk');
+      const T = taroShot, low = -1 + 2 * T.panel; // (the foot of the picture left over the words, in the frame's own -1 to 1)
+      if (!T.front || Math.abs(T.x) > 0.92 || T.y > 0.92 || T.y < low || T.block || T.inWall) fail(`on the roof, Taro's talk: his head is not in the frame over the words (${JSON.stringify(T)})`);
+      else ok(`on the roof, Taro's talk: his face in the frame at ${T.x}, ${T.y}, over the words (${T.kind})`);
+    }
     const taroAsked = await p.evaluate(() => {
       const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'taro');
       if (!t || !n) return 'no Taro on the walk';
-      t.startAt('air'); // (his turn in the walk's line: every story before his told)
-      if (!t.talk(n)) return 'Taro has nothing to say';
+      if (!g.dlg.open) { t.startAt('air'); if (!t.talk(n)) return 'Taro has nothing to say'; } // (his turn in the walk's line: every story before his told)
       for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false);
       const e = t.errand(), roofShot = t.photo({ z: 250, sees: () => true });
       return `${e ? e.text : 'nothing asked'}${roofShot ? ' (and a photograph from the roof on foot was taken for it)' : ''}`;
