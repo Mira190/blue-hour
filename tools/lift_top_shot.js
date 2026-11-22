@@ -41,6 +41,22 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
     console.log('before the ride', JSON.stringify(settled));
     if (settled.cine || settled.over > 8) { console.log('FAIL the view before the ride is not the chase camera\'s'); bad0 = 1; }
     await shot('ride-0');
+    // HALL=1: come into the hall with the view left each way round (as someone who walked in backwards, or was set
+    // down there: the walk's check is), a still of each two seconds on, and each a picture, not one flat tone
+    if (process.env.HALL) {
+      const { tones, flat } = require('./tone');
+      for (const [i, da] of [0, Math.PI / 2, Math.PI, -Math.PI / 2].entries()) {
+        await p.evaluate(([s, da]) => { const g = window.__game, pl = g.player, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; pl.x = ax - (ax - dx) / n * 12; pl.y = ay - (ay - dy) / n * 12; }, [lift.a, da]);
+        await run(1); // (out of the stop for a second of frames: the offer of the lift is the page's own frame's)
+        await p.evaluate(([s, da]) => { const g = window.__game, pl = g.player, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.cam.yawTo = null; g.cam.yaw = Math.atan2(ax - dx, ay - dy) + da; g.cam.lastInput = -10; pl.x = ax - (ax - dx) / n * 1.2; pl.y = ay - (ay - dy) / n * 1.2; pl.z = az; pl.h = Math.atan2(ax - dx, ay - dy); pl.speed = 0; }, [lift.a, da]);
+        await run(2.5);
+        const t = await tones(p, await p.screenshot({ path: `${out}/hall-${i}.png` })), f = flat(t, 0.6);
+        console.log(`${f ? 'FAIL' : 'ok  '} the hall, the view left ${Math.round(da * 57.3)} deg round: luma sd ${t.sd}, ${Math.round(t.share * 100)}% one tone${f ? ` (${f})` : ''}`);
+        console.log('     the view', await p.evaluate(s => { const g = window.__game, c = g.cam, [ax, ay] = s.at, [dx, dy] = s.door || s.at; return JSON.stringify({ yaw: +c.yaw.toFixed(2), want: +Math.atan2(ax - dx, ay - dy).toFixed(2), yawTo: c.yawTo, pull: +(c.pull || 0).toFixed(2), lift: +(c.lift || 0).toFixed(2), mode: g.player.mode }); }, lift.a));
+        if (f) bad0 = 1;
+      }
+      await b.close(); process.exit(bad0);
+    }
     // WELL=1: how high the air stands clear over the hall, on a 2 m grid round the stop (the probe from 2.5 m over the
     // floor straight up to 60 m: metres clear), and where the view stands; then it ends
     if (process.env.WELL) {

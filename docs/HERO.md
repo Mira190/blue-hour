@@ -872,6 +872,15 @@ length, curtain wall and sky, with the night it rose through behind the lens, an
   `tools/lift_top_shot.js` settles the opening's crane before it rides (its stills of the ride were taken from the air,
   which no player sees), fails on a jump, and with `WELL=1` prints how high the air stands clear over the hall.
 
+- **In the hall the view goes to the lift.** Come to the stop with the view left facing away (set down there, or
+  walked in backwards), the frame was the hall's lacquered wall from edge to edge behind the offer of the lift, the
+  camera outside the hall: 73% of the frame one tone, which the first check let by at 85% (`docs/images/sky/hall-144.jpg`).
+  As the lift is offered at a stop that has a hall and a door, the view now turns to the way in, the cars ahead and the
+  hall round you, unless a hand has been on it within the second (`game.js`, the prompt's lift); the hall's check is
+  held to 60%, and `tools/lift_top_shot.js` `HALL=1` comes in with the view left each of four ways round.
+- **No story's name over a shot.** A story of the walk put away has its name over the street for five seconds of the
+  walk's frames; under a shot or the camera it is put away (`story.css`).
+
 Not seen: a real GPU, Safari or iOS. The hall's inside is still designed, not seen (below).
 
 Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY access (shibuya-scramble-square.com/sky/access/,
@@ -886,6 +895,17 @@ the plan's, read at its scale; the doors do not slide as you come; the hall's he
 is lower than the real 2F deck (7.7 m over 1F); the forecourt's striped planks with lights in their joints and its faceted mirror ceiling are
 the Miyamasu level's and the city's plainer ground and the station's soffit; and it has been seen on a software
 renderer only.
+
+### Taro on the roof: what the stills had looked at (issue 145)
+
+The walk's review found Taro's talk a blurred pale surface with nobody in it, and no Taro from twelve metres. The talk
+was not at fault: `tools/walk_people.js` stood its player with `spawn([x, y])`, on the ground whatever floor the person
+stands on, so Taro, on the roof at 242 m, was looked at from the street 226 m under him. On the roof his talk is
+framed as the others are, his face on a third over the words, your shoulder on the other, the city behind
+(`docs/images/sky/taro-145.jpg`, a desktop and a phone). The stills' player now stands at the person's own height on
+the first side of them where a player can stand with nothing between the two heads, and the tool prints where the face
+is in the shot the game cut to. `tools/walk_play.js` stands beside him on the roof, takes the still (`8-taro-talk`) and
+fails when his face is not in front of the lens, inside the frame and over the words, or a wall or a body is before it.
 
 ## SKY STAGE: the roof frame 4 is played on (Shibuya, issue 72)
 
