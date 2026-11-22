@@ -32,8 +32,14 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
   let bad = 0;
   for (const [x, y] of PLACES) {
     const r = await p.evaluate(({ x, y, secs }) => {
-      const g = window.__game, cars = g.cars, C = cars.C, L = cars.netL, q = g.roadNet.nearest(x, y, 40);
-      g.hopTo(x, y, q ? q.z : g.player.z, 'the kerb');
+      // (on the footway nearest the place, out of the carriageway: a watcher stood in the road is someone the traffic waits on)
+      // (a footway's point 1.5 m or more past the drawn edge of every carriageway: not a crosswalk over one)
+      const g = window.__game, cars = g.cars, C = cars.C, L = cars.netL, q = g.roadNet.nearest(x, y, 40), FN = g.footNet;
+      const HALF = { motorway: 7, trunk: 6, primary: 6, secondary: 5, tertiary: 4.5, residential: 3.5, unclassified: 3 }, at = {};
+      const clear = (px, py) => { const r = g.roadNet.nearest(px, py, 14); return !r || r.d > (HALF[L[r.line].c] || 3.5) + 1.5; };
+      let k = null, bd = 60;
+      for (const i of new Set(FN.near(x, y, 0, 60))) { const l = FN.L[i]; for (let s = 0; s <= l.len; s += 2) { FN.at(i, s, at); const d = Math.hypot(at.x - x, at.y - y); if (d < bd && clear(at.x, at.y)) { bd = d; k = { x: at.x, y: at.y, z: at.z }; } } }
+      g.hopTo(k ? k.x : x, k ? k.y : y, k ? k.z : q ? q.z : g.player.z, 'the kerb');
       g.advance(20); // (the traffic settles round the new place: what is made in these seconds is not counted)
       const prev = C.map(c => ({ line: c.line, x: c.x, y: c.y })), still = new Float32Array(C.length), pairT = new Map();
       const out = { at: [x, y], secs, made: 0, madeQuiet: [], busMadeOff: [], madeNear: [], inside: [], stood: [], busT: 0, busOffT: 0, cameIn: 0, wentOut: 0, quietT: 0, carT: 0, cars: 0, buses: 0 };
@@ -63,7 +69,7 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
           }
           out.carT += DT; if (l.quiet && !c.park) out.quietT += DT;
           if (c.bus) { out.busT += DT; if (!l.bus) out.busOffT += DT; }
-          if (d < 250 && !c.park && !(c.dwell > 0)) { still[i] = c.v < 0.15 ? still[i] + DT : 0; if (still[i] === 150) out.stood.push({ t, x: +c.x.toFixed(0), y: +c.y.toFixed(0), c: l.c, bus: !!c.bus, why: c.why || '' }); }
+          if (d < 250 && !c.park && !(c.dwell > 0)) { still[i] = c.v < 0.15 ? still[i] + DT : 0; if (still[i] === 150) { const f = c.front, fi = f ? C.indexOf(f) : -1; out.stood.push({ t, i, x: +c.x.toFixed(0), y: +c.y.toFixed(0), c: l.c, bus: !!c.bus, why: c.why || '', by: c.heldBy || '', mv: c.mv ? c.mv.j.id : null, at: c.lineArm ? c.lineArm.j.id : null, front: f ? { i: fi, x: +(f.x || 0).toFixed(0), y: +(f.y || 0).toFixed(0), why: f.why || '', bus: !!f.bus, mv: f.mv ? f.mv.j.id : null, park: !!f.park, frontIsMe: f.front === c, mine: fi < 0 } : null }); } }
           if (d < 200) nearby.push(i);
           was.line = c.line; was.x = c.x; was.y = c.y;
         }

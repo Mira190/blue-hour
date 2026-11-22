@@ -51,8 +51,9 @@ function driveFor({ secs, mark }) {
   const S = window.__drive || (window.__drive = { stood: 0, t: 0, seen: {}, bad: [] });
   const out = { done: null };
   for (let t = 0; t < secs; t += 0.5) {
-    if (!g.pilot()) { out.done = g.pilotEnd ? g.pilotEnd() || 'ended' : 'ended'; break; }
+    if (!g.pilot()) { out.done = g.pilotEnd ? g.pilotEnd() || 'ended' : 'ended'; if (out.done === 'blocked') out.why = S.last || ''; break; }
     g.advance(0.5);
+    { const o = g.pilot(); if (o) { const d = o.drv.st, bl = d.block; S.last = `${o.join ? 'joining ' + (o.joinWhy || '') : d.why || '?'}${o.turn ? ' turning' : ''} stood ${(o.stoodT || 0).toFixed(0)} s, crawl ${o.crawl ? o.crawl.t.toFixed(0) : 0} s, at ${st.x.toFixed(0)},${st.y.toFixed(0)}${bl ? `, behind ${bl.walker ? 'a person' : g.cars.C.includes(bl) ? (() => { const ch = []; for (let q = bl, n = 0; q && n < 6; n++) { const i = g.cars.C.indexOf(q); if (i < 0) { ch.push(q === car.C ? 'MY CAR' : 'other'); break; } ch.push(`car ${i}${q.bus ? ' (bus)' : ''}${q.park ? ' parked' : ''} at ${q.x.toFixed(0)},${q.y.toFixed(0)} v ${(q.v || 0).toFixed(1)} ${q.why || ''}${q.heldBy ? '/' + q.heldBy : ''}${q.mv ? ' in j' + q.mv.j.id : q.lineArm ? ' at j' + q.lineArm.j.id : ''}`); q = q.front; } return ch.join(' < '); })() : bl.id || 'something'}` : ''}`; } }
     S.t += 0.5;
     S.stood = st.speed < 0.3 ? S.stood + 0.5 : 0;
     const q = g.roadNet.nearest(st.x, st.y, 14, st.z, 4);
