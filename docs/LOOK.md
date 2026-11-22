@@ -473,6 +473,26 @@ city turns it off with `game.crowd.real: false` or the URL `?realcrowd=off`. A n
 cast member is still streaming stands in as a loaded cast member of the same sex rather than the far
 crowd's doll, so a dense crossing reads as real at once and swaps to its own character when it comes.
 
+**Arms kept out of the body (`web/game/people.js` `armsClear`).** One clip file per sex drives every avatar of that
+sex, so a pose made on one body plays on broader ones: the texting clip that three in ten of the crowd took when they stopped
+put the right forearm into a suit jacket's chest at the crossing (the owner's report; the crowd no
+longer texts: a pose with a prop, made on one body, read as an odd gesture on the others even out of the body, and those
+three in ten now look about them or shift their weight, each from a moment of their own in the clip), and the drink, the book, the
+clipboard and the camera put hands and what they hold into blouses and jackets: 47 of 166 avatar-clips had a limb or a
+held thing more than 2 cm inside the torso, up to 7 cm. Each body's own torso, as it was bound, is cut into 3 cm slices
+up the spine, each a ring of 24 radii carried by a blend of the spine bones (as the skin is). Each frame a few points of
+each forearm and hand (spread over them by farthest-point sampling) and the corners of what the hand holds are looked
+for inside the rings; every point inside, or nearer than 2 cm, asks for the turn that takes it out along its ring's
+radius, the elbow's half of the forearm of the shoulder (the forearm then aimed back at the wrist, so the hand keeps its
+place), the wrist's half, the hand and what it holds of the elbow. The asks are weighed by the square of how far in each
+point is, so the correction grows and fades with the pose, and the turn reaches the arm through a critically damped
+spring (stiff to push, soft to let go; Lowe's closed form, *Game Programming Gems 4*, 2004), so a hand that meets the
+body at speed is not stopped within a frame. It is laid over the clip and taken off before the next frame. About
+0.08 ms a person a frame on a session's machine. Learned from the design of contact-aware retargeting, which treats the
+skinned body's self-penetration as the thing to remove (Villegas et al., ICCV 2021) and from engines' run-time limb
+correction after retargeting (Unreal Engine's IK Rig and Control Rig); nothing was copied. `tools/hold_check.js`
+measures every cast avatar through every held clip (docs/CHECKS.md, `hold`).
+
 **The far crowd is the same cast (`pipeline/crowd_cast.py`, `web/assets/people/crowd_cast.glb`, issue 475).**
 Past the nearest walkers the crowd was still the instanced dolls recoloured from a palette, and across a street
 they read as another kind of person from the scanned ones beside them. Each walker is now drawn far off as the
