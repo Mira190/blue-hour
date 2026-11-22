@@ -265,7 +265,15 @@ window.OEJunctions = (function () {
       return out;
     }
     const mapped = signals && signals.length > 0;
-    if (mapped) near(signals, (x, y) => { const j = nearestJ(x, y, 22); if (j) j.mapped = (j.mapped || 0) + 1; });
+    // (a wide junction's signals are mapped at its stop lines, further back than 22 m from where its roads' lines
+    // meet: one that finds no junction that near is the junction's whose arm it stands on, within 50 m. Miyamasuzaka's
+    // crossing of Meiji-dori had its signals 27 and 37 m back and ran without lights: the cross street starved, and
+    // its queue stood back through the Scramble to 109, issue 167)
+    if (mapped) near(signals, (x, y) => {
+      let j = nearestJ(x, y, 22);
+      if (!j) { const q = net.nearest(x, y, 8); let bd = 50; if (q) for (const k of byCell(x, y)) for (const a of k.arms) { if (a.line !== q.line || !a.in) continue; const d = Math.hypot(a.x - x, a.y - y); if (d < bd) { bd = d; j = k; } } }
+      if (j) j.mapped = (j.mapped || 0) + 1;
+    });
     const signArm = (x, y, kind) => { // the arm a sign stands beside, near its stop line
       let best = null, bd = 9;
       for (const j of byCell(x, y)) for (const a of j.arms) {
@@ -286,7 +294,11 @@ window.OEJunctions = (function () {
       }
       const both = ins.some(a => a.phase === 0) && ins.some(a => a.phase === 1);
       const main2 = j.arms.filter(a => a.rank >= 3 && a.c !== 'motorway').length >= 2 && j.arms.every(a => a.c !== 'motorway');
-      j.sig = both && (mapped ? !!j.mapped : main2);
+      // (and where a primary or trunk road is crossed by a road of tertiary class or above, there are lights whether the
+      // map has them or not: no such crossing in a Japanese city runs on give-way, and the survey's signal nodes are
+      // missing at some, Meiji-dori's crossing of Route 246 among them)
+      const big = main2 && j.arms.some(a => a.phase === 0 && a.rank >= 5) && ins.some(a => a.phase === 1 && a.rank >= 3);
+      j.sig = both && (mapped ? !!j.mapped || big : main2);
       if (j.sig) {
         const top = p => Math.max(0, ...j.arms.filter(a => a.phase === p).map(a => a.rank));
         j.green = [8 + top(0), 5 + top(1), 3 + 0.25 * top(0)]; // (s: 13 on a primary road, 8 on a tertiary across it, 4 for an arrow)
@@ -481,7 +493,9 @@ window.OEJunctions = (function () {
       // into the junction behind and held it (car 184, 69 s). At the map's edge such a street is the way out of
       // the map, and stays
       const stub = e => { const far = 1 - e.m.end, l = L[e.m.line]; return (l.len < 40 || (l.ow && !atEdge(l, far))) && !armOf.get(e.m.line * 2 + far) && !net.next(e.m.line, far, true); };
-      const av = net.avoid, ok0 = out.filter(e => !(av && av[e.m.line])), ok1 = ok0.filter(e => !stub(e)), ok = ok1.length ? ok1 : ok0, pool = ok.length ? ok : out;
+      // nor a quiet street of the road plan (pipeline/road_plan.py: a cul-de-sac and what only it serves, the stub before
+      // a closure), unless the car is on one already and that is its way out
+      const av = net.avoid, ok0 = out.filter(e => !(av && av[e.m.line])), ok1 = ok0.filter(e => !stub(e) && !L[e.m.line].quiet), ok = ok1.length ? ok1 : ok0, pool = ok.length ? ok : out;
       const fwd = pool.filter(e => Math.abs(e.turn) < 2.6);
       a.exits = fwd.length ? fwd : pool;
       // the lanes a movement goes from, on a road with two each way (lane 0 is the one by the centre
@@ -521,9 +535,10 @@ window.OEJunctions = (function () {
     // choose an exit: ahead more often than a turn, and a main road more often than a lane
     let trips = null; // (where the traffic is going, trips.js: set by the game once the roads to keep off are known)
     // (trip: the place the car is bound for, trips.js, or -1: its exits are weighed by how near each brings it)
-    function choose(a, hw = 0, half = 0, trip = -1) {
+    function choose(a, hw = 0, half = 0, trip = -1, bus = false) {
       let ex = exits(a);
       if (!ex.length) return null;
+      if (bus && ex.length > 1) { const w = ex.filter(e => L[e.m.line].bus); if (w.length) ex = w; } // (a bus keeps to the streets its routes take, where one goes on from here)
       if (hw && net.fit && ex.length > 1) { const w = ex.filter(e => net.fit[e.m.line] >= hw); if (w.length) ex = w; } // (not into a street too narrow for it, if there is another way: #202)
       // (nor onto a piece shorter than it up to the next line that can't be crossed with the junction there, a piece
       // that comes straight back to this junction: a bus out of Shinjuku's 1195 onto one stood across it 69 s, at the
@@ -935,7 +950,11 @@ window.OEJunctions = (function () {
         const held = j.hold != null && j.hold >= frame - 2 && j.ph !== 2 && j.t < Math.min(j.green[j.ph], cap) + HOLD; // (a vehicle with priority coming: held green for it)
         // gap-out (as SCATS and vehicle-actuated signals do): someone waits on another phase and no
         // car is coming on this one, so its green ends after GAP_MIN, the walk over first (FLASH)
-        if (j.st === 'g' && j.cut == null && call && !W(j.ph) && j.ph !== 2 && j.ph !== 3 && !(j.mid != null && j.ph === 1) && j.t >= GAP_MIN - FLASH) j.cut = Math.max(j.t, GAP_MIN - FLASH) + FLASH;
+        // (not at a scramble: its walk always calls, and a car is seen coming only on the last piece of its arm. Where
+        // that piece is short, as at 109's fork between two junctions 30 m apart, the queue behind stands on the pieces
+        // before it, unseen: each turn gapped out after 4 or 5 s with one car through, one turn in 80 s, and the queue
+        // stood 150 s and more, issue 167. A scramble's turns are fixed, as its cap above says)
+        if (j.st === 'g' && j.cut == null && call && !W(j.ph) && !j.scramble && j.ph !== 2 && j.ph !== 3 && !(j.mid != null && j.ph === 1) && j.t >= GAP_MIN - FLASH) j.cut = Math.max(j.t, GAP_MIN - FLASH) + FLASH;
         // capacity-aware max-pressure (Varaiya 2013; Gregoire et al. 2014), on top: a phase's pressure is the cars
         // queued at its arms' lines (a.qn, counted by the traffic, actors.js), an arm whose head car waits for
         // room beyond counting none (serving it moves nobody). A green whose queues are all blocked so ends
