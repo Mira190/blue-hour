@@ -2329,20 +2329,26 @@ a caricature (a man in a suit, like a third of the crossing); she is on the grou
 crowd goes round; nobody is chased or caught and nothing is promised; no line makes light of it, and the word for
 it in the corner is what he did (*He walked into her and did not stop*). The harm is hers and the story stays with her.
 
-*The line, in six beats that the night's timetable carries.* Each is caused by the one before and names the next hour.
+*The line, decided (22 November 2026): an opening that is whole, and an ending that is offered.* A first draft hung
+four more beats on the timetable's hours (19:00, 21:00, 0:00, 0:33). Read from first principles it owed too much:
+the walk's clock runs at the wall's pace, so the 0:33 named in the second minute was seven hours of real time away and
+almost nobody would be there to see it paid, and on a walk set out at the hour it is in Tokyo after midnight the line
+was simply false. A promise made and never kept costs more than none. So:
 
-| # | Hour | Where (all inside the hero level) | What happens | State |
+| # | When | Where | What happens | State |
 |---|---|---|---|---|
-| 1 | As you come down, at any hour | The kerb you set out from | A woman stands back from the kerb with her phone raised to the screens. A man walks into her shoulder and walks on. She is on the ground, her phone a step further on. *Help her up* is offered beside her; left for twenty-four seconds she gets up alone | **Built** |
-| 2 | The first two minutes | The same kerb | *He didn't turn round. Did you see him turn round?* Her hands will not keep still: she asks you to take the photograph she was taking, herself with the crossing behind. The camera's first use. Shown it: *That's the one my mother gets. One every Saturday, with the lights behind me, so she can see I'm doing well. I'm on the last train tonight. The 0:33. She doesn't know that yet.* | **Built** |
-| 3 | 19:00, CROSSING LIGHT | Hachiko's wall, the seat | She is by the wall, and there is room on it. The searchlights go up over the roof and she looks up: three years here and she never had. What she is leaving: the department store whose doors shut for good on 30 September (section "Tonight") | Storyboard |
-| 4 | 21:00, the shutters | The mouth of Center Gai, then the police box in Hachiko's square | The shops go dark one at a time. *That's the fourth time. You learn which shoulder to carry your bag on.* She decides to tell the police box, and asks whether you would say what you saw. Your photograph has the minute on it. She goes in; nothing is promised | Storyboard; a choice of taste |
-| 5 | 00:00, the screens go dark | The middle of the scramble | She has never seen it dark. She crosses on the diagonal with nobody in her way | Storyboard |
-| 6 | 00:33, the last train | The station's Hachiko gate | One more photograph, *not with the lights behind me*; that is the one her mother gets. Then she takes yours: nobody takes the photographer's. At the gate she turns round | Storyboard |
+| 1 | As you come down, at any hour | The kerb you set out from | She is walked into and left on the ground; *Help her up*, or she gets up alone after 24 seconds | Built |
+| 2 | The first two minutes | The same kerb | Her photograph, the camera's first use. Shown it: *I look as if nothing happened. That's the one my mother gets.* That is the opening's own end: an incident, and a photograph that hides it. She is *on the last train tonight* (after it has gone, *the first train this morning*), and her mother does not know | Built |
+| 3 | Whenever you like | Hachiko's wall | Beside her by the wall: *Wait with her for the last train*. The two of you sit on the stone, framed from in front with the bed's lantern behind (from behind, the lantern stood in front of one of you from every side), and the night passes by itself to a few minutes before the train, slowed round the timetable's moments so that they are seen: the searchlights (*Three years, and I never once looked up*), the shutters (*That's the fourth time, you know*), the screens going dark (*I've never seen it dark*). Standing up ends the wait where it is | Built |
+| 4 | A few minutes before the train | The station's front, where the walkway along the works' hoarding begins (the entrance is behind the hoarding in the hero level) | *That's mine.* She walks there and asks for one more photograph, *not with the lights behind me this time. Just me, going home*; shown it, *that's the one she gets*; she takes yours (*nobody ever takes the photographer's*), goes in along the walkway with the people going in, turns round once, and is gone for good in this browser | Built |
+
+The three middle beats of the first draft are not separate scenes: they happen in the wait, as the city does them by
+itself. Waiting is the whole work's subject (a woman at a kerb for sixty-two years, a dog at a station for ten), and
+one act, sitting down beside her, turns seven hours nobody controls into a minute the player chose.
 
 *The end answers the beginning.* It opens on a woman standing still who is walked into by a man who does not turn
-round, and on a photograph made to look as if nothing had happened. It ends on a true photograph, an empty crossing
-she walks straight across, and someone who turns round.
+round, and on a photograph made to look as if nothing had happened. It ends on a true photograph, hers to send, one of
+the photographer for once, and someone who turns round.
 
 *What it owes the case* (issue 149), only in a browser where the case is closed, so that walked first it spoils
 nothing: at beat 5 she has seen an old woman cross on the diagonal in the rain, slowly, and everyone went round her;
@@ -2354,7 +2360,7 @@ one more person with an amber mark. It happens once in a browser and never again
 
 **The first minute and the first ten of the walk** (issue 146's beat sheet; the corner's line and the marks are that
 issue's): by minute one the incident has been seen and *Help her up* offered; by minute three the camera has been
-used once, for her, and the 0:33 has been named; by minute ten she is by Hachiko's wall beside the seat, where Mei is
+used once, for her, and her train has been named; by minute ten she is by Hachiko's wall beside the seat, where Mei is
 looking for Riko and Mr Oda has his coffee, and the corner has the night's next moment.
 
 **On the page.** `cities/shibuya/city.json` `game.walk.people[0]` (`incident`, `alone`, `then.shot`, `rest`) and
@@ -2364,7 +2370,7 @@ looking for Riko and Mr Oda has his coffee, and the corner has the night's next 
 
 **Not done, and not checked.** She and the man are cast from the people that exist (a face of her own is a build of
 the people's models). She sits on the ground with her legs out, a pose made from the seat's; there is no fall or
-kneel in the clips. The sound of the shoulder is the page's low knock. Beats 3 to 6 are a storyboard. Not checked: a
+kneel in the clips. The sound of the shoulder is the page's low knock. The station has no gate to walk through in the hero level (its front is the works' hoarding): she goes in along the walkway beside it. Not checked: a
 real GPU (the two characters load a few seconds after the street there, minutes on a software renderer, and the
 incident waits for them), Safari, iOS, and whether it holds anyone: issue 14.
 
