@@ -108,7 +108,9 @@ Shibuya, as planned (`cities/shibuya/road_plan.json` has the report and every en
 - **Footprints stood back, posts out of the carriageway** (`pipeline/road_passages.py`, as before; its loop never made
   the packs between passes, so nothing it carved had reached the page: `tools/road_passages.sh` now does).
 - **Lights**: a signal mapped up to 50 m back on a junction's own arm is that junction's; a primary or trunk road
-  crossed by a road of tertiary class or above has lights whether the map has them or not (`web/game/junctions.js`).
+  crossed by a road of tertiary class or above has lights whether the map has them or not; a scramble's turns run
+  their length (they gapped out after 4 or 5 s, because a car is seen coming only on the last piece of an arm, and
+  109's fork passed one car in 80 s from Bunkamura-dori) (`web/game/junctions.js`).
 
 `tools/road_plan.sh shibuya` makes all of it again in order (join, landmarks, passages with packs between, measure,
 plan, measure again, check, map), about five minutes.
@@ -160,10 +162,11 @@ the branch:
 | Buses' time off the bus streets | 100 % (no bus streets) | 0 to 5 % |
 | Vehicles made on a quiet street or at a wall | not known to the game; 1 at a wall | 0 |
 | Round Miyashita Park's junction: in, out | 116, 106 | 150, 145 |
-| Held 150 s near 109 | 1 | 0 to 2 (12 before the lights were mended) |
+| Held 150 s near 109 | 1 | 0 on a desktop's page, 3 on a phone's (12 to 15 before the lights were mended) |
 
-The drive to 109 on the autopilot at 17:57: from the Scramble's kerb 595 m and 112 s; from the street in the report
-493 m, under the railway, 165 s (before: no route under the railway; the route line led round by Jingu-dori).
+The drive to 109 on the autopilot at 17:57, on a desktop's page and a phone's: from the Scramble's kerb 595 m, 112
+and 280 s; from the street in the report 493 m, under the railway, 165 and 106 s (before: no road under the
+railway); from Meiji-dori by SKY GATE 364 m, 401 and 155 s.
 
 ## Not done, and why
 
@@ -176,5 +179,6 @@ The drive to 109 on the autopilot at 17:57: from the Scramble's kerb 595 m and 1
 - **Taxi ranks**: OpenStreetMap maps seven in the map; taxis do not yet stand at them.
 - **Expressway pieces clipped by a tower's corner** on their decks are left to the game's own cut (three, at Ohashi
   and Ikejiri): closing 400 m of expressway for 2 m of footprint would be the larger fault.
-- **A scramble-type junction's turns are 4 to 5 s long**, so the head of Bunkamura-dori's queue at 109 sometimes
-  waits two cycles.
+- **The Scramble and 109 still pass too few cars** (issue 175): a drive across the Scramble from SKY GATE's kerb
+  took 401 s for 364 m on a desktop's page. The taxis' ranks, a dressed closure, the clipped expressway pieces and
+  Tokyu's GTFS are issue 176.
