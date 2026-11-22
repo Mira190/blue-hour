@@ -3361,7 +3361,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       overlaps(probe, x, y, Math.sin(h), Math.cos(h), m, m, set);
       ownOnly = false;
       let k = 0;
-      for (const o of set) if (canBack(o) && backOff(o, 2)) k++;
+      // (not one ahead of the asker and facing its way: backing off, it backs into the asker. The autopilot behind a bus in
+      // Dogenzaka-shita's junction asked it to make way, the bus backed into the car, was held by it, and each waited on the
+      // other until the autopilot gave the car back, issue 167)
+      const hx = Math.sin(h), hy = Math.cos(h);
+      for (const o of set) {
+        if ((o.x - x) * hx + (o.y - y) * hy > 0 && Math.sin(o.h) * hx + Math.cos(o.h) * hy > 0.3) continue;
+        if (canBack(o) && backOff(o, 2)) k++;
+      }
       return k > 0;
     }
     JN.makeWay = makeWay;
