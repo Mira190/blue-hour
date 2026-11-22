@@ -119,7 +119,14 @@ The static checks:
   (`pipeline/street_ground.py --check`: lost from the script in a merge of 18 November 2026, after which the map
   stood on an older grading for three days and nothing said so; back on 21 November);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
-  (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);
+  (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`): a picture against its own winding,
+  two faces of a sign built back to back the wrong way, or a face wound right but turned to a wall (cast from its
+  middle along its normal and back: blocked within half a metre in front and open behind, against the landmarks'
+  triangles and the buildings' walls, glass and nets left out), which is seen only from behind, mirrored (the JR
+  bridge's clearance sign over the road by Hachiko, 21 November 2026); `python3 tools/sign_check.py --hero` casts the
+  hero levels' own signs the same way (about two minutes, so run by hand when a level's signs change); and no
+  vehicle's name mirrored or facing into its model (`tools/decal_check.js`: the helicopter's registration and
+  operator, the ferries' names);
 - no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
   stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
 - the story's flight: its way clear of the buildings (`tools/flight_clear.py`), and its seven shots as a storyboard,
