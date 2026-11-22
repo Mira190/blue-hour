@@ -754,7 +754,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         await shot('7c-heli');
         // over the crossing with the camera up (photo mode holds the world): Taro's photograph from the air, then back
         // over the roof to set down
-        const back = await p.evaluate(() => {
+        const overCrossing = () => p.evaluate(() => {
           const g = window.__game, s = g.heli.st, was = { x: s.x, y: s.y, z: s.z };
           Object.assign(s, { x: 368, y: -1016, z: 15 + 130 });
           for (const k of ['vx', 'vy', 'vz', 'speed']) if (k in s) s[k] = 0;
@@ -762,16 +762,41 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           g.photoMode(true); Object.assign(g.photo, { az: 0, pitch: 1.35, dist: 45 });
           return was;
         });
-        await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {});
-        // (and the lens come to rest over the crossing before the release: a still used to take the seconds it needed. At rest
-        // over the game's own frames, six alike, not over the wall's time: beside another check a frame drawn whole takes a
-        // second or two, and a lens read twice inside one frame has not moved)
-        await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, same = 0, n = 0; const f = () => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); same = now === was ? same + 1 : 0; was = now; if (same >= 6 || ++n > 900) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
+        // (the photo camera over the crossing before the release: what the photograph is judged by, read from the camera
+        // itself, not from its matrix reading alike over six of the display's frames: issues 142 and 153)
+        const atPose = () => until(() => { const g = window.__game, c = g.camera, f = g.photo.focus, e = c.matrixWorld.elements; return g.photo.on && Math.abs(Math.hypot(e[12] - f.x, e[13] - f.y, e[14] - f.z) - g.photo.dist) < 1.5 && e[13] - f.y > 35; }, null, 90000);
+        const sixAlike = async () => { await p.waitForFunction(() => window.__game.camera.position.y > 120, null, { timeout: 90000, polling: 500 }).catch(() => {}); await p.evaluate(() => new Promise(r => { const c = window.__game.camera; let was = null, same = 0, n = 0; const f = () => { const now = c.matrixWorld.elements.map(v => v.toFixed(3)).join(); same = now === was ? same + 1 : 0; was = now; if (same >= 6 || ++n > 900) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); })); };
+        // the shutter, with what the page was doing as it was released and whether the crossing is in the photograph: a
+        // photograph that is not Taro's says why in its own line
+        const release = () => p.evaluate(() => {
+          const g = window.__game, T = window.THREE, c = g.camera, why = { photo: g.photo.on, talk: !!(g.dlg && g.dlg.open), film: !!(g.cine && g.cine.active), mode: g.player.mode };
+          g.snapPhoto();
+          const F = new T.Frustum().setFromProjectionMatrix(new T.Matrix4().multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse)), e = c.matrixWorld.elements, f = g.photo.focus, s = g.heli.st;
+          Object.assign(why, { sees: F.containsPoint(new T.Vector3(368, 15, 1002)), lens: [e[12], -e[14], e[13]].map(v => +v.toFixed(1)), focus: [f.x, -f.z, f.y].map(v => +v.toFixed(1)), heli: [s.x, s.y, s.z].map(v => +v.toFixed(1)) });
+          g.photoMode(false);
+          const st = g.walkTalk().state(), er = g.walkTalk().errand();
+          return { met: !!(st.air && st.air.met), errand: er ? er.text : '', why };
+        });
+        const back = await overCrossing();
+        if (!(await atPose())) fail('over the crossing with the camera up, photo mode\'s camera did not come to the pose asked for in 90 s');
         await shot('7d-air-photo');
-        const aerial = await p.evaluate(() => { const g = window.__game; g.snapPhoto(); g.photoMode(false); const st = g.walkTalk().state(), e = g.walkTalk().errand(); return { met: !!(st.air && st.air.met), errand: e ? e.text : '' }; });
-        if (!aerial.met) fail('over the crossing in the helicopter, a photograph of it does not meet what Taro asked');
+        const aerial = await release();
+        if (!aerial.met) fail(`over the crossing in the helicopter, a photograph of it does not meet what Taro asked (${JSON.stringify(aerial.why)})`);
         else if (!/Back to Taro/.test(aerial.errand)) fail(`the aerial photograph taken, the corner does not send you back to Taro ("${aerial.errand}")`);
         else ok(`a photograph of the crossing from the helicopter: "${aerial.errand}"`);
+        // AIR_N=n: the same photograph n times more, to say how often it misses (AIR_WAIT=six: after the wait the check
+        // had, the lens's matrix alike over six frames; pose, the default: after the pose is reached; none: at once)
+        if (+process.env.AIR_N) {
+          const N = +process.env.AIR_N, W = process.env.AIR_WAIT || 'pose'; let miss = 0;
+          for (let i = 0; i < N; i++) {
+            await p.waitForTimeout(300 + (i % 7) * 130);
+            await overCrossing();
+            if (W === 'six') await sixAlike(); else if (W === 'pose') await atPose();
+            const r = await release();
+            if (!r.why.sees) { miss++; console.log(`  (${i + 1}: the crossing is not in the photograph: ${JSON.stringify(r.why)})`); }
+          }
+          (miss ? fail : ok)(`${N - miss} of ${N} more photographs from the helicopter have the crossing in them (AIR_WAIT=${W})`);
+        }
         await p.evaluate(was => { const g = window.__game, s = g.heli.st; Object.assign(s, { x: was.x, y: was.y, z: was.z }); for (const k of ['vx', 'vy', 'vz', 'speed']) if (k in s) s[k] = 0; g.frame(0.05); }, back);
         await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && !g.heli.st.landed; i++) g.advance(0.5, ['KeyC']); g.advance(1); });
         if (!(await waitPrompt(/Get out/))) fail(`landed, nothing offers to get out of the helicopter ("${await prompt()}")`);
