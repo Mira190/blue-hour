@@ -399,6 +399,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       const g = o.geometry;
       g.setAttribute('part', g.getAttribute('_part'));
       g.deleteAttribute('_part');
+      if (g.getAttribute('_partw')) { g.setAttribute('pw', g.getAttribute('_partw')); g.deleteAttribute('_partw'); } // (each corner's share of its limb: crowdPose, OE_PARTW)
       if (/~coarse$/.test(o.name)) { coarse[o.name.slice(0, -7)] = g; return; }
       lib.far[o.name] = { geometry: g, map: o.material.map, extras: o.userData };
     });
@@ -1391,6 +1392,9 @@ ${PAT_GLSL}`)
   // belongs to (pipeline/fetch_people.py part_of), for the dolls and the scanned cast's far copies alike
   const CROWD_POSE = `
 attribute float mat; attribute float part; attribute vec3 aAnim; attribute float iUmb;
+#ifdef OE_PARTW
+attribute vec2 pw;
+#endif
 uniform float uTime; uniform vec2 uHip; uniform vec2 uKnee; uniform vec2 uShoulder;
 mat3 rx(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
 // legs swing from the hips with the knee bending on the back swing; arms swing from the shoulders.
@@ -1400,9 +1404,17 @@ vec3 crowdPose(vec3 p, bool isNormal) {
   float amp = max(aAnim.z, 0.0), ph = uTime * aAnim.y + aAnim.x, sw = sin(ph) * amp;
   float side = (part > 0.5 && part < 1.5) || (part > 2.5 && part < 3.5) || (part > 4.5 && part < 5.5) ? 1.0 : -1.0;
   bool leg = (part > 0.5 && part < 2.5) || part > 4.5, shin = part > 4.5, arm = part > 2.5 && part < 4.5;
+  // (a scanned cast member's far copy, OE_PARTW: each corner turns by its share of its limb, wC, and below the knee by
+  // its share of the knee, wK, as skinning blends bones, so nothing tears where a limb meets the body: pipeline/crowd_cast.mjs.
+  // A doll's corner is wholly its part's)
+#ifdef OE_PARTW
+  float wC = pw.x, wK = pw.y;
+#else
+  float wC = 1.0, wK = shin ? 1.0 : 0.0;
+#endif
   vec3 piv;
-  if (shin) { float k = sit ? 1.5708 : max(0.0, -cos(ph) * side) * amp * 1.3; piv = vec3(0.0, uKnee); p = isNormal ? rx(k) * p : rx(k) * (p - piv) + piv; }
-  if (leg) { float a = sit ? -1.5708 : sw * side; piv = vec3(0.0, uHip); p = isNormal ? rx(a) * p : rx(a) * (p - piv) + piv; }
+  if (leg && wK > 0.0) { float k = (sit ? 1.5708 : max(0.0, -cos(ph) * side) * amp * 1.3) * wK; piv = vec3(0.0, uKnee); p = isNormal ? rx(k) * p : rx(k) * (p - piv) + piv; }
+  if (leg) { float a = (sit ? -1.5708 : sw * side) * wC; piv = vec3(0.0, uHip); p = isNormal ? rx(a) * p : rx(a) * (p - piv) + piv; }
   // the right arm holding an umbrella up (iUmb): the upper arm back by the side, the forearm folded up
   // to the handle under the chin (umbrellaHold)
   // (iUmb its share: 0 swinging, 1 held up, between as the umbrella is put up or down)
@@ -1410,10 +1422,10 @@ vec3 crowdPose(vec3 p, bool isNormal) {
     float u = min(iUmb, 1.0);
     vec3 el = vec3(0.0, uShoulder.x - 0.27, uShoulder.y);
     float lo = smoothstep(el.y + 0.05, el.y - 0.03, position.y);
-    float a = -2.3 * lo * u; p = isNormal ? rx(a) * p : rx(a) * (p - el) + el;
-    float b = 0.5 * u - sw * side * 0.8 * (1.0 - u);
+    float a = -2.3 * lo * u * wC; p = isNormal ? rx(a) * p : rx(a) * (p - el) + el;
+    float b = (0.5 * u - sw * side * 0.8 * (1.0 - u)) * wC;
     piv = vec3(0.0, uShoulder); p = isNormal ? rx(b) * p : rx(b) * (p - piv) + piv;
-  } else if (arm) { piv = vec3(0.0, uShoulder); p = isNormal ? rx(-sw * side * 0.8) * p : rx(-sw * side * 0.8) * (p - piv) + piv; }
+  } else if (arm) { piv = vec3(0.0, uShoulder); p = isNormal ? rx(-sw * side * 0.8 * wC) * p : rx(-sw * side * 0.8 * wC) * (p - piv) + piv; }
   if (!isNormal) p.y += abs(cos(ph)) * 0.035 * amp;
   // standing (aAnim.z between -0.5 and 0): alive, not a statue. The upper body turns a little one way and the other
   // as one looks about, and the weight goes from one foot to the other, the body leaning a degree over the foot it is on,
@@ -1586,8 +1598,9 @@ vDress = iDress; vDye = iDye;`)
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vDress;\nvarying vec2 vDye;')
         .replace('#include <map_fragment>', `#include <map_fragment>\n{ vec3 dress = vDress; vec2 dye = vDye;\n${DRESS_GLSL} }`); // (the clothes this walker wears: DRESS)
     };
-    if (ex.mask) mat.defines = { OE_SKIN_MASK: '' };
-    mat.customProgramCacheKey = () => `crowd-cast-dress7${ex.mask ? 'm' : ''}`;
+    const pwOn = !!L.geometry.getAttribute('pw'); // (each corner's share of its limb: crowdPose, OE_PARTW)
+    mat.defines = Object.assign(ex.mask ? { OE_SKIN_MASK: '' } : {}, pwOn ? { OE_PARTW: '' } : {});
+    mat.customProgramCacheKey = () => `crowd-cast-dress7${ex.mask ? 'm' : ''}${pwOn ? 'w' : ''}`;
     const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: L.map, alphaTest: 0.4 });
     depth.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, uni, { uTime: U.uTime });
@@ -1597,7 +1610,8 @@ ${CROWD_POSE}`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
 transformed = crowdPose(transformed, false);`);
     };
-    depth.customProgramCacheKey = () => 'crowd-cast-depth';
+    if (pwOn) depth.defines = { OE_PARTW: '' };
+    depth.customProgramCacheKey = () => `crowd-cast-depth${pwOn ? 'w' : ''}`;
     return { mat, depth };
   }
 
