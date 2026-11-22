@@ -302,17 +302,46 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       return { x, y, on: b.width > 4 && b.height > 4 && x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight, hit: !!top && (top === e || e.contains(top)), over: top && top !== e && !e.contains(top) ? `${top.tagName.toLowerCase()}${top.id ? '#' + top.id : ''}.${String(top.className || '').slice(0, 40)}` : '', small: Math.min(b.width, b.height) }; }, [sel, n]);
     if (!r || !r.on || !r.hit) { const m = `touch: ${sel}${n ? `[${n}]` : ''} cannot be tapped (${!r ? 'not there' : !r.on ? 'off the screen' : `under ${r.over}`})`; if (!errors.includes(m)) { errors.push(m); console.log(m); } await p.evaluate(([sel, n]) => { const e = document.querySelectorAll(sel)[n]; if (e) e.click(); }, [sel, n]); return false; }
     if (r.small < 40 && !small.has(sel)) { small.add(sel); console.log(`note touch: ${sel} is ${Math.round(r.small)} px across where it is tapped`); }
+    if (process.env.TAPLOG) console.log(`tap ${sel}${n ? `[${n}]` : ''} at ${Math.round(r.x)},${Math.round(r.y)}: ${await p.evaluate(([sel, n]) => (document.querySelectorAll(sel)[n].textContent || '').trim().slice(0, 40), [sel, n])}`); // (TAPLOG=1: each tap, where and on what)
     await p.touchscreen.tap(r.x, r.y); taps++; return true;
   };
   let taps = 0; const small = new Set();
-  const raise = async on => { if (!TOUCH) return p.evaluate(on => window.__game.story.raise(on), on); if (await p.evaluate(on => !!window.__game.story.state.cam !== on, on)) await tapEl('#g-story-cam'); };
-  const shoot = () => (TOUCH ? tapEl('#g-story-shutter') : shoot());
+  // (the camera by its button, where the story shows one: it comes up when the camera may. Where it does not, a step of
+  // this harness that raises it all the same, to see that nothing comes of it, uses the story's own function as before, and says so)
+  const raise = async on => { if (!TOUCH) return p.evaluate(on => window.__game.story.raise(on), on);
+    const b = await p.evaluate(on => { const st = window.__game.story.state, e = document.getElementById('g-story-cam'); return { same: !!st.cam === on, shown: !!e && e.classList.contains('on'), at: `frame ${st.fi + 1} ${st.phase} ${st.beat}` }; }, on);
+    if (b.same) return; if (b.shown) return tapEl('#g-story-cam');
+    console.log(`note touch: the camera ${on ? 'raised' : 'lowered'} with no button for it on the screen (${b.at}): by the story's own function`); return p.evaluate(on => window.__game.story.raise(on), on); };
+  const shoot = () => (TOUCH ? tapEl('#g-story-shutter') : p.evaluate(() => { window.__game.story.shoot(); }));
   const spendAnswer = async yes => { if (!TOUCH) return p.evaluate(yes => window.__game.story.spendAnswer(yes), yes); if (yes) await p.waitForTimeout(900); return tapEl(`#g-story-spend [data-spend="${yes ? 1 : 0}"]`); }; // (Spend takes no tap in the card's first 0.7 s)
   // (a key, or on a phone what stands for it: a line passed by a tap on the words, the order put away by a tap on it, E by the prompt's own button, H by the hint's)
-  const key = async code => { if (!TOUCH) return p.keyboard.press(code); if (code === 'KeyH') return tapEl('#g-story-hint');
-    const k = await p.evaluate(() => { const d = document.getElementById('gd'), o = document.getElementById('g-story-order'); return d && !d.hidden ? '#gd-text' : o && o.classList.contains('on') ? '#g-story-order' : '#gp-main'; }); return tapEl(k); };
+  const press = async code => { if (!TOUCH) return p.keyboard.press(code); if (code === 'KeyH') return tapEl('#g-story-hint');
+    // (a call said hands-free is a subtitle: it goes on by itself, and nothing on a phone passes its lines)
+    const k = await p.evaluate(() => { const d = document.getElementById('gd'), o = document.getElementById('g-story-order'); return d && !d.hidden ? (d.classList.contains('free') || d.classList.contains('cut') ? '' : '#gd-text') : o && o.classList.contains('on') ? '#g-story-order' : '#gp-main'; });
+    return k ? tapEl(k) : p.waitForTimeout(1200); };
   const clickEl = (sel, n = 0) => (TOUCH ? tapEl(sel, n) : p.evaluate(([sel, n]) => document.querySelectorAll(sel)[n].click(), [sel, n]));
-  await clickEl('#gt-play');
+  // (a phone's title by touch, a screen at a time, as a person goes through it: the picture and Tap to begin; the menu,
+  // where Continue takes up a case kept and The story opens the episode's screen; that screen's Begin; and, asked before
+  // a case begins, who you play, chosen and confirmed. A script's click on Begin went past all of it)
+  const begin = async () => {
+    if (!TOUCH) return clickEl('#gt-play');
+    for (let k = 0; k < 12; k++) {
+      const at = await p.evaluate(() => { const t = document.getElementById('g-title'), g = window.__game, ph = g && g.story && g.story.state.phase; return !t || t.hidden || (ph && ph !== 'idle' && ph !== 'dressed') ? 'in' : t.dataset.screen || 'menu'; });
+      if (at === 'in') return true;
+      const vis = q => p.evaluate(q => { const e = document.querySelector(q), b = e && e.getBoundingClientRect(); return !!e && !e.hidden && b.width > 4 && b.height > 4 && getComputedStyle(e).visibility !== 'hidden'; }, q);
+      if (!seen0.has(at)) { seen0.add(at); await snap(`00-title-${at}`).catch(() => {}); }
+      if (at === 'press') await tapEl('#gt-press-go');
+      else if (at === 'who') { await tapEl(`#gt-who [data-c="${process.env.PLAYER || 'W'}"]`); await p.waitForTimeout(500); await tapEl('#gt-who-go'); }
+      else if (at === 'story') await tapEl((await vis('#gt-play')) ? '#gt-play' : '#gt-continue');
+      else if (await vis('#gt-cont-go')) await tapEl('#gt-cont-go');
+      else if (await vis('#gt-story-go')) await tapEl('#gt-story-go');
+      else await tapEl('#gt-play');
+      await p.waitForTimeout(1500);
+    }
+    errors.push('touch: the title was not got through to the story by taps'); console.log(errors[errors.length - 1]); return clickEl('#gt-play');
+  };
+  const seen0 = new Set();
+  await begin();
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it, on the side they come from, however far (a fixed east beyond 60 m
   // put them in the air outside SHIBUYA SKY's east glass: its 46F lift stands 61 m from Kanbara)
@@ -370,6 +399,19 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     for (const ep of (E && E.episodes) || []) (ep.frames || []).forEach((f, i) => { for (const m of [f.meet, f.afterimage, f.task]) for (const q of (m && m.ask) || []) { if (q.fail && m.lines && m.lines.length) { const l = m.lines[0]; FIRST[i] = typeof l === 'string' ? l : l.say; } if ((q.frame || q.answer != null) && !q.fail && !(q.told && q.wrong2 && q.file)) errors.push(`frame ${i + 1}: "${q.q}" has a right answer and nothing lost by guessing (fail; or told, wrong2 and file)`); } }); }
   const frames = n => p.evaluate(n => new Promise(r => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); }), n);
   let upto = +process.env.UPTO || 0, proved = 0;
+  // the roll as the case board: the first two prints set side by side must say something, and it must be on the file
+  // (by touch it is done on the street once two prints are on the roll, where a finger can reach the roll: under the last
+  // card its button cannot be tapped)
+  let boarded = false;
+  const rollBoard = async () => {
+    boarded = true;
+    await clickEl('#g-story-frames'); await p.waitForTimeout(TOUCH ? 600 : 0); for (const k of [0, 1]) await clickEl(`#g-story-album button[data-c="${k}"]`);
+    const r = await p.evaluate(() => { const st = window.__game.story.state; return { pairs: st.pairs.length, hit: !!document.querySelector('#g-story-album .versus.hit'), file: document.querySelectorAll('#g-story-album .file li').length, filed: st.file.length }; });
+    if (!r.pairs || !r.hit || r.file !== r.filed || r.file < 1) { errors.push(`the roll: frames 1 and 2 side by side found ${r.pairs} pairs (shown: ${r.hit}), and the file shows ${r.file} of ${r.filed} lines`); console.log(errors[errors.length - 1]); }
+    await p.evaluate(() => { const f = document.querySelector('#g-story-album .file'); if (f) f.scrollIntoView({ block: 'center' }); });
+    await snap('roll-file'); await p.evaluate(() => document.querySelector('#g-story-album .table').scrollIntoView({ block: 'start' })); await snap('roll-versus');
+    await clickEl('#g-story-album button[data-do="close"]');
+  };
   const play = async () => {
   while (Date.now() - t0 < (+process.env.LIMIT || 1500) * 1000) {
     const s = await state();
@@ -410,6 +452,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
       afterFail = was; continue;
     }
+    if (TOUCH && !boarded && s.phase === 'go' && !s.dlg && (s.beat === 'approach' || s.beat === 'meet') && await p.evaluate(() => { const P = window.__game.story.state.prints; return P.length >= 2 && !P.slice(0, 2).some(q => q.plain) && !document.querySelector('#g-story-album.on'); })) { await rollBoard(); await p.waitForTimeout(500); continue; }
     // after frame 3: the log has every line said so far, in order
     if (!logged && s.fi >= LOGAT) {
       logged = true;
@@ -429,7 +472,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (process.env.LOGRELOAD) { // the page opened again in the middle of the case: the log is as it was
         await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
         await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
-        await p.waitForTimeout(1500); await listen(); await clickEl('#gt-play');
+        await p.waitForTimeout(1500); await listen(); await begin();
         await p.waitForFunction(() => !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 900000, polling: 500 });
         const back = await p.evaluate(() => window.__game.storyLog.entries.filter(q => q.kind === 'line' || q.kind === 'q').map(q => q.text));
         const f = await p.evaluate(() => window.__game.story.state.fi), want = logWas.length; // (frame 4 begun: what was said before it)
@@ -475,7 +518,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!f) break; if (f.on) console.log(`  the face moves (${f.n} shapes on)`); else if (k === 3) console.log(`  NOTE frame ${s.fi + 1}: ${f.name}'s face does not move while they speak (a stand-in still loading, or no face: tools/face_check.js fails it)`); }
       // (a still for each speaker in a beat, not only the first: frame 5 has the office's call on the roof, then the sister's message)
       if (big === 1) { big = 2; await snap(`${s.fi + 1}-words-largest`); await p.evaluate(() => window.__game.storyLog.setWords({ size: 0, solid: false })); } // (the words at their largest, on their backing; then as they were)
-      if (s.choices.length) { if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
+      if (s.choices.length) { await p.waitForTimeout(400); /* (an answer takes no click in its first 0.35 s on the screen: hud.js) */ if (!seen.has(`ask-${s.fi}-${s.phase}`) && await p.evaluate(() => !!document.querySelector('#gd-choices .pr'))) { seen.add(`ask-${s.fi}-${s.phase}`); await snap(`${s.fi + 1}-show-a-print`); } // (a question answered with a print: the roll laid out)
         for (const [cls, name] of [['said', 'press'], ['who', 'name']]) if (!seen.has(`${name}-${s.fi}`) && await p.evaluate(c => !!document.querySelector(`#gd-choices .${c}`), cls)) { seen.add(`${name}-${s.fi}`); await snap(`${s.fi + 1}-${name}`); } // (a statement to press, his own words; one of the case's people to name)
         // (the summation's record at hand, story.js atHand: once, the roll and the file opened from inside a question, a still
         // of them over it, and closed again; the question must be asked again, with the same answers)
@@ -522,7 +565,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         // (the summation is never lost: answered wrongly three times, she says it herself, and the play goes on rightly)
         if (slipped === 1 && told0 != null && await p.evaluate(t => (window.__game.story.state.told || 0) > t, told0)) { slipped = slipAt[s.fi + 1] = 2; console.log(`frame ${s.fi + 1}: answered wrongly three times; she said it herself`); await snap(`${s.fi + 1}-told`); }
       }
-      else await key('KeyE');
+      else await press('KeyE');
       await p.waitForTimeout(350); continue;
     }
     // a frame whose way goes up from a lift's stop by an escalator (frame 4, SHIBUYA SKY's 46F): the way found from the
@@ -668,12 +711,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (T.find && T.stand && !seen.has(`find-${s.fi}`)) { seen.add(`find-${s.fi}`); await frames(3); const m = await p.evaluate(() => { const st = window.__game.story.state; return { target: st.target, lit: st.lit, on: document.getElementById('g-story-mark').classList.contains('on') }; }); if (!m.lit && (m.target || m.on)) { errors.push(`frame ${s.fi + 1}: its place is to be found, and a mark stands on it`); console.log(errors[errors.length - 1]); } await snap(`${s.fi + 1}-find`);
         // and its hints, asked for (story.js hint, H): a word, the dog to the place and sitting there, the light on it
         if (process.env.HINTS !== '0') {
-          await key('KeyH'); await frames(3);
+          await press('KeyH'); await frames(3);
           const h1 = await p.evaluate(() => ({ n: window.__game.story.state.hint, goal: document.querySelector('#g-story-goal span').textContent }));
-          await key('KeyH'); await frames(3); await p.waitForTimeout(2500);
+          await press('KeyH'); await frames(3); await p.waitForTimeout(2500);
           const h2 = await p.evaluate(stand => { const st = window.__game.story.state, d = st.dog; return { n: st.hint, dog: !!d, to: d && d.to ? Math.hypot(d.to[0] - stand[0], d.to[1] - stand[1]) : -1, state: d ? d.state : '', lit: st.lit }; }, T.stand);
           await snap(`${s.fi + 1}-hint-dog`);
-          await key('KeyH'); await frames(4);
+          await press('KeyH'); await frames(4);
           const h3 = await p.evaluate(() => { const st = window.__game.story.state, L = window.__game.lights(); return { n: st.hint, lit: st.lit, kind: st.kind, target: !!st.target, light: L.story, objective: L.objective }; });
           console.log(`frame ${s.fi + 1} hints:`, JSON.stringify({ h1, h2, h3 }));
           if (h1.n !== 1 || h2.n !== 2 || !h2.dog || h2.to < 0 || h2.to > 1.5 || h2.lit || h3.n !== 3 || !h3.lit || !h3.light || h3.objective) { errors.push(`frame ${s.fi + 1}: its hints did not give a word, the dog at the place and the light in turn: ${JSON.stringify({ h1, h2, h3 })}`); console.log(errors[errors.length - 1]); }
@@ -681,10 +724,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // a picture found without a standpoint (task.hint_at: both kerbs in one frame): its hints lead to a place that does it
       if (T.hintAt && process.env.HINTS !== '0' && !seen.has(`hintat-${s.fi}`)) {
         seen.add(`hintat-${s.fi}`);
-        for (let k = 0; k < 2; k++) { await key('KeyH'); await frames(3); }
+        for (let k = 0; k < 2; k++) { await press('KeyH'); await frames(3); }
         await p.waitForTimeout(2500);
         const h2 = await p.evaluate(at => { const st = window.__game.story.state, d = st.dog; return { n: st.hint, to: d && d.to ? Math.hypot(d.to[0] - at[0], d.to[1] - at[1]) : -1 }; }, T.hintAt);
-        await key('KeyH'); await frames(4);
+        await press('KeyH'); await frames(4);
         const h3 = await p.evaluate(() => { const st = window.__game.story.state, L = window.__game.lights(); return { n: st.hint, light: L.story, objective: L.objective, kind: st.kind }; });
         console.log(`frame ${s.fi + 1} hints:`, JSON.stringify({ h2, h3 })); await snap(`${s.fi + 1}-hint-light`);
         if (h2.n !== 2 || h2.to < 0 || h2.to > 1.5 || h3.n !== 3 || !h3.light || h3.objective) { errors.push(`frame ${s.fi + 1}: its hints did not lead to a place that sees both: ${JSON.stringify({ h2, h3 })}`); console.log(errors[errors.length - 1]); }
@@ -868,7 +911,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     else if (s.phase === 'go' && s.beat === 'order') { // (the order in the hand, its ink come up: a still of it, and it is put away)
       // (read from what the page saw as the sheet came up, above: the sheet does not wait for the check or for the still)
       if (!seen.has('order')) { seen.add('order'); const t0 = Date.now(); await p.waitForTimeout(4000); const inHand = await p.evaluate(() => !!window.__orderOk); await snap('1-order'); console.log(`the order: ${inHand ? 'it came up in the hand' : 'it never came up in the hand'}; its still taken at ${((Date.now() - t0) / 1000).toFixed(1)} s`); if (!inHand) { errors.push('the order is not in the hand as the street is given'); console.log(errors[errors.length - 1]); } }
-      await key('KeyE');
+      await press('KeyE');
       // the menu from the story's own button, by touch on a phone (issue 48): it opens, and its close button shuts it
       if (!seen.has('menu')) {
         seen.add('menu');
@@ -914,7 +957,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const act = await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : null; });
         if (act !== 'Get in the helicopter') { errors.push(`frame ${s.fi + 1}: 8 m from the helicopter E is "${act}"`); console.log(errors[errors.length - 1]); }
         await frames(4); await snap(`${s.fi + 1}-board-near`);
-        await key('KeyE'); await frames(2);
+        await press('KeyE'); await frames(2);
         const b = await p.evaluate(() => ({ beat: window.__game.story.state.beat, me: window.__game.player.rig.root.visible }));
         console.log(`frame ${s.fi + 1}: E beside the helicopter, the beat is ${b.beat}`);
         if (b.beat !== 'flight') { errors.push(`frame ${s.fi + 1}: E beside the helicopter, and the beat is ${b.beat}, not the flight`); console.log(errors[errors.length - 1]); }
@@ -947,15 +990,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   }
   };
   await play();
-  // the roll as the case board: the first two prints set side by side must say something, and it must be on the file
-  if (await p.evaluate(() => window.__game.story.state.prints.length >= 2 && !window.__game.story.state.prints.slice(0, 2).some(q => q.plain))) {
-    await clickEl('#g-story-frames'); await p.waitForTimeout(TOUCH ? 600 : 0); for (const k of [0, 1]) await clickEl(`#g-story-album button[data-c="${k}"]`);
-    const r = await p.evaluate(() => { const st = window.__game.story.state; return { pairs: st.pairs.length, hit: !!document.querySelector('#g-story-album .versus.hit'), file: document.querySelectorAll('#g-story-album .file li').length, filed: st.file.length }; });
-    if (!r.pairs || !r.hit || r.file !== r.filed || r.file < 1) { errors.push(`the roll: frames 1 and 2 side by side found ${r.pairs} pairs (shown: ${r.hit}), and the file shows ${r.file} of ${r.filed} lines`); console.log(errors[errors.length - 1]); }
-    await p.evaluate(() => { const f = document.querySelector('#g-story-album .file'); if (f) f.scrollIntoView({ block: 'center' }); });
-    await snap('roll-file'); await p.evaluate(() => document.querySelector('#g-story-album .table').scrollIntoView({ block: 'start' })); await snap('roll-versus');
-    await clickEl('#g-story-album button[data-do="close"]');
-  }
+  if (!boarded && await p.evaluate(() => window.__game.story.state.prints.length >= 2 && !window.__game.story.state.prints.slice(0, 2).some(q => q.plain))) await rollBoard();
   for (const n of SLIPS) if (slipAt[n] !== 2 && !(upto && n > upto) && !(+process.env.FROM >= n)) { errors.push(`frame ${n}: answered wrongly, and nobody saw through it`); console.log(errors[errors.length - 1]); }
   if (+process.env.SPEND && !spent) { errors.push(`frame ${process.env.SPEND}: was to be spent, and was not`); console.log(errors[errors.length - 1]); }
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
@@ -978,7 +1013,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // line with `if: <flag>` in the frames played, heard; each such line of a frame's file, in the file; of the last card, on it)
   if (done && !upto && Object.keys(CHOOSE).length) {
     for (const f in CHOOSE) if (!chose[f]) { errors.push(`frame ${f}: the choice asked for (option ${CHOOSE[f]}) was never offered`); console.log(errors[errors.length - 1]); }
-    const got = await p.evaluate(() => { const st = window.__game.story.state, e = document.getElementById('g-story-end'); return { flags: st.flags, heard: window.__heard.lines.slice(), file: st.file.map(q => q.text), end: e ? e.textContent : '' }; });
+    const got = await p.evaluate(() => { const st = window.__game.story.state, e = document.getElementById('g-story-end'); return { flags: st.flags, heard: window.__heard.lines.concat(window.__game.storyLog.entries.map(q => q.text)), file: st.file.map(q => q.text), end: e ? e.textContent : '' }; }); // (the log too: a line said over the picture as time runs again is in it)
     const ep = (((JSON.parse(fs.readFileSync(require('path').join(__dirname, '..', 'cities', 'shibuya', 'city.json'), 'utf8')).game || {}).story || {}).episodes || [])[0] || {};
     const SET = ['accused', 'named_akira', 'named_works', 'withheld'].filter(k => got.flags[k]), want = [];
     const walk = (o, where) => { if (Array.isArray(o)) o.forEach(v => walk(v, where)); else if (o && typeof o === 'object') { if (typeof o.if === 'string' && SET.includes(o.if) && typeof o.say === 'string' && !(o.not && got.flags[o.not])) want.push([where, o.if, o.say]); for (const k in o) walk(o[k], k === 'file' ? 'file' : where); } };

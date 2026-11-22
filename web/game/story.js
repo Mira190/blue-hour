@@ -700,7 +700,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (q.proof) return summation(m, w, q, done);
       if (q.choice) {
         const opts = q.options.map((o, i) => ({ k: i, text: o.text }));
-        st.want = q.play || 0; // (tools/story_play.js takes this one)
+        st.want = q.play || 0; st.canFail = false; // (tools/story_play.js takes this one, or with CHOOSE another: nothing here is wrong, so nothing can be lost; left as the question before had it, a choice read as one that could be)
         // (a question someone is waiting on, wait_s: silence is an answer too. Once its answers are up a line under them
         // runs down, held while the roll, the log or the menu is open, and when it has run out the player has said
         // nothing (`silent`, answered as an option is). Frame 3's question after the print held one player half an hour:
