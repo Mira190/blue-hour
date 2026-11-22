@@ -57,6 +57,7 @@ const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
+const { measure: umbrellaHeld } = require('./umbrella_held'); // (in the rain: every umbrella held, issue 165)
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
 (async () => {
@@ -326,6 +327,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!(await p.evaluate(() => document.getElementById('game-stage').classList.contains('photo')))) fail('the walk\'s camera button does not open photo mode');
   else {
     ok('the camera opens photo mode'); await p.waitForTimeout(600); await shot('7-photo');
+    // (in the rain, with the world held by the camera: each umbrella near the lens is held, its handle at its hand, its
+    // shaft clear of the body under it, no canopy in another or in a head: issue 165, tools/umbrella_held.js)
+    if (sky === 'rain') { const U = await umbrellaHeld(p, { label: 'the walk in the rain, the camera up', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) fail('the page has no umbrella report to measure'); else if (U.bad.length) fail(`umbrellas not held: ${U.bad.join('; ')}`); else ok(`${U.n} open umbrellas near the lens, every one held`); }
     // the frame is the photograph's (issue 147): what the camera's controls cover, and nothing of them over the middle
     // of the frame where the subject stands (tools/ui_fit.js holds the same at every size)
     const cover = () => p.evaluate(() => {

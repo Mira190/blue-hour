@@ -26,7 +26,7 @@ ceiling with rows of line luminaires, the offices', the shops', the restaurants'
 SKY GALLERY's on 45F and 46F, lit whole by its use's hours in one cool white for the whole tower. The tile's spandrel,
 frit and mullions are drawn there too, in the same places, so the light stops where the tile draws a joint.
 
-The shop floors (to 14F, about 71 m) take the same tile stretched to their storeys. The ground floor's faces round the
+The floors under 17F take the same tile stretched to their real storeys (LEVELS). The ground floor's faces round the
 lobby SKY's street lift stands in (pipeline/lobby.py) are left to the lobby's own level (hero_skylobby.py).
 
 The tower's wing outside its ring (PLATEAU's west slab over the crossing, from the street to 218 m) takes the same
@@ -53,6 +53,11 @@ TILE_W, STOREY, ROWS = 12.0, 4.55, 8        # the tile: 8 panes of 1.5 m across,
 PANE = 1.5
 SHOP_TOP = 71.3                             # 14F's floor over 1F (Elevator Journal 28's rises): the shop floors under it
 SHOP_STOREY = 5.4
+# every storey's floor over 1F to 17F, where the offices' even 4.55 m begins: 2F to 15F the escalators' rises (Elevator
+# Journal 28; scrsq_base.LEVELS), 16F half way to 17F. The tile's storeys, the rooms behind it after dark and the
+# skirts' slab edges all stand on these, so that every horizontal line of the base is one line (a tile stretched to
+# an even 5.4 m drifted up to 2.6 m off the slabs: two sets of bands crossing on the skirts, the base read as twisted)
+LEVELS = [0.0, 7.7, 13.3, 19.3, 25.0, 30.0, 35.0, 40.0, 45.0, 50.5, 55.5, 60.5, 65.9, 71.3, 76.5, 80.25, 84.0]
 OUT = 0.06                                  # the skin's distance outside the city's wall
 PX_W, PX_H = 512, 1536
 
@@ -133,9 +138,18 @@ def offices(base):
     """The storeys behind the skin, for the page to draw after dark (web/interior.js offices): where they are in the
     tile's storey coordinate (as tile_v lays it), the tile's own spandrel, frit and joints in the same places, and each
     storey's use."""
-    return {"base": round(base, 2), "shop_top": SHOP_TOP, "shop_storey": SHOP_STOREY, "storey": STOREY,
+    return {"base": round(base, 2), "levels": LEVELS, "shop_top": SHOP_TOP, "shop_storey": SHOP_STOREY, "storey": STOREY,
             "spandrel": round(0.55 / STOREY, 4), "frit": round(1.4 / STOREY, 4), "tile": TILE_W, "rows": ROWS, "pane": PANE,
             "shift": 0.75, "mullion": 0.06, "trans": 0.55, "busy": 1.15, "floors": FLOORS}
+
+
+def storey_of(h):
+    """height over 1F -> storeys over 1F, fractional: through LEVELS, then the offices' 4.55 m"""
+    if h >= LEVELS[-1]:
+        return len(LEVELS) - 1 + (h - LEVELS[-1]) / STOREY
+    if h <= 0:
+        return h / (LEVELS[1] - LEVELS[0])
+    return float(np.interp(h, LEVELS, np.arange(len(LEVELS))))
 
 
 def _rings():
@@ -186,6 +200,35 @@ def _fins(geo, R, N, cols, depth):
             q = [a, b, b + nb * d, a + na * d]
             geo.quad("alu_fin", q[0], q[1], q[2], q[3])
             geo.quad("alu_fin", q[3], q[2], q[1], q[0])
+
+
+def _arc_fins(geo, R, N, step, depth):
+    """Fins on a lofted surface at fixed arc lengths from its last column (the corner), every `step` metres along each
+    row, each running down the rows as long as the row reaches it; `depth(d, longest)` how deep each one stands."""
+    L = [np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(row[::-1, :2], axis=0), axis=1))] for row in R]   # from the corner
+    Dm = max(l[-1] for l in L)
+    def at(j, d):
+        l = L[j]
+        if d > l[-1] - 0.05:
+            return None
+        row, nrm = R[j][::-1], N[j][::-1]
+        k = min(int(np.searchsorted(l, d)), len(l) - 1)
+        k0 = max(k - 1, 0)
+        t = 0.0 if l[k] - l[k0] < 1e-6 else (d - l[k0]) / (l[k] - l[k0])
+        n = nrm[k0] * (1 - t) + nrm[k] * t
+        return row[k0] * (1 - t) + row[k] * t, n / max(np.linalg.norm(n), 1e-9)
+    d = step
+    while d < Dm - 0.05:
+        dp = depth(d, Dm)
+        for j in range(len(R) - 1):
+            p, q = at(j, d), at(j + 1, d)
+            if p is None or q is None:
+                continue
+            (a, na), (b, nb) = p, q
+            quad = [a, b, b + nb * dp, a + na * dp]
+            geo.quad("alu_fin", quad[0], quad[1], quad[2], quad[3])
+            geo.quad("alu_fin", quad[3], quad[2], quad[1], quad[0])
+        d += step
 
 
 def _slabs(geo, SB, F, base, curve, top=None):
@@ -251,7 +294,10 @@ def base_glass(geo, base, tile_v, inner):
             curves.append(SB.skirt_curve(F, z, steps=14))
     rows, uvs = rows_of(curves, zs)
     R, N = _loft(geo, "win_scrsq", rows, uvs, hint)
-    _fins(geo, R, N, range(1, 14), [0.25 + 0.3 * (k / 13) ** 1.5 for k in range(1, 14)])
+    # the fins at fixed distances from the corner, as the glass's joints are (u above): standing at shares of each row,
+    # they fanned across the joints and slanted against them as the skirt widened, and the flare read as twisted. Each
+    # fin ends where the skirt's edge comes in past it
+    _arc_fins(geo, R, N, PANE, lambda d, Dm: 0.25 + 0.3 * (1 - d / Dm) ** 1.5)
     _fins(geo, R, N, [0], [0.7])   # (the trim along its edge on the face, the bright line the photographs draw the sweep with)
     _slabs(geo, SB, F, base, lambda z: SB.skirt_curve(F, z, steps=14))
     # its side in the west face's plane: from the corner out to the skirt's edge, storey by storey
@@ -275,7 +321,8 @@ def base_glass(geo, base, tile_v, inner):
         a, b = foot[k] - [0, 0, 0.02], foot[k + 1] - [0, 0, 0.02]
         geo.mesh("alu_soffit", [m, a, b], [(0, 1, 2)], n=np.array([0, 0, -1.0]))   # (a west of b: wound to face down)
     # the north-east tent: from 4F to its point, three rows a storey
-    tz = list(np.linspace(SB.F4, SB.TENT["top"] - 0.05, 10))
+    # (its rows on the storeys too, so that the tile's v is linear between rows)
+    tz = sorted(set(np.round(np.r_[np.linspace(SB.F4, SB.TENT["top"] - 0.05, 10), [l for l in LEVELS if SB.F4 < l < SB.TENT["top"] - 0.05]], 3)))
     tcurves = [SB.tent_curve(z, steps=7) for z in tz]
     trows, tuvs = rows_of(tcurves, tz)
     TR, TN = _loft(geo, "win_scrsq", trows, tuvs, hint)
@@ -289,12 +336,14 @@ def base_glass(geo, base, tile_v, inner):
     for s in B["s"]:
         if s[0] == F.bi and (s[2], s[3]) == (round(SB.OVER["z0"] * 10), round(SB.OVER["z1"] * 10)):
             P = Polygon(SB.ring_of(s)).buffer(0)
-            skin_poly(geo, P, base + SB.OVER["z0"], base + SB.OVER["z1"], tile_v, skip=inner)
+            skin_poly(geo, P, base + SB.OVER["z0"], base + SB.OVER["z1"], tile_v, skip=inner, base=base)
 
 
-def skin_poly(geo, P, z0, z1, tile_v, skip=None):
-    """the tower's skin on a solid's walls, z0 to z1 (a part off the ground: no foot taken down to the street)"""
+def skin_poly(geo, P, z0, z1, tile_v, skip=None, base=None):
+    """the tower's skin on a solid's walls, z0 to z1 (a part off the ground: no foot taken down to the street), cut at
+    each storey (base: 1F's height) so that the tile's v runs true through each change of storey height"""
     from shapely.geometry import Point
+    cuts = sorted({z0, z1} | ({base + l for l in LEVELS if z0 < base + l < z1} if base is not None else set()))
     ring = np.asarray(P.exterior.coords)[:-1]
     if not P.exterior.is_ccw:
         ring = ring[::-1]
@@ -312,8 +361,9 @@ def skin_poly(geo, P, z0, z1, tile_v, skip=None):
             continue
         pa, pb = a + nrm * OUT, b + nrm * OUT
         U0, U1 = along / TILE_W, (along + L) / TILE_W
-        geo.quad("win_scrsq", np.r_[pa, z0], np.r_[pb, z0], np.r_[pb, z1], np.r_[pa, z1], n=np.r_[nrm, 0.0],
-                 uv=[(U0, tile_v(z0)), (U1, tile_v(z0)), (U1, tile_v(z1)), (U0, tile_v(z1))])
+        for ca, cb in zip(cuts[:-1], cuts[1:]):
+            geo.quad("win_scrsq", np.r_[pa, ca], np.r_[pb, ca], np.r_[pb, cb], np.r_[pa, cb], n=np.r_[nrm, 0.0],
+                     uv=[(U0, tile_v(ca)), (U1, tile_v(ca)), (U1, tile_v(cb)), (U0, tile_v(cb))])
         along += L
 
 
@@ -338,11 +388,8 @@ def build(K):
     base = tower[1]
     top = base + tower[3]
     def tile_v(z):
-        """height over 1F -> the tile's v: the shop floors at their storeys, the offices at theirs"""
-        h = z - base
-        if h <= SHOP_TOP:
-            return h / SHOP_STOREY / ROWS
-        return SHOP_TOP / SHOP_STOREY / ROWS + (h - SHOP_TOP) / STOREY / ROWS
+        """height over 1F -> the tile's v: a storey of the tile to each real storey (LEVELS), the offices' even ones over 17F"""
+        return storey_of(z - base) / ROWS
     def skin(P, z0, z1, skip=None):
         ring = np.asarray(P.exterior.coords)[:-1]
         if not P.exterior.is_ccw:
@@ -362,8 +409,8 @@ def build(K):
             pa, pb = a + nrm * OUT, b + nrm * OUT
             za = min(z0, T(*pa) - 0.3) if z0 <= base + 0.01 else z0
             zb = min(z0, T(*pb) - 0.3) if z0 <= base + 0.01 else z0
-            # one quad a storey band at most, so that the tile's v runs true through the change of storey at 14F
-            cuts = sorted({z0, z1} | ({base + SHOP_TOP} if z0 < base + SHOP_TOP < z1 else set()))
+            # one quad a storey at most up to 17F, so that the tile's v runs true through each change of storey height
+            cuts = sorted({z0, z1} | {base + l for l in LEVELS if z0 < base + l < z1})
             for ca, cb in zip(cuts[:-1], cuts[1:]):
                 qa, qb = (za if ca == z0 else ca), (zb if ca == z0 else ca)
                 U0, U1 = along / TILE_W, (along + L) / TILE_W
