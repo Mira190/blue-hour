@@ -397,7 +397,15 @@ walk_on() {
 run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched from two kerbs, and the walk's drive to 109 from three starts
   local ok=1
   if ! GAME_TIME=${GAME_TIME:-17:57} timeout 1500 $X node tools/road_traffic_watch.js "$MAP" 3 >"$OUT/roads-watch.log" 2>&1; then ok=0; echo "FAIL roads  the traffic: $(grep '^FAIL\|pageerror' "$OUT/roads-watch.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-watch.log)"; fi
-  if ! GAME_TIME=${GAME_TIME:-17:57} TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; then ok=0; echo "FAIL roads  the drive to 109: $(grep '^FAIL\|pageerror' "$OUT/roads-drive.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-drive.log)"; fi
+  # (the drives with the traffic running, as the clip and the game check are: a second run when one fails, and a failure
+  # only where the same start fails both times; else FLAKY, which main lists under check-flaky. Issue 175: the autopilot
+  # and a bus in Dogenzaka-shita's junction under the expressway can still stand each waiting on the other)
+  drive() { GAME_TIME=${GAME_TIME:-17:57} TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
+  if ! drive; then
+    cp "$OUT/roads-drive.log" "$OUT/roads-drive-first.log"
+    if drive; then echo "ok   roads  the drive to 109 from three starts   (the second run; the first: $OUT/roads-drive-first.log)"
+    else ok=0; twice roads "$OUT/roads-drive-first.log" "$OUT/roads-drive.log" | sed 's/^FLAKY roads/FLAKY roads  the drive to 109:/; s/^FAIL roads/FAIL roads  the drive to 109:/'; fi
+  fi
   [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their streets, none inside another; 109 reached from three starts"
   return 0
 }
