@@ -27,6 +27,7 @@
     "web/game/walk.js",
     "web/game/walktalk.js",
     "web/game/tonight.js",
+    "web/game/regulars.js",
     "web/game/places.js"
    ],
    "checks": [
@@ -42,6 +43,9 @@
      "create"
     ],
     "OEPlaces": [
+     "create"
+    ],
+    "OERegulars": [
      "create"
     ],
     "OEStopFX": [
@@ -158,6 +162,7 @@
      "benches",
      "boxes",
      "crowd",
+     "join",
      "makePerson",
      "network",
      "pick",
