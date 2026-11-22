@@ -1269,6 +1269,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function npcStream(dt, cx, cy) { // twice a second: those within NPC_LOAD_M of you
     if ((npcBudget -= dt) > 0) return;
     npcBudget = 0.5;
+    // (and each one standing near you on the floor as it now is: the hero level's floors are laid after the NPCs are
+    // placed, and one placed on the slab under them stood in the planks, Yuna 8 cm into the sky lobby's for the whole
+    // story, issue 157. Not one seated or stood at an exact place, nor one walking)
+    for (const n of npcs) {
+      if (n.away || n.sit || n.stand || n.walkSpeed || Math.abs(n.x - cx) > 40 || Math.abs(n.y - cy) > 40) continue;
+      const f = nav.floorAt(n.x, n.y, n.z + 0.3);
+      if (f && Math.abs(f.z - n.z) > 0.01 && Math.abs(f.z - n.z) < 0.3) { n.z = f.z; n.rig.root.position.copy(W(n.x, n.y, n.z)); if (n.post) posts.move(n.post, n.x, n.y, n.z); }
+    }
     if (QC.lean) { // a phone: one at a time, the nearest first (each is pictures decoded, resized and sent: see afterPlayable)
       if (npcBusy) return;
       let best = null, bd = NPC_LOAD_M;
@@ -2818,6 +2826,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
     edge: (x, y, z, fx, fy) => ways.edge(x, y, z, fx, fy),
+    wall: (x, y, z, r) => { const w = nav.push(x, y, z, r); return w && Math.hypot(w.x - x, w.y - y) > 0.01 ? w : null; }, // (each end of him off a wall, issue 157)
     // (and its body kept off every post, belt and trunk: the walker's circle is at its middle, and its nose and rump
     // reach GUIDE_BODY from there whichever way it turns; a queue belt passed through it at the lift's doors)
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
