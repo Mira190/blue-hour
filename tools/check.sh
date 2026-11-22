@@ -14,6 +14,10 @@
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
 #           - the ground graded by the method as it is: the streets level across, the lots between them stretched from
 #             the streets, the roads' cross-falls and creases within their limits (pipeline/street_ground.py --check);
+#           - what is built stands on that ground by rule (tools/levels_check.py, docs/LEVELS.md): every run of a wall,
+#             a fence or a hoarding level-topped and stepped at its posts with its feet in the ground, no tooth in any
+#             landmark's top, every building's base on the lowest ground along its walls, no paved ground steeper than
+#             a street beyond the budget;
 #           - no landmark hanging in the air (tools/float_check.py), no sign or screen behind another landmark
 #             (tools/sign_clear.py), no sign reading mirrored or turned to a wall (tools/sign_check.py), no vehicle's
 #             name mirrored (tools/decal_check.js);
@@ -206,7 +210,7 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
@@ -412,7 +416,14 @@ run_audio() {
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_shed.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_shed.log)"; fi
   if timeout 120 node tools/snd_probe_check.js >"$OUT/snd_probe.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/snd_probe.log" | cut -c6-)"
   else echo "FAIL audio  the probe of the sound's breaks: $(grep '^FAIL' "$OUT/snd_probe.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/snd_probe.log)"; fi
-  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
+  # (a phone's opening as an iPhone plays it, issue 166: no context until the film is over, the music on media elements, the
+  # main thread throttled six times; the story's opening and the walk's)
+  if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 900 $X node tools/opening_audio.js 390x844 >"$OUT/opening_audio.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/opening_audio.log" | cut -c6-)"
+  else echo "FAIL audio  a phone's opening, the story's: $(grep '^FAIL' "$OUT/opening_audio.log" | head -2 | cut -c6-160 | paste -sd ';' -)   (see $OUT/opening_audio.log)"; fi
+  if WALK=1 DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 900 $X node tools/opening_audio.js 390x844 >"$OUT/opening_audio_walk.log" 2>&1; then echo "ok   audio  the walk's opening: $(grep -o '^PASS.*' "$OUT/opening_audio_walk.log" | cut -c6-)"
+  else echo "FAIL audio  a phone's opening, the walk's: $(grep '^FAIL' "$OUT/opening_audio_walk.log" | head -2 | cut -c6-160 | paste -sd ';' -)   (see $OUT/opening_audio_walk.log)"; fi
+  # (the two below play the music on the context, ?music=web, as a touch screen that is not an iPhone still does)
+  if Q=?music=web DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio.log" 2>&1; then
     echo "ok   audio  as an iPhone: $(grep -o 'convolvers: [0-9]*, their responses [0-9]* to [0-9]* frames (the limit [0-9]*)' "$OUT/phone_audio.log" | head -1), one context, no worklet"
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/phone_audio.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio.log)"; fi
   # the mix, place by place (docs/SOUND.md's table of listening points): each bus's level read from the graph at the
@@ -423,7 +434,7 @@ run_audio() {
   if PHONE=1 timeout 900 $X node tools/sound_places.js >"$OUT/sound_places_phone.log" 2>&1; then echo "ok   audio  as a touch screen: $(grep -o '^PASS.*' "$OUT/sound_places_phone.log" | cut -c6-)"
   else echo "FAIL audio  the mix by place, as a touch screen: $(grep '^FAIL' "$OUT/sound_places_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/sound_places_phone.log)"; fi
   # (and touched first on the title: the opening's score with its own bed, and the loading cue let go)
-  if FIRST=title DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio_title.log" 2>&1; then
+  if Q=?music=web FIRST=title DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 1500 $X node tools/phone_audio.js 390x844 >"$OUT/phone_audio_title.log" 2>&1; then
     echo "ok   audio  as an iPhone touched first on the title: one piece of music at a time in the opening"
   else echo "FAIL audio  touched first on the title: $(grep '^FAIL' "$OUT/phone_audio_title.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/phone_audio_title.log)"; fi
 }
@@ -571,6 +582,7 @@ rm -rf "$OUT/keep"
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
+    st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
