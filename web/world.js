@@ -347,19 +347,15 @@ float cwHash(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5
     float sf = 1.0 - smoothstep(uSpan - fwidth(bv), uSpan + fwidth(bv), fract(bv)); // the storey's spandrel band
     vec3 farCol = mix(diffuseColor.rgb * (0.85 + 0.3 * cwHash(cf)), uFrame, 0.3 * (1.0 - 0.75 * uLmNight));
     diffuseColor.rgb = mix(mix(glass, mix(uFrame, uSpanC, step(mull, span * 0.9)), solid), farCol, far);
-    // the room behind a lit pane, close to: brighter towards the ceiling, a row of downlights under it one to a bay,
-    // and the chairs, tables and people dark against the light in its lower third (each bay its own), so the glass
-    // reads as rooms with depth rather than as lit panels; far off, the storey's mean
+    // the room behind a lit pane, close to: brighter towards the ceiling, a row of downlights under it one to a bay, so
+    // the glass reads as rooms with light in them rather than as lit panels; far off, the storey's mean. (Until November
+    // 2026 people standing or seated and a table's top were painted dark in each bay's lower third: flat figures on the
+    // glass with no depth behind them, which the owner saw standing in the koban's window and asked to go. A thing drawn
+    // on a pane to stand for what is behind it moves with the pane, not as a room does; what cannot be built is left out)
     { float fx = fract(bu), fy = (fract(bv) - uSpan) / max(1.0 - uSpan, 0.05), hR = uSty * (1.0 - uSpan);
       float grad = 0.3 + 0.55 * smoothstep(0.05, 1.0, fy);
       float lamp = exp(-pow((fx - 0.5) / 0.09, 2.0)) * exp(-pow((fy - 0.94) * hR / 0.06, 2.0)) * 1.4 + exp(-pow((fy - 0.97) / 0.035, 2.0)) * 0.2;
-      // people standing or seated in thirds of a bay, a table's top in some: dark against the room
-      float j = floor(fx * 3.0), h = cwHash(cell * 1.31 + j), mx = (fract(fx * 3.0) - 0.5) * uBay / 3.0;
-      float tall = h < 0.22 ? 1.62 : 1.18, my = fy * hR;
-      float body = step(abs(mx), 0.17 - 0.04 * smoothstep(tall - 0.6, tall - 0.3, my)) * step(my, tall - 0.22);
-      float head = step(length(vec2(mx, my - tall + 0.12)), 0.11);
-      float person = step(h, 0.42) * max(body, head), table = step(0.55, cwHash(cell + 9.0)) * step(abs(my - 0.74), 0.025);
-      float room = (grad + lamp) * (1.0 - 0.8 * max(person, table)) * (0.7 + 0.45 * cwHash(cell + 21.0));
+      float room = (grad + lamp) * (0.7 + 0.45 * cwHash(cell + 21.0));
       pRoom = mix(room, 0.6, smoothstep(0.05, 0.3, fw)); }
     float litFar = mix(0.6 * step(1.0 - 0.68 * uLitShare, cwHash(cf + 17.0)) * (1.0 - sf), 0.34 * uLitShare, vfar);
     // lit in runs of four panes along a storey, as an office is, each run a little brighter or dimmer,
@@ -3168,7 +3164,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // Objects hidden now are left for their first draw.
   const LAYER = 31, bufSent = new WeakSet(), noop = () => {};
   const DRAWS = ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements'];
-  async function uploadBuffers(renderer, scene, camera, { target = null } = {}) {
+  // late: a model come after the loader's own set (a hero level, game.js sendBuffers): its line in the log says so,
+  // and the loader's line stays what the loader sent, whenever a late model happens to arrive (issue 159).
+  async function uploadBuffers(renderer, scene, camera, { target = null, late = false } = {}) {
     if (!renderer || !renderer.render || !scene || !camera) return;
     const objs = [], lights = [];
     scene.traverseVisible(o => {
@@ -3187,11 +3185,12 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     };
     const t0 = performance.now();
     let budget = 4 << 20, i = 0, slices = 0, longest = 0, total = 0;
-    const log = [];
+    const log = [], by = new Map(); // (by: the bytes by what sent them, an object's name or its nearest named parent's)
+    const nameOf = o => { for (let q = o; q; q = q.parent) if (q.name) return q.name.replace(/[-_ ]?\d+$/, ''); return o.type; };
     while (i < objs.length) {
       const slice = [];
       let sb = 0;
-      while (i < objs.length && (sb < budget || !slice.length)) { const o = objs[i++]; sb += bytes(o); slice.push(o); }
+      while (i < objs.length && (sb < budget || !slice.length)) { const o = objs[i++], n = bytes(o), k = nameOf(o); sb += n; by.set(k, (by.get(k) || 0) + n); slice.push(o); }
       await caughtUp(renderer); // (sent behind queued compiles, the uploads wait for them: uploadSliced)
       const s0 = performance.now(), sm = renderer.shadowMap, keep = { render: sm.render, own: Object.prototype.hasOwnProperty.call(sm, 'render'), clear: renderer.autoClear, bg: scene.isScene ? scene.background : null, rt: renderer.getRenderTarget(), mask: camera.layers.mask };
       const was = slice.map(o => o.frustumCulled), gl = renderer.getContext(), draws = DRAWS.filter(k => gl[k]);
@@ -3221,7 +3220,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       // (the next slice's size from this one's rate: about SLICE_MS of uploads a slice)
       budget = Math.max(256 << 10, Math.min(64 << 20, sb * SLICE_MS / Math.max(dt, 1)));
     }
-    console.info(`buffers: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms`);
+    console.info(`${late ? 'late buffers' : 'buffers'}: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms; the most: ${[...by].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ${(v / 1048576).toFixed(1)}`).join(', ')}`);
   }
 
   // The sun's shadow map, cached for what does not move. The city's walls, roofs, rooftop plant, landmarks and
