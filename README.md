@@ -75,7 +75,7 @@ python blender/build_hero.py --city shibuya          # the hero level (pip insta
 
 The shared models are built by `blender/build_vehicles.py`, `build_trees.py`, `build_trains.py`,
 `build_railstock.py` and `build_people.py`. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes
-the pipeline and the renderer, [docs/HERO.md](docs/HERO.md) the hero level,
+the pipeline and the renderer, [docs/HERO.md](docs/HERO.md) the hero level, [docs/ROADS.md](docs/ROADS.md) the road network's plan,
 [docs/cities/shibuya.md](docs/cities/shibuya.md) the map and its sources.
 
 ## Online, and its version

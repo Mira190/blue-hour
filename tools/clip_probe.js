@@ -18,6 +18,11 @@
 //   things   each body's middle against the walls (nav.push), the posts, trunks, bollards and boxes (posts.pushOut),
 //            the cars and the helicopter (OECars.pushOut on the game's boxes) and a floor over its head (nav.bodyIn);
 //            and the points of the hands, the head and what is carried against the walls and the posts.
+//   hold     the near crowd (the skinned walkers people.js draws as people, ctx.crowdDraw.active), the map's people and the
+//            story's people within HOLD_R of the camera, a few times a second: how deep each forearm, hand and what the hand
+//            holds go inside the person's own torso (tools/hold_depth.js, the measure tools/hold_check.js takes of every cast
+//            avatar through every held clip). Deeper than its LIMIT for three readings fails the play: the owner saw a
+//            texting forearm in a jacket at the crossing in the opening.
 //   seats    in the helicopter and in a car: the seat under the pelvis, the floor under the feet and the roof over the
 //            head, by rays into the vehicle's own model, once a second.
 //
@@ -26,7 +31,7 @@
 //   const probe = require('./clip_probe'); await probe.install(page); ... const R = await probe.report(page); probe.print(R)
 const NEAR = 0.45; // m between two people's middles: nearer is one inside the other (a shoulder is 0.2 to 0.23 from the spine)
 
-function pageSide(NEAR) {
+function pageSide(NEAR, HOLD) {
   const MAIN = /(Pelvis|Spine2|Spine1|Spine|Neck|Head|Clavicle|UpperArm|Forearm|Hand|Thigh|Calf|Foot)$/;
   const DISTAL = /(Forearm|Hand|Calf|Foot|Head)$/, TORSO = /(Pelvis|Spine2|Spine1|Spine|Thigh|Head|Calf)$/;
   const P = window.__probe = { cases: new Map(), seen: new Map(), frames: 0, t: 0, rigs: new WeakMap(), err: null, seatT: 0, NEAR };
@@ -265,6 +270,21 @@ function pageSide(NEAR) {
       for (const c of ra.carried) if (c.o.visible) for (const pt of c.pts) test(v.copy(pt).applyMatrix4(c.o.matrixWorld), c.name);
       if (deep > 0.02) note('touch', a.name, b.name, deep, ctx, a.x, a.y, a.z, what);
     }
+    // hold: forearms and hands in their own torsos, the near crowd's, the map's people's and the story's (every HOLD.every
+    // frames, the camera's nearest HOLD.n within HOLD.r: the measure skins every vertex)
+    if (window.__holdDepth && P.frames % HOLD.every === 0) {
+      const cam = ctx.camera.position, list = [];
+      const add = (root, name) => { if (!root || !root.visible) return; let vis = true; for (let q = root; q; q = q.parent) if (!q.visible) { vis = false; break; } if (!vis) return; const d = cam.distanceTo(root.position); if (d < HOLD.r) list.push([d, root, name]); };
+      if (ctx.crowdDraw && ctx.crowdDraw.active) for (const [i, r] of ctx.crowdDraw.active) add(r.root, `walker ${i} (${(r.character || '').replace(/^R_/, '')}${r.look && r.look.clip ? ', ' + r.look.clip : ''})`);
+      for (const q of ctx.npcs) if (q.rig && !q.away) add(q.rig.root, `npc ${q.name || q.id}`);
+      for (const f of ctx.storyFigs) if (f.rig) add(f.rig.root, f.name || f.character);
+      list.sort((a, b) => a[0] - b[0]);
+      for (const [, root, name] of list.slice(0, HOLD.n)) {
+        const m = window.__holdDepth.measure(root); if (!m) continue;
+        let deep = 0, part = ''; for (const k in m) if (m[k] > deep) { deep = m[k]; part = k; }
+        if (deep > HOLD.note) note('hold', name.replace(/^walker \d+ /, 'walker '), part.replace('_', ' '), deep, ctx, root.position.x, -root.position.z, root.position.y);
+      }
+    }
     // seats: in the helicopter or a car, once a second
     const now = performance.now();
     if ((player.mode === 'heli' || player.mode === 'car') && player.rig && player.rig.root && player.rig.root.visible && now - P.seatT > 1000) {
@@ -325,11 +345,24 @@ function pageSide(NEAR) {
 const FOOT = 0.15;
 // (the guide against someone for a frame or two is him making way: run at from 1.3 m he is off the player in the next
 // frame, companion.js keepOff; three frames or more is him standing in them)
-const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT);
+// (a forearm or a hand in its own body: deeper than tools/hold_depth.js's LIMIT for three readings, a third of a second
+// apart at the story's pace. The arms are moved out over the clip by springs (people.js armsClear), which may let a hand that
+// meets the body at speed in by a centimetre for a frame or two)
+const HOLD = { every: 15, r: 12, n: 10, note: 0.012 };
+const H = require('./hold_depth');
+// (issue 157: Yuna's 8 to 9 cm was real, her soles under the sky lobby's planks as drawn, for the whole story: someone
+// standing still with a foot sunk past STAND for more than STAND_N frames fails too, the player, the story's people,
+// and the map's NPCs alike. A step read a few cm for a few frames, and still prints. Not the guide: sitting, his paws
+// read 11 cm for a hundred frames on main as it was, a reading of his sit pose not yet looked at in a still, issue 157)
+// (and the guide's body in a wall for more than WALL_N frames: he stood in the roof's glass for 492 frames of frame 4)
+const STAND = 0.07, STAND_N = 60, WALL_N = 30;
+const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
+  || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
+  || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1);
 
-async function install(page) { await page.addInitScript(`(${pageSide.toString()})(${NEAR})`); }
+async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }
-const WORD = { bodies: 'one body in another', touch: 'a part of one in another', limb: 'a limb in its own body', carried: 'what is carried in its bearer', 'limb-wall': 'a limb in a wall', 'limb-post': 'a limb in a post', wall: 'a body in a wall', post: 'a body in a post', car: 'a body in a car', floor: 'a floor through a body', sunk: 'a foot under the floor', floating: 'feet over the floor', seat: 'a seat' };
+const WORD = { bodies: 'one body in another', touch: 'a part of one in another', limb: 'a limb in its own body', carried: 'what is carried in its bearer', hold: 'a forearm or a hand in its own torso', 'limb-wall': 'a limb in a wall', 'limb-post': 'a limb in a post', wall: 'a body in a wall', post: 'a body in a post', car: 'a body in a car', floor: 'a floor through a body', sunk: 'a foot under the floor', floating: 'feet over the floor', seat: 'a seat' };
 function print(R, log = console.log) {
   if (!R) { log('clip: nothing measured (the page had no probe)'); return { hard: [], all: [] }; }
   if (R.err) log(`clip: the probe threw: ${R.err}`);

@@ -44,20 +44,22 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 HARNESS = {
     'story': ['tools/story_play.js'], 'story1': ['tools/story_play.js'], 'story2': ['tools/story_play.js'],
     'story3': ['tools/story_play.js'], 'budget': ['tools/story_play.js'],
+    'storyp': ['tools/story_play.js'], 'storyl': ['tools/story_play.js'],
     'guide': ['tools/guide_way.js', 'tools/guide_body.js'], 'guide1': ['tools/guide_way.js'],
     'guide2': ['tools/guide_body.js'],
     'walk': ['tools/walk_play.js'], 'walk1': ['tools/walk_play.js'], 'walk2': ['tools/walk_play.js'],
-    'ride': ['tools/ride_people.js'], 'mem': ['tools/mem_check.js', 'tools/lost_check.js', 'tools/glcare_phone.js'], 'look': ['tools/look_check.js'],
+    'ride': ['tools/ride_people.js'], 'roads': ['tools/road_traffic_watch.js', 'tools/road_drive.js'], 'mem': ['tools/mem_check.js', 'tools/lost_check.js', 'tools/glcare_phone.js'], 'look': ['tools/look_check.js'],
     'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/sound_places.js', 'tools/phone_audio.js'],
     'clip': ['tools/clip_check.js'], 'gl': ['tools/gl_error_probe.js', 'tools/sampler_probe.js'],
-    'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'game': ['tools/game_check.js'],
+    'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'hold': ['tools/hold_check.js', 'tools/hold_depth.js'], 'game': ['tools/game_check.js'],
     'launch': ['tools/launch_check.js'],
 }
-EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget')}  # (story_play.js reads it)
+EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget', 'storyp', 'storyl')}  # (story_play.js reads it)
 EXTRA['launch'] = ['vercel.json', 'web/index.html', 'web/fonts.css', 'web/game/story.css', 'web/game/story.js', 'web/data/shibuya/game.json']  # (read, and stamped, by the tool itself)
 # the settings a run takes from the environment that change what it plays or measures (CHECK_FN: a hash of the
 # functions tools/check.sh runs the target with)
 ENV = ['CHECK_FN', 'GAME_TIME', 'DRAW', 'GPU', 'AT', 'PIN', 'TIER', 'QUERY', 'LIMIT', 'MEM_GPU', 'MEM_HEAP', 'MEM_DESK', 'LOOK_BASE',
+       'TOUCH', 'SLIP', 'SPEND', 'CHOOSE', 'ACCUSE', 'BACKTO', 'PLAYER',
        'STILLS', 'Q', 'WALK', 'START']
 LOG = re.compile(r'"(?:GET|HEAD) (\S+) HTTP/[\d.]+" (\d{3})')
 
@@ -402,7 +404,7 @@ SOURCE = {'web/data/shibuya/game.bin': ('web/data/shibuya/game.json', ('story',)
           'web/data/shibuya/d/game.bin': ('web/data/shibuya/game.json', ('story',)),
           'cities/shibuya/city.json': ('cities/shibuya/city.json', ('game', 'story'))}
 FRAMES = {'story1': {0, 1, 2, 3}, 'story2': {4, 5}, 'story3': {0, 6},   # (the last card offers the first frame again)
-          'story': set(range(7)), 'budget': set(range(7)), 'ride': {5}}
+          'story': set(range(7)), 'budget': set(range(7)), 'storyp': set(range(7)), 'storyl': set(range(7)), 'ride': {5}}
 
 
 def leaves(a, b, path, out):

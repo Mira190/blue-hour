@@ -1,0 +1,65 @@
+{
+ "note": "The street between Mark City's east block and the line's strip south-west of the scramble (issue 143): the blank white wall at about (288, -1068) that the walk's review found, looked along from both ends and from the corner at the hero level's rim.",
+ "times": {
+  "day": "13:00",
+  "night": "21:00"
+ },
+ "views": [
+  {
+   "name": "street-w",
+   "eye": [
+    303.5,
+    -1061.8,
+    1.6
+   ],
+   "look": [
+    272,
+    -1071.2,
+    4
+   ],
+   "fov": 55
+  },
+  {
+   "name": "street-e",
+   "eye": [
+    278,
+    -1069.5,
+    1.6
+   ],
+   "look": [
+    310,
+    -1059.8,
+    4
+   ],
+   "fov": 55
+  },
+  {
+   "name": "corner",
+   "eye": [
+    318,
+    -1052,
+    1.6
+   ],
+   "look": [
+    285,
+    -1066,
+    6
+   ],
+   "fov": 55
+  },
+  {
+   "name": "sw140",
+   "eye": [
+    253.0,
+    -1083.6,
+    1.6
+   ],
+   "look": [
+    220.2,
+    -1106.5,
+    3
+   ],
+   "fov": 55
+  }
+ ]
+}

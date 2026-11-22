@@ -4,7 +4,8 @@
   "game": {
    "for": "The composition root: loads the map, makes every other part, runs the loop and the title. The one part that may ask all the others.",
    "files": [
-    "web/game/game.js"
+    "web/game/game.js",
+    "web/game/bounds.js"
    ],
    "checks": [
     "story",
@@ -13,6 +14,7 @@
     "ride"
    ],
    "offers": {
+    "OEBounds": [],
     "OpenEarthGame": []
    }
   },
@@ -331,6 +333,7 @@
      "W",
      "angDiff",
      "blendFrom",
+     "bounds",
      "cam",
      "camera",
      "carCfg",
@@ -343,6 +346,7 @@
      "fmtSec",
      "guideMade",
      "headlamp",
+     "heliBlock",
      "hopTo",
      "inScramble",
      "junctions",

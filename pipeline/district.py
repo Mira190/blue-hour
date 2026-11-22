@@ -526,6 +526,11 @@ def cut_game(G, P, scene, R, city):
             for piece in clip_line(row["p"], Rd, 3):
                 keep.append(dict(row, p=piece))
         paths[kind] = keep
+    # (the road plan again on the roads as cut: a street cut by the district's edge leaves the level there, a gate, and
+    # what is quiet is so by the district's own gates, pipeline/road_plan.py; the map's closures and bus streets stay)
+    if paths.get("road"):
+        import road_plan
+        road_plan.plan(paths["road"], extent=[R.x0, R.x1, R.y0, R.y1], keep_closed=True)
     if "paths" in G:
         # and past the edge, to the end of the scenery band, the same roads and footways to be painted on the ground
         # there (game.js streetTexture) and nothing else: no one walks or drives them
@@ -620,6 +625,12 @@ def cut_game(G, P, scene, R, city):
         out["trains"] = dict(tr, stations=st, tracks=tracks)
 
     # ---- quests: a line keeps its quests up to the first that cannot be finished inside
+    # ---- the street's own people (game.regulars, regulars.js): a routine whose every place is inside
+    rg = G.get("regulars")
+    if rg and rg.get("people"):
+        keep = [r for r in rg["people"] if all(inr(q["at"]) for q in r.get("rows", []) if q.get("at"))]
+        cut["regulars"] = [r["id"] for r in rg["people"] if r not in keep]
+        out["regulars"] = dict(rg, people=keep)
     npcs = {n["id"] for n in out.get("npcs", [])}
     spots = {s["id"] for s in out.get("spots", [])}
     flocks = {f.get("id") for f in out.get("flocks", [])}

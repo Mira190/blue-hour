@@ -20,8 +20,14 @@ in the open on the bed drawn here.
             keeping left; the platform numbers OpenStreetMap's stopping points give
   overhead  masts every 46 m on the outer side with a cantilever over the track and the contact wire 5.0 m up
 
-meshes(Mesh)   the bed, its rails, its walls where it stands on an embankment or in a cutting, the masts and the
-               contact wire, outside the stations' boxes and the Scramble's stretch
+  bridges   where a street of the game's road graph passes under the line (underbridges(): a road of game.json that
+            crosses a track with UNDER_CLEAR or more between its surface and the bed) the embankment's wall is not
+            drawn across it: the bed is carried over the carriageway and a footway either side on a plate girder
+            between two abutments, as the Yamanote's street bridges are (issue 167: the wall stood across the street
+            west of Miyashita Park and four others, and the game's roads ended at it from both sides)
+
+meshes(Mesh)   the bed, its rails, its walls where it stands on an embankment or in a cutting, its bridges over the
+               streets, the masts and the contact wire, outside the stations' boxes and the Scramble's stretch
 trains()       game.json "trains" (web/game/trains.js)
 """
 import json
@@ -39,6 +45,12 @@ GRADE = 0.03
 BED_HALF = 2.1       # a track's bed either side of its middle
 MAST_EVERY = 46.0
 WIRE = 5.0
+# a street under the line (underbridges()): the road's half width as the game draws it (game.js ROAD_HALF), a footway
+# either side, and the least height of the bed's underside over the road for the crossing to be a bridge
+ROAD_HW = {"motorway": 7, "trunk": 6, "primary": 6, "secondary": 5, "tertiary": 4.5, "residential": 3.5, "unclassified": 3, "living_street": 2.5}
+UNDER_SIDE = 2.5
+UNDER_CLEAR = 3.0
+GIRDER = 1.1         # a plate girder's depth under the bed
 # the Scramble's bed (scramble.py JR): its stretch, its rail height over the road at `at`
 SCRAMBLE = {"x0": 380.0, "x1": 520.0, "y0": -1016.0, "y1": -860.0, "rail_m": 7.4, "at": (430.0, -1000.0)}
 # each station: its name, the solids its platforms stand inside in the city model (by OSM id or by name), its street
@@ -64,6 +76,7 @@ MATERIALS = {
     "yl_wall": {"color": "#a8a39a", "roughness": 0.9, "metalness": 0.0, "pattern": "ashlar", "course_m": 0.6, "block_m": 1.8},
     "yl_mast": {"color": "#7d8283", "roughness": 0.55, "metalness": 0.6, "solid": False},
     "yl_wire": {"color": "#3b3d3f", "roughness": 0.5, "metalness": 0.7, "solid": False},
+    "yl_girder": {"color": "#59635f", "roughness": 0.6, "metalness": 0.45, "solid": False},
 }
 
 _S = {}
@@ -211,6 +224,33 @@ def layout():
     return L
 
 
+def underbridges():
+    """The streets that pass under the line: [{line, hw, z}], the road's line (a LineString), the half width of what the
+    bridge spans (carriageway and footways) and the road's height where it crosses. From the game's road graph
+    (web/data/shibuya/game.json paths.road, written before the landmarks are built)."""
+    if "U" in _S:
+        return _S["U"]
+    L, out = layout(), []
+    gp = os.path.join(HERE, "..", "..", "web", "data", "shibuya", "game.json")
+    if L and os.path.exists(gp):
+        for e in json.load(open(gp, encoding="utf8"))["paths"]["road"]:
+            p = np.asarray(e["p"], np.float64).reshape(-1, 3) / 10
+            line = LineString(p[:, :2])
+            for t in L["tracks"]:
+                if not line.intersects(t["geom"]):
+                    continue
+                x = line.intersection(t["geom"])
+                for q in getattr(x, "geoms", [x]):
+                    if q.geom_type != "Point":
+                        continue
+                    i = int(np.argmin(np.hypot(t["pts"][:, 0] - q.x, t["pts"][:, 1] - q.y)))
+                    k = int(np.argmin(np.hypot(p[:, 0] - q.x, p[:, 1] - q.y)))
+                    if _open(t, i) and t["z"][i] - 0.55 - p[k, 2] >= UNDER_CLEAR and not any(u["line"] is line and math.hypot(u["at"][0] - q.x, u["at"][1] - q.y) < 12 for u in out):
+                        out.append({"line": line, "hw": (e["cw"] / 2 if e.get("cw") else ROAD_HW.get(e.get("c", ""), 3.5)) + UNDER_SIDE, "z": float(p[k, 2]), "at": (q.x, q.y)})
+    _S["U"] = out
+    return out
+
+
 def _open(t, i):
     """Whether the bed is drawn at sample i: not in a station's box, nor on the Scramble's stretch."""
     if t["scramble"][i]:
@@ -226,6 +266,9 @@ def meshes(Mesh):
     from railkit import Kit, offset
     K = Kit(Mesh, "yl", MATERIALS, uv={"yl_wall", "yl_ballast"})
     T = L["T"]
+    U = underbridges()
+    under = lambda p: next((u for u in U if u["line"].distance(Point(float(p[0]), float(p[1]))) < u["hw"]), None)
+    two = lambda mesh, a, b, c, d: (mesh.quad(a, b, c, d), mesh.quad(d, c, b, a))   # (seen from either side)
     for t in L["tracks"]:
         other = [q for q in L["tracks"] if q is not t][0]["geom"]
         P, Z = t["pts"], t["z"]
@@ -249,13 +292,23 @@ def meshes(Mesh):
                 for rl in rails:
                     K["yl_steel"].sweep([[*rl[k], Z[k] - 0.08] for k in R[::2]], [(-0.035, -0.08), (0.035, -0.08), (0.035, 0.08), (-0.035, 0.08)])
                 # its walls on the outer side: down to the ground on an embankment, up to it in a cutting
+                segs = []
                 for a, b in zip(R[:-1], R[1:]):
-                    pa, pb = P[a] + nrm[a] * out[a] * BED_HALF, P[b] + nrm[b] * out[b] * BED_HALF
+                    ea, eb = P[a] + nrm[a] * out[a] * BED_HALF, P[b] + nrm[b] * out[b] * BED_HALF
+                    # (near a street under the line, a metre at a time: the wall ends at the abutment, not 5 m short of it)
+                    n = int(STEP) if any(u["line"].distance(LineString([ea, eb])) < u["hw"] + 1 for u in U) else 1
+                    for j in range(n):
+                        f0, f1 = j / n, (j + 1) / n
+                        segs.append((a, ea + (eb - ea) * f0, ea + (eb - ea) * f1, Z[a] + (Z[b] - Z[a]) * f0 - 0.55, Z[a] + (Z[b] - Z[a]) * f1 - 0.55,
+                                     P[a] + (P[b] - P[a]) * f0, P[a] + (P[b] - P[a]) * f1, nrm[a] * (1 - f0) + nrm[b] * f0, nrm[a] * (1 - f1) + nrm[b] * f1))
+                for a, pa, pb, za, zb, ca, cb, na, nb in segs:
                     ga, gb = T(*pa), T(*pb)
-                    za, zb = Z[a] - 0.55, Z[b] - 0.55
-                    face = (pa, pb) if out[a] > 0 else (pb, pa)
                     (fa, fza, fga), (fb, fzb, fgb) = ((pa, za, ga), (pb, zb, gb)) if out[a] > 0 else ((pb, zb, gb), (pa, za, ga))
-                    if max(za - ga, zb - gb) > 0.5:     # an embankment: the wall from the ground to a coping over the bed
+                    if under((pa + pb) / 2):
+                        # over a street: no wall, the bed on a plate girder with a parapet, and its deck seen from under
+                        K["yl_girder"].quad([*fa, fza - GIRDER], [*fb, fzb - GIRDER], [*fb, fzb + 0.9], [*fa, fza + 0.9])
+                        two(K["yl_girder"], [*(ca - na * BED_HALF), za - 0.25], [*(ca + na * BED_HALF), za - 0.25], [*(cb + nb * BED_HALF), zb - 0.25], [*(cb - nb * BED_HALF), zb - 0.25])
+                    elif max(za - ga, zb - gb) > 0.5:     # an embankment: the wall from the ground to a coping over the bed
                         K["yl_wall"].quad([*fa, min(fga, fza) - 0.3], [*fb, min(fgb, fzb) - 0.3], [*fb, fzb + 0.9], [*fa, fza + 0.9])
                     elif max(ga - za, gb - zb) > 0.5:   # a cutting: the retaining wall from the bed up to the ground and a parapet
                         K["yl_wall"].quad([*fb, fzb], [*fa, fza], [*fa, max(fga, fza) + 0.9], [*fb, max(fgb, fzb) + 0.9])
@@ -263,6 +316,8 @@ def meshes(Mesh):
                 ms = R[:: int(MAST_EVERY / STEP)]
                 for k in ms:
                     base = P[k] + nrm[k] * out[k] * (BED_HALF + 0.3)
+                    if under(base):   # (no mast stands in a street: its bridge's span carries the wire)
+                        continue
                     zb_ = min(Z[k] - 0.55, T(*base))
                     K["yl_mast"].tube([[*base, zb_], [*base, Z[k] + WIRE + 1.2]], 0.13, 8)
                     tip = P[k] - nrm[k] * out[k] * 0.6
@@ -270,6 +325,25 @@ def meshes(Mesh):
                     K["yl_mast"].tube([[*base, Z[k] + WIRE + 0.3], [*tip, Z[k] + WIRE + 0.9]], 0.04, 6)
                 K["yl_wire"].sweep([[*P[k], Z[k] + WIRE] for k in R[::2]], [(-0.012, -0.012), (0.012, -0.012), (0.012, 0.012), (-0.012, 0.012)])
             run = []
+    # a bridge's abutments: a wall either side of the street, across under both tracks from the ground to the bed
+    edges = [LineString(offset(t["pts"], s * BED_HALF)) for t in L["tracks"] for s in (-1, 1)]
+    for u in U:
+        for s in (-1, 1):
+            side = u["line"].offset_curve(s * u["hw"])
+            hit = [q for g in edges for q in getattr(side.intersection(g), "geoms", [side.intersection(g)]) if q.geom_type == "Point" and q.distance(Point(*u["at"])) < 60]
+            if len(hit) < 2:
+                continue
+            hit.sort(key=lambda q: side.project(q))
+            a, b = hit[0], hit[-1]
+            mid = Point((a.x + b.x) / 2, (a.y + b.y) / 2)
+            if any(o is not u and o["line"].distance(mid) < o["hw"] - 0.5 for o in U):
+                continue   # (in the next carriageway of the same road: the bridge spans them all, its abutments outside)
+            top = []
+            for q in (a, b):
+                t = min(L["tracks"], key=lambda t: t["geom"].distance(q))
+                top.append(float(t["z"][int(np.argmin(np.hypot(t["pts"][:, 0] - q.x, t["pts"][:, 1] - q.y)))]) - 0.55 - 0.25)
+            z0 = min(u["z"], T(a.x, a.y), T(b.x, b.y)) - 0.3
+            two(K["yl_wall"], [a.x, a.y, z0], [b.x, b.y, z0], [b.x, b.y, top[1]], [a.x, a.y, top[0]])
     return MATERIALS, [m for m in K.values() if m.v]
 
 
