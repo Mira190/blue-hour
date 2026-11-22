@@ -2034,6 +2034,32 @@ Sydney's traffic stood still a third of the time.
         8 s without making half a metre, away from a kerb, a stop or a seat, or four
         so held 5 s within 1.5 m of one another (a knot), and prints the held one's
         last seconds and what held it.
+    - **Nobody stands stuck (the owner at Hachiko, 22 November 2026).** On the walk at 17:41
+      the two nearest of the crowd stood a few metres off for half a minute and more with
+      nothing changing, and read as stuck. Measured (`tools/crowd_still.js`: the walk set out
+      as a player sets out, you on Hachiko square with the chase camera behind, two minutes,
+      the ten nearest each half second): nobody was held. Of the people standing 8 to 16 m
+      from you, waiting at the kerb or standing about the square (`linger`, 25 to 95 s), most
+      were drawn as far copies, the near people's skinned rigs going to the walkers passing
+      closer; and a far copy standing was a statue, its shader's gait at amplitude nought,
+      while the simulation kept each one's heading fixed for the whole stand (the kerb's
+      crowd to the road, one leaning to its wall, one alone as it arrived): ten of the
+      nearest stood 20 to 54 s with the pose and the heading unchanged. From first
+      principles a person waiting is never still in two ways: the weight goes from foot to
+      foot and the head and shoulders turn, and the whole body turns now and then to look
+      along the kerb, for the one awaited, at the lights. So (actors.js `glance`, people.js
+      `CROWD_POSE`): everyone standing (at a kerb, about the square alone, leaning, in a
+      group, at a window or a rail on a footway) turns to a new look every 3 to 11 s, a
+      third of them back to straight ahead, within a span its stand allows (a kerb's crowd
+      26 degrees either way, one leaning 31, one alone waiting 75, a window 17, a rail 34),
+      drawn from its own little sequence so that the crowd's other draws are as they were;
+      a far copy standing (`aAnim.z` -0.25) turns its upper body up to 9 degrees and leans a
+      degree over the foot it stands on, each at a pace of its own; and one standing is
+      counted a quarter nearer when the skinned people are dealt out. After it the same run:
+      the nearest standing turned 15 to 137 degrees and posed 9 to 17. It fails on anyone of
+      the ten nearest stood more than 20 s with the heading turned under 20 degrees and the
+      pose under 6 (SPOTS=all: also QFRONT's kerb, the station's kerb and SHIBUYA SKY's roof;
+      PHONE=1 a phone's page).
     - **Out of the lens's way (issues 82 and 129).** Who still comes near the lens is out of the picture, whole
       (docs/HERO.md, "someone at the lens"); as the talk camera keeps the crowd out of
       its shots, the walkers also keep out of the lens's way, so that fewer need to:
