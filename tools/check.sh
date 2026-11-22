@@ -223,7 +223,7 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
       web/game/game.js) static=1; page; add ride ;;
@@ -466,6 +466,9 @@ run_audio() {
   else echo "FAIL audio  $(grep '^FAIL' "$OUT/audio_shed.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/audio_shed.log)"; fi
   if timeout 120 node tools/snd_probe_check.js >"$OUT/snd_probe.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/snd_probe.log" | cut -c6-)"
   else echo "FAIL audio  the probe of the sound's breaks: $(grep '^FAIL' "$OUT/snd_probe.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/snd_probe.log)"; fi
+  # (a phone's street held while the page is busy and given up on a break, issue 166: docs/SOUND.md "The guard")
+  if timeout 120 node tools/snd_guard_check.js >"$OUT/snd_guard.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/snd_guard.log" | cut -c6-)"
+  else echo "FAIL audio  the street's guard: $(grep '^FAIL' "$OUT/snd_guard.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/snd_guard.log)"; fi
   # (a phone's opening as an iPhone plays it, issue 166: no context until the film is over, the music on media elements, the
   # main thread throttled six times; the story's opening and the walk's)
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 900 $X node tools/opening_audio.js 390x844 >"$OUT/opening_audio.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/opening_audio.log" | cut -c6-)"
