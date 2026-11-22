@@ -3220,6 +3220,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     };
     function backOff(o, t) {
       if (o.stuck === undefined || o.line < 0 || o.boSpent > 6) return false;
+      // (not with your car or a ride close behind it: it would back into a car that cannot be asked to move, be held by it,
+      // and hold it in turn. A bus in Dogenzaka-shita's junction so stood with the autopilot's car 0.6 m behind it until
+      // the car was handed back, issue 167)
+      const hx = Math.sin(o.h), hy = Math.cos(o.h);
+      for (const b of api.extra) {
+        if (!b.half || (b.z != null && Math.abs(b.z - o.z) >= LEVEL)) continue;
+        const a = (b.x - o.x) * hx + (b.y - o.y) * hy, w = -(b.x - o.x) * hy + (b.y - o.y) * hx;
+        if (a < 0 && a > -(o.half + b.half + t + 1.5) && Math.abs(w) < o.hw + (b.hw || 0.9) + 0.3) return false;
+      }
       o.backoff = Math.max(o.backoff || 0, t);
       return true;
     }

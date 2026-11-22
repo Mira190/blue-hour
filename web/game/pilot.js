@@ -261,7 +261,8 @@ window.OEGamePilot = function (g) {
       // a knot in sight within 90 s, actors.js, so the autopilot waits that out before it calls the road blocked. At 75 s
       // it handed the car back one drive in seven on the way to 109, issue 167; and wedged against a car that will not back
       // off, which is the same knot seen from its side, at 30 s)
-      const knot = !!(q.block && q.block.why === 'held');
+      if (q.block && q.block.why === 'held') o.knotAt = g.clockT; // (a knot seen in the last 10 s: its car's reason flickers as it is asked to move)
+      const knot = o.knotAt != null && g.clockT - o.knotAt < 10;
       if (o.stoodT > (knot ? 100 : o.jamT > 0 ? 75 : 110) || q.wedged > 100) { pilotOff('<b>Autopilot:</b> the road ahead is blocked. You have the wheel.', 'blocked'); return null; } }
     // (crawling: under 30 m along its way in 90 s of the clock, red lights not counted, as nose to nose with one car
     // after another on a street one car wide, Fushimi Inari's by junction 51: it takes another way round the street it
