@@ -82,14 +82,14 @@ window.OEMarks = (function () {
         if (p.x < -20 || p.x > w + 20 || p.y < -20 || p.y > h + 20) { out.why = 'off'; return out; }
         const pad = o.pad ?? 14;
         // (a waypoint, o.lift: not hidden by a figure but held just over it, on the same line, as the way's sign must stay
-        // up; at most three figures over one another, and not off the top of the frame)
-        for (let k = 0; k < (o.lift ? 4 : 1); k++) {
+        // up; at most six figures over one another (a crowd at the kerb), and not off the top of the frame)
+        for (let k = 0; k < (o.lift ? 7 : 1); k++) {
           let by = '';
           if (me && o.self !== me && covers(me, p, pad)) by = 'body';
           else if (o.people !== false) for (const b of near) if (b.who !== o.self && (o.self == null || b.who !== o.self.id) && covers(b, p, pad * 0.6)) { by = 'person'; break; }
           if (!by) break;
           stat[by]++;
-          if (!o.lift || k === 3 || cover.top < 20) { out.why = by; return out; }
+          if (!o.lift || k === 6 || cover.top < 20) { out.why = by; return out; }
           p.y = out.y = cover.top; out.lifted = by;
         }
         if (o.solid !== false && solid) {

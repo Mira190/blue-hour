@@ -121,7 +121,7 @@ const REACH = { walk: { story: 18, event: 18, chat: 10, place: 12 }, free: 18, s
     const gm = document.getElementById('g-story-mark');
     if (gm && gm.classList.contains('on') && !gm.classList.contains('off') && g.story) {
       const st = g.story.state, t = st.wayAim ? [st.wayAim[0], st.wayAim[1], st.wayAim[2] + 1.2] : st.target ? [st.target[0], st.target[1], st.target[2] + (/meet|ghost/.test(gm.dataset.kind) ? 0.95 : 0)] : null;
-      if (t) check(`the goal's ${gm.dataset.kind} mark`, gm.querySelector('i').getBoundingClientRect(), t, Math.hypot(t[0] - me.x, t[1] - me.y), /meet|ghost/.test(gm.dataset.kind) ? REACH.story : 0, gm.dataset.kind === 'frame');
+      if (t) check(`the goal's ${gm.dataset.kind} mark`, gm.querySelector('i').getBoundingClientRect(), t, Math.hypot(t[0] - me.x, t[1] - me.y), /meet|ghost/.test(gm.dataset.kind) ? REACH.story : 0, /go|frame/.test(gm.dataset.kind)); // (the way's sign is not asked of the walls: story.js markTick)
     }
     out.veil = g.marks ? g.marks.stat : null;
     return out;

@@ -532,11 +532,13 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       // the player's body (walking to a goal straight ahead, its ring stood on the back of her head) nor anyone nearer the
       // eye. Someone to talk to is hidden by them, as by a wall or a deck. The way's own sign (a place to go, a thing to
       // frame) is what a lost player is given (LOST_S), so it is not taken away by a figure in front of it: it is held
-      // just over the figure, on the same line. Behind a wall it goes, and the light standing over the place shows it over
-      // the roofs. A thing to frame is itself a building, so the walls are not asked of it. At the frame's edge, an arrow
+      // just over the figure, on the same line. Nor are the walls asked of it: it points where the way can be walked straight
+      // from here (ctx.way), so what a ray meets before it is a post, a tree, an awning, never a wall (on the way from Center
+      // Gai to Hachiko a ray at head height took it away from the guide's check); and a thing to frame is itself a building.
+      // At the frame's edge, an arrow
       st.veil = '';
       if (!off && !up && ctx.see) {
-        const way = k === 'go' || k === 'frame', v = ctx.see(pt[0], pt[1], pt[2], { pad: 18, solid: k !== 'frame', key: 'goal', lift: way });
+        const way = k === 'go' || k === 'frame', v = ctx.see(pt[0], pt[1], pt[2], { pad: 18, solid: !way, key: 'goal', lift: way });
         st.veil = v.why; st.lifted = v.lifted || '';
         if (!v.why && v.lifted) { y = Math.max(m + 70, Math.min(y, v.y)); mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`; }
       }
