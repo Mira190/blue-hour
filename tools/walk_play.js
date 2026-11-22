@@ -362,9 +362,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         if (!drawnN) fail('Nagi is not drawn ten minutes after setting out');
         else {
           await beside(4);
-          // (the man's character comes too, then the page's own frames set him off; the game's frames then carry him to her)
+          // (the man's character comes too, then the page's own frames set him off and carry him to her)
           await p.waitForFunction(() => window.__game.walkLine().ph !== 'wait', null, { timeout: 600000, polling: 250 }).catch(() => {});
-          await p.evaluate(async () => { const g = window.__game; for (let i = 0; i < 900 && !/down|up/.test(g.walkLine().ph); i++) { g.frame(0.05); if (i % 10 === 9) await new Promise(r => setTimeout(r, 0)); } });
+          await p.waitForFunction(() => /down|up/.test(window.__game.walkLine().ph), null, { timeout: 600000, polling: 250 }).catch(() => {}); // (the line goes by the page's own frames: seconds each on a software renderer)
           const l = await line();
           if (l.ph !== 'down' || l.at[2] !== 'down') fail(`the walk's line: nobody walked into her, or she is not on the ground (${JSON.stringify(l)})`);
           else {
