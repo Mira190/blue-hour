@@ -935,6 +935,9 @@ def dress_buildings(C, meta, solids, sinfo, bextra, roads, hidden=(), bare=()):
         year = bextra[bi].get("year")
         style = "plain" if parametric else typology.facade_style(R, cls, top_b, floors, area_b, bextra[bi]["facade_material"], m[0], seed,
                                                             overrides, narrow, year=year, width=short_b)
+        if not cls and not parametric and not (m[0] and m[0] in overrides):
+            # (no class: its proportions say what size alone cannot, pipeline/proportion.py)
+            style = typology.by_proportion(style, top_b, floors, area_b, short_b, long_b)
         main_shape, main_src, main_mat = "flat", "rule", None
         eave_main = top_b
         for k in ks:

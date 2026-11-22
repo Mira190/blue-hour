@@ -29,6 +29,7 @@
     "web/game/walk.js",
     "web/game/walktalk.js",
     "web/game/tonight.js",
+    "web/game/regulars.js",
     "web/game/places.js"
    ],
    "checks": [
@@ -44,6 +45,9 @@
      "create"
     ],
     "OEPlaces": [
+     "create"
+    ],
+    "OERegulars": [
      "create"
     ],
     "OEStopFX": [
@@ -160,6 +164,7 @@
      "benches",
      "boxes",
      "crowd",
+     "join",
      "makePerson",
      "network",
      "pick",
@@ -418,10 +423,12 @@
      "murmur",
      "musicBus",
      "muted",
+     "needsTouch",
      "on",
      "pending",
      "place",
      "platformChime",
+     "quiet",
      "rain",
      "reach",
      "road",
@@ -438,6 +445,8 @@
      "thunder",
      "train",
      "trainAt",
+     "tune",
+     "tunes",
      "wind",
      "world",
      "x",

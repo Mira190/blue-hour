@@ -30,6 +30,54 @@ window.OECompanion = (function () {
   // animal, is held off the player by its own size. Until then, the Akita's (blender/build_dog.py: 0.52 m behind where
   // he stands to 0.72 m in front)
   const SPINE = [-0.33, 0.53], FLANK = 0.19, PLAYER_R = 0.35;
+  const THIN_PX = 0.6; // a strand thin() draws is never narrower than this many pixels either side of its middle
+
+  // His whiskers (any strand a fraction of a pixel across): drawn at least a pixel wide, as faint as the part of that
+  // pixel they really cover ("phone-wire anti-aliasing", Emil Persson, 2011: the method, no code). Without
+  // multisampling, as a phone draws, a strand narrower than a pixel falls between the pixels' centres and comes out as
+  // broken dark dots: his cheeks were speckled on an iPhone and clean on a desktop (November 2026). A strand is a tube
+  // of rings of three (blender/build_dog.py muzzle_whiskers); each vertex's ring is the two vertices nearest it (a ring
+  // is a fraction of a millimetre across, the rings a centimetre apart along it), and its offset from the ring's middle
+  // is what the vertex shader stretches, after the skin has posed it, until the tube is THIN_PX either side.
+  function thin(o) {
+    const g = o.geometry, P = g.attributes.position, n = P.count, off = new Float32Array(n * 3);
+    const X = new Float32Array(n), Y = new Float32Array(n), Z = new Float32Array(n);
+    for (let i = 0; i < n; i++) { X[i] = P.getX(i); Y[i] = P.getY(i); Z[i] = P.getZ(i); }
+    for (let i = 0; i < n; i++) {
+      let a = i, b = i, da = Infinity, db = Infinity;
+      for (let j = 0; j < n; j++) {
+        const d = (X[j] - X[i]) ** 2 + (Y[j] - Y[i]) ** 2 + (Z[j] - Z[i]) ** 2;
+        if (d < 1e-16) continue; // (itself, or a copy of it where the file split a vertex)
+        if (d < da) { db = da; b = a; da = d; a = j; } else if (d < db) { db = d; b = j; }
+      }
+      off[3 * i] = X[i] - (X[i] + X[a] + X[b]) / 3; off[3 * i + 1] = Y[i] - (Y[i] + Y[a] + Y[b]) / 3; off[3 * i + 2] = Z[i] - (Z[i] + Z[a] + Z[b]) / 3;
+    }
+    g.setAttribute('thinOff', new THREE.BufferAttribute(off, 3));
+    const m = o.material, U = { thinH: { value: 1 } }, before = m.onBeforeCompile, vp = new THREE.Vector4();
+    o.onBeforeRender = r => { r.getCurrentViewport(vp); U.thinH.value = vp.w; }; // (the height drawn to, in pixels)
+    o.castShadow = false; // (a fraction of a texel of the shadow map: speckles on the cheek under it)
+    Object.assign(m, { transparent: true, depthWrite: false });
+    m.userData.thin = true;
+    m.customProgramCacheKey = () => 'oe-thin';
+    m.onBeforeCompile = (sh, r) => {
+      if (before) before(sh, r);
+      sh.uniforms.thinH = U.thinH;
+      sh.vertexShader = 'attribute vec3 thinOff;\nuniform float thinH;\nvarying float vThinCover;\n' + sh.vertexShader.replace('#include <skinning_vertex>', `#include <skinning_vertex>
+	{
+		vec3 tOff = thinOff;
+		#ifdef USE_SKINNING
+			tOff = ( bindMatrixInverse * ( skinWeight.x * boneMatX + skinWeight.y * boneMatY + skinWeight.z * boneMatZ + skinWeight.w * boneMatW ) * bindMatrix * vec4( tOff, 0.0 ) ).xyz;
+		#endif
+		vec3 tMid = transformed - tOff;
+		float tDepth = max( 1e-4, -( modelViewMatrix * vec4( tMid, 1.0 ) ).z );
+		float tPx = length( ( modelViewMatrix * vec4( tOff, 0.0 ) ).xyz ) * projectionMatrix[ 1 ][ 1 ] * 0.5 * thinH / tDepth;
+		transformed = tMid + tOff * max( 1.0, ${THIN_PX.toFixed(2)} / max( tPx, 1e-6 ) );
+		vThinCover = min( 1.0, tPx / ${THIN_PX.toFixed(2)} );
+	}`);
+      sh.fragmentShader = 'varying float vThinCover;\n' + sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n\tdiffuseColor.a *= vThinCover;');
+    };
+    m.needsUpdate = true;
+  }
   // route(x, y, z, tx, ty) -> [[x, y, z], ...] | null: the way on foot (route.js ways.walk), so that it leads along the
   // footways and over the crossings and not in a straight line into a wall
   // edge(x, y, z, fromX, fromY): is that past the edge of the way (a wall, a drop, a well, the carriageway beyond a kerb,
@@ -73,6 +121,7 @@ window.OECompanion = (function () {
         // (it carries a little light of its own, as whoever moves in a stopped world does: a dark coat on a wet night
         // street is not lost among the people standing in it)
         o.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * 0.3;'); };
+        if (/whisker/i.test(o.material.name || '')) thin(o);
         mats.push(o.material);
       });
       // (his size from the model's own bounds: the length along +x, the width across it; the head and the tail are the
@@ -141,6 +190,13 @@ window.OECompanion = (function () {
     // He was steered round the player only while he led or kept at heel, as a pull on his way, and never stood off
     // them at all: the player walked through him where he sat beside the camera's light, and he through their legs.
     // Where a wall holds him and he cannot go, `jammed` says so, and the player stops at his flank (game.js).
+    // The rule, where he is pushed against a wall with nowhere to make way (issues 133 and 138): neither body enters
+    // the other. His capsule (his spine and his flank) and the player's circle may touch and never overlap: whatever
+    // of the push the wall kept from him, the player is stopped short by, in the same frame, and a step or a turn
+    // of his own that would end inside the player's circle with the wall still holding him is not taken (tick).
+    // He was let 3 cm into the player before he said he was held, and walked or turned further in on his own tick:
+    // the check's margin was that same 3 cm, so a run passed or failed by where the crowd he plans round stood.
+    const TOUCH = 0.002; // (m: what two bodies set down against each other may differ by, the solver's own)
     function spineNear(px, py) {
       const hx = Math.cos(s.h), hy = Math.sin(s.h), a0 = body.spine[0], a1 = body.spine[1];
       const t = Math.max(a0, Math.min(a1, (px - s.x) * hx + (py - s.y) * hy));
@@ -165,6 +221,12 @@ window.OECompanion = (function () {
       if (slide) { const m = slide(s.x, s.y, s.z, mx, my); s.x = m.x; s.y = m.y; } else { s.x += mx; s.y += my; }
       return Math.hypot(s.x - x0, s.y - y0) < 0.5 * Math.hypot(mx, my);
     }
+    // how far his capsule is off the player's circle now (m, less than nothing inside it; a floor apart or the player not on foot: far)
+    function offPlayer() {
+      if ((player.mode && player.mode !== 'foot') || (player.z != null && Math.abs((s.z ?? player.z) - player.z) > 1.5)) return Infinity;
+      const [cx, cy] = spineNear(player.x, player.y);
+      return Math.hypot(cx - player.x, cy - player.y) - (PLAYER_R + body.flank);
+    }
     function keepOff(dt) {
       s.jam = false;
       if (player.mode && player.mode !== 'foot') return;
@@ -181,7 +243,7 @@ window.OECompanion = (function () {
         const sx = -my, sy = mx;
         for (const g of [1, -1]) { if (!slide) break; const m = slide(s.x, s.y, s.z, sx * g, sy * g); if (Math.hypot(m.x - s.x, m.y - s.y) > 0.5 * Math.hypot(mx, my)) { s.x = m.x; s.y = m.y; break; } }
       }
-      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - 0.03;
+      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - TOUCH;
       if (bonesOff(px, py)) s.jam = true;
       // (sitting, standing or waiting where he was: up, a pace aside out of the way they are going, and down again)
       // (not for a brush, where he only shifts: the film of him coming sits him close beside you)
@@ -317,11 +379,14 @@ window.OECompanion = (function () {
       if (s.to) replan();
     }
     // its coat's opacity: faded in where it appears, out where it goes (opaque again when whole, so that it sorts as a solid)
-    function shade(a) { for (const m of mats) { m.transparent = a < 1; m.opacity = a; m.depthWrite = a > 0.5; } }
+    // (a strand thin() draws is always blended: its opacity is how much of a pixel it covers)
+    function shade(a) { for (const m of mats) { m.transparent = a < 1 || !!m.userData.thin; m.opacity = a; m.depthWrite = a > 0.5 && !m.userData.thin; } }
     function tick(dt) {
       if (s.state === 'away') return;
       s.t += dt;
       const px = player.x, py = player.y;
+      // (where he is and how far off the player as the tick begins: what it may not end further inside of, keepOff's rule)
+      const x0 = s.x, y0 = s.y, h0 = s.h, gap0 = offPlayer();
       // (the player in a car, a lift, the air: he is not seen, and is at their heels again when they are on foot)
       // (the player in a car, a lift, the air: it fades where it stood, and is at their heels again when they are on foot)
       // (a lift he rides with you, at your side in the car: gone at the bottom and found at the top, he was a dog that
@@ -410,6 +475,8 @@ window.OECompanion = (function () {
         if (left < 0.3 || s.fade <= 0) { s.state = 'away'; root.visible = false; if (s.done) { const d = s.done; s.done = null; d(); } return; }
       }
       keepOff(dt);
+      // (held by a wall and further into the player than he began: his own step or turn did it, and it is not taken)
+      if (s.jam && (s.x !== x0 || s.y !== y0 || s.h !== h0)) { const g1 = offPlayer(); if (g1 < -TOUCH && g1 < gap0) { s.x = x0; s.y = y0; s.h = h0; s.speed = 0; } }
       s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)
@@ -478,5 +545,5 @@ window.OECompanion = (function () {
     };
     return api;
   }
-  return { create };
+  return { create, thin }; // (thin: for tools/coat_shot.js, which draws his model as this draws it)
 })();
