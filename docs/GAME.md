@@ -176,6 +176,11 @@ Every city's game has the same three ways to go by road:
   button at the wheel steps through them (lane keeping, both, none), and **Run** is
   the autopilot's **Auto**.
 
+The streets are planned (docs/ROADS.md): every end of the road network is a gate where the street leaves the
+map, a dead end or a closure; traffic is made only on streets that lead from a gate to a gate, out of your
+sight, and never turns into a cul-de-sac; buses keep to the streets Shibuya's bus routes take; and a street the
+model stands across is out of the traffic's roads and the route line's.
+
 The streets round you have somewhere to go. Most cars are on a trip, into town in
 the morning and out to the map's edges in the evening, so the main roads carry more
 than the back streets; cars stand parked along the kerbs that have room, pull in at

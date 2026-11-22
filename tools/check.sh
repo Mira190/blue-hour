@@ -53,6 +53,11 @@
 #           played as an iPhone, every convolver on the live context within WebKit's realtime limit, one context, no
 #           worklet (tools/phone_audio.js);
 #           when the sound changes;
+#   roads   the road plan in the game (docs/ROADS.md, issue 167): the traffic watched for three minutes from two kerbs
+#           (none made on a quiet street, at a wall or within 120 m, buses on bus streets, no vehicle inside another,
+#           none stood for good: tools/road_traffic_watch.js) and the walk's drive to 109 on the autopilot from three
+#           starts (tools/road_drive.js); when the traffic, the drivers, the junctions or the plan change. The plan
+#           itself is held with the static checks (pipeline/road_plan.py --check)
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
 #   clip    what passes through what in the free game, ?walk=1 (tools/clip_check.js);
@@ -107,8 +112,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride story story1 story2 story3 budget storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
-ALL="look hold launch story storyp storyl budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -145,7 +150,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 600 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
@@ -220,7 +225,9 @@ else
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
-      web/game/cars.js|web/game/actors.js|web/game/game.js) static=1; page; add ride ;;   # (the drivers, the cars, the crowd)
+      web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
+      web/game/game.js) static=1; page; add ride ;;
+      web/game/junctions.js|web/game/rides.js|web/game/pilot.js|web/game/autopilot.js|cities/$MAP/road_plan.json|cities/$MAP/road_measured.json|cities/$MAP/roads_osm.json|pipeline/road_plan.py|cities/$MAP/rail.py) static=1; [ "${f#web}" != "$f" ] && page; add roads ;;   # (the road plan and what drives by it)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
@@ -413,6 +420,21 @@ walk_on() {
     said="${said:+$said and }$(grep -c '^ok' "$OUT/walk-$d.log") $([ "$d" = 390x844 ] && echo "beats on a phone's page" || echo "beats on a desktop's page")"
   done
   [ $ok -eq 1 ] && echo "ok   walk   $said: two ways in, the hour and the sky, out with no story"
+  return 0
+}
+run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched from two kerbs, and the walk's drive to 109 from three starts
+  local ok=1
+  if ! GAME_TIME=${GAME_TIME:-17:57} timeout 1500 $X node tools/road_traffic_watch.js "$MAP" 3 >"$OUT/roads-watch.log" 2>&1; then ok=0; echo "FAIL roads  the traffic: $(grep '^FAIL\|pageerror' "$OUT/roads-watch.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-watch.log)"; fi
+  # (the drives with the traffic running, as the clip and the game check are: a second run when one fails, and a failure
+  # only where the same start fails both times; else FLAKY, which main lists under check-flaky. Issue 175: the autopilot
+  # and a bus in Dogenzaka-shita's junction under the expressway can still stand each waiting on the other)
+  drive() { GAME_TIME=${GAME_TIME:-17:57} TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
+  if ! drive; then
+    cp "$OUT/roads-drive.log" "$OUT/roads-drive-first.log"
+    if drive; then echo "ok   roads  the drive to 109 from three starts   (the second run; the first: $OUT/roads-drive-first.log)"
+    else ok=0; twice roads "$OUT/roads-drive-first.log" "$OUT/roads-drive.log" | sed 's/^FLAKY roads/FLAKY roads  the drive to 109:/; s/^FAIL roads/FAIL roads  the drive to 109:/'; fi
+  fi
+  [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their streets, none inside another; 109 reached from three starts"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
@@ -614,6 +636,7 @@ rm -rf "$OUT/keep"
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
+    st roads roadplan - '^FAIL|Error' python3 pipeline/road_plan.py --city "$MAP" --check
     st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
