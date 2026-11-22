@@ -3088,6 +3088,18 @@ def hoarding(K, ring, site, standing=(), notice=None, height=3.0, bay=4.0):
     keep = lambda a, b: not any(g.contains(Point(*((a + b) / 2))) for g in standing)
     bays = levels.stepped(ring, levels_ground(), height, bay=bay, closed=True, keep=keep, kind="hoarding")
     levels.walls(W, bays)
+    # what the panels are held by, where the rule puts it: a steel post at every joint (the taller of the two tops
+    # that meet there, so a step of the top is a post's, not a notch in a sheet), and a kickboard along the foot, level with its bay's top
+    # (measured down from it: read up from the ground it had teeth of its own, which tools/levels_check.py found)
+    S, Kb = K("steel"), K("concrete")
+    for xy, foot, top in levels.posts(bays):
+        S.tube([np.array([*xy, foot]), np.array([*xy, top + 0.06])], 0.055, 4)
+    for b in bays:
+        f = (b.b - b.a) / float(np.linalg.norm(b.b - b.a))
+        n = left_of(f) * 0.03
+        for sgn in (1.0, -1.0):
+            p, q = (b.a + n * sgn, b.b + n * sgn) if sgn > 0 else (b.b + n * sgn, b.a + n * sgn)
+            Kb.quad(np.array([*p, b.foot]), np.array([*q, b.foot]), np.array([*q, b.top - height + 0.3]), np.array([*p, b.top - height + 0.3]))
     for k, b in enumerate(bays):
         f = (b.b - b.a) / float(np.linalg.norm(b.b - b.a))
         m = (b.a + b.b) / 2

@@ -298,7 +298,9 @@ thirty is drawn). So:
   buildings or the landmarks' feet, `tools/job.sh run regrade -- tools/regrade.sh` makes the levels again in the order
   they depend on each other (the grading, the four passes below, the
   landmarks, the packs) and ends on `tools/levels_check.py`.
-- After a step that writes `buildings.json`, four passes keep what the map's raw data lacks:
+- After a step that writes `buildings.json`, first `python pipeline/proportion.py --city shibuya` (a building with
+  no class styled by its proportions: a long low footprint is a shed or a walk-up block, not a house; docs/BUILDINGS.md),
+  then four passes keep what the map's raw data lacks:
   `python pipeline/stations.py --city shibuya` (Japan's stations in panel and glass, and piers under a
   building that stands off the ground), `python pipeline/lobby.py --city shibuya` (a lift's street
   door set inside its building: `game.lobbies` in `cities/shibuya/city.json`),

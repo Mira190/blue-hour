@@ -10,6 +10,7 @@ C=${1:-shibuya}
 n=0
 while :; do
   python3 pipeline/street_ground.py --city "$C" --force >/dev/null
+  python3 pipeline/proportion.py --city "$C"
   python3 pipeline/stations.py --city "$C"
   python3 pipeline/lobby.py --city "$C"
   [ -f "cities/$C/scrsq_base.py" ] && python3 "cities/$C/scrsq_base.py" >/dev/null
