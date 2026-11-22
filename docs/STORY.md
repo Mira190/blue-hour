@@ -768,6 +768,28 @@ on the line, it was set down on five people waiting by Hachiko (#50). A ride com
 is put down by the same test. The frame goes on where it sets you down, or where you walk to
 (`tools/story_ride.js` takes it; `tools/ride_people.js` times it).
 
+**The car always comes, or the frame goes on on foot (issue 97).** In three runs of the checks the car sent for you
+stood in view and never came: 6.2 m inside the car ahead, giving way to a car across its nose at 0.6 m, waiting at a
+line for a junction to clear. One cause was under all three. Out of the player's sight a ride drives through the
+traffic, and a car coming for you, on the move, is driven into by it (it is `soft` to the traffic, so that it comes in
+good time), so it could come into sight inside a car, or be stopped in one. From then on neither moved: the ride never
+steps further into a car, the traffic never into a ride, the car in its box kept the junction from clearing, and the
+three reasons took turns, each setting the others' clocks back (`held` at a line, the 8 s and 12 s creeps on a car
+across), so nothing that counted seconds ran out. The hop that moves a late car on is for out of view only. Now
+(`rides.js` `driverStep`):
+
+- seen again, a ride goes on as it went unseen until it is clear of every car (`thru`), and only then reads the traffic;
+- coming for you and 20 s without 3 m gained (`COME_STILL`, counted by `stillT`, which no change of reason sets back),
+  it goes on so too, lights and all, for 10 m and until it is clear: late through a knot, never not at all. A red
+  light, a walk and people on its way are waited out for 75 s first (`COME_WAIT`); people are never driven into, nor a
+  scramble's walk;
+- and whatever the traffic does, the story has its own bound: a car that has not pulled in within a minute and a half
+  (`ride.wait_s`, 90) is sent on its way, the frame says *The car is held up · on foot, then*, and the goal is the
+  frame's own, as for whoever chose to walk (`story.js`, the ride beat).
+
+`tools/ride_come.js` sends for the car again and again and prints what each stood for; `FORCE=overlap` puts it inside a
+car of the traffic on its way, in sight, and `FORCE=hold` holds it for good, which the story's bound must end.
+
 **What is in the air is there before it stops.** Leaves come off the street's trees all evening, a page of an old
 newspaper goes by, a flock of pigeons passes over every quarter minute; the Stop holds them where they are and
 adds only the ring, the tone and, in rain, the rain. Nothing appears at the moment of the Stop.
@@ -1434,6 +1456,29 @@ steal); *Mafia: Definitive Edition*'s Free Ride and *Cyberpunk 2077*'s own car c
 *Red Dead Redemption 2*'s horse that comes when whistled but is otherwise where you left it (the car stays where it is
 parked); *Forza Horizon*'s and the flight simulators' instruments reduced to what the moment needs (one line under the
 hour); the contextual prompts already used by the story (shown when the action is possible).
+
+**The walk's menu and its camera (issue 147, November 2026).** The launch review of the walk (issue 134) found its
+menu to be the old free game's settings panel under a good head: headed "Paused", a paragraph before the first button,
+eight hours, a slider and the browser's own date field, ten weathers, the clock's speed, who is played, the crowd and a
+table of every key, two and a half screens long on a phone with the hour and the sky under the fold. It is now the
+story's own screen (`web/game/walk.js` `menuMake`, `web/game/story.css` "the walk's menu"), in the title's Options'
+tokens: headed Walk Shibuya over the hour in the display face, the place, the date and the sky; then the hour and the
+sky as the step before setting out offers them (Blue hour, Night, Now; Clear, Rain), with **Any hour, any sky** one
+level down (a slider for the minute of the same evening, seven skies); Continue, your car to the kerb and the way into
+the story; **Options** (the sound, the words' size and backing, the frame rate), **Keys** or **Controls** (the walk's
+own: on foot, the car, the helicopter, the seat) and Credits folded under them; beside these, the walk's stories and
+tonight's timetable. The page's one sound switch, frame rate and words' sizes are moved into it, each with its one
+handler. The date, the clock's speed, who is played, the crowd, live weather and the old table of keys stay in the
+map's panel, which is `?walk=1`'s.
+
+The camera's panel lay over the lower two fifths of a phone held upright and three fifths of one on its side. By touch
+the frame is now the photograph's: the shutter is the story's own round button under the right thumb, Done and Adjust
+stand at the head of the frame, the lens's settings (the hour, the lens, the aperture, the distance; Turntable, Grid,
+Show me) are a strip under them that is put away until Adjust is pressed, and the stick stays to move the camera.
+`tools/ui_fit.js` and `tools/walk_play.js` fail photo mode when its controls paint over more than a fifth of a
+desktop's frame, a sixteenth of a phone's with the settings away or a quarter with them out, or when any of them lies
+over the centre cell of the thirds. Stills: `docs/images/issue-147-phone.jpg`, `issue-147-side.jpg`,
+`issue-147-desk.jpg`. Not checked: a real phone's safe areas, Safari, iOS.
 
 **Your car in plain sight (November 2026).** The owner found the car's call too well hidden: it was a line in the menu,
 and a player who did not open the menu never learnt the car would come. Now it is the first of the walk's buttons at the

@@ -240,7 +240,7 @@ window.OpenEarthGame = async function game(cityId) {
     root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) { ms.push([o, o.layers.mask]); o.layers.set(30); } });
     root.visible = true;
     const put = () => { root.visible = was; for (const [o, m] of ms) o.layers.mask = m; };
-    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
+    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { late: true, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
   };
   // the weather: dry, overcast, drizzle or rain, as the city's climate brings it for the date (weather.js)
   // a far land that reaches past the default far plane (Kamakura's, out to Mount Fuji at 70 km): the camera takes it in
@@ -4060,6 +4060,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       photo.focus.copy(live.look); photo.anchor.copy(live.look);
       Object.assign(photo, { az: p.az, pitch: Math.atan2(p.h, Math.max(0.1, p.dist)), dist: Math.max(6, camera.position.distanceTo(live.look)), fov: camera.fov, turn: false });
       $('#ph-turn').setAttribute('aria-pressed', 'false');
+      $('#g-photo').classList.remove('adj'); $('#ph-adj').setAttribute('aria-expanded', 'false');
       photoSync();
     } else {
       player.rig.root.visible = true;
@@ -4151,6 +4152,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on($('#ph-me'), 'click', e => { const v = !player.rig.root.visible; player.rig.root.visible = v; e.currentTarget.setAttribute('aria-pressed', String(v)); });
   on($('#ph-snap'), 'click', snapPhoto);
   on($('#ph-done'), 'click', () => photoMode(false));
+  // (on a phone the lens's settings are a strip put away until asked for: the frame is the photograph's)
+  on($('#ph-adj'), 'click', e => { const o = !$('#g-photo').classList.contains('adj'); $('#g-photo').classList.toggle('adj', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
   on($('#g-photo-btn'), 'click', () => photoMode(true));
   on($('#gc-snap'), 'click', snapPhoto);
   on($('#gc-done'), 'click', closeupEnd);
@@ -4161,7 +4164,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); } }
+  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); if (walk && walkUi && walkUi.menuSync) walkUi.menuSync(true); } }
   // the story's own pause (issue 114): the frame the case is at, the words' size as the log has it, and the case begun
   // again, asked twice (the frames taken are lost with it)
   function caseSync() {
@@ -5545,6 +5548,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
       key: k => (gamepad ? gamepad.label(k) : k),
       menu: () => toggleMenu(), photo: () => photoMode(true),
+      // (from the walk's menu: one of its hours, one of its skies, or any minute of the same evening)
+      dress: sp => { if (sp.t === 'live') presetTime('live'); else if (sp.t) { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); } else if (sp.min != null) setClock(clock.y, clock.m, clock.d, sp.min); if (sp.w && weather) weather.set(sp.w, { now: true }); if (walk) Object.assign(walk, sp.t ? { t: sp.t } : sp.w ? { w: sp.w } : { t: 'any' }); menuSync(); },
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
