@@ -469,7 +469,8 @@ window.OEWalkTalk = (function () {
       for (const s of places) {
         const id = `place:${s.id}`, d = Math.hypot(s.x - me.x, s.y - me.y);
         if (hide || d > PLACE_M || d < 1.2 || Math.abs((s.z || 0) - (me.z || 0)) > 3 || me.mode !== 'foot') { fade(marks.get(id), '0'); continue; }
-        const p = at(s.x, s.y, (s.z || 0) + 1.5, { pad: 16, key: id, people: true }), e = mark(id);
+        // (a place is a sign, as the story's way is: held just over a figure in front of it, not hidden, marks.js lift)
+        const p = at(s.x, s.y, (s.z || 0) + 1.5, { pad: 16, key: id, lift: true }), e = mark(id);
         if (!p || !sight(id, { x: s.x, y: s.y, z: (s.z || 0) - 0.1 })) { fade(e, '0'); continue; }
         if (e._k !== 'place') { e._k = 'place'; e.dataset.k = 'place'; }
         const name = d < PLACE_NAME_M ? s.label : '';
