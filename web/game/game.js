@@ -6109,10 +6109,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       carsHeld = false;
       lateOn = Promise.all([...people, carsIn(), treesIn()]);
     } else {
-      const breath = () => new Promise(r => setTimeout(r, 250));
+      // (and none of it under the opening's film, before any step or any one of the people: the city seen whole from the
+      // air is the most a phone holds, and what came in beside it was the step its GPU died on, eight seconds into the
+      // walk's opening, the near trees; the owner heard the music break into a loud noise with it, as WebKit draws and
+      // plays media in one process. The chain begins behind the title, and went on into the film when it began. The film
+      // needs none of it from up there, and the far models stand in until it is over: issues 118 and 166)
+      const clearOfFilm = async () => { if (!(overture && overture.active)) return; loadStep('late after the film'); while (overture && overture.active) await new Promise(r => setTimeout(r, 400)); };
+      const breath = () => new Promise(r => setTimeout(r, 250)).then(clearOfFilm);
       lateOn = (async () => {
+        await clearOfFilm();
         loadStep('late people');
         for (const n of near()) { await npcLoad(n); await breath(); }
+        await clearOfFilm();
         loadStep('late cars');
         carsHeld = false;
         await carsIn(); await breath();

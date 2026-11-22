@@ -37,7 +37,9 @@ const [,, size = '390x844'] = process.argv;
   }, DRAW);
   // the readings, taken in the page so that a slow harness loses none
   await p.addInitScript(() => {
-    const R = window.__snd = { rows: [], phase: 'load' };
+    const R = window.__snd = { rows: [], phase: 'load', steps: [] };
+    // (each step of the load as game.js marks it, and whether the opening's film was on as it began)
+    try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.name === 'oe:step' && e.detail) { const g = window.__game, o = g && g.overture && g.overture(); R.steps.push({ step: e.detail.step, t: e.startTime, film: !!(o && o.active) }); } }).observe({ type: 'mark' }); } catch (e) { /* no observer */ }
     setInterval(() => {
       const A = window.OEAudio; if (!A) return;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
@@ -86,6 +88,12 @@ const [,, size = '390x844'] = process.argv;
   await p.waitForTimeout(3000);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   const R = await p.evaluate(() => window.__snd.rows);
+  // (and none of the late parts fetched under the film: what came in beside the city seen whole from the air was the step
+  // an iPhone's GPU died on, eight seconds into the walk's opening, its music breaking into a loud noise: issues 118 and
+  // 166, game.js afterPlayable)
+  { const S = await p.evaluate(() => window.__snd.steps || []), under = S.filter(s => s.film && /^late (people|cars|trees|pictures|in)$/.test(s.step));
+    console.log(`the load's steps: ${S.map(s => `${s.step} at ${(s.t / 1000).toFixed(1)} s${s.film ? ' (in the film)' : ''}`).join(', ')}`);
+    if (under.length) fail(`the late parts fetched under the opening's film: ${under.map(s => s.step).join(', ')}`); }
   const by = ph => R.filter(r => r.phase === ph), film = by('film'), before = R.filter(r => r.phase === 'load' || r.phase === 'title' || (r.phase === 'film' && r.film)), ended = R.filter(r => r.phase === 'film' && !r.film && r.ctx !== null), last = R[R.length - 1], f0 = film[0] || last, f1 = film[film.length - 1] || last;
   const withCtx = before.filter(r => r.ctx !== null).length;
   console.log(`readings: ${R.length} (load ${by('load').length}, title ${by('title').length}, film ${film.length}, after ${by('after').length})`);
