@@ -723,13 +723,15 @@ long hair is part of its head's mesh, a shell down the back, and the cards only 
   node a hundredth the size and turned. Once a model had been in a scene the skull was sixty units over the pelvis,
   every vertex was "a metre and a half off the skull", and no vertex of the head was marked: Kagami's back was the
   avatar's grey painted shell with plain shading, a hood. Now through the inverse of the bind matrix (`bindInv`).
-  `tools/story_play.js` fails a play in which the head's mesh has no hair marked.
+  `tools/hair_probe.js` prints, for the one you play, how many of the head's vertices are marked as hair and how
+  many are its hem's loose ends, and fails when none is marked (it is not one of `tools/check.sh`'s checks yet).
 - **With the strands on, black hair was silver.** The lobes were tuned on the cards, which are wisps; on a whole
   surface under a dusk sky they lit all of it. The head's hair and the cards take them at half.
 - **The hem was one smooth edge.** `hemFringe` hangs loose ends from the lowest hair all round a head whose hair
   falls below the jaw: two layers of narrow strips in the same mesh and material (their vertices carry the hem's
   texel, joints and strand number; `hairTR.w` runs from 0 where a strip leaves the hair to -1 at its tip), cut
-  strand by strand in the fragment shader so each ends at a length of its own. For Kagami 120 vertices and 80
+  strand by strand in the fragment shader so each ends at a length of its own. The shell's inner side at the hem,
+  which showed as a pale band, takes the root's shade. For Kagami 120 vertices and 80
   triangles; no picture, no draw call, no pass, so every tier has it and a phone's memory is as it was.
 
 Surveyed for it, and what was taken (ideas only; no code or asset copied):

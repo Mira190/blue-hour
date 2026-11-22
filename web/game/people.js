@@ -986,14 +986,14 @@ ${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - 
       const h = q.dot(up);
       if (h > -0.14 * u) continue;
       n.fromBufferAttribute(Nn, i); q.addScaledVector(up, -h);
-      if (n.dot(q) <= 0) continue; // (the side that faces the neck)
+      if (n.dot(q) <= 0) { TR.setW(i, 1); continue; } // (the side that faces the neck: the shell's inside, in the hair's own shade, as dark as a root; it showed as a pale band round the hem)
       const b = Math.round(SKa.getX(i) / 3), e = low.get(b);
       if (!e || h < e.h) low.set(b, { i, h, s: SKa.getX(i) });
     }
     const hem = [...low.values()].sort((a, b) => a.s - b.s);
     if (hem.length < 3) return 0;
     const edges = [], a3 = new THREE.Vector3(), b3 = new THREE.Vector3();
-    for (let k = 0; k + 1 < hem.length; k++) { a3.fromBufferAttribute(P, hem[k].i); b3.fromBufferAttribute(P, hem[k + 1].i); const el = a3.distanceTo(b3); if (el < 0.06 * u && Math.abs(b3.sub(a3).dot(up)) < 0.55 * el) edges.push([hem[k].i, hem[k + 1].i]); } // (the hem across the strands, not the side of a lock, where a strip hung down beside the hair as a flat slab)
+    for (let k = 0; k + 1 < hem.length; k++) { a3.fromBufferAttribute(P, hem[k].i); b3.fromBufferAttribute(P, hem[k + 1].i); if (a3.distanceTo(b3) < 0.06 * u) edges.push([hem[k].i, hem[k + 1].i]); }
     if (!edges.length) return 0;
     // two layers, each edge a strip of three rows (root, middle, tip), drawn from both sides
     const LAYERS = [{ out: 0.003, len: 0.07, seed: 0 }, { out: -0.004, len: 0.045, seed: 53 }];
