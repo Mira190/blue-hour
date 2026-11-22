@@ -1000,10 +1000,22 @@ window.OEBuildings = (function () {
       // the photo, a little softened and leaned towards the roof's median colour: close up a 1 m photo is noise
       // (round a hero level the roof is its own colour: the photo's blur, shadows and lean were blotches there, issue 87)
       base = mix(base, photoGrade(texture2D(uPhoto, uv, 1.0).rgb) * 0.92, 0.65 * (1.0 - photoZone(vWPos)));
-    } else {
-      float fwd = max(fwidth(vFac.x), 1e-3);
-      base *= 0.9 + 0.2 * mix(vnoise(vFac * 0.35 + bidH), 0.5, smoothstep(0.7, 1.7, fwd));
-      base *= 1.0 - 0.08 * (1.0 - pulse(vFac.x / 1.2, 0.02, 0.98, max(fwd / 1.2, 0.02)));
+    }
+    // What the deck is made of, where the photograph is not its colour (round a hero level, and on a tower): from the
+    // air every flat roof was one grey lid (issue 148). A Tokyo roof is one of three things, and each has its tone and
+    // its joints for a cause: a waterproofing sheet or coating (grey, the green urethane of half the city's small
+    // roofs, or a pale reflective coat: the building's own choice), laid in runs 1.2 m wide; a ballasted roof, the
+    // warm grey of its gravel, with nothing to rule it; a protective concrete slab, cut by its expansion joints into
+    // 3 m bays. No tone is laid over any of them, and a joint finer than a pixel settles to its mean.
+    float mk = (uPhotoOn > 0.5 && mod(floor(vExt.y / 16.0 + 0.03), 2.0) > 0.5) ? photoZone(vWPos) : 1.0;
+    if (mk > 0.0) {
+      float m = floor(vExt.z + 0.5), pick = fract(bidH * 0.37);
+      vec3 mc = m > 1.5 ? vec3(0.34, 0.34, 0.325) : m > 0.5 ? vec3(0.31, 0.29, 0.255)
+        : pick < 0.5 ? vec3(0.27, 0.285, 0.285) : pick < 0.82 ? vec3(0.225, 0.29, 0.24) : vec3(0.42, 0.435, 0.43);
+      vec2 fwd = max(fwidth(vFac), vec2(1e-3));
+      float joint = m > 1.5 ? 1.0 - pulse(vFac.x / 3.0, 0.012, 0.988, max(fwd.x / 3.0, 0.004)) * pulse(vFac.y / 3.0, 0.012, 0.988, max(fwd.y / 3.0, 0.004))
+        : m > 0.5 ? 0.0 : 0.5 * (1.0 - pulse(vFac.y / 1.2, 0.015, 0.985, max(fwd.y / 1.2, 0.008)));
+      base = mix(base, mix(base, mc, 0.8) * (1.0 - 0.35 * joint), mk);
     }
     diffuseColor.rgb = base;
     roughB = 0.88; aoW = 0.95;

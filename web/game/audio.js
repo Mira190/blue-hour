@@ -61,6 +61,7 @@ window.OEAudio = (function () {
   const madeFns = [];
   const allowed = () => !IOS || !navigator.userActivation || navigator.userActivation.isActive;
   const wake = () => {
+    tuneUnlock();
     if (!ctx) { if (want && !muted) start(); return; }
     if (!muted && !document.hidden && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().then(() => { away = false; }, () => {});
   };
@@ -74,6 +75,7 @@ window.OEAudio = (function () {
   // is an audio thread beside the page being played (the owner's iPhone, 21 November 2026, had two tabs of the story
   // open when the sound of the one in front broke).
   document.addEventListener('visibilitychange', () => {
+    tuneSync();
     if (!document.hidden) { wake(); return; }
     if (ctx && ctx.state === 'running') { away = true; ctx.suspend().catch(() => {}); }
   });
@@ -83,7 +85,7 @@ window.OEAudio = (function () {
     if (ctx) { wake(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    if (!allowed()) { want = true; return; }
+    if (!allowed() || quietOn) { want = true; return; } // (quietOn: a phone's opening, below "music outside the context")
     want = false;
     ctx = new AC();
     main = ctx.createGain(); main.gain.value = muted ? 0 : 0.55; main.connect(ctx.destination);
@@ -120,6 +122,7 @@ window.OEAudio = (function () {
     // sources and filters ran silent from the loading screen on, on a phone's audio thread while the page loaded)
     for (const fn of madeFns.splice(0)) { try { fn(); } catch (e) { console.warn('audio:', e); } }
     if (!hRun) hRun = setInterval(healthPoll, 100);
+    probeStart();
   }
   // the street's continuous sounds, each made the first time it is asked to be heard (until then a call that would set
   // it to silence does nothing)
@@ -1115,7 +1118,7 @@ window.OEAudio = (function () {
   }
   // the Sound switch: off, the context is suspended (nothing is computed on a phone that is not heard)
   function setMuted(m) {
-    muted = m;
+    muted = m; tuneSync();
     if (main) ramp(main.gain, m ? 0 : 0.55, 0.05); if (sbus) ramp(sbus.gain, m ? 0 : 0.5, 0.05);
     if (m) held(false); if (m && window.speechSynthesis) window.speechSynthesis.cancel();
     const c = ctx;
@@ -1185,7 +1188,7 @@ window.OEAudio = (function () {
     if (dropping) { oBase = null; o3 = []; } // (the output's clock begins again from wherever it is when the sound does)
   }
   function health() {
-    if (!ctx) return null;
+    if (!ctx) { if (!TUNE) return null; const q = { snd: 'no context', snd_dev: `${IOS ? 'ios' : TOUCH ? 'touch' : 'mouse'} c${navigator.hardwareConcurrency || 0} s${Math.min(screen.width, screen.height)}x${window.devicePixelRatio || 1}`, snd_main: Math.round(P.main), snd_wk: Math.round(P.wk) }; P.main = 0; P.wk = 0; tuneHealth(q); if (muted) q.snd_mute = true; return q; }
     healthClose(false);
     const h = { snd: `${deck ? 'deck' : tape ? 'worklet' : 'plain'} ${VERB} ${ctx.sampleRate}`, snd_late: Math.round(hLate * 1000), snd_stall: hStall };
     if (hStall) h.snd_at = hAt;
@@ -1200,10 +1203,214 @@ window.OEAudio = (function () {
     shedMax = shed; shedSec = [0, 0, 0, 0]; shedDrop = 0;
     if (hOff >= 1) h.snd_off = Math.round(hOff);
     if (muted) h.snd_mute = true;
+    probeHealth(h);
     hLate = 0; hStall = 0; hAt = ''; hOff = 0; hXr = [];
     return h;
   }
-  function stop() { want = false; if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  // ------------------------------------------------------------ music outside the context (issue 166; docs/SOUND.md, "A phone's music")
+  // On an iPhone every sound of the context is one late render from a burst of noise (the probe's note below; WebKit bug
+  // 320149), and the opening is where the page is latest: the shot from the air while the level's late parts arrive. So
+  // there the music is not the context's. It is played by media elements, which the system's own player decodes and plays
+  // in another process, seconds ahead, whatever the page is doing; and until the opening is over the context is not made
+  // at all (quiet): with no Web Audio playing there is no render to be late, and the output is not asked for a block at a
+  // time. tune(src) plays a file, or what tuneWav() made of a render's channels, on one of three elements that were each
+  // begun once in the first touch (iOS lets an element sound only if a touch began it; after that it may be given
+  // another file and played from a script). iOS does not let a page set an element's volume: a level is baked into the
+  // file (tools/load_cue.js, tuneWav's gain), nothing ducks, and where the volume cannot be set a tune stops at once
+  // instead of fading. The Sound switch and a page put away pause them. ?music=el or ?music=web picks either on any
+  // device, ?session=auto|playback|ambient the audio session's type (ambient: with the ringer's switch, as the context is).
+  const TUNE = ((/[?&]music=(el|web)\b/.exec(location.search) || [])[1] || (IOS ? 'el' : 'web')) === 'el';
+  const SESSION = (/[?&]session=(auto|playback|ambient)\b/.exec(location.search) || [])[1] || 'ambient';
+  let quietOn = false, unlocked = false, canVolume = true;
+  const pool = [], tunes = [];
+  function tuneWav(chs, rate, gain = 1) { // two channels of floats as a 16-bit WAV behind a blob: URL
+    const n = chs[0].length, pcm = new Int16Array(n * 2), head = new DataView(new ArrayBuffer(44)), w = (o, t) => { for (let i = 0; i < t.length; i++) head.setUint8(o + i, t.charCodeAt(i)); };
+    for (let c = 0; c < 2; c++) { const a = chs[Math.min(c, chs.length - 1)]; for (let i = 0; i < n; i++) { const v = a[i] * gain; pcm[i * 2 + c] = v >= 1 ? 32767 : v <= -1 ? -32767 : Math.round(v * 32767); } }
+    w(0, 'RIFF'); head.setUint32(4, 36 + pcm.byteLength, true); w(8, 'WAVEfmt '); head.setUint32(16, 16, true); head.setUint16(20, 1, true); head.setUint16(22, 2, true);
+    head.setUint32(24, rate, true); head.setUint32(28, rate * 4, true); head.setUint16(32, 4, true); head.setUint16(34, 16, true); w(36, 'data'); head.setUint32(40, pcm.byteLength, true);
+    return { url: URL.createObjectURL(new Blob([head, pcm], { type: 'audio/wav' })), seconds: n / rate, blob: true };
+  }
+  function tuneUnlock() { // in a touch: each element begun once, on its tune if one waits for it, else on a moment of silence
+    if (!TUNE || unlocked) return;
+    unlocked = true;
+    try { if (navigator.audioSession && SESSION !== 'auto') navigator.audioSession.type = SESSION; } catch (e) { /* an older Safari */ }
+    const hush = tuneWav([new Float32Array(480)], 8000);
+    for (let i = 0; i < 3; i++) { const el = new Audio(); el.preload = 'auto'; el.playsInline = true; el.setAttribute('playsinline', ''); pool.push(el); }
+    try { pool[0].volume = 0.5; canVolume = pool[0].volume === 0.5; pool[0].volume = 1; } catch (e) { canVolume = false; }
+    const waiting = tunes.filter(t => !t.dead && !t.el);
+    for (const el of pool) {
+      const t = waiting.shift();
+      if (t && !muted && !document.hidden) t.go();
+      else { el.src = hush.url; el.play().then(() => { if (el.src === hush.url) el.pause(); }, () => {}); }
+    }
+    setTimeout(() => URL.revokeObjectURL(hush.url), 4000);
+    probeStart(); probeNote('music: elements begun in a touch');
+  }
+  // tune(src, { loop, at }): src a file's URL or tuneWav()'s; returns { stop(fadeSeconds), playing, el }. Null where the
+  // music is the context's (a mouse, ?music=web): the caller then plays it there, as before
+  function tune(src, opts = {}) {
+    if (!TUNE) return null;
+    const url = typeof src === 'string' ? src : src.url;
+    const t = { el: null, dead: false, base: null, late: false,
+      go() {
+        if (t.dead || t.el || !unlocked) return;
+        const el = pool.find(q => !q._tune); if (!el) return;
+        el._tune = t; t.el = el; el.loop = !!opts.loop; el.volume = 1; el.src = url;
+        if (opts.at > 0) { const seek = () => { el.removeEventListener('loadedmetadata', seek); try { el.currentTime = opts.at; } catch (e) { /* not seekable yet */ } }; el.addEventListener('loadedmetadata', seek); }
+        t.started = performance.now();
+        el.play().catch(e => probeNote(`music: not played (${e && e.name})`));
+      },
+      stop(fade = 0) {
+        if (t.dead) return; t.dead = true;
+        const el = t.el, end = () => { if (el) { el.pause(); el.removeAttribute('src'); try { el.load(); } catch (e) { /* gone */ } el._tune = null; } if (src.blob) URL.revokeObjectURL(url); const i = tunes.indexOf(t); if (i >= 0) tunes.splice(i, 1); };
+        if (!el || !canVolume || !(fade > 0) || el.paused) { end(); return; }
+        const t0 = performance.now(), id = setInterval(() => { const k = (performance.now() - t0) / (fade * 1000); if (k >= 1) { clearInterval(id); end(); } else el.volume = (1 - k) * (1 - k); }, 40);
+      },
+      get playing() { return !!t.el && !t.el.paused; } };
+    tunes.push(t);
+    if (!muted && !document.hidden) t.go();
+    return t;
+  }
+  function tuneSync() { // the Sound switch, and a page put away or seen again
+    if (!TUNE || !unlocked) return;
+    const on = !muted && !document.hidden;
+    for (const t of tunes) { if (t.dead) continue; if (!t.el) { if (on) t.go(); } else if (on && t.el.paused) t.el.play().catch(() => {}); else if (!on && !t.el.paused) t.el.pause(); }
+  }
+  // quiet(true): no context is made until quiet(false) (game.js: from the page's load to the end of the opening's film).
+  // Where the music is the context's own this does nothing
+  function quiet(on) {
+    quietOn = TUNE && !!on && !ctx;
+    if (!quietOn && want && !muted) start(); // (made now inside a touch, as iOS asks; outside one, in the next)
+  }
+  // ------------------------------------------------------------ the probe (issue 166; docs/SOUND.md, "What a page can see")
+  // What health() above reads was blind to the breaks the owner heard on an iPhone, and WebKit's source says why. The page's
+  // audio is rendered by a thread of the page's own process, woken by the output (which lives in another process) once for
+  // every 128 frames it plays; the two are a ring apart, and the output has one block in hand. A render that comes more
+  // than a block late is a break (on iOS 27 not silence: the output's buffer as it was left, WebKit bug 320149). The page's
+  // thread then makes every frame it was asked for at once, so currentTime is back in step with the wall a moment later,
+  // and the output's timestamp with it: ten readings a second, their median of three taken, a straight line taken out of
+  // them, saw nothing. What can be seen is the moment itself: currentTime behind the wall by more than its least while the
+  // thread is held. So the probe reads it as often as the page can (every frame, a timer every 25 ms, and a worker's timer
+  // that also says how long the main thread and the whole process stood still), keeps the least of the last 20 to 40 s as
+  // the two clocks' offset, and counts each time the context fell 6, 25 and 100 ms behind it (snd_lag), the most it fell
+  // (snd_lag_max, snd_lag_at), and the sound's time that never came back where a browser drops it (snd_lost: Chromium).
+  // Where a browser counts its own underruns (Chromium's playbackStats) those are read too (snd_under). A reading catches a
+  // break only if it falls inside it: a 6 ms break between two readings 16 ms apart is seen one time in three, and none
+  // while the main thread stands still for less than the break lasts. It is a floor, not a count.
+  const PROBE_ON = /[?&]snd=1\b/.test(location.search);
+  const P = { n: 0, ep: [0, 0, 0], max: 0, at: '', lost: 0, b0: null, b1: null, bAt: 0, in: 0, inMax: 0, inAt: 0, oBase: null, oMax: 0, main: 0, wk: 0, states: [], under: 0, underMs: 0, ps: null, el: 0, elMax: 0, eBase: null, eIn: false, log: [], lagNow: 0, tot: [0, 0, 0], totMax: 0, totUnder: 0, totEl: 0 };
+  const LAG = [6, 25, 100];
+  // (the first of them is 6 ms where the output asks for a block at a time, as iOS does: two blocks and a reading's own
+  // error. An output that asks for 10 ms at a time moves the clock in steps of 10 ms, which is not a break: one and a
+  // half of its steps and 3 ms there)
+  const lagFloor = () => Math.max(LAG[0], (ctx.baseLatency || 0) * 1500 + 3);
+  let pRaf = 0, pTimer = null, pWorker = null, pState = '';
+  const wallMs = () => (performance.timeOrigin || 0) + performance.now();
+  function probeNote(text) { P.log.push(`${new Date().toISOString().slice(11, 19)} ${text}`); if (P.log.length > 6) P.log.shift(); }
+  function probeReset() { P.b0 = P.b1 = null; P.in = 0; P.oBase = null; P.lagNow = 0; }
+  function probePoll() {
+    tuneProbe();
+    if (!ctx) return;
+    if (ctx.state !== pState) { pState = ctx.state; P.states.push(pState[0]); if (P.states.length > 24) P.states.shift(); probeNote(`context ${pState}`); }
+    if (ctx.state !== 'running' || document.hidden || muted) { probeReset(); return; }
+    const now = performance.now(), gap = now - ctx.currentTime * 1000;
+    P.n++;
+    if (P.b0 === null || now - P.bAt > 20000) { P.b1 = P.b0; P.b0 = gap; P.bAt = now; } else if (gap < P.b0) P.b0 = gap;
+    const base = P.b1 === null ? P.b0 : Math.min(P.b0, P.b1), lag = gap - base;
+    P.lagNow = lag;
+    if (lag >= lagFloor()) {
+      if (!P.in) { P.in = now; P.inMax = 0; P.inAt = P.n; }
+      P.inMax = Math.max(P.inMax, lag);
+      if (now - P.in > 1000 && P.n - P.inAt >= 8) { // (behind for a second and more: the sound's time is gone for good, as Chromium drops it. The clocks' offset begins again from here)
+        P.lost += lag; probeClose(); P.b0 = gap; P.b1 = null; P.bAt = now;
+      }
+    } else if (P.in) probeClose();
+    const ot = ctx.getOutputTimestamp ? ctx.getOutputTimestamp() : null; // (how late the block last made was made: WebKit stamps it as it is rendered)
+    if (ot && ot.performanceTime > 0 && ot.contextTime > 0) {
+      const o = ot.performanceTime - ot.contextTime * 1000;
+      if (P.oBase === null || o < P.oBase) P.oBase = o; else if (o - P.oBase > P.oMax) P.oMax = o - P.oBase;
+    }
+    const ps = ctx.playbackStats; // (Chromium: the output's own count of what it could not play in time)
+    if (ps) {
+      const ev = ps.underrunEvents || 0, ms = (ps.underrunDuration || 0) * 1000;
+      if (P.ps) { if (ev > P.ps[0]) { P.under += ev - P.ps[0]; P.totUnder += ev - P.ps[0]; P.underMs += ms - P.ps[1]; probeNote(`underrun ${Math.round(ms - P.ps[1])} ms ${spotNow()}`); } }
+      P.ps = [ev, ms];
+    }
+  }
+  function probeClose() {
+    const m = P.inMax; P.in = 0;
+    for (let i = 0; i < LAG.length; i++) if (m >= (i ? LAG[i] : lagFloor())) { P.ep[i]++; P.tot[i]++; }
+    if (m > P.max) { P.max = m; P.at = spotNow() || 'load'; }
+    P.totMax = Math.max(P.totMax, m);
+    probeNote(`${Math.round(m)} ms behind ${spotNow() || 'load'}`);
+  }
+  function probeStart() {
+    if (pTimer) return;
+    pTimer = setInterval(probePoll, 25);
+    const frame = () => { pRaf = requestAnimationFrame(frame); probePoll(); }; pRaf = requestAnimationFrame(frame);
+    try { // a worker's timer: how late its ticks reach the main thread (the page held), and how late it ticks itself (the process held)
+      const src = 'let l=0;setInterval(()=>{const n=performance.timeOrigin+performance.now();postMessage([n,l?n-l-25:0]);l=n},25)';
+      pWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
+      pWorker.onmessage = e => { if (document.hidden) return; const d = wallMs() - e.data[0]; if (d > P.main) P.main = d; if (e.data[1] > P.wk) P.wk = e.data[1]; probePoll(); };
+    } catch (e) { pWorker = null; }
+  }
+  function probeStop() { if (pTimer) { clearInterval(pTimer); pTimer = null; } cancelAnimationFrame(pRaf); if (pWorker) { pWorker.terminate(); pWorker = null; } probeReset(); pState = ''; }
+  // an element's own clock against the wall's: the system's player stalling (its file not there yet, the page put away)
+  function tuneProbe() {
+    if (!TUNE || document.hidden) return;
+    const now = performance.now();
+    for (const t of tunes) {
+      const el = t.el;
+      if (!el || el.paused || el.ended || el.seeking || el.readyState < 3 || now - t.started < 1500) { t.base = null; continue; } // (ended: a score that has played out is not a stall)
+      const gap = now - el.currentTime * 1000;
+      if (t.base === null || gap < t.base || gap - t.base > 20000) { t.base = gap; t.late = false; continue; } // (20 s and more: the loop went round)
+      const lag = gap - t.base;
+      if (lag > P.elMax) P.elMax = lag;
+      if (lag >= 400 && !t.late) { t.late = true; P.el++; P.totEl++; probeNote(`music ${Math.round(lag)} ms behind ${spotNow() || 'load'}`); }
+      else if (lag < 150) t.late = false;
+    }
+  }
+  // what the probe saw since it was last asked (telemetry.js, with each `time` event)
+  function probeHealth(h) {
+    if (P.in) probeClose();
+    h.snd_polls = P.n; h.snd_lag = P.ep.join('/'); h.snd_lag_max = Math.round(P.max); if (P.max) h.snd_lag_at = P.at;
+    if (P.lost >= 1) h.snd_lost = Math.round(P.lost);
+    h.snd_olate = Math.round(P.oMax); h.snd_main = Math.round(P.main); h.snd_wk = Math.round(P.wk);
+    if (ctx.playbackStats) { h.snd_under = P.under; h.snd_under_ms = Math.round(P.underMs); }
+    if (P.states.length) h.snd_states = P.states.join('');
+    h.snd_lat = `${Math.round((ctx.baseLatency || 0) * 1000)}/${Math.round((ctx.outputLatency || 0) * 1000)}`;
+    h.snd_live = live;
+    tuneHealth(h);
+    P.n = 0; P.ep = [0, 0, 0]; P.max = 0; P.at = ''; P.lost = 0; P.oMax = 0; P.main = 0; P.wk = 0; P.under = 0; P.underMs = 0; P.states = pState ? [pState[0]] : [];
+  }
+  function tuneHealth(h) {
+    if (!TUNE) return;
+    h.snd_music = `el ${unlocked ? tunes.filter(t => t.playing).length : 'locked'}${canVolume ? '' : ' fixed'}`;
+    h.snd_el = `${P.el}/${Math.round(P.elMax)}`; P.el = 0; P.elMax = 0;
+    if (quietOn) h.snd_quiet = true;
+  }
+  // ?snd=1: the same readings on the page, to hold beside what is heard (the counts are since the page loaded)
+  if (PROBE_ON) {
+    const box = document.createElement('pre');
+    box.id = 'snd-probe';
+    box.style.cssText = 'position:fixed;left:6px;top:calc(6px + env(safe-area-inset-top));z-index:99999;margin:0;padding:6px 8px;max-width:92vw;font:10px/1.35 ui-monospace,Menlo,monospace;color:#e8edf2;background:rgba(8,12,18,.78);border:1px solid rgba(255,255,255,.18);border-radius:6px;pointer-events:none;white-space:pre-wrap';
+    const put = () => { (document.body || document.documentElement).appendChild(box); };
+    if (document.body) put(); else document.addEventListener('DOMContentLoaded', put);
+    setInterval(() => {
+      const v = (window.OE_VERSION && (window.OE_VERSION.release || window.OE_VERSION.version)) || '';
+      const bad = P.tot[0] + P.totUnder + P.totEl;
+      box.style.borderColor = bad ? '#ff6b5e' : 'rgba(255,255,255,.18)';
+      const music = !TUNE ? '' : `\nmusic: ${!unlocked ? 'elements wait for a touch' : `${tunes.filter(t => t.playing).length} playing`}${canVolume ? '' : ', level fixed'}   stalls ${P.totEl}`;
+      box.textContent = !ctx ? `sound ${v}\n${quietOn ? 'no context until the opening is over' : `no context yet${want ? ' (waiting for a touch)' : ''}`}${music}\n${P.log.slice(-3).join('\n')}` : [
+        `sound ${v}  ${IOS ? 'ios' : TOUCH ? 'touch' : 'mouse'}  ${deck ? 'deck' : tape ? 'worklet' : 'plain'} ${VERB} ${ctx.sampleRate}`,
+        `context ${ctx.state}${muted ? ' (off)' : ''}  latency ${Math.round((ctx.baseLatency || 0) * 1000)}/${Math.round((ctx.outputLatency || 0) * 1000)} ms  voices ${live}  shed ${shed}`,
+        `BREAKS  ${Math.round(lagFloor())}ms+ ${P.tot[0]}   25ms+ ${P.tot[1]}   100ms+ ${P.tot[2]}   worst ${Math.round(P.totMax)} ms`,
+        `behind now ${P.lagNow.toFixed(1)} ms${ctx.playbackStats ? `   underruns ${P.totUnder}` : ''}${P.totEl ? `   music stalls ${P.totEl}` : ''}`,
+        `page held ${Math.round(P.main)} ms  process ${Math.round(P.wk)} ms  ${spotNow() || 'load'}${music}`,
+        ...P.log.slice(-4)].join('\n');
+    }, 250);
+  }
+  function stop() { want = false; probeStop(); if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -1406,5 +1613,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, city, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, city, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo, get probe() { return P; }, tune, tuneWav, quiet, get tunes() { return TUNE; }, get needsTouch() { return TUNE ? !unlocked && !muted : null; } };
 })();

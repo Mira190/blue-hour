@@ -954,9 +954,20 @@ def neck_camera(arm, mesh):
     ARMS = (" UpperArm", " Forearm", " Hand", " Finger")
     on_arm = lambda i: sum(g.weight for g in vs[i].groups if any(k in names[g.group] for k in ARMS))
     mat_of = lambda t: mesh.material_slots[t.material_index].name
+    # the hair that is part of the head's own mesh (a long head of hair falls down the back as a shell of it, over the
+    # collar): the scalp's faces whose texels are hair, not skin. The strap goes under it, as under the hair cards: laid
+    # on the outermost surface it went round the outside of the hair, a black band across the back of it
+    hair_polys = set()
+    for slot in mesh.material_slots:
+        node = slot.material and slot.material.name.endswith("_head") and base_image(slot.material)
+        if node:
+            sc = [p for p in scalp(arm, mesh) if mesh.material_slots[p.material_index].name == slot.material.name]
+            skin = {p.index for p in skin_faces(mesh, sc, pixels(node.image), node.image.size)}
+            hair_polys.update(p.index for p in sc if p.index not in skin)
     # what the strap and the camera lie on: the body and the neck's skin, not the arms (out from the body in the bind
-    # pose), the hair cards or the face
-    rest = [t for t in mesh.data.loop_triangles if not mat_of(t).endswith("_opacity") and sum(on_arm(i) for i in t.vertices) < 0.5]
+    # pose), the hair (the cards, and the head's own) or the face
+    rest = [t for t in mesh.data.loop_triangles if not mat_of(t).endswith("_opacity") and t.polygon_index not in hair_polys
+            and sum(on_arm(i) for i in t.vertices) < 0.5]
     body_tris = [t for t in rest if not mat_of(t).endswith("_head")]
     bvh = BVHTree.FromPolygons(W, [tuple(t.vertices) for t in rest])
     bvh_body = BVHTree.FromPolygons(W, [tuple(t.vertices) for t in body_tris])
@@ -1062,7 +1073,8 @@ def neck_camera(arm, mesh):
     oC = obase + fwd * (0.004 - oback)
     olugs = [oC + R * (sx * (OW / 2 + 0.002)) + oT * 0.018 for sx in (1, -1)]   # right, left
 
-    # the straps: round the back of the neck at the collar (a ray in from each side to the outermost cloth or skin), and
+    # the straps: round the back of the neck at the collar (a ray in from each side to the outermost cloth or skin,
+    # through any hair), and
     # from each side of the neck straight to the camera's lugs, lifted off the cloth where the line would sink into it.
     # They lie close (GAP), under long hair as a strap does: the hair cards hang further out, and cover them
     GAP = 0.0035
@@ -1110,8 +1122,9 @@ def neck_camera(arm, mesh):
     lines = [strap_line(lugs), strap_line(olugs)]
     ribbon(lines[0], 0.011, "strap")          # 2.2 cm black webbing
     ribbon(lines[1], 0.0075, "strap1964")     # 1.5 cm brown leather
-    # long hair lies over the straps: a hair card's vertex within 3 cm of one is lifted off the body to clear it (fully
-    # within 1.5 cm, less further off), so that the cards cover the strap and nothing of it shows through them
+    # long hair lies over the straps: a vertex of the hair (a card's, or the head's own hair's where it lies outside the
+    # body) within 3 cm of one is lifted off the body to clear it (fully within 1.5 cm, less further off), so that the
+    # hair covers the strap and nothing of it shows through
     from mathutils.kdtree import KDTree
     kd = KDTree(sum(len(ln) for ln in lines))
     for i, c in enumerate(c for ln in lines for c in ln):
@@ -1119,10 +1132,15 @@ def neck_camera(arm, mesh):
     kd.balance()
     clear, inv_m = GAP + 0.009, M.inverted()
     lifted = 0
+    done = set()
     for p in mesh.data.polygons:
-        if not mesh.material_slots[p.material_index].name.endswith("_opacity"):
+        card = mesh.material_slots[p.material_index].name.endswith("_opacity")
+        if not card and p.index not in hair_polys:
             continue
         for i in p.vertices:
+            if i in done:
+                continue
+            done.add(i)
             v = W[i]
             _, _, dist = kd.find(v)
             if dist > 0.03:
@@ -1131,7 +1149,7 @@ def neck_camera(arm, mesh):
             if h is None:
                 continue
             s_ = (v - h).dot(nrm)
-            if s_ < clear:
+            if s_ < clear and (card or s_ > 0):   # (the head's hair inside the collar stays where it is: unseen)
                 k = 1.0 if dist < 0.015 else (0.03 - dist) / 0.015
                 W[i] = v + nrm * (clear - s_) * k
                 vs[i].co = inv_m @ W[i]
@@ -1670,6 +1688,17 @@ def skin_mask(arm, mesh):
     # (specks gone, pinholes filled: a 3 x 3 majority)
     im = Image.fromarray((skin * 255).astype(np.uint8), "L").filter(ImageFilter.MedianFilter(3))
     skin = np.asarray(im) > 127
+    from scipy import ndimage
+    # (a hole the skin closes round, of skin's colour: a knee's lit side whose faces fell short of the count above was
+    # left as cloth, and the crowd's change of clothes dyed it the dress's colour, a navy patch on each knee of a walker
+    # in a dark dress, November 2026. Skin's colour by the plain test, not the hands' hue: a knee is redder than a hand.
+    # A print inside the skin is not skin's colour and stays cloth; a leather strap that is would keep its own colour)
+    warm = skin_like(px)
+    skin |= ndimage.binary_fill_holes(skin) & warm
+    # (and on into the islands' margins, outside every face, where the artists carried the skin's colour: a filter and
+    # the smaller mipmaps read them at a seam, and a margin left as cloth dyed a leg's or a hand's edge there. Only
+    # outside the faces, so no garment beside the skin is reached)
+    skin |= ndimage.binary_dilation(skin, iterations=16, mask=(ids == 0) & warm)
     MASKS[body.name] = skin[::-1].copy()   # (rows from the top, as a picture file has them; embed_masks writes it into the exported file)
     return float(skin.mean())
 

@@ -485,6 +485,25 @@ def facade_style(R, cls, top, floors, area, facade_material, name, seed, overrid
     return "apartment" if unit(seed, 4) < 0.6 else "office"
 
 
+# A building with no class, by its proportions (issue 163, pipeline/proportion.py): a detached house is small both
+# ways (Japan's are under 150 m2 of footprint and 15 m of frontage); what is low and long or low and wide is not one.
+HOUSE_M2, HOUSE_SIDE_M = 170.0, 18.0     # larger or longer than this is not a house
+SHED_TOP_M, SHED_M2 = 5.5, 300.0         # one storey: a shed; from this area a hall with glazing, below it a plain box
+HALL_TOP_M, HALL_M2, HALL_SIDE_M = 9.5, 500.0, 16.0   # low, large and wide whatever it was styled: a hall
+
+
+def by_proportion(style, top, floors, area, short, long_):
+    """The style a classless building's proportions ask for, given the one size alone gave it (the same when they
+    agree)."""
+    if style in ("house", "terrace", "machiya") and (area > HOUSE_M2 or long_ > HOUSE_SIDE_M):
+        if top <= SHED_TOP_M and (floors or 1) <= 1:
+            return "industrial" if area >= SHED_M2 else "plain"
+        return "apartment"
+    if style in ("apartment", "mixed", "office", "retail") and top <= HALL_TOP_M and area >= HALL_M2 and short >= HALL_SIDE_M and (floors or 1) <= 2:
+        return "industrial"
+    return style
+
+
 # eaves past the walls on pitched roofs, metres: Federation houses 0.45-0.6, shallow on
 # terraces between party walls, deep (0.6-0.9) on machiya
 OVERHANG = {"house": 0.45, "terrace": 0.25, "apartment": 0.35, "civic": 0.35, "heritage": 0.3, "office": 0.3, "retail": 0.3,

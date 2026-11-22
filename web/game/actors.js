@@ -491,11 +491,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     for (let i = 0; i < n; i++) P.push({ line: -1, s: 0, dir: 1, speed: 1.1 + rnd() * 0.6, phase: rnd() * 6.28, side: 0.6 + rnd() * 1.2, spread: rnd() * 2 - 1, lat: null, dodge: 0, v: 0, vx: 0, vy: 0,
       pause: 0, x: 0, y: 0, z: 0, h: 0, scale: 0.92 + rnd() * 0.16, state: 'walk', mode: 'ground', seat: null, t: 0, rest: rnd() * 30,
       id: i, lead: -1, mates: null, browse: 20 + rnd() * 160, // (id: its place in P; lead, mates: its walking group; browse: seconds to a stop along the way)
-      // (waiting at a kerb, issue 75: room, the space it keeps from a stranger, from 0.8 to 1.25 m centre to centre; keen,
+      // (waiting at a kerb, issue 75: room, the space it keeps from a stranger, from 0.65 to 1.05 m centre to centre (the
+      // no-touch end of Fruin's queuing level D to the middle of C: a kerb at a red light, not a concourse); keen,
       // how much it wants the front row over a nearer place further back; wf, how far it stands turned from square to
       // the road, up to 25 degrees either way and mostly less. Drawn from its place in P, not from rnd, so that every
       // other draw the crowd makes is as it was)
-      room: 0.8 + 0.45 * h01(i, 1), keen: 0.15 + 1.1 * h01(i, 2), wf: (h01(i, 3) + h01(i, 4) - 1) * 0.44 });
+      room: 0.65 + 0.4 * h01(i, 1), keen: 0.15 + 1.1 * h01(i, 2), wf: (h01(i, 3) + h01(i, 4) - 1) * 0.44 });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -1039,6 +1040,22 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       uncount(q); q.g = g; q.ph = 'linger'; q.lst = false; q.lt = 25 + rnd() * 70; q.lface = q.T.face; // (lface: leaning, the way it faces)
       return true;
     }
+    const WAITERS = [];
+    // how far behind gate g's line the pavement begins, at lat m across its stripes: a crosswalk's stripes end short of
+    // the kerb (0.5 to 3.6 m at Shibuya's), and places measured from the stripes' end fell in the road, were refused,
+    // and their walkers sent to the first paving behind (spotAt): every one at the same distance from the kerb's edge,
+    // a ruled file along it (the last frame's umbrellas, issue 75). Asked once for each half metre across, and kept
+    function kerbOff(g, lat, road) {
+      if (!road) return 0;
+      const K = g.ko || (g.ko = new Map()), k = Math.round(lat * 2);
+      let e = K.get(k);
+      if (e === undefined) {
+        e = 8;
+        for (let d = 0; d <= 7; d += 0.25) if (!road(g.x + g.ox * d - g.oy * k * 0.5, g.y + g.oy * d + g.ox * k * 0.5)) { e = d; break; }
+        K.set(k, e);
+      }
+      return e;
+    }
     function slotAt(g, q, out, road = null, fallback = true) {
       const W = SCR_HW + 1.4;
       // (the front row the stripes' width and a little, each row behind a pace wider, fanning out: with every row as
@@ -1046,19 +1063,40 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // (and of the free places, the one nearest the way it comes, the front ones a little preferred: sent for a place
       // in the front row from behind, a newcomer walked into the backs of those standing, was stopped there and stood
       // in their pocket; those landing from the crossing take the front, those coming up the footway the back)
-      let bx = 0, by = 0, best = Infinity, found = 0;
-      for (let r = 0; r < 10 && found < 24; r++) {
-        for (let k = 0; k < 8; k++) {
-          const lat = (k === 0 ? q.spread : rnd() * 2 - 1) * Math.min(W, SCR_HW + 0.3 + r * 0.5) + (rnd() - 0.5) * 0.5, d = 0.7 + r * 0.7 + (rnd() - 0.5) * 0.5;
-          const x = g.x + g.ox * d - g.oy * lat, y = g.y + g.oy * d + g.ox * lat;
-          if ((road && road(x, y)) || (shut && shut(x, y)) || !slotFree(q, x, y)) continue;
-          if (clear && ground) { ZAT.z = g.z; const z = ground(x, y, ZAT); if (z == null || Math.abs(z - g.z) > 1 || !clear(x, y, z)) continue; }
-          found++;
-          // (the front a little preferred, by each as keen as it is, and a little left to chance: all taking the frontmost
-          // free place, the front row filled along the kerb's edge before anyone stood behind it, issue 75)
-          const sc = Math.hypot(x - q.x, y - q.y) + q.keen * d + rnd() * 0.8;
-          if (sc < best) { best = sc; bx = x; by = y; }
+      // (issue 75, the second pass: the places are drawn as a crowd waiting is found to stand, not as rows. Waiters do not
+      // spread into the free room: they stand by those already there, and their neighbours' distances peak near a metre
+      // however empty the rest is (Kuepper and Seyfried 2023); their depth behind the kerb follows a Weibull curve whose
+      // mean grows with the number waiting (Wang et al. 2017); the front is a ragged line within a foot's length of the
+      // kerb, nobody past it; the mouth of the crosswalk fills first and the crowd spills a few metres past its ends.
+      // So of the places tried, three in five are beside or behind someone already waiting at this kerb, at a
+      // neighbour's distance; of the rest a third are at the front, 0.3 to 0.65 m behind the kerb, and the others as
+      // deep as the Weibull draw (shape 1.5, its scale from 1 m to 2.5 m as the kerb fills); across, seven in ten within
+      // the stripes and the rest up to 2.5 m past them. The room each keeps from a stranger does the rest: clumps of
+      // two to five with gaps between, as the kerb's photographs show, where the rows gave one person a pace.
+      // docs/GAME.md, "The wait at a kerb")
+      let bx = 0, by = 0, best = Infinity, found = 0, nw = 0;
+      for (let k = 0; k < api.active; k++) { const o = P[k]; if (o !== q && o.g === g && o.T && (o.ph === 'wait' || o.ph === 'stroll')) WAITERS[nw++] = o; }
+      const lam = Math.min(2.5, 1 + 0.06 * nw);
+      for (let k = 0; k < 80 && found < 24; k++) {
+        let x, y, d;
+        if (nw && k > 0 && rnd() < 0.6) {
+          const o = WAITERS[Math.floor(rnd() * nw)], a = (rnd() * 2 - 1) * 1.9, r = (q.room + o.room) / 2 + rnd() * 0.25, c = Math.cos(a), sn = Math.sin(a);
+          x = o.T.x + (g.ox * c - g.oy * sn) * r; y = o.T.y + (g.oy * c + g.ox * sn) * r;
+          d = (x - g.x) * g.ox + (y - g.y) * g.oy - kerbOff(g, (y - g.y) * g.ox - (x - g.x) * g.oy, road);
+          if (d < 0.3) continue; // (never past the front)
+        } else {
+          const lat = k === 0 ? q.spread * SCR_HW : rnd() < 0.7 ? (rnd() * 2 - 1) * SCR_HW : (rnd() < 0.5 ? -1 : 1) * Math.min(W + 1.1, SCR_HW + rnd() * 2.5);
+          d = rnd() < 0.33 ? 0.3 + rnd() * 0.35 : 0.3 + lam * Math.pow(-Math.log(1 - rnd() * 0.98), 1 / 1.5);
+          const e = d + kerbOff(g, lat, road);
+          x = g.x + g.ox * e - g.oy * lat; y = g.y + g.oy * e + g.ox * lat;
         }
+        if ((road && road(x, y)) || (shut && shut(x, y)) || !slotFree(q, x, y)) continue;
+        if (clear && ground) { ZAT.z = g.z; const z = ground(x, y, ZAT); if (z == null || Math.abs(z - g.z) > 1 || !clear(x, y, z)) continue; }
+        found++;
+        // (of the free places, the one nearest the way it comes, the front a little preferred by each as keen as it is,
+        // and a little left to chance)
+        const sc = Math.hypot(x - q.x, y - q.y) + q.keen * d + rnd() * 0.8;
+        if (sc < best) { best = sc; bx = x; by = y; }
       }
       if (found) { out.x = bx; out.y = by; out.ok = true; return out; }
       if (!fallback) return null;
@@ -1262,7 +1300,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       } else if (g) {
         const ax = -g.oy, ay = g.ox, u = Math.ceil(k / 2), sd = k % 2 ? 1 : -1;
         for (const [a, b] of [[sd * u, 0], [-sd * u, 0], [0, k], [sd, 1]]) { // (shoulder to shoulder with its own, as friends wait: 0.85 m apart, a group stood in the ruled row as strangers do, issue 75)
-          out.x = T.x + ax * a * MATE_NEAR + g.ox * b * 0.65; out.y = T.y + ay * a * MATE_NEAR + g.oy * b * 0.65;
+          const st = b * 0.65 + (a ? (h01(q.id, 7) - 0.3) * 0.4 : 0); // (abreast, not dressed by the right: each up to a foot's length ahead of or behind its friend)
+          out.x = T.x + ax * a * MATE_NEAR + g.ox * st; out.y = T.y + ay * a * MATE_NEAR + g.oy * st;
           if (standOk(out.x, out.y, z, road) && slotFree(q, out.x, out.y, 0.8)) return out;
         }
       }
@@ -1615,21 +1654,28 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       } else q.held = 0;
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if (q.ph === 'wait' && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
+      if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)
       const fw = heading(q, q.vx, q.vy, dt);
       if (q.face != null) q.h = q.face;
       else if (q.v > (q.ph === 'wait' ? (Math.hypot(q.T.x - q.x, q.T.y - q.y) > 1.2 ? 0.45 : Infinity) : 0.15) && fw > 0.12) turnTo(q, dt, 6, fw); // (waiting, it turns only to walk back a way to its place: shoved about in the press it keeps facing the road, #283)
       else if (q.ph === 'wait') {
         // (each a little turned its own way, and one waiting with its own turned partly to them, as people talk at a kerb:
         // a whole kerb's crowd squared to the road read as a parade, issue 75)
-        let h = Math.atan2(-g.ox, -g.oy) + q.wf;
+        let h = Math.atan2(-g.ox, -g.oy) + q.wf + glance(q, dt, 0.45); // (and now and then a look along the kerb, at the lights, back over a shoulder)
         const m = q.lead >= 0 ? P[q.lead] : q.mates && q.mates.length ? P[q.mates[0]] : null;
-        if (m && m.pz === pz && m.ph === 'wait') { const to = Math.atan2(m.x - q.x, m.y - q.y); h += Math.atan2(Math.sin(to - h), Math.cos(to - h)) * 0.3; }
+        // (two in five of the groups stand turned in to each other, talking, 30 to 60 degrees from the road; the rest abreast,
+        // facing it, a little towards their own: Kendon's side-by-side and L arrangements)
+        if (m && m.pz === pz && m.ph === 'wait') { const to = Math.atan2(m.x - q.x, m.y - q.y), gid = q.lead >= 0 ? q.lead : q.id; h += Math.atan2(Math.sin(to - h), Math.cos(to - h)) * (h01(gid, 5) < 0.4 ? 0.45 + 0.25 * h01(gid, 6) : 0.2); }
         q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 0.8);
       }
-      else if (q.ph === 'linger' && q.lst && q.lface != null && !q.mates && !(q.lead >= 0)) q.h += Math.atan2(Math.sin(q.lface - q.h), Math.cos(q.lface - q.h)) * Math.min(1, dt * 2); // (leaning: the back to what it leans on)
+      else if (q.ph === 'linger' && q.lst && q.lface != null && !q.mates && !(q.lead >= 0)) { const h = q.lface + glance(q, dt, 0.55); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.2); } // (leaning: the back to what it leans on, the head and shoulders turning to look about)
+      else if (q.ph === 'linger' && q.lst && !q.mates && !(q.lead >= 0)) { // (alone, nothing to lean on: waiting for someone, it looks round for them, a while one way, a while another)
+        if (q.lh == null) q.lh = q.h;
+        const h = q.lh + glance(q, dt, 1.3); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.2);
+      }
       else if (q.ph === 'linger' && q.lst && (q.lead >= 0 || q.mates)) { // (a group standing about: each turned to the others, as people talking stand)
         const L = q.lead >= 0 ? P[q.lead] : q, M = [L, ...(L.mates || []).map(j => P[j])].filter(o => o !== q && o.pz === q.pz);
-        if (M.length) { let mx = 0, my = 0; for (const o of M) { mx += o.x; my += o.y; } mx /= M.length; my /= M.length; if (Math.hypot(mx - q.x, my - q.y) > 0.2) { const h = Math.atan2(mx - q.x, my - q.y); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.5); } }
+        if (M.length) { let mx = 0, my = 0; for (const o of M) { mx += o.x; my += o.y; } mx /= M.length; my /= M.length; if (Math.hypot(mx - q.x, my - q.y) > 0.2) { const h = Math.atan2(mx - q.x, my - q.y) + glance(q, dt, 0.6); q.h += Math.atan2(Math.sin(h - q.h), Math.cos(h - q.h)) * Math.min(1, dt * 1.5); } }
       } // (facing the road, settling round to it over a second or so, as one does in a crowd, not swung round)
       // there: on the far side, on to a kerb of that corner (or this one) to wait again
       // (over, off the road, within a couple of paces of where it was going and held there a second by those standing
@@ -1648,6 +1694,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         else if (q.ph === 'stroll') q.ph = 'wait';
         else if (q.ph === 'linger' && !q.lst) { q.lst = true; q.vx = q.vy = 0; }
       }
+    }
+    // a glance (radians, within span either way) for someone standing: held a few seconds, then another, a third of them
+    // straight ahead again. A crowd stood about the square with every head fixed for a minute read as stuck (the owner at
+    // Hachiko, tools/crowd_still.js): a real person waiting looks round, along the kerb, back over a shoulder. Drawn from
+    // the walker's own little sequence, not the crowd's rnd, so that the rest of the crowd's draws are as they were
+    function glance(q, dt, span) {
+      if (q.gzT == null) { q.gzS = (Math.imul(q.id + 7, 2654435761) >>> 0) || 1; q.gzT = 1 + (q.gzS % 600) / 100; q.gz = 0; }
+      if ((q.gzT -= dt) <= 0) {
+        const r = () => ((q.gzS = (Math.imul(q.gzS, 1664525) + 1013904223) >>> 0) / 4294967296);
+        q.gzT = 3 + r() * 8; q.gz = r() < 0.33 ? 0 : (r() * 2 - 1) * span;
+      }
+      return q.gz;
     }
     // the way the body faces, out of where it is going: its velocity eased over a good part of a second,
     // so the jostle of a crowd (a shove one way, a step back the other) averages out rather than swinging
@@ -1791,7 +1849,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // (stopped along the way: turned to the window, or with its back to the rail, over a second or so; the stop over, on)
       if (p.stop && p.stop.on && p.pause <= 0) { p.stop = null; p.stopFace = null; }
       if (p.stop && !p.stop.on && ((p.stop.try += dt) > 5 || p.detourT > 0)) { p.stop = null; p.stopFace = null; }
-      if (p.pause > 0 && p.stopFace != null) p.h += Math.atan2(Math.sin(p.stopFace - p.h), Math.cos(p.stopFace - p.h)) * Math.min(1, dt * 2.5);
+      if (p.pause > 0 && p.stopFace != null) { const h = p.stopFace + (p.stop && p.stop.on ? glance(p, dt, p.stop.kind === 'window' ? 0.3 : 0.6) : 0); p.h += Math.atan2(Math.sin(h - p.h), Math.cos(h - p.h)) * Math.min(1, dt * (p.stop && p.stop.on ? 1.2 : 2.5)); } // (stood there: along the window, or about the street from the rail, tools/crowd_still.js)
       hx = p.hx; hy = p.hy; // the lane's direction where the walker is, from the last step
       push = 0; cap = G ? p.speed + 0.5 : p.speed; nn = 0; blk = -1; // (a mate may walk a little quicker, to catch its leader up)
       const c0 = Math.floor(p.x / CELL), r0 = Math.floor(p.y / CELL);
@@ -2814,6 +2872,20 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (const c of C) {
         if (c.line < 0 || Math.hypot(c.x - x, c.y - y) > r || !(JN.inner(c.line) || c.v > 1.5)) continue;
         respawn(c, x, y, r + 20); k++;
+      }
+      return k;
+    };
+    // the traffic out of a lane from (ax, ay) to (bx, by), w m either side and widening by 0.15 a metre (game.js
+    // clearSight: a frame's sightline in a stopped world. A car held on the zebra between the lens and frame 6's corner
+    // filled the finder and the print on a phone, issue 75): each car in it comes back elsewhere, out of sight
+    api.clearLane = (ax, ay, bx, by, w) => {
+      const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+      let k = 0;
+      for (const c of C) {
+        if (c.line < 0 || c.park) continue;
+        const t = (c.x - ax) * ux + (c.y - ay) * uy, side = Math.abs((c.x - ax) * -uy + (c.y - ay) * ux);
+        if (t < -3 || t > L + 3 || side > w + 0.15 * Math.max(0, t) + 2.6) continue; // (2.6 m: half a car's length, its middle to its bumper)
+        respawn(c, (ax + bx) / 2, (ay + by) / 2, L / 2 + 30); k++;
       }
       return k;
     };

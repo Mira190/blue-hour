@@ -165,10 +165,18 @@ The owner should not be the one who finds the bug.
 - On a phone every sound is made on the audio thread. iOS plays Web Audio in blocks of 2.7 ms, and anything the sound
   waits on from another thread is starved by a busy page and heard as crackle: twice the owner's iPhone found it first
   (the Stop's AudioWorklet, then the reverbs' long convolutions). No AudioWorklet, ScriptProcessorNode, second
-  AudioContext or media element's sound, and no ConvolverNode outside `audio.js` `reverb()`, which keeps a phone's
-  within WebKit's realtime limit (docs/SOUND.md, "Every sound on the audio thread"). `tools/check.sh` holds this
-  (`tools/audio_thread_check.py`, and the `audio` target); telemetry's `snd_stall` says when a phone's audio thread fell
-  behind.
+  AudioContext or media element brought into the context, and no ConvolverNode outside `audio.js` `reverb()`, which keeps
+  a phone's within WebKit's realtime limit (docs/SOUND.md, "Every sound on the audio thread"). `tools/check.sh` holds this
+  (`tools/audio_thread_check.py`, and the `audio` target).
+- On an iPhone a late render is not a click but noise: the page's audio thread and the output are a ring apart in two
+  processes with one 2.7 ms block in hand, and iOS 27 plays the output's stale buffer for a block that came late (WebKit
+  bug 320149; the third time the owner's iPhone found the opening's noise, issue 166). A lighter graph does not fix what
+  is not the graph's cost. So: a phone's music is a media element's by itself (`audio.js` `tune()`: the system's player,
+  outside the page's thread), no AudioContext exists from the page's load to the end of an opening's film (`quiet()`),
+  and nothing new that loads, compiles or uploads is put under a sound on the context. A break is read by the probe
+  (`snd_lag`, `snd_lag_max`, `snd_lag_at`; any page with `?snd=1` shows it), never by `snd_stall` or `snd_xrun` alone:
+  those read zero through an opening the owner heard break. `tools/opening_audio.js` holds a phone's opening to it.
+  A session cannot run iOS: say where each figure was measured, and leave the issue open until the owner has heard it.
 - A pose laid over an animation is taken off before the next frame. Twice a bone was turned after the mixer had posed
   it (an old woman's back, the guide dog's head to look at you), and wound round and round: the turn was added to the
   bone every frame, and the clip did not put the bone back (it does not key that bone, or the frame had no time in it:
@@ -292,7 +300,15 @@ thirty is drawn). So:
   Both scripts also write the parts the pages load before playable and after (`cars_far.glb`,
   `trees_far.glb`, `trees_near.glb`: `python pipeline/meshopt.py split <model.glb>`);
   `tools/check.sh` fails on a stale part.
-- After a step that writes `buildings.json`, four passes keep what the map's raw data lacks:
+- Everything built reads one ground (docs/LEVELS.md, issue 163): a generator of a wall, a fence, a hoarding, a rail,
+  a mast or anything else with a top or a foot takes its heights from `pipeline/levels.py` (`Levels`, `stepped`,
+  `footing`), never from a ground sampler of its own plus a height. After a step that changes the ground, the
+  buildings or the landmarks' feet, `tools/job.sh run regrade -- tools/regrade.sh` makes the levels again in the order
+  they depend on each other (the grading, the four passes below, the
+  landmarks, the packs) and ends on `tools/levels_check.py`.
+- After a step that writes `buildings.json`, first `python pipeline/proportion.py --city shibuya` (a building with
+  no class styled by its proportions: a long low footprint is a shed or a walk-up block, not a house; docs/BUILDINGS.md),
+  then four passes keep what the map's raw data lacks:
   `python pipeline/stations.py --city shibuya` (Japan's stations in panel and glass, and piers under a
   building that stands off the ground), `python pipeline/lobby.py --city shibuya` (a lift's street
   door set inside its building: `game.lobbies` in `cities/shibuya/city.json`),

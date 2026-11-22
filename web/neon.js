@@ -90,6 +90,7 @@ window.OENeon = (function () {
   // Apple or a phone GPU has to a material's own layers. ?arealight=ltc brings three.js's own back, to compare.
   const LTC = /[?&]arealight=ltc\b/.test(location.search);
   const REACH = 300; // how far a screen's or a card's light reaches (m): fades out over the last two fifths
+  const SPEC_NEAR = 60, SPEC_FAR = 120; // how far a screen's mirror image reaches (m): its own street, the crossing
   const LEAN = `
 	void RE_Direct_RectArea_Physical( const in RectAreaLight rectAreaLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {
 		if ( rectAreaLight.color.r + rectAreaLight.color.g + rectAreaLight.color.b <= 0.0 ) return; // (a screen that is off, and every one of them by day)
@@ -111,6 +112,15 @@ window.OENeon = (function () {
 		oeL *= inversesqrt( oeD2 );
 		float oeW = oeNear * oeA * saturate( - dot( oeL, oeN ) ) / ( PI * oeD2 + oeA );
 		reflectedLight.directDiffuse += rectAreaLight.color * material.diffuseContribution * ( oeW * saturate( dot( geometryNormal, oeL ) ) );
+		// The highlight is a reflection of the light, so it is given only where its mirror image can really be seen
+		// (docs/LOOK.md, "A reflection has a cause"): a light that casts no shadow says nothing of what stands between
+		// it and a pane 100 m off, and over the helicopter's 200 m the Scramble's screens drew their mean colour as a
+		// soft violet disc high on glass towers they cannot see (the pane's lit rooms breaking it into blotches).
+		// A screen's mirror image is kept on its own street (within ${SPEC_NEAR} m, gone by ${SPEC_FAR}), across which
+		// nothing stands; and a light card (a downward or aimed light standing for the shopfronts round a square, no
+		// thing in the air) has no image at all, as the night fill has none (lens.js diffusePoints): diffuse only.
+		float oeMir = ( 1.0 - smoothstep( ${SPEC_NEAR.toFixed(1)}, ${SPEC_FAR.toFixed(1)}, sqrt( oeD2 ) ) ) * ( 1.0 - smoothstep( 0.5, 0.8, abs( oeN.y ) ) );
+		if ( oeMir <= 0.0 ) return;
 		vec3 oeR = reflect( - geometryViewDir, geometryNormal );
 		float oeRn = dot( oeR, oeN );
 		vec3 oeS = oeP;
@@ -121,7 +131,7 @@ window.OENeon = (function () {
 		vec3 oeLs = oeS - geometryPosition;
 		float oeDs2 = dot( oeLs, oeLs );
 		oeLs *= inversesqrt( oeDs2 );
-		float oeWs = oeNear * oeA * saturate( - dot( oeLs, oeN ) ) / ( PI * oeDs2 + oeA );
+		float oeWs = oeMir * oeNear * oeA * saturate( - dot( oeLs, oeN ) ) / ( PI * oeDs2 + oeA );
 		float oeA2 = pow2( pow2( material.roughness ) );
 		float oeK = oeA2 / ( oeA2 + 0.25 * oeWs );
 		reflectedLight.directSpecular += rectAreaLight.color * min( vec3( 4.0 ), ( PI * oeWs * oeK * saturate( dot( geometryNormal, oeLs ) ) ) * BRDF_GGX( oeLs, geometryViewDir, geometryNormal, material ) ); // (bounded: no pixel of a rough wet surface sparks)

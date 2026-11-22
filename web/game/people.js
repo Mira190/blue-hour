@@ -1467,6 +1467,7 @@ ${PAT_GLSL}`)
     // a view through this person's eyes: the head, and whatever is on it, shrinks out of the way
     rig.hideHead = on => { if (head) head.scale.setScalar(on ? 1e-3 : 1); };
     rig.head = head; // (the bone the look is laid on: tools/head_spin.js reads it)
+    rig.clipName = () => (cur ? cur.getClip().name : null); // (the clip it plays now: tools/crowd_still.js reads it)
     // something held out in the right hand: rig.hold is where the fist goes (a point in the world, or null), and
     // rig.fist(out) where the wrist is as posed
     rig.hold = null;
@@ -1554,6 +1555,19 @@ vec3 crowdPose(vec3 p, bool isNormal) {
     piv = vec3(0.0, uShoulder); p = isNormal ? rx(b) * p : rx(b) * (p - piv) + piv;
   } else if (arm) { piv = vec3(0.0, uShoulder); p = isNormal ? rx(-sw * side * 0.8) * p : rx(-sw * side * 0.8) * (p - piv) + piv; }
   if (!isNormal) p.y += abs(cos(ph)) * 0.035 * amp;
+  // standing (aAnim.z between -0.5 and 0): alive, not a statue. The upper body turns a little one way and the other
+  // as one looks about, and the weight goes from one foot to the other, the body leaning a degree over the foot it is on,
+  // each at a pace of its own (aAnim.x: the walker's own phase). Stood with no such change a figure a few metres off
+  // read as stuck (the owner at Hachiko, tools/crowd_still.js)
+  if (aAnim.z < -0.05 && aAnim.z > -0.5) {
+    float t = uTime * (0.5 + 0.12 * fract(aAnim.x * 0.159)) + aAnim.x;
+    float yaw = (0.1 * sin(t * 0.7) + 0.05 * sin(t * 1.9 + 1.3)) * smoothstep(uHip.x - 0.05, uShoulder.x, position.y);
+    float roll = 0.02 * sin(t * 0.43 + 0.4);
+    float cy = cos(yaw), sy = sin(yaw), cr = cos(roll), sr = sin(roll);
+    vec3 o = isNormal ? vec3(0.0) : vec3(0.0, 0.0, uHip.y);
+    p -= o; p = vec3(cy * p.x + sy * p.z, p.y, -sy * p.x + cy * p.z) + o;
+    p = vec3(cr * p.x - sr * p.y, sr * p.x + cr * p.y, p.z);
+  }
   return p;
 }`;
 
@@ -2035,7 +2049,9 @@ transformed = crowdPose(transformed, false);`);
       lodX = ex; lodY = ey; lodZoom = zoom;
       for (let i = 0; i < nActive; i++) {
         const p = P[i]; if (p.line < 0) continue;
-        const d = Math.hypot(p.x - ex, p.y - ey) / zoom;
+        // (one standing counted a quarter nearer: the eye rests on those stood about, and a far copy standing is a figure
+        // with a clip's life in it only from the shader, CROWD_POSE; one walking by is gone in a moment)
+        const d = Math.hypot(p.x - ex, p.y - ey) / zoom * (p.moving || p.state === 'sit' ? 1 : 0.75);
         if (d >= nearR) continue;
         const seen = !culling || frustum.intersectsSphere(ball.set(at.set(p.x, p.z + 1, -p.y), 1.5));
         want.push([seen ? d : d + nearR, i]);
@@ -2119,7 +2135,7 @@ transformed = crowdPose(transformed, false);`);
       const f = moving ? 4.5 * Math.max(0.2, p.av ?? p.v ?? p.speed) / p.look.scale : p.animF ?? 4.5 * p.speed / p.look.scale;
       if (p.animF == null) { p.animF = f; p.animO = p.phase; }
       else if (Math.abs(f - p.animF) > 0.02 * p.animF) { p.animO += (p.animF - f) * tNow; p.animF = f; }
-      p.mesh.geometry.attributes.aAnim.setXYZ(p.slot, p.animO, p.animF, sit ? -1 : moving ? 0.42 : 0);
+      p.mesh.geometry.attributes.aAnim.setXYZ(p.slot, p.animO, p.animF, sit ? -1 : moving ? 0.42 : -0.25); // (-0.25: standing, CROWD_POSE)
     }
     // not drawn this frame. Called by the crowd's step before the places are sent (end), and after it by the game, once
     // the camera is known (the lens inside someone, a talk's shot cleared, someone near the lens): then what it changes
