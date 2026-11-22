@@ -44,7 +44,7 @@ const [,, size = '390x844'] = process.argv;
       const A = window.OEAudio; if (!A) return;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
       R.rows.push({ t: performance.now(), phase: R.phase, film: !!(o && o.active), ctx: c ? c.state : null, tot: P.tot.slice(), el: P.totEl, under: ps ? ps.underrunEvents : null, underMs: ps ? ps.underrunDuration * 1000 : null,
-        main: P.main });
+        main: P.main, held: !!A.holding });
     }, 250);
   });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?snd=1${WEB ? '&music=web' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -79,10 +79,23 @@ const [,, size = '390x844'] = process.argv;
     if (!WEB) music.push(await playingNow());
     await p.waitForTimeout(1000);
   }
-  await p.evaluate(() => { window.__snd.phase = 'after'; });
   console.log(`the film: ${((Date.now() - t0) / 1000).toFixed(0)} s on the wall's clock`);
-  // after it: one touch, as a player's first on the street, and the context is made
-  await p.waitForTimeout(2500);
+  // after it the phone's late parts come in (game.js afterPlayable), and the street waits for them (audio.js hold, the
+  // guard: docs/SOUND.md "The guard"): a touch meanwhile, as a player's first on the street, makes no context that runs
+  const guard = !WEB && await p.evaluate(() => !!window.OEAudio.guard);
+  if (guard) {
+    await p.evaluate(() => { window.__snd.phase = 'late'; window.__snd.lateIn = false; window.__game.lateReady().then(() => { window.__snd.lateIn = true; }); });
+    await p.waitForTimeout(1500);
+    await p.touchscreen.tap(w / 2, h * 0.3);
+    const tl = Date.now();
+    await p.waitForFunction(() => window.__snd.lateIn, null, { timeout: 600000, polling: 500 }).catch(() => fail('the late parts are not in ten minutes after the film'));
+    console.log(`the late parts: in ${((Date.now() - tl) / 1000).toFixed(0)} s after the film on the wall's clock`);
+    // (the street let go three seconds after the page is still: then a touch makes the context)
+    await p.waitForFunction(() => !window.OEAudio.holding, null, { timeout: 30000, polling: 250 }).catch(() => fail('the street is still held 30 s after the late parts are in'));
+  }
+  await p.evaluate(() => { window.__snd.phase = 'after'; });
+  // then one touch, as a player's on the street, and the context is made
+  await p.waitForTimeout(guard ? 500 : 2500);
   await p.touchscreen.tap(w / 2, h * 0.3);
   const made = await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 10000, polling: 250 }).then(() => true, () => false);
   await p.waitForTimeout(3000);
@@ -110,10 +123,12 @@ const [,, size = '390x844'] = process.argv;
     const head = music.slice(0, 20), quietHead = head.filter(n => n < 1).length;
     if (WALK ? quietHead > 3 : music.length && silent > Math.max(2, music.length * 0.1)) fail(`no music plays at ${WALK ? `${quietHead} of the film's first ${head.length}` : `${silent} of ${music.length}`} readings in the film`);
     if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
+    const late = by('late'), lateRun = late.filter(r => r.ctx === 'running').length;
+    if (guard) { console.log(`while the late parts came in: ${late.length} readings, the context running at ${lateRun}, the street held at ${late.filter(r => r.held).length}`); if (lateRun) fail(`the context ran at ${lateRun} of ${late.length} readings while the phone's late parts came in: the street is to wait for a page with room for it`); }
     if (!made) fail('ten seconds after the film and a touch, the context is not made and running: the street has no sound');
     else console.log(`after the film and a touch: context ${last.ctx}`);
   }
-  console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on an element without a stall under a main thread throttled ${RATE} times, the context made at the first touch after it`);
+  console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on an element without a stall under a main thread throttled ${RATE} times, ${guard ? 'no context running while the late parts came in, ' : ''}the context made at the first touch after it`);
   await b.close();
   process.exit(errors.length ? 1 : 0);
 })();
