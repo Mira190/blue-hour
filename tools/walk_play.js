@@ -621,7 +621,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 8; i++) g.frame(0.05); });
         await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3 && e.dataset.k === 'story'), null, { timeout: 90000, polling: 500 }).catch(() => {}); // (the mark that is judged, not any mark: a seat's may be up already)
         const mk = await p.evaluate(() => [...document.querySelectorAll('.g-walk-mark')].filter(e => +e.style.opacity > 0.3).map(e => e.dataset.k));
-        if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (${JSON.stringify(mk)})`);
+        if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (${JSON.stringify(mk)}; ${JSON.stringify(await p.evaluate(() => { const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'mei'); return { want: t.want('mei'), dlg: g.dlg.open, photo: g.photo.on, mode: g.player.mode, d: Math.hypot(n.x - g.player.x, n.y - g.player.y).toFixed(1), seen: !!n.rig.root.visible, stage: document.getElementById('game-stage').className }; }))})`);
         else ok(`speech marks from fourteen metres: ${mk.join(', ')}`);
         await shot('4b-marks');
         await talk('mei', 1.6);
