@@ -182,7 +182,14 @@ window.OECompanion = (function () {
       if (s.gainT > 1) { if (s.gain < 0.35 * Math.min(speed, speeds.trot)) { s.held = (s.held || 0) + 1; if (s.det) { s.det = null; if (s.held > 3) s.thru = 1.5; } else s.thru = 2.5; if (s.to) replan(); } else s.held = 0; s.gain = 0; s.gainT = 0; } // (held up: through the crowd, never a wall; and the way again from here)
       return d - step;
     }
-    const face = (x, y, dt) => turn(Math.atan2(y - s.y, x - s.x), 4, dt);
+    // (whether his whole body has room at (x, y) facing h: both ends of him clear of every wall)
+    const fits = (x, y, h) => !wall || body.spine.every(a => !wall(x + Math.cos(h) * a, y + Math.sin(h) * a, s.z, body.flank));
+    // A turn he makes standing still, only where his body has room for it (issue 182). Sitting at the roof's glass
+    // and facing the relic beyond it, or at heel facing the way you face, put his nose through the pane: the walls
+    // pushed him off, and he turned back in, every frame of frame 4's Stop and after it. What he would face is kept
+    // (s.want), so that when he has to step off a wall he steps to where he can face it.
+    const turnStill = (to, rate, dt) => { s.want = to; const h0 = s.h, d = turn(to, rate, dt); if (wall && s.h !== h0 && !fits(s.x, s.y, s.h) && fits(s.x, s.y, h0)) s.h = h0; return d; };
+    const face = (x, y, dt) => turnStill(Math.atan2(y - s.y, x - s.x), 4, dt);
     // The player's body has the right of way over his. Each frame, whatever he is doing (leading, at heel, sitting
     // where the picture is taken from, standing where he was put), if the player's circle reaches his spine he is moved
     // off it at once, along the way out from them (as a walker steps, never into a wall); and when he was sitting or
@@ -221,9 +228,12 @@ window.OECompanion = (function () {
       // heading round him where both ends stand clear of every wall and he is off the player, and he steps there)
       if (s.wallT > 0.5) {
         const x0 = s.x, y0 = s.y, h0 = s.h, clear = () => body.spine.every(a => !wall(s.x + Math.cos(s.h) * a, s.y + Math.sin(s.h) * a, s.z, body.flank)) && offPlayer() >= -TOUCH;
-        for (let r = 0.1; r <= 1.5; r += 0.1) for (let k = 0; k < 12; k++) for (const dh of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+        // (first where he can face what he was facing, s.want, so that his next turn does not take him back in; then
+        // any way round)
+        const any = [h0, h0 + Math.PI / 2, h0 - Math.PI / 2, h0 + Math.PI];
+        for (const hs of s.want != null ? [[s.want], any] : [any]) for (let r = 0.1; r <= 1.5; r += 0.1) for (let k = 0; k < 12; k++) for (const hh of hs) {
           const a = k * Math.PI / 6;
-          s.x = x0 + Math.cos(a) * r; s.y = y0 + Math.sin(a) * r; s.h = h0 + dh;
+          s.x = x0 + Math.cos(a) * r; s.y = y0 + Math.sin(a) * r; s.h = hh;
           if ((!stand || stand(s.x, s.y, s.z)) && clear()) { s.wallT = 0; return; }
         }
         s.x = x0; s.y = y0; s.h = h0; s.wallT = 0.25; // (nowhere near: tried again in a quarter of a second)
@@ -423,6 +433,7 @@ window.OECompanion = (function () {
       const px = player.x, py = player.y;
       // (where he is and how far off the player as the tick begins: what it may not end further inside of, keepOff's rule)
       const x0 = s.x, y0 = s.y, h0 = s.h, gap0 = offPlayer();
+      s.want = null; // (what he would face standing still: set again by this tick's turn, if he is still)
       // (the player in a car, a lift, the air: he is not seen, and is at their heels again when they are on foot)
       // (the player in a car, a lift, the air: it fades where it stood, and is at their heels again when they are on foot)
       // (a lift he rides with you, at your side in the car: gone at the bottom and found at the top, he was a dog that
@@ -490,9 +501,16 @@ window.OECompanion = (function () {
           }
         }
       } else if (s.state === 'heel') { // at the player's side, a pace behind: off when they are, still when they stop
-        const h = player.h || 0, hx = px - Math.sin(h) * 1.1 + Math.cos(h) * 0.8, hy = py - Math.cos(h) * 1.1 - Math.sin(h) * 0.8, dh = dist(hx, hy);
-        if (dh > 0.6) { const w = through(hx, hy); move(w[0], w[1], Math.max(speeds.walk, Math.min(RUN * 1.45, ps + (dh - 0.3) * 1.5)), dt); }
-        else { s.speed = 0; turn(Math.atan2(Math.cos(h), Math.sin(h)), 3, dt); }
+        // (his place a pace behind, on your right; where his body has no room there, facing your way, the left, then
+        // straight behind you. You at the roof's glass with it on your right: his place was through the pane, and he
+        // walked on the spot against it after the photograph, the walls pushing him back, issue 182)
+        const h = player.h || 0, fh = Math.atan2(Math.cos(h), Math.sin(h)), at = side => [px - Math.sin(h) * 1.1 + Math.cos(h) * side, py - Math.cos(h) * 1.1 - Math.sin(h) * side];
+        const room = q => fits(q[0], q[1], fh) && (!stand || stand(q[0], q[1], s.z));
+        let q = at(s.heelSide ?? 0.8);
+        if (wall && !room(q)) { const o = [0.8, -0.8, 0].find(sd => room(at(sd))); if (o != null) { s.heelSide = o; q = at(o); } }
+        const [hx, hy] = q, dh = dist(hx, hy), none = wall && !room(q); // (nowhere with room: as near as he gets, he stops)
+        if (dh > (none ? 1.5 : 0.6)) { const w = through(hx, hy); move(w[0], w[1], Math.max(speeds.walk, Math.min(RUN * 1.45, ps + (dh - 0.3) * 1.5)), dt); }
+        else { s.speed = 0; turnStill(fh, 3, dt); }
       } else if (s.state === 'go') {
         const w = through(s.to[0], s.to[1]);
         move(w[0], w[1], s.goV || speeds.trot, dt);
@@ -505,7 +523,10 @@ window.OECompanion = (function () {
         if (s.look) face(l[0], l[1], dt); else if (s.t < 1.2) face(px, py, dt);
         lookAt = l;
       } else if (s.state === 'leave') {
-        const left = move(s.to[0], s.to[1], speeds.trot * 1.4, dt);
+        // (along the way home, not the crow's line: from the meeting's kerb the line to Hachiko ran into a building's
+        // corner, and he ran on into its wall until he had faded, issue 182)
+        const w = onWay() || s.to; move(w[0], w[1], speeds.trot * 1.4, dt);
+        const left = dist(s.to[0], s.to[1]);
         if (s.t > 1.2) s.fade = Math.max(0, s.fade - dt / 1.4);
         shade(s.fade);
         if (left < 0.3 || s.fade <= 0) { s.state = 'away'; root.visible = false; if (s.done) { const d = s.done; s.done = null; d(); } return; }
@@ -567,7 +588,7 @@ window.OECompanion = (function () {
         return best;
       },
       lead(to, reach = 3, done = null) { s.to = to; s.reach = reach; s.done = done; s.held = 0; s.state = s.greeted ? 'lead' : 'greet'; s.t = 0; replan(); return api; },
-      heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; return api; },
+      heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; s.heelSide = null; return api; },
       aboard(on) { s.aboard = !!on; return api; }, // (gone in with the player where nothing shows the seat: a story's helicopter; out at their heels after them)
       go(to, look = null, speed = 0) { s.to = to; s.look = look; s.goV = speed; s.state = 'go'; s.t = 0; s.det = null; return api; },
       call() { if (s.state === 'lead' || s.state === 'wait') { s.state = 'fetch'; s.t = 0; } return api; },
@@ -576,7 +597,7 @@ window.OECompanion = (function () {
       // (makeWay: game.js, at once after the player has moved: off them, or jammed, in the same frame)
       get jammed() { return !!s.jam; }, makeWay() { if (s.ready && s.state !== 'away') keepOff(0); return api; }, get clearance() { return PLAYER_R + body.flank; }, get reach() { return body.reach; }, get body() { return { spine: body.spine.slice(), flank: body.flank, reach: body.reach }; }, get yielded() { return s.yielded || 0; }, spineNear, // (game.js: the player stops at his flank where a wall holds him; tools/guide_body.js)
       get behind() { return (s.state === 'lead' || s.state === 'fetch') && onAhead(); }, // (the player further along the way than he is)
-      leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; return api; },
+      leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; replan(); return api; },
       tick,
       remove() { world.remove(root); s.state = 'away'; },
     };
