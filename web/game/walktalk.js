@@ -479,7 +479,7 @@ window.OEWalkTalk = (function () {
         const p = ctx.project(n.x, n.y, n.z + 2.12);
         const e = mark(id);
         if (!p || !sight(id, n)) { fade(e, '0'); continue; }
-        const k = w.kind;
+        const k = w.kind === 'gate' ? 'story' : w.kind; // (at the station her mark is a story's: amber)
         if (e._k !== k) { e._k = k; e.dataset.k = k; }
         const name = d < NAME_M ? `${first(n.name)}${n.role ? ` · ${String(n.role).replace(/\s*[　-鿿＀-￯].*$/, '')}` : ''}` : '';
         if (e._n !== name) { e._n = name; e.querySelector('span').textContent = name; e.classList.toggle('named', !!name); }

@@ -600,7 +600,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                             const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
                             if (!gone || !hid) fail(`she does not go (${JSON.stringify(await line())}, hidden ${hid})`);
                             else ok('she took yours, went in along the walkway, turned round, and is gone');
-                            await p.evaluate(c => window.__game.setClock(...c), clockWas);
+                            await p.evaluate(c => { const g = window.__game; g.setClock(...c); g.spawn([376.9, -1013.1]); }, clockWas); // (and back where the walk sets out: from the station's side the next beat's camera stood in its pillars)
                           }
                         }
                       }

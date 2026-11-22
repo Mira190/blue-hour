@@ -159,6 +159,11 @@ const SECS = +(process.env.SECS || 14), EVERY = +(process.env.EVERY || 2);
     await L(() => window.__game.walkLine().gate === 'going', null, 20000); await p.waitForTimeout(3500); await shot('e8-turns');
     const gone = await L(() => window.__game.walkLine().w === 'gone', null, 90000); await shot('e9-gone');
     console.log(`the line's end: ${gone ? 'she is gone' : 'SHE NEVER WENT'}; ${await say()}`);
+    if (process.env.MEI) { // (after it, Mei's mark from fourteen metres, as tools/walk_play.js looks for it)
+      await p.evaluate(() => { const g = window.__game, t = g.walkTalk(); t.startAt('hachiko'); const n = g.npcs.find(q => q.id === 'mei'); g.spawn([n.x + 14, n.y]); g.player.h = Math.atan2(-14, 0); g.cam.yaw = g.player.h; });
+      for (let i = 0; i < 6; i++) { await p.waitForTimeout(5000); console.log(`  mei ${i}: ${JSON.stringify(await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'), c = g.camera.position; return { marks: [...document.querySelectorAll('.g-walk-mark')].map(e => `${e.dataset.k}:${e.style.opacity}`), cine: !!(g.cine && g.cine.active), dlg: g.dlg.open, photo: g.photo.on, seen: !g.nav.col.pick(c.x, -c.z, c.y, n.x, n.y, n.z + 1.6), talking: !!n.talking, layer: document.querySelector('.g-walk-marks').className }; }))}`); }
+      await shot('mei-14');
+    }
   }
   await b.close();
   process.exit(bad ? 1 : 0);
