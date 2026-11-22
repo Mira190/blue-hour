@@ -459,7 +459,7 @@ window.OEGameRides = function (g) {
       // (and set down moving no faster than it can stop at short of the first person on its way in: put down at 5.5 m/s
       // 6 m short, it braked for a woman waiting at the kerb by Hachiko and stopped with her in its bonnet, #50)
       const s = setDown(o) ?? setDown(o, Infinity);
-      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 0.3) o.drv.finish(); else { /* (finished only where it was found clear: two metres on, at the stop, it once stood on a walker by Hachiko) */ const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
