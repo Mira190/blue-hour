@@ -74,7 +74,8 @@ float irH(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
   // Farther off the room settles to its mean, then a zone's light to the share lit, so a far tower keeps its tone and
   // never sparkles.
   // The skin's texture coordinates: u in tiles of `tile` metres along the facade, v the tile's storey coordinate.
-  // spec: base (1F's height), shop_top and shop_storey (the shop floors' storeys to there), storey (the offices'),
+  // spec: base (1F's height), levels (each storey's floor over 1F, up to where the even storeys begin: storeys of their
+  // real heights) or else shop_top and shop_storey (the shop floors' storeys to there), storey (the offices'),
   // spandrel and frit (shares of a storey, as the tile draws them), tile, rows, pane, shift and mullion (the tile's
   // joints), trans (the glass's share of the room's light), busy (the tower's evening against the city's), and floors:
   // [[from, to, use], ...] by storey index from 1F = 0, use one of office, shop, dining, lobby, gallery, plant.
@@ -83,6 +84,14 @@ float irH(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
     const S = Object.assign({ base: 0, shop_top: 0, shop_storey: 4.5, storey: 4.5, spandrel: 0.12, frit: 0.3, tile: 12, rows: 8,
       pane: 1.5, shift: 0.75, mullion: 0.06, trans: 0.55, busy: 1, floors: [] }, spec);
     const f = v => (+v).toFixed(4);
+    // the storey coordinate from the height over 1F, and back: through the levels, then even storeys over the last
+    const lv = (S.levels && S.levels.length > 1) ? S.levels : null;
+    const scOf = lv
+      ? lv.slice(1).map((b, i) => `h <= ${f(b)} ? ${f(i)} + (h - ${f(lv[i])}) / ${f(b - lv[i])} : `).join('') + `${f(lv.length - 1)} + (h - ${f(lv[lv.length - 1])}) / OF_S`
+      : 'h <= OF_SHOP_TOP ? h / OF_SHOP_S : OF_SHOP_N + (h - OF_SHOP_TOP) / OF_S';
+    const footOf = lv
+      ? lv.slice(1).map((b, i) => `s <= ${f(i + 1)} ? ${f(lv[i])} + (s - ${f(i)}) * ${f(b - lv[i])} : `).join('') + `${f(lv[lv.length - 1])} + (s - ${f(lv.length - 1)}) * OF_S`
+      : 's <= OF_SHOP_N ? s * OF_SHOP_S : OF_SHOP_TOP + (s - OF_SHOP_N) * OF_S';
     const useOf = (S.floors || []).map(([a, b, u]) => `fl > ${f(a - 0.5)} && fl < ${f(b + 0.5)} ? ${f(USES[u] != null ? USES[u] : 0)} : `).join('') + '0.0';
     // (the skin's light is its rooms', drawn here: whatever the model carried as its emission is let go)
     if (mat.emissiveMap) { mat.emissiveMap.dispose(); mat.emissiveMap = null; }
@@ -99,8 +108,8 @@ float irH(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOfW; varying vec3 vOfN;')
         .replace('#include <project_vertex>', `#include <project_vertex>
   vOfW = (modelMatrix * vec4(transformed, 1.0)).xyz; vOfN = normalize(mat3(modelMatrix) * objectNormal);`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${DEF}${OF_COMMON}`)
-        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${OF_MAIN.replace('OF_USE_OF', useOf)}`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${DEF}${OF_COMMON.replace('OF_FOOT_OF', footOf)}`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${OF_MAIN.replace('OF_USE_OF', useOf).replace('OF_SC_OF', scOf)}`);
     };
     const key = mat.customProgramCacheKey && mat.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : null;
     mat.customProgramCacheKey = () => `of|${key ? key() : ''}`;
@@ -119,7 +128,7 @@ float ofP(float x, float a, float b, float p, float w) {
   float t0 = t - c - 0.5 / iw, t1 = t - c + 0.5 / iw;
   return ((floor(t1) - floor(t0)) * d + min(fract(t1), d) - min(fract(t0), d)) * iw;
 }
-float ofFoot(float s) { return s <= OF_SHOP_N ? s * OF_SHOP_S : OF_SHOP_TOP + (s - OF_SHOP_N) * OF_S; }
+float ofFoot(float s) { return OF_FOOT_OF; }
 // the storey's room, kept plain and the same on every storey: an evenly lit floor, a white ceiling with its line luminaires in
 // unbroken rows along the glass (rowP apart: the system ceilings of Japanese offices), and the core's wall at the back.
 // p: metres along the facade, over the floor, and in from the glass; d: the eye's ray in the same axes; w: the pixel's
@@ -150,7 +159,7 @@ vec3 ofRoom(vec3 p, vec3 d, float Hc, float D, float rowP, vec3 floorC, vec3 wal
     vec3 oN = normalize(vOfN), oV = normalize(vOfW - cameraPosition);
     vec3 oT = normalize(cross(vec3(0.0, 1.0, 0.0), oN) + vec3(1e-6));
     float ax = vUv.x * OF_TILE, h = vOfW.y - OF_BASE;          // metres along the skin; over 1F
-    float sc = h <= OF_SHOP_TOP ? h / OF_SHOP_S : OF_SHOP_N + (h - OF_SHOP_TOP) / OF_S; // the tile's storeys
+    float sc = OF_SC_OF; // the tile's storeys
     float fl = floor(sc), fy = sc - fl, foot = ofFoot(fl), S = ofFoot(fl + 1.0) - foot;
     float wx = max(fwidth(ax), 1e-4), ws = max(fwidth(sc), 1e-4), w = max(wx, ws * S); // the pixel's footprint (m; storeys)
     float use = OF_USE_OF;

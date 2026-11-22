@@ -2243,12 +2243,15 @@ CROSSING_SCREENS = [
     {"name": "Q'S EYE banner", "building": "Q-FRONT", "edge": [[346.0, -969.6], [363.0, -967.6]], "w": 12.96, "h": 5.33, "z": 20.4, "along": 0.0,
      "clips": ["music", "phone", "movie", "live", "soda", "beauty"], "phase": 4.0, "pitch": 0.012, "off": 0.7},
     # W corner at Center Gai's mouth: Rakuten Vision (formerly Mighty Vision, DHC Channel), 10.24 x 5.76 m on
-    # the wall of the Taiseido building, speakers above it
-    {"name": "Rakuten Vision", "building": "w136690966", "edge": [[324.0, -975.0], [330.0, -969.0]], "w": 10.24, "h": 5.76, "z": 12.9, "off": 0.9,
+    # the wall of the Taiseido building, speakers above it. Its edge is the mapped wall's own (w136690966; an edge typed
+    # at 45 degrees stood it 0.8 to 1.4 m off the wall, askew to it), and the published 10.24 m is wider than the
+    # mapped 8.6 m face: it overhangs each end by 0.84 m on its frame (tools/screen_fit.py)
+    {"name": "Rakuten Vision", "building": "w136690966", "edge": [[323.6, -975.2], [329.9, -969.4]], "w": 10.24, "h": 5.76, "z": 12.9, "off": 0.9,
+     "overhang": 0.84,
      "clips": ["shoe", "noodle", "info", "game", "fashion"], "phase": 3.0, "pitch": 0.01},
     # under it, the block's second screen over the bookshop's box sign (scramble.py BOOKSHOP, 3.6-6.9 m; the
     # screen's size is an estimate from photographs of 2024-25): it plays its own programme, not the synchronised slot
-    {"name": "Taiseido corner screen", "building": "w136690966", "edge": [[324.0, -975.0], [330.0, -969.0]], "w": 5.6, "h": 5.0, "z": 7.4, "off": 0.9,
+    {"name": "Taiseido corner screen", "building": "w136690966", "edge": [[323.6, -975.2], [329.9, -969.4]], "w": 5.6, "h": 5.0, "z": 7.4, "off": 0.9,
      "clips": ["game", "beauty", "music", "movie"], "phase": 7.0, "pitch": 0.008, "sync": False},
     # SW: on the roof of the Shibuya Ekimae building, the station-front vision (Tokyu, from 2019): 21.6 x
     # 12.144 m over a 21.6 x 4.176 m banner screen; and south of it, on the roof of the Oto building, HIT's
@@ -2275,12 +2278,15 @@ CROSSING_SCREENS = [
     # SE, over the tracks: Shibuya Scramble Square's vision, LEDs behind the glass of the east tower's lower
     # floors: on the north face, towards the crossing, an irregular screen of 552.6 m2 in a box 40.05 m wide and
     # 25.24 m high (Tokyu OOH), its foot at 4F behind the Ginza line's roof, its outline the windows' between the
-    # north-east tent and the north-west skirt, stepping with the storeys (cities/shibuya/scrsq_base.py
+    # north-east tent and the north-west skirt, its sides along their edges (cities/shibuya/scrsq_base.py
     # screen_parts, issue 66), and a 13.79 x 20.24 m one on the east face; 16 mm pitch
     {"name": "Shibuya Scramble Square Vision", "building": "渋谷スクランブルスクエア", "edge": [[477.9, -1103.0], [533.2, -1081.4]],
      "w": 40.05, "h": 25.24, "z": 19.3, "along": -2.42,
-     "parts": [[0.1828, 0.7974, 0.0, 0.2258], [0.0679, 0.8517, 0.2258, 0.4239], [0.0114, 0.9162, 0.4239, 0.622], [0.0094, 0.9557, 0.622, 0.8201],
-               [0.0087, 0.9908, 0.8201, 1.0]],
+     "parts": [[0.2606, 0.7854, 0.0, 0.3843, 0.051, 0.8827],
+               [0.051, 0.8827, 0.3843, 0.4779, 0.0, 0.9004],
+               [0.0, 0.9004, 0.4779, 0.7409, 0.0, 0.9501],
+               [0.0, 0.9501, 0.7409, 0.939, 0.0, 0.9876],
+               [0.0, 0.9876, 0.939, 1.0, 0.0, 0.9994]],
      "clips": ["movie", "info", "music", "phone", "live"], "phase": 20.0, "pitch": 0.016, "sync": False, "off": 0.3, "frame": 0.0},
     {"name": "Shibuya Scramble Square Vision east", "building": "渋谷スクランブルスクエア", "toward": [900.0, -1200.0], "w": 13.79, "h": 20.24, "z": 10.0,
      "clips": ["fashion", "soda", "game"], "phase": 5.0, "pitch": 0.016, "sync": False, "off": 0.3, "frame": 0.0},
@@ -2291,8 +2297,10 @@ CROSSING_SCREENS = [
     # E, beyond the tracks at Miyamasuzaka-shita: HIT's Synchro7, seven faces on three buildings (six on their
     # roofs, one on a wall) that play together, seen from the crossing and from Hachiko. HIT publishes no
     # sizes: these are estimates from photographs
-    {"name": "Synchro7 1", "building": "渋谷東映プラザ", "w": 9.0, "h": 5.0, "roof": True, "along": -6.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
-    {"name": "Synchro7 2", "building": "渋谷東映プラザ", "w": 9.0, "h": 5.0, "roof": True, "along": 5.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
+    # (the two on the Toei Plaza's roof at 8.4 m, so that both stand on its 17.5 m: at 9.0 each hung past an end of it,
+    # tools/screen_fit.py)
+    {"name": "Synchro7 1", "building": "渋谷東映プラザ", "w": 8.4, "h": 5.0, "roof": True, "along": -5.1, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
+    {"name": "Synchro7 2", "building": "渋谷東映プラザ", "w": 8.4, "h": 5.0, "roof": True, "along": 3.5, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
     {"name": "Synchro7 3", "building": "FPG Links Shibuya", "w": 8.0, "h": 4.5, "roof": True, "lift": 1.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
     {"name": "Synchro7 4", "building": "FPG Links Shibuya", "w": 8.0, "h": 4.5, "roof": True, "lift": 6.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
     {"name": "Synchro7 5", "building": "渋谷パークサイド共同ビル", "w": 8.0, "h": 4.5, "roof": True, "along": -4.5, "clips": SYNCHRO7, "phase": 30.0, "sync": False},

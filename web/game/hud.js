@@ -299,6 +299,7 @@ window.OEHud = (function () {
       if (!cur || view || cur.i < cur.lines.length - 1 || !cur.choices.length) return;
       hint.textContent = '';
       choicesEl.innerHTML = cur.choices.map((c, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd>${c.text}</button>`).join('');
+      if (!cur.choicesAt) cur.choicesAt = performance.now(); // (when the answers came up: the click below)
     }
     function choose(k) {
       if (!cur || view || !cur.choices[k] || cur.typed < cur.full.length) return;
@@ -339,7 +340,10 @@ window.OEHud = (function () {
         if (n >= cur.full.length) showChoices();
       }
     }
-    choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); choose(+b.dataset.k); } });
+    // (an answer takes no tap in its first 0.35 s on the screen: a finger tapping the words to hurry them on is over the
+    // answers as they come up under it, and the tap was taken as one of them. Played by touch, issue 120, it opened the
+    // roll from the summation's question; it could as well have been a wrong answer, which is written in the file)
+    choicesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); if (cur && performance.now() - (cur.choicesAt || 0) < 350) return; choose(+b.dataset.k); } });
     // (the dialogue's own buttons, a story's: a step back, and the log)
     box.addEventListener('click', e => { const t = e.target.closest('[data-gd]'); if (t) { e.stopPropagation(); if (t.dataset.gd === 'back') back(); else if (api.log) api.log.show(true); return; } next(false, true); });
     // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
@@ -374,6 +378,10 @@ window.OEHud = (function () {
     el.className = `g-toast ${kind}`;
     el.innerHTML = api.keys ? api.keys(text) : text; // (a phone names its buttons, not keys: game.js)
     const box = $('#g-toasts');
+    // (where the corner's words end, the goal's or the walk's: on a phone what is said sits under them, story.css, issue 154)
+    { const st = $('#game-stage'), c = st && st.querySelector('#g-story-goal.on, #g-walk-where.on'); let h = 0;
+      if (c) { const top = st.getBoundingClientRect().top; for (const k of c.children) { const r = k.getBoundingClientRect(); if (r.height > 0) h = Math.max(h, r.bottom - top); } }
+      if (h > 0) box.style.setProperty('--under', `${Math.round(h)}px`); else box.style.removeProperty('--under'); }
     box.appendChild(el);
     while (box.children.length > (gone ? 1 : 3)) box.firstChild.remove(); // keep the stack short
     setTimeout(() => el.classList.add('out'), stay);

@@ -206,27 +206,31 @@ def screen_poly():
 
 
 def screen_parts(step=None):
-    """the screen as rectangles of its box (pipeline/screens.py "parts", fractions, u from its east side as it is seen
-    from in front): its LEDs stand behind the windows, so its edge steps with the storeys"""
+    """the screen as trapezoids of its box (pipeline/screens.py "parts", fractions, u from its east side as it is seen
+    from in front): its sides run along the tent's edge and the skirt's, as they do in the photographs from the north
+    and from Miyamasuzaka-shita (its rows cut to whole storeys, each its mean width, stepped against the skirt's sweep: a
+    sawtooth of glass between the two that read as the base twisting)"""
     S = SCREEN
     P = screen_poly()
-    bands = [z for z in LEVELS if S["z"] - 1e-6 <= z <= S["z"] + S["h"] + 1e-6] + [S["z"] + S["h"]]
-    bands = sorted(set(round(b, 2) for b in bands))
+    z0, z1 = S["z"], S["z"] + S["h"]
+    s_left = S["s_right"] - S["w"]   # (its east side: s runs west)
+    # where either side changes its slope: the skirt edge's measured points, where the tent's foot passes the box's side,
+    # the tent's point
+    T = TENT
+    tau = 1 - (s_left - T["tip"]) / (T["s1"] - T["tip"])
+    cuts = {z0, z1, T["top"], F4 + tau * (T["top"] - F4)} | {z for z, _ in SKIRT_EDGE}
+    zs = sorted(z for z in cuts if z0 - 1e-6 <= z <= z1 + 1e-6)
+    def span(z):
+        z = min(max(z, z0 + 0.01), z1 - 0.01)
+        cut = P.intersection(Polygon([(-50, z - 0.005), (100, z - 0.005), (100, z + 0.005), (-50, z + 0.005)]))
+        a, _, b, _ = cut.bounds
+        return (a - s_left) / S["w"], (b - s_left) / S["w"]
     out = []
-    for z0, z1 in zip(bands[:-1], bands[1:]):
-        if z1 - z0 < 0.5:
+    for za, zb in zip(zs[:-1], zs[1:]):
+        if zb - za < 0.05:
             continue
-        row = P.intersection(Polygon([(-50, z0), (100, z0), (100, z1), (-50, z1)]))
-        if row.is_empty:
-            continue
-        x0, _, x1, _ = row.bounds
-        # the row's mean width (its area over its height), centred where the row is
-        wmean = row.area / (z1 - z0)
-        mid = (x0 + x1) / 2 if wmean >= x1 - x0 - 1e-6 else (x0 + x1) / 2
-        a, b = mid - wmean / 2, mid + wmean / 2
-        s_left = S["s_right"] - S["w"]   # (its east side: s runs west)
-        out.append([round((a - s_left) / S["w"], 4), round((b - s_left) / S["w"], 4),
-                    round((z0 - S["z"]) / S["h"], 4), round((z1 - S["z"]) / S["h"], 4)])
+        (a0, b0), (a1, b1) = span(za), span(zb)
+        out.append([round(a0, 4), round(b0, 4), round((za - z0) / S["h"], 4), round((zb - z0) / S["h"], 4), round(a1, 4), round(b1, 4)])
     return out
 
 

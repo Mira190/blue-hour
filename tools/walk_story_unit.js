@@ -40,6 +40,18 @@ function step(label) {
   return { a, e };
 }
 const talkTo = (id, label) => { const r = step(label); if (!r.a.includes(id)) fail(`${label}: ${id} has no part for you (the part is ${r.a.join(', ') || 'nobody'}'s)`); at(id); if (!T.talk(byId[id])) fail(`${label}: talking to ${id} said nothing`); };
+// 0. The last train, the walk's line (docs/STORY.md "The walk's line"). Its incident is the street's (a man who walks:
+// game.js), so here she has her part as anyone has: she asks for her photograph, one with her in it is the one, and
+// shown it she names her train. A photograph with her out of it is not taken for it
+{ const r = step('the start'); if (r.a.join() !== 'nagi') fail(`at the start the amber mark is over ${r.a.join(', ') || 'nobody'}, not Nagi`); }
+talkTo('nagi', 'Nagi');
+{ const e = T.errand(); if (!/Photograph Nagi/.test(e && e.text)) fail(`after Nagi the corner says "${e && e.text}"`); }
+Object.assign(me, { x: byId.nagi.x + 3, y: byId.nagi.y - 2, z: byId.nagi.z, mode: 'foot' });
+if (T.photo({ z: 16.6, sees: () => false })) fail('a photograph without Nagi in it was taken for hers');
+if (!T.photo({ z: 16.6, sees: () => true })) fail('a photograph with Nagi in it did not meet what she asked');
+{ const e = T.errand(); if (!/Back to Nagi/.test(e && e.text)) fail(`after her photograph the corner says "${e && e.text}"`); }
+talkTo('nagi', 'back to Nagi');
+if (!(T.state().last || {}).done) fail('The last train is not put away after her second part');
 // the first story's giver calls you over once you come near, and not again at once
 Object.assign(me, { x: byId.mei.x + 9, y: byId.mei.y, z: byId.mei.z }); T.tick(0.1, false); T.tick(0.1, false);
 if (!T.barked.includes('mei')) fail('nine metres from Mei, she does not call out');
@@ -89,7 +101,7 @@ if (T.errand()) fail(`at the end the corner still says "${T.errand().text}"`);
 if (told.length !== c.of) fail(`${told.length} stories put away, of ${c.of}: ${told.join('; ')}`);
 // the menu's list mid-way: told, then the one under way, then later
 T.startAt('shot');
-{ const L = T.list().map(t => t.state).join(' '); if (L !== 'told told next later later') fail(`the menu's list at Shun's turn: ${L}`); }
+{ const L = T.list().map(t => t.state).join(' '); if (L !== 'told told told next later later') fail(`the menu's list at Shun's turn: ${L}`); }
 // the views of Shibuya: each found once, by a photograph with it in frame from where it is seen, with its picture kept
 T.reset();
 const pic = 'data:image/jpeg;base64,AAAA', only = (px, py) => (x, y) => Math.hypot(x - px, y - py) < 1;
