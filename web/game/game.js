@@ -240,7 +240,7 @@ window.OpenEarthGame = async function game(cityId) {
     root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) { ms.push([o, o.layers.mask]); o.layers.set(30); } });
     root.visible = true;
     const put = () => { root.visible = was; for (const [o, m] of ms) o.layers.mask = m; };
-    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
+    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { late: true, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
   };
   // the weather: dry, overcast, drizzle or rain, as the city's climate brings it for the date (weather.js)
   // a far land that reaches past the default far plane (Kamakura's, out to Mount Fuji at 70 km): the camera takes it in
@@ -4080,6 +4080,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       photo.focus.copy(live.look); photo.anchor.copy(live.look);
       Object.assign(photo, { az: p.az, pitch: Math.atan2(p.h, Math.max(0.1, p.dist)), dist: Math.max(6, camera.position.distanceTo(live.look)), fov: camera.fov, turn: false });
       $('#ph-turn').setAttribute('aria-pressed', 'false');
+      $('#g-photo').classList.remove('adj'); $('#ph-adj').setAttribute('aria-expanded', 'false');
       photoSync();
     } else {
       player.rig.root.visible = true;
@@ -4171,6 +4172,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on($('#ph-me'), 'click', e => { const v = !player.rig.root.visible; player.rig.root.visible = v; e.currentTarget.setAttribute('aria-pressed', String(v)); });
   on($('#ph-snap'), 'click', snapPhoto);
   on($('#ph-done'), 'click', () => photoMode(false));
+  // (on a phone the lens's settings are a strip put away until asked for: the frame is the photograph's)
+  on($('#ph-adj'), 'click', e => { const o = !$('#g-photo').classList.contains('adj'); $('#g-photo').classList.toggle('adj', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
   on($('#g-photo-btn'), 'click', () => photoMode(true));
   on($('#gc-snap'), 'click', snapPhoto);
   on($('#gc-done'), 'click', closeupEnd);
@@ -4181,7 +4184,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); } }
+  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); if (walk && walkUi && walkUi.menuSync) walkUi.menuSync(true); } }
   // the story's own pause (issue 114): the frame the case is at, the words' size as the log has it, and the case begun
   // again, asked twice (the frames taken are lost with it)
   function caseSync() {
@@ -5565,6 +5568,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
       key: k => (gamepad ? gamepad.label(k) : k),
       menu: () => toggleMenu(), photo: () => photoMode(true),
+      // (from the walk's menu: one of its hours, one of its skies, or any minute of the same evening)
+      dress: sp => { if (sp.t === 'live') presetTime('live'); else if (sp.t) { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); } else if (sp.min != null) setClock(clock.y, clock.m, clock.d, sp.min); if (sp.w && weather) weather.set(sp.w, { now: true }); if (walk) Object.assign(walk, sp.t ? { t: sp.t } : sp.w ? { w: sp.w } : { t: 'any' }); menuSync(); },
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
@@ -6602,7 +6607,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // the arrival and the hops keep clear of the roofs themselves (calmElevation) and come down into a street to the
       // player, where this clamp (the tallest roof in the cells round it) would pin them at the roofline: within 25 m
       // of what they look at they are left alone, as the chase camera is; the look closer is at the eye's height
-      const own = (cine.label === 'crane' || cine.label === 'hop') && camera.position.distanceTo(shot.look) < 25;
+      const own = (cine.label === 'crane' || cine.label === 'hop') && (camera.position.distanceTo(shot.look) < 25 || clockT < liftHop); // (a lift's climb is beside its tower, under its roofline all the way and found clear when it was planned: rideLift)
       if (cine.label !== 'film' && cine.label !== 'closer' && cine.label !== 'overture' && !own) camera.position.y = Math.max(camera.position.y, roofBelow(camera.position.x, -camera.position.z) + 3);
       camera.lookAt(shot.look);
       Wd.fitShadow(shot.look, THREE.MathUtils.clamp(camera.position.distanceTo(shot.look) * 1.2, live.half, 1600));
@@ -7330,7 +7335,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (liftCar(l)) { rideLiftCar(l, from, to); return; }
     if (l.pod) { podRide(l, from, to); return; }
     const a = l.stops[from], b = l.stops[to], dz = b.at[2] - a.at[2];
-    const realS = Math.abs(dz) / ((l.m_per_min || 240) / 60), dur = Math.min(9, Math.max(4.5, realS / 5));
+    const realS = Math.abs(dz) / ((l.m_per_min || 240) / 60), dur = Math.min(12, Math.max(4.5, realS / 3.2));
     // One shot (issue 99), from the shoulder you had to the shoulder you get: the camera leaves you at the doors looking
     // up the face to where the lift goes, climbs the tower beside its shaft with the floors going by, standing off the
     // face in the middle of the climb so that the height is seen, and comes in over the glass where you step out. It
@@ -7341,19 +7346,41 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const A = head(), B = W(b.at[0], b.at[1], b.at[2] + 1.55), S0 = camera.position.clone(), run = Math.hypot(b.at[0] - a.at[0], b.at[1] - a.at[1]);
     const t = run > 8 ? new THREE.Vector3(B.x - A.x, 0, B.z - A.z).normalize() : new THREE.Vector3(A.x - S0.x, 0, A.z - S0.z).normalize(), n0 = new THREE.Vector3(-t.z, 0, t.x);
     const OUT = Math.min(26, Math.max(12, Math.abs(dz) * 0.1)), OFF = 13, UP = 7;
-    const way = n => {
+    const cv = Math.abs(dz) > 60 ? l.view || (G.start && G.start.at) : null, city = cv ? W(cv[0], cv[1], (nav.terrain(cv[0], cv[1]) || 0) + 8) : null, d1 = new THREE.Vector3(), d2 = new THREE.Vector3();
+    const way = (n, h0 = 0, h1 = 0) => {
       const E = B.clone().addScaledVector(n, OFF).addScaledVector(t, run > 8 ? -9 : 0); E.y += UP;
       const pos = new THREE.Vector3(), lk = new THREE.Vector3();
       return k => {
         const e = OECine.ease.inOut(k), g = Math.min(1, e + 0.24 * Math.sin(Math.PI * k)); // (the look runs on ahead of the camera: up the face, to where you are going)
-        pos.lerpVectors(S0, E, e).addScaledVector(n, OUT * Math.sin(Math.PI * e));
+        const eh = h0 || h1 ? OECine.ease.inOut(OECine.span(k, h0, 1 - h1)) : e; // (across: held back while it rises out of a well, below)
+        pos.lerpVectors(S0, E, eh).addScaledVector(n, OUT * Math.sin(Math.PI * eh));
         pos.y = S0.y + (E.y - S0.y) * e;
         lk.lerpVectors(A, B, g);
+        // The climb is the city's (issue 144: the shot looked up the tower's face all the way, curtain wall and sky, and
+        // the night it rises through was behind the lens). Once it has left your shoulder the view turns out from the
+        // face to the place the story is played (the lift's own `view`, else where the map starts), which falls away
+        // under the frame as the floors go by, and comes round to where you step out over the last third. The turn is
+        // of the view's direction, not of a point looked at: a point 400 m off mixed with one 15 m off turns in a snap.
+        const w = city ? OECine.ease.smooth(OECine.span(k, Math.max(0.06, h0 * 0.7), Math.max(0.3, h0 + 0.12))) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
+        if (w > 0) {
+          d1.subVectors(lk, pos).normalize(); d2.subVectors(city, pos).normalize();
+          lk.copy(pos).addScaledVector(d1.lerp(d2, w).normalize(), 60);
+        }
         return { pos, look: lk };
       };
     };
-    const open = n => { const f = way(n), q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 16; i++) { const r = f(i / 16).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
-    const cA = open(n0), n1 = n0.clone().negate(), climb = way(cA >= 0.99 || cA >= open(n1) ? n0 : n1);
+    // And it leaves a stop that stands under something by the air over it (issue 144): SKY GATE's hall is open to the sky
+    // beside the tower's overhanging base, and a camera that set off across at once went through the overhang (a frame of
+    // pale panel edge to edge), or was put on the roofline by the shot's clamp, a jump. So the way across can be held back
+    // while the camera rises where it stands (h0, for a ride up) or brought to its end early (h1, for one down): the first
+    // of these, on either side, that is clear all the way is taken, else the clearest.
+    const open = f => { const q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
+    const n1 = n0.clone().negate();
+    let climb = null, best = -1;
+    for (const h of [0, 0.15, 0.3, 0.4]) {
+      for (const n of [n0, n1]) { const f = dz >= 0 ? way(n, h, 0) : way(n, 0, h), c = open(f); if (c > best + 1e-6) { best = c; climb = f; } }
+      if (best >= 0.99) break;
+    }
     // (the far stop's fine collision is laid on the way there, a few ms a frame: where you step out to and where the
     // camera can stand are asked of it the moment you arrive)
     const path = k => { if (k < 0.5) nav.prefetch(b.at[0], b.at[1], 30, 3); return climb(k); };
