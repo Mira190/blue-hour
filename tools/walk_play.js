@@ -568,6 +568,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                     // the line's end (walktalk.js wait, gate; game.js waitWith): by the wall, Wait with her sits the two of you and
                     // the night passes until a few minutes before her train; she stands, walks to the station's front, asks for one
                     // more photograph, takes yours, goes in along the walkway and turns round, and is gone
+                    const clockWas = await p.evaluate(() => { const c = window.__game.clock; return [c.y, c.m, c.d, c.min]; }); // (put back after: the beats after this one at the walk's own hour)
                     await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); g.npcMove(n, [372.6, -1043.2]); g.setClock(g.clock.y, g.clock.m, g.clock.d, 20); g.spawn([n.x + 0.9, n.y + 1.6]); g.player.h = Math.atan2(-0.9, -1.6); g.cam.yaw = g.player.h; for (let i = 0; i < 6; i++) g.frame(0.05); });
                     if (!(await waitPrompt(/Wait with her for the last train/))) fail(`by the wall, her story told, nothing offers to wait with her ("${await prompt()}")`);
                     else {
@@ -599,6 +600,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                             const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
                             if (!gone || !hid) fail(`she does not go (${JSON.stringify(await line())}, hidden ${hid})`);
                             else ok('she took yours, went in along the walkway, turned round, and is gone');
+                            await p.evaluate(c => window.__game.setClock(...c), clockWas);
                           }
                         }
                       }
