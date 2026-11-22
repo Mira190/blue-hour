@@ -1036,7 +1036,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // how close the nearest other walker (or the player, given a little more room) is to
     // (x, y), up to CLOSE (of the nn neighbours walk() found)
     const nbr = new Int32Array(n);
-    let nn = 0;
+    let nn = 0, hashWarned = false;
     // (one of its own group, and anyone while it squeezes through a knot, is passed a turn of the shoulder closer: to 0.4 m
     // centre to centre. A leader and its mate a step ahead of it, each at CLOSE from the other's next step, stood a minute
     // waiting on each other, and two groups met head on on a footway stood jammed for minutes, issue 85)
@@ -2186,7 +2186,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       push = 0; cap = G ? p.speed + 0.5 : p.speed; nn = 0; blk = -1; // (a mate may walk a little quicker, to catch its leader up)
       const c0 = Math.floor(p.x / CELL), r0 = Math.floor(p.y / CELL);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
-        for (let j = head[bucket(c0 + a, r0 + b)]; j >= 0; j = chain[j]) if (j !== i) { const o = P[j]; if (!(p.squeeze > 0) && !mateOf(p, o)) { seeJ = j; see(o.x, o.y, o.vx, o.vy, BODY, 1); } nbr[nn++] = j; } // (its own group walks with it, not in its way)
+        // (bounded as crowded()'s walk is: a walker put in the hash twice between two steps joins one bucket's chain to
+        // another's or closes it into a ring, and the neighbours counted ran past the list's room, where a read of one
+        // not written threw in the guide's body check, once in several runs. Said once in the console when it happens)
+        for (let j = head[bucket(c0 + a, r0 + b)], m = 0; j >= 0; j = chain[j]) { if (++m > P.length || nn >= nbr.length) { if (!hashWarned) { hashWarned = true; console.warn(`crowd: the neighbour hash's chain ran past the crowd's size at step ${stepNo}`); } break; } if (j !== i) { const o = P[j]; if (!(p.squeeze > 0) && !mateOf(p, o)) { seeJ = j; see(o.x, o.y, o.vx, o.vy, BODY, 1); } nbr[nn++] = j; } } // (its own group walks with it, not in its way)
       }
       // (squeezing through a knot it brakes and steers for no one, but still never steps inside anyone: closest() below)
       if (p.squeeze > 0) p.squeeze -= dt;
