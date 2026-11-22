@@ -1,5 +1,5 @@
 // The Credits screen: who made what the page shows, under which licence, what the page measures, and its version.
-// One screen in the story's look (credits.css), over whatever is up, reached from the title's menu, the pause menu and
+// One screen in the story's look (credits.css), over whatever is up, reached from the title's options, the pause menu and
 // the story's last card: any element with `data-credits` opens it (a press anywhere on the page, so the screens that
 // offer it need no code of their own), and OECredits.show(true) does.
 //   - the place: the map's own sources (data/<city>/scene.json `sources`, as the pipeline wrote them), led by the

@@ -620,7 +620,9 @@ frame rate. They are the pause menu's own controls, lent to the screen while it 
 stay in the pause menu. Every screen has its Back at the top left and on Esc or B, and the hand comes back to the row that
 opened it. Who you play, asked from the story's screen, returns to it.
 
-*Credits* is the menu's last row, and is also in the pause menu and on the story's last card: one screen in the title's
+*Credits* is the last row under the title's Options, and is also in the pause menu and on the story's last card (the
+owner's decision, 22 November 2026, issue 186: the title's menu holds the ways in and nothing a player does not go to
+there; the credits stay reachable in two presses, as the data's licences and the measurements' switch ask): one screen in the title's
 look (`web/credits.js`, `web/credits.css`) that lies over whatever was up and gives it back on Back, Esc or B. It leads
 with the credit lines the map's data asks for (OpenStreetMap, Overture, PLATEAU, Tokyo's ortho photographs, GSI), then
 the map's sources as the pipeline wrote them (`scene.json` `sources`), the third-party works the page ships with their

@@ -55,7 +55,6 @@
 #g-credits .cr-measure .cr-measure-state[data-s="off"], #g-credits .cr-measure .cr-measure-state[data-s="browser"] { color: rgba(244, 239, 230, 0.78); }
 
 /* the ways in: the title's row only where the story's menu is (the map without the story keeps its pause menu's) */
-.game-stage:not(.story) #gt-credits-go { display: none !important; }
 #g-story-end .row button[data-credits] { border-color: transparent; color: rgba(244, 239, 230, 0.72); }
 #g-story-end .row button[data-credits]:is(:hover, :focus-visible) { border-color: rgba(244, 239, 230, 0.4); color: var(--paper); }
 
