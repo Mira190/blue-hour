@@ -634,7 +634,7 @@ one narrow white band that moves with the light and the lens, the street's share
 from one pool to the next, and the sky's stand-in for the lit fronts in their warm white, not the sky's blue.
 `tools/hair_shot.js` and `tools/game_shot.js` take `PEOPLE=<file>` to draw an older `people.js` beside the new one;
 `tools/views/hair-plaza.json` is Kagami at the Hachiko kerb from the front and over the shoulder at 17:39, 17:55,
-night and day, and the crowd on the plaza.
+night and day, with the crowd round her.
 
 `tools/hair_shot.js` sets a character's head before a lit shop front over the shoulder of another, with and
 without MSAA, and from the front (the lashes and brows are cards too), with the game's own people.
