@@ -14,19 +14,24 @@ const fs = require('fs');
 
 const PORT = process.env.PORT || 8800;
 const out = process.argv[2] || '/tmp/coat';
-const W = 390, H = 844, PR = 2; // (a phone's screen, at the pixel ratio a phone's low tier draws at most)
+const W = 390, H = 844, PR = +(process.env.PR || 2); // (a phone's screen, at the pixel ratio a phone's low tier draws at most)
+// FACE=1: his face instead, from 0.8, 1.5 and 3 m (the cheeks, the muzzle and the whiskers); AA=1: drawn with multisampling,
+// as a desktop's high tier draws (a phone draws without); MODES=raw,astc,... which to draw, of raw, astc, nowhisk (packed,
+// without the whiskers) and oldwhisk (packed, the whiskers drawn as the model has them, without companion.js's thin())
+const FACE = process.env.FACE === '1', AA = process.env.AA === '1', MODES = (process.env.MODES || 'raw,astc').split(',');
 fs.mkdirSync(out, { recursive: true });
 
 const PAGE = `<!doctype html><meta charset=utf-8><body style="margin:0;background:#000">
 <canvas id=c style="display:block"></canvas>
 <script src="./tex.js"></script>
+<script src="./game/companion.js"></script>
 <script type="importmap">{"imports": {"three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/"}}</script>
 <script type="module">
 import * as THREE from 'three';
 window.THREE = THREE;
 const { GLTFLoader } = await import('./gltf.js');
-const W = ${W}, H = ${H}, PR = ${PR};
-const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: false, preserveDrawingBuffer: true });
+const W = ${W}, H = ${H}, PR = ${PR}, FACE = ${FACE};
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: ${AA}, preserveDrawingBuffer: true });
 renderer.setPixelRatio(PR);
 renderer.setSize(W, H);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -40,7 +45,9 @@ await OETex.settled();
 g.scene.traverse(o => {
   if (!o.isMesh) return;
   o.frustumCulled = false;
+  if (/nowhisk/.test(location.search) && /whisker/i.test(o.material.name)) o.visible = false;
   o.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\\n\\ttotalEmissiveRadiance += diffuseColor.rgb * 0.3;'); };
+  if (/whisker/i.test(o.material.name) && !/oldwhisk/.test(location.search)) OECompanion.thin(o); // (as companion.js draws them)
 });
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x3a3f4c);
@@ -50,14 +57,14 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStan
 floor.rotation.x = -Math.PI / 2; scene.add(floor);
 // three of him: near, a few metres off and across the square, each facing the camera (he looks along +x)
 const { clone } = await import('three/addons/utils/SkeletonUtils.js');
-const views = [[2.2, 0], [5, 1], [12, 2]];
+const views = FACE ? [[0.8, 0], [1.5, 1], [3, 2]] : [[2.2, 0], [5, 1], [12, 2]];
 const third = H / 3;
 for (const [d, k] of views) {
   const m = k ? clone(g.scene) : g.scene;
   m.rotation.y = -Math.PI / 2;
   scene.add(m);
-  const cam = new THREE.PerspectiveCamera(50, W / third, 0.05, 100);
-  cam.position.set(0, 0.7, d); cam.lookAt(0, 0.5, 0);
+  const cam = new THREE.PerspectiveCamera(FACE ? 30 : 50, W / third, 0.05, 100);
+  if (FACE) { cam.position.set(0.12, 0.86, 0.5 + d); cam.lookAt(0, 0.8, 0.5); } else { cam.position.set(0, 0.7, d); cam.lookAt(0, 0.5, 0); }
   const y = (2 - k) * third;
   renderer.setViewport(0, y, W, third); renderer.setScissor(0, y, W, third);
   renderer.render(scene, cam);
@@ -69,22 +76,22 @@ window.done = { on: window.texOn, stats: { packed: OETex.stats.packed, kept: OET
 (async () => {
   const b = await chromium.launch({ args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const shots = [];
-  for (const mode of ['raw', 'astc']) {
+  for (const mode of MODES) {
     const p = await b.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: PR });
     p.on('pageerror', e => console.log('PAGEERROR', String(e).slice(0, 300)));
     const origin = `http://localhost:${PORT}`;
     await p.route(`${origin}/__coat.html*`, r => r.fulfill({ contentType: 'text/html', body: PAGE }));
-    await p.goto(`${origin}/__coat.html?tex=${mode}`, { waitUntil: 'domcontentloaded' });
+    await p.goto(`${origin}/__coat.html?tex=${mode === 'raw' ? 'raw' : 'astc'}&${mode}`, { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.done, null, { timeout: 180000 });
     const r = await p.evaluate(() => window.done);
     console.log(`${mode}: ASTC ${r.on ? 'on' : 'off'}, ${r.stats.packed} packed, ${r.stats.kept} kept`, r.stats.log.map(l => `${l.name} ${l.w}x${l.h} ${l.db} dB${l.adb !== undefined ? ` alpha ${l.adb} dB` : ''}${l.kept ? ' kept' : ''}`).join('; '));
-    if (mode === 'astc' && !r.on) { console.log('FAIL no ASTC here'); process.exitCode = 1; }
+    if (mode !== 'raw' && !r.on) { console.log('FAIL no ASTC here'); process.exitCode = 1; }
     const f = path.join(out, `coat_${mode}.png`);
     await p.locator('#c').screenshot({ path: f });
     shots.push(f);
     await p.close();
   }
   await b.close();
-  execFileSync('python3', [path.join(__dirname, 'contact_sheet.py'), path.join(out, 'coat.png'), '2', String(W), ...shots]);
+  execFileSync('python3', [path.join(__dirname, 'contact_sheet.py'), path.join(out, 'coat.png'), String(shots.length), String(W), ...shots]);
   console.log(`wrote ${path.join(out, 'coat.png')}`);
 })().catch(e => { console.error(e); process.exit(1); });
