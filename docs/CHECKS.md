@@ -119,7 +119,14 @@ The static checks:
   (`pipeline/street_ground.py --check`: lost from the script in a merge of 18 November 2026, after which the map
   stood on an older grading for three days and nothing said so; back on 21 November);
 - no landmark hanging in the air (`tools/float_check.py`), no sign or screen behind another landmark
-  (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`);
+  (`tools/sign_clear.py`), no sign that reads mirrored (`tools/sign_check.py`): a picture against its own winding,
+  two faces of a sign built back to back the wrong way, or a face wound right but turned to a wall (cast from its
+  middle along its normal and back: blocked within half a metre in front and open behind, against the landmarks'
+  triangles and the buildings' walls, glass and nets left out), which is seen only from behind, mirrored (the JR
+  bridge's clearance sign over the road by Hachiko, 21 November 2026); `python3 tools/sign_check.py --hero` casts the
+  hero levels' own signs the same way (about two minutes, so run by hand when a level's signs change); and no
+  vehicle's name mirrored or facing into its model (`tools/decal_check.js`: the helicopter's registration and
+  operator, the ferries' names);
 - no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
   stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
 - the story's flight: its way clear of the buildings (`tools/flight_clear.py`), and its seven shots as a storyboard,
@@ -578,6 +585,7 @@ frames and its load order, and is where most of these came from. What was found,
 |---|---|---|---|---|
 | `mem`, the desktop's vertex buffers (issue 159) | The check summed every `buffers:` line the page logged until it was closed. A hero level comes 90 to 170 s after the title on a software renderer and sends its own (12 MB Scramble Square, 13 MB the Scramble); a run that was still watching the page then read 142 or 156 MB of 140 | A late model's upload says so (`late buffers:`, `world.js` `uploadBuffers` `late`), and the check counts the loader's own set, listing the late ones beside it | 130 MB in nine runs of nine closed early; 142 MB (FAIL) watched 90 s longer, 155 MB held after 200 s | 130 MB in every run, with 25 MB of late models listed when the page is watched 200 s |
 | `mem`, a phone's GPU memory (issues 110 and 141) | The peak was the rain at ten at night with or without the target of the conversation's depth of field: the check ended the shot, waited six seconds of the wall and began the rain, and the page lets the target go a few seconds of its own frames after. 10 MB held or not by which came first | The conversation stays up into the rain: the peak is read in one state, the heaviest a player holds (a conversation in the rain at night), and the line says how far under the budget it is | 257 to 260 MB in nine runs (266 to 271 of 270 before issue 105 took 11 MB off) | 258.8 to 259.3 MB in eight runs (three of them with three cores kept busy), 10.7 to 11.2 MB under 270 |
+| `guide`, his body against the player's, pushed against a wall (issues 133 and 138) | Held against a wall he was let 3 cm into the player's circle before he said he was held, and his own tick could walk or turn him further in; the check's margin was the same 3 cm. Which side of it a run fell was decided by where the crowd he plans round stood when the world was held | A rule, in `companion.js` `keepOff`: the two touch and never overlap. He is held as soon as any of the push is left over (2 mm), the player is stopped short by that much in the same frame, and a step or turn of his own that would end further inside the player's circle is not taken. The check fails half a centimetre of overlap, in the open and against a wall | 2.0 to 3.0 cm inside in twelve plays of the case in one load (`ONLY=wall WALL_N=12`), eleven of them within 2 mm of the old margin or over it | 0.0 to 0.2 cm in twelve of twelve, his model 27 cm clear of the player's torso |
 
 ## What is not checked
 
@@ -728,3 +736,22 @@ someone is set down steps out of them at a walk.
 
 Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
 crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+
+## Nobody paces (issue 168)
+
+On 21 November 2026 the owner's still of the walk showed two men under the deck east of the Scramble walking to and
+fro. Nothing measured whether a walker gets anywhere.
+
+- **`tools/crowd_pacing.js`** is the survey: on the walk, at each hour (8:00, 12:30, 17:59, 21:00, 23:30), you are
+  stood at each of 24 stations (the Scramble, the place of the still, a 400 m grid over the phone's district) with
+  the world stepped a tenth of a second at a time for a minute, and every walker is followed by its place in the
+  crowd. Over each 30 s a walker who covered more than 12 m, ended within 4 m of where it began and turned round at
+  least twice has paced; each is printed with its place, its line, how far its ways lead and what turned it
+  (`actors.js` `turn`'s reason, kept when a harness asks). `390x844` runs it as a phone, inside its district. It is
+  a job of 35 minutes for a screen, run when the ways or the steering change, not on every change.
+- **`tools/pacing_watch.js`** is the same measure on the side of a play: `tools/walk_play.js` and
+  `tools/story_play.js` put it in their page, and fail on a walker who paced two windows running or turned four
+  times in one. One window alone is a note: a walker held by a car turns once and comes back.
+
+Not measured: whether a walker who stops where the way ends reads as someone waiting (that is for stills), and a
+real phone's crowd, which is thinner than the emulated one only by its tier.

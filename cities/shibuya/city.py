@@ -2067,7 +2067,7 @@ def shop_signs(K, sites, avoid=(), taboo=None):
                 along = (rng.random() - 0.5) * max(L - w, 0.0)
                 z0 = g + 2.9 + rng.random() * 0.6
                 key = f"board{int(rng.integers(len(BOARDS)))}"
-                if not clear:
+                if not clear and not walled(mid + t * along, n, z0, z0 + w / 4):
                     facade_panel(A, mid, n, w, z0, z0 + w / 4, key, off=0.18, along=along)
             else:
                 along = (rng.random() - 0.5) * max(L - 1.5, 0.0)
@@ -2076,7 +2076,7 @@ def shop_signs(K, sites, avoid=(), taboo=None):
                 if z0 + h > g + top - 0.5:
                     continue
                 key = f"blade{int(rng.integers(len(BLADES)))}"
-                if clear:
+                if clear or walled(mid + t * along, n, z0, z0 + h):
                     continue
                 c = mid + n * 0.95 + t * along
                 if any(np.hypot(*(c - p)) < 2.0 and abs(z0 - pz) < h + ph for p, pz, ph in placed):
@@ -2999,24 +2999,8 @@ def toyoko_site(K, lm):
     gone = set(demolished_solids())
     standing = [Polygon(np.asarray(q[4], float).reshape(-1, 2) / 10.0).buffer(0) for si, q in enumerate(B["s_list"])
                 if si not in gone and q[3] > 30 and Polygon(TOYOKO_SITE).buffer(15).intersects(Point(*(np.asarray(q[4], float).reshape(-1, 2).mean(0) / 10.0)))]
-    ring = TOYOKO_SITE + TOYOKO_SITE[:1]
-    gz = lambda x, y: lm_ground_at(lm, x, y)
-    W, A = K("white_wall"), K("atlas_print", "lit")
-    for (ax, ay), (bx, by) in zip(ring, ring[1:]):
-        a, b = np.array([ax, ay]), np.array([bx, by])
-        L = float(np.linalg.norm(b - a))
-        f = (b - a) / L
-        for k in range(int(L / 4.0)):
-            p, q = a + f * (k * 4.0), a + f * min((k + 1) * 4.0, L)
-            m = (p + q) / 2
-            if any(g.contains(Point(*m)) for g in standing):
-                continue
-            z = gz(*m)
-            W.quad(np.array([*p, z]), np.array([*q, z]), np.array([*q, z + 3.5]), np.array([*p, z + 3.5]))
-            W.quad(np.array([*q, z]), np.array([*p, z]), np.array([*p, z + 3.5]), np.array([*q, z + 3.5]))
-            if k % 3 == 1:   # the notice, every third panel, on the side away from the site
-                nrm = -left_of(f) if Polygon(TOYOKO_SITE).contains(Point(*(m + left_of(f) * 2))) else left_of(f)
-                facade_panel(A, m, nrm, 3.8, z + 0.6, z + 3.1, "xs_hoarding", off=0.05)
+    gz = lambda x, y: levels_ground().at(x, y)
+    hoarding(K, TOYOKO_SITE, Polygon(TOYOKO_SITE), standing, "xs_hoarding")
     for k, (mx, my) in enumerate(((372.0, -1066.0), (424.0, -1072.0), (430.0, -1140.0), (392.0, -1125.0))):   # floodlight masts
         z = gz(mx, my)
         K("steel").tube([np.array([mx, my, z]), np.array([mx, my, z + 16.0])], 0.15, 6)
@@ -3066,33 +3050,15 @@ def today_sites(K, lm):
 def works_site(K, lm, ring, site, standing=(), masts=None, crane=None, notice=None):
     """A works site's hoarding along the edges of ring (not where a standing building is against it), a notice (an
     atlas cell) on it every third panel when one is given, floodlights on 16 m masts and a tower crane."""
-    gz = lambda x, y: lm_ground_at(lm, x, y)
-    W, A = K("white_wall"), K("atlas_print", "lit")
-    closed = ring + ring[:1]
-    for (ax, ay), (bx, by) in zip(closed, closed[1:]):
-        a, b = np.array([ax, ay]), np.array([bx, by])
-        L = float(np.linalg.norm(b - a))
-        if L < 0.5:
-            continue
-        f = (b - a) / L
-        for k in range(max(int(L / 4.0), 1)):
-            p, q = a + f * (k * 4.0), a + f * min((k + 1) * 4.0, L)
-            m = (p + q) / 2
-            if any(g.contains(Point(*m)) for g in standing):
-                continue
-            z = gz(*m)
-            W.quad(np.array([*p, z]), np.array([*q, z]), np.array([*q, z + 3.5]), np.array([*p, z + 3.5]))
-            W.quad(np.array([*q, z]), np.array([*p, z]), np.array([*p, z + 3.5]), np.array([*q, z + 3.5]))
-            if notice and k % 3 == 1 and float(np.linalg.norm(q - p)) > 3.9:   # the notice, on the side away from the site
-                nrm = -left_of(f) if site.contains(Point(*(m + left_of(f) * 2))) else left_of(f)
-                facade_panel(A, m, nrm, 3.8, z + 0.6, z + 3.1, notice, off=0.05)
+    import levels
+    hoarding(K, ring, site, standing, notice)
     if masts is None:   # one inside each of the outline's corners that turn most, four at most
         inner = site.buffer(-4.0)
         pts = [np.asarray(c) for c in (inner.exterior.coords[:-1] if inner.geom_type == "Polygon" and not inner.is_empty else [])]
         masts = [tuple(c) for c in pts[:: max(1, len(pts) // 4)]][:4]
     for mx, my in masts:
-        z = gz(mx, my)
-        K("steel").tube([np.array([mx, my, z]), np.array([mx, my, z + 16.0])], 0.15, 6)
+        z, deep = levels.footing([[mx, my]], levels_ground())
+        K("steel").tube([np.array([mx, my, z - deep]), np.array([mx, my, z + 16.0])], 0.15, 6)
         block(K("lamp", "lit"), frame((mx, my), (1, 0)), -0.5, 0.5, -0.5, 0.5, z + 16.0, z + 16.6)
     if crane is None:
         c = site.representative_point()
@@ -3102,16 +3068,57 @@ def works_site(K, lm, ring, site, standing=(), masts=None, crane=None, notice=No
     tower_crane(K, lm, crane)
 
 
+_LEVELS = {}
+
+
+def levels_ground():
+    """The ground everything built stands on: the game's, graded (pipeline/levels.py), not the viewer's 10 m grid."""
+    import levels
+    if CITY not in _LEVELS:
+        _LEVELS[CITY] = levels.Levels(CITY)
+    return _LEVELS[CITY]
+
+
+def hoarding(K, ring, site, standing=(), notice=None, height=3.0, bay=4.0):
+    """A works site's hoarding round `ring` (not where a standing building is against it): flat steel panels 3 m tall
+    (the standard 仮囲い), level-topped and stepped at their posts where the ground falls, their feet in the ground
+    (levels.stepped: the rule for whatever has a top), a notice (an atlas cell) on every third bay when one is given."""
+    import levels
+    W, A = K("white_wall"), K("atlas_print", "lit")
+    keep = lambda a, b: not any(g.contains(Point(*((a + b) / 2))) for g in standing)
+    bays = levels.stepped(ring, levels_ground(), height, bay=bay, closed=True, keep=keep, kind="hoarding")
+    levels.walls(W, bays)
+    # what the panels are held by, where the rule puts it: a steel post at every joint (the taller of the two tops
+    # that meet there, so a step of the top is a post's, not a notch in a sheet), and a kickboard along the foot, level with its bay's top
+    # (measured down from it: read up from the ground it had teeth of its own, which tools/levels_check.py found)
+    S, Kb = K("steel"), K("concrete")
+    for xy, foot, top in levels.posts(bays):
+        S.tube([np.array([*xy, foot]), np.array([*xy, top + 0.06])], 0.055, 4)
+    for b in bays:
+        f = (b.b - b.a) / float(np.linalg.norm(b.b - b.a))
+        n = left_of(f) * 0.03
+        for sgn in (1.0, -1.0):
+            p, q = (b.a + n * sgn, b.b + n * sgn) if sgn > 0 else (b.b + n * sgn, b.a + n * sgn)
+            Kb.quad(np.array([*p, b.foot]), np.array([*q, b.foot]), np.array([*q, b.top - height + 0.3]), np.array([*p, b.top - height + 0.3]))
+    for k, b in enumerate(bays):
+        f = (b.b - b.a) / float(np.linalg.norm(b.b - b.a))
+        m = (b.a + b.b) / 2
+        if notice and k % 3 == 1 and float(np.linalg.norm(b.b - b.a)) > 3.9:   # the notice, on the side away from the site
+            nrm = -left_of(f) if site.contains(Point(*(m + left_of(f) * 2))) else left_of(f)
+            facade_panel(A, m, nrm, 3.8, b.top - 2.6, b.top - 0.3, notice, off=0.05)
+
+
 def tower_crane(K, lm, CRANE):
     """A tower crane: a braced square mast, its jib and counter-jib, the counterweight, the cab, the hook's line and the
     red lights at its ends."""
-    gz = lambda x, y: lm_ground_at(lm, x, y)
+    import levels
     c = np.asarray(CRANE["at"])
-    z = gz(*c)
+    # (its base on the highest ground under its four chords, their feet down under the lowest: levels.footing)
+    z, deep = levels.footing([[c[0] + dx * 0.9, c[1] + dy * 0.9] for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1))], levels_ground())
     top = z + CRANE["mast_m"]
     S = K("crane_yellow")
     for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):    # the mast: four chords and their bracing
-        S.tube([np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, z]), np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, top])], 0.09, 4)
+        S.tube([np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, z - deep]), np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, top])], 0.09, 4)
     for k in range(int(CRANE["mast_m"] / 3.0)):
         z1, z2 = z + k * 3.0, z + (k + 1) * 3.0
         for (x1, y1), (x2, y2) in (((-0.9, -0.9), (0.9, -0.9)), ((0.9, -0.9), (0.9, 0.9)), ((0.9, 0.9), (-0.9, 0.9)), ((-0.9, 0.9), (-0.9, -0.9))):
@@ -3430,6 +3437,22 @@ def wall_top(mid, n, top):
     return max((s["base"] + s["top"] for s in hit), default=top)
 
 
+def walled(c, n, z0, z1):
+    """Does the street front at c (outward normal n) look into another building between heights z0 and z1? A
+    sign there would face that building's wall, a hand's breadth away, and be seen only from behind, mirrored
+    (tools/sign_check.py): the sites' fronts face a road, but a neighbour the road's line misses can stand
+    against them."""
+    wall_top(c, n, 0.0)   # (loads the solids)
+    S, tree = _DATA["wall_solids"]
+    from shapely.geometry import Point
+    for d in (0.4, 1.2):
+        for k in tree.query(Point(*(np.asarray(c, float)[:2] + np.asarray(n, float) * d)), predicate="intersects"):
+            s = S[k]
+            if s["ground"] + s["base"] < z1 and s["ground"] + s["top"] > z0:
+                return True
+    return False
+
+
 def dressed_fronts(lm):
     """Where the scramble's own build hangs its signs (scramble.py, streets.py): the fronts onto the streets
     off the scramble, 2.5 m either side, and the buildings it draws whole. A generic sign is not hung there:
@@ -3475,6 +3498,8 @@ def crossing_wall_signs(K, lm):
             key = f"stack{int(rng.integers(STACKS))}"
             if min(np.hypot(*(c - p[:2])) for p in taken) < 9.0 or any(np.hypot(*(c - p)) < 5.0 for p in stacks) or (dressed is not None and dressed.distance(Point(*c)) < 4.0):
                 continue
+            if walled(c - n * 1.0, n, z0, z0 + h):
+                continue
             stacks.append(c)   # (two tenant stacks a few metres apart stand in front of each other)
             _DATA.setdefault("wall_sites", set()).add((x, y))   # (and the generic blade and board are not hung here too: shop_signs)
             P = frame(c, t)
@@ -3486,10 +3511,13 @@ def crossing_wall_signs(K, lm):
             w = min(L * 0.7, 9.0)
             h = w / 1.5
             z0 = g + top - h - 2.5
+            key = f"wprint{int(rng.integers(len(WALL_PRINTS)))}"   # (drawn first, so the prints after it keep theirs)
+            if walled(mid, n, z0, z0 + h):
+                continue
             P = frame(mid, n)
             _DATA.setdefault("wall_sites", set()).add((x, y))
             block(K("screen_frame"), P, -0.2, 0.15, -w / 2 - 0.1, w / 2 + 0.1, z0 - 0.1, z0 + h + 0.1)
-            facade_panel(Pr, mid, n, w, z0, z0 + h, f"wprint{int(rng.integers(len(WALL_PRINTS)))}", off=0.16)
+            facade_panel(Pr, mid, n, w, z0, z0 + h, key, off=0.16)
             for k in range(3):
                 v = -w / 2 + w * (k + 0.5) / 3
                 K("steel_dark").tube([P(0.15, v, z0 + h + 0.1), P(1.2, v, z0 + h + 0.45)], 0.035, 4)

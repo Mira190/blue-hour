@@ -27,6 +27,10 @@ window.OETonight = (function () {
 
   function create(ctx) {
     const D = ctx.data || {}, lead = D.lead || 6;
+    // (the corner names tonight's next moment from an hour before it, so that a walk set out on at any hour knows from
+    // its first minute that the night has a timetable: issue 146. It was `lead`, six minutes, and a walk begun at
+    // 17:38 said nothing of the night until 19:54; `lead` is the data's own notice, kept for it)
+    const AHEAD = D.ahead || 60;
     // each moment's times tonight, in minutes after midnight
     const moments = (D.moments || []).map(m => {
       let at = [], len = m.minutes || 3;
@@ -67,8 +71,8 @@ window.OETonight = (function () {
       return true;
     }
     const lineOf = s => {
-      if (s.on) return `<b>Now</b> · ${esc(s.on.m.name)} · ${esc(s.on.m.where || '')}`;
-      if (s.soon && s.soon.inMin <= lead) return `${esc(s.soon.m.name)} · <span>${ctx.fmt(s.soon.t)}</span> · ${esc(s.soon.m.where || '')}`;
+      if (s.on) return `<b>Now</b> · ${esc(s.on.m.name)}<i> · ${esc(s.on.m.where || '')}</i>`; // (<i>: where it is, left out on a phone's narrow corner, story.css)
+      if (s.soon && s.soon.inMin <= AHEAD) return `${esc(s.soon.m.name)} · <span>${ctx.fmt(s.soon.t)}</span><i> · ${esc(s.soon.m.where || '')}</i>`;
       return '';
     };
     function tick(dt) {
