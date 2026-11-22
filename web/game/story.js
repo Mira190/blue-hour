@@ -528,11 +528,18 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : k === 'guide' ? `${(st.ep.guide || {}).name || 'The dog'}${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
-      // Drawn where it is, in the frame, a mark is a thing in the picture, and keeps its perspective (marks.js): not over
-      // the player's body (walking to a goal straight ahead, its ring stood on the back of her head), nor anyone nearer the
-      // eye, nor through a wall or a deck; the light standing over the place still shows it over the roofs. A thing to
-      // frame is itself a building, so only her body and the people are asked of it. At the frame's edge, an arrow: drawn
-      st.veil = !off && !up && ctx.see ? ctx.see(pt[0], pt[1], pt[2], { pad: 18, solid: k !== 'frame', key: 'goal' }).why : '';
+      // Drawn where it is, in the frame, a mark is a thing in the picture, and keeps its perspective (marks.js): never over
+      // the player's body (walking to a goal straight ahead, its ring stood on the back of her head) nor anyone nearer the
+      // eye. Someone to talk to is hidden by them, as by a wall or a deck. The way's own sign (a place to go, a thing to
+      // frame) is what a lost player is given (LOST_S), so it is not taken away by a figure in front of it: it is held
+      // just over the figure, on the same line. Behind a wall it goes, and the light standing over the place shows it over
+      // the roofs. A thing to frame is itself a building, so the walls are not asked of it. At the frame's edge, an arrow
+      st.veil = '';
+      if (!off && !up && ctx.see) {
+        const way = k === 'go' || k === 'frame', v = ctx.see(pt[0], pt[1], pt[2], { pad: 18, solid: k !== 'frame', key: 'goal', lift: way });
+        st.veil = v.why; st.lifted = v.lifted || '';
+        if (!v.why && v.lifted) { y = Math.max(m + 70, Math.min(y, v.y)); mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`; }
+      }
       mark.classList.toggle('on', !st.veil && (lens ? off : k === 'frame' || k === 'guide' || q.dist > 4)); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }

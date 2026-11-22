@@ -24,7 +24,8 @@
 //                            player, and why it is not to be drawn ('behind', 'off', 'body', 'person', 'solid') or ''.
 //                            o: { pad: the mark's half size in px (14), self: who the mark is over (not their own
 //                            cover), key: for the solid ray, asked again every few frames (none: every call), solid:
-//                            false to skip the walls (a thing that is itself a building), people: false to skip others }
+//                            false to skip the walls (a thing that is itself a building), people: false to skip others,
+//                            lift: a waypoint, held just over a figure in front of it instead of hidden (out.lifted) }
 //   .fade(d, reach, over)    1 within reach - over, 0 at reach and beyond
 //   .scale(d, at, lo, hi)    the mark's scale for distance d: 1 at `at` metres, held between lo and hi
 'use strict';
@@ -55,8 +56,11 @@ window.OEMarks = (function () {
       const t = L > 0 ? clamp(((p.x - pa.x) * ex + (p.y - pa.y) * ey) / L, 0, 1) : 0;
       // (the head is round, not a flat cap: the capsule's top is a half circle of its radius over the top point)
       const cx = pa.x + ex * t, cy = pa.y + ey * t;
-      return Math.hypot(p.x - cx, p.y - cy) < rpx;
+      if (Math.hypot(p.x - cx, p.y - cy) >= rpx) return false;
+      cover.top = Math.min(pa.y, pb.y) - rpx; // (the top of the figure on the stage, the mark's size above it)
+      return true;
     }
+    const cover = { top: 0 };
     return {
       stat,
       frame() {
@@ -77,8 +81,17 @@ window.OEMarks = (function () {
         out.x = p.x; out.y = p.y; out.dep = p.dep;
         if (p.x < -20 || p.x > w + 20 || p.y < -20 || p.y > h + 20) { out.why = 'off'; return out; }
         const pad = o.pad ?? 14;
-        if (me && o.self !== me && covers(me, p, pad)) { out.why = 'body'; stat.body++; return out; }
-        if (o.people !== false) for (const b of near) if (b.who !== o.self && (o.self == null || b.who !== o.self.id) && covers(b, p, pad * 0.6)) { out.why = 'person'; stat.person++; return out; }
+        // (a waypoint, o.lift: not hidden by a figure but held just over it, on the same line, as the way's sign must stay
+        // up; at most three figures over one another, and not off the top of the frame)
+        for (let k = 0; k < (o.lift ? 4 : 1); k++) {
+          let by = '';
+          if (me && o.self !== me && covers(me, p, pad)) by = 'body';
+          else if (o.people !== false) for (const b of near) if (b.who !== o.self && (o.self == null || b.who !== o.self.id) && covers(b, p, pad * 0.6)) { by = 'person'; break; }
+          if (!by) break;
+          stat[by]++;
+          if (!o.lift || k === 3 || cover.top < 20) { out.why = by; return out; }
+          p.y = out.y = cover.top; out.lifted = by;
+        }
         if (o.solid !== false && solid) {
           const c = camera.position;
           let r = o.key != null ? rays.get(o.key) : null;
