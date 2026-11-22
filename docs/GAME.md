@@ -1264,6 +1264,33 @@ pipeline writes. The only city-specific code is landmark geometry in
     on it and doesn't turn into it when there is another way; a street with
     room for no vehicle is one a car can't get along, as a road the data runs
     through a building is.
+  - **Nobody paces (issue 168).** The owner's still of 21 November 2026: the walk, 17:59, under the deck east of
+    the Scramble, two men side by side walking a few metres one way, turning, and walking back, again and again.
+    A walker who turns back on themselves is one whose way is closed, so it was measured over the level, not looked
+    for (`tools/crowd_pacing.js`: at each hour, from each of a grid of stations, every walker's path over thirty
+    seconds set against its net progress): from under that deck, 54 of 263 walkers in two minutes, at 31 places.
+    The causes were in the ways, and are mended there:
+    - **Footways that met without a node.** A network's lines meet only at their ends, and of Shibuya's 5,610
+      footway ends 2,021 met another; 1,358 lay on the middle of another line (a path that runs into a footway)
+      and 218 within 3 m of another end. To a walker each was the end of the way. `actors.js` `join` joins an end
+      to what it reaches within 1.6 m on its level, the join clear of walls: 1,418 ends joined, 1,305 lines cut in
+      two at the meeting point.
+    - **Footways cut by a pier.** Where a footway runs into a pier, a pillar or a planter the cut leaves its two
+      halves facing each other across the thing (four such ends within 30 m under that deck). `join` leads an end
+      on to the end that faces it within 14 m, straight across where a body can walk every 0.4 m of it, else round
+      by a step aside.
+    - **Ways that lead nowhere.** Each way (a line and a direction along it) knows how far it leads without an end
+      (`waysStep`: its own length and the farthest of the ways on, up to 160 m; none where it steps into a major
+      road with no crossing or into a shut well), read half a millisecond a step in the first seconds of the game.
+      A walker choosing a way on, or put on a footway, takes one that leads on 40 m or more. Footways joined to
+      nothing else that come to under 60 m together are a pocket: nobody is put on one.
+    - **At an end all the same, they have arrived** (`arrive`): out of sight they are somewhere else; in sight they
+      stop there as a person does who has got where they were going (three in ten with a phone out) for ten to
+      twenty-five seconds, and then walk back, once. Nobody turns twice in twenty seconds: where they would, they
+      stop instead. A mate turns when its leader does, never for a reason of its own. The turn back on a whim (one
+      in ten at a line's end) is made only where nobody sees it and not within two minutes of another turn.
+    - The same measure rides along with the plays (`tools/pacing_watch.js` in `tools/walk_play.js` and
+      `tools/story_play.js`): a walker who paces for a minute, or turns four times in thirty seconds, fails them.
   - **The crowd and the walls:** a footway that runs into a building (an arcade,
     a station's concourse; the model's buildings are solid) ends at its wall,
     and a walker stepping aside keeps in from a wall beside the footway. Before
