@@ -260,6 +260,51 @@ each `time` event):
   `deck hybrid 48000`). A phone's story read no clock at all for six minutes (19 November): the context was not running,
   or the sound was off, and nothing said which.
 
+**What WebKit does, and what a page can see of it** (issue 166, 21 November 2026; read from WebKit's source at `main`
+and its bug tracker, not measured on an iPhone). The owner's words for the fault: "a sudden, very loud noise, like a
+television that has broken". That is not a click.
+
+- *The path.* The page's graph is rendered in the page's own process (WebContent) by one thread
+  (`RemoteAudioDestinationProxy.cpp`, "render thread", real time where the process is allowed it). The output lives in the
+  GPU process, the one that also runs the page's WebGL (`RemoteAudioDestinationManager.cpp`). For every hardware cycle
+  the output takes that cycle's frames from a ring the two share, adds the cycle to a shared count and signals a
+  semaphore; the page's thread wakes, reads the count and renders every frame asked for since it last looked. With Web
+  Audio playing the hardware cycle is one block, 128 frames, 2.7 ms (`MediaSessionManagerCocoa.mm`: `if (webAudioCount)
+  bufferSize = renderQuantumSize`), whatever `latencyHint` says, and the ring has that one block in hand.
+- *A late render.* When the frames are not in the ring, the output has nothing to play for that cycle. Until WebKit
+  317968@main (27 July 2026, bug 320149, "RemoteAudioDestination plays stale buffer contents instead of silence on ring
+  buffer underrun") it played **whatever the output buffer held**. Since that change it fades to silence, and still
+  resumes at full level in one sample (bug 328063, open). An iPhone on iOS 27.0 or 27.1 was cut before July: there, every
+  cycle the page's thread misses is a burst of stale samples at whatever level they have. Bug 255949 (open since 2023:
+  "AudioContext huge crackling/pops sound during user actions") has a report of October 2026 with recordings from an
+  iPhone: gaps one or two cycles long, the sound after each delayed by the gap, "not graph cost", the same with
+  pre-rendered buffers as with live oscillators.
+- *What starves that thread.* Anything that keeps the page's process or the GPU process from running for 2.7 ms: a
+  second tab of the game (two WebContent processes and one GPU process on four cores), the GPU process itself short of
+  memory (on 21 November both of the owner's tabs lost their WebGL context in the same second, which is the GPU process
+  going down, and the output goes down with it), a phone throttled by Low Power Mode, the page's own load and opening.
+  None of it is the graph's cost, which is why three fixes of the graph's cost each removed a cause and not the fault.
+- *Why the readings saw none.* The page's thread renders every frame it missed as soon as it runs, so `currentTime` is
+  back in step with the wall a moment after a break, and `getOutputTimestamp` with it (its time is stamped as a block is
+  rendered). `health()` read both ten times a second, took the median of three readings, and took a straight line out
+  of the result: a break that lasted 3 to 50 ms and then healed was not in it. In the 20 s of the walk's opening that
+  the owner reported, the phone sent `snd_xrun 0, snd_stall 0, snd_late 3`.
+- *What can be seen* (`audio.js`, "the probe"): the moment itself, `currentTime` behind the wall by more than its least
+  of the last 20 to 40 s, read on every frame, on a timer every 25 ms and on a worker's tick (which also says for how long
+  the main thread, `snd_main`, and the whole process, `snd_wk`, stood still). Each time the clock falls behind and
+  comes back is one break, counted by how far it fell: `snd_lag` (`a/b/c`: 6 ms and more, 25, 100; the first is two
+  blocks and a reading's error on iOS, and one and a half of the output's own steps where it asks for more at a time),
+  `snd_lag_max` and `snd_lag_at` (the worst and where), `snd_lost` (ms that never came back: Chromium drops the time,
+  WebKit plays it late), `snd_olate` (the latest a block was stamped), `snd_under` and `snd_under_ms` (Chromium's own
+  count, `playbackStats`), `snd_states` (the context's states in order: `r`unning, `s`uspended, `i`nterrupted),
+  `snd_lat` (base and output latency, ms), `snd_polls`. **It is a floor, not a count**: a reading catches a break only if
+  it falls inside it, so a 6 ms break between readings 16 ms apart is seen one time in three, and a break shorter than a
+  stall of the main thread that covers it is not seen at all. Nothing a page can read on iOS counts the output's own
+  misses; Safari has no `playbackStats`.
+- *On the phone*: any page with `?snd=1` shows the same readings in its corner as it plays (the counts since it loaded,
+  the last four breaks with where they fell, the release). `tools/snd_probe_check.js` holds the context's clock back and
+  reads the counts.
+
 **A page put away is silent.** The context is suspended as the page is hidden and resumed as it is seen again (and asked
 again every two seconds while it is seen, should the resume not take). The game stands still in a tab put away, and its
 street's beds had gone on behind another tab or app; on a phone a context left running there is an audio thread beside the

@@ -1371,9 +1371,14 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
         const r = ctx.rideNow(), R = fr.ride, there = near(R.to, 45);
-        if (r && r.state !== 'in') { if (!st.target || Math.hypot(st.target[0] - r.at[0], st.target[1] - r.at[1]) > 1.5) aimAt(spot(r.at)); const text = r.state === 'coming' ? R.line || 'A car is coming for you.' : R.board || 'Your car is here. Get in.'; if (text !== goalText) goal(text); st.inCar = false; }
+        // (a car that has not come in wait_s, a minute and a half: it is sent on its way and the frame goes on on foot, as it
+        // does for whoever walks. The driver has its own bound, rides.js COME_STILL; this is the story's, whatever the
+        // traffic does: nobody stands at a kerb for a car that is not coming, #97)
+        st.rideT = r && r.state === 'coming' ? (st.rideT || 0) + dt : 0;
+        if (st.rideT > (R.wait_s || 90)) { st.rideT = 0; if (ctx.rideOff) ctx.rideOff(); say(R.late || 'The car is held up · on foot, then'); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
+        else if (r && r.state !== 'in') { if (!st.target || Math.hypot(st.target[0] - r.at[0], st.target[1] - r.at[1]) > 1.5) aimAt(spot(r.at)); const text = r.state === 'coming' ? R.line || 'A car is coming for you.' : R.board || 'Your car is here. Get in.'; if (text !== goalText) goal(text); st.inCar = false; }
         else if (r) { if (!st.inCar) { st.inCar = true; aimAt(null); goal(R.riding || ''); if (ctx.score) ctx.score({ mode: 'ride' }); } }
-        if (!r || (there && (!r || r.state !== 'in'))) { if (r && ctx.rideOff) ctx.rideOff(); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
+        if (st.beat === 'ride' && st.rideGo && (!r || (there && (!r || r.state !== 'in')))) { if (r && ctx.rideOff) ctx.rideOff(); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
       }
       st.t += dt;
       // time is not cut, it is braked: the world slows to nothing over most of a second, and runs up again faster
