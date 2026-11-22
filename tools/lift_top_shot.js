@@ -5,7 +5,7 @@
 // side, and walking out along the way to the roof while time is held (five stills a second apart).
 //   JOB_LIGHT=1 tools/job.sh run serve -- python3 -m http.server 8800 --directory web
 //   tools/job.sh run lifttop -- xvfb-run -a node tools/lift_top_shot.js out_dir [WxH]
-// A width under 500 is a phone (its user agent, touch, the low tier). FREE=1: also from outside, over the corner.
+// A width under 500 is a phone (its user agent, touch, the low tier). MIN=minutes past midnight: the hour (17:31). FREE=1: also from outside, over the corner.
 // RIDE=1: the ride up from the street hall first, a still every second of it (RIDE=only: and no more).
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
@@ -28,7 +28,7 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 900000 });
   await startPlay(p);
-  await p.evaluate(() => { const g = window.__game; g.advance(1); if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); g.advance(3); g.clock.min = 17 * 60 + 31; g.clock.scale = 0; });
+  await p.evaluate(min => { const g = window.__game; g.advance(1); if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); g.advance(3); g.clock.min = min; g.clock.scale = 0; }, +(process.env.MIN || 17 * 60 + 31));
   let bad0 = 0;
   const lift = await p.evaluate(() => { const l = (window.__game.G.lifts || []).find(q => q.id === 'sky-gate'); return l ? { a: l.stops[0], b: l.stops[l.stops.length - 1] } : null; });
   if (!lift) { console.log('FAIL no SKY GATE lift on the map'); process.exit(1); }
@@ -49,7 +49,8 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
         await p.evaluate(([s, da]) => { const g = window.__game, pl = g.player, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; pl.x = ax - (ax - dx) / n * 12; pl.y = ay - (ay - dy) / n * 12; }, [lift.a, da]);
         await run(1); // (out of the stop for a second of frames: the offer of the lift is the page's own frame's)
         await p.evaluate(([s, da]) => { const g = window.__game, pl = g.player, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.cam.yawTo = null; g.cam.yaw = Math.atan2(ax - dx, ay - dy) + da; g.cam.lastInput = -10; pl.x = ax - (ax - dx) / n * 1.2; pl.y = ay - (ay - dy) / n * 1.2; pl.z = az; pl.h = Math.atan2(ax - dx, ay - dy); pl.speed = 0; }, [lift.a, da]);
-        await run(2.5);
+        const ys = await p.evaluate(async () => { const g = window.__game, o = []; for (let k = 0; k < 10; k++) { g.advance(0.25); o.push([+g.cam.yaw.toFixed(2), g.cam.yawTo == null ? null : +g.cam.yawTo.toFixed(2), g.cam.seek ? 's' : '', g.player.auto ? 'a' : '', +(g.cam.pull || 0).toFixed(2)]); await new Promise(r => requestAnimationFrame(r)); } return o; });
+        console.log('     yaw, yawTo, seek, auto, pull every quarter second:', JSON.stringify(ys));
         const t = await tones(p, await p.screenshot({ path: `${out}/hall-${i}.png` })), f = flat(t, 0.6);
         console.log(`${f ? 'FAIL' : 'ok  '} the hall, the view left ${Math.round(da * 57.3)} deg round: luma sd ${t.sd}, ${Math.round(t.share * 100)}% one tone${f ? ` (${f})` : ''}`);
         console.log('     the view', await p.evaluate(s => { const g = window.__game, c = g.cam, [ax, ay] = s.at, [dx, dy] = s.door || s.at; return JSON.stringify({ yaw: +c.yaw.toFixed(2), want: +Math.atan2(ax - dx, ay - dy).toFixed(2), yawTo: c.yawTo, pull: +(c.pull || 0).toFixed(2), lift: +(c.lift || 0).toFixed(2), mode: g.player.mode }); }, lift.a));
