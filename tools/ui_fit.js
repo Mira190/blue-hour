@@ -12,6 +12,7 @@
 //   xvfb-run -a node tools/ui_fit.js out_dir [dump_dir ...]
 // SIZES=390x844,1440x900: only these. WORDS=0: only that word size. ONLY=regex: only the screens whose name matches.
 // STILLS=all (every screen at every size, words 0) | some (the default: failures, and the screens in SHOW) | none.
+// SAFE=1: with a notched phone's safe area, and nothing of the interface under the notch or the home bar.
 // TITLE=0: not the title's own states (only the laid-in screens). Exits 1 on any failure; out_dir/report.json lists them.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -122,6 +123,29 @@ function audit() {
   return { bad: [...new Set(bad)], warn: [...new Set(warn)] };
 }
 
+// SAFE=1: a phone's notch and home bar. Chromium is told the safe area a phone with a notch reports (upright 47 px at
+// the head and 34 at the foot; on its side 47 at each end and 21 at the foot), which the page reads as
+// env(safe-area-inset-*), and every word and button shown is held clear of it: in the page, what lies in those bands.
+const SAFE = process.env.SAFE === '1';
+const insetsFor = (w, h) => (Math.max(w, h) < 700 ? { top: w > h ? 0 : 20, bottom: 0, left: 0, right: 0 } /* (a small phone has a status bar and no notch) */ : w > h ?{ top: 0, bottom: 21, left: 47, right: 47 } : { top: 47, bottom: 34, left: 0, right: 0 });
+function safeAudit(ins) {
+  const W = innerWidth, H = innerHeight, stage = document.getElementById('game-stage'), bad = [];
+  const seen = e => { if (e.closest('[hidden]')) return false; let o = 1; for (let x = e; x && x.nodeType === 1; x = x.parentElement) { const c = getComputedStyle(x); if (c.display === 'none' || c.visibility === 'hidden') return false; o *= +c.opacity; if (o < 0.08) return false; } return true; };
+  const inScroll = e => { for (let x = e.parentElement; x && x !== stage; x = x.parentElement) if (/(auto|scroll)/.test(getComputedStyle(x).overflowY) && x.scrollHeight > x.clientHeight + 4) return true; return false; };
+  const name = e => (e.id ? `#${e.id}` : `${e.tagName.toLowerCase()}${typeof e.className === 'string' && e.className.trim() ? `.${e.className.trim().split(/\s+/)[0]}` : ''}`);
+  for (const e of stage.querySelectorAll('*')) {
+    if (e.closest('svg, canvas, .g-walk-marks, .g-labels, .g-chatter') || !seen(e)) continue; // (a mark or a call over someone's head is in the world, where they stand: not the interface's to place)
+    const own = [...e.childNodes].some(n => n.nodeType === 3 && /[\p{L}\p{N}]/u.test(n.data)), btn = e.matches('button, input, summary, [role="button"]');
+    if (!own && !btn) continue;
+    let r = e.getBoundingClientRect();
+    if (own && !btn) { const rg = document.createRange(); rg.selectNodeContents(e); const q = [...rg.getClientRects()].filter(b => b.width > 1); if (!q.length) continue; r = { left: Math.min(...q.map(b => b.left)), right: Math.max(...q.map(b => b.right)), top: Math.min(...q.map(b => b.top)), bottom: Math.max(...q.map(b => b.bottom)) }; }
+    if (!(r.right > 0 && r.bottom > 0 && r.left < W && r.top < H) || inScroll(e)) continue;
+    const t = 2, where = r.top < ins.top - t ? 'the notch' : r.bottom > H - ins.bottom + t ? 'the home bar' : r.left < ins.left - t ? 'the notch at the left' : r.right > W - ins.right + t ? 'the right end' : '';
+    if (where) bad.push(`under ${where}: "${(e.innerText || e.textContent || e.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim().slice(0, 40)}" (${name(e.parentElement)} > ${name(e)})`);
+  }
+  return [...new Set(bad)];
+}
+
 const { lay } = require('./ui_dump'); // (a screen written down by ui_dump.js, laid in over the live page)
 const setWords = n => { const s = document.getElementById('game-stage'); s.classList.remove('words-1', 'words-2'); if (n) s.classList.add(`words-${n}`); };
 
@@ -185,11 +209,14 @@ const setWords = n => { const s = document.getElementById('game-stage'); s.class
         // (a phone's page made wider stays zoomed out in Chromium's emulation, as no phone does: opened again at the size)
         const z = await p.evaluate(() => [innerWidth, visualViewport.scale]);
         if (z[0] !== w || Math.abs(z[1] - 1) > 0.01) await open(prepNow, { width: w, height: h });
+        const ins = SAFE && touch ? insetsFor(w, h) : null;
+        if (ins) { const cdp = await ctx.newCDPSession(p); await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: ins }).catch(e => console.log(`(no safe area here: ${String(e).slice(0, 80)})`)); await cdp.detach().catch(() => {}); }
         if (lay) await lay();
         await p.waitForTimeout(60);
         for (const n of WORDS) {
           await p.evaluate(setWords, n);
           const r = await p.evaluate(audit);
+          if (ins) r.bad.push(...await p.evaluate(safeAudit, ins));
           checked++;
           const key = `${name} ${ctxName} ${size} words ${n}`;
           if (r.bad.length) { fails++; console.log(`FAIL ${key}\n  - ${r.bad.slice(0, 12).join('\n  - ')}`); }
