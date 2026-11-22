@@ -3705,9 +3705,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'ride') return ride && ride.phase !== 'asking' && ride.drv.st.v < 0.5 ? { key: 'E', story: true, text: ride.phase === 'arrived' ? `Get out at ${ride.dest.name}` : 'Get out here', act: leaveRide } : null;
     if (player.auto) return player.auto.label ? { key: '', text: player.auto.label } : null;
     let bn = null, bd = 3.2;
-    // (within reach, and not through a wall, a partition or a floor: someone a metre off on the far side of the hall's
-    // wall is not someone to talk to. In the frame or not: beside you on a phone held upright is out of its narrow frame)
-    for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (!n.away && d < bd && Math.abs(n.z - player.z) < 2 && !nav.col.pick(player.x, player.y, player.z + 1.5, n.x, n.y, n.z + 1.5)) { bd = d; bn = n; } }
+    // (within reach, 3.2 m, and on your level: the prompt is offered only at arm's length, never across the street, and in
+    // the frame or not, as someone beside you on a phone held upright is out of its narrow frame. A ray through the solids
+    // was tried too, and took the talk from Riko at 1.6 m: a post between your chest and hers is not a wall)
+    for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (!n.away && d < bd && Math.abs(n.z - player.z) < 2) { bd = d; bn = n; } }
     // (not on the story's page, which offers no talk of the old game's: there it stood first and was then put away, and
     // so hid what comes after it, your car beside someone on the walk, a lift with its attendant beside it)
     if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
