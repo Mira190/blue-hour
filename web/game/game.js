@@ -372,7 +372,9 @@ float green = smoothstep(0.02, 0.08, diffuseColor.g - max(diffuseColor.r, diffus
 float paved = smoothstep(0.32, 0.18, sat) * smoothstep(0.07, 0.16, dot(diffuseColor.rgb, LUM)) * (1.0 - green) * (1.0 - oeSteep); // (not on a rock face: world.js steepRock)
 float roadway = 0.0;
 if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows baked into the photo
-  vec4 st = sRGBTransferEOTF(texture2D(uStreet, vMapUv));
+  // (the drawing is an sRGB texture: the sampler hands it over linear, so it is not decoded again here. Twice decoded,
+  // the drawn asphalt was an albedo of 0.01 and the photograph's road under it was capped near black, issue 148)
+  vec4 st = texture2D(uStreet, vMapUv);
   // (Gaps in the drawn carriageway were once filled from the drawing's blurred levels, 8 and 16 m round: where those
   // were mostly asphalt, asphalt was laid. A threshold on a field of 8 m texels has a scalloped edge 8 m to a wave, and
   // on a street with no footway drawn it carried the asphalt past the kerb over the paving and the forecourts: a dark
@@ -385,12 +387,12 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
   // through the street as pale blotches where the drawn layer thins out with distance (issue 137).
   // The drawn street carries its own markings; the photo keeps its paint only beyond 260 m, where
   // the drawn streets are gone too
-  float asph = smoothstep(0.0, 0.5, st.a) * smoothstep(0.12, 0.07, sl) * (1.0 - smoothstep(160.0, 260.0, camD));
+  float asph = smoothstep(0.0, 0.5, st.a) * smoothstep(0.2, 0.14, sl) * (1.0 - smoothstep(160.0, 260.0, camD));
   float pl = dot(diffuseColor.rgb, LUM), cap = sl * 1.25 + 0.006;
   if (pl > cap) diffuseColor.rgb *= mix(1.0, (cap + (pl - cap) * 0.12) / pl, asph);
   float k = st.a * (1.0 - smoothstep(35.0, 140.0, camD)) * 0.92;
   diffuseColor.rgb = mix(diffuseColor.rgb, st.rgb, k);
-  roadway = k * smoothstep(0.12, 0.07, sl);           // asphalt (dark), not the footways and kerbs drawn beside it
+  roadway = k * smoothstep(0.2, 0.14, sl);           // asphalt (dark), not the footways and kerbs drawn beside it
   paved = mix(paved, 1.0 - roadway, k);
   // Round a hero level the photograph is not the ground at any height (issue 87): from the air its blur, its baked
   // shadows and the buses on its terminal read as wet blotches beside the level's crisp paving. There the ground is
@@ -1446,7 +1448,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // stepped out of in a game does not ask you straight back in: the player is set down on the stop itself, and at
   // SHIBUYA SKY 46F "Take the lift to Shibuya Scramble Square, street level" stood in the middle of a phone's screen the
   // moment you were up, over the way on to the roof (the owner's phone, November 2026). liftLeft: { l, i }, or null
-  let liftLeft = null, liftAt = '';
+  let liftLeft = null, liftAt = '', liftTurn = false;
   function liftStop(x, y, z) {
     for (const l of lifts) for (let i = 0; i < l.stops.length; i++) {
       const s = l.stops[i], at = Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5;
@@ -3696,14 +3698,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (come to a lift's stop, the view left alone for a second: it goes to the lift. Issue 144: in SKY GATE's hall with the
     // view left facing its lacquered wall, the frame was that wall from edge to edge behind the offer of the lift. Where
     // the stop has no hall, a view hemmed in there turns to the nearest open side at once, as where a ride sets you down)
-    if ((ls_ ? ls_.l.id + ls_.i : '') !== liftAt) {
-      liftAt = ls_ ? ls_.l.id + ls_.i : '';
-      const sd = ls_ && ls_.l.stops[ls_.i];
-      if (sd && player.mode === 'foot' && clockT - cam.lastInput > 1) {
-        // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
-        if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
-        else cam.seek = true;
-      }
+    // (once for each time you come to it, as soon as no hand has been on the view for a second: it waited for that, and
+    // was given up if a hand had just been on it, which on the walk's check left the wall in the frame one run in a few)
+    const lk_ = ls_ ? ls_.l.id + ls_.i : '';
+    if (lk_ !== liftAt) { liftAt = lk_; liftTurn = !!ls_; }
+    if (liftTurn && ls_ && player.mode === 'foot' && clockT - cam.lastInput > 1) {
+      liftTurn = false;
+      const sd = ls_.l.stops[ls_.i];
+      // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
+      if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
+      else cam.seek = true;
     }
     if (ls_) { const to = (ls_.i + 1) % ls_.l.stops.length; return { key: 'E', story: true, text: `${ls_.l.verb || 'Take the lift to'} ${ls_.l.stops[to].name}`, act: () => rideLift(ls_.l, ls_.i, to) }; } // (a flight of stairs the game does not draw is climbed as a lift is ridden: game.json lifts[].verb)
     const seatHere = shows && shows.near(player.x, player.y, player.z);
