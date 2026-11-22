@@ -60,6 +60,8 @@
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
 #   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   hold    every avatar the street casts through every clip it holds something in: no forearm, hand or held thing inside
+#           its own torso, and no jerk from moving it out (tools/hold_check.js); when the people or their models change;
 #   launch  what a player who comes back meets (tools/launch_check.js, issue 116): the site as two commits, the second
 #           loaded in a browser whose cache holds the first, and every file it used the second's; a start that fails
 #           saying so on a desktop and a phone; a case kept by another build of the story not taken up; storage full;
@@ -86,7 +88,7 @@
 #   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static look launch story storyp storyl budget guide walk ride mem audio clip gl touch astc
+#   tools/check.sh all                  # static look hold launch story storyp storyl budget guide walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   tools/check.sh --wait [s]           # on a session's machine a run is a job (tools/job.sh): wait on it again (540 s)
 #   tools/check.sh --status | --stop    # what the run is doing; or stop it and its browsers
@@ -105,8 +107,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look launch mem astc audio ride story story1 story2 story3 budget storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
-ALL="look launch story storyp storyl budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look hold launch mem astc audio ride story story1 story2 story3 budget storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+ALL="look hold launch story storyp storyl budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -143,7 +145,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
@@ -209,6 +211,7 @@ else
     if [ "${frommain:-0}" = 1 ] && mains "$f"; then static=1; skipped=$((skipped + 1)); continue; fi
     case "$f" in
       web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc launch ;;
+      web/game/people.js|web/game/lineup.html|tools/hold_check.js|tools/hold_depth.js) static=1; [ "${f#tools}" = "$f" ] && page; add hold ;;   # (the arms out of the body over the clips)
       # (how the page is loaded, kept and published: issue 116)
       vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
       web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
@@ -222,7 +225,7 @@ else
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
       # asks of it is loaded, looked at and weighed, and the story is not played, whatever its nodes are called
-      web/assets/people/*) static=1; if [ "$TIER" = full ]; then page; add look; else add look mem; fi
+      web/assets/people/*) static=1; if [ "$TIER" = full ]; then page; add look hold; else add look mem hold; fi
         case "$f" in *.glb|*.webp|*.png|*.jpg) [ -e "$f" ] && looks="$looks $f" ;; esac ;;
       # (a hero level's ground meshes are what everyone walks on, game.js heroCover: where they lie is in the model's
       # contract, tools/model_contract.py, so a level rebuilt with its ground and its names as they were is looked at and
@@ -509,6 +512,10 @@ run_launch() {
     echo "ok   launch $(grep -c '^ok' "$OUT/launch.log") steps: a cache of the commit before, a start that fails, a case of another story, storage full, the page's own keys (stills in $OUT/launch)"
   else echo "FAIL launch $(grep '^FAIL' "$OUT/launch.log" | head -2 | cut -c6-170 | paste -sd ';' -)   (see $OUT/launch.log)"; fi
 }
+run_hold() {   # every cast avatar through every held clip: no limb in its own torso, no jerk (a minute)
+  if timeout 900 $X node tools/hold_check.js "$OUT/hold.json" >"$OUT/hold.log" 2>&1; then echo "ok   hold   $(tail -1 "$OUT/hold.log" | sed 's/^hold: //')"
+  else echo "FAIL hold   $(grep '^FAIL' "$OUT/hold.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/hold.log)"; fi
+}
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
   if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then
     echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page and decoded by the GPU, none under the floor, no cut-out's mipmaps or edge astray"
@@ -616,6 +623,7 @@ rm -rf "$OUT/keep"
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
     st flight flight_frames "the story's flight in every frame of its shots, from one side of it and clear of the buildings" '^FAIL|Error' python3 tools/flight_frames.py "$MAP"
     st stands standpoints - '^FAIL|Error' python3 tools/standpoints.py "$MAP"
+    st bounds bounds "the planned area's edge as the story's and the walk's places give it" '^FAIL|Error' python3 pipeline/bounds.py --city "$MAP" --check
     st crowd crowd_cast - '^FAIL|Error' python3 pipeline/crowd_cast.py --check
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
