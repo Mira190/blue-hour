@@ -5,7 +5,7 @@
 //   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, hopTo, inScramble,
 //   junctions, keepSign, lib, life, makeRig, metro, myCar, nav, npcs, objective, phone, pickupNear, pilot, placeOf,
 //   player, resetCar, ride, rideSeat, roadNet, roads, rq, save, scene, smalltalk, stepOut, story, takeHelm, touch,
-//   vlib, waypoint, world
+//   vlib, waypoint, world, bounds
 // and what it gives back:
 //   HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta,
 //   groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard,
@@ -382,6 +382,7 @@ window.OEGameRides = function (g) {
     const out = [], seen = new Set();
     const add = (id, name, at, note) => {
       if (!at || seen.has(id) || Math.hypot(at[0] - x, at[1] - y) < 150) return;
+      if (g.bounds && !g.bounds.inside(at[0], at[1], 'ground', 25)) return; // (nowhere past the planned area's edge: bounds.js)
       const pl = g.roads.place(at[0], at[1], 300, g.keepSign, groundZ(at[0], at[1]));
       if (!pl || Math.hypot(pl.x - x, pl.y - y) < 180) return;
       seen.add(id); out.push({ id, name, at: [at[0], at[1]], note });
