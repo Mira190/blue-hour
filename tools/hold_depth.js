@@ -15,8 +15,9 @@ const LIMIT = 0.02; // m: deeper than this is a limb in the body (a sleeve press
 // (an avatar whose clothes read deeper than they are: its own limit, and why)
 const ALLOW = {
   // a loose vest whose armholes hang over the upper arm and whose sides stand off the body: the sleeve under the vest's side
-  // reads 2 to 2.5 cm in, where a still shows the arm coming out of the armhole as it should
-  R_Male_Adult_05_m008: 0.03,
+  // reads 2 to 3.1 cm in (3.1 waiting at the crossing in frame 1's Stop), where a still shows the arm coming out of the
+  // armhole as it should
+  R_Male_Adult_05_m008: 0.04,
 };
 const limitOf = name => { for (const k in ALLOW) if (String(name).includes(k.replace(/^R_/, ''))) return ALLOW[k]; return LIMIT; };
 
