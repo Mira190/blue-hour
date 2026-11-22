@@ -57,7 +57,7 @@ function serve() {
         // the clip alone, then as the page poses it: each from the clip's start, a second in to let the fade from the last
         // clip end, then the whole clip at 30 frames a second
         for (const on of [false, true]) {
-          O.clearArms = on; act.time = 0;
+          O.clearArms = on; rig.animate(0, 0, mode, 100); act.time = 0; // (the clip playing first, then both passes from its start: play() begins it at a moment of the person's own)
           for (let t = 0; t < 1; t += dt) rig.animate(dt, 0, mode, 100);
           for (let k = 0, n = Math.ceil(dur / dt); k < n; k++) {
             rig.animate(dt, 0, mode, 100);
