@@ -1620,3 +1620,13 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .game-stage.story .g-photo .gph-chips .chip-btn { min-height: 40px; }
   .game-stage.story .g-photo #ph-snap { bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px)); }
 }
+
+/* ---- the walk's first minute (issue 146) ----
+   A name over the street (a story put away, a view found) is not drawn over the menu: found from the camera and the
+   menu opened at once, "A view of Shibuya" lay across the hour and the sky. */
+.game-stage:has(.g-overlay:not([hidden])) #g-walk-told { opacity: 0 !important; transition: none; }
+/* tonight's line in the corner (tonight.js): where a moment is, in the line on a desktop; on a phone the line is its
+   name and its time, one line under the date instead of three */
+#g-walk-where .tn i { font-style: normal; }
+@media (min-width: 641px) { #g-walk-where .tn { max-width: 46ch; } }
+@media (max-width: 640px) { #g-walk-where .tn i { display: none; } #g-walk-where .tn { max-width: none; white-space: nowrap; letter-spacing: 0.2em; } }

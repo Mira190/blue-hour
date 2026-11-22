@@ -1620,6 +1620,24 @@ the crowd. Not adopted: a map of marks, rewards, or a mark over every passer-by 
 and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
+**The walk's first ten minutes (issue 146, November 2026).** The launch review (issue 134) found that the walk's first
+minute taught the keys and said nothing of what there is to do: a player who did not press Esc could leave after two
+minutes having seen a crossing and nothing else. The rule since, from first principles: one thing offered at a time, by
+the world before the interface, and always one line in the corner that says what it is and how far. The sheet the walk
+is held to, and `tools/walk_play.js` plays:
+
+| By | What the player has met | How it is offered |
+| --- | --- | --- |
+| the first minute | where and when they are; that the night has a timetable; that someone here has something to say, who, how far and which way; their car | the corner: the place, the hour, the date and the sky; under the date tonight's next moment from an hour before it (*CROSSING LIGHT · 21:30*; on a phone its name and time on one line); under that the one line of the storyline with its metres and its needle (*Mei has something to say · 30 m*). The first time from the title the office rings (four lines, *Your car* lit while it is spoken of) and the view eases round to Mei, who calls out. The keys once at the foot of the frame; on a phone one line for the thumbs, not two |
+| minute three | a talk in the story's box; the crossing on the green; the seat | *Which Hachiko*: Mei by the dog, Riko across the scramble, back. Mei stands nine metres from the free place on Hachiko's wall: a pale mark over it from twenty metres, named from eleven (*Sit · Hachiko's wall*), until it has been sat on once in this browser; the prompt from 2.4 m. A street moment may come up to them |
+| minute ten | their car driven; the camera; a view or two of Shibuya found; a moment of tonight seen or named; the menu | *Once round by car*, then *The shot everyone takes*; each view found is named over the street and kept in the menu's album; the timetable's moment is named over the street as it begins; Esc holds the hour, the sky, the stories, the album and tonight |
+| after | the lift, the roof, the helicopter | *Forty-five floors* and *Above the crossing*, the storyline's last two |
+
+Nothing in the sheet is a card of instructions, and nothing is said twice: the office rings once in a browser, a
+giver calls out the first time you come near while it is their turn, the seat's mark goes once you have sat. What the
+sheet still lacks, kept as an issue: someone already sitting on the wall beside the free place (a seat for the crowd on
+the stone, or one more person inside a phone's memory), so that the seat is offered by a person and not by a mark.
+
 `game.walk` (the stories in their order, the people's parts, their lines and what each asks: `talk`, `go`, `drive`,
 `up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn; `views`, the photographer's list; `events` and
 `event_spots`, the street's moments; `intro`, the office's call), the

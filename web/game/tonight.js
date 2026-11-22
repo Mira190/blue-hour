@@ -71,8 +71,8 @@ window.OETonight = (function () {
       return true;
     }
     const lineOf = s => {
-      if (s.on) return `<b>Now</b> · ${esc(s.on.m.name)} · ${esc(s.on.m.where || '')}`;
-      if (s.soon && s.soon.inMin <= AHEAD) return `${esc(s.soon.m.name)} · <span>${ctx.fmt(s.soon.t)}</span> · ${esc(s.soon.m.where || '')}`;
+      if (s.on) return `<b>Now</b> · ${esc(s.on.m.name)}<i> · ${esc(s.on.m.where || '')}</i>`; // (<i>: where it is, left out on a phone's narrow corner, story.css)
+      if (s.soon && s.soon.inMin <= AHEAD) return `${esc(s.soon.m.name)} · <span>${ctx.fmt(s.soon.t)}</span><i> · ${esc(s.soon.m.where || '')}</i>`;
       return '';
     };
     function tick(dt) {
