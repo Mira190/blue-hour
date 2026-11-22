@@ -796,7 +796,14 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint, float env) {
   float spark = 0.7 + 0.6 * clamp(0.5 + hairJ, 0.0, 1.0); // (the strands' own breakup)
   // (the second lobe has been through the strand: its pigment's colour, which black hair has too, a dark warm brown)
   vec3 tt = max(sqrt(max(tint, 0.0)) * 0.4, vec3(0.03, 0.022, 0.017) * (1.0 + env));
-  return (vec3(mix(0.1, 0.05, env) * hairKK(t1, h, mix(110.0, 56.0, env))) + tt * (mix(0.5, 1.0, env) * hairKK(t2, h, mix(30.0, 16.0, env)))) * spark * vHairK;
+  // (HAIR_HEAD: the hair painted on a head's own mesh, a whole surface where the cards are wisps: its lobes at half, or a
+  // black head of hair is silver under a dusk sky, issue 123)
+#ifdef HAIR_HEAD
+  float hK = 0.5 * vHairK;
+#else
+  float hK = 0.5; // (and the cards that lie on it, or they show pale round the lock down a back)
+#endif
+  return (vec3(mix(0.1, 0.05, env) * hairKK(t1, h, mix(110.0, 56.0, env))) + tt * (mix(0.5, 1.0, env) * hairKK(t2, h, mix(30.0, 16.0, env)))) * spark * hK;
 }`;
   // head: the head's own mesh (its hair painted on it, hairSK.y), not the cards
   function hairMaterial(m, head = false) {
@@ -904,13 +911,19 @@ ${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - 
   // (sample(u, v) -> linear rgb: dark, or without the warmth of skin) above the brows or behind the ears.
   // under: the head's mesh, done first: a card near its hair takes the normal of the hair under it, so that card and
   // head are lit as one head of hair and the card's edge is not seen as a ledge (roundHair's otherwise)
+  // (a joint's place in a mesh's own vertices' space: the inverse of its bind matrix, not mesh.bindMatrixInverse, which an
+  // attached mesh sets to its node's inverse each time the scene is updated. A face's mesh hangs on a node a hundredth
+  // the size and turned, so once the model had been in a scene the skull was looked for sixty units over the pelvis,
+  // every vertex was a metre and a half "off the skull", and the head's hair was never marked as hair, issue 123)
+  let BIND_M = null; // (made when first asked: three.js is not there yet as this script loads)
+  const bindInv = mesh => (BIND_M || (BIND_M = new THREE.Matrix4())).copy(mesh.bindMatrix).invert();
   function strandHair(mesh, sample = null, under = null) {
     const g = mesh.geometry, P = g.attributes.position, Nn = g.attributes.normal, UV = g.attributes.uv;
     if (!P || !Nn || g.attributes.hairTR) return;
     const at = re => {
       const sk = mesh.skeleton, i = sk ? sk.bones.findIndex(b => re.test(b.name)) : -1;
       if (i < 0) return null;
-      return new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert().premultiply(mesh.bindMatrixInverse));
+      return new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert().premultiply(bindInv(mesh)));
     };
     const hb = at(/Head$/), pb = at(/Pelvis$/) || at(/Spine$/), re = at(/REye$/), le = at(/LEye$/);
     g.computeBoundingBox();
