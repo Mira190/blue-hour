@@ -53,6 +53,11 @@ def main():
     out = {"materials": materials, "meshes": [m.dump() for m in meshes],
            "notes": "Parametric; dimensions from published figures, anchors from OpenStreetMap footprints." if meshes else "No parametric landmarks."}
     out.update(extra)
+    # what was built by the one rule of levels (pipeline/levels.py): each run of bays with its tops and feet, and each
+    # footing, for tools/levels_check.py to hold against the ground as it is, and for street_ground.py, which does not
+    # keep the survey's lumps under what follows the ground by rule
+    import levels
+    levels.save(city.id)   # (beside the city's sources, cities/<id>/levels.json: the page has no use for it)
     if city.hook("landmark_glows"):
         out["glows"] = city.hook("landmark_glows")(scene)
     if bridges.glows(scene):

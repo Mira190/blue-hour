@@ -141,6 +141,13 @@ window.OECompanion = (function () {
     // He was steered round the player only while he led or kept at heel, as a pull on his way, and never stood off
     // them at all: the player walked through him where he sat beside the camera's light, and he through their legs.
     // Where a wall holds him and he cannot go, `jammed` says so, and the player stops at his flank (game.js).
+    // The rule, where he is pushed against a wall with nowhere to make way (issues 133 and 138): neither body enters
+    // the other. His capsule (his spine and his flank) and the player's circle may touch and never overlap: whatever
+    // of the push the wall kept from him, the player is stopped short by, in the same frame, and a step or a turn
+    // of his own that would end inside the player's circle with the wall still holding him is not taken (tick).
+    // He was let 3 cm into the player before he said he was held, and walked or turned further in on his own tick:
+    // the check's margin was that same 3 cm, so a run passed or failed by where the crowd he plans round stood.
+    const TOUCH = 0.002; // (m: what two bodies set down against each other may differ by, the solver's own)
     function spineNear(px, py) {
       const hx = Math.cos(s.h), hy = Math.sin(s.h), a0 = body.spine[0], a1 = body.spine[1];
       const t = Math.max(a0, Math.min(a1, (px - s.x) * hx + (py - s.y) * hy));
@@ -165,6 +172,12 @@ window.OECompanion = (function () {
       if (slide) { const m = slide(s.x, s.y, s.z, mx, my); s.x = m.x; s.y = m.y; } else { s.x += mx; s.y += my; }
       return Math.hypot(s.x - x0, s.y - y0) < 0.5 * Math.hypot(mx, my);
     }
+    // how far his capsule is off the player's circle now (m, less than nothing inside it; a floor apart or the player not on foot: far)
+    function offPlayer() {
+      if ((player.mode && player.mode !== 'foot') || (player.z != null && Math.abs((s.z ?? player.z) - player.z) > 1.5)) return Infinity;
+      const [cx, cy] = spineNear(player.x, player.y);
+      return Math.hypot(cx - player.x, cy - player.y) - (PLAYER_R + body.flank);
+    }
     function keepOff(dt) {
       s.jam = false;
       if (player.mode && player.mode !== 'foot') return;
@@ -181,7 +194,7 @@ window.OECompanion = (function () {
         const sx = -my, sy = mx;
         for (const g of [1, -1]) { if (!slide) break; const m = slide(s.x, s.y, s.z, sx * g, sy * g); if (Math.hypot(m.x - s.x, m.y - s.y) > 0.5 * Math.hypot(mx, my)) { s.x = m.x; s.y = m.y; break; } }
       }
-      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - 0.03;
+      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - TOUCH;
       if (bonesOff(px, py)) s.jam = true;
       // (sitting, standing or waiting where he was: up, a pace aside out of the way they are going, and down again)
       // (not for a brush, where he only shifts: the film of him coming sits him close beside you)
@@ -322,6 +335,8 @@ window.OECompanion = (function () {
       if (s.state === 'away') return;
       s.t += dt;
       const px = player.x, py = player.y;
+      // (where he is and how far off the player as the tick begins: what it may not end further inside of, keepOff's rule)
+      const x0 = s.x, y0 = s.y, h0 = s.h, gap0 = offPlayer();
       // (the player in a car, a lift, the air: he is not seen, and is at their heels again when they are on foot)
       // (the player in a car, a lift, the air: it fades where it stood, and is at their heels again when they are on foot)
       // (a lift he rides with you, at your side in the car: gone at the bottom and found at the top, he was a dog that
@@ -410,6 +425,8 @@ window.OECompanion = (function () {
         if (left < 0.3 || s.fade <= 0) { s.state = 'away'; root.visible = false; if (s.done) { const d = s.done; s.done = null; d(); } return; }
       }
       keepOff(dt);
+      // (held by a wall and further into the player than he began: his own step or turn did it, and it is not taken)
+      if (s.jam && (s.x !== x0 || s.y !== y0 || s.h !== h0)) { const g1 = offPlayer(); if (g1 < -TOUCH && g1 < gap0) { s.x = x0; s.y = y0; s.h = h0; s.speed = 0; } }
       s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)
