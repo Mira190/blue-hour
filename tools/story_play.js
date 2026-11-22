@@ -309,15 +309,26 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (the camera by its button, where the story shows one: it comes up when the camera may. Where it does not, a step of
   // this harness that raises it all the same, to see that nothing comes of it, uses the story's own function as before, and says so)
   const raise = async on => { if (!TOUCH) return p.evaluate(on => window.__game.story.raise(on), on);
-    const b = await p.evaluate(on => { const st = window.__game.story.state, e = document.getElementById('g-story-cam'); return { same: !!st.cam === on, shown: !!e && e.classList.contains('on'), at: `frame ${st.fi + 1} ${st.phase} ${st.beat}` }; }, on);
-    if (b.same) return; if (b.shown) return tapEl('#g-story-cam');
-    console.log(`note touch: the camera ${on ? 'raised' : 'lowered'} with no button for it on the screen (${b.at}): by the story's own function`); return p.evaluate(on => window.__game.story.raise(on), on); };
+    const look = () => p.evaluate(on => { const st = window.__game.story.state, e = document.getElementById('g-story-cam'); return { same: !!st.cam === on, shown: !!e && e.classList.contains('on'), at: `frame ${st.fi + 1} ${st.phase} ${st.beat}` }; }, on);
+    let b = await look();
+    if (b.same) return;
+    // (the button comes up when the camera may, a moment after the talk: waited for, as a person waits, not gone round)
+    for (let k = 0; k < 10 && !b.shown; k++) { await p.waitForTimeout(250); b = await look(); if (b.same) return; }
+    if (b.shown) {
+      // (one tap, and the story given a second and a half to take it: the button turns the camera over, so a second tap
+      // sent before the first is taken would put it back. Tapped again only if nothing came of it, three times at most)
+      for (let k = 0; k < 3; k++) { await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
+      const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m);
+    } else console.log(`note touch: the camera ${on ? 'raised' : 'lowered'} with no button for it on the screen (${b.at}): by the story's own function`);
+    return p.evaluate(on => window.__game.story.raise(on), on); };
   const shoot = () => (TOUCH ? tapEl('#g-story-shutter') : p.evaluate(() => { window.__game.story.shoot(); }));
   const spendAnswer = async yes => { if (!TOUCH) return p.evaluate(yes => window.__game.story.spendAnswer(yes), yes); if (yes) await p.waitForTimeout(900); return tapEl(`#g-story-spend [data-spend="${yes ? 1 : 0}"]`); }; // (Spend takes no tap in the card's first 0.7 s)
   // (a key, or on a phone what stands for it: a line passed by a tap on the words, the order put away by a tap on it, E by the prompt's own button, H by the hint's)
-  const press = async code => { if (!TOUCH) return p.keyboard.press(code); if (code === 'KeyH') return tapEl('#g-story-hint');
+  const press = async (code, must = false) => { if (!TOUCH) return p.keyboard.press(code); if (code === 'KeyH') return tapEl('#g-story-hint');
     // (a call said hands-free is a subtitle: it goes on by itself, and nothing on a phone passes its lines)
     const k = await p.evaluate(() => { const d = document.getElementById('gd'), o = document.getElementById('g-story-order'); return d && !d.hidden ? (d.classList.contains('free') || d.classList.contains('cut') ? '' : '#gd-text') : o && o.classList.contains('on') ? '#g-story-order' : '#gp-main'; });
+    // (E with nothing to do it to is nothing, as the key is; where the play needs it, `must`, the prompt's button has to be there)
+    if (k === '#gp-main' && !must && !await p.evaluate(() => { const e = document.getElementById('gp-main'), b = e && e.getBoundingClientRect(); return !!e && b.width > 4 && b.top >= 0 && b.bottom <= innerHeight; })) return p.waitForTimeout(600);
     return k ? tapEl(k) : p.waitForTimeout(1200); };
   const clickEl = (sel, n = 0) => (TOUCH ? tapEl(sel, n) : p.evaluate(([sel, n]) => document.querySelectorAll(sel)[n].click(), [sel, n]));
   // (a phone's title by touch, a screen at a time, as a person goes through it: the picture and Tap to begin; the menu,
@@ -428,7 +439,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     // (stuck by the story's own clock, which a slow machine runs slow: two minutes of it in one beat, or a clock that
     // has not moved at all; the last frame's meeting, 40 s of the story, was 240 looks long at a sixth of the pace)
     if (!same) { beatT = tWas = s.t; still = 0; } else { still = s.t === tWas ? still + 1 : 0; tWas = s.t; }
-    if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); break; }
+    if (same > 240 && (s.t - beatT > 120 || still > 240 || same > 2400)) { console.log('FAIL stuck', JSON.stringify(s)); console.log('  up on the screen:', await p.evaluate(() => [...document.querySelectorAll('#g-story-album.on, #g-story-log.on, #g-story-fail.on, #g-story-spend.on, #g-story-end.on, #g-story-order.on, #g-menu:not([hidden]), .g-overlay:not([hidden]), #gd:not([hidden])')].map(e => `${e.id || e.className}${e.id === 'gd' ? `: "${(document.getElementById('gd-text').textContent || '').slice(0, 60)}", ${document.querySelectorAll('#gd-choices button').length} answers` : ''}`).join('; ') || 'nothing of the story\'s')); break; }
     // (issue 114: one line is said over the picture at a time, hud.js)
     if (!seen.has('two-said')) { const two = await p.evaluate(() => [...document.querySelectorAll('#g-toasts > .g-toast')].map(e => e.textContent.slice(0, 50))); if (two.length > 1) { seen.add('two-said'); errors.push(`frame ${s.fi + 1}: ${two.length} lines said over the picture at once: ${two.join(' | ')}`); console.log(errors[errors.length - 1]); await snap(`${s.fi + 1}-two-said`); } }
     // seen through: the card is up; the frame is taken up again
@@ -957,7 +968,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const act = await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : null; });
         if (act !== 'Get in the helicopter') { errors.push(`frame ${s.fi + 1}: 8 m from the helicopter E is "${act}"`); console.log(errors[errors.length - 1]); }
         await frames(4); await snap(`${s.fi + 1}-board-near`);
-        await press('KeyE'); await frames(2);
+        await press('KeyE', true); await frames(2);
         const b = await p.evaluate(() => ({ beat: window.__game.story.state.beat, me: window.__game.player.rig.root.visible }));
         console.log(`frame ${s.fi + 1}: E beside the helicopter, the beat is ${b.beat}`);
         if (b.beat !== 'flight') { errors.push(`frame ${s.fi + 1}: E beside the helicopter, and the beat is ${b.beat}, not the flight`); console.log(errors[errors.length - 1]); }
