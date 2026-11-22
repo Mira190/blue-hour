@@ -282,6 +282,7 @@ window.OEStory = (function () {
     function jobRaise(on) {
       if (st.cam === on) return;
       if (on && (!st.jobReady || camWait())) return; // (not before the office has asked for the picture, nor on a press that passed a line)
+      if (on) fitFinder(); // (the same lines as every frame's: inside the print)
       st.cam = on; st.jobT = 0; camLabel(); camBtn.classList.toggle('up', on); finder.classList.toggle('on', on);
       say(on ? 'Camera up' : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
@@ -1528,7 +1529,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         const T = st.fr.task, S = subjectOf(T), m = S && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null;
         return m ? [m[0], m[1], S[2]] : S;
       },
-      get span() { const T = st.fr && st.fr.task, m = T && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null; return m ? [m[2], m[3]] : null; }, // (the heights of the thing's foot and top: the raised camera tilts so that all of it is in the print, where it fits)
+      get span() { const T = st.phase === 'stop' && st.fr && st.fr.task, m = T && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null; return m ? [m[2], m[3]] : null; }, // (the heights of the thing's foot and top: the raised camera tilts so that all of it is in the print, where it fits)
       // (where the lens is eased onto while it is up: the middle of the crossing as the last frame's two walk to it, so that
       // the lens closing on them does not close on the road beside them)
       get steer() { return st.phase === 'stop' && st.meet === 'walk' && st.cam && st.mid ? st.mid : null; },

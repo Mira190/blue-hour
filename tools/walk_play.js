@@ -55,7 +55,9 @@ const { chromium } = require('playwright');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
+const { measure: umbrellaHeld } = require('./umbrella_held'); // (in the rain: every umbrella held, issue 165)
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
 (async () => {
@@ -74,6 +76,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
   fs.mkdirSync(out, { recursive: true });
+  await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
@@ -324,6 +327,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (!(await p.evaluate(() => document.getElementById('game-stage').classList.contains('photo')))) fail('the walk\'s camera button does not open photo mode');
   else {
     ok('the camera opens photo mode'); await p.waitForTimeout(600); await shot('7-photo');
+    // (in the rain, with the world held by the camera: each umbrella near the lens is held, its handle at its hand, its
+    // shaft clear of the body under it, no canopy in another or in a head: issue 165, tools/umbrella_held.js)
+    if (sky === 'rain') { const U = await umbrellaHeld(p, { label: 'the walk in the rain, the camera up', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) fail('the page has no umbrella report to measure'); else if (U.bad.length) fail(`umbrellas not held: ${U.bad.join('; ')}`); else ok(`${U.n} open umbrellas near the lens, every one held`); }
     // the frame is the photograph's (issue 147): what the camera's controls cover, and nothing of them over the middle
     // of the frame where the subject stands (tools/ui_fit.js holds the same at every size)
     const cover = () => p.evaluate(() => {
@@ -806,6 +812,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else { await act(); await p.evaluate(() => window.__game.advance(3)); if ((await mode()) !== 'foot') fail(`out of the helicopter: still ${await mode()}`); else ok('landed and climbed out'); }
       }
     }
+  }
+  { // nobody of the crowd paced, wherever the walk went (issue 168: two men under the deck walked to and fro)
+    const { hard } = pacing.print(await pacing.report(p), m => console.log(m.replace(/^FAIL /, 'pace ')));
+    if (hard.length) fail(`${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y})`).join('; ')})`);
+    else ok('nobody of the crowd paced to and fro');
   }
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {

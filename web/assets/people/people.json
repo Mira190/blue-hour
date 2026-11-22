@@ -956,7 +956,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0512
+    "mask": 0.0729
    },
    "R_Business_Female_02": {
     "file": "R_Business_Female_02.glb",
@@ -1015,7 +1015,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.4856
+    "mask": 0.1689
    },
    "R_Business_Female_04_f003": {
     "file": "R_Business_Female_04_f003.glb",
@@ -1071,7 +1071,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0482
+    "mask": 0.063
    },
    "R_Business_Male_02": {
     "file": "R_Business_Male_02.glb",
@@ -1100,7 +1100,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0453
+    "mask": 0.059
    },
    "R_Business_Male_03": {
     "file": "R_Business_Male_03.glb",
@@ -1111,9 +1111,9 @@
     "height_m": 1.818,
     "triangles": 7810,
     "cities": [
-     "sydney"
+     "shibuya"
     ],
-    "mask": 0.0419
+    "mask": 0.0552
    },
    "R_Business_Male_05_m017": {
     "file": "R_Business_Male_05_m017.glb",
@@ -1148,11 +1148,9 @@
     "height_m": 1.821,
     "triangles": 7532,
     "cities": [
-     "osaka",
-     "shibuya",
-     "tokyo"
+     "shibuya"
     ],
-    "mask": 0.0419
+    "mask": 0.0552
    },
    "R_Business_Male_06_m024": {
     "file": "R_Business_Male_06_m024.glb",
@@ -1181,7 +1179,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0419
+    "mask": 0.0552
    },
    "R_Construction_Male_05_m008_bare": {
     "file": "R_Construction_Male_05_m008_bare.glb",
@@ -1226,7 +1224,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0534
+    "mask": 0.0521
    },
    "R_Delivery_Male_01": {
     "file": "R_Delivery_Male_01.glb",
@@ -1279,7 +1277,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.1272
+    "mask": 0.1518
    },
    "R_Female_Adult_03": {
     "file": "R_Female_Adult_03.glb",
@@ -1335,7 +1333,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.1244
+    "mask": 0.0876
    },
    "R_Female_Adult_06": {
     "file": "R_Female_Adult_06.glb",
@@ -1389,11 +1387,9 @@
     "height_m": 1.743,
     "triangles": 7510,
     "cities": [
-     "shibuya",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
-    "mask": 0.1339
+    "mask": 0.1608
    },
    "R_Female_Adult_08_mariniere": {
     "file": "R_Female_Adult_08_mariniere.glb",
@@ -1439,7 +1435,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.07
+    "mask": 0.0767
    },
    "R_Female_Adult_09_f011_grey_leopard": {
     "file": "R_Female_Adult_09_f011_grey_leopard.glb",
@@ -1465,13 +1461,9 @@
     "height_m": 1.736,
     "triangles": 8896,
     "cities": [
-     "amsterdam",
-     "paris",
-     "shibuya",
-     "tokyo",
-     "tsukishima"
+     "shibuya"
     ],
-    "mask": 0.1365
+    "mask": 0.1633
    },
    "R_Female_Adult_12": {
     "file": "R_Female_Adult_12.glb",
@@ -1512,7 +1504,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.1062
+    "mask": 0.1307
    },
    "R_Female_Adult_13": {
     "file": "R_Female_Adult_13.glb",
@@ -1555,7 +1547,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.1307
+    "mask": 0.1515
    },
    "R_Female_Adult_14": {
     "file": "R_Female_Adult_14.glb",
@@ -1582,11 +1574,9 @@
     "height_m": 1.743,
     "triangles": 8058,
     "cities": [
-     "akihabara",
-     "ikebukuro",
      "shibuya"
     ],
-    "mask": 0.046
+    "mask": 0.0602
    },
    "R_Female_Adult_15": {
     "file": "R_Female_Adult_15.glb",
@@ -1613,7 +1603,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0821
+    "mask": 0.1036
    },
    "R_Female_Adult_15_f013": {
     "file": "R_Female_Adult_15_f013.glb",
@@ -1678,7 +1668,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.1292
+    "mask": 0.1441
    },
    "R_Female_Party_02": {
     "file": "R_Female_Party_02.glb",
@@ -1728,7 +1718,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.2163
+    "mask": 0.0665
    },
    "R_Male_Adult_03": {
     "file": "R_Male_Adult_03.glb",
@@ -1771,7 +1761,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0368
+    "mask": 0.0474
    },
    "R_Male_Adult_04_m017": {
     "file": "R_Male_Adult_04_m017.glb",
@@ -1784,7 +1774,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0352
+    "mask": 0.05
    },
    "R_Male_Adult_05": {
     "file": "R_Male_Adult_05.glb",
@@ -1830,7 +1820,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.261
+    "mask": 0.0522
    },
    "R_Male_Adult_05_m024": {
     "file": "R_Male_Adult_05_m024.glb",
@@ -1858,12 +1848,9 @@
     "height_m": 1.831,
     "triangles": 7456,
     "cities": [
-     "melbourne-bayside",
-     "queenstown",
-     "shinjuku",
-     "sydney"
+     "shibuya"
     ],
-    "mask": 0.0611
+    "mask": 0.0758
    },
    "R_Male_Adult_06_m024_brown": {
     "file": "R_Male_Adult_06_m024_brown.glb",
@@ -1889,10 +1876,9 @@
     "height_m": 1.829,
     "triangles": 7254,
     "cities": [
-     "osaka",
      "shibuya"
     ],
-    "mask": 0.0824
+    "mask": 0.0978
    },
    "R_Male_Adult_09": {
     "file": "R_Male_Adult_09.glb",
@@ -1921,7 +1907,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.149
+    "mask": 0.1693
    },
    "R_Male_Adult_10": {
     "file": "R_Male_Adult_10.glb",
@@ -1958,11 +1944,9 @@
     "height_m": 1.821,
     "triangles": 7377,
     "cities": [
-     "shibuya",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
-    "mask": 0.151
+    "mask": 0.1639
    },
    "R_Male_Adult_12": {
     "file": "R_Male_Adult_12.glb",
@@ -1975,7 +1959,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0352
+    "mask": 0.0495
    },
    "R_Male_Adult_13": {
     "file": "R_Male_Adult_13.glb",
@@ -2023,7 +2007,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0612
+    "mask": 0.0545
    },
    "R_Male_Adult_13_m017_grey": {
     "file": "R_Male_Adult_13_m017_grey.glb",
@@ -2080,7 +2064,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.2252
+    "mask": 0.0521
    },
    "R_Male_Adult_15_m024_dark": {
     "file": "R_Male_Adult_15_m024_dark.glb",
@@ -2110,7 +2094,7 @@
     "cities": [
      "shibuya"
     ],
-    "mask": 0.0342
+    "mask": 0.0473
    },
    "R_Male_Adult_20_m008": {
     "file": "R_Male_Adult_20_m008.glb",
@@ -2121,11 +2105,9 @@
     "height_m": 1.822,
     "triangles": 7236,
     "cities": [
-     "shibuya",
-     "sydney",
-     "tokyo"
+     "shibuya"
     ],
-    "mask": 0.1693
+    "mask": 0.1057
    },
    "R_Male_Adult_20_m024": {
     "file": "R_Male_Adult_20_m024.glb",

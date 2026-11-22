@@ -624,6 +624,9 @@ frames and its load order, and is where most of these came from. What was found,
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+  `SAFE=1` adds a notched phone's safe area and fails a word or a button under the notch or the home bar; in photo
+  mode it holds what the camera's controls may cover (issues 147 and 154). `tools/legible.js` measures the walk's words
+  with the story's.
 - Whether the words on the picture can be read: `tools/legible.js`, by hand after a change to the story's goal, its
   hint, what is said over the picture, the finder's words or their styles (it is not a target either: it lays out the
   same recordings). Each screen a play wrote down (`UI_DUMP=dir`) is laid in with the page's stylesheets and no game
@@ -738,3 +741,22 @@ someone is set down steps out of them at a walk.
 
 Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
 crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+
+## Nobody paces (issue 168)
+
+On 21 November 2026 the owner's still of the walk showed two men under the deck east of the Scramble walking to and
+fro. Nothing measured whether a walker gets anywhere.
+
+- **`tools/crowd_pacing.js`** is the survey: on the walk, at each hour (8:00, 12:30, 17:59, 21:00, 23:30), you are
+  stood at each of 24 stations (the Scramble, the place of the still, a 400 m grid over the phone's district) with
+  the world stepped a tenth of a second at a time for a minute, and every walker is followed by its place in the
+  crowd. Over each 30 s a walker who covered more than 12 m, ended within 4 m of where it began and turned round at
+  least twice has paced; each is printed with its place, its line, how far its ways lead and what turned it
+  (`actors.js` `turn`'s reason, kept when a harness asks). `390x844` runs it as a phone, inside its district. It is
+  a job of 35 minutes for a screen, run when the ways or the steering change, not on every change.
+- **`tools/pacing_watch.js`** is the same measure on the side of a play: `tools/walk_play.js` and
+  `tools/story_play.js` put it in their page, and fail on a walker who paced two windows running or turned four
+  times in one. One window alone is a note: a walker held by a car turns once and comes back.
+
+Not measured: whether a walker who stops where the way ends reads as someone waiting (that is for stills), and a
+real phone's crowd, which is thinner than the emulated one only by its tier.

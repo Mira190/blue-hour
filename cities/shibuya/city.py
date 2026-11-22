@@ -2243,12 +2243,15 @@ CROSSING_SCREENS = [
     {"name": "Q'S EYE banner", "building": "Q-FRONT", "edge": [[346.0, -969.6], [363.0, -967.6]], "w": 12.96, "h": 5.33, "z": 20.4, "along": 0.0,
      "clips": ["music", "phone", "movie", "live", "soda", "beauty"], "phase": 4.0, "pitch": 0.012, "off": 0.7},
     # W corner at Center Gai's mouth: Rakuten Vision (formerly Mighty Vision, DHC Channel), 10.24 x 5.76 m on
-    # the wall of the Taiseido building, speakers above it
-    {"name": "Rakuten Vision", "building": "w136690966", "edge": [[324.0, -975.0], [330.0, -969.0]], "w": 10.24, "h": 5.76, "z": 12.9, "off": 0.9,
+    # the wall of the Taiseido building, speakers above it. Its edge is the mapped wall's own (w136690966; an edge typed
+    # at 45 degrees stood it 0.8 to 1.4 m off the wall, askew to it), and the published 10.24 m is wider than the
+    # mapped 8.6 m face: it overhangs each end by 0.84 m on its frame (tools/screen_fit.py)
+    {"name": "Rakuten Vision", "building": "w136690966", "edge": [[323.6, -975.2], [329.9, -969.4]], "w": 10.24, "h": 5.76, "z": 12.9, "off": 0.9,
+     "overhang": 0.84,
      "clips": ["shoe", "noodle", "info", "game", "fashion"], "phase": 3.0, "pitch": 0.01},
     # under it, the block's second screen over the bookshop's box sign (scramble.py BOOKSHOP, 3.6-6.9 m; the
     # screen's size is an estimate from photographs of 2024-25): it plays its own programme, not the synchronised slot
-    {"name": "Taiseido corner screen", "building": "w136690966", "edge": [[324.0, -975.0], [330.0, -969.0]], "w": 5.6, "h": 5.0, "z": 7.4, "off": 0.9,
+    {"name": "Taiseido corner screen", "building": "w136690966", "edge": [[323.6, -975.2], [329.9, -969.4]], "w": 5.6, "h": 5.0, "z": 7.4, "off": 0.9,
      "clips": ["game", "beauty", "music", "movie"], "phase": 7.0, "pitch": 0.008, "sync": False},
     # SW: on the roof of the Shibuya Ekimae building, the station-front vision (Tokyu, from 2019): 21.6 x
     # 12.144 m over a 21.6 x 4.176 m banner screen; and south of it, on the roof of the Oto building, HIT's
@@ -2275,12 +2278,15 @@ CROSSING_SCREENS = [
     # SE, over the tracks: Shibuya Scramble Square's vision, LEDs behind the glass of the east tower's lower
     # floors: on the north face, towards the crossing, an irregular screen of 552.6 m2 in a box 40.05 m wide and
     # 25.24 m high (Tokyu OOH), its foot at 4F behind the Ginza line's roof, its outline the windows' between the
-    # north-east tent and the north-west skirt, stepping with the storeys (cities/shibuya/scrsq_base.py
+    # north-east tent and the north-west skirt, its sides along their edges (cities/shibuya/scrsq_base.py
     # screen_parts, issue 66), and a 13.79 x 20.24 m one on the east face; 16 mm pitch
     {"name": "Shibuya Scramble Square Vision", "building": "渋谷スクランブルスクエア", "edge": [[477.9, -1103.0], [533.2, -1081.4]],
      "w": 40.05, "h": 25.24, "z": 19.3, "along": -2.42,
-     "parts": [[0.1828, 0.7974, 0.0, 0.2258], [0.0679, 0.8517, 0.2258, 0.4239], [0.0114, 0.9162, 0.4239, 0.622], [0.0094, 0.9557, 0.622, 0.8201],
-               [0.0087, 0.9908, 0.8201, 1.0]],
+     "parts": [[0.2606, 0.7854, 0.0, 0.3843, 0.051, 0.8827],
+               [0.051, 0.8827, 0.3843, 0.4779, 0.0, 0.9004],
+               [0.0, 0.9004, 0.4779, 0.7409, 0.0, 0.9501],
+               [0.0, 0.9501, 0.7409, 0.939, 0.0, 0.9876],
+               [0.0, 0.9876, 0.939, 1.0, 0.0, 0.9994]],
      "clips": ["movie", "info", "music", "phone", "live"], "phase": 20.0, "pitch": 0.016, "sync": False, "off": 0.3, "frame": 0.0},
     {"name": "Shibuya Scramble Square Vision east", "building": "渋谷スクランブルスクエア", "toward": [900.0, -1200.0], "w": 13.79, "h": 20.24, "z": 10.0,
      "clips": ["fashion", "soda", "game"], "phase": 5.0, "pitch": 0.016, "sync": False, "off": 0.3, "frame": 0.0},
@@ -2291,8 +2297,10 @@ CROSSING_SCREENS = [
     # E, beyond the tracks at Miyamasuzaka-shita: HIT's Synchro7, seven faces on three buildings (six on their
     # roofs, one on a wall) that play together, seen from the crossing and from Hachiko. HIT publishes no
     # sizes: these are estimates from photographs
-    {"name": "Synchro7 1", "building": "渋谷東映プラザ", "w": 9.0, "h": 5.0, "roof": True, "along": -6.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
-    {"name": "Synchro7 2", "building": "渋谷東映プラザ", "w": 9.0, "h": 5.0, "roof": True, "along": 5.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
+    # (the two on the Toei Plaza's roof at 8.4 m, so that both stand on its 17.5 m: at 9.0 each hung past an end of it,
+    # tools/screen_fit.py)
+    {"name": "Synchro7 1", "building": "渋谷東映プラザ", "w": 8.4, "h": 5.0, "roof": True, "along": -5.1, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
+    {"name": "Synchro7 2", "building": "渋谷東映プラザ", "w": 8.4, "h": 5.0, "roof": True, "along": 3.5, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
     {"name": "Synchro7 3", "building": "FPG Links Shibuya", "w": 8.0, "h": 4.5, "roof": True, "lift": 1.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
     {"name": "Synchro7 4", "building": "FPG Links Shibuya", "w": 8.0, "h": 4.5, "roof": True, "lift": 6.0, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
     {"name": "Synchro7 5", "building": "渋谷パークサイド共同ビル", "w": 8.0, "h": 4.5, "roof": True, "along": -4.5, "clips": SYNCHRO7, "phase": 30.0, "sync": False},
@@ -2999,24 +3007,8 @@ def toyoko_site(K, lm):
     gone = set(demolished_solids())
     standing = [Polygon(np.asarray(q[4], float).reshape(-1, 2) / 10.0).buffer(0) for si, q in enumerate(B["s_list"])
                 if si not in gone and q[3] > 30 and Polygon(TOYOKO_SITE).buffer(15).intersects(Point(*(np.asarray(q[4], float).reshape(-1, 2).mean(0) / 10.0)))]
-    ring = TOYOKO_SITE + TOYOKO_SITE[:1]
-    gz = lambda x, y: lm_ground_at(lm, x, y)
-    W, A = K("white_wall"), K("atlas_print", "lit")
-    for (ax, ay), (bx, by) in zip(ring, ring[1:]):
-        a, b = np.array([ax, ay]), np.array([bx, by])
-        L = float(np.linalg.norm(b - a))
-        f = (b - a) / L
-        for k in range(int(L / 4.0)):
-            p, q = a + f * (k * 4.0), a + f * min((k + 1) * 4.0, L)
-            m = (p + q) / 2
-            if any(g.contains(Point(*m)) for g in standing):
-                continue
-            z = gz(*m)
-            W.quad(np.array([*p, z]), np.array([*q, z]), np.array([*q, z + 3.5]), np.array([*p, z + 3.5]))
-            W.quad(np.array([*q, z]), np.array([*p, z]), np.array([*p, z + 3.5]), np.array([*q, z + 3.5]))
-            if k % 3 == 1:   # the notice, every third panel, on the side away from the site
-                nrm = -left_of(f) if Polygon(TOYOKO_SITE).contains(Point(*(m + left_of(f) * 2))) else left_of(f)
-                facade_panel(A, m, nrm, 3.8, z + 0.6, z + 3.1, "xs_hoarding", off=0.05)
+    gz = lambda x, y: levels_ground().at(x, y)
+    hoarding(K, TOYOKO_SITE, Polygon(TOYOKO_SITE), standing, "xs_hoarding")
     for k, (mx, my) in enumerate(((372.0, -1066.0), (424.0, -1072.0), (430.0, -1140.0), (392.0, -1125.0))):   # floodlight masts
         z = gz(mx, my)
         K("steel").tube([np.array([mx, my, z]), np.array([mx, my, z + 16.0])], 0.15, 6)
@@ -3066,33 +3058,15 @@ def today_sites(K, lm):
 def works_site(K, lm, ring, site, standing=(), masts=None, crane=None, notice=None):
     """A works site's hoarding along the edges of ring (not where a standing building is against it), a notice (an
     atlas cell) on it every third panel when one is given, floodlights on 16 m masts and a tower crane."""
-    gz = lambda x, y: lm_ground_at(lm, x, y)
-    W, A = K("white_wall"), K("atlas_print", "lit")
-    closed = ring + ring[:1]
-    for (ax, ay), (bx, by) in zip(closed, closed[1:]):
-        a, b = np.array([ax, ay]), np.array([bx, by])
-        L = float(np.linalg.norm(b - a))
-        if L < 0.5:
-            continue
-        f = (b - a) / L
-        for k in range(max(int(L / 4.0), 1)):
-            p, q = a + f * (k * 4.0), a + f * min((k + 1) * 4.0, L)
-            m = (p + q) / 2
-            if any(g.contains(Point(*m)) for g in standing):
-                continue
-            z = gz(*m)
-            W.quad(np.array([*p, z]), np.array([*q, z]), np.array([*q, z + 3.5]), np.array([*p, z + 3.5]))
-            W.quad(np.array([*q, z]), np.array([*p, z]), np.array([*p, z + 3.5]), np.array([*q, z + 3.5]))
-            if notice and k % 3 == 1 and float(np.linalg.norm(q - p)) > 3.9:   # the notice, on the side away from the site
-                nrm = -left_of(f) if site.contains(Point(*(m + left_of(f) * 2))) else left_of(f)
-                facade_panel(A, m, nrm, 3.8, z + 0.6, z + 3.1, notice, off=0.05)
+    import levels
+    hoarding(K, ring, site, standing, notice)
     if masts is None:   # one inside each of the outline's corners that turn most, four at most
         inner = site.buffer(-4.0)
         pts = [np.asarray(c) for c in (inner.exterior.coords[:-1] if inner.geom_type == "Polygon" and not inner.is_empty else [])]
         masts = [tuple(c) for c in pts[:: max(1, len(pts) // 4)]][:4]
     for mx, my in masts:
-        z = gz(mx, my)
-        K("steel").tube([np.array([mx, my, z]), np.array([mx, my, z + 16.0])], 0.15, 6)
+        z, deep = levels.footing([[mx, my]], levels_ground())
+        K("steel").tube([np.array([mx, my, z - deep]), np.array([mx, my, z + 16.0])], 0.15, 6)
         block(K("lamp", "lit"), frame((mx, my), (1, 0)), -0.5, 0.5, -0.5, 0.5, z + 16.0, z + 16.6)
     if crane is None:
         c = site.representative_point()
@@ -3102,16 +3076,57 @@ def works_site(K, lm, ring, site, standing=(), masts=None, crane=None, notice=No
     tower_crane(K, lm, crane)
 
 
+_LEVELS = {}
+
+
+def levels_ground():
+    """The ground everything built stands on: the game's, graded (pipeline/levels.py), not the viewer's 10 m grid."""
+    import levels
+    if CITY not in _LEVELS:
+        _LEVELS[CITY] = levels.Levels(CITY)
+    return _LEVELS[CITY]
+
+
+def hoarding(K, ring, site, standing=(), notice=None, height=3.0, bay=4.0):
+    """A works site's hoarding round `ring` (not where a standing building is against it): flat steel panels 3 m tall
+    (the standard 仮囲い), level-topped and stepped at their posts where the ground falls, their feet in the ground
+    (levels.stepped: the rule for whatever has a top), a notice (an atlas cell) on every third bay when one is given."""
+    import levels
+    W, A = K("white_wall"), K("atlas_print", "lit")
+    keep = lambda a, b: not any(g.contains(Point(*((a + b) / 2))) for g in standing)
+    bays = levels.stepped(ring, levels_ground(), height, bay=bay, closed=True, keep=keep, kind="hoarding")
+    levels.walls(W, bays)
+    # what the panels are held by, where the rule puts it: a steel post at every joint (the taller of the two tops
+    # that meet there, so a step of the top is a post's, not a notch in a sheet), and a kickboard along the foot, level with its bay's top
+    # (measured down from it: read up from the ground it had teeth of its own, which tools/levels_check.py found)
+    S, Kb = K("steel"), K("concrete")
+    for xy, foot, top in levels.posts(bays):
+        S.tube([np.array([*xy, foot]), np.array([*xy, top + 0.06])], 0.055, 4)
+    for b in bays:
+        f = (b.b - b.a) / float(np.linalg.norm(b.b - b.a))
+        n = left_of(f) * 0.03
+        for sgn in (1.0, -1.0):
+            p, q = (b.a + n * sgn, b.b + n * sgn) if sgn > 0 else (b.b + n * sgn, b.a + n * sgn)
+            Kb.quad(np.array([*p, b.foot]), np.array([*q, b.foot]), np.array([*q, b.top - height + 0.3]), np.array([*p, b.top - height + 0.3]))
+    for k, b in enumerate(bays):
+        f = (b.b - b.a) / float(np.linalg.norm(b.b - b.a))
+        m = (b.a + b.b) / 2
+        if notice and k % 3 == 1 and float(np.linalg.norm(b.b - b.a)) > 3.9:   # the notice, on the side away from the site
+            nrm = -left_of(f) if site.contains(Point(*(m + left_of(f) * 2))) else left_of(f)
+            facade_panel(A, m, nrm, 3.8, b.top - 2.6, b.top - 0.3, notice, off=0.05)
+
+
 def tower_crane(K, lm, CRANE):
     """A tower crane: a braced square mast, its jib and counter-jib, the counterweight, the cab, the hook's line and the
     red lights at its ends."""
-    gz = lambda x, y: lm_ground_at(lm, x, y)
+    import levels
     c = np.asarray(CRANE["at"])
-    z = gz(*c)
+    # (its base on the highest ground under its four chords, their feet down under the lowest: levels.footing)
+    z, deep = levels.footing([[c[0] + dx * 0.9, c[1] + dy * 0.9] for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1))], levels_ground())
     top = z + CRANE["mast_m"]
     S = K("crane_yellow")
     for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):    # the mast: four chords and their bracing
-        S.tube([np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, z]), np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, top])], 0.09, 4)
+        S.tube([np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, z - deep]), np.array([c[0] + dx * 0.9, c[1] + dy * 0.9, top])], 0.09, 4)
     for k in range(int(CRANE["mast_m"] / 3.0)):
         z1, z2 = z + k * 3.0, z + (k + 1) * 3.0
         for (x1, y1), (x2, y2) in (((-0.9, -0.9), (0.9, -0.9)), ((0.9, -0.9), (0.9, 0.9)), ((0.9, 0.9), (-0.9, 0.9)), ((-0.9, 0.9), (-0.9, -0.9))):

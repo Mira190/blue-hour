@@ -46,6 +46,8 @@ const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // 
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
+const { measure: umbrellaHeld } = require('./umbrella_held'); // (frame 7's rain: every umbrella held, issue 165)
+const pacing = require('./pacing_watch');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
 (async () => {
@@ -63,6 +65,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
+  await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
   const DRAW = +(process.env.DRAW || 0);
   if (DRAW > 1) await p.addInitScript(([n, tasks, glcount]) => {
@@ -429,6 +432,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const R = {};
       for (const at of [5, 10, 20]) { await p.waitForFunction(t => window.OEWeather.S.t >= t, w0.t + at, { timeout: 900000, polling: 250 }); R[at] = await W(); row(at, R[at]); await snap(`7-rain-${at}s`); }
       if (R[20].rain < 0.5 || R[20].up < 0.6 * R[20].n) { errors.push(`frame 7: twenty seconds after her first word the rain is ${R[20].rain.toFixed(2)} and ${R[20].up} of ${R[20].n} umbrellas are up`); console.log(errors[errors.length - 1]); }
+      // (and each umbrella is held: its handle at its hand, its shaft clear of the body under it, no canopy in another
+      // or in a head, measured of everyone drawn near the lens: issue 165, tools/umbrella_held.js)
+      { const U = await umbrellaHeld(p, { label: 'frame 7, twenty seconds into the rain', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) errors.push('frame 7: the page has no umbrella report to measure'); for (const b of U.bad) errors.push(`frame 7's rain: ${b}`); }
       if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
       continue;
     }
@@ -1026,6 +1032,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const { hard } = clipProbe.print(R);
     if (!R || R.err) errors.push(`clip: the probe did not measure (${R ? R.err : 'not in the page'})`);
     if (hard.length) errors.push(`clip: ${hard.length} cases of a body in another or a foot off its floor (${[...new Set(hard.map(c => `${c.a} / ${c.b}`))].slice(0, 8).join('; ')})`);
+  }
+  { // nobody of the crowd paced, on any street the play was in (issue 168)
+    const { hard } = pacing.print(await pacing.report(p));
+    if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
   }
   for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`stills: ${ST.n}, ${(ST.whole / 1000).toFixed(0)} s drawing their frames whole, ${(ST.shot / 1000).toFixed(0)} s taking them`);

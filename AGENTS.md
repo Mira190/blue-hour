@@ -300,7 +300,15 @@ thirty is drawn). So:
   Both scripts also write the parts the pages load before playable and after (`cars_far.glb`,
   `trees_far.glb`, `trees_near.glb`: `python pipeline/meshopt.py split <model.glb>`);
   `tools/check.sh` fails on a stale part.
-- After a step that writes `buildings.json`, four passes keep what the map's raw data lacks:
+- Everything built reads one ground (docs/LEVELS.md, issue 163): a generator of a wall, a fence, a hoarding, a rail,
+  a mast or anything else with a top or a foot takes its heights from `pipeline/levels.py` (`Levels`, `stepped`,
+  `footing`), never from a ground sampler of its own plus a height. After a step that changes the ground, the
+  buildings or the landmarks' feet, `tools/job.sh run regrade -- tools/regrade.sh` makes the levels again in the order
+  they depend on each other (the grading, the four passes below, the
+  landmarks, the packs) and ends on `tools/levels_check.py`.
+- After a step that writes `buildings.json`, first `python pipeline/proportion.py --city shibuya` (a building with
+  no class styled by its proportions: a long low footprint is a shed or a walk-up block, not a house; docs/BUILDINGS.md),
+  then four passes keep what the map's raw data lacks:
   `python pipeline/stations.py --city shibuya` (Japan's stations in panel and glass, and piers under a
   building that stands off the ground), `python pipeline/lobby.py --city shibuya` (a lift's street
   door set inside its building: `game.lobbies` in `cities/shibuya/city.json`),

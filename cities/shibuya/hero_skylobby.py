@@ -23,16 +23,16 @@ its `at` before the cars; city.json game.lobbies "sky-gate" "outside" places the
     plan and the photographs, a glass front with two doors, a glass north side and a roof carried out as a canopy, was
     an odd place to walk into, and the chase camera came down inside it); a honed granite floor in slabs a step darker
     than the tiles, a step down into it from the forecourt's planks along its north side, the black panelled wall against the tower to
-    its south with a line of light at its foot and a stainless coping; the queue's two belts running east, and outside
-    a belt along the front where the line forms;
+    its south with a line of light at its foot and a stainless coping; no queue belts (the owner: the hall is walked
+    straight into);
   * the lifts: two cars on the east wall in stainless portals, hairline-brushed leaves, each with its indicator (the
     arrow and 14F: the street lift's top, SKY GATE runs on from 14F to 45F) and call plate, the name over them; behind
     them the glass shaft outside the tower's east face, up to 14F, the cars' lit cabins standing at the street;
   * in front: the tiles, the pillar, and the forecourt's planks out along the tower's north face.
 
 The hall's floor is level while the ground under it rises to the north (meta "floor": its own floor is stood on,
-nav.js lift). Solid where it is wall and shaft (game.json hero[].posts), and the belts (hero[].belts); open to the west
-and the north.
+nav.js lift). Solid where it is wall, shaft and pillar (game.json hero[].posts); open to the west and the north, with no
+belt anywhere in it (hero[].belts is empty).
 """
 import json
 import math
@@ -66,7 +66,6 @@ JOINT = 0.004
 PANEL = 1.2              # the hall's wall panels
 CARS = (-1.4, 1.4)       # the two cars' middles across the east wall
 CAR_W, CAR_H = 1.1, 2.1  # a car's doorway (the hall is 2.65 m high under the station deck)
-BELTS = (-2.3, 2.3)      # the queue's two belts, from a post 2.9 m out to a catch on the east wall
 FORECOURT = ((-8.0, 2.5, -14.0, APRON_V), (-8.0, HALL_U[0] - 0.1, APRON_V, HALL_V + SHAFT_V))   # (u0, u1, v0, v1): the planks
 PILLAR = (-2.4, -1.9, 1.1, 3.6)    # the sign pillar: u, v of its middle (north-west of the doors), its side, its height
 LINES_U = (-2.2, -0.75, 0.75, 2.2)  # the hall's lines of light, running east
@@ -683,27 +682,13 @@ class Level:
         self.post_line(u1, v0, u1, v1)
 
     def queue(self):
-        """The queue: two stainless posts 2.9 m out from the cars' wall, a black belt from each drawn taut east to its
-        catch on the wall, the queue facing the cars between them. Solid (game.json hero[].belts)."""
-        F, z0 = self.F, self.F.floor
-        vv = HALL_V - 2.9
-        for su in BELTS:
-            self.geo.lathe("room_steel", F.P(su, vv, z0), [(0.16, 0.0), (0.16, 0.025), (0.03, 0.045), (0.025, 0.86), (0.04, 0.88), (0.04, 0.99), (0.0, 1.0)], segs=20)
-            self.box("room_belt", su - 0.005, su + 0.005, vv, HALL_V - 0.05, z0 + 0.87, z0 + 0.92)
-            self.box("room_steel", su - 0.03, su + 0.03, HALL_V - 0.05, HALL_V - 0.012, z0 + 0.85, z0 + 0.94)
-            for t in np.arange(vv, HALL_V - 0.01, 0.2):
-                x, y = F.xy(su, t)
-                self.belts.append([round(float(x), 2), round(float(y), 2)])
-        # and outside, where the line forms (the owner's memory and the photographs of 2019-20): a belt along the west
-        # front 1.5 m out, from beside the pillar to a post south of the doors, the line between it and the glass, come
-        # into from the south. Solid (its points are posts)
-        u0, u1, vb = PILLAR[0] + PILLAR[2] / 2 + 0.25, 2.4, -1.5
-        for su in (u0, u1):
-            self.geo.lathe("room_steel", F.P(su, vb, self.ztile(su, vb)), [(0.16, 0.0), (0.16, 0.025), (0.03, 0.045), (0.025, 0.86), (0.04, 0.88), (0.04, 0.99), (0.0, 1.0)], segs=20)
-        za, zb = self.ztile(u0, vb), self.ztile(u1, vb)
-        self.q("room_belt", (u0, vb, za + 0.87), (u1, vb, zb + 0.87), (u1, vb, zb + 0.92), (u0, vb, za + 0.92))
-        self.q("room_belt", (u1, vb, zb + 0.87), (u0, vb, za + 0.87), (u0, vb, za + 0.92), (u1, vb, zb + 0.92))
-        self.post_line(u0, vb, u1, vb)
+        """No queue belts. Until November 2026 two stainless posts stood 2.9 m out from the cars' wall, a black belt
+        from each drawn taut east to the wall, and a third belt ran along the front 1.5 m out, as the line is held at
+        busy times in the photographs of 2019-20. With nobody queuing they were only ropes in the way: a player sent to
+        "Take the lift" met one across the way in, and the hall's open north side was fenced by the other. The owner
+        took them away ("the route has to be completely smooth"): the hall is walked straight into from the west and
+        the north, and nothing stands between the forecourt and the cars but the floor. (hero[].belts is empty.)"""
+        return
 
 
 def build(K):

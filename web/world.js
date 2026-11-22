@@ -347,19 +347,15 @@ float cwHash(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5
     float sf = 1.0 - smoothstep(uSpan - fwidth(bv), uSpan + fwidth(bv), fract(bv)); // the storey's spandrel band
     vec3 farCol = mix(diffuseColor.rgb * (0.85 + 0.3 * cwHash(cf)), uFrame, 0.3 * (1.0 - 0.75 * uLmNight));
     diffuseColor.rgb = mix(mix(glass, mix(uFrame, uSpanC, step(mull, span * 0.9)), solid), farCol, far);
-    // the room behind a lit pane, close to: brighter towards the ceiling, a row of downlights under it one to a bay,
-    // and the chairs, tables and people dark against the light in its lower third (each bay its own), so the glass
-    // reads as rooms with depth rather than as lit panels; far off, the storey's mean
+    // the room behind a lit pane, close to: brighter towards the ceiling, a row of downlights under it one to a bay, so
+    // the glass reads as rooms with light in them rather than as lit panels; far off, the storey's mean. (Until November
+    // 2026 people standing or seated and a table's top were painted dark in each bay's lower third: flat figures on the
+    // glass with no depth behind them, which the owner saw standing in the koban's window and asked to go. A thing drawn
+    // on a pane to stand for what is behind it moves with the pane, not as a room does; what cannot be built is left out)
     { float fx = fract(bu), fy = (fract(bv) - uSpan) / max(1.0 - uSpan, 0.05), hR = uSty * (1.0 - uSpan);
       float grad = 0.3 + 0.55 * smoothstep(0.05, 1.0, fy);
       float lamp = exp(-pow((fx - 0.5) / 0.09, 2.0)) * exp(-pow((fy - 0.94) * hR / 0.06, 2.0)) * 1.4 + exp(-pow((fy - 0.97) / 0.035, 2.0)) * 0.2;
-      // people standing or seated in thirds of a bay, a table's top in some: dark against the room
-      float j = floor(fx * 3.0), h = cwHash(cell * 1.31 + j), mx = (fract(fx * 3.0) - 0.5) * uBay / 3.0;
-      float tall = h < 0.22 ? 1.62 : 1.18, my = fy * hR;
-      float body = step(abs(mx), 0.17 - 0.04 * smoothstep(tall - 0.6, tall - 0.3, my)) * step(my, tall - 0.22);
-      float head = step(length(vec2(mx, my - tall + 0.12)), 0.11);
-      float person = step(h, 0.42) * max(body, head), table = step(0.55, cwHash(cell + 9.0)) * step(abs(my - 0.74), 0.025);
-      float room = (grad + lamp) * (1.0 - 0.8 * max(person, table)) * (0.7 + 0.45 * cwHash(cell + 21.0));
+      float room = (grad + lamp) * (0.7 + 0.45 * cwHash(cell + 21.0));
       pRoom = mix(room, 0.6, smoothstep(0.05, 0.3, fw)); }
     float litFar = mix(0.6 * step(1.0 - 0.68 * uLitShare, cwHash(cf + 17.0)) * (1.0 - sf), 0.34 * uLitShare, vfar);
     // lit in runs of four panes along a storey, as an office is, each run a little brighter or dimmer,
