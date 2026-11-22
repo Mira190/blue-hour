@@ -194,7 +194,7 @@ const LEADS = [
         if (mv > 0.5 && pl.mode === 'foot') {
           const sz = surface(dog.x, dog.y, dog.z), gap = sz == null ? null : dog.z - sz;
           if (gap != null) { maxGap = Math.max(maxGap, gap); minGap = Math.min(minGap, gap); }
-          if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind]);
+          if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind, g.hero ? g.hero().state().filter(h => h.state !== 'idle').map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : '']);
           const nx = -(dog.y - lastY) / mv, ny = (dog.x - lastX) / mv, [l, rr] = ways.room(dog.x, dog.y, dog.z, nx, ny);
           if (ways.crossing(dog.x, dog.y, dog.z, nx, ny)) mouths.push([dog.x, dog.y]);
           if (nearMouth(dog.x, dog.y)) run = 0;

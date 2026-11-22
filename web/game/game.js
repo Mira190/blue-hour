@@ -603,6 +603,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function heroCover(h, root) {
     if (h.cover || !h.at || !h.r) return;
     const t0 = performance.now(), n = Math.ceil(2 * h.r / HC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, g = new Float32Array(n * n).fill(-1e9), road = new Uint8Array(n * n), v = new THREE.Vector3(), P = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    // (a level whose floor is its own, hero[].floor: each cell keeps the floor's triangles over it too, so that its height
+    // is read where the walker stands and not at the cell's middle. A cell an edge crossed, a plank's step or a mat's,
+    // took the height at its middle for all of it, and the guide stood 7 to 9 cm in the air on its low side by SKY's
+    // hall, by where the crowd put his way; 1.35% of the hall's floor read more than 6 cm out: tools/floor_grid.js)
+    const tri = h.floor ? new Map() : null;
     let tris = 0;
     const cut = h.floor ? new Uint8Array(n * n) : null; // (the level's own floor, where the ground is not drawn: HERO_CUT)
     root.traverse(o => {
@@ -616,6 +621,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (Math.abs(den) < 1e-9) continue;
         tris++;
         const i0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), i1 = Math.min(n - 1, Math.ceil(Math.max(ax, bx, cx))), j0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), j1 = Math.min(n - 1, Math.ceil(Math.max(ay, by, cy)));
+        // (only what faces up is stood on: a plank's underside or a step's riser under the same point is not the floor)
+        const up = tri ? (() => { const ux = (bx - ax) * HC, uy = bz - az, uz = -(by - ay) * HC, wx = (cx - ax) * HC, wy = cz - az, wz = -(cy - ay) * HC, nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx; return Math.abs(ny) > 0.5 * Math.hypot(nx, ny, nz); })() : false;
+        if (tri && up) { const q = [ax, ay, az, bx, by, bz, cx, cy, cz]; for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * n + i; let l = tri.get(c); if (!l) tri.set(c, l = []); l.push(q); } }
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
           const px = i + 0.5, py = j + 0.5, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
           if (l1 >= -0.02 && l2 >= -0.02 && l1 + l2 <= 1.02) { const z = l1 * az + l2 * bz + (1 - l1 - l2) * cz, c = j * n + i; if (z > g[c]) { g[c] = z; road[c] = asphalt; } if (own && l1 >= 0 && l2 >= 0 && l1 + l2 <= 1) cut[c] = own; }
@@ -639,7 +647,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
     h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
     // (the drawn floor's own height, or null where it draws none: a level whose floor is its own, hero[].floor, nav.js lift)
-    h.height = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : g[j * n + i]; };
+    h.height = (x, y) => {
+      const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC);
+      if (i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8) return null;
+      const l = tri && tri.get(j * n + i);
+      if (l) { // (the highest of the floor's triangles under the point itself, in the grid's units)
+        const px = (x - x0) / HC, py = (y - y0) / HC; let best = -1e9;
+        for (const [ax, ay, az, bx, by, bz, cx, cy, cz] of l) {
+          const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy), l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
+          if (l1 >= -1e-4 && l2 >= -1e-4 && l1 + l2 <= 1 + 1e-4) best = Math.max(best, l1 * az + l2 * bz + (1 - l1 - l2) * cz);
+        }
+        if (best > -1e8) return best;
+      }
+      return g[j * n + i];
+    };
   }
   const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: heroCover }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
