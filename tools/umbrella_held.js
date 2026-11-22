@@ -94,6 +94,8 @@ function judge(rows, { held = false, loose = false } = {}) {
     if (held && (h.moving || b.moving)) continue;
     let deep = 0;
     for (const o of [[0, 1, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0], [0, 0.7, 0.7], [0, 0.7, -0.7], [0, 0, 0]]) deep = Math.max(deep, inCanopy(add(h.head.c, o, h.head.r), b.canopy));
+    // (and the top of the hair, where the page gives it: the ball is the skull)
+    if (h.head.crown != null) for (const [dx, dz] of [[0, 0], [0.07, 0], [-0.07, 0], [0, 0.07], [0, -0.07]]) deep = Math.max(deep, inCanopy([h.head.c[0] + dx, h.head.crown - 0.01, h.head.c[2] + dz], b.canopy));
     if (deep > HEAD_IN) brush.push([deep + 1, `a head ${deep.toFixed(2)} m inside ${h === b ? 'its own' : 'a'} canopy: ${who(h)}${h === b ? '' : `, in that of ${who(b)}`}`]);
   }
   // (loose, for a check played in a living crowd: a canopy that brushes its neighbour's is printed, and fails only

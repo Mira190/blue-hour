@@ -157,7 +157,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
   // is held inside the closed hand, only its end showing under the fist: person, umbHold). The umbrella hangs from the hand; the pose that brings the hand there is laid
   // over the clip (person: umbHold). fist: where a far copy's folded arm has its hand (crowdRenderer), in place of
   // UMB_GRIP (umbArm brings it to the same place): the shaft goes from there towards the same place over the head
-  const UMB_GRIP = [-0.2, -0.3, 0.24], UMB_TOP = [-0.1, 0.36, 0.11];
+  const UMB_GRIP = [-0.2, -0.3, 0.24], UMB_TOP = [-0.1, 0.42, 0.11];
   // (the closed hand on the handle, person umbHold: where the handle's middle is in the hand, from the wrist along the
   // fingers, towards the thumb and into the palm, m; how far each of a finger's three joints closes and how the
   // thumb is laid, rad; roll: the hand turned about the shaft)
@@ -1252,7 +1252,7 @@ ${PAT_GLSL}`)
       const s = model.getWorldScale(V3(0, 0, 0)).y, w = o => o.getWorldPosition(V3(0, 0, 0)), c = w(canopy), n = V3(0, 1, 0).applyQuaternion(canopy.getWorldQuaternion(new THREE.Quaternion()));
       const handle = w(canopy.userData.handle), hd = w(bones.Head), hip = bones.Hips ? w(bones.Hips) : hd.clone().add(V3(0, -0.6 * s, 0));
       return { held: !!umbHold && umbUp, hand: w(arms[1].wr), handle, shaft: [handle.clone().addScaledVector(n, -(UMB_END + 0.025) * s), c], canopy: { c, n, r: UMB_R * s * canopy.scale.x, h: UMB_H * s * canopy.scale.y },
-        head: { c: hd.clone().add(V3(0, 0.09 * s, 0)), r: 0.105 * s }, torso: { a: hip, b: hd.clone().add(V3(0, -0.07 * s, 0)), r: 0.125 * s } };
+        head: { c: hd.clone().add(V3(0, 0.09 * s, 0)), r: 0.105 * s, crown: overHead > 0 ? hd.y + overHead * s : hd.y + 0.24 * s }, torso: { a: hip, b: hd.clone().add(V3(0, -0.07 * s, 0)), r: 0.125 * s } };
     };
     const armBack = () => {
       if (umbLaid) { const H = umbHold; for (let k = 0; k < H.bones.length; k++) H.bones[k].quaternion.copy(H.clip[k]); umbLaid = false; }
@@ -1852,7 +1852,7 @@ transformed = crowdPose(transformed, false);`);
       const ex = p.far ? lib.far[p.far].extras : lib.lod[p.look.character].extras, key = p.far ? '@' + p.far : p.look.character;
       p.thigh = (ex.hip[0] - ex.knee[0]) * p.fscale; // how far the body drops when sitting
       // (how tall they stand, and how high their canopy's rim is when it is up: a head at a rim, lean and actors.js umbRoom)
-      p.crown = (ex.height_m || ex.shoulder[0] + 0.33) * p.fscale; p.umbRim = (ex.shoulder[0] + 0.16 + UMB_TOP[1] - UMB_TIP) * p.fscale;
+      p.crown = (ex.height_m || ex.shoulder[0] + 0.37) * p.fscale; p.umbRim = (ex.shoulder[0] + 0.16 + UMB_TOP[1] - UMB_TIP) * p.fscale;
       (groups[key] = groups[key] || []).push(p);
     });
     const meshes = [];
@@ -1935,10 +1935,10 @@ transformed = crowdPose(transformed, false);`);
     // Canopies give way to each other (issue 165): the crowd's steering keeps two people under umbrellas an umbrella's
     // room apart (actors.js umbRoom, from p.umbR here), and where they are pressed closer all the same, or someone
     // taller stands with their head at a canopy's rim, each umbrella leans away from what it would touch, at the wrist,
-    // up to LEAN_MAX (fourteen degrees): the rim on that side rises and the canopy's middle moves off, as people do it. From who stood
+    // up to LEAN_MAX (eight degrees: at fourteen the canopy's far side came down on its holder's own hair): the rim on that side rises and the canopy's middle moves off, as people do it. From who stood
     // where a frame ago (umbGrid, in cells), eased over a third of a second, in the world's plan (p.umbLx, p.umbLy,
     // radians); not worked past LEAN_M from the lens
-    const LEAN_MAX = 0.24, LEAN_K = 1.3, LEAN_M = 40, UCELL = 1.3, LEAN_HEAD = 0.05;
+    const LEAN_MAX = 0.14, LEAN_K = 1.0, LEAN_M = 40, UCELL = 1.3, LEAN_HEAD = 0.05;
     let umbGrid = new Map(), umbNext = new Map();
     const ucell = (cx, cy) => (cx * 73856093) ^ (cy * 19349663);
     function lean(p) {
@@ -2191,12 +2191,12 @@ transformed = crowdPose(transformed, false);`);
         const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
         if (r) {
           const q = r.umbOn && r.umbParts ? r.umbParts() : null;
-          if (q) Object.assign(row, { umb: true, held: q.held, hand: arr(q.hand), handle: arr(q.handle), shaft: q.shaft.map(arr), canopy: { c: arr(q.canopy.c), n: arr(q.canopy.n), r: +q.canopy.r.toFixed(3), h: +q.canopy.h.toFixed(3) }, head: { c: arr(q.head.c), r: +q.head.r.toFixed(3) }, torso: { a: arr(q.torso.a), b: arr(q.torso.b), r: +q.torso.r.toFixed(3) } });
+          if (q) Object.assign(row, { umb: true, held: q.held, hand: arr(q.hand), handle: arr(q.handle), shaft: q.shaft.map(arr), canopy: { c: arr(q.canopy.c), n: arr(q.canopy.n), r: +q.canopy.r.toFixed(3), h: +q.canopy.h.toFixed(3) }, head: { c: arr(q.head.c), r: +q.head.r.toFixed(3), crown: +q.head.crown.toFixed(3) }, torso: { a: arr(q.torso.a), b: arr(q.torso.b), r: +q.torso.r.toFixed(3) } });
           else { const t = r.headTop ? r.headTop(V3(0, 0, 0)) : V3(p.rx, p.rz + p.crown, -p.ry); row.head = { c: arr(t.add(V3(0, -0.12 * p.fscale, 0))), r: +(0.105 * p.fscale).toFixed(3) }; }
         } else {
           const C = holdOf(p), s = p.fscale;
           bm.compose(at.set(p.rx, p.rz, -p.ry), q.setFromAxisAngle(UP, Math.PI - p.h), sc.setScalar(s));
-          row.head = { c: arr(V3(0, C.hd.y + 0.09, C.hd.z + 0.01).applyMatrix4(bm)), r: +(0.105 * s).toFixed(3) };
+          row.head = { c: arr(V3(0, C.hd.y + 0.09, C.hd.z + 0.01).applyMatrix4(bm)), r: +(0.105 * s).toFixed(3), crown: +(p.rz + p.crown).toFixed(3) };
           if (umbOn && p.umbT > 0 && p.umbF === frameNo && p.umbI >= 0) {
             const o = p.umbT < 1 ? umbOpening(p.umbT) : { r: 1, a: 1 };
             farUmb(p, bm);

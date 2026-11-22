@@ -203,9 +203,12 @@ was somewhere else.
 **What is true now** (`web/game/people.js`):
 
 - *It hangs from the hand.* A near person's `umbrella_open` is a child of the right hand's bone, placed as the hold has
-  the hand (`umbHold.inv`). A far copy's is placed from that copy's own hand where its folded arm puts it (`holdOf`:
-  the two turns of `crowdPose`'s arm, `UMB_ARM`, worked on the middle of the hand its right arm ends in), in the
-  instance's matrix: no draw and no texture more.
+  the hand (`umbHold.inv`). A far copy's is placed at that copy's own fist (`holdOf`), in the instance's matrix: no
+  draw and no texture more. The copy has no bones, and its arm used to be folded by height about an elbow assumed on
+  the body's middle line: on many characters the forearm bent out of shape or the hand went out to the side, and the
+  umbrella was not in it. Now the same reach the near hold makes is worked once for each character from its own arm
+  (`umbArm`: its shoulder, its elbow and its hand, from the geometry) as two turns, the forearm's about the elbow and
+  the arm's about the shoulder, which the shader lays on (`CROWD_POSE`, six uniforms a character).
 - *The arm holds it up.* One pose, fixed (`umbHold.q`): the upper arm, the forearm, the hand and its fingers, found
   once from the reference pose (the fist in front of the right shoulder at chest height, the elbow by the side) and
   laid over whatever clip plays, after the mixer, by the share the umbrella is open; the clip's turns are put back
@@ -219,8 +222,8 @@ was somewhere else.
   While two umbrellas are up the crowd's steering keeps the two radii between the canopies' middles
   (`actors.js` `umbRoom`, from `p.umbR`, `p.ucx`, `p.ucy` which the renderer writes), someone with none whose head
   stands at a rim keeps out from under it, and of friends walking together every second one shares (`wantUmb`). Where
-  the press brings canopies closer all the same, each leans from what it would touch, at the wrist, up to twelve
-  degrees (`lean`).
+  the press brings canopies closer all the same, each leans from what it would touch, at the wrist, up to eight
+  degrees and never towards its holder's own head (`lean`).
 - *The far crowd* keeps the same umbrella at the same place: the step from a near person to a copy moves the canopy by
   a few centimetres.
 
@@ -242,6 +245,7 @@ side by side on one person (`rig.umbTune`).
 | Crowd tools (Houdini's agent clip layering, Golaem's animation layers) | An upper-body clip layered over a walk cycle per agent, by bone group and blend ratio | The far copies' per-instance share (`iUmb`) of the folded arm. Design only |
 | Lam, Lee and others, experiments on crosswalks in rain (Hong Kong Polytechnic University; J. Eastern Asia Soc. Transportation Studies 12, 2017) | Under umbrellas people walk slower (about 0.85 m/s against 1.22) and a crosswalk carries fewer: umbrellas overlap and conflict as density rises | An umbrella's room in the steering, and that pressed canopies overlap and lean rather than never touch. Findings only |
 | Johansson, Helbing and others, "From crowd dynamics to crowd safety" (2008) | Counts umbrellas as discs of 0.5 m radius | `UMB_R` 0.5 m |
+| Hand poses for held things (Unity's IK targets: an empty placed where the hand grips, not at the prop's pivot, so the hand touches and does not pass through; VR hand-pose sets: a pose for each thing held, each finger's curl stopped at the grip's surface) | One hand pose for each kind of thing held, its fingers closed to the surface and no further; the grip point on the prop is where the hand is, not the prop's own origin | `UMB_FIST`: one closed fist for the umbrella, each joint within what a hand does, the shaft in the hollow. Design only |
 | The owner's reference photograph (a folding umbrella held by the shoulder) | The closed hand hides the handle where it is held; the end shows under the fist | The fist and the handle's end. Looked at, not copied |
 
 ## What it costs a frame
