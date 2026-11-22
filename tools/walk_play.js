@@ -732,11 +732,13 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!hall) fail('SKY GATE\'s hall: no hero level "skylobby" on the map');
       else if (hall.state !== 'ready' || !hall.shown) fail(`SKY GATE's hall is not drawn round you in its lobby (${JSON.stringify(hall)})`);
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
-      await p.evaluate(() => window.__game.advance(2.5)); // (the view comes round to the lift as its offer comes up: game.js, the prompt's lift)
+      // (the view comes round to the lift as its offer comes up, once no hand has been on it for a second: game.js, the
+      // prompt's lift. Given up to six seconds of the game's time, a quarter at a time, until the turn is done)
+      const hallView = await p.evaluate(() => { const g = window.__game, l = g.G.lifts.find(q => q.id === 'sky-gate'), s = l.stops[0], want = Math.atan2(s.at[0] - s.door[0], s.at[1] - s.door[1]); let i = 0; for (; i < 24; i++) { g.advance(0.25); if (g.cam.yawTo == null && Math.abs(Math.atan2(Math.sin(g.cam.yaw - want), Math.cos(g.cam.yaw - want))) < 0.35) break; } return { yaw: +g.cam.yaw.toFixed(2), want: +want.toFixed(2), yawTo: g.cam.yawTo, idle: +(g.t() - g.cam.lastInput).toFixed(1), s: (i + 1) * 0.25 }; });
       await shot('7a-hall');
       // (and the hall is a picture, not one flat tone from edge to edge: issue 144)
       const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone, 0.6); // (0.6: the lacquered wall across the frame under a strip of the deck was 0.73 of it one tone, and passed at 0.85)
-      if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat})`);
+      if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat}; the view ${JSON.stringify(hallView)})`);
       else ok(`SKY GATE's hall: a picture (luma sd ${hallTone.sd}, ${Math.round(hallTone.share * 100)}% its commonest tone)`);
       await act();
       await p.evaluate(() => window.__game.advance(4.5)); // (the shot eases off from your shoulder: by now it is well up the face, turned out to the city)
