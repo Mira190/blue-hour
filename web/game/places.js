@@ -12,7 +12,7 @@
 window.OEPlaces = (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  function create({ G, W, camera, stage, speakers = null }) {
+  function create({ G, W, camera, stage, speakers = null, see = null }) {
     let seed = 4099; // (a seeded run for the line picked: the same caption on every run of a held clock, #420)
     const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const areas = G.areas || [], spots = G.spots || [], chatter = (G.chatter || []).map(c => Object.assign({ i: -1, t: 0, heard: -1e9 }, c));
@@ -68,7 +68,9 @@ window.OEPlaces = (function () {
     layer.className = 'g-chatter';
     stage.appendChild(layer);
     const tmp = new THREE.Vector3();
-    function place(el, x, y, z) {
+    function place(el, x, y, z, key) {
+      // (and as every mark is, marks.js: not over the player's body, nor anyone nearer the eye, nor through a wall)
+      if (see && see(x, y, z, { pad: 22, key }).why) { el.style.display = 'none'; return; }
       tmp.copy(W(x, y, z)).project(camera);
       // (behind the camera, or off the side of the screen: not shown. It was kept at the screen's edge wherever it was
       // said, and so a line said behind your shoulder hung in the sky with nobody under it)
@@ -130,11 +132,11 @@ window.OEPlaces = (function () {
             if (c.si !== c.i || (c.st -= dt) <= 0) { const list = speakers(c.at[0], c.at[1], c.at[2] ?? pz, c.reach || 5); c.who = (c.side && list.length > 1 ? list[c.i % 2] : list[0]) || null; c.si = c.i; c.st = 0.5; }
             const q = c.who && c.who();
             if (!q) { c.el.style.display = 'none'; continue; }
-            place(c.el, q.x, q.y, q.z + 2.25);
+            place(c.el, q.x, q.y, q.z + 2.25, `chat:${c.id || c.at}`);
             continue;
           }
           const off = c.side ? (c.i % 2 ? 1.2 : -1.2) : 0;
-          place(c.el, c.at[0] + off, c.at[1], (c.at[2] ?? pz) + 2.4);
+          place(c.el, c.at[0] + off, c.at[1], (c.at[2] ?? pz) + 2.4, `chat:${c.id || c.at}`);
         }
       },
       hush, // for a paused game, which doesn't update

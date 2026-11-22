@@ -4570,7 +4570,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     g.fillText(text, w / 2, r + 2);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    // (in the world as anything else is: behind the player, a wall or anyone nearer the eye than it, hidden. It was drawn
+    // through everything, depthTest off, and a mark over a man beyond the player stood on the back of her head: marks.js)
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true }));
     s.scale.set(w / (size + pad) * 0.42, 0.42, 1);
     s.renderOrder = 10;
     return s;

@@ -102,7 +102,7 @@ window.OEStory = (function () {
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
   //        person(id) -> one of the map's people { x, y, z, name, role }, beacon(at | null): a light standing at [x, y, , floor]
   //        (none: taken away), screen(at) -> { x, y, front, dist } where [x, y, z] is in the frame (0..1), aim(at) -> degrees
-  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], clear(a, b) -> the held crowd out of the way from a to b, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
+  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], see(x, y, z, o) -> why a mark drawn there is hidden (marks.js), clear(a, b) -> the held crowd out of the way from a to b, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     let enterLater = () => {}; // (going back into a frame from the title: set once the case's functions exist, below)
@@ -472,7 +472,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
       // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
       const person = !via && (st.kind === 'meet' || st.kind === 'ghost'), head = person ? [to[0], to[1], to[2] + 0.95] : to;
-      let q = ctx.screen(head);
+      let q = ctx.screen(head), pt = head; // (pt: the point of the world the mark is drawn at)
       const talk = person && q.front && q.dist <= TALK_M && (!ctx.seen || ctx.seen(head)); // (near and in sight: a speech mark; else a place to walk to)
       // getting nearer? (the leg is the beat and the kind of goal: a car that moves is the same leg)
       // (the way there, where it is a place to walk to: route.js ways.walk, as the gold line draws it and the dog follows it.
@@ -494,7 +494,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       // straight to the goal, it is the goal's own mark (docs/STORY.md "Who shows the way")
       st.wayAim = null;
       if (!st.guided && !talk && wy) {
-        if (wy.aim) { st.wayAim = wy.aim; q = ctx.screen([wy.aim[0], wy.aim[1], wy.aim[2] + 1.2]); k = 'go'; }
+        if (wy.aim) { st.wayAim = wy.aim; pt = [wy.aim[0], wy.aim[1], wy.aim[2] + 1.2]; q = ctx.screen(pt); k = 'go'; }
         q.dist = wy.left;
       }
       if (st.guided && !talk) {
@@ -528,7 +528,21 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : k === 'guide' ? `${(st.ep.guide || {}).name || 'The dog'}${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
-      mark.classList.toggle('on', lens ? off : k === 'frame' || k === 'guide' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
+      // Drawn where it is, in the frame, a mark is a thing in the picture, and keeps its perspective (marks.js): never over
+      // the player's body (walking to a goal straight ahead, its ring stood on the back of her head) nor anyone nearer the
+      // eye. Someone to talk to is hidden by them, as by a wall or a deck. The way's own sign (a place to go, a thing to
+      // frame) is what a lost player is given (LOST_S), so it is not taken away by a figure in front of it: it is held
+      // just over the figure, on the same line. Nor are the walls asked of it: it points where the way can be walked straight
+      // from here (ctx.way), so what a ray meets before it is a post, a tree, an awning, never a wall (on the way from Center
+      // Gai to Hachiko a ray at head height took it away from the guide's check); and a thing to frame is itself a building.
+      // At the frame's edge, an arrow
+      st.veil = '';
+      if (!off && !up && ctx.see) {
+        const way = k === 'go' || k === 'frame', v = ctx.see(pt[0], pt[1], pt[2], { pad: 18, solid: !way, key: 'goal', lift: way });
+        st.veil = v.why; st.lifted = v.lifted || '';
+        if (!v.why && v.lifted) { y = Math.max(m + 70, Math.min(y, v.y)); mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`; }
+      }
+      mark.classList.toggle('on', !st.veil && (lens ? off : k === 'frame' || k === 'guide' || q.dist > 4)); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     // (with a controller in the hand: its sticks)
