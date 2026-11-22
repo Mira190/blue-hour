@@ -19,7 +19,9 @@ A spec:
     near          picks among buildings of the same name (the closest)
     path, round   a screen bent round a corner: the points of its foot, left to right seen from in
                   front, and the radius the corners are rounded to; its picture runs across the bends
-    parts         an irregular screen cut out of its box: [[u0, u1, v0, v1], ...] (fractions)
+    parts         an irregular screen cut out of its box: [[u0, u1, v0, v1], ...] (fractions); a part of six,
+                  [u0, u1, v0, v1, u0_top, u1_top], is a trapezoid whose sides run from u0, u1 at v0 to the top
+                  pair at v1 (a screen whose sides follow a slanted or curved edge beside it)
     clips         the names of the clips it plays, in turn; phase s, its offset in the programme
     hours         [on, off] (default 9-24); sync: joins the site's synchronised slot (default true)
     pitch         LED pitch, m; bright, brightness; off, how far the face stands off the wall;
@@ -282,10 +284,12 @@ class ScreenSet:
             elif fw > 0:
                 # the frame's front stands 10 cm behind the face: closer, the two fight in the depth buffer from afar
                 block(K("screen_frame"), P, -s["off"], 0.03, -w / 2 - fw, w / 2 + fw, z0 - fw, z0 + h + fw)
-            for u0, u1, v0, v1 in s["parts"]:   # left to right seen from in front
-                a, b = P(0.125, -w / 2 + u0 * w, z0), P(0.125, -w / 2 + u1 * w, z0)
-                F.quad(a + [0, 0, v0 * h], b + [0, 0, v0 * h], b + [0, 0, v1 * h], a + [0, 0, v1 * h],
-                       [[i + max(u0, 0.0005), v0], [i + min(u1, 0.9995), v0], [i + min(u1, 0.9995), v1], [i + max(u0, 0.0005), v1]])
+            for part in s["parts"]:   # left to right seen from in front
+                u0, u1, v0, v1 = part[:4]
+                t0, t1 = part[4:6] if len(part) >= 6 else (u0, u1)
+                at = lambda u, v: P(0.125, -w / 2 + u * w, z0) + [0, 0, v * h]
+                cu = lambda u: i + min(max(u, 0.0005), 0.9995)
+                F.quad(at(u0, v0), at(u1, v0), at(t1, v1), at(t0, v1), [[cu(u0), v0], [cu(u1), v0], [cu(t1), v1], [cu(t0), v1]])
 
     def material(self, node):
         """The "led_screen" pattern's programme for these screens (world.js)."""
@@ -324,7 +328,7 @@ class ScreenSet:
             col = "#" + "".join(f"{int(min(255, 255 * (v / max(lin.max(), 1e-6)) ** (1 / 2.2))):02x}" for v in lin)
             rise = s["z0"] + s["h"] / 2 - s.get("ground", s["z0"] - 3.0)
             g = s["at"] + s["normal"] * (0.6 * rise + 4.0)
-            area = s["w"] * s["h"] * sum((u1 - u0) * (v1 - v0) for u0, u1, v0, v1 in s["parts"])
+            area = s["w"] * s["h"] * sum(((q[1] - q[0]) + ((q[5] - q[4]) if len(q) >= 6 else (q[1] - q[0]))) / 2 * (q[3] - q[2]) for q in s["parts"])
             out.append([round(float(g[0]), 1), round(float(g[1]), 1), round(max(s["w"] * 1.1, rise * 1.2, 18.0), 1), col,
                         round(min(0.9, 0.0016 * area * s["bright"] * float(lin.mean() / max(lin.max(), 1e-6)) + 0.08), 3), *s["hours"]])
         return out

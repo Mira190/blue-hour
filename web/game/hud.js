@@ -374,6 +374,10 @@ window.OEHud = (function () {
     el.className = `g-toast ${kind}`;
     el.innerHTML = api.keys ? api.keys(text) : text; // (a phone names its buttons, not keys: game.js)
     const box = $('#g-toasts');
+    // (where the corner's words end, the goal's or the walk's: on a phone what is said sits under them, story.css, issue 154)
+    { const st = $('#game-stage'), c = st && st.querySelector('#g-story-goal.on, #g-walk-where.on'); let h = 0;
+      if (c) { const top = st.getBoundingClientRect().top; for (const k of c.children) { const r = k.getBoundingClientRect(); if (r.height > 0) h = Math.max(h, r.bottom - top); } }
+      if (h > 0) box.style.setProperty('--under', `${Math.round(h)}px`); else box.style.removeProperty('--under'); }
     box.appendChild(el);
     while (box.children.length > (gone ? 1 : 3)) box.firstChild.remove(); // keep the stack short
     setTimeout(() => el.classList.add('out'), stay);
