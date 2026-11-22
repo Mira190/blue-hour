@@ -169,12 +169,19 @@
 /* ---- seen through: the card, and the frame taken up again (story.js failed) */
 #g-story-fail { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.86); color: var(--paper); }
 #g-story-fail.on { display: grid; animation: g-story-album-in 0.6s ease; }
+/* (a card to be read: nothing of the street's words under it. A line said over the picture as the player came up to the
+   old man was still up when the card came, and on a phone it showed through between the card's two buttons) */
+.game-stage.story:is(:has(#g-story-fail.on), :has(#g-story-spend.on)) :is(.g-toasts, #g-story-chip, #g-story-mark, .g-prompt) { visibility: hidden; }
 #g-story-fail .card { display: grid; justify-items: center; gap: 18px; max-width: min(92vw, 520px); text-align: center; }
 #g-story-fail small { font: 400 10px/1 var(--f-mono); letter-spacing: 0.4em; margin-right: -0.4em; text-transform: uppercase; color: var(--amber); }
 #g-story-fail h2 { margin: 0; font: 200 clamp(26px, 4.4vw, 46px)/1.1 var(--f-display); letter-spacing: 0.12em; margin-right: -0.12em; text-transform: uppercase; }
 #g-story-fail p { margin: 0; max-width: 40ch; font: 300 16px/1.6 var(--f-body); color: rgba(244, 239, 230, 0.84); }
-#g-story-fail button { margin-top: 10px; padding: 15px 22px; border: 1px solid var(--amber); border-radius: 2px; background: transparent; color: var(--amber); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; }
-#g-story-fail button:is(:hover, :focus-visible) { background: var(--amber); color: #0b1020; outline: none; }
+#g-story-fail .paid { font: 400 10px/1.7 var(--f-mono); font-style: normal; letter-spacing: 0.24em; margin-right: -0.24em; text-transform: uppercase; color: rgba(244, 239, 230, 0.62); padding-top: 14px; border-top: 1px solid rgba(244, 239, 230, 0.18); }
+#g-story-fail .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 10px; }
+#g-story-fail button { min-height: 44px; padding: 15px 22px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: rgba(244, 239, 230, 0.86); font: 400 10px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; }
+#g-story-fail button.go { border-color: var(--amber); color: var(--amber); }
+@media (max-width: 640px) { #g-story-fail .row { flex-direction: column; align-self: stretch; } }
+#g-story-fail button:is(:hover, :focus-visible) { background: var(--amber); border-color: var(--amber); color: #0b1020; outline: none; }
 /* ---- a frame about to be spent (story.js spendAsk, issue 117): asked once, on the fail card's plate, over the finder: the
    street still shows through it, the hand is on Keep, and Spend is the quiet one of the two */
 #g-story-spend { position: absolute; inset: 0; z-index: 12; display: none; place-items: center; padding: 24px; background: rgba(3, 5, 10, 0.74); color: var(--paper); }
@@ -382,6 +389,9 @@
 #g-story-album .row button { padding: 15px 22px; border: 1px solid rgba(244, 239, 230, 0.4); border-radius: 2px; background: transparent; color: var(--paper); font: 400 10px/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; cursor: pointer; }
 #g-story-album .row button.go { border-color: var(--amber); color: var(--amber); }
 #g-story-album .row kbd { margin-left: 8px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 2px; font: inherit; }
+/* (on a phone the roll is several screens long, and its way back was at the foot of it: opened from a question, or from
+   the card of a player seen through, the way back to the question was a long scroll down. It stays at the foot of the screen) */
+@media (max-width: 640px) { #g-story-album .row { position: sticky; bottom: 0; z-index: 3; gap: 8px; margin: 0 -20px -28px; padding: 26px 20px max(16px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(6, 9, 18, 0), rgba(6, 9, 18, 0.94) 22px); } }
 
 /* ---- the print in your hand after the shutter, and its postmark: struck on it as a stamp is cancelled */
 .pm { position: absolute; right: 4%; top: 6%; width: 46%; color: #f6f1e6; opacity: 0.82; transform: rotate(-11deg); filter: drop-shadow(0 0 1.5px rgba(4, 8, 18, 0.9)); pointer-events: none; } /* (struck in white: every picture on this roll is of the night, and black ink would not be read on it) */
@@ -733,6 +743,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 /* a story of the walk put away: its name over the street, under the upper third, a few seconds */
 #g-walk-told { position: absolute; left: 50%; top: 22%; z-index: 7; transform: translate(-50%, 8px); pointer-events: none; opacity: 0; text-align: center; color: var(--paper); transition: opacity 0.9s ease, transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
 #g-walk-told.on { opacity: 1; transform: translate(-50%, 0); }
+/* (and never over a shot or the camera's own frame: SKY GATE's climb had a story's name across the crossing, issue 144) */
+.game-stage:is(.photo, .cine, .closer) #g-walk-told { opacity: 0 !important; }
 #g-walk-told small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); text-shadow: 0 1px 10px #000; }
 #g-walk-told small::after { content: ""; display: block; width: 28px; height: 1px; margin: 12px auto 12px; background: rgba(255, 207, 138, 0.7); }
 #g-walk-told b { display: block; font: 200 clamp(26px, 3.2vw, 42px)/1.05 var(--f-display); letter-spacing: 0.1em; text-shadow: 0 1px 24px rgba(0, 0, 0, 0.85); }
@@ -759,6 +771,12 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 .g-walk-mark[data-k="event"] i { border-color: var(--paper); background: rgba(16, 12, 6, 0.55); }
 .g-walk-mark[data-k="event"] i::after { border-color: var(--paper); }
 .g-walk-mark[data-k="event"] i b { background: var(--amber); }
+/* a place the street offers (a free place on Hachiko's wall, until it has been sat on once: issue 146): pale, a seat's
+   line and its two legs in place of the dots, no tail: it is over a stone, not said by anyone */
+.g-walk-mark[data-k="place"] i { width: 26px; height: 20px; gap: 0; border-color: rgba(244, 239, 230, 0.7); border-radius: 2px; background: rgba(4, 8, 18, 0.5); }
+.g-walk-mark[data-k="place"] i::after { display: none; }
+.g-walk-mark[data-k="place"] i b { display: none; }
+.g-walk-mark[data-k="place"] i b:first-child { display: block; width: 12px; height: 5px; border-radius: 0; background: none; border-top: 1.5px solid var(--paper); border-left: 1px solid var(--paper); border-right: 1px solid var(--paper); box-sizing: border-box; margin-top: 3px; }
 /* someone calling you over (walktalk.js bark): a few words in the walk's glass over their mark, for a few seconds */
 .g-walk-bark { position: absolute; left: 0; top: 0; max-width: 240px; padding: 6px 10px 7px; border: 1px solid rgba(255, 207, 138, 0.55); border-radius: 3px; background: rgba(4, 8, 18, 0.66);
   color: var(--paper); font: 400 13px/1.3 var(--f-body); text-shadow: 0 1px 6px #000; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; will-change: transform, opacity; }
@@ -1448,7 +1466,7 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
    the log's last entry, the same words twice, while the log came up, and a slip entered in the file covered its first
    entries. Its last line is not read through the Back button either: the foot of the sheet is solid from the button up. */
 .game-stage.story:has(#g-story-log.on) :is(.g-dialog, #g-story-goal, .g-toasts, #g-story-chip, #g-story-keys, #g-story-frames, #g-story-mark, #g-story-hint, .g-prompt) { visibility: hidden; }
-.game-stage.story:has(#g-story-log.on) #g-story-slip { visibility: hidden; }
+.game-stage.story:is(:has(#g-story-log.on), :has(#g-story-album.on)) #g-story-slip { visibility: hidden; } /* (and over the roll, whose file has the line: on a phone the slip lay across the roll's title) */
 #g-story-log .row { padding-top: 44px; background: linear-gradient(rgba(4, 8, 18, 0), rgb(7, 11, 26) 30px); }
 #g-story-log .row button { background: rgb(7, 11, 26); }
 
@@ -1614,3 +1632,13 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .game-stage.story .g-photo .gph-chips .chip-btn { min-height: 40px; }
   .game-stage.story .g-photo #ph-snap { bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px)); }
 }
+
+/* ---- the walk's first minute (issue 146) ----
+   A name over the street (a story put away, a view found) is not drawn over the menu: found from the camera and the
+   menu opened at once, "A view of Shibuya" lay across the hour and the sky. */
+.game-stage:has(.g-overlay:not([hidden])) #g-walk-told { opacity: 0 !important; transition: none; }
+/* tonight's line in the corner (tonight.js): where a moment is, in the line on a desktop; on a phone the line is its
+   name and its time, one line under the date instead of three */
+#g-walk-where .tn i { font-style: normal; }
+@media (min-width: 641px) { #g-walk-where .tn { max-width: 46ch; } }
+@media (max-width: 640px) { #g-walk-where .tn i { display: none; } #g-walk-where .tn { max-width: none; white-space: nowrap; letter-spacing: 0.2em; } }
