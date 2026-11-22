@@ -143,7 +143,7 @@ window.OEWalk = (function () {
       if (m === 'heli') return ctx.touch ? '<span>Up and Down climb and descend</span><span>The stick flies and turns</span><span>Set down: tap Get out</span>'
         : `<span>${K('Space')}climb</span><span>${K('Shift')}descend</span><span>${K('W')}${K('S')}fly · slow</span><span>${K('A')}${K('D')}turn</span><span>${K('V')}view</span><span>${K('E')}get out, landed</span>`;
       return ctx.touch
-        ? '<span>The stick walks, pushed further it runs · drag to look</span><span>Top right: your car · the camera · the hour, the sky, the story</span>'
+        ? '<span>The stick walks, pushed further it runs · drag to look</span>' // (one line: the corner's buttons say what they are, and the office's call lights your car's: two lines of capitals lay over the crowd for sixteen seconds, issue 146)
         : `<span>${K('W')}${K('A')}${K('S')}${K('D')}walk</span><span>${K('Shift')}run</span><span>${K('E')}talk</span><span>${K('C')}your car</span><span>${K('O')}photograph</span><span>${K('Esc')}the hour, the sky, the story</span>`;
     };
     function begin() {
