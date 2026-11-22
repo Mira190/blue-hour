@@ -62,8 +62,11 @@ roads". Three causes, each a matter of what the surface is:
   hands over linear; the zone's branch of the ground shader decoded it again, and asphalt drawn at an albedo of 0.075
   came out at 0.007, the footways a brown. The zone now takes the drawing as it is given, and the asphalt is drawn as a
   worn city road is under the sun (`#5c5f63`, an albedo near 0.11: the hero level's own tone, so the level's roads go
-  on into the map's without a step). Past the zones the first branch is as it was: its thresholds were tuned on the
-  twice-decoded values, and nothing a player reaches lies there on foot.
+  on into the map's without a step). Past the zones the shader's first branch did the same, and the photograph's road
+  under the drawing was capped to that near-black too: it now reads the drawing once, its asphalt test moved to the
+  true values (`smoothstep(0.2, 0.14, ...)`, as the zone's). Views: `tools/views/far-ground-148.json`.
+
+![On foot and from 30 m outside the zones, by day and at night: before and after](images/walk-review/far-ground-148.jpg)
 - *The roads had no paint.* The drawing now carries what a Tokyo road carries, from the road data and nothing else:
   edge lines half a metre in from the kerbs, a broken line between two lanes of one way (`nl`), the centre line of a
   two-way road (unbroken where it has two lanes each way), the bars of a zebra where the data has a crossing
@@ -84,6 +87,17 @@ band. Views: `tools/views/walk-heights.json`.
 
 ![From 80, 230 and 400 m by day, before and after; dusk and night after](images/walk-review/air-day-148.jpg)
 ![A phone's tier from 230 and 400 m by day, before and after](images/walk-review/air-day-148-phone.jpg)
+
+**The blank white wall south-west of the scramble** (issue 143). The walk's review found, 100 m south-west of the
+crossing, a pale wall filling the frame that was the brightest thing in the picture at night. It is the street face of
+`w904734439`, a strip 165 m long and 8 m wide that OpenStreetMap maps as `building=train_station` along the lane under
+Mark City's south side. PLATEAU's survey has no building there (its height is an estimate), so it is a railway
+structure mapped as a building, not rooms. Drawn as an office with 5 m storeys, its lane front was a row of shopfronts
+5 m tall whose rooms were lit flat white at night. `pipeline/stations.py` now gives a station the survey does not
+have the industrial style: metal panel with a high band of windows, lit as a works building is. The same rule caught
+one other such station on the map. Views: `tools/views/sw-wall-143.json`.
+
+![The lane, before and after: from its east end at night, its west end at night, its east end by day, and the corner](images/walk-review/sw-lane-143.jpg)
 
 Not done here, and why: the far field beyond the zones is still the aerial photograph under plain boxes (it reads as
 a city in haze from 300 m, and nothing nearer is owed where no player lands); the square south of the crossing is
@@ -540,6 +554,8 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
     ribs along its panels' seams and its hem; in the rain, drops beaded on it that go as one wetness where a pixel
     spans several. It is blended over the person under it, who is drawn first and whole, and nothing else of a person
     is see-through, so two transparencies never lie over each other.
+  - `tools/umbrella_held.js` measures that every umbrella near the lens is held (issue 165, docs/WEATHER.md "An umbrella
+    is held") and takes its stills at the same kerbs.
   - `tools/lens_crowd.js` stands you in the rain among a kerb's crowd at Center Gai's mouth (17:41) and at the kerb of
     the story's seventh frame (17:53), puts three of those waiting at 2.2, 2.6 and 3.1 m from the lens, plays five
     seconds and takes a still each half second; it fails when someone inside the near space is drawn or someone
