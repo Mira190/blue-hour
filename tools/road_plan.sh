@@ -28,6 +28,7 @@ for pass in 1 2 3 4; do
   case "$res" in *"nothing to change"*) break;; esac
   pack
 done
+python3 pipeline/solid_rings.py "$c" | tail -1   # (a footprint stood back can leave a ring that is not valid on the solids' grid)
 pack
 for pass in 1 2; do
   xvfb-run -a node tools/road_net_dump.js "$c" "$OUT/net.json" "cities/$c/road_measured.json" | grep measured
