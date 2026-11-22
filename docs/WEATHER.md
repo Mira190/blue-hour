@@ -223,7 +223,12 @@ was somewhere else.
   (`actors.js` `umbRoom`, from `p.umbR`, `p.ucx`, `p.ucy` which the renderer writes), someone with none whose head
   stands at a rim keeps out from under it, and of friends walking together the two beside the leader share the leader's (`wantUmb`). Where
   the press brings canopies closer all the same, each leans from what it would touch, at the wrist, up to eight
-  degrees and never towards its holder's own head (`lean`).
+  degrees and never towards its holder's own head (`lean`). At a kerb two who will both put one up are given its
+  room from the start (`slotFree`, from `p.umbW`), and one standing about whom an umbrella pushed off stays where it
+  was pushed, as one waiting for the lights does.
+- *A photograph* of the crowd in the rain draws everyone near enough to be seen whole (issue 174): with the world held
+  the people are chosen again every frame for where the camera is (`still()`), so the faces and hands under the
+  umbrellas are the cast's, not the far copies'.
 - *The far crowd* keeps the same umbrella at the same place: the step from a near person to a copy moves the canopy by
   a few centimetres.
 

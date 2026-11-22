@@ -636,6 +636,24 @@ third as light and as coloured; a thigh in a skirt's shadow is darker and greyer
 as smooth). The walk still joins skin to a hand, the head or a leg through the body's own faces, so a bare forearm
 beyond a wristband the test drops is kept. A sandal's straps and a boot's tan leather, marked before, are cloth now.
 
+**A neckline is bare** (November 2026). A woman in a navy suit worn over bare skin had a beige V at her neckline with a
+dark ring round it: only the V's middle was marked, as its rim's faces are weighted to the upper chest (Spine2), which
+was not among the bones a body can be bare on, and the change of clothes dyed the rim the suit's colour. Spine2 is
+among them now; a beige top there is told from skin by `whole_skin`.
+
+**The far crowd torn where a limb meets the body** (November 2026). In the rain at the Scramble the owner saw clothes
+"with lots of clipping or skin showing where it shouldn't": shards off a vest at the arm holding an umbrella up, tears
+at shoulders, elbows and knees with the warm inside of the model showing through. These were the far copies
+(`pipeline/crowd_cast.py`), which the shader poses by parts (people.js `crowdPose`: each leg from the hip and the knee,
+each arm from the shoulder, the umbrella's arm raised and its forearm folded). Each corner took its heaviest bone's
+part whole, and the triangles were cut apart where two parts met so the simplifier would keep the edge, so wherever
+the artist had blended a garment across a joint (a hem weighted partly to a thigh, a sleeve's top to the chest), the
+two sides went separate ways and the gap opened. From first principles the near walker's skinning does not tear: it
+blends. So does the far copy now, at no cost when drawn: each corner carries its limb and its share of it (and of the
+limb below the knee) from its skin weights (`_PARTW`), the shader turns it by that share of the limb's angle, and
+nothing is cut apart; the shares go to the simplifier beside the picture's coordinates, so it keeps where a body bends.
+A doll of the far crowd is posed as before. `tools/perch_cast.js QUERY=&crowdnear=0` draws every walker as its far copy.
+
 ### Hair: strands, not a shell (`web/game/people.js`, issue 74)
 
 Every conversation is shot over Kagami's shoulder, so the back of Kagami's head is the asset the player sees most.
@@ -739,6 +757,42 @@ gives it; `NOLIGHT=1` leaves that out.
 cut: cards over the head's painted hair, ending in a few broad points; a soft hem wants new cards built in
 `blender/build_people.py` or the two passes above. Cloth has the avatars' own normal maps and no weave of its own.
 The crowd takes the same light (it is one patch) but none of this was tuned on it.
+
+### Hair, the second pass: the head's own hair (`web/game/people.js`, issue 123)
+
+The first two passes (issue 74's strands, issue 123's light) did not reach the hair that matters most. An avatar's
+long hair is part of its head's mesh, a shell down the back, and the cards only lie on it.
+
+- **The head's hair was never marked as hair.** `strandHair` finds the skull from the rig to tell hair from skin, to
+  run the strands from the crown and to darken the root. It took a joint's place through `mesh.bindMatrixInverse`,
+  which an attached skinned mesh sets to its node's inverse whenever the scene is updated; a face's mesh hangs on a
+  node a hundredth the size and turned. Once a model had been in a scene the skull was sixty units over the pelvis,
+  every vertex was "a metre and a half off the skull", and no vertex of the head was marked: Kagami's back was the
+  avatar's grey painted shell with plain shading. Now through the inverse of the bind matrix (`bindInv`).
+  `tools/hair_probe.js` prints, for the one you play, how many of the head's vertices are marked as hair, and fails
+  when none is (it is not one of `tools/check.sh`'s checks yet).
+- **With the strands on, black hair was silver.** The lobes were tuned on the cards, which are wisps; on a whole
+  surface under a dusk sky they lit all of it. The head's hair and the cards take them at half.
+- **The hem is the avatar's own.** A fringe of loose ends hung from the hem (strips cut strand by strand in the
+  shader) was built and taken out again the same day at the owner's word: it looked strange. Nothing is added to
+  the hair's outline.
+
+Surveyed (ideas only; no code or asset copied): Lengyel et al., "Real-time fur over arbitrary surfaces" (I3D 2001:
+shells and fins); Scheuermann, "Practical Real-Time Hair Rendering and Shading" (SIGGRAPH 2004) and Kajiya and Kay
+1989 (the shader's lobes since issue 74); Wyman and McGuire, "Hashed Alpha Testing" (I3D 2017); Marschner et al.
+2003 (why black hair keeps only the uncoloured first lobe: the reason the lobes were halved); Babylon.js
+`FurMaterial` (Apache-2.0, read for its cost, not adopted); three.js `MeshPhysicalMaterial.anisotropy` (MIT, r153,
+not used: Kajiya-Kay is already in the hair's own patch); Poly Haven and ambientCG offer no hair strand textures.
+
+Photographs of dark hair at night beside the stills (Wikimedia Commons):
+"DSCF1184 A woman with a floral back tattoo ... at night.jpg", PattayaPatrol, CC BY-SA 4.0;
+"Neon in the streets of Shibuya (9412153000).jpg", Maarten Heerlien, CC BY 2.0.
+
+Stills: `tools/game_shot.js` with `tools/views/kagami-back-123.json` (her back in focus at dusk and at 19:30),
+`docs/images/people/hair-123-back.jpg` (main beside this pass).
+
+Not done: the hair is a painted shell with shaded strands, not a groom; nothing in it moves; cloth has no weave of
+its own and skin no pores. Faces are issue 12.
 
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 

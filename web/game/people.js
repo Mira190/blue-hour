@@ -305,6 +305,10 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
   };
   // what an NPC holds for what it does while it waits (look.clip)
   const CLIP_ACC = { Phone: ['phone'], Photo: ['camera'], Documents: ['clipboard'], Reading: ['book'], Drink: ['cup'] };
+  // gestures made to someone: a person plays them only in a conversation (mode 'talk' or 'listen'), never while they
+  // wait. Cast with one to wait in, a guide presented to nobody all evening at the Scramble, a person talking to themselves
+  // in the crowd (the owner, 22 November 2026): alone they wait as the cast's own idle does, and talk when talked to
+  const GESTURE = new Set(['Talk', 'Listen', 'Present', 'Thoughtful', 'Nod', 'Cheer', 'Wave']);
   // things held in a hand, placed in its grip (see person): nothing where the rig has no fingers
   const B3 = (x, y, z) => new THREE.BoxGeometry(x, y, z);
   Object.assign(ACC, {
@@ -433,6 +437,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       const g = o.geometry;
       g.setAttribute('part', g.getAttribute('_part'));
       g.deleteAttribute('_part');
+      if (g.getAttribute('_partw')) { g.setAttribute('pw', g.getAttribute('_partw')); g.deleteAttribute('_partw'); } // (each corner's share of its limb: crowdPose, OE_PARTW)
       if (/~coarse$/.test(o.name)) { coarse[o.name.slice(0, -7)] = g; return; }
       lib.far[o.name] = { geometry: g, map: o.material.map, extras: o.userData };
     });
@@ -795,7 +800,14 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 tint, float env) {
   float spark = 0.7 + 0.6 * clamp(0.5 + hairJ, 0.0, 1.0); // (the strands' own breakup)
   // (the second lobe has been through the strand: its pigment's colour, which black hair has too, a dark warm brown)
   vec3 tt = max(sqrt(max(tint, 0.0)) * 0.4, vec3(0.03, 0.022, 0.017) * (1.0 + env));
-  return (vec3(mix(0.1, 0.05, env) * hairKK(t1, h, mix(110.0, 56.0, env))) + tt * (mix(0.5, 1.0, env) * hairKK(t2, h, mix(30.0, 16.0, env)))) * spark * vHairK;
+  // (HAIR_HEAD: the hair painted on a head's own mesh, a whole surface where the cards are wisps: its lobes at half, or a
+  // black head of hair is silver under a dusk sky, issue 123)
+#ifdef HAIR_HEAD
+  float hK = 0.5 * vHairK;
+#else
+  float hK = 0.5; // (and the cards that lie on it, or they show pale round the lock down a back)
+#endif
+  return (vec3(mix(0.1, 0.05, env) * hairKK(t1, h, mix(110.0, 56.0, env))) + tt * (mix(0.5, 1.0, env) * hairKK(t2, h, mix(30.0, 16.0, env)))) * spark * hK;
 }`;
   // head: the head's own mesh (its hair painted on it, hairSK.y), not the cards
   function hairMaterial(m, head = false) {
@@ -903,13 +915,19 @@ ${street ? '  hE += streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - 
   // (sample(u, v) -> linear rgb: dark, or without the warmth of skin) above the brows or behind the ears.
   // under: the head's mesh, done first: a card near its hair takes the normal of the hair under it, so that card and
   // head are lit as one head of hair and the card's edge is not seen as a ledge (roundHair's otherwise)
+  // (a joint's place in a mesh's own vertices' space: the inverse of its bind matrix, not mesh.bindMatrixInverse, which an
+  // attached mesh sets to its node's inverse each time the scene is updated. A face's mesh hangs on a node a hundredth
+  // the size and turned, so once the model had been in a scene the skull was looked for sixty units over the pelvis,
+  // every vertex was a metre and a half "off the skull", and the head's hair was never marked as hair, issue 123)
+  let BIND_M = null; // (made when first asked: three.js is not there yet as this script loads)
+  const bindInv = mesh => (BIND_M || (BIND_M = new THREE.Matrix4())).copy(mesh.bindMatrix).invert();
   function strandHair(mesh, sample = null, under = null) {
     const g = mesh.geometry, P = g.attributes.position, Nn = g.attributes.normal, UV = g.attributes.uv;
     if (!P || !Nn || g.attributes.hairTR) return;
     const at = re => {
       const sk = mesh.skeleton, i = sk ? sk.bones.findIndex(b => re.test(b.name)) : -1;
       if (i < 0) return null;
-      return new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert().premultiply(mesh.bindMatrixInverse));
+      return new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert().premultiply(bindInv(mesh)));
     };
     const hb = at(/Head$/), pb = at(/Pelvis$/) || at(/Spine$/), re = at(/REye$/), le = at(/LEye$/);
     g.computeBoundingBox();
@@ -1120,7 +1138,10 @@ ${PAT_GLSL}`)
     root.add(model);
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);
-    let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false;
+    let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false, convoT = -Infinity, glanceUntil = -Infinity, glanceNext = null;
+    // (when a waiting person looks round: a sequence of their own, the same each time the page is played)
+    let gs = [...String(look.character || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const grnd = () => ((gs = (gs * 1664525 + 1013904223) >>> 0) / 4294967296);
     const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
@@ -1178,7 +1199,8 @@ ${PAT_GLSL}`)
       return m;
     };
     // what the NPC does while it waits (look.clip), if this character has the clip
-    const idleClip = () => (look.clip && act[look.clip] ? look.clip : 'Idle');
+    // (never a gesture: alone, someone cast with one stands as people stand, GESTURE)
+    const idleClip = () => (look.clip && act[look.clip] && !GESTURE.has(look.clip) ? look.clip : GESTURE.has(look.clip) && act.Idle_Neutral ? 'Idle_Neutral' : 'Idle');
     function setAccessories() {
       const ids = noUmb([...(look.acc || []), ...((act[look.clip] && CLIP_ACC[look.clip]) || [])]);
       const key = JSON.stringify([ids, look.apron || '']);
@@ -1459,7 +1481,7 @@ ${PAT_GLSL}`)
         aim(a.la, a.wr, hand.sub(a.la.getWorldPosition(r3)).normalize());
       }
     }
-    rig.wave = (t = 0) => { waveUntil = t + act.Wave.getClip().duration * 0.95; play('Wave', 0.2, true); };
+    rig.wave = (t = 0) => { if (!act.Wave) return; waveUntil = t + act.Wave.getClip().duration * 0.95; play('Wave', 0.2, true); };
     // the top of the head in the world as the rig is posed: over the head's joint as it is now (seated
     // and leaning back, or sitting up), as high as the hair stood over it standing
     if (thigh && crown > 0) rig.headTop = (out = V3(0, 0, 0)) => (head && overHead > 0 ? head.getWorldPosition(out).add(sb.set(0, overHead * model.getWorldScale(sa).y, 0))
@@ -1477,14 +1499,33 @@ ${PAT_GLSL}`)
     rig.animate = (dt, speed, mode = 'ground', t = 0) => {
       const s = look.scale || 1;
       model.position.y = 0;
-      if (mode !== 'talk') talked = false;
+      // (a conversation is talked in and listened to on your feet: walking, the gait)
+      if ((mode === 'talk' || mode === 'listen') && speed >= 0.15) mode = 'ground';
+      const convo = mode === 'talk' || mode === 'listen';
+      // a nod hello once, as a conversation opens (a wave is for calling someone over from across the square, walktalk.js
+      // bark: at arm's length it went on three seconds before a word), not again at each turn of it (a speaker's runs,
+      // walktalk.js say), nor from someone in a scene already under way (rig.noWave: the story's people)
+      if (convo) convoT = t;
+      else if (t - convoT > 4 || t < convoT) talked = false;
+      if (mode === 'talk' && !talked && !rig.noWave && act.Nod) { waveUntil = t + Math.min(1.6, act.Nod.getClip().duration * 0.9); play('Nod', 0.25, true); }
+      if (convo) talked = true;
       const waving = t < waveUntil && speed < 0.3 && mode !== 'sit' && mode !== 'air';
-      if (mode === 'talk' && !talked) { talked = true; rig.wave(t); }   // a wave hello, then listen
-      else if (waving) { /* let the wave finish */ }
+      if (convo || mode !== 'ground' || speed >= 0.15) glanceUntil = -Infinity;
+      if (waving && mode !== 'listen') { /* let the wave finish (hello, or a call-out's) */ }
       else if (mode === 'talk') play(act.Talk ? 'Talk' : 'Idle', 0.35);
+      else if (mode === 'listen') play(act.Listen ? 'Listen' : 'Idle', 0.4);
       else if (mode === 'sit') play('Idle_Neutral', 0.2);
       else if (mode === 'air') play('Run', 0.15).setEffectiveTimeScale(0.3);
-      else if (speed < 0.15) play(idleClip(), 0.3);
+      else if (speed < 0.15) {
+        // Waiting (rig.waits: the map's named people). Stood alone a person does not hold one pose all evening: now and
+        // then they look round, for whoever they are waiting for, at the crossing. Not while they look at you (rig.lookTarget:
+        // their glance is yours), and only as time goes (dt: nothing stirs in a held world)
+        const base = idleClip();
+        if (glanceNext == null || glanceNext - t > 60) glanceNext = t + 5 + 11 * grnd();
+        const can = rig.waits && act.LookAround && (base === 'Idle' || base === 'Idle_Neutral') && !rig.lookTarget;
+        if (can && dt > 0 && t >= glanceNext && t >= glanceUntil) { glanceUntil = t + act.LookAround.getClip().duration * 0.92; glanceNext = glanceUntil + 9 + 14 * grnd(); play('LookAround', 0.6, true); }
+        else if (!(can && t < glanceUntil)) { glanceUntil = -Infinity; play(base, cur === act.LookAround ? 0.6 : 0.3); }
+      }
       else if (speed < 2.1) play('Walk', 0.25).setEffectiveTimeScale(Math.max(0.5, Math.min(1.7, speed / (speeds.Walk * s))));
       else if (act.Sprint && speed > 7) play('Sprint', 0.2).setEffectiveTimeScale(Math.max(0.7, Math.min(1.6, speed / (speeds.Sprint * s))));
       else play('Run', 0.2).setEffectiveTimeScale(Math.max(0.6, Math.min(2.4, speed / (speeds.Run * s)))); // up to the 8.5 m/s sprint (game.js GAIT)
@@ -1527,6 +1568,9 @@ ${PAT_GLSL}`)
   // belongs to (pipeline/fetch_people.py part_of), for the dolls and the scanned cast's far copies alike
   const CROWD_POSE = `
 attribute float mat; attribute float part; attribute vec3 aAnim; attribute float iUmb;
+#ifdef OE_PARTW
+attribute vec2 pw;
+#endif
 uniform float uTime; uniform vec2 uHip; uniform vec2 uKnee; uniform vec2 uShoulder;
 uniform vec3 uUmbS; uniform vec3 uUmbE; uniform vec4 uUmbD; uniform vec4 uUmbR1; uniform vec4 uUmbR2; uniform float uUmbPart;
 mat3 rx(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
@@ -1538,9 +1582,17 @@ vec3 crowdPose(vec3 p, bool isNormal) {
   float amp = max(aAnim.z, 0.0), ph = uTime * aAnim.y + aAnim.x, sw = sin(ph) * amp;
   float side = (part > 0.5 && part < 1.5) || (part > 2.5 && part < 3.5) || (part > 4.5 && part < 5.5) ? 1.0 : -1.0;
   bool leg = (part > 0.5 && part < 2.5) || part > 4.5, shin = part > 4.5, arm = part > 2.5 && part < 4.5;
+  // (a scanned cast member's far copy, OE_PARTW: each corner turns by its share of its limb, wC, and below the knee by
+  // its share of the knee, wK, as skinning blends bones, so nothing tears where a limb meets the body: pipeline/crowd_cast.mjs.
+  // A doll's corner is wholly its part's)
+#ifdef OE_PARTW
+  float wC = pw.x, wK = pw.y;
+#else
+  float wC = 1.0, wK = shin ? 1.0 : 0.0;
+#endif
   vec3 piv;
-  if (shin) { float k = sit ? 1.5708 : max(0.0, -cos(ph) * side) * amp * 1.3; piv = vec3(0.0, uKnee); p = isNormal ? rx(k) * p : rx(k) * (p - piv) + piv; }
-  if (leg) { float a = sit ? -1.5708 : sw * side; piv = vec3(0.0, uHip); p = isNormal ? rx(a) * p : rx(a) * (p - piv) + piv; }
+  if (leg && wK > 0.0) { float k = (sit ? 1.5708 : max(0.0, -cos(ph) * side) * amp * 1.3) * wK; piv = vec3(0.0, uKnee); p = isNormal ? rx(k) * p : rx(k) * (p - piv) + piv; }
+  if (leg) { float a = (sit ? -1.5708 : sw * side) * wC; piv = vec3(0.0, uHip); p = isNormal ? rx(a) * p : rx(a) * (p - piv) + piv; }
   // the arm holding an umbrella up (iUmb): this copy's own arm, turned about its own elbow and then about its own
   // shoulder by the two turns that bring its hand to the hold, the fist in front of the shoulder at chest height
   // (uUmbS, uUmbE, uUmbD, uUmbR1, uUmbR2: people.js umbArm, worked once for each character). The umbrella is hung
@@ -1549,11 +1601,11 @@ vec3 crowdPose(vec3 p, bool isNormal) {
   if (arm && abs(part - uUmbPart) < 0.5 && iUmb > 0.0 && !sit) {
     float u = min(iUmb, 1.0);
     float lo = isNormal ? step(uUmbD.w, dot(position - uUmbS, uUmbD.xyz)) : smoothstep(uUmbD.w - 0.03, uUmbD.w + 0.03, dot(position - uUmbS, uUmbD.xyz));
-    p = isNormal ? turn(p, uUmbR2.xyz, uUmbR2.w * lo * u) : turn(p - uUmbE, uUmbR2.xyz, uUmbR2.w * lo * u) + uUmbE;
-    p = isNormal ? turn(p, uUmbR1.xyz, uUmbR1.w * u) : turn(p - uUmbS, uUmbR1.xyz, uUmbR1.w * u) + uUmbS;
-    float b = -sw * side * 0.8 * (1.0 - u);
+    p = isNormal ? turn(p, uUmbR2.xyz, uUmbR2.w * lo * u * wC) : turn(p - uUmbE, uUmbR2.xyz, uUmbR2.w * lo * u * wC) + uUmbE;
+    p = isNormal ? turn(p, uUmbR1.xyz, uUmbR1.w * u * wC) : turn(p - uUmbS, uUmbR1.xyz, uUmbR1.w * u * wC) + uUmbS;
+    float b = -sw * side * 0.8 * (1.0 - u) * wC;
     piv = vec3(0.0, uShoulder); p = isNormal ? rx(b) * p : rx(b) * (p - piv) + piv;
-  } else if (arm) { piv = vec3(0.0, uShoulder); p = isNormal ? rx(-sw * side * 0.8) * p : rx(-sw * side * 0.8) * (p - piv) + piv; }
+  } else if (arm) { piv = vec3(0.0, uShoulder); p = isNormal ? rx(-sw * side * 0.8 * wC) * p : rx(-sw * side * 0.8 * wC) * (p - piv) + piv; }
   if (!isNormal) p.y += abs(cos(ph)) * 0.035 * amp;
   // standing (aAnim.z between -0.5 and 0): alive, not a statue. The upper body turns a little one way and the other
   // as one looks about, and the weight goes from one foot to the other, the body leaning a degree over the foot it is on,
@@ -1581,9 +1633,10 @@ vec3 crowdPose(vec3 p, bool isNormal) {
   // at the fist they give (crowdRenderer holdOf): one place for the hand, worked once
   function umbArm(Lc) {
     if (Lc.umbArm) return Lc.umbArm;
-    const A = Lc.geometry.attributes, sh = Lc.extras.shoulder, n = A.part.count, P = [3, 4].map(k => { const c = V3(0, 0, 0); let m = 0; for (let i = 0; i < n; i++) if (A.part.getX(i) === k) { c.x += A.position.getX(i); m++; } return m ? c.x / m : 0; });
+    const A = Lc.geometry.attributes, sh = Lc.extras.shoulder, n = A.part.count, armOf = i => !A.pw || A.pw.getX(i) >= 0.5, // (a far copy's corners the arm mostly carries: crowdPose OE_PARTW)
+      P = [3, 4].map(k => { const c = V3(0, 0, 0); let m = 0; for (let i = 0; i < n; i++) if (A.part.getX(i) === k && armOf(i)) { c.x += A.position.getX(i); m++; } return m ? c.x / m : 0; });
     const part = P[0] < P[1] ? 3 : 4, pts = []; // (the right hand is at -x)
-    for (let i = 0; i < n; i++) if (A.part.getX(i) === part) pts.push(V3(A.position.getX(i), A.position.getY(i), A.position.getZ(i)));
+    for (let i = 0; i < n; i++) if (A.part.getX(i) === part && armOf(i)) pts.push(V3(A.position.getX(i), A.position.getY(i), A.position.getZ(i)));
     const mean = l => l.reduce((a, b) => a.add(b), V3(0, 0, 0)).divideScalar(l.length || 1);
     const low = Math.min(...pts.map(q => q.y)), high = Math.max(...pts.map(q => q.y));
     const H = pts.length ? mean(pts.filter(q => q.y < low + 0.09)) : V3(-0.2, sh[0] - 0.6, sh[1]), top = pts.length ? mean(pts.filter(q => q.y > high - 0.06)) : V3(-0.18, sh[0], sh[1]);
@@ -1755,8 +1808,9 @@ vDress = iDress; vDye = iDye;`)
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vDress;\nvarying vec2 vDye;')
         .replace('#include <map_fragment>', `#include <map_fragment>\n{ vec3 dress = vDress; vec2 dye = vDye;\n${DRESS_GLSL} }`); // (the clothes this walker wears: DRESS)
     };
-    if (ex.mask) mat.defines = { OE_SKIN_MASK: '' };
-    mat.customProgramCacheKey = () => `crowd-cast-dress7${ex.mask ? 'm' : ''}`;
+    const pwOn = !!L.geometry.getAttribute('pw'); // (each corner's share of its limb: crowdPose, OE_PARTW)
+    mat.defines = Object.assign(ex.mask ? { OE_SKIN_MASK: '' } : {}, pwOn ? { OE_PARTW: '' } : {});
+    mat.customProgramCacheKey = () => `crowd-cast-dress7${ex.mask ? 'm' : ''}${pwOn ? 'w' : ''}`;
     const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: L.map, alphaTest: 0.4 });
     depth.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, uni, { uTime: U.uTime });
@@ -1766,7 +1820,8 @@ ${CROWD_POSE}`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
 transformed = crowdPose(transformed, false);`);
     };
-    depth.customProgramCacheKey = () => 'crowd-cast-depth';
+    if (pwOn) depth.defines = { OE_PARTW: '' };
+    depth.customProgramCacheKey = () => `crowd-cast-depth${pwOn ? 'w' : ''}`;
     return { mat, depth };
   }
 
@@ -1782,7 +1837,7 @@ transformed = crowdPose(transformed, false);`);
   // real: the textured Rocketbox characters (the NPCs' cast, build_people.py --npcs) the nearest walkers are drawn
   // as, each the sex of their far figure, instead of the far crowd's own character close up: at eye level a
   // passer-by is a person, with the scanned face, hair and clothes the NPCs have (none: the far crowd's own)
-  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null } = {}) {
+  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0 } = {}) {
     { const m = /[?&]crowdnear=(\d+)/.exec(location.search); if (m) near = +m[1]; } // (to look at the far copies close up: tools/game_shot.js QUERY=?crowdnear=0)
     // a real person's height: the Japanese adult's mean (MHLW National Health and Nutrition Survey 2019: women
     // 1.58 m, men 1.71 m; a city may say otherwise in game.crowd.height) with the far figure's own spread
@@ -2030,6 +2085,7 @@ transformed = crowdPose(transformed, false);`);
     // little faster; one not drawn a moment ago, or a rain that came in at once (umbSnap), as it is by now
     function umbStep(p) {
       const want = umbOn && wantUmb(p) ? 1 : 0;
+      p.umbW = want ? UMB_R * p.fscale : 0; // (the canopy this one will hold up, m: actors.js gives them its room at a kerb, slotFree)
       if (p.umbAt == null || tNow - p.umbAt > 0.3 || umbSnap) p.umbT = want;
       else if (p.umbT !== want) p.umbT = want ? Math.min(1, p.umbT + dtNow / UMB_OPEN_S) : Math.max(0, p.umbT - dtNow / (0.8 * UMB_OPEN_S));
       p.umbAt = tNow;
@@ -2038,7 +2094,9 @@ transformed = crowdPose(transformed, false);`);
     }
     const free = {}, active = new Map();
     let dtNow = 0, tNow = 0, frameNo = 0, ended = false, m0 = null;
-    function begin(dt, cx, cy, t, nActive) {
+    let lastBegin = null, stillMade = -1, lastPick = null; // (stillMade: how many people made in this still frame, still(); -1 in play)
+    function begin(dt, cx, cy, t, nActive, count = 0) {
+      lastBegin = [cx, cy, nActive];
       dtNow = dt; tNow = t; frameNo++; ended = false;
       if (!m0) m0 = new THREE.Matrix4().makeScale(0, 0, 0);
       umbN.true = umbN.false = umbN.shaft = 0;
@@ -2058,7 +2116,7 @@ transformed = crowdPose(transformed, false);`);
       // Through a long lens (the story's finder at 22 to 40 degrees, a conversation's 35 mm) someone 50 m off is as big in
       // the frame as someone 25 m off is in the chase view: the distance is counted as the lens sees it, and a few more
       // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
-      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = Math.round(near * Math.min(1.5, zoom));
+      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = count || Math.round(near * Math.min(1.5, zoom));
       const want = [], ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
       lodX = ex; lodY = ey; lodZoom = zoom;
       for (let i = 0; i < nActive; i++) {
@@ -2073,6 +2131,7 @@ transformed = crowdPose(transformed, false);`);
       ball.radius = 30;
       want.sort((a, b) => a[0] - b[0]);
       const keep = new Set(want.slice(0, nNear).map(w => w[1]));
+      lastPick = { nNear, culling, zoom, want: want.length, unloaded: 0, capped: 0, top: want.slice(0, nNear + 4).map(w => [w[1], +w[0].toFixed(2)]) }; // (for the checks: nearInfo)
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
       for (const i of keep) {
         // (a stand-in gives way to the walker's own character once that has come, not only when they next come near)
@@ -2083,7 +2142,10 @@ transformed = crowdPose(transformed, false);`);
         // not the far crowd's doll: at the hero spawn a dense crowd reads as real at once, and swaps to its own
         // character when it comes (begin() runs again as the player moves)
         if (rn && !lib.tpl[name]) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
-        if (!lib.tpl[name]) { lib.require(name); continue; }
+        if (!lib.tpl[name]) { lib.require(name); lastPick.unloaded++; continue; }
+        if (stillMade >= 4 && !(free[name] && free[name].length)) lastPick.capped++;
+        if (stillMade >= 4 && !(free[name] && free[name].length)) continue; // (a still frame makes four at most: the rest come in the frames after)
+        if (stillMade >= 0 && !(free[name] && free[name].length)) stillMade++;
         const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look));
         r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null, clip: null }, look)); // (clip: a person taken from the pool keeps none of the last one's phone)
         if (rn) r.dress(p.dress);
@@ -2220,7 +2282,7 @@ transformed = crowdPose(transformed, false);`);
         if (p.rx == null || !shows(i) || p.mode === 'sit') continue;
         const d = camera ? Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) : 0;
         if (d > within) continue;
-        const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
+        const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), line: p.line, pz: !!p.pz, lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
         if (r) {
           const q = r.umbOn && r.umbParts ? r.umbParts() : null;
           if (q) Object.assign(row, { umb: true, held: q.held, hand: arr(q.hand), handle: arr(q.handle), shaft: q.shaft.map(arr), canopy: { c: arr(q.canopy.c), n: arr(q.canopy.n), r: +q.canopy.r.toFixed(3), h: +q.canopy.h.toFixed(3) }, head: { c: arr(q.head.c), r: +q.head.r.toFixed(3), crown: +q.head.crown.toFixed(3) }, torso: { a: arr(q.torso.a), b: arr(q.torso.b), r: +q.torso.r.toFixed(3) } });
@@ -2252,7 +2314,29 @@ transformed = crowdPose(transformed, false);`);
       out.x = camera.position.x; out.y = -camera.position.z; out.z = camera.position.y; out.fx = lensDir.x; out.fy = -lensDir.z;
       return true;
     }
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport };
+    // A still (issue 174): with the world held for a photograph (game.js photo mode) the crowd's step does not run, so who
+    // is a whole person stayed as it was when the camera came up, ten on a phone, and everyone past them was a far copy:
+    // a blurred face and a hand of a few facets filled a phone's photograph of a kerb. The frame rate does not matter in
+    // a still, so here, every frame it is held, the people are chosen again for where the camera is now, stillNear of
+    // them (24 on a phone, 40 on a desktop), and placed as they stand, with no time passing. Whoever stands within LENS
+    // of the camera is left out of the picture whole, as in play (game.js lensClear). In play nothing changes
+    const LENS = 1.1;
+    function still() {
+      if (!stillNear || !lastBegin || !camera) return;
+      camera.updateMatrixWorld(); // (the camera as it is now, for who is in the frame: moved this frame and not yet drawn, its matrices were the last view's)
+      stillMade = 0;
+      const [cx, cy, n] = lastBegin;
+      begin(0, cx, cy, tNow, n, stillNear);
+      stillMade = -1;
+      for (let i = 0; i < n; i++) {
+        const p = P[i];
+        if (p.line < 0 && !p.pz) continue;
+        place(i, p, p.state !== 'sit' && !!p.moving);
+        if (active.has(i) && Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) < LENS) hide(i, true);
+      }
+      end();
+    }
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, nearInfo: () => Object.assign({ active: active.size }, lastPick) };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure };

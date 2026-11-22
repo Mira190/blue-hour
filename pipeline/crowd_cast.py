@@ -13,6 +13,9 @@ sides of the step:
   (the dolls are 1,350 to 2,250), its texture seams, picture borders and swung body parts kept
   (pipeline/crowd_cast.mjs, meshoptimizer's simplifier). The hair cards are lit as one head of hair and drawn
   from both sides, as people.js roundHair does for the near walker.
+- each corner's limb (_PART) and its share of it and of the limb below the knee (_PARTW), from its skin weights: the
+  shader (people.js crowdPose, OE_PARTW) turns it by that share of the limb's angle, so nothing tears where a limb
+  meets the body (a coat's hem on a thigh, a cuff on the arm holding an umbrella up).
 - a coarser copy of each (<name>~coarse, about 300 to 370 triangles, COARSE), which people.js draws past its COARSE_M
   (60 m) on the same picture: the body simplified across its seams (meshoptimizer's Permissive), the head's seams kept,
   and the largest of the hair cards (issue 61).
@@ -128,7 +131,7 @@ def far_copy(name, sex, coarse=False):
     cell = Image.new("RGBA", CELL, (0, 0, 0, 255))
     # (rect: x, y, w, h in the cell's pixels)
     rects = {"body": (0, 0, BODY, BODY), "head": (0, BODY, HEAD, HEAD), "hair": (HEAD, BODY, HEAD, HEAD)}
-    pos, nrm, uv, part, idx = [], [], [], [], []
+    pos, nrm, uv, part, pw, idx = [], [], [], [], [], []
     # a body whose picture marks its skin in its alpha (build_people.py skin_mask: KEEP, cloth 255) carries the mark into
     # the cell, where the head and the hair are marked too: the crowd's change of clothes leaves all three as they are
     # (people.js DRESS). The cards' cut-out stays under the cut-off (0.4) where it was under half.
@@ -175,9 +178,9 @@ def far_copy(name, sex, coarse=False):
             src.putalpha(KEEP if masked else 255)
         cell.paste(src.resize((w, h), Image.LANCZOS), (x0, y0))
         base = sum(len(q) for q in pos)
-        pos.append(P); nrm.append(N); part.append(np.array(p["part"], np.uint8)); idx.append(I + base)
+        pos.append(P); nrm.append(N); part.append(np.array(p["part"], np.uint8)); pw.append(np.array(p["pw"], np.float32).reshape(-1, 2)); idx.append(I + base)
         uv.append(np.stack([(x0 + np.clip(U[:, 0], 0, 1) * w) / CELL[0], (y0 + np.clip(U[:, 1], 0, 1) * h) / CELL[1]], 1))
-    return {"pos": np.concatenate(pos), "nrm": np.concatenate(nrm), "uv": np.concatenate(uv), "part": np.concatenate(part),
+    return {"pos": np.concatenate(pos), "nrm": np.concatenate(nrm), "uv": np.concatenate(uv), "part": np.concatenate(part), "pw": np.concatenate(pw),
             "idx": np.concatenate(idx), "pivots": {**g["pivots"], **({"mask": 1} if masked else {})}, "cell": cell}
 
 
@@ -249,10 +252,14 @@ def main():
             n4[:, :3] = np.round(m["nrm"] * 127)
             p4 = np.zeros((len(m["part"]), 4), np.uint8)
             p4[:, 0] = m["part"]
+            # (each corner's share of its limb, and of the limb below the knee: people.js crowdPose, OE_PARTW)
+            w4 = np.zeros((len(m["part"]), 4), np.uint8)
+            w4[:, :2] = np.round(np.clip(m["pw"], 0, 1) * 255)
             attrs = {"POSITION": glb.add(m["pos"].astype("<f4"), 5126, "VEC3", 34962, minmax=True),
                      "NORMAL": glb.add(n4, 5120, "VEC3", 34962, normalized=True, stride=4),
                      "TEXCOORD_0": glb.add(np.round(m["uv"] * 65535).astype("<u2"), 5123, "VEC2", 34962, normalized=True),
-                     "_PART": glb.add(p4, 5121, "SCALAR", 34962, stride=4)}
+                     "_PART": glb.add(p4, 5121, "SCALAR", 34962, stride=4),
+                     "_PARTW": glb.add(w4, 5121, "VEC2", 34962, normalized=True, stride=4)}
             ind = glb.add(m["idx"].astype("<u2").ravel(), 5123, "SCALAR", 34963)
             meshes.append({"name": mesh_name, "primitives": [{"attributes": attrs, "indices": ind, "material": len(mats) - 1}],
                            "extras": {**f["pivots"], "height_m": round(h, 3)}})
