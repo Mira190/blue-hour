@@ -65,7 +65,9 @@ GTA's radio and soft ceiling, and the turn back rather than a wall.
   bars, two A-frame barricades with amber lamps that blink out of step at night, and the sign: 工事中 /
   この先 通行止め / ROAD WORKS · CLOSED AHEAD. All of it is instanced, about a dozen draw calls for every crossing. The
   streets that cross are shut to cars all day, both ways (`junctions.js` `shutNow`, the same mechanism as a street
-  closed at an hour), so the traffic and the rides keep off them and the works stand on an empty road.
+  closed at an hour), so the traffic and the rides keep off them and the works stand on an empty road. The crowd's
+  footways that cross the edge are closed to it too: a band of 0.8 m along the edge counts as a wall in its `wall`
+  test (`actors.js` `shutLine`), so nobody walks through the cones, and the streets beyond keep their own people.
 - **On foot.** In the last 22 m before the edge, the part of each step that goes outward is taken away, more the
   closer the walker is, so they slide along the edge and never into it. Pushed against it, the line is said once.
   After a second of pushing, the camera eases round to face back in (`cam.yawTo`), and the same key walks them back
