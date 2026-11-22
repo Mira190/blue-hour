@@ -1026,6 +1026,49 @@ measured; whether the heliport's paint is the H and circle drawn here, or the co
 the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
 there; and it has been seen on a software renderer only.
 
+### SHIBUYA SKY from the sources, again (November 2026, issues 137, 139, 144)
+
+Read again before the roof's second pass, with what each source is and may be used for. Nothing is reproduced; no
+texture is taken from any of them.
+
+- **SKY GATE** (14F to 45F) is the official "transition space" in three parts: SENSING HALL, the 14F lift hall, a black
+  room under a luminous textile ceiling of about 3 by 7 m driven by two LiDAR sensors, with 21 speakers and thin lines
+  of light on its walls (PAN's work page, p4n.jp/works/shibuya-sky; Dick Thomas Johnson, `Shibuya Scramble Square
+  (49997629637).jpg`, 2 January 2020, CC BY 2.0); TRANSITION POD, two Hitachi shuttle lifts, 360 m a minute, 1,850 kg,
+  28 people, about 30 seconds, the car black inside and its whole ceiling a picture that keeps pace with the climb, a
+  vortex of white and pale blue streaks on black (Hitachi's press release of 28 October 2019 and its case study, all
+  rights reserved; Abstract Engine's work page, abstractengine.com/work/shibuya-sky, its credits: Rhizomatiks Design for
+  the space, the light and the picture, TANGRAM and cai for the pod's CG, Setsuya Kurotaki for the sound; Dick Thomas
+  Johnson, `Shibuya Scramble Square SHIBUYA SKY (53002088401).jpg`, 23 February 2023, CC BY 2.0); and LEADING LINE, the
+  escalator from 45F to 46F between dark blue-grey walls with frames of white light stepping up to daylight (Dick Thomas
+  Johnson, `Shibuya Scramble Square (49997376121).jpg`, CC BY 2.0). The 14F ticket hall: a back-lit white glass wall,
+  a charcoal counter, a black open ceiling with track lights (Syced, `Shibuya Sky entrance, 14F.jpg`, 6 September 2024,
+  CC0). The ride here is not the pod: the owner chose the tower climbed from outside (above), and the pod's ceiling of
+  light is what that shot leaves out.
+- **46F to the roof**: the outdoor escalators rise 8.98 m (Hitachi), so the deck stands about 9 m over 46F, as
+  `city.py` SKY `floor_46_below_m` has it.
+- **The heliport** is raised in the roof's middle, its top artificial turf in one mid-green, every mark on it yellow
+  laid into the turf: a ring with an H in it about 6 to 7 m across, the square boundary doubled on one side, long arrows
+  along one side (Travel Watch, 28 October 2019, and Shibuya Keizai Shimbun, 25 and 30 October 2019, all rights
+  reserved, read only; Kanchi1979, `JP-The-Roof-Shibuya-Sky-Heliport.jpg`, 3 May 2022, CC BY-SA 4.0; RuinDig,
+  `SHIBUYA-SKY Tokyo Heliport01.jpg`, 14 December 2020, CC BY 4.0). No published size or weight was found; "MAX 5t" is
+  in Wei-Te Wong's photograph of 2019 (above).
+- **GEO COMPASS** is not on the heliport: a low square plinth beside it at the head of the steps on the side toward
+  Yoyogi Park and Shinjuku, about 6 m square, pale stone slabs edged in timber, a dark metal compass star and a ring of
+  metal about 0.4 m wide with names cut in it round a relief world map in azimuthal equidistant projection under a
+  clear cover (Real Estate Japan, `Shibuya scramble square sky compass (48995414732).jpg`, 1 November 2019, CC BY 2.0;
+  Kakidai, `Shibuya Scramble Square - SHIBUYA SKY 8.jpg`, November 2019, CC BY-SA 4.0; nippon.com's guide; Abstract
+  Engine's credits name its georama). Its sizes are read from those photographs, not measured.
+- **The glass**: tall clear panes on round pale steel posts under a slim top rail along most of the deck, low and
+  frameless at SKY EDGE (Kakidai, `SHIBUYA SKY 10.jpg`, CC BY-SA 4.0; Dick Thomas Johnson, `(52978516616).jpg`, 29
+  December 2022, CC BY 2.0); laminated low-iron glass (Nippon Sheet Glass, glass-wonderland.jp/case/8260). No height in
+  metres is published.
+- **The deck** in the photographs is wood-look boards in long courses on the walks and the stepped terraces round the
+  heliport, white toward SKY EDGE; the dark porcelain pavers drawn here (issue 72) are not what it is, and are left for
+  their own piece of work. CROSSING LIGHT's hardware is not described anywhere found.
+- **Official figures**: 229 m (the official site), about 2,500 m² of roof, 47 floors over ground (Nikkei xTECH, 28
+  October 2019).
+
 ### The first view of the roof in frame 5 (issue 139)
 
 Frame 5 begins where frame 4's photograph was taken, 0.9 m from the roof's east glass, and the story turns the view to
