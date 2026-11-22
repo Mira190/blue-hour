@@ -1406,6 +1406,61 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
     return seatList;
   }
+  // the next train out of Shibuya, by the walk's clock (game.json tonight.trains, the Yamanote's outer loop): the last
+  // until it has gone, then the first; `in`: the minutes to it
+  function trainNext() {
+    const T = ((G.tonight || {}).trains || {})['yamanote-n'] || ['00:33', '04:33'], last = S.hm(T[0]), first = S.hm(T[1]), m = clock.min;
+    const isFirst = m >= last && m < first, at = isFirst ? first : last;
+    return { first: isFirst, at, in: (at - m + 1440) % 1440 };
+  }
+  // Waiting with someone (walktalk.js wait: Nagi, for her train). You sit on Hachiko's wall and they sit beside you, and
+  // the night passes by itself while the crossing goes on: faster where nothing happens, slower near the night's moments
+  // (`says`: a line at a minute, said over them as it comes round), until a few minutes before the train. Standing up (E)
+  // ends it where it is; the wait can be taken up again
+  let waitRun = null;
+  function waitWith(n, plan) {
+    const st = perch && perch.list[0];
+    if (!st || st.z == null || player.mode !== 'foot') return false;
+    // (you on the seat, its corner; a copy of it, so that who sits beside you is this wait's alone)
+    const seat = Object.assign({}, st);
+    sitDown(seat);
+    // (beside you on the stone itself: plan.beside, a point along the wall's end block; the seat is its outer corner, so a
+    // step to either side of you along the seat's own line was over the setts, and she sat on the air)
+    const [x, y] = plan.beside || [st.at[0] - st.face[1] * 0.75, st.at[1] + st.face[0] * 0.75];
+    n.fixed = true; n.sit = true; n.rig.legRake = st.rake; n.rig.reach = W(x + st.face[0] * 0.26, y + st.face[1] * 0.26, st.z + 0.5); // (her hands in her lap, as yours are)
+    seat.with = [x, y]; // (perch.js: the seat's shot keeps the two of you in it)
+    n.x = x; n.y = y; n.z = st.z; n.h = st.h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h;
+    if (n.post) posts.move(n.post, n.x, n.y, n.z);
+    const left = Math.max(1, trainNext().in - (plan.before || 3));
+    waitRun = { n, plan, left, total: left, said: new Set(), st: seat };
+    return true;
+  }
+  function waitEnd(done) {
+    const w = waitRun; if (!w) return;
+    waitRun = null;
+    const n = w.n; n.sit = false; delete n.rig.legRake; n.rig.reach = null; w.st.with = null;
+    const f = nav.stand(n.x + w.st.face[0] * 0.8, n.y + w.st.face[1] * 0.8, w.st.z + 0.5, { rMax: 3 }); // (up off the stone, onto her feet in front of where she sat)
+    if (f) { n.x = f.x; n.y = f.y; n.z = f.z; n.rig.root.position.copy(W(n.x, n.y, n.z)); if (n.post) posts.move(n.post, n.x, n.y, n.z); }
+    if (player.mode === 'seat') standUp();
+    (done ? w.plan.done : w.plan.cancel || (() => {}))();
+  }
+  function waitStep(dt) {
+    const w = waitRun;
+    if (player.mode !== 'seat') { waitEnd(false); return; } // (stood up: the wait ends where it is)
+    if (dlg.open) return; // (a word said over the wait holds it)
+    // (the rate: the whole wait in about forty seconds, never slower than the wall's own time-lapse; slowed to a walk's pace
+    // for a few minutes round each of the night's moments, so that it is seen)
+    const says = w.plan.says || [], near = says.some(([hm]) => { const d = (S.hm(hm) - clock.min + 1440) % 1440; return d < 5 || d > 1438; });
+    const rate = near ? 1.2 : Math.max(2.5, w.total / 40);
+    const wm = Math.min(w.left, rate * dt);
+    w.left -= wm; clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min);
+    for (const [hm, line] of says) {
+      if (w.said.has(hm)) continue;
+      const d = (clock.min - S.hm(hm) + 1440) % 1440;
+      if (d < 3 && w.plan.say) { w.said.add(hm); w.plan.say(line); }
+    }
+    if (w.left <= 0) waitEnd(true);
+  }
   function sitDown(st) {
     player.seatFrom = { x: player.x, y: player.y, z: player.z, h: player.h };
     Object.assign(player, { mode: 'seat', x: st.at[0], y: st.at[1], z: st.perch ? st.z : st.at[2], h: st.h, speed: 0, ground: true, vz: 0 });
@@ -1998,6 +2053,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (kind === 'buildings') return B.b.length.toLocaleString();
       if (kind === 'time') return `${fmtMin(clock.min)} ${S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min)).zone}`;
       if (kind === 'sun_line') return sunLine();
+      // the next train out of Shibuya (game.json tonight.trains: the Yamanote's last and first): the last until it has gone,
+      // then the first; and when (the walk's line: Nagi's)
+      if (kind === 'train' || kind === 'train_when') { const t = trainNext(); return kind === 'train' ? (t.first ? 'the first train' : 'the last train') : (t.first ? 'this morning' : 'tonight'); }
       if (kind === 'sunset') return fmtMin(dayLimits().sunset);
       // the part of the day and the season, in the guide's words ("this evening", "autumn"), for lines about what to see now
       if (kind === 'now') return !sun || sun.altitude < -6 ? 'tonight' : clock.min < 720 ? 'this morning' : sun.altitude < 12 && clock.min > 900 ? 'this evening' : 'this afternoon';
@@ -2634,6 +2692,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     shift: (n, x, y, h) => { n.x = x; n.y = y; n.z = Math.max(0, nav.terrain(x, y)); if (h != null) n.h = h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); },
     put: (n, at, to) => { if (!npcMove(n, at)) return false; if (to) { n.h = Math.atan2(to[0] - n.x, to[1] - n.y); n.rig.root.rotation.y = Math.PI - n.h; } return true; },
     thud: () => { try { if (A.thump) A.thump(); } catch (e) { /* no sound */ } },
+    waitWith: (n, plan) => waitWith(n, plan), // (sat beside someone on Hachiko's wall while the night passes: below)
+    clockMin: () => clock.min,
+    snapped: () => { A.shutter(); stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash'); }, // (someone takes your picture: the shutter and the flash, no picture of your own)
     loaded: c => !lib || !!lib.tpl[c], // (a character come: until then whoever is made of it is somebody standing in)
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
     told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); },
@@ -3659,6 +3720,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
     // (on the walk: someone on the ground, who can be helped up; then whoever has something to say, a part of a story or a
     // word in passing; walktalk.js)
+    if (bn && walk && walkTalk && !walkTalk.busy && !waitRun && player.mode === 'foot' && walkTalk.waits(bn.id)) return { key: 'E', walk: true, text: walkTalk.waits(bn.id), act: () => walkTalk.wait(bn) };
     if (bn && walk && walkTalk && !walkTalk.busy && walkTalk.helps(bn.id)) return { key: 'E', walk: true, text: walkTalk.helps(bn.id), act: () => walkTalk.help(bn) };
     if (bn && walk && walkTalk && !walkTalk.busy && !bn.rig.pending && walkTalk.want(bn.id)) return { key: 'E', walk: true, text: `Talk to ${bn.name.replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '')}`, act: () => walkTalk.talk(bn) };
     // (on the walk: a stretch of stone to sit on and watch the crossing from; perch.js)
@@ -6195,7 +6257,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
     // (on a perch, Space or the Time-lapse button held: the evening runs fast, the crowd at its own pace; perch.js warp)
-    { const wm = perch && !clock.frozen ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
+    if (waitRun) waitStep(dt); // (waiting with someone on the wall: the night passes by itself, walktalk.js wait)
+    { const wm = perch && !clock.frozen && !waitRun ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;

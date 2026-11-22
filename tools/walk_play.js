@@ -20,6 +20,9 @@
 //     may (a fifth on a desktop; on a phone a sixteenth with the lens's settings put away, a quarter with them out) or
 //     lie over the middle of the frame, on a phone Adjust does not bring the settings out, or a photograph of Hachiko from
 //     beside him is not the first of the views of Shibuya with its picture in the menu's album;
+//   - by Hachiko's wall Wait with her does not sit the two of you, or the wait does not end on your feet a few minutes
+//     before the last train, or she does not walk to the station's front, ask for one more photograph, take yours and
+//     go (walktalk.js wait, gate);
 //   - beside the kerb nobody walks into Nagi, she is not left on the ground with the corner saying what he did, Help her
 //     up is not offered beside her, helped she does not ask for her photograph, or a photograph with her in it does not
 //     send you back to her and put the walk's line away (walktalk.js, its incident);
@@ -562,6 +565,45 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                     const st = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 10; i++) g.frame(0.05); return (g.walkTalk().state().last || {}); });
                     if (!st.done || st.inc !== 'helped') fail(`her story is not put away (${JSON.stringify(st)})`);
                     else ok('her photograph taken and shown: The last train is put away, the 0:33 named');
+                    // the line's end (walktalk.js wait, gate; game.js waitWith): by the wall, Wait with her sits the two of you and
+                    // the night passes until a few minutes before her train; she stands, walks to the station's front, asks for one
+                    // more photograph, takes yours, goes in along the walkway and turns round, and is gone
+                    await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); g.npcMove(n, [372.6, -1043.2]); g.setClock(g.clock.y, g.clock.m, g.clock.d, 20); g.spawn([n.x + 0.9, n.y + 1.6]); g.player.h = Math.atan2(-0.9, -1.6); g.cam.yaw = g.player.h; for (let i = 0; i < 6; i++) g.frame(0.05); });
+                    if (!(await waitPrompt(/Wait with her for the last train/))) fail(`by the wall, her story told, nothing offers to wait with her ("${await prompt()}")`);
+                    else {
+                      await act();
+                      const sat = await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return { me: g.player.mode, her: !!n.sit, wait: g.walkLine().wait }; });
+                      if (sat.me !== 'seat' || !sat.her || !sat.wait) fail(`Wait with her: not the two of them sat on the wall (${JSON.stringify(sat)})`);
+                      else ok('Wait with her: the two of you on Hachiko\'s wall, the night passing');
+                      await shot('4b-wait');
+                      const run = (until, max = 4000) => p.evaluate(async ([u, max]) => { const g = window.__game, f = new Function('g', `return ${u}`); for (let i = 0; i < max && !f(g); i++) { g.frame(0.05); if (i % 20 === 19) await new Promise(r => setTimeout(r, 0)); } return f(g); }, [until, max]);
+                      if (!(await run("g.walkLine().gate === 'ask'"))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
+                      else {
+                        const up = await p.evaluate(() => { const g = window.__game; return { me: g.player.mode, min: Math.round(g.clock.min) }; });
+                        if (up.me !== 'foot' || up.min < 25 || up.min > 33) fail(`the wait did not end on your feet a few minutes before 0:33 (${JSON.stringify(up)})`);
+                        else ok(`the wait ended at ${up.min} minutes past midnight; she walked to the station's front`);
+                        await beside(1.8);
+                        if (!(await waitPrompt(/Talk to Nagi/))) fail('at the station she has nothing to say');
+                        else {
+                          await act(); await through();
+                          if ((await line()).gate !== 'shot') fail(`at the station she does not ask for one more photograph (${JSON.stringify(await line())})`);
+                          await beside(3.2);
+                          await p.evaluate(() => { const g = window.__game; g.photoMode(true); g.snapPhoto(); g.photoMode(false); for (let i = 0; i < 30; i++) g.frame(0.05); });
+                          await beside(1.8);
+                          if ((await line()).gate !== 'shown' || !(await waitPrompt(/Talk to Nagi/))) fail(`her last photograph is not the one she asked for (${JSON.stringify(await line())})`);
+                          else {
+                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
+                            await through(); await p.waitForTimeout(1500); await through();
+                            await run("g.walkLine().gate === 'going'", 400);
+                            await shot('4b-goes');
+                            const gone = await run("g.walkLine().w === 'gone'", 3000) || await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 60000, polling: 500 }).then(() => true, () => false);
+                            const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
+                            if (!gone || !hid) fail(`she does not go (${JSON.stringify(await line())}, hidden ${hid})`);
+                            else ok('she took yours, went in along the walkway, turned round, and is gone');
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }

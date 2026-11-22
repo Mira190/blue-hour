@@ -1259,7 +1259,7 @@
                 "Let me see.",
                 "I look as if nothing happened.",
                 "That's the one my mother gets. One every Saturday, with the lights behind me, so she can see I'm doing well.",
-                "I'm on the last train tonight. The 0:33. She doesn't know that yet.",
+                "I'm on {train} {train_when}. She doesn't know that yet.",
                 "Nagi. I'll be by Hachiko's wall till then. The stone keeps the day's heat."
               ]
             }
@@ -1272,9 +1272,60 @@
             368.0,
             -1004.0
           ],
+          "wait": {
+            "note": "The line's end (walktalk.js wait, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser.",
+            "verb": "Wait with her for {train}",
+            "beside": [
+              370.91,
+              -1045.03
+            ],
+            "before": 3,
+            "says": [
+              [
+                "19:00",
+                "Three years, and I never once looked up."
+              ],
+              [
+                "21:00",
+                "That's the fourth time, you know. You learn which shoulder to carry your bag on."
+              ],
+              [
+                "00:00",
+                "I've never seen it dark."
+              ]
+            ],
+            "up": "That's mine.",
+            "follow": "Walk Nagi to the station",
+            "gate": [
+              408.4,
+              -1052.6
+            ],
+            "turn": [
+              409.3,
+              -1057.0
+            ],
+            "gone": [
+              410.2,
+              -1063.5
+            ],
+            "at": "Nagi, by the station",
+            "ask": [
+              "This is me.",
+              "One more? Not with the lights behind me this time. Just me, going home."
+            ],
+            "goal": "Photograph Nagi by the station",
+            "shown": [
+              "Let me see.",
+              "That's the one she gets.",
+              "Now you. Hold still. Nobody ever takes the photographer's."
+            ],
+            "last": [
+              "There. Thank you for stopping."
+            ]
+          },
           "after": [
-            "The 0:33. I haven't told her.",
-            "Three years, and that's the fourth time. You learn which shoulder to carry your bag on."
+            "I still haven't told her.",
+            "The stone's still warm, if you want to sit."
           ]
         },
         {

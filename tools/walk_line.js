@@ -26,7 +26,7 @@ const SECS = +(process.env.SECS || 14), EVERY = +(process.env.EVERY || 2);
   p.on('pageerror', e => { bad++; console.log(`pageerror: ${String(e).slice(0, 300)}`); });
   p.on('console', m => { if (/unavailable|rror/.test(m.text())) console.log(`console: ${m.text().slice(0, 240)}`); });
   p.on('crash', () => { console.log('the page crashed'); process.exit(1); });
-  await p.addInitScript(([t, sp, seen]) => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-player', 'W'); if (!sessionStorage.getItem('wl-once')) { sessionStorage.setItem('wl-once', '1'); sessionStorage.setItem('bh-walk-auto', JSON.stringify(sp)); if (seen) localStorage.setItem('bh-walk-talk', JSON.stringify({ last: { part: 2, met: false, done: true, inc: 'helped' } })); } } catch (e) { /* storage blocked */ } },
+  await p.addInitScript(([t, sp, seen]) => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-player', 'W'); if (!sessionStorage.getItem('wl-once')) { sessionStorage.setItem('wl-once', '1'); sessionStorage.setItem('bh-walk-auto', JSON.stringify(sp)); if (seen) localStorage.setItem('bh-walk-talk', JSON.stringify({ last: { part: 2, met: false, done: true, inc: 'helped', rested: true } })); } } catch (e) { /* storage blocked */ } },
     [process.env.TIER || (phone ? 'low' : 'high'), { t: hour, w: sky }, !SETS.includes('open')]);
   const t0 = Date.now(), el = () => `${Math.round((Date.now() - t0) / 1000)}s`;
   await p.goto(`http://localhost:${PORT}/?overture=0`, { waitUntil: 'domcontentloaded', timeout: 180000 });
@@ -98,6 +98,67 @@ const SECS = +(process.env.SECS || 14), EVERY = +(process.env.EVERY || 2);
       await p.evaluate(s => new Promise(r => { const g = window.__game; let n = Math.round(s / 0.05); const f = () => { for (let i = 0; i < 20 && n > 0; i++, n--) g.frame(0.05); if (n > 0) setTimeout(f, 0); else r(); }; f(); }), +(process.env.SETTLE || 14));
       await shot(`beat-${bt.n}-${bt.at.replace(':', '')}`);
     }
+  }
+  if (SETS.includes('seat')) {
+    // waiting with her on the wall: the seat's own shot a few seconds in, then the two of them from the side and from in
+    // front with the world held (photo mode), to see that each sits on the stone
+    const L = (fn, arg, ms = 10 * 60000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 100 }).then(() => true, () => false);
+    await L(() => { const n = window.__game.npcById('nagi'); return n && n.rig && !n.rig.pending; }, null, 15 * 60000);
+    await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); g.npcMove(n, [372.6, -1043.2]); g.setClock(g.clock.y, g.clock.m, g.clock.d, 19 * 60 - 20); });
+    const at = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return [n.x, n.y]; });
+    const me = [at[0] + 0.9, at[1] + 1.6];
+    await stand(me, yawTo(me, at), -0.1, 3.4);
+    await L(() => /Wait with her/.test((document.getElementById('g-prompt') || {}).textContent || ''), null, 60000); await act();
+    await L(() => window.__game.walkLine().wait, null, 20000);
+    for (const s of [3, 8]) { await p.waitForTimeout(s === 3 ? 3000 : 5000); await shot(`s-tripod-${s}`); }
+    console.log(`  seated: ${await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'), P = g.player, f = g.nav.floorAt(n.x, n.y, n.z + 1.2); return `you ${P.x.toFixed(2)},${P.y.toFixed(2)} mode ${P.mode}; her root ${n.x.toFixed(2)},${n.y.toFixed(2)} z ${n.z.toFixed(2)}, the stone there ${f ? (f.z - n.z).toFixed(2) : 'none'}`; })}`);
+    for (const [name, az] of [['side', 2.0], ['front', 0.0], ['back', Math.PI]]) {
+      await p.evaluate(az => { const g = window.__game, n = g.npcById('nagi'), P = g.player; g.photoMode(true); const me = document.getElementById('ph-me'); if (me && me.getAttribute('aria-pressed') !== 'true') me.click(); g.photo.anchor.set((n.x + P.x) / 2, n.z + 0.6, -(n.y + P.y) / 2); g.photo.focus.copy(g.photo.anchor); Object.assign(g.photo, { az, pitch: 0.12, dist: 3.4 }); }, az);
+      await p.waitForTimeout(2000); await shot(`s-${name}`);
+      await p.evaluate(() => window.__game.photoMode(false));
+    }
+  }
+  if (SETS.includes('look')) {
+    // LOOKS='[[[x,y],[lx,ly],pitch,dist],...]': stood at each, looking at the other, a still each (for finding a place)
+    for (const [i, [at, lk, pitch, dist]] of JSON.parse(process.env.LOOKS || '[]').entries()) {
+      await stand(at, yawTo(at, lk), pitch ?? -0.05, dist ?? 5);
+      await p.waitForTimeout(6000); await shot(`look-${i}`);
+      console.log(`  look ${i}: floor ${await p.evaluate(at => { const g = window.__game, f = g.nav.floorAt(at[0], at[1], 17); return f ? f.z.toFixed(2) : 'none'; }, lk)} at the place looked at`);
+    }
+  }
+  if (SETS.includes('end')) {
+    // the line's end: her story told, she is by the wall; Wait with her sits you both and the night passes until her train;
+    // she stands, walks to the gate, asks for one more photograph, takes yours, goes in and turns round
+    const L = (fn, arg, ms = 10 * 60000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 100 }).then(() => true, () => false);
+    await L(() => { const n = window.__game.npcById('nagi'); return n && n.rig && !n.rig.pending; }, null, 15 * 60000);
+    await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'), t = g.walkTalk(); const s = t.state(); g.npcMove(n, [372.6, -1043.2]); });
+    await p.waitForTimeout(1500);
+    const at = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return [n.x, n.y]; });
+    const me = [at[0] + 0.9, at[1] + 1.6];
+    await stand(me, yawTo(me, at), -0.1, 3.4);
+    if (!(await L(() => /Wait with her/.test((document.getElementById('g-prompt') || {}).textContent || ''), null, 60000))) console.log(`NO WAIT OFFERED: ${await say()}`);
+    await shot('e0-offered');
+    if (process.env.START) await p.evaluate(hm => { const g = window.__game, [h, m] = hm.split(':').map(Number); g.setClock(g.clock.y, g.clock.m, g.clock.d, h * 60 + m); }, process.env.START); // (START=23:50: the wait from near the train)
+    await act();
+    await L(() => window.__game.walkLine().wait, null, 20000); await p.waitForTimeout(2500); await shot('e1-sat');
+    console.log(`  seated: ${await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'), f = g.nav.floorAt(n.x, n.y, n.z + 1.2); return `her root ${n.x.toFixed(2)},${n.y.toFixed(2)} at ${n.z.toFixed(2)}; the floor under her hips ${f ? (f.z - n.z).toFixed(2) + ' m over her feet' : 'none'}`; })}`);
+    for (const m of (process.env.START ? ['23:59'] : ['18:59', '20:59', '23:59'])) { if (await L(hm => { const g = window.__game, [h, mm] = hm.split(':').map(Number); return !g.walkLine().wait || g.clock.min >= h * 60 + mm + 1.5; }, m, 8 * 60000)) { await shot(`e2-${m.replace(':', '')}`); console.log(`  over her: "${await p.evaluate(() => [...document.querySelectorAll('.g-walk-bark')].filter(e => +getComputedStyle(e).opacity > 0.1).map(e => e.textContent).join(' | '))}"`); } }
+    await L(() => window.__game.walkLine().gate, null, 10 * 60000); await p.waitForTimeout(1200); await shot('e3-up');
+    await L(() => window.__game.walkLine().gate === 'ask', null, 25 * 60000);
+    const gt = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return [n.x, n.y]; });
+    const gm = [gt[0] - 2.4, gt[1] + 0.6];
+    await stand(gm, yawTo(gm, gt), -0.06, 3.2); await p.waitForTimeout(1500); await shot('e4-gate');
+    await L(() => /Talk to Nagi/.test((document.getElementById('g-prompt') || {}).textContent || ''), null, 30000); await act();
+    for (let i = 0; i < 6; i++) { await p.waitForTimeout(2600); if (!(await p.evaluate(() => { const d = document.getElementById('gd'); return d && !d.hidden; }))) break; if (i === 1) await shot('e5-ask'); await next(); }
+    await L(() => window.__game.walkLine().gate === 'shot', null, 20000);
+    await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); g.photoMode(true); const me = document.getElementById('ph-me'); if (me && me.getAttribute('aria-pressed') === 'true') me.click(); g.photo.anchor.set(n.x, n.z + 1.25, -n.y); g.photo.focus.copy(g.photo.anchor); Object.assign(g.photo, { dist: 3.0, pitch: 0.05 }); });
+    await p.waitForTimeout(2500); await shot('e6-finder');
+    await p.evaluate(() => { const g = window.__game; g.snapPhoto(); g.photoMode(false); });
+    for (let k = 0; k < 4; k++) { await L(() => /Talk to Nagi/.test((document.getElementById('g-prompt') || {}).textContent || ''), null, 30000); await p.waitForTimeout(800); await act(); if (await L(() => { const d = document.getElementById('gd'); return d && !d.hidden; }, null, 8000)) break; console.log('  (E did not open her talk: again)'); }
+    for (let i = 0; i < 8; i++) { await p.waitForTimeout(2600); if (!(await p.evaluate(() => { const d = document.getElementById('gd'); return d && !d.hidden; }))) { await p.waitForTimeout(1200); if (!(await p.evaluate(() => { const d = document.getElementById('gd'); return d && !d.hidden; }))) break; } if (i === 2) await shot('e7-you'); await next(); }
+    await L(() => window.__game.walkLine().gate === 'going', null, 20000); await p.waitForTimeout(3500); await shot('e8-turns');
+    const gone = await L(() => window.__game.walkLine().w === 'gone', null, 90000); await shot('e9-gone');
+    console.log(`the line's end: ${gone ? 'she is gone' : 'SHE NEVER WENT'}; ${await say()}`);
   }
   await b.close();
   process.exit(bad ? 1 : 0);
