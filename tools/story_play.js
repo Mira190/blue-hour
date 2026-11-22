@@ -89,9 +89,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const q = queue; queue = new Map();
       last = Math.max(last, t || performance.now()); // (one clock, never back: a display's frame is stamped as it began)
       D.twice = D.all && D.one; if (D.twice) oneFrame();
+      // (and where the still's frame is counted, BUDGET, the count begins and ends here, round this frame's own calls and
+      // no other's. It was begun by the harness before it asked for the frame and ended after it heard of it: a frame the
+      // play drew of itself in between, one in DRAW, was counted with the still's, twice the passes and the triangles
+      // under one still's name, in about one still in twenty: issue 151)
+      const B = D.twice && D.count ? window.__beat : null; if (B) B.begin();
       D.frames++; D.on = D.all || D.steps % n === 0; // (n counts the game's frames: not those the frame-rate cap passes over, game.js gov.due)
       const t0 = performance.now(); D.rendered = false; D.inFrame = true;
       for (const fn of q.values()) { try { fn(last); } catch (e) { setTimeout(() => { throw e; }); } }
+      const counted = B ? B.end() : null; if (counted && D.rendered) D.counted = counted;
       D.js += performance.now() - t0; if (D.rendered) { D.steps++; if (D.on) { D.drawn++; if (!D.all) D.own++; } split(t0, performance.now() - t0); }
       // (the still's frame drawn, below: the page's frames held at once, so that the still is of it and no frame drawn whole
       // after it is begun while the harness hears of it, a second of llvmpipe's that the screenshot then waited for)
@@ -282,7 +288,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // clear is passed on to the renderer. Where nothing is counted, nothing is asked for. The photographs the story itself
   // takes are drawn as ever)
   const NOSTILL = process.env.STILLS === '0', dry = on => (NOSTILL && DRAW > 1 ? p.evaluate(on => { window.__draw.dry = on; }, on) : null);
-  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await require('./beat_count').begin(p, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await require('./beat_count').end(p).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } if (BARE && !NOSTILL && BARE.test(name)) { const st = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }); try { fs.mkdirSync(`${out}/bare`, { recursive: true }); await p.screenshot({ path: `${out}/bare/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no bare still ${name})`); } await st.evaluate(e => e.remove()); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET && !name.startsWith('into-')) await budget(name, counted); /* (a walk-into's still is the harness's own view from the side, not a beat of the story: issue 126) */ await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await p.evaluate(by => { const D = window.__draw; window.__beat.names(by); D.counted = null; D.count = true; }, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await p.evaluate(() => { const B = window.__beat, D = window.__draw, c = D.counted; D.count = false; D.counted = null; B.names(false); return c ? B.report([c]) : null; }).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } if (BARE && !NOSTILL && BARE.test(name)) { const st = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }); try { fs.mkdirSync(`${out}/bare`, { recursive: true }); await p.screenshot({ path: `${out}/bare/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no bare still ${name})`); } await st.evaluate(e => e.remove()); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET && !name.startsWith('into-')) await budget(name, counted); /* (a walk-into's still is the harness's own view from the side, not a beat of the story: issue 126) */ await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
@@ -969,6 +975,25 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
             if (tab) { const T3 = window.THREE, a = new T3.Vector3(pl.x, pl.z + 1.55, -pl.y), b = new T3.Vector3(); for (let i = 0; i < 16; i++) { const yaw = i * Math.PI / 8, q = []; for (const lift of [0, 0.15, 0.3, 0.45, 0.6, 0.8]) { const pitch = g.cam.pitch + lift, cp = Math.cos(pitch); b.set(a.x - Math.sin(yaw) * cp * g.cam.dist, a.y + Math.sin(pitch) * g.cam.dist, a.z + Math.cos(yaw) * cp * g.cam.dist); q.push(g.nav.clearFraction(a, b).toFixed(2)); } rows += `\n${(yaw).toFixed(2)}  ${q.join(' ')}`; } }
             return { at: [pl.x, pl.y, pl.z].map(r), h: r(pl.h), off: r(Math.hypot(c.x - pl.x, -c.z - pl.y)), over: r(c.y - pl.z), yaw: r(g.cam.yaw), yawTo: g.cam.yawTo, pitch: r(g.cam.pitch), dist: r(g.cam.dist), lift: r(g.cam.lift), pull: r(g.cam.pull), f: r(t.f), want: t.wantLift, hand: g.cam.hand || null, idle: r(g.t() - g.cam.lastInput), rows }; }, !!process.env.CAMTABLE);
           console.log(`frame ${s.fi + 1} board camera:`, JSON.stringify(c).replace(/\\n/g, '\n'));
+          // (issue 139: the first view of the roof is from behind your shoulder with the pad and the helicopter ahead, not
+          // from over your head at the glass: the lens no more than 3.6 m over your feet and the helicopter inside the frame.
+          // And once the view has come round, nothing of it moves: five stills a second apart with you standing, the lens
+          // where it was, and five frames given no time, the lens not a millimetre off, which a turn laid on every frame is)
+          await p.waitForFunction(() => { const g = window.__game; return g.cam.yawTo == null && !g.player.auto; }, null, { timeout: 20000, polling: 100 }).catch(() => {});
+          const v = await p.evaluate(() => {
+            const g = window.__game, T3 = window.THREE, q = g.heli.st, cam = g.camera, at = new T3.Vector3(q.x, q.z + 1.5, -q.y), pl = g.player;
+            cam.updateMatrixWorld(); const front = at.clone().sub(cam.position).dot(cam.getWorldDirection(new T3.Vector3())) > 0, n = at.clone().project(cam), p0 = cam.position.clone();
+            let still = 0; for (let k = 0; k < 5; k++) { g.frame(0); still = Math.max(still, cam.position.distanceTo(p0)); }
+            return { front, x: +n.x.toFixed(2), y: +n.y.toFixed(2), p0: [p0.x, p0.y, p0.z], still, over: +(cam.position.y - pl.z).toFixed(2), lift: +(g.cam.lift || 0).toFixed(2) };
+          });
+          let moved = 0;
+          for (let k = 0; k < 5; k++) {
+            moved = Math.max(moved, await p.evaluate(p0 => { const c = window.__game.camera.position; return Math.hypot(c.x - p0[0], c.y - p0[1], c.z - p0[2]); }, v.p0));
+            await snap(`${s.fi + 1}-board-held-${k}`); await p.waitForTimeout(1000);
+          }
+          if (v.over > 3.6 || !v.front || Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95) { errors.push(`frame ${s.fi + 1}: the first view of the roof is not from behind your shoulder with the helicopter ahead (the lens ${v.over} m over your feet, lifted ${v.lift}; the helicopter at ${v.x}, ${v.y} in the frame${v.front ? '' : ', behind the lens'})`); console.log(errors[errors.length - 1]); }
+          else if (v.still > 0.001 || moved > 0.05) { errors.push(`frame ${s.fi + 1}: the roof's first view does not hold still: the lens moved ${v.still.toFixed(4)} m over five frames given no time, ${moved.toFixed(3)} m in five seconds standing`); console.log(errors[errors.length - 1]); }
+          else console.log(`frame ${s.fi + 1} board: from behind the shoulder (the lens ${v.over} m over your feet), the helicopter at ${v.x}, ${v.y} in the frame; five seconds standing, the lens moved ${moved.toFixed(3)} m`);
         }
         await goTo(h.at, 8); await frames(4); // (on its floor: the pad stands over the deck round it) await p.evaluate(() => { const g = window.__game; g.cam.yaw = g.player.h; g.cam.pitch = 0.3; });
         const act = await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : null; });

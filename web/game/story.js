@@ -674,9 +674,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const fly = () => { st.beat = 'flight'; goal(''); aimAt(null); frames.classList.remove('on'); if (st.dog && st.dog.aboard) st.dog.aboard(true); ctx.film(fr.flight, () => { frames.classList.add('on'); if (st.dog && st.dog.aboard) st.dog.aboard(false); go(); }); };
       const B = fr.flight && ctx.film && !st.again && fr.flight.board, pad = B && ctx.board ? ctx.board(() => { if (st.fr === fr && st.beat === 'board') fly(); }) : null;
       // (why it is there, first: the office rings, in its own voice, the episode prologue's, with flight.board.call)
-      const board = () => { if (st.fr !== fr) return; st.beat = 'board'; goal(B.goal || 'Get in the helicopter.'); aimAt(spot(pad), true); if (ctx.look) ctx.look(pad, true); };
+      const board = () => { if (st.fr !== fr) return; st.beat = 'board'; goal(B.goal || 'Get in the helicopter.'); aimAt(spot(pad), false); if (ctx.look) ctx.look(pad, true, true); }; // (the view to the pad from where the camera has room behind you: game.js look, room)
       const C = pad && B.call, P = st.ep.prologue || {};
-      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true); ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
+      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true, true); ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
       else if (pad) board();
       else if (fr.flight && ctx.film && !st.again) fly();
       else go();
