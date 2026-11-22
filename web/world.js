@@ -2172,13 +2172,16 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // that share of the ambient light, which three.js spreads over every surface as if in the open:
     // without it a soffit and the columns under it read as pale as the paving in the sun (issue 84)
     // What does reach it comes mostly back up off the ground ("bounce", its colour), not from the
-    // sky: the part it does not see of the sky takes the ground's hue, at the same brightness
-    const skyMats = {}, sheltered = (base, key, sky, bounce) => {
-      const id = `${key}|${sky}|${bounce || ''}`;
+    // sky: the part it does not see of the sky takes the ground's hue, at the same brightness.
+    // A room shut in under its roof and lit by its own lamps ("direct": the share of the direct light it takes, 0: none)
+    // takes neither the sun's nor the screens' light (neon.js's area lights cast no shadow: the Scramble's screens lit
+    // the walls of the station's passage behind the hoarding pink, through the station's own front)
+    const skyMats = {}, sheltered = (base, key, sky, bounce, direct = 1) => {
+      const id = `${key}|${sky}|${bounce || ''}|${direct}`;
       if (skyMats[id]) return skyMats[id];
       // (the share and the tint as uniforms, issue 27: written into the shader as numbers, every share a landmark used was a
       // program of its own, under byText as before it; now the sheltered copies of one material share one)
-      const uSky = { value: +sky.toFixed(3) }, uTint = { value: new THREE.Vector3(1, 1, 1) };
+      const uSky = { value: +sky.toFixed(3) }, uTint = { value: new THREE.Vector3(1, 1, 1) }, uDirect = { value: +(+direct).toFixed(3) };
       if (bounce) {
         const c = lin(bounce), l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b || 1, k = 1 - sky;
         uTint.value.set(...[c.r, c.g, c.b].map(v => +(1 + (v / l - 1) * k).toFixed(3)));
@@ -2186,9 +2189,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       return (skyMats[id] = follow(base, Object.assign(base.clone(), {
         onBeforeCompile: sh => {
           if (base.onBeforeCompile) base.onBeforeCompile(sh);
-          sh.uniforms.uLmSky = uSky; sh.uniforms.uLmTint = uTint;
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLmSky; uniform vec3 uLmTint;').replace('#include <aomap_fragment>',
-            '#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= uLmSky * uLmTint; reflectedLight.indirectSpecular *= uLmSky;');
+          sh.uniforms.uLmSky = uSky; sh.uniforms.uLmTint = uTint; sh.uniforms.uLmDirect = uDirect;
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLmSky, uLmDirect; uniform vec3 uLmTint;').replace('#include <aomap_fragment>',
+            '#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= uLmSky * uLmTint; reflectedLight.indirectSpecular *= uLmSky; reflectedLight.directDiffuse *= uLmDirect; reflectedLight.directSpecular *= uLmDirect;');
         },
         defines: Object.assign({}, base.defines), userData: base.userData,
         customProgramCacheKey: () => `lm|${id}` })));
@@ -2201,7 +2204,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     };
     const lmMaterial = m => {
       const base = m.floodlit ? floodlit(m.material) : lmMats[m.material];
-      return byText(m.sky != null && m.sky < 1 ? sheltered(base, (m.floodlit ? 'flood|' : '') + m.material, m.sky, m.bounce) : base);
+      return byText(m.sky != null && m.sky < 1 ? sheltered(base, (m.floodlit ? 'flood|' : '') + m.material, m.sky, m.bounce, m.direct ?? 1) : base);
     };
     const lmGeometry = m => {
       const p = m.position, arr = new Float32Array(p.length);

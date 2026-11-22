@@ -353,9 +353,41 @@ them, and are dark after that.
 - **Hachiko Square.** Hachiko's pedestal was lowered in May 1989 so people could touch him. He
   looks north-east, toward the station's Hachiko exit, with the bus street at his back: photographs
   from 2020, 2021 and July 2025 show him from behind looking toward QFRONT's side, in profile from the
-  square's south, and from the front with the buses behind him. The station's Hachiko gate moved to the
-  Miyamasuzaka side on 26 January 2025, and the *Hachiko Family* tile relief was taken down from
-  February 2025, so neither is drawn. Hachiko and his corner of the square are described in section 6b.
+  square's south, and from the front with the buses behind him. The *Hachiko Family* tile relief was taken
+  down from February 2025, so it is not drawn. The station's Hachiko gate moved off the square, onto the
+  passage toward Miyamasuzaka, on 26 January 2025; the way to it from the square is drawn and walked (below,
+  "The way through the station"). Hachiko and his corner of the square are described in section 6b.
+- **The way through the station** (November 2026; the owner asked whether the station has a way in and whether
+  its hoarding is still there). It is: JR East's 渋谷駅改良工事 runs to fiscal 2027, and its notices on the
+  hoarding in February 2026 announce the move of the way in from the square, ハチ公口, on 1 March 2026; the
+  hoarding stands in the photographs of June 2025 and in those notices. So the hoarding stays, and what was
+  missing is drawn: ハチ公口 beside the police box, where OSM puts it (`cities/shibuya/scramble.py`
+  `HACHIKO_EXIT`), an opening in the hoarding between its striped end panels, the station's green sign band over
+  it, and the free passage behind it along the footway OSM maps through the station, 43 m with its jog, to the
+  宮益坂口 on the east side, which has its own band. A walker goes in at one and out at the other (the landmark's
+  mesh is the station's wall to a walker, and the crowd walks the footway through it). On the passage's south
+  side, a little before the Miyamasuzaka end as the notices' plan has it, the Hachiko gate: six lanes, the flaps
+  closed (the free side ends there; frame 6 of the story is set at this gate), and the concourse lit beyond with
+  the lines' board. The passage is white works panelling, a white ceiling with two lines of LED fittings, pale
+  non-slip tiles with the yellow guide line, hung boards in the station's pattern (black for the gate and the
+  lines, yellow for the exits, printed both sides), the works' notices and a plan on the walls. It is lit by its
+  own lamps day and night (`glow_day`), and shut in (`direct`: 0, `web/world.js` `sheltered`): neither the sun nor
+  the screens' area lights across the square (neon.js, which cast no shadow) reach it; they had lit its walls
+  pink. Its floor is laid on the game's ground, which falls 0.4 m under the station from the square to the passage's
+  middle, at the height the Scramble's paving is outside, and is stood on as drawn (`pave`, navcells.js): laid level
+  at first, it had walkers' feet 27 cm in it, and 4.6 cm in the setts at the threshold where the level's paving stops.
+  The crowd now stands on paving a landmark draws as the player does (game.js `lineGround`, nav.js `paveAt`): it had
+  walked at the ground's height under the floor the player stood on. `tools/feet_check.js` `AT=430,-1022.5` measures
+  every sole there. The ground is not drawn inside it (it rises under the station through the passage's floor). Estimated:
+  its width (5.6 m) and height (3.2 m), the gate's place and lanes; invented: the notices' words and the poster.
+  `tools/station_walk.js` walks it both ways and into the gate.
+- **Shibuchika's exit 8 and the underground.** The stair in front of the station (OSM `渋谷駅8`, "Exit 8
+  (Hachiko Statue)") goes down to Shibuchika and the underground lines' concourses (Hanzomon, Fukutoshin,
+  Den-en-toshi, Toyoko), not to the JR gate: it and ハチ公口 are two ways to two stations, both in use. The
+  underground is not built, so a walker stops at the head of its stair as at a shop's door (nav.js `inWell`).
+  It is not for the first release: no beat of the story is underground, the walk's streets are complete without
+  it, and it is a level of its own (floors of concourses and a mall some 200 m long under the square) that would
+  cost what is not seen.
 - **SHIBUYA SKY's CROSSING LIGHT.** Its 18 searchlights put on a show from 19:00, on the hour and
   the half hour, to 22:00 (`light_show` `every`, `until`). Each show's length and the beams'
   movement are illustrative.
@@ -393,7 +425,7 @@ are, checked against photographs from the same viewpoints (the comparison stills
 | MAGNET | Its glazed corner under a sloping silver fascia with its name in red serif letters | Photographs 2025 | The fascia's height and slope |
 | Center Gai's gate | Two grey posts bending over like shepherd's crooks, disc lamps at their tips, センター街 on the posts and the basketball banner between them | Photographs 2024-25 (no dimensions are published) | 5.5 m posts, the street's 9 m |
 | The koban | 渋谷警察署渋谷駅前交番 at OSM's node on Hachiko Square's north edge: two storeys of pale tile, KOBAN and its name over the door, the red lamp | OSM | Its size, 6.4 × 4.6 × 6.6 m |
-| The station's Hachiko side | OSM maps the whole station as one 15 to 29 m building, which the generic styles drew as a yellow stone palace. It is drawn as the works site it is: pale panel walls, hoardings with the works notice at its foot, a scaffold over the square carrying an advert | OSM's outline and heights; photographs 2024-25 | The scaffold's size |
+| The station's Hachiko side | OSM maps the whole station as one 15 to 29 m building, which the generic styles drew as a yellow stone palace. It is drawn as the works site it is: pale panel walls, hoardings with the works notice at its foot, a scaffold over the square carrying an advert (its standards start over the way in's sign), and ハチ公口 with the passage through the station to the 宮益坂口 and the Hachiko gate on it (above, "The way through the station") | OSM's outline and heights, its entrances and the footway through; photographs 2024-25; JR East's notices, February 2026 | The scaffold's size; the passage's width and height, the gate's place |
 | The west side's billboards | Box billboards stacked on steel towers over the roofs (the Taiseido block's tower is in PLATEAU's LOD2, 5.5 × 5.6 m to 39.4 m) and the Oto building's floor-by-floor sign bands | PLATEAU, photographs | All the brands are invented |
 | The bookshop on Center Gai's corner | The shop that has stood on the corner since 1912, on the block's chamfer facing the crossing and 3.4 m of its south side: white clapboard to the first floor, the shop window and door, a blue awning with the name in white, and the big white box sign, lit from inside, wrapping round the corner: the name in heavy blue characters inside a red outline of an open book (its spine at the corner), the romanised name in red, a blue edge at its foot. The name is invented, 大昇堂書店 (BOOKS TAISHODO), in the real one's pattern: five characters, □□堂書店, two on the side and three on the front, in the same colours. The block's corner screen and Rakuten Vision stand above the sign (7.4 m and 12.9 m) | OSM's outline (w136690966 is the whole block); photographs 2021 and 2024 | The awning (3.0-3.45 m) and the sign (3.6-6.9 m), scaled from the door |
 | Hachiko | The bronze Akita sculpted as signed distance fields and meshed by surface nets (`pipeline/sculptkit.py`, `cities/shibuya/hachiko.py`), 27,600 triangles. Remodelled in November 2026 against photographs from the front, the side and behind, after the first version read as a cat: a heavy, broad head raised about 13 degrees and turned a little to his left, a short blunt muzzle with its bridge and nose, small thick ears set wide on the corners of the skull (the left one bent forward, as it was in life), a thick neck straight into a broad chest, the flat strap collar round it with its tab hanging at the front, long straight forelegs, thick thighs at his sides, the tail curled over his back, all on a rough bronze slab cast with him. The real forelegs and paws are rubbed bright by hands; here, by the owner's choice, the bronze is one even colour. On a speckled grey granite plinth (0.95 x 0.95 x 1.15 m) with its bronze plate, 忠犬ハチ公 set vertically, on a dark granite step clad in small tiles (1.55 m square, 0.38 m) | Photographs: the front (2025-07), the side and the square behind (2025-11), the crowd (2023); the first statue (1934) was 162 cm on a 180 cm pedestal | The sizes, scaled from the plinth: the dog 1.09 m from his paws to his ears, the forelegs' outer edges 0.44 m apart, the collar 0.57 m up |
@@ -610,6 +642,9 @@ python blender/build_scene.py --city shibuya
 - Hachiko Square: [Wikipedia (ja), 忠犬ハチ公](https://ja.wikipedia.org/wiki/%E5%BF%A0%E7%8A%AC%E3%83%8F%E3%83%81%E5%85%AC),
   [san-tatsu](https://san-tatsu.jp/collects/381997/), [SHIBU HACHI BOX](https://travel.watch.impress.co.jp/docs/news/1276219.html),
   [the Hachiko gate's move](https://tabiris.com/?p=54640), [the relief](https://www.tokyoartbeat.com/articles/-/hachiko-family-news-202501).
+- The way through the station: JR East's notices on the hoarding, photographed 18 February 2026 ([Shibuya Goguynet](https://shibuya.goguynet.jp/2026/02/20/post-7439/)),
+  the plan of the gate's move ([tabiris](https://tabiris.com/archives/shibuya2025/)), the works to fiscal 2027; the hoarding in
+  [June 2025](https://commons.wikimedia.org/wiki/File:In_and_around_Shibuya_Station_2025_June_15_various_04.jpg) (Nesnad, CC BY 4.0). Read for the layout, nothing copied.
 - CROSSING LIGHT: [enjoytokyo](https://www.enjoytokyo.jp/article/202710/), [nippon.com](https://www.nippon.com/en/articles/-/17056),
   [Impress Watch](https://www.watch.impress.co.jp/docs/news/1214693.html).
 - *Persona 5*'s Tokyo and the real places: [Kotaku](https://kotaku.com/persona-5s-in-game-locations-compared-to-the-real-world-1787125885),

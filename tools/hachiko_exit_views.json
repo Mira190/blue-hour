@@ -1,0 +1,10 @@
+[
+  {"name": "exit-dusk", "at": [380, -1042], "eye": [380, -1042], "look": [410, -1030], "lookUp": 5, "time": "sunset+20"},
+  {"name": "exit-near-night", "at": [398, -1031], "look": [410, -1029], "time": "21:00", "dist": 5, "pitch": 0.1},
+  {"name": "exit-in-day", "at": [403, -1028.5], "eye": [403, -1028.5], "look": [425, -1026.5], "lookUp": 1.6, "time": "15:00"},
+  {"name": "exit-in-night", "at": [403, -1028.5], "eye": [403, -1028.5], "look": [425, -1026.5], "lookUp": 1.6, "time": "21:00"},
+  {"name": "walk-in-night", "at": [417, -1028], "look": [432, -1022.5], "time": "21:00", "dist": 4, "pitch": 0.12},
+  {"name": "gate-night", "at": [436.5, -1022.6], "look": [437.5, -1031], "time": "21:00", "dist": 3.5, "pitch": 0.1},
+  {"name": "west-in-day", "at": [447, -1021.3], "look": [428, -1022.5], "time": "15:00", "dist": 4, "pitch": 0.12},
+  {"name": "east-out-night", "at": [466, -1025], "eye": [468, -1026], "look": [452, -1022.5], "lookUp": 3, "time": "21:00"}
+]
