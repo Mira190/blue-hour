@@ -907,7 +907,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
-  const tFoot = performance.now(), crowdNet = OEActors.network(nav.withoutFine(() => cutAtWalls(OERoute.walkable(nav, G.paths.foot, (x, y, z) => roadsNow.depth(x, y, z, 0.3) > 0))));
+  const tFoot = performance.now(), crowdNet = OEActors.network(nav.withoutFine(() => OEActors.join(cutAtWalls(OERoute.walkable(nav, G.paths.foot, (x, y, z) => roadsNow.depth(x, y, z, 0.3) > 0)), (x, y, z) => nav.solid(x, y, z, 0.1), 1.6, (x, y, z) => { const w = nav.walk(x, y, z + 0.6, true); return w.ok && Math.abs(w.z - z) < 0.6 && nav.room(x, y, z, 0.3); }))); // (joined where the footways meet, and led round what cut them: a T with no node, or a pier in the way, was the end of the way to a walker, issue 168)
   console.info(`footways: ${Math.round(performance.now() - tFoot)} ms, the roads cut at the walls ${Math.round(roadMs)} ms`);
   // benches face their footway, or the water behind it; each has two seats the crowd can use
   const benches = nav.withoutFine(() => OEActors.benches(G.props.bench || [], crowdNet, nav)), lamps = G.props.street_lamp || [];
@@ -3119,7 +3119,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }) : null;
   // the walk (walk.js): the story's map with no story in it, the title's first way in. walk: the hour and the sky set
   // out in ({ t, w }), null on the title and in the story; walkUi: its title step and its corner of the screen
-  let walk = null, walkUi = null, tonight = null;
+  let walk = null, walkUi = null, tonight = null, regulars = null; // (regulars: the street's own people, regulars.js)
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
   const padOpen = () => (window.OECredits && OECredits.open() ? OECredits.el : null) || [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-spend', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
@@ -5665,6 +5665,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       tonight = OETonight.create({ stage, data: G.tonight, show, fmt: fmtMin, clock: () => clock.min, on: () => !!walk && walkUi.walking });
       if (trains && trains.setNight && G.tonight.trains) { const n = {}; for (const [k, v] of Object.entries(G.tonight.trains)) n[k] = v.map(S.hm); trains.setNight(n); }
     }
+    // the street's own people (regulars.js, issue 168): a few of the crowd with a routine the clock carries, on the walk
+    if (window.OERegulars && G.regulars && crowd.enlist) regulars = OERegulars.create({ data: G.regulars, crowd, clock: () => clock.min, day: () => clock.y * 372 + clock.m * 31 + clock.d, rain: () => !!(weather && weather.state && weather.state.rain > 0.15), here: () => player, ground: (x, y, z) => { const w = nav.walk(x, y, (z ?? player.z) + 0.6, true); return w.ok ? w.z : null; } });
     // the menu's Bring your car: to the kerb nearest you, as a free ride's own car is called (and the menu put away to see it)
     { const gc = $('#gm-car'); if (gc) on(gc, 'click', () => { toggleMenu(); bringCar(); }); }
     // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
@@ -6310,6 +6312,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
     npcStream(dt, cx, cy);
     crowd.bodies = crowdKeep(cx, cy, false, dt);
+    if (regulars && walk && walkUi.walking) regulars.tick(dt); // (before the crowd's step: whoever is lent to a routine knows where to be)
     crowd.update(dt, cx, cy, clockT, player.mode === 'foot' ? player : player.mode === 'car' ? { x: player.x, y: player.y, h: player.h, speed: myCar.D.st.v, r: 1.1 } : null);
     if (colonies.length) {
       const L = dayLimits();
@@ -7905,7 +7908,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, tonight: () => tonight, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, tonight: () => tonight, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },

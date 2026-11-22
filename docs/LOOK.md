@@ -608,6 +608,16 @@ The material stays opaque; only the crowd's shader reads the alpha (`OE_SKIN_MAS
 it with its head and hair marked too (`pipeline/crowd_cast.py`), so hair keeps its built colour. A character built
 before has no `mask` in `people.json` and is read by colour as it was.
 
+**Holes in the mask** (November 2026). A walker in a dark dress had a navy patch on each knee (the owner: "is that a
+pattern or a bug?"). The mask had left the knees' lit side as cloth, a hole in the skin of each leg in the picture:
+its faces fell short of the count of texels with the hands' hue (a knee is redder than a hand), so the change of
+clothes dyed them the dress's colour. Twenty-three of the fifty masks had holes like it, from a few texels to 6,900.
+`skin_mask` now fills a hole the skin closes round where the picture is skin's colour by the plain test (warm: red
+over green over blue), and carries the mask on into the islands' margins outside every face, where a filter and the
+smaller mipmaps read it at a seam; no garment beside the skin is reached either way. `tools/people_lineup.js DRESS=k`
+draws a cast member in the crowd's change of clothes k, which is where a hole shows (in its own clothes nothing is
+dyed, so the knees looked right).
+
 ### Hair: strands, not a shell (`web/game/people.js`, issue 74)
 
 Every conversation is shot over Kagami's shoulder, so the back of Kagami's head is the asset the player sees most.
