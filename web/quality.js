@@ -180,11 +180,20 @@ window.OEQuality = (function () {
   // a phone's level for this map (see above). oe3d-lv in localStorage sets it, for the tools
   function level(id = mapId()) {
     try { const f = localStorage.getItem('bh-lv'); if (f != null && f !== '') return Math.max(0, Math.min(LIGHTEST, +f || 0)); } catch (e) { /* storage blocked */ }
-    if (!id) return START;
+    if (!id) return first();
     const d = note(`bh-died-${id}`), h = note(`bh-held-${id}`);
     // (a death noted before pages wrote their level was at level 0 or 1, the sets of that time)
     const bad = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1;
-    return Math.max(TOP, Math.min(LIGHTEST, Math.max(h && h.lv != null ? h.lv - 1 : START, bad + 1)));
+    return Math.max(TOP, Math.min(LIGHTEST, Math.max(h && h.lv != null ? h.lv - 1 : first(), bad + 1)));
+  }
+  // where a phone with no record starts: START, or the lightest set on a smaller or older one (a phone's load, November
+  // 2026): three gigabytes or less (Android's Chrome says; Safari does not), or a screen of 700 points or less on its long
+  // side (an iPhone SE's 667; a mini's 812 is above it). (Not the cores: Safari reports a number of its own, and a
+  // desktop browser emulating a phone, as the checks do, reports the machine's.) It climbs from there as any phone
+  // does, a level for each minute held.
+  function first(c = probe()) {
+    const small = (c.memory && c.memory <= 3) || Math.max(screen.width || 0, screen.height || 0) <= 700;
+    return small ? LIGHTEST : START;
   }
   // the game, after a minute of play on a phone: this level fits this map on this device
   function held(id = mapId()) {
