@@ -733,8 +733,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else if (hall.state !== 'ready' || !hall.shown) fail(`SKY GATE's hall is not drawn round you in its lobby (${JSON.stringify(hall)})`);
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
       // (the view comes round to the lift as its offer comes up, once no hand has been on it for a second: game.js, the
-      // prompt's lift. Given up to six seconds of the game's time, a quarter at a time, until the turn is done)
-      const hallView = await p.evaluate(() => { const g = window.__game, l = g.G.lifts.find(q => q.id === 'sky-gate'), s = l.stops[0], want = Math.atan2(s.at[0] - s.door[0], s.at[1] - s.door[1]); let i = 0; for (; i < 24; i++) { g.advance(0.25); if (g.cam.yawTo == null && Math.abs(Math.atan2(Math.sin(g.cam.yaw - want), Math.cos(g.cam.yaw - want))) < 0.35) break; } return { yaw: +g.cam.yaw.toFixed(2), want: +want.toFixed(2), yawTo: g.cam.yawTo, idle: +(g.t() - g.cam.lastInput).toFixed(1), s: (i + 1) * 0.25 }; });
+      // prompt's lift. Given up to six seconds of frames, simulation and camera together (advance() moves the world and
+      // left the camera most of a turn behind), until the turn is done, and half a second more)
+      const hallView = await p.evaluate(() => { const g = window.__game, l = g.G.lifts.find(q => q.id === 'sky-gate'), s = l.stops[0], want = Math.atan2(s.at[0] - s.door[0], s.at[1] - s.door[1]); let i = 0; for (; i < 120; i++) { g.frame(0.05); if (g.cam.yawTo == null && Math.abs(Math.atan2(Math.sin(g.cam.yaw - want), Math.cos(g.cam.yaw - want))) < 0.1) break; } for (let k = 0; k < 10; k++) g.frame(0.05); return { yaw: +g.cam.yaw.toFixed(2), want: +want.toFixed(2), yawTo: g.cam.yawTo, idle: +(g.t() - g.cam.lastInput).toFixed(1), s: +((i + 1) * 0.05).toFixed(2) }; });
       await shot('7a-hall');
       // (and the hall is a picture, not one flat tone from edge to edge: issue 144)
       const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone, 0.6); // (0.6: the lacquered wall across the frame under a strip of the deck was 0.73 of it one tone, and passed at 0.85)

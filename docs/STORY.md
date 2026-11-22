@@ -1745,6 +1745,81 @@ Yamanote's last and first trains), the styles after the walk's stories in `web/g
 `tools/tonight_play.js` sets the clock to just before each moment, checks it happens, and takes its stills on a desktop
 and a phone.
 
+### The street's own people (issue 168, November 2026)
+
+The crowd is a flow: it has no one in it. A place is remembered for the two or three people you came to recognise, so
+ten of the crowd on the walk have a routine that the clock carries and that says who they are without a word
+(`cities/shibuya/city.json` `game.regulars`, `web/game/regulars.js`). They are on the walk only; the case keeps its
+own people.
+
+**Who they are, and from what.** Drawn from what the Scramble holds on an ordinary evening, kept to what could be
+checked in photographs and accounts (sources below) and put where the ground was checked to stand on:
+
+| | Where | When | What says who they are |
+|---|---|---|---|
+| The man who waits | by Hachiko, facing the station's square | 17:30 until she comes | stands, looks to the station; turns when she is there |
+| The one he waits for | out of the station | 17:51 to 18:16, a different minute each night | straight to him, and away with him |
+| The station attendant | at the station's wall on the square | 16:30 to 00:50 | stands at the wall all evening; at 19:38 walks over to the busker |
+| The busker | on Hachiko's square | 18:30 until moved on at 19:40; in the rain under the deck east of the crossing until 21:00 | faces the crossing; leaves after the attendant has come |
+| The tissue hander | the kerb at the crossing's north-west corner | 16:30 to 20:00, not in the rain | faces the people coming off the crossing |
+| The shop girl | her door on Center Gai | 20:30 to the shutters at 21:00 | at the door, then off to the crossing at 21:04 |
+| The patrol, two of them | a round of Center Gai's mouth | every 12 minutes, 18:00 to midnight | walk slowly side by side (Shibuya's street-drinking patrol, since October 2024) |
+| The tourist | at Hachiko | 19:45 to 21:30, once the busker has gone | photographs the dog; turns to look at whoever has stood by her nine seconds, once a night |
+| The salaryman who misses the last train | on the square from 23:10 | 00:28 he makes for the station; back slowly at 00:38 | runs, stands at the station, walks back slower and stands facing it |
+
+The walk's own people (`walk.people`, `walk.events`) and the opening of #164 are one cast with these: the walk's
+story speaks with its people where they stand, and these are the people round them. Where #164's opening has a
+stranger who asks for a photograph, or the one knocked down, they are a speaking part; these never speak.
+
+**Things to find, never announced.** The time the woman comes is drawn from the date, so it is a different minute
+every night and there is no telling when (`vary`, the two routines sharing one draw, `seed`, so that they meet). The
+busker is elsewhere in the rain, and the tissue hander is not there at all. The attendant crosses the square at 19:38
+only when it is dry, and the busker has gone two minutes later. The tourist looks round at you once a night, if you
+have stood by her long enough.
+
+**What it costs, from first principles.** A routine is data: a few rows of a clock time and a place. Where someone is
+at any minute is a function of the clock alone (standing at a row's place, or on the straight way to the next row's,
+timed to be there at its minute), so nobody is stepped while away: four times a second each routine's place is worked
+out (a few subtractions) and nothing more. When you come within 110 m of where the clock puts someone, a walker the
+crowd already has, of the body and the clothes that person wears (`wear`: one of the cast a phone has too, and one of
+its changes of clothes), is lent to the routine where the camera cannot see, and given back beyond 150 m. Nobody
+comes into being within 30 m of the camera, so a routine is lent as you approach. No model, texture, material or draw
+is added: the lent walker is drawn in the slot it always had, and while lent it is walked straight to its goal (one
+comparison a frame, `actors.js` `regStep`). At most six are lent at once; that two or three are in sight is the
+routines' own doing, by where and when they are written. The beat budgets and a phone's memory are unchanged
+(`tools/check.sh budget`, `mem`). A phone keeps the routines whose every place is in its district (`district.py`).
+
+**How games do it, and what was taken.** Learned from their design, nothing copied:
+- *The Legend of Zelda: Majora's Mask*: each scheduled person's script takes the day and the time and returns where
+  they are and what they do; a schedule is a pure function of the clock. Taken: `plan(clock, sky)`.
+  (zeldawiki.wiki, "MM Schedule"; the decompilation project's notes on its schedule scripts.)
+- *Stardew Valley*: one schedule per person in a data file, each entry a time, a place, a facing and an animation,
+  with variants chosen by the day and the rain. Taken: the row (time, place, facing), and the rain variant (`if`).
+  (stardewvalleywiki.com, "Modding:NPC data".)
+- *Oblivion and Skyrim*: AI process levels by distance; an actor out of the player's cell moves by elapsed time along
+  its way, not by its navigation mesh. Taken: out of reach, place from time alone. (cs.uesp.net, "GetProcessLevel".)
+- *Assassin's Creed Unity*: "AI recycling", a pool of full people swapped onto cheap crowd members near the player.
+  Taken: a routine borrows a crowd walker, it does not bring a body of its own. (GDC 2015, "Massive Crowd on
+  Assassin's Creed Unity".)
+- *Unreal's Mass*: levels of detail with a hard count per level. Taken: a cap on those lent at once.
+- *Shenmue*: shops and people run by the in-game clock. A place made of a few recurring people is the lesson of
+  Majora's Mask's Clock Town and Shenmue's Dobuita alike.
+
+**What Shibuya's evening holds, and from where.** Station attendants and the Hachiko exit's koban (gotokyo.org); the
+statue as the meeting place, and the queue to photograph it (gotokyo.org, japantravel.com); buskers moved on by the
+police as an obstruction (Japan Times, 2002); pocket tissues handed out at exits, declining (Japan Times, 2007);
+SHIBUYA109 and MAGNET shutting at 21:00 (their own listings); the ward's patrol against street drinking from 18:00,
+since October 2024, in blue caps (nippon.com); the Yamanote's last trains from Shibuya (`tonight.trains`). Left out
+for want of a source: a woman who feeds the cats behind Center Gai (no record of street cats or feeders there; the
+documented animal of Center Gai's night is the rat), and a delivery rider between two doors (no source for where they
+wait). The butsukari, men who shoulder into people at stations, are #164's to treat, not a routine's.
+
+**Checked by** `tools/regulars_play.js`: every place a routine stands is ground a body can stand on, off the
+carriageway, and every leg is walked straight on it every half metre; at each row's minute and on each leg, clear and
+in the rain, you stand ten metres off and the person is there, within 1.5 m of where the clock puts them (12 m on a
+leg); nobody stays lent two kilometres away; never more than the cap at once. With an out_dir it takes a still of each
+at each of their hours.
+
 ## 11. The voice
 
 - Short lines. Nobody explains the rules; they say what they saw and did, never what it means. The rules come as

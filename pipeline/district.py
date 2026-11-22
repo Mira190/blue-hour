@@ -620,6 +620,12 @@ def cut_game(G, P, scene, R, city):
         out["trains"] = dict(tr, stations=st, tracks=tracks)
 
     # ---- quests: a line keeps its quests up to the first that cannot be finished inside
+    # ---- the street's own people (game.regulars, regulars.js): a routine whose every place is inside
+    rg = G.get("regulars")
+    if rg and rg.get("people"):
+        keep = [r for r in rg["people"] if all(inr(q["at"]) for q in r.get("rows", []) if q.get("at"))]
+        cut["regulars"] = [r["id"] for r in rg["people"] if r not in keep]
+        out["regulars"] = dict(rg, people=keep)
     npcs = {n["id"] for n in out.get("npcs", [])}
     spots = {s["id"] for s in out.get("spots", [])}
     flocks = {f.get("id") for f in out.get("flocks", [])}
