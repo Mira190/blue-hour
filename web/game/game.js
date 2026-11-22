@@ -6497,8 +6497,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     { const hb = heliBlock();
       if (!hb) heliFree = null;
       else {
-        const fx = Math.sin(hb.h), fy = Math.cos(hb.h), at = (x, y) => { const dx = x - hb.x, dy = y - hb.y; return Math.abs(dx * fx + dy * fy) < hb.half && Math.abs(-dx * fy + dy * fx) < hb.hw; };
-        const inside = c => { const cx = Math.sin(c.h), cy = Math.cos(c.h); for (const [u, v] of [[0, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) if (at(c.x + cx * c.half * u - cy * c.hw * v, c.y + cy * c.half * u + cx * c.hw * v)) return true; return false; }; // (any of it: its middle or a corner)
+        // (any of it under it: the two boxes overlap, by their four axes; a car alongside, its side over the edge, its corners and
+        // middle all outside, was not counted and drove out under the rotor's edge)
+        const boxesOverlap2 = (A, B) => { for (const P of [A, B]) for (let i = 0; i < 4; i++) { const a = P[i], b = P[(i + 1) % 4], nx = b[1] - a[1], ny = a[0] - b[0];
+          let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity; for (const q of A) { const d = q[0] * nx + q[1] * ny; a0 = Math.min(a0, d); a1 = Math.max(a1, d); } for (const q of B) { const d = q[0] * nx + q[1] * ny; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+          if (a1 <= b0 || b1 <= a0) return false; } return true; };
+        const rect = (x, y, h, hl, hw) => { const ux = Math.sin(h), uy = Math.cos(h); return [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([u, v]) => [x + ux * hl * u - uy * hw * v, y + uy * hl * u + ux * hw * v]); };
+        const HB = rect(hb.x, hb.y, hb.h, hb.half, hb.hw), inside = c => boxesOverlap2(HB, rect(c.x, c.y, c.h, c.half, c.hw || 0.9));
         if (!heliFree) heliFree = new Set(cars.live.filter(c => c.line >= 0 && Math.abs(c.z - hb.z) < 3 && inside(c)));
         else for (const c of heliFree) if (c.line < 0 || !inside(c)) heliFree.delete(c);
         cars.extra.push(Object.assign(hb, { v: 0, line: 0, soft: false, ps: null, np: 0, mv: null, live: true, free: heliFree }));

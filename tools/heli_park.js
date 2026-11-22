@@ -141,9 +141,11 @@ const CLEAR = 3;
     if (go.hits.length) fail(`${tag}: the traffic drove into it as it started up: ${go.hits.join('; ')}`);
     if (go.left == null) fail(`${tag}: walked away 40 m, it did not leave in 14 s (${await p.evaluate(() => window.__game.heliHomeWhy())})`);
     else if (go.unseen) fail(`${tag}: walked away with it in view, it was put back on its pad unseen instead of flown (${go.left} s; ${await p.evaluate(() => window.__game.heliHomeLast())}; you at ${away.map(v => v.toFixed(0))})`);
-    else { ok(`${tag}: walked away, its pilot started it up after ${go.left} s`); // (from behind your shoulder, looking up at it: the camera set by hand, which a held world draws as it is)
-      await p.evaluate(() => { const g = window.__game, st = g.heli.st, me = g.player, c = g.camera, d = Math.hypot(st.x - me.x, st.y - me.y), ux = (st.x - me.x) / d, uy = (st.y - me.y) / d;
-        c.position.set(me.x - ux * 4 + uy * 1.2, me.z + 2.2, -(me.y - uy * 4 - ux * 1.2)); c.up.set(0, 1, 0); c.lookAt(st.x, st.z + 1, -st.y); c.updateMatrixWorld(); });
+    else { ok(`${tag}: walked away, its pilot started it up after ${go.left} s`); // (from 30 m down the street it stood in, 3 m up, looking up at it: the camera set by hand, which a held world draws as it is; the road's own line is open)
+      await p.evaluate(s => { const g = window.__game, st = g.heli.st, c = g.camera; for (const k of [1, -1]) { const x = s.x + Math.sin(s.h) * 30 * k, y = s.y + Math.cos(s.h) * 30 * k;
+          let open = true; for (let u = 0.05; u < 0.95; u += 0.05) if (g.nav.groundBelow(x + (st.x - x) * u, y + (st.y - y) * u, s.z + 40) > s.z + 2) open = false;
+          if (open || k === -1) { c.position.set(x, s.z + 3, -y); break; } }
+        c.up.set(0, 1, 0); c.lookAt(st.x, st.z + 1.5, -st.y); c.updateMatrixWorld(); }, spot);
       await p.waitForTimeout(800); await p.screenshot({ path: `${out}/${tag}-2-lift-off.png`, timeout: 180000 }); }
     const fly = await run(90, { stay: away, cam: true, look: true });
     const path = go.path.concat(fly.path);
