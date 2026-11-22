@@ -70,6 +70,11 @@
 #           tools/model_contract.py reads them, goes to the page's checks like code);
 #   story1, story2, story3  the story in three parts, each on its own runner (frames 1 to 4; 5 and 6 from a late start; 7
 #           and the last card from one): what "story" checks, in a third of the time; CHECK_SPLIT=1 --plan names them for "story"
+#   storyp  the story on a phone's page by touch (390 x 844, the low tier): every answer, line, camera, release, hint, roll
+#           and card a tap where the thing is on the screen; one that cannot be tapped fails (TOUCH=1, issue 120)
+#   storyl  the story down its losing branches, as the man: seen through at frames 3, 5 and 6 and told at 7, the false
+#           solution said aloud and the lecturer named, frame 5 spent, and frame 3 gone back into from the last card
+#           (PLAYER=M SLIP=3,5,6,7 CHOOSE=3:0,4:0 SPEND=5 BACKTO=3). Both on main's full tier only, a runner each
 #   walk1, walk2, guide1, guide2  the walk's desktop page and its phone's, the guide's ways and his body: a runner each
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
@@ -81,7 +86,7 @@
 #   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
-#   tools/check.sh all                  # static look launch story guide walk ride mem audio clip gl touch astc
+#   tools/check.sh all                  # static look launch story storyp storyl budget guide walk ride mem audio clip gl touch astc
 #   tools/check.sh --plan               # print the targets a run would check, one a line, and stop
 #   tools/check.sh --wait [s]           # on a session's machine a run is a job (tools/job.sh): wait on it again (540 s)
 #   tools/check.sh --status | --stop    # what the run is doing; or stop it and its browsers
@@ -100,8 +105,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look launch mem astc audio ride story story1 story2 story3 budget walk walk1 walk2 guide guide1 guide2 clip gl touch game"
-ALL="look launch story budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look launch mem astc audio ride story story1 story2 story3 budget storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+ALL="look launch story storyp storyl budget guide walk ride mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -139,7 +144,7 @@ eta() {
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
   case $1 in static) echo 35 ;; look) echo 15 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; clip) echo 800 ;;
-    story|guide) echo 1180 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
+    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
 static=0 want= base= looks=
@@ -178,7 +183,7 @@ else
   # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
   # (the story in its three parts on the fast tier: side by side where the machine has the cores and the memory, each
   # kept or played by itself, so that a change only frame 7 runs plays frame 7; docs/CHECKS.md, "Checks by reach")
-  page() { if [ "$TIER" = full ]; then add story budget walk mem clip gl touch launch; else add story1 story2 story3 walk1 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
+  page() { if [ "$TIER" = full ]; then add story storyp storyl budget walk mem clip gl touch launch; else add story1 story2 story3 walk1 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -364,6 +369,26 @@ run_budget() {
     printf 'ok   %-6s the episode played as a phone plays it; %s\n' budget "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
     beats_of budget phone "$OUT/budget-budget.jsonl"
   else printf 'FAIL %-6s %s   (see %s)\n' budget "$(why "$log")" "$log"; fi
+}
+# The story on a phone's page, by touch (issue 120): the win played with a finger, as the desktop's is with keys. No
+# still but a failed step's, one frame in sixty drawn, one device pixel to the point: what it checks is that every
+# thing the story asks for can be reached and tapped on that screen, to the last card (budget counts the phone's frames)
+run_storyp() {
+  local log="$OUT/storyp.log"
+  if CHROME_LOG="$OUT/storyp-chrome.log" TOUCH=1 PHONE=1 TIER=low STILLS=${STILLS:-0} DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/storyp" 390x844 >"$log" 2>&1; then
+    printf 'ok   %-6s the episode played by touch on a phone'"'"'s page, %s; %s\n' storyp "$(grep -o '^touch: [0-9]* taps' "$log" | tail -1 | cut -c8-)" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+  else printf 'FAIL %-6s %s   (see %s; STILLS=1 tools/check.sh storyp for its pictures)\n' storyp "$(why "$log")" "$log"; fi
+}
+# The story down its losing branches (issue 120), which no other check plays: the man; a lie at the police box, two
+# guesses at the foreman and at the old man's pitch, each seen through and asked again (issue 93), and the summation
+# answered wrongly until she says it herself; the false solution said aloud and the lecturer named, and everything said
+# only to one who chose so; frame 5 spent from the wrong place, its card kept once and then spent, and the summation's
+# first question asked in words alone for it; and from the last card frame 3 gone back into and played to its print
+run_storyl() {
+  local log="$OUT/storyl.log"
+  if CHROME_LOG="$OUT/storyl-chrome.log" PLAYER=M SLIP=3,5,6,7 CHOOSE=3:0,4:0 SPEND=5 BACKTO=3 STILLS=${STILLS:-0} DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/storyl" 800x500 >"$log" 2>&1; then
+    printf 'ok   %-6s the losing branches played as the man: seen through %s times and told once, the accusation, a frame spent, a frame gone back into; %s\n' storyl "$(grep -c ': seen through$' "$log")" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+  else printf 'FAIL %-6s %s   (see %s; STILLS=1 tools/check.sh storyl for its pictures)\n' storyl "$(why "$log")" "$log"; fi
 }
 run_guide() { run_guide1; run_guide2; }   # the guide along each frame's way, on a small page; and his body and the player's never in each other
 run_guide1() {   # (a runner each: CHECK_SPLIT=1)
