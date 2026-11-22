@@ -1317,6 +1317,9 @@ from what a player wants of it, not from the old free game this map once had:
 - **What it is for.** To be at the crossing at an hour you choose and move at your own pace; to look round before the
   case, and to stay out in the night after it. The place is the whole of it: the hundred metres the hero level is, the
   crowd, the screens, the rain. Nothing in it is owed: no goal, no light standing in the street, no clock running out.
+- **Where it ends.** The walk and the story keep to the planned area round the Scramble, on foot, by car and in the air:
+  road works close the streets at its edge, a walker is turned back in, a car stops short of the barriers, the tower
+  turns the helicopter round, and nothing offers a place past it ([BOUNDS.md](BOUNDS.md)).
 - **What it must not cost the story.** Nothing of the case is in it: no Stop, no afterimage, no 1964 in the finder, no
   dog. Walked first, it spoils nothing; walked after, it undoes nothing.
 - **One world, not two games.** The same Kagami, the same evening's screens, the story's own card, type and amber. The
