@@ -3025,7 +3025,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the view turned towards a place (gently, and never against the player's own hand on it)
     // (level: and up from looking down, or down from looking up, to the chase camera's own height: the roof's picture is taken
     // looking straight down at the street, and the helicopter to get into after it was out of a view still pointed down)
-    look: (at, level = false) => { if (player.mode !== 'foot') return; cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); if (level) cam.pitchTo = FOOT.pitch; },
+    // (room: where the chase camera has no place behind your shoulder that way, the story walks you the few steps to
+    // where it has, and turns the view then. Issue 139: frame 5 begins 0.9 m from the roof's east glass with the
+    // helicopter behind you. Turned to it at once, the camera's place was outside the glass, which it cannot look in
+    // through, and only its highest lift cleared the pane: the first view of the roof was straight down on your head.
+    // Now you turn from the glass and walk in, seen from the deck with the city behind you, and the view comes round
+    // to the pad over your shoulder as you stop. The game's own walk, player.auto: a step of yours ends it)
+    look: (at, level = false, room = false) => {
+      if (player.mode !== 'foot') return;
+      const turn = () => { cam.yawTo = Math.atan2(at[0] - player.x, at[1] - player.y); if (level) cam.pitchTo = FOOT.pitch; };
+      const to = room && !reduced ? lookRoom(at) : null;
+      if (to) player.auto = { x: to[0], y: to[1], t: 0, label: '', then: turn, cancel: turn };
+      else turn();
+    },
     // the air of the scene (stopfx.js): leaves coming down and birds going over, there before time stops and held when it does
     air: opts => { if (stopFx) stopFx.air(W(player.x, player.y, player.z), opts || {}); },
     // a car sent for you (a frame's `ride`: {to: [x, y], name}): it comes to the kerb, E gets in, and it drives you there
@@ -7433,6 +7445,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         else cam.seek = true;
       }]],
       onEnd: () => { liftHop = -1; if (A.liftChime) A.liftChime(); H.toast(`${b.name}.`); } });
+  }
+  // where to step to for a view turned to `at` [x, y]: null where the chase camera already has its place behind your
+  // shoulder that way, else the nearest place toward it, within 6 m and walked to in a straight line, where it has
+  function lookRoom(at) {
+    const dx = at[0] - player.x, dy = at[1] - player.y, L = Math.hypot(dx, dy);
+    if (L < 3) return null;
+    const fx = dx / L, fy = dy / L, z = player.z, yaw = Math.atan2(fx, fy), cp = Math.cos(FOOT.pitch) * FOOT.dist;
+    const clearAt = (x, y) => { const hd = W(x, y, z + 1.55), c = new THREE.Vector3(hd.x - Math.sin(yaw) * cp, hd.y + Math.sin(FOOT.pitch) * FOOT.dist, hd.z + Math.cos(yaw) * cp); return nav.clearFraction(hd, c) >= 0.97; };
+    if (clearAt(player.x, player.y)) return null;
+    for (let d = 0.5; d <= Math.min(6, L - 2) + 0.01; d += 0.5) {
+      const x = player.x + fx * d, y = player.y + fy * d;
+      if (!nav.walk(x, y, z, true).ok || !nav.room(x, y, z, 0.35)) return null;
+      if (clearAt(x, y)) return [x + fx * 1.2, y + fy * 1.2]; // (the walk ends 0.7 m short of where it is sent; half a metre past the first clear place)
+    }
+    return null;
   }
   // where a lift's stop lets you out to: along its face, the nearest place within 3.5 m that can be walked to in a
   // straight line and has the chase camera's place behind your shoulder clear (nav.clearFraction); [x, y] or null

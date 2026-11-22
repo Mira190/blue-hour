@@ -1001,6 +1001,29 @@ measured; whether the heliport's paint is the H and circle drawn here, or the co
 the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
 there; and it has been seen on a software renderer only.
 
+### The first view of the roof in frame 5 (issue 139)
+
+Frame 5 begins where frame 4's photograph was taken, 0.9 m from the roof's east glass, and the story turns the view to
+the helicopter's pad behind her. The chase camera's place for that view is outside the glass, which it cannot look in
+through, so only its highest lift cleared the pane: the first view of the roof was straight down on her head, the pad
+not in it, until she had walked a few metres off the glass. Of the two ways the issue set out (the camera looking in
+through glass, or the frame beginning a few steps in), the second was taken: a lens that stands outside the tower
+230 m up to look back in is a view nobody on the roof has.
+
+The story's `look` can now ask for room (`game.js` `look(at, level, room)`, `lookRoom`): where the camera has no place
+behind her shoulder for the view asked, the game walks her toward what is looked at, to the first place within 6 m
+where it has (its own walk, `player.auto`; a step of the player's ends it), and turns the view as she stops. In frame
+5 she turns from the glass and walks in while the office rings, seen from the deck with the city she photographed
+behind her, and the view comes round to the pad and the helicopter over her shoulder: the lens 2.6 m over her feet
+(6 m before), the helicopter in the middle of the frame, on a desktop and a phone
+(`docs/images/sky/roof-first-139.jpg`). `tools/story_play.js` holds it there: at the board's beat the lens is no more
+than 3.6 m over her feet with the helicopter inside the frame, five frames given no time do not move it, and five
+stills a second apart (`5-board-held-0` to `4`) show it standing still.
+
+Where it still falls short: the first second of the frame is still frame 4's look down over the glass, while she
+turns; the story's caption from the print before stands across the middle of a phone's frame as the view arrives.
+Not seen: a real GPU, Safari or iOS.
+
 ### SKY STAGE at blue hour (issue 125)
 
 From the launch review: at 17:31 the roof was a near-black floor with no material to read, the glass a thin line, and
