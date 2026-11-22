@@ -1,32 +1,32 @@
 {
  "note": "A city's road plan as pipeline/road_plan.py decided it (docs/ROADS.md): the report, and every end of the network that is not a junction.",
  "report": {
-  "pieces": 4901,
-  "km": 360.18,
+  "pieces": 4905,
+  "km": 360.36,
   "closed": 9,
-  "closed_km": 0.84,
+  "closed_km": 0.8,
   "closed_why": {
-   "the built model stands across it": 5,
-   "no car fits along it": 4
+   "the built model stands across it": 6,
+   "no car fits along it": 3
   },
-  "quiet": 370,
-  "quiet_km": 24.29,
-  "bus": 1196,
-  "bus_km": 97.27,
-  "one_way": 1652,
+  "quiet": 363,
+  "quiet_km": 23.64,
+  "bus": 1206,
+  "bus_km": 97.92,
+  "one_way": 1656,
   "node_degrees": {
-   "1": 566,
-   "2": 139,
+   "1": 561,
+   "2": 145,
    "3": 2130,
-   "4": 587,
-   "5": 33,
+   "4": 586,
+   "5": 34,
    "6": 5,
    "7": 1
   },
   "ends": {
    "gate": 230,
    "dead end": 329,
-   "closure": 7
+   "closure": 2
   },
   "extent": [
    -2700.0,
@@ -35,10 +35,10 @@
    900.0
   ],
   "survey": {
-   "matched": 4891,
+   "matched": 4895,
    "unmatched": 10,
-   "class_agrees": 4891,
-   "one_way_agrees": 4890,
+   "class_agrees": 4895,
+   "one_way_agrees": 4894,
    "one_way_differs": [
     [
      4003,
@@ -54,7 +54,9 @@
   "bus_routes": 113,
   "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-22): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
   "one_way_from_osm": 9,
-  "gaps_joined": 0
+  "gaps_joined": 0,
+  "joined_under_cover": 4,
+  "solids_raised_over_a_road": 0
  },
  "ends": [
   {
@@ -65,37 +67,7 @@
    "kind": "closure",
    "piece": 4287,
    "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
-  },
-  {
-   "at": [
-    471.0,
-    -1204.6
-   ],
-   "kind": "closure",
-   "piece": 4289,
-   "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
-  },
-  {
-   "at": [
-    474.3,
-    -1210.2
-   ],
-   "kind": "closure",
-   "piece": 4286,
-   "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
-  },
-  {
-   "at": [
-    479.8,
-    -1217.4
-   ],
-   "kind": "closure",
-   "piece": 4154,
-   "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+   "beyond": "the built model stands across it"
   },
   {
    "at": [
@@ -105,27 +77,7 @@
    "kind": "closure",
    "piece": 4288,
    "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
-  },
-  {
-   "at": [
-    513.5,
-    -1193.9
-   ],
-   "kind": "closure",
-   "piece": 4285,
-   "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
-  },
-  {
-   "at": [
-    516.2,
-    -1201.2
-   ],
-   "kind": "closure",
-   "piece": 4153,
-   "class": "trunk",
-   "beyond": "Route 246 goes on under the station's viaduct (OpenStreetMap: covered); the station's rebuilding works close it here"
+   "beyond": "the built model stands across it"
   },
   {
    "at": [

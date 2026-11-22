@@ -140,6 +140,90 @@ def join_gaps(roads, max_m=7.0):
     return n
 
 
+def join_under(cid, roads, unders):
+    """A road the survey takes on under cover (a trunk road under a station's viaduct), which the data's builder leaves
+    out as a tunnel: the one-way pieces that end either side of the place are joined across it, each end that arrives
+    to the end it lines up with that leaves (pieces marked j: 1, made again on every run), and the solids over the
+    joined lines are raised to stand `clear` metres over the road (buildings.json min_dm: the viaduct is a deck over
+    the road, not a wall across it). unders: [{"at": [x, y], "r": m, "clear": m, "why": ...}]. Returns (joins, solids)."""
+    roads[:] = [o for o in roads if not o.get("j")]
+    if not unders:
+        return 0, 0
+    P = [pts_of(o) for o in roads]
+    node = collections.defaultdict(list)
+    for i, p in enumerate(P):
+        if len(p) > 1:
+            node[key_of(p[0, 0], p[0, 1])].append((i, 0))
+            node[key_of(p[-1, 0], p[-1, 1])].append((i, 1))
+    loose = [v[0] for v in node.values() if len(v) == 1]
+    new, lines = [], []
+    for u in unders:
+        near = [(i, e) for i, e in loose if math.hypot(P[i][-1 if e else 0, 0] - u["at"][0], P[i][-1 if e else 0, 1] - u["at"][1]) < u["r"] and roads[i].get("o")]
+        # an end the traffic arrives at (the piece's way leads to it), and one it leaves from
+        arrives = [(i, e) for i, e in near if (roads[i]["o"] == 1) == (e == 1)]
+        leaves = [(i, e) for i, e in near if (i, e) not in arrives]
+        pairs = []
+        for i, e in arrives:
+            a = P[i][-1 if e else 0]
+            da = a[:2] - P[i][-2 if e else 1][:2]
+            for j, f in leaves:
+                b = P[j][-1 if f else 0]
+                db = P[j][-2 if f else 1][:2] - b[:2]
+                gap = b[:2] - a[:2]
+                d = float(np.hypot(*gap))
+                if d < 3 or d > 2 * u["r"]:
+                    continue
+                ca, cb = np.dot(da, gap) / (np.hypot(*da) * d or 1), np.dot(db, gap) / (np.hypot(*db) * d or 1)
+                if ca > 0.94 and cb > 0.94:
+                    pairs.append((2 - ca - cb, i, e, j, f, d))
+        used_a, used_b = set(), set()
+        for _, i, e, j, f, d in sorted(pairs):
+            if (i, e) in used_a or (j, f) in used_b:
+                continue
+            used_a.add((i, e)), used_b.add((j, f))
+            a, b = P[i][-1 if e else 0], P[j][-1 if f else 0]
+            n = max(2, int(d / 8) + 1)
+            pts = [a + (b - a) * k / (n - 1) for k in range(n)]
+            src = roads[i]
+            piece = {"c": src["c"], "v": src.get("v", 13.9), "p": [int(round(v * 10)) for q in pts for v in q], "o": 1, "j": 1}
+            ka, kb = len(src["p"]) - 3 if e else 0, len(roads[j]["p"]) - 3 if f else 0
+            piece["p"][:3], piece["p"][-3:] = src["p"][ka:ka + 3], roads[j]["p"][kb:kb + 3]
+            if src.get("nl"):
+                piece["nl"] = src["nl"]
+            new.append(piece)
+            lines.append((LineString([q[:2] for q in pts]), max(a[2], b[2]), u.get("clear", 4.7)))
+            # (and the pieces it joins, as far as the cover reaches: r past the place)
+            for k in (i, j):
+                near = LineString(P[k][:, :2]).intersection(Point(*u["at"]).buffer(u["r"] + 30))
+                if near.geom_type == "LineString" and near.length > 1:
+                    lines.append((near, max(a[2], b[2]), u.get("clear", 4.7)))
+    roads.extend(new)
+    # the solids over the joined lines: a deck over the road
+    n_s = 0
+    bp = os.path.join(ROOT, "web", "data", cid, "buildings.json")
+    if lines and os.path.exists(bp):
+        B = json.load(open(bp, encoding="utf8"))
+        f = B["s_fields"]
+        k_base, k_min, k_top, k_ring = f.index("base_dm"), f.index("min_dm"), f.index("top_dm"), f.index("ring_dm")
+        for s in B["s"]:
+            r = np.asarray(s[k_ring], np.float64).reshape(-1, 2) / 10
+            if len(r) < 3:
+                continue
+            for line, z, clear in lines:
+                x0, y0, x1, y1 = line.bounds
+                if r[:, 0].max() < x0 - 8 or r[:, 0].min() > x1 + 8 or r[:, 1].max() < y0 - 8 or r[:, 1].min() > y1 + 8:
+                    continue
+                if Polygon(r).buffer(0).distance(line) > 6.0:   # (the carriageway's half width: the road's line and its lanes)
+                    continue
+                want = int(math.ceil((z + clear) * 10 - s[k_base]))
+                if s[k_min] < want and s[k_top] > want + 5:
+                    s[k_min] = want
+                    n_s += 1
+        if n_s:
+            json.dump(B, open(bp, "w"), separators=(",", ":"))   # as build_scene.py and road_passages.py write it
+    return len(new), n_s
+
+
 def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None, closures=()):
     """Write x, e, q and b on the road pieces (dicts of game.json paths.road) and return a report.
 
@@ -438,6 +522,9 @@ def main():
     roads = game["paths"]["road"]
     cfg, rp, measured, bus, osm = load(a.city)
     before = flags(roads)
+    n_before = len(roads)
+    n_under, n_solids = join_under(a.city, roads, rp.get("under", [])) if not a.check else (0, 0)
+    before = flags(roads)
     n_ow = one_ways(roads, osm) if osm else 0
     n_join = join_gaps(roads)
     rep, ends, through, succ = plan(roads, closed=rp.get("closed", []), gates=rp.get("gates", []), measured=measured, bus_lines=bus, closures=rp.get("closures", []))
@@ -457,6 +544,9 @@ def main():
         rep["bus_routes"] = len(osm.get("routes", []))
     rep["measured"] = (measured or {}).get("source", "")
     rep["one_way_from_osm"], rep["gaps_joined"] = sum(1 for o in roads if o.get("ow")), n_join
+    rep["joined_under_cover"], rep["solids_raised_over_a_road"] = n_under, n_solids
+    if n_under or n_solids:
+        print(f"  {n_under} pieces joined under cover, {n_solids} solids raised to stand over the road (buildings.json: run the passes after it and pipeline/pack.py)")
     json.dump(game, open(gp, "w"), separators=(",", ":"))   # as game_data.py writes it
     out = os.path.join(ROOT, "cities", a.city, "road_plan.json")
     json.dump({"note": "A city's road plan as pipeline/road_plan.py decided it (docs/ROADS.md): the report, and every end of the network that is not a junction.",

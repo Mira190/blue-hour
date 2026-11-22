@@ -335,6 +335,9 @@ def meshes(Mesh):
                 continue
             hit.sort(key=lambda q: side.project(q))
             a, b = hit[0], hit[-1]
+            mid = Point((a.x + b.x) / 2, (a.y + b.y) / 2)
+            if any(o is not u and o["line"].distance(mid) < o["hw"] - 0.5 for o in U):
+                continue   # (in the next carriageway of the same road: the bridge spans them all, its abutments outside)
             top = []
             for q in (a, b):
                 t = min(L["tracks"], key=lambda t: t["geom"].distance(q))
