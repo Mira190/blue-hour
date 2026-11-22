@@ -1,6 +1,6 @@
 // The Credits screen (web/credits.js) on a desktop's page (1440x900) and a phone's (390x844): opened from the title's
-// menu and from the pause menu, read, its measurements switched off and on, and closed. Stills of each go to out_dir.
-// It fails: no Credits row on the title's menu; a screen without the map's sources, the works, the version or the
+// options and from the pause menu, read, its measurements switched off and on, and closed. Stills of each go to out_dir.
+// It fails: a Credits row on the title's menu, or none under its options (issue 186: the menu is the ways in); a screen without the map's sources, the works, the version or the
 // switch; text wider than the screen; a switch that leaves the visitor id in the browser or lets another event out;
 // a page that measures again after it was switched off; Esc or Back that does not give back the screen beneath.
 // The page's events are sent to this machine (?telemetry=<url>, as tools/telemetry_check.js does) and counted here.
@@ -44,17 +44,20 @@ const ok = m => console.log(`ok   ${m}`);
     if (touch) await p.tap('#gt-press'); else await p.keyboard.press('Space');
     await p.waitForFunction(() => document.getElementById('g-title').dataset.screen === 'menu', null, { timeout: 20000 });
     await p.waitForTimeout(1600);
-    const row = await p.evaluate(() => { const r = document.getElementById('gt-credits-go'), o = document.getElementById('gt-opts-go'), a = r && r.getBoundingClientRect(), c = o.getBoundingClientRect();
-      return r && r.offsetParent ? { w: Math.round(a.width), h: Math.round(a.height), ow: Math.round(c.width), oh: Math.round(c.height), bottom: Math.round(a.bottom), vh: innerHeight } : null; });
-    if (!row) fail(tag('the title\'s menu has no Credits row'));
-    else if (row.w !== row.ow || row.h !== row.oh) fail(tag(`the Credits row is ${row.w}x${row.h}, the Options row ${row.ow}x${row.oh}`));
-    else if (row.bottom > row.vh) fail(tag(`the Credits row ends at ${row.bottom}, under the screen's ${row.vh}`));
-    else ok(tag(`the title's menu has its Credits row, ${row.w}x${row.h} as the others, ending at ${row.bottom} of ${row.vh}`));
+    if (await p.evaluate(() => [...document.querySelectorAll('#g-title .gt-go [data-credits]')].some(e => e.offsetParent))) fail(tag('the title\'s menu has a Credits row: the credits are under its Options'));
     await snap('1-menu');
-
-    // from the title: by the keys on a desktop (down to the row, Enter), by a tap on a phone
-    if (touch) await p.tap('#gt-credits-go');
-    else { for (let i = 0; i < 8 && !(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-credits-go')); i++) await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); }
+    // from the title: its Options, then the Credits row under them; by the keys on a desktop (down to the row, Enter), by a tap on a phone
+    if (touch) await p.tap('#gt-opts-go');
+    else { for (let i = 0; i < 8 && !(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-opts-go')); i++) await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); }
+    await p.waitForFunction(() => document.getElementById('g-title').dataset.screen === 'opts', null, { timeout: 10000 }).catch(() => {});
+    await p.waitForTimeout(1000);
+    const row = await p.evaluate(() => { const r = document.getElementById('gt-opts-credits'), a = r && r.getBoundingClientRect(); return r && r.offsetParent ? { bottom: Math.round(a.bottom), h: Math.round(a.height), vh: innerHeight, last: r === r.parentNode.lastElementChild } : null; });
+    if (!row) fail(tag('the title\'s options have no Credits row'));
+    else if (!row.last || row.bottom > row.vh || row.h < 44) fail(tag(`the Credits row under the options: last ${row.last}, ${row.h} high, ending at ${row.bottom} of ${row.vh}`));
+    else ok(tag(`the title's options end on the Credits row, ${row.h} high, at ${row.bottom} of ${row.vh}`));
+    await snap('1-opts');
+    if (touch) await p.tap('#gt-opts-credits');
+    else { for (let i = 0; i < 8 && !(await p.evaluate(() => document.activeElement && document.activeElement.id === 'gt-opts-credits')); i++) await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); }
     await p.waitForFunction(() => { const c = document.getElementById('g-credits'); return c && !c.hidden && c.querySelector('.cr-place .cr-row'); }, null, { timeout: 20000 }).catch(() => {});
     await p.waitForFunction(() => +getComputedStyle(document.getElementById('g-credits')).opacity > 0.99, null, { timeout: 5000 }).catch(() => {});
     await p.waitForTimeout(300);

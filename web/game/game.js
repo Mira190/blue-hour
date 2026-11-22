@@ -2438,7 +2438,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (c && c.action === 'set_weather' && weather) {
         if (c.date || c.time) { const [m, d] = c.date || [clock.m, clock.d]; setClock(clock.y, m, d, c.time ? S.hm(c.time) : clock.min); }
         weather.set(c.weather || 'rain');
-        H.toast(`${OEWeather.NAMES[c.weather || 'rain']}${c.time ? ` at ${c.time}` : ''}${c.date ? `, ${c.date[1]} ${MONTHS[c.date[0] - 1]}` : ''}. Change it in the menu (Esc).`);
+        H.toast(`${OEWeather.NAMES[c.weather || 'rain']}${c.time ? ` at ${c.time}` : ''}${c.date ? `, ${c.date[1]} ${MONTHS[c.date[0] - 1]}` : ''}. Change it in the menu${touch ? '' : ' (Esc)'}.`);
       }
       if (c && c.action === 'dusk') { const t = Math.round(dayLimits().sunset) - 10; setClock(clock.y, clock.m, clock.d, t); H.toast(`Time set to ${fmtMin(t)}, ten minutes before sunset`); }
       startQuest(l, q);
@@ -3702,7 +3702,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (the menu, the story's screen and the options: Enter presses the button the hand is on, else the screen's first way
       // in; up and down move the hand along what the screen offers, from that first way; Esc goes back a screen: the
       // question of the evening again to its episode, the story and the options to the menu, the menu to the press)
-      const along = scr === 'story' ? [...$$('#gt-eps .gt-roll button'), ...$$('#gt-eps .gt-go > .btn')] : scr === 'opts' ? $$('#gt-opts .gt-opts-list :is(button, input)')
+      const along = scr === 'story' ? [...$$('#gt-eps .gt-roll button'), ...$$('#gt-eps .gt-go > .btn')] : scr === 'opts' ? $$('#gt-opts :is(.gt-opts-list :is(button, input), #gt-opts-credits)')
         : [...$$('#g-title .gt-card .gt-go > .btn'), $('#gt-who-line')];
       if (c === 'Enter') { e.preventDefault(); press(onBtn || titleLead()); }
       else if (c === 'Escape' || (c === 'Backspace' && scr !== 'menu')) {
@@ -6168,7 +6168,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // only the drops); then resolution to its floor. The people keep their models and the city its detail: a
   // crowd of boxes is not a city. Resolution, the reflections and the contact shadows come back as the frame
   // time allows, and so does the weather this session's shedding took (weather.js shed: a device that began with it off keeps it off).
-  let fpsWarned = false;
   // The ladder's rungs (quality.js rung: the value with every extra, at half, with none), in the order of what is
   // missed least; resolution moves on its own between them (above). Two-way: each comes back as the frames allow.
   // (weather.js gives back what this session's shedding took, and keeps off what started off)
@@ -6193,7 +6192,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (gov.auto) try { localStorage.setItem(GOV_KEY, `${+scale.toFixed(2)}/${extras}`); } catch (e) { /* storage blocked */ }
     if (!extrasChanged) return;
     console.info(`Frame budget: extras ${extras}, scene scale ${scale.toFixed(2)}`, gov.ladder);
-    if (extras === 0 && !fpsWarned && !navigator.webdriver) { fpsWarned = true; H.toast('Running slowly? Lower the crowd density in the menu (Esc).'); }
   });
   // The frame's own writes to the page (issue 352): each of the HUD's nodes is looked up once, and its text is
   // written only when it changes. A text node replaced every frame, though with the same words, is a style and
