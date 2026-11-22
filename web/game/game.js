@@ -854,7 +854,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (at.deck) return at.z;
     const s = nav.surfaceAt(x, y, at.z);
     if (s > -Infinity && Math.abs(s - at.z) < 1.5) return s;
-    return nav.offGround(x, y) ? null : nav.terrain(x, y) + nav.lift(x, y); // (a hero level's paving over the ground: nav.js lift)
+    if (nav.offGround(x, y)) return null;
+    // (a hero level's paving over the ground: nav.js lift; and paving a landmark draws over it, stood on as floorAt stands the
+    // player on it: the crowd walked 5 cm under the floor of the station's passage, where the player stood on it)
+    const t = nav.terrain(x, y) + nav.lift(x, y), pv = nav.paveAt(x, y);
+    return pv !== undefined && pv > t && pv < t + 1.5 ? pv : t;
   };
   // footways and roads that run into a building (an arcade, a station's concourse, a street under a
   // railway station's viaduct: the model's buildings are solid from the ground up) end at its wall, so
