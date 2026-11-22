@@ -1938,7 +1938,7 @@ transformed = crowdPose(transformed, false);`);
     // up to LEAN_MAX (fourteen degrees): the rim on that side rises and the canopy's middle moves off, as people do it. From who stood
     // where a frame ago (umbGrid, in cells), eased over a third of a second, in the world's plan (p.umbLx, p.umbLy,
     // radians); not worked past LEAN_M from the lens
-    const LEAN_MAX = 0.24, LEAN_K = 1.3, LEAN_M = 40, UCELL = 1.3;
+    const LEAN_MAX = 0.24, LEAN_K = 1.3, LEAN_M = 40, UCELL = 1.3, LEAN_HEAD = 0.05;
     let umbGrid = new Map(), umbNext = new Map();
     const ucell = (cx, cy) => (cx * 73856093) ^ (cy * 19349663);
     function lean(p) {
@@ -1950,7 +1950,8 @@ transformed = crowdPose(transformed, false);`);
       const R = p.umbR || 0;
       // (where its canopy's middle is from the body, in the plan: over the copy's own hold, turned as it faces. The lean
       // and the crowd's steering, actors.js umbRoom, keep an umbrella's room between canopies, not between bodies)
-      { const C = holdOf(p), th = Math.PI - p.h, c = Math.cos(th), sn = Math.sin(th), bx = C.top.x * p.fscale, bz = C.top.z * p.fscale; p.ucx = bx * c + bz * sn; p.ucy = bx * sn - bz * c; }
+      const C = holdOf(p), th = Math.PI - p.h, c = Math.cos(th), sn = Math.sin(th);
+      { const bx = C.top.x * p.fscale, bz = C.top.z * p.fscale; p.ucx = bx * c + bz * sn; p.ucy = bx * sn - bz * c; }
       const mx = p.rx + p.ucx, my = p.ry + p.ucy;
       if (R > 0 && Math.hypot(p.rx - lodX, p.ry - lodY) < LEAN_M * lodZoom) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         const c = umbGrid.get(ucell(cx + a, cy + b));
@@ -1961,8 +1962,12 @@ transformed = crowdPose(transformed, false);`);
         }
       }
       const m = Math.hypot(vx, vy) * LEAN_K, s = m > LEAN_MAX ? LEAN_MAX / m : 1, k = 1 - Math.exp(-dtNow / 0.35);
-      p.umbLx = (p.umbLx || 0) + (vx * LEAN_K * s - (p.umbLx || 0)) * k;
-      p.umbLy = (p.umbLy || 0) + (vy * LEAN_K * s - (p.umbLy || 0)) * k;
+      let tx = vx * LEAN_K * s, ty = vy * LEAN_K * s;
+      // (never into its own head: the shaft stands a hand's width from it, so of a lean towards the head, from the
+      // fist, only LEAN_HEAD is taken)
+      { const hx = C.hd.x - C.grip.x, hz = C.hd.z - C.grip.z, hl = Math.hypot(hx, hz) || 1, wx = (hx * c + hz * sn) / hl, wy = (hx * sn - hz * c) / hl, t = tx * wx + ty * wy; if (t > LEAN_HEAD) { tx -= (t - LEAN_HEAD) * wx; ty -= (t - LEAN_HEAD) * wy; } }
+      p.umbLx = (p.umbLx || 0) + (tx - (p.umbLx || 0)) * k;
+      p.umbLy = (p.umbLy || 0) + (ty - (p.umbLy || 0)) * k;
     }
     const umbMeshes = {}, umbN = { true: 0, false: 0, shaft: 0 };
     const umbCol = P.map(p => lin(p.look.umbrella === 'clear' ? '#1d1f26' : p.look.umbrella));
