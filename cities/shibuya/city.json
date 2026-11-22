@@ -913,7 +913,7 @@
           "legs": "#2b2a2e",
           "shirt": "#c49a2c",
           "pants": "#2b2a2e",
-          "clip": "LookAround"
+          "clip": "Phone"
         },
         "idle": [
           "Twenty minutes at Hachiko. The exit, I mean."
@@ -1039,7 +1039,7 @@
           "character": "R_Male_Adult_08_m024",
           "skin": "#e6bd9c",
           "hair": "#16110d",
-          "clip": "LookAround"
+          "clip": "Phone"
         },
         "idle": [
           "My phone says I'm standing on it."
