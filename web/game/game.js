@@ -364,7 +364,9 @@ float green = smoothstep(0.02, 0.08, diffuseColor.g - max(diffuseColor.r, diffus
 float paved = smoothstep(0.32, 0.18, sat) * smoothstep(0.07, 0.16, dot(diffuseColor.rgb, LUM)) * (1.0 - green) * (1.0 - oeSteep); // (not on a rock face: world.js steepRock)
 float roadway = 0.0;
 if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows baked into the photo
-  vec4 st = sRGBTransferEOTF(texture2D(uStreet, vMapUv));
+  // (the drawing is an sRGB texture: the sampler hands it over linear, so it is not decoded again here. Twice decoded,
+  // the drawn asphalt was an albedo of 0.01 and the photograph's road under it was capped near black, issue 148)
+  vec4 st = texture2D(uStreet, vMapUv);
   // (Gaps in the drawn carriageway were once filled from the drawing's blurred levels, 8 and 16 m round: where those
   // were mostly asphalt, asphalt was laid. A threshold on a field of 8 m texels has a scalloped edge 8 m to a wave, and
   // on a street with no footway drawn it carried the asphalt past the kerb over the paving and the forecourts: a dark
@@ -377,12 +379,12 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
   // through the street as pale blotches where the drawn layer thins out with distance (issue 137).
   // The drawn street carries its own markings; the photo keeps its paint only beyond 260 m, where
   // the drawn streets are gone too
-  float asph = smoothstep(0.0, 0.5, st.a) * smoothstep(0.12, 0.07, sl) * (1.0 - smoothstep(160.0, 260.0, camD));
+  float asph = smoothstep(0.0, 0.5, st.a) * smoothstep(0.2, 0.14, sl) * (1.0 - smoothstep(160.0, 260.0, camD));
   float pl = dot(diffuseColor.rgb, LUM), cap = sl * 1.25 + 0.006;
   if (pl > cap) diffuseColor.rgb *= mix(1.0, (cap + (pl - cap) * 0.12) / pl, asph);
   float k = st.a * (1.0 - smoothstep(35.0, 140.0, camD)) * 0.92;
   diffuseColor.rgb = mix(diffuseColor.rgb, st.rgb, k);
-  roadway = k * smoothstep(0.12, 0.07, sl);           // asphalt (dark), not the footways and kerbs drawn beside it
+  roadway = k * smoothstep(0.2, 0.14, sl);           // asphalt (dark), not the footways and kerbs drawn beside it
   paved = mix(paved, 1.0 - roadway, k);
   // Round a hero level the photograph is not the ground at any height (issue 87): from the air its blur, its baked
   // shadows and the buses on its terminal read as wet blotches beside the level's crisp paving. There the ground is
