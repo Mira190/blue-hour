@@ -37,14 +37,18 @@ const [,, size = '390x844'] = process.argv;
   }, DRAW);
   // the readings, taken in the page so that a slow harness loses none
   await p.addInitScript(() => {
-    const R = window.__snd = { rows: [], phase: 'load', steps: [] };
+    const R = window.__snd = { rows: [], phase: 'load', steps: [], taps: [] };
+    // (when the context is made, by what, and every touch: a context made while the street is to wait says which let it in)
+    addEventListener('pointerup', () => R.taps.push([performance.now(), R.phase]), { capture: true });
+    const AC0 = window.AudioContext;
+    if (AC0) { window.AudioContext = window.webkitAudioContext = function (...a) { R.ctxAt = [performance.now(), R.phase, (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ')]; return new AC0(...a); }; window.AudioContext.prototype = AC0.prototype; }
     // (each step of the load as game.js marks it, and whether the opening's film was on as it began)
     try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.name === 'oe:step' && e.detail) { const g = window.__game, o = g && g.overture && g.overture(); R.steps.push({ step: e.detail.step, t: e.startTime, film: !!(o && o.active) }); } }).observe({ type: 'mark' }); } catch (e) { /* no observer */ }
     setInterval(() => {
       const A = window.OEAudio; if (!A) return;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
       R.rows.push({ t: performance.now(), phase: R.phase, film: !!(o && o.active), ctx: c ? c.state : null, tot: P.tot.slice(), el: P.totEl, under: ps ? ps.underrunEvents : null, underMs: ps ? ps.underrunDuration * 1000 : null,
-        main: P.main, held: !!A.holding });
+        main: P.main, held: !!A.holding, lateIn: !!R.lateIn, act: !!(navigator.userActivation && navigator.userActivation.isActive), log: c && !R.made ? (R.made = P.log.slice(-4).join(' | ')) : undefined });
     }, 250);
   });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?snd=1${WEB ? '&music=web' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -123,8 +127,8 @@ const [,, size = '390x844'] = process.argv;
     const head = music.slice(0, 20), quietHead = head.filter(n => n < 1).length;
     if (WALK ? quietHead > 3 : music.length && silent > Math.max(2, music.length * 0.1)) fail(`no music plays at ${WALK ? `${quietHead} of the film's first ${head.length}` : `${silent} of ${music.length}`} readings in the film`);
     if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
-    const late = by('late'), lateRun = late.filter(r => r.ctx === 'running').length;
-    if (guard) { console.log(`while the late parts came in: ${late.length} readings, the context running at ${lateRun}, the street held at ${late.filter(r => r.held).length}`); if (lateRun) fail(`the context ran at ${lateRun} of ${late.length} readings while the phone's late parts came in: the street is to wait for a page with room for it`); }
+    const late = by('late').filter(r => !r.lateIn), lateRun = late.filter(r => r.ctx === 'running').length; // (until the late parts are in: the street is let go three seconds after, and may be made then)
+    if (guard) { console.log(`while the late parts came in: ${late.length} readings, the context running at ${lateRun}, the street held at ${late.filter(r => r.held).length}`); for (const r of late.filter(q => q.ctx === 'running' || q.log)) console.log(`  at ${(r.t / 1000).toFixed(1)} s: context ${r.ctx}, held ${r.held}, activation ${r.act}${r.log ? `, made: ${r.log}` : ''}`); const mk = R.find(q => q.log); if (mk) console.log(`the context made at ${(mk.t / 1000).toFixed(1)} s (${mk.phase}): ${mk.log}`); const X = await p.evaluate(() => ({ at: window.__snd.ctxAt, taps: window.__snd.taps })); console.log(`  made by: ${JSON.stringify(X.at)}; touches: ${X.taps.map(t => `${(t[0] / 1000).toFixed(1)} s ${t[1]}`).join(', ')}`); if (lateRun) fail(`the context ran at ${lateRun} of ${late.length} readings while the phone's late parts came in: the street is to wait for a page with room for it`); }
     if (!made) fail('ten seconds after the film and a touch, the context is not made and running: the street has no sound');
     else console.log(`after the film and a touch: context ${last.ctx}`);
   }

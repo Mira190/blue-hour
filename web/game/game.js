@@ -5902,7 +5902,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     A.start();
     playing = true; walk = Object.assign({}, sp);
     stage.classList.add('walk');
-    if (SND_GUARD && cue) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone the cue plays on until the street does: sndHold)
+    if (SND_GUARD && cue && !(walkFilmDue() && !walkNoFilm)) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone with no film to play, the cue plays on until the street does: sndHold. The walk's film has a score of its own)
     walkDress(sp);
     $('#g-title').hidden = true;
     try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: sp.t, sky: sp.w } }); } catch (e) { /* no User Timing */ }

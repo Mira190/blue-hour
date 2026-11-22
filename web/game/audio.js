@@ -1351,7 +1351,7 @@ window.OEAudio = (function () {
   function guardTick() {
     if (!GUARD) return;
     if (holdOn) gHeld += 0.1;
-    if (gaveUp || holdOn || gRun < 0) return;
+    if (gaveUp || holdOn || gRun < 0 || !ctx || ctx.state !== 'running') return;
     gRun += 0.1;
     if (gRun >= 180) { gRun = -1; try { localStorage.removeItem(GAVE_KEY); } catch (e) { /* storage blocked */ } }
   }
