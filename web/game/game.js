@@ -1400,7 +1400,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // stepped out of in a game does not ask you straight back in: the player is set down on the stop itself, and at
   // SHIBUYA SKY 46F "Take the lift to Shibuya Scramble Square, street level" stood in the middle of a phone's screen the
   // moment you were up, over the way on to the roof (the owner's phone, November 2026). liftLeft: { l, i }, or null
-  let liftLeft = null;
+  let liftLeft = null, liftAt = '';
   function liftStop(x, y, z) {
     for (const l of lifts) for (let i = 0; i < l.stops.length; i++) {
       const s = l.stops[i], at = Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5;
@@ -2290,9 +2290,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (g) { const dx = g[2] - g[0], dy = g[3] - g[1], L2 = dx * dx + dy * dy, t = L2 > 1e-9 ? Math.max(0, Math.min(1, ((x - g[0]) * dx + (y - g[1]) * dy) / L2)) : 0; if (Math.hypot(g[0] + dx * t - x, g[1] + dy * t - y) < g[4] + 0.6) return false; }
     return true;
   };
+  // (one of the crowd moved aside: a number of its own for each try, and whether the place is clear of the rest of the crowd)
+  const asideHash = (i, k) => { const v = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const asideRoom = (p, x, y) => {
+    for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+      const o = crowd.P[i];
+      if (o === p || (o.line < 0 && !o.pz)) continue;
+      const ex = (o.rx ?? o.x) - x, ey = (o.ry ?? o.y) - y;
+      if (ex * ex + ey * ey < 0.3) return false; // (0.55 m, middle to middle: shoulder to shoulder)
+    }
+    return true;
+  };
   const clearSight = (a, b, half = 0) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     if (crowd.keep) crowd.keep(a[0], a[1], b[0], b[1], (half || 1.4 + 0.15 * L) + 1); // (and nobody begins to stop or stand about in it while it lasts)
+    if (!half && cars && cars.clearLane) cars.clearLane(a[0], a[1], b[0], b[1], 1.4); // (nor a car held in it: a lens's sightline, not the lane someone walks)
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
       // (where it is drawn: in a Stop the drawn place does not catch up with the simulated one, and one drawn in the way
@@ -2301,9 +2313,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const t = (px - a[0]) * ux + (py - a[1]) * uy, side = (px - a[0]) * -uy + (py - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
       if ((half ? t < -half || t > L + half : t < -2.5 || t > L - 0.6) || Math.abs(side) > w) continue;
       if (!p.pz) { p.line = -1; continue; }
-      let to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
-      for (let k = 0; k < 4 && !roomAt(px - uy * to, py + ux * to); k++) to += (Math.sign(side) || 1) * 0.5; // (not onto someone not of the crowd, issue 65)
-      p.x = px - uy * to; p.y = py + ux * to; p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
+      // (a crosser or one waiting: out past the edge of the way, on the side they stand. Each was put on the edge itself,
+      // 0.4 m outside it, so a crowd moved aside stood in two ruled files down the sides of the sightline, facing each
+      // other across it: the last frame's finder and frame 6's photograph, issue 75. A crowd that parts keeps its order
+      // and its depth: the nearer the middle one stood the nearer the edge it ends, those by the edge up to 3 m beyond
+      // it, each a step along the way as chance has it, and never onto another of the crowd or out into a road)
+      const sg = Math.sign(side) || 1, D = Math.min(3, w), was = p.pz.road && p.pz.road(px, py);
+      let to = sg * (w + 0.4) - side, ok = false;
+      for (let k = 0; k < 8 && !ok; k++) {
+        const out = sg * (w + 0.4 + (Math.abs(side) / w) * D + k * 0.4) - side, al = (asideHash(p.id, k) - 0.5) * (k ? 1.6 : 0.7), x = px - uy * out + ux * al, y = py + ux * out + uy * al;
+        if (roomAt(x, y) && (was || !p.pz.road || !p.pz.road(x, y)) && asideRoom(p, x, y)) { p.x = x; p.y = y; ok = true; }
+      }
+      if (!ok) {
+        for (let k = 0; k < 4 && !roomAt(px - uy * to, py + ux * to); k++) to += sg * 0.5; // (not onto someone not of the crowd, issue 65)
+        p.x = px - uy * to; p.y = py + ux * to;
+      }
+      if (p.T && (p.ph === 'wait' || p.ph === 'linger')) { p.T.x = p.x; p.T.y = p.y; } // (and it waits there, not walking back into the way)
+      p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
     }
   };
   // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
@@ -2316,9 +2342,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const dx = (p.rx ?? p.x) - x, dy = (p.ry ?? p.y) - y, d = Math.hypot(dx, dy); // (where it is drawn, as clearSight)
       if (d >= r) continue;
       if (!p.pz) { p.line = -1; if (crowdDraw) crowdDraw.hide(i); continue; } // (and not drawn there this frame either)
-      let k = (r + 0.4) / (d || 1);
-      for (let j = 0; j < 4 && !roomAt(x + (d ? dx : 1) * k, y + (d ? dy : 0) * k); j++) k += 0.5 / (d || 1); // (not onto someone not of the crowd, issue 65)
-      p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null; // (dx, dy: from where it is drawn)
+      // (out past the ring, as clearSight parts a crowd: those nearest its edge furthest beyond it, not all on one circle)
+      const ux = d ? dx / d : 1, uy = d ? dy / d : 0, was = p.pz.road && p.pz.road(x + dx, y + dy);
+      let ok = false;
+      for (let j = 0; j < 8 && !ok; j++) {
+        const R = r + 0.4 + (d / r) * Math.min(2, r) + j * 0.4, a = (asideHash(p.id, j) - 0.5) * (j ? 0.5 : 0.2), c = Math.cos(a), sn = Math.sin(a), qx = x + (ux * c - uy * sn) * R, qy = y + (uy * c + ux * sn) * R;
+        if (roomAt(qx, qy) && (was || !p.pz.road || !p.pz.road(qx, qy)) && asideRoom(p, qx, qy)) { p.x = qx; p.y = qy; ok = true; }
+      }
+      if (!ok) {
+        let k = (r + 0.4) / (d || 1);
+        for (let j = 0; j < 4 && !roomAt(x + (d ? dx : 1) * k, y + (d ? dy : 0) * k); j++) k += 0.5 / (d || 1); // (not onto someone not of the crowd, issue 65)
+        p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; // (dx, dy: from where it is drawn)
+      }
+      if (p.T && (p.ph === 'wait' || p.ph === 'linger')) { p.T.x = p.x; p.T.y = p.y; }
+      p.rx = null;
     }
   };
   // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
@@ -3591,6 +3628,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return { key: '', text: `${st.name}: the next car is due in ${fmtSec(rail.eta())}` };
     }
     const ls_ = liftStop(player.x, player.y, player.z);
+    // (come to a lift's stop, the view left alone for a second: it goes to the lift. Issue 144: in SKY GATE's hall with the
+    // view left facing its lacquered wall, the frame was that wall from edge to edge behind the offer of the lift. Where
+    // the stop has no hall, a view hemmed in there turns to the nearest open side at once, as where a ride sets you down)
+    if ((ls_ ? ls_.l.id + ls_.i : '') !== liftAt) {
+      liftAt = ls_ ? ls_.l.id + ls_.i : '';
+      const sd = ls_ && ls_.l.stops[ls_.i];
+      if (sd && player.mode === 'foot' && clockT - cam.lastInput > 1) {
+        // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
+        if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
+        else cam.seek = true;
+      }
+    }
     if (ls_) { const to = (ls_.i + 1) % ls_.l.stops.length; return { key: 'E', story: true, text: `${ls_.l.verb || 'Take the lift to'} ${ls_.l.stops[to].name}`, act: () => rideLift(ls_.l, ls_.i, to) }; } // (a flight of stairs the game does not draw is climbed as a lift is ridden: game.json lifts[].verb)
     const seatHere = shows && shows.near(player.x, player.y, player.z);
     if (seatHere) return { key: 'E', text: seatHere.verb || 'Sit down', act: () => sitDown(seatHere) };
