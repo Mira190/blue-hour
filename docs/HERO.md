@@ -1234,7 +1234,7 @@ top, and every leg of a roof screen on its roof. It found Rakuten Vision on an e
 the mapped wall and askew to it (now on the wall's own edge, its published 10.24 m overhanging the mapped 8.6 m face by
 0.84 m each end, on its frame), and the Toei Plaza's two Synchro7 faces hanging past the ends of their roof (their sizes
 estimates: now 8.4 m each). Still open: Shibuya Ekimae Vision hangs about 5 m past the north end of the Ekimae building's
-mapped roof, and moving it would run it into Shibuhachi Hit Vision; the published sizes and the mapped roof disagree.
+mapped roof, and moving it would run it into Shibuhachi Hit Vision; the published sizes and the mapped roof disagree (issue 172).
 
 Stills: `tools/views/nova-tower.json` (`tools/game_shot.js`): from the helicopter's height north of the face and from
 Miyamasuzaka-shita, at 17:53 and 21:00 on 10 October, on a desktop and a phone.
