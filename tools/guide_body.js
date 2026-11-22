@@ -3,8 +3,11 @@
 // thirtieth of a second at a time, the guide made as the story makes him and ticked with it, and the player walked
 // and run into him from four sides while he sits, turned about with him at heel, run past him while he leads, and
 // pushed into him where he sits against a wall. Each step measures how far the player's circle is from his spine
-// past the clearance (companion.js PLAYER_R + FLANK); a step with them more than 3 cm into each other fails. Stills of
-// the moments they are nearest, from the chase camera.
+// past the clearance (companion.js PLAYER_R + FLANK). The rule is companion.js keepOff's: the two may touch and never
+// overlap, in the open or against a wall, so a step that ends with his capsule more than half a centimetre inside the
+// player's circle fails (the solver sets them down against each other to 2 mm; it was 3 cm, the same 3 cm he was let in
+// before he said a wall held him, and the case against the wall passed or failed by the run: issues 133 and 138), and
+// so does any vertex of his model inside the player's torso. Stills of the moments they are nearest, from the chase camera.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/guide_body.js out_dir [WxH]
 const { chromium } = require('playwright');
@@ -82,12 +85,15 @@ const [,, out = '/tmp/guide-body', size = '1440x900'] = process.argv;
     await p.screenshot({ path: `${out}/${name}.png` });
   };
   const fails = [];
-  const judge = (name, r) => { const bad = r.worst < -0.03 || (r.real != null && r.real < 0); console.log(`${bad ? 'FAIL' : 'ok  '} ${name}: his capsule ${r.worst >= 0 ? '+' : ''}${(r.worst * 100).toFixed(1)} cm off the player's circle, his model ${r.real == null ? 'never near' : `${r.real >= 0 ? '+' : ''}${(r.real * 100).toFixed(1)} cm off their torso`}${r.jam ? `, held against a wall ${r.jam} steps` : ''}, he ${r.yielded ? `made way ${r.yielded} times, ` : ''}now ${r.state}`); if (bad) fails.push(name); };
+  const judge = (name, r) => { const bad = r.worst < -0.005 || (r.real != null && r.real < 0); console.log(`${bad ? 'FAIL' : 'ok  '} ${name}: his capsule ${r.worst >= 0 ? '+' : ''}${(r.worst * 100).toFixed(1)} cm off the player's circle, his model ${r.real == null ? 'never near' : `${r.real >= 0 ? '+' : ''}${(r.real * 100).toFixed(1)} cm off their torso`}${r.jam ? `, held against a wall ${r.jam} steps` : ''}, he ${r.yielded ? `made way ${r.yielded} times, ` : ''}now ${r.state}`); if (bad) fails.push(name); };
   // 1. sitting on open paving (frame 1's light): walked and run into from four sides
   const S = [362.3, -988.6];
   console.log('his body, measured from the model:', JSON.stringify(await p.evaluate(() => window.__dog.body)));
   const gaitIs = gait => p.evaluate(gait => { window.__game.player.walking = gait === 'walk'; }, gait);
-  for (const [k, a] of [['north', 0], ['east', Math.PI / 2], ['south', Math.PI], ['west', -Math.PI / 2]]) for (const gait of ['walk', 'run', 'sprint']) {
+  // ONLY=wall: the wall's case alone; WALL_N=n: it n times over, the street moved on two seconds between (the crowd
+  // elsewhere each time, which is what his way round you is planned through: how often the case fails, in one load)
+  const ONLY = process.env.ONLY || '', WALL_N = +(process.env.WALL_N || 1);
+  if (!ONLY) for (const [k, a] of [['north', 0], ['east', Math.PI / 2], ['south', Math.PI], ['west', -Math.PI / 2]]) for (const gait of ['walk', 'run', 'sprint']) {
     const from = [S[0] - Math.sin(a) * 4, S[1] - Math.cos(a) * 4, a];
     await set(from, [S[0], S[1], 0.3, 'sit']); await gaitIs(gait);
     const keys = gait === 'sprint' ? ['KeyW', 'ShiftLeft'] : ['KeyW'];
@@ -97,6 +103,7 @@ const [,, out = '/tmp/guide-body', size = '1440x900'] = process.argv;
     if ((k === 'north' || k === 'east') && r.at) { await set(from, [S[0], S[1], 0.3, 'sit']); await gaitIs(gait); await run(r.at.i + 1, keys, a); await snap(`sit-${k}-${gait}-nearest`); }
   }
   // 2. at heel while the player walks a circle, then stops and turns on the spot
+  if (!ONLY) {
   await set([S[0], S[1], 0], [S[0] - 1, S[1] - 1, 0, 'heel']);
   await gaitIs('walk');
   judge('at heel, walking a circle', await run(150, ['KeyW', 'KeyA'], null));
@@ -106,21 +113,23 @@ const [,, out = '/tmp/guide-body', size = '1440x900'] = process.argv;
   await set([S[0], S[1] - 3, 0], null); await gaitIs('run');
   await p.evaluate(S => { const d = window.__dog; d.place(S[0], S[1], Math.PI / 2); d.met(); d.lead([S[0], S[1] + 25], 3); }, S);
   judge('leading, the player running past him', await run(120, ['KeyW'], 0));
+  }
   // 4. sitting against a wall, the player pushing into him towards it: he cannot make way, and they stop at his flank
   // (the nearest wall from the light, looking round it: what the walker may not stand on, a step past its last open ground)
   const wall = await p.evaluate(S => { const g = window.__game; let best = null;
     for (let a = 0; a < 16; a++) { const ux = Math.sin(a * Math.PI / 8), uy = Math.cos(a * Math.PI / 8);
       for (let k = 10; k < 200; k++) { const x = S[0] + ux * k * 0.1, y = S[1] + uy * k * 0.1; if (!g.nav.walk(x, y, g.nav.terrain(x, y), true).ok) { const r = (k - 1) * 0.1; if (!best || r < best.r) best = { r, ux, uy }; break; } } }
     return best; }, S);
-  if (wall) {
+  if (wall) for (let n = 0; n < WALL_N; n++) {
+    if (n) await p.evaluate(() => { const g = window.__game, d = window.__dog; for (let i = 0; i < 60; i++) { g.advance(1 / 30); d.tick(1 / 30); } });
     // he sits against it, side on, and the player walks into him straight at the wall
     const wx = S[0] + wall.ux * (wall.r - 0.3), wy = S[1] + wall.uy * (wall.r - 0.3), a = Math.atan2(wall.ux, wall.uy);
     await set([wx - wall.ux * 3, wy - wall.uy * 3, a], [wx, wy, Math.atan2(wall.ux, -wall.uy), 'sit']);
     await gaitIs('walk');
     const r = await run(90, ['KeyW'], a);
-    judge(`sitting against a wall ${wall.r.toFixed(1)} m from the light, pushed into it`, r);
-    await snap('wall');
-  } else console.log('(no wall within 20 m of the light: the wall case not run)');
+    judge(`sitting against a wall ${wall.r.toFixed(1)} m from the light, pushed into it${WALL_N > 1 ? ` (${n + 1} of ${WALL_N})` : ''}`, r);
+    if (!n) await snap('wall');
+  } if (!wall) console.log('(no wall within 20 m of the light: the wall case not run)');
   console.log(errors.length ? `${errors.length} page errors` : 'no page errors');
   console.log(fails.length ? `${fails.length} cases with the two bodies in each other` : 'the guide and the player kept out of each other in every case');
   await b.close();
