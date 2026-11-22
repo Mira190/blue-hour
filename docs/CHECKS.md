@@ -126,7 +126,11 @@ The static checks:
   two faces of a sign built back to back the wrong way, or a face wound right but turned to a wall (cast from its
   middle along its normal and back: blocked within half a metre in front and open behind, against the landmarks'
   triangles and the buildings' walls, glass and nets left out), which is seen only from behind, mirrored (the JR
-  bridge's clearance sign over the road by Hachiko, 21 November 2026); `python3 tools/sign_check.py --hero` casts the
+  bridge's clearance sign over the road by Hachiko, 21 November 2026); or an upright picture with nothing within half
+  a metre behind it, which anyone passing behind, looking down from a deck or flying over sees mirrored (the
+  station's scaffold advert, from SKY's street hall). Every upright landmark picture is given a plain painted back
+  5 cm behind it when the landmarks are built (`pipeline/landmarks.py` `sign_backs`, the mesh `sign_back`), which
+  the turned-to-a-wall test looks past; `python3 tools/sign_check.py --hero` casts the
   hero levels' own signs the same way (about two minutes, so run by hand when a level's signs change); and no
   vehicle's name mirrored or facing into its model (`tools/decal_check.js`: the helicopter's registration and
   operator, the ferries' names);
