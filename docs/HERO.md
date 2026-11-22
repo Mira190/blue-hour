@@ -1120,13 +1120,42 @@ hammock, the deck, the glass), `(53002565413)` (the steps' lines of light), `(53
 EDGE's glass, its reflections and the glow at its foot), `(53443585538)` (east, 6 minutes after sunset). Read only, all
 rights reserved: Impress Watch (docs/news/1203947), nippon.com (gu900265), Time Out Tokyo.
 
-Where it still falls short. The photographs show the heliport as green artificial turf with yellow paint (a circle and
-H, a square boundary, "MAX 5t") and GEO COMPASS as a separate disc of radial stone round an etched glass map; here
-they are one dark pad with a white and yellow marking and the compass round it (above), which is wrong and is its own
-piece of work. The glass shows no reflection of the people standing at it, nor of the city's lights behind the camera:
-that needs a picture of the scene from behind the glass, which a phone cannot pay for. CROSSING LIGHT's lamps stand
+Where it still falls short. The heliport and GEO COMPASS, and the glass's reflections, are the next section's (issue
+137). CROSSING LIGHT's lamps stand
 along the glass on plinths; the photographs show moving heads under clear domes in a trench. The photographs are of
 December and February, not October. Seen on a software renderer only.
+
+### The heliport, GEO COMPASS and the glass (issue 137)
+
+`docs/images/sky/stage-137.jpg`: from above and over GEO COMPASS at 14:00, 17:31 and 19:30, and the east glass at
+19:30, main beside this.
+
+- **The heliport** is what the photographs show: artificial turf in one mid-green (its pile a pixel's grain in its colour
+  and nothing larger; no relief in the normal map, which was 1.4 MB of noise), every mark yellow laid into the turf: the
+  ring and the H (7 m), the square boundary a metre in, doubled on the side away from the compass, a diagonal at each
+  corner, two arrows toward the compass, MAX 5t. Matt (0.94 in its roughness map), a quarter of the sky in it.
+- **GEO COMPASS** is no longer the pad: a plinth 6.4 m square at the pad's edge at the head of the steps toward Yoyogi
+  Park and Shinjuku (`compass_side`: the side that looks most nearly north-north-west), pale stone slabs laid radially
+  and edged in timber, a dark metal star with a long point to each wind, a metal ring 0.4 m wide with N, E, S and W and
+  the far places cut in it, each as near its true bearing as the ring has room (a tick at the bearing itself), round a
+  world map as it lies from the roof (azimuthal equidistant: a place's bearing on the map is its bearing from here),
+  land over a pale sea with a ring every 5,000 km, under a polished cover. It is drawn in the pad's top, flush with the
+  turf; the photographs have it a step up, which the next pass on the roof's terraces can give it.
+- **The glass mirrors the roof and the city.** A level can carry a reflection probe (`city.json` `game.hero[].probe`,
+  `web/game/hero.js` `probeOf`, `probe`): a cube of the scene taken from one place in it with the glass left out,
+  256 on a side on a desktop (3 MB in half floats), 64 on a phone (0.2 MB), when the level is first shown and again
+  when the night has moved on by a twelfth (a phone's by a quarter), never more than once in three seconds: six draws
+  of the scene now and then, never every frame. SKY STAGE's is 18 m over the pad, high enough that the helicopter on it
+  is only in the cube's lowest face. The glass takes it as its environment, and is drawn premultiplied so that what
+  it mirrors goes over the pane at full strength (held to 0.7) instead of at the pane's opacity, a fifth. At night the
+  far towers' lights and the sky are in the pane over the city behind it.
+
+Where it still falls short: one place's picture cannot show whoever stands at the glass, nor the roof as seen from
+where you are; the probe is low-resolution, and a far tower's red light reads as a soft blot in it. The deck is still
+the dark pavers, not the wood-look boards and stepped terraces round the heliport that the photographs show, and the
+heliport's sides are still dark panels rather than those terraces; CROSSING LIGHT's lamps are still on plinths. Seen
+on a software renderer only: not on a real GPU, Safari or iOS, where the probe's cost and the turf's look at dusk have
+not been measured.
 
 ## Scramble Square's curtain wall (Shibuya)
 
