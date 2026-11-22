@@ -54,9 +54,16 @@ const [,, size = '390x844'] = process.argv;
   const mode = await p.evaluate(() => ({ tunes: window.OEAudio.tunes, touch: window.OEAudio.needsTouch }));
   console.log(`the music: ${mode.tunes ? 'media elements, no context until the opening is over' : 'on the context'}; the main thread's CPU throttled ${RATE} times from the title on; ${WALK ? "the walk's opening" : "the story's opening"}`);
   if (!WEB && !mode.tunes) fail('an iPhone\'s page does not play its music on media elements');
-  await p.touchscreen.tap(w / 2, h / 2); // the loading screen touched for sound
-  await p.waitForTimeout(800);
   const playingNow = () => p.evaluate(() => { const box = document.getElementById('snd-probe'); const m = box && /music: (\d+) playing/.exec(box.textContent); return m ? +m[1] : -1; });
+  // the loading screen touched for sound, and again as a person does while it still asks for a touch (its sound mark,
+  // game.js heard): read 800 ms after one touch, a touch that landed before the page took touches failed the check now
+  // and then, the elements begun at the next (main's audio shard and a session's, 22 November)
+  for (let k = 0; k < 2; k++) {
+    await p.touchscreen.tap(w / 2, h / 2);
+    for (let i = 0; i < 15 && (WEB || (await playingNow()) < 1); i++) await p.waitForTimeout(200);
+    if (WEB || (await playingNow()) >= 1 || !(await p.evaluate(() => { const l = document.getElementById('g-loader'); return !!(l && !l.hidden && l.classList.contains('no-sound')); }))) break;
+    console.log('the loading screen still asks for a touch after one: touched again');
+  }
   if (!WEB) { const n = await playingNow(); if (n < 1) fail(`after the loading screen's touch ${n < 0 ? 'the elements still wait for one' : 'no music plays'}`); else console.log(`after the loading screen's touch: ${n} playing on an element, context ${await p.evaluate(() => (window.OEAudio.ctx ? window.OEAudio.ctx.state : 'not made'))}`); }
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(1500);
