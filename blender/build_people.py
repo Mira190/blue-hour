@@ -1688,6 +1688,17 @@ def skin_mask(arm, mesh):
     # (specks gone, pinholes filled: a 3 x 3 majority)
     im = Image.fromarray((skin * 255).astype(np.uint8), "L").filter(ImageFilter.MedianFilter(3))
     skin = np.asarray(im) > 127
+    from scipy import ndimage
+    # (a hole the skin closes round, of skin's colour: a knee's lit side whose faces fell short of the count above was
+    # left as cloth, and the crowd's change of clothes dyed it the dress's colour, a navy patch on each knee of a walker
+    # in a dark dress, November 2026. Skin's colour by the plain test, not the hands' hue: a knee is redder than a hand.
+    # A print inside the skin is not skin's colour and stays cloth; a leather strap that is would keep its own colour)
+    warm = skin_like(px)
+    skin |= ndimage.binary_fill_holes(skin) & warm
+    # (and on into the islands' margins, outside every face, where the artists carried the skin's colour: a filter and
+    # the smaller mipmaps read them at a seam, and a margin left as cloth dyed a leg's or a hand's edge there. Only
+    # outside the faces, so no garment beside the skin is reached)
+    skin |= ndimage.binary_dilation(skin, iterations=16, mask=(ids == 0) & warm)
     MASKS[body.name] = skin[::-1].copy()   # (rows from the top, as a picture file has them; embed_masks writes it into the exported file)
     return float(skin.mean())
 
