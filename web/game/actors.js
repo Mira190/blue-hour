@@ -3056,7 +3056,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function pushOut(x, y, r, z = null) {
       for (let it = 0; it < 3; it++) {
         let moved = false;
-        near(x, y, r + 1, o => { const e = into(o, x, y, r); if (e) { x += e.x * 1.01; y += e.y * 1.01; moved = true; } }, z);
+        near(x, y, r + 1, o => { if (o.id === 'heli') return; const e = into(o, x, y, r); if (e) { x += e.x * 1.01; y += e.y * 1.01; moved = true; } }, z); // (not the helicopter's footprint, its rotor's reach: you walk up to its door, kept out of its hull by its own boxes, game.js carBoxes)
         if (!moved) break;
       }
       return { x, y };
@@ -3695,8 +3695,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         let sawX = null, leadX = null, xQ = false, youBy = null; // (youBy: which of yours it brakes for, and how, for the checks)
         c.xWaitT = c.why === 'you' && c.v < 0.3 && c.youBy && / on its way$/.test(c.youBy) ? (c.xWaitT || 0) + dt : 0;
         c.bonnetT = c.why === 'you' && c.v < 0.3 && c.youBy && / across its bonnet$/.test(c.youBy) ? (c.bonnetT || 0) + dt : c.v >= 0.3 ? 0 : c.bonnetT || 0; // (kept while it stands, once it no longer waits on it)
+        // (and the helicopter's footprint at its bonnet, whatever its way ahead reaches: following close behind a car it was set
+        // down onto, that car driving out from under it, its way ended at that car's tail and it followed it in under the rotor)
+        for (const o of api.extra) {
+          if (o.id !== 'heli' || (o.free && o.free.has(c)) || Math.abs(o.z - c.z) >= LEVEL || Math.abs(o.x - c.x) > 30 || Math.abs(o.y - c.y) > 30) continue;
+          const bx = c.x + fx * (c.half + 0.5), by = c.y + fy * (c.half + 0.5);
+          if (into(o, bx, by, 0.3) || into(o, bx - fy * c.hw, by + fx * c.hw, 0.3) || into(o, bx + fy * c.hw, by - fx * c.hw, 0.3)) { if (0 < gap) { gap = 0; byCar = true; front = null; why = 'you'; youBy = 'heli at its bonnet'; } }
+        }
         if (np) for (const o of api.extra) {
           if ((o.ahead && c.inAhead) || o.soft || (o.v < 0.3 && !o.live) || (o.z != null && Math.abs(o.z - c.z) >= LEVEL) || Math.abs(o.x - c.x) > 60 || Math.abs(o.y - c.y) > 60) continue;
+          // (a helicopter set down over a car already there: that car drives on out from under it rather than stand in it; the
+          // ones behind wait for it, game.js heliBlock, heliFree)
+          if (o.id === 'heli' && o.free && o.free.has(c)) continue;
           // (a ride stopped at a junction's line, waiting its turn, is measured by its own size by a car crossing that
           // junction, not with the margins kept from one on the move: with them the car stood in the box for the
           // ride's nose while the ride waited at its line for that car's movement, each for the other, #243)

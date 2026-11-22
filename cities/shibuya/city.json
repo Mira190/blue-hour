@@ -913,7 +913,7 @@
           "legs": "#2b2a2e",
           "shirt": "#c49a2c",
           "pants": "#2b2a2e",
-          "clip": "Phone"
+          "clip": "LookAround"
         },
         "idle": [
           "Twenty minutes at Hachiko. The exit, I mean."
@@ -959,7 +959,7 @@
           "legs": "#27324a",
           "shirt": "#e9e4d8",
           "pants": "#27324a",
-          "clip": "Phone"
+          "clip": "LookAround"
         },
         "idle": [
           "One with the lights behind me. Every Saturday."
@@ -1039,7 +1039,7 @@
           "character": "R_Male_Adult_08_m024",
           "skin": "#e6bd9c",
           "hair": "#16110d",
-          "clip": "Phone"
+          "clip": "LookAround"
         },
         "idle": [
           "My phone says I'm standing on it."
