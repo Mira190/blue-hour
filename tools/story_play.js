@@ -309,10 +309,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const tapEl = async (sel, n = 0) => {
     const r = await p.evaluate(([sel, n]) => { const e = document.querySelectorAll(sel)[n]; if (!e) return null; e.scrollIntoView({ block: 'nearest', inline: 'nearest' }); const b = e.getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2, top = document.elementFromPoint(x, y);
       return { x, y, on: b.width > 4 && b.height > 4 && x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight, hit: !!top && (top === e || e.contains(top)), over: top && top !== e && !e.contains(top) ? `${top.tagName.toLowerCase()}${top.id ? '#' + top.id : ''}.${String(top.className || '').slice(0, 40)}` : '', small: Math.min(b.width, b.height) }; }, [sel, n]);
-    if (!r || !r.on || !r.hit) { const m = `touch: ${sel}${n ? `[${n}]` : ''} cannot be tapped (${!r ? 'not there' : !r.on ? 'off the screen' : `under ${r.over}`})`; if (!errors.includes(m)) { errors.push(m); console.log(m); } await p.evaluate(([sel, n]) => { const e = document.querySelectorAll(sel)[n]; if (e) e.click(); }, [sel, n]); return false; }
+    if (!r || !r.on || !r.hit) { const m = `touch: ${sel}${n ? `[${n}]` : ''} cannot be tapped (${!r ? 'not there' : !r.on ? 'off the screen' : `under ${r.over}`})`; if (!errors.includes(m)) { errors.push(m); console.log(m); }
+      // (and what the screen was then: where it and its parents stand, which of them is hidden, the stage's state, the action the game offers)
+      console.log('  then:', JSON.stringify(await p.evaluate(sel => { const e = document.querySelector(sel), g = window.__game, st = document.querySelector('.game-stage'), out = []; for (let x = e; x && x !== document.body && out.length < 4; x = x.parentElement) { const b = x.getBoundingClientRect(), cs = getComputedStyle(x); out.push(`${x.id || x.className}: ${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}x${Math.round(b.height)}${x.hidden ? ' hidden' : ''} ${cs.display}/${cs.visibility}`); } const a = g && g.currentAction ? g.currentAction() : null, d = document.getElementById('gd'); return { chain: out, stage: st ? st.className : '', act: a ? a.text : null, dlg: !!d && !d.hidden, cine: g && g.cine ? `${g.cine.active}/${g.cine.label}` : '', mode: g ? g.player.mode : '', view: [innerWidth, innerHeight] }; }, sel))); await p.evaluate(([sel, n]) => { const e = document.querySelectorAll(sel)[n]; if (e) e.click(); }, [sel, n]); return false; }
     if (r.small < 40 && !small.has(sel)) { small.add(sel); console.log(`note touch: ${sel} is ${Math.round(r.small)} px across where it is tapped`); }
     if (process.env.TAPLOG) console.log(`tap ${sel}${n ? `[${n}]` : ''} at ${Math.round(r.x)},${Math.round(r.y)}: ${await p.evaluate(([sel, n]) => (document.querySelectorAll(sel)[n].textContent || '').trim().slice(0, 40), [sel, n])}`); // (TAPLOG=1: each tap, where and on what)
-    await p.touchscreen.tap(r.x, r.y); taps++; return true;
+    await p.touchscreen.tap(r.x, r.y); taps++;
+    { // (the page and its stage never scroll: a stage moved by a scroll took everything laid over the picture with it, out of a thumb's reach)
+      const sc = await p.evaluate(() => [document.scrollingElement, document.body, document.querySelector('.game-stage')].map(e => e ? `${Math.round(e.scrollLeft)},${Math.round(e.scrollTop)}` : '0,0'));
+      if (sc.some(v => v !== '0,0') && !small.has('scrolled')) { small.add('scrolled'); const m = `touch: the page scrolled (document, body, stage: ${sc.join(' / ')}) after a tap on ${sel}`; errors.push(m); console.log(m); }
+    }
+    return true;
   };
   let taps = 0; const small = new Set();
   // (the camera by its button, where the story shows one: it comes up when the camera may. Where it does not, a step of
@@ -337,7 +344,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     // (a call said hands-free is a subtitle: it goes on by itself, and nothing on a phone passes its lines)
     const k = await p.evaluate(() => { const d = document.getElementById('gd'), o = document.getElementById('g-story-order'); return d && !d.hidden ? (d.classList.contains('free') || d.classList.contains('cut') ? '' : '#gd-text') : o && o.classList.contains('on') ? '#g-story-order' : '#gp-main'; });
     // (E with nothing to do it to is nothing, as the key is; where the play needs it, `must`, the prompt's button has to be there)
-    if (k === '#gp-main' && !must && !await p.evaluate(() => { const e = document.getElementById('gp-main'), b = e && e.getBoundingClientRect(); return !!e && b.width > 4 && b.top >= 0 && b.bottom <= innerHeight; })) return p.waitForTimeout(600);
+    const promptOn = () => p.evaluate(() => { const e = document.getElementById('gp-main'), b = e && e.getBoundingClientRect(); return !!e && b.width > 4 && b.top >= 0 && b.bottom <= innerHeight; });
+    if (k === '#gp-main' && !must && !await promptOn()) return p.waitForTimeout(600);
+    // (where the play needs it, the prompt is waited for as a person waits for it: a line said hands-free, a call, holds
+    // every action until it is said, game.js currentActionAny; up to thirty seconds of the wall: a line said hands-free goes on by itself)
+    if (k === '#gp-main') for (let i = 0; i < 60 && !await promptOn(); i++) await p.waitForTimeout(500);
     return k ? tapEl(k) : p.waitForTimeout(1200); };
   const clickEl = (sel, n = 0) => (TOUCH ? tapEl(sel, n) : p.evaluate(([sel, n]) => document.querySelectorAll(sel)[n].click(), [sel, n]));
   // (a phone's title by touch, a screen at a time, as a person goes through it: the picture and Tap to begin; the menu,
