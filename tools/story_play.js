@@ -747,6 +747,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await snap(`${s.fi + 1}-cam-down`); await p.evaluate(() => window.__game.story.raise(true)); // (the camera to the eye: R)
       await p.waitForTimeout(1500); await mark(s, 'aimed');
       // from the first frame's photograph to the last card, the camera of 1964 is round Kagami's neck (game.js, people.js camera1964)
+      // and her hair is drawn as hair (issue 123): the head's own mesh has its hair marked (people.js strandHair looked for
+      // the skull in the wrong space once a model had been in a scene, and marked none: a grey shell down her back), and
+      // long hair has its hem's loose ends (hemFringe)
+      if (!seen.has('hair')) { seen.add('hair');
+        const hr = await p.evaluate(() => { let marked = 0, hem = 0, heads = 0; window.__game.player.rig.root.traverse(o => { const A = o.isSkinnedMesh && o.geometry.attributes; if (!A || !A.hairSK || !/_head$/.test((o.material && o.material.name) || '')) return; heads++; for (let i = 0; i < A.hairSK.count; i++) { if (A.hairSK.getY(i) > 0.5) marked++; if (A.hairTR.getW(i) < 0) hem++; } }); return { heads, marked, hem }; });
+        console.log(`hair: ${hr.marked} of the head's vertices marked as hair, ${hr.hem} in its hem's loose ends`);
+        if (hr.heads && !hr.marked) { errors.push(`frame ${s.fi + 1}: none of the head's own hair is marked as hair (people.js strandHair)`); console.log(errors[errors.length - 1]); } }
       if (!(await p.evaluate(() => !!(window.__game && window.__game.player.rig.oldCam)))) { errors.push(`frame ${s.fi + 1}: the camera of 1964 is not round Kagami's neck`); console.log(errors[errors.length - 1]); }
       // the last frame is taken as they meet (task.meet, #35): framed, both step off their kerbs as every light turns to walk;
       // the release while they walk takes nothing; five stills while they come, the world held; and once they have met they
