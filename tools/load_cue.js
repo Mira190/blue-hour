@@ -37,6 +37,13 @@ const OUT = path.join(__dirname, '..', 'web', 'assets', 'story', 'late', 'cue.mp
   fs.writeFileSync(wav, Buffer.concat([head, pcm]));
   // (nothing on the score's bus is above 5 kHz: a low-pass at 9 kHz keeps the encoder from spending bits on nothing)
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-map_metadata', '-1', '-c:a', 'libmp3lame', '-q:a', '5', '-cutoff', '9000', OUT]);
+  // a phone's (web/game/audio.js "music outside the context"): one turn of the loop six times over, at the level the music
+  // bus gives the cue (its own 0.6 times the mix's 0.55), for a media element, whose volume iOS does not let a page set
+  // and whose loop has a gap: three and a half minutes between gaps instead of thirty-five seconds
+  const turn = path.join(os.tmpdir(), 'blue-hour-turn.wav');
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-ss', String(LEAD), '-t', String(len), turn]);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-stream_loop', '5', '-i', turn, '-af', 'volume=0.33', '-map_metadata', '-1', '-c:a', 'libmp3lame', '-b:a', '96k', '-cutoff', '9000', OUT.replace('cue.mp3', 'cue-phone.mp3')]);
+  fs.unlinkSync(turn);
   fs.unlinkSync(wav);
   console.log(`${path.relative(process.cwd(), OUT)}: ${r.what}; one turn ${len.toFixed(3)} s from ${LEAD} s in, peak ${(20 * Math.log10(r.peak)).toFixed(1)} dBFS, ${Math.round(fs.statSync(OUT).size / 1024)} kB`);
 })();

@@ -7,7 +7,7 @@
 //     sd     the luma's standard deviation, of 255
 //     share  the share of the frame within 6 of its commonest luma (0 to 1)
 //     mean   the mean luma
-//   flat(t) -> a sentence when the frame is one flat tone (sd under 7, or over 0.85 of it one tone), else ''
+//   flat(t, most = 0.85) -> a sentence when the frame is one flat tone (sd under 7, or over `most` of it one tone), else ''
 async function tones(p, png) {
   return p.evaluate(async b64 => {
     const im = new Image();
@@ -24,5 +24,5 @@ async function tones(p, png) {
     return { sd: +Math.sqrt(Math.max(0, s2 / n - mean * mean)).toFixed(1), share: +(best / n).toFixed(3), mean: +mean.toFixed(1) };
   }, png.toString('base64'));
 }
-const flat = t => (t.sd < 7 ? `its tones are within ${t.sd} of 255 of one another` : t.share > 0.85 ? `${Math.round(t.share * 100)}% of it is one tone` : '');
+const flat = (t, most = 0.85) => (t.sd < 7 ? `its tones are within ${t.sd} of 255 of one another` : t.share > most ? `${Math.round(t.share * 100)}% of it is one tone` : '');
 module.exports = { tones, flat };

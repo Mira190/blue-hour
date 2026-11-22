@@ -667,13 +667,16 @@ window.OEOverture = (function () {
         // render's own arrays dropped, so a 45 s score holds about 8 MB rather than 33, and only while it plays
         const RATE = 24000, chs = await OEFilmScore.render(scorePlan(), RATE);
         let buf = chs;
-        if (window.AudioBuffer) try { buf = new AudioBuffer({ length: chs[0].length, numberOfChannels: 2, sampleRate: RATE }); buf.copyToChannel(chs[0], 0); buf.copyToChannel(chs[1], 1); } catch (e) { buf = chs; }
+        // (a phone's: a file for the system's own player, at the level the bus would give it: audio.js "music outside the context")
+        if (window.OEAudio && OEAudio.tunes) buf = OEAudio.tuneWav(chs, RATE, 0.8);
+        else if (window.AudioBuffer) try { buf = new AudioBuffer({ length: chs[0].length, numberOfChannels: 2, sampleRate: RATE }); buf.copyToChannel(chs[0], 0); buf.copyToChannel(chs[1], 1); } catch (e) { buf = chs; }
         if (v === variant) { scoreBuf = buf; scoreFor = v; } // (not if the hour changed to the other overture meanwhile)
       } catch (e) { console.warn('overture: no score', e); }
       return scoreBuf;
     }
     function startScore(offset = 0) {
       if (!scoreBuf || (window.OEAudio && OEAudio.muted)) return;
+      if (scoreBuf.blob) { scoreSrc = OEAudio.tune(scoreBuf, { at: offset }); return; }
       try {
         // on the game's own context and its music bus (docs/SOUND.md): a second context made here, after the touch that
         // started the game's, is one a phone (iOS) leaves suspended, and it was outside the Sound switch and the duck
@@ -691,6 +694,7 @@ window.OEOverture = (function () {
       } catch (e) { scoreSrc = null; }
     }
     function fadeScore(sec = 2.5) {
+      if (scoreSrc && scoreSrc.go) { scoreSrc.stop(sec); scoreSrc = null; scoreBuf = null; scoreFor = null; return; }
       if (!scoreSrc || !audio) return;
       const g = scoreSrc.gainNode.gain, n = audio.currentTime;
       g.cancelScheduledValues(n); g.setValueAtTime(g.value, n); g.linearRampToValueAtTime(0, n + sec);

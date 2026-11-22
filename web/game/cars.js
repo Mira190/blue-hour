@@ -556,6 +556,31 @@ if (uWeave > 0.0 && gl_FrontFacing) {
   const CAR_STEP = 0.25;
   // the floor a car's wheels at height z stand on at (x, y): the highest surface no more than CAR_STEP over them
   const carFloor = (nav, x, y, z) => nav.floorAt(x, y, z - (nav.STEP - CAR_STEP));
+  // the floor under a point of the car o metres along its axis (fx, fy) from its middle at (x, y), its wheels at z, reached
+  // from the middle: the floor there no more than a kerb over the middle's and no more than 3.5 m under it, or, where
+  // nothing is within a kerb of it there, reached by halves (the middle to halfway, halfway to there), down to spans of
+  // BODY_STEP. So what stops a car is an edge: a rise of more than a kerb at once (a planter, a low wall, a slab's side)
+  // or a drop, never a slope, which it climbs a span at a time however short its ramp. null: nothing it can stand on.
+  // Measured from the middle alone, a wheel 1.3 m ahead on a stretch of street 20 to 70 % steep (the ground's ramps
+  // between its levels over a terrain cell, the lanes up from Dogenzaka) stood more than a kerb over the middle, and the
+  // car stopped dead on open paving with "Too steep a drop." (tools/car_edges.js: 519 places on the streets within 900 m
+  // of the Scramble). Where the middle alone reaches it, as on almost every street, it is one look, as before.
+  const BODY_STEP = 0.2;
+  function reachFloor(nav, x0, y0, z0, x1, y1) {
+    const f = carFloor(nav, x1, y1, z0);
+    if (f) return f.z > z0 - 3.5 ? f.z : null;
+    if (Math.hypot(x1 - x0, y1 - y0) <= BODY_STEP) return null;
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, zm = reachFloor(nav, x0, y0, z0, mx, my);
+    return zm == null ? null : reachFloor(nav, mx, my, zm, x1, y1);
+  }
+  function axisFloor(nav, x, y, z, fx, fy, o) {
+    const f = carFloor(nav, x, y, z);
+    if (!f || f.z <= z - 3.5) return null;
+    return o ? reachFloor(nav, x, y, f.z, x + fx * o, y + fy * o) : f.z;
+  }
+  // can car C stand with its middle at (x, y), its wheels at z, heading (fx, fy)? (not over the water, not off a drop the
+  // walkers wouldn't take, not against a rise of more than a kerb: its middle and its ends along its axis, axisFloor)
+  const bodyStands = (nav, C, x, y, z, fx, fy) => [C.half - C.hw, 0, -(C.half - C.hw)].every(o => axisFloor(nav, x, y, z, fx, fy, o) != null);
   // is there a ledge at (x, y) under a car at height z: a surface over its floor there by more than a kerb, and low enough
   // for a walker to step onto (so not a wall, which nav.push keeps the body out of)
   function ledgeAt(nav, x, y, z) {
@@ -567,7 +592,10 @@ if (uWeave > 0.0 && gl_FrontFacing) {
   function ledgesUnder(nav, p, hl, hw) {
     const fx = Math.sin(p.h), fy = Math.cos(p.h);
     let n = 0;
-    for (const u of [hl - 0.1, 0, 0.1 - hl]) for (const w of [hw - 0.05, 0, 0.05 - hw]) if (ledgeAt(nav, p.x + fx * u - fy * w, p.y + fy * u + fx * w, p.z)) n++;
+    for (const u of [hl - 0.1, 0, 0.1 - hl]) {
+      const zu = u ? axisFloor(nav, p.x, p.y, p.z, fx, fy, u) ?? p.z : p.z; // (the floor at that end, up or down the street's slope)
+      for (const w of [hw - 0.05, 0, 0.05 - hw]) if (ledgeAt(nav, p.x + fx * u - fy * w, p.y + fy * u + fx * w, zu)) n++;
+    }
     return n;
   }
   function drive(C, nav, at) {
@@ -577,8 +605,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     const rad = C.hw + 0.04, offs = [C.half - C.hw, 0, -(C.half - C.hw)];
     // the floor under the car: a kerb, a ramp, a deck, never more than a kerb over its wheels (CAR_STEP)
     const floor = (x, y, z) => { const f = carFloor(nav, x, y, z); return f ? f.z : null; };
-    // can the car stand here? (not over the water, not off a drop the walkers wouldn't take)
-    const standable = (x, y, z) => { const f = floor(x, y, z); return f != null && f > z - 3.5; };
+    const standable = (x, y, z, fx, fy) => bodyStands(nav, C, x, y, z, fx, fy);
     // one step of dt: inp { fwd -1..1 (W/S), turn -1..1 (+ right), handbrake }; env { boxes, people, posts }; events []
     function step(dt, inp, env, events) {
       const n = Math.max(1, Math.ceil(dt * 120), Math.ceil(Math.hypot(st.vx, st.vy) * dt / 0.3));
@@ -594,10 +621,10 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       st.rpm += (clamp(0.18 + 0.72 * band + 0.12 * Math.abs(inp.fwd || 0), 0.15, 1) - st.rpm) * Math.min(1, dt * 6);
       // the ground under the axles and the sides tilts it
       const fx = Math.sin(st.h), fy = Math.cos(st.h), zc = st.z;
-      const zf = floor(st.x + fx * C.wheelbase / 2, st.y + fy * C.wheelbase / 2, zc), zr = floor(st.x - fx * C.wheelbase / 2, st.y - fy * C.wheelbase / 2, zc);
-      const zl = floor(st.x - fy * C.hw, st.y + fx * C.hw, zc), zrt = floor(st.x + fy * C.hw, st.y - fx * C.hw, zc);
-      // (within a kerb and a little of the body's height, and never more than a wheel up a kerb tilts it)
-      const ok = v => v != null && Math.abs(v - zc) < CAR_STEP + 0.2;
+      const zf = axisFloor(nav, st.x, st.y, zc, fx, fy, C.wheelbase / 2), zr = axisFloor(nav, st.x, st.y, zc, fx, fy, -C.wheelbase / 2);
+      const zl = axisFloor(nav, st.x, st.y, zc, -fy, fx, C.hw), zrt = axisFloor(nav, st.x, st.y, zc, -fy, fx, -C.hw);
+      // (up or down the street's slope and a kerb at once, and never more than a wheel up a kerb tilts it)
+      const ok = v => v != null && Math.abs(v - zc) < CAR_STEP + 0.2 + 0.25 * C.wheelbase;
       const gp = ok(zf) && ok(zr) ? clamp(-Math.atan2(zf - zr, C.wheelbase), -0.25, 0.25) : 0, gr = ok(zl) && ok(zrt) ? clamp(Math.atan2(zl - zrt, 2 * C.hw), -0.25, 0.25) : 0;
       st.pitch += (gp - st.pitch) * Math.min(1, dt * 8);
       st.roll += (gr - st.roll) * Math.min(1, dt * 8);
@@ -648,7 +675,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       // the water's edge, a drop, a wall too high: back to where it was, bouncing off (the heading
       // too: a turn on the spot would swing the body into the trunk or wall it was pushed out of)
       const nfx = Math.sin(st.h), nfy = Math.cos(st.h);
-      if (offs.some(o => !standable(st.x + nfx * o, st.y + nfy * o, st.z))) {
+      if (!standable(st.x, st.y, st.z, nfx, nfy)) {
         const sp = Math.hypot(st.vx, st.vy);
         st.x = px; st.y = py; st.h = ph; st.vx *= -0.15; st.vy *= -0.15; st.r *= 0.3;
         if (sp > 2) events.push({ type: 'edge', speed: sp });
@@ -667,7 +694,9 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       if (f != null) {
         if (f >= st.z - 0.05) {
           if (st.air && st.vz < -4) events.push({ type: 'land', speed: -st.vz });
-          st.z += (f - st.z) * Math.min(1, dt * 20); st.vz = 0; st.air = false;
+          // (eased up a kerb, but never more than half a kerb under the floor: up a steep street at speed the easing fell
+          // more than a kerb behind, and the car lost its own floor and stopped dead, "Too steep a drop.")
+          st.z += (f - st.z) * Math.min(1, dt * 20); st.z = Math.max(st.z, f - CAR_STEP / 2); st.vz = 0; st.air = false;
         } else {
           st.air = st.z - f > 0.25; st.vz -= 9.8 * dt; st.z = Math.max(f, st.z + st.vz * dt);
           if (st.z <= f) { if (st.vz < -4) events.push({ type: 'land', speed: -st.vz }); st.vz = 0; st.air = false; }
@@ -1743,5 +1772,5 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     return { st, update, finish, jump, leave, poseAt, path: P, box: () => boxOf(st, C.half, C.hw, C.top), remaining: () => st.end - st.s, timeLeft, total: () => timed().total };
   }
 
-  return { car, headlamp, beam: BEAM, drive, router, path, chauffeur, queueing, pushOut, sweep, boxOf, kerbOf, ledgesUnder, CAR_STEP, ROADW, LANE, PERF, weather: WX, setWeather, sprayStep, sprayState: () => SPRAY };
+  return { car, headlamp, beam: BEAM, drive, router, path, chauffeur, queueing, pushOut, sweep, boxOf, kerbOf, ledgesUnder, bodyStands, CAR_STEP, ROADW, LANE, PERF, weather: WX, setWeather, sprayStep, sprayState: () => SPRAY };
 })();

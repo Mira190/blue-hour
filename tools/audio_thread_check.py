@@ -12,7 +12,9 @@ the things that do so outside the one place each is allowed, and says why it is 
   - a ConvolverNode: only in audio.js's reverb() (which keeps a phone's within the limit), and in the offline renders
     (film-score.js, music.js's offline path), where there is no audio thread to keep up;
   - an AudioContext made: only audio.js's, and the fallbacks of overture.js and music.js for a page without it;
-  - a media element's or stream's sound (createMediaElementSource, createMediaStreamSource, new Audio): none.
+  - a media element's or stream's sound brought into the context (createMediaElementSource, createMediaStreamSource):
+    none. A media element by itself (new Audio): only audio.js's tune(), a phone's music, which the system's own player
+    decodes and plays in another process and which waits on nothing of the page's (docs/SOUND.md, "A phone's music").
 
 tools/phone_audio.js is the other half: the page played as an iPhone, every convolver on the live context measured.
   python3 tools/audio_thread_check.py
@@ -36,7 +38,9 @@ RULES = [
      {'web/game/audio.js': (1, 'the one context, made in the first touch on iOS'),
       'web/game/overture.js': (1, 'only where there is no OEAudio, which the story page always has'),
       'web/game/music.js': (1, 'only when started without a context, which the game never does')}),
-    ('a media element\'s or stream\'s sound', re.compile(r'createMediaElementSource|createMediaStreamSource|new\s+Audio\s*\('), {}),
+    ('a media element\'s or stream\'s sound brought into the context', re.compile(r'createMediaElementSource|createMediaStreamSource|createMediaStreamDestination'), {}),
+    ('a media element made', re.compile(r'new\s+Audio\s*\('),
+     {'web/game/audio.js': (1, 'tune(): a phone\'s music played by the system\'s own player, outside the context and its thread')}),
 ]
 
 
