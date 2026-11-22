@@ -20,6 +20,9 @@
 //     may (a fifth on a desktop; on a phone a sixteenth with the lens's settings put away, a quarter with them out) or
 //     lie over the middle of the frame, on a phone Adjust does not bring the settings out, or a photograph of Hachiko from
 //     beside him is not the first of the views of Shibuya with its picture in the menu's album;
+//   - beside the kerb nobody walks into Nagi, she is not left on the ground with the corner saying what he did, Help her
+//     up is not offered beside her, helped she does not ask for her photograph, or a photograph with her in it does not
+//     send you back to her and put the walk's line away (walktalk.js, its incident);
 //   - Mei at Hachiko has no amber speech mark over her from fourteen metres, E (or a tap) beside her does not open her
 //     talk in the story's box, the corner does not then say what she asked, Riko across the crossing does not have her
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
@@ -513,7 +516,60 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       const errandNow = () => p.evaluate(() => { const e = document.querySelector('#g-walk-where .q'); return e && !e.hidden ? e.textContent : ''; });
       // (the corner and the marks are the page's own frames' to draw: waited for, a software renderer's frame being seconds long)
       const errandIs = re => p.waitForFunction(r => { const e = document.querySelector('#g-walk-where .q'); return e && !e.hidden && new RegExp(r).test(e.textContent); }, re.source, { timeout: 90000, polling: 500 }).then(() => true, () => false);
-      await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.reset(); });
+      // the walk's line (walktalk.js, its incident; docs/STORY.md "The walk's line"): beside the kerb you came down at a woman
+      // is walked into and left on the ground; the corner says what he did; beside her Help her up is offered, and taken,
+      // she speaks and asks for her photograph; a photograph with her in it sends you back to her, and the story is put away
+      {
+        const line = () => p.evaluate(() => window.__game.walkLine());
+        const beside = near => p.evaluate(near => { const g = window.__game, n = g.npcById('nagi'); g.spawn([n.x + near * 0.55, n.y - near * 0.83]); const a = Math.atan2(n.x - g.player.x, n.y - g.player.y); g.player.h = a; g.cam.yaw = a; for (let i = 0; i < 6; i++) g.frame(0.05); }, near);
+        const drawnN = await p.waitForFunction(() => { const n = window.__game.npcById('nagi'); return n && !n.rig.pending; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
+        await p.evaluate(() => window.__game.walkTalk().lineAgain()); // (the checks before this one began the stories again, and with them took the incident away)
+        if (!drawnN) fail('Nagi is not drawn ten minutes after setting out');
+        else {
+          await beside(4);
+          // (the man's character comes too, then the page's own frames set him off and carry him to her)
+          await p.waitForFunction(() => window.__game.walkLine().ph !== 'wait', null, { timeout: 600000, polling: 250 }).catch(() => {});
+          await p.waitForFunction(() => /down|up/.test(window.__game.walkLine().ph), null, { timeout: 600000, polling: 250 }).catch(() => {}); // (the line goes by the page's own frames: seconds each on a software renderer)
+          const l = await line();
+          if (l.ph !== 'down' || l.at[2] !== 'down') fail(`the walk's line: nobody walked into her, or she is not on the ground (${JSON.stringify(l)})`);
+          else {
+            ok(`the walk's line: he walked into her and walked on (he is at ${l.man}); she is on the ground`);
+            if (!(await errandIs(/walked into her/))) fail(`she is on the ground and the corner does not say what he did ("${await errandNow()}")`);
+            await shot('4a-down');
+            await beside(1.7);
+            if (!(await waitPrompt(/Help her up/))) fail(`beside her on the ground, nothing offers to help her up ("${await prompt()}")`);
+            else {
+              await act();
+              await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
+              const box = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? document.getElementById('gd-name').textContent : ''; });
+              const up = await line();
+              if (!/Nagi/.test(box) || up.at[2] !== 'up') fail(`helped up, she is not on her feet and speaking ("${box}", ${JSON.stringify(up)})`);
+              else ok('Help her up: she is on her feet, and speaks');
+              await shot('4a-helped');
+              await through();
+              if (!(await errandIs(/Photograph Nagi/))) fail(`she does not ask for her photograph ("${await errandNow()}")`);
+              else {
+                await beside(3.2);
+                const back = await p.evaluate(() => { const g = window.__game; g.photoMode(true); g.snapPhoto(); g.photoMode(false); for (let i = 0; i < 6; i++) g.frame(0.05); const e = g.walkTalk().errand(); return e ? e.text : ''; });
+                if (!/Back to Nagi/.test(back)) fail(`a photograph with her in it is not the one she asked for ("${back}")`);
+                else {
+                  await beside(1.7);
+                  if (!(await waitPrompt(/Talk to Nagi/))) fail('the photograph taken, she has nothing to say');
+                  else {
+                    await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
+                    await shot('4a-last-train');
+                    await through();
+                    const st = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 10; i++) g.frame(0.05); return (g.walkTalk().state().last || {}); });
+                    if (!st.done || st.inc !== 'helped') fail(`her story is not put away (${JSON.stringify(st)})`);
+                    else ok('her photograph taken and shown: The last train is put away, the 0:33 named');
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.startAt('hachiko'); }); // (Mei's turn: the walk's line before hers told)
       // (Mei and Riko drawn first: a character's pictures go to the GPU a frame at a time, minutes on a software renderer)
       const drawn = await p.waitForFunction(() => window.__game.npcs.filter(n => n.id === 'mei' || n.id === 'riko').every(n => !n.rig.pending), null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
       if (!drawn) fail('Mei and Riko are not drawn ten minutes after setting out');
@@ -560,7 +616,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await p.waitForFunction(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on'); }, null, { timeout: 30000, polling: 250 }).catch(() => {});
               const told = await p.evaluate(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on') ? e.textContent : ''; });
               const n = await p.evaluate(() => window.__game.walkTalk().count());
-              if (n.done !== 1) fail(`Mei's story told to its end, but ${n.done} of ${n.of} are put away`);
+              if (n.done !== 2) fail(`Mei's story told to its end, but ${n.done} of ${n.of} are put away`); // (hers, and the walk's line before it)
               else if (!/Which Hachiko/.test(told)) fail(`Mei's story told, but its name is not put up ("${told}")`);
               else ok(`told: "${told}"`);
               await p.addStyleTag({ content: '#g-walk-told { transition: none !important; }' }); // (its fade is the compositor's, and a software renderer's page has no frame to give it)
