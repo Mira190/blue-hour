@@ -1063,6 +1063,7 @@ ${PAT_GLSL}`)
   }
   // (switches a harness may turn: clearArms off shows a clip as it was made, tools/hold_check.js)
   const OPT = { clearArms: true };
+  let made = 0;
   function person(lib, look) {
     if (!up) {
       up = new THREE.Vector3(0, 1, 0); tv = new THREE.Vector3(); tq = new THREE.Quaternion(); tq2 = new THREE.Quaternion(); hp = new THREE.Vector3();
@@ -1089,6 +1090,7 @@ ${PAT_GLSL}`)
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);
     let cur = null, cycles = 0, lastT = 0, waveUntil = -Infinity, lookW = 0, talked = false;
+    const idleAt = (made = (made + 0.6180339887) % 1); // (spread by the golden ratio, in the order people are made)
     const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
@@ -1225,6 +1227,9 @@ ${PAT_GLSL}`)
       if (!a) return { setEffectiveTimeScale() { return this; } };
       if (cur === a) return a;
       a.reset();
+      // (what one waits doing begins at a moment of its own: a kerb's crowd that stopped together at the red light moved
+      // together, every head turning at once)
+      if (!once && name === idleClip()) a.time = idleAt * a.getClip().duration;
       a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
       a.clampWhenFinished = once;
       a.setEffectiveTimeScale(1).setEffectiveWeight(1).play();
@@ -1914,11 +1919,13 @@ transformed = crowdPose(transformed, false);`);
     const worn = {}; // (the last of DRESS each cast member was dealt)
     P.forEach((p, i) => {
       p.look = randomLook(lib, pickCharacter(lib, style), style);
-      // (three in ten, the right hand free, look at a phone when they stand: the cast's Phone clip, texting, a phone in the
-      // hand. A kerb's crowd all in Idle and square to the road read as a parade, issue 75. Chosen by its place, not by
-      // rnd: the looks dealt after it as they were)
+      // (three in ten wait otherwise when they stand: half look about them, half shift their weight. A kerb's crowd all in Idle
+      // and square to the road read as a parade, issue 75. Not the cast's Phone clip, as it was until November 2026: a pose
+      // with a prop, made on one body, read as an odd gesture on the others, the forearm in a jacket and a box at the chest;
+      // a crowd waits in what holds on every body. Chosen by its place, not by rnd: the looks dealt after it as they were)
       let ph = Math.imul(i + 1, 2654435761) >>> 0; ph = Math.imul(ph ^ (ph >>> 15), 2246822519) >>> 0;
-      if (((ph ^ (ph >>> 13)) >>> 0) % 100 < 30 && !(p.look.acc || []).some(a => ACC[a] && ACC[a].bone === 'WristR')) p.look.clip = 'Phone';
+      const pw = ((ph ^ (ph >>> 13)) >>> 0) % 100;
+      if (pw < 30) p.look.clip = pw < 15 ? 'LookAround' : 'Idle_Neutral';
       const gs = lib.info.ground_speed[lib.info.characters[p.look.character].pack].Walk;
       p.speed = gs * p.look.scale * (0.95 + rnd() * 0.25);
       // (the clothes they wear, far and near: DRESS. Dealt round each cast member's walkers in turn, from a start of

@@ -443,8 +443,10 @@ cast member is still streaming stands in as a loaded cast member of the same sex
 crowd's doll, so a dense crossing reads as real at once and swaps to its own character when it comes.
 
 **Arms kept out of the body (`web/game/people.js` `armsClear`).** One clip file per sex drives every avatar of that
-sex, so a pose made on one body plays on broader ones: the texting clip that three in ten of the crowd take when they stop
-put the right forearm into a suit jacket's chest at the crossing (the owner's report), and the drink, the book, the
+sex, so a pose made on one body plays on broader ones: the texting clip that three in ten of the crowd took when they stopped
+put the right forearm into a suit jacket's chest at the crossing (the owner's report; the crowd and the map's people no
+longer text: a pose with a prop, made on one body, read as an odd gesture on the others even out of the body, and those
+three in ten now look about them or shift their weight, each from a moment of their own in the clip), and the drink, the book, the
 clipboard and the camera put hands and what they hold into blouses and jackets: 47 of 166 avatar-clips had a limb or a
 held thing more than 2 cm inside the torso, up to 7 cm. Each body's own torso, as it was bound, is cut into 3 cm slices
 up the spine, each a ring of 24 radii carried by a blend of the spine bones (as the skin is). Each frame a few points of
