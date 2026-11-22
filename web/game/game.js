@@ -1766,7 +1766,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (clockT - bumpCar < 2.5 || e.speed < 3) continue;
       bumpCar = clockT;
       if (e.type === 'bump') H.toast(e.what === 'person' ? 'Watch out for people!' : e.what === 'car' ? 'Careful! That was another car.' : e.what === 'lamp' ? 'Careful! That was a lamp post.' : e.what === 'tree' ? 'Careful! That was a tree.' : 'Careful! That was a wall.');
-      if (e.type === 'edge') H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : 'Too steep a drop.');
+      if (e.type === 'edge') { const ax = st.x + Math.sin(st.h) * 3, ay = st.y + Math.cos(st.h) * 3, up = nav.floorAt(ax, ay, st.z + 2); H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : up && up.z > st.z + OECars.CAR_STEP ? 'Too high a step for the car.' : 'Too steep a drop.'); } // (a rise ahead, or the ground falling away)
     }
     Object.assign(player, { x: st.x, y: st.y, z: st.z, h: st.h, speed: st.speed });
     if (!pilot) redLight(st);
