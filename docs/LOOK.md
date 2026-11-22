@@ -473,6 +473,26 @@ city turns it off with `game.crowd.real: false` or the URL `?realcrowd=off`. A n
 cast member is still streaming stands in as a loaded cast member of the same sex rather than the far
 crowd's doll, so a dense crossing reads as real at once and swaps to its own character when it comes.
 
+**Arms kept out of the body (`web/game/people.js` `armsClear`).** One clip file per sex drives every avatar of that
+sex, so a pose made on one body plays on broader ones: the texting clip that three in ten of the crowd took when they stopped
+put the right forearm into a suit jacket's chest at the crossing (the owner's report; the crowd and the map's people no
+longer text: a pose with a prop, made on one body, read as an odd gesture on the others even out of the body, and those
+three in ten now look about them or shift their weight, each from a moment of their own in the clip), and the drink, the book, the
+clipboard and the camera put hands and what they hold into blouses and jackets: 47 of 166 avatar-clips had a limb or a
+held thing more than 2 cm inside the torso, up to 7 cm. Each body's own torso, as it was bound, is cut into 3 cm slices
+up the spine, each a ring of 24 radii carried by a blend of the spine bones (as the skin is). Each frame a few points of
+each forearm and hand (spread over them by farthest-point sampling) and the corners of what the hand holds are looked
+for inside the rings; every point inside, or nearer than 2 cm, asks for the turn that takes it out along its ring's
+radius, the elbow's half of the forearm of the shoulder (the forearm then aimed back at the wrist, so the hand keeps its
+place), the wrist's half, the hand and what it holds of the elbow. The asks are weighed by the square of how far in each
+point is, so the correction grows and fades with the pose, and the turn reaches the arm through a critically damped
+spring (stiff to push, soft to let go; Lowe's closed form, *Game Programming Gems 4*, 2004), so a hand that meets the
+body at speed is not stopped within a frame. It is laid over the clip and taken off before the next frame. About
+0.08 ms a person a frame on a session's machine. Learned from the design of contact-aware retargeting, which treats the
+skinned body's self-penetration as the thing to remove (Villegas et al., ICCV 2021) and from engines' run-time limb
+correction after retargeting (Unreal Engine's IK Rig and Control Rig); nothing was copied. `tools/hold_check.js`
+measures every cast avatar through every held clip (docs/CHECKS.md, `hold`).
+
 **The far crowd is the same cast (`pipeline/crowd_cast.py`, `web/assets/people/crowd_cast.glb`, issue 475).**
 Past the nearest walkers the crowd was still the instanced dolls recoloured from a palette, and across a street
 they read as another kind of person from the scanned ones beside them. Each walker is now drawn far off as the
@@ -618,6 +638,42 @@ smaller mipmaps read it at a seam; no garment beside the skin is reached either 
 draws a cast member in the crowd's change of clothes k, which is where a hole shows (in its own clothes nothing is
 dyed, so the knees looked right).
 
+**Cloth taken for skin** (November 2026). The opposite fault: at Hachiko's wall the owner saw a woman in a pale
+jacket with large salmon-pink patches on its sleeve and chest ("the clothes need fixing too"). She was
+`R_Female_Adult_05_f011`, whose own shirt is a pink check: its pink squares have the hands' hue, so the walk from the
+hands went on through the sleeves' faces, the mask marked bands of the check as skin, and the change of clothes left
+them pink on a jacket dyed pale grey, lit as skin besides. Measured over the twenty in the crowd's cast
+(`tools/skin_mask_audit.py`, which draws each body's picture beside its mask), more had garments marked: a beige
+knit's sleeves and chest (`R_Male_Adult_02_m017`, a fifth of the body's picture), brown trousers and shoes
+(`R_Male_Adult_05_m008`, a quarter), a brown hoodie's sleeves (`R_Male_Adult_20_m008`), and a few small pieces on two
+more; among the rest of Shibuya's people, a gloved woman's whole beige coat (`R_Business_Female_03_f011_glove_liftcap`,
+half her body's picture: in gloves the face is the reference) and tan trousers (`R_Male_Adult_14_m017_grey`). A
+garment so marked never took the crowd's change of clothes, so its wearer's copies all wore it. Colour texel by texel cannot tell them from skin; each face's texels as a whole can. `skin_mask` now keeps, of
+the faces the walk reached, those whose skin-like texels together are the hands' (`whole_skin`): a hue angle (CIELAB)
+within 12 degrees, at least half the chroma, 0.38 to 1.35 of the lightness, and no more fine detail than skin (the
+check's lines measure four to seven times the hands', the knit is 24 degrees yellower, the jacket and the shirt a
+third as light and as coloured; a thigh in a skirt's shadow is darker and greyer than a hand, by half at most, and
+as smooth). The walk still joins skin to a hand, the head or a leg through the body's own faces, so a bare forearm
+beyond a wristband the test drops is kept. A sandal's straps and a boot's tan leather, marked before, are cloth now.
+
+**A neckline is bare** (November 2026). A woman in a navy suit worn over bare skin had a beige V at her neckline with a
+dark ring round it: only the V's middle was marked, as its rim's faces are weighted to the upper chest (Spine2), which
+was not among the bones a body can be bare on, and the change of clothes dyed the rim the suit's colour. Spine2 is
+among them now; a beige top there is told from skin by `whole_skin`.
+
+**The far crowd torn where a limb meets the body** (November 2026). In the rain at the Scramble the owner saw clothes
+"with lots of clipping or skin showing where it shouldn't": shards off a vest at the arm holding an umbrella up, tears
+at shoulders, elbows and knees with the warm inside of the model showing through. These were the far copies
+(`pipeline/crowd_cast.py`), which the shader poses by parts (people.js `crowdPose`: each leg from the hip and the knee,
+each arm from the shoulder, the umbrella's arm raised and its forearm folded). Each corner took its heaviest bone's
+part whole, and the triangles were cut apart where two parts met so the simplifier would keep the edge, so wherever
+the artist had blended a garment across a joint (a hem weighted partly to a thigh, a sleeve's top to the chest), the
+two sides went separate ways and the gap opened. From first principles the near walker's skinning does not tear: it
+blends. So does the far copy now, at no cost when drawn: each corner carries its limb and its share of it (and of the
+limb below the knee) from its skin weights (`_PARTW`), the shader turns it by that share of the limb's angle, and
+nothing is cut apart; the shares go to the simplifier beside the picture's coordinates, so it keeps where a body bends.
+A doll of the far crowd is posed as before. `tools/perch_cast.js QUERY=&crowdnear=0` draws every walker as its far copy.
+
 ### Hair: strands, not a shell (`web/game/people.js`, issue 74)
 
 Every conversation is shot over Kagami's shoulder, so the back of Kagami's head is the asset the player sees most.
@@ -721,6 +777,42 @@ gives it; `NOLIGHT=1` leaves that out.
 cut: cards over the head's painted hair, ending in a few broad points; a soft hem wants new cards built in
 `blender/build_people.py` or the two passes above. Cloth has the avatars' own normal maps and no weave of its own.
 The crowd takes the same light (it is one patch) but none of this was tuned on it.
+
+### Hair, the second pass: the head's own hair (`web/game/people.js`, issue 123)
+
+The first two passes (issue 74's strands, issue 123's light) did not reach the hair that matters most. An avatar's
+long hair is part of its head's mesh, a shell down the back, and the cards only lie on it.
+
+- **The head's hair was never marked as hair.** `strandHair` finds the skull from the rig to tell hair from skin, to
+  run the strands from the crown and to darken the root. It took a joint's place through `mesh.bindMatrixInverse`,
+  which an attached skinned mesh sets to its node's inverse whenever the scene is updated; a face's mesh hangs on a
+  node a hundredth the size and turned. Once a model had been in a scene the skull was sixty units over the pelvis,
+  every vertex was "a metre and a half off the skull", and no vertex of the head was marked: Kagami's back was the
+  avatar's grey painted shell with plain shading. Now through the inverse of the bind matrix (`bindInv`).
+  `tools/hair_probe.js` prints, for the one you play, how many of the head's vertices are marked as hair, and fails
+  when none is (it is not one of `tools/check.sh`'s checks yet).
+- **With the strands on, black hair was silver.** The lobes were tuned on the cards, which are wisps; on a whole
+  surface under a dusk sky they lit all of it. The head's hair and the cards take them at half.
+- **The hem is the avatar's own.** A fringe of loose ends hung from the hem (strips cut strand by strand in the
+  shader) was built and taken out again the same day at the owner's word: it looked strange. Nothing is added to
+  the hair's outline.
+
+Surveyed (ideas only; no code or asset copied): Lengyel et al., "Real-time fur over arbitrary surfaces" (I3D 2001:
+shells and fins); Scheuermann, "Practical Real-Time Hair Rendering and Shading" (SIGGRAPH 2004) and Kajiya and Kay
+1989 (the shader's lobes since issue 74); Wyman and McGuire, "Hashed Alpha Testing" (I3D 2017); Marschner et al.
+2003 (why black hair keeps only the uncoloured first lobe: the reason the lobes were halved); Babylon.js
+`FurMaterial` (Apache-2.0, read for its cost, not adopted); three.js `MeshPhysicalMaterial.anisotropy` (MIT, r153,
+not used: Kajiya-Kay is already in the hair's own patch); Poly Haven and ambientCG offer no hair strand textures.
+
+Photographs of dark hair at night beside the stills (Wikimedia Commons):
+"DSCF1184 A woman with a floral back tattoo ... at night.jpg", PattayaPatrol, CC BY-SA 4.0;
+"Neon in the streets of Shibuya (9412153000).jpg", Maarten Heerlien, CC BY 2.0.
+
+Stills: `tools/game_shot.js` with `tools/views/kagami-back-123.json` (her back in focus at dusk and at 19:30),
+`docs/images/people/hair-123-back.jpg` (main beside this pass).
+
+Not done: the hair is a painted shell with shaded strands, not a groom; nothing in it moves; cloth has no weave of
+its own and skin no pores. Faces are issue 12.
 
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 

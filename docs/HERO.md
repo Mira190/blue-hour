@@ -30,7 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
-| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is wall (`posts`; `belts` for a queue's belts, none now) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 | A level over the street, fetched by its height off the camera as well (`zr`) | `cities/shibuya/hero_skyroof.py`; below, "SKY STAGE" |
 
 ## How it works
@@ -62,8 +62,11 @@ roads". Three causes, each a matter of what the surface is:
   hands over linear; the zone's branch of the ground shader decoded it again, and asphalt drawn at an albedo of 0.075
   came out at 0.007, the footways a brown. The zone now takes the drawing as it is given, and the asphalt is drawn as a
   worn city road is under the sun (`#5c5f63`, an albedo near 0.11: the hero level's own tone, so the level's roads go
-  on into the map's without a step). Past the zones the first branch is as it was: its thresholds were tuned on the
-  twice-decoded values, and nothing a player reaches lies there on foot.
+  on into the map's without a step). Past the zones the shader's first branch did the same, and the photograph's road
+  under the drawing was capped to that near-black too: it now reads the drawing once, its asphalt test moved to the
+  true values (`smoothstep(0.2, 0.14, ...)`, as the zone's). Views: `tools/views/far-ground-148.json`.
+
+![On foot and from 30 m outside the zones, by day and at night: before and after](images/walk-review/far-ground-148.jpg)
 - *The roads had no paint.* The drawing now carries what a Tokyo road carries, from the road data and nothing else:
   edge lines half a metre in from the kerbs, a broken line between two lanes of one way (`nl`), the centre line of a
   two-way road (unbroken where it has two lanes each way), the bars of a zebra where the data has a crossing
@@ -84,6 +87,17 @@ band. Views: `tools/views/walk-heights.json`.
 
 ![From 80, 230 and 400 m by day, before and after; dusk and night after](images/walk-review/air-day-148.jpg)
 ![A phone's tier from 230 and 400 m by day, before and after](images/walk-review/air-day-148-phone.jpg)
+
+**The blank white wall south-west of the scramble** (issue 143). The walk's review found, 100 m south-west of the
+crossing, a pale wall filling the frame that was the brightest thing in the picture at night. It is the street face of
+`w904734439`, a strip 165 m long and 8 m wide that OpenStreetMap maps as `building=train_station` along the lane under
+Mark City's south side. PLATEAU's survey has no building there (its height is an estimate), so it is a railway
+structure mapped as a building, not rooms. Drawn as an office with 5 m storeys, its lane front was a row of shopfronts
+5 m tall whose rooms were lit flat white at night. `pipeline/stations.py` now gives a station the survey does not
+have the industrial style: metal panel with a high band of windows, lit as a works building is. The same rule caught
+one other such station on the map. Views: `tools/views/sw-wall-143.json`.
+
+![The lane, before and after: from its east end at night, its west end at night, its east end by day, and the corner](images/walk-review/sw-lane-143.jpg)
 
 Not done here, and why: the far field beyond the zones is still the aerial photograph under plain boxes (it reads as
 a city in haze from 300 m, and nothing nearer is owed where no player lands); the square south of the crossing is
@@ -540,6 +554,8 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
     ribs along its panels' seams and its hem; in the rain, drops beaded on it that go as one wetness where a pixel
     spans several. It is blended over the person under it, who is drawn first and whole, and nothing else of a person
     is see-through, so two transparencies never lie over each other.
+  - `tools/umbrella_held.js` measures that every umbrella near the lens is held (issue 165, docs/WEATHER.md "An umbrella
+    is held") and takes its stills at the same kerbs.
   - `tools/lens_crowd.js` stands you in the rain among a kerb's crowd at Center Gai's mouth (17:41) and at the kerb of
     the story's seventh frame (17:53), puts three of those waiting at 2.2, 2.6 and 3.1 m from the lens, plays five
     seconds and takes a still each half second; it fails when someone inside the near space is drawn or someone
@@ -830,8 +846,12 @@ wrong, and redone.
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
   to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
-  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
-  run east to the cars (`game.hero[].belts`, solid).
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. No queue belts: two
+  ran east to the cars and a third along the front 1.5 m out, as the line is held at busy times in the photographs, and
+  with nobody queuing they were ropes in a player's way (one across the way in, one fencing the open north side). The
+  owner took them away (November 2026: "the route has to be completely smooth"); `game.hero[].belts` is empty, and
+  `tools/sky_walk.js` walks the player in from the west, the south-west, the pillar, the north-west and the north and
+  fails on a path longer than 1.25 times the straight line, a hold, or no lift offered at the end.
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
@@ -844,8 +864,9 @@ wrong, and redone.
 
 3,600 triangles, 0.67 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
 within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
-`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
-entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+`tools/lobby_check.py` (its posts inside its lobby, clear of every solid), `tools/sky_walk.js` (walked into from five
+sides, above), `tools/lobby_shot.js` (the entrance from the street and either side, the threshold, the hall),
+`tools/walk_play.js` (the
 hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
 
 ### The ride up: the city, not the wall (issue 144)
@@ -962,7 +983,11 @@ the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level
 boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
 layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
 nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
-thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
+thing to walk round and never a step to take onto it; and the cheeks of the four flights up to the pad, from the second
+step to the top (the landmark has the steps as a floor and nothing as their sides, so a walker going along beside a
+flight was kept off it by their middle alone and half their body went into it: the owner's screenshot, November 2026;
+the first step, 0.2 m, stays open to be stepped onto from the side). `tools/sky_walk.js` walks into each cheek and along
+it, and fails if the walker's middle comes within 0.28 m of it. `game.js` lays them into the collision world as walls, as a
 railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
 gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
 pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the
@@ -1000,6 +1025,72 @@ Where it still falls short: the furniture's sizes and places are read from photo
 measured; whether the heliport's paint is the H and circle drawn here, or the compass alone, could not be settled from
 the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
 there; and it has been seen on a software renderer only.
+
+### SHIBUYA SKY from the sources, again (November 2026, issues 137, 139, 144)
+
+Read again before the roof's second pass, with what each source is and may be used for. Nothing is reproduced; no
+texture is taken from any of them.
+
+- **SKY GATE** (14F to 45F) is the official "transition space" in three parts: SENSING HALL, the 14F lift hall, a black
+  room under a luminous textile ceiling of about 3 by 7 m driven by two LiDAR sensors, with 21 speakers and thin lines
+  of light on its walls (PAN's work page, p4n.jp/works/shibuya-sky; Dick Thomas Johnson, `Shibuya Scramble Square
+  (49997629637).jpg`, 2 January 2020, CC BY 2.0); TRANSITION POD, two Hitachi shuttle lifts, 360 m a minute, 1,850 kg,
+  28 people, about 30 seconds, the car black inside and its whole ceiling a picture that keeps pace with the climb, a
+  vortex of white and pale blue streaks on black (Hitachi's press release of 28 October 2019 and its case study, all
+  rights reserved; Abstract Engine's work page, abstractengine.com/work/shibuya-sky, its credits: Rhizomatiks Design for
+  the space, the light and the picture, TANGRAM and cai for the pod's CG, Setsuya Kurotaki for the sound; Dick Thomas
+  Johnson, `Shibuya Scramble Square SHIBUYA SKY (53002088401).jpg`, 23 February 2023, CC BY 2.0); and LEADING LINE, the
+  escalator from 45F to 46F between dark blue-grey walls with frames of white light stepping up to daylight (Dick Thomas
+  Johnson, `Shibuya Scramble Square (49997376121).jpg`, CC BY 2.0). The 14F ticket hall: a back-lit white glass wall,
+  a charcoal counter, a black open ceiling with track lights (Syced, `Shibuya Sky entrance, 14F.jpg`, 6 September 2024,
+  CC0). The ride here is not the pod: the owner chose the tower climbed from outside (above), and the pod's ceiling of
+  light is what that shot leaves out.
+- **46F to the roof**: the outdoor escalators rise 8.98 m (Hitachi), so the deck stands about 9 m over 46F, as
+  `city.py` SKY `floor_46_below_m` has it.
+- **The heliport** is raised in the roof's middle, its top artificial turf in one mid-green, every mark on it yellow
+  laid into the turf: a ring with an H in it about 6 to 7 m across, the square boundary doubled on one side, long arrows
+  along one side (Travel Watch, 28 October 2019, and Shibuya Keizai Shimbun, 25 and 30 October 2019, all rights
+  reserved, read only; Kanchi1979, `JP-The-Roof-Shibuya-Sky-Heliport.jpg`, 3 May 2022, CC BY-SA 4.0; RuinDig,
+  `SHIBUYA-SKY Tokyo Heliport01.jpg`, 14 December 2020, CC BY 4.0). No published size or weight was found; "MAX 5t" is
+  in Wei-Te Wong's photograph of 2019 (above).
+- **GEO COMPASS** is not on the heliport: a low square plinth beside it at the head of the steps on the side toward
+  Yoyogi Park and Shinjuku, about 6 m square, pale stone slabs edged in timber, a dark metal compass star and a ring of
+  metal about 0.4 m wide with names cut in it round a relief world map in azimuthal equidistant projection under a
+  clear cover (Real Estate Japan, `Shibuya scramble square sky compass (48995414732).jpg`, 1 November 2019, CC BY 2.0;
+  Kakidai, `Shibuya Scramble Square - SHIBUYA SKY 8.jpg`, November 2019, CC BY-SA 4.0; nippon.com's guide; Abstract
+  Engine's credits name its georama). Its sizes are read from those photographs, not measured.
+- **The glass**: tall clear panes on round pale steel posts under a slim top rail along most of the deck, low and
+  frameless at SKY EDGE (Kakidai, `SHIBUYA SKY 10.jpg`, CC BY-SA 4.0; Dick Thomas Johnson, `(52978516616).jpg`, 29
+  December 2022, CC BY 2.0); laminated low-iron glass (Nippon Sheet Glass, glass-wonderland.jp/case/8260). No height in
+  metres is published.
+- **The deck** in the photographs is wood-look boards in long courses on the walks and the stepped terraces round the
+  heliport, white toward SKY EDGE; the dark porcelain pavers drawn here (issue 72) are not what it is, and are left for
+  their own piece of work. CROSSING LIGHT's hardware is not described anywhere found.
+- **Official figures**: 229 m (the official site), about 2,500 m² of roof, 47 floors over ground (Nikkei xTECH, 28
+  October 2019).
+
+### The first view of the roof in frame 5 (issue 139)
+
+Frame 5 begins where frame 4's photograph was taken, 0.9 m from the roof's east glass, and the story turns the view to
+the helicopter's pad behind her. The chase camera's place for that view is outside the glass, which it cannot look in
+through, so only its highest lift cleared the pane: the first view of the roof was straight down on her head, the pad
+not in it, until she had walked a few metres off the glass. Of the two ways the issue set out (the camera looking in
+through glass, or the frame beginning a few steps in), the second was taken: a lens that stands outside the tower
+230 m up to look back in is a view nobody on the roof has.
+
+The story's `look` can now ask for room (`game.js` `look(at, level, room)`, `lookRoom`): where the camera has no place
+behind her shoulder for the view asked, the game walks her toward what is looked at, to the first place within 6 m
+where it has (its own walk, `player.auto`; a step of the player's ends it), and turns the view as she stops. In frame
+5 she turns from the glass and walks in while the office rings, seen from the deck with the city she photographed
+behind her, and the view comes round to the pad and the helicopter over her shoulder: the lens 2.6 m over her feet
+(6 m before), the helicopter in the middle of the frame, on a desktop and a phone
+(`docs/images/sky/roof-first-139.jpg`). `tools/story_play.js` holds it there: at the board's beat the lens is no more
+than 3.6 m over her feet with the helicopter inside the frame, five frames given no time do not move it, and five
+stills a second apart (`5-board-held-0` to `4`) show it standing still.
+
+Where it still falls short: the first second of the frame is still frame 4's look down over the glass, while she
+turns; the story's caption from the print before stands across the middle of a phone's frame as the view arrives.
+Not seen: a real GPU, Safari or iOS.
 
 ### SKY STAGE at blue hour (issue 125)
 
@@ -1063,7 +1154,7 @@ scramblesq`): a skin 6 cm outside the city's walls of the tower, from the street
 material (`win_scrsq`: hero.js win*, the glass mirroring the sky) on a tile drawn here, 12 m across and eight office
 storeys high: each 1.5 m pane its own tone within a few percent and its own small tilt in the normal map (the tilt is
 the cause of the tone), the mullions as ribs, every second heavier, the joints stepping 0.75 m at each floor, the
-spandrel recessed and fritted, the frit thinning up each pane. The shop floors take the same tile at their 5.4 m
+spandrel recessed and fritted, the frit thinning up each pane. The floors under 17F take the same tile at their real
 storeys. The tower's wing outside its ring (PLATEAU's slab on the west, over the crossing, from the street to 218 m)
 takes the same skin, its faces against the tower left out: drawn as the city's generic wall, it was the face the
 crossing and the flight see, dark among lit floors. Fetched anywhere in the story's streets (load_m 900): 0.04 MB, the
@@ -1200,6 +1291,44 @@ the forecourt and under its ceiling, and the face from the north, at dusk and at
 ![The base from the north at dusk, from Miyamasuzaka-shita at night, from the deck to Hikarie, under the forecourt's ceiling at night, the forecourt, and Hachiko](images/shibuya/scrsq-base-66-desktop.jpg)
 
 ![The same on a phone (390 x 844)](images/shibuya/scrsq-base-66-phone.jpg)
+
+### Why the base read as twisted, and what straightened it (November 2026)
+
+The owner's still from the walk's helicopter, 64 m up at 17:53 on 10 October, of the NOVA advert on the north face: "why
+does this building feel a bit distorted?" The building is Scramble Square (the screen is Shibuya Scramble Square Vision,
+city.py `CROSSING_SCREENS`, whose programme carries the NOVA clip; the arched, ribbed roof in front is the Ginza line's
+station over Meiji-dori; Hikarie carries no screen in the data). Taken apart, from first principles, against the
+photograph from Miyamasuzaka-shita ("Shibuya Station 191129a", 江戸村のとくぞう, CC BY-SA 4.0, looked at, not reproduced),
+in which every floor line runs level across the face and both skirts and the screen's sides run straight along the
+tent's edge and the skirt's:
+
+- **Two sets of floor lines crossing.** The skin's tile laid its storeys at an even 5.4 m up to 71.3 m, the rooms traced
+  behind it after dark the same, while the skirts' slab edges, their rows and the screen stood on the real storeys (2F
+  7.7 m, 3F 13.3, 4F 19.3 ...). The two drifted up to 2.6 m apart and met again: on the skirts the tile's white spandrels
+  ran between the slab edges and crossed them, and the bands seemed to wave. Now the tile, the rooms (`web/interior.js`
+  offices, `levels`) and the slabs share one list of storeys (`hero_scramblesq.LEVELS`, the escalators' rises; 16F half way
+  to 17F, the offices' even 4.55 m from 17F), every skin quad cut at each storey so its v runs true.
+- **Fins across the joints.** The skirts' fins stood at fixed shares of each row, so as the skirt widened downward they
+  fanned out and slanted across the glass's joints, which are measured in metres from the corner. Now the fins stand at
+  every pane's width from the corner, as the joints do, each ending where the skirt's edge comes in past it.
+- **A sawtooth beside the screen.** The screen's outline was cut in whole storeys, each row its mean width: against the
+  skirt's sweep and the tent's slope each storey left a wedge of glass on one side and ran under the skirt on the other.
+  Now its parts are trapezoids whose sides run along the tent's foot and the skirt's edge (`scrsq_base.screen_parts`;
+  `pipeline/screens.py` takes a part of six numbers as a trapezoid).
+
+Checked and found sound: the face's frame (straight, its verticals plumb), the facets on the curves (14 a row on the
+skirt), the screen's plane (0.43 to 0.45 m off its wall across all of it), its box within the face. The same mistakes
+were looked for on the other landmarks with banded or curved fronts: SHIBUYA109's cylinder measures its texture by arc
+and height, QFRONT's panels carry no texture, and the city's own walls keep their bands by height. Every screen's
+placement is now measured by `tools/screen_fit.py`: the wall behind a wall screen across its width at its foot, middle and
+top, and every leg of a roof screen on its roof. It found Rakuten Vision on an edge typed at 45 degrees, 0.8 to 1.4 m off
+the mapped wall and askew to it (now on the wall's own edge, its published 10.24 m overhanging the mapped 8.6 m face by
+0.84 m each end, on its frame), and the Toei Plaza's two Synchro7 faces hanging past the ends of their roof (their sizes
+estimates: now 8.4 m each). Still open: Shibuya Ekimae Vision hangs about 5 m past the north end of the Ekimae building's
+mapped roof, and moving it would run it into Shibuhachi Hit Vision; the published sizes and the mapped roof disagree (issue 172).
+
+Stills: `tools/views/nova-tower.json` (`tools/game_shot.js`): from the helicopter's height north of the face and from
+Miyamasuzaka-shita, at 17:53 and 21:00 on 10 October, on a desktop and a phone.
 
 **Where it still falls short**: the skirts' depth and the tent are measured from photographs, not drawn from plans
 (above); the skirt's lowest band, 4F to 5F, is clipped where the station's concourse blocks stand by the north-west

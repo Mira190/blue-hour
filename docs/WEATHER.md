@@ -171,7 +171,7 @@ quest's `choices`) into `web/data/<id>/game.json`. `pipeline/game_data.py` passe
 | Wet ground | Darker where porous, roughness down to 0.38, puddles in the low spots of a noise on roads and paving (0.035 roughness, flat, rippled), filling as the wetness rises and drying slowly after | all |
 | Ripples | Expanding rings, one drop per cell in three offset grids, on puddles, ponds (`sk_pond`, any landmark water), rivers and the sea | all |
 | Overcast light | Sun ×0.18 at full cloud, sky light up and greyer, a closer grey-blue haze (warm at night with the city in it), the sky's clouds up to 0.97 and its blue down, no stars or moon, the lens a little cooler with a touch more contrast and exposure lifted so it never goes grey | all |
-| Umbrellas | The crowd puts them up as the rain comes on (fewer in a drizzle), each in their own moment: a few at the first drops and most once the street is wet (the state's `wet` says how long it has rained), the arm coming up and the canopy opening from furled about its tip over 1.1 s (`people.js` `umbOpening`); all up at once only when the page opens into rain that has been falling a while. Tokyo, Kyoto and Osaka four in ten the convenience store's clear vinyl (see-through with a milky haze, glossy enough to carry the screens' light: until November 2026 one in ten, frosted near opaque, and a wet Scramble read as any city's dark umbrellas), the rest black, navy and grey; elsewhere black, navy and a few colours; on the skinned people near you and the instanced crowd further off | all |
+| Umbrellas | The crowd puts them up as the rain comes on (fewer in a drizzle), each in their own moment: a few at the first drops and most once the street is wet (the state's `wet` says how long it has rained), the arm coming up and the canopy opening from furled about its tip over 1.1 s (`people.js` `umbOpening`); all up at once only when the page opens into rain that has been falling a while. Tokyo, Kyoto and Osaka four in ten the convenience store's clear vinyl (see-through with a milky haze, glossy enough to carry the screens' light: until November 2026 one in ten, frosted near opaque, and a wet Scramble read as any city's dark umbrellas), the rest black, navy and grey; elsewhere black, navy and a few colours; on the skinned people near you and the instanced crowd further off. Each is held: it hangs from the hand ("An umbrella is held", below) | all |
 | Sound | Rain hiss and patter (synthesised noise), a drumming roof and drips under one, muffled in a car or the helicopter; the wind from a fresh breeze up, rising in the gusts; thunder, a crack and a roll near and a rumble far, after the flash by the distance at 343 m/s; cicadas on a hot day (25° and up, by daylight, not in the rain) | all |
 | Wind | The state's wind sways the trees faster and wider and leans their crowns down the wind (`web/trees.js` `uGale`), raises and lowers the sea the spectrum was made for (`web/water.js` `uSea`: height with the wind's speed, eased over a minute), slants the rain and carries the flakes, petals and leaves | all |
 | Snowflakes | The rain's two shells and the same instances, drawn as soft dots that fall at about a metre a second, ride the wind's run and flutter, kept out from under cover by the same occlusion map | as the rain's streaks; light: the near shell only |
@@ -186,6 +186,72 @@ quest's `choices`) into `web/data/<id>/game.json`. `pipeline/game_data.py` passe
 The state's uniforms, `OEWeather.U` (above), are what every patched shader reads. `OEWeather.patch(shader, {puddles, porous, water})` makes any `MeshStandardMaterial`
 wet; `OEWeather.GLSL` has `oePuddle(xz)` and `oeRipple(xz, camD)` for a city's own look (Shibuya's
 wet-street reflections, #112, read the same wetness).
+
+## An umbrella is held (issue 165)
+
+The owner's stills of 21 November 2026 (the walk at 21:00 in the rain, a phone's photograph mode at the kerb): arms at
+the sides or swinging, the umbrella floating over the head, its shaft down through a shoulder or a chest, no hand on the
+handle, and canopies through one another and through heads.
+
+**The cause.** An umbrella's place is decided by a hand, and the hand's by an arm. Here it was the other way round: the
+umbrella was put over the head and the arm sent after it. On the skinned people near the lens it hung from the chest
+and a two-bone reach chased its handle every frame. On the far copies, which on a phone are everyone but the ten
+nearest, every umbrella was laid out once from the whole crowd's mean shoulder (the old dolls', not the cast's copies)
+and drawn with each body's matrix: on a body of another build the shaft came down through it, and the folded arm's hand
+was somewhere else.
+
+**What is true now** (`web/game/people.js`):
+
+- *It hangs from the hand.* A near person's `umbrella_open` is a child of the right hand's bone, placed as the hold has
+  the hand (`umbHold.inv`). A far copy's is placed at that copy's own fist (`holdOf`), in the instance's matrix: no
+  draw and no texture more. The copy has no bones, and its arm used to be folded by height about an elbow assumed on
+  the body's middle line: on many characters the forearm bent out of shape or the hand went out to the side, and the
+  umbrella was not in it. Now the same reach the near hold makes is worked once for each character from its own arm
+  (`umbArm`: its shoulder, its elbow and its hand, from the geometry) as two turns, the forearm's about the elbow and
+  the arm's about the shoulder, which the shader lays on (`CROWD_POSE`, six uniforms a character).
+- *The arm holds it up.* One pose, fixed (`umbHold.q`): the upper arm, the forearm, the hand and its fingers, found
+  once from the reference pose (the fist in front of the right shoulder at chest height, the elbow by the side) and
+  laid over whatever clip plays, after the mixer, by the share the umbrella is open; the clip's turns are put back
+  before the mixer runs again (`armBack`). No solver runs in a frame; the legs, the other arm and the spine are the
+  clip's.
+- *The hand is an ordinary closed fist with the shaft inside it* (the owner's reference photograph and words: the part
+  that is held is not seen, and the fingers bend as a hand's do). Each finger's three joints close by 77, 95 and 52
+  degrees about the hand's own axis; only the slim shaft runs through the fist and the handle's end shows under it
+  (`UMB_FIST`, `UMB_END`): a thick handle drawn through the hand was cut into by every finger.
+- *People under umbrellas take an umbrella's room.* A canopy is a metre across (`UMB_R` 0.5 m, a 60 cm umbrella open).
+  While two umbrellas are up the crowd's steering keeps the two radii between the canopies' middles
+  (`actors.js` `umbRoom`, from `p.umbR`, `p.ucx`, `p.ucy` which the renderer writes), someone with none whose head
+  stands at a rim keeps out from under it, and of friends walking together the two beside the leader share the leader's (`wantUmb`). Where
+  the press brings canopies closer all the same, each leans from what it would touch, at the wrist, up to eight
+  degrees and never towards its holder's own head (`lean`). At a kerb two who will both put one up are given its
+  room from the start (`slotFree`, from `p.umbW`), and one standing about whom an umbrella pushed off stays where it
+  was pushed, as one waiting for the lights does.
+- *A photograph* of the crowd in the rain draws everyone near enough to be seen whole (issue 174): with the world held
+  the people are chosen again every frame for where the camera is (`still()`), so the faces and hands under the
+  umbrellas are the cast's, not the far copies'.
+- *The far crowd* keeps the same umbrella at the same place: the step from a near person to a copy moves the canopy by
+  a few centimetres.
+
+**Held by a check.** `tools/umbrella_held.js` asks the page for everyone drawn within 12 m of the lens
+(`crowdRenderer.umbrellaReport`: a near person's from the bones as posed, a far copy's from the matrices it was drawn
+with) and fails when a handle is more than a fist's width (0.11 m) from the holding hand's bone, a shaft is inside its
+own trunk's capsule or head, a rim is more than a rim's width (0.06 m) inside another canopy whose skin it crosses, or a
+head is inside a canopy; each printed with its place. `tools/story_play.js` runs it twenty seconds into frame 7's rain
+and `tools/walk_play.js` in the walk's rain with the camera up. Canopies and heads are judged of those standing: people
+pressed through a crossing lean and brush. Run by itself it takes the stills (two kerbs, the walker's camera for five
+seconds, the photograph mode, a close lens, the hand from four sides), and `HANDS=1 FISTS=[...]` lays several fists
+side by side on one person (`rig.umbTune`).
+
+**What was surveyed, and what was adopted.**
+
+| Source | What it does | Adopted |
+|---|---|---|
+| Engines' held props (Unreal's hand sockets and layered blend per bone, CryEngine's attachments, Core's prop sockets) | The prop is a child of a hand socket; an upper-body pose is layered over locomotion with a bone mask. Known failure: a prop driven by anything but the hand drifts from it when layers blend | The umbrella is the hand's child; the hold is a masked pose (arm, hand, fingers) over the clip. Design only, no code |
+| Crowd tools (Houdini's agent clip layering, Golaem's animation layers) | An upper-body clip layered over a walk cycle per agent, by bone group and blend ratio | The far copies' per-instance share (`iUmb`) of the folded arm. Design only |
+| Lam, Lee and others, experiments on crosswalks in rain (Hong Kong Polytechnic University; J. Eastern Asia Soc. Transportation Studies 12, 2017) | Under umbrellas people walk slower (about 0.85 m/s against 1.22) and a crosswalk carries fewer: umbrellas overlap and conflict as density rises | An umbrella's room in the steering, and that pressed canopies overlap and lean rather than never touch. Findings only |
+| Johansson, Helbing and others, "From crowd dynamics to crowd safety" (2008) | Counts umbrellas as discs of 0.5 m radius | `UMB_R` 0.5 m |
+| Hand poses for held things (Unity's IK targets: an empty placed where the hand grips, not at the prop's pivot, so the hand touches and does not pass through; VR hand-pose sets: a pose for each thing held, each finger's curl stopped at the grip's surface) | One hand pose for each kind of thing held, its fingers closed to the surface and no further; the grip point on the prop is where the hand is, not the prop's own origin | `UMB_FIST`: one closed fist for the umbrella, each joint within what a hand does, the shaft in the hollow. Design only |
+| The owner's reference photograph (a folding umbrella held by the shoulder) | The closed hand hides the handle where it is held; the end shows under the fist | The fist and the handle's end. Looked at, not copied |
 
 ## What it costs a frame
 

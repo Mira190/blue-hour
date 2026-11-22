@@ -2,11 +2,17 @@
 
     python pipeline/stations.py --city shibuya        # then: python pipeline/pack.py
 
-Two things a buildings.json written before typology.facade_style() learned them still has wrong:
+Three things a buildings.json written before typology.facade_style() learned them still has wrong:
 
 - a station (class train_station) took the heritage style, brick with arched windows a storey and a half
   tall, as a European terminus would. A station in Japan is concrete, metal panel and glass unless its
   record says brick or stone: it takes the office style, a pale panel colour, and storeys counted again.
+- a station the city's 3D survey (PLATEAU) does not have, its height only estimated, is not a building of rooms: it is
+  a railway's own structure mapped as a building (a platform's shed, a viaduct's cladding; Shibuya's strip under Mark
+  City's south side, w904734439, beside the Ginza line's approach to its depot). Drawn as an office it showed a lane
+  a row of shopfronts 5 m tall lit flat white at night, the brightest thing in the picture (issue 143). It takes the
+  industrial style instead: metal panel with a high band of windows, lit as a works building is, mostly not after
+  hours.
 - a building none of whose solids touches the ground (Shibuya station's concourses over the streets
   east of the tracks: its min_height is 3.9 to 6.6 m) was drawn as walls hanging in the air with nothing
   under them. Each such solid gets piers (buildings.json "piers", by solid: [x_dm, y_dm, ...]) on a grid
@@ -50,6 +56,7 @@ def restyle(B, japan):
     if not japan or "office" not in B["styles"] or "heritage" not in B["styles"]:
         return 0
     office, heritage = B["styles"].index("office"), B["styles"].index("heritage")
+    works = B["styles"].index("industrial") if "industrial" in B["styles"] else None
     by_b = defaultdict(list)
     for k, s in enumerate(B["s"]):
         by_b[s[0]].append(k)
@@ -57,11 +64,15 @@ def restyle(B, japan):
     fronted = {B["s"][r[0]][0] for r in B.get("f", [])}
     n = 0
     for bi, m in enumerate(B["b"]):
-        if m[1] != "train_station" or m[10] != heritage or not by_b.get(bi):
+        if m[1] != "train_station" or not by_b.get(bi):
             continue
-        m[10] = office
+        style = "industrial" if works is not None and m[4] == "estimate" else "office"
+        to = works if style == "industrial" else office
+        if m[10] == to or (style == "office" and m[10] != heritage):
+            continue
+        m[10] = to
         m[7] = typology.jitter(PANEL[m[14] % len(PANEL)], m[14])
-        m[11], m[12] = typology.storeys("office", wall_height(B, by_b[bi], eaves), m[3], bi in fronted)
+        m[11], m[12] = typology.storeys(style, wall_height(B, by_b[bi], eaves), m[3], bi in fronted)
         n += 1
     return n
 

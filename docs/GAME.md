@@ -1081,8 +1081,11 @@ pipeline writes. The only city-specific code is landmark geometry in
     - The feet are IK targets in these rigs, so they are moved to the ends of
       the shins, and the body is lowered until they touch the ground.
     - The far copies bend their legs the same way in the vertex shader.
-  - **Near and far:** the 14 nearest passers-by (6 on a phone) are fully
-    skinned. Everyone further away is an instanced copy of the same character,
+  - **Near and far:** the 14 nearest passers-by (10 on a phone, 24 on the high tier; a few more
+    through a long lens) are fully skinned, chosen by how big they stand in the frame. In a photograph
+    (the photo mode, the world held) they are chosen again every held frame for where the camera is,
+    24 on a phone and 40 on a desktop, four made a frame (`people.js` `still()`, issue 174): a frame
+    rate does not matter in a still, and the far copies' faces and hands did. Everyone further away is an instanced copy of the same character,
     simplified by vertex clustering. Its legs, knees and arms swing in the
     vertex shader, and the shadows move with them. That is one draw call per
     character for hundreds of people.
@@ -3262,7 +3265,20 @@ naval uniform for a water-bus captain, a chef, salarymen, students.
 - **Clips:** one file per sex (`R_clips_f.glb`, `R_clips_m.glb`, 2 MB each) drives
   every NPC of that sex: the gestures, and what each does while it waits
   (`look.clip`): `Documents` (writing on a clipboard), `Reading`, `Phone`, `Photo`,
-  `Drink`, `Work`, `Present`, `LookAround`, `Thoughtful`, `Stretch`, `Cheer`. The clips
+  `Drink`, `Work`, `LookAround`, `Stretch`. A gesture made to someone (`Talk`, `Listen`,
+  `Present`, `Thoughtful`, `Nod`, `Cheer`) is never what a person waits in: alone it reads as
+  someone talking to themselves (the owner, 22 November 2026, of Aoi presenting to nobody at the
+  Scramble), so `people.js` `idleClip` stands them in `Idle_Neutral`. The world line: a named
+  person alone waits as who they are waits, and one in `Idle` or `Idle_Neutral` looks round now
+  and then (`LookAround` once, every 15 to 40 s of the game, `rig.waits`). The story line: their
+  speech mark says they have something for you, and the body says it quietly: from nine metres
+  the head comes round to you, and the body only as far as the head cannot reach (57 degrees).
+  Talked to, they turn to you, wave once as the talk opens and `Talk` while their line is said;
+  with your answer asked they `Listen`; in a talk of several (`walktalk.js` `say`) whoever is not
+  speaking listens, turned between the speaker and you, eyes on the speaker. A call-out (`bark`)
+  comes with a wave. The story's living people talk while their line is said (`game.js`
+  `talking`) and never wave: the scene is under way. `tools/npc_idle.js` records what each plays
+  alone, near and in a talk. The clips
   are baked on one avatar; a bone that holds still keeps a key, so an avatar whose
   rest pose differs still takes the clip's pose. Each eases back into its first pose
   over its last 0.8 s, so the loop doesn't jump (the surveyors' idles too). The phone,
