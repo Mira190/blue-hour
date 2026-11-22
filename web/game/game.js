@@ -17,6 +17,23 @@ window.OpenEarthGame = async function game(cityId) {
   const idle = () => new Promise(r => setTimeout(r, 0));
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch = matchMedia('(pointer: coarse)').matches;
+  // One tab (issue 166; docs/SOUND.md "One tab"). A phone has the memory, the GPU and the cores for one world: two tabs of
+  // the game on the owner's iPhone lost both their WebGL contexts in one second, with the sound breaking as they went.
+  // The world is held under a lock of the site's (the Web Locks API). A tab that finds it held asks the other to give way
+  // (a BroadcastChannel): that tab becomes tab.html, a page of a few kilobytes, and this one goes on. If the other does
+  // not answer within two seconds (iOS has frozen it), this tab becomes tab.html?wait=1 instead and starts by itself once
+  // the other is closed. On a touch screen only; ?tabs=many leaves it out. Tabs on two sites cannot see each other.
+  if (touch && navigator.locks && window.BroadcastChannel && !/[?&]tabs=many\b/.test(location.search)) {
+    const here = '#' + encodeURIComponent(location.search), bc = new BroadcastChannel('blue-hour-world'), hold = () => new Promise(() => {});
+    bc.onmessage = e => { if (e.data === 'give way') location.replace('tab.html' + here); };
+    navigator.locks.request('blue-hour-world', { ifAvailable: true }, lock => {
+      if (lock) return hold();
+      bc.postMessage('give way');
+      const stop = new AbortController(), t = setTimeout(() => stop.abort(), 2000);
+      navigator.locks.request('blue-hour-world', { signal: stop.signal }, () => { clearTimeout(t); return hold(); }).catch(() => location.replace('tab.html?wait=1' + here));
+      return undefined;
+    }).catch(() => {});
+  }
   const ac = new AbortController(), on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, Object.assign({ signal: ac.signal }, o));
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   // the old free game's keys, which open nothing on the story's map (in the story, or on the walk): the survey lens, the
@@ -31,16 +48,20 @@ window.OpenEarthGame = async function game(cityId) {
   let cue = null;
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
     // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
-    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
+    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', A.tunes ? !!A.needsTouch : !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
     const begin = () => {
       A.start();
+      // (a phone's: the system's own player, the context not made until the opening is over, audio.js "music outside the
+      // context". Its file is the loop six times over at the level the bus would give it: tools/load_cue.js)
+      if (A.tunes) { if (cue === null) { cue = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) on(window, ev, () => setTimeout(heard, 0), { capture: true }); } heard(); return; }
       if (cue !== null || !A.ctx) { heard(); return; } // (false: played and let go)
       cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
       on(A.ctx, 'statechange', heard); heard();
     };
+    if (A.quiet) A.quiet(true);
     begin();
     if (A.made) A.made(() => { if (cue === null) begin(); }); // (iOS: the context is made in the first touch, audio.js)
-    if (A.pending) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
+    if (A.pending && !A.tunes) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
     for (const ev of ['pointerdown', 'keydown']) on(window, ev, () => { if (cue) begin(); }, { capture: true });
   }
   const cueOut = () => { if (cue) { cue.stop(5); cue = false; } }; // (false: it has played, and is not begun again)
@@ -272,16 +293,23 @@ window.OpenEarthGame = async function game(cityId) {
   const ZONE_M = 320, ZONE = { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) };
   (G.hero || []).filter(h => h.at && h.r).slice(0, 8).forEach((h, k) => ZONE.value[k].set(h.at[0], -h.at[1], h.r + ZONE_M, 1));
   if (U.uZone) U.uZone.value = ZONE.value; // (the roofs' photo too: buildings.js photoZone)
+  // Under a level with a floor of its own (hero[].floor: SKY's street hall, level where the ground under it slopes) the
+  // ground is not drawn where that floor is: where the ground rose over the level floor it was drawn over it, a beige
+  // patch with a slanting edge across the hall's stone (the owner's screenshot at the lift, November 2026). heroCover
+  // marks the floor's half-metre cells in uHeroCut; uHeroCut4 is (x0, y0, its side, on), on only while the level is drawn
+  const HERO_CUT = { tex: { value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) }, box: { value: new THREE.Vector4(0, 0, 0, 0) }, h: null, off: false };
+  HERO_CUT.tex.value.needsUpdate = true;
   const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
     if (Wd.sea) Wd.sea.patchGround(sh); // the wet band and swash along the shore
     sh.uniforms.uStreet = m.material.userData.street = m.material.userData.street || { value: null };
     sh.uniforms.uStreetOn = m.material.userData.streetOn = m.material.userData.streetOn || { value: 0 };
     sh.uniforms.uZone = ZONE;
+    sh.uniforms.uHeroCut = HERO_CUT.tex; sh.uniforms.uHeroCut4 = HERO_CUT.box;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8];
+varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8]; uniform sampler2D uHeroCut; uniform vec4 uHeroCut4;
 #define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -298,6 +326,7 @@ vec2 pavers(vec2 p) {
   return vec2(inside, h2(floor(q) + vec2(row * 7.0, 3.0)));
 }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
+if (uHeroCut4.w > 0.5) { vec2 hc = (vec2(vWP.x, -vWP.z) - uHeroCut4.xy) / uHeroCut4.z; if (hc.x > 0.0 && hc.y > 0.0 && hc.x < 1.0 && hc.y < 1.0 && texture2D(uHeroCut, hc).r > 0.5) discard; }
 float camD = distance(vWP, cameraPosition);
 float near = 1.0 - smoothstep(12.0, 70.0, camD);
 float street = 1.0 - smoothstep(60.0, 420.0, camD); // street level, out to where the photo takes over
@@ -573,9 +602,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (h.cover || !h.at || !h.r) return;
     const t0 = performance.now(), n = Math.ceil(2 * h.r / HC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, g = new Float32Array(n * n).fill(-1e9), road = new Uint8Array(n * n), v = new THREE.Vector3(), P = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
     let tris = 0;
+    const cut = h.floor ? new Uint8Array(n * n) : null; // (the level's own floor, where the ground is not drawn: HERO_CUT)
     root.traverse(o => {
       if (!o.isMesh || !/(^|_)(ground|room_floor)_/.test(o.name)) return; // (room_floor: a hall's floor, stood on, never wet: hero[].floor)
       const asphalt = /_ground_(asphalt|paint)/.test(o.name) ? 1 : 0; // (the carriageway and what is painted on it: the crossings' stripes)
+      const own = cut && /(^|_)room_floor_/.test(o.name) ? 255 : 0;
       const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
       for (let t = 0; t + 2 < m; t += 3) {
         for (let k = 0; k < 3; k++) { v.fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld); P[k][0] = (v.x - x0) / HC; P[k][1] = (-v.z - y0) / HC; P[k][2] = v.y; }
@@ -585,11 +616,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const i0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), i1 = Math.min(n - 1, Math.ceil(Math.max(ax, bx, cx))), j0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), j1 = Math.min(n - 1, Math.ceil(Math.max(ay, by, cy)));
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
           const px = i + 0.5, py = j + 0.5, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
-          if (l1 >= -0.02 && l2 >= -0.02 && l1 + l2 <= 1.02) { const z = l1 * az + l2 * bz + (1 - l1 - l2) * cz, c = j * n + i; if (z > g[c]) { g[c] = z; road[c] = asphalt; } }
+          if (l1 >= -0.02 && l2 >= -0.02 && l1 + l2 <= 1.02) { const z = l1 * az + l2 * bz + (1 - l1 - l2) * cz, c = j * n + i; if (z > g[c]) { g[c] = z; road[c] = asphalt; } if (own && l1 >= 0 && l2 >= 0 && l1 + l2 <= 1) cut[c] = own; }
         }
       }
     });
     if (!tris) return;
+    if (cut && cut.some(v => v)) {
+      // (a cell out round the floor: a cell whose middle fell outside it at a wall's foot left a sliver of the ground
+      // standing over its edge; out there the level's own walls, tiles and planks cover what is not drawn)
+      const c0 = cut.slice();
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (c0[j * n + i]) for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < n && jj < n) cut[jj * n + ii] = 255; }
+      const t = new THREE.DataTexture(cut, n, n, THREE.RedFormat);
+      t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
+      if (HERO_CUT.tex.value) HERO_CUT.tex.value.dispose();
+      HERO_CUT.tex.value = t; HERO_CUT.box.value.set(x0, y0, n * HC, 0); HERO_CUT.h = h;
+    }
     h.coverMs = Math.round(performance.now() - t0); // (for tools/guide_way.js)
     // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)
     h.road = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : road[j * n + i] === 1; };
@@ -866,7 +907,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
-  const tFoot = performance.now(), crowdNet = OEActors.network(nav.withoutFine(() => cutAtWalls(OERoute.walkable(nav, G.paths.foot, (x, y, z) => roadsNow.depth(x, y, z, 0.3) > 0))));
+  const tFoot = performance.now(), crowdNet = OEActors.network(nav.withoutFine(() => OEActors.join(cutAtWalls(OERoute.walkable(nav, G.paths.foot, (x, y, z) => roadsNow.depth(x, y, z, 0.3) > 0)), (x, y, z) => nav.solid(x, y, z, 0.1), 1.6, (x, y, z) => { const w = nav.walk(x, y, z + 0.6, true); return w.ok && Math.abs(w.z - z) < 0.6 && nav.room(x, y, z, 0.3); }))); // (joined where the footways meet, and led round what cut them: a T with no node, or a pier in the way, was the end of the way to a walker, issue 168)
   console.info(`footways: ${Math.round(performance.now() - tFoot)} ms, the roads cut at the walls ${Math.round(roadMs)} ms`);
   // benches face their footway, or the water behind it; each has two seats the crowd can use
   const benches = nav.withoutFine(() => OEActors.benches(G.props.bench || [], crowdNet, nav)), lamps = G.props.street_lamp || [];
@@ -1745,7 +1786,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (clockT - bumpCar < 2.5 || e.speed < 3) continue;
       bumpCar = clockT;
       if (e.type === 'bump') H.toast(e.what === 'person' ? 'Watch out for people!' : e.what === 'car' ? 'Careful! That was another car.' : e.what === 'lamp' ? 'Careful! That was a lamp post.' : e.what === 'tree' ? 'Careful! That was a tree.' : 'Careful! That was a wall.');
-      if (e.type === 'edge') H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : 'Too steep a drop.');
+      if (e.type === 'edge') { const ax = st.x + Math.sin(st.h) * 3, ay = st.y + Math.cos(st.h) * 3, up = nav.floorAt(ax, ay, st.z + 2); H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : up && up.z > st.z + OECars.CAR_STEP ? 'Too high a step for the car.' : 'Too steep a drop.'); } // (a rise ahead, or the ground falling away)
     }
     Object.assign(player, { x: st.x, y: st.y, z: st.z, h: st.h, speed: st.speed });
     if (!pilot) redLight(st);
@@ -2222,7 +2263,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // where you stand is kept too, not only at a quest's steps: every half minute of play, and when the tab
   // is put away or the page closes. Not before the game has started (the title would write the spawn
   // over a saved game the player has not chosen to continue yet).
-  let playing = false;
+  let playing = false, sndQuiet = A && A.quiet && A.tunes ? 1 : 0, sndQuietAt = 0;
   const keep = () => { if (playing) save(); };
   on(document, 'visibilitychange', () => { if (document.hidden) keep(); });
   on(window, 'pagehide', keep);
@@ -3078,7 +3119,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }) : null;
   // the walk (walk.js): the story's map with no story in it, the title's first way in. walk: the hour and the sky set
   // out in ({ t, w }), null on the title and in the story; walkUi: its title step and its corner of the screen
-  let walk = null, walkUi = null, tonight = null;
+  let walk = null, walkUi = null, tonight = null, regulars = null; // (regulars: the street's own people, regulars.js)
   // a controller (pad.js): its buttons are the keys the keyboard has for them, its sticks are read in simulate, and the
   // card or panel that is up has its buttons moved through and pressed
   const padOpen = () => (window.OECredits && OECredits.open() ? OECredits.el : null) || [['#g-story-log', 'on'], ['#g-story-fail', 'on'], ['#g-story-spend', 'on'], ['#g-story-end', 'on'], ['#g-story-album', 'on']].map(([q, c]) => { const e = $(q); return e && e.classList.contains(c) ? e : null; }).find(Boolean)
@@ -5624,6 +5665,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       tonight = OETonight.create({ stage, data: G.tonight, show, fmt: fmtMin, clock: () => clock.min, on: () => !!walk && walkUi.walking });
       if (trains && trains.setNight && G.tonight.trains) { const n = {}; for (const [k, v] of Object.entries(G.tonight.trains)) n[k] = v.map(S.hm); trains.setNight(n); }
     }
+    // the street's own people (regulars.js, issue 168): a few of the crowd with a routine the clock carries, on the walk
+    if (window.OERegulars && G.regulars && crowd.enlist) regulars = OERegulars.create({ data: G.regulars, crowd, clock: () => clock.min, day: () => clock.y * 372 + clock.m * 31 + clock.d, rain: () => !!(weather && weather.state && weather.state.rain > 0.15), here: () => player, ground: (x, y, z) => { const w = nav.walk(x, y, (z ?? player.z) + 0.6, true); return w.ok ? w.z : null; } });
     // the menu's Bring your car: to the kerb nearest you, as a free ride's own car is called (and the menu put away to see it)
     { const gc = $('#gm-car'); if (gc) on(gc, 'click', () => { toggleMenu(); bringCar(); }); }
     // the menu's way into the story from the walk: the page again, straight into its first episode (as Play it again)
@@ -5911,8 +5954,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
     if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
+    if (HERO_CUT.h) HERO_CUT.box.value.w = HERO_CUT.h.shown && !HERO_CUT.off ? 1 : 0; // (the ground cut under a level's floor only while the floor is drawn)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
+    if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
+      const film = !!(overture && overture.active); if (film) sndQuiet = 2;
+      if (playing && !film && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
+    }
     weatherTick(simHold ? 0 : dt * (story ? story.scale : 1), titleOn, titleOn || paused || photo.on); // (held by a harness: the weather eases on only with advance(), which ticks it; stepped by the frames too, it eased by however many the machine drew, #420)
     if (show) show.tick(now);
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights
@@ -6264,6 +6312,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
     npcStream(dt, cx, cy);
     crowd.bodies = crowdKeep(cx, cy, false, dt);
+    if (regulars && walk && walkUi.walking) regulars.tick(dt); // (before the crowd's step: whoever is lent to a routine knows where to be)
     crowd.update(dt, cx, cy, clockT, player.mode === 'foot' ? player : player.mode === 'car' ? { x: player.x, y: player.y, h: player.h, speed: myCar.D.st.v, r: 1.1 } : null);
     if (colonies.length) {
       const L = dayLimits();
@@ -7859,7 +7908,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // the recorder's handles (tools/flyover.js): the title pose, a scripted title camera, and the orbit restarted from the video's last frame
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
-  window.__game = { perch, tonight: () => tonight, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, tonight: () => tonight, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },

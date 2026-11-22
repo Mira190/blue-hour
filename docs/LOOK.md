@@ -608,6 +608,34 @@ The material stays opaque; only the crowd's shader reads the alpha (`OE_SKIN_MAS
 it with its head and hair marked too (`pipeline/crowd_cast.py`), so hair keeps its built colour. A character built
 before has no `mask` in `people.json` and is read by colour as it was.
 
+**Holes in the mask** (November 2026). A walker in a dark dress had a navy patch on each knee (the owner: "is that a
+pattern or a bug?"). The mask had left the knees' lit side as cloth, a hole in the skin of each leg in the picture:
+its faces fell short of the count of texels with the hands' hue (a knee is redder than a hand), so the change of
+clothes dyed them the dress's colour. Twenty-three of the fifty masks had holes like it, from a few texels to 6,900.
+`skin_mask` now fills a hole the skin closes round where the picture is skin's colour by the plain test (warm: red
+over green over blue), and carries the mask on into the islands' margins outside every face, where a filter and the
+smaller mipmaps read it at a seam; no garment beside the skin is reached either way. `tools/people_lineup.js DRESS=k`
+draws a cast member in the crowd's change of clothes k, which is where a hole shows (in its own clothes nothing is
+dyed, so the knees looked right).
+
+**Cloth taken for skin** (November 2026). The opposite fault: at Hachiko's wall the owner saw a woman in a pale
+jacket with large salmon-pink patches on its sleeve and chest ("the clothes need fixing too"). She was
+`R_Female_Adult_05_f011`, whose own shirt is a pink check: its pink squares have the hands' hue, so the walk from the
+hands went on through the sleeves' faces, the mask marked bands of the check as skin, and the change of clothes left
+them pink on a jacket dyed pale grey, lit as skin besides. Measured over the twenty in the crowd's cast
+(`tools/skin_mask_audit.py`, which draws each body's picture beside its mask), more had garments marked: a beige
+knit's sleeves and chest (`R_Male_Adult_02_m017`, a fifth of the body's picture), brown trousers and shoes
+(`R_Male_Adult_05_m008`, a quarter), a brown hoodie's sleeves (`R_Male_Adult_20_m008`), and a few small pieces on two
+more; among the rest of Shibuya's people, a gloved woman's whole beige coat (`R_Business_Female_03_f011_glove_liftcap`,
+half her body's picture: in gloves the face is the reference) and tan trousers (`R_Male_Adult_14_m017_grey`). A
+garment so marked never took the crowd's change of clothes, so its wearer's copies all wore it. Colour texel by texel cannot tell them from skin; each face's texels as a whole can. `skin_mask` now keeps, of
+the faces the walk reached, those whose skin-like texels together are the hands' (`whole_skin`): a hue angle (CIELAB)
+within 12 degrees, at least half the chroma, 0.38 to 1.35 of the lightness, and no more fine detail than skin (the
+check's lines measure four to seven times the hands', the knit is 24 degrees yellower, the jacket and the shirt a
+third as light and as coloured; a thigh in a skirt's shadow is darker and greyer than a hand, by half at most, and
+as smooth). The walk still joins skin to a hand, the head or a leg through the body's own faces, so a bare forearm
+beyond a wristband the test drops is kept. A sandal's straps and a boot's tan leather, marked before, are cloth now.
+
 ### Hair: strands, not a shell (`web/game/people.js`, issue 74)
 
 Every conversation is shot over Kagami's shoulder, so the back of Kagami's head is the asset the player sees most.

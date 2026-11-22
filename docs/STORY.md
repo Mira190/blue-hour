@@ -1622,6 +1622,22 @@ the crowd. Not adopted: a map of marks, rewards, or a mark over every passer-by 
 and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
+**The walk's words over any picture, a phone's captions, and the notch (issue 154, November 2026).** Three things of
+one kind, left from issues 114 and 134. *The walk's corner* (the place, the hour, the date, tonight's line, what was
+asked and its metres), its keys, a name over the street, the marks' names and a call now carry the story's own shade
+(`--halo`, `--halo-small`): the owner's still had what was asked across a lit red sign. `tools/legible.js` measures
+them with the story's words: the faintest is the keys' line, 6.3:1 on pale paving and 4.3:1 on white (4.5 and 3 are
+asked). *On a phone a line said over the picture* lay across the legs of the one you play, 262 px up from the foot of
+the screen; it now sits under the corner's words, the goal's or the walk's, wherever they end (`hud.js` `put` measures
+them, `--under`), over the sky and the buildings, and stays over the thumbs only while the camera is up, when the head
+of the frame is the finder's. The other place it could go, lower, has no room: under the player's feet are the stick
+and the buttons. *The notch*: `tools/ui_fit.js SAFE=1` tells Chromium the safe area of a notched phone (47 px at the
+head and 34 at the foot upright; 47 at each end on its side) and fails any word or button under it. It found the
+title's card under the notch of a phone on its side, cut off at the screen's left edge, its five ways in running out
+of their boxes once moved clear, tonight's line in the corner and a giver's call wider than their boxes; all fixed.
+The walk's corner itself was already clear of it. Stills: `docs/images/issue-154-phone.jpg`. Not checked: a real
+phone, Safari, iOS.
+
 **The walk's first ten minutes (issue 146, November 2026).** The launch review (issue 134) found that the walk's first
 minute taught the keys and said nothing of what there is to do: a player who did not press Esc could leave after two
 minutes having seen a crossing and nothing else. The rule since, from first principles: one thing offered at a time, by

@@ -1553,6 +1553,45 @@ def skin_like(px):
     return (r > g) & (g > b) & (r - b > 0.06) & (r > 0.2) & (r < 0.97)
 
 
+def cie_lab(px):
+    """L*, a*, b* of an sRGB picture's texels (0..1)."""
+    c = np.where(px <= 0.04045, px / 12.92, ((px + 0.055) / 1.055) ** 2.4)
+    xyz = c @ np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]]).T / np.array([0.9505, 1, 1.089])
+    f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16 / 116)
+    return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
+
+
+def whole_skin(px, ids, n, loose, ref_px, ref_m):
+    """Which of n faces (ids: the picture of face numbers, 1..n, 0 outside) are skin as a whole, by their skin-like
+    texels (loose) against the hands' (the texels ref_m marks in ref_px: the body's picture, or the face's in
+    gloves): a hue angle within 12 degrees of theirs, at least half their
+    chroma, between 0.38 and 1.35 of their lightness, and no more fine detail than skin has (at most 1.7 times the
+    hands' and a little: the lines of a check, a knit's ribs). A garment of a skin-like hue passes the texel by
+    texel test in places: a pink check shirt in its pink squares, a beige knit, a brown jacket's lit folds, and so it
+    kept its own colour in patches in the crowd's change of clothes, salmon blotches on a pale jacket (November
+    2026). As a whole it is told apart: the check's lines are four to seven times the hands' detail, the knit 24
+    degrees yellower, the jacket a third as light and as coloured; a shaded thigh is darker and greyer than a hand,
+    but by half at most, and as smooth."""
+    from scipy import ndimage
+
+    def measures(pic):
+        lab = cie_lab(pic[..., :3])
+        L = lab[..., 0]
+        return L, np.hypot(lab[..., 1], lab[..., 2]), np.arctan2(lab[..., 2], lab[..., 1]), ndimage.gaussian_filter(np.abs(L - ndimage.gaussian_filter(L, 1.5)), 3)
+    L, C, H, hf = measures(ref_px)
+    rL, rC, rhf = (float(np.median(v[ref_m])) for v in (L, C, hf))
+    rH = np.arctan2(np.median(np.sin(H[ref_m])), np.median(np.cos(H[ref_m])))
+    if ref_px is not px:
+        L, C, H, hf = measures(px)
+    sel = loose & (ids > 0)
+    idx = ids[sel] - 1
+    cnt = np.maximum(np.bincount(idx, minlength=n), 1)
+    mean = lambda v: np.bincount(idx, weights=v[sel], minlength=n) / cnt
+    dH = np.degrees(np.abs(np.angle(np.exp(1j * (np.arctan2(mean(np.sin(H)), mean(np.cos(H))) - rH)))))
+    mL = mean(L)
+    return (dH < 12) & (mean(C) > 0.5 * rC) & (mL > 0.38 * rL) & (mL < 1.35 * rL) & (mean(hf) < 1.7 * rhf + 0.25)
+
+
 def match_skin(arm, mesh):
     """After a head swap, the body's bare skin (the hands, and arms or legs of the same tone)
     takes the new face's colour, channel by channel: a hand painted for one face would not
@@ -1604,8 +1643,12 @@ def skin_mask(arm, mesh):
       the colour, which shading does not move) and a lightness near theirs;
     - candidates count when a walk over the mesh through other candidates reaches a hand or the head's edge, or
       when they are on a leg (a skirt's or shorts' bare legs meet no hand);
+    - of the faces reached, only those that are skin as a whole stay (whole_skin: hue, chroma, lightness and fine
+      detail against the hands'), so a garment of a skin-like hue that the walk reached through its warm texels, a
+      pink check, a beige knit, a brown jacket's lit folds, is cloth;
     - inside those faces, grown a few texels, each texel is tested again, more loosely for the creases, so a
-      watch, a ring or a cuff's edge inside the grown area stays cloth.
+      watch, a ring or a cuff's edge inside the grown area stays cloth; a hole the skin closes round is filled where
+      it is skin's colour, and the mask runs on into the islands' margins.
     Returns the share of the body's texels marked."""
     from PIL import Image, ImageDraw, ImageFilter
     slots = mesh.material_slots
@@ -1625,8 +1668,10 @@ def skin_mask(arm, mesh):
     hands = [p for p in bp if share(p, re.compile(r" (Hand|Finger)")) > 0.5]
     ref = None
     m = (uv_mask(mesh, hands, w, h, grow=0) > 0.5) & skin_like(px) if hands else None
+    ref_px = ref_m = None   # (the texels the reference is the median of, and their picture)
     if m is not None and m.sum() > 300:
         ref = np.median(px[m, :3], axis=0)
+        ref_px, ref_m = px, m
     else:   # gloves: the face's colour, if the legs or arms are bare
         for sl in slots:
             n2 = sl.material and sl.material.name.endswith("_head") and base_image(sl.material)
@@ -1635,6 +1680,7 @@ def skin_mask(arm, mesh):
                 hm = skin_like(hp) & (luma(hp) > 0.3)
                 if hm.sum() > 500:
                     ref = np.median(hp[hm, :3], axis=0)
+                    ref_px, ref_m = hp, hm
     if ref is None:
         return 0.0
     hue = lambda c: c[..., :2] / (c[..., :3].sum(-1, keepdims=True) + 1e-4)
@@ -1683,11 +1729,29 @@ def skin_mask(arm, mesh):
                 if cand2[o] and o not in seen:
                     seen.add(o)
                     todo.append(o)
+    # (and of those, the faces that are skin as a whole, besides the hands themselves: whole_skin. The walk joins the
+    # skin to a hand, the head or a leg through the body's own faces; a garment of a skin-like hue that the walk
+    # reached through its warm texels is dropped here, and so is a wristband the walk crossed, though not what lies
+    # beyond it)
+    if ref_m is not None:
+        whole = whole_skin(px, ids, len(bp), loose, ref_px, ref_m)
+        seen = {k for k in seen if whole[k] or bp[k].index in hand_set}
     gate = uv_mask(mesh, [bp[k] for k in seen], w, h, grow=3) > 0.5
     skin = gate & loose
     # (specks gone, pinholes filled: a 3 x 3 majority)
     im = Image.fromarray((skin * 255).astype(np.uint8), "L").filter(ImageFilter.MedianFilter(3))
     skin = np.asarray(im) > 127
+    from scipy import ndimage
+    # (a hole the skin closes round, of skin's colour: a knee's lit side whose faces fell short of the count above was
+    # left as cloth, and the crowd's change of clothes dyed it the dress's colour, a navy patch on each knee of a walker
+    # in a dark dress, November 2026. Skin's colour by the plain test, not the hands' hue: a knee is redder than a hand.
+    # A print inside the skin is not skin's colour and stays cloth; a leather strap that is would keep its own colour)
+    warm = skin_like(px)
+    skin |= ndimage.binary_fill_holes(skin) & warm
+    # (and on into the islands' margins, outside every face, where the artists carried the skin's colour: a filter and
+    # the smaller mipmaps read them at a seam, and a margin left as cloth dyed a leg's or a hand's edge there. Only
+    # outside the faces, so no garment beside the skin is reached)
+    skin |= ndimage.binary_dilation(skin, iterations=16, mask=(ids == 0) & warm)
     MASKS[body.name] = skin[::-1].copy()   # (rows from the top, as a picture file has them; embed_masks writes it into the exported file)
     return float(skin.mean())
 

@@ -20,7 +20,9 @@ const PORT = process.env.PORT || 8800, ONLY = process.env.ONLY ? new RegExp(proc
 const WORDS = (process.env.WORDS || '0').split(',').map(Number);
 const BARE = (process.env.BARE_DIR || '').split(',').filter(Boolean);
 // (the words that lie on the picture itself: not the sheets, the cards or the menus, which have a ground of their own)
-const TEXT = ['#g-story-goal small', '#g-story-goal span', '#g-story-goal em', '#g-toasts .g-toast', '#g-story-chip', '#g-prompt', '#g-story-keys', '#g-story-finder .rf small', '#g-story-shutter', '#g-story-frames'];
+const TEXT = ['#g-story-goal small', '#g-story-goal span', '#g-story-goal em', '#g-toasts .g-toast', '#g-story-chip', '#g-prompt', '#g-story-keys', '#g-story-finder .rf small', '#g-story-shutter', '#g-story-frames',
+  // (and the walk's: its corner, its keys, a name over the street; tools/walk_play.js writes them down too)
+  '#g-walk-where small', '#g-walk-where .t', '#g-walk-where em', '#g-walk-where .tn', '#g-walk-where .g', '#g-walk-where .q', '#g-walk-keys', '#g-walk-told', '#g-walk-tonight'];
 const GROUNDS = [{ name: 'paving', css: '#cbc6d0', min: 4.5 }, { name: 'white', css: '#ffffff', min: 3 }];
 
 // in the page: every line of the listed words that is shown, with its colour

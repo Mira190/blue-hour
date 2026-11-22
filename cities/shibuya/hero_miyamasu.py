@@ -268,8 +268,11 @@ class Level(H.Level):
         self.markings()
         # (no blocks under the forecourt's planks, here or before the hall: a plank is flat from end to end and the
         # blocks follow the ground every 2 m, so where the ground swells they stood through the planks in patches)
+        # (nor on SKY's hall's own ground, its tiles, its floor and its planks round its north side: laid at the
+        # ground's height 8 cm over the hall's level floor, this level's blocks covered the hall's stone in a patch with
+        # a slanting edge, from the forecourt to the cars: the owner's screenshot at the lift, November 2026)
         pave = self.pave
-        self.pave = pave.difference(self.planked())
+        self.pave = pave.difference(self.planked().union(self.hall_ground()))
         self.pavements()
         self.pave = pave
         self.tactile()
@@ -506,6 +509,14 @@ class Level(H.Level):
         door, u, n = self.hall()
         (u0, u1), (v0, v1) = PLANK_U, (PLANK_V[0], HALL_PLANK_V1)
         return Polygon([door + u * a + n * b for a, b in ((u0, v0), (u1, v0), (u1, v1), (u0, v1))]).buffer(-0.03)
+
+    def hall_ground(self):
+        """SKY's hall's own ground, which hero_skylobby.py lays: from its tiles 2.4 m before its west side (APRON_V) to
+        its shaft's far side (HALL_V + SHAFT_V, 6.6 m in), and from its planks out to the north (FORECOURT's second
+        field, u -8) to its wall against the tower (HALL_U, u 3.1), as a polygon in the city's frame."""
+        from shapely.geometry import Polygon
+        door, u, n = self.hall()
+        return Polygon([door + u * a + n * b for a, b in ((-8.0, HALL_PLANK_V1), (3.2, HALL_PLANK_V1), (3.2, 6.7), (-8.0, 6.7))])
 
     def forecourt(self):
         """The forecourt's planks carried on west along the tower's face from where SKY's hall lays them

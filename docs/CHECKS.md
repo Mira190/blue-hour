@@ -587,6 +587,9 @@ frames and its load order, and is where most of these came from. What was found,
 |---|---|---|---|---|
 | `mem`, the desktop's vertex buffers (issue 159) | The check summed every `buffers:` line the page logged until it was closed. A hero level comes 90 to 170 s after the title on a software renderer and sends its own (12 MB Scramble Square, 13 MB the Scramble); a run that was still watching the page then read 142 or 156 MB of 140 | A late model's upload says so (`late buffers:`, `world.js` `uploadBuffers` `late`), and the check counts the loader's own set, listing the late ones beside it | 130 MB in nine runs of nine closed early; 142 MB (FAIL) watched 90 s longer, 155 MB held after 200 s | 130 MB in every run, with 25 MB of late models listed when the page is watched 200 s |
 | `mem`, a phone's GPU memory (issues 110 and 141) | The peak was the rain at ten at night with or without the target of the conversation's depth of field: the check ended the shot, waited six seconds of the wall and began the rain, and the page lets the target go a few seconds of its own frames after. 10 MB held or not by which came first | The conversation stays up into the rain: the peak is read in one state, the heaviest a player holds (a conversation in the rain at night), and the line says how far under the budget it is | 257 to 260 MB in nine runs (266 to 271 of 270 before issue 105 took 11 MB off) | 258.8 to 259.3 MB in eight runs (three of them with three cores kept busy), 10.7 to 11.2 MB under 270 |
+| `guide`, his body against the player's, pushed against a wall (issues 133 and 138) | Held against a wall he was let 3 cm into the player's circle before he said he was held, and his own tick could walk or turn him further in; the check's margin was the same 3 cm. Which side of it a run fell was decided by where the crowd he plans round stood when the world was held | A rule, in `companion.js` `keepOff`: the two touch and never overlap. He is held as soon as any of the push is left over (2 mm), the player is stopped short by that much in the same frame, and a step or turn of his own that would end further inside the player's circle is not taken. The check fails half a centimetre of overlap, in the open and against a wall | 2.0 to 3.0 cm inside in twelve plays of the case in one load (`ONLY=wall WALL_N=12`), eleven of them within 2 mm of the old margin or over it | 0.0 to 0.2 cm in twelve of twelve, his model 27 cm clear of the player's torso |
+| `walk1`, Taro's photograph of the crossing from the helicopter (issues 142 and 153) | Both issues describe the check as it was until 5f064af6 (21 November, 15:54): it polled sixty times for the lens to come to rest over the crossing, a slow frame ended the count first, and the photograph was taken from the chase camera behind the helicopter. That commit made the wait the lens's matrix alike over six of the game's frames | The wait is for what the photograph is judged by, the photo camera at the pose asked for, read from the camera; a photograph that is not Taro's says in its line what the page was doing (photo mode on or not, a talk open, where the lens and the helicopter were). `AIR_N=n` takes the photograph n times more in one play | Once in five runs before 5f064af6. Since it, not reproduced: 80 of 80 photographs with the six-frames wait in two plays (one with three cores kept busy) | 40 of 40 with the pose's wait |
+| `walk1` beside another check (issue 159: two lanes failed the walk on four cores) | The check set you down nine metres from the seat, waited for its mark to show and read the mark's name. The mark may be up already from where you stood before, pale and unnamed, and with two cores taken the page had not drawn a frame since you were set down: the name read was the old frame's, empty. The same with the speech marks from fourteen metres: any mark up ended the wait, the one judged had not come | Each step waits for the mark it judges as it judges it: the seat's shown and named, a story's mark shown | `walk1` with two cores kept busy (`BUSY=2 tools/repeat.sh`): one of two failed, "the seat's mark is not named from nine metres". `ride` the same way: three of three passed | Three of three passed. Two lanes stay the default on four cores |
 
 ## What is not checked
 
@@ -623,6 +626,9 @@ frames and its load order, and is where most of these came from. What was found,
   the hint over the camera's button, and the title's top out of reach on a 320 px phone. Its "who you play chosen"
   state stored the choice as `"M"` (in quotes, which the game does not read as a choice) until November 2026, so every
   title it opened still asked who you play; it stores `M` now.
+  `SAFE=1` adds a notched phone's safe area and fails a word or a button under the notch or the home bar; in photo
+  mode it holds what the camera's controls may cover (issues 147 and 154). `tools/legible.js` measures the walk's words
+  with the story's.
 - Whether the words on the picture can be read: `tools/legible.js`, by hand after a change to the story's goal, its
   hint, what is said over the picture, the finder's words or their styles (it is not a target either: it lays out the
   same recordings). Each screen a play wrote down (`UI_DUMP=dir`) is laid in with the page's stylesheets and no game
@@ -737,3 +743,22 @@ someone is set down steps out of them at a walk.
 
 Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
 crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+
+## Nobody paces (issue 168)
+
+On 21 November 2026 the owner's still of the walk showed two men under the deck east of the Scramble walking to and
+fro. Nothing measured whether a walker gets anywhere.
+
+- **`tools/crowd_pacing.js`** is the survey: on the walk, at each hour (8:00, 12:30, 17:59, 21:00, 23:30), you are
+  stood at each of 24 stations (the Scramble, the place of the still, a 400 m grid over the phone's district) with
+  the world stepped a tenth of a second at a time for a minute, and every walker is followed by its place in the
+  crowd. Over each 30 s a walker who covered more than 12 m, ended within 4 m of where it began and turned round at
+  least twice has paced; each is printed with its place, its line, how far its ways lead and what turned it
+  (`actors.js` `turn`'s reason, kept when a harness asks). `390x844` runs it as a phone, inside its district. It is
+  a job of 35 minutes for a screen, run when the ways or the steering change, not on every change.
+- **`tools/pacing_watch.js`** is the same measure on the side of a play: `tools/walk_play.js` and
+  `tools/story_play.js` put it in their page, and fail on a walker who paced two windows running or turned four
+  times in one. One window alone is a note: a walker held by a car turns once and comes back.
+
+Not measured: whether a walker who stops where the way ends reads as someone waiting (that is for stills), and a
+real phone's crowd, which is thinner than the emulated one only by its tier.
