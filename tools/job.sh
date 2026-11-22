@@ -43,7 +43,10 @@ procs() {
     tr '\0' '\n' 2>/dev/null <"$p/environ" | grep -qx "OE_JOB=$mark" && echo "${p#/proc/}"
   done
 }
-running() { local p; p=$(leader "$1") && kill -0 "$p" 2>/dev/null; }
+# (a job that wrote its exit has ended, whatever holds its process number now: after a session's worker restarts the
+# numbers are given again, and a job ended hours before was held to be running by a kernel thread on its old pid, which
+# refused every check after it)
+running() { local p; [ -f "$1/exit" ] && return 1; p=$(leader "$1") && kill -0 "$p" 2>/dev/null; }
 key_of() { printf '%s\n' "$PWD" "$@" "${JOB_KEY:-}" | sha1sum | cut -c1-16; }
 
 show_new() {   # the job's lines since the last wait
