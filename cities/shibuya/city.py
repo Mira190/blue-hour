@@ -2067,7 +2067,7 @@ def shop_signs(K, sites, avoid=(), taboo=None):
                 along = (rng.random() - 0.5) * max(L - w, 0.0)
                 z0 = g + 2.9 + rng.random() * 0.6
                 key = f"board{int(rng.integers(len(BOARDS)))}"
-                if not clear:
+                if not clear and not walled(mid + t * along, n, z0, z0 + w / 4):
                     facade_panel(A, mid, n, w, z0, z0 + w / 4, key, off=0.18, along=along)
             else:
                 along = (rng.random() - 0.5) * max(L - 1.5, 0.0)
@@ -2076,7 +2076,7 @@ def shop_signs(K, sites, avoid=(), taboo=None):
                 if z0 + h > g + top - 0.5:
                     continue
                 key = f"blade{int(rng.integers(len(BLADES)))}"
-                if clear:
+                if clear or walled(mid + t * along, n, z0, z0 + h):
                     continue
                 c = mid + n * 0.95 + t * along
                 if any(np.hypot(*(c - p)) < 2.0 and abs(z0 - pz) < h + ph for p, pz, ph in placed):
@@ -3430,6 +3430,22 @@ def wall_top(mid, n, top):
     return max((s["base"] + s["top"] for s in hit), default=top)
 
 
+def walled(c, n, z0, z1):
+    """Does the street front at c (outward normal n) look into another building between heights z0 and z1? A
+    sign there would face that building's wall, a hand's breadth away, and be seen only from behind, mirrored
+    (tools/sign_check.py): the sites' fronts face a road, but a neighbour the road's line misses can stand
+    against them."""
+    wall_top(c, n, 0.0)   # (loads the solids)
+    S, tree = _DATA["wall_solids"]
+    from shapely.geometry import Point
+    for d in (0.4, 1.2):
+        for k in tree.query(Point(*(np.asarray(c, float)[:2] + np.asarray(n, float) * d)), predicate="intersects"):
+            s = S[k]
+            if s["ground"] + s["base"] < z1 and s["ground"] + s["top"] > z0:
+                return True
+    return False
+
+
 def dressed_fronts(lm):
     """Where the scramble's own build hangs its signs (scramble.py, streets.py): the fronts onto the streets
     off the scramble, 2.5 m either side, and the buildings it draws whole. A generic sign is not hung there:
@@ -3475,6 +3491,8 @@ def crossing_wall_signs(K, lm):
             key = f"stack{int(rng.integers(STACKS))}"
             if min(np.hypot(*(c - p[:2])) for p in taken) < 9.0 or any(np.hypot(*(c - p)) < 5.0 for p in stacks) or (dressed is not None and dressed.distance(Point(*c)) < 4.0):
                 continue
+            if walled(c - n * 1.0, n, z0, z0 + h):
+                continue
             stacks.append(c)   # (two tenant stacks a few metres apart stand in front of each other)
             _DATA.setdefault("wall_sites", set()).add((x, y))   # (and the generic blade and board are not hung here too: shop_signs)
             P = frame(c, t)
@@ -3486,10 +3504,13 @@ def crossing_wall_signs(K, lm):
             w = min(L * 0.7, 9.0)
             h = w / 1.5
             z0 = g + top - h - 2.5
+            key = f"wprint{int(rng.integers(len(WALL_PRINTS)))}"   # (drawn first, so the prints after it keep theirs)
+            if walled(mid, n, z0, z0 + h):
+                continue
             P = frame(mid, n)
             _DATA.setdefault("wall_sites", set()).add((x, y))
             block(K("screen_frame"), P, -0.2, 0.15, -w / 2 - 0.1, w / 2 + 0.1, z0 - 0.1, z0 + h + 0.1)
-            facade_panel(Pr, mid, n, w, z0, z0 + h, f"wprint{int(rng.integers(len(WALL_PRINTS)))}", off=0.16)
+            facade_panel(Pr, mid, n, w, z0, z0 + h, key, off=0.16)
             for k in range(3):
                 v = -w / 2 + w * (k + 0.5) / 3
                 K("steel_dark").tube([P(0.15, v, z0 + h + 0.1), P(1.2, v, z0 + h + 0.45)], 0.035, 4)

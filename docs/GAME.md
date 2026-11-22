@@ -2008,6 +2008,54 @@ Sydney's traffic stood still a third of the time.
       from 5 to 24 degrees; the spread of the nearest neighbour's distance over its mean
       from 0.34 to 0.56 (the mean 0.96 m before, 0.95 after); 14 waiting at a kerb
       against 12, the crowd 6.6 m deep against 6.1.
+  - *The wait at a kerb, second pass* (November 2026, issue 75 again: the first pass
+    gave each walker its own room and turn, and the stills still showed files. Two
+    causes were found in the stills themselves, and the places are now drawn from what
+    is known of crowds that wait, not from rows with noise on them):
+    - **What was ruled.** (1) A crosswalk's stripes end 0.5 to 3.6 m short of the kerb,
+      and a place was measured from the stripes' end: the front places fell in the
+      road, were refused, and their walkers were sent to the first paving behind, all
+      at one distance from the kerb's edge. Depth is now measured from the kerb where
+      each stands (`kerbOff`, `web/game/actors.js`). (2) The story moves the held crowd
+      out of a frame's sightline and out of a ring round the people a frame is of
+      (`clearSight`, `clearRound`, `web/game/game.js`), and it put every one of them
+      0.4 m outside the edge: two files down the sides of the finder, facing each other
+      (the last frame), a ring round a kerb (frame 6). A crowd parted keeps its order
+      and its depth: the nearer the middle one stood the nearer the edge it ends, those
+      by the edge up to 3 m beyond, each a step along as chance has it, never onto
+      another of the crowd or out into a road, and it waits where it was put.
+    - **Surveyed, and what was taken from each** (papers and a handbook: findings, no
+      code or data copied, so no licence applies to them):
+
+      | Source | Finding | Used as |
+      |---|---|---|
+      | Küpper and Seyfried, "Waiting in crowded places", *J. R. Soc. Interface* 20:20230193 (2023), doi:10.1098/rsif.2023.0193 | People who wait do not spread into the free room: local density stays 0.6 to 1.2 a square metre whatever the room, neighbours' distances centre on 1.0 to 1.2 m (sd 0.25), they stand by the side the awaited thing comes from, nobody past the safety line, a place once taken is kept | Three places in five tried are beside or behind someone already waiting at that kerb, at a neighbour's distance; nobody ahead of the front; a waiter moved aside stays there |
+      | Wang, Zhao, Cao, Lu and Chen, "A Modified Total Crossing Time Model of Bidirectional Pedestrians at Signalized Crosswalks", *Discrete Dynamics in Nature and Society* (2017), doi:10.1155/2017/2190724 | Waiting positions behind the kerb follow a Weibull distribution whose mean depth grows with the number waiting (read in summary: its parameters were not) | Depth is a Weibull draw, shape 1.5 (ours), scale 1 m growing 6 cm a waiter to 2.5 m |
+      | Fruin, *Pedestrian Planning and Design* (1971), queuing levels of service; FHWA-RD-98-107 (1998), section 4 | A street corner's standing room is 0.46 to 0.65 square metres a person; level D (0.28 to 0.65) is standing without touching | The room kept from a stranger is 0.65 to 1.05 m centre to centre (it was 0.8 to 1.25) |
+      | Moussaïd, Perozo, Garnier, Helbing and Theraulaz, "The Walking Behaviour of Pedestrian Social Groups", *PLoS ONE* 5(4):e10047 (2010); Zanlungo, Ikeda and Kanda, *Phys. Rev. E* 89:012811 (2014) | Up to 70% of a busy street's people are in groups, mostly pairs; pairs stand abreast about 0.75 m apart, threes in a V | The crowd's groups as they were (0.62 m abreast), each now up to a foot's length ahead of or behind its friend rather than dressed in a row |
+      | Kendon, *Conducting Interaction* (1990), F-formations | People talking stand side by side, in an L, or face to face | Two groups in five stand turned in to each other by 45 to 70% of the way; the rest face the road |
+      | Zhou et al., *Advances in Mechanical Engineering* (2019), doi:10.1177/1687814019841838; Telecommunications Advancement Foundation report 31 (2016) | 4 to 8% of those crossing are at a phone, more the longer the wait; no count of those waiting in Japan was found | The three in ten at a phone while standing is kept, as our reading of the photographs, not a measured figure |
+
+    - **Photographs of the place at a red light** (Wikimedia Commons; beside the stills
+      in `docs/images/people/kerb-75-desktop.jpg` and `kerb-75-phone.jpg`, which carry the
+      two CC BY-SA photographs and are under that licence with them):
+      - "Waiting people in Shibuya Crossing 20140416.jpg", Yiannis Theologos Michellis,
+        CC0 1.0: the far kerb at night, a band four to six deep, ragged at the front,
+        nobody in the road, one man a pace back at his phone.
+      - "Shibuya Crossing 003.jpg", bfishadow, CC BY 2.0: by day and less full, clumps
+        of two to four with gaps between, densest at the stripes' mouths. This is the
+        picture our numbers can match: a kerb here holds ten to seventeen.
+      - "渋谷スクランブル交差点 2026年11月5日の渋谷 202611051859 IMG 8321.jpg" and
+        "... 2026年9月30日の渋谷 202609301800 IMG 7488.jpg" (rain), ウィ貴公子,
+        CC BY-SA 4.0: from inside the near crowd, pairs half a metre apart, turned to
+        each other, round the sign pole; umbrellas canopy to canopy.
+    - **Measured** (`tools/kerb_shape.js`, 17:41 by Hachiko, 100 s; `PLAN=1` prints each
+      kerb from above): the nearest neighbour 0.85 m (0.96 before), its spread over its
+      mean 0.65 (0.44: a lattice is near 0, clumps are high), the crowd 3.0 m deep (4.7),
+      39% in the front row (27%).
+    - **Not reached.** The photographs' full kerb is a band of some hundreds; the game
+      gives a kerb ten to seventeen people (a phone's budget), so it shows the off-peak
+      picture, not the Friday-night one.
   - *Passing, not jamming* (November 2026, issues 85 and 82: the crowd is in every
     beat of the story, and walkers met head on stood jammed for minutes).
     - **Passing head on (issue 85).** Walkers met head on on a footway stood jammed for

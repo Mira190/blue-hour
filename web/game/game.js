@@ -17,6 +17,23 @@ window.OpenEarthGame = async function game(cityId) {
   const idle = () => new Promise(r => setTimeout(r, 0));
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch = matchMedia('(pointer: coarse)').matches;
+  // One tab (issue 166; docs/SOUND.md "One tab"). A phone has the memory, the GPU and the cores for one world: two tabs of
+  // the game on the owner's iPhone lost both their WebGL contexts in one second, with the sound breaking as they went.
+  // The world is held under a lock of the site's (the Web Locks API). A tab that finds it held asks the other to give way
+  // (a BroadcastChannel): that tab becomes tab.html, a page of a few kilobytes, and this one goes on. If the other does
+  // not answer within two seconds (iOS has frozen it), this tab becomes tab.html?wait=1 instead and starts by itself once
+  // the other is closed. On a touch screen only; ?tabs=many leaves it out. Tabs on two sites cannot see each other.
+  if (touch && navigator.locks && window.BroadcastChannel && !/[?&]tabs=many\b/.test(location.search)) {
+    const here = '#' + encodeURIComponent(location.search), bc = new BroadcastChannel('blue-hour-world'), hold = () => new Promise(() => {});
+    bc.onmessage = e => { if (e.data === 'give way') location.replace('tab.html' + here); };
+    navigator.locks.request('blue-hour-world', { ifAvailable: true }, lock => {
+      if (lock) return hold();
+      bc.postMessage('give way');
+      const stop = new AbortController(), t = setTimeout(() => stop.abort(), 2000);
+      navigator.locks.request('blue-hour-world', { signal: stop.signal }, () => { clearTimeout(t); return hold(); }).catch(() => location.replace('tab.html?wait=1' + here));
+      return undefined;
+    }).catch(() => {});
+  }
   const ac = new AbortController(), on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, Object.assign({ signal: ac.signal }, o));
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   // the old free game's keys, which open nothing on the story's map (in the story, or on the walk): the survey lens, the
@@ -31,16 +48,20 @@ window.OpenEarthGame = async function game(cityId) {
   let cue = null;
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
     // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
-    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
+    const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', A.tunes ? !!A.needsTouch : !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
     const begin = () => {
       A.start();
+      // (a phone's: the system's own player, the context not made until the opening is over, audio.js "music outside the
+      // context". Its file is the loop six times over at the level the bus would give it: tools/load_cue.js)
+      if (A.tunes) { if (cue === null) { cue = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) on(window, ev, () => setTimeout(heard, 0), { capture: true }); } heard(); return; }
       if (cue !== null || !A.ctx) { heard(); return; } // (false: played and let go)
       cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
       on(A.ctx, 'statechange', heard); heard();
     };
+    if (A.quiet) A.quiet(true);
     begin();
     if (A.made) A.made(() => { if (cue === null) begin(); }); // (iOS: the context is made in the first touch, audio.js)
-    if (A.pending) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
+    if (A.pending && !A.tunes) fetch('assets/story/late/cue.mp3').catch(() => {}); // (its file fetched meanwhile, so the touch has only to decode it)
     for (const ev of ['pointerdown', 'keydown']) on(window, ev, () => { if (cue) begin(); }, { capture: true });
   }
   const cueOut = () => { if (cue) { cue.stop(5); cue = false; } }; // (false: it has played, and is not begun again)
@@ -240,7 +261,7 @@ window.OpenEarthGame = async function game(cityId) {
     root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) { ms.push([o, o.layers.mask]); o.layers.set(30); } });
     root.visible = true;
     const put = () => { root.visible = was; for (const [o, m] of ms) o.layers.mask = m; };
-    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
+    return Promise.resolve(OEWorld.uploadBuffers(renderer, world, camera, { late: true, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })).then(put, e => { put(); console.warn('buffers', e); });
   };
   // the weather: dry, overcast, drizzle or rain, as the city's climate brings it for the date (weather.js)
   // a far land that reaches past the default far plane (Kamakura's, out to Mount Fuji at 70 km): the camera takes it in
@@ -1355,11 +1376,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // somewhere to sit and watch the crossing on the walk (perch.js; game.json hero[].perches): the stone the hero level has
   const perch = window.OEPerch ? OEPerch.create({ G, floorAt: (x, y) => { const f = nav.floorAt(x, y, Math.max(0, nav.terrain(x, y)) + 1); return f ? f.z : null; } }) : null;
   let perchFov = 0;
+  // the seats the walk marks (walktalk.js places): each until it has been sat on once in this browser, by its name
+  const SAT_KEY = 'bh-walk-sat';
+  let satOn = null, seatList = null;
+  const satGet = () => { if (!satOn) { try { satOn = new Set(JSON.parse(localStorage.getItem(SAT_KEY) || '[]')); } catch (e) { satOn = new Set(); } } return satOn; };
+  function seatMarks() {
+    if (!perch || !walk) return [];
+    const sat = satGet();
+    if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
+    return seatList;
+  }
   function sitDown(st) {
     player.seatFrom = { x: player.x, y: player.y, z: player.z, h: player.h };
     Object.assign(player, { mode: 'seat', x: st.at[0], y: st.at[1], z: st.perch ? st.z : st.at[2], h: st.h, speed: 0, ground: true, vz: 0 });
     cam.lookYaw = 0; cam.lookPitch = st.pitch || 0; cam.lastInput = -10;
     if (st.perch) { // (on a low wall, perch.js: its rake, the feet further out so the hips come down onto the stone, laid each frame in simulate)
+      satGet().add(st.name); try { localStorage.setItem(SAT_KEY, JSON.stringify([...satOn])); } catch (e) { /* storage blocked */ }
       perch.sit(st); seatTouch(true); if (touch) $('#gt-jump').hidden = false; stage.classList.add('at-perch'); // (story.css: its button shown)
       blendFrom(1.1, true); // (from over your shoulder round to the seat's tripod, not a cut)
       return;
@@ -1389,7 +1421,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // stepped out of in a game does not ask you straight back in: the player is set down on the stop itself, and at
   // SHIBUYA SKY 46F "Take the lift to Shibuya Scramble Square, street level" stood in the middle of a phone's screen the
   // moment you were up, over the way on to the roof (the owner's phone, November 2026). liftLeft: { l, i }, or null
-  let liftLeft = null;
+  let liftLeft = null, liftAt = '';
   function liftStop(x, y, z) {
     for (const l of lifts) for (let i = 0; i < l.stops.length; i++) {
       const s = l.stops[i], at = Math.hypot(s.at[0] - x, s.at[1] - y) < 3.0 && Math.abs(s.at[2] - z) < 2.5;
@@ -1734,7 +1766,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (clockT - bumpCar < 2.5 || e.speed < 3) continue;
       bumpCar = clockT;
       if (e.type === 'bump') H.toast(e.what === 'person' ? 'Watch out for people!' : e.what === 'car' ? 'Careful! That was another car.' : e.what === 'lamp' ? 'Careful! That was a lamp post.' : e.what === 'tree' ? 'Careful! That was a tree.' : 'Careful! That was a wall.');
-      if (e.type === 'edge') H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : 'Too steep a drop.');
+      if (e.type === 'edge') { const ax = st.x + Math.sin(st.h) * 3, ay = st.y + Math.cos(st.h) * 3, up = nav.floorAt(ax, ay, st.z + 2); H.toast(nav.isWater(st.x + Math.sin(st.h) * 5, st.y + Math.cos(st.h) * 5) ? `That's the edge of ${G.water_name || 'the water'}.` : up && up.z > st.z + OECars.CAR_STEP ? 'Too high a step for the car.' : 'Too steep a drop.'); } // (a rise ahead, or the ground falling away)
     }
     Object.assign(player, { x: st.x, y: st.y, z: st.z, h: st.h, speed: st.speed });
     if (!pilot) redLight(st);
@@ -2211,7 +2243,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // where you stand is kept too, not only at a quest's steps: every half minute of play, and when the tab
   // is put away or the page closes. Not before the game has started (the title would write the spawn
   // over a saved game the player has not chosen to continue yet).
-  let playing = false;
+  let playing = false, sndQuiet = A && A.quiet && A.tunes ? 1 : 0, sndQuietAt = 0;
   const keep = () => { if (playing) save(); };
   on(document, 'visibilitychange', () => { if (document.hidden) keep(); });
   on(window, 'pagehide', keep);
@@ -2279,9 +2311,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (g) { const dx = g[2] - g[0], dy = g[3] - g[1], L2 = dx * dx + dy * dy, t = L2 > 1e-9 ? Math.max(0, Math.min(1, ((x - g[0]) * dx + (y - g[1]) * dy) / L2)) : 0; if (Math.hypot(g[0] + dx * t - x, g[1] + dy * t - y) < g[4] + 0.6) return false; }
     return true;
   };
+  // (one of the crowd moved aside: a number of its own for each try, and whether the place is clear of the rest of the crowd)
+  const asideHash = (i, k) => { const v = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const asideRoom = (p, x, y) => {
+    for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+      const o = crowd.P[i];
+      if (o === p || (o.line < 0 && !o.pz)) continue;
+      const ex = (o.rx ?? o.x) - x, ey = (o.ry ?? o.y) - y;
+      if (ex * ex + ey * ey < 0.3) return false; // (0.55 m, middle to middle: shoulder to shoulder)
+    }
+    return true;
+  };
   const clearSight = (a, b, half = 0) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     if (crowd.keep) crowd.keep(a[0], a[1], b[0], b[1], (half || 1.4 + 0.15 * L) + 1); // (and nobody begins to stop or stand about in it while it lasts)
+    if (!half && cars && cars.clearLane) cars.clearLane(a[0], a[1], b[0], b[1], 1.4); // (nor a car held in it: a lens's sightline, not the lane someone walks)
     for (const p of crowd.P.slice(0, crowd.active)) {
       if (p.line < 0 && !p.pz) continue;
       // (where it is drawn: in a Stop the drawn place does not catch up with the simulated one, and one drawn in the way
@@ -2290,9 +2334,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const t = (px - a[0]) * ux + (py - a[1]) * uy, side = (px - a[0]) * -uy + (py - a[1]) * ux, w = half || (t < 3.5 ? 3.5 : 1.4 + 0.15 * Math.max(0, t)); // (wider as it goes: a tram's length at 24 m)
       if ((half ? t < -half || t > L + half : t < -2.5 || t > L - 0.6) || Math.abs(side) > w) continue;
       if (!p.pz) { p.line = -1; continue; }
-      let to = (Math.sign(side) || 1) * (w + 0.4) - side; // (a crosser: out to the edge of the way, on the side they stand)
-      for (let k = 0; k < 4 && !roomAt(px - uy * to, py + ux * to); k++) to += (Math.sign(side) || 1) * 0.5; // (not onto someone not of the crowd, issue 65)
-      p.x = px - uy * to; p.y = py + ux * to; p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
+      // (a crosser or one waiting: out past the edge of the way, on the side they stand. Each was put on the edge itself,
+      // 0.4 m outside it, so a crowd moved aside stood in two ruled files down the sides of the sightline, facing each
+      // other across it: the last frame's finder and frame 6's photograph, issue 75. A crowd that parts keeps its order
+      // and its depth: the nearer the middle one stood the nearer the edge it ends, those by the edge up to 3 m beyond
+      // it, each a step along the way as chance has it, and never onto another of the crowd or out into a road)
+      const sg = Math.sign(side) || 1, D = Math.min(3, w), was = p.pz.road && p.pz.road(px, py);
+      let to = sg * (w + 0.4) - side, ok = false;
+      for (let k = 0; k < 8 && !ok; k++) {
+        const out = sg * (w + 0.4 + (Math.abs(side) / w) * D + k * 0.4) - side, al = (asideHash(p.id, k) - 0.5) * (k ? 1.6 : 0.7), x = px - uy * out + ux * al, y = py + ux * out + uy * al;
+        if (roomAt(x, y) && (was || !p.pz.road || !p.pz.road(x, y)) && asideRoom(p, x, y)) { p.x = x; p.y = y; ok = true; }
+      }
+      if (!ok) {
+        for (let k = 0; k < 4 && !roomAt(px - uy * to, py + ux * to); k++) to += sg * 0.5; // (not onto someone not of the crowd, issue 65)
+        p.x = px - uy * to; p.y = py + ux * to;
+      }
+      if (p.T && (p.ph === 'wait' || p.ph === 'linger')) { p.T.x = p.x; p.T.y = p.y; } // (and it waits there, not walking back into the way)
+      p.rx = null; // (and drawn there at once: drawn where it was, eased over frames, a held one stayed in the way)
     }
   };
   // ... and round someone the frame is of, so that they stand alone where they stand (the last frame's two, each on a kerb:
@@ -2305,9 +2363,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const dx = (p.rx ?? p.x) - x, dy = (p.ry ?? p.y) - y, d = Math.hypot(dx, dy); // (where it is drawn, as clearSight)
       if (d >= r) continue;
       if (!p.pz) { p.line = -1; if (crowdDraw) crowdDraw.hide(i); continue; } // (and not drawn there this frame either)
-      let k = (r + 0.4) / (d || 1);
-      for (let j = 0; j < 4 && !roomAt(x + (d ? dx : 1) * k, y + (d ? dy : 0) * k); j++) k += 0.5 / (d || 1); // (not onto someone not of the crowd, issue 65)
-      p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; p.rx = null; // (dx, dy: from where it is drawn)
+      // (out past the ring, as clearSight parts a crowd: those nearest its edge furthest beyond it, not all on one circle)
+      const ux = d ? dx / d : 1, uy = d ? dy / d : 0, was = p.pz.road && p.pz.road(x + dx, y + dy);
+      let ok = false;
+      for (let j = 0; j < 8 && !ok; j++) {
+        const R = r + 0.4 + (d / r) * Math.min(2, r) + j * 0.4, a = (asideHash(p.id, j) - 0.5) * (j ? 0.5 : 0.2), c = Math.cos(a), sn = Math.sin(a), qx = x + (ux * c - uy * sn) * R, qy = y + (uy * c + ux * sn) * R;
+        if (roomAt(qx, qy) && (was || !p.pz.road || !p.pz.road(qx, qy)) && asideRoom(p, qx, qy)) { p.x = qx; p.y = qy; ok = true; }
+      }
+      if (!ok) {
+        let k = (r + 0.4) / (d || 1);
+        for (let j = 0; j < 4 && !roomAt(x + (d ? dx : 1) * k, y + (d ? dy : 0) * k); j++) k += 0.5 / (d || 1); // (not onto someone not of the crowd, issue 65)
+        p.x = x + (d ? dx : 1) * k; p.y = y + (d ? dy : 0) * k; // (dx, dy: from where it is drawn)
+      }
+      if (p.T && (p.ph === 'wait' || p.ph === 'linger')) { p.T.x = p.x; p.T.y = p.y; }
+      p.rx = null;
     }
   };
   // the camera of a conversation (talkcam.js): the story's people, where they stand, and what stands round them
@@ -2503,6 +2572,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     project: (x, y, z) => { markV.set(x, z, -y).project(camera); return markV.z > 1 || markV.z < -1 ? null : { x: (markV.x + 1) / 2 * stageW, y: (1 - markV.y) / 2 * stageH }; },
     npc: id => npcById(id),
     here: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return { x: o.x, y: o.y, z: o.z, mode: m }; },
+    places: () => seatMarks(), // (somewhere to sit, until it has been sat on once: its mark, as the street's offer of it)
     say: (runs, done) => { // one speaker after another, each in the box and the conversation's camera
       let i = 0;
       const next = () => {
@@ -3579,6 +3649,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return { key: '', text: `${st.name}: the next car is due in ${fmtSec(rail.eta())}` };
     }
     const ls_ = liftStop(player.x, player.y, player.z);
+    // (come to a lift's stop, the view left alone for a second: it goes to the lift. Issue 144: in SKY GATE's hall with the
+    // view left facing its lacquered wall, the frame was that wall from edge to edge behind the offer of the lift. Where
+    // the stop has no hall, a view hemmed in there turns to the nearest open side at once, as where a ride sets you down)
+    if ((ls_ ? ls_.l.id + ls_.i : '') !== liftAt) {
+      liftAt = ls_ ? ls_.l.id + ls_.i : '';
+      const sd = ls_ && ls_.l.stops[ls_.i];
+      if (sd && player.mode === 'foot' && clockT - cam.lastInput > 1) {
+        // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
+        if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
+        else cam.seek = true;
+      }
+    }
     if (ls_) { const to = (ls_.i + 1) % ls_.l.stops.length; return { key: 'E', story: true, text: `${ls_.l.verb || 'Take the lift to'} ${ls_.l.stops[to].name}`, act: () => rideLift(ls_.l, ls_.i, to) }; } // (a flight of stairs the game does not draw is climbed as a lift is ridden: game.json lifts[].verb)
     const seatHere = shows && shows.near(player.x, player.y, player.z);
     if (seatHere) return { key: 'E', text: seatHere.verb || 'Sit down', act: () => sitDown(seatHere) };
@@ -4060,6 +4142,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       photo.focus.copy(live.look); photo.anchor.copy(live.look);
       Object.assign(photo, { az: p.az, pitch: Math.atan2(p.h, Math.max(0.1, p.dist)), dist: Math.max(6, camera.position.distanceTo(live.look)), fov: camera.fov, turn: false });
       $('#ph-turn').setAttribute('aria-pressed', 'false');
+      $('#g-photo').classList.remove('adj'); $('#ph-adj').setAttribute('aria-expanded', 'false');
       photoSync();
     } else {
       player.rig.root.visible = true;
@@ -4151,6 +4234,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on($('#ph-me'), 'click', e => { const v = !player.rig.root.visible; player.rig.root.visible = v; e.currentTarget.setAttribute('aria-pressed', String(v)); });
   on($('#ph-snap'), 'click', snapPhoto);
   on($('#ph-done'), 'click', () => photoMode(false));
+  // (on a phone the lens's settings are a strip put away until asked for: the frame is the photograph's)
+  on($('#ph-adj'), 'click', e => { const o = !$('#g-photo').classList.contains('adj'); $('#g-photo').classList.toggle('adj', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
   on($('#g-photo-btn'), 'click', () => photoMode(true));
   on($('#gc-snap'), 'click', snapPhoto);
   on($('#gc-done'), 'click', closeupEnd);
@@ -4161,7 +4246,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); } }
+  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); if (walk && walkUi && walkUi.menuSync) walkUi.menuSync(true); } }
   // the story's own pause (issue 114): the frame the case is at, the words' size as the log has it, and the case begun
   // again, asked twice (the frames taken are lost with it)
   function caseSync() {
@@ -5545,6 +5630,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
       key: k => (gamepad ? gamepad.label(k) : k),
       menu: () => toggleMenu(), photo: () => photoMode(true),
+      // (from the walk's menu: one of its hours, one of its skies, or any minute of the same evening)
+      dress: sp => { if (sp.t === 'live') presetTime('live'); else if (sp.t) { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); } else if (sp.min != null) setClock(clock.y, clock.m, clock.d, sp.min); if (sp.w && weather) weather.set(sp.w, { now: true }); if (walk) Object.assign(walk, sp.t ? { t: sp.t } : sp.w ? { w: sp.w } : { t: 'any' }); menuSync(); },
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
@@ -5849,6 +5936,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
+    if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
+      const film = !!(overture && overture.active); if (film) sndQuiet = 2;
+      if (playing && !film && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
+    }
     weatherTick(simHold ? 0 : dt * (story ? story.scale : 1), titleOn, titleOn || paused || photo.on); // (held by a harness: the weather eases on only with advance(), which ticks it; stepped by the frames too, it eased by however many the machine drew, #420)
     if (show) show.tick(now);
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights

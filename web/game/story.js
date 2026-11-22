@@ -687,8 +687,8 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // - a question with `choice` has no right answer: each option { text, set: flag, say } is something the player
     //   commits to, kept in st.flags (and in the save) for later lines to answer;
     // - a question with `fail: { after, lines, title, line }` can be lost: after that many wrong answers in one talk
-    //   the one asked sees through the player, the Stop lets go, and the frame is taken up again from its beginning
-    //   (failed, retry). Nothing but the minute is lost, but it is lost in front of the player;
+    //   the one asked sees through the player: a card, a line in the file against them, a minute of the Stop, and the
+    //   question is asked again where it was (failed, retry; issue 93). Nothing is played twice for one answer;
     // - a question that wants a print the player spent on nothing (shoot: plain) is passed over; the frame's
     //   `lost<n>` flag is set, so those who would have answered to it say something else.
     const L = list => [].concat(list || []).filter(l => typeof l === 'string' || ((!l.if || st.flags[l.if]) && (!l.not || !st.flags[l.not]))).map(l => (typeof l === 'string' ? l : l.say));
@@ -726,8 +726,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         const ok = !!c && c.k === right, said = L((ok ? q.right : wrongFor(q, c && c.k)) || (ok ? [] : ['No. Look at the prints again.']));
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
-        else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
-        else if (q.frame && c) gone.p.add(c.k); // (a print that was not it is off the roll for the next try)
+        else {
+          if (c && (q.frame || q.fail)) gone.p.add(c.k); // (a print that was not it is off the roll for the next try; and a lie told once is not told again)
+          if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines), back = () => ask(m, w, done, as); return F.length ? ctx.say(w, F, () => failed(q.fail, w, back)) : failed(q.fail, w, back); }
+        }
         const more = ok ? said : said.concat(helpFor(q));
         return more.length ? ctx.say(w, more, () => ask(m, w, done)) : ask(m, w, done);
       });
@@ -735,7 +737,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // What a wrong answer takes off the table for the next try (a statement that stands, a print that is not it), so that
     // each try is narrower than the last and a player who cannot work it out still gets to the end of the question by
     // elimination, and the line that says where to look, after the first slip (`help` on the question): the second
-    // is the last the one asked allows. Both are forgotten when the frame is taken up again.
+    // is the last the one asked allows. What is struck off stays off when the player is seen through and asked again.
     let struckBy = new WeakMap();
     const struck = q => { let g = struckBy.get(q); if (!g) struckBy.set(q, g = { s: new Set(), p: new Set() }); return g; };
     const helpFor = q => (q.help && st.slips === 1 ? L(q.help) : []);
@@ -769,7 +771,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     function atHand(back) { st.reask = back; st.want = -1; albumOpen(true); }
     const nameOf = k => ((st.ep.people || []).find(o => o.id === k) || {}).name || '';
     // An answer judged. A question with `fail` can be lost: after that many wrong answers in one talk the one asked
-    // sees through the player and the frame is taken up again from its beginning (frames 3, 5 and 6). A question with
+    // sees through the player, and asks again once the card has been read (frames 3, 5 and 6: failed). A question with
     // `told` (the summation, frame 7) is never lost, and nobody plays the frame again for one answer: a wrong answer is
     // answered for what was said (wrong_by, wrong_print) and written in the file against the player, struck through; a
     // second says more (`wrong2`) and marks the print that answers it on the roll; a third, and she says it herself
@@ -780,7 +782,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
       const nm = q.who && how.named != null ? nameOf(how.named) : '';
       if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
-      else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines), back = () => ask(m, w, done); return F.length ? ctx.say(w, F, () => failed(q.fail, w, back)) : failed(q.fail, w, back); }
       else if (q.told) {
         const n = st.qmiss = (st.qmiss || 0) + 1; st.misses = (st.misses || 0) + 1;
         if (q.file) filed(`${q.file}: you said ${nm || 'that'}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
@@ -1138,12 +1140,26 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       // only its `spent` lines)
       later(4600, () => hear(spend ? { lines: T.spent || [] } : { lines: T.lines, ask: T.ask, then: T.then }, who(fr.afterimage || T.voice || {}), () => resume()));
     }
-    // seen through: the card says so, and the frame is taken up again from its beginning (the flight or the ride to it
-    // is not made twice)
-    function failed(F) {
-      st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong'); struckBy = new WeakMap(); mixedBy = new WeakMap(); // (taken up again: nothing is struck off, and the answers are laid out afresh)
-      failEl.innerHTML = `<div class="card"><small>${esc(st.fr.stamp || '')} · frame ${st.fi + 1}</small><h2>${esc(F.title || 'Seen through')}</h2><p>${esc(F.line || '')}</p><div class="row"><button type="button" class="go">Take it up again${st.fr.stamp ? ` · ${esc(st.fr.stamp)}` : ''}</button></div></div>`;
-      failEl.classList.add('on'); st.failed = (st.failed || 0) + 1;
+    // Seen through (issue 93): the card says so, and the talk is taken up again at the question that was lost, not at the
+    // frame's beginning. The walk to them, the call, the Stop falling and everything they had said were played again for
+    // one answer; now the one asked is still there, says one line (`fail.again`) and asks again, and what the wrong
+    // answers took off the table stays off it, so each time round is narrower than the last and the question ends. What
+    // it costs is seen: the card; a line in the file against the player, written and struck through as frame 7's wrong
+    // answers are (`fail.file`); in a Stop, a minute of it (`fail.cost_s`, never its last minute and a half); and the
+    // last card counts it. The card's second button opens the roll and the file first, and closing them asks again.
+    //   fail: { after, lines, title, line, again: lines, file: text, go: the button's words, cost_s: 60, from: 'start' }
+    // (from: 'start': the frame from its beginning, as it was; the flight or the ride to it is not made twice)
+    function failed(F, w, back) {
+      st.beatWas = st.beat; st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong');
+      const again = !!back && F.from !== 'start', inStop = st.phase === 'stop', S = st.fr.stop_s || 420;
+      const cost = again && inStop ? Math.max(0, Math.min(F.cost_s != null ? F.cost_s : 60, S - 90 - st.t)) : 0;
+      st.failBack = again ? { w, back, again: F.again } : null;
+      if (!again) { struckBy = new WeakMap(); mixedBy = new WeakMap(); } // (from the start: nothing is struck off, and the answers are laid out afresh)
+      if (cost > 0) st.t += cost; // (the Stop's own clock, which the goal line shows)
+      if (again && F.file) filed(F.file, { kind: 'said', wrong: true });
+      const paid = [again && F.file ? 'Entered in the file, against you' : '', cost >= 1 ? `${cost >= 59 ? 'A minute' : `${Math.round(cost)} seconds`} of the Stop gone` : ''].filter(Boolean).join(' · ');
+      failEl.innerHTML = `<div class="card"><small>${esc(st.fr.stamp || '')} · frame ${st.fi + 1}</small><h2>${esc(F.title || 'Seen through')}</h2><p>${esc(F.line || '')}</p>${paid ? `<em class="paid">${esc(paid)}</em>` : ''}<div class="row"><button type="button" class="go" data-fail="go">${esc(again ? F.go || 'Ask again' : 'Take it up again')}${!again && st.fr.stamp ? ` · ${esc(st.fr.stamp)}` : ''}</button>${again && st.prints.length ? '<button type="button" data-fail="roll">The roll and the file first</button>' : ''}</div></div>`;
+      failEl.classList.add('on'); st.failed = (st.failed || 0) + 1; keep();
       if (document.exitPointerLock) document.exitPointerLock();
       const b = failEl.querySelector('button'); if (b) b.focus({ preventScroll: true });
     }
@@ -1162,8 +1178,14 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       st.spendAsk = false; spendEl.classList.remove('on');
       if (yes) shoot(true);
     }
-    function retry() {
+    function retry(roll) {
+      if (!failEl.classList.contains('on')) return;
       failEl.classList.remove('on');
+      const B = st.failBack; st.failBack = null;
+      if (B) { // (at the question: they are where they were, and so are you)
+        const go = () => { st.beat = st.beatWas || 'talk'; st.slips = 0; const A = L(B.again); return A.length ? ctx.say(B.w, A, B.back) : B.back(); };
+        return roll ? atHand(go) : go();
+      }
       veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; keysHint(false); teach(null); if (ctx.here) ctx.here(null);
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false }); if (ctx.held) ctx.held(false);
@@ -1273,7 +1295,7 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
       const P = ep.pairs || [], never = P.map(q => pairKey(q.of[0] - 1, q.of[1] - 1)).filter(k => !st.pairs.includes(k));
       if (P.length) li.push(`<li class="pair"><b>${st.pairs.length}/${P.length}</b><span>${never.length ? `Never set side by side: ${never.map(k => `frames ${k.replace('-', ' and ')}`).join('; ')}.` : 'Every pair of prints that argues was set side by side.'}</span></li>`);
       if (st.misses || st.told) li.push(`<li><b>×${st.misses || 0}</b><span>${st.misses ? `Answered her wrongly ${st.misses === 1 ? 'once' : `${st.misses} times`}.` : ''}${st.told ? ` She answered ${st.told === 1 ? 'one question' : `${st.told} questions`} herself.` : ''}</span></li>`);
-      if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and taken up again.</span></li>`);
+      if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and asked again.</span></li>`);
       { const found = ep.frames.map((f, i) => (f.find || (f.task && f.task.find) ? i : -1)).filter(i => i >= 0 && st.prints[i]), alone = found.filter(i => !st.helped[i]), helped = found.filter(i => st.helped[i]);
         const L2 = a => a.map(i => i + 1).join(a.length > 2 ? ', ' : ' and ');
         if (found.length) li.push(`<li class="found"><b>${alone.length}/${found.length}</b><span>${alone.length ? `Found alone: frame${alone.length > 1 ? 's' : ''} ${L2(alone)}.` : ''}${helped.length ? ` With a hint: ${helped.map(i => `${i + 1} (${['a word', 'the dog', 'the light'][st.helped[i] - 1]})`).join(', ')}.` : ''}</span></li>`); }
@@ -1319,7 +1341,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
     }
     endEl.addEventListener('click', e => { const g = e.target.closest('button[data-back]'); if (g) return enter(+g.dataset.back); const b = e.target.closest('button[data-do]'); if (b) (b.dataset.do === 'sheet' ? saveSheet : b.dataset.do === 'again' ? ctx.again : ctx.free)(); });
     shutter.addEventListener('click', shoot);
-    failEl.addEventListener('click', e => { if (e.target.closest('button')) retry(); });
+    failEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) retry(b.dataset.fail === 'roll'); });
     spendEl.addEventListener('click', e => { e.stopPropagation(); const b = e.target.closest('button[data-spend]'); if (b && (b.dataset.spend === '0' || performance.now() - st.spendAt > 700)) spendAnswer(b.dataset.spend === '1'); });
     frames.type = 'button'; frames.addEventListener('click', () => albumOpen(true));
     const onKey = e => {
@@ -1327,6 +1349,12 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); spendAnswer(false); }
         else if (e.code === 'KeyF' || e.code === 'KeyR' || e.code === 'KeyH' || e.code === 'Tab') { e.preventDefault(); e.stopPropagation(); }
         else if (/^Arrow/.test(e.code)) { e.preventDefault(); e.stopPropagation(); const B = [...spendEl.querySelectorAll('button')], i = B.indexOf(document.activeElement); if (B.length) B[(i + 1) % B.length].focus({ preventScroll: true }); }
+        return;
+      }
+      if (failEl.classList.contains('on')) { // (seen through: the arrows go between the card's two; Tab is its second, the roll first; nothing else is a key of the street's)
+        if (e.code === 'Tab' && !e.repeat) { e.preventDefault(); e.stopPropagation(); retry(!!st.failBack && !!failEl.querySelector('[data-fail="roll"]')); }
+        else if (/^Arrow/.test(e.code)) { e.preventDefault(); e.stopPropagation(); const B = [...failEl.querySelectorAll('button')], i = B.indexOf(document.activeElement); if (B.length) B[(i + 1) % B.length].focus({ preventScroll: true }); }
+        else if (e.code === 'KeyF' || e.code === 'KeyR' || e.code === 'KeyH' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); }
         return;
       }
       if (e.code === 'KeyF' && !e.repeat && (st.beat === 'shoot' || (st.phase === 'go' && st.beat === 'job'))) { e.preventDefault(); e.stopPropagation(); shoot(); }
@@ -1371,9 +1399,14 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
       }
       if (st.phase === 'go' && st.beat === 'ride') { // the car: its mark on it as it comes and waits; gone from the frame while you ride; on when you are out, or have walked there
         const r = ctx.rideNow(), R = fr.ride, there = near(R.to, 45);
-        if (r && r.state !== 'in') { if (!st.target || Math.hypot(st.target[0] - r.at[0], st.target[1] - r.at[1]) > 1.5) aimAt(spot(r.at)); const text = r.state === 'coming' ? R.line || 'A car is coming for you.' : R.board || 'Your car is here. Get in.'; if (text !== goalText) goal(text); st.inCar = false; }
+        // (a car that has not come in wait_s, a minute and a half: it is sent on its way and the frame goes on on foot, as it
+        // does for whoever walks. The driver has its own bound, rides.js COME_STILL; this is the story's, whatever the
+        // traffic does: nobody stands at a kerb for a car that is not coming, #97)
+        st.rideT = r && r.state === 'coming' ? (st.rideT || 0) + dt : 0;
+        if (st.rideT > (R.wait_s || 90)) { st.rideT = 0; if (ctx.rideOff) ctx.rideOff(); say(R.late || 'The car is held up · on foot, then'); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
+        else if (r && r.state !== 'in') { if (!st.target || Math.hypot(st.target[0] - r.at[0], st.target[1] - r.at[1]) > 1.5) aimAt(spot(r.at)); const text = r.state === 'coming' ? R.line || 'A car is coming for you.' : R.board || 'Your car is here. Get in.'; if (text !== goalText) goal(text); st.inCar = false; }
         else if (r) { if (!st.inCar) { st.inCar = true; aimAt(null); goal(R.riding || ''); if (ctx.score) ctx.score({ mode: 'ride' }); } }
-        if (!r || (there && (!r || r.state !== 'in'))) { if (r && ctx.rideOff) ctx.rideOff(); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
+        if (st.beat === 'ride' && st.rideGo && (!r || (there && (!r || r.state !== 'in')))) { if (r && ctx.rideOff) ctx.rideOff(); st.inCar = false; aimAt(null); goal(''); const f = st.rideGo; st.rideGo = null; f(); }
       }
       st.t += dt;
       // time is not cut, it is braked: the world slows to nothing over most of a second, and runs up again faster
