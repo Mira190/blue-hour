@@ -16,7 +16,7 @@
 //   create({ G, floorAt(x, y) -> z of the ground there, or null })
 'use strict';
 window.OEPerch = (function () {
-  const REACH = 1.6;         // m from the seat's front at which E offers it
+  const REACH = 2.4;         // m from the seat's front at which E offers it (1.6 at first: the prompt came only with the knees at the stone)
   const BACK = 2.9, SIDE = 0.9, HIGH = 1.4; // the tripod, where a seat gives none: behind the hips, off to the right, over the feet
   const IDLE_S = 5;          // seconds without a hand on the view before it drifts back to the crossing
   const WARP = 150;          // the clock held fast: two and a half minutes a second (the blue hour into the night in about 25 s)

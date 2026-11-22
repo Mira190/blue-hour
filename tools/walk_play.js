@@ -25,6 +25,9 @@
 //     part, or back with Mei the story is not put away with its name (walktalk.js);
 //   - the first walk from the title: the office does not ring, or speaks of your car without its button lit, or is not
 //     kept as heard; a street moment (Ren asking the way) cannot be answered by a choice and thanked;
+//   - as the walk lands the corner does not say who has the first story with the metres and the way, or does not name
+//     tonight's next moment when it is within the hour, or a phone is taught its thumbs in two lines (issue 146);
+//   - nine metres from Hachiko's wall no mark offers the seat, or it is still marked once sat on;
 //   - beside the end of Hachiko's wall nothing offers to sit and watch the crossing, or seated the camera does not stand
 //     behind your shoulder framing the scramble, a drag does not turn it (and left alone it does not come back), the
 //     time-lapse held (Space; on a phone its button) does not run the clock fast, or E (or a tap) does not stand you up
@@ -36,6 +39,8 @@
 //     the speed, or once stopped nothing lets you out; the menu's Bring your car does not bring it to a kerb near you;
 //   - in SKY GATE's lobby the lift is not offered, is not watched from outside the tower as it climbs (mid-ride the
 //     camera high over the street and in no building), or does not end at the top stop;
+//   - beside Taro on SHIBUYA SKY's roof his talk's shot does not have his face in the frame over the words, or a wall or a
+//     body stands before it;
 //   - on SHIBUYA SKY's roof Taro does not ask for the crossing from the helicopter (or a photograph from the roof on foot
 //     is taken for it), or over the crossing in the helicopter a photograph of it is not;
 //   - on SHIBUYA SKY's roof the helicopter does not stand on its pad, cannot be boarded, does not show its keys (on a
@@ -210,6 +215,23 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else ok('the walk\'s way in: the office rings, your car\'s button lit while it is spoken of, kept as heard');
     }
   }
+  // the walk's first minute (issue 146; docs/STORY.md "The walk's first ten minutes"): before a step is taken the corner
+  // says the one thing there is to do, who has the first story and the metres and the way to them, and under the date
+  // tonight's next moment when it is within the hour; on a phone the thumbs are taught in one line, not two
+  {
+    const f = await p.waitForFunction(() => { const q = document.querySelector('#g-walk-where .q'); return q && !q.hidden && /\d+ m/.test(q.textContent); }, null, { timeout: 60000, polling: 300 }).then(() => p.evaluate(() => {
+      const q = document.querySelector('#g-walk-where .q'), tn = document.querySelector('#g-walk-where .tn'), k = document.getElementById('g-walk-keys');
+      return { q: q.textContent.replace(/\s+/g, ' ').trim(), dir: !!q.querySelector('.dir'), tn: tn && !tn.hidden ? tn.textContent.replace(/\s+/g, ' ').trim() : '', keys: k ? k.querySelectorAll('span').length : 0, soon: (() => { const g = window.__game, T = g.tonight && g.tonight(); if (!T) return null; const s = T.state(g.clock.min); return s.on ? 0 : s.soon ? s.soon.inMin : null; })() };
+    }), () => null);
+    if (!f) fail('the first minute: the corner does not say who has the first story and how far');
+    else {
+      if (!f.dir) fail(`the first minute: "${f.q}" has no needle for the way`); else ok(`the first minute: the corner says "${f.q}", with the way to it`);
+      if (f.soon != null && f.soon <= 60 && !f.tn) fail(`the first minute: tonight's next moment is ${f.soon} min off and the corner does not name it`);
+      else if (f.tn) ok(`the first minute: tonight in the corner, "${f.tn}"`);
+      if (phone && f.keys > 1) fail(`the first minute on a phone: the thumbs are taught in ${f.keys} lines over the crowd`);
+    }
+    await shot('4-first-minute');
+  }
   // walk: the keys, or the stick by touch
   const xy0 = s.xy;
   // (four seconds of the game's own frames with the key or the stick held: a software renderer draws a frame in seconds,
@@ -362,6 +384,18 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const seat = await p.evaluate(() => { const g = window.__game, P = g.perch; if (!P || !P.list.length) return null; const s = P.list[0]; g.player.x = s.at[0] + s.face[0] * 1.4; g.player.y = s.at[1] + s.face[1] * 1.4; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.player.speed = 0; g.cam.yaw = g.player.h; g.advance(0.3); return { name: s.name }; });
     if (!seat) fail('no place to sit on the walk (game.json hero[].perches, perch.js)');
     else {
+      // (the street offers the seat: from nine metres off, in sight of it, a pale mark over the free place with its
+      // name, until it has been sat on once: issue 146)
+      const placeMark = () => p.evaluate(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e ? { o: +e.style.opacity || 0, name: e.querySelector('span').textContent } : null; });
+      const here = await p.evaluate(() => [window.__game.player.x, window.__game.player.y]);
+      await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; g.player.x = s.at[0] + s.face[0] * 9; g.player.y = s.at[1] + s.face[1] * 9; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.cam.yaw = g.player.h; g.cam.pitch = 0.1; g.advance(0.3); });
+      await frames(24);
+      const pm = await p.waitForFunction(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e && +e.style.opacity > 0.4; }, null, { timeout: 60000, polling: 300 }).then(placeMark, placeMark);
+      if (!pm || pm.o < 0.4) fail(`nine metres from ${seat.name}, facing it, no mark offers the seat (${JSON.stringify(pm)})`);
+      else if (!/Sit/.test(pm.name)) fail(`the seat's mark is not named from nine metres ("${pm.name}")`);
+      else ok(`nine metres from ${seat.name}: its mark, "${pm.name}"`);
+      await shot('4f-seat-mark');
+      await p.evaluate(([x, y]) => { const g = window.__game; g.player.x = x; g.player.y = y; g.advance(0.2); }, here);
       await frames(6);
       if (!(await waitPrompt(/Sit and watch the crossing/))) fail(`beside ${seat.name}, nothing offers to sit ("${await prompt()}"; ${JSON.stringify(await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; return { mode: g.player.mode, at: [g.player.x, g.player.y, g.player.z], seatZ: s.z, near: !!g.perch.near(g.player.x, g.player.y, g.player.z), act: g.currentAction ? String((g.currentAction() || {}).text) : '?' }; }))})`);
       else {
@@ -426,6 +460,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else ok(`stood up, on foot again${phone ? ` (the button reads "${up.jump}")` : ''}`);
         if (phone && /Time-lapse/.test(up.jump)) fail('stood up, the phone\'s button still reads Time-lapse');
         await shot('4i-stood');
+        { // (sat on once, the seat is the player's to come back to: no mark over it again)
+          await frames(20);
+          const pm2 = await placeMark();
+          if (pm2 && pm2.o > 0.05) fail(`sat on once, ${seat.name} is still marked`); else ok(`sat on once, ${seat.name} is no longer marked`);
+        }
       }
     }
     if (process.env.WALK_ONLY === 'sit') { await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk sit: all passed'); process.exit(errors.length ? 1 : 0); }
@@ -628,9 +667,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!hall) fail('SKY GATE\'s hall: no hero level "skylobby" on the map');
       else if (hall.state !== 'ready' || !hall.shown) fail(`SKY GATE's hall is not drawn round you in its lobby (${JSON.stringify(hall)})`);
       else ok(`SKY GATE's hall drawn round you in its lobby (${JSON.stringify(hall)})`);
+      await p.evaluate(() => window.__game.advance(2.5)); // (the view comes round to the lift as its offer comes up: game.js, the prompt's lift)
       await shot('7a-hall');
       // (and the hall is a picture, not one flat tone from edge to edge: issue 144)
-      const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone);
+      const hallTone = await tones(p, await p.screenshot({ timeout: 120000 })), hallFlat = flat(hallTone, 0.6); // (0.6: the lacquered wall across the frame under a strip of the deck was 0.73 of it one tone, and passed at 0.85)
       if (hallFlat) fail(`SKY GATE's hall: the frame is one flat tone (${hallFlat})`);
       else ok(`SKY GATE's hall: a picture (luma sd ${hallTone.sd}, ${Math.round(hallTone.share * 100)}% its commonest tone)`);
       await act();
@@ -650,11 +690,42 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     }
     // Taro's story (walktalk.js "Above the crossing"): on the roof he asks for the crossing photographed from the
     // helicopter, and a photograph from the roof on foot is not it
+    // (his talk as a player has it: beside him on the roof, on the deck's side, and the conversation's camera on his first
+    // line. Issue 145: no still was taken of it, and the stills of the walk's people had looked at him from the street
+    // 226 m below. The shot the game cut to says where his face is in the frame, game.js talkCam.log: it is in front of
+    // the lens, inside the frame and over the words, with no wall or body before it and the lens in no wall)
+    const taroShot = await p.evaluate(async () => {
+      const g = window.__game, T3 = window.THREE, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'taro');
+      if (!t || !n) return { err: 'no Taro on the walk' };
+      t.startAt('air'); // (his turn in the walk's line: every story before his told)
+      let at = null;
+      for (const da of [0, Math.PI, Math.PI / 2, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4]) {
+        const x = n.x + Math.sin(n.h + da) * 1.6, y = n.y + Math.cos(n.h + da) * 1.6;
+        if (!g.nav.walk(x, y, n.z, true).ok || !g.nav.room(x, y, n.z, 0.35) || !g.nav.floorAt(x, y, n.z + 1)) continue;
+        if (g.nav.clearFraction(new T3.Vector3(x, n.z + 1.55, -y), new T3.Vector3(n.x, n.z + 1.55, -n.y)) < 0.99) continue;
+        at = [x, y]; break;
+      }
+      if (!at) return { err: 'nowhere on the roof to stand beside Taro' };
+      const pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = n.z; pl.vz = 0; pl.speed = 0; pl.ground = true; pl.h = Math.atan2(n.x - pl.x, n.y - pl.y); g.cam.snap = true;
+      g.advance(0.3);
+      const n0 = g.talkCam ? g.talkCam.log.length : 0;
+      if (!t.talk(n)) return { err: 'Taro has nothing to say' };
+      for (let i = 0; i < 40; i++) { g.frame(0.05); await new Promise(r => requestAnimationFrame(r)); }
+      const L = g.talkCam && g.talkCam.log.length > n0 ? g.talkCam.log[g.talkCam.log.length - 1] : null;
+      return L ? { kind: L.kind, x: L.x, y: L.y, front: L.front, block: L.block || null, inWall: !!L.inWall, panel: L.panel || 0 } : { err: 'the talk cut to no shot of its own' };
+    });
+    if (taroShot.err) fail(`on the roof, Taro's talk: ${taroShot.err}`);
+    else {
+      await p.waitForTimeout(1500);
+      await shot('8-taro-talk');
+      const T = taroShot, low = -1 + 2 * T.panel; // (the foot of the picture left over the words, in the frame's own -1 to 1)
+      if (!T.front || Math.abs(T.x) > 0.92 || T.y > 0.92 || T.y < low || T.block || T.inWall) fail(`on the roof, Taro's talk: his head is not in the frame over the words (${JSON.stringify(T)})`);
+      else ok(`on the roof, Taro's talk: his face in the frame at ${T.x}, ${T.y}, over the words (${T.kind})`);
+    }
     const taroAsked = await p.evaluate(() => {
       const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'taro');
       if (!t || !n) return 'no Taro on the walk';
-      t.startAt('air'); // (his turn in the walk's line: every story before his told)
-      if (!t.talk(n)) return 'Taro has nothing to say';
+      if (!g.dlg.open) { t.startAt('air'); if (!t.talk(n)) return 'Taro has nothing to say'; } // (his turn in the walk's line: every story before his told)
       for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false);
       const e = t.errand(), roofShot = t.photo({ z: 250, sees: () => true });
       return `${e ? e.text : 'nothing asked'}${roofShot ? ' (and a photograph from the roof on foot was taken for it)' : ''}`;
