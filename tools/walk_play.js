@@ -568,7 +568,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await p.waitForFunction(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on'); }, null, { timeout: 30000, polling: 250 }).catch(() => {});
               const told = await p.evaluate(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on') ? e.textContent : ''; });
               const n = await p.evaluate(() => window.__game.walkTalk().count());
-              if (n.done !== 1) fail(`Mei's story told to its end, but ${n.done} of ${n.of} are put away`);
+              if (n.done !== 2) fail(`Mei's story told to its end, but ${n.done} of ${n.of} are put away`); // (hers, and the walk's line before it)
               else if (!/Which Hachiko/.test(told)) fail(`Mei's story told, but its name is not put up ("${told}")`);
               else ok(`told: "${told}"`);
               await p.addStyleTag({ content: '#g-walk-told { transition: none !important; }' }); // (its fade is the compositor's, and a software renderer's page has no frame to give it)
