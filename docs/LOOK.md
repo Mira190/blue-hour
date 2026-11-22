@@ -265,6 +265,37 @@ linear lights onto that paving, and with the card still on the new paving went c
 clipped at 17:39 (7 % at 20:00). Without it: 0.15 %, all of it lamps, and the paving's mean 0.50 at dusk and 0.45 at
 night in its own tones and joints (`tools/light_split.js` `CARDI=3 CARD=0,0.2`). It was taken out.
 
+### A reflection has a cause
+
+The owner, flying the helicopter at 219 m over the Scramble at 17:45 (November 2026): on the glass tower to the right
+of Scramble Square, half way up the frame, a bright blue-violet smear with blotchy shapes in it, "as if a screen were
+pasted onto the glass". It was the screens' area lights (`web/neon.js`): their highlight was drawn on every smooth
+surface within the light's 300 m reach, and that tower stood some 250 m from Shibuya Hit Vision, beyond the station's
+blocks. An area light here casts no shadow, so its highlight took no account of what stands between: the screen's mean
+colour as a soft disc on glass that cannot see it, broken into blotches by the lit and dark rooms behind the panes.
+
+What dusk glass seen from above shows, from first principles: the mirror image of whatever its mirror ray meets. From
+the air that ray goes down into the city, so a tower's face gives back the sky's gradient where it tilts up, the dark
+and lit city below where it faces out, its own mullions and frit, and a highlight only where the mirror image of a
+light really is, with the light's size and the blur of the glass's roughness, or nothing.
+
+How a real-time renderer gets facade reflections, and what each costs in a browser:
+
+| Technique | What it gives | Its limit | Here |
+|---|---|---|---|
+| Screen-space reflections (Stachowiak, Frostbite, SIGGRAPH 2015; three.js SSRNode, MIT) | the frame's own pixels, mirrored | anything off screen or hidden is missing: from the air the mirror ray goes down into a city that is behind the glass in the frame | not adopted (WebGPU node passes; see the table above) |
+| Box-projected / parallax-corrected cube maps (Lagarde and Zanuttini, "Local Image-based Lighting with Parallax-corrected Cubemaps", SIGGRAPH 2012) | a probe of the place, corrected to a proxy box | a probe per place, rendered and stored; right only near its box | not adopted: the sky's PMREM (`world.js`) is the environment, and a hero material's `sky` (hero.js) is the share of it a pane mirrors |
+| Planar reflections (three.js `Reflector`, MIT) | the exact mirror image of one plane | one extra scene pass per plane | adopted for the wet street only (`web/mirror.js`); a tower's faces are too many planes |
+| Area lights with linearly transformed cosines (Heitz et al. 2016; three.js, MIT) or a representative point (Karis, SIGGRAPH 2013) | a light's highlight with the right size and blur for the roughness | no shadow: the highlight leaks through whatever stands between ("Moving Frostbite to PBR", Lagarde and de Rousiers 2014, on area lights' missing visibility) | adopted (`neon.js`, closed form), and limited as below |
+
+**Adopted** (`web/neon.js`): a screen's highlight is drawn only where its mirror image can be seen: on its own street,
+full to 60 m from the screen and gone by 120 m (the crossing is open; past that the blocks stand between). Its diffuse
+light keeps the 300 m reach, as before. A light card (`game.look.fill`, a downward or aimed light standing for the
+shopfronts round a square) gives diffuse light only, as the night fill does (`lens.js` `diffusePoints`): there is no
+thing in the air for a pane to mirror. Both are worked out in the shader's light loop, for every tier that has the area
+lights (high 8, medium 4); the low tier has none, only the pools. Stills: `tools/views/glass-reflections.json`, the
+helicopter over the Scramble and the street at dusk and night (`tools/scramble_shot.js`).
+
 ### Faces and lights: what may burn
 
 A photograph of Shibuya at night has one thing at white: the lights themselves (a lamp's head, a neon tube, the bulbs
@@ -576,6 +607,16 @@ character's own hands, on faces where a body can be bare, reached over the mesh 
 The material stays opaque; only the crowd's shader reads the alpha (`OE_SKIN_MASK`), and a far copy's cell carries
 it with its head and hair marked too (`pipeline/crowd_cast.py`), so hair keeps its built colour. A character built
 before has no `mask` in `people.json` and is read by colour as it was.
+
+**Holes in the mask** (November 2026). A walker in a dark dress had a navy patch on each knee (the owner: "is that a
+pattern or a bug?"). The mask had left the knees' lit side as cloth, a hole in the skin of each leg in the picture:
+its faces fell short of the count of texels with the hands' hue (a knee is redder than a hand), so the change of
+clothes dyed them the dress's colour. Twenty-three of the fifty masks had holes like it, from a few texels to 6,900.
+`skin_mask` now fills a hole the skin closes round where the picture is skin's colour by the plain test (warm: red
+over green over blue), and carries the mask on into the islands' margins outside every face, where a filter and the
+smaller mipmaps read it at a seam; no garment beside the skin is reached either way. `tools/people_lineup.js DRESS=k`
+draws a cast member in the crowd's change of clothes k, which is where a hole shows (in its own clothes nothing is
+dyed, so the knees looked right).
 
 ### Hair: strands, not a shell (`web/game/people.js`, issue 74)
 

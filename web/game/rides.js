@@ -70,6 +70,7 @@ window.OEGameRides = function (g) {
   // Hachiko was minutes of a dark street between two frames, and the owner asked for it faster (cars.js chauffeur pace);
   // and held still this many seconds with you in it (a red, the queue to one), the trip is cut on to where it sets you down
   const STORY_PACE = 1.6, STORY_HELD = 6;
+  const COME_STILL = 20, COME_WAIT = 75; // (s a car coming for you may stand without 3 m gained: in a knot, and at a light, a walk or for people; driverStep, #97)
   // a story's helicopter waiting on its pad: its rotor turning over (vehicles.js st.idle, a fraction of flying speed),
   // and how near it E gets you in (SHIBUYA SKY's pad is its Geo Compass, a round floor two metres over the deck round it)
   const HELI_IDLE = 0.3, HELI_REACH = 12;
@@ -508,7 +509,7 @@ window.OEGameRides = function (g) {
     // a scramble's crowd, out across its road on the walk (actors.js plazas), in sight or not: one that
     // drove through them would be seen there by those who come after (and is caught by tools/clip_check.js)
     if (g.crowd.plazas) for (let i = 0; i < g.crowd.active; i++) { const p = g.crowd.P[i]; if (p.pz && Math.abs(p.x - st.x) < 40 && Math.abs(p.y - st.y) < 40 && (p.ph === 'cross' || p.pz.road(p.x, p.y))) out.push({ x: p.x, y: p.y, half: 0.3, hw: 0.3, v: Math.max(0.2, p.v), walker: true }); } // (out on the road, never one to drive round: it waits for them; not those waiting on the pavement)
-    if (!inSight(st.x, st.y, st.z)) return out;
+    if (!inSight(st.x, st.y, st.z) || o.thru) return out; // (o.thru: still in a car it drove through unseen, or stood for good: driverStep)
     // a ride running late for you goes round a car holding it up instead of queueing behind it
     const late = o.phase === 'coming' && g.clockT - o.t0 > (o.T0 || 20) + 3;
     for (const c of g.cars.live) if (c.line >= 0 && Math.abs(c.x - st.x) < 60 && Math.abs(c.y - st.y) < 60) out.push(c.why === 'parked' || (!OECars.queueing(c, o.phase !== 'coming') && (c.stuck > 4 || (late && c.v < 2))) ? // (one parked at the kerb, actors.js parkNow: there for good; read by its why, one of the fields game.js may read, actors.js VIEW) // (on the way to you: only a queue at a junction is waited in, as before; with you in it, any queue held by a rule of the road)
@@ -811,7 +812,28 @@ window.OEGameRides = function (g) {
     let st = o.drv.st;
     if (o.hold) st.v = 0; // (waiting in its lane for you to get back in)
     else if (o.turn) turnStep(o, dt);
-    else o.drv.update(dt, inTheWay(o), false, inSight(st.x, st.y, st.z) || g.SCR_BOX.some(j => Math.hypot(st.x - j.x, st.y - j.y) < j.r + 60)); // (and the lights, in sight, and a scramble's always: out of sight or not, nobody drives into its walk)
+    else {
+      // Out of sight a ride drives through the traffic (inTheWay), and a car coming for you, on the move, is driven into by
+      // it (game.js: soft). So it could come into sight inside a car, or be stopped in one, and from then on neither moved:
+      // the ride never steps further into a car, the traffic never into a ride, the car in its box kept its junction from
+      // clearing, and the three reasons took turns, each setting the others' clocks back, so nothing that counts seconds
+      // ever ran out (#97: the car sent for you stood in view for the whole of a check, 6.2 m inside the car ahead, giving
+      // way to a car across it at 0.6 m, waiting for a junction to clear). Two rules end it:
+      // - seen again, it goes on as it went unseen until it is clear of every car (o.thru), and only then reads the traffic;
+      // - coming for you and COME_STILL seconds without 3 m gained (o.stillT, which no change of reason sets back), it goes
+      //   on so too, lights and all, for 10 m and until it is clear (o.stuck): a car that comes late through a knot, never
+      //   one that does not come. A red light, a walk and people on its way are waited out for COME_WAIT first, longer than
+      //   any of them lasts; people are never driven into (the driver's own `people`), nor a scramble's walk.
+      const sight = inSight(st.x, st.y, st.z), C = o.C;
+      const inCar = () => g.cars.footprint(st.x, st.y, st.z, st.h, C.half, C.hw, 0) > 0.02;
+      if (o.phase === 'coming' && !o.stuck) {
+        const ruled = st.v < 0.3 && ((st.block && st.block.walker) || (/^the line/.test(st.why || '') && /red|amber|stop sign|zebra|rails/.test(st.junction || '')));
+        if ((o.stillT || 0) > (ruled ? COME_WAIT : COME_STILL)) { o.stuck = true; o.stuckS = st.s; o.stucks = (o.stucks || 0) + 1; o.stuckWhy = st.intent || st.why || ''; }
+      }
+      if (o.stuck && (o.phase !== 'coming' || (st.s > o.stuckS + 10 && !inCar()))) o.stuck = false;
+      o.thru = !!o.stuck || (o.phase === 'coming' && (!sight || (!!o.thru && inCar())));
+      o.drv.update(dt, inTheWay(o), false, (sight && !o.stuck) || g.SCR_BOX.some(j => Math.hypot(st.x - j.x, st.y - j.y) < j.r + 60)); // (and the lights, in sight, and a scramble's always: out of sight or not, nobody drives into its walk)
+    }
     // how long it has gone without getting 3 m further on its way: held up, whether it stands or inches along a queue. (#97:
     // read as its speed this frame, under 0.5 m/s, a ride creeping at 0.6 in a queue that stood for minutes set the clock
     // back every frame, and was never moved on: not cut on to its stop with you in it, not found a way round coming for you)
