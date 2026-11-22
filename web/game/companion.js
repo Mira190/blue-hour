@@ -208,7 +208,7 @@ window.OECompanion = (function () {
     // put, or sat down, with his length across a wall's line, his nose or his rump stood up to 25 cm inside it: the
     // roof's glass for the whole of frame 4's Stop. wall(x, y, z, r) is where a circle of his flank's radius there is
     // pushed to, or nothing where it stands clear (nav.push, as the clip probe asks). He is moved by what his two ends
-    // are pushed, a pace a second so that he is seen to shift his weight, not to jump; and where a wall holds each end
+    // are pushed, all of it at once; and where a wall holds each end
     // from a different side (a corner, a gap narrower than he is long) he turns along it instead.
     function wallsOff(dt) {
       if (!wall) return;
@@ -240,8 +240,10 @@ window.OECompanion = (function () {
         return;
       }
       if (against) { s.h += Math.min(1, dt * 2); return; }
-      const m = Math.hypot(mx, my), k = Math.min(1, Math.max(dt, 1 / 60) * 1.2 / m);
-      s.x += mx * k; s.y += my * k;
+      // (the whole of the push, in one frame. It was a pace a second, to be seen to shift rather than jump, and he trots
+      // at 2.3: walking on into the glass after frame 4's photograph he went in faster than he was pushed out, and stood
+      // 11 to 13 cm in it on a machine whose frames are slow, main's checks, issue 157)
+      s.x += mx; s.y += my;
     }
     function spineNear(px, py) {
       const hx = Math.cos(s.h), hy = Math.sin(s.h), a0 = body.spine[0], a1 = body.spine[1];
