@@ -30,7 +30,7 @@ and Kyoto's the station's north forecourt under Kyoto Tower (`cities/kyoto/hero.
 | Its place in the game | `cities/<id>/city.json` `game.hero` (copied into `game.json` by `pipeline/game_text.py`) |
 | Its stills | `tools/views/<id>-hero.json`, taken with `tools/scramble_shot.js` (which waits for a hero level to load) |
 | Its check | `tools/game_check.js`: walked up to, it loads and shows and hides what it replaces; left, it is let go |
-| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is glass (`posts`, `belts`) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
+| A hall in a lift's lobby, stood on where its own floor is level (`floor`), solid where it is wall (`posts`; `belts` for a queue's belts, none now) | `cities/shibuya/hero_skylobby.py`; below, "SKY's street entrance" |
 | A level over the street, fetched by its height off the camera as well (`zr`) | `cities/shibuya/hero_skyroof.py`; below, "SKY STAGE" |
 
 ## How it works
@@ -62,8 +62,11 @@ roads". Three causes, each a matter of what the surface is:
   hands over linear; the zone's branch of the ground shader decoded it again, and asphalt drawn at an albedo of 0.075
   came out at 0.007, the footways a brown. The zone now takes the drawing as it is given, and the asphalt is drawn as a
   worn city road is under the sun (`#5c5f63`, an albedo near 0.11: the hero level's own tone, so the level's roads go
-  on into the map's without a step). Past the zones the first branch is as it was: its thresholds were tuned on the
-  twice-decoded values, and nothing a player reaches lies there on foot.
+  on into the map's without a step). Past the zones the shader's first branch did the same, and the photograph's road
+  under the drawing was capped to that near-black too: it now reads the drawing once, its asphalt test moved to the
+  true values (`smoothstep(0.2, 0.14, ...)`, as the zone's). Views: `tools/views/far-ground-148.json`.
+
+![On foot and from 30 m outside the zones, by day and at night: before and after](images/walk-review/far-ground-148.jpg)
 - *The roads had no paint.* The drawing now carries what a Tokyo road carries, from the road data and nothing else:
   edge lines half a metre in from the kerbs, a broken line between two lanes of one way (`nl`), the centre line of a
   two-way road (unbroken where it has two lanes each way), the bars of a zebra where the data has a crossing
@@ -84,6 +87,17 @@ band. Views: `tools/views/walk-heights.json`.
 
 ![From 80, 230 and 400 m by day, before and after; dusk and night after](images/walk-review/air-day-148.jpg)
 ![A phone's tier from 230 and 400 m by day, before and after](images/walk-review/air-day-148-phone.jpg)
+
+**The blank white wall south-west of the scramble** (issue 143). The walk's review found, 100 m south-west of the
+crossing, a pale wall filling the frame that was the brightest thing in the picture at night. It is the street face of
+`w904734439`, a strip 165 m long and 8 m wide that OpenStreetMap maps as `building=train_station` along the lane under
+Mark City's south side. PLATEAU's survey has no building there (its height is an estimate), so it is a railway
+structure mapped as a building, not rooms. Drawn as an office with 5 m storeys, its lane front was a row of shopfronts
+5 m tall whose rooms were lit flat white at night. `pipeline/stations.py` now gives a station the survey does not
+have the industrial style: metal panel with a high band of windows, lit as a works building is. The same rule caught
+one other such station on the map. Views: `tools/views/sw-wall-143.json`.
+
+![The lane, before and after: from its east end at night, its west end at night, its east end by day, and the corner](images/walk-review/sw-lane-143.jpg)
 
 Not done here, and why: the far field beyond the zones is still the aerial photograph under plain boxes (it reads as
 a city in haze from 300 m, and nothing nearer is owed where no player lands); the square south of the crossing is
@@ -540,6 +554,8 @@ Last of Us Part II); a crowd reads from inside it. Taken from them is the framin
     ribs along its panels' seams and its hem; in the rain, drops beaded on it that go as one wetness where a pixel
     spans several. It is blended over the person under it, who is drawn first and whole, and nothing else of a person
     is see-through, so two transparencies never lie over each other.
+  - `tools/umbrella_held.js` measures that every umbrella near the lens is held (issue 165, docs/WEATHER.md "An umbrella
+    is held") and takes its stills at the same kerbs.
   - `tools/lens_crowd.js` stands you in the rain among a kerb's crowd at Center Gai's mouth (17:41) and at the kerb of
     the story's seventh frame (17:53), puts three of those waiting at 2.2, 2.6 and 3.1 m from the lens, plays five
     seconds and takes a still each half second; it fails when someone inside the near space is drawn or someone
@@ -830,8 +846,12 @@ wrong, and redone.
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
   to 14F, over the cars' wall a stainless lintel and the shaft's glass on to its top, a stainless post at each corner
-  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. The queue's two belts
-  run east to the cars (`game.hero[].belts`, solid).
+  where the hall meets it; at its foot the two cabins standing at the street, their ceilings lit. No queue belts: two
+  ran east to the cars and a third along the front 1.5 m out, as the line is held at busy times in the photographs, and
+  with nobody queuing they were ropes in a player's way (one across the way in, one fencing the open north side). The
+  owner took them away (November 2026: "the route has to be completely smooth"); `game.hero[].belts` is empty, and
+  `tools/sky_walk.js` walks the player in from the west, the south-west, the pillar, the north-west and the north and
+  fails on a path longer than 1.25 times the straight line, a hold, or no lift offered at the end.
 - **In front**: the tiles from 2.4 m out to the doors (granite tinted a pale beige, 600 mm laid square), coming to the
   hall's floor over the last 1.2 m; the pillar north-west of the doors with its disc on its west face and its north side
   (an opal face lit from behind, sky blue over warm white: the hall's mark as a disc of light, not its logo drawn), its
@@ -844,8 +864,9 @@ wrong, and redone.
 
 3,600 triangles, 0.67 MB (its granite is the Scramble's and Miyamasu's picture, held once: hero.js `share`). Fetched
 within 140 m of its edge (frame 4's walk from Miyamasuzaka and frame 5's place) and let go past 170 m. Its checks:
-`tools/lobby_check.py` (its posts and belts inside its lobby, clear of every solid), `tools/lobby_shot.js` (the
-entrance from the street and either side, the threshold, the hall, the dog by the belts), `tools/walk_play.js` (the
+`tools/lobby_check.py` (its posts inside its lobby, clear of every solid), `tools/sky_walk.js` (walked into from five
+sides, above), `tools/lobby_shot.js` (the entrance from the street and either side, the threshold, the hall),
+`tools/walk_play.js` (the
 hall drawn round you in the lobby, then the ride), frame 4 of `tools/story_play.js`.
 
 ### The ride up: the city, not the wall (issue 144)
@@ -962,7 +983,11 @@ the nets' frames (17 of 53 walks at them, `tools/roof_props_walk.js`). The level
 boxes, `game.hero[].boxes` (`python cities/shibuya/hero_skyroof.py --boxes` writes them into `city.json` from the same
 layout the model is built from, without Blender; `build()` carries them in its meta too): the ten benches, the three
 nets with their kerbs and the eighteen searchlights, each to over a walker's knee however low it is, so that it is a
-thing to walk round and never a step to take onto it. `game.js` lays them into the collision world as walls, as a
+thing to walk round and never a step to take onto it; and the cheeks of the four flights up to the pad, from the second
+step to the top (the landmark has the steps as a floor and nothing as their sides, so a walker going along beside a
+flight was kept off it by their middle alone and half their body went into it: the owner's screenshot, November 2026;
+the first step, 0.2 m, stays open to be stepped onto from the side). `tools/sky_walk.js` walks into each cheek and along
+it, and fails if the walker's middle comes within 0.28 m of it. `game.js` lays them into the collision world as walls, as a
 railway's platform furniture is (rail.js `solids`), for the player, the guide and the camera alike. None of the walks
 gets in now (0 of 46). Any hero level can carry boxes; the Scramble's own furniture was already solid (its guard
 pipes are the landmarks' runs, its posts and planters `posts` and `rounds`). Two benches stood 3 m in line past the

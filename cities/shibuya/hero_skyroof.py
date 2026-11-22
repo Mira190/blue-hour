@@ -677,6 +677,18 @@ class Level:
             put(u, v, "u", 3.1, 1.85, z + 0.92)
         for (u, v) in self.beams:                                    # the searchlights: the plinth, the yoke and the drum
             put(u, v, "u", 0.34, 0.34, z + 1.0)
+        # the steps' cheeks, where the flight stands higher than a knee (from its second step to the pad): the landmark
+        # under the level has the steps as a floor and nothing as their sides, so a walker going along beside a flight was
+        # kept off it by their middle alone, and half their body went into it (the owner's screenshot, November 2026).
+        # Its first step, 0.2 m, is left open: it is stepped onto from the side, as an open stair is
+        gc = self.gc
+        for su, sv in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            for t in (-2.53, 2.53):
+                s = gc + 0.9
+                if su:
+                    put(su * s, su * t, "u", 0.9, 0.03, z + 2.03)
+                else:
+                    put(-sv * t, sv * s, "v", 0.9, 0.03, z + 2.03)
         return out
 
 

@@ -740,6 +740,42 @@ cut: cards over the head's painted hair, ending in a few broad points; a soft he
 `blender/build_people.py` or the two passes above. Cloth has the avatars' own normal maps and no weave of its own.
 The crowd takes the same light (it is one patch) but none of this was tuned on it.
 
+### Hair, the second pass: the head's own hair (`web/game/people.js`, issue 123)
+
+The first two passes (issue 74's strands, issue 123's light) did not reach the hair that matters most. An avatar's
+long hair is part of its head's mesh, a shell down the back, and the cards only lie on it.
+
+- **The head's hair was never marked as hair.** `strandHair` finds the skull from the rig to tell hair from skin, to
+  run the strands from the crown and to darken the root. It took a joint's place through `mesh.bindMatrixInverse`,
+  which an attached skinned mesh sets to its node's inverse whenever the scene is updated; a face's mesh hangs on a
+  node a hundredth the size and turned. Once a model had been in a scene the skull was sixty units over the pelvis,
+  every vertex was "a metre and a half off the skull", and no vertex of the head was marked: Kagami's back was the
+  avatar's grey painted shell with plain shading. Now through the inverse of the bind matrix (`bindInv`).
+  `tools/hair_probe.js` prints, for the one you play, how many of the head's vertices are marked as hair, and fails
+  when none is (it is not one of `tools/check.sh`'s checks yet).
+- **With the strands on, black hair was silver.** The lobes were tuned on the cards, which are wisps; on a whole
+  surface under a dusk sky they lit all of it. The head's hair and the cards take them at half.
+- **The hem is the avatar's own.** A fringe of loose ends hung from the hem (strips cut strand by strand in the
+  shader) was built and taken out again the same day at the owner's word: it looked strange. Nothing is added to
+  the hair's outline.
+
+Surveyed (ideas only; no code or asset copied): Lengyel et al., "Real-time fur over arbitrary surfaces" (I3D 2001:
+shells and fins); Scheuermann, "Practical Real-Time Hair Rendering and Shading" (SIGGRAPH 2004) and Kajiya and Kay
+1989 (the shader's lobes since issue 74); Wyman and McGuire, "Hashed Alpha Testing" (I3D 2017); Marschner et al.
+2003 (why black hair keeps only the uncoloured first lobe: the reason the lobes were halved); Babylon.js
+`FurMaterial` (Apache-2.0, read for its cost, not adopted); three.js `MeshPhysicalMaterial.anisotropy` (MIT, r153,
+not used: Kajiya-Kay is already in the hair's own patch); Poly Haven and ambientCG offer no hair strand textures.
+
+Photographs of dark hair at night beside the stills (Wikimedia Commons):
+"DSCF1184 A woman with a floral back tattoo ... at night.jpg", PattayaPatrol, CC BY-SA 4.0;
+"Neon in the streets of Shibuya (9412153000).jpg", Maarten Heerlien, CC BY 2.0.
+
+Stills: `tools/game_shot.js` with `tools/views/kagami-back-123.json` (her back in focus at dusk and at 19:30),
+`docs/images/people/hair-123-back.jpg` (main beside this pass).
+
+Not done: the hair is a painted shell with shaded strands, not a groom; nothing in it moves; cloth has no weave of
+its own and skin no pores. Faces are issue 12.
+
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 
 The constant beds are off in play: the crowd's murmur and the screens' music were too loud and

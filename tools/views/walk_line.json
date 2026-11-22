@@ -1,0 +1,81 @@
+{
+ "note": "The walk's line as a storyboard (docs/STORY.md 'The walk's line'; tools/walk_line.js SET=beats): for each later beat the hour, where she stands, where you stand and what the lens looks at. Places are the map's metres.",
+ "beats": [
+  {
+   "n": 3,
+   "at": "19:02",
+   "name": "CROSSING LIGHT, from Hachiko's wall",
+   "stand": [
+    372.6,
+    -1043.2
+   ],
+   "you": [
+    369.8,
+    -1045.6
+   ],
+   "look": [
+    400,
+    -1030
+   ],
+   "pitch": -0.2,
+   "dist": 3.2
+  },
+  {
+   "n": 4,
+   "at": "21:02",
+   "name": "The shutters come down, at the mouth of Center Gai",
+   "stand": [
+    347.5,
+    -983.5
+   ],
+   "you": [
+    350.6,
+    -986.6
+   ],
+   "look": [
+    344.4,
+    -980.4
+   ],
+   "pitch": -0.1,
+   "dist": 3.0
+  },
+  {
+   "n": 5,
+   "at": "00:01",
+   "name": "The screens go dark: the middle of the scramble",
+   "stand": [
+    366.5,
+    -1000.5
+   ],
+   "you": [
+    369.6,
+    -1004.2
+   ],
+   "look": [
+    363.4,
+    -996.8
+   ],
+   "pitch": -0.12,
+   "dist": 3.0
+  },
+  {
+   "n": 6,
+   "at": "00:31",
+   "name": "The last train: the station side",
+   "stand": [
+    388.0,
+    -1040.0
+   ],
+   "you": [
+    385.2,
+    -1037.2
+   ],
+   "look": [
+    390.8,
+    -1042.8
+   ],
+   "pitch": -0.05,
+   "dist": 3.0
+  }
+ ]
+}
