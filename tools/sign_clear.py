@@ -49,7 +49,10 @@ def main():
     L = json.load(open(os.path.join(ROOT, "web", "data", city, "landmarks.json")))
     M = L["materials"]
     pic = lambda m: bool(M.get(m["material"], {}).get("map")) or "screen" in m["material"] and "frame" not in m["material"]
-    solid = [m for m in L["meshes"] if M.get(m["material"], {}).get("opacity", 1) >= 0.6 and not M.get(m["material"], {}).get("cutout")]
+    # (the signs' back panels, pipeline/landmarks.py sign_backs, are left out: each stands 5 cm behind its own picture,
+    # which is counted, or not, as the picture is)
+    solid = [m for m in L["meshes"] if M.get(m["material"], {}).get("opacity", 1) >= 0.6 and not M.get(m["material"], {}).get("cutout")
+             and m["name"] != "sign_back"]
     # (each solid's triangles with their boxes, worked out once: they were worked out again for every face checked)
     T_all = []
     for m in solid:
