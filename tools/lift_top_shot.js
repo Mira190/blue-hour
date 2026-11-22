@@ -5,7 +5,7 @@
 // side, and walking out along the way to the roof while time is held (five stills a second apart).
 //   JOB_LIGHT=1 tools/job.sh run serve -- python3 -m http.server 8800 --directory web
 //   tools/job.sh run lifttop -- xvfb-run -a node tools/lift_top_shot.js out_dir [WxH]
-// A width under 500 is a phone (its user agent, touch, the low tier). MIN=minutes past midnight: the hour (17:31). FREE=1: also from outside, over the corner.
+// A width under 500 is a phone (its user agent, touch, the low tier). MIN=minutes past midnight: the hour (17:31); SKY=rain (or any weather.js word). FREE=1: also from outside, over the corner.
 // RIDE=1: the ride up from the street hall first, a still every second of it (RIDE=only: and no more).
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
@@ -28,7 +28,7 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 900000 });
   await startPlay(p);
-  await p.evaluate(min => { const g = window.__game; g.advance(1); if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); g.advance(3); g.clock.min = min; g.clock.scale = 0; }, +(process.env.MIN || 17 * 60 + 31));
+  await p.evaluate(([min, sky]) => { const g = window.__game; g.advance(1); if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); g.advance(3); g.clock.min = min; g.clock.scale = 0; if (sky && g.weather && g.weather.set) g.weather.set(sky, { now: true }); }, [+(process.env.MIN || 17 * 60 + 31), process.env.SKY || '']);
   let bad0 = 0;
   const lift = await p.evaluate(() => { const l = (window.__game.G.lifts || []).find(q => q.id === 'sky-gate'); return l ? { a: l.stops[0], b: l.stops[l.stops.length - 1] } : null; });
   if (!lift) { console.log('FAIL no SKY GATE lift on the map'); process.exit(1); }
@@ -53,6 +53,7 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
         console.log('     yaw, yawTo, seek, auto, pull every quarter second:', JSON.stringify(ys));
         const t = await tones(p, await p.screenshot({ path: `${out}/hall-${i}.png` })), f = flat(t, 0.6);
         console.log(`${f ? 'FAIL' : 'ok  '} the hall, the view left ${Math.round(da * 57.3)} deg round: luma sd ${t.sd}, ${Math.round(t.share * 100)}% one tone${f ? ` (${f})` : ''}`);
+        if (i === 0) console.log('     clear behind the shoulder, 7 m, by turn off the way in:', await p.evaluate(s => { const g = window.__game, T3 = window.THREE, pl = g.player, [ax, ay] = s.at, [dx, dy] = s.door, want = Math.atan2(ax - dx, ay - dy), hd = new T3.Vector3(pl.x, pl.z + 1.55, -pl.y), c = new T3.Vector3(), o = []; for (const d of [-0.6, -0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6]) { const y = want + d, cp = Math.cos(0.17) * 7; c.set(hd.x - Math.sin(y) * cp, hd.y + Math.sin(0.17) * 7, hd.z + Math.cos(y) * cp); o.push(`${d}: ${g.nav.clearFraction(hd, c).toFixed(2)}`); } return o.join('  '); }, lift.a));
         console.log('     the view', await p.evaluate(s => { const g = window.__game, c = g.cam, [ax, ay] = s.at, [dx, dy] = s.door || s.at; return JSON.stringify({ yaw: +c.yaw.toFixed(2), want: +Math.atan2(ax - dx, ay - dy).toFixed(2), yawTo: c.yawTo, pull: +(c.pull || 0).toFixed(2), lift: +(c.lift || 0).toFixed(2), mode: g.player.mode }); }, lift.a));
         if (f) bad0 = 1;
       }
