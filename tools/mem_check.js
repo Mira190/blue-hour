@@ -17,10 +17,13 @@
 // game check's is: the weather is a hash of the date and the lamps follow the hour, so on the real clock the same code
 // measured 263 MB one morning and 283 the next, in the rain. Then the heaviest hour a player meets is asked for, not
 // waited for: rain at ten at night (the wet street's mirror, the umbrellas, the lamps and the windows lit), held
-// WET seconds (default 12), and the peak counts it. The line says which part the peak fell in.
+// WET seconds (default 12), with AT's conversation still up in it (one state, the heaviest: issues 110 and 141), and the
+// peak counts it. The line says which part the peak fell in and how far under the budget it is. TRACE=1: the GPU
+// memory's course, each megabyte up or down with what was asked for or let go. PHONE=0 leaves the phone out.
 // Then the page as a desktop opens it (issue 20; DESK=0 leaves it out): the story at 1440 x 900 on the high tier, to its
-// title card, and the vertex buffers its loader sent before the title by the loader's own log (world.js uploadBuffers,
-// `buffers: n objects, N MB`) against MEM_DESK (default 140 MB: the map round the player, docs/PERFORMANCE.md "A desktop's
+// title card, and the vertex buffers its loader sent by the loader's own log (world.js uploadBuffers,
+// `buffers: n objects, N MB`; a model that comes late logs `late buffers:`, listed and not counted: issue 159;
+// DESK_WAIT=s watches the page that much longer for them) against MEM_DESK (default 140 MB: the map round the player, docs/PERFORMANCE.md "A desktop's
 // map round the player", sent 125 where the whole map sent 283), with the time to the title and the GPU's buffers then.
 // QUERY='?district=off' measures the whole map on the phone tier, to compare with its district (pipeline/district.py).
 // AT=x,y: the player put there before the heaviest hour (a level fetched only near one place: frame 5's, AT=521.9,-1074.1),
@@ -141,7 +144,7 @@ async function measure(b, city) {
   let ok = true, map = null, district = null;
   // the parts of the run, each with the GPU memory held as it ended and the peak so far: the peak's part is named
   const parts = [];
-  const part = async name => { const m = await p.evaluate(() => ({ now: window.__mem.sum, peak: window.__mem.peak })).catch(() => null); if (m) parts.push({ name, now: m.now, peak: m.peak }); };
+  const part = async name => { const m = await p.evaluate(() => ({ now: window.__mem.sum, peak: window.__mem.peak, t: performance.now() / 1000 })).catch(() => null); if (m) parts.push({ name, now: m.now, peak: m.peak, t: m.t }); };
   try {
     await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.QUERY || '?walk=1'}#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.waitForFunction('window.__game', null, { timeout: 400000 });
@@ -293,9 +296,12 @@ async function measure(b, city) {
       if (process.env.FX !== '0') {
         await p.evaluate(() => { const A = window.__game.atmos, f = A.camFx; A.__fx = f; A.camFx = o => f.call(A, o || { focus: 3, aperture: 0.08 }); });
         await p.waitForTimeout(6000);
-        await p.evaluate(() => { const A = window.__game.atmos; A.camFx = A.__fx; });
         await part(`at ${at.join(', ')}, a conversation's depth of field`);
-        await p.waitForTimeout(6000);
+        // (and it stays up into the rain below: a conversation in the rain at night is the heaviest a player holds, and
+        // the peak is read with both held. The shot used to end here and the rain begin six seconds of the wall later,
+        // while the page lets the shot's target go a few seconds of its own frames after: on a slow run the target was
+        // still held when the rain's came, on a quick one it had gone, and the peak read 257 to 260 MB by which, 266 to
+        // 271 before issue 105: issues 110 and 141)
       }
     }
     // the heaviest hour: rain at ten at night, on the game's own clock and weather, drawn for WET seconds
@@ -306,7 +312,9 @@ async function measure(b, city) {
       g.weather.set('rain', { now: true });
       return true;
     }).catch(() => false);
-    if (wet) { await p.waitForTimeout(+(process.env.WET || 12) * 1000); await part('rain at ten at night'); }
+    const talking = await p.evaluate(() => !!window.__game.atmos.__fx).catch(() => false);
+    if (wet) { await p.waitForTimeout(+(process.env.WET || 12) * 1000); await part(`rain at ten at night${talking ? ', the conversation still on' : ''}`); }
+    if (talking) await p.evaluate(() => { const A = window.__game.atmos; A.camFx = A.__fx; delete A.__fx; });
   } catch (e) { ok = false; errors.push(String(e).slice(0, 200)); }
   stop = true;
   await sampler;
@@ -324,6 +332,7 @@ async function measure(b, city) {
   } catch (e) { /* gone */ }
   const r = await p.evaluate(top => window.__memReport(top), TOP).catch(() => null);
   const steps = await p.evaluate(() => window.__steps || []).catch(() => []);
+  const trace = process.env.TRACE ? await p.evaluate(() => window.__mem.log).catch(() => []) : null; // (TRACE=1: the GPU memory's course, each megabyte up or down)
   // the pictures packed as ASTC blocks on the device (web/tex.js), where the renderer decodes them (SwiftShader does: run without xvfb-run)
   const astc = await p.evaluate(() => (window.OETex && OETex.stats.on ? { packed: OETex.stats.packed, kept: OETex.stats.kept, mb: OETex.stats.bytes / 1048576, worst: OETex.stats.worst, s: OETex.stats.ms / 1000, log: OETex.stats.log } : null)).catch(() => null);
   try { await cdp.send('HeapProfiler.collectGarbage'); } catch (e) { /* */ }
@@ -377,7 +386,7 @@ async function measure(b, city) {
   }).catch(e => [String(e)]);
   const pr = await p.evaluate(() => { const c = document.getElementById('game-gl'); return c ? { w: c.width, h: c.height } : null; }).catch(() => null);
   await ctx.close();
-  return { city, ok, map, district, parts, steps, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: hasProc ? peakRss : null, gl: r, canvas: pr, errors };
+  return { city, ok, map, district, parts, trace, steps, astc, smaps, owners, heapEnd, split, sampled, tracked, s: (Date.now() - t0) / 1000, heap: peakHeap, rss: hasProc ? peakRss : null, gl: r, canvas: pr, errors };
 }
 
 // the desktop's load to the title: the loader's upload before it, by its own log line
@@ -394,7 +403,7 @@ async function desktop(b, city) {
   watchPage(p);
   await pinClock(p, city, process.env.GAME_TIME || '2026-11-02T10:00');
   const lines = [], errors = [];
-  p.on('console', m => { const t = m.text(); if (/^(buffers|buildings):/.test(t)) lines.push(t); });
+  p.on('console', m => { const t = m.text(); if (/^(buffers|late buffers|buildings):/.test(t)) lines.push(`${((Date.now() - t0) / 1000).toFixed(0)} s ${t}`); });
   p.on('pageerror', e => errors.push(String(e).slice(0, 200)));
   const t0 = Date.now();
   let title = null, gl = 0, move = null;
@@ -403,6 +412,7 @@ async function desktop(b, city) {
     await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 250 });
     title = (Date.now() - t0) / 1000;
     gl = await p.evaluate(() => window.__deskBuf.sum);
+    if (process.env.DESK_WAIT) { await p.waitForTimeout(+process.env.DESK_WAIT * 1000); lines.push(`(after ${process.env.DESK_WAIT} s more: ${await p.evaluate(() => { const g = window.__game, H = g.hero && g.hero(); return `the GPU's buffers ${(window.__deskBuf.sum / 1048576).toFixed(0)} MB; ${H ? H.state().map(h => `${h.id} ${h.state}`).join(', ') : ''}; the player at ${g.player.x.toFixed(0)}, ${g.player.y.toFixed(0)}`; })})`); }
     // the free game's map moved: the player taken to the map's far corner and back, the cell under the player whole each time
     move = await p.evaluate(async () => {
       const W = window.__game.Wd, st = W && W.mapStream, F = window.__game.scene.frame;
@@ -420,8 +430,11 @@ async function desktop(b, city) {
     if (!move || !move.back || move.moves.some(m => m.here !== 0 || !m.changed)) errors.push(`the map round the player: ${JSON.stringify(move)}`);
   } catch (e) { errors.push(String(e).slice(0, 200)); }
   await ctx.close();
-  const up = lines.map(l => /^buffers: (\d+) objects, (\d+) MB/.exec(l)).filter(Boolean);
-  return { title, gl, move, upload: up.length ? up.reduce((a, m) => a + +m[2], 0) : null, lines, errors };
+  const up = lines.map(l => /^\d+ s buffers: (\d+) objects, (\d+) MB/.exec(l)).filter(Boolean);
+  // (the loader's own set: a model that comes late, a hero level, is sent when it has come, before the title on one run
+  // and after it on the next, and says so in its own line, which is listed and not counted: issue 159)
+  const late = lines.map(l => /^\d+ s late buffers: (\d+) objects, (\d+) MB/.exec(l)).filter(Boolean);
+  return { title, gl, move, upload: up.length ? up.reduce((a, m) => a + +m[2], 0) : null, late: late.reduce((a, m) => a + +m[2], 0), lines, errors };
 }
 
 (async () => {
@@ -430,7 +443,7 @@ async function desktop(b, city) {
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-precise-memory-info'] }));
   const out = [];
   let fail = false;
-  for (const city of cities) {
+  if (process.env.PHONE !== '0') for (const city of cities) {
     const m = await measure(b, city);
     out.push(m);
     const gpu = m.gl ? m.gl.peak : 0, heap = m.heapEnd || m.heap; // the heap once it has settled (a collection after the run)
@@ -440,7 +453,7 @@ async function desktop(b, city) {
     if (heap > HEAP_MB * 1048576) over.push(`heap ${MB(heap)} MB over ${HEAP_MB}`);
     if (over.length) fail = true;
     if (process.env.JSON) continue;
-    console.log(`${over.length ? 'FAIL' : 'ok  '} ${city}: GPU peak ${Math.abs(gpu / 1048576 - GPU_MB) < 3 ? (gpu / 1048576).toFixed(1) : MB(gpu)} MB (textures ${m.gl ? MB(m.gl.tex) : '?'}, buffers ${m.gl ? MB(m.gl.buf) : '?'}, renderbuffers ${m.gl ? MB(m.gl.rb) : '?'} at the end; canvas ${m.canvas ? `${m.canvas.w}x${m.canvas.h}` : '?'}), JS heap peak ${MB(m.heap)} MB (${MB(m.heapEnd)} at the end after a collection: page objects ${MB(m.split.usedSize || 0)}, its array buffers ${MB(m.split.backingStorageSize || 0)}), ${m.rss ? `renderer process ${MB(m.rss.renderer)} MB, GPU process ${MB(m.rss.gpu)} MB` : 'process memory unavailable'}, ${m.s.toFixed(0)} s${over.length ? ` - ${over.join('; ')}` : ''}`);
+    console.log(`${over.length ? 'FAIL' : 'ok  '} ${city}: GPU peak ${MB(gpu)} MB (${(GPU_MB - gpu / 1048576).toFixed(1)} MB under its ${GPU_MB}; textures ${m.gl ? MB(m.gl.tex) : '?'}, buffers ${m.gl ? MB(m.gl.buf) : '?'}, renderbuffers ${m.gl ? MB(m.gl.rb) : '?'} at the end; canvas ${m.canvas ? `${m.canvas.w}x${m.canvas.h}` : '?'}), JS heap peak ${MB(m.heap)} MB (${MB(m.heapEnd)} at the end after a collection: page objects ${MB(m.split.usedSize || 0)}, its array buffers ${MB(m.split.backingStorageSize || 0)}), ${m.rss ? `renderer process ${MB(m.rss.renderer)} MB, GPU process ${MB(m.rss.gpu)} MB` : 'process memory unavailable'}, ${m.s.toFixed(0)} s${over.length ? ` - ${over.join('; ')}` : ''}`);
     if (m.astc) {
       console.log(`     pictures in ASTC blocks: ${m.astc.packed} packed (${m.astc.mb.toFixed(1)} MB of blocks, the worst ${m.astc.worst.toFixed(1)} dB), ${m.astc.kept} kept as they were`);
       if (process.env.ASTC_LOG) for (const l of m.astc.log) console.log(`       ${l.kept ? 'kept  ' : 'packed'} ${String(l.w).padStart(4)}x${String(l.h).padEnd(4)} ${l.db == null ? '' : `${l.db} dB`}${l.adb ? ` alpha ${l.adb}` : ''} ${l.name}${l.why ? ` (${l.why})` : ''}`);
@@ -451,6 +464,7 @@ async function desktop(b, city) {
       for (let i = 1; i < m.parts.length; i++) if (m.parts[i].peak > m.parts[i - 1].peak) at = m.parts[i].name;
       console.log(`     the peak fell in: ${at}; held as each part ended: ${m.parts.map(q => `${q.name} ${MB(q.now)} MB (peak so far ${MB(q.peak)})`).join(', ')}`);
     }
+    if (m.trace) { let k = 0; for (const [t, sum, what] of m.trace) { while (k < m.parts.length && m.parts[k].t < t) console.log(`       -- ${m.parts[k++].name} ended`); console.log(`       ${t.toFixed(2)} s ${(sum / 1048576).toFixed(1)} MB ${what}`); } }
     if (m.district && m.district.on) console.log(`     a phone's district: ${m.district.frame[0].join('..')} by ${m.district.frame[1].join('..')} m, ${m.district.quests} quests${m.district.walked ? `; a walk out at ${m.district.walked.end.map(Math.round)} stopped at ${m.district.walked.to}${m.district.said ? ', and the game said so' : ''}` : ''}`);
     if (m.map) console.log(`     the map round the player: ${m.map.cells} cells, ${m.map.vertices.toLocaleString()} vertices of buildings; to the far corner ${m.map.moves[0].changed} cells built again in ${m.map.moves[0].ms} ms (${m.map.moves[0].vertices.toLocaleString()} vertices there), back ${m.map.moves[1].changed} in ${m.map.moves[1].ms} ms`);
     for (const e of m.errors || []) if (/the map round/.test(e)) console.log(`     ${e}`);
@@ -470,7 +484,7 @@ async function desktop(b, city) {
     const bad = d.upload == null || d.upload > DESK_MB || d.errors.length;
     if (bad) fail = true;
     if (!process.env.JSON) {
-      console.log(`${bad ? 'FAIL' : 'ok  '} ${city} on a desktop: ${d.upload == null ? 'no upload logged' : `${d.upload} MB of vertex buffers sent before the title`} (budget ${DESK_MB}), the title after ${d.title == null ? '?' : d.title.toFixed(0)} s, the GPU's buffers then ${MB(d.gl)} MB`);
+      console.log(`${bad ? 'FAIL' : 'ok  '} ${city} on a desktop: ${d.upload == null ? 'no upload logged' : `${d.upload} MB of vertex buffers sent by the loader`} (budget ${DESK_MB}${d.late ? `; ${d.late} MB more by models that came late, while the page was watched` : ''}), the title after ${d.title == null ? '?' : d.title.toFixed(0)} s, the GPU's buffers then ${MB(d.gl)} MB`);
       for (const l of d.lines) console.log(`     ${l}`);
       if (d.move) console.log(`     the map round the player: ${d.move.vertices.toLocaleString()} vertices of buildings; to the far corner ${d.move.moves[0].changed} cells built again in ${d.move.moves[0].ms} ms, back ${d.move.moves[1].changed} in ${d.move.moves[1].ms} ms`);
       for (const e of d.errors.slice(0, 5)) console.log(`     error: ${e}`);

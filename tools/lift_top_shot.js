@@ -6,7 +6,7 @@
 //   JOB_LIGHT=1 tools/job.sh run serve -- python3 -m http.server 8800 --directory web
 //   tools/job.sh run lifttop -- xvfb-run -a node tools/lift_top_shot.js out_dir [WxH]
 // A width under 500 is a phone (its user agent, touch, the low tier). FREE=1: also from outside, over the corner.
-// RIDE=1: the ride up from the street hall first, a still every second of it.
+// RIDE=1: the ride up from the street hall first, a still every second of it (RIDE=only: and no more).
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
 const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
@@ -29,23 +29,55 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 900000 });
   await startPlay(p);
   await p.evaluate(() => { const g = window.__game; g.advance(1); if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); g.advance(3); g.clock.min = 17 * 60 + 31; g.clock.scale = 0; });
+  let bad0 = 0;
   const lift = await p.evaluate(() => { const l = (window.__game.G.lifts || []).find(q => q.id === 'sky-gate'); return l ? { a: l.stops[0], b: l.stops[l.stops.length - 1] } : null; });
   if (!lift) { console.log('FAIL no SKY GATE lift on the map'); process.exit(1); }
   if (process.env.RIDE) {
     await p.evaluate(s => { const g = window.__game, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.player.x = ax - (ax - dx) / n * 1.2; g.player.y = ay - (ay - dy) / n * 1.2; g.player.z = az; g.player.h = Math.atan2(ax - dx, ay - dy); g.player.speed = 0; g.cam.yaw = g.player.h; g.cam.pitch = 0.17; g.advance(0.5); }, lift.a);
     await p.waitForFunction(() => { const m = document.getElementById('g-prompt'), t = document.getElementById('gp-text'); return m && !m.hidden && t && /lift/i.test(t.textContent); }, null, { timeout: 300000, polling: 250 }).catch(() => {});
+    // (the opening's crane is over and the view is the chase camera's at your shoulder before the ride is asked for: a
+    // ride begun under the crane starts its shot from the air, which no player sees)
+    const settled = await p.evaluate(async () => { const g = window.__game; for (let i = 0; i < 120 && (g.cine.active || g.arriving()); i++) { if (g.settleArrival) g.settleArrival(); g.advance(0.25); await new Promise(r => requestAnimationFrame(r)); } g.cam.snap = true; g.advance(0.5); const c = g.camera.position; return { cine: g.cine.active, over: +(c.y - g.player.z).toFixed(1) }; });
+    console.log('before the ride', JSON.stringify(settled));
+    if (settled.cine || settled.over > 8) { console.log('FAIL the view before the ride is not the chase camera\'s'); bad0 = 1; }
     await shot('ride-0');
+    // HALL=1: come into the hall with the view left each way round (as someone who walked in backwards, or was set
+    // down there: the walk's check is), a still of each two seconds on, and each a picture, not one flat tone
+    if (process.env.HALL) {
+      const { tones, flat } = require('./tone');
+      for (const [i, da] of [0, Math.PI / 2, Math.PI, -Math.PI / 2].entries()) {
+        await p.evaluate(([s, da]) => { const g = window.__game, pl = g.player, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; pl.x = ax - (ax - dx) / n * 12; pl.y = ay - (ay - dy) / n * 12; }, [lift.a, da]);
+        await run(1); // (out of the stop for a second of frames: the offer of the lift is the page's own frame's)
+        await p.evaluate(([s, da]) => { const g = window.__game, pl = g.player, [ax, ay, az] = s.at, [dx, dy] = s.door || s.at, n = Math.hypot(ax - dx, ay - dy) || 1; g.cam.yawTo = null; g.cam.yaw = Math.atan2(ax - dx, ay - dy) + da; g.cam.lastInput = -10; pl.x = ax - (ax - dx) / n * 1.2; pl.y = ay - (ay - dy) / n * 1.2; pl.z = az; pl.h = Math.atan2(ax - dx, ay - dy); pl.speed = 0; }, [lift.a, da]);
+        await run(2.5);
+        const t = await tones(p, await p.screenshot({ path: `${out}/hall-${i}.png` })), f = flat(t, 0.6);
+        console.log(`${f ? 'FAIL' : 'ok  '} the hall, the view left ${Math.round(da * 57.3)} deg round: luma sd ${t.sd}, ${Math.round(t.share * 100)}% one tone${f ? ` (${f})` : ''}`);
+        console.log('     the view', await p.evaluate(s => { const g = window.__game, c = g.cam, [ax, ay] = s.at, [dx, dy] = s.door || s.at; return JSON.stringify({ yaw: +c.yaw.toFixed(2), want: +Math.atan2(ax - dx, ay - dy).toFixed(2), yawTo: c.yawTo, pull: +(c.pull || 0).toFixed(2), lift: +(c.lift || 0).toFixed(2), mode: g.player.mode }); }, lift.a));
+        if (f) bad0 = 1;
+      }
+      await b.close(); process.exit(bad0);
+    }
+    // WELL=1: how high the air stands clear over the hall, on a 2 m grid round the stop (the probe from 2.5 m over the
+    // floor straight up to 60 m: metres clear), and where the view stands; then it ends
+    if (process.env.WELL) {
+      const W = await p.evaluate(s => { const g = window.__game, T3 = window.THREE, [ax, ay, az] = s.at, rows = []; for (let dy = 10; dy >= -6; dy -= 2) { const r = []; for (let dx = -14; dx <= 6; dx += 2) { const a = new T3.Vector3(ax + dx, az + 2.5, -(ay + dy)), b = new T3.Vector3(ax + dx, az + 60, -(ay + dy)); r.push(Math.round(g.nav.clearFraction(a, b) * 57.5)); } rows.push(`${String(dy).padStart(3)} | ${r.map(v => String(v).padStart(3)).join(' ')}`); } const c = g.camera.position; return { rows, cam: [c.x - ax, -c.z - ay, c.y - az].map(v => +v.toFixed(1)) }; }, lift.a);
+      console.log(`clear metres up, x east -14..6 of the stop by 2, y north:\n${W.rows.join('\n')}\nthe view stands at ${JSON.stringify(W.cam)} from the stop`);
+      await b.close(); process.exit(0);
+    }
     await p.evaluate(() => { const g = window.__game, l = g.G.lifts.find(q => q.id === 'sky-gate'); g.rideLift(l, 0, l.stops.length - 1); });
     // (the shot is moved to each still's place in it, game.js cine.seek, rather than played at a software renderer's pace)
     await run(0.2);
-    let last = null;
+    let last = null, zWas = null;
     for (const [n, k] of [0.03, 0.1, 0.2, 0.32, 0.45, 0.55, 0.66, 0.78, 0.86, 0.93, 0.98].entries()) {
       const s = await p.evaluate(async ([k, last]) => { const g = window.__game; g.cine.seek(k); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); const c = g.camera.position, T3 = window.THREE; return { k: +g.cine.k.toFixed(2), z: +g.player.z.toFixed(1), cam: [c.x, -c.z, c.y].map(v => +v.toFixed(1)), clear: last ? +g.nav.clearFraction(new T3.Vector3(last[0], last[2], -last[1]), c).toFixed(2) : 1 }; }, [k, last]);
       console.log(`ride k ${k}`, JSON.stringify(s)); last = s.cam;
+      if (zWas != null && (s.cam[2] - zWas > 90 || zWas - s.cam[2] > 8)) { console.log(`FAIL the climb's camera jumps: ${zWas} m to ${s.cam[2]} m`); bad0 = 1; }
+      zWas = s.cam[2];
       await p.screenshot({ path: `${out}/ride-${n + 1}.png` });
     }
     await p.evaluate(async () => { const g = window.__game; for (let i = 0; i < 80 && g.cine.active; i++) { g.advance(0.1); await new Promise(r => requestAnimationFrame(r)); } });
     await run(2);
+    if (process.env.RIDE === 'only') { await shot('out'); await b.close(); process.exit(bad0); }
   } else {
     await p.evaluate(s => { const g = window.__game, pl = g.player; [pl.x, pl.y, pl.z] = s.at; pl.vz = 0; pl.speed = 0; pl.ground = true; if (s.face) pl.h = Math.atan2(s.face[0], s.face[1]); g.cam.mode = 'chase'; g.cam.yaw = pl.h; g.cam.pitch = 0.17; g.cam.dist = 5.5; g.cam.snap = true; }, lift.b);
     await run(2); // (the stop's fine collision laid: game.js advance)
@@ -69,7 +101,7 @@ const [,, out = '/tmp/lift-top', size = '1440x900'] = process.argv;
     await shot(name);
     return t;
   };
-  let bad = 0;
+  let bad = bad0;
   // TABLE=1: how far the probe gets from your head to where the camera would be, by where it is turned (rows, from
   // your facing round) and the lift it takes (columns, radians over cam.pitch), here and at AT="x,y,z;x,y,z"; then it ends
   if (process.env.TABLE) {

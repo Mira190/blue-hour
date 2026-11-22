@@ -970,9 +970,10 @@ def jr_lines(K, A, D):
             x0_, x1_ = np.interp(b0, ys, xs), np.interp(b1, ys, xs)
             box(steel, frame((x0_, b0), (x1_ - x0_, b1 - b0)), 0.0, b1 - b0, -0.25 * side - 0.0, 0.25 * side, z, z + 0.15)
     xw0 = np.interp((b0 + b1) / 2, ys, west)
-    Pw = frame((xw0 - 0.15, (b0 + b1) / 2), (-1, 0))
-    A.quad(K["x_atlas"], Pw(0, 1.6, zb - JR["girder_m"] + 0.25), Pw(0, -1.6, zb - JR["girder_m"] + 0.25), Pw(0, -1.6, zb - JR["girder_m"] + 1.05),
-           Pw(0, 1.6, zb - JR["girder_m"] + 1.05), "jr_clear")
+    Pw = frame((xw0 - 0.15, (b0 + b1) / 2), (-1, 0))   # facing west, to the scramble; v runs south (left of f)
+    # read from the west, its bottom left is the north end (v = -1.6), and a-b-c-d run counter-clockwise from there
+    A.quad(K["x_atlas"], Pw(0, -1.6, zb - JR["girder_m"] + 0.25), Pw(0, 1.6, zb - JR["girder_m"] + 0.25), Pw(0, 1.6, zb - JR["girder_m"] + 1.05),
+           Pw(0, -1.6, zb - JR["girder_m"] + 1.05), "jr_clear")
     # the viaduct's columns, in three rows, and the fence between the western ones (open at the bicycle lot)
     lot = JR_LOT
     for yy in np.arange(b1 + 6.0, JR["y1"], 7.5):
@@ -1339,12 +1340,20 @@ def shibuya109(K, A, D):
     cyl_strip(shop, c, r, 0, 2 * math.pi, g - 0.2, g + 4.2, 32)
     cyl_strip(K["x_fin"], c, r + 0.35, 0, 2 * math.pi, g + 4.2, g + 4.7, 32)
     u0, v0, u1, v1 = A.uv("s109_wrap")
-    cyl_strip(K["x_print"], c, r + 0.12, face - half, face + half, g + w0, g + w1, 20, uv=(u0, v0, u1, v1))
+    # the advert stops where a corner of the block stands out across the cylinder (on its south side, at about
+    # -60 degrees), or its end would face the block's wall from a hand's breadth away (tools/sign_check.py)
+    out_at = lambda a: Point(*(c + (r + 0.3) * np.array([math.cos(a), math.sin(a)])))
+    a_lo, a_hi = face - half, face + half
+    while a_lo < face and body.distance(out_at(a_lo)) < 0.1:
+        a_lo += math.radians(1.0)
+    while a_hi > face and body.distance(out_at(a_hi)) < 0.1:
+        a_hi -= math.radians(1.0)
+    cyl_strip(K["x_print"], c, r + 0.12, a_lo, a_hi, g + w0, g + w1, 20, uv=(u0, v0, u1, v1))
     # the frame round the advert, and the lamps that light it from below
     for z in (g + w0 - 0.25, g + w1):
-        cyl_strip(K["x_fin"], c, r + 0.3, face - half - 0.03, face + half + 0.03, z, z + 0.25, 20)
+        cyl_strip(K["x_fin"], c, r + 0.3, a_lo - 0.03, a_hi + 0.03, z, z + 0.25, 20)
     for k in range(9):
-        a = face - half + 2 * half * (k + 0.5) / 9
+        a = a_lo + (a_hi - a_lo) * (k + 0.5) / 9
         p = c + (r + 1.0) * np.array([math.cos(a), math.sin(a)])
         box(K["x_light"], frame(p, (math.cos(a), math.sin(a))), -0.2, 0.2, -0.25, 0.25, g + w0 - 0.9, g + w0 - 0.6)
     z0c, z1c = (g + x for x in S109["crown"])

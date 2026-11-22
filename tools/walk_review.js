@@ -7,7 +7,8 @@
 //   - SET=edge: out along six ways from the hero level's centre, at each distance in RINGS (metres; the footway nearest
 //     that point), looking on outward and back: where the picture falls below the hero level, and what the map's own
 //     edge is (a phone plays inside its district);
-//   - SET=menu: the walk's menu, as it opens and scrolled to its foot, and the camera (photo mode).
+//   - SET=menu: the walk's menu, as it opens, scrolled to its foot and with what folds away opened, and the camera
+//     (photo mode; on a phone with its settings put away and out).
 // Prints, for each still, where you stand, how many of the crowd are out (and what the frame governor has cut, on a
 // slow renderer), where the corner says you are and what of the interface lies outside the screen or under a
 // phone's safe area (EDGE px, 12 by default).
@@ -81,10 +82,10 @@ const RINGS = (process.env.RINGS || '60,100,140,200,300,500,800').split(',').map
     await menu(true);
     const got = await p.evaluate(([t, sky]) => {
       const g = window.__game, r = {};
-      r.times = [...document.querySelectorAll('#gm-time button')].map(b => b.dataset.t), r.skies = [...document.querySelectorAll('#gm-weather button')].map(b => b.dataset.w);
+      r.times = [...document.querySelectorAll('#gw-menu [data-k="t"] button')].map(b => b.dataset.v), r.skies = [...document.querySelectorAll('#gw-menu [data-sky]')].map(b => b.dataset.sky);
       if (/^\d+:\d+$/.test(t)) { const [hh, mm] = t.split(':').map(Number); g.setClock(g.clock.y, g.clock.m, g.clock.d, hh * 60 + mm); r.t = 'set'; }
-      else { const bt = document.querySelector(`#gm-time button[data-t="${t}"]`); if (bt) { bt.click(); r.t = 'pressed'; } }
-      const bw = document.querySelector(`#gm-weather button[data-w="${sky}"]`); if (bw) { bw.click(); r.w = 'pressed'; }
+      else { const bt = document.querySelector(`#gw-menu [data-k="t"] button[data-v="${t}"]`); if (bt) { bt.click(); r.t = 'pressed'; } }
+      const bw = document.querySelector(`#gw-menu [data-k="w"] button[data-v="${sky}"], #gw-menu [data-sky="${sky}"]`); if (bw) { bw.click(); r.w = 'pressed'; }
       return r;
     }, [t, sky]);
     console.log(`${el()} ${c}: the menu's hours ${got.times.join(' ')}; skies ${got.skies.join(' ')}; hour ${got.t || 'NOT OFFERED'}, sky ${got.w || 'NOT OFFERED'}`);
@@ -117,9 +118,17 @@ const RINGS = (process.env.RINGS || '60,100,140,200,300,500,800').split(',').map
       await menu(true); await shot(`${cn}-menu`);
       await p.evaluate(() => { const m = document.querySelector('#g-menu .gm-card, #g-menu'); const s = [...document.querySelectorAll('#g-menu, #g-menu *')].find(e => e.scrollHeight > e.clientHeight + 8 && /auto|scroll/.test(getComputedStyle(e).overflowY)) || m; s.scrollTop = s.scrollHeight; });
       await shot(`${cn}-menu-foot`);
+      // (what folds away, opened: any hour and any sky, the options, the keys)
+      await p.evaluate(() => { for (const d of document.querySelectorAll('#gw-menu details')) d.open = true; document.getElementById('g-menu').scrollTop = 0; });
+      await shot(`${cn}-menu-open`);
+      await p.evaluate(() => { const m = document.getElementById('g-menu'); m.scrollTop = m.scrollHeight; });
+      await shot(`${cn}-menu-open-foot`);
+      await p.evaluate(() => { for (const d of document.querySelectorAll('#gw-menu details')) d.open = false; });
       await menu(false);
       await p.evaluate(() => { const e = document.querySelector('#g-walk-acts [data-do="photo"]'); if (e) e.click(); });
+      await p.waitForTimeout(1200);
       await shot(`${cn}-photo`);
+      if (await p.evaluate(() => { const a = document.getElementById('ph-adj'); if (!a || !a.offsetHeight) return false; a.click(); return true; })) { await p.waitForTimeout(400); await shot(`${cn}-photo-adjust`); }
       await p.keyboard.press('Escape'); await p.waitForTimeout(800);
     }
   }

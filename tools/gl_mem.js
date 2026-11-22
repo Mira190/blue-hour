@@ -10,12 +10,17 @@ exports.hook = () => {
     0x81A5: 2, 0x81A6: 3, 0x88F0: 4, 0x8CAC: 4, 0x8CAD: 8, 0x1902: 4, 0x8D9F: 4, 0x8F94: 4, 0x8059: 4, 0x8236: 4, 0x8235: 4, 0x8234: 2, 0x8233: 1,
     0x8232: 1, 0x8231: 1, 0x823C: 8, 0x823B: 4, 0x823A: 4, 0x8239: 2, 0x8238: 2, 0x8237: 2, 0x8D70: 16, 0x8D76: 16, 0x8D7C: 4, 0x8D82: 16, 0x8D88: 16, 0x8D8E: 4,
     0x93B0: 1, 0x93D0: 1 }; // (ASTC 4x4, linear and sRGB: sixteen bytes a block of sixteen texels)
-  const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0 };
+  const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0, log: [], logged: 0 };
   // the load's own steps (game.js loadStep), each with the GPU memory and the heap when it was named: which step takes the memory
   const SP = window.__steps = [], pm = performance.mark.bind(performance);
   performance.mark = function (n, o) { if (n === 'oe:step') { try { SP.push({ step: o && o.detail && o.detail.step, t: +(performance.now() / 1000).toFixed(1), gpu: M.sum, heap: performance.memory ? performance.memory.usedJSHeapSize : 0 }); } catch (e) { /* no memory reading */ } } return pm(n, o); };
   const total = () => { let s = 0; for (const m of [M.tex, M.buf, M.rb]) for (const e of m.values()) s += e.bytes; return s; };
-  const bump = () => { M.sum = total(); if (M.sum > M.peak) { M.peak = M.sum; M.peakAt = (performance.now() / 1000).toFixed(1); } };
+  // (and its course: each megabyte it rose or fell by, with the second and what was last asked for or let go, so that a
+  // peak can be read as what was held together when it fell: mem_check.js TRACE=1)
+  const bump = what => {
+    M.sum = total(); if (M.sum > M.peak) { M.peak = M.sum; M.peakAt = (performance.now() / 1000).toFixed(1); }
+    if (Math.abs(M.sum - M.logged) >= 1048576 && M.log.length < 20000) { M.log.push([+(performance.now() / 1000).toFixed(2), M.sum, what || '']); M.logged = M.sum; }
+  };
   const nameOf = a => { for (const x of a) if (x && (x.src || x.currentSrc)) return String(x.src || x.currentSrc).split('/').slice(-2).join('/'); return ''; };
   for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
     const tex = new Map(), bufs = new Map();
@@ -26,7 +31,7 @@ exports.hook = () => {
     if (!o.activeTexture) continue;
     proto.activeTexture = function (u) { unit = u; return o.activeTexture.call(this, u); };
     proto.bindTexture = function (t, x) { tex.set(`${unit}:${t}`, x); return o.bindTexture.call(this, t, x); };
-    proto.deleteTexture = function (x) { M.tex.delete(x); bump(); return o.deleteTexture.call(this, x); };
+    proto.deleteTexture = function (x) { const e = M.tex.get(x); M.tex.delete(x); bump(e ? `- ${e.label}` : ''); return o.deleteTexture.call(this, x); };
     const put = (gl, target, level, bytes, label) => {
       const bindT = target >= 0x8515 && target <= 0x851A ? 0x8513 : target; // a cube's face: the cube map
       const x = tex.get(`${unit}:${bindT}`);
@@ -38,7 +43,7 @@ exports.hook = () => {
       e.bytes = Object.values(e.levels).reduce((a, b) => a + b, 0);
       // (mem_check.js OWN: where in the page's scripts a big one was made: the first lines of its stack outside three.js)
       if (window.__memOwn && e.bytes > 1 << 20 && !e.stack) e.stack = (new Error().stack || '').split('\n').filter(l => /\.js/.test(l) && !/three|mem_check|gl_mem|__puppeteer|playwright/.test(l)).slice(0, 3).map(l => l.replace(/^.*\/(\w[\w.-]*\.js):(\d+):\d+\)?$/, '$1:$2').trim()).join(' < ');
-      bump();
+      bump(e.label);
     };
     proto.texImage2D = function (target, level, ifmt, ...r) {
       let w, h;
@@ -63,14 +68,14 @@ exports.hook = () => {
     proto.bindBuffer = function (t, x) { bufs.set(t, x); return o.bindBuffer.call(this, t, x); };
     proto.bufferData = function (t, d) {
       const x = bufs.get(t);
-      if (x) { M.buf.set(x, { bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex' }); bump(); }
+      if (x) { M.buf.set(x, { bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex' }); bump('buffer'); }
       return o.bufferData.apply(this, arguments);
     };
-    proto.deleteBuffer = function (x) { M.buf.delete(x); bump(); return o.deleteBuffer.call(this, x); };
+    proto.deleteBuffer = function (x) { M.buf.delete(x); bump('- buffer'); return o.deleteBuffer.call(this, x); };
     proto.bindRenderbuffer = function (t, x) { rbBound = x; return o.bindRenderbuffer.call(this, t, x); };
-    proto.renderbufferStorage = function (t, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4), label: `${w}x${h} rb` }); bump(); } return o.renderbufferStorage.call(this, t, f, w, h); };
-    if (o.renderbufferStorageMultisample) proto.renderbufferStorageMultisample = function (t, s, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4) * Math.max(1, s), label: `${w}x${h} rb x${s}` }); bump(); } return o.renderbufferStorageMultisample.call(this, t, s, f, w, h); };
-    proto.deleteRenderbuffer = function (x) { M.rb.delete(x); bump(); return o.deleteRenderbuffer.call(this, x); };
+    proto.renderbufferStorage = function (t, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4), label: `${w}x${h} rb` }); bump(`${w}x${h} rb`); } return o.renderbufferStorage.call(this, t, f, w, h); };
+    if (o.renderbufferStorageMultisample) proto.renderbufferStorageMultisample = function (t, s, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4) * Math.max(1, s), label: `${w}x${h} rb x${s}` }); bump(`${w}x${h} rb`); } return o.renderbufferStorageMultisample.call(this, t, s, f, w, h); };
+    proto.deleteRenderbuffer = function (x) { M.rb.delete(x); bump('- rb'); return o.deleteRenderbuffer.call(this, x); };
   }
   // the largest of each kind now, and what the canvases' own buffers hold (colour, depth, at their size)
   window.__memReport = top => {

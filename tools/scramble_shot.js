@@ -7,6 +7,7 @@
 //              "views": [{"name": "hachiko", "eye": [x, y, dz], "look": [x, y, dz], "fov": 50}, ...]}
 // dz is metres over the ground there; "people": [x, y] (with crowd_r, crowd_n) stages the crowd round a point, as a film shot does. "date": [month, day]; TIER=high|medium|low (default high);
 // ONLY=name,name and TIMES=day,night pick some; SETTLE=seconds the world runs before each still (6).
+// EVAL=js runs in the page before each still (g: the game), its result printed.
 // PROBE=fx,fy;fx,fy lists what a ray through those points of the frame meets (a still that looks wrong: what is it?).
 // Prints the frame time the page measured for each still (ms, median of FRAMES (9) frames on this renderer).
 const { chromium } = require('playwright');
@@ -45,6 +46,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
     for (const id of ['g-title', 'g-menu', 'g-bigmap', 'g-pass']) { const el = document.getElementById(id); if (el) el.hidden = true; }
     if (g.cine.active) g.cine.skip();
     if (g.settleArrival) try { g.settleArrival(); } catch (e) { /* no arrival */ }
+    if (g.arriving) for (let i = 0; i < 80 && g.arriving() && g.cine.active; i++) g.advance(0.1); // (the settle run to its end: stopped half way, the game stays arriving)
     g.clock.frozen = true;
     document.body.classList.add('shot');
     const st = document.createElement('style');
@@ -60,7 +62,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
   for (const [tname, tv0] of times) {
     const tv = typeof tv0 === 'string' ? { time: tv0 } : tv0;
     for (const v of views) {
-      const ms = await p.evaluate(async ({ v, tv, date, settle, nf }) => {
+      const ms = await p.evaluate(async ({ v, tv, date, settle, nf, evalJs }) => {
         const g = window.__game, c = g.clock, m = date ? date[0] : c.m, d = date ? date[1] : c.d;
         g.setClock(c.y, m, d, c.min);
         const rel = /^(sunrise|sunset)([+-]\d+)?$/.exec(tv.time || '');
@@ -82,6 +84,10 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
         // the player stands by the camera, out of the frame, so the crowd and the traffic are round it
         g.player.x = v.eye[0]; g.player.y = v.eye[1]; g.player.z = gz(v.eye[0], v.eye[1]);
         if (g.player.rig) g.player.rig.root.visible = false;
+        // (an arrival begun after the start, when a hero level came in: settled, or the free camera counted as the
+        // arrival's and drew its depth of field focused on the player, every street still soft)
+        // (its crane stopped by the free camera before it ended leaves the game arriving for good: run it to its end)
+        if (g.arriving && g.arriving() && g.cine.active && g.cine.label === 'crane') { try { g.settleArrival(); } catch (e) { /* no arrival */ } for (let i = 0; i < 80 && g.arriving() && g.cine.active; i++) g.advance(0.1); }
         g.cine.stop();
         g.cine.play(() => S.pose, 1e9, { label: 'film' });
         // "people": [x, y] puts the crowd on the footways round that point, as the films do
@@ -103,6 +109,8 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
           }
         }
         g.advance(settle);
+        // EVAL=js: run in the page before each still, with g the game (an experiment: a light switched off, a uniform set)
+        if (evalJs) window.__evalOut = JSON.stringify(new Function('g', 'THREE', evalJs)(g, THREE));
         // a hero level near the camera (game/hero.js) loaded and shown before the still: frames until none is loading
         if (g.hero && g.hero()) for (let i = 0; i < 1200; i++) { await new Promise(r => requestAnimationFrame(r)); if (i > 3 && !g.hero().state().some(h => h.state === 'loading')) break; }
         g.Wd.fitShadow(S.pose.look, 300);
@@ -111,7 +119,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
         for (let i = 0; i < nf + 1; i++) ts.push(await new Promise(r => requestAnimationFrame(r)));
         const dts = ts.slice(1).map((t, i) => t - ts[i]).sort((a, b) => a - b);
         return dts[Math.floor(nf / 2)];
-      }, { v, tv, date: spec.date, settle, nf: +(process.env.FRAMES || 9) });
+      }, { v, tv, date: spec.date, settle, nf: +(process.env.FRAMES || 9), evalJs: process.env.EVAL || '' });
       const png = await p.evaluate(() => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(() => res(document.getElementById('game-gl').toDataURL('image/png'))))));
       // PROBE=0.5,0.6;0.7,0.5: what stands along the ray through those points of the frame (fractions from the top
       // left), nearest first: each mesh's name, its material, colour, opacity, glow and share of the sky mirrored
@@ -136,6 +144,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
         }, process.env.PROBE.split(';').map(q => q.split(',').map(Number)));
         console.log(`${v.name}-${tname} probe\n${hits}`);
       }
+      if (process.env.EVAL) console.log(`${v.name}-${tname} eval: ${await p.evaluate(() => window.__evalOut)}`);
       const name = `${v.name}-${tname}`;
       fs.writeFileSync(path.join(outDir, `${name}.png`), Buffer.from(png.split(',')[1], 'base64'));
       console.log(`${name}\t${ms.toFixed(1)} ms`);
