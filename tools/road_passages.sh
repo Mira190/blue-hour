@@ -17,6 +17,11 @@ for c in $cities; do
     res=$(python3 pipeline/road_passages.py --city "$c" --walls "$OUT/$c.$pass.json" | tail -1)
     echo "$c pass $pass: ${res# *}"
     case "$res" in *"nothing to change"*) break;; esac
+    [ "$res" = "${last:-}" ] && break   # (the same again: what is left it cannot carve)
+    last=$res
+    # (the page loads the packs, not buildings.json: without them the next pass measured the same walls again, and
+    # the carving never reached the game, issue 167)
+    python3 pipeline/pack.py > "$OUT/$c.$pass.pack.log" 2>&1 || { echo "$c: pack.py failed (see $OUT/$c.$pass.pack.log)"; continue 2; }
   done
   xvfb-run -a node tools/road_walls.js "$c" > "$OUT/$c.after.log" 2>&1
   tail -2 "$OUT/$c.after.log" | sed "s/^/  after: /"

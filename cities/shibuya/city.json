@@ -515,6 +515,10 @@
   "roofkit": {"skip": ["w617560918"], "note": "pipeline/roofkit.py: the stair huts, condenser rows and the fire service's R and H marks on the flat roofs; a roof whose deck a landmark furnishes is skipped (Scramble Square: SHIBUYA SKY's, issue 72)."},
   "phone_district": {"x": [-350, 1250], "y": [-2100, 450], "note": "A phone's game loads this part of the map as packs of its own, and plays inside it (pipeline/district.py; local metres)."},
   "game": {
+    "road_plan": {"note": "The road network's decisions that the data cannot make (pipeline/road_plan.py, docs/ROADS.md; local metres). closures: [x, y, r, why]: an end of the road graph within r of the point is a street the level closes, where the survey's road goes on under cover and the data has no piece for it. closed: [x, y, r, why]: a piece within r is closed to cars. under: a place where the survey's road goes on under cover and the data has no piece: the one-way pieces that end within r either side are joined across, and the solids over them raised to stand clear metres over the road. gates: [x, y, r]: an end there is a gate though it is not at the map's edge. drives: [x, y, name]: a place a drive is asked to, held reachable by the checks beside the walk's drive errands and the start's car.",
+      "closures": [], "closed": [], "gates": [],
+      "under": [{"at": [491.0, -1199.0], "r": 45.0, "clear": 4.7, "why": "Route 246 under the JR viaduct south of the station: OpenStreetMap maps it as a tunnel, the data's builder drops tunnels, and the trunk road ended either side of the viaduct, 40 m apart; all of its traffic turned at the junction before (issue 167)"}],
+      "drives": [[268.0, -998.6, "109, at the foot of Dogenzaka"], [535.0, -1078.0, "SKY GATE's kerb"]]},
     "lobbies": {"sky-gate": {"w": 10, "d": 8, "h": 6, "outside": {"door": [532.25, -1078.98], "at": [535.04, -1077.89]}, "note": "SHIBUYA SKY's street lift hall stands just off the tower's north-east corner, entered from the west, its cars on its east side in a glass shaft outside the tower (the official 1F plan and section; docs/HERO.md, \"SKY's street entrance\"). w, d and h are the lobby once cut into the tower here, filled back by pipeline/lobby.py."}},
     "bounds": {"note": "The planned area (pipeline/bounds.py, docs/BOUNDS.md): the ground's edge, where a walker and a car are eased to a stop at the road works and turned back in, and the air's, where the helicopter is turned back in an arc. Local metres, counter-clockwise. Written by the pipeline; the lines are by hand.", "ground": {"poly": [[188.7, -1026.2], [282.1, -1121.5], [505.5, -1222.6], [570.7, -1214.0], [684.5, -1071.8], [676.9, -1014.0], [597.5, -951.8], [440.5, -876.4], [387.4, -854.4], [330.5, -861.9], [284.1, -881.1], [196.4, -967.3]], "soft": 22.0}, "air": {"poly": [[-114.0, -1122.2], [195.5, -1462.0], [570.5, -1518.1], [760.0, -1439.6], [953.1, -1193.8], [978.2, -1003.0], [904.6, -825.4], [741.2, -700.1], [429.9, -558.8], [197.1, -589.5], [28.7, -718.7], [-79.4, -859.6]], "soft": 220.0, "ceiling": 420.0}, "lines": {"foot": "<b>Road works · closed ahead.</b> The streets past here are still being built; tonight Shibuya is open round the Scramble.", "car": "<b>Road closed ahead.</b> The streets past the works are still being built. Turn round at the barriers.", "air": "<b>Tower:</b> “{reg}, the city past here isn't open yet. Bring her round, back over the Scramble.”", "ceiling": "<b>Tower:</b> “{reg}, that's Haneda's approach above you. Down to four hundred, please.”", "closed": "Not open yet: the streets past the road works are still being built.", "sign": ["工事中", "この先 通行止め", "ROAD WORKS · CLOSED AHEAD"]}},
     "weather": {"rain_days": [5.3, 6.1, 10.3, 10.9, 11.1, 12.8, 12.0, 9.4, 12.3, 11.8, 8.2, 5.8], "threshold_mm": 0.5, "drizzle": 0.55, "source": "Tokyo (Kitanomaru Park): Japan Meteorological Agency, 1991-2020 normals, days with at least 0.5 mm", "temp_max": [9.8, 10.9, 14.2, 19.4, 23.6, 26.1, 29.9, 31.3, 27.5, 22.0, 16.7, 12.0], "temp_min": [1.2, 2.1, 5.0, 9.8, 14.6, 18.5, 22.4, 23.5, 20.3, 14.8, 8.8, 3.8], "wind_ms": [2.7, 3.0, 3.1, 3.2, 3.1, 2.8, 3.2, 2.9, 2.7, 2.6, 2.5, 2.6], "wind_from_deg": 338, "snow_days": [2.8, 3.5, 1.4, 0.1, 0, 0, 0, 0, 0, 0, 0, 0.6], "thunder_days": [0.2, 0.2, 0.5, 1.1, 1.6, 1.2, 2.5, 3.2, 2.5, 0.8, 0.4, 0.2], "fog_days": [0, 0, 0, 0.4, 0.2, 0.1, 0.1, 0, 0.1, 0.1, 0.4, 0], "typhoon_days": [0, 0, 0, 0, 0.1, 0.2, 0.4, 0.9, 1.0, 0.6, 0.1, 0], "more": "Tokyo: temperatures, wind, and days with snow (any solid precipitation seen, sleet and flurries among them), thunder and fog: the same JMA 1991-2020 table (data.jma.go.jp/stats/etrn/view/nml_sfc_ym.php), read November 2026. The wind's bearing is the commonest of the year (NNW; southerly from May to August)."},
@@ -1276,7 +1280,7 @@
                 "Let me see.",
                 "I look as if nothing happened.",
                 "That's the one my mother gets. One every Saturday, with the lights behind me, so she can see I'm doing well.",
-                "I'm on the last train tonight. The 0:33. She doesn't know that yet.",
+                "I'm on {train} {train_when}. She doesn't know that yet.",
                 "Nagi. I'll be by Hachiko's wall till then. The stone keeps the day's heat."
               ]
             }
@@ -1289,9 +1293,60 @@
             368.0,
             -1004.0
           ],
+          "wait": {
+            "note": "The line's end (walktalk.js wait, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser.",
+            "verb": "Wait with her for {train}",
+            "beside": [
+              370.91,
+              -1045.03
+            ],
+            "before": 3,
+            "says": [
+              [
+                "19:00",
+                "Three years, and I never once looked up."
+              ],
+              [
+                "21:00",
+                "That's the fourth time, you know. You learn which shoulder to carry your bag on."
+              ],
+              [
+                "00:00",
+                "I've never seen it dark."
+              ]
+            ],
+            "up": "That's mine.",
+            "follow": "Walk Nagi to the station",
+            "gate": [
+              408.4,
+              -1052.6
+            ],
+            "turn": [
+              409.3,
+              -1057.0
+            ],
+            "gone": [
+              410.2,
+              -1063.5
+            ],
+            "at": "Nagi, by the station",
+            "ask": [
+              "This is me.",
+              "One more? Not with the lights behind me this time. Just me, going home."
+            ],
+            "goal": "Photograph Nagi by the station",
+            "shown": [
+              "Let me see.",
+              "That's the one she gets.",
+              "Now you. Hold still. Nobody ever takes the photographer's."
+            ],
+            "last": [
+              "There. Thank you for stopping."
+            ]
+          },
           "after": [
-            "The 0:33. I haven't told her.",
-            "Three years, and that's the fourth time. You learn which shoulder to carry your bag on."
+            "I still haven't told her.",
+            "The stone's still warm, if you want to sit."
           ]
         },
         {

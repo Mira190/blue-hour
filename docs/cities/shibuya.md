@@ -65,6 +65,8 @@ before the split.
 | Terrain | GSI DEM5A, 5 m airborne laser survey, bare earth (10 m DEM where 5A has no data) | GSI terms of use |
 | Aerial photos | Tokyo Metropolitan Government, Digital Twin project: 2023 ortho photographs, 0.2 m, flown March-April 2023, used at 1 m with their shadows and leaning walls taken out (`pipeline/ortho_tokyo.py`); outside the frame GSI seamless photos, zoom 17 (June-November 2019 round the Scramble) | CC BY 4.0; GSI terms of use |
 | Street detail round the scramble: entrances, crossings, kerbs, tactile paving, the police box, the JR tracks | OpenStreetMap API, fetched 2026-11-03 (`pipeline/osm_detail.py`, `cities/shibuya/scramble_osm.json`) | ODbL |
+| The roads as surveyed, the buses' streets, taxi ranks, barriers on roads (the road plan, docs/ROADS.md) | OpenStreetMap API, fetched 2026-11-21 (`pipeline/road_osm.py`, `cities/shibuya/roads_osm.json`): highway ways, the ways of 113 `route=bus` relations | ODbL |
+| The Toei buses' routes | Toei Bus GTFS `shapes.txt`, feed version 20261122, Bureau of Transportation, Tokyo Metropolitan Government, from the Public Transportation Open Data Center | CC BY 4.0 |
 | Crosswalk widths and positions | GSI seamless aerial photos, zoom 18 (`tools/aerial_local.py`) | GSI terms of use |
 | Reference photographs (compared against, not used as textures) | Wikimedia Commons, 2019-26, listed in section 6b | CC BY 2.0 / 4.0, CC BY-SA 2.0 / 4.0, CC0 |
 | Lettering on ema, plaques and signs | Google Fonts (Yomogi, Zen Kurenaido, Klee One, Yuji Syuku, Shippori Mincho, DotGothic16, RocknRoll One, Ma Shan Zheng, ZCOOL KuaiLe, Long Cang, LXGW WenKai TC, Nanum Pen Script, Caveat, Kalam) | SIL Open Font License |
@@ -617,6 +619,8 @@ python pipeline/osm_detail.py --city shibuya      # OSM's street detail round th
 python pipeline/landmarks.py --city shibuya       # also draws atlas.jpg and scramble.jpg (fonts are fetched to data/raw/fonts)
 python pipeline/game_data.py --city shibuya
 python pipeline/night_lights.py --city shibuya    # after game_data.py: it reads game.json
+python pipeline/road_osm.py --city shibuya --gtfs ToeiBus-GTFS.zip   # the roads as surveyed and the buses' streets
+tools/road_plan.sh shibuya                        # the road plan (docs/ROADS.md), with web/ served: joins, bridges, passages, measure, plan
 python analysis/data_quality.py --city shibuya
 python analysis/dem_check.py --city shibuya
 node analysis/sun_access.js --city shibuya

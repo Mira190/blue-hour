@@ -436,7 +436,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // it is shut to cars (pipeline/road_rules.py); nl: OSM's count of its lanes each way (road_lanes.py);
       // wall: 1 where it starts at a wall, 2 where it ends at one (a road the data runs into a building: game.js cutAtWalls);
       // cw: its carriageway's width where narrower than its class's (a channel's bank lane: inland_water.py bank_lanes)
-      return { pts, cum, len: cum[n - 1], v: o.v || 0, c: o.c || '', deck: o.d || null, ow: o.o || 0, i0, nt: o.nt || null, tl: o.tl || null, ntw: o.ntw || null, tb: o.tb || null, nl: o.nl || 0, wall: o.w || 0, cw: o.cw || 0 };
+      // the road plan's (pipeline/road_plan.py, docs/ROADS.md): quiet: 1 where no way along it leads from one of the map's
+      // gates to another (a cul-de-sac, a stub before a closure): no traffic is made on it and none turns in; bus: 1 on a
+      // street a bus route takes; ends: what its two ends are where nothing joins them (1 a gate, 2 a dead end, 3 a closure)
+      return { pts, cum, len: cum[n - 1], v: o.v || 0, c: o.c || '', deck: o.d || null, ow: o.o || 0, i0: o.r0 != null ? o.r0 : i0, nt: o.nt || null, tl: o.tl || null, ntw: o.ntw || null, tb: o.tb || null, nl: o.nl || 0, wall: o.w || 0, cw: o.cw || 0,
+        quiet: o.q || 0, bus: o.b || 0, ends: o.e || null };
     }).filter(l => l.len > 4);
     const key = (x, y) => `${Math.round(x / 2)},${Math.round(y / 2)}`;
     const nodes = new Map(), grid = new Map(), GC = 100;
@@ -519,7 +523,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // avoid: per line, 1 for a line no one should be put on or turn into (a road through a
     // building, which route.js finds); set by the game once it knows
-    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
+    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null, planned: L.some(l => l.ends || l.quiet), busStreets: L.some(l => l.bus) }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
     return api;
   }
 
@@ -1913,6 +1917,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (q.held > 1 && q.ph === 'linger') { q.held = 0; q.T.x = q.x; q.T.y = q.y; q.lst = true; } // (held up on its way across the square: it stands about where it is)
         else if (q.held > 1) { q.held = 0; if ((q.reslot || 0) < 2 && q.g && !(q.lead >= 0) && !slotFree(q, q.x, q.y)) { q.reslot = (q.reslot || 0) + 1; slotAt(q.g, q, q.T, pz.road); } else { q.T.x = q.x; q.T.y = q.y; q.ph = 'wait'; q.reslot = 0; } }
       } else q.held = 0;
+      // (the rain come on while it waits: its place was given a pace from its neighbours, before anyone had an umbrella,
+      // and a row stood a pace apart cannot push itself an umbrella apart, each pushed back by the next. So as its own
+      // umbrella goes up, one waiting whose place has not an umbrella's room from the places round it is given another
+      // that has, once, as people step apart to put theirs up; where the kerb has none left it stays. Until November 2026
+      // frame 7's kerb stood under canopies running through each other, issue 165)
+      if (!(q.umbW > 0)) q.umbSlot = false;
+      else if (!q.umbSlot && q.ph === 'wait' && q.g && !(q.lead >= 0) && q.T) { q.umbSlot = true; if (!slotFree(q, q.T.x, q.T.y)) slotAt(q.g, q, q.T, pz.road, false); }
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if ((q.ph === 'wait' || (q.umbPush && (q.ph === 'linger' || q.lst))) && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (one standing about whom an umbrella pushed off stays off too: walking back, the canopies met again, issue 165) // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
       if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)
@@ -2993,7 +3004,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           const line = cand[Math.floor(rnd() * cand.length)], L1 = net.L[line];
           if (!kerbLo(line)) continue;
           const s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (rnd() < 0.5 ? 1 : -1);
-          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z)) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
+          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8)) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
         }
       }
       for (let k = 0; k < 4 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
@@ -3004,6 +3015,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (c.trip >= 0) { const l2 = cand[Math.floor(rnd() * cand.length)], RK = OEJunctions.RANK, r1 = RK[net.L[line].c] || 2, r2 = RK[net.L[l2].c] || 2; if ((r2 > r1) === (rnd() < 0.8) && r1 !== r2) line = l2; }
         const L1 = net.L[line], s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (c.trip >= 0 && T.facing(c.trip, line)) || (rnd() < 0.5 ? 1 : -1);
         if (JN.inner(line) || L1.len < 15 || (net.fit && net.fit[line] < c.hw)) continue; // (nor on a street too narrow for it)
+        // (the road plan: traffic is made only on a street that leads from one of the map's gates to another, never in a
+        // cul-de-sac or on the stub before a closure, where it could only stand at the end; nor on a piece the game itself
+        // cuts at a wall; and a bus only on a street a bus route takes, issue 167)
+        if (L1.quiet || L1.wall || (c.bus && net.busStreets && !L1.bus)) continue;
         if (L1.ow && !net.next(line, dir > 0 ? 1 : 0, true)) continue; // (not on a one-way street that leads nowhere: stuck at its end)
         const ahead = dir > 0 ? L1.len - s : s, ar = JN.armAt(line, dir > 0 ? 1 : 0);
         if (ar && ahead < ar.back + 10) continue; // not at a junction's line, or over it
@@ -3012,6 +3027,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const ln = JN.lanesOf(L1) > 1 && rnd() < 0.5 && !(JN.laneRun && ahead + JN.laneRun(line, dir > 0 ? 1 : 0) < 120) ? 1 : 0, lo = side * JN.shiftOf(L1, ln); // (not in a second lane about to end)
         lanePos(line, s, dir, tmp, lo);
         if (JN.inScramble && JN.inScramble(tmp.x, tmp.y)) continue;
+        // (out of the ring's inside: a long piece with one vertex in the ring has the rest of its length anywhere, and a
+        // car put on Meiji-dori 85 m from you appeared in sight, issue 167)
+        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8) continue;
         c.z = tmp.z;
         if (!clear(tmp.x, tmp.y, 12, c, tmp.z) || overlaps(c, tmp.x, tmp.y, tmp.hx, tmp.hy, 3, 1) > 0 || peopleIn(c, tmp.x, tmp.y, tmp.hx, tmp.hy) > 0) continue; // (and not on your car or a ride)
         c.line = line; c.s = s; c.dir = dir; c.v = L1.v * 0.7; c.stuck = 0; c.dodgeT = 0; c.dodgeBrake = false; c.rev = null; c.vBend = Infinity; c.nx = undefined; c.plan = c.ex = c.ex2 = c.exA = c.pv = null; c.halt = false; c.q = false; c.off = 0;
@@ -3257,6 +3275,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     };
     function backOff(o, t) {
       if (o.stuck === undefined || o.line < 0 || o.boSpent > 6) return false;
+      // (not with your car or a ride close behind it: it would back into a car that cannot be asked to move, be held by it,
+      // and hold it in turn. A bus in Dogenzaka-shita's junction so stood with the autopilot's car 0.6 m behind it until
+      // the car was handed back, issue 167)
+      const hx = Math.sin(o.h), hy = Math.cos(o.h);
+      for (const b of api.extra) {
+        if (!b.half || (b.z != null && Math.abs(b.z - o.z) >= LEVEL)) continue;
+        const a = (b.x - o.x) * hx + (b.y - o.y) * hy, w = -(b.x - o.x) * hy + (b.y - o.y) * hx;
+        if (a < 0 && a > -(o.half + b.half + t + 1.5) && Math.abs(w) < o.hw + (b.hw || 0.9) + 0.3) return false;
+      }
       o.backoff = Math.max(o.backoff || 0, t);
       return true;
     }
@@ -3398,7 +3425,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       overlaps(probe, x, y, Math.sin(h), Math.cos(h), m, m, set);
       ownOnly = false;
       let k = 0;
-      for (const o of set) if (canBack(o) && backOff(o, 2)) k++;
+      // (not one ahead of the asker and facing its way: backing off, it backs into the asker. The autopilot behind a bus in
+      // Dogenzaka-shita's junction asked it to make way, the bus backed into the car, was held by it, and each waited on the
+      // other until the autopilot gave the car back, issue 167)
+      const hx = Math.sin(h), hy = Math.cos(h);
+      for (const o of set) {
+        if ((o.x - x) * hx + (o.y - y) * hy > 0 && Math.sin(o.h) * hx + Math.cos(o.h) * hy > 0.3) continue;
+        if (canBack(o) && backOff(o, 2)) k++;
+      }
       return k > 0;
     }
     JN.makeWay = makeWay;
@@ -3489,7 +3523,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const end = c.dir > 0 ? 1 : 0, arm = JN.armAt(c.line, end);
         if (c.nx === undefined) {
           // (the way across chosen before it got here: coming up to it, or crossing the junction before with it)
-          c.ex = arm ? (c.exA && c.exA.a === arm ? c.exA.e : c.ex2 && c.ex2.a === arm ? c.ex2.e : JN.choose(arm, c.hw, c.half, tripOf(c))) : null;
+          c.ex = arm ? (c.exA && c.exA.a === arm ? c.exA.e : c.ex2 && c.ex2.a === arm ? c.ex2.e : JN.choose(arm, c.hw, c.half, tripOf(c), c.bus)) : null;
           if (c.exA && c.exA.a === arm) c.exA = null;
           if (c.ex2 && c.ex2.a === arm) c.ex2 = null;
           c.plan = c.ex ? c.ex.steps.slice(1) : null;
@@ -4543,7 +4577,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     g.fillText(text, w / 2, r + 2);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    // (in the world as anything else is: behind the player, a wall or anyone nearer the eye than it, hidden. It was drawn
+    // through everything, depthTest off, and a mark over a man beyond the player stood on the back of her head: marks.js)
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true }));
     s.scale.set(w / (size + pad) * 0.42, 0.42, 1);
     s.renderOrder = 10;
     return s;

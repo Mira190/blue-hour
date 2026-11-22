@@ -866,14 +866,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // keeps from a wall; overDecks: leave what is on a deck alone, a viaduct over a building included)
   function cutAtWalls(lines, r = 0.1, overDecks = false) {
     const out = [];
-    for (const l of lines) {
+    for (let r0 = 0; r0 < lines.length; r0++) { // (r0: the piece's place in the lines given, kept on what is cut from it)
+      const l = lines[r0];
+      if (l.x) continue; // (a road the plan closes to cars, pipeline/road_plan.py: not in the traffic's graph nor the routes')
       const p = l.p, n = p.length / 3;
       let cur = null, curD = null, wallA = 0, wall = 0; // (w: 1 where a piece starts at a wall, 2 where it ends at one)
       const flush = (atWall = false) => {
         if (cur && cur.length >= 6) {
           let len = 0;
           for (let k = 3; k < cur.length; k += 3) len += Math.hypot(cur[k] - cur[k - 3], cur[k + 1] - cur[k - 2]);
-          if (len >= 40) out.push(Object.assign({}, l, { p: cur, d: l.d ? Uint8Array.from(curD) : undefined, w: wallA | (atWall ? 2 : 0) }));
+          if (len >= 40) out.push(Object.assign({}, l, { p: cur, d: l.d ? Uint8Array.from(curD) : undefined, w: wallA | (atWall ? 2 : 0), r0 }));
         }
         cur = curD = null;
         if (atWall) wall = 1;
@@ -1265,6 +1267,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const o = Object.assign({}, n, { rig, x: p.x, y: p.y, z: p.z, h: (n.sit || n.stand || {}).face ? Math.atan2((n.sit || n.stand).face[0], (n.sit || n.stand).face[1]) : hash(n.id) % 628 / 100, pitch: 150 + hash(n.id) % 170, color: n.look.top || n.look.shirt, eyes: new THREE.Vector3(),
       marker: OEActors.sprite('!', { bg: '#e0a21a', fg: '#1b1b1b', font: '900 44px "Public Sans", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif' }) });
     o.marker.scale.multiplyScalar(1.4);
+    o.marker.visible = false; // (shown only by npcMarks, under the rules every mark keeps: marks.js)
     o.marker.position.set(0, n.sit ? 1.95 : 2.45, 0);
     rig.root.add(o.marker);
     rig.root.position.copy(W(o.x, o.y, o.z));
@@ -1280,6 +1283,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of npcs) if (n.away && !n.event) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); } // (a street moment's people stay away until one puts them out: walktalk.js events)
   }
   const npcById = id => npcs.find(n => n.id === id);
+  // the free game's mark over someone with something for you (?walk=1, goals.js): as every mark is (marks.js), within
+  // talking distance and on your level, in sight, and not where you or anyone nearer the eye stands in front of it; the
+  // sprite is in the world, depth-tested, and fades in over its last metres
+  const NPC_MARK_M = 18;
+  function npcMarks(hide) {
+    for (const n of npcs) {
+      const m = n.marker;
+      let a = 0;
+      if (!hide && !n.away && n.rig.root.visible && player.mode === 'foot' && wantsTalk(n) && Math.abs(n.z - player.z) < 4) {
+        const v = marks.see(n.x, n.y, n.z + m.position.y, { pad: 12, self: n, key: `npc:${n.id}` });
+        if (!v.why) a = marks.fade(v.d, NPC_MARK_M, 5);
+      }
+      m.material.opacity += (a - m.material.opacity) * 0.25;
+      if (a === 0 && m.material.opacity < 0.03) m.material.opacity = 0;
+      m.visible = m.material.opacity > 0;
+    }
+  }
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
   const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : lib.require(n.look.character).catch(e => console.warn(`${n.look.character} unavailable:`, e)).then(() => {
     const old = n.rig, rig = makeRig(npcLook(n));
@@ -1542,7 +1562,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return out;
   };
-  const places = window.OEPlaces ? OEPlaces.create({ G, W, camera, stage, speakers }) : null;
+  const places = window.OEPlaces ? OEPlaces.create({ G, W, camera, stage, speakers, see: (x, y, z, o) => marks.see(x, y, z, o) }) : null;
   const lifts = G.lifts || [];
   // doors that open as you come up to them, and the rooms behind them (game.json "doors", "interiors": doors.js)
   const doors = window.OEDoors ? OEDoors.create({ G, world }) : null;
@@ -1562,6 +1582,62 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const sat = satGet();
     if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
     return seatList;
+  }
+  // the next train out of Shibuya, by the walk's clock (game.json tonight.trains, the Yamanote's outer loop): the last
+  // until it has gone, then the first; `in`: the minutes to it
+  function trainNext() {
+    const T = ((G.tonight || {}).trains || {})['yamanote-n'] || ['00:33', '04:33'], last = S.hm(T[0]), first = S.hm(T[1]), m = clock.min;
+    const isFirst = m >= last && m < first, at = isFirst ? first : last;
+    return { first: isFirst, at, in: (at - m + 1440) % 1440 };
+  }
+  // Waiting with someone (walktalk.js wait: Nagi, for her train). You sit on Hachiko's wall and they sit beside you, and
+  // the night passes by itself while the crossing goes on: faster where nothing happens, slower near the night's moments
+  // (`says`: a line at a minute, said over them as it comes round), until a few minutes before the train. Standing up (E)
+  // ends it where it is; the wait can be taken up again
+  let waitRun = null;
+  function waitWith(n, plan) {
+    const st = perch && perch.list[0];
+    if (!st || st.z == null || player.mode !== 'foot') return false;
+    // (you on the seat, its corner; a copy of it, so that who sits beside you is this wait's alone)
+    const seat = Object.assign({}, st);
+    sitDown(seat);
+    if (touch) $('#gt-jump').hidden = true; // (no Time-lapse button: the wait passes the night by itself)
+    // (beside you on the stone itself: plan.beside, a point along the wall's end block; the seat is its outer corner, so a
+    // step to either side of you along the seat's own line was over the setts, and she sat on the air)
+    const [x, y] = plan.beside || [st.at[0] - st.face[1] * 0.75, st.at[1] + st.face[0] * 0.75];
+    n.fixed = true; n.sit = true; n.rig.legRake = st.rake; n.rig.reach = W(x + st.face[0] * 0.26, y + st.face[1] * 0.26, st.z + 0.5); // (her hands in her lap, as yours are)
+    seat.with = [x, y]; // (perch.js: the seat's shot keeps the two of you in it)
+    n.x = x; n.y = y; n.z = st.z; n.h = st.h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h;
+    if (n.post) posts.move(n.post, n.x, n.y, n.z);
+    const left = Math.max(1, trainNext().in - (plan.before || 3));
+    waitRun = { n, plan, left, total: left, said: new Set(), st: seat };
+    return true;
+  }
+  function waitEnd(done) {
+    const w = waitRun; if (!w) return;
+    waitRun = null;
+    const n = w.n; n.sit = false; delete n.rig.legRake; n.rig.reach = null; w.st.with = null;
+    const f = nav.stand(n.x + w.st.face[0] * 0.8, n.y + w.st.face[1] * 0.8, w.st.z + 0.5, { rMax: 3 }); // (up off the stone, onto her feet in front of where she sat)
+    if (f) { n.x = f.x; n.y = f.y; n.z = f.z; n.rig.root.position.copy(W(n.x, n.y, n.z)); if (n.post) posts.move(n.post, n.x, n.y, n.z); }
+    if (player.mode === 'seat') standUp();
+    (done ? w.plan.done : w.plan.cancel || (() => {}))();
+  }
+  function waitStep(dt) {
+    const w = waitRun;
+    if (player.mode !== 'seat') { waitEnd(false); return; } // (stood up: the wait ends where it is)
+    if (dlg.open) return; // (a word said over the wait holds it)
+    // (the rate: the whole wait in about forty seconds, never slower than the wall's own time-lapse; slowed to a walk's pace
+    // for a few minutes round each of the night's moments, so that it is seen)
+    const says = w.plan.says || [], near = says.some(([hm]) => { const d = (S.hm(hm) - clock.min + 1440) % 1440; return d < 5 || d > 1438; });
+    const rate = near ? 1.2 : Math.max(2.5, w.total / 40);
+    const wm = Math.min(w.left, rate * dt);
+    w.left -= wm; clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min);
+    for (const [hm, line] of says) {
+      if (w.said.has(hm)) continue;
+      const d = (clock.min - S.hm(hm) + 1440) % 1440;
+      if (d < 3 && w.plan.say) { w.said.add(hm); w.plan.say(line); }
+    }
+    if (w.left <= 0) waitEnd(true);
   }
   function sitDown(st) {
     player.seatFrom = { x: player.x, y: player.y, z: player.z, h: player.h };
@@ -2157,6 +2233,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (kind === 'buildings') return B.b.length.toLocaleString();
       if (kind === 'time') return `${fmtMin(clock.min)} ${S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min)).zone}`;
       if (kind === 'sun_line') return sunLine();
+      // the next train out of Shibuya (game.json tonight.trains: the Yamanote's last and first): the last until it has gone,
+      // then the first; and when (the walk's line: Nagi's)
+      if (kind === 'train' || kind === 'train_when') { const t = trainNext(); return kind === 'train' ? (t.first ? 'the first train' : 'the last train') : (t.first ? 'this morning' : 'tonight'); }
       if (kind === 'sunset') return fmtMin(dayLimits().sunset);
       // the part of the day and the season, in the guide's words ("this evening", "autumn"), for lines about what to see now
       if (kind === 'now') return !sun || sun.altitude < -6 ? 'tonight' : clock.min < 720 ? 'this morning' : sun.altitude < 12 && clock.min > 900 ? 'this evening' : 'this afternoon';
@@ -2756,10 +2835,38 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   };
   // The walk's people with something to say (walktalk.js; game.json walk): a speech mark over each, E beside them, their
   // talk in the story's box and camera, and what they ask under the hour in the walk's corner
+  // What a mark over the picture may do (marks.js, docs/MARKS.md): not over the player's body, nor anyone drawn in front
+  // of its point, nor through a wall, a deck or a floor; and only within its reach. Every world-space mark asks it
+  const marks = OEMarks.create({ camera, W, size: () => [stageW, stageH],
+    // (the player's figure: on foot her body, 1.8 m with her hair and 0.3 m round at the shoulders; in her car the car's;
+    // not drawn, or in the air, none)
+    body: () => {
+      if (!player.rig.root.visible || player.mode === 'heli' || player.mode === 'lift') return null;
+      if (player.mode === 'car' && myCar) return { x: myCar.D.st.x, y: myCar.D.st.y, z: myCar.D.st.z, h: 1.55, r: 1.0 };
+      if (player.mode !== 'foot' && player.mode !== 'seat') return null;
+      return { x: player.x, y: player.y, z: player.z, h: player.mode === 'seat' ? 1.35 : 1.8, r: 0.3 };
+    },
+    from: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return o; },
+    // (those drawn near the eye: the map's people, the story's figures and the crowd as drawn)
+    people: (cx, cy, cz, reach) => {
+      const out = [], by = (x, y) => Math.abs(x - cx) < reach && Math.abs(y - cy) < reach;
+      for (const n of npcs) if (!n.away && n.rig && n.rig.root.visible && by(n.x, n.y)) out.push({ x: n.x, y: n.y, z: n.z, h: n.sit ? 1.3 : 1.7, r: 0.26, who: n });
+      for (const f of storyFigs) if (!(f.rig && f.rig.root && !f.rig.root.visible) && by(f.x, f.y)) out.push({ x: f.x, y: f.y, z: f.z || 0, h: 1.7, r: 0.26, who: f });
+      if (guideMade && guideMade.ready && guideMade.root && guideMade.root.visible && by(guideMade.x, guideMade.y)) out.push({ x: guideMade.x, y: guideMade.y, z: guideMade.z, h: 0.75, r: 0.32, who: guideMade });
+      if (crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+        const q = crowd.P[i];
+        if (!(q.line >= 0 || q.pz) || (crowdDraw && !crowdDraw.shows(i))) continue;
+        const qx = q.rx ?? q.x, qy = q.ry ?? q.y;
+        if (by(qx, qy)) out.push({ x: qx, y: qy, z: q.rz ?? q.z ?? 0, h: q.state === 'sit' ? 1.3 : 1.7, r: 0.24, who: q });
+      }
+      return out;
+    },
+    solid: (cx, cy, cz, x, y, z) => nav.col.pick(cx, cy, cz, x, y, z) });
   const markV = new THREE.Vector3(), seeM = new THREE.Matrix4(), seeF = new THREE.Frustum();
   const sees = (x, y, z) => { seeM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); seeF.setFromProjectionMatrix(seeM); return seeF.containsPoint(markV.set(x, z, -y)); };
   const walkTalk = window.OEWalkTalk && G.walk && G.story && !new URLSearchParams(location.search).has('walk') ? OEWalkTalk.create({ data: G.walk, stage,
     project: (x, y, z) => { markV.set(x, z, -y).project(camera); return markV.z > 1 || markV.z < -1 ? null : { x: (markV.x + 1) / 2 * stageW, y: (1 - markV.y) / 2 * stageH }; },
+    see: (x, y, z, o) => marks.see(x, y, z, o),
     npc: id => npcById(id),
     here: () => { const m = player.mode, o = m === 'car' && myCar ? myCar.D.st : m === 'heli' ? heli.st : player; return { x: o.x, y: o.y, z: o.z, mode: m }; },
     places: () => seatMarks(), // (somewhere to sit, until it has been sat on once: its mark, as the street's offer of it)
@@ -2809,6 +2916,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     shift: (n, x, y, h) => { n.x = x; n.y = y; n.z = Math.max(0, nav.terrain(x, y)); if (h != null) n.h = h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); },
     put: (n, at, to) => { if (!npcMove(n, at)) return false; if (to) { n.h = Math.atan2(to[0] - n.x, to[1] - n.y); n.rig.root.rotation.y = Math.PI - n.h; } return true; },
     thud: () => { try { if (A.thump) A.thump(); } catch (e) { /* no sound */ } },
+    waitWith: (n, plan) => waitWith(n, plan), // (sat beside someone on Hachiko's wall while the night passes: below)
+    clockMin: () => clock.min,
+    snapped: () => { A.shutter(); stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash'); }, // (someone takes your picture: the shutter and the flash, no picture of your own)
     loaded: c => !lib || !!lib.tpl[c], // (a character come: until then whoever is made of it is somebody standing in)
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
     told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); },
@@ -3074,6 +3184,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     way: (at, toDoor) => wayOnFoot(at, toDoor),
     // whether nothing solid (a wall, a roof, a landmark's stone) stands between the lens and a point of the map
     seen: at => { const c = camera.position; return !nav.col.pick(c.x, -c.z, c.y, at[0], at[1], at[2] ?? player.z + 1.2); },
+    see: (x, y, z, o) => marks.see(x, y, z, o), // (a mark drawn in the frame keeps its perspective: marks.js)
     // (by the compass only: how far the lens must turn to face it; nobody is asked to tilt the camera up a tower)
     aim: at => { const v = W(at[0], at[1], 0).sub(camera.position), f = camera.getWorldDirection(new THREE.Vector3()); v.y = 0; f.y = 0; if (v.lengthSq() < 1e-6 || f.lengthSq() < 1e-6) return 0; return Math.acos(Math.max(-1, Math.min(1, v.normalize().dot(f.normalize())))) * 180 / Math.PI; },
     // the frame as it is drawn now, small, for the episode's print (drawn and read back in one task: the canvas keeps no copy)
@@ -3398,7 +3509,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   for (const v of VP) addLabel(`<span class="tag t">△</span>${v.name}`, () => W(v.x, v.y, v.z + 3.2), 260, 'wharf');
   for (const f of flocks) if (!f.soaring) addLabel(`<span class="tag g">${GULL}</span>${f.flock.name}`, () => W(f.at[0], f.at[1], f.at[2] + 3.4), 220, 'wharf');
   if (fish) for (const sp of fish.spots) { const p = W(sp.at[0], sp.at[1], Math.max(0, nav.terrain(sp.at[0], sp.at[1])) + 3.2); addLabel(`<span class="tag f">≈</span>${sp.name}`, () => p, 240, 'wharf'); }
-  for (const n of npcs) addLabel(`${n.name}<span class="role">${n.role}</span>`, () => W(n.x, n.y, n.z + (n.marker.visible ? 3.0 : 2.15)), 40, 'npc');
+  // (a person's name from where they can be told apart, not across the square: within 12 m, as a talk's reach is)
+  for (const n of npcs) { const l = addLabel(`${n.name}<span class="role">${n.role}</span>`, () => W(n.x, n.y, n.z + (n.marker.visible ? 3.0 : 2.15)), 12, 'npc'); l.who = n; }
   const tmpV = new THREE.Vector3();
   function updateLabels() {
     const w = stage.clientWidth, h = stage.clientHeight, placed = [];
@@ -3411,6 +3523,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       tmpV.copy(p).project(camera);
       const d = camera.position.distanceTo(p);
       let vis = tmpV.z < 1 && Math.abs(tmpV.x) < 1.05 && Math.abs(tmpV.y) < 1.05 && d < l.maxD * far && !(l.el.classList.contains('npc') && dlg.open);
+      // (and as every mark is, marks.js: not on the player's body, nor on anyone nearer the eye; a person's name not through a wall)
+      if (vis) { const v = marks.see(p.x, -p.z, p.y, { pad: 10, self: l.who, people: !!l.who, solid: !!l.who, key: l.who ? `lbl:${l.who.id}` : null }); vis = !v.why; }
       const x = (tmpV.x * 0.5 + 0.5) * w, y = (-tmpV.y * 0.5 + 0.5) * h;
       if (vis) {
         if (!l.w) { l.el.hidden = false; l.w = l.el.offsetWidth; l.h = l.el.offsetHeight; }
@@ -3843,12 +3957,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode === 'ride') return ride && ride.phase !== 'asking' && ride.drv.st.v < 0.5 ? { key: 'E', story: true, text: ride.phase === 'arrived' ? `Get out at ${ride.dest.name}` : 'Get out here', act: leaveRide } : null;
     if (player.auto) return player.auto.label ? { key: '', text: player.auto.label } : null;
     let bn = null, bd = 3.2;
+    // (within reach, 3.2 m, and on your level: the prompt is offered only at arm's length, never across the street, and in
+    // the frame or not, as someone beside you on a phone held upright is out of its narrow frame. A ray through the solids
+    // was tried too, and took the talk from Riko at 1.6 m: a post between your chest and hers is not a wall)
     for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (!n.away && d < bd && Math.abs(n.z - player.z) < 2) { bd = d; bn = n; } }
     // (not on the story's page, which offers no talk of the old game's: there it stood first and was then put away, and
     // so hid what comes after it, your car beside someone on the walk, a lift with its attendant beside it)
     if (bn && !(story && (story.on || walk))) return { key: 'E', text: `Talk to ${bn.name}`, act: () => talkTo(bn) };
     // (on the walk: someone on the ground, who can be helped up; then whoever has something to say, a part of a story or a
     // word in passing; walktalk.js)
+    if (bn && walk && walkTalk && !walkTalk.busy && !waitRun && player.mode === 'foot' && walkTalk.waits(bn.id)) return { key: 'E', walk: true, text: walkTalk.waits(bn.id), act: () => walkTalk.wait(bn) };
     if (bn && walk && walkTalk && !walkTalk.busy && walkTalk.helps(bn.id)) return { key: 'E', walk: true, text: walkTalk.helps(bn.id), act: () => walkTalk.help(bn) };
     if (bn && walk && walkTalk && !walkTalk.busy && !bn.rig.pending && walkTalk.want(bn.id)) return { key: 'E', walk: true, text: `Talk to ${bn.name.replace(/\s*[\u3000-\u9fff\uff00-\uffef].*$/, '')}`, act: () => walkTalk.talk(bn) };
     // (on the walk: a stretch of stone to sit on and watch the crossing from; perch.js)
@@ -3887,7 +4005,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       liftTurn = false;
       const sd = ls_.l.stops[ls_.i];
       // (a stop with a hall of its own, entered by its door: the view goes to the way in, its cars ahead and the hall round you)
-      if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]); cam.pitchTo = FOOT.pitch; }
+      // (the way in, or the nearest turn of it whose camera stands clear with room to spare: SKY GATE's hall is open to
+      // the west beside the tower's base, and the view straight in put the lens a hand from the base's skin, which is
+      // drawn and not solid, so on a phone the frame was that pale skin from edge to edge one run in a few)
+      if (sd.door && Math.hypot(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1]) > 0.5) { cam.yawTo = hallYaw(Math.atan2(sd.at[0] - sd.door[0], sd.at[1] - sd.door[1])); cam.pitchTo = FOOT.pitch; }
       else cam.seek = true;
     }
     if (ls_) { const to = (ls_.i + 1) % ls_.l.stops.length; return { key: 'E', story: true, text: `${ls_.l.verb || 'Take the lift to'} ${ls_.l.stops[to].name}`, act: () => rideLift(ls_.l, ls_.i, to) }; } // (a flight of stairs the game does not draw is climbed as a lift is ridden: game.json lifts[].verb)
@@ -5868,7 +5989,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
-          : { mode: player.mode }) });
+          : { mode: waitRun && player.mode === 'seat' ? 'wait' : player.mode }) }); // (sat waiting with someone: the night passes by itself, walk.js says so)
     whoSync(); // (the walk's way in waits for who you play, as the episode's does)
     // tonight (tonight.js): the night's moments by the walk's clock, told in its corner, over the street and in its menu;
     // the last trains are the railway's own (trains.js setNight)
@@ -6158,6 +6279,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (simHold) { /* (held by a harness: the camera too, which the traffic reads, what is in view; advance() moves it) */ } else if (photo.on) photoCamera(dt); else if (closeup && !titleOn) closeupCamera(dt); else updateCamera(dt, titleOn);
     if (photo.on && crowdDraw && crowdDraw.still) crowdDraw.still(); // (a photograph's crowd: everyone near enough to be seen drawn whole, the world held: issue 174)
     placeNightFill();
+    marks.frame(); // (the camera as it stands for this frame, and who is drawn near it: what every mark over the picture asks, marks.js)
     stage.classList.toggle('cine', cine.active && (cine.label !== 'crane' || cine.k < 0.5));
     // world clocks and fades
     Wd.tick(now, camera);
@@ -6179,6 +6301,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
     if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
+    npcMarks(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
     // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
@@ -6248,7 +6371,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // on foot, the minimap opens out to show the car coming and the pick-up, as the app's map does
         if (player.mode === 'foot') radius = Math.max(radius, Math.min(480, 1.18 * Math.max(Math.hypot(st.x - player.x, st.y - player.y), Math.hypot(ride.pickup.x - player.x, ride.pickup.y - player.y))));
       }
-      for (const n of npcs) { const hot = wantsTalk(n); n.marker.visible = hot && !dlg.open && !photo.on && !(overture && overture.active); if (hot) icons.push({ kind: 'npc', x: n.x, y: n.y, color: '#e0a21a', pin: true }); }
+      for (const n of npcs) if (wantsTalk(n)) icons.push({ kind: 'npc', x: n.x, y: n.y, color: '#e0a21a', pin: true });
       for (const o of sideObjectives()) icons.push({ kind: 'quest2', x: o.at[0], y: o.at[1] });
       if (ob && ob.at) icons.push({ kind: 'quest', x: ob.at[0], y: ob.at[1], pin: true });
       if (waypoint) icons.push({ kind: 'waypoint', x: waypoint[0], y: waypoint[1], pin: true });
@@ -6392,7 +6515,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
     // (on a perch, Space or the Time-lapse button held: the evening runs fast, the crowd at its own pace; perch.js warp)
-    { const wm = perch && !clock.frozen ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
+    if (waitRun) waitStep(dt); // (waiting with someone on the wall: the night passes by itself, walktalk.js wait)
+    { const wm = perch && !clock.frozen && !waitRun ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
       const lk = gamepad.look;
@@ -7742,6 +7866,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }]],
       onEnd: () => { liftHop = -1; if (A.liftChime) A.liftChime(); H.toast(`${b.name}.`); } });
   }
+  // a view turned to yaw, or to the nearest of the turns either side of it (up to 0.6 rad) where the chase camera's place
+  // behind your shoulder, and 1.5 m past it, is clear (nav.clearFraction): the first that is, else yaw
+  function hallYaw(yaw) {
+    const hd = W(player.x, player.y, player.z + 1.55), c = new THREE.Vector3(), r = FOOT.dist + 1.5, cp = Math.cos(FOOT.pitch) * r;
+    for (const d of [0, 0.15, -0.15, 0.3, -0.3, 0.45, -0.45, 0.6, -0.6]) {
+      const y = yaw + d;
+      c.set(hd.x - Math.sin(y) * cp, hd.y + Math.sin(FOOT.pitch) * r, hd.z + Math.cos(y) * cp);
+      if (nav.clearFraction(hd, c) >= 0.99) return y;
+    }
+    return yaw;
+  }
   // where to step to for a view turned to `at` [x, y]: null where the chase camera already has its place behind your
   // shoulder that way, else the nearest place toward it, within 6 m and walked to in a straight line, where it has
   function lookRoom(at) {
@@ -8172,7 +8307,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
   // the street's own people (regulars.js, issue 168): a few of the crowd with a routine the clock carries, on the walk
   if (window.OERegulars && G.regulars && crowd.enlist) regulars = OERegulars.create({ data: G.regulars, crowd, redress: (p, d) => !!(crowdDraw && crowdDraw.redress && crowdDraw.redress(crowd.P.indexOf(p), d)), clock: () => clock.min, day: () => clock.y * 372 + clock.m * 31 + clock.d, rain: () => !!(weather && weather.state && weather.state.rain > 0.15), here: () => player, ground: (x, y) => { const w = nav.walk(x, y, nav.terrain(x, y) + 0.6, true); return w.ok ? w.z : null; } }); // (the street's ground there, whatever floor you are on)
-  window.__game = { bounds: () => bounds, walkStart: sp => startWalk(sp), heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, storyTalking: talking, tonight: () => tonight, regulars: () => regulars, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { marks, bounds: () => bounds, walkStart: sp => startWalk(sp), heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, storyTalking: talking, tonight: () => tonight, regulars: () => regulars, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },

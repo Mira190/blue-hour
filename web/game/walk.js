@@ -138,6 +138,8 @@ window.OEWalk = (function () {
     const keyLine = (m = 'foot') => {
       if (m === 'car') return ctx.touch ? '<span>The stick drives, brakes and steers</span><span>At the right: the hand brake, the horn, the view</span><span>Stopped: tap Get out</span>'
         : `<span>${K('W')}${K('S')}drive · brake</span><span>${K('A')}${K('D')}steer</span><span>${K('Space')}hand brake</span><span>${K('H')}horn</span><span>${K('V')}view</span><span>${K('E')}get out</span>`;
+      if (m === 'wait') return ctx.touch ? '<span>The night passes by itself</span><span>Tap Stand up to stop waiting</span>' // (waiting with someone on the wall: nothing to hold, walktalk.js wait)
+        : `<span>the night passes by itself</span><span>${K('E')}stand up</span>`;
       if (m === 'seat') return ctx.touch ? '<span>Drag to look round</span><span>Hold Time-lapse: the evening passes</span>' // (on a perch: game.js, perch.js)
         : `<span>drag to look round</span><span>${K('Space')}hold: the evening passes</span><span>${K('E')}stand up</span>`;
       if (m === 'heli') return ctx.touch ? '<span>Up and Down climb and descend</span><span>The stick flies and turns</span><span>Set down: tap Get out</span>'
@@ -166,7 +168,7 @@ window.OEWalk = (function () {
       const r = ctx.ride ? ctx.ride() : { mode: 'foot' };
       const g = r.mode === 'car' ? `${Math.round(r.kmh)} km/h` : r.mode === 'heli' ? (r.rotor < 0.9 ? `Rotor ${Math.round(r.rotor * 100)}% · lifts at 90` : `${Math.round(r.kmh)} km/h · ${Math.round(r.up)} m up`) : '';
       if (force || g !== shown.g) { const e = hud.querySelector('.g'); e.textContent = g; e.hidden = !g; }
-      if (r.mode !== mode && (r.mode === 'foot' || r.mode === 'car' || r.mode === 'heli' || r.mode === 'seat')) { // (in or out: the keys for what you are in now, the first time on this walk)
+      if (r.mode !== mode && (r.mode === 'foot' || r.mode === 'car' || r.mode === 'heli' || r.mode === 'seat' || r.mode === 'wait')) { // (in or out: the keys for what you are in now, the first time on this walk)
         mode = r.mode;
         if (!taught.has(mode)) { taught.add(mode); keys.innerHTML = keyLine(mode); keys.classList.add('on'); keysT = 0; walked = 0; lastXY = null; }
         else keys.classList.remove('on');
