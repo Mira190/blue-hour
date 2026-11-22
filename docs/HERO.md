@@ -1476,3 +1476,13 @@ head is red out to the ear; a pale patch sits over the inner half of each eye; t
 the neck red. The red is redder than the tan it was. The whiskers' dark keratin is set on their shader, since the
 exporter of Blender 5.2.3 (the version the builds use) reads the shader rather than the viewport colour, and they
 had come out white.
+
+**The whiskers on a phone** (November 2026). A whisker is a tube 0.5 mm across at its root and 0.04 mm at its tip: at
+the story's close shot a third of a pixel. A desktop's four samples a pixel caught it as a faint line; a phone draws
+without multisampling, and a strand that narrow fell between the pixels' centres and came out as broken dark dots
+round the muzzle (the owner, on an iPhone: "black dots round the cheeks"). `web/game/companion.js` `thin()` draws each
+whisker at least a pixel wide and as faint as the share of that pixel it really covers (phone-wire anti-aliasing,
+Emil Persson, 2011: the method, no code): each vertex's offset from the middle of its ring (its two nearest vertices,
+found as the model loads) is stretched in the vertex shader after the skin has posed it, until the tube is 0.6 px
+either side, and the fragment's alpha is the true width over the drawn one. A phone and a desktop now draw the same
+faint lines (`tools/coat_shot.js FACE=1`, with `AA=1` for a desktop's samples).
