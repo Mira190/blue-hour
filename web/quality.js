@@ -100,7 +100,7 @@ window.OEQuality = (function () {
   const TKEY = id => `bh-tier-${id}`, UP0 = 60000, UPMAX = 960000;
   function stepped(id = mapId()) {
     const d = id ? note(TKEY(id)) : null;
-    return { down: d ? Math.max(0, Math.min(2, d.down | 0)) : 0, wait: d && d.wait ? Math.max(UP0, Math.min(UPMAX, d.wait)) : UP0, upAt: (d && d.upAt) || 0 };
+    return { down: d ? Math.max(0, Math.min(2, d.down | 0)) : 0, wait: d && d.wait ? Math.max(UP0, Math.min(UPMAX, d.wait)) : UP0, upAt: (d && d.upAt) || 0, flat: (d && d.flat > 0 && +d.flat) || 0 };
   }
   // how many tiers further down this device can go from where it draws now (0 where it cannot step: a phone, a chosen tier)
   function room(c = probe()) {
@@ -108,13 +108,22 @@ window.OEQuality = (function () {
     if (t.chosen || lean(c) || t.name === 'still') return 0;
     return Math.max(0, ORDER.indexOf('low') - ORDER.indexOf(t.name));
   }
-  // dir -1: a tier down, +1: one back up; returns the new step (tiers below the device's own)
-  function tierStep(dir, id = mapId()) {
+  // dir -1: a tier down, +1: one back up; returns the new step (tiers below the device's own). flat: the frame time (ms)
+  // a step down was taken at and did not lower (the governor's judge, below), kept with the step so that the next
+  // visit neither starts on the lower tier nor asks for it again at that frame time; 0 leaves the mark as it was
+  function tierStep(dir, id = mapId(), flat = 0) {
     const s = stepped(id), now = Date.now();
     if (dir < 0) { if (room() <= 0) return s.down; s.down++; if (s.upAt && now - s.upAt < 120000) s.wait = Math.min(UPMAX, s.wait * 2); }
     else if (s.down > 0) { s.down--; s.upAt = now; }
-    try { if (id) localStorage.setItem(TKEY(id), JSON.stringify({ down: s.down, wait: s.wait, upAt: s.upAt, t: now })); } catch (e) { /* storage blocked */ }
+    if (flat > 0) s.flat = Math.round(flat * 10) / 10;
+    try { if (id) localStorage.setItem(TKEY(id), JSON.stringify({ down: s.down, wait: s.wait, upAt: s.upAt, flat: s.flat || undefined, t: now })); } catch (e) { /* storage blocked */ }
     return s.down;
+  }
+  // the mark alone (the step itself was taken back through the game's own call)
+  function tierFlat(ms, id = mapId()) {
+    const s = stepped(id);
+    if (!id || !(ms > 0)) return;
+    try { localStorage.setItem(TKEY(id), JSON.stringify({ down: s.down, wait: s.wait, upAt: s.upAt, flat: Math.round(ms * 10) / 10, t: Date.now() })); } catch (e) { /* storage blocked */ }
   }
   function override() {
     try { const v = localStorage.getItem(KEY); return ORDER.includes(v) ? v : null; } catch (e) { return null; }
@@ -371,7 +380,7 @@ window.OEQuality = (function () {
     // every four seconds for as long as the frame stays within 8% of its time at the floor (flatBase; flatTop: the
     // step that went over). Frames that fit again end it, and the ordinary way up takes over; the scale it reached
     // stays the floor for two minutes (kept), so that the next slow stretch does not pay the floor to learn it again.
-    let flat = false, e0 = 0, flatBase = 0, flatTry = 0, flatTop = Infinity, kept = 0, keptAt = 0;
+    let flat = false, e0 = 0, flatBase = 0, flatTry = 0, flatTop = Infinity, flatEx = Infinity, kept = 0, keptAt = 0, halfWait = 30000;
     let clock = 0, fullT = 0, top = Infinity, topAt = 0, topWait = BAD0, bad = Infinity, badAt = 0, rose = false, roseAt = 0, exBad = Infinity, exAt = 0, exWait = EX0;
     const failed = level => {
       if (rose && clock - roseAt < topWait) { topWait = top !== Infinity && clock - topAt < 4 * topWait ? Math.min(BADMAX, topWait * 2) : BAD0; top = level; topAt = clock; }
@@ -436,7 +445,7 @@ window.OEQuality = (function () {
         ema = robust();
         if (g.auto) decide(fms);
       },
-      reset() { last = 0; ema = 0; rn = ri = 0; starveT = slowT = floorHeld = comfyT = tierCool = 0; since = calm = floorT = 0; flat = false; e0 = flatTry = kept = 0; flatTop = Infinity; },
+      reset() { last = 0; ema = 0; rn = ri = 0; starveT = slowT = floorHeld = comfyT = tierCool = 0; since = calm = floorT = 0; flat = false; e0 = flatTry = kept = 0; flatTop = flatEx = Infinity; halfWait = 30000; judging = 0; },
       get flat() { return flat; },
       set(scale, extras) { change(scale ?? g.scale, extras ?? g.extras); },
       // for the checks: frames of frameOf(scale, extras) milliseconds on a clock of its own, as a GPU would show
@@ -465,15 +474,32 @@ window.OEQuality = (function () {
       starveT = slowT = floorHeld = comfyT = 0; tierCool = 10000;
       for (const fn of tierSubs) try { fn(dir); } catch (e) { console.warn('governor: tier', e); }
     }
+    // A tier down is judged (issue 184). What a tier changes within a session is pixels (the canvas's budget, the
+    // samples, the shadow map's size), and a frame that is slow for something else is as slow on the tier below:
+    // Safari 18.6 on an M3 stepped medium → low within twenty seconds in four runs of four, drew 35 to 38 ms a frame
+    // on both (its time is spent on the frame's four thousand WebGL calls, after the script), and kept low for good,
+    // for the next visit too. So ten seconds after a step down the frame is set against the one it was taken at: a
+    // step that did not make it at least 10% shorter, or fit, is taken back at once, and the frame time it failed at is
+    // kept with the tier (tierStep's flat, fourteen days), so that neither this visit nor the next asks again unless
+    // the frames come to half as long again as that (a heavier scene, or another cause).
+    let judging = 0, flatMs = -1;
+    const tierFlatNow = () => { if (flatMs < 0) { try { flatMs = stepped().flat || 0; } catch (e) { flatMs = 0; } } return flatMs; };
     // the tier's way down and up (see above), once a frame in play
     function tierWatch(ms, load) {
       if (tierCool > 0) { tierCool -= ms; return; }
       if (rn < WIN) return; // (a full window of frames first)
+      if (judging) {
+        const was = judging; judging = 0;
+        if (ema > 0.9 * was && ema > 1.15 * Math.max(g.cap > 0 ? 1000 / g.cap : 0, refresh || 1000 / 60)) { flatMs = was; tierAsk(1); try { tierFlat(was); } catch (e) { /* no map */ } return; }
+      }
       const spent = g.extras <= 0 && (g.scale <= g.min + 1e-6 || flat);
       slowT = ema > 50 ? slowT + ms : 0;
       starveT = spent && load > 1.15 ? starveT + ms : 0;
       floorHeld = spent ? floorHeld + ms : 0;
-      if (g.tierRoom > 0 && (slowT > 6000 || starveT > 8000 || floorHeld > 20000)) { tierAsk(-1); return; }
+      if (g.tierRoom > 0 && (slowT > 6000 || starveT > 8000 || floorHeld > 20000)) {
+        if (tierFlatNow() && ema < 1.5 * flatMs) { slowT = starveT = floorHeld = 0; return; } // (a step down did not help at this frame time)
+        const at = ema; tierAsk(-1); judging = at; return;
+      }
       comfyT = g.scale >= g.max - 1e-6 && g.extras >= 1 && !halved && load <= 1.04 ? comfyT + ms : 0;
       if (g.tierDown > 0 && comfyT > g.upWait) tierAsk(1);
     }
@@ -484,7 +510,9 @@ window.OEQuality = (function () {
       // at half the display's rate, frames that come at its full rate again say the scene has lightened: full rate
       // is the aim again at once, with no step to see (before, half rate stayed while the resolution climbed to
       // its ceiling under it, and a heavy half minute left a device at thirty frames a second for good)
-      if (halved && ema < 0.7 * target) { fullT += ms; if (fullT > 2000) { halved = false; fullT = 0; calm = 0; return; } } else fullT = 0;
+      // (and what did not fit at half the rate was the heavier scene's: the steps that failed there, and the waits that
+      // doubled, are let go, or a device that had sat at thirty climbed back a step every ten seconds)
+      if (halved && ema < 0.7 * target) { fullT += ms; if (fullT > 2000) { halved = false; fullT = 0; calm = 0; wait = 4000; top = bad = Infinity; rose = false; halfWait = 30000; return; } } else fullT = 0;
       if (since < 1000) return; // (a change settles into the average first)
       // under ten frames a second, six times over the frame's budget, is not a step's worth: everything a frame can
       // do without goes at once, and what the device can afford comes back by the ordinary way up (not while the
@@ -492,6 +520,10 @@ window.OEQuality = (function () {
       if (!flat && ema >= 100 && load > 6 && (g.scale > g.min + 1e-6 || g.extras > 0)) { tried = 0; calm = 0; floorT = 0; if (climbing) { climbing = false; wait = 4000; } failed(g.scale); change(g.min, 0); return; }
       if (load > 1.15) {
         calm = 0;
+        // (3: full rate, after half a minute at half of it. Half again at once, with nothing stepped down, and the next
+        // try waits twice as long, to eight minutes: a device whose frames cost the same at any size went down its
+        // whole ladder each time, its resolution and its extras, every minute and a half)
+        if (tried === 3 && since < 4000) { tried = 0; halved = true; halfWait = Math.min(480000, halfWait * 2); return; }
         if (tried && since < 4000) { // the try up did not fit (2: it was the extras')
           if (climbing) { climbing = false; wait = 4000; }
           wait = Math.min(64000, wait * 2);
@@ -504,8 +536,14 @@ window.OEQuality = (function () {
         const want = Math.max(0.85, Math.min(0.95, Math.sqrt(1 / load))); // (pixels go with the square of the scale)
         const midFloor = Math.max(g.min, Math.min(g.mid, g.max));
         if (flat) { // (see above: the pixels are not what these frames cost)
-          if (flatTry) { const worse = ema > 1.08 * flatBase; flatTry = 0; if (worse) { flatTop = g.scale; change(g.scale - STEP, g.extras); return; } }
-          if (since >= 4000 && g.scale + STEP <= g.max + 1e-6 && g.scale + STEP < flatTop - 1e-6) { flatTry = 1; change(g.scale + STEP, g.extras); return; }
+          if (flatTry && !(flatTry === 2 && since < 2500)) { const worse = ema > 1.08 * flatBase, ex = flatTry === 2; flatTry = 0; if (worse) { if (ex) { flatEx = g.extras; change(g.scale, g.extras - 0.5); } else { flatTop = g.scale; change(g.scale - STEP, g.extras); } return; } }
+          if (flatTry) return;
+          // (and the extras: what a frame sheds is given back as the resolution is, where it bought nothing. Safari's
+          // frames, the same with every extra as with none, kept none of them for good: the wet street's mirror, the
+          // contact shadows, a quarter of the crowd. Each half comes back for as long as the frame stays within 8%.
+          // While a try is left, nothing else is decided: half the display's rate was taken before the first)
+          const upS = g.scale + STEP <= g.max + 1e-6 && g.scale + STEP < flatTop - 1e-6, upE = g.extras < 1 && g.extras + 0.5 < flatEx;
+          if (upS || upE) { if (since >= 4000) { flatTry = upS ? 1 : 2; change(upS ? g.scale + STEP : g.scale, upS ? g.extras : g.extras + 0.5); } return; }
         }
         const keep = kept && clock - keptAt < 120000 ? Math.min(kept, g.max) : 0;
         const floor = flat ? g.scale : Math.max(keep, g.extras > 0 ? midFloor : g.min);
@@ -518,17 +556,20 @@ window.OEQuality = (function () {
         if (floorT < 3000) return;
         floorT = 0;
         // (e0 unknown: a device that opened at the floor, from its record. It is asked a step up in the same way)
-        if (!flat && g.extras <= 0 && g.min < midFloor - 1e-6 && g.scale <= g.min + 1e-6 && (!e0 || ema > 0.85 * e0)) { flat = true; flatBase = ema; flatTop = Infinity; flatTry = 0; top = bad = Infinity; if (e0) change(midFloor, g.extras); else since = 4000; return; }
-        if (!halved && (flat || g.scale <= g.min + 1e-6 || (g.extras <= 0 && g.scale <= keep + 1e-6)) && load < 1.9) { halved = true; wait = 4000; return; } // half the display's rate, evenly
-        if (g.extras > 0) { exFailed(g.extras); change(g.scale, g.extras - 0.5); }
+        if (!flat && g.extras <= 0 && g.min < midFloor - 1e-6 && g.scale <= g.min + 1e-6 && (!e0 || ema > 0.85 * e0)) { flat = true; flatBase = ema; flatTop = flatEx = Infinity; flatTry = 0; top = bad = Infinity; if (e0) change(midFloor, g.extras); else since = 4000; return; }
+        // (within reach of half the display's rate: up to 15% over it, as a step down is judged. It was 1.9, and Safari
+        // on an M3, at 35 to 38 ms a frame whatever it drew, aimed at 16.7 ms for good: issue 184)
+        if (!halved && (flat || g.scale <= g.min + 1e-6 || (g.extras <= 0 && g.scale <= keep + 1e-6)) && load < 2.3) { halved = true; wait = 4000; return; } // half the display's rate, evenly
+        if (g.extras > 0 && !flat) { exFailed(g.extras); change(g.scale, g.extras - 0.5); } // (in flat, the extras there are the ones a try showed cost nothing)
         return;
       }
       floorT = 0;
       if (load > 1.04) { calm = 0; return; } // on the edge: hold
       if (flat) { kept = g.scale; keptAt = clock; }
-      if (flat || e0) { flat = false; e0 = flatTry = 0; flatTop = Infinity; } // (frames that fit: the ordinary way up from here)
+      if (flat || e0) { flat = false; e0 = flatTry = 0; flatTop = flatEx = Infinity; } // (frames that fit: the ordinary way up from here)
       calm += ms;
-      if (tried && since >= 4000) tried = 0; // the try up held
+      if (tried && since >= 4000) { if (tried === 3) halfWait = 30000; tried = 0; } // the try up held
+      if (judging) return; // (a tier step being judged: nothing climbs under it)
       if (calm < wait) return;
       calm = 0;
       if (g.scale < g.max - 1e-6) {
@@ -539,9 +580,9 @@ window.OEQuality = (function () {
         tried = 2; top = bad = Infinity; rose = false; change(g.scale, g.extras + 0.5);
       }
       else if (climbing && g.extras >= 1) { climbing = false; wait = 4000; }
-      else if (halved && since >= 30000) { halved = false; }
+      else if (halved && since >= halfWait) { halved = false; tried = 3; since = 0; } // (full rate asked for again, as a try: see the try's failure above)
     }
     return g;
   }
-  return { probe, auto, tier, stepped, room, tierStep, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, lostHere: () => lostHere, governor, TIERS, ORDER, NAMES };
+  return { probe, auto, tier, stepped, room, tierStep, tierFlat, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, lostHere: () => lostHere, governor, TIERS, ORDER, NAMES };
 })();
