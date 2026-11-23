@@ -855,9 +855,12 @@ two reasons that are now both closed.
 - **Nothing looked at the glass.** At each Stop where a level's cube has been taken, the play now reads the cube back
   (`hero.probes()`): it must be drawn (over half its texels lit), hold no texel that is no number, and under 0.2% at
   128 or more (a right cube of the roof at night has none; the guide's whiskers put a third of its sky at 65504).
-  Then it takes the picture twice, with the glass and without it (`hero.glass(false)`): a pane a fifth opaque that
-  mirrors a dusk changes little, so the play fails when more than 5% of the picture differs by more than 48 of 255 in
-  a channel. A black pane, or garbage in it, is most of the roof's picture. Both are in every play that reaches a
+  Then it takes the picture twice, with the glass and without it (`hero.glass(false)`), and over the pane's footprint
+  (the pixels the two differ in) sets how light the picture is with the glass against without it: a pane a fifth
+  opaque that adds what it mirrors leaves it about as light (1.1 times on a desktop, 1.9 on a phone, whose 64-pixel
+  cube spreads the towers' lamps over the pane); the black pane left it at 0.35 to 0.4, garbage on Mesa at 3.4. The
+  play fails under 0.7 or over 3. The camera eases between the two pictures, so they are not compared pixel by pixel.
+  Both are in every play that reaches a
   Stop on the roof, so in `story1`, `budget1`, `storyp` and `storyl`; with `STILLS=1` the picture without the glass is
   kept beside the still (`4-stop-no-glass.png`).
 

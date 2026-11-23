@@ -371,8 +371,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // The glass that mirrors its place (issue 203: after a play from the title SKY STAGE's glass was black on a Mac's GPU,
   // nothing of the city showing through it, and the man at it had a black mask for a face). At a Stop where a level's
   // cube has been taken: the cube itself is read (drawn, no texel that is no number, none at 128 or more: the guide's
-  // whiskers filled a third of its sky with 65504), and the picture is taken twice, with the glass and without it. A
-  // pane is a fifth opaque and mirrors a dusk: the two pictures are nearly one. A pane that is black, or garbage, is not.
+  // whiskers filled a third of its sky with 65504), and the picture is taken twice, with the glass and without it: what is
+  // behind a pane must still be there with it.
   const glassLook = async name => {
     const hero = () => { const h = window.__game && window.__game.hero && window.__game.hero(); return h && h.probes ? h : null; };
     const cubes = await p.evaluate(`(${hero})() ? (${hero})().probes() : []`).catch(() => []);
@@ -391,18 +391,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await p.evaluate(`(${hero})().glass(true)`);
     if (!withIt || !without) return;
     if (!NOSTILL) fs.writeFileSync(`${out}/${name}-no-glass.png`, without);
-    // (compared in a page of its own: the share of the picture that differs by more than 48 of 255 in a channel)
+    // (compared in a page of its own, over the pane's footprint, the pixels the two pictures differ in at all: a pane
+    // that is right is a fifth opaque and adds what it mirrors, so the footprint is about as light with it as without,
+    // lighter where a phone's small cube spreads the towers' lamps over it (1.9 times, measured); a black pane left it
+    // at 0.35 to 0.4 of the picture behind, and garbage on Mesa at 3.4 times. The camera eases between the two
+    // pictures, so they are not compared pixel by pixel: the share that differs widely is printed, not judged)
     const q = await b.newPage();
-    const far = await q.evaluate(async ([A, B]) => {
+    const r = await q.evaluate(async ([A, B]) => {
       const px = async s => { const im = await createImageBitmap(await (await fetch(`data:image/png;base64,${s}`)).blob()), c = new OffscreenCanvas(im.width, im.height), g = c.getContext('2d'); g.drawImage(im, 0, 0); return g.getImageData(0, 0, im.width, im.height).data; };
-      const a = await px(A), b2 = await px(B);
-      let n = 0;
-      for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b2[i]) > 48 || Math.abs(a[i + 1] - b2[i + 1]) > 48 || Math.abs(a[i + 2] - b2[i + 2]) > 48) n++;
-      return n / (a.length / 4);
-    }, [withIt.toString('base64'), without.toString('base64')]).catch(e => { console.log('(the glass not compared)', String(e).slice(0, 120)); return 0; });
+      const a = await px(A), b2 = await px(B), L = (d, i) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+      let n = 0, far = 0, la = 0, lb = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.max(Math.abs(a[i] - b2[i]), Math.abs(a[i + 1] - b2[i + 1]), Math.abs(a[i + 2] - b2[i + 2]));
+        if (d > 48) far++;
+        if (d > 8) { n++; la += L(a, i); lb += L(b2, i); }
+      }
+      const all = a.length / 4;
+      return { pane: n / all, far: far / all, k: n ? la / Math.max(lb, 1) : 1 };
+    }, [withIt.toString('base64'), without.toString('base64')]).catch(e => { console.log('(the glass not compared)', String(e).slice(0, 120)); return null; });
     await q.close();
-    console.log(`  ${name}: with the glass and without it, ${(far * 100).toFixed(1)}% of the picture differs by more than 48 of 255${far > 0.05 ? ' (WRONG)' : ''}`);
-    if (far > 0.05) { errors.push(`${name}: the glass hides what is behind it`); console.log(`error: ${name}: the glass hides what is behind it: ${(far * 100).toFixed(1)}% of the picture is another picture with it (issue 203)`); }
+    if (!r || r.pane < 0.02) return; // (no pane in the picture)
+    const wrong = r.k < 0.7 ? 'the glass blacks out what is behind it' : r.k > 3 ? 'the glass is a glare over what is behind it' : '';
+    console.log(`  ${name}: with the glass, its ${(r.pane * 100).toFixed(0)}% of the picture is ${r.k.toFixed(2)} times as light as without it (${(r.far * 100).toFixed(1)}% of the picture differs by more than 48 of 255)${wrong ? ' (WRONG)' : ''}`);
+    if (wrong) { errors.push(`${name}: ${wrong}`); console.log(`error: ${name}: ${wrong}: ${r.k.toFixed(2)} times as light with it (0.7 to 3; issue 203)`); }
   };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
