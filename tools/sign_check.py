@@ -15,6 +15,8 @@ that happen:
   - an upright face with nothing within half a metre behind it: anyone who passes behind it, looks down from a deck
     or flies over sees it mirrored. pipeline/landmarks.py gives every upright picture a plain back (sign_back),
     which the test before looks past.
+  - a picture whose middle and whose front are inside one of the buildings' solids: in the wall, or behind it.
+    pipeline/landmarks.py moves such a picture out to the building's face (signs_out).
 Meshes whose material has a picture (a "map": sign atlases, the LED screens' programmes) are looked
 at; the aerial photo draped on a landmark's ground is not a picture to read, nor are leaf cards cut out
 of an atlas ("cutout").
@@ -210,7 +212,7 @@ def check(city):
         if not F:
             continue
         # turned to a wall: blocked in front, open behind
-        bad += turned(mesh["name"], F, solids)
+        bad += turned(mesh["name"], F, solids, buried=True)
         flipped = [f for f in F if f[2] < 0]
         for f in flipped:
             bad.append((mesh["name"], "picture against its winding", f[0]))
@@ -239,7 +241,7 @@ def check(city):
     return bad
 
 
-def turned(name, F, solids):
+def turned(name, F, solids, buried=False):
     """The faces of F seen from behind: turned to a wall (blocked in front within REACH and open behind, a sign's
     own back panel aside), or upright with nothing behind them at all, where anyone who passes behind, looks down
     from a deck or flies over sees the picture mirrored (a floor's picture aside)."""
@@ -249,6 +251,8 @@ def turned(name, F, solids):
             continue
         if solids.blocked(f[0], f[1], backs=False) and not solids.blocked(f[0], -f[1], backs=False):
             bad.append((name, "picture turned to a wall, seen from behind", f[0]))
+        elif buried and solids.inside(f[0]) and solids.inside(f[0] + f[1] * 0.25):
+            bad.append((name, "picture inside a building, its front in the wall", f[0]))
         elif abs(f[1][2]) < 0.7 and not solids.blocked(f[0], -f[1]) and not solids.blocked(f[0], f[1]):
             bad.append((name, "picture with nothing behind it, seen mirrored from behind", f[0]))
     return bad

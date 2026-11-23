@@ -116,6 +116,9 @@ MEDIAN_N, SIGMA_M = 13, 5.0  # the smoothing along a line (samples a metre apart
 COVER = 0.4          # the share of a node's cell a landmark's flat faces cover for the node to be the landmark's
 HOLE_M = 2.0         # a closed hollow deeper than this under its rim is a hole of the survey's (see holes())
 HOLE_NODES = 80      # and this many nodes at most (2000 m2): a larger hollow is the land's shape
+VIADUCT_M = 2.5       # a track this far over the lowest ground near it stands on an embankment or a viaduct
+VIADUCT_LOOK_M = 20.0 # ... near: within this of it
+VIADUCT_SIDE_M = 12.0 # the survey's smear of an embankment reaches this far from a track's middle (the bed's 2.1 m and two cells)
 LOT_OPEN_M = 15.0    # ground further than this from every building is open land (a park, a railway's corridor): surveyed
 LAST = {}            # the masks of the last lots(), for a tool that asks why a node is as it is
 VERSION = 4
@@ -669,6 +672,41 @@ def standing(G, out):
     return np.asarray(img, bool)
 
 
+def viaduct(G, game):
+    """The nodes under and beside a railway's bed where it stands over the ground round it: an embankment or a viaduct.
+
+    The survey has the Yamanote's embankment in it as earth: 4 to 5 m of it, smeared by the 5 m grid over a cell or
+    two either side of the bed's walls, and kept as surveyed because the bed's ballast lay on it. So beside the line
+    the paving climbed a bank to the foot of a wall that stood on the bank's top, where the place has a vertical wall
+    from the street to the bed (issues 158 and 163: the paved mound against a viaduct). From first principles the
+    embankment is a built thing, not ground: the bed stands on its walls (cities/<id>/rail.py draws them from the bed
+    down to the ground, and a girder over each street), and nothing is known of the ground under it but the ground
+    round it. So the nodes within VIADUCT_SIDE_M of a track that stands VIADUCT_M or more over the lowest ground
+    within VIADUCT_LOOK_M of it are unknown: lots() gives them the level of the open ground nearest them. A track at
+    grade or in a cutting keeps its survey: the cutting is ground."""
+    out = np.zeros((G.ny, G.nx), bool)
+    lo = ndimage.minimum_filter(G.T, size=2 * int(VIADUCT_LOOK_M / G.cell) + 1)
+    gy, gx = np.mgrid[0:G.ny, 0:G.nx]
+    for tr in (game.get("trains") or {}).get("tracks", []):
+        p = np.asarray(tr["p"], np.float64).reshape(-1, 3) / 10
+        if len(p) < 2:
+            continue
+        d = np.r_[0, np.cumsum(np.hypot(*np.diff(p[:, :2], axis=0).T))]
+        s = np.arange(0, d[-1], G.cell / 2)
+        x, y, z = (np.interp(s, d, p[:, k]) for k in range(3))
+        rr, cc = nodes_of(G, np.stack([x, y], 1))
+        up = z - lo[rr, cc] >= VIADUCT_M
+        # (a stretch of it, not a point: closed over gaps of 20 m, and nothing shorter than 30 m)
+        k = int(40 / G.cell)
+        up = ndimage.binary_opening(ndimage.binary_closing(up, np.ones(k)), np.ones(int(1.5 * k)))
+        r = int(np.ceil(VIADUCT_SIDE_M / G.cell))
+        for xi, yi in zip(x[up], y[up]):
+            c0, r0 = int(round((xi - G.x0) / G.cell)), int(round((G.y1 - yi) / G.cell))
+            sl = np.s_[max(0, r0 - r):r0 + r + 1, max(0, c0 - r):c0 + r + 1]
+            out[sl] |= np.hypot(G.x0 + gx[sl] * G.cell - xi, G.y1 - gy[sl] * G.cell - yi) <= VIADUCT_SIDE_M
+    return out
+
+
 def stood(landmarks, G, built=None):
     """The nodes round a landmark's feet: a cell round every vertex of it within LANDMARK_M of the ground."""
     img = np.zeros((G.ny, G.nx), bool)
@@ -697,7 +735,7 @@ def stood(landmarks, G, built=None):
     return ndimage.binary_dilation(img, structure=np.ones((3, 3)))
 
 
-def lots(new, G, game, keep, alpha, water, out, on=None):
+def lots(new, G, game, keep, alpha, water, out, on=None, unknown=None):
     """The ground between the streets, as a membrane stretched from the streets round it: the grid, and the nodes of it.
 
     A bare-earth survey is made by taking the buildings out of a laser's surface, and in a town built wall to wall
@@ -713,7 +751,10 @@ def lots(new, G, game, keep, alpha, water, out, on=None):
     (keep: the water, a hero level's ground, a landmark's paving, the clearance under a raised part; the nodes
     by a street that it would not move, a bank or two levels). A block on a hillside keeps the hill: its streets
     carry it. A node the membrane would move more than MAX_MOVE_M is a terrace the streets do not tell of (a campus on
-    its own hill, a cutting): it stays, and the membrane is stretched over it too."""
+    its own hill, a cutting): it stays, and the membrane is stretched over it too.
+
+    `unknown`: nodes whose survey is of a built thing, not of ground (viaduct(): a railway's embankment). Like the
+    ground under a building they take the level of the open ground nearest them, however far that moves them."""
     from scipy import sparse
     from scipy.sparse.linalg import spsolve
     ny, nx, cell = G.ny, G.nx, G.cell
@@ -726,6 +767,11 @@ def lots(new, G, game, keep, alpha, water, out, on=None):
     fixed = keep | (near & ((alpha >= 0.999) | (alpha <= 0))) | (ndimage.distance_transform_edt(~bld) * cell > LOT_OPEN_M)
     if water is not None:
         fixed = fixed | water
+    if unknown is not None and unknown.any():
+        fixed = (fixed & ~unknown) | (unknown & near & (alpha >= 0.999))   # (a street under the line is the street's)
+        bld = bld | (unknown & ~fixed)
+    else:
+        unknown = np.zeros((ny, nx), bool)
     fixed[0, :] = fixed[-1, :] = fixed[:, 0] = fixed[:, -1] = True
     Z = new
     for _ in range(4):
@@ -764,7 +810,7 @@ def lots(new, G, game, keep, alpha, water, out, on=None):
         under = free & bld
         ir, ic = ndimage.distance_transform_edt(under, return_distances=False, return_indices=True)
         Z[under] = Z[ir, ic][under]
-        far = free & (np.abs(Z - new) > MAX_MOVE_M)
+        far = free & ~unknown & (np.abs(Z - new) > MAX_MOVE_M)
         if not far.any():
             break
         fixed = fixed | far
@@ -897,6 +943,15 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False, dry=Fal
     G, Gc = Ground(T, x0, y1, t["cell"]), Ground(Tc, x0, y1, t["cell"])
     on_ground(cid, game, Gc)
     keep, laid = protected(game, scene, landmarks, G, out)
+    # a railway's bed on an embankment is built (its walls, its bridges): the ground under and beside it is nobody's
+    # survey to keep, outside the hero levels (viaduct())
+    gy, gx = np.mgrid[0:T.shape[0], 0:T.shape[1]]
+    hero = np.zeros(T.shape, bool)
+    for h in game.get("hero", []):
+        if h.get("at") and h.get("r") and not h.get("graded"):
+            hero |= np.hypot(x0 + gx * t["cell"] - h["at"][0], y1 - gy * t["cell"] - h["at"][1]) < h["r"] + 2 * t["cell"]
+    via = viaduct(G, game) & ~hero
+    keep, laid = keep & ~via, laid & ~via
     centre = game["start"]["at"]
     rep = {"city": cid, "graded": t.get("levelled", 0), "radius_m": radius, "now": report(Tc, G, game, centre, radius, keep, Gc),
            "map_now": report(Tc, G, game, centre, 1e9, keep, Gc)}
@@ -917,19 +972,15 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False, dry=Fal
     # the ground between the streets, stretched from them (lots())
     # (every hero level's ground stays as it is now, whether or not the level draws it: each was built and looked at
     # on this ground, and the membrane is fixed along it)
-    gy, gx = np.mgrid[0:T.shape[0], 0:T.shape[1]]
-    held = np.zeros(T.shape, bool)
-    for h in game.get("hero", []):
-        if h.get("at") and h.get("r") and not h.get("graded"):
-            held |= np.hypot(x0 + gx * t["cell"] - h["at"][0], y1 - gy * t["cell"] - h["at"][1]) < h["r"] + 2 * t["cell"]
+    held = hero.copy()
     # (and the ground a landmark stands on: protected() keeps what lies under its flat faces for the streets, but a
     # hoarding, a crane's mast or a wall has only its feet on the ground, and with a lump of the survey taken from
     # under them the story's frame 5 hoarding hung 3 m in the air)
     import levels
-    held |= stood(landmarks, Gc, levels.record(cid)) & ~(alpha >= 0.999)
+    held |= stood(landmarks, Gc, levels.record(cid)) & ~(alpha >= 0.999) & ~via
     new = np.where(held, Tc, new)
     streets_only = new
-    new, lot = lots(new, G, game, keep | held, alpha, water, out, Gc)
+    new, lot = lots(new, G, game, keep | held, alpha, water, out, Gc, via)
     rep["lot_nodes"] = int((np.abs(new - streets_only) >= 0.05).sum())
     new = np.round(new / t["scale"]) * t["scale"]  # (as it is written, so that what is measured is what is walked)
     rep["nodes"] = int((np.abs(new - T) >= 0.005).sum())
