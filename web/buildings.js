@@ -116,10 +116,21 @@ window.OEBuildings = (function () {
       mesh.name = 'buildings'; mesh.matrixAutoUpdate = false; mesh.material = material;
       const byId = new Map(), T3 = THREE.ShapeUtils, open = A.open || null, base = (job && job.opt) || geoOptions(D, { lin, SRC, small, cells });
       let lods = {}, at = cells.at.slice(), busy = null;
+      // The cells in one draw (batch.js arena, issue 192): each cell's mesh is still made, for the visibility sweep to
+      // gate and for whoever asks what the map holds, but it is not in the scene: its vertices go into the arena's
+      // buffers on the GPU and the arena draws every cell the sweep and the frustum leave in one multi-draw.
+      // ?batch=off, or a browser without the means: a mesh a cell in the scene, as before
+      const ar = window.OEBatch && OEBatch.arena ? OEBatch.arena(renderer, material, { name: 'buildings-cells' }) : null;
+      if (ar) { ar.mesh.castShadow = ar.mesh.receiveShadow = true; mesh.add(ar.mesh); }
       const put = res => {
+        if (ar) { // (room for what comes, less what it replaces, made once)
+          let nv = 0, ni = 0, like = null;
+          for (const a of res.cells) { const old = byId.get(a.id); if (old && old.userData.slot) { nv -= old.userData.slot.nv; ni -= old.userData.slot.ni; } if (a.n) { nv += a.position.length / 3; ni += a.index.length; like = like || a; } }
+          if (like) ar.reserve(Math.max(0, nv), Math.max(0, ni), geometryOf(like));
+        }
         for (const a of res.cells) {
           const old = byId.get(a.id);
-          if (old) { mesh.remove(old); byId.delete(a.id); if (onCell) onCell(old, false); old.geometry.dispose(); }
+          if (old) { if (old.userData.slot) ar.remove(old.userData.slot); else mesh.remove(old); byId.delete(a.id); if (onCell) onCell(old, false); old.geometry.dispose(); }
           if (!a.n) continue;
           const g = geometryOf(a);
           g.computeBoundingBox();
@@ -127,8 +138,12 @@ window.OEBuildings = (function () {
           const m = new THREE.Mesh(g, material);
           m.castShadow = m.receiveShadow = true; m.name = 'buildings-cell'; m.userData.cell = a.id; m.userData.lod = a.lod;
           m.matrixAutoUpdate = false; m.updateMatrix();
-          byId.set(a.id, m); mesh.add(m);
+          byId.set(a.id, m);
+          const slot = ar ? ar.add(m) : null;
+          if (slot) m.userData.slot = slot; else mesh.add(m);
           if (onCell) onCell(m, true);
+          // (sent: what a phone lets go of a cell's arrays once they are the GPU's, world.js onCell, goes now)
+          if (slot) { for (const q of Object.values(g.attributes)) if (q.onUploadCallback) q.onUploadCallback(); if (g.index.onUploadCallback) g.index.onUploadCallback(); }
         }
         lods = res.lods;
         let v = 0, t = 0;

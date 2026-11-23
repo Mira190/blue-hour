@@ -4188,7 +4188,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // own score then leaves the bed to that one: film-score.js plan.under)
   // (opts.own: a film whose score is the only music while it plays, its own bed and all, whatever plays now: the walk's, which
   // lets the loading cue go as it sets out; opts.walk, opts.fill: the walk's film, and what its type's {tokens} say)
-  makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
+  // (a phone's music plays on media elements, one at a time, audio.js tune: the loading cue is let go as the film's score
+  // begins, so that score has its own bed; issue 166)
+  makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && ((cue && !A.tunes) || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     walk: !!opts.walk, fill: opts.fill || null, levelReady: () => levelReady(), get levelWait() { return LEVEL_WAIT_S; }, // (both read when played: they are declared further on)
     junctions, crowd, faceShare, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
@@ -4277,8 +4279,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const open = () => {
       const filmIt = overture && !cont && !arrive && !R && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
       // (on iOS the first touch may be Play itself: the loading cue is begun in that touch, after the opening's score was
-      // rendered with its own bed because there was no cue yet (film-score.js plan.under). One piece of music: the
-      // opening's own, and the cue let go before it sounds)
+      // rendered with its own bed because there was no cue yet (film-score.js plan.under); and a phone's score always has
+      // its own, its music being one element at a time (audio.js tune). One piece of music: the opening's own, and the cue
+      // let go before it sounds, faded out as the score's first second swells in from silence)
       if (filmIt && cue && overture.scorePlan && !overture.scorePlan().under) cueOut();
       if (filmIt && overture.play(then)) { renderPassport(); return; }
       if (!R && openingHere()) { // (#110: the opening shot, the scramble's walk turning green as it comes down)
@@ -4808,6 +4811,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (film) sndQuiet = 2;
         if (playing && !film && !held && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
       }
+      if (sndBed && sndBed.dead) sndBed = null; // (let go for a film's score: one tune at a time, audio.js tune; begun again after it)
+      if (cue && cue.dead) cue = false;
       if (playing && !film) {
         const street = !!A.ctx && A.ctx.state === 'running' && !A.holding && !A.gaveUp;
         if (sndCueOut && street) { sndCueOut = false; cueOut(); }

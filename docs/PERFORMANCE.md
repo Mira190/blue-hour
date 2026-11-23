@@ -2961,12 +2961,45 @@ The same views with the batches on and off (`tools/ab_shots.sh out '&batch=off'`
 dusk, at night and in rain, at 1440 x 900 on the high tier and 390 x 844 on the low) show the same picture, the rain's
 wet paving under the level's canopies included.
 
-### What is left over 250 draws
+### The buildings' cells in one draw (issue 192, second step)
 
-- **The buildings' cells, 27 to 45 draws of one material.** They are streamed round the player, hidden cell by cell by
-  the visibility sweep, and on a phone their arrays are the GPU's alone once sent; a BatchedMesh keeps every vertex in
-  the page's memory to add to its buffer. They want a buffer of their own kind: one GPU arena the cells are written
-  into as they come, a multi-draw over the cells the sweep and the frustum leave (issue in the tracker).
+The cells of the map round the player were a mesh and a draw each: 205 held on a phone by Hachiko (418,000 vertices,
+239,000 triangles), 27 to 45 of them drawn in a frame, all of one material. They are streamed (swapped for another
+level of detail as the player moves), hidden cell by cell by the visibility sweep, and on a phone their arrays are
+let go once sent (19 MB of vertices and 3 MB of indices that the page then does not hold). A BatchedMesh keeps every
+vertex in the page's memory to add to its buffer, so it would not do. `batch.js` `arena`:
+
+- **One buffer an attribute, the GPU's alone** (`THREE.GLBufferAttribute`): a cell's arrays are written into it with
+  `bufferSubData` as the cell comes, its range is given back as it goes (first fit, joined to its neighbours), and a
+  full buffer is grown by a tenth over what is asked through a copy on the GPU (`copyBufferSubData`). Room is made
+  once for a batch of cells. Writes go through `COPY_WRITE_BUFFER`, so no vertex array's state is touched.
+- **Drawn through three.js's own multi-draw path**: the arena's mesh says it is a batch (its matrices one identity:
+  every cell stands where it is), and before each pass it lists the index ranges of the cells to draw. With
+  `WEBGL_multi_draw` that is one call; without it three.js draws the ranges one by one, as many draws as before
+  (measured with the extension hidden, `NOEXT=WEBGL_multi_draw tools/phone_frame.js`: 42 draws of cells, the same picture).
+- **The sweep and the frustum as before**: a cell's mesh is still made, undrawn and out of the scene, and gated by
+  the visibility sweep as it was (`world.js` `onCell`, unchanged): the arena draws a cell while its mesh is on the
+  layer every camera sees, and inside the frustum of the pass being drawn (the view's, the shadow map's, the rain's
+  cover).
+- **A lost context**: on a phone the cells are the GPU's alone and the page loads again, as it did
+  (`tools/glcare_phone.js` passes with the arena in); on a desktop the arena makes its buffers again from the cells'
+  arrays (`tools/gl_restore_probe.js`: restored, no call refused, the buildings back in the frame after).
+
+What it found on the way: WebGL keeps index buffers apart from the rest by their first binding and will not copy one
+kind into the other. The arena's index buffer, grown through a copy into a buffer first bound elsewhere, lost every
+cell it held, and from 80 m up blocks of buildings were not drawn. It showed only in the stills with the batches on
+and off; nothing counted it. A grown index buffer is first bound as an index buffer.
+
+| emulated iPhone, on foot by Hachiko, four ways | before (main, 23 November) | with the cells in one draw |
+|---|---|---|
+| draws | 258 to 288 | 242 to 260 (and 291 where the player's parked car is in view) |
+| of which the buildings' cells | 27 to 45 | 1 |
+| GPU memory | 212 MB | 213 MB |
+
+### What is left
+
+- **The player's car parked by the Scramble** (since the first drive landed): about 77,000 triangles and 40 draws
+  in a phone's frame when it is in view, its full model with a physical material.
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
 - **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
   is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.
