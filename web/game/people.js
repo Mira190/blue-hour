@@ -812,12 +812,13 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 c2, float env) {
   vec3 t = normalize(vHairT), h = normalize(v + l);
   vec3 t1 = normalize(t + n * (-0.07 + 0.1 * hairJ)), t2 = normalize(t + n * (0.12 + 0.1 * hairJ));
   float spark = 0.3 + 1.4 * clamp(0.5 + hairJ, 0.0, 1.0);
-  // (HAIR_HEAD: the hair painted on a head's own mesh, a whole surface where the cards are wisps: its lobes at half, or a
-  // black head of hair is silver under a dusk sky, issue 123)
+  // (HAIR_HEAD: the hair painted on a head's own mesh. Issue 123 took its lobes and the cards' to half, against lobes that
+  // gave black hair a grey sheen fifty times its own; weighted as a fibre weights them they leave black hair black at
+  // full, and at half the head read as one dark shell in the close shot, #186 B)
 #ifdef HAIR_HEAD
-  float hK = 0.5 * vHairK;
+  float hK = vHairK;
 #else
-  float hK = 0.5; // (and the cards that lie on it, or they show pale round the lock down a back)
+  float hK = 1.0;
 #endif
   return (vec3(mix(0.07, 0.06, env) * hairKK(t1, h, mix(110.0, 64.0, env))) + c2 * (0.14 * hairKK(t2, h, mix(30.0, 20.0, env)))) * spark * hK * smoothstep(-0.25, 0.35, dot(n, l));
 }`;
