@@ -10,7 +10,7 @@ exports.hook = () => {
     0x81A5: 2, 0x81A6: 3, 0x88F0: 4, 0x8CAC: 4, 0x8CAD: 8, 0x1902: 4, 0x8D9F: 4, 0x8F94: 4, 0x8059: 4, 0x8236: 4, 0x8235: 4, 0x8234: 2, 0x8233: 1,
     0x8232: 1, 0x8231: 1, 0x823C: 8, 0x823B: 4, 0x823A: 4, 0x8239: 2, 0x8238: 2, 0x8237: 2, 0x8D70: 16, 0x8D76: 16, 0x8D7C: 4, 0x8D82: 16, 0x8D88: 16, 0x8D8E: 4,
     0x93B0: 1, 0x93D0: 1, 0x8E8C: 1, 0x8E8D: 1, 0x8DBD: 1, 0x8DBB: 0.5 }; // (ASTC 4x4, linear and sRGB, BC7 the same, BC5: sixteen bytes a block of sixteen texels; BC4 eight)
-  const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0, log: [], logged: 0 };
+  const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0, log: [], logged: 0, lost: 0 };
   // the load's own steps (game.js loadStep), each with the GPU memory and the heap when it was named: which step takes the memory
   const SP = window.__steps = [], pm = performance.mark.bind(performance);
   performance.mark = function (n, o) { if (n === 'oe:step') { try { SP.push({ step: o && o.detail && o.detail.step, t: +(performance.now() / 1000).toFixed(1), gpu: M.sum, heap: performance.memory ? performance.memory.usedJSHeapSize : 0 }); } catch (e) { /* no memory reading */ } } return pm(n, o); };
@@ -37,7 +37,7 @@ exports.hook = () => {
       const x = tex.get(`${unit}:${bindT}`);
       if (!x) return;
       let e = M.tex.get(x);
-      if (!e) M.tex.set(x, e = { levels: {}, bytes: 0, label: '' });
+      if (!e) M.tex.set(x, e = { levels: {}, bytes: 0, label: '', gl });
       e.levels[`${target}:${level}`] = bytes;
       if (label) e.label = label;
       e.bytes = Object.values(e.levels).reduce((a, b) => a + b, 0);
@@ -68,13 +68,13 @@ exports.hook = () => {
     proto.bindBuffer = function (t, x) { bufs.set(t, x); return o.bindBuffer.call(this, t, x); };
     proto.bufferData = function (t, d) {
       const x = bufs.get(t);
-      if (x) { M.buf.set(x, { bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex', src: d && d.buffer && typeof WeakRef === 'function' ? new WeakRef(d.buffer) : null }); bump('buffer'); } // (src: the page's own array, by which a report finds whose buffer it is)
+      if (x) { M.buf.set(x, { gl: this, bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex', src: d && d.buffer && typeof WeakRef === 'function' ? new WeakRef(d.buffer) : null }); bump('buffer'); } // (src: the page's own array, by which a report finds whose buffer it is)
       return o.bufferData.apply(this, arguments);
     };
     proto.deleteBuffer = function (x) { M.buf.delete(x); bump('- buffer'); return o.deleteBuffer.call(this, x); };
     proto.bindRenderbuffer = function (t, x) { rbBound = x; return o.bindRenderbuffer.call(this, t, x); };
-    proto.renderbufferStorage = function (t, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4), label: `${w}x${h} rb` }); bump(`${w}x${h} rb`); } return o.renderbufferStorage.call(this, t, f, w, h); };
-    if (o.renderbufferStorageMultisample) proto.renderbufferStorageMultisample = function (t, s, f, w, h) { if (rbBound) { M.rb.set(rbBound, { bytes: w * h * (BPP[f] || 4) * Math.max(1, s), label: `${w}x${h} rb x${s}` }); bump(`${w}x${h} rb`); } return o.renderbufferStorageMultisample.call(this, t, s, f, w, h); };
+    proto.renderbufferStorage = function (t, f, w, h) { if (rbBound) { M.rb.set(rbBound, { gl: this, bytes: w * h * (BPP[f] || 4), label: `${w}x${h} rb` }); bump(`${w}x${h} rb`); } return o.renderbufferStorage.call(this, t, f, w, h); };
+    if (o.renderbufferStorageMultisample) proto.renderbufferStorageMultisample = function (t, s, f, w, h) { if (rbBound) { M.rb.set(rbBound, { gl: this, bytes: w * h * (BPP[f] || 4) * Math.max(1, s), label: `${w}x${h} rb x${s}` }); bump(`${w}x${h} rb`); } return o.renderbufferStorageMultisample.call(this, t, s, f, w, h); };
     proto.deleteRenderbuffer = function (x) { M.rb.delete(x); bump('- rb'); return o.deleteRenderbuffer.call(this, x); };
   }
   // the largest of each kind now, and what the canvases' own buffers hold (colour, depth, at their size)
@@ -82,11 +82,21 @@ exports.hook = () => {
     const list = m => [...m.values()].sort((a, b) => b.bytes - a.bytes).slice(0, top).map(e => `${(e.bytes / 1048576).toFixed(1)} MB ${e.label}`);
     const sum = m => [...m.values()].reduce((a, e) => a + e.bytes, 0);
     const canv = [...document.querySelectorAll('canvas')].reduce((a, c) => a + (c.__gl ? c.width * c.height * 8 * 2 : 0), 0);
-    return { tex: sum(M.tex), buf: sum(M.buf), rb: sum(M.rb), now: M.sum, peak: M.peak, peakAt: M.peakAt, canvas: canv,
+    return { tex: sum(M.tex), buf: sum(M.buf), rb: sum(M.rb), now: M.sum, peak: M.peak, peakAt: M.peakAt, canvas: canv, lost: M.lost,
       topTex: list(M.tex), topBuf: list(M.buf), topRb: list(M.rb), nTex: M.tex.size, nBuf: M.buf.size };
   };
   const get = HTMLCanvasElement.prototype.getContext;
-  HTMLCanvasElement.prototype.getContext = function (type, opts) { const r = get.call(this, type, opts); if (r && /webgl/.test(type)) this.__gl = true; return r; };
+  // (a context lost takes everything it held with it, and no delete is called for any of it: what it held is let go here,
+  // and what the restore uploads again is counted afresh. Held on, a load that lost its context once on a shared
+  // machine's llvmpipe read 625 MB of textures at the title, 356 held, main's mem of 23 November)
+  HTMLCanvasElement.prototype.getContext = function (type, opts) {
+    const r = get.call(this, type, opts);
+    if (r && /webgl/.test(type) && !this.__gl) {
+      this.__gl = true;
+      this.addEventListener('webglcontextlost', () => { M.lost++; for (const m of [M.tex, M.buf, M.rb]) for (const [k, e] of m) if (e.gl === r) m.delete(k); bump('- context lost'); });
+    }
+    return r;
+  };
 };
 
 // Where each texture was made (BUDGET_TOP in tools/story_play.js): every three.js texture, a render target's and a
