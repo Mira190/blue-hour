@@ -152,7 +152,7 @@ const LEADS = [
           const m = /([0-9]+) m/.exec(txt), metres = m ? +m[1] : null;
           const f = [];
           if (!mk.classList.contains('on')) f.push('no mark');
-          if (st.wayAim && onWay(a[0], a[1]) > 2) f.push(`aim ${onWay(a[0], a[1]).toFixed(1)} m off the way`);
+          if (st.wayAim && onWay(a[0], a[1]) > 2) f.push(`aim ${onWay(a[0], a[1]).toFixed(1)} m off the way (aim ${a[0].toFixed(1)}, ${a[1].toFixed(1)} from ${pl.x.toFixed(1)}, ${pl.y.toFixed(1)}; the way ${P.slice(0, 6).map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' / ')})`);
           if (!straight(a[0], a[1])) f.push('aim not reachable straight');
           if (metres != null && Math.abs(metres - plen) > Math.max(5, plen * 0.1)) f.push(`says ${metres} m, the way is ${plen.toFixed(0)} m`);
           if (f.length) faults.push(`${(yaw * 180 / Math.PI).toFixed(0)}: ${f.join(', ')} [${txt}]`);
