@@ -140,6 +140,16 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | `web/game/quests.js`, 23 November 2026 | 107 (the quests in parallel lines: what the game shows when a line moves on) | story | 34 | 21 |
 | `web/game/heights.js`, 23 November 2026 | 51 (the height challenge) | hud | 13 | 3 |
 | `web/game/photo.js`, 23 November 2026 | 125 (photo mode) | camera | 36 | 6 |
+| `web/game/fishing.js`, 23 November 2026 | 29 (fishing from the shore; `viewingNoted` kept in `game.js`) | world | 29 | 5 |
+| `web/game/objective.js`, 23 November 2026 | 34 (the objective's marker and the route's line in the world; `routeMode`, `routePeek` kept) | hud | 18 | 6 |
+| `web/game/clock.js`, 23 November 2026 | 30 (the place's own clock; `sun`, `clockUtc` kept) | light | 14 | 3 |
+| `web/game/benches.js`, 23 November 2026 | 70 (benches in the sun, the hour's presets; `benchBudget` kept) | light | 13 | 6 |
+| `web/game/survey.js`, 23 November 2026 | 101 (surveying from a trig station; `surveyLabels`, `surveyFov` kept) | camera | 30 | 2 |
+| `web/game/menus.js`, 23 November 2026 | 58 (the menu, the map, the passport; `bigView`, `waypoint`, `bigPins`, `picked`, `travelKey` kept) | hud | 14 | 5 |
+
+A `let` of a section that the rest of the game reads or sets stays in `game.js` (`KEEP=name`): the part asks for it
+like any other name, through a getter and a setter, so both sides see one variable. Cut several sections from the
+highest lines down: each cut moves the lines after it.
 
 A local of a section's own called `g` (a canvas's context, a group, a parameter) would hide the part's `g` from every
 name of the game's beside it (`g.world.add(g)`): the tool renames it `g_`, by its symbol. Found on 23 November 2026,
