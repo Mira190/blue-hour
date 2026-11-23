@@ -2858,7 +2858,7 @@ after built against 19.8–21.0, the first frame 43–47 s against 46–52, the 
 
 **What a real device will say.** The software renderer here is GPU-bound in every frame (a desktop frame 1.4 s, of it
 50 ms of script), so its interactions measure its frames, not the page's work, and its load is three to six times a real
-desktop's. The telemetry now says what was slow on the devices themselves (version 7): each `time`'s slowest
+desktop's. The telemetry now says what was slow on the devices themselves (version 8): each `time`'s slowest
 interaction with what was pressed (`inp_on`), the event, and its split into the wait for the page, the handlers and the
 paint after them; and on `load` the warm-up's parts (`warm_prog_ms`, `warm_tex_ms`, `warm_buf_ms`), which split the
 8 s from built to the first frame. `tools/slo_report.py` prints both. Read them after the next deploy before the next

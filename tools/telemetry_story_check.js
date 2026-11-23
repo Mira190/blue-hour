@@ -1,6 +1,6 @@
 // The story page's telemetry, end to end (docs/OBSERVABILITY.md, "Testing"): loads the page with ?telemetry=debug (each batch
 // logged, nothing sent), takes the title's way into play as a player does, waits for the first "time" (half a minute into the
-// view), and checks what version 7 added: on "load" the stages and the warm-up's parts (warm_prog_ms, warm_tex_ms, warm_buf_ms),
+// view), and checks what version 8 added: on "load" the stages and the warm-up's parts (warm_prog_ms, warm_tex_ms, warm_buf_ms),
 // and on "time" the slowest interaction named (inp_on, inp_type, inp_wait, inp_run, inp_paint). Exits 1 if one is missing.
 //   JOB_LIGHT=1 tools/job.sh run serve -- python3 -m http.server 8800 --directory web
 //   xvfb-run -a node tools/telemetry_story_check.js [WxH]

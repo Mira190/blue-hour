@@ -1472,7 +1472,7 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 /* with the camera up on a desktop the goal is one line across the head of the frame: its shade lies under the line,
    from the middle out (the corner's shade, drawn from the top left of a box 980 wide, showed that box's left edge) */
 @media (pointer: fine) and (min-width: 641px) {
-  .game-stage.story:not(.words-solid):has(#g-story-finder.on) #g-story-goal { padding-bottom: 34px; background: radial-gradient(ellipse 50% 100% at 50% 0, rgba(4, 8, 18, 0.6), rgba(4, 8, 18, 0.34) 55%, transparent 100%); }
+  .game-stage.story:not(.words-solid):has(#g-story-finder.on) #g-story-goal { padding-bottom: 34px; background: radial-gradient(ellipse 50% 100% at 50% 0, rgba(4, 8, 18, 0.76), rgba(4, 8, 18, 0.5) 55%, transparent 100%); } /* (deepened for the screens across the crossing, #185) */
 }
 
 /* ---- the log is read by itself (issue 114) ----
@@ -1666,3 +1666,34 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 .game-stage.story :is(#g-walk-where small, #g-walk-where em, #g-walk-where .g, #g-walk-where .tn, #g-walk-where .q i, #g-walk-keys, #g-walk-told small, #g-walk-tonight small, .g-walk-mark span, .g-walk-bark) { text-shadow: var(--halo-small); }
 .game-stage.story #g-walk-where :is(em, .tn) { color: rgba(244, 239, 230, 0.94); }
 .game-stage.story #g-walk-where .q span { color: #fff; }
+
+/* ---- the three lines that had no ground of their own (issue 185, the launch review's stills of frame 1) ----
+   The halo above follows the letters, and over the yellow tactile strip, a lit screen or the white stripes under a crowd
+   it was not enough: "Mouse · look" read white on yellow, the goal's small capitals lay on RUN THE CITY, and "Frame
+   this" on a phone was grey on white. Each now has the ground the dialogue has: the story's night, soft-edged, under the
+   words and not a box round them (a radial shade, fading out past the letters, so that no edge is drawn on the picture). */
+.game-stage.story #g-story-keys { padding: 13px 30px; margin-bottom: -13px; border-radius: 40px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.74) 66%, rgba(4, 8, 18, 0) 100%); }
+.game-stage.story #g-story-keys kbd { background: rgba(4, 8, 18, 0.7); border-color: rgba(244, 239, 230, 0.75); }
+/* the goal: its corner's shade made deep enough for the brightest frame of the episode (the screens across the crossing),
+   and carried down under its small-caps line */
+.game-stage.story:not(.words-solid) #g-story-goal { padding-bottom: 54px;
+  background: radial-gradient(ellipse 140% 130% at 0 0, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.74) 50%, rgba(4, 8, 18, 0.42) 74%, transparent 96%); }
+@media (max-width: 640px) { .game-stage.story:not(.words-solid) #g-story-goal { background: linear-gradient(to bottom, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.66) 62%, transparent); } }
+/* the mark's words (Frame this, a name, the metres): their own small shade, and on a phone a size a thumb's eye reads */
+.game-stage.story #g-story-mark b { padding: 6px 10px; margin-top: -6px; border-radius: 20px; font-weight: 500;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(4, 8, 18, 0.78), rgba(4, 8, 18, 0.6) 60%, rgba(4, 8, 18, 0) 100%); text-shadow: var(--halo-small); }
+.game-stage.story #g-story-mark[data-kind="meet"]:not(.off) b, .game-stage.story #g-story-mark[data-kind="ghost"]:not(.off) b { margin-left: -10px; }
+@media (pointer: coarse), (max-width: 640px) { .game-stage.story #g-story-mark b { font-size: 12px; letter-spacing: 0.16em; padding: 7px 12px; } }
+
+/* ---- your turn: the first walk, asked again (story.js seekIdleTick, #186 C) ----
+   After the opening, the call, the Stop and the dog's film, all of which play by themselves, players who left the first
+   Stop had pressed nothing for minutes. Standing still at the seek, the keys come up again and beat twice, and by touch
+   the stick at the bottom left, drawn faint until it is used, comes up full and beats where the thumb goes. */
+#g-story-keys.ask { animation: g-story-ask 1.3s ease-in-out 3; }
+@keyframes g-story-ask { 50% { transform: translateX(-50%) scale(1.08); } }
+.game-stage.story.story-walk-ask #gt-joy:not(.on) { opacity: 1; background: rgba(4, 8, 18, 0.5); box-shadow: 0 0 0 1px rgba(255, 207, 138, 0.8); animation: g-story-joy 1.4s ease-in-out infinite; }
+@keyframes g-story-joy { 50% { box-shadow: 0 0 0 1px var(--amber), 0 0 26px 4px rgba(255, 207, 138, 0.45); } }
+@media (prefers-reduced-motion: reduce) { #g-story-keys.ask, .game-stage.story.story-walk-ask #gt-joy:not(.on) { animation: none; } }
+/* (by touch the keys run to two lines, and their second lay under Raise the camera while both were up: lifted over it) */
+@media (pointer: coarse), (max-width: 640px) { .game-stage.story:has(#g-story-cam.on:not(.up)) #g-story-keys { bottom: max(232px, calc(env(safe-area-inset-bottom) + 232px)); } }
