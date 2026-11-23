@@ -777,7 +777,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           await frames(2);
           let last = null;
           for (const [n, k] of [0.06, 0.2, 0.34, 0.47, 0.6, 0.7, 0.78, 0.84, 0.93].entries()) {
-            await p.evaluate(k => window.__game.cine.seek(k), k);
+            // (a seek is taken only once the shot has begun, web/cine.js: asked again until it has come to k. Under load the
+            // shot had not begun at the first four, and the line from the street's sample to the one at 191 m ran through
+            // Scramble Square, a way the camera never went: main's storyp on 2f1b4cb, issue 181)
+            await p.waitForFunction(k => { const c = window.__game.cine; if (!c.active) return true; c.seek(k); return Math.abs(c.k - k) < 0.05; }, k, { timeout: 60000, polling: 250 }).catch(() => {});
             await frames(2); await snap(`${s.fi + 1}-lift-ride${n ? `-${n}` : ''}`);
             const c = await p.evaluate(last => { const g = window.__game, c = g.camera.position, T3 = window.THREE; return { k: +g.cine.k.toFixed(2), at: [c.x, -c.z, c.y].map(v => +v.toFixed(1)), z: +g.player.z.toFixed(1), clear: last ? +g.nav.clearFraction(new T3.Vector3(last[0], last[2], -last[1]), c).toFixed(2) : 1 }; }, last);
             console.log(`frame ${s.fi + 1} lift ride:`, JSON.stringify(c));
