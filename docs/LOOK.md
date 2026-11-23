@@ -841,6 +841,41 @@ Stills: `tools/game_shot.js` with `tools/views/kagami-back-123.json` (her back i
 Not done: the hair is a painted shell with shaded strands, not a groom; nothing in it moves; cloth has no weave of
 its own and skin no pores. Faces are issue 12.
 
+### Hair, the third pass: no lace, and a fringe that lies deeper (`web/game/people.js`, issues 170 and 186 B)
+
+- **The lobes at full again.** Issue 123 halved the strand lobes on the head and the cards against the old weights,
+  where black hair caught a grey sheen fifty times its own. Under the fibre weights above ("Why the light was weighed
+  again") black hair stays black at full strength, and at half Kagami's head read as one dark shell in the close
+  shot (#186 B). The narrow white band is what tells strands from a shell.
+- **A white lace round every card of grey or brown hair.** The texture's colour is dilated into its transparent
+  fringe (it is the hair's own grey to alpha 0), so the lace was the shading: light through thin strands (TT) was
+  weighted by each card's alpha, so every card's fringe glowed, including the ones lying over more hair. Light comes
+  through a strand only where the street is behind it, so that term is now weighted by the head of hair's outline as
+  well (`hThin * hRim`). Black hair's TT is near zero, which is why only light hair showed it.
+- **Depth at the fringe.** Where a card's strands thin out, they lie under the hair over them: the fringe is a shade
+  darker (to 0.72 at the cut) and takes less of the light round the head (to 0.55), as a depth map shades a card's
+  fringe in an offline groom, where before it was made a little paler. This costs a smoothstep and needs no texture.
+
+Surveyed for #170 (ideas only; no code or asset copied):
+- alpha to coverage with the cut sharpened across a pixel (Ben Golus, "Anti-aliased Alpha Test: The Esoteric Alpha
+  To Coverage", 2017): already in since issue 74, kept;
+- hashed alpha (Wyman and McGuire, I3D 2017): stable only under temporal accumulation, which this pipeline has no
+  pass for. On a phone without MSAA it shimmers, so not adopted;
+- two passes, an opaque cut then the fringe blended and sorted back to front (Unreal's and Unity HDRP's hair cards,
+  EA's Frostbite strand talks): it doubles the hair's draws and needs a sort per head; not for the phone tier, and
+  the desktop's coverage already hides the fringe's steps;
+- per-texel flow, depth, root and ID maps (Unreal's and Unity's hair card workflows; AMD TressFX, MIT, for strands):
+  the avatars' cards are laid out as arcs with the strands running across them, so a flow cannot be taken from the
+  UVs. It would need a bake from the picture's own structure tensor into a second texture per head, which a phone's
+  memory budget cannot carry for a whole crowd. Left open on #170. The depth map's effect, a darker and less lit
+  fringe, is taken from the alpha already there.
+
+The phone tier gets the same shading at the same cost: the cut stays a plain alpha test there.
+
+Stills: `tools/hair_shot.js` (`PEOPLE=` the commit before beside this one), `R_Female_Adult_09_f011_grey_handbag`
+at dusk, `R_Female_Adult_15_f011_brown` by day and at night, `H_Kagami_W` at dusk and night; `tools/game_shot.js`
+with `tools/views/kagami-back-123.json` and `tools/views/hair-plaza.json` at 1440x900 and 390x844.
+
 ### The crossing's sound (`web/game/audio.js`, `game.look.sound`)
 
 The constant beds are off in play: the crowd's murmur and the screens' music were too loud and

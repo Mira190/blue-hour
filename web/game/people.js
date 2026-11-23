@@ -849,13 +849,16 @@ vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 c2, float env) {
 #endif
 }
 #endif
-diffuseColor.rgb *= mix(1.0, mix(1.0, 0.55, vHairRoot) * (1.0 + 0.08 * (1.0 - vHairRoot) * (1.0 - smoothstep(0.5, 1.0, hairA))) * (1.0 + 0.12 * hairJ), vHairK);
+// (where a card's strands thin out they lie deeper among the others, under the hair over them: a shade darker, as a
+// depth map shades a card's fringe in a film's hair, not paler; issue 170)
+float hDeep = smoothstep(0.2, 0.9, hairA);
+diffuseColor.rgb *= mix(1.0, mix(1.0, 0.55, vHairRoot) * mix(0.72, 1.0, hDeep) * (1.0 + 0.12 * hairJ), vHairK);
 // (how much of the light round the head reaches a strand: a card near the scalp lies under the others, half of it; the
 // head's painted hair shows only where it is the outside, slicked back or tied, and takes nearly all)
 #ifdef HAIR_HEAD
 hairOcc = 0.9;
 #else
-hairOcc = mix(1.0, 0.5, vHairRoot);
+hairOcc = mix(1.0, 0.5, vHairRoot) * mix(0.55, 1.0, hDeep); // (and less of it at the fringe, deeper in)
 #endif
 ${cast}`)
         // the cards' edge (material.alphaTest stays, for the shadow's depth and the define)
@@ -944,14 +947,17 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
   // colour the pigment lets through)
   { vec3 hT = normalize(vHairT), hFn = normalize(hV - hT * dot(hV, hT));
     reflectedLight.indirectDiffuse += hE * sqrt(hC2) * 0.03 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
-  float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = 1.0 - smoothstep(0.35, 1.0, hairA);
+  float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = (1.0 - smoothstep(0.35, 1.0, hairA)) * hRim;
+  // (light comes through thin strands only where nothing but the street is behind them: at the outline of the head of
+  // hair. A card's own fringe inside it lies over more hair, and lit there it drew a white lace round every card of a
+  // grey or brown head, issue 170)
   // (light through the thin strands and the outline, TT, in the colour the pigment lets through twice: a grey or blonde
   // head glows at its edge against a lit front, a black one stays dark there, as in a photograph; and off the strands at
   // a grazing angle a little of the cuticle's own white, as Fresnel rises toward grazing)
   reflectedLight.indirectDiffuse += hE * hC2 * (0.2 * hThin + 0.3 * hRim) * (1.0 - 0.8 * vHairRoot) * vHairK;
   reflectedLight.indirectSpecular += hE * 0.03 * hRim * hRim * hairOcc * vHairK; }`);
     };
-    m.customProgramCacheKey = () => `strand-hair7${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
+    m.customProgramCacheKey = () => `strand-hair8${head ? '-head' : ''}|${key ? key.call(m) : ''}|${own ? own.toString() : ''}`;
     m.needsUpdate = true;
   }
   // The strand's way at each vertex, how near the scalp it is (hairTR: xyz, w) and on the head's mesh whether it is hair
