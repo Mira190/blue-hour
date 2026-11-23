@@ -3191,6 +3191,53 @@ script while a camera is up. Keeping the box for a tenth of a second was tried a
 came up on the thing when raised (the story's check, frame 1). It wants the box worked out from the lines' own
 numbers, not measured.
 
+## The crowd's script (issue 130, 23 November, evening)
+
+The owner's M3 read 23 frames a second in frame 1, held by 30 ms of script a frame, the crowd's (`actors.js`,
+`people.js`), not by its GPU. `tools/crowd_cost.js` measures it here two ways: the whole frame's script by file
+and function (the page left standing in a frame of the story, one frame in 240 drawn), and, with `HZ=60`, the
+crowd's own update called at a device's pace: on a software renderer a frame takes a third of a second and the game
+moves a twentieth of a second in it, so whatever steps by the time gone by is not seen at a player's rate
+otherwise. All times are a session's machine's, the same view before and after, main's page served beside the
+branch's.
+
+**Where it went.** Not into any one function. A walker's object was given its fields where each was first needed,
+about 120 of them, in whatever order its evening went, and a car's the same way: 1,600 walkers had 159 different
+hidden layouts and 200 cars 106 (V8's `%HaveSameMap`). An engine reads a field quickly only where the objects it
+meets at that line are laid out in one way, or a few; here every read in `walk`, `plazaStep`, `update`, `place` and
+the traffic's step was the slow kind. Each field is now named once, in one order, where the walker (`crowd()`) and
+the car (`traffic()`, `whole()`) are made, undefined as when it was absent. **A field first given to a walker or a
+car anywhere is named there too**, or the layouts split again; `tools/crowd_cost.js` prints both counts (1 and 1).
+
+**What a player cannot see, cut:**
+- A walker the renderer did not draw last frame (`p.inPic`: behind the camera, behind the street's wall, past the
+  far figures' reach) and more than 12 m from the crowd's centre steps ten times a second, five past 60 m, with the
+  time it was owed, no two on one beat. Two thirds of a desktop's walkers are out of the picture at the Scramble's
+  kerb. One drawn steps exactly as before, and so does everyone in a plaza (the signals count who is on the road
+  each step).
+- The umbrellas' lean ran for everyone every frame of a dry evening (a grid, a hold turned, for canopies nobody
+  held): now only while one is up anywhere.
+- The near people's pick made a pair for each of a few hundred people, a sort and a set every frame: kept lists.
+- "Is that the road?" (`game.js` `onRoad`), asked several times a plaza's person a frame, built a list, a Set and
+  an object a candidate each time: the network's `nearD` keeps, for each cell of 4 m, the segments `nearest` would
+  look at, and gives the same line and distance (14,103 points of 14,103).
+
+| the same view, a session's machine | before | after |
+|---|---|---|
+| desktop, frame 1: the crowd's update at 60 a second, a call | 59.1 ms | 16.8 ms |
+| phone, frame 1: the crowd's update at 30 a second, a call | 12.7 ms | 6.3 ms |
+| desktop, frame 1, the page's frame: `actors.js` / `people.js` | 61.0 / 23.8 ms | 23.6 / 11.0 ms |
+| phone, frame 1, the page's frame: `actors.js` / `people.js` / all script | 14.7 / 7.3 / 54.5 ms | 6.0 / 4.1 / 37.6 ms |
+| the traffic's own step, a frame: desktop / phone | 5.0 / 3.3 ms | 2.8 / 1.8 ms |
+
+By the cuts in the order they were made, the desktop's update: the walkers out of the picture, the lean and the
+pick 56 to 40 ms (run to run this machine reads a tenth apart); the layouts 47 to 17. What is left of a desktop's
+17 ms: the plazas' step 1.9 of its own, the arms' clearance 2.8 (`sliceAt`, `torsoDepth`: every near person every
+frame, the largest thing left on a phone too), `update`'s loop 1.2, `walk` 1.0, `place` 0.9.
+
+Not measured: a real device. The M3's 30 ms was read by `tools/fps_probe.js` there; the same run on this branch is
+the measure.
+
 ## What is left of issue 130
 
 - **Level of detail by projected size**: not started in this round. The largest case is the near people (some

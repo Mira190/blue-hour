@@ -507,6 +507,40 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return best;
     }
+    // nearest()'s line and distance alone ({ line, d } written into `out`, or null), for whoever asks many times a
+    // frame (the plazas' "is that the road?", game.js onRoad: several a person a frame, each a list, a Set and an
+    // object a candidate; issue 130). The same lines in the same order through the same arithmetic, so the same
+    // answer: for each cell of FC metres the segments nearest() would look at from anywhere in it (the lines of the
+    // grid's cells within maxD, which a cell of FC shares when GC and maxD are multiples of it) and of those only the
+    // ones that can come within maxD of the cell, found once and kept. Any other maxD goes to nearest().
+    const FC = 4, fine = new Map(), FD = {};
+    function nearD(x, y, maxD, out) {
+      if (maxD % FC || GC % FC) { const q = nearest(x, y, maxD); if (!q) return null; out.line = q.line; out.d = q.d; return out; }
+      const fx = Math.floor(x / FC), fy = Math.floor(y / FC), fk = ((fx + 32768) * 65536 + (fy + 32768)) * 64 + maxD / FC;
+      let S = fine.get(fk);
+      if (!S) {
+        const mx = (fx + 0.5) * FC, my = (fy + 0.5) * FC, reach = maxD + FC * 0.7072 + 1e-6, list = [];
+        for (const i of new Set(near(fx * FC, fy * FC, 0, maxD))) {
+          const l = L[i], n = l.pts.length / 3;
+          for (let k = 1; k < n; k++) {
+            const ax = l.pts[3 * k - 3], ay = l.pts[3 * k - 2], ex = l.pts[3 * k] - ax, ey = l.pts[3 * k + 1] - ay, L2 = ex * ex + ey * ey;
+            const t = L2 > 0 ? Math.max(0, Math.min(1, ((mx - ax) * ex + (my - ay) * ey) / L2)) : 0;
+            if (Math.hypot(mx - ax - ex * t, my - ay - ey * t) < reach) list.push(i, k);
+          }
+        }
+        fine.set(fk, S = Int32Array.from(list));
+      }
+      let bd = maxD, bl = -1;
+      for (let j = 0; j < S.length; j += 2) {
+        const l = L[S[j]], k = S[j + 1], ax = l.pts[3 * k - 3], ay = l.pts[3 * k - 2], ex = l.pts[3 * k] - ax, ey = l.pts[3 * k + 1] - ay, L2 = ex * ex + ey * ey;
+        const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / L2)) : 0;
+        const qx = ax + ex * t, qy = ay + ey * t, d = Math.hypot(x - qx, y - qy);
+        if (d < bd) { bd = d; bl = S[j]; }
+      }
+      if (bl < 0) return null;
+      out.line = bl; out.d = bd;
+      return out;
+    }
     // another line meeting line i's end (0 start, 1 end): [line, its end there], not one to avoid;
     // with `legal`, only one a car may drive into from there (not against a one-way street)
     // (hw: a vehicle's half-width; a street too narrow for it, api.fit, only if there is no other)
@@ -525,7 +559,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // avoid: per line, 1 for a line no one should be put on or turn into (a road through a
     // building, which route.js finds); set by the game once it knows
-    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null, planned: L.some(l => l.ends || l.quiet), busStreets: L.some(l => l.bus), busLines: L.some(l => l.bl) }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
+    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, nearD, next, only, nodes, key, avoid: null, fit: null, planned: L.some(l => l.ends || l.quiet), busStreets: L.some(l => l.bus), busLines: L.some(l => l.bl) }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
     return api;
   }
 
@@ -652,6 +686,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   const POST = 0.25;   // and from a lamp post or a trunk
   const MOVING = 1.2;  // and the seconds of a moving car's path ahead it won't step into
   const NEAR = 60, FAR = 150; // walkers farther than these from the player take a step every 2nd, 4th frame (m)
+  const OUT_M = 12, OUT_S = 0.1; // a walker not in the picture and farther than OUT_M steps every OUT_S seconds (update)
   // ground(x, y, at): the height to stand at beside the line at `at` (net.at), or null where no one can stand;
   // wall(x, y, z): is that inside a building's wall? posts: the lamp posts and trunks (streets.js), solid;
   // clear(x, y, z): whether someone standing there is clear of the walls (a facade the footway runs along)
@@ -676,7 +711,30 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // how much it wants the front row over a nearer place further back; wf, how far it stands turned from square to
       // the road, up to 25 degrees either way and mostly less. Drawn from its place in P, not from rnd, so that every
       // other draw the crowd makes is as it was)
-      room: 0.65 + 0.4 * h01(i, 1), keen: 0.15 + 1.1 * h01(i, 2), wf: (h01(i, 3) + h01(i, 4) - 1) * 0.44 });
+      room: 0.65 + 0.4 * h01(i, 1), keen: 0.15 + 1.1 * h01(i, 2), wf: (h01(i, 3) + h01(i, 4) - 1) * 0.44,
+      // (and everything a walker is ever given, named here in one order, issue 130. Each was added where it was first
+      // needed, a hundred of them, in whatever order a walker's evening went: 1,600 walkers had 159 different layouts,
+      // and the engine reads a field quickly only where the objects it meets there are laid out in one way or a few.
+      // Nothing reads a walker's keys; a field not yet given is undefined here as it was when it was absent)
+      pz: undefined, g: undefined, gc: undefined, ph: undefined, lst: undefined, react: undefined, T: undefined,
+      cars: undefined, posts: undefined, hashed: undefined, roadCk: undefined, roadT: undefined, roadOut: undefined,
+      stuck: undefined, umbPush: undefined, jam: undefined, tight: undefined, ejected: undefined, kerbT: undefined,
+      held: undefined, umbSlot: undefined, umbChk: undefined, lh: undefined, fx: undefined, fy: undefined,
+      gzS: undefined, gzT: undefined, gz: undefined, landT: undefined, gx: undefined, gy: undefined, av: undefined,
+      moving: undefined, rx: undefined, ry: undefined, rz: undefined, umbW: undefined, umbT: undefined,
+      umbAt: undefined, umbR: undefined, inPic: undefined, wave: undefined, animF: undefined, animO: undefined,
+      umbMoved: undefined, lt: undefined, lface: undefined, stop: undefined, stopFace: undefined, arrived: undefined,
+      reg: undefined, kerbNext: undefined, kerbBack: undefined, gk: undefined, went: undefined, ga: undefined,
+      speed0: undefined, owed: undefined, hx: undefined, hy: undefined, limWant: undefined, lim: undefined,
+      steps: undefined, stuckT: undefined, pStuck: undefined, pzSlow: undefined, wallStep: undefined, gw: undefined,
+      still: undefined, slow: undefined, mgx: undefined, mgy: undefined, mgT: undefined, blkO: undefined,
+      oncoming: undefined, wait: undefined, beat: undefined, esc: undefined, turnedT: undefined, sTries: undefined,
+      detourT: undefined, detourLat: undefined, detourOf: undefined, gutT: undefined, sjam: undefined, kw: undefined,
+      squeeze: undefined, lTx: undefined, lTy: undefined, lph: undefined, lUmb: undefined, turnedT0: undefined,
+      umbLx: undefined, umbLy: undefined, ucx: undefined, ucy: undefined, umbF: undefined, umbC: undefined,
+      umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
+      yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
+      off: undefined, pBack: undefined, reg0: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -2197,7 +2255,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (p.state === 'walk') { // farther off, a longer step every few frames does
           const d = Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)), k = d < NEAR ? 1 : d < FAR ? 2 : 4;
-          if ((frame + i) % k === 0) { walk(i, k * dt, player, pvx, pvy); gait(p, k * dt); }
+          // (and one the renderer did not draw last frame, p.inPic: behind the camera, behind the street's wall, past the
+          // far figures' reach. Two thirds of a desktop's 1,560 walkers are not in the picture at the Scramble's kerb, and
+          // each took the whole step, its neighbours and its steering, sixty times a second: issue 130. Out of the picture
+          // they step OUT_S apart, twice that past NEAR, each with the time it was owed, no two on the same beat. Within
+          // OUT_M of the crowd's centre every frame all the same: whoever turns round sees them at once. One drawn steps
+          // exactly as before)
+          if (p.inPic === false && d > OUT_M && p.lat != null) {
+            p.owed = (p.owed || 0) + dt;
+            if (p.owed >= (d < NEAR ? OUT_S : 2 * OUT_S) * (p.beat || (p.beat = 0.85 + 0.3 * h01(i, 5)))) { const w = Math.min(0.2, p.owed); p.owed = 0; walk(i, w, player, pvx, pvy); gait(p, w); }
+          } else {
+            p.owed = 0;
+            if ((frame + i) % k === 0) { walk(i, k * dt, player, pvx, pvy); gait(p, k * dt); }
+          }
           if (p.line < 0 && !p.pz) { R.hide(i); continue; } // (sent on from inside someone, issue 65: gone, not drawn there)
         }
         else if (p.state === 'reg') regStep(i, p, dt);
@@ -2756,6 +2826,28 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     const LEAN = !!(window.OEQuality && OEQuality.city().lean), LOD1 = I ? (LEAN ? Math.min(12, I.lod1_m) : I.lod1_m) : 0, LOD2 = I ? (LEAN ? Math.min(70, I.lod2_m) : I.lod2_m) : 0;
     let mesh = null, fleet = null, mat = null;
     const oncoming = (c, fx, fy, reach) => oncomingIn(C, c, fx, fy, reach);
+    // (everything a car is ever given, named once in one order, as a walker's is in crowd(): 200 cars had 106 different
+    // layouts, each field added where the car first needed it, and the traffic's step read every one of them the slow
+    // way, issue 130. A field first given to a car anywhere, here or in junctions.js or cars.js, is named here too;
+    // tools/crowd_cost.js counts the layouts)
+    const whole = c => Object.assign(c, {
+      mv: undefined, mv0: undefined, trip: undefined, parking: undefined, park: undefined, wantPark: undefined,
+      dodgeT: undefined, dodgeBrake: undefined, rev: undefined, vBend: undefined, nx: undefined, pv: undefined,
+      exA: undefined, ex2: undefined, ex: undefined, plan: undefined, halt: undefined, q: undefined, lcT: undefined,
+      lnWait: undefined, wallGap: undefined, wallT: undefined, atWall: undefined, narrow: undefined,
+      narrowF: undefined, narrowIn: undefined, m4: undefined, m4At: undefined, inAhead: undefined, ps: undefined,
+      pz: undefined, pst: undefined, np: undefined, xWaitT: undefined, bonnetT: undefined, waitOn: undefined,
+      waitOnCar: undefined, faceGap: undefined, faceAll: undefined, faceT: undefined, faceCar: undefined,
+      postT: undefined, inWallNow: undefined, lineArm: undefined, mvHold: undefined, narrowNow: undefined,
+      wallHold: undefined, boxHold: undefined, caught: undefined, tangleT: undefined, brk: undefined,
+      still: undefined, ax: undefined, ay: undefined, idle: undefined, narrowT: undefined, narrowCarT: undefined,
+      narrowTries: undefined, narrowRevS: undefined, revT: undefined, inHeld: undefined, behindT: undefined,
+      squeezing: undefined, postHeld: undefined, boSpent: undefined, lnHeld: undefined, zebraT: undefined,
+      why: undefined, youBy: undefined, front: undefined, who: undefined, heldBy: undefined, pw: undefined,
+      sg: undefined, vWas: undefined, hWas: undefined, youT: undefined, toLine: undefined, lineEx: undefined,
+      wallChk: undefined, wbT: undefined, wbCar: undefined, boxT: undefined, mvT: undefined, nearT: undefined,
+      roomT: undefined, bl: undefined, rx: undefined, ry: undefined, rel: undefined, dropT: undefined,
+      pit: undefined, rol: undefined });
     if (I) {
       // (with only the far models come yet, vehicles.js cars: 'later', each stands in for the nearer two until upgrade())
       const geos = carGeometries(lib.cars, I.tones), names = Object.keys(I.models).filter(k => geos[k] && geos[k][2]);
@@ -2774,8 +2866,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         let r = rnd(), k = names[names.length - 1];
         for (const name of names) { if ((r -= share(name)) < 0) { k = name; break; } }
         const M = I.models[k], box = boxes[k], hex = M.taxi ? pick(taxi.colours) : M.bus ? bus.colour : pick(colours);
-        C.push({ line: -1, s: 0, dir: 1, v: 0, x: 0, y: 0, z: 0, h: 0, off: 0, ln: 0, lo: 0, model: k, half: (box.max.z - box.min.z) / 2, hw: (box.max.x - box.min.x) / 2, top: box.max.y,
-          stuck: 0, taxi: !!M.taxi, bus: !!M.bus, van: /van/i.test(k), hex, c0: lin(hex), c1: lin(M.bus ? bus.band : taxi.band || '#1c1d1f') });
+        C.push(whole({ line: -1, s: 0, dir: 1, v: 0, x: 0, y: 0, z: 0, h: 0, off: 0, ln: 0, lo: 0, model: k, half: (box.max.z - box.min.z) / 2, hw: (box.max.x - box.min.x) / 2, top: box.max.y,
+          stuck: 0, taxi: !!M.taxi, bus: !!M.bus, van: /van/i.test(k), hex, c0: lin(hex), c1: lin(M.bus ? bus.band : taxi.band || '#1c1d1f') }));
       }
       mat = toneMaterial(U, { cars: true });
       fleet = {};
@@ -2791,7 +2883,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let i = 0; i < n; i++) {
         const hex = pick(CARS);
         setC(mesh.geometry.attributes.aC0, i, hex);
-        C.push({ line: -1, s: 0, dir: 1, v: 0, x: 0, y: 0, z: 0, h: 0, off: 0, ln: 0, lo: 0, half: 2.2, hw: 0.98, top: 1.5, stuck: 0, hex });
+        C.push(whole({ line: -1, s: 0, dir: 1, v: 0, x: 0, y: 0, z: 0, h: 0, off: 0, ln: 0, lo: 0, half: 2.2, hw: 0.98, top: 1.5, stuck: 0, hex }));
       }
     }
     // (issue 352: a car out of the eye's sight by more than its shadow reaches back into it, 30 m, takes no slot,
