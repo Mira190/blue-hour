@@ -675,12 +675,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8) return null;
       const l = tri && tri.get(j * n + i);
       if (l) { // (the highest of the floor's triangles under the point itself, in the grid's units)
-        const px = (x - x0) / HC, py = (y - y0) / HC; let best = -1e9;
-        for (const [ax, ay, az, bx, by, bz, cx, cy, cz] of l) {
-          const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy), l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
-          if (l1 >= -1e-4 && l2 >= -1e-4 && l1 + l2 <= 1 + 1e-4) best = Math.max(best, l1 * az + l2 * bz + (1 - l1 - l2) * cz);
+        const px = (x - x0) / HC, py = (y - y0) / HC;
+        // (and where none is under the point, none within a joint's width either, as at the floor's edge where another level's
+        // paving meets it, the level has no floor there: the cell's highest, a plank beside the point, stood the guide 7 cm over
+        // the next level's planks on SKY's forecourt, issue 190)
+        for (const e of [1e-4, 0.02]) {
+          let best = -1e9;
+          for (const [ax, ay, az, bx, by, bz, cx, cy, cz] of l) {
+            const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy), l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
+            if (l1 >= -e && l2 >= -e && l1 + l2 <= 1 + e) best = Math.max(best, l1 * az + l2 * bz + (1 - l1 - l2) * cz);
+          }
+          if (best > -1e8) return best;
         }
-        if (best > -1e8) return best;
+        return null;
       }
       return g[j * n + i];
     };
@@ -2761,7 +2768,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a guide (companion.js): an animal that goes ahead of you to where the story wants you
   // walked as the player walks: slid along walls, round posts, trunks, rails and cars (nav.slide), never onto ground the
   // walker may not stand on, so that it goes round a fence and not through it
-  const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, lean: QC.lean, eye: camera, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
+  // the guide's floor near z: what a walker stands on there, but not a landmark's top more than a dog's step (GUIDE_STEP) over
+  // where he is while a floor at his own level is there too. The walking grid spreads a ledge's top by a walker's foot,
+  // so that one brushing past steps up onto it (nav.js STEP 0.75 m); walked 0.5 m from Hachiko Square's planter, 0.72 m of
+  // granite, the guide rose onto that spread and went on 0.67 m in the air over the setts, issue 190
+  const GUIDE_STEP = 0.3;
+  const guideGround = (x, y, z) => {
+    const f = nav.floorAt(x, y, z + 0.5);
+    if (f && f.kind === 'landmark' && f.z > z + GUIDE_STEP) { const l = nav.floorAt(x, y, z + GUIDE_STEP - nav.STEP); if (l && l.z > z - 1) return l.z; }
+    return f ? f.z : Math.max(0, nav.terrain(x, y));
+  };
+  const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, lean: QC.lean, eye: camera, ground: guideGround, player, height: g.scale || 1,
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
     edge: (x, y, z, fx, fy) => ways.edge(x, y, z, fx, fy),
     wall: (x, y, z, r) => { const w = nav.push(x, y, z, r); return w && Math.hypot(w.x - x, w.y - y) > 0.01 ? w : null; }, // (each end of him off a wall, issue 157)
