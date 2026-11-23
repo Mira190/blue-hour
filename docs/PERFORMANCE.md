@@ -2885,3 +2885,17 @@ through the game, stays at 1024 (it was tried at 512: the jacket's weave went so
 and nearer than any shot goes (0.7 m), with the pictures as they come (`?herotex=full`) and at the phone's size: at
 1.6 m the two are not told apart; at 0.7 m the skin is a little softer and the jacket the same. The player's head and
 hair: 12 MB of the GPU to 4, in every beat. Counted on a session's machine as an iPhone emulated.
+
+### The hole over the channels: a distance needs half the texels (issue 130, 23 November)
+
+The largest single texture a phone held that no file names was 3345 x 1891 texels of one byte, 6.3 MB: the ground's
+hole over the walled channels (`inland.js` `holeMask`), a signed distance to the walls' faces at half a metre over the
+box of every walled channel in the district, which is a few strips of river in a box 1.7 km wide. A distance, filtered,
+follows a straight wall as closely from metre to metre as from half metre to half metre: it is linear there. So on a
+phone the mask is sent at half the size, each texel the mean of four, 1.6 MB; the raster that walking and the terrain
+read is as it was (`?holemask=full`: whole, to set beside).
+
+`tools/hole_shot.js` puts a phone's player beside the open Shibuya river and takes stills from 14 m over them looking
+each way and down, with the mask whole and at half: along the walls, at the channel's corner and under the coping
+the two are not told apart; no ground over the coping, no gap. 4.7 MB less in every beat on a phone. Counted on a
+session's machine as an iPhone emulated.
