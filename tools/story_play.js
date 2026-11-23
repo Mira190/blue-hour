@@ -280,6 +280,18 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const top = +process.env.BUDGET_TOP ? await p.evaluate(n => { const r = window.__memReport(n); const g = window.__game, T = window.THREE, M = {}; let root = g.world; while (root.parent) root = root.parent;
         // (and the meshes drawn with shapes, by whose they are: three.js keeps a texture of the shapes for each such geometry)
         root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.morphAttributes && o.geometry.morphAttributes.position) { let vis = true, top = ''; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name) top = q.name; } const k = `${top} ${vis ? 'shown' : 'hidden'}`; M[k] = (M[k] || 0) + 1; } });
+        // (main's count of the same by the pictures' sizes, kept beside what WebGL holds, below: `owners`)
+        const owners = (() => {
+          // (and whose the textures and the vertex buffers are: each texture a material holds, by the first names up its mesh's
+          // parents and whether it is shown, its bytes as it is sent, a third more with mips; each geometry's attributes)
+          const own = {}, seenT = new Set(), seenG = new Set(), BPP = t => (t.isCompressedTexture ? 1 : t.format === T.RedFormat ? 1 : t.type === T.HalfFloatType ? 8 : t.type === T.FloatType ? 16 : 4);
+          const texOf = (t, k) => { if (!t || !t.isTexture || seenT.has(t)) return; seenT.add(t); const im = t.image || {}, w = im.width || im.videoWidth || 0, h = im.height || im.videoHeight || 0; const o = own[k] || (own[k] = { tex: 0, n: 0, buf: 0 }); o.tex += w * h * BPP(t) * (t.generateMipmaps || (t.mipmaps && t.mipmaps.length > 1) ? 4 / 3 : 1) / 1048576; o.n++; };
+          root.traverse(o => { if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return; let vis = true; const names = []; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name && !/^(Scene|Group)$/.test(q.name)) names.push(q.name.replace(/[_-]?\d+$/, '')); }
+            const k = `${names.length ? names[names.length - 1] : o.type}${names.length > 1 ? `/${names[names.length - 2]}` : ''} ${vis ? 'shown' : 'hidden'}`;
+            for (const m of Array.isArray(o.material) ? o.material : [o.material]) { if (!m) continue; for (const p in m) texOf(m[p], k); if (m.uniforms) for (const u in m.uniforms) texOf(m.uniforms[u] && m.uniforms[u].value, k); }
+            const g = o.geometry; if (g && !seenG.has(g)) { seenG.add(g); let b = 0; const cnt = new Set(); for (const a of [g.index, o.instanceMatrix, o.instanceColor, ...Object.values(g.attributes || {})]) { const d = a && (a.isInterleavedBufferAttribute ? a.data : a); if (d && d.array && !cnt.has(d)) { cnt.add(d); b += d.array.byteLength; } } (own[k] || (own[k] = { tex: 0, n: 0, buf: 0 })).buf += b / 1048576; } });
+          return Object.entries(own).map(([k, v]) => [k, +v.tex.toFixed(1), v.n, +v.buf.toFixed(1)]).sort((x, y) => (y[1] + y[3]) - (x[1] + x[3])).slice(0, 60);
+        })();
         // (and the vertices and indices the scene's geometries hold, by whose they are: the two outermost names over each mesh,
         // shown or hidden. A geometry is counted once; one never drawn is counted though WebGL may not hold it yet)
         // (only what WebGL holds: a buffer is found by the array it was sent from, tools/gl_mem.js; `looseBuf`: megabytes whose array the page has let go or no geometry in the scene has)
@@ -302,7 +314,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const own = Object.entries(O).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${(v / 1048576).toFixed(2)} MB ${k}`), L = {};
         for (const [x, e] of MT) if (!seenT.has(x)) L[e.label] = (L[e.label] || 0) + e.bytes;
         const loose = Object.entries(L).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${(v / 1048576).toFixed(2)} MB ${k}`);
-        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, morph: M, geo, geoOne: one.sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, n), looseBuf, own, ownBig: big.sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, n), loose, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
+        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, owners, morph: M, geo, geoOne: one.sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, n), looseBuf, own, ownBig: big.sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, n), loose, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
       fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };
@@ -617,6 +629,23 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const slip = SLIPS.includes(s.fi + 1) && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
         if (slip) { slipped = slipAt[s.fi + 1] = 1; told0 = told0 ?? await p.evaluate(() => window.__game.story.state.told || 0); }
         { const pv = await p.evaluate(() => !!window.__game.story.state.proving); if (pv) proved++; const k = `summation-${pv ? 'evidence' : 'words'}`; if (s.fi === 6 && !seen.has(k)) { seen.add(k); await snap(`7-${k}`); } } // (the summation: the roll laid out with its pairs, then the words)
+        // (#186 C: the summation's first question, the right name and then the roof's print, which is not the proof: she
+        // must answer for what that print says and what it does not, `wrong_print_by`, never only "not that picture";
+        // then it is answered rightly. Not with SLIP=7, which counts its own wrong answers)
+        if (s.fi === 6 && !SLIPS.includes(7) && !seen.has('print-speaks') && await p.evaluate(() => { const st = window.__game.story.state; return !!st.proving && (st.asked | 0) === 0; })) {
+          seen.add('print-speaks');
+          const r = await p.evaluate(() => { const st = window.__game.story.state, q = (st.fr.meet.ask || [])[0] || {}, A = [...document.querySelectorAll('#gd-choices button')], b = A.find(e => (e.querySelector('b') || {}).textContent === '4'); return { i: A.indexOf(b), want: (q.wrong_print_by || {})[4] || '', n: window.__heard.lines.length }; });
+          if (r.i < 0 || !r.want) { errors.push(`frame 7: the summation's first question has no roof's print to show wrongly, or no line for it (${JSON.stringify(r)})`); console.log(errors[errors.length - 1]); }
+          else {
+            await clickEl('#gd-choices button', r.i);
+            await p.waitForFunction(n => window.__heard.lines.length > n, r.n, { timeout: 120000, polling: 250 }).catch(() => {});
+            const heard = await p.evaluate(n => window.__heard.lines.slice(n), r.n);
+            await snap('7-print-speaks');
+            console.log(`frame 7: the right name on the roof's print: ${JSON.stringify(heard)}`);
+            if (!heard.some(l => String(l).includes(r.want.slice(0, 40)))) { errors.push(`frame 7: the roof's print, shown wrongly, was not answered for what it says: ${JSON.stringify(heard)}`); console.log(errors[errors.length - 1]); }
+          }
+          await p.waitForTimeout(350); continue;
+        }
         { // (CHOOSE=3:0,4:0: at that frame's question with no right answer, that option; ACCUSE=1 is 3:0, the false solution said aloud)
           const pick = await p.evaluate(([slip, choose]) => { const st = window.__game.story.state, A = [...document.querySelectorAll('#gd-choices button')], B = A.filter(b => !b.querySelector('.look')); const free = !st.canFail && choose != null && B.length > choose; const b = free ? B[choose] : B[slip ? (st.want + 1) % B.length : st.want] || B[0]; return { i: A.indexOf(b), free, text: b ? b.textContent.slice(0, 60) : '' }; }, [slip, CHOOSE[s.fi + 1] != null && !chose[s.fi + 1] ? CHOOSE[s.fi + 1] : null]);
           if (pick.free) { chose[s.fi + 1] = pick.text; console.log(`frame ${s.fi + 1}: chose "${pick.text}"`); }
@@ -762,6 +791,20 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const q1 = await look(); await snap('1-seek-4s');
         console.log(`the first Stop, walking to her: ${JSON.stringify(q0)}, then ${JSON.stringify(q1)}`);
         if (!q1 || !q1.at || (q1.d > 12 && q1.halo < 0.1)) { errors.push(`the first Stop: four seconds into the walk to her she is ${!q1 || !q1.at ? 'not in the picture' : `${q1.d} m off with no light round her`}`); console.log(errors[errors.length - 1]); }
+        // (#186 C: players who left here had pressed nothing for minutes. One who has not walked yet has the walking keys
+        // on the screen, and the goal's second line says which; standing still SEEK_ASK_S, it is said again as their turn,
+        // the keys beat, and by touch the stick comes up. Stills of each, readable over the street: #185)
+        const k0 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'); return { walked: !!st.walked, keys: K.classList.contains('on'), how: document.querySelector('#g-story-goal em').textContent }; });
+        console.log(`the first Stop, the walking keys: ${JSON.stringify(k0)}`);
+        if (!k0.walked) {
+          if (!k0.keys || !/walk/i.test(k0.how)) { errors.push(`the first Stop: not yet walked, and ${!k0.keys ? 'no walking keys on the screen' : `the goal does not say how to walk ("${k0.how}")`}`); console.log(errors[errors.length - 1]); }
+          const toasts0 = await p.evaluate(() => document.querySelectorAll('.g-toast').length);
+          await p.waitForFunction(() => (window.__game.story.state.seekAsked || 0) >= 1 || window.__game.story.state.beat !== 'seek', null, { timeout: 600000, polling: 250 }).catch(() => {});
+          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', n: T.length }; });
+          await snap('1-seek-ask');
+          console.log(`the first Stop, standing still: ${JSON.stringify(k1)} (toasts before: ${toasts0})`);
+          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(k1.toast) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
+        }
         continue;
       }
       if (!seen.has(`guide-${s.fi}`) && s.fi === 0) { seen.add(`guide-${s.fi}`); const d = await p.evaluate(() => { const g = window.__game, d = g.story.state.dog; return d ? Math.hypot(d.x - g.player.x, d.y - g.player.y) : -1; }); console.log(`the guide met: ${d.toFixed(1)} m from you`); if (d < 0 || d > 6) { errors.push(`the guide's film ended with him ${d.toFixed(1)} m from you`); console.log(errors[errors.length - 1]); } } const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }

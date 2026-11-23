@@ -2994,6 +2994,64 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // programs are ready, it is one wait in a task of its own, off the frame, for all of them at once.
   // (every program the material has, not only its current one: a see-through two-sided material is drawn back face then
   // front, two programs, and the back's first use was left to the frame after the tap on Play, tools/entry_cost.js)
+  // A draw does not wait for a program (issue 191, the warm-up's link waits; issue 186 A, the slowest interaction). With
+  // KHR_parallel_shader_compile a program is compiled and linked off the page's thread, and only asking after it (three.js's
+  // first use reads its log) waits until it is done: in the frame that first draws a mesh whose program a warm-up started
+  // but the GPU had not finished, or that no warm-up made at all, that wait was the frame, seconds on a phone or a software
+  // renderer (the tap into play: 5.5 s for the stopped air's leaves, tools/load_probe.js). So the scene's draws go through
+  // here first: a draw whose material has a program still being linked is left out of this frame and comes in the frame
+  // after it is ready, and a material with no program yet is compiled once the frame is done (for the target and the
+  // planes it was drawn with), and is left out until then. A mesh comes a few frames late; the frame and the tap do not wait.
+  // Only the scene given (the world: a post pass's quad is never left out, a frame would be black) and the shadow pass (its
+  // casters' depth programs, left out of the shadow map for those frames). Without the extension nothing changes: a
+  // program is linked as it is made, so there is nothing to wait for. ?gate=0 turns it off, to measure against.
+  function gate(renderer, { scene } = {}) {
+    if (!renderer || !scene || renderer.__gate || typeof renderer.renderBufferDirect !== 'function') return null;
+    if (/[?&]gate=0\b/.test(location.search)) return null;
+    if (!(renderer.extensions && renderer.extensions.has && renderer.extensions.has('KHR_parallel_shader_compile'))) return null;
+    const props = renderer.properties, draw = renderer.renderBufferDirect, n = { held: 0, made: 0, late: 0 }, late = new Map(), tried = new WeakSet();
+    let due = false;
+    // (a program still linking holds its draws for 10 s at most: past that it is drawn, and waited for, as before)
+    const since = new WeakMap(), linking = mp => {
+      for (const p of mp.programs.values()) {
+        if (!p || !p.program || !p.isReady || p.isReady()) continue;
+        const t = since.get(p), t1 = performance.now();
+        if (t === undefined) since.set(p, t1); else if (t1 - t > 10000) continue;
+        return true;
+      }
+      return false;
+    };
+    const make = () => {
+      due = false;
+      const was = [renderer.getRenderTarget(), renderer.clippingPlanes];
+      for (const [o, [cam, sc, target, clip]] of late) {
+        late.delete(o); tried.add(o); // (made once: if its draw still finds no program, it is drawn as before)
+        try { renderer.setRenderTarget(target); renderer.clippingPlanes = clip; renderer.compile(o, cam, sc); n.made++; } catch (e) { /* drawn as before, next frame */ }
+      }
+      renderer.setRenderTarget(was[0]); renderer.clippingPlanes = was[1];
+    };
+    renderer.renderBufferDirect = function (camera, sc, geometry, material, object, group) {
+      if ((sc === scene || sc === null) && material && object && !renderer.__gate.pass) {
+        const mp = props.get(material);
+        if (mp.programs && mp.programs.size) { if (linking(mp)) { n.held++; return; } }
+        // (a mesh drawn for the first time with its own material, which nothing compiled: made after the frame, in this frame's
+        // state, once. Not a material it is drawn with but does not own (a pass's override, a material swapped in its
+        // onBeforeRender): compile() makes the object's own, so that one would never be made and the mesh never drawn)
+        else if (sc === scene && !tried.has(object) && !sc.overrideMaterial && (object.material === material || (Array.isArray(object.material) && object.material.includes(material)))) {
+          if (!late.has(object)) {
+            late.set(object, [camera, sc, renderer.getRenderTarget(), renderer.clippingPlanes.slice()]); n.late++;
+            if (!due) { due = true; setTimeout(make, 0); }
+          }
+          return;
+        }
+      }
+      return draw.call(this, camera, sc, geometry, material, object, group);
+    };
+    renderer.__gate = { n, pass: false };
+    if (typeof window !== 'undefined') window.__gate = renderer.__gate;
+    return renderer.__gate;
+  }
+
   function firstUse(renderer, mats) {
     for (const m of mats) {
       const mp = renderer.properties.get(m), ps = mp.programs ? [...mp.programs.values()] : [mp.currentProgram];
@@ -3356,9 +3414,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
         if (scene.isScene) scene.background = null;
         camera.layers.set(LAYER);
         renderer.setRenderTarget(target);
+        if (renderer.__gate) renderer.__gate.pass = true; // (a slice sends every mesh's buffers and marks it sent: the gate leaves none of them out)
         renderer.render(scene, camera);
       } catch (e) { console.warn('buffers', e); }
       finally {
+        if (renderer.__gate) renderer.__gate.pass = false;
         camera.layers.mask = keep.mask;
         renderer.setRenderTarget(keep.rt);
         if (scene.isScene) scene.background = keep.bg;
@@ -3668,5 +3728,5 @@ if (dot(vRailT, vRailT) > 0.25) { vec3 oeT = normalize(vRailT), oeV = normalize(
   // opening will show (the city's light show, which its evening reaches in the opening's first seconds) says so with
   // userData.warmFirst, and is in the first set too
   const shown = o => { for (let x = o; x; x = x.parent) if (!x.visible && !x.userData.warmFirst) return false; return true; };
-  return { load, loadLine, create, lin, smooth, compile, compiling: () => compiling > 0, shown, upload, uploadRest, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
+  return { load, loadLine, create, lin, smooth, compile, gate, compiling: () => compiling > 0, shown, upload, uploadRest, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
 })();

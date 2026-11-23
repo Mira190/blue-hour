@@ -480,15 +480,16 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // mipmaps, two or three a character and twenty-odd characters a map (130 MB in Tokyo, issue 406), for someone who
     // stands a few hundred pixels tall at most on a phone's canvas. The characters you play keep theirs
     const QC = window.OEQuality ? OEQuality.city() : null, LEAN_PX = 512 >> ((QC && QC.lighter) ? 1 : 0), lean = !!(QC && QC.lean); // (256 after the map's page died here: quality.js died)
-    const smaller = tpl => {
+    const smaller = (tpl, only, PX = LEAN_PX) => {
       const jobs = [];
       tpl.scene.traverse(o => {
         if (!o.isSkinnedMesh) return;
         for (const m of [].concat(o.material)) for (const k in m) {
+          if (only && !only.test(m.name || '')) continue; // (by the material's name: the head's and the hair's, not the clothes')
           const t = m[k], im = t && t.isTexture && t.image;
-          if (!im || !(im.width > LEAN_PX || im.height > LEAN_PX) || t.userData.oeLean || typeof createImageBitmap !== 'function') continue;
+          if (!im || !(im.width > PX || im.height > PX) || t.userData.oeLean || typeof createImageBitmap !== 'function') continue;
           t.userData.oeLean = true;
-          const f = LEAN_PX / Math.max(im.width, im.height);
+          const f = PX / Math.max(im.width, im.height);
           jobs.push(createImageBitmap(im, { resizeWidth: Math.round(im.width * f), resizeHeight: Math.round(im.height * f), resizeQuality: 'high', premultiplyAlpha: 'none' })
             .then(bm => { t.image = bm; t.needsUpdate = true; if (im.close) im.close(); }).catch(() => {})); // (else as it came)
         }
@@ -589,7 +590,10 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // programs in a draw, issue 31. Until then the far crowd's copy of each stands in. A main character is wanted by
       // the load itself, and does not wait)
       const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {}) : Promise.resolve(); };
-      return (lean && npc ? smaller(tpl) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
+      // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not
+      // its head's and its hair's at 1024: a phone's canvas is 760 pixels wide and shows that face 300 across at its nearest, in a talk's
+      // two-shot, and a texel finer than a pixel is not seen. At 512 a side whatever the phone's level (the cast's go to 256 on the lighter ones): 8 MB of the GPU less: issue 130. ?herotex=full: as they come, to set beside, tools/hero_face_shot.js)
+      return (lean && (npc || !/[?&]herotex=full\b/.test(location.search)) ? smaller(tpl, npc ? null : /_head$|_opacity$/, npc ? LEAN_PX : 512) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
         lib.tpl[name] = tpl;
         if (onMsg) onMsg(name);
         return tpl;
@@ -1038,7 +1042,31 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
     }
     g.setAttribute('hairTR', new THREE.BufferAttribute(out, 4));
     g.setAttribute('hairSK', new THREE.BufferAttribute(SK, 2));
-    if (UP) Nn.needsUpdate = true;
+    if (UP) { Nn.needsUpdate = true; looseEnds(g, UP, S, up, u, ahead); }
+  }
+  // The cards that hang loose: below the nape the cards lie along the head's painted hair where it goes in under the
+  // collar, and come out of the jacket in strips beside the lock, a fringe of tassels round the hair's end (the owner,
+  // 23 November 2026); below the ears a card off the painted hair, or past its hem, hangs in the air over the back.
+  // Those triangles are left out: below the nape a long head of hair is its painted lock, and the cards stay round the
+  // head. (In the mesh's own frame, once a character; UP: the head's hair's vertices)
+  function looseEnds(g, UP, S, up, u, ahead) {
+    const P = g.attributes.position, ix = g.index;
+    if (!ix) return;
+    let hem = Infinity;
+    for (let j = 0; j < UP.length; j += 3) hem = Math.min(hem, ((UP[j] - S.x) * up.x + (UP[j + 1] - S.y) * up.y + (UP[j + 2] - S.z) * up.z) / u);
+    const loose = new Uint8Array(P.count), v = new THREE.Vector3();
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i);
+      const h = v.clone().sub(S).dot(up) / u; // (metres over the skull's middle)
+      if (h > -0.09) continue; // (above the ears: a fringe, a parting, the hair over the ears stays as built)
+      let best = Infinity;
+      for (let j = 0; j < UP.length; j += 3) { const dx = UP[j] - v.x, dy = UP[j + 1] - v.y, dz = UP[j + 2] - v.z; best = Math.min(best, dx * dx + dy * dy + dz * dz); }
+      const back = v.clone().sub(S).dot(ahead) / u < -0.02; // (behind the neck, where the collar is)
+      loose[i] = h < (back ? -0.11 : -0.15) || h < hem + 0.005 || Math.sqrt(best) / u > 0.018 ? 1 : 0; // (the nape, 11 cm under the skull's middle behind, 15 at the sides)
+    }
+    const a = ix.array, keep = [];
+    for (let t = 0; t < a.length; t += 3) if (!(loose[a[t]] && loose[a[t + 1]] && loose[a[t + 2]])) keep.push(a[t], a[t + 1], a[t + 2]);
+    if (keep.length < a.length) { g.setIndex(new THREE.BufferAttribute(new a.constructor(keep), 1)); g.userData.oeLoose = (a.length - keep.length) / 3; }
   }
 
   // ------------------------------------------------------------ an afterimage: a person in an old exposure

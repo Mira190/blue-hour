@@ -10,6 +10,7 @@
 //   - the names the section declares and the rest uses are returned by the part and taken back, by name, on that
 //     same line: what the part offers.
 // Nothing else is touched: no line outside the section moves, none inside it is reformatted, comments stay.
+// A local of the section's own called `g` is renamed `g_` (it would hide the part's `g`).
 // It refuses a section with a statement half inside it, an `await` or a `return` at the closure's level, and a `let`
 // of the section that the rest uses (the rest would hold a copy): KEEP=name leaves such a declaration in game.js.
 //   node tools/cut.js web/game/game.js <first line> <last line>                      # what the cut would ask and offer
@@ -52,6 +53,7 @@ for (const st of fn.body.statements) {
   })(st);
 }
 const asks = new Map(), offers = new Map(), edits = [];
+let locals = 0;   // (the section's own locals called g)
 (function walk(n) {
   if (ts.isIdentifier(n)) {
     const p = n.parent;
@@ -66,6 +68,9 @@ const asks = new Map(), offers = new Map(), edits = [];
         if (here && !d.inS) { asks.set(d.name, d.kind); edits.push([n.getStart(), n.end, short ? `${d.name}: g.${d.name}` : `g.${d.name}`]); }
         else if (!here && d.inS) offers.set(d.name, d.kind);
       }
+      // (a local of the section's own called g, a canvas's context or a group, would hide the part's `g` from every
+      // name of the game's beside it: `g.world.add(g)`. It is renamed g_, by its symbol, wherever it is said)
+      else if (!d && n.text === 'g' && n.getStart() >= from && n.end <= to) { locals++; edits.push([n.getStart(), n.end, short ? 'g: g_' : 'g_']); }
     }
   }
   ts.forEachChild(n, walk);
@@ -73,6 +78,7 @@ const asks = new Map(), offers = new Map(), edits = [];
 const badLet = [...offers].filter(([, k]) => k === 'let').map(([n]) => n);
 console.log(`lines ${a} to ${b}: ${b - a + 1} lines\nasks (${asks.size}): ${[...asks.keys()].sort().join(' ')}\noffers (${offers.size}): ${[...offers.keys()].sort().join(' ')}`);
 if (badLet.length) die(`the rest of game.js uses the section's own let ${badLet.join(', ')}: it would hold a copy`);
+if (locals) { if (/\bg_\b/.test(text.slice(from, to))) die('the section has a local g and says g_ too'); console.log(`a local called g, said ${locals} times, becomes g_`); }
 if (!out) process.exit(0);
 if (!/^[A-Z]\w+$/.test(glob || '')) die('the part\'s global, like OEGamePilot');
 let sec = text.slice(from, to);

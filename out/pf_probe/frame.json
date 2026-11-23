@@ -1,0 +1,2862 @@
+[
+ {
+  "name": "title",
+  "draws": 198,
+  "tris": 455018,
+  "passes": 9,
+  "gpu_mb": 187,
+  "canvas": [
+   760,
+   1644
+  ],
+  "groups": [
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:who,slots,k",
+    "draws": 8,
+    "tris": 64639
+   },
+   {
+    "group": "760x1644 buildings/buildings-cell",
+    "draws": 15,
+    "tris": 49293
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic",
+    "draws": 6,
+    "tris": 41232
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill",
+    "draws": 3,
+    "tris": 37030
+   },
+   {
+    "group": "760x1644 bounds-works",
+    "draws": 12,
+    "tris": 32928
+   },
+   {
+    "group": "760x1644 far-land",
+    "draws": 1,
+    "tris": 31888
+   },
+   {
+    "group": "760x1644 night",
+    "draws": 16,
+    "tris": 18176
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill,oeVis",
+    "draws": 6,
+    "tris": 16765
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:",
+    "draws": 24,
+    "tris": 16503
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshBasicMaterial:",
+    "draws": 8,
+    "tris": 14294
+   },
+   {
+    "group": "760x1644 yl_yl_steel",
+    "draws": 1,
+    "tris": 12224
+   },
+   {
+    "group": "760x1644 p5_wire",
+    "draws": 1,
+    "tris": 10578
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:",
+    "draws": 1,
+    "tris": 9318
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh",
+    "draws": 7,
+    "tris": 8986
+   },
+   {
+    "group": "760x1644 yoyogi_yoyogi_rib",
+    "draws": 1,
+    "tris": 7552
+   },
+   {
+    "group": "760x1644 yl_yl_mast",
+    "draws": 1,
+    "tris": 6800
+   },
+   {
+    "group": "760x1644 yl_yl_wire",
+    "draws": 1,
+    "tris": 6112
+   },
+   {
+    "group": "760x1644 scramble_x_guard",
+    "draws": 1,
+    "tris": 5112
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic,noRefl",
+    "draws": 3,
+    "tris": 3984
+   },
+   {
+    "group": "760x1644 sign_back",
+    "draws": 1,
+    "tris": 3895
+   },
+   {
+    "group": "760x1644 scramble_x_rail_steel",
+    "draws": 1,
+    "tris": 3568
+   },
+   {
+    "group": "760x1644 scramble_x_jr_steel",
+    "draws": 1,
+    "tris": 3478
+   },
+   {
+    "group": "760x1644 p5_steel",
+    "draws": 1,
+    "tris": 3336
+   },
+   {
+    "group": "760x1644 yoyogi_yoyogi_roof",
+    "draws": 1,
+    "tris": 3220
+   },
+   {
+    "group": "760x1644 yl_yl_ballast",
+    "draws": 1,
+    "tris": 3066
+   },
+   {
+    "group": "760x1644 scramble_x_riser",
+    "draws": 1,
+    "tris": 2976
+   },
+   {
+    "group": "760x1644 p5_lit_atlas",
+    "draws": 1,
+    "tris": 2830
+   },
+   {
+    "group": "760x1644 scramble_x_frame",
+    "draws": 1,
+    "tris": 2420
+   },
+   {
+    "group": "760x1644 p5_steel_dark",
+    "draws": 1,
+    "tris": 2348
+   },
+   {
+    "group": "760x1644 scramble_x_fin",
+    "draws": 1,
+    "tris": 2280
+   },
+   {
+    "group": "760x1644 scramble_x_sleeper",
+    "draws": 1,
+    "tris": 2080
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh003",
+    "draws": 1,
+    "tris": 1872
+   },
+   {
+    "group": "760x1644 p5_crane_yellow",
+    "draws": 1,
+    "tris": 1818
+   },
+   {
+    "group": "760x1644 scramble_x_wire",
+    "draws": 1,
+    "tris": 1712
+   },
+   {
+    "group": "760x1644 scramble_x_jr_concrete",
+    "draws": 1,
+    "tris": 1418
+   },
+   {
+    "group": "760x1644 yl_yl_girder",
+    "draws": 1,
+    "tris": 1380
+   },
+   {
+    "group": "760x1644 p5_concrete",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_white_wall",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_lit_lamp",
+    "draws": 1,
+    "tris": 1092
+   },
+   {
+    "group": "760x1644 scramble_x_asphalt",
+    "draws": 1,
+    "tris": 1040
+   },
+   {
+    "group": "760x1644 yl_yl_wall",
+    "draws": 1,
+    "tris": 892
+   },
+   {
+    "group": "760x1644 p5_screen_frame",
+    "draws": 1,
+    "tris": 888
+   },
+   {
+    "group": "760x1644 scramble_x_paint",
+    "draws": 1,
+    "tris": 882
+   },
+   {
+    "group": "760x1644 scramble_x_rail",
+    "draws": 1,
+    "tris": 736
+   },
+   {
+    "group": "760x1644 scramble_x_gate",
+    "draws": 1,
+    "tris": 612
+   },
+   {
+    "group": "760x1644 p5_plaza",
+    "draws": 1,
+    "tris": 584
+   },
+   {
+    "group": "760x1644 scramble_x_atlas",
+    "draws": 1,
+    "tris": 524
+   },
+   {
+    "group": "760x1644 zelkova-far",
+    "draws": 1,
+    "tris": 518
+   },
+   {
+    "group": "760x1644 scramble_x_tread",
+    "draws": 1,
+    "tris": 496
+   },
+   {
+    "group": "760x1644 scramble_x_panel",
+    "draws": 1,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 scramble_x_glass",
+    "draws": 2,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 scramble_x_tactile",
+    "draws": 1,
+    "tris": 476
+   },
+   {
+    "group": "760x1644 yoyogi_yoyogi_concrete",
+    "draws": 1,
+    "tris": 476
+   },
+   {
+    "group": "760x1644 susuki-far",
+    "draws": 1,
+    "tris": 426
+   },
+   {
+    "group": "760x1644 scramble_x_qf_roof",
+    "draws": 1,
+    "tris": 409
+   },
+   {
+    "group": "760x1644 scramble_x_light",
+    "draws": 1,
+    "tris": 406
+   },
+   {
+    "group": "760x1644 ginkgo-far",
+    "draws": 1,
+    "tris": 380
+   },
+   {
+    "group": "760x1644 inland_glints",
+    "draws": 1,
+    "tris": 358
+   },
+   {
+    "group": "760x1644 inland/inland_water",
+    "draws": 2,
+    "tris": 287
+   },
+   {
+    "group": "760x1644 cherry-far",
+    "draws": 1,
+    "tris": 274
+   },
+   {
+    "group": "760x1644 plane-far",
+    "draws": 1,
+    "tris": 238
+   },
+   {
+    "group": "760x1644 scramble_x_qf_panel",
+    "draws": 1,
+    "tris": 199
+   },
+   {
+    "group": "760x1644 scramble_x_ballast",
+    "draws": 1,
+    "tris": 190
+   },
+   {
+    "group": "760x1644 scramble_x_dark",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 scramble_st_cream",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 scramble_x_tile",
+    "draws": 1,
+    "tris": 160
+   },
+   {
+    "group": "760x1644 scramble_x_shop",
+    "draws": 1,
+    "tris": 150
+   },
+   {
+    "group": "760x1644 scramble_x_jr_wall",
+    "draws": 1,
+    "tris": 140
+   },
+   {
+    "group": "760x1644 camphor-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 evergreen-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 scramble_x_qf_glass",
+    "draws": 2,
+    "tris": 116
+   },
+   {
+    "group": "760x1644 scramble_st_seibu",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 p5_lit_aviation",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 scramble_st_shop",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_x_print",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_x_tactile_dot",
+    "draws": 1,
+    "tris": 90
+   },
+   {
+    "group": "760x1644 scramble_st_closed",
+    "draws": 1,
+    "tris": 66
+   },
+   {
+    "group": "760x1644 p5_screens",
+    "draws": 1,
+    "tris": 62
+   },
+   {
+    "group": "760x1644 inland/inland_deck_under",
+    "draws": 1,
+    "tris": 53
+   },
+   {
+    "group": "760x1644 inland/inland_deck_rail",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 inland/inland_deck",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 scramble_x_bk_box",
+    "draws": 1,
+    "tris": 40
+   },
+   {
+    "group": "760x1644 scramble_qfront_glass",
+    "draws": 1,
+    "tris": 34
+   },
+   {
+    "group": "760x1644 p5_lit_atlas_print",
+    "draws": 1,
+    "tris": 26
+   },
+   {
+    "group": "760x1644 Mesh:SkyShader:",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "190x411 Mesh:ShaderMaterial:",
+    "draws": 4,
+    "tris": 4
+   },
+   {
+    "group": "760x1644 pine-far",
+    "draws": 1,
+    "tris": 2
+   },
+   {
+    "group": "95x206 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "48x103 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "760x1644 Mesh:ShaderMaterial:",
+    "draws": 1,
+    "tris": 1
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:shadowStatic",
+    "draws": 1,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:ShaderMaterial:",
+    "draws": 1,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:PointsMaterial:",
+    "draws": 1,
+    "tris": 0
+   }
+  ]
+ },
+ {
+  "name": "foot 0",
+  "draws": 261,
+  "tris": 554800,
+  "passes": 9,
+  "gpu_mb": 228.3,
+  "canvas": [
+   760,
+   1644
+  ],
+  "groups": [
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:who,slots,k",
+    "draws": 8,
+    "tris": 63503
+   },
+   {
+    "group": "760x1644 buildings/buildings-cell",
+    "draws": 17,
+    "tris": 50452
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic",
+    "draws": 6,
+    "tris": 41232
+   },
+   {
+    "group": "760x1644 R_Female_Adult_14_f016_Rig/Mesh",
+    "draws": 12,
+    "tris": 34408
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys",
+    "draws": 20,
+    "tris": 34021
+   },
+   {
+    "group": "760x1644 far-land",
+    "draws": 1,
+    "tris": 31888
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/f020_hipoly_81_bones_opacity",
+    "draws": 6,
+    "tris": 25872
+   },
+   {
+    "group": "760x1644 night",
+    "draws": 18,
+    "tris": 20444
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh",
+    "draws": 6,
+    "tris": 19908
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill",
+    "draws": 2,
+    "tris": 17536
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill,oeVis",
+    "draws": 6,
+    "tris": 16641
+   },
+   {
+    "group": "760x1644 R_Male_Adult_20_m008_Rig/Mesh",
+    "draws": 6,
+    "tris": 14908
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshBasicMaterial:",
+    "draws": 8,
+    "tris": 14294
+   },
+   {
+    "group": "760x1644 yl_yl_steel",
+    "draws": 1,
+    "tris": 12224
+   },
+   {
+    "group": "760x1644 p5_wire",
+    "draws": 1,
+    "tris": 10578
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:",
+    "draws": 1,
+    "tris": 9318
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh",
+    "draws": 7,
+    "tris": 8986
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_alu",
+    "draws": 1,
+    "tris": 8646
+   },
+   {
+    "group": "760x1644 yl_yl_mast",
+    "draws": 1,
+    "tris": 6800
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh003",
+    "draws": 6,
+    "tris": 6240
+   },
+   {
+    "group": "760x1644 yl_yl_wire",
+    "draws": 1,
+    "tris": 6112
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys,shFull",
+    "draws": 6,
+    "tris": 5662
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:noRefl",
+    "draws": 1,
+    "tris": 5476
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/m009_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 4374
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic,noRefl",
+    "draws": 3,
+    "tris": 3984
+   },
+   {
+    "group": "760x1644 sign_back",
+    "draws": 1,
+    "tris": 3895
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/m017_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 3814
+   },
+   {
+    "group": "760x1644 scramble_x_rail_steel",
+    "draws": 1,
+    "tris": 3568
+   },
+   {
+    "group": "760x1644 scramble_x_jr_steel",
+    "draws": 1,
+    "tris": 3478
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh",
+    "draws": 1,
+    "tris": 3338
+   },
+   {
+    "group": "760x1644 p5_steel",
+    "draws": 1,
+    "tris": 3336
+   },
+   {
+    "group": "760x1644 yl_yl_ballast",
+    "draws": 1,
+    "tris": 3066
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh",
+    "draws": 1,
+    "tris": 2994
+   },
+   {
+    "group": "760x1644 scramble_x_riser",
+    "draws": 1,
+    "tris": 2976
+   },
+   {
+    "group": "760x1644 p5_lit_atlas",
+    "draws": 1,
+    "tris": 2830
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paver",
+    "draws": 1,
+    "tris": 2493
+   },
+   {
+    "group": "760x1644 scramble_x_frame",
+    "draws": 1,
+    "tris": 2420
+   },
+   {
+    "group": "760x1644 p5_steel_dark",
+    "draws": 1,
+    "tris": 2348
+   },
+   {
+    "group": "760x1644 scramble_x_fin",
+    "draws": 1,
+    "tris": 2280
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_char",
+    "draws": 1,
+    "tris": 2106
+   },
+   {
+    "group": "760x1644 scramble_x_sleeper",
+    "draws": 1,
+    "tris": 2080
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh003",
+    "draws": 1,
+    "tris": 1872
+   },
+   {
+    "group": "760x1644 p5_crane_yellow",
+    "draws": 1,
+    "tris": 1818
+   },
+   {
+    "group": "760x1644 petals",
+    "draws": 1,
+    "tris": 1800
+   },
+   {
+    "group": "760x1644 scramble_x_wire",
+    "draws": 1,
+    "tris": 1712
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_asphalt",
+    "draws": 1,
+    "tris": 1630
+   },
+   {
+    "group": "760x1644 scramble_x_jr_concrete",
+    "draws": 1,
+    "tris": 1418
+   },
+   {
+    "group": "760x1644 yl_yl_girder",
+    "draws": 1,
+    "tris": 1380
+   },
+   {
+    "group": "760x1644 p5_concrete",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_white_wall",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_cream",
+    "draws": 1,
+    "tris": 1192
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_white",
+    "draws": 1,
+    "tris": 1108
+   },
+   {
+    "group": "760x1644 p5_lit_lamp",
+    "draws": 1,
+    "tris": 1092
+   },
+   {
+    "group": "760x1644 yl_yl_wall",
+    "draws": 1,
+    "tris": 892
+   },
+   {
+    "group": "760x1644 p5_screen_frame",
+    "draws": 1,
+    "tris": 888
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paint",
+    "draws": 1,
+    "tris": 838
+   },
+   {
+    "group": "760x1644 scramble_x_rail",
+    "draws": 1,
+    "tris": 736
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_kerb",
+    "draws": 1,
+    "tris": 686
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_gutter",
+    "draws": 1,
+    "tris": 635
+   },
+   {
+    "group": "760x1644 scramble_x_gate",
+    "draws": 1,
+    "tris": 612
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh002",
+    "draws": 1,
+    "tris": 548
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_foot",
+    "draws": 1,
+    "tris": 534
+   },
+   {
+    "group": "760x1644 scramble_x_atlas",
+    "draws": 1,
+    "tris": 524
+   },
+   {
+    "group": "760x1644 zelkova-far",
+    "draws": 1,
+    "tris": 518
+   },
+   {
+    "group": "760x1644 scramble_x_tread",
+    "draws": 1,
+    "tris": 496
+   },
+   {
+    "group": "760x1644 Mesh:MeshBasicMaterial:",
+    "draws": 12,
+    "tris": 484
+   },
+   {
+    "group": "760x1644 scramble_x_panel",
+    "draws": 1,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_pole",
+    "draws": 1,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 scramble_x_glass",
+    "draws": 2,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh003",
+    "draws": 1,
+    "tris": 436
+   },
+   {
+    "group": "760x1644 susuki-far",
+    "draws": 1,
+    "tris": 426
+   },
+   {
+    "group": "760x1644 scramble_x_qf_roof",
+    "draws": 1,
+    "tris": 409
+   },
+   {
+    "group": "760x1644 scramble_x_light",
+    "draws": 1,
+    "tris": 406
+   },
+   {
+    "group": "760x1644 ginkgo-far",
+    "draws": 1,
+    "tris": 382
+   },
+   {
+    "group": "760x1644 inland_glints",
+    "draws": 1,
+    "tris": 358
+   },
+   {
+    "group": "760x1644 hero/scramble_win_glass",
+    "draws": 1,
+    "tris": 340
+   },
+   {
+    "group": "760x1644 p5_stone",
+    "draws": 1,
+    "tris": 316
+   },
+   {
+    "group": "760x1644 inland/inland_water",
+    "draws": 2,
+    "tris": 287
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_sett",
+    "draws": 1,
+    "tris": 283
+   },
+   {
+    "group": "760x1644 cherry-far",
+    "draws": 1,
+    "tris": 274
+   },
+   {
+    "group": "760x1644 plane-far",
+    "draws": 1,
+    "tris": 238
+   },
+   {
+    "group": "760x1644 scramble_x_qf_panel",
+    "draws": 1,
+    "tris": 199
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_bar",
+    "draws": 1,
+    "tris": 197
+   },
+   {
+    "group": "760x1644 scramble_x_ballast",
+    "draws": 1,
+    "tris": 190
+   },
+   {
+    "group": "760x1644 scramble_x_dark",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 scramble_st_cream",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 scramble_x_tile",
+    "draws": 1,
+    "tris": 160
+   },
+   {
+    "group": "760x1644 scramble_x_shop",
+    "draws": 1,
+    "tris": 150
+   },
+   {
+    "group": "760x1644 scramble_x_jr_wall",
+    "draws": 1,
+    "tris": 140
+   },
+   {
+    "group": "760x1644 camphor-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 evergreen-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 scramble_x_qf_glass",
+    "draws": 2,
+    "tris": 116
+   },
+   {
+    "group": "760x1644 hero/scramble_glow_shop",
+    "draws": 1,
+    "tris": 109
+   },
+   {
+    "group": "760x1644 scramble_st_seibu",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 p5_lit_aviation",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 scramble_st_shop",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_x_print",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_st_closed",
+    "draws": 1,
+    "tris": 66
+   },
+   {
+    "group": "760x1644 p5_screens",
+    "draws": 1,
+    "tris": 62
+   },
+   {
+    "group": "760x1644 inland/inland_deck_under",
+    "draws": 1,
+    "tris": 53
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_dot",
+    "draws": 1,
+    "tris": 48
+   },
+   {
+    "group": "760x1644 inland/inland_deck_rail",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 inland/inland_deck",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 scramble_x_bk_box",
+    "draws": 1,
+    "tris": 40
+   },
+   {
+    "group": "760x1644 scramble_qfront_glass",
+    "draws": 1,
+    "tris": 34
+   },
+   {
+    "group": "760x1644 p5_lit_atlas_print",
+    "draws": 1,
+    "tris": 26
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_iron",
+    "draws": 1,
+    "tris": 22
+   },
+   {
+    "group": "760x1644 scramble_x_bk_blue",
+    "draws": 1,
+    "tris": 14
+   },
+   {
+    "group": "760x1644 Mesh:SkyShader:",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "760x1644 scramble_x_clap",
+    "draws": 1,
+    "tris": 4
+   },
+   {
+    "group": "760x1644 scramble_x_bk_sign",
+    "draws": 1,
+    "tris": 4
+   },
+   {
+    "group": "190x411 Mesh:ShaderMaterial:",
+    "draws": 4,
+    "tris": 4
+   },
+   {
+    "group": "760x1644 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 3
+   },
+   {
+    "group": "760x1644 pine-far",
+    "draws": 1,
+    "tris": 2
+   },
+   {
+    "group": "95x206 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "48x103 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:shadowStatic",
+    "draws": 1,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:ShaderMaterial:",
+    "draws": 2,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:PointsMaterial:",
+    "draws": 1,
+    "tris": 0
+   }
+  ]
+ },
+ {
+  "name": "foot 90",
+  "draws": 280,
+  "tris": 613109,
+  "passes": 9,
+  "gpu_mb": 228.6,
+  "canvas": [
+   760,
+   1644
+  ],
+  "groups": [
+   {
+    "group": "760x1644 buildings/buildings-cell",
+    "draws": 20,
+    "tris": 67638
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:who,slots,k",
+    "draws": 8,
+    "tris": 53221
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic",
+    "draws": 6,
+    "tris": 41232
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/f020_hipoly_81_bones_opacity",
+    "draws": 8,
+    "tris": 34496
+   },
+   {
+    "group": "760x1644 far-land",
+    "draws": 1,
+    "tris": 31888
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill",
+    "draws": 3,
+    "tris": 28462
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill,oeVis",
+    "draws": 9,
+    "tris": 27606
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh",
+    "draws": 8,
+    "tris": 26544
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys",
+    "draws": 18,
+    "tris": 26191
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:noRefl",
+    "draws": 5,
+    "tris": 20704
+   },
+   {
+    "group": "760x1644 R_Female_Adult_14_f016_Rig/Mesh",
+    "draws": 6,
+    "tris": 17204
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_alu",
+    "draws": 1,
+    "tris": 15799
+   },
+   {
+    "group": "760x1644 night",
+    "draws": 14,
+    "tris": 14360
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshBasicMaterial:",
+    "draws": 8,
+    "tris": 14294
+   },
+   {
+    "group": "760x1644 yl_yl_steel",
+    "draws": 1,
+    "tris": 12224
+   },
+   {
+    "group": "760x1644 train-cars",
+    "draws": 18,
+    "tris": 10819
+   },
+   {
+    "group": "760x1644 p5_wire",
+    "draws": 1,
+    "tris": 10578
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:",
+    "draws": 1,
+    "tris": 9318
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh",
+    "draws": 7,
+    "tris": 8986
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh003",
+    "draws": 8,
+    "tris": 8320
+   },
+   {
+    "group": "760x1644 R_Male_Adult_11_m017_Rig/Mesh",
+    "draws": 3,
+    "tris": 7651
+   },
+   {
+    "group": "760x1644 R_Male_Adult_20_m008_Rig/Mesh",
+    "draws": 3,
+    "tris": 7454
+   },
+   {
+    "group": "760x1644 yl_yl_mast",
+    "draws": 1,
+    "tris": 6800
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_clad",
+    "draws": 1,
+    "tris": 6271
+   },
+   {
+    "group": "760x1644 yl_yl_wire",
+    "draws": 1,
+    "tris": 6112
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys,shFull",
+    "draws": 6,
+    "tris": 5662
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/m009_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 4374
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic,noRefl",
+    "draws": 3,
+    "tris": 3984
+   },
+   {
+    "group": "760x1644 sign_back",
+    "draws": 1,
+    "tris": 3895
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/m017_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 3814
+   },
+   {
+    "group": "760x1644 scramble_x_rail_steel",
+    "draws": 1,
+    "tris": 3568
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_guard",
+    "draws": 1,
+    "tris": 3492
+   },
+   {
+    "group": "760x1644 scramble_x_jr_steel",
+    "draws": 1,
+    "tris": 3478
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_cream",
+    "draws": 1,
+    "tris": 3408
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh",
+    "draws": 1,
+    "tris": 3338
+   },
+   {
+    "group": "760x1644 p5_steel",
+    "draws": 1,
+    "tris": 3336
+   },
+   {
+    "group": "760x1644 yl_yl_ballast",
+    "draws": 1,
+    "tris": 3066
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh",
+    "draws": 1,
+    "tris": 2994
+   },
+   {
+    "group": "760x1644 scramble_x_riser",
+    "draws": 1,
+    "tris": 2976
+   },
+   {
+    "group": "760x1644 p5_lit_atlas",
+    "draws": 1,
+    "tris": 2830
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paver",
+    "draws": 1,
+    "tris": 2489
+   },
+   {
+    "group": "760x1644 scramble_x_frame",
+    "draws": 1,
+    "tris": 2420
+   },
+   {
+    "group": "760x1644 p5_steel_dark",
+    "draws": 1,
+    "tris": 2348
+   },
+   {
+    "group": "760x1644 scramble_x_fin",
+    "draws": 1,
+    "tris": 2280
+   },
+   {
+    "group": "760x1644 scramble_x_sleeper",
+    "draws": 1,
+    "tris": 2080
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_grey",
+    "draws": 1,
+    "tris": 2079
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh003",
+    "draws": 1,
+    "tris": 1872
+   },
+   {
+    "group": "760x1644 p5_crane_yellow",
+    "draws": 1,
+    "tris": 1818
+   },
+   {
+    "group": "760x1644 petals",
+    "draws": 1,
+    "tris": 1800
+   },
+   {
+    "group": "760x1644 scramble_x_wire",
+    "draws": 1,
+    "tris": 1712
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_asphalt",
+    "draws": 1,
+    "tris": 1650
+   },
+   {
+    "group": "760x1644 scramble_x_jr_concrete",
+    "draws": 1,
+    "tris": 1418
+   },
+   {
+    "group": "760x1644 yl_yl_girder",
+    "draws": 1,
+    "tris": 1380
+   },
+   {
+    "group": "760x1644 p5_concrete",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_white_wall",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_lit_lamp",
+    "draws": 1,
+    "tris": 1092
+   },
+   {
+    "group": "760x1644 yl_yl_wall",
+    "draws": 1,
+    "tris": 892
+   },
+   {
+    "group": "760x1644 p5_screen_frame",
+    "draws": 1,
+    "tris": 888
+   },
+   {
+    "group": "760x1644 hero/scramble_win_glass",
+    "draws": 1,
+    "tris": 787
+   },
+   {
+    "group": "760x1644 scramble_x_rail",
+    "draws": 1,
+    "tris": 736
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_pole",
+    "draws": 1,
+    "tris": 720
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paint",
+    "draws": 1,
+    "tris": 705
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_gutter",
+    "draws": 1,
+    "tris": 702
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_kerb",
+    "draws": 1,
+    "tris": 686
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh002",
+    "draws": 1,
+    "tris": 548
+   },
+   {
+    "group": "760x1644 Mesh:MeshBasicMaterial:",
+    "draws": 14,
+    "tris": 548
+   },
+   {
+    "group": "760x1644 scramble_x_atlas",
+    "draws": 1,
+    "tris": 524
+   },
+   {
+    "group": "760x1644 zelkova-far",
+    "draws": 1,
+    "tris": 518
+   },
+   {
+    "group": "760x1644 scramble_x_tread",
+    "draws": 1,
+    "tris": 496
+   },
+   {
+    "group": "760x1644 scramble_x_panel",
+    "draws": 1,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 scramble_x_glass",
+    "draws": 2,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh003",
+    "draws": 1,
+    "tris": 436
+   },
+   {
+    "group": "760x1644 susuki-far",
+    "draws": 1,
+    "tris": 426
+   },
+   {
+    "group": "760x1644 scramble_x_qf_roof",
+    "draws": 1,
+    "tris": 409
+   },
+   {
+    "group": "760x1644 scramble_x_light",
+    "draws": 1,
+    "tris": 406
+   },
+   {
+    "group": "760x1644 ginkgo-far",
+    "draws": 1,
+    "tris": 382
+   },
+   {
+    "group": "760x1644 inland_glints",
+    "draws": 1,
+    "tris": 358
+   },
+   {
+    "group": "760x1644 p5_stone",
+    "draws": 1,
+    "tris": 316
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_foot",
+    "draws": 1,
+    "tris": 302
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_sett",
+    "draws": 1,
+    "tris": 283
+   },
+   {
+    "group": "760x1644 cherry-far",
+    "draws": 1,
+    "tris": 274
+   },
+   {
+    "group": "760x1644 plane-far",
+    "draws": 1,
+    "tris": 238
+   },
+   {
+    "group": "760x1644 scramble_x_qf_panel",
+    "draws": 1,
+    "tris": 199
+   },
+   {
+    "group": "760x1644 scramble_x_ballast",
+    "draws": 1,
+    "tris": 190
+   },
+   {
+    "group": "760x1644 scramble_x_dark",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 scramble_x_tile",
+    "draws": 1,
+    "tris": 160
+   },
+   {
+    "group": "760x1644 scramble_x_shop",
+    "draws": 1,
+    "tris": 150
+   },
+   {
+    "group": "760x1644 scramble_x_jr_wall",
+    "draws": 1,
+    "tris": 140
+   },
+   {
+    "group": "760x1644 camphor-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 evergreen-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 scramble_x_qf_glass",
+    "draws": 2,
+    "tris": 116
+   },
+   {
+    "group": "760x1644 hero/scramble_glow_shop",
+    "draws": 1,
+    "tris": 112
+   },
+   {
+    "group": "760x1644 p5_lit_aviation",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 scramble_st_shop",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_x_print",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 p5_screens",
+    "draws": 1,
+    "tris": 62
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_bar",
+    "draws": 1,
+    "tris": 55
+   },
+   {
+    "group": "760x1644 inland/inland_deck_under",
+    "draws": 1,
+    "tris": 53
+   },
+   {
+    "group": "760x1644 inland/inland_deck_rail",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 inland/inland_deck",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_iron",
+    "draws": 1,
+    "tris": 41
+   },
+   {
+    "group": "760x1644 inland/inland_water",
+    "draws": 1,
+    "tris": 36
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_char",
+    "draws": 1,
+    "tris": 33
+   },
+   {
+    "group": "760x1644 scramble_x_fence",
+    "draws": 1,
+    "tris": 30
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_dot",
+    "draws": 1,
+    "tris": 16
+   },
+   {
+    "group": "760x1644 Mesh:SkyShader:",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "760x1644 hero/scramble_lamp_head",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "760x1644 Sprite:SpriteMaterial:",
+    "draws": 2,
+    "tris": 4
+   },
+   {
+    "group": "190x411 Mesh:ShaderMaterial:",
+    "draws": 4,
+    "tris": 4
+   },
+   {
+    "group": "760x1644 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 3
+   },
+   {
+    "group": "760x1644 pine-far",
+    "draws": 1,
+    "tris": 2
+   },
+   {
+    "group": "95x206 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "48x103 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "760x1644 Points:ShaderMaterial:",
+    "draws": 2,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:PointsMaterial:",
+    "draws": 1,
+    "tris": 0
+   }
+  ]
+ },
+ {
+  "name": "foot 180",
+  "draws": 296,
+  "tris": 575613,
+  "passes": 9,
+  "gpu_mb": 228.6,
+  "canvas": [
+   760,
+   1644
+  ],
+  "groups": [
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:who,slots,k",
+    "draws": 8,
+    "tris": 61845
+   },
+   {
+    "group": "760x1644 buildings/buildings-cell",
+    "draws": 27,
+    "tris": 55564
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic",
+    "draws": 6,
+    "tris": 41232
+   },
+   {
+    "group": "760x1644 far-land",
+    "draws": 1,
+    "tris": 31888
+   },
+   {
+    "group": "760x1644 R_Male_Adult_11_m017_Rig/Mesh",
+    "draws": 12,
+    "tris": 30604
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys",
+    "draws": 18,
+    "tris": 30000
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill",
+    "draws": 4,
+    "tris": 27882
+   },
+   {
+    "group": "760x1644 night",
+    "draws": 18,
+    "tris": 22964
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill,oeVis",
+    "draws": 6,
+    "tris": 20814
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/f020_hipoly_81_bones_opacity",
+    "draws": 4,
+    "tris": 17248
+   },
+   {
+    "group": "760x1644 R_Female_Adult_14_f016_Rig/Mesh",
+    "draws": 6,
+    "tris": 17204
+   },
+   {
+    "group": "760x1644 R_Male_Adult_20_m008_Rig/Mesh",
+    "draws": 6,
+    "tris": 14908
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshBasicMaterial:",
+    "draws": 8,
+    "tris": 14294
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh",
+    "draws": 4,
+    "tris": 13272
+   },
+   {
+    "group": "760x1644 yl_yl_steel",
+    "draws": 1,
+    "tris": 12224
+   },
+   {
+    "group": "760x1644 p5_wire",
+    "draws": 1,
+    "tris": 10578
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:",
+    "draws": 1,
+    "tris": 9318
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh",
+    "draws": 7,
+    "tris": 8986
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_alu",
+    "draws": 1,
+    "tris": 8942
+   },
+   {
+    "group": "760x1644 yl_yl_mast",
+    "draws": 1,
+    "tris": 6800
+   },
+   {
+    "group": "760x1644 yl_yl_wire",
+    "draws": 1,
+    "tris": 6112
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/m009_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 4374
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys,shFull",
+    "draws": 6,
+    "tris": 4225
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh003",
+    "draws": 4,
+    "tris": 4160
+   },
+   {
+    "group": "760x1644 p5_hk_steel",
+    "draws": 1,
+    "tris": 3996
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic,noRefl",
+    "draws": 3,
+    "tris": 3984
+   },
+   {
+    "group": "760x1644 sign_back",
+    "draws": 1,
+    "tris": 3895
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/m017_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 3814
+   },
+   {
+    "group": "760x1644 scramble_x_rail_steel",
+    "draws": 1,
+    "tris": 3568
+   },
+   {
+    "group": "760x1644 scramble_x_jr_steel",
+    "draws": 1,
+    "tris": 3478
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh",
+    "draws": 1,
+    "tris": 3338
+   },
+   {
+    "group": "760x1644 p5_steel",
+    "draws": 1,
+    "tris": 3336
+   },
+   {
+    "group": "760x1644 yl_yl_ballast",
+    "draws": 1,
+    "tris": 3066
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh",
+    "draws": 1,
+    "tris": 2994
+   },
+   {
+    "group": "760x1644 scramble_x_riser",
+    "draws": 1,
+    "tris": 2976
+   },
+   {
+    "group": "760x1644 inland/inland_coping",
+    "draws": 4,
+    "tris": 2912
+   },
+   {
+    "group": "760x1644 p5_lit_atlas",
+    "draws": 1,
+    "tris": 2830
+   },
+   {
+    "group": "760x1644 scramble_x_frame",
+    "draws": 1,
+    "tris": 2420
+   },
+   {
+    "group": "760x1644 p5_steel_dark",
+    "draws": 1,
+    "tris": 2348
+   },
+   {
+    "group": "760x1644 scramble_x_fin",
+    "draws": 1,
+    "tris": 2280
+   },
+   {
+    "group": "760x1644 p5_hk_setts",
+    "draws": 1,
+    "tris": 2206
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_clad",
+    "draws": 1,
+    "tris": 2168
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_grey",
+    "draws": 1,
+    "tris": 2014
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh003",
+    "draws": 1,
+    "tris": 1872
+   },
+   {
+    "group": "760x1644 hero/scramblesq_win_scrsq",
+    "draws": 1,
+    "tris": 1828
+   },
+   {
+    "group": "760x1644 p5_crane_yellow",
+    "draws": 1,
+    "tris": 1818
+   },
+   {
+    "group": "760x1644 petals",
+    "draws": 1,
+    "tris": 1800
+   },
+   {
+    "group": "760x1644 hero/scramblesq_alu_fin",
+    "draws": 1,
+    "tris": 1720
+   },
+   {
+    "group": "760x1644 scramble_x_wire",
+    "draws": 1,
+    "tris": 1712
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_sett",
+    "draws": 1,
+    "tris": 1695
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_white",
+    "draws": 1,
+    "tris": 1673
+   },
+   {
+    "group": "760x1644 hero/scramblesq_alu_soffit",
+    "draws": 1,
+    "tris": 1660
+   },
+   {
+    "group": "760x1644 inland/inland_wall",
+    "draws": 4,
+    "tris": 1456
+   },
+   {
+    "group": "760x1644 scramble_x_jr_concrete",
+    "draws": 1,
+    "tris": 1418
+   },
+   {
+    "group": "760x1644 inland/inland_rail",
+    "draws": 4,
+    "tris": 1388
+   },
+   {
+    "group": "760x1644 yl_yl_girder",
+    "draws": 1,
+    "tris": 1380
+   },
+   {
+    "group": "760x1644 p5_concrete",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_white_wall",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_lit_lamp",
+    "draws": 1,
+    "tris": 1092
+   },
+   {
+    "group": "760x1644 yl_yl_wall",
+    "draws": 1,
+    "tris": 892
+   },
+   {
+    "group": "760x1644 p5_screen_frame",
+    "draws": 1,
+    "tris": 888
+   },
+   {
+    "group": "760x1644 scramble_x_rail",
+    "draws": 1,
+    "tris": 736
+   },
+   {
+    "group": "760x1644 inland/inland_bed",
+    "draws": 4,
+    "tris": 720
+   },
+   {
+    "group": "760x1644 inland/inland_water",
+    "draws": 4,
+    "tris": 720
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paint",
+    "draws": 1,
+    "tris": 680
+   },
+   {
+    "group": "760x1644 p5_hk_rim",
+    "draws": 1,
+    "tris": 645
+   },
+   {
+    "group": "760x1644 p5_hk_wall",
+    "draws": 1,
+    "tris": 614
+   },
+   {
+    "group": "760x1644 hero/scramble_win_glass",
+    "draws": 1,
+    "tris": 602
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh002",
+    "draws": 1,
+    "tris": 548
+   },
+   {
+    "group": "760x1644 Mesh:MeshBasicMaterial:",
+    "draws": 14,
+    "tris": 548
+   },
+   {
+    "group": "760x1644 scramble_x_atlas",
+    "draws": 1,
+    "tris": 524
+   },
+   {
+    "group": "760x1644 zelkova-far",
+    "draws": 1,
+    "tris": 520
+   },
+   {
+    "group": "760x1644 scramble_x_tread",
+    "draws": 1,
+    "tris": 496
+   },
+   {
+    "group": "760x1644 scramble_x_panel",
+    "draws": 1,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 scramble_x_glass",
+    "draws": 2,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh003",
+    "draws": 1,
+    "tris": 436
+   },
+   {
+    "group": "760x1644 susuki-far",
+    "draws": 1,
+    "tris": 426
+   },
+   {
+    "group": "760x1644 scramble_x_qf_roof",
+    "draws": 1,
+    "tris": 409
+   },
+   {
+    "group": "760x1644 scramble_x_light",
+    "draws": 1,
+    "tris": 406
+   },
+   {
+    "group": "760x1644 p5_hk_cap",
+    "draws": 1,
+    "tris": 392
+   },
+   {
+    "group": "760x1644 p5_hk_inlay",
+    "draws": 1,
+    "tris": 384
+   },
+   {
+    "group": "760x1644 ginkgo-far",
+    "draws": 1,
+    "tris": 384
+   },
+   {
+    "group": "760x1644 inland_glints",
+    "draws": 1,
+    "tris": 358
+   },
+   {
+    "group": "760x1644 p5_stone",
+    "draws": 1,
+    "tris": 316
+   },
+   {
+    "group": "760x1644 cherry-far",
+    "draws": 1,
+    "tris": 274
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_asphalt",
+    "draws": 1,
+    "tris": 242
+   },
+   {
+    "group": "760x1644 plane-far",
+    "draws": 1,
+    "tris": 238
+   },
+   {
+    "group": "760x1644 scramble_x_station",
+    "draws": 1,
+    "tris": 228
+   },
+   {
+    "group": "760x1644 p5_hk_soil",
+    "draws": 1,
+    "tris": 222
+   },
+   {
+    "group": "760x1644 scramble_x_qf_panel",
+    "draws": 1,
+    "tris": 199
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_foot",
+    "draws": 1,
+    "tris": 192
+   },
+   {
+    "group": "760x1644 scramble_x_ballast",
+    "draws": 1,
+    "tris": 190
+   },
+   {
+    "group": "760x1644 scramble_x_dark",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_bar",
+    "draws": 1,
+    "tris": 182
+   },
+   {
+    "group": "760x1644 scramble_x_tile",
+    "draws": 1,
+    "tris": 160
+   },
+   {
+    "group": "760x1644 scramble_x_shop",
+    "draws": 1,
+    "tris": 150
+   },
+   {
+    "group": "760x1644 scramble_x_jr_wall",
+    "draws": 1,
+    "tris": 140
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_kerb",
+    "draws": 1,
+    "tris": 131
+   },
+   {
+    "group": "760x1644 camphor-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 evergreen-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_gutter",
+    "draws": 1,
+    "tris": 127
+   },
+   {
+    "group": "760x1644 scramble_x_qf_glass",
+    "draws": 2,
+    "tris": 116
+   },
+   {
+    "group": "760x1644 p5_lit_aviation",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 scramble_st_shop",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_x_print",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 p5_screens",
+    "draws": 1,
+    "tris": 62
+   },
+   {
+    "group": "760x1644 hero/scramble_glow_shop",
+    "draws": 1,
+    "tris": 60
+   },
+   {
+    "group": "760x1644 inland/inland_deck_under",
+    "draws": 1,
+    "tris": 53
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paver",
+    "draws": 1,
+    "tris": 53
+   },
+   {
+    "group": "760x1644 p5_hk_joint",
+    "draws": 1,
+    "tris": 50
+   },
+   {
+    "group": "760x1644 inland/inland_deck_rail",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 inland/inland_deck",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_dot",
+    "draws": 1,
+    "tris": 16
+   },
+   {
+    "group": "760x1644 Mesh:SkyShader:",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "760x1644 Sprite:SpriteMaterial:",
+    "draws": 6,
+    "tris": 12
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_iron",
+    "draws": 1,
+    "tris": 4
+   },
+   {
+    "group": "190x411 Mesh:ShaderMaterial:",
+    "draws": 4,
+    "tris": 4
+   },
+   {
+    "group": "760x1644 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 3
+   },
+   {
+    "group": "760x1644 pine-far",
+    "draws": 1,
+    "tris": 2
+   },
+   {
+    "group": "95x206 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "48x103 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "760x1644 Points:ShaderMaterial:",
+    "draws": 2,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:PointsMaterial:",
+    "draws": 1,
+    "tris": 0
+   }
+  ]
+ },
+ {
+  "name": "foot 270",
+  "draws": 283,
+  "tris": 601495,
+  "passes": 9,
+  "gpu_mb": 236,
+  "canvas": [
+   760,
+   1644
+  ],
+  "groups": [
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:who,slots,k",
+    "draws": 8,
+    "tris": 58948
+   },
+   {
+    "group": "760x1644 buildings/buildings-cell",
+    "draws": 43,
+    "tris": 58124
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill",
+    "draws": 6,
+    "tris": 41306
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic",
+    "draws": 6,
+    "tris": 41232
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys",
+    "draws": 20,
+    "tris": 37830
+   },
+   {
+    "group": "760x1644 far-land",
+    "draws": 1,
+    "tris": 31888
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/f020_hipoly_81_bones_opacity",
+    "draws": 7,
+    "tris": 30184
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:oeStill,oeVis",
+    "draws": 9,
+    "tris": 26538
+   },
+   {
+    "group": "760x1644 night",
+    "draws": 18,
+    "tris": 23720
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh",
+    "draws": 7,
+    "tris": 23226
+   },
+   {
+    "group": "760x1644 R_Female_Adult_14_f016_Rig/Mesh",
+    "draws": 6,
+    "tris": 17204
+   },
+   {
+    "group": "760x1644 R_Male_Adult_11_m017_Rig/Mesh",
+    "draws": 6,
+    "tris": 15302
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshBasicMaterial:",
+    "draws": 8,
+    "tris": 14294
+   },
+   {
+    "group": "760x1644 yl_yl_steel",
+    "draws": 1,
+    "tris": 12224
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:noRefl",
+    "draws": 2,
+    "tris": 10839
+   },
+   {
+    "group": "760x1644 p5_wire",
+    "draws": 1,
+    "tris": 10578
+   },
+   {
+    "group": "760x1644 Mesh:MeshStandardMaterial:",
+    "draws": 1,
+    "tris": 9318
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh",
+    "draws": 7,
+    "tris": 8986
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_alu",
+    "draws": 1,
+    "tris": 8066
+   },
+   {
+    "group": "760x1644 R_Male_Adult_20_m008_Rig/Mesh",
+    "draws": 3,
+    "tris": 7454
+   },
+   {
+    "group": "760x1644 R_Business_Female_04_f013_Rig/Mesh003",
+    "draws": 7,
+    "tris": 7280
+   },
+   {
+    "group": "760x1644 yl_yl_mast",
+    "draws": 1,
+    "tris": 6800
+   },
+   {
+    "group": "760x1644 yl_yl_wire",
+    "draws": 1,
+    "tris": 6112
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/m009_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 4374
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shKeys,shFull",
+    "draws": 6,
+    "tris": 4225
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_guard",
+    "draws": 1,
+    "tris": 4124
+   },
+   {
+    "group": "760x1644 InstancedMesh:MeshStandardMaterial:shadowStatic,noRefl",
+    "draws": 3,
+    "tris": 3984
+   },
+   {
+    "group": "760x1644 sign_back",
+    "draws": 1,
+    "tris": 3895
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/m017_hipoly_81_bones_opacity",
+    "draws": 1,
+    "tris": 3814
+   },
+   {
+    "group": "760x1644 scramble_x_rail_steel",
+    "draws": 1,
+    "tris": 3568
+   },
+   {
+    "group": "760x1644 scramble_x_jr_steel",
+    "draws": 1,
+    "tris": 3478
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh",
+    "draws": 1,
+    "tris": 3338
+   },
+   {
+    "group": "760x1644 p5_steel",
+    "draws": 1,
+    "tris": 3336
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_clad",
+    "draws": 1,
+    "tris": 3124
+   },
+   {
+    "group": "760x1644 yl_yl_ballast",
+    "draws": 1,
+    "tris": 3066
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh",
+    "draws": 1,
+    "tris": 2994
+   },
+   {
+    "group": "760x1644 scramble_x_riser",
+    "draws": 1,
+    "tris": 2976
+   },
+   {
+    "group": "760x1644 p5_lit_atlas",
+    "draws": 1,
+    "tris": 2830
+   },
+   {
+    "group": "760x1644 scramble_x_frame",
+    "draws": 1,
+    "tris": 2420
+   },
+   {
+    "group": "760x1644 p5_steel_dark",
+    "draws": 1,
+    "tris": 2348
+   },
+   {
+    "group": "760x1644 scramble_x_fin",
+    "draws": 1,
+    "tris": 2280
+   },
+   {
+    "group": "760x1644 H_Kagami_W_Rig/Mesh003",
+    "draws": 1,
+    "tris": 1872
+   },
+   {
+    "group": "760x1644 p5_crane_yellow",
+    "draws": 1,
+    "tris": 1818
+   },
+   {
+    "group": "760x1644 petals",
+    "draws": 1,
+    "tris": 1800
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_asphalt",
+    "draws": 1,
+    "tris": 1722
+   },
+   {
+    "group": "760x1644 scramble_x_wire",
+    "draws": 1,
+    "tris": 1712
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_grey",
+    "draws": 1,
+    "tris": 1492
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paver",
+    "draws": 1,
+    "tris": 1464
+   },
+   {
+    "group": "760x1644 scramble_x_jr_concrete",
+    "draws": 1,
+    "tris": 1418
+   },
+   {
+    "group": "760x1644 yl_yl_girder",
+    "draws": 1,
+    "tris": 1380
+   },
+   {
+    "group": "760x1644 p5_concrete",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_white_wall",
+    "draws": 1,
+    "tris": 1232
+   },
+   {
+    "group": "760x1644 p5_lit_lamp",
+    "draws": 1,
+    "tris": 1092
+   },
+   {
+    "group": "760x1644 yl_yl_wall",
+    "draws": 1,
+    "tris": 892
+   },
+   {
+    "group": "760x1644 p5_screen_frame",
+    "draws": 1,
+    "tris": 888
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_kerb",
+    "draws": 1,
+    "tris": 814
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_gutter",
+    "draws": 1,
+    "tris": 807
+   },
+   {
+    "group": "760x1644 scramble_x_rail",
+    "draws": 1,
+    "tris": 736
+   },
+   {
+    "group": "760x1644 hero/scramble_metal_pole",
+    "draws": 1,
+    "tris": 720
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_paint",
+    "draws": 1,
+    "tris": 590
+   },
+   {
+    "group": "760x1644 R_Male_Adult_09_Rig/Mesh002",
+    "draws": 1,
+    "tris": 548
+   },
+   {
+    "group": "760x1644 scramble_x_atlas",
+    "draws": 1,
+    "tris": 524
+   },
+   {
+    "group": "760x1644 zelkova-far",
+    "draws": 1,
+    "tris": 520
+   },
+   {
+    "group": "760x1644 scramble_x_tread",
+    "draws": 1,
+    "tris": 496
+   },
+   {
+    "group": "760x1644 Mesh:MeshBasicMaterial:",
+    "draws": 12,
+    "tris": 484
+   },
+   {
+    "group": "760x1644 scramble_x_panel",
+    "draws": 1,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 scramble_x_glass",
+    "draws": 2,
+    "tris": 480
+   },
+   {
+    "group": "760x1644 R_Male_Adult_05_m008_Rig/Mesh003",
+    "draws": 1,
+    "tris": 436
+   },
+   {
+    "group": "760x1644 susuki-far",
+    "draws": 1,
+    "tris": 426
+   },
+   {
+    "group": "760x1644 hero/scramble_win_glass",
+    "draws": 1,
+    "tris": 420
+   },
+   {
+    "group": "760x1644 scramble_x_qf_roof",
+    "draws": 1,
+    "tris": 409
+   },
+   {
+    "group": "760x1644 scramble_x_light",
+    "draws": 1,
+    "tris": 406
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_white",
+    "draws": 1,
+    "tris": 406
+   },
+   {
+    "group": "760x1644 ginkgo-far",
+    "draws": 1,
+    "tris": 384
+   },
+   {
+    "group": "760x1644 inland_glints",
+    "draws": 1,
+    "tris": 358
+   },
+   {
+    "group": "760x1644 p5_stone",
+    "draws": 1,
+    "tris": 316
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_sett",
+    "draws": 1,
+    "tris": 283
+   },
+   {
+    "group": "760x1644 cherry-far",
+    "draws": 1,
+    "tris": 274
+   },
+   {
+    "group": "760x1644 plane-far",
+    "draws": 1,
+    "tris": 238
+   },
+   {
+    "group": "760x1644 scramble_x_qf_panel",
+    "draws": 1,
+    "tris": 199
+   },
+   {
+    "group": "760x1644 scramble_x_ballast",
+    "draws": 1,
+    "tris": 190
+   },
+   {
+    "group": "760x1644 scramble_x_dark",
+    "draws": 1,
+    "tris": 186
+   },
+   {
+    "group": "760x1644 hero/scramble_wall_foot",
+    "draws": 1,
+    "tris": 174
+   },
+   {
+    "group": "760x1644 scramble_x_tile",
+    "draws": 1,
+    "tris": 160
+   },
+   {
+    "group": "760x1644 scramble_x_shop",
+    "draws": 1,
+    "tris": 150
+   },
+   {
+    "group": "760x1644 scramble_x_jr_wall",
+    "draws": 1,
+    "tris": 140
+   },
+   {
+    "group": "760x1644 camphor-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 evergreen-far",
+    "draws": 1,
+    "tris": 130
+   },
+   {
+    "group": "760x1644 scramble_x_qf_glass",
+    "draws": 2,
+    "tris": 116
+   },
+   {
+    "group": "760x1644 p5_lit_aviation",
+    "draws": 1,
+    "tris": 108
+   },
+   {
+    "group": "760x1644 scramble_st_shop",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 scramble_x_print",
+    "draws": 1,
+    "tris": 102
+   },
+   {
+    "group": "760x1644 p5_screens",
+    "draws": 1,
+    "tris": 62
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_bar",
+    "draws": 1,
+    "tris": 55
+   },
+   {
+    "group": "760x1644 hero/scramble_glow_shop",
+    "draws": 1,
+    "tris": 54
+   },
+   {
+    "group": "760x1644 inland/inland_deck_under",
+    "draws": 1,
+    "tris": 53
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_iron",
+    "draws": 1,
+    "tris": 47
+   },
+   {
+    "group": "760x1644 inland/inland_deck_rail",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 inland/inland_deck",
+    "draws": 1,
+    "tris": 44
+   },
+   {
+    "group": "760x1644 hero/scramble_ground_tact_dot",
+    "draws": 1,
+    "tris": 16
+   },
+   {
+    "group": "760x1644 Mesh:SkyShader:",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "760x1644 hero/scramble_lamp_head",
+    "draws": 1,
+    "tris": 12
+   },
+   {
+    "group": "190x411 Mesh:ShaderMaterial:",
+    "draws": 4,
+    "tris": 4
+   },
+   {
+    "group": "760x1644 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 3
+   },
+   {
+    "group": "760x1644 pine-far",
+    "draws": 1,
+    "tris": 2
+   },
+   {
+    "group": "95x206 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "48x103 Mesh:ShaderMaterial:",
+    "draws": 2,
+    "tris": 2
+   },
+   {
+    "group": "760x1644 Points:ShaderMaterial:",
+    "draws": 2,
+    "tris": 0
+   },
+   {
+    "group": "760x1644 Points:PointsMaterial:",
+    "draws": 1,
+    "tris": 0
+   }
+  ]
+ }
+]

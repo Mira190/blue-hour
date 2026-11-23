@@ -1926,6 +1926,33 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // frame 7's kerb stood under canopies running through each other, issue 165)
       if (!(q.umbW > 0)) q.umbSlot = false;
       else if (!q.umbSlot && q.ph === 'wait' && q.g && !(q.lead >= 0) && q.T) { q.umbSlot = true; if (!slotFree(q, q.T.x, q.T.y)) slotAt(q.g, q, q.T, pz.road, false); }
+      // (and stood under it with its canopy still inside a neighbour's, once a second: where the kerb had no place left
+      // with an umbrella's room, or a press brought them together after, it stayed, and a kerb packed between the road
+      // and the wall behind cannot push itself an umbrella apart. So of two stood so, the one later on the list finds
+      // another place, at this kerb or one of its corner, or about the square; and where there is none it walks on along
+      // the footway, out of the press, as people do when a kerb fills with umbrellas. Measured where the canopies are,
+      // not where the places were given. Twice at most while its umbrella is up. Until November 2026 frame 7's kerb
+      // stood under canopies running through each other after a long play, issue 187)
+      if (!(q.umbW > 0)) q.umbMoved = q.umbChk = 0;
+      else if (q.umbR > 0 && sp === 0 && (q.ph === 'wait' || q.lst) && q.g && !(q.lead >= 0) && (q.umbMoved || 0) < 2 && (q.umbChk = (q.umbChk || 0) + dt) >= 1) {
+        q.umbChk = 0;
+        const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
+        let inside = false;
+        for (let a = -1; a <= 1 && !inside; a++) for (let b = -1; b <= 1 && !inside; b++) {
+          for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
+            const o = P[k];
+            if (k >= i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || (o.lead >= 0 ? o.lead : o.id) === gq) continue; // (the earlier of the two keeps its place; one walking by is past in a moment; friends lean apart)
+            if (Math.hypot(mx - o.x - (o.ucx || 0), my - o.y - (o.ucy || 0)) < q.umbR + o.umbR - UMB_RIM) { inside = true; break; }
+          }
+        }
+        if (inside) {
+          q.umbMoved = (q.umbMoved || 0) + 1;
+          if (q.ph === 'wait') { let to = slotAt(q.g, q, q.T, pz.road, false); for (const h of q.g.corner || []) { if (to) break; if ((to = slotAt(h, q, q.T, pz.road, false))) { q.g = h; count(q, h); } } if (!to) toFootway(q); }
+          else if (lingerAt(q.g, q, q.T, pz.road)) q.lst = false;
+          else toFootway(q);
+          if (!q.pz) return; // (on along a footway: no longer of the square)
+        }
+      }
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if ((q.ph === 'wait' || (q.umbPush && (q.ph === 'linger' || q.lst))) && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (one standing about whom an umbrella pushed off stays off too: walking back, the canopies met again, issue 165) // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
       if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)

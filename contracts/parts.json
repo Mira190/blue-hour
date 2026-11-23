@@ -30,7 +30,9 @@
     "web/game/walktalk.js",
     "web/game/tonight.js",
     "web/game/regulars.js",
-    "web/game/places.js"
+    "web/game/places.js",
+    "web/game/modeltext.js",
+    "web/game/quests.js"
    ],
    "checks": [
     "story",
@@ -38,6 +40,8 @@
     "guide"
    ],
    "offers": {
+    "OEGameModelText": [],
+    "OEGameQuests": [],
     "OELog": [
      "create"
     ],
@@ -65,6 +69,63 @@
     "OEWalkTalk": [
      "create"
     ]
+   },
+   "asks_of_game": {
+    "web/game/modeltext.js": [
+     "B",
+     "DSM",
+     "G",
+     "P",
+     "RAD",
+     "S",
+     "clock",
+     "colonies",
+     "dayLimits",
+     "fmtMin",
+     "fmtSec",
+     "nextFerry",
+     "scene",
+     "srnd",
+     "sun",
+     "touch",
+     "trainNext"
+    ],
+    "web/game/quests.js": [
+     "$",
+     "A",
+     "G",
+     "H",
+     "MONTHS",
+     "S",
+     "centroid",
+     "clock",
+     "colonies",
+     "dayLimits",
+     "dlg",
+     "fill",
+     "fmtMin",
+     "guide",
+     "heli",
+     "inPlace",
+     "life",
+     "nav",
+     "npcById",
+     "placeByName",
+     "player",
+     "rail",
+     "renderPassport",
+     "said",
+     "save",
+     "setClock",
+     "smalltalk",
+     "srnd",
+     "story",
+     "sun",
+     "sunState",
+     "touch",
+     "weather",
+     "wharfById"
+    ]
    }
   },
   "camera": {
@@ -73,7 +134,9 @@
     "web/cine.js",
     "web/lens.js",
     "web/game/talkcam.js",
-    "web/game/perch.js"
+    "web/game/perch.js",
+    "web/game/photo.js",
+    "web/game/survey.js"
    ],
    "checks": [
     "story",
@@ -90,6 +153,8 @@
      "span",
      "turn"
     ],
+    "OEGamePhoto": [],
+    "OEGameSurvey": [],
     "OELens": [
      "ROLLOFF",
      "TAP",
@@ -103,6 +168,78 @@
     ],
     "OETalkCam": [
      "create"
+    ]
+   },
+   "asks_of_game": {
+    "web/game/photo.js": [
+     "$",
+     "A",
+     "BASE_FOV",
+     "CITY",
+     "H",
+     "MONTHS",
+     "RAD",
+     "S",
+     "Wd",
+     "atmos",
+     "camera",
+     "canvas",
+     "cine",
+     "cityId",
+     "clock",
+     "closeup",
+     "closeupEnd",
+     "dlg",
+     "fmtMin",
+     "gcHold",
+     "joy",
+     "k",
+     "life",
+     "live",
+     "mirrorTick",
+     "nav",
+     "on",
+     "player",
+     "renderer",
+     "sees",
+     "setClock",
+     "stage",
+     "sun",
+     "walk",
+     "walkTalk",
+     "world"
+    ],
+    "web/game/survey.js": [
+     "A",
+     "B",
+     "BASE_FOV",
+     "DSM",
+     "H",
+     "MONTHS",
+     "SRC_TEXT",
+     "VP",
+     "W",
+     "cam",
+     "chasePolar",
+     "cine",
+     "clock",
+     "dlg",
+     "fmtMin",
+     "handOver",
+     "head",
+     "labels",
+     "labelsEl",
+     "life",
+     "live",
+     "player",
+     "qs",
+     "renderPassport",
+     "save",
+     "scene",
+     "stage",
+     "surveyFov",
+     "surveyLabels",
+     "trigDone"
     ]
    }
   },
@@ -229,7 +366,8 @@
     "web/game/rail.js",
     "web/game/trains.js",
     "web/game/pilot.js",
-    "web/game/rides.js"
+    "web/game/rides.js",
+    "web/game/handset.js"
    ],
    "checks": [
     "story",
@@ -257,6 +395,7 @@
      "sprayStep",
      "weather"
     ],
+    "OEGameHandset": [],
     "OEGamePilot": [],
     "OEGameRides": [],
     "OEJunctions": [
@@ -277,6 +416,25 @@
     ]
    },
    "asks_of_game": {
+    "web/game/handset.js": [
+     "$",
+     "H",
+     "base",
+     "bringCar",
+     "cancelRide",
+     "clockT",
+     "destinations",
+     "eta",
+     "fmtSec",
+     "life",
+     "myCar",
+     "on",
+     "orderRide",
+     "player",
+     "ride",
+     "rideCar",
+     "touch"
+    ],
     "web/game/pilot.js": [
      "A",
      "G",
@@ -483,7 +641,10 @@
     "web/onboard.js",
     "web/plate.js",
     "web/credits.js",
-    "web/game/marks.js"
+    "web/game/marks.js",
+    "web/game/heights.js",
+    "web/game/objective.js",
+    "web/game/menus.js"
    ],
    "checks": [
     "story",
@@ -496,6 +657,9 @@
      "show"
     ],
     "OEFx": [],
+    "OEGameHeights": [],
+    "OEGameMenus": [],
+    "OEGameObjective": [],
     "OEHud": [
      "baseMap",
      "dialogue",
@@ -504,7 +668,6 @@
      "log",
      "minimap",
      "rideLine",
-     "rideMap",
      "stamp",
      "toast"
     ],
@@ -527,6 +690,59 @@
      "stop"
     ],
     "OEStyle": []
+   },
+   "asks_of_game": {
+    "web/game/heights.js": [
+     "$",
+     "A",
+     "B",
+     "D",
+     "H",
+     "SRC_TEXT",
+     "U",
+     "aimed",
+     "lens",
+     "life",
+     "player",
+     "qs",
+     "save"
+    ],
+    "web/game/menus.js": [
+     "$",
+     "$$",
+     "drawBig",
+     "menuSync",
+     "on",
+     "picked",
+     "renderPassport",
+     "story",
+     "storyLog",
+     "tonight",
+     "travelKey",
+     "walk",
+     "walkTalk",
+     "walkUi"
+    ],
+    "web/game/objective.js": [
+     "$",
+     "$$",
+     "G",
+     "H",
+     "U",
+     "cine",
+     "clockT",
+     "dlg",
+     "guide",
+     "lin",
+     "objective",
+     "photo",
+     "routeMode",
+     "routePeek",
+     "story",
+     "uiOpen",
+     "waypoint",
+     "world"
+    ]
    }
   },
   "light": {
@@ -541,7 +757,9 @@
     "web/mirror.js",
     "web/game/atmosphere.js",
     "web/game/weather.js",
-    "web/game/ao.js"
+    "web/game/ao.js",
+    "web/game/clock.js",
+    "web/game/benches.js"
    ],
    "checks": [
     "story",
@@ -557,6 +775,8 @@
     "OEClouds": [
      "patch"
     ],
+    "OEGameBenches": [],
+    "OEGameClock": [],
     "OELights": [
      "create"
     ],
@@ -580,6 +800,39 @@
      "patch"
     ],
     "SunGPU": []
+   },
+   "asks_of_game": {
+    "web/game/benches.js": [
+     "$",
+     "$$",
+     "DISTRICT",
+     "DSM",
+     "G",
+     "S",
+     "clock",
+     "crowd",
+     "fmtMin",
+     "pad",
+     "setClock",
+     "sun",
+     "weather"
+    ],
+    "web/game/clock.js": [
+     "$",
+     "CITY",
+     "MONTHS",
+     "S",
+     "U",
+     "Wd",
+     "clockUtc",
+     "fmtMin",
+     "glowMat",
+     "headMat",
+     "junctions",
+     "show",
+     "sun",
+     "weather"
+    ]
    }
   },
   "hero": {
@@ -616,6 +869,7 @@
     "web/outposts.js",
     "web/water.js",
     "web/visibility.js",
+    "web/batch.js",
     "web/visibility-sweep.js",
     "web/visibility-worker.js",
     "web/bvh-worker.js",
@@ -626,7 +880,9 @@
     "web/astc.js",
     "web/bc7.js",
     "web/astc-worker.js",
-    "web/gltf.js"
+    "web/gltf.js",
+    "web/game/trig.js",
+    "web/game/fishing.js"
    ],
    "checks": [
     "story",
@@ -636,6 +892,10 @@
     "astc"
    ],
    "offers": {
+    "OEBatch": [
+     "merge",
+     "pool"
+    ],
     "OEBuildings": [
      "PIER",
      "POST",
@@ -645,6 +905,8 @@
     ],
     "OEFarCity": [],
     "OEFarLand": [],
+    "OEGameFishing": [],
+    "OEGameTrig": [],
     "OEInland": [],
     "OEInterior": [
      "offices"
@@ -694,6 +956,7 @@
      "compiling",
      "create",
      "deepenUnderWater",
+     "gate",
      "lin",
      "load",
      "loadLine",
@@ -706,6 +969,47 @@
      "uploadRest",
      "uploadSliced",
      "warmPasses"
+    ]
+   },
+   "asks_of_game": {
+    "web/game/fishing.js": [
+     "A",
+     "D",
+     "G",
+     "H",
+     "QC",
+     "S",
+     "cam",
+     "camera",
+     "cine",
+     "cityId",
+     "clock",
+     "clockT",
+     "dlg",
+     "fmtMin",
+     "k",
+     "nav",
+     "photo",
+     "player",
+     "qs",
+     "reduced",
+     "renderPassport",
+     "running",
+     "save",
+     "stage",
+     "sun",
+     "touch",
+     "uiOpen",
+     "weather",
+     "world"
+    ],
+    "web/game/trig.js": [
+     "G",
+     "W",
+     "lin",
+     "nav",
+     "qs",
+     "world"
     ]
    }
   },
