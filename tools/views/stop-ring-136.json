@@ -1,0 +1,98 @@
+[
+ {
+  "name": "ring-footway-near",
+  "at": [
+   363.5,
+   -987.8
+  ],
+  "look": [
+   352,
+   -984
+  ],
+  "time": "17:20",
+  "dist": 6,
+  "pitch": 0.5,
+  "street": true,
+  "js": "const T=window.THREE,p=g.player,c=new T.Vector3(p.x,p.z,-p.y);g.stopFx.start(c);g.stopFx.tick(0.03,0,c);"
+ },
+ {
+  "name": "ring-footway-far",
+  "at": [
+   363.5,
+   -987.8
+  ],
+  "look": [
+   352,
+   -984
+  ],
+  "time": "17:20",
+  "dist": 6,
+  "pitch": 0.5,
+  "street": true,
+  "js": "const T=window.THREE,p=g.player,c=new T.Vector3(p.x,p.z,-p.y);g.stopFx.start(c);g.stopFx.tick(0.1,0,c);"
+ },
+ {
+  "name": "ring-road-near",
+  "at": [
+   347.3,
+   -983.5
+  ],
+  "look": [
+   358,
+   -986
+  ],
+  "time": "17:20",
+  "dist": 6,
+  "pitch": 0.5,
+  "street": true,
+  "js": "const T=window.THREE,p=g.player,c=new T.Vector3(p.x,p.z,-p.y);g.stopFx.start(c);g.stopFx.tick(0.03,0,c);"
+ },
+ {
+  "name": "ring-road-far",
+  "at": [
+   347.3,
+   -983.5
+  ],
+  "look": [
+   358,
+   -986
+  ],
+  "time": "17:20",
+  "dist": 6,
+  "pitch": 0.5,
+  "street": true,
+  "js": "const T=window.THREE,p=g.player,c=new T.Vector3(p.x,p.z,-p.y);g.stopFx.start(c);g.stopFx.tick(0.1,0,c);"
+ },
+ {
+  "name": "ring-kerb-up-near",
+  "at": [
+   350,
+   -978
+  ],
+  "look": [
+   356,
+   -990
+  ],
+  "time": "17:20",
+  "dist": 6,
+  "pitch": 0.5,
+  "street": true,
+  "js": "const T=window.THREE,p=g.player,c=new T.Vector3(p.x,p.z,-p.y);g.stopFx.start(c);g.stopFx.tick(0.03,0,c);"
+ },
+ {
+  "name": "ring-kerb-up-far",
+  "at": [
+   350,
+   -978
+  ],
+  "look": [
+   356,
+   -990
+  ],
+  "time": "17:20",
+  "dist": 6,
+  "pitch": 0.5,
+  "street": true,
+  "js": "const T=window.THREE,p=g.player,c=new T.Vector3(p.x,p.z,-p.y);g.stopFx.start(c);g.stopFx.tick(0.1,0,c);"
+ }
+]
