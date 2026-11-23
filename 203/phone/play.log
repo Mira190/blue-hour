@@ -1,0 +1,413 @@
+renderer: ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)
+the order: it came up in the hand; its still taken at 4.3 s
+the story's pause: "Frame 1 of 7 · 17:14", resume, sound, words, frame rate, the thumbs' controls the case begun again and the Credits; none of the map's tools
+the menu: opened from the story's own button by touch, and shut again
+the office's call, nothing pressed: its first line went on by itself
+0-said-go-job-the-office {"phase":"go","beat":"job","fi":0,"t":8.5,"left":7,"dlg":true,"choices":[],"goal":"The north-west kerb, across the road. One photograph of it, at 17:14.","at":[376.9,-1013.1,15.1]}
+0-job-raise {"phase":"go","beat":"job","fi":0,"t":16.3,"left":7,"dlg":false,"choices":[],"goal":"17:14. Raise your camera to the kerb across the road.","at":[376.9,-1013.1,15.1]}
+frame 1: the camera raised away from her corner: {"phase":"go","finder":true}
+frame 1: her corner held in the finder: {"phase":"stop","finder":true,"cut":false}
+0-guide-film {"phase":"stop","beat":"guide","fi":0,"t":5.8,"left":7,"dlg":false,"choices":[],"goal":"The kerb as it stands. Hold it there.","at":[376.9,-1013.1,15.1]}
+0-guide-sits {"phase":"stop","beat":"guide","fi":0,"t":15.9,"left":7,"dlg":false,"choices":[],"goal":"The kerb as it stands. Hold it there.","at":[376.9,-1013.1,15.1]}
+the first Stop, walking to her: {"t":19.5,"at":null,"d":33.3,"halo":0.24}, then {"t":23.6,"at":[0.48,0.19],"d":33.3,"halo":0.45}
+the first Stop, the walking keys: {"walked":false,"keys":true,"how":"The circle at the bottom left walks. Follow Hachi: he goes ahead to the pale figure."}
+the first Stop, standing still: {"asked":1,"beat":"seek","keys":true,"beat2":true,"joy":true,"toast":"Your turn. Push the circle at the bottom left with your thumb: it walks you to her.","n":1} (toasts before: 0)
+the guide met: 3.4 m from you
+0-stop {"phase":"stop","beat":"seek","fi":0,"t":27.6,"left":7,"dlg":false,"choices":[],"goal":"Someone is still moving. Walk to her.","at":[376.9,-1013.1,15.1]}
+0-said-stop-talk-a-voice {"phase":"stop","beat":"talk","fi":0,"t":31.2,"left":7,"dlg":true,"choices":[],"goal":"Someone is still moving. Walk to her.","at":[364.9,-984.4,15.2]}
+0-said-stop-talk-sumiko {"phase":"stop","beat":"talk","fi":0,"t":33.1,"left":7,"dlg":true,"choices":[],"goal":"Someone is still moving. Walk to her.","at":[364.9,-984.4,15.2]}
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+walked into Hayase Sumiko 早瀬澄子 at frame 1 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into Sumiko 澄子 at frame 1 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into npc Aoi 葵 at frame 1 stop shoot: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into the guide at frame 1 stop shoot: nearest 0.58 m from their middle, stopped at 1.39 m
+frame 1 taught, raised 6 m off the light: {"on":true,"now":0,"done":"0000","formed":0,"off":true,"here":false,"ready":false,"cam":false,"btn":false}
+frame 1 taught, in the light: {"on":true,"now":1,"done":"1000","formed":0,"off":false,"here":true,"ready":false,"cam":false,"btn":true}
+frame 1 taught, raised in the light: {"on":true,"now":3,"done":"1110","formed":1,"off":false,"here":true,"ready":true,"cam":true,"btn":true}
+frame 1 raised from 63 degrees off: the thing at 0.00, -0.03 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (34 frames)
+frame 1, the lens swept over the thing: on it: ready, 1 in the print; tilted -0.16 rad: not ready, 0.87; tilted -0.1 rad: ready, 1; tilted -0.06 rad: ready, 1; tilted 0.06 rad: ready, 0.91; tilted 0.1 rad: not ready, 0.78; tilted 0.16 rad: not ready, 0.59; turned -0.12 rad: ready, 1; turned -0.07 rad: ready, 1; turned 0.07 rad: ready, 1; turned 0.12 rad: ready, 1
+0-aimed {"phase":"stop","beat":"shoot","fi":0,"t":38.6,"left":7,"dlg":false,"choices":[],"goal":"Step back from her corner into the light on the ground. Only from there does the camera see what stood beside her.","at":[364.9,-984.4,15.2]}
+frame 1, as the release goes: ready, 1 of the thing in the print, formed 1
+0-said-stop-shown-sumiko {"phase":"stop","beat":"shown","fi":0,"t":90.3,"left":6,"dlg":true,"choices":[],"goal":"A board for tonight's sky under the dome, at seven. The lecturer's name is on it: 水野. Take the picture.","at":[362.6,-988.6,15.2]}
+  the face moves (3 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+  the face moves (8 shapes on)
+  the face moves (6 shapes on)
+  the face moves (9 shapes on)
+  the face moves (6 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+0-after {"phase":"after","beat":"","fi":0,"t":0.3,"left":6,"dlg":false,"choices":[],"goal":"A board for tonight's sky under the dome, at seven. The lecturer's name is on it: 水野. Take the picture.","at":[362.6,-988.6,15.2]}
+frame 2 led: {"guided":true,"light":"","gold":0,"mark":false,"kind":"meet"}
+1-said-go-talk-shun {"phase":"go","beat":"talk","fi":1,"t":1.7,"left":6,"dlg":true,"choices":[],"goal":"A name on a camera. The vintage shop in Center Gai will know what it is.","at":[343.7,-979.2,15.1]}
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+  the face moves (7 shapes on)
+  the face moves (4 shapes on)
+  the face moves (7 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (2 shapes on)
+  the face moves (3 shapes on)
+  the face moves (2 shapes on)
+  the face moves (3 shapes on)
+  the face moves (2 shapes on)
+walked into npc Aoi 葵 at frame 2 go approach: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into npc Shun 駿 at frame 2 go approach: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into the guide at frame 2 go approach: nearest 3.05 m from their middle, stopped at 3.05 m
+walked into Hayase Sumiko 早瀬澄子 at frame 2 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into npc Aoi 葵 at frame 2 stop shoot: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into npc Shun 駿 at frame 2 stop shoot: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into the guide at frame 2 stop shoot: nearest 0.68 m from their middle, stopped at 0.97 m
+frame 2 hints: {"h1":{"n":1,"goal":"Four stone cherry blossoms lie round the two planters by Hachiko. Tonight the old man is standing on his: stand on it beside him, and the two halves of the line meet."},"h2":{"n":2,"dog":true,"to":0,"state":"go","lit":false},"h3":{"n":3,"lit":true,"kind":"stand","target":true,"light":true,"objective":false}}
+frame 2 raised from 63 degrees off: the thing at -0.15, -0.10 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (34 frames)
+frame 2, the lens swept over the thing: on it: ready, 1 in the print; tilted -0.16 rad: not ready, 0; tilted -0.1 rad: not ready, 0.18; tilted -0.06 rad: not ready, 0.72; tilted 0.06 rad: ready, 1; tilted 0.1 rad: ready, 1; tilted 0.16 rad: not ready, 0.47; turned -0.12 rad: not ready, 0.77; turned -0.07 rad: ready, 1; turned 0.07 rad: ready, 1; turned 0.12 rad: not ready, 0.79
+1-aimed {"phase":"stop","beat":"shoot","fi":1,"t":9,"left":6,"dlg":false,"choices":[],"goal":"The street has stopped. No light marks this one: find the old man's stone cherry blossom in the square by Hachiko, and raise the camera there.","at":[346,-981.9,15.1]}
+frame 2, as the release goes: ready, 1 of the thing in the print, formed 1
+1-after {"phase":"after","beat":"","fi":1,"t":0.5,"left":5,"dlg":false,"choices":[],"goal":"A shoeshine boy's box and stool at the kerb, and nobody on the stool. Take it.","at":[377.8,-1030.7,15.3]}
+walked into Mr Tanaka 田中さん at frame 3 go approach: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into the guide at frame 3 go approach: nearest 2.1 m from their middle, stopped at 9.03 m
+2-stop {"phase":"stop","beat":"seek","fi":2,"t":2.8,"left":5,"dlg":false,"choices":[],"goal":"Somebody by the police box is still on duty.","at":[383.8,-1039.7,15.4]}
+2-said-stop-talk-a-detective {"phase":"stop","beat":"talk","fi":2,"t":7,"left":5,"dlg":true,"choices":[],"goal":"Somebody by the police box is still on duty.","at":[384.8,-1041.2,15.4]}
+  the face moves (6 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (2 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+walked into Mr Tanaka 田中さん at frame 3 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into A detective at frame 3 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into the guide at frame 3 stop shoot: nearest 4 m from their middle, stopped at 4.09 m
+frame 3 raised from 63 degrees off: the thing at -0.01, 0.11 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (32 frames)
+2-aimed {"phase":"stop","beat":"shoot","fi":2,"t":22.8,"left":5,"dlg":false,"choices":[],"goal":"Raise the camera.","at":[384.8,-1041.2,15.4]}
+frame 3, as the release goes: ready, 1 of the thing in the print, formed 1
+2-said-stop-shown-a-detective {"phase":"stop","beat":"shown","fi":2,"t":44.7,"left":4,"dlg":true,"choices":[],"goal":"The police box's lamp, lit, and Hachiko under it. Take it.","at":[384.8,-1041.2,15.4]}
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+2-said-stop-shown-you {"phase":"stop","beat":"shown","fi":2,"t":48.2,"left":4,"dlg":true,"choices":[],"goal":"The police box's lamp, lit, and Hachiko under it. Take it.","at":[384.8,-1041.2,15.4]}
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+2-after {"phase":"after","beat":"","fi":2,"t":0.4,"left":4,"dlg":false,"choices":[],"goal":"The police box's lamp, lit, and Hachiko under it. Take it.","at":[384.8,-1041.2,15.4]}
+log after frame 3: 43 lines, 2 answers; heard 43
+frame 4 led: {"guided":true,"light":"","gold":0,"mark":false,"kind":"meet"}
+3-said-go-talk-yuna {"phase":"go","beat":"talk","fi":3,"t":4.8,"left":4,"dlg":true,"choices":[],"goal":"Go up. The lift at Shibuya Scramble Square, east of the station.","at":[526.8,-1077.4,16]}
+  the face moves (2 shapes on)
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (7 shapes on)
+  the face moves (5 shapes on)
+  the face moves (7 shapes on)
+  the face moves (4 shapes on)
+walked into npc Yuna 優奈 at frame 4 go approach: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into the guide at frame 4 go approach: nearest 4.54 m from their middle, stopped at 5.25 m
+frame 4: ok   SHIBUYA SKY 46F, the escalator to the roof to episode late frame 4's place: 74 m, rides SHIBUYA SKY escalator, north with its steps
+frame 4: ok   SHIBUYA SKY 46F, the escalator to the roof to the top of SHIBUYA SKY escalator, north: 30 m, rides SHIBUYA SKY escalator, north with its steps
+frame 4: ok   SHIBUYA SKY 46F, the escalator to the roof to the top of SHIBUYA SKY escalator, west: 30 m, rides no escalator
+frame 4: ok   SHIBUYA SKY escalator, north, the way it runs: 26 m, rides SHIBUYA SKY escalator, north with its steps
+frame 4: ok   SHIBUYA SKY escalator, north, back the other way: 29 m, rides no escalator
+frame 4: ok   SHIBUYA SKY escalator, west, the way it runs: 26 m, rides SHIBUYA SKY escalator, west with its steps
+frame 4: ok   SHIBUYA SKY escalator, west, back the other way: 31 m, rides no escalator
+frame 4 lift ride: {"k":0.11,"at":[528.9,-1080.3,19.5],"z":15.8,"clear":1}
+frame 4 lift ride: {"k":0.25,"at":[528.3,-1079.9,33],"z":15.8,"clear":1}
+frame 4 lift ride: {"k":0.4,"at":[521.3,-1075.2,74.9],"z":15.8,"clear":1}
+frame 4 lift ride: {"k":0.53,"at":[504.7,-1066.3,146.2],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.66,"at":[488.6,-1072.6,205.4],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.76,"at":[485.5,-1082.6,228.4],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.83,"at":[484.4,-1087.8,237.2],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.89,"at":[482.3,-1096.2,238.1],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.99,"at":[479.8,-1105.7,235.4],"z":232.8,"clear":0.64}
+frame 4: out of the lift 3.0 m from its stop
+frame 4: from SHIBUYA SKY 46F, the escalator to the roof, the dog's way (18 points, 0.0 m from you) goes left, on SHIBUYA SKY escalator, north
+frame 4 lift-way camera: {"off":5.41,"over":2.53,"yaw":1.2,"swing":0,"lift":0.01,"pull":1,"f":1,"want":0,"mode":"chase","pmode":"foot","cine":false,"fp":false}
+frame 4 lift-way-1 camera: {"off":5.41,"over":2.53,"yaw":1.2,"swing":0,"lift":0.01,"pull":1,"f":1,"want":0,"mode":"chase","pmode":"foot","cine":false,"fp":false}
+frame 4 lift-way-2 camera: {"off":5.41,"over":2.53,"yaw":1.2,"swing":0,"lift":0.01,"pull":1,"f":1,"want":0,"mode":"chase","pmode":"foot","cine":false,"fp":false}
+3-stop {"phase":"stop","beat":"seek","fi":3,"t":2.9,"left":4,"dlg":false,"choices":[],"goal":"Up here the city has stopped too. One man is at the east glass, looking down at where his roof was.","at":[539,-1110.9,241.8]}
+  4-stop: the glass's cube of skyroof (256 a side, taken 1): 100% lit, 0.00% at 128 or more, 0.00% no number
+  4-stop: with the glass, its 12% of the picture is 1.20 times as light as without it (0.2% of the picture differs by more than 48 of 255)
+3-said-stop-talk-kanbara {"phase":"stop","beat":"talk","fi":3,"t":8.6,"left":4,"dlg":true,"choices":[],"goal":"Up here the city has stopped too. One man is at the east glass, looking down at where his roof was.","at":[540.8,-1111.2,241.8]}
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+walked into Kanbara at frame 4 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into the guide at frame 4 stop shoot: nearest 0.58 m from their middle, stopped at 0.61 m
+frame 4 hints: {"h1":{"n":1,"goal":"A pace from him along the glass, on Hikarie's side: the edge of the roof he is looking over."},"h2":{"n":2,"dog":true,"to":0,"state":"sit","lit":false},"h3":{"n":3,"lit":true,"kind":"stand","target":true,"light":true,"objective":false}}
+frame 4 raised from 63 degrees off: the thing at 0.00, -0.02 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (35 frames)
+frame 4, the lens swept over the thing: on it: ready, 0.36 in the print; tilted -0.16 rad: not ready, 0.35; tilted -0.1 rad: ready, 0.36; tilted -0.06 rad: ready, 0.36; tilted 0.06 rad: ready, 0.36; tilted 0.1 rad: ready, 0.35; tilted 0.16 rad: not ready, 0.34; turned -0.12 rad: ready, 0.31; turned -0.07 rad: ready, 0.33; turned 0.07 rad: ready, 0.39; turned 0.12 rad: ready, 0.4
+3-aimed {"phase":"stop","beat":"shoot","fi":3,"t":17.5,"left":4,"dlg":false,"choices":[],"goal":"No light marks it this time. Stand at the glass beside him, and look where he looks: down, at where the dome stood.","at":[540.8,-1111.2,241.8]}
+frame 4, as the release goes: ready, 0.36 of the thing in the print, formed 1
+3-said-stop-shown-kanbara {"phase":"stop","beat":"shown","fi":3,"t":60.5,"left":3,"dlg":true,"choices":[],"goal":"The dome, inside the tower that replaced it. Take it.","at":[543,-1109,241.8]}
+  the face moves (3 shapes on)
+  the face moves (3 shapes on)
+  the face moves (2 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+3-said-stop-shown-you {"phase":"stop","beat":"shown","fi":3,"t":66.1,"left":3,"dlg":true,"choices":[],"goal":"The dome, inside the tower that replaced it. Take it.","at":[543,-1109,241.8]}
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (3 shapes on)
+3-after {"phase":"after","beat":"","fi":3,"t":0.4,"left":3,"dlg":false,"choices":[],"goal":"The dome, inside the tower that replaced it. Take it.","at":[543,-1109,241.8]}
+4-said-go-call-the-office {"phase":"go","beat":"call","fi":4,"t":0.1,"left":3,"dlg":true,"choices":[],"goal":"The dome, inside the tower that replaced it. Take it.","at":[542.8,-1109.3,241.8]}
+frame 5 board: {"at":[518,-1124,243.8],"seen":true,"rotor":0.3,"goal":"Get in the helicopter on the pad.","how":"Follow Hachi to it, and tap Get in beside it."}
+frame 5 board camera: {"at":[538.67,-1111.63,241.83],"h":-2.08,"off":5.4,"over":2.58,"yaw":-2.1,"yawTo":null,"pitch":0.18,"dist":5.5,"lift":0.01,"pull":1,"f":1,"want":0,"hand":{"yaw":-2.1098577680894355,"x":538.6724037658843,"y":-1111.6347077850642},"idle":140.46,"rows":""}
+frame 5 board: from behind the shoulder (the lens 2.58 m over your feet), the helicopter at -0.03, 0.43 in the frame; five seconds standing, the lens moved 0.000 m
+frame 5: E beside the helicopter, the beat is flight
+4-flight {"phase":"go","beat":"flight","fi":4,"t":15.3,"left":3,"dlg":false,"choices":[],"goal":"Get in the helicopter on the pad.","at":[503.2,-1040.6,16.5]}
+frame 5 flight lift at 2.9 s: helicopter seen, you not seen
+frame 5 flight depart at 9.6 s: helicopter seen, you not seen
+frame 5 flight scramble at 17.7 s: helicopter seen, you not seen
+frame 5 flight orbit at 25.6 s: helicopter seen, you not seen
+frame 5 flight home at 33.4 s: helicopter seen, you not seen
+frame 5 flight land at 40.5 s: helicopter seen, you not seen
+frame 5 flight foot at 47.0 s: helicopter seen, you seen
+frame 5: out of the helicopter: {"heli":2,"me":false,"dog":false,"dogAt":[501.8,-1039.4]}
+4-said-go-call-your-sister {"phase":"go","beat":"call","fi":4,"t":63.8,"left":3,"dlg":true,"choices":[],"goal":"Get in the helicopter on the pad.","at":[503.2,-1040.6,16.5]}
+walked into the guide at frame 5 go approach: nearest 1.44 m from their middle, stopped at 9.07 m
+4-stop {"phase":"stop","beat":"seek","fi":4,"t":2.6,"left":3,"dlg":false,"choices":[],"goal":"A man in work clothes is standing where the river went under.","at":[516.7,-1073.6,16]}
+4-said-stop-talk-hayase-tatsuo {"phase":"stop","beat":"talk","fi":4,"t":4.8,"left":3,"dlg":true,"choices":[],"goal":"A man in work clothes is standing where the river went under.","at":[517.4,-1075.3,16]}
+  the face moves (2 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+4-said-stop-talk-you {"phase":"stop","beat":"talk","fi":4,"t":9.5,"left":3,"dlg":true,"choices":[],"goal":"A man in work clothes is standing where the river went under.","at":[517.4,-1075.3,16]}
+  the face moves (3 shapes on)
+  the face moves (5 shapes on)
+4-said-stop-talk-the-roll {"phase":"stop","beat":"talk","fi":4,"t":13.3,"left":3,"dlg":true,"choices":[],"goal":"A man in work clothes is standing where the river went under.","at":[517.4,-1075.3,16]}
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (3 shapes on)
+  the face moves (5 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+walked into Hayase Tatsuo at frame 5 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into npc Yuna 優奈 at frame 5 stop shoot: nearest 0.57 m from their middle, stopped at 0.57 m
+walked into the guide at frame 5 stop shoot: nearest 6.53 m from their middle, stopped at 7.19 m
+frame 5 hints: {"h1":{"n":1,"goal":"Six or seven steps from him, on Hikarie's side: from there the street opens straight ahead of you, the way the water ran."},"h2":{"n":2,"dog":true,"to":0,"state":"sit","lit":false},"h3":{"n":3,"lit":true,"kind":"stand","target":true,"light":true,"objective":false}}
+frame 5 raised from 63 degrees off: the thing at 0.00, -0.04 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (30 frames)
+frame 5, the lens swept over the thing: on it: ready, 0.66 in the print; tilted -0.16 rad: ready, 0.84; tilted -0.1 rad: ready, 0.85; tilted -0.06 rad: ready, 0.78; tilted 0.06 rad: ready, 0.54; tilted 0.1 rad: ready, 0.46; tilted 0.16 rad: ready, 0.36; turned -0.12 rad: ready, 0.65; turned -0.07 rad: ready, 0.67; turned 0.07 rad: ready, 0.58; turned 0.12 rad: ready, 0.52
+4-aimed {"phase":"stop","beat":"shoot","fi":4,"t":26.2,"left":3,"dlg":false,"choices":[],"goal":"No light marks it this time. He is looking at where his river ran: stand a few steps from him on Hikarie's side, where the street runs straight away from you as the water did.","at":[517.4,-1075.3,16]}
+frame 5, as the release goes: ready, 0.66 of the thing in the print, formed 1
+4-said-stop-shown-hayase-tatsuo {"phase":"stop","beat":"shown","fi":4,"t":73.7,"left":2,"dlg":true,"choices":[],"goal":"The river, open, and the works' board over it: section chief, Kanbara. Foreman, Hayase. Take it.","at":[521.6,-1074.1,16.1]}
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+4-after {"phase":"after","beat":"","fi":4,"t":0.4,"left":2,"dlg":false,"choices":[],"goal":"The river, open, and the works' board over it: section chief, Kanbara. Foreman, Hayase. Take it.","at":[521.6,-1074.1,16.1]}
+5-ride {"phase":"go","beat":"ride","fi":5,"t":0.3,"left":2,"dlg":false,"choices":[],"goal":"Two frames. Your car is coming round to take you back to Hachiko.","at":[521.6,-1074.1,16.1]}
+frame 6 led: {"guided":true,"light":"","gold":0,"mark":false,"kind":"meet"}
+5-said-go-talk-mr-tanaka {"phase":"go","beat":"talk","fi":5,"t":3.9,"left":2,"dlg":true,"choices":[],"goal":"The old man on the stone blossom by Hachiko. He knows that camera.","at":[378.7,-1032.5,15.3]}
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (6 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (8 shapes on)
+  the face moves (5 shapes on)
+  the face moves (8 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (6 shapes on)
+  the face moves (7 shapes on)
+  the face moves (6 shapes on)
+walked into Mr Tanaka 田中さん at frame 6 go approach: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into the guide at frame 6 go approach: nearest 0.56 m from their middle, stopped at 1.24 m
+5-stop {"phase":"stop","beat":"seek","fi":5,"t":2.3,"left":2,"dlg":false,"choices":[],"goal":"On the station kerb, an old man in the stopped crowd is looking across the road.","at":[378.2,-1019,15.2]}
+5-said-stop-talk-mizuno-akira {"phase":"stop","beat":"talk","fi":5,"t":5.7,"left":2,"dlg":true,"choices":[],"goal":"On the station kerb, an old man in the stopped crowd is looking across the road.","at":[378.3,-1017.2,15.1]}
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (2 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+walked into Mr Tanaka 田中さん at frame 6 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into Mizuno Akira at frame 6 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into the guide at frame 6 stop shoot: nearest 4.62 m from their middle, stopped at 5.92 m
+frame 6 raised from 63 degrees off: the thing at 0.46, -0.03 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (26 frames)
+frame 6, the lens swept over the thing: on it: ready, 1 in the print; tilted -0.16 rad: not ready, 0; tilted -0.1 rad: not ready, 0.15; tilted -0.06 rad: not ready, 0.81; tilted 0.06 rad: not ready, 0.52; tilted 0.1 rad: not ready, 0; tilted 0.16 rad: not ready, 0; turned -0.12 rad: not ready, 0.36; turned -0.07 rad: not ready, 0.75; turned 0.07 rad: not ready, 0.78; turned 0.12 rad: not ready, 0.39
+5-aimed {"phase":"stop","beat":"shoot","fi":5,"t":16.8,"left":2,"dlg":false,"choices":[],"goal":"Raise the camera.","at":[378.3,-1017.2,15.1]}
+frame 6, as the release goes: ready, 1 of the thing in the print, formed 1
+end {"phase":"stop","beat":"shown","fi":5,"t":64.3,"left":1,"dlg":true,"choices":[],"goal":"Her corner as he saw it: the pillar box, her umbrella, the board for his lecture. Take it.","at":[377.1,-1013.5,15.1]}
+under the last card: 0 of tonight's 2 people on their way, 0 held in mid-step
+note guard: one of the crowd (385, wait) moved out of you, 0.185 m from them, at frame 6 stop seek (Stop), (378.03, -1020.8)
+guard: the last guard moved 1 of the crowd out of someone not of it (frame 6 stop seek (Stop))
+bodies: nobody of the crowd drawn within 0.45 m of the story's people, the player or the guide
+note clip floating: you / R Foot, 0.124 m deep (floor 241.83), at frame 5 go call, (541.39, -1110.13, 241.83), 14 frames
+note clip floating: you / R Foot, 0.119 m deep (floor 232.82), at frame 4 go approach, (483.89, -1104.1, 232.82), 6 frames
+note clip floating: you / L Foot, 0.095 m deep (floor 241.83), at frame 5 go call, (542.75, -1109.33, 241.8), 15 frames
+note clip floating: you / L Foot, 0.085 m deep (floor 232.82), at frame 4 go approach, (528.03, -1077.7, 16.01), 6 frames
+note clip floating: you / L Foot, 0.084 m deep (floor 15.14), at frame 1 dressed , (376.9, -1013.1, 15.14), 2 frames
+note clip floating: you / L Foot, 0.082 m deep (floor 15.46), at frame 3 stop talk (Stop), (384.78, -1041.17, 15.46), 1 frames
+note clip floating: you / L Foot, 0.065 m deep (floor 15.49), at frame 6 go meet, (378.37, -1043.75, 15.49), 1 frames
+note clip floating: you / L Foot, 0.05 m deep (floor 15.27), at frame 1 stop seek (Stop), (366.32, -987.93, 15.27), 1 frames
+note clip floating: you / L Foot, 0.046 m deep (floor 16.06), at frame 5 stop still (Stop), (516.7, -1073.64, 16.06), 1 frames
+note clip floating: you / L Foot, 0.042 m deep (floor 15.07), at frame 6 stop shoot (Stop), (378.45, -1015.63, 15.07), 1 frames
+note clip floating: you / L Foot, 0.041 m deep (floor 15.15), at frame 1 stop shoot (Stop), (360.01, -983.16, 15.15), 1 frames
+note clip floating: you / L Foot, 0.041 m deep (floor 16.00), at frame 5 stop shoot (Stop), (528.02, -1077.71, 16), 1 frames
+note clip hold: walker (Male_Adult_05_m008, LookAround) / R forearm, 0.037 m deep, at frame 1 stop guide (Stop), (381.31, -1024.91, 15.25), 1 frames
+note clip hold: walker (Male_Adult_05_m008) / R forearm, 0.026 m deep, at frame 6 stop shoot (Stop), (375.58, -1019.44, 15.15), 1 frames
+note clip hold: walker (Male_Adult_05_m008) / R forearm, 0.019 m deep, at frame 6 stop still (Stop), (375.58, -1019.44, 15.15), 2 frames
+note clip hold: walker (Male_Adult_05_m008) / R forearm, 0.014 m deep, at frame 2 stop still (Stop), (355.21, -985.53, 15.14), 1 frames
+note clip hold: walker (Male_Adult_05_m008, LookAround) / R forearm, 0.014 m deep, at frame 4 go meet, (383.13, -1026.24, 15.25), 2 frames
+note clip limb: npc Taro 太郎 / own Head in own Spine2, 0.038 m deep, at frame 4 go approach, (492.28, -1109.68, 243.32), 131 frames
+note clip limb: you / own L Hand in own Spine2, 0.036 m deep, at frame 1 stop shoot (Stop), (363.07, -989.52, 16.57), 1 frames
+note clip limb: you / own L Hand in own Spine2, 0.036 m deep, at frame 2 stop shoot (Stop), (345.41, -980.09, 16.4), 7 frames
+note clip limb: you / own L Hand in own Spine2, 0.036 m deep, at frame 5 go approach, (501.66, -1041.78, 17.79), 4 frames
+note clip limb: you / own L Hand in own Spine2, 0.035 m deep, at frame 4 stop shoot (Stop), (540.19, -1112.08, 243.17), 4 frames
+note clip limb: you / own L Hand in own Spine2, 0.034 m deep, at frame 4 go approach, (526.72, -1077.97, 17.31), 1 frames
+note clip limb: you / own L Hand in own Spine2, 0.034 m deep, at frame 5 go call, (541.17, -1110.23, 243.14), 3 frames
+note clip limb: you / own L Hand in own Spine2, 0.033 m deep, at frame 3 go approach, (376.97, -1032.34, 16.59), 2 frames
+note clip limb: you / own L Hand in own Spine2, 0.032 m deep, at frame 3 stop shoot (Stop), (383.43, -1040.63, 16.72), 1 frames
+note clip limb: you / own L Hand in own Spine2, 0.031 m deep, at frame 5 stop shoot (Stop), (516.9, -1074.43, 17.34), 1 frames
+note clip sunk: guide / paws, 0.118 m deep (floor 16.16), at frame 5 stop shoot (Stop), (516.01, -1075.12, 15.97), 25 frames
+note clip sunk: guide / paws, 0.114 m deep (floor 15.15), at frame 6 stop shoot (Stop), (378.89, -1017.99, 15.15), 13 frames
+note clip sunk: guide / paws, 0.112 m deep (floor 15.05), at frame 2 stop shoot (Stop), (347.02, -983.42, 15.05), 200 frames
+note clip sunk: guide / paws, 0.102 m deep (floor 241.80), at frame 4 after , (543.58, -1109.56, 241.8), 19 frames
+note clip sunk: guide / paws, 0.099 m deep (floor 15.86), at frame 4 go approach, (526.84, -1078.44, 15.99), 49 frames
+note clip sunk: guide / paws, 0.096 m deep (floor 15.38), at frame 3 after , (378.95, -1041.18, 15.38), 12 frames
+note clip sunk: guide / paws, 0.094 m deep (floor 15.05), at frame 1 stop seek (Stop), (376.99, -1014.22, 15.05), 14 frames
+note clip sunk: guide / paws, 0.094 m deep (floor 241.83), at frame 4 stop shoot (Stop), (539.27, -1112.24, 241.83), 29 frames
+note clip sunk: guide / paws, 0.093 m deep (floor 15.23), at frame 1 after , (361.63, -988.87, 15.23), 5 frames
+note clip sunk: guide / paws, 0.092 m deep (floor 15.37), at frame 3 stop shoot (Stop), (383.72, -1040.92, 15.37), 8 frames
+note clip sunk: guide / paws, 0.085 m deep (floor 16.01), at frame 6 go ride, (521.32, -1073.26, 16.08), 16 frames
+note clip sunk: npc Yuna 優奈 / R Foot, 0.083 m deep (floor 15.91), at frame 4 go talk, (528.58, -1077.84, 15.91), 10 frames
+note clip sunk: guide / paws, 0.08 m deep (floor 15.94), at frame 4 go talk (talk), (524.9, -1077.77, 15.94), 1 frames
+note clip sunk: npc Yuna 優奈 / L Foot, 0.079 m deep (floor 15.91), at frame 4 go talk, (528.58, -1077.84, 15.91), 10 frames
+note clip sunk: guide / paws, 0.073 m deep (floor 16.43), at frame 5 go approach, (501.85, -1041.67, 16.45), 11 frames
+note clip sunk: guide / paws, 0.072 m deep (floor 16.21), at frame 5 stop still (Stop), (501.98, -1051.08, 16.31), 8 frames
+note clip sunk: guide / paws, 0.071 m deep (floor 15.21), at frame 2 go talk (talk), (358.98, -989.28, 15.21), 4 frames
+note clip sunk: guide / paws, 0.068 m deep (floor 15.25), at frame 6 stop still (Stop), (378.11, -1032.93, 15.3), 11 frames
+note clip sunk: guide / paws, 0.065 m deep (floor 15.23), at frame 2 go meet, (362.35, -989.41, 15.23), 8 frames
+note clip sunk: guide / paws, 0.065 m deep (floor 15.37), at frame 4 go meet, (383.27, -1040.89, 15.37), 15 frames
+note clip sunk: guide / paws, 0.064 m deep (floor 15.06), at frame 2 stop still (Stop), (345.48, -979.97, 15.06), 6 frames
+note clip sunk: you / R Foot, 0.064 m deep (floor 15.92), at frame 4 go approach, (526.57, -1078.73, 15.93), 2 frames
+note clip sunk: guide / paws, 0.063 m deep (floor 15.26), at frame 3 go approach, (377.23, -1031.62, 15.25), 16 frames
+note clip sunk: guide / paws, 0.062 m deep (floor 15.25), at frame 2 stop shown (Stop), (377.23, -1031.62, 15.25), 60 frames
+note clip sunk: guide / paws, 0.059 m deep (floor 15.96), at frame 5 stop talk (Stop) (talk), (515, -1074.43, 15.96), 7 frames
+note clip sunk: guide / paws, 0.059 m deep (floor 15.31), at frame 6 go approach, (378.02, -1033.79, 15.31), 73 frames
+note clip sunk: guide / paws, 0.058 m deep (floor 241.83), at frame 4 stop still (Stop), (536.77, -1111.48, 241.83), 12 frames
+note clip sunk: guide / paws, 0.054 m deep (floor 241.83), at frame 5 go board, (540.03, -1111.24, 241.83), 8 frames
+note clip sunk: guide / paws, 0.054 m deep (floor 15.38), at frame 6 go talk, (380.96, -1042.15, 15.39), 9 frames
+note clip sunk: guide / paws, 0.053 m deep (floor 15.24), at frame 1 stop shoot (Stop), (363.2, -990.74, 15.24), 28 frames
+note clip sunk: guide / paws, 0.051 m deep (floor 241.83), at frame 5 go call, (542.53, -1110.24, 241.8), 12 frames
+note clip sunk: guide / paws, 0.051 m deep (floor 15.15), at frame 6 stop seek (Stop), (379.25, -1020.76, 15.25), 11 frames
+note clip sunk: guide / paws, 0.048 m deep (floor 15.37), at frame 3 stop still (Stop), (381.96, -1039.68, 15.37), 7 frames
+note clip sunk: guide / paws, 0.047 m deep (floor 16.48), at frame 5 go flight, (501.54, -1038.74, 16.48), 3 frames
+note clip sunk: guide / paws, 0.046 m deep (floor 15.96), at frame 5 stop seek (Stop), (507.45, -1065.58, 16.04), 3 frames
+note clip sunk: you / L Foot, 0.044 m deep (floor 15.11), at frame 2 stop shoot (Stop), (358.09, -982.7, 15.11), 1 frames
+note clip sunk: guide / paws, 0.044 m deep (floor 15.25), at frame 2 after , (377.23, -1031.62, 15.25), 50 frames
+note clip sunk: you / L Foot, 0.044 m deep (floor 15.26), at frame 3 stop shoot (Stop), (379.1, -1031.25, 15.26), 56 frames
+note clip sunk: guide / paws, 0.039 m deep (floor 15.05), at frame 1 stop guide (Stop), (377.11, -1019.74, 15.18), 16 frames
+note clip sunk: guide / paws, 0.039 m deep (floor 16.09), at frame 5 after , (521.64, -1073.1, 16.09), 4 frames
+note clip sunk: you / R Foot, 0.038 m deep (floor 15.11), at frame 2 stop shoot (Stop), (358.09, -982.7, 15.11), 1 frames
+note clip sunk: guide / paws, 0.037 m deep (floor 15.38), at frame 3 stop seek (Stop), (383.79, -1041.02, 15.38), 4 frames
+note clip sunk: guide / paws, 0.037 m deep (floor 241.83), at frame 4 stop seek (Stop), (540.14, -1111.75, 241.83), 4 frames
+note clip sunk: you / L Foot, 0.034 m deep (floor 15.21), at frame 1 stop shoot (Stop), (368.27, -987.96, 15.21), 1 frames
+note clip sunk: you / L Foot, 0.032 m deep (floor 15.25), at frame 3 go approach, (377.11, -1031.68, 15.25), 1 frames
+note clip sunk: you / R Foot, 0.031 m deep (floor 15.21), at frame 1 stop shoot (Stop), (368.27, -987.96, 15.21), 1 frames
+note clip sunk: Kanbara (afterimage) / R Foot, 0.031 m deep (floor 241.80), at frame 4 stop still (Stop), (542.95, -1111.44, 241.8), 1 frames
+note clip sunk: Kanbara (afterimage) / L Foot, 0.031 m deep (floor 241.80), at frame 4 stop still (Stop), (542.95, -1111.44, 241.8), 1 frames
+note clip touch: you / npc Aoi 葵, 0.081 m deep (R Hand in npc Aoi 葵's L UpperArm), at frame 2 stop shoot (Stop), (355.04, -983.5, 15.14), 1 frames
+note clip touch: you / npc Aoi 葵, 0.067 m deep (R Hand in npc Aoi 葵's L UpperArm), at frame 2 stop still (Stop), (355.07, -983.4, 15.14), 1 frames
+note clip touch: you / npc Shun 駿, 0.06 m deep (R Hand in npc Shun 駿's Spine1), at frame 2 stop shoot (Stop), (342.61, -978.65, 15.12), 3 frames
+note clip touch: you / A detective (afterimage), 0.048 m deep (R Hand in A detective (afterimage)'s Spine1), at frame 3 stop shoot (Stop), (385.65, -1042.48, 15.38), 1 frames
+note clip touch: you / Hayase Tatsuo (afterimage), 0.035 m deep (R Hand in Hayase Tatsuo (afterimage)'s Spine1), at frame 5 stop shoot (Stop), (517.97, -1076.76, 16), 1 frames
+note clip touch: you / npc Yuna 優奈, 0.03 m deep (R Hand in npc Yuna 優奈's Spine1), at frame 5 stop shoot (Stop), (528.02, -1077.71, 16), 1 frames
+note clip touch: you / npc Aoi 葵, 0.029 m deep (R Hand in npc Aoi 葵's R UpperArm), at frame 1 stop shoot (Stop), (356.07, -983.96, 15.15), 1 frames
+note clip touch: npc Aoi 葵 / you, 0.029 m deep (R UpperArm in you's R Hand), at frame 1 stop shoot (Stop), (355.6, -983.6, 15.15), 1 frames
+note clip touch: you / Mr Tanaka 田中さん, 0.021 m deep (R Hand in Mr Tanaka 田中さん's L UpperArm), at frame 3 go approach, (378.16, -1030.73, 15.29), 1 frames
+clip: 15607 frames measured over 53 beats; 12 feet over the floor, 5 a forearm or a hand in its own torso, 10 a limb in its own body, 48 a foot under the floor, 9 a part of one in another
+pacing: 2929 walkers followed over 6300 windows of 30 s, 0 paced
+stills: 162, 0 s drawing their frames whole, 71 s taking them
+played in 694 s; page errors: 0
