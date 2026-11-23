@@ -9,7 +9,8 @@
 // Prints a line per person and exits 1 when anyone stands more than SINK_M in or FLOAT_M over the ground.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/feet_check.js [out_dir] [WxH]     (390x844: a phone, low tier; 1440x900: a desktop, high)
-// TIER: the quality tier (low on a phone's size, high otherwise), SAMPLES: looks a second apart (5), RADIUS (25 m).
+// TIER: the quality tier (low on a phone's size, high otherwise), SAMPLES: looks a second apart (5), RADIUS (25 m),
+// AT=x,y: measured there instead of where the walk starts (with WALK=1).
 // HERO=off: the hero levels held back, as a phone shows the street before its level has come (measure it at a desktop's
 // size: a phone lets go of the city's buffers once they are on the GPU, and there is nothing to cast a ray at).
 const { chromium } = require('playwright');
@@ -48,6 +49,9 @@ const OFF = process.env.HERO === 'off', SINK_M = +(process.env.SINK_M || (OFF ? 
   // HERO=off: the hero levels held back, as a phone shows the street in the seconds before its level has come (the
   // owner's iPhone, resumed at frame 1 six seconds after the load: the city's own Scramble, its tactile lines 12 cm up)
   if (process.env.HERO === 'off') await p.evaluate(() => { const g = window.__game, H = g.hero && g.hero(); if (!H) return; const up = H.update; H.levels.forEach(L => { L.state = 'loading'; if (L.root) L.root.visible = false; L.h.shown = false; for (const n of L.h.hide || []) { const o = g.Wd.world.getObjectByName(n); if (o) o.visible = true; } }); H.update = () => {}; });
+  // AT=x,y: the player set down there and the world run a while, so that the crowd comes round (the station's passage:
+  // AT=430,-1022.5 RADIUS=22)
+  if (process.env.AT) await p.evaluate(async at => { const g = window.__game, [x, y] = at.split(',').map(Number); g.spawn([x, y]); for (let k = 0; k < 40; k++) { g.advance(0.5); await new Promise(r => requestAnimationFrame(r)); } }, process.env.AT);
   await p.waitForTimeout(4000);
   let worst = 0;
   const N = +(process.env.SAMPLES || 5);
@@ -106,7 +110,7 @@ const OFF = process.env.HERO === 'off', SINK_M = +(process.env.SINK_M || (OFF ? 
           one.push({ side: s ? 'L' : 'R', sole: +fx[s].y.toFixed(3), drawn: gy == null ? null : +gy.toFixed(3), what, nav: nav == null ? null : +nav.toFixed(3) });
         }
         const clip = rig && rig.mixer && rig.mixer._actions ? rig.mixer._actions.filter(a => a.isRunning() && a.getEffectiveWeight() > 0.3).map(a => a.getClip().name).join('+') : '';
-        rows.push({ id, char: rig ? rig.character : (sk.name || ''), clip, root: +at.y.toFixed(3), d: +Math.hypot(dx, dz).toFixed(1), one });
+        rows.push({ id, char: rig ? rig.character : (sk.name || ''), clip, root: +at.y.toFixed(3), d: +Math.hypot(dx, dz).toFixed(1), at: [+at.x.toFixed(1), +(-at.z).toFixed(1)], one });
       }
       return { z: pl.z, rows, held };
     }, +(process.env.RADIUS || 25));
@@ -116,7 +120,7 @@ const OFF = process.env.HERO === 'off', SINK_M = +(process.env.SINK_M || (OFF ? 
       if (!gaps.length) continue;
       const sink = Math.max(...gaps), float = -Math.max(...gaps); // (the lower foot: the one that should touch)
       const bad = sink > SINK_M ? `SUNK ${(sink * 100).toFixed(1)} cm` : float > FLOAT_M ? `FLOATING ${(float * 100).toFixed(1)} cm` : '';
-      if (row.id === 'you' || bad) console.log(`look ${k + 1}: ${row.id} (${row.char}, ${row.clip || 'no clip'}) root ${row.root} ${row.one.map(f => `${f.side} sole ${f.sole} drawn ${f.drawn} (${f.what})`).join('; ')}${bad ? `  ${bad}` : ''}`);
+      if (row.id === 'you' || bad) console.log(`look ${k + 1}: ${row.id} (${row.char}, ${row.clip || 'no clip'}) at ${row.at} root ${row.root} ${row.one.map(f => `${f.side} sole ${f.sole} drawn ${f.drawn} (${f.what})`).join('; ')}${bad ? `  ${bad}` : ''}`);
       if (bad) { worst++; errors.push(`${row.id} ${bad}`); }
     }
     console.log(`look ${k + 1}: ${r.rows.length} people measured, player z ${(+r.z).toFixed(3)}${r.held ? `; ${r.held} meshes held on the GPU alone, not measured` : ''}`);

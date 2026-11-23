@@ -854,7 +854,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (at.deck) return at.z;
     const s = nav.surfaceAt(x, y, at.z);
     if (s > -Infinity && Math.abs(s - at.z) < 1.5) return s;
-    return nav.offGround(x, y) ? null : nav.terrain(x, y) + nav.lift(x, y); // (a hero level's paving over the ground: nav.js lift)
+    if (nav.offGround(x, y)) return null;
+    // (a hero level's paving over the ground: nav.js lift; and paving a landmark draws over it, stood on as floorAt stands the
+    // player on it: the crowd walked 5 cm under the floor of the station's passage, where the player stood on it)
+    const t = nav.terrain(x, y) + nav.lift(x, y), pv = nav.paveAt(x, y);
+    return pv !== undefined && pv > t && pv < t + 1.5 ? pv : t;
   };
   // footways and roads that run into a building (an arcade, a station's concourse, a street under a
   // railway station's viaduct: the model's buildings are solid from the ground up) end at its wall, so
@@ -2434,7 +2438,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (c && c.action === 'set_weather' && weather) {
         if (c.date || c.time) { const [m, d] = c.date || [clock.m, clock.d]; setClock(clock.y, m, d, c.time ? S.hm(c.time) : clock.min); }
         weather.set(c.weather || 'rain');
-        H.toast(`${OEWeather.NAMES[c.weather || 'rain']}${c.time ? ` at ${c.time}` : ''}${c.date ? `, ${c.date[1]} ${MONTHS[c.date[0] - 1]}` : ''}. Change it in the menu (Esc).`);
+        H.toast(`${OEWeather.NAMES[c.weather || 'rain']}${c.time ? ` at ${c.time}` : ''}${c.date ? `, ${c.date[1]} ${MONTHS[c.date[0] - 1]}` : ''}. Change it in the menu${touch ? '' : ' (Esc)'}.`);
       }
       if (c && c.action === 'dusk') { const t = Math.round(dayLimits().sunset) - 10; setClock(clock.y, clock.m, clock.d, t); H.toast(`Time set to ${fmtMin(t)}, ten minutes before sunset`); }
       startQuest(l, q);
@@ -2498,6 +2502,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // is put away or the page closes. Not before the game has started (the title would write the spawn
   // over a saved game the player has not chosen to continue yet).
   let playing = false, sndQuiet = A && A.quiet && A.tunes ? 1 : 0, sndQuietAt = 0;
+  // A phone's street waits for a page with room for it (audio.js hold and the guard; docs/SOUND.md, "The guard"): held
+  // while a level or a person is being sent to the GPU, while the phone's late parts come in, or while frames come slower
+  // than 18 a second (the owner's iPhone broke 98 times in six seconds at 17, none at 27 and over), and let go once none
+  // of that has been so for three seconds; the context is first made only then (sndQuiet, in the frame). Until the street
+  // plays the walk keeps the loading cue (sndCueOut), and a phone whose street gave up, or is off, gets that loop back in
+  // its place (sndBed), so play is never silent. Frames are not counted under automation, where a software renderer's
+  // frames say nothing of a device (the governor stands still there too): ?guardfps=1 counts them.
+  const SND_GUARD = !!(A && A.hold && A.guard && A.tunes), SND_FPS = !navigator.webdriver || /[?&]guardfps=1\b/.test(location.search);
+  let sndCueOut = false, sndBed = null, sndFilmAt = -1e9, sndBusyAt = -1e9, sndSlow = false, sndCheckAt = 0, sndLoading = false, lateBusy = false, sndHeldAt = 0;
+  function sndHold(now) {
+    if (now - sndCheckAt > 250) {
+      sndCheckAt = now;
+      sndLoading = !!levelHold || lateBusy || !!(hero && hero.levels.some(L => L.state === 'loading')) || npcs.some(n => { if (!n.loading) return false; if (n.sndIn === undefined) { n.sndIn = true; n.loading.finally(() => { n.sndIn = false; }).catch(() => {}); } return n.sndIn; }); // (a person while their character comes: one that failed does not keep the street waiting)
+    }
+    const ms = gov.frameMs;
+    if (SND_FPS) sndSlow = sndSlow ? ms > 45 : ms > 55; // (on below 18 frames a second, off above 22)
+    if (sndLoading || sndSlow) sndBusyAt = now;
+    return playing && now - sndBusyAt < 3000;
+  }
+  if (SND_GUARD && A.onGaveUp) A.onGaveUp(() => H.toast('The street\'s sound is off: this phone needs all it has to draw the street. Music plays on. To try the street again, turn Sound off and on in the menu.'));
   const keep = () => { if (playing) save(); };
   on(document, 'visibilitychange', () => { if (document.hidden) keep(); });
   on(window, 'pagehide', keep);
@@ -3607,7 +3631,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
   let crowdAuto = true, govCrowd = 1; // (govCrowd: the frame-time governor's share of the crowd, its ladder below)
-  function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd); }
+  // (a phone's crowd as many as its faces can fill: the walkers near you are drawn whole from QC.budget.cast scanned people,
+  // 4 on a phone's usual set and 2 on its lightest (quality.js), and a phone's whole crowd, far copies too, is those same
+  // people (people.js realOf, farOf). Round 2 people a crowd of 640 was the same man and the same woman at every elbow
+  // (the owner's iPhone, the walk's opening, 22 November 2026). The crowd is now as large as LOW_CAST faces would fill
+  // and no larger: half on the usual set, a quarter on the lightest; any other device keeps all of it)
+  const faceShare = QC.lean && QC.budget && QC.budget.cast ? Math.min(1, QC.budget.cast / LOW_CAST) : 1;
+  function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); }
   // mode: 'chase', 'bird' (the helicopter's bird's-eye view) or 'cockpit' (the pilot's eyes, looking lookYaw left and lookPitch up)
   // distTo and yawTo, when set, ease the chase camera somewhere (out to the helicopter's view, round to its door)
   // on foot the chase camera rests 5.5 m behind the head at 0.17 rad (issue 71): its eye about 2.5 m over the street, at
@@ -3698,7 +3728,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // (the menu, the story's screen and the options: Enter presses the button the hand is on, else the screen's first way
       // in; up and down move the hand along what the screen offers, from that first way; Esc goes back a screen: the
       // question of the evening again to its episode, the story and the options to the menu, the menu to the press)
-      const along = scr === 'story' ? [...$$('#gt-eps .gt-roll button'), ...$$('#gt-eps .gt-go > .btn')] : scr === 'opts' ? $$('#gt-opts .gt-opts-list :is(button, input)')
+      const along = scr === 'story' ? [...$$('#gt-eps .gt-roll button'), ...$$('#gt-eps .gt-go > .btn')] : scr === 'opts' ? $$('#gt-opts :is(.gt-opts-list :is(button, input), #gt-opts-credits)')
         : [...$$('#g-title .gt-card .gt-go > .btn'), $('#gt-who-line')];
       if (c === 'Enter') { e.preventDefault(); press(onBtn || titleLead()); }
       else if (c === 'Escape' || (c === 'Backspace' && scr !== 'menu')) {
@@ -5678,7 +5708,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (const end of [-1, 1]) {
         const len = crowdNet.L[line].len, sk = Math.max(0, Math.min(len, x.s + end * x.kerb));
         crowdNet.at(line, sk, tmp);
-        const mine = Math.hypot(tmp.x - player.x, tmp.y - player.y) < 6, n = mine ? 11 : 4;
+        const mine = Math.hypot(tmp.x - player.x, tmp.y - player.y) < 6, n = Math.max(1, Math.round((mine ? 11 : 4) * faceShare)); // (a phone's as its faces can fill: faceShare)
         // behind the kerb, facing across; where the footway ends at the kerb, the first steps out onto the stripes
         const back = end > 0 ? len - sk : sk;
         for (let i = 0; i < n; i++) spots.push({ line, s: back > 1.5 ? sk + end * (0.3 + srnd() * Math.min(back - 0.3, mine ? 3.5 : 2.5)) : sk - end * srnd() * (mine ? 3 : 2), dir: -end, side: -1.6 + srnd() * 3.6 });
@@ -5742,7 +5772,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // lets the loading cue go as it sets out; opts.walk, opts.fill: the walk's film, and what its type's {tokens} say)
   makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     walk: !!opts.walk, fill: opts.fill || null, levelReady: () => levelReady(), get levelWait() { return LEVEL_WAIT_S; }, // (both read when played: they are declared further on)
-    junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
+    junctions, crowd, faceShare, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
   if (overture && (story || OEOverture.due(CITY.id))) overture.prepareScore();
@@ -5882,7 +5912,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     A.start();
     playing = true; walk = Object.assign({}, sp);
     stage.classList.add('walk');
-    cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain)
+    if (SND_GUARD && cue && !(walkFilmDue() && !walkNoFilm)) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone with no film to play, the cue plays on until the street does: sndHold. The walk's film has a score of its own)
     walkDress(sp);
     $('#g-title').hidden = true;
     try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: sp.t, sky: sp.w } }); } catch (e) { /* no User Timing */ }
@@ -6110,7 +6140,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       pictures();
       const people = near().map(npcLoad);
       carsHeld = false;
-      lateOn = Promise.all([...people, carsIn(), treesIn()]);
+      lateBusy = true;
+      lateOn = Promise.all([...people, carsIn(), treesIn()]).finally(() => { lateBusy = false; });
+      // then the pictures of what is in the scene and not drawn yet, one a frame (world.js uploadRest, issue 184)
+      lateOn.then(() => (OEWorld.uploadRest ? OEWorld.uploadRest(renderer, world) : 0)).then(n => { if (n) console.info(`late: ${n} pictures sent ahead of their first draw`); }).catch(() => {});
     } else {
       // (and none of it under the opening's film, before any step or any one of the people: the city seen whole from the
       // air is the most a phone holds, and what came in beside it was the step its GPU died on, eight seconds into the
@@ -6119,6 +6152,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // needs none of it from up there, and the far models stand in until it is over: issues 118 and 166)
       const clearOfFilm = async () => { if (!(overture && overture.active)) return; loadStep('late after the film'); while (overture && overture.active) await new Promise(r => setTimeout(r, 400)); };
       const breath = () => new Promise(r => setTimeout(r, 250)).then(clearOfFilm);
+      lateBusy = true; // (the street's sound waits for all of it: sndHold)
       lateOn = (async () => {
         await clearOfFilm();
         loadStep('late people');
@@ -6132,12 +6166,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         loadStep('late pictures');
         pictures();
         if (Wd.groundPictures && Wd.groundPictures.all) await Wd.groundPictures.all();
+        lateBusy = false;
         loadStep('late in');
         // a minute of play with everything in: this level fits this phone, and the next visit may try the one above
         // (quality.js held). Counted in seconds on screen, so a tab put away does not earn it.
         let on = 0;
         const iv = setInterval(() => { if (!running) { clearInterval(iv); return; } if (document.hidden) return; if (++on >= 60) { clearInterval(iv); loadStep('held'); if (window.OEQuality && OEQuality.held) OEQuality.held(cityId); } }, 1000);
-      })();
+      })().finally(() => { lateBusy = false; }); // (one that failed does not keep the street waiting)
     }
     return lateOn;
   }
@@ -6164,7 +6199,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // only the drops); then resolution to its floor. The people keep their models and the city its detail: a
   // crowd of boxes is not a city. Resolution, the reflections and the contact shadows come back as the frame
   // time allows, and so does the weather this session's shedding took (weather.js shed: a device that began with it off keeps it off).
-  let fpsWarned = false;
   // The ladder's rungs (quality.js rung: the value with every extra, at half, with none), in the order of what is
   // missed least; resolution moves on its own between them (above). Two-way: each comes back as the frames allow.
   // (weather.js gives back what this session's shedding took, and keeps off what started off)
@@ -6182,6 +6216,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.setShadowSize) { const S = Wd.shadowSize; gov.rung('shadow', [S, Math.max(1024, S / 2), 1024], v => Wd.setShadowSize(v)); }
   // the crowd: whole, whole, and three in four with none (crowd.active, as the menu's density sets it)
   gov.rung('crowd', [1, 1, 0.75], v => { govCrowd = v; applyDensity(); });
+  // A tier down, or back up, when the governor has nothing left to give on this one (quality.js tierStep, issue 184): the
+  // new tier's canvas, scene budget, multisampling and shadow map at once; what the world was built with (its set of
+  // details, the woods, the cast) from the next load, which starts on the tier this one ended on.
+  gov.tierRoom = gov.auto ? OEQuality.room() : 0; gov.tierDown = QC.stepped || 0; gov.upWait = OEQuality.stepped(cityId).wait;
+  gov.onTier(dir => {
+    const was = QC.name;
+    gov.tierDown = OEQuality.tierStep(dir, cityId);
+    Object.assign(QC, OEQuality.city());
+    gov.tierRoom = OEQuality.room(); gov.upWait = OEQuality.stepped(cityId).wait;
+    if (Wd.setShadowSize) { const S = QC.shadow; gov.revalue('shadow', [S, Math.max(1024, S / 2), 1024]); }
+    resize();
+    console.info(`Frame budget: tier ${was} → ${QC.name} (${gov.frameMs.toFixed(1)} ms a frame at ${gov.scale.toFixed(2)}/${gov.extras})`);
+    if (window.OETelemetry) { if (OETelemetry.set) OETelemetry.set({ tier: QC.name }); if (OETelemetry.track) OETelemetry.track('tier_step', { from: was, to: QC.name, ms: +gov.frameMs.toFixed(1), scale: +gov.scale.toFixed(2), shed: 2 - 2 * gov.extras }); }
+  });
   gov.on((extras, scale, extrasChanged) => {
     resize();
     if (window.OETelemetry && OETelemetry.set) OETelemetry.set({ scale: +scale.toFixed(2), shed: 2 - 2 * extras, msaa: atmos && atmos.composer ? atmos.composer.samples : QC.samples || 0, cap: gov.cap }); // (each step is a "quality" event: telemetry.js)
@@ -6189,7 +6237,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (gov.auto) try { localStorage.setItem(GOV_KEY, `${+scale.toFixed(2)}/${extras}`); } catch (e) { /* storage blocked */ }
     if (!extrasChanged) return;
     console.info(`Frame budget: extras ${extras}, scene scale ${scale.toFixed(2)}`, gov.ladder);
-    if (extras === 0 && !fpsWarned && !navigator.webdriver) { fpsWarned = true; H.toast('Running slowly? Lower the crowd density in the menu (Esc).'); }
   });
   // The frame's own writes to the page (issue 352): each of the HUD's nodes is looked up once, and its text is
   // written only when it changes. A text node replaced every frame, though with the same words, is a style and
@@ -6293,7 +6340,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (HERO_CUT.h) HERO_CUT.box.value.w = HERO_CUT.h.shown && !HERO_CUT.off ? 1 : 0; // (the ground cut under a level's floor only while the floor is drawn)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
-    if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
+    if (SND_GUARD) { // (a phone's street: held while the page is busy, above sndHold; the loading cue until it plays, and in its place if it gave up)
+      const film = !!(overture && overture.active), held = sndHold(now);
+      if (film) sndFilmAt = now;
+      if (!held) sndHeldAt = 0; else if (!sndHeldAt) sndHeldAt = now;
+      A.hold(held);
+      if (sndQuiet) { // (the context made once the opening's film is over and the page has room for it, or two seconds into a start that has none: audio.js quiet)
+        if (film) sndQuiet = 2;
+        if (playing && !film && !held && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
+      }
+      if (playing && !film) {
+        const street = !!A.ctx && A.ctx.state === 'running' && !A.holding && !A.gaveUp;
+        if (sndCueOut && street) { sndCueOut = false; cueOut(); }
+        if (sndBed && street) { sndBed.stop(3); sndBed = null; }
+        else if (!sndBed && !cue && (A.gaveUp || A.streetOff || (sndHeldAt && now - sndHeldAt > 8000)) && now - sndFilmAt > 2500) sndBed = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); // (or held for long: a phone at its limit hears music, not nothing)
+      }
+    } else if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
       const film = !!(overture && overture.active); if (film) sndQuiet = 2;
       if (playing && !film && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
     }

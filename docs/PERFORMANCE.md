@@ -2597,6 +2597,90 @@ trains (57,000), and instanced things nobody has marked as still (45,000). A sti
 usually a frame that draws the still things too (the play has just put the camera somewhere new), so frame 7's budget
 does not show this; the harness's count does. Measured on a session's machine; the counts are the page's own.
 
+## A desktop's frames: hitches, Safari and a tier step (issue 184, November 2026)
+
+The owner's ask: the device is the bottleneck, and the desktop stutters. Measured first, from the owner's own plays
+(the telemetry's `time` and `jank` events, 17 to 22 November 2026, GitHub Pages and Vercel hosts):
+
+- **Chrome on an Apple M3, high tier** (851 x 881 CSS px at 2x): 59 frames a second, but the 95th-percentile frame
+  29 to 42 ms, and the governor holding the scene at **0.45 to 0.56** of its resolution with **every extra shed**
+  (`shed` 2) for hours. 1.9 to 2.2 M triangles, 350 to 610 draws, 13 passes. (`gpu_ms` reads 40 to 70 at 59 frames a
+  second, which a GPU cannot do every frame: Chrome's timer query on ANGLE's Metal is not taken at its word here.)
+- **Safari on the same Mac, high tier** (1241 x 903 at 2x): 10 to 26 frames a second, `slow` up to 100%, **28 ms of
+  script a frame** (Chrome on the same machine: 1 to 16), 4.5 M canvas pixels, 555 to 690 draws, the tier never
+  stepped down.
+- The long frames the browser reported were the game's `frame` (script 160 to 560 ms in it) on foot, in the story
+  and on the title.
+
+### What held the M3 down: hitches taken for load
+
+The governor's measure was a moving average of every frame. A frame held up by the page's script (a model arriving,
+pictures sent to the GPU, the garbage collected) weighed as much as a scene too heavy for the GPU, and each was a
+step down; the way back up waited half a minute and doubled at each failure. Modelled in `tools/governor_unit.js` (a
+scene that costs 4 to 13 ms, through vertical sync, with hitches of 60 to 140 ms):
+
+| hitches (share of frames) | before: scale/extras after 10 min | after |
+| --- | --- | --- |
+| 1% | 0.70/0.5 | 1.00/1 |
+| 3% | 0.45/0 | 1.00/1 |
+| 6% | 0.50/0 | 1.00/1 |
+
+The measure is now the mean of the last 48 frames with the hitches left out: a frame over 2.5 times the median (and
+over 40 ms), at most one in six (`quality.js` governor, `robust`). A frame that misses one refresh (33 ms among 17s)
+is the scene's and still counts, so a device between two steps settles as before; every earlier case of the unit
+check holds. Pixels cannot buy back a hitch; the hitches are spread at their source (below).
+
+### The hitches at their source
+
+`tools/walk_hitch.js` (`PLAY=1 STACK=1`, the high tier at 1440 x 900, 45 s from the press of Play; it now names the
+draw and the page's frames behind each large upload, and counts a nine-argument `texSubImage2D` by its width and
+height, not by its y offset and width):
+
+| | before | after |
+| --- | --- | --- |
+| largest pictures (≥ 512 x 512) sent in one frame | 13 | 2 |
+| the near trees' fifteen bark scans | uploaded in the first frames that drew them (31.5 to 32.7 s) | one a frame, ahead (`trees.js` `send`) |
+| the canals' walls (`inland_wall`) | uploaded by the shadow pass that first took them in (29.7 s) | ahead, one a frame (`world.js` `uploadRest`) |
+| the far aerial tiles (1000 x 1200) | four in one idle moment, each waiting on idle time of its own | the shared queue, one a frame (`sendTex`) |
+
+The shared queue (`world.js` `upload`) now takes a picture a draw has already sent without spending a frame on it, so
+the sweep of what is in the scene and not yet drawn (`uploadRest`, a desktop's, after its late models) costs only the
+pictures that need it. What is left in the first minute is the warm-up's own compiles (the hero level's and the
+people's programs, compiled in slices by `world.js compile` and waited on by a draw that came first: `alu_fin`,
+`ginza_joint`, seconds each on a software renderer); a follow-up.
+
+### Safari
+
+Safari's WebGL crosses to the GPU process on every call, and its ANGLE on Metal resolves a multisampled half-float
+target slowly; the owner's Mac drew there at a third of Chrome's rate with five times the script a frame. A Mac's
+Safari (WebKit's own engine, told from its user agent; the renderer string is masked as "Apple GPU") now starts on
+**medium** with **no multisampling** (the lens's sharpened upscale and grain hide the edges): at 1241 x 903 the canvas
+is 2.4 M pixels instead of 4.5 M, the scene's budget 2.4 M instead of 3.7 M, the shadow map 2048, half the far woods'
+crowns and 18 of the people's models instead of 28. If that is still too much, the tier step below takes it to low.
+
+### A tier step, not only a scale
+
+When the governor has nothing left to give (its floor, every extra shed) and the frames still miss their target for
+eight seconds, or come under twenty a second for six whatever it holds, or it has sat at its floor for twenty, it asks
+for a tier down (`onTier(-1)`); after a minute held at its ceiling with every extra in a tier below the device's own,
+for one back up. The game applies the new tier's canvas, scene budget, multisampling and shadow map at once
+(`game.js`, `gov.onTier`), and the rest of the tier (the world's set of details, the woods, the cast) from the next
+load, which starts on the tier this one ended on: `bh-tier-<map>` in localStorage, how many tiers below the device's
+own, and how long the next climb waits (a minute, doubled to sixteen by each climb that fails within two minutes).
+Never below low, never a phone's (its level is quality.js `level()`), never a tier the visitor chose. Each step is a
+`tier_step` event in the telemetry. Checked in `tools/governor_unit.js`: a device under twenty frames a second at its
+floor is a tier down in thirty seconds and at low in two minutes, and climbs back once the scene is light; a fast
+device, a hitchy one and one settled below its ceiling keep their tier; the ladder in storage, with a faked desktop
+context, goes high → medium → low and no lower, back up, and waits twice as long after a climb that failed.
+
+### Not checked here
+
+A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may
+hold requestAnimationFrame to 30 a second; the governor then aims at 60 and finds nothing fits). A software renderer
+gives counts (uploads, compiles, programs), not a GPU's milliseconds. The numbers to read next are the owner's: the
+`time` events' `scale` and `shed` on the M3 in Chrome (expected at or near 1.00 and 0), and `tier`, `fps` and `cpu_ms`
+on Safari.
+
 ### The room over a reading, and what one code reads twice (issue 130, 22 November)
 
 Main went red on a phone's frame 7 at 304.2 MB over a ceiling of 304. Nothing heavy had landed: the ceiling had been
