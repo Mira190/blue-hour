@@ -5390,6 +5390,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const dx = player.x - x0, dy = player.y - y0, dn = (dx * bx + dy * by) / bl;
         moved = Math.sqrt(Math.max(0, dx * dx + dy * dy - dn * dn));
       }
+      // and to someone stood ahead, one of the map's people or the story's: the hand that leads the stride reached 2 to 4.5 cm
+      // into a back or an arm in the frame the middle stopped at their shoulder, from every side and deepest at a run
+      // (tools/clip_people.js, issue 157). The point the stride reaches is kept out of them as the middle is, so the middle
+      // stops that much short of them along the way it goes, and slides round them as before where it only passes
+      { let px = player.x + hx, py = player.y + hy, hit = false;
+        posts.near(px, py, 0.35, q => { if (q.kind !== 'npc' && q.kind !== 'story') return;
+          const dx = px - q.x, dy = py - q.y, d = Math.hypot(dx, dy), m = q.r + 0.35 - d;
+          if (m > 0 && d > 1e-6) { px += dx / d * m; py += dy / d * m; hit = true; } }, player.z);
+        const nx = px - hx, ny = py - hy;
+        if (hit && nav.walk(nx, ny, player.z, true).ok) { player.x = nx; player.y = ny; moved = Math.hypot(player.x - x0, player.y - y0); } }
     }
     // cars are solid too: out of any the move went into, or one that drove into you (back where you
     // were if that is a wall), and then out of the lamp posts and trunks, which a car can't shove you into
