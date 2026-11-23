@@ -5798,7 +5798,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let resumeAt = null;
   function noteResume() {
     if (!playing) return;
-    const S = story && story.state, inStory = !!(S && story.on && S.phase !== 'done'), kind = inStory ? 'story' : walk ? 'walk' : null;
+    const S = story && story.state, inStory = !walk && !!(S && story.on && S.phase !== 'done'), kind = walk ? 'walk' : inStory ? 'story' : null; // (walk first: story.on is true on the walk, its evening dressed)
     if (!kind) return;
     const film = !!(S && (S.mov || /^(flight|ride)$/.test(S.beat))) || !!(overture && overture.active);
     const foot = player.mode === 'foot' && !player.vehicle && !film && Number.isFinite(player.x);
