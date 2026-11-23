@@ -2842,7 +2842,19 @@ target and clipping planes it was drawn with, and left out until then, once (a d
 a pass's `overrideMaterial`, is drawn as before: compiling the mesh would never make that one, and the first cut of the
 gate held such a draw for good).
 Only the world scene and the shadow pass go through it (a post pass's quad is never left out: its frame would be black),
-and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent). Without the extension nothing changes. The
+and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent).
+
+*Issue 205: what is on the screen stays on it.* The first cut held every draw of a material while any one of its
+programs was linking, so a new variant of a material long on screen (a warm-up for another target or count of lights, a
+cube's or a photograph's first draw of it) took it off the screen while that variant linked: with a GPU played slow
+(`LINKLAG=400`) the Ginza level's paving, the guide's coat and a speaker's head were gone for seconds. Now a draw is held
+only for a mesh never drawn yet whose material has no program ready; once drawn, a mesh is always drawn, and a variant
+still linking is waited for as three.js does (a hitch, not a hole). The gate looks only at draws into the frame's own
+targets (the canvas and the post stack's; `targets` from `game.js`), so a picture that is kept (a level's reflection cube,
+the rain's cover map, the story's photographs) is drawn whole whenever it is taken, and the shadow pass is no longer gated
+(its map is cached). `window.__gate.n.kept` counts the draws the first cut would have left out of a drawn mesh, and
+`LINKLAG=ms` in `tools/load_probe.js` as in `tools/story_play.js`. Frame 1 played with `LINKLAG=400 STILLS=1 DRAW=30`
+on a desktop: whole in all 29 stills; to the title, the gate held 6 never-drawn draws (4 before) and took none off. Without the extension nothing changes. The
 loader goes on a frame the gate left nothing out of (at most 1.5 s more: on the software renderer here, where a link takes seconds and a frame 1.4 s, a 4 s bound held the loader 4.7 s past the first frame; the phone tier waited 0.5 to 0.8 s), so nothing comes in under the title; the page's
 log says when it waited (`warm: the loader waited ...`). `?gate=0` turns it off, to measure against. Measured with
 `tools/load_probe.js` on the phone tier (390 x 844, two runs each): programs a draw linked in the 8 s after the tap
