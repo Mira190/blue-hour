@@ -2889,14 +2889,23 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     if (!renderer || !scene || renderer.__gate || typeof renderer.renderBufferDirect !== 'function') return null;
     if (/[?&]gate=0\b/.test(location.search)) return null;
     if (!(renderer.extensions && renderer.extensions.has && renderer.extensions.has('KHR_parallel_shader_compile'))) return null;
-    const props = renderer.properties, draw = renderer.renderBufferDirect, n = { held: 0, made: 0, late: 0 }, late = new Map();
+    const props = renderer.properties, draw = renderer.renderBufferDirect, n = { held: 0, made: 0, late: 0 }, late = new Map(), tried = new WeakSet();
     let due = false;
-    const linking = mp => { for (const p of mp.programs.values()) if (p && p.isReady && !p.isReady()) return true; return false; };
+    // (a program still linking holds its draws for 10 s at most: past that it is drawn, and waited for, as before)
+    const since = new WeakMap(), linking = mp => {
+      for (const p of mp.programs.values()) {
+        if (!p || !p.program || !p.isReady || p.isReady()) continue;
+        const t = since.get(p), t1 = performance.now();
+        if (t === undefined) since.set(p, t1); else if (t1 - t > 10000) continue;
+        return true;
+      }
+      return false;
+    };
     const make = () => {
       due = false;
       const was = [renderer.getRenderTarget(), renderer.clippingPlanes];
       for (const [o, [cam, sc, target, clip]] of late) {
-        late.delete(o);
+        late.delete(o); tried.add(o); // (made once: if its draw still finds no program, it is drawn as before)
         try { renderer.setRenderTarget(target); renderer.clippingPlanes = clip; renderer.compile(o, cam, sc); n.made++; } catch (e) { /* drawn as before, next frame */ }
       }
       renderer.setRenderTarget(was[0]); renderer.clippingPlanes = was[1];
@@ -2905,12 +2914,16 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       if ((sc === scene || sc === null) && material && object && !renderer.__gate.pass) {
         const mp = props.get(material);
         if (mp.programs && mp.programs.size) { if (linking(mp)) { n.held++; return; } }
-        else if (sc === scene && !late.has(object)) {
-          // (a mesh drawn for the first time with a material nothing compiled: made after the frame, in this frame's state)
-          late.set(object, [camera, sc, renderer.getRenderTarget(), renderer.clippingPlanes.slice()]); n.late++;
-          if (!due) { due = true; setTimeout(make, 0); }
+        // (a mesh drawn for the first time with its own material, which nothing compiled: made after the frame, in this frame's
+        // state, once. Not a material it is drawn with but does not own (a pass's override, a material swapped in its
+        // onBeforeRender): compile() makes the object's own, so that one would never be made and the mesh never drawn)
+        else if (sc === scene && !tried.has(object) && !sc.overrideMaterial && (object.material === material || (Array.isArray(object.material) && object.material.includes(material)))) {
+          if (!late.has(object)) {
+            late.set(object, [camera, sc, renderer.getRenderTarget(), renderer.clippingPlanes.slice()]); n.late++;
+            if (!due) { due = true; setTimeout(make, 0); }
+          }
           return;
-        } else if (sc === scene) return;
+        }
       }
       return draw.call(this, camera, sc, geometry, material, object, group);
     };
