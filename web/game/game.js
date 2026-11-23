@@ -2111,171 +2111,24 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const colonies = (G.wildlife || []).map(c => OEPenguins.create(world, c, A, nav.terrain)).filter(Boolean);
   // and silver gulls round a dropped box of chips by the water (gulls.js), marked on the map
   const flocks = (G.flocks || []).map(f => (f.kind === 'black_kite' ? OEGulls.kites(world, f) : OEGulls.create(world, f, A, nav)));
-  // ------------------------------------------------------------ fishing from the shore (docs/FISHING.md). Only where the spots are
-  // comes with the game (game.json "fishing", a city that has it: pipeline/fishing.py). fishing.js and the city's
-  // fishing.json are fetched the first time you are on foot within sight of a spot, and what they draw is made on
-  // the first cast and freed when you walk away, so nobody pays for fishing they do not do.
-  const fish = G.fishing && G.fishing.spots && G.fishing.spots.length ? { spots: G.fishing.spots, api: null, loading: null, look: 0 } : null;
-  const fishSpot = r => (player.mode === 'foot' ? fish.spots.find(sp => Math.hypot(sp.at[0] - player.x, sp.at[1] - player.y) < r) : null);
-  function fishLoad() {
-    if (fish.loading) return fish.loading;
-    const script = (src, have) => (have ? Promise.resolve() : new Promise((ok, no) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => no(new Error(`${src} did not load`)); document.head.appendChild(el); }));
-    const code = Promise.all([script('game/fishing.js', window.OEFishing), script('game/fishart.js', window.OEFishArt)]);
-    fish.loading = Promise.all([code, fetch(D.DATA + G.fishing.file).then(r => { if (!r.ok) throw new Error(`${G.fishing.file}: ${r.status}`); return r.json(); })]).then(([, data]) => {
-      if (!running) return null;
-      fish.api = OEFishing.create({ THREE, world, nav, player, cam, camera, H, A, data, cityId, clock, sun: () => sun, rain: () => (weather ? weather.state.rain : 0), tier: QC.name, reduced, touch, stage,
-        key: k, time: () => clockT, ui: () => dlg.open || uiOpen() || cine.active || photo.on,
-        walkTo: (x, y, label, then, cancel) => { player.auto = { x, y, t: 0, label, then, cancel }; },
-        stamp: (stamp, title) => { const id = `fish-${stamp.toLowerCase().replace(/\W+/g, '-')}`; if (!qs.stamps.some(q => q.id === id)) { qs.stamps.push({ id, stamp, title, at: fmtMin(clock.min) }); renderPassport(); save(); } A.thump(); H.stamp(stamp, title); } });
-      return fish.api;
-    }).catch(e => { fish.loading = null; fish.look = clockT + 30; console.warn(`fishing: ${e.message}`); return null; }); // (offline, say: asked for again in half a minute)
-    return fish.loading;
-  }
-  // each step: fetch it when a spot comes within sight, and then run it (the rises on the water, a line that is out)
-  function fishTick(dt, side) {
-    if (fish.api) fish.api.step(dt, side);
-    else if (clockT > fish.look) { fish.look = clockT + 1; if (fishSpot(160)) { fish.near = true; fishLoad(); } }
-  }
-  let dayLim = null; // sunrise and sunset for the game's date, worked out once a day
-  const dayLimits = () => { const k = `${clock.y}-${clock.m}-${clock.d}`; if (!dayLim || dayLim.k !== k) dayLim = Object.assign({ k }, S.dayLimits(clock.y, clock.m, clock.d)); return dayLim; };
+  // ------------------------------------------------------------ fishing from the shore (docs/FISHING.md). Only where the spots are: fishing.js (tools/cut.js)
   let viewingNoted = false;
+  const { dayLimits, fish, fishLoad, fishSpot, fishTick } = OEGameFishing({ get A() { return A; }, get D() { return D; }, set D(v) { D = v; }, get G() { return G; }, get H() { return H; }, get QC() { return QC; }, get S() { return S; }, get cam() { return cam; }, get camera() { return camera; }, get cine() { return cine; }, get cityId() { return cityId; }, get clock() { return clock; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get dlg() { return dlg; }, get fmtMin() { return fmtMin; }, get k() { return k; }, get nav() { return nav; }, get photo() { return photo; }, get player() { return player; }, get qs() { return qs; }, get reduced() { return reduced; }, get renderPassport() { return renderPassport; }, get running() { return running; }, set running(v) { running = v; }, get save() { return save; }, get stage() { return stage; }, get sun() { return sun; }, set sun(v) { sun = v; }, get touch() { return touch; }, get uiOpen() { return uiOpen; }, set uiOpen(v) { uiOpen = v; }, get weather() { return weather; }, get world() { return world; } });
 
-  // ------------------------------------------------------------ objective marker and GPS route in the world
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 90, 12, 1, true).translate(0, 45, 0),
-    new THREE.MeshBasicMaterial({ color: lin('#ffc23d'), transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-  beam.visible = false;
-  world.add(beam);
-  // the route: on the ground, or in the air when flying (in a story it is the pale blue of the story's own marks, so
-  // that it is not taken for the yellow tactile paving it runs beside)
-  const gold = OERoute.line(world, lin(G.story && !new URLSearchParams(location.search).has('walk') ? '#9fd0ff' : '#f2bd52'));
-  // The route line in the world: always on, only when asked (L, or Show route in the quest card), or
-  // off. The minimap keeps its route whichever: the quiet reference. Remembered in this browser.
-  const ROUTE_KEY = 'bh-route-line', ROUTE_MODES = { on: 'On', ask: 'Only when I ask', off: 'Off' };
+  // ------------------------------------------------------------ objective marker and GPS route in the world: objective.js (tools/cut.js)
   let routeMode = 'on', routePeek = -1; // (clockT until which a line asked for stays up)
-  try { const v = localStorage.getItem(ROUTE_KEY); if (ROUTE_MODES[v]) routeMode = v; } catch (e) { /* storage blocked */ }
-  function setRouteMode(m) {
-    if (!ROUTE_MODES[m]) return;
-    routeMode = m; routePeek = -1;
-    try { localStorage.setItem(ROUTE_KEY, m); } catch (e) { /* storage blocked */ }
-    $$('#gm-route button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.r === m)));
-  }
-  const ROUTE_PEEK = 8; // seconds a line asked for stays up
-  function peekRoute() {
-    if (!guide.pts) { H.toast(waypoint || objective() ? 'No route from here.' : 'No objective to lead you to. Set a waypoint on the map (<kbd>M</kbd>).'); return; }
-    routePeek = clockT + ROUTE_PEEK;
-  }
-  // whether the line is up, and its fade toward that: hidden in a conversation, a menu, a map, photo
-  // mode or a cinematic shot, and in the last few metres to the objective
-  function routeShow(dt, titled) {
-    const want = (routeMode === 'on' || clockT < routePeek) && !!guide.pts && !titled && !photo.on && !dlg.open && !uiOpen() && !cine.active && gold.left > 6 && !(story && story.finder); // (nor through the story's raised camera: seen from the eye along the ground, the band stood up in the finder as a shaft of light, issue 19)
-    gold.fade(want ? 1 : 0, dt);
-    gold.night(U.uNight.value);
-    const b = $('#gq-route');
-    if (b) b.hidden = routeMode === 'on' || !guide.pts || clockT < routePeek || titled;
-  }
+  const { ROUTE_PEEK, beam, gold, peekRoute, routeShow, setRouteMode } = OEGameObjective({ get $() { return $; }, get $$() { return $$; }, get G() { return G; }, get H() { return H; }, get U() { return U; }, get cine() { return cine; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get dlg() { return dlg; }, get guide() { return guide; }, get lin() { return lin; }, get objective() { return objective; }, get photo() { return photo; }, get routeMode() { return routeMode; }, set routeMode(v) { routeMode = v; }, get routePeek() { return routePeek; }, set routePeek(v) { routePeek = v; }, get story() { return story; }, get uiOpen() { return uiOpen; }, set uiOpen(v) { uiOpen = v; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get world() { return world; } });
 
   // ------------------------------------------------------------ text from the model: modeltext.js (tools/cut.js)
   const { SRC_TEXT, centroid, fill, inPlace, placeByName, said, smalltalk } = OEGameModelText({ get B() { return B; }, get DSM() { return DSM; }, get G() { return G; }, get P() { return P; }, get RAD() { return RAD; }, get S() { return S; }, get clock() { return clock; }, get colonies() { return colonies; }, get dayLimits() { return dayLimits; }, get fmtMin() { return fmtMin; }, get fmtSec() { return fmtSec; }, get nextFerry() { return nextFerry; }, get scene() { return scene; }, get srnd() { return srnd; }, get sun() { return sun; }, set sun(v) { sun = v; }, get touch() { return touch; }, get trainNext() { return trainNext; } });
 
-  // ------------------------------------------------------------ clock: the place's own time, now, running in real time
-  // unless the player picks another hour or speed (the menu: 30 times real time as in GTA, 120, or paused)
-  const clock = { y: CITY.year || new Date().getFullYear(), m: 3, d: 21, min: 600, scale: 1, frozen: false, own: false };
+  // ------------------------------------------------------------ clock: the place's own time, now, running in real time: clock.js (tools/cut.js)
   let sun = null, clockUtc = Date.now();
-  // the traffic's rules by the hour (junctions.js: turns banned and streets shut at some hours) go by this clock
-  let dowKey = '', dow = 0;
-  junctions.setClock(() => { const k = `${clock.y}-${clock.m}-${clock.d}`; if (k !== dowKey) { dowKey = k; dow = (new Date(Date.UTC(clock.y, clock.m - 1, clock.d)).getUTCDay() + 6) % 7; } return { dow, min: clock.min }; });
-  // (live: the place's own time, which the clock then follows; any other hour set is kept as set)
-  function setClock(y, m, d, min, live = false) {
-    clock.own = !live;
-    const t = new Date(Date.UTC(y, m - 1, d) + Math.floor(min / 1440) * 864e5);
-    Object.assign(clock, { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate(), min: ((min % 1440) + 1440) % 1440 });
-    applySun();
-  }
-  function applySun() {
-    clockUtc = S.localToUtc(clock.y, clock.m, clock.d, clock.min);
-    sun = S.position(clockUtc);
-    Wd.setSun(sun, clock.min);
-    if (weather) { weather.clock(clock.y, clock.m, clock.d, clock.min); weather.light(); } // a weaker sun and a greyer sky under cloud
-    Wd.setSeason(clock.m, clock.d);
-    if (show) show.setClock(clock.min);
-    const night = U.uNight.value;
-    headMat.emissiveIntensity = 1.6 * night;
-    glowMat.opacity = 0.85 * night;
-    if (junctions.heads) junctions.heads.setNight(night);
-    const loc = S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min));
-    $('#g-time').textContent = `${fmtMin(clock.min)} ${loc.zone}`;
-    $('#g-date').textContent = `${clock.d} ${MONTHS[clock.m - 1]}${clock.frozen ? ' · paused' : clock.scale === 1 ? ' · real time' : ''}`;
-  }
+  const { applySun, clock, setClock } = OEGameClock({ get $() { return $; }, get CITY() { return CITY; }, get MONTHS() { return MONTHS; }, get S() { return S; }, get U() { return U; }, get Wd() { return Wd; }, get clockUtc() { return clockUtc; }, set clockUtc(v) { clockUtc = v; }, get fmtMin() { return fmtMin; }, get glowMat() { return glowMat; }, get headMat() { return headMat; }, get junctions() { return junctions; }, get show() { return show; }, get sun() { return sun; }, set sun(v) { sun = v; }, get weather() { return weather; } });
 
-  // ------------------------------------------------------------ benches in the sun
-  // People take the sun when it's cool and the shade when it's hot. The guide is the city's
-  // average daily top for the month (game.json "climate") against a comfortable 22 °C, and a
-  // low sun is gentler, so mornings and evenings lean towards the sun.
-  const CLIMATE = G.climate && G.climate.mean_max_c;
-  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  function sunWant() { // -1 looks for shade .. +1 looks for sun
-    if (!CLIMATE || !sun || sun.altitude <= 0) return 0;
-    const month = Math.max(-1, Math.min(1, (22 - CLIMATE[clock.m - 1]) / 4));
-    return Math.max(-1, Math.min(1, month + 0.8 * (1 - Math.min(1, sun.altitude / 50))));
-  }
-  const benchLit = b => (sun && sun.altitude > 0 ? S.sunlit(DSM, b.x, b.y, b.z + 1, sun) : null);
+  // ------------------------------------------------------------ benches in the sun: benches.js (tools/cut.js)
   let benchBudget = 0;
-  // how likely a passer-by is to take a free seat on a bench: what it offers against what people want
-  crowd.sitChance = b => {
-    if (!sun || sun.altitude <= 0) return 0.06; // a few still sit out after dark
-    if (b.lit == null) return 0.25;
-    const w = sunWant();
-    return 0.25 * (b.lit ? 1 + 0.9 * w : 1 - 0.9 * w);
-  };
-  // what someone on a bench says: when the sun comes to it or leaves it today, and why that suits
-  function benchTalk(b) {
-    if (!sun || sun.altitude <= 0) return 'Quiet out here after dark. I like it.';
-    const lit = benchLit(b), w = sunWant(), tmax = CLIMATE ? `${Math.round(CLIMATE[clock.m - 1])}°` : null;
-    let at = null, sets = false;
-    for (let m = Math.ceil((clock.min + 1) / 10) * 10; m < 1440; m += 10) {
-      const sp = S.position(S.localToUtc(clock.y, clock.m, clock.d, m));
-      if (sp.altitude <= 0) { sets = true; at = m; break; }
-      if (S.sunlit(DSM, b.x, b.y, b.z + 1, sp) !== lit) { at = m; break; }
-    }
-    const when = at == null ? null : fmtMin(at), month = MONTH_NAMES[clock.m - 1];
-    if (lit) {
-      const until = sets ? `until the sun goes down at about ${when}` : when ? `until about ${when}` : 'for the rest of the day';
-      if (w > 0.3) return `This bench has the sun ${until}.${tmax ? ` On a ${tmax} ${month} day, that's what you want.` : ''}`;
-      if (w < -0.3) return `Bit hot in the sun, honestly. It's on this bench ${until}.`;
-      return `This bench has the sun ${until}.`;
-    }
-    const comes = when && !sets ? `The sun gets to this bench at about ${when}.` : 'The sun won\'t get to this bench again today.';
-    if (w < -0.3) return `${tmax ? `${month} averages ${tmax} here. ` : ''}${when && !sets ? `This bench is in the shade until about ${when}.` : 'This bench is in the shade for the rest of the day.'}`;
-    return `Shady here. ${comes}`;
-  }
-
-  // the time of day: now, or one of sun.js's presets (sunrise, morning, noon, golden hour, sunset, blue hour,
-  // night), worked out from the sun on the clock's date, so a quest's date stays when you change the hour
-  function presetTime(kind) {
-    if (kind === 'live') { const now = S.utcToLocal(Date.now()); return setClock(now.y, now.m, now.d, now.minutes, true); } // ("Now" follows the place's clock from here on)
-    if (kind === 'postcard') return setClock(clock.y, clock.m, clock.d, OEPostcards.lightTime(DISTRICT.light, clock.y, clock.m, clock.d)); // (the light of the postcard you came by)
-    setClock(clock.y, clock.m, clock.d, S.presetTime(kind, clock.y, clock.m, clock.d) ?? 600);
-  }
-  // the buttons for those, each with its clock time on the clock's date (the title's choice and the menu's row)
-  function fillTimes(box) {
-    const was = box.querySelector('[aria-pressed="true"]'), pick = was ? was.dataset.t : null, now = box.querySelector('[data-t="live"]');
-    box.querySelectorAll('[data-t]:not([data-t="live"])').forEach(b => b.remove());
-    for (const [k, label] of S.PRESETS) {
-      const b = document.createElement('button');
-      b.dataset.t = k; b.dataset.label = label;
-      b.innerHTML = `${label}<span class="num">${fmtMin(S.presetTime(k, clock.y, clock.m, clock.d))}</span>`;
-      if (pick) b.setAttribute('aria-pressed', String(k === pick));
-      box.insertBefore(b, null);
-    }
-    if (now) { now.dataset.label = 'Now'; box.insertBefore(now, box.firstChild); }
-  }
-  function menuSync() { // the menu's slider and date follow the clock
-    $('#gm-clock').value = String(Math.round(clock.min));
-    $('#gm-clock-v').textContent = `${fmtMin(clock.min)} · sun ${sun.altitude.toFixed(0)}°`;
-    $('#gm-date').value = `${clock.y}-${pad(clock.m)}-${pad(clock.d)}`;
-    if (weather) $$('#gm-weather button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.w === weather.mode)));
-    fillTimes($('#gm-time'));
-  }
+  const { benchLit, benchTalk, fillTimes, menuSync, presetTime, sunWant } = OEGameBenches({ get $() { return $; }, get $$() { return $$; }, get DISTRICT() { return DISTRICT; }, get DSM() { return DSM; }, get G() { return G; }, get S() { return S; }, get clock() { return clock; }, get crowd() { return crowd; }, get fmtMin() { return fmtMin; }, get pad() { return pad; }, get setClock() { return setClock; }, get sun() { return sun; }, set sun(v) { sun = v; }, get weather() { return weather; } });
 
   // ------------------------------------------------------------ quests, in parallel lines: quests.js (tools/cut.js)
   const { LINES, Q, checkSteps, completeQuest, completeStep, cycleTrack, gaitChip, goals, ls, objective, openLines, qs, quest, renderLines, sideObjectives, step, stepOf, talkTo, trackNear, tracked, wantsTalk } = OEGameQuests({ get $() { return $; }, get A() { return A; }, get G() { return G; }, get H() { return H; }, get MONTHS() { return MONTHS; }, get S() { return S; }, get centroid() { return centroid; }, get clock() { return clock; }, get colonies() { return colonies; }, get dayLimits() { return dayLimits; }, get dlg() { return dlg; }, get fill() { return fill; }, get fmtMin() { return fmtMin; }, get guide() { return guide; }, get heli() { return heli; }, get inPlace() { return inPlace; }, get life() { return life; }, get nav() { return nav; }, get npcById() { return npcById; }, get placeByName() { return placeByName; }, get player() { return player; }, get rail() { return rail; }, set rail(v) { rail = v; }, get renderPassport() { return renderPassport; }, get said() { return said; }, get save() { return save; }, get setClock() { return setClock; }, get smalltalk() { return smalltalk; }, get srnd() { return srnd; }, get story() { return story; }, get sun() { return sun; }, set sun(v) { sun = v; }, get sunState() { return sunState; }, set sunState(v) { sunState = v; }, get touch() { return touch; }, get weather() { return weather; }, get wharfById() { return wharfById; } });
@@ -4136,167 +3989,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ height challenge: guess, then see how good the data is: heights.js (tools/cut.js)
   const { guess, guessCheck, guessStart } = OEGameHeights({ get $() { return $; }, get A() { return A; }, get B() { return B; }, get D() { return D; }, set D(v) { D = v; }, get H() { return H; }, get SRC_TEXT() { return SRC_TEXT; }, get U() { return U; }, get aimed() { return aimed; }, get lens() { return lens; }, get life() { return life; }, get player() { return player; }, get qs() { return qs; }, get save() { return save; } });
 
-  // ------------------------------------------------------------ surveying from a trig station
-  // What can you see from here? A straight line of sight through the 2 m surface model
-  // (with the Opera House shells and the bridge deck in it) to a point just under each
-  // roof: the tallest part of every building within range.
-  const roofs = (() => {
-    const r = B.b.map(() => null);
-    for (const sd of B.s) {
-      const top = (sd[1] + sd[3]) / 10, ring = sd[4];
-      if (r[sd[0]] && r[sd[0]][2] >= top) continue;
-      let x = 0, y = 0;
-      for (let k = 0; k < ring.length; k += 2) { x += ring[k]; y += ring[k + 1]; }
-      r[sd[0]] = [x / (ring.length / 2) / 10, y / (ring.length / 2) / 10, top];
-    }
-    return r;
-  })();
-  function viewshed(ex, ey, ez, range) {
-    const seen = [], { nx, ny, cell, x0, y1, data, ids } = DSM;
-    for (let b = 0; b < roofs.length; b++) {
-      const t = roofs[b];
-      if (!t) continue;
-      const dx = t[0] - ex, dy = t[1] - ey, d = Math.hypot(dx, dy);
-      if (d > range || d < 4) continue;
-      const tz = t[2] - 0.5, n = Math.ceil(d / 1.5);
-      let ok = true;
-      for (let i = 1; i < n; i++) {
-        const f = i / n, c = Math.floor((ex + dx * f - x0) / cell), r = Math.floor((y1 - ey - dy * f) / cell);
-        if (c < 0 || r < 0 || c >= nx || r >= ny) continue;
-        const k = r * nx + c;
-        if (data[k] > ez + (tz - ez) * f + 0.2) { ok = ids[k] === b; break; }
-      }
-      if (ok) seen.push(b);
-    }
-    return seen;
-  }
-  const SRC_GROUP = { mapped: 'surveyed', reference: 'surveyed', verified: 'surveyed', survey: 'surveyed', plateau: 'surveyed', plateau_lod1: 'surveyed', lidar: 'surveyed', bdtopo: 'surveyed', '3dbag': 'surveyed',
-    floors: 'floors', ml: 'estimated', estimate: 'estimated', typical: 'estimated' };
+  // ------------------------------------------------------------ surveying from a trig station: survey.js (tools/cut.js)
   let surveyLabels = [], surveyFov = BASE_FOV;
-  function survey(vp) {
-    const ez = player.z + 1.6, seen = viewshed(player.x, player.y, ez, 3000);
-    // label what is in sight: the named landmarks, then the tallest named buildings
-    const named = seen.filter(b => B.b[b][0]).sort((a, b) => roofs[b][2] - roofs[a][2]);
-    const marks = Object.entries(scene.labels || {}).map(([n, p]) => ({ n, p, b: named.find(b => B.b[b][0].startsWith(n)) })).filter(m => m.b != null);
-    const extra = named.filter(b => !marks.some(m => m.b === b)).slice(0, 6).map(b => ({ n: B.b[b][0], p: roofs[b], b }));
-    for (const m of [...marks, ...extra]) {
-      // a parametric landmark's row is only its base; its label point carries its published height
-      const row = B.b[m.b], para = row[4] === 'parametric', el = document.createElement('div');
-      el.className = 'lbl npc survey';
-      el.innerHTML = `${para ? m.n : row[0]}<span class="role">${para ? `${Math.round(m.p[2])} m · built from published dimensions`
-        : `${Math.round(row[2])} m · ${{ surveyed: 'surveyed', floors: 'from floors', estimated: 'estimated' }[SRC_GROUP[row[4]]]}`}</span>`;
-      el.hidden = true;
-      labelsEl.appendChild(el);
-      const at = para ? W(m.p[0], m.p[1], m.p[2] + 4) : W(roofs[m.b][0], roofs[m.b][1], roofs[m.b][2] + 4);
-      surveyLabels.push({ el, get: () => at, maxD: 3200, survey: true });
-    }
-    labels.unshift(...surveyLabels);
-    stage.classList.add('letterbox');
-    A.chime();
-    // You turn once round on the spot and the camera turns with you, over your right
-    // shoulder with a longer lens, the horizon at eye level, then settles back into the
-    // chase camera.
-    cam.yaw = player.h;
-    const c = head(), h0 = player.h, p0 = chasePolar(), pos = new THREE.Vector3(), lk = new THREE.Vector3();
-    const round = k => {
-      const b = Math.pow(Math.sin(Math.PI * k), 0.5), az = h0 + 2 * Math.PI * OECine.ease.inOut(k);
-      player.h = az;
-      OECine.around(c, az + Math.PI - 0.32 * b, OECine.lerp(p0.dist, 6, b), OECine.lerp(p0.h, 1, b), pos);
-      OECine.around(c, az, 300 * b, -8 * b, lk); // the skyline ahead, just below eye level
-      surveyFov = OECine.lerp(BASE_FOV, 34, b);
-      return { pos, look: lk };
-    };
-    cine.play(OECine.mix(round, () => live, k => handOver(k, 0.92)), 11, { label: 'survey', onEnd: () => {
-      player.h = cam.yaw = h0;
-      stage.classList.remove('letterbox');
-      for (const l of surveyLabels) { l.el.remove(); labels.splice(labels.indexOf(l), 1); }
-      surveyLabels = [];
-      fieldNotes(vp, ez, seen);
-    } });
-  }
-  function fieldNotes(vp, ez, seen) {
-    const first = !trigDone()[vp.id];
-    trigDone()[vp.id] = true;
-    if (life) life.emit('survey', { id: vp.id, name: vp.name, first });
-    const done = VP.filter(v => trigDone()[v.id]).length, all = done === VP.length;
-    const lines = [`${vp.name}: your eyes are ${Math.round(ez)} m above sea level, and ${seen.length.toLocaleString()} buildings are in sight within 3 km.`];
-    const top = seen.filter(b => B.b[b][0] && B.b[b][4] !== 'parametric').sort((a, b) => B.b[b][2] - B.b[a][2])[0];
-    if (top != null) lines.push(`The tallest in sight is ${B.b[top][0]}, ${Math.round(B.b[top][2])} m tall: ${SRC_TEXT[B.b[top][4]] || 'its height comes from the open data'}.`);
-    const n = { surveyed: 0, floors: 0, estimated: 0 };
-    for (const b of seen) if (SRC_GROUP[B.b[b][4]]) n[SRC_GROUP[B.b[b][4]]]++;
-    const tot = n.surveyed + n.floors + n.estimated;
-    if (tot) lines.push(`Of the heights in sight, ${Math.round(100 * n.surveyed / tot)}% are surveyed or published, ${Math.round(100 * n.floors / tot)}% come from floor counts and ${Math.round(100 * n.estimated / tot)}% are estimated.`);
-    lines.push(all ? `That's every trig station: ${done} of ${done}. The Trig master stamp is yours.` : `Trig stations surveyed: ${done} of ${VP.length}.`);
-    if (first && all && !qs.stamps.some(s => s.id === 'trig-master')) {
-      qs.stamps.push({ id: 'trig-master', stamp: 'Trig master', title: 'Every trig station surveyed', at: `${clock.d} ${MONTHS[clock.m - 1]} ${fmtMin(clock.min)}` });
-      A.chime(); A.thump();
-      H.stamp('Trig master', 'Every trig station surveyed');
-    }
-    renderPassport();
-    save();
-    dlg.show({ name: 'Field notes', role: vp.name, color: '#a8740b', pitch: 330 }, lines);
-  }
+  const { survey, viewshed } = OEGameSurvey({ get A() { return A; }, get B() { return B; }, get BASE_FOV() { return BASE_FOV; }, get DSM() { return DSM; }, get H() { return H; }, get MONTHS() { return MONTHS; }, get SRC_TEXT() { return SRC_TEXT; }, get VP() { return VP; }, get W() { return W; }, get cam() { return cam; }, get chasePolar() { return chasePolar; }, get cine() { return cine; }, get clock() { return clock; }, get dlg() { return dlg; }, get fmtMin() { return fmtMin; }, get handOver() { return handOver; }, get head() { return head; }, get labels() { return labels; }, get labelsEl() { return labelsEl; }, get life() { return life; }, get live() { return live; }, get player() { return player; }, get qs() { return qs; }, get renderPassport() { return renderPassport; }, get save() { return save; }, get scene() { return scene; }, get stage() { return stage; }, get surveyFov() { return surveyFov; }, set surveyFov(v) { surveyFov = v; }, get surveyLabels() { return surveyLabels; }, set surveyLabels(v) { surveyLabels = v; }, get trigDone() { return trigDone; } });
 
   // ------------------------------------------------------------ photo mode: photo.js (tools/cut.js)
   const { lensBlur, photo, photoCamera, photoMode, photoSync, snapPhoto } = OEGamePhoto({ get $() { return $; }, get A() { return A; }, get BASE_FOV() { return BASE_FOV; }, get CITY() { return CITY; }, get H() { return H; }, get MONTHS() { return MONTHS; }, get RAD() { return RAD; }, get S() { return S; }, get Wd() { return Wd; }, get atmos() { return atmos; }, set atmos(v) { atmos = v; }, get camera() { return camera; }, get canvas() { return canvas; }, get cine() { return cine; }, get cityId() { return cityId; }, get clock() { return clock; }, get closeup() { return closeup; }, set closeup(v) { closeup = v; }, get closeupEnd() { return closeupEnd; }, get dlg() { return dlg; }, get fmtMin() { return fmtMin; }, get gcHold() { return gcHold; }, get joy() { return joy; }, set joy(v) { joy = v; }, get k() { return k; }, get life() { return life; }, get live() { return live; }, get mirrorTick() { return mirrorTick; }, get nav() { return nav; }, get on() { return on; }, get player() { return player; }, get renderer() { return renderer; }, get sees() { return sees; }, get setClock() { return setClock; }, get stage() { return stage; }, get sun() { return sun; }, set sun(v) { sun = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get world() { return world; } });
 
-  // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); if (walk && walkUi && walkUi.menuSync) walkUi.menuSync(true); } }
-  // the story's own pause (issue 114): the frame the case is at, the words' size as the log has it, and the case begun
-  // again, asked twice (the frames taken are lost with it)
-  function caseSync() {
-    const at = story && story.at, w = storyLog ? storyLog.words() : null, again = $('#gm-again'), note = $('#gm-again-note');
-    if ($('#gm-case-at')) $('#gm-case-at').textContent = at ? `Frame ${at.fi + 1} of ${at.of}${at.stamp ? ` · ${at.stamp}` : ''}` : '';
-    if (w) $$('#gm-words button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.solid != null ? w.solid : +b.dataset.size === w.size)));
-    if (again) { again.classList.remove('sure'); again.textContent = 'Start the case again'; again.parentNode.hidden = !at; }
-    if (note) note.hidden = true;
-  }
-  on($('#gm-resume'), 'click', () => { $('#g-menu').hidden = true; });
-  on($('#gm-words'), 'click', e => {
-    const b = e.target.closest('button'); if (!b || !storyLog) return;
-    storyLog.setWords(b.dataset.solid != null ? { solid: !storyLog.words().solid } : { size: +b.dataset.size });
-    caseSync();
-  });
-  on($('#gm-again'), 'click', e => {
-    const b = e.currentTarget, at = story && story.at, note = $('#gm-again-note');
-    if (!at) return;
-    if (!b.classList.contains('sure')) {
-      b.classList.add('sure'); b.textContent = 'Yes, from the first card';
-      note.textContent = at.taken ? `The ${at.taken === 1 ? 'frame' : `${at.taken} frames`} taken, the file and the log go with it. Close the menu to keep the case.` : 'The case begins again from its first card. Close the menu to keep it.'; note.hidden = false;
-      return;
-    }
-    story.beginAgain();
-  });
-  // the walk's stories in its menu (walktalk.js list): each by its name, told, under way with what was asked, or not yet
-  // met with where to look
-  function talesSync() {
-    const el = $('#gm-tales');
-    if (!el) return;
-    const L = walk && walkTalk ? walkTalk.list() : [];
-    el.hidden = !L.length;
-    if (!L.length) return;
-    const n = L.filter(t => t.state === 'told').length, esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const V = walkTalk.views(), nv = V.filter(v => v.found).length;
-    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`
-      + (V.length ? `<span class="eyebrow">Views of Shibuya · ${nv} of ${V.length}</span><ul class="gm-album">${V.map(v => `<li data-f="${v.found ? 1 : 0}">${v.found && v.pic ? `<img alt="" src="${v.pic}">` : ''}<b>${esc(v.name)}</b><span>${esc(v.found ? v.when : v.hint)}</span></li>`).join('')}</ul>` : '');
-  }
-  // tonight's timetable in the walk's menu, under its stories (tonight.js)
-  function tonightSync() {
-    const el = $('#gm-tonight');
-    if (!el) return;
-    const h = walk && tonight ? tonight.menuHtml() : '';
-    el.hidden = !h;
-    if (h) el.innerHTML = h;
-  }
-  function togglePass() { renderPassport(); $('#g-pass').hidden = !$('#g-pass').hidden; }
-  const bigCanvas = $('#g-bigmap-c'), mapPop = $('#g-mappop');
+  // ------------------------------------------------------------ menus, map, passport: menus.js (tools/cut.js)
   let bigView = null, waypoint = null, bigPins = [], picked = null, travelKey = '';
-  function toggleMap() {
-    const el = $('#g-bigmap');
-    el.hidden = !el.hidden;
-    picked = null; mapPop.hidden = true;
-    if (!el.hidden) { travelKey = ''; drawBig(); }
-  }
+  const { bigCanvas, mapPop, toggleMap, toggleMenu, togglePass } = OEGameMenus({ get $() { return $; }, get $$() { return $$; }, get drawBig() { return drawBig; }, get menuSync() { return menuSync; }, get on() { return on; }, get picked() { return picked; }, set picked(v) { picked = v; }, get renderPassport() { return renderPassport; }, get story() { return story; }, get storyLog() { return storyLog; }, get tonight() { return tonight; }, set tonight(v) { tonight = v; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get walkUi() { return walkUi; }, set walkUi(v) { walkUi = v; } });
 
   // ------------------------------------------------------------ map travel
   // Any time, from the map, as Genshin Impact's and Breath of the Wild's maps let you: to the city's

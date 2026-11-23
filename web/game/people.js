@@ -485,15 +485,16 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // mipmaps, two or three a character and twenty-odd characters a map (130 MB in Tokyo, issue 406), for someone who
     // stands a few hundred pixels tall at most on a phone's canvas. The characters you play keep theirs
     const QC = window.OEQuality ? OEQuality.city() : null, LEAN_PX = 512 >> ((QC && QC.lighter) ? 1 : 0), lean = !!(QC && QC.lean); // (256 after the map's page died here: quality.js died)
-    const smaller = tpl => {
+    const smaller = (tpl, only, PX = LEAN_PX) => {
       const jobs = [];
       tpl.scene.traverse(o => {
         if (!o.isSkinnedMesh) return;
         for (const m of [].concat(o.material)) for (const k in m) {
+          if (only && !only.test(m.name || '')) continue; // (by the material's name: the head's and the hair's, not the clothes')
           const t = m[k], im = t && t.isTexture && t.image;
-          if (!im || !(im.width > LEAN_PX || im.height > LEAN_PX) || t.userData.oeLean || typeof createImageBitmap !== 'function') continue;
+          if (!im || !(im.width > PX || im.height > PX) || t.userData.oeLean || typeof createImageBitmap !== 'function') continue;
           t.userData.oeLean = true;
-          const f = LEAN_PX / Math.max(im.width, im.height);
+          const f = PX / Math.max(im.width, im.height);
           jobs.push(createImageBitmap(im, { resizeWidth: Math.round(im.width * f), resizeHeight: Math.round(im.height * f), resizeQuality: 'high', premultiplyAlpha: 'none' })
             .then(bm => { t.image = bm; t.needsUpdate = true; if (im.close) im.close(); }).catch(() => {})); // (else as it came)
         }
@@ -594,7 +595,10 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // programs in a draw, issue 31. Until then the far crowd's copy of each stands in. A main character is wanted by
       // the load itself, and does not wait)
       const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {}) : Promise.resolve(); };
-      return (lean && npc ? smaller(tpl) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
+      // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not
+      // its head's and its hair's at 1024: a phone's canvas is 760 pixels wide and shows that face 300 across at its nearest, in a talk's
+      // two-shot, and a texel finer than a pixel is not seen. At 512 a side whatever the phone's level (the cast's go to 256 on the lighter ones): 8 MB of the GPU less: issue 130. ?herotex=full: as they come, to set beside, tools/hero_face_shot.js)
+      return (lean && (npc || !/[?&]herotex=full\b/.test(location.search)) ? smaller(tpl, npc ? null : /_head$|_opacity$/, npc ? LEAN_PX : 512) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
         lib.tpl[name] = tpl;
         if (onMsg) onMsg(name);
         return tpl;

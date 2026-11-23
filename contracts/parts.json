@@ -135,7 +135,8 @@
     "web/lens.js",
     "web/game/talkcam.js",
     "web/game/perch.js",
-    "web/game/photo.js"
+    "web/game/photo.js",
+    "web/game/survey.js"
    ],
    "checks": [
     "story",
@@ -153,6 +154,7 @@
      "turn"
     ],
     "OEGamePhoto": [],
+    "OEGameSurvey": [],
     "OELens": [
      "ROLLOFF",
      "TAP",
@@ -206,6 +208,38 @@
      "walk",
      "walkTalk",
      "world"
+    ],
+    "web/game/survey.js": [
+     "A",
+     "B",
+     "BASE_FOV",
+     "DSM",
+     "H",
+     "MONTHS",
+     "SRC_TEXT",
+     "VP",
+     "W",
+     "cam",
+     "chasePolar",
+     "cine",
+     "clock",
+     "dlg",
+     "fmtMin",
+     "handOver",
+     "head",
+     "labels",
+     "labelsEl",
+     "life",
+     "live",
+     "player",
+     "qs",
+     "renderPassport",
+     "save",
+     "scene",
+     "stage",
+     "surveyFov",
+     "surveyLabels",
+     "trigDone"
     ]
    }
   },
@@ -612,7 +646,9 @@
     "web/plate.js",
     "web/credits.js",
     "web/game/marks.js",
-    "web/game/heights.js"
+    "web/game/heights.js",
+    "web/game/objective.js",
+    "web/game/menus.js"
    ],
    "checks": [
     "story",
@@ -626,6 +662,8 @@
     ],
     "OEFx": [],
     "OEGameHeights": [],
+    "OEGameMenus": [],
+    "OEGameObjective": [],
     "OEHud": [
      "baseMap",
      "dialogue",
@@ -672,6 +710,42 @@
      "player",
      "qs",
      "save"
+    ],
+    "web/game/menus.js": [
+     "$",
+     "$$",
+     "drawBig",
+     "menuSync",
+     "on",
+     "picked",
+     "renderPassport",
+     "story",
+     "storyLog",
+     "tonight",
+     "travelKey",
+     "walk",
+     "walkTalk",
+     "walkUi"
+    ],
+    "web/game/objective.js": [
+     "$",
+     "$$",
+     "G",
+     "H",
+     "U",
+     "cine",
+     "clockT",
+     "dlg",
+     "guide",
+     "lin",
+     "objective",
+     "photo",
+     "routeMode",
+     "routePeek",
+     "story",
+     "uiOpen",
+     "waypoint",
+     "world"
     ]
    }
   },
@@ -687,7 +761,9 @@
     "web/mirror.js",
     "web/game/atmosphere.js",
     "web/game/weather.js",
-    "web/game/ao.js"
+    "web/game/ao.js",
+    "web/game/clock.js",
+    "web/game/benches.js"
    ],
    "checks": [
     "story",
@@ -703,6 +779,8 @@
     "OEClouds": [
      "patch"
     ],
+    "OEGameBenches": [],
+    "OEGameClock": [],
     "OELights": [
      "create"
     ],
@@ -726,6 +804,39 @@
      "patch"
     ],
     "SunGPU": []
+   },
+   "asks_of_game": {
+    "web/game/benches.js": [
+     "$",
+     "$$",
+     "DISTRICT",
+     "DSM",
+     "G",
+     "S",
+     "clock",
+     "crowd",
+     "fmtMin",
+     "pad",
+     "setClock",
+     "sun",
+     "weather"
+    ],
+    "web/game/clock.js": [
+     "$",
+     "CITY",
+     "MONTHS",
+     "S",
+     "U",
+     "Wd",
+     "clockUtc",
+     "fmtMin",
+     "glowMat",
+     "headMat",
+     "junctions",
+     "show",
+     "sun",
+     "weather"
+    ]
    }
   },
   "hero": {
@@ -762,6 +873,7 @@
     "web/outposts.js",
     "web/water.js",
     "web/visibility.js",
+    "web/batch.js",
     "web/visibility-sweep.js",
     "web/visibility-worker.js",
     "web/bvh-worker.js",
@@ -771,7 +883,8 @@
     "web/astc.js",
     "web/astc-worker.js",
     "web/gltf.js",
-    "web/game/trig.js"
+    "web/game/trig.js",
+    "web/game/fishing.js"
    ],
    "checks": [
     "story",
@@ -781,6 +894,10 @@
     "astc"
    ],
    "offers": {
+    "OEBatch": [
+     "merge",
+     "pool"
+    ],
     "OEBuildings": [
      "PIER",
      "POST",
@@ -790,6 +907,7 @@
     ],
     "OEFarCity": [],
     "OEFarLand": [],
+    "OEGameFishing": [],
     "OEGameTrig": [],
     "OEInland": [],
     "OEInterior": [
@@ -850,6 +968,37 @@
     ]
    },
    "asks_of_game": {
+    "web/game/fishing.js": [
+     "A",
+     "D",
+     "G",
+     "H",
+     "QC",
+     "S",
+     "cam",
+     "camera",
+     "cine",
+     "cityId",
+     "clock",
+     "clockT",
+     "dlg",
+     "fmtMin",
+     "k",
+     "nav",
+     "photo",
+     "player",
+     "qs",
+     "reduced",
+     "renderPassport",
+     "running",
+     "save",
+     "stage",
+     "sun",
+     "touch",
+     "uiOpen",
+     "weather",
+     "world"
+    ],
     "web/game/trig.js": [
      "G",
      "W",
