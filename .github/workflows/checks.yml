@@ -138,7 +138,7 @@ jobs:
           if [ "$s" -eq 2 ]; then echo "::error::The browser has no WebGL on this runner, with or without the shaders kept"; exit 1; fi
       - name: What the static checks import
         if: matrix.target == 'static'
-        run: pip install numpy scipy shapely pyproj pillow   # (scipy: pipeline/street_ground.py --check)
+        run: pip install numpy scipy shapely pyproj pillow mapbox-vector-tile   # (scipy: pipeline/street_ground.py --check; mapbox-vector-tile: pipeline/road_width.py --check)
       - name: What the BC7 and BC5 check imports
         if: matrix.target == 'astc'
         run: pip install numpy pillow   # (tools/bc_check.py)
