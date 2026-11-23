@@ -547,9 +547,10 @@
         -985.5
       ],
       "car": [
-        371.9,
-        -1041.6
+        334.3,
+        -1064.0
       ],
+      "car_note": "Where your car waits (game.js kerbNear parks it on the road nearest this): Jingu-dori's northbound carriageway by the west exit, facing the Scramble 60 m ahead, from which Dogenzaka and 109, Bunkamura-dori, Jingu-dori north and Meiji-dori by the old Oyama road all lead on and back. Not the southbound side: at the story's hours it runs only to the works at the area's edge, the turn back being shut to cars 06:00 to 22:00. tools/first_drive.py holds it.",
       "time": "live",
       "shot": {
         "look": [

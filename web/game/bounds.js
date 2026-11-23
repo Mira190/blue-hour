@@ -238,6 +238,7 @@ window.OEBounds = (function () {
         for (let i = 0; i + 1 < P.length; i += 3) { const s = G.sd(P[i], P[i + 1]).s > 0; if (inS === null) inS = s; else if (s !== inS) { cross = true; break; } }
         if (!cross) continue;
         l.tb = (l.tb || []).concat([[0, true, ALL]]);
+        l.edge = 1; // (and never on a route, not even the search along any street that a street shut at an hour allows: cars.js)
         n++;
       }
       api.closed = n;
