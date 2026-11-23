@@ -104,7 +104,7 @@ window.OECompanion = (function () {
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; ring.renderOrder = 20; ring.frustumCulled = false;
     root.add(ring);
     const s = { x: 0, y: 0, z: 0, h: 0, state: 'away', ready: false, to: null, reach: 3, look: null, done: null, t: 0, speed: 0, fade: 1, greeted: false };
-    let mixer = null, acts = {}, cur = '', head = null, neck = null, mats = [];
+    let mixer = null, acts = {}, cur = '', head = null, neck = null, mats = [], soles = []; // (soles: the paws' points of skin, onSoles)
     const bones = [];
     // his body as the model has it: the capsule's spine (metres along his heading from where he stands), its radius, and
     // how far any of him reaches from where he stands (what game.js keeps off posts, belts and cars)
@@ -446,7 +446,6 @@ window.OECompanion = (function () {
     // between the clips folds his hind legs below either clip's pose (up to 5 cm in the model by itself, blender/build_dog.py's
     // Akita, and 4 to 9 cm in the story, where a Stop can hold him halfway down). The sole of each paw is the dozen lowest
     // points of skin its bone carries as bound, skinned each frame as the GPU skins them
-    let soles = [];
     const PAW = /^(lower_f|foot)|paw/i, SV = new THREE.Vector3();
     function solesOf(m) {
       const by = new Map(), p = new THREE.Vector3();
@@ -613,7 +612,7 @@ window.OECompanion = (function () {
       s.z = ground(s.x, s.y, s.z);
       laid(dt);
       root.position.copy(W(s.x, s.y, s.z + tilt.z));
-      root.rotation.set(tilt.r, s.h, tilt.p, 'YZX'); // (the model looks along +x; the map's y is the scene's -z; leaned to the floor under his paws)
+      root.rotation.order = 'YZX'; root.rotation.x = tilt.r; root.rotation.y = s.h; root.rotation.z = tilt.p; // (the model looks along +x; the map's y is the scene's -z; leaned to the floor under his paws)
       const leading = s.state === 'greet' || s.state === 'lead' || s.state === 'wait' || s.state === 'fetch';
       ring.material.opacity += ((leading ? 0.7 + 0.2 * Math.sin(s.t * 3) : 0) - ring.material.opacity) * Math.min(1, dt * 3);
       if (!mixer) return;
