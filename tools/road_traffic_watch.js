@@ -1,7 +1,8 @@
 // The traffic watched from a kerb (issue 167): stand at each place given for some minutes of the game's time and
 // count what the road plan (pipeline/road_plan.py, docs/ROADS.md) says must not happen:
 //   made quiet   a vehicle made on a quiet street (a cul-de-sac, the stub before a closure) or on a piece cut at a wall
-//   bus off      a bus made off the bus streets; and the share of the buses' time spent off them
+//   bus off      a bus made off the bus streets; and the share of the buses' time spent off them, and off the line each
+//                is on (game.json bl, pipeline/bus_lines.py: its own line's pieces, the way the line runs them)
 //   made near    a vehicle made within 120 m of you (in sight)
 //   inside       two vehicles drawn one inside the other (their boxes, each drawn in by 0.25 m, overlapping) for
 //                more than 3 s, within 200 m of you
@@ -42,7 +43,7 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
       g.hopTo(k ? k.x : x, k ? k.y : y, k ? k.z : q ? q.z : g.player.z, 'the kerb');
       g.advance(20); // (the traffic settles round the new place: what is made in these seconds is not counted)
       const prev = C.map(c => ({ line: c.line, x: c.x, y: c.y })), still = new Float32Array(C.length), pairT = new Map();
-      const out = { at: [x, y], secs, made: 0, madeQuiet: [], busMadeOff: [], madeNear: [], inside: [], stood: [], busT: 0, busOffT: 0, cameIn: 0, wentOut: 0, quietT: 0, carT: 0, cars: 0, buses: 0 };
+      const out = { at: [x, y], secs, made: 0, madeQuiet: [], busMadeOff: [], madeNear: [], inside: [], stood: [], busT: 0, busOffT: 0, busLineOffT: 0, cameIn: 0, wentOut: 0, quietT: 0, carT: 0, cars: 0, buses: 0, bound: 0, tripsEnded: 0, places: 0, fields: 0 };
       const box = c => { const hx = Math.sin(c.h), hy = Math.cos(c.h); return { x: c.x, y: c.y, hx, hy, l: Math.max(0.3, c.half - 0.25), w: Math.max(0.2, c.hw - 0.25) }; };
       const sep = (A, B, ax, ay) => { // (is axis (ax, ay) a separating one?)
         const pa = Math.abs(ax * A.hx + ay * A.hy) * A.l + Math.abs(-ax * A.hy + ay * A.hx) * A.w, pb = Math.abs(ax * B.hx + ay * B.hy) * B.l + Math.abs(-ax * B.hy + ay * B.hx) * B.w;
@@ -68,7 +69,7 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
             if (d >= 150 && dWas < 150) out.wentOut++;
           }
           out.carT += DT; if (l.quiet && !c.park) out.quietT += DT;
-          if (c.bus) { out.busT += DT; if (!l.bus) out.busOffT += DT; }
+          if (c.bus) { out.busT += DT; if (!l.bus) out.busOffT += DT; if (cars.netL.some(k => k.bl) && !(c.bl >= 0 && OEJunctions.lineOn(l, c.dir, c.bl) === c.bl)) out.busLineOffT += DT; }
           if (d < 250 && !c.park && !(c.dwell > 0)) { still[i] = c.v < 0.15 ? still[i] + DT : 0; if (still[i] === 150) { const f = c.front, fi = f ? C.indexOf(f) : -1; out.stood.push({ t, i, x: +c.x.toFixed(0), y: +c.y.toFixed(0), c: l.c, bus: !!c.bus, why: c.why || '', by: c.heldBy || '', mv: c.mv ? c.mv.j.id : null, at: c.lineArm ? c.lineArm.j.id : null, front: f ? { i: fi, x: +(f.x || 0).toFixed(0), y: +(f.y || 0).toFixed(0), why: f.why || '', bus: !!f.bus, mv: f.mv ? f.mv.j.id : null, park: !!f.park, frontIsMe: f.front === c, mine: fi < 0 } : null }); } }
           if (d < 200) nearby.push(i);
           was.line = c.line; was.x = c.x; was.y = c.y;
@@ -81,7 +82,8 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
           if (s === 3.5) out.inside.push({ t, x: +A.x.toFixed(0), y: +A.y.toFixed(0), a: A.bus ? 'bus' : A.park ? 'parked' : 'car', b: B.bus ? 'bus' : B.park ? 'parked' : 'car' });
         }
       }
-      for (let i = 0; i < Math.min(C.length, cars.active); i++) if (C[i].line >= 0) { out.cars++; if (C[i].bus) out.buses++; }
+      for (let i = 0; i < Math.min(C.length, cars.active); i++) if (C[i].line >= 0) { out.cars++; if (C[i].bus) out.buses++; else { if (C[i].trip >= 0) out.bound++; out.tripsEnded += C[i].trips || 0; } }
+      { const T = cars.junctions.trips && cars.junctions.trips(); if (T) { out.places = T.places.length; out.fields = T.fields ? T.fields() : 0; } }
       return out;
     }, { x, y, secs: +MIN * 60 });
     const share = r.busT ? r.busOffT / r.busT : 0;
@@ -90,11 +92,13 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
       [r.madeQuiet.length === 0, `no vehicle made on a quiet street or at a wall (${r.madeQuiet.length} of ${r.made} made)`],
       [r.busMadeOff.length === 0, `no bus made off the bus streets (${r.busMadeOff.length}); the buses' time off them ${(share * 100).toFixed(1)}%`],
       [share < 0.15, 'the buses keep to their streets (under 15% of their time off them)'],
+      [!r.busT || r.busLineOffT / r.busT < 0.2, `each bus on a line of its own, the way the line runs (bus_lines.py): off it ${(r.busT ? r.busLineOffT / r.busT * 100 : 0).toFixed(1)}% of the buses' time (under 20%)`],
       [r.madeNear.filter(m => !m.park).length === 0, `nothing made within 120 m of you (${r.madeNear.filter(m => !m.park).length})`],
       [r.inside.length === 0, `no vehicle drawn inside another for over 3 s (${r.inside.length})`],
       // (a scramble's turns are a few seconds long, and the head of a queue there can wait two of its cycles: one or two
       // vehicles so held are a slow junction, more are a jam that does not clear)
       [r.stood.length <= 3, `no queue stood for good: ${r.stood.length} vehicle${r.stood.length === 1 ? '' : 's'} stood 150 s within 250 m (3 at most)`],
+      [r.places > 0 && r.bound >= 0.5 * (r.cars - r.buses), `every car has somewhere to go (trips.js): ${r.bound} of ${r.cars - r.buses} cars bound for one of ${r.places} places (seven in ten are; the rest take what comes), ${r.tripsEnded} trips ended and begun again, ${r.fields} fields worked out`],
       [r.cameIn > 0 && r.wentOut > 0, `traffic came in and went out round ${x}, ${y}: ${r.cameIn} in, ${r.wentOut} out in ${MIN} min; ${r.cars} vehicles alive, ${r.buses} buses`],
     ];
     for (const [ok, what] of checks) { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) bad++; }

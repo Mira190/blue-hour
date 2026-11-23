@@ -1,0 +1,11 @@
+{"times": {"day": "13:00", "dusk": "sunset+15", "night": "21:00"},
+ "views": [
+  {"name": "dogenzaka_air", "eye": [215, -1020, 110], "look": [235, -975, 0], "fov": 50},
+  {"name": "dogenzaka_car", "eye": [262, -1000, 1.3], "look": [200, -975, 1.0], "fov": 60},
+  {"name": "meiji_air", "eye": [545, -960, 120], "look": [535, -900, 0], "fov": 50},
+  {"name": "meiji_car", "eye": [538, -930, 1.3], "look": [528, -860, 1.0], "fov": 60},
+  {"name": "back_air", "eye": [250, -1130, 90], "look": [262, -1085, 0], "fov": 50},
+  {"name": "back_car", "eye": [268, -1090, 1.3], "look": [243, -1052, 1.0], "fov": 60},
+  {"name": "miyamasu_air", "eye": [640, -1010, 110], "look": [625, -985, 0], "fov": 50},
+  {"name": "koen_car", "eye": [392, -900, 1.3], "look": [394, -850, 1.0], "fov": 60}
+ ]}
