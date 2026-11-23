@@ -1587,8 +1587,10 @@ ${PAT_GLSL}`)
       const S = c.S, n = S.length;
       // the height: first in the frame of the middle slice, then in that of the slice it found
       let j = c.mid, u = 0;
-      for (let pass = 0; pass < 2; pass++) { u = (c.q.copy(wp).applyMatrix4(sliceAt(c, Math.max(0, Math.min(n - 1, j))).I).dot(c.upG) - c.h0) / c.sl - 0.5; j = Math.floor(u); }
-      if (j < -1 || j >= n) { hit.d = -Infinity; return hit.d; }
+      // (a point that is no number, a hand's on a rig not posed yet, is outside: it asked for a slice that is not there,
+      // "Cannot read properties of undefined (reading 'at')", and stopped the frame; tools/guide_body.js, now and then)
+      for (let pass = 0; pass < 2; pass++) { u = (c.q.copy(wp).applyMatrix4(sliceAt(c, Math.max(0, Math.min(n - 1, j)) || 0).I).dot(c.upG) - c.h0) / c.sl - 0.5; j = Math.floor(u); }
+      if (!(j >= -1 && j < n)) { hit.d = -Infinity; return hit.d; }
       const t = u - j, a = sliceDepth(c, sliceAt(c, Math.max(0, j)), wp, sdA, j < 0), b = sliceDepth(c, sliceAt(c, Math.min(n - 1, j + 1)), wp, sdB, j + 1 >= n);
       hit.d = a[0] * (1 - t) + b[0] * t;
       hit.n.copy(a[1]).multiplyScalar(1 - t).addScaledVector(b[1], t).normalize();
