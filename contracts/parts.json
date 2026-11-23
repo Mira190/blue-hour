@@ -261,7 +261,8 @@
     "OEGameRides": [],
     "OEJunctions": [
      "RANK",
-     "create"
+     "create",
+     "lineOn"
     ],
     "OERail": [
      "create"
