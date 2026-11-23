@@ -4020,6 +4020,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                 if (!c.ex2.e || !(lt2 == null || lt2 === 'g') || a2.sign === 'stop') go = false;
                 else if (!room(c, c.ex2.e)) { go = false; noRoom = true; } // (no room beyond the second: another way out after 5 s, as for the first's, below; Shinjuku's 1103 arm 0 stood 198 s for room past 1105, #331)
                 if (c.ex2.e && lt2 && lt2 !== 'g') light2 = true;
+                // (from the side road of a junction run from the scramble beside it, junctions.js follow: its green is that
+                // scramble's walk, so the way into the scramble never opens with it. Another way out, as for no room, below)
+                if (light2 && jArm.j.lead === a2.j && jArm.phase !== jArm.j.leadPh) noRoom = true;
                 // (held at this line by the next one's light: a call for its phase, as if at its line, and the time
                 // counted lost on this green, junctions.js; a 6 s green at Shinjuku's 1105 went by on 1103's red, #264)
                 if (c.ex2.e && lt2 && lt2 !== 'g') { if (!a2.j.scramble) JN.want(a2); if (toLine - c.half < 3 && jArm.j.sig) jArm.lost1 = true; }
@@ -4224,6 +4227,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         c.q = atLine || (why === 'person' && walker >= 0 && c.v < 0.5 && lineGap < gap + 4) || (byCar && c.v < 0.5 && (front != null ? !!front.q && !(front.line === c.line && front.dir !== c.dir) : why === 'you' && youQ)); // (not behind one coming the other way, queued at its own line: a wait on that is a narrow street's, turned round in the end, #283) // queueing at a junction (behind a car, or a ride, queueing there; or held by the crowd crossing at its line, not by you, who may stand there for good)
         // counted at its arm for the signals' max-pressure (junctions.js): queued, and whether the head of the queue waits for room beyond
         if (c.q && c.lineArm && c.lineArm.j.sig && c.toLine < 80) { const a = c.lineArm; a.qn1 = (a.qn1 || 0) + 1; if (why === 'room' && c.toLine - c.half < 3) a.full1 = true; if (why === 'cross' && c.toLine - c.half < 3) a.lost1 = true; }
+        // (and one at a junction without signals, waiting for room on the piece that leads to a signal's line: the back of
+        // that line's queue, which its green is run for, issue 175)
+        else if (c.q && why === 'room' && c.lineArm && !c.lineArm.j.sig && c.lineEx) { const b = JN.armBy(c.lineEx.m.line, 1 - c.lineEx.m.end); if (b && b.in && b.j.sig) b.qn1 = (b.qn1 || 0) + 1; }
         // caught up in another car (two stopped for each other can't get out by waiting): the
         // one in front creeps on, as far as that frees it, and the other backs off (below)
         // (getting out of one never takes it into another: `caught` holds the ones it is caught up with)

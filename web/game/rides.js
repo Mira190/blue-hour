@@ -780,7 +780,7 @@ window.OEGameRides = function (g) {
     if (!ahead.size) return out;
     for (const c of g.cars.live) {
       if (c.line < 0 || !ahead.has(c.line) || !(c.still > 20)) continue;
-      if (c.still > 40 || (c.mv && c.still > 20)) out.add(c.line);
+      if (c.still > Math.max(40, g.junctions.longRed ? g.junctions.longRed(c.line) : 0) || (c.mv && c.still > 20)) out.add(c.line); // (40 s, or the red of the scramble the road leads to: its real cycle's, issue 175)
     }
     return out;
   }

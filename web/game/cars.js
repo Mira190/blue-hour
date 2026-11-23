@@ -1457,7 +1457,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     // in the queue under the JR viaduct; called from the kerb, the walk not yet started waits for its turn)
     const callAt = () => Math.max(PRIO_T * Math.max(st.v, 4) + 20, callFrom);
     function lineGap(dtNow = 0) {
-      st.toLine = Infinity;
+      st.toLine = Infinity; st.lineNext = null;
       if (!lights || !route.nodes) return Infinity;
       for (let i = 0; i < route.nodes.length; i++) {
         const nd = route.nodes[i], sN = P.cum[Math.min(nd.k, P.cum.length - 1)];
@@ -1466,7 +1466,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         if (!a) continue;
         if (sN - st.s > 90) { if (lights.priority && a.j.sig) lights.priority(a); break; } // (far off, but at speed: the signals called in time)
         const toLine = sN - a.back - st.s;
-        if (toLine >= C.half - 0.5 && st.toLine === Infinity) st.toLine = toLine; // (its centre to the next line ahead: as the traffic's c.toLine, for the rule at a conflict)
+        if (toLine >= C.half - 0.5 && st.toLine === Infinity) { st.toLine = toLine; st.lineNext = a; } // (its centre to the next line ahead: as the traffic's c.toLine, for the rule at a conflict; and whose line, for a wait in its queue)
         if (toLine < C.half - 0.5) { // over its line already (a route that starts there): in the junction, so through it
           if (reg && st.line >= 0 && toLine > -C.half && !(st.mv && st.mv.a === a) && !(st.mv0 && st.mv0.a === a)) { const ex = exitOf(i, a); if (ex && st.s < ex.at) into(a, ex, true); }
           continue;
