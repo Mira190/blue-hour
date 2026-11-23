@@ -1701,13 +1701,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return deep;
     }
     // how far the nearest other walker is from (x, y), up to 1 m (the neighbour hash as this step began)
-    // (whether no other body's middle is within r of (x, y): bodies only, not the room an umbrella asks, plazaStep's step apart)
-    function bodyClear(self, x, y, r) {
+    // (whether a step from (x0, y0) to (x, y) brings no other body's middle within r nearer: bodies only, not the room an
+    // umbrella asks, plazaStep's step apart. One already nearer than r is no bar to a step away from it, or along it: in a
+    // packed kerb everyone is, and a step that had to clear them all was never taken, issue 187)
+    function bodyClear(self, x0, y0, x, y, r) {
       const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
         if (k === self) continue;
-        const o = P[k], ex = o.x - x, ey = o.y - y;
-        if (o.line >= 0 && ex * ex + ey * ey < r * r) return false;
+        const o = P[k], ex = o.x - x, ey = o.y - y, d2 = ex * ex + ey * ey;
+        if (o.line >= 0 && d2 < r * r && d2 < (o.x - x0) * (o.x - x0) + (o.y - y0) * (o.y - y0)) return false;
       }
       return true;
     }
@@ -2002,7 +2004,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (sm > 1e-3) {
           if (sm > cap) { sx *= cap / sm; sy *= cap / sm; }
           const nx = q.x + sx, ny = q.y + sy;
-          if (!(pz.road && pz.road(nx, ny)) && !(shut && shut(nx, ny)) && keepRoom(nx, ny, 0.5) >= 0.35 && bodyClear(i, nx, ny, 0.42)) {
+          if (!(pz.road && pz.road(nx, ny)) && !(shut && shut(nx, ny)) && keepRoom(nx, ny, 0.5) >= Math.min(0.35, keepRoom(q.x, q.y, 0.5)) && bodyClear(i, q.x, q.y, nx, ny, 0.42)) {
             q.x = nx; q.y = ny;
             if (q.T && (q.ph === 'wait' || q.lst || q.lead >= 0 || Math.hypot(q.T.x - q.x, q.T.y - q.y) < 0.6)) { q.T.x = q.x; q.T.y = q.y; }
           }
