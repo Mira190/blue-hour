@@ -735,7 +735,7 @@ window.OEOverture = (function () {
         // the crowd the game walks round you already stays as it is; a few of them (crowd_near_max, 24) are brought
         // within 25 m of your end spot (a whole pool placed round you, a third of it that close, and left there after
         // the overture, was a crowd walking through itself and out across the roads)
-        const net = ctx.crowdNet, tmp = {}, nClose = Math.min(Math.round(C.active * (spec.crowd_near ?? 0.35)), spec.crowd_near_max ?? 24);
+        const net = ctx.crowdNet, tmp = {}, nClose = Math.min(Math.round(C.active * (spec.crowd_near ?? 0.35)), Math.round((spec.crowd_near_max ?? 24) * (ctx.faceShare ?? 1))); // (a phone's as its faces can fill: game.js faceShare)
         for (let i = 0; i < nClose; i++) {
           const p = C.P[i];
           for (let k = 0; k < (net ? 6 : 1); k++) {
@@ -748,7 +748,7 @@ window.OEOverture = (function () {
         return;
       }
       C.active = C.P.length;
-      const nClose = Math.round(C.P.length * (spec.crowd_near ?? 0.35));
+      const nClose = Math.round(C.P.length * (spec.crowd_near ?? 0.35) * (ctx.faceShare ?? 1));
       const net = ctx.crowdNet || ctx.footNet, cand = net.near(c[0], c[1], 0, r), tmp = {};
       if (!cand.length) return;
       let seed = 97;

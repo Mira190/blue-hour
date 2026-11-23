@@ -18,6 +18,7 @@
 window.OEStopFX = (function () {
   const R = 16, H = 7; // the air it fills: this far round the player, this high
   function create({ THREE, world, audio, sound }) {
+    const LEAN = !!(window.OEQuality && OEQuality.city().lean);
     let g = null, amb = null, age = 0, fall = 0, drift = 0, letGo = -1, leaves = null, birds = null, motes = null, drops = null, ring = null, splash = null;
     const rnd = (a, b) => a + Math.random() * (b - a), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), S = new THREE.Vector3();
     const local = new THREE.Vector3();
@@ -57,7 +58,8 @@ window.OEStopFX = (function () {
     // lit by the scene, so their form reads; and a share of their own colour given back unlit, as the screens and
     // shop fronts all round would light them (the night's sky light alone leaves a gold leaf olive)
     const GLOW = 0.5;
-    const lit = () => { const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0 }); m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * ${GLOW.toFixed(2)};`); }; return m; };
+    const lit = () => { const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0 }); m.forceSinglePass = true; // (a leaf or a wing is a card: three.js draws a two-sided translucent thing twice, back faces then front, 58,000 triangles a frame more for no difference)
+      m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * ${GLOW.toFixed(2)};`); }; return m; };
     const inst = (name, n) => { const m = new THREE.InstancedMesh(kit[name].geo, lit(), n); m.frustumCulled = false; return m; };
     const shown = (o, fade) => o.children.forEach(m => { m.material.opacity = fade; });
 
@@ -133,8 +135,10 @@ window.OEStopFX = (function () {
     // the scene's air: made once per scene, round the player, and running from then on
     let want = null;
     function air(centre, { leaves: nl = 110, birds: nb = 11 } = {}) {
+      // (a phone, quality.js lean: two thirds of the leaves and of the flock; the leaves near a face are the same share)
       want = { nl, nb };
       if (!kit) return; // (the models have not come yet: tick makes it when they have)
+      if (LEAN) { nl = Math.round(nl * 0.65); nb = Math.round(nb * 0.65); }
       drop(amb); amb = new THREE.Group(); amb.position.copy(centre); local.set(0, 0, 0); want = null;
       motes = points(1400, R, 4.2, 0.06, 0xfff1d6, true); amb.add(motes);
       leaves = cards(Math.max(1, nl)); leaves.visible = nl > 0; amb.add(leaves); layCards(0, false);
