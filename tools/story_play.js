@@ -280,7 +280,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const top = +process.env.BUDGET_TOP ? await p.evaluate(n => { const r = window.__memReport(n); const g = window.__game, T = window.THREE, M = {}; let root = g.world; while (root.parent) root = root.parent;
         // (and the meshes drawn with shapes, by whose they are: three.js keeps a texture of the shapes for each such geometry)
         root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.morphAttributes && o.geometry.morphAttributes.position) { let vis = true, top = ''; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name) top = q.name; } const k = `${top} ${vis ? 'shown' : 'hidden'}`; M[k] = (M[k] || 0) + 1; } });
-        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
+        // (and whose the textures and the vertex buffers are: each texture a material holds, by the first names up its mesh's
+        // parents and whether it is shown, its bytes as it is sent, a third more with mips; each geometry's attributes)
+        const own = {}, seenT = new Set(), seenG = new Set(), BPP = t => (t.isCompressedTexture ? 1 : t.format === T.RedFormat ? 1 : t.type === T.HalfFloatType ? 8 : t.type === T.FloatType ? 16 : 4);
+        const texOf = (t, k) => { if (!t || !t.isTexture || seenT.has(t)) return; seenT.add(t); const im = t.image || {}, w = im.width || im.videoWidth || 0, h = im.height || im.videoHeight || 0; const o = own[k] || (own[k] = { tex: 0, n: 0, buf: 0 }); o.tex += w * h * BPP(t) * (t.generateMipmaps || (t.mipmaps && t.mipmaps.length > 1) ? 4 / 3 : 1) / 1048576; o.n++; };
+        root.traverse(o => { if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return; let vis = true; const names = []; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name && !/^(Scene|Group)$/.test(q.name)) names.push(q.name.replace(/[_-]?\d+$/, '')); }
+          const k = `${names.length ? names[names.length - 1] : o.type}${names.length > 1 ? `/${names[names.length - 2]}` : ''} ${vis ? 'shown' : 'hidden'}`;
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) { if (!m) continue; for (const p in m) texOf(m[p], k); if (m.uniforms) for (const u in m.uniforms) texOf(m.uniforms[u] && m.uniforms[u].value, k); }
+          const g = o.geometry; if (g && !seenG.has(g)) { seenG.add(g); let b = 0; const cnt = new Set(); for (const a of [g.index, o.instanceMatrix, o.instanceColor, ...Object.values(g.attributes || {})]) { const d = a && (a.isInterleavedBufferAttribute ? a.data : a); if (d && d.array && !cnt.has(d)) { cnt.add(d); b += d.array.byteLength; } } (own[k] || (own[k] = { tex: 0, n: 0, buf: 0 })).buf += b / 1048576; } });
+        const owners = Object.entries(own).map(([k, v]) => [k, +v.tex.toFixed(1), v.n, +v.buf.toFixed(1)]).sort((x, y) => (y[1] + y[3]) - (x[1] + x[3])).slice(0, 60);
+        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, owners, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
       fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };

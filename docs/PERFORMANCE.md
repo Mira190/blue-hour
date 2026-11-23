@@ -2813,3 +2813,18 @@ listening and the nearest. (The owner asked whether a weak phone should go witho
 with the leak gone that would give back 2 MB and still the face in a conversation's close shot, which is where a
 phone's screen shows a face at all; so the faces stay, and the nearest walkers' are the first to go if a megabyte is
 wanted.) Counted on a session's machine as an iPhone emulated; the megabytes are the page's own asks of WebGL.
+
+### The one you play: the head's and the hair's pictures at a phone's size (issue 130, 23 November)
+
+By whose each texture is (`BUDGET_TOP`'s `owners`: every texture a material holds, by the names up its mesh's parents),
+the heaviest person on a phone was the one you play: the head's picture and the hair's at 1024 a side and the head's
+relief, 12 MB, where each of the cast's is 1 MB (`people.js` `smaller`: 512 a side on a phone, 256 on the lighter
+levels; "the characters you play keep theirs"). A phone's canvas is 760 pixels wide; the player's face is 300 across
+at its nearest, in a talk's two-shot, and from behind, where it is for most of the game, it is hair. So on a phone the
+head's and the hair's pictures go up at 512 a side, at every level; the clothes' picture, seen large from behind all
+through the game, stays at 1024 (it was tried at 512: the jacket's weave went soft).
+
+`tools/hero_face_shot.js` sets the camera before the player's head on a phone's page, at a talk's distance (1.6 m)
+and nearer than any shot goes (0.7 m), with the pictures as they come (`?herotex=full`) and at the phone's size: at
+1.6 m the two are not told apart; at 0.7 m the skin is a little softer and the jacket the same. The player's head and
+hair: 12 MB of the GPU to 4, in every beat. Counted on a session's machine as an iPhone emulated.
