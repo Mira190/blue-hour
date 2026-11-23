@@ -435,7 +435,7 @@ run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched
   # (timed, issue 175: each drive within its road at 6 m/s and one cycle of each scramble on its way, and the 364 m from
   # SKY GATE, which took 401 s, within the issue's three minutes; the fourth start drives back across the Scramble, from
   # Bunkamura-dori to Miyamasuzaka)
-  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100@180;247,-964>480,-1004" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
+  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100@180;247,-964>610,-1003" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
   if ! drive; then
     cp "$OUT/roads-drive.log" "$OUT/roads-drive-first.log"
     if drive; then echo "ok   roads  the drives to 109 and back across the Scramble, each within its time   (the second run; the first: $OUT/roads-drive-first.log)"
