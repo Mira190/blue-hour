@@ -419,24 +419,22 @@ scrambles' reach:
 
 | | Before | After |
 |---|---|---|
-| The Scramble's cycle; walk, east-west, north-south | 73 s; 26, 17, 9 | 67 to 77 s as its queues ask (118 at most); 26, 12 to 18, 11 to 17 |
-| East arm (from Miyamasuzaka): into the box an hour, of its queue a green, first away after | 77; 2.0 of 2.0 with 62 s of its greens lost to a car crossing the box; 10.8 s | 109 to 123; 2.0 to 2.5 of 1.8 to 2.5; 2.5 to 4.0 s |
-| West arm (from 109): the same | 84; 1.6 of 3.6; 13.3 s | 83 to 104; 3.0 of 2.7; 4.9 to 5.3 s |
-| The junction beside 109 (806), westbound to 109 | 0 vehicles in 8 minutes: 173 s of its greens waiting on 109's light, 7 m on | 105 an hour, first away after 3 s |
-| Bunkamura-dori into 109's fork | 2 in 8 minutes, 63 s of its greens with no room beyond | its queue passed each green |
+| The Scramble's cycle; walk, east-west, north-south | 73 s; 26, 17, 9 | 77 s as its queues ask (118 at most); 26, 20, 14 |
+| East arm (from Miyamasuzaka): into the box an hour, of its queue a green, first away after | 77; 2.0 of 2.0 with 62 s of its greens lost to a car crossing the box; 10.8 s | 151; 3.3 of 5.3; 2.6 s |
+| West arm (from 109): the same | 84; 1.6 of 3.6; 13.3 s | 175; 4.7 of 1.3; 6.3 s |
+| The junction beside 109, westbound to 109 | 0 vehicles in 8 minutes: 173 s of its greens waiting on 109's light, 7 m on | 111 an hour |
+| 109's fork: from the Scramble, down Dogenzaka, from Bunkamura-dori | 7, 104, 15 an hour | 243, 111, 51 |
 
 The drive on the autopilot, a desktop's page, the traffic running, each figure one drive:
 
 | | Before | After |
 |---|---|---|
-| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s; a phone's page 155 (the issue's) | 49 to 127 s over fourteen drives, median 80; a phone's page 74, 108 |
-| The Scramble's kerb to 109, 594 m | 112 s (the issue's) | 100, 111, 157, 252 s; a phone's page 105 |
-| The street under the railway to 109, 493 m | 165 s (the issue's) | 78, 80, 82, 128, 130 s; a phone's page 60 |
-| Back across the Scramble, Bunkamura-dori up Miyamasuzaka, 458 m | not driven | 110, 111 s; a phone's page 84, 89 |
+| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s; a phone's page 155 (the issue's) | 66, 76, 110, 126 s as landed (49 to 127 over fourteen drives while it was built, median 80) |
+| The street under the railway to 109, 493 m | 165 s (the issue's) | 119 s (78 to 130 over five) |
+| The Scramble's kerb to 109 by the station's front, 594 m | 112 s (the issue's) | 168 to 253 s, 90 to 120 of them at Route 246's junction under the expressway, before the Scramble |
+| Back across the Scramble, Bunkamura-dori to Miyamasuzaka, 278 m | not driven; the cars of Bunkamura-dori stood | 155, 203 s |
 
-The same count on a phone's page (its district, five minutes) after: the Scramble's cycle 69 s, its arms passing their
-queues (4.0 of 4.0 on the west arm, first away after 6.8 s), 806 westbound 88 an hour, 1.4 of the crowd standing within
-a pace of a kerb in the carriageway's edge during the traffic's turns, 3 at most.
+The figures of the landed arrangement are from the last runs; the phone's page is in the table of the checks below.
 
 ### What held the queues, in the order the count found them
 
@@ -472,10 +470,15 @@ a pace of a kerb in the carriageway's edge during the traffic's turns, 3 at most
    its queue, the 29 m of Dogenzaka between the Scramble's western line and the junction beside 109 was what held: the
    Scramble's east-west green filled it in its first seconds and stood full, 109's emptied it into a red, and a queue
    of fourteen on Miyamasuzaka moved three cars a cycle (306 s to 109 in one drive of the check). A scramble joined to
-   a greater one by less than 45 m of road now runs on that one's cycle (`coordinate`): Dogenzaka's two directions have
-   their green at both together, Bunkamura-dori has its turn with the Scramble's north-south, the walks come together.
-   109's cycle is then the Scramble's, not shorter as the issue put it: what the issue wanted of it is that it pass
-   its cars, and on a cycle of its own it could not.
+   a greater one by less than 45 m of road now runs on that one's cycle (`coordinate`), 16 s behind it, the time a car
+   takes from the Scramble's eastern line to 109 from rest: the cars out of the Scramble's east-west green meet green
+   at 109, and the road between is empty when the next turn's cars come to it. All of 109's traffic has the one turn
+   (Bunkamura-dori in a turn of its own, with the Scramble's north-south, found the road between full every time and
+   stood 150 s); the junction's own rule, the longest waiting first, shares it. The side streets beside 109 have
+   theirs through the rest of the cycle. 109's cycle is then the Scramble's, not shorter as the issue put it: on a
+   cycle of its own it could not pass its cars. Counted after (five minutes): 109's eastern arm 243 an hour (7 before,
+   one car in eight minutes), Dogenzaka's downhill arm 111, Bunkamura-dori 51 with its queue passed; the Scramble's
+   west arm 175 and east arm 151 (84 and 77).
 6. **The signals saw a queue only on the last piece of an arm.** The Scramble's east arm is 25 m from the junction
    before it and 109's downhill arm 9 m: the cars behind stood unseen, their green ended with three of eight through
    or their turn was passed over (a car stood 150 s at the junction before 109). A car is counted for the line whose
@@ -515,6 +518,9 @@ How simulators do it, and what was adopted:
   scramble run as one with it.
 - **traffic-simulation.de** (GPL-3.0; read, nothing taken): the IDM's time gap of 1.5 s, which the game's traffic
   already has near (a headway of 2.2 to 2.4 s from a standing queue where nothing crosses).
+- **Closely spaced signals** are run on a common cycle with an offset of the travel time between them, so that a
+  platoon released by one meets green at the next (FHWA's Traffic Signal Timing Manual, chapter 6; A/B Street's
+  signal groups). Adopted: `coordinate`, and its 16 s.
 - Not adopted: gap acceptance for a turn across the oncoming road (the turner still goes in its turn of arrival, and
   holds the oncoming road only while it is on the crossing place: 9 to 18 s of 8 minutes at the Scramble's arms).
 
@@ -528,7 +534,7 @@ the Scramble's cycle: a car that comes to it out of the Scramble's other turn wa
 364 m from SKY GATE to 109 that takes longer than the three minutes the issue asks (`@180` on its start). The figure is the worst an
 undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
 comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
-Scramble, from Bunkamura-dori up Miyamasuzaka. `TRACE=1` prints
+Scramble, from Bunkamura-dori to Miyamasuzaka. `TRACE=1` prints
 each stand of a drive: where, how long, behind what, at which light. `DUMP=1 node tools/junction_flow.js` prints a
 junction as built: arms, stop lines, ways across, which cross and where, and where footways cross its arms.
 
