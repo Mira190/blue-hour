@@ -284,8 +284,11 @@ another region). The script finds the dashboard and the insights by name and upd
 - `?telemetry=debug` logs each batch to the console.
 - On localhost, `?telemetry=<url>` sends JSONL to that collector, even from an automated browser.
 - `tools/telemetry_server.py` is the collector to point it at, and `tools/slo_report.py` builds the report from its log.
-  The end-to-end check that drove the globe, the viewer and a reef site (`tools/telemetry_check.js`) went with them;
-  one for the story's page is not written yet.
+  The end-to-end check that drove the globe, the viewer and a reef site (`tools/telemetry_check.js`) went with them.
+- `tools/telemetry_story_check.js` is the story page's: it loads with `?telemetry=debug`, takes the title's way into play,
+  waits for the first `time`, and fails without the load's stages and warm-up (`warm_*_ms`) or an interaction unnamed.
+- `tools/load_probe.js` measures what the service levels read, on this machine: the load's stages, a CPU profile of each,
+  and the tap into play as Event Timing times it (`RUNS=2`, `PORT=8801` for another tree, `?gate=0` without the gate).
 
 ## Prior art
 
