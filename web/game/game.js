@@ -217,7 +217,7 @@ window.OpenEarthGame = async function game(cityId) {
   const Wd = await OEWorld.create(D, renderer, { onMsg: loadMsg, small: QC.small, shadow: QC.shadow, game: true, nearCars: ((G.crowd || {}).radius_m || 450) + 100,
     groundAt: G.start && G.start.at }); // (the aerial tiles round the start before the game opens, the rest after it: issue 335)
   const world = Wd.world, U = Wd.U;
-  if (OEWorld.gate) OEWorld.gate(renderer, { scene: world }); // (a draw whose program is still being linked comes a frame later, not waited for: world.js gate)
+  if (OEWorld.gate) OEWorld.gate(renderer, { scene: world, targets: () => (atmos && atmos.composer ? [atmos.composer.renderTarget1, atmos.composer.renderTarget2] : null) }); // (a mesh not yet drawn whose program is still being linked comes a frame later, not waited for; only in the frame's own targets: world.js gate)
   fitRoot = world;
   // After dark, a soft fill that goes with you: the city's lights are drawn as an aerial photograph shows
   // them, and between the lamps (a hillside track, a shrine's woods, a deck above the town) the ground was
