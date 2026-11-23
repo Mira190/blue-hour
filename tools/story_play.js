@@ -296,7 +296,34 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         root.traverse(o => { for (const m of [].concat(o.material || [])) { if (!m) continue; for (const k in m) if (m[k] && m[k].isTexture) note(m[k], `${o.name || o.type}/${m.name || m.type}.${k}`); if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) note(v, `${o.name || o.type}/${m.name || m.type}.u.${k}`); } } });
         for (const q of window.__texAll || []) { const t = q.deref(); if (t) note(t, `made at ${t.__at}`); }
         const worn = [...window.__mem.tex].sort((x, y) => y[1].bytes - x[1].bytes).slice(0, n).map(([w, e]) => { const h = by.get(w); return `${(e.bytes / 1048576).toFixed(1)} MB ${e.label} ${h ? `"${h.t.name || ''}" ${h.t.isCompressedTexture ? 'blocks' : h.t.isDataTexture ? 'data' : h.t.isCanvasTexture ? 'canvas' : 'picture'} ${[...h.who].slice(0, 2).join(', ')}${h.t.__at ? ` [${h.t.__at}]` : ''}${h.who.size > 2 ? ` +${h.who.size - 2}` : ''}` : '(no material)'}`; });
-        return { topTex: r.topTex, own: worn, topBuf: r.topBuf, topRb: r.topRb, owners, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
+        // (and what WebGL itself holds, by whose it is: `geo` the vertex and index buffers, found by the array each was sent from,
+        // `ownGL` the textures by whose material wears them, `loose` what no material in the scene wears; issue 130)
+        const held = (() => {
+          // (and the vertices and indices the scene's geometries hold, by whose they are: the two outermost names over each mesh,
+          // shown or hidden. A geometry is counted once; one never drawn is counted though WebGL may not hold it yet)
+          // (only what WebGL holds: a buffer is found by the array it was sent from, tools/gl_mem.js; `looseBuf`: megabytes whose array the page has let go or no geometry in the scene has)
+          const inGL = new Map(); for (const e of window.__mem.buf.values()) { const ab = e.src && e.src.deref(); if (ab) inGL.set(ab, e); }
+          const one = []; const G = {}, seenG = new Set(), bytesOf = a => { const arr = a.isInterleavedBufferAttribute ? a.data.array : a.array; const e = arr && inGL.get(arr.buffer); if (!e || seenG.has(e)) return 0; seenG.add(e); return e.bytes; };
+          root.traverse(o => { const ge = o.geometry; if (!ge || !ge.attributes) return; let n = 0; for (const k in ge.attributes) n += bytesOf(ge.attributes[k]); if (ge.index) n += bytesOf(ge.index);
+            for (const k in ge.morphAttributes || {}) for (const a of ge.morphAttributes[k]) n += bytesOf(a);
+            if (o.isInstancedMesh) { if (o.instanceMatrix) n += bytesOf(o.instanceMatrix); if (o.instanceColor) n += bytesOf(o.instanceColor); }
+            if (!n) return; let vis = true; const names = []; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name) names.unshift(q.name); }
+            const k = `${names.slice(0, 2).join('/') || o.type + ':' + Object.keys(o.userData).slice(0, 3).join(',') + ':' + ([].concat(o.material || [])[0] || {}).name} ${vis ? 'shown' : 'hidden'}`; G[k] = (G[k] || 0) + n; if (n > 4e5) { ge.computeBoundingBox && !ge.boundingBox && ge.computeBoundingBox(); const bb = ge.boundingBox, chain = []; for (let q = o.parent; q && q !== root; q = q.parent) chain.push(q.name || q.type + ':' + Object.keys(q.userData).slice(0, 3).join(',')); one.push(`${(n / 1048576).toFixed(2)} MB ${k} | ${o.name || o.type} ${Object.keys(ge.attributes).join(',')} idx ${ge.index ? ge.index.count : 0} ro ${o.renderOrder} ud ${Object.keys(o.userData).join(',')} mat ${[].concat(o.material || []).map(m => m && (m.name || m.type)).join('+')} < ${chain.join(' < ')} box ${bb ? [bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z].map(Math.round).join(',') : ''}`); } });
+          const geo = Object.entries(G).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${(v / 1048576).toFixed(2)} MB ${k}`);
+          let looseBuf = 0; for (const e of window.__mem.buf.values()) if (!seenG.has(e)) looseBuf += e.bytes; looseBuf = +(looseBuf / 1048576).toFixed(1);
+          // (and the textures WebGL holds, by whose material wears them: the same two names; a texture two wear is the first's.
+          // `own`: megabytes by owner; `loose`: what no material in the scene wears, the targets and what was left behind, by size)
+          const RP = g.renderer && g.renderer.properties, MT = window.__mem.tex, O = {}, seenT = new Set();
+          const big = [], wear = (t, k, slot) => { if (!t || !t.isTexture || !RP) return; const x = RP.get(t).__webglTexture, e = x && MT.get(x); if (!e || seenT.has(x)) return; seenT.add(x); O[k] = (O[k] || 0) + e.bytes; if (e.bytes > 6e5) big.push(`${(e.bytes / 1048576).toFixed(2)} MB ${k} ${slot} ${e.label} ${t.name || ''}`); };
+          if (RP) root.traverse(o => { const ms = [].concat(o.material || []); if (!ms.length) return; let vis = true; const names = []; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name) names.unshift(q.name); }
+            const k = `${names.slice(0, 2).join('/') || o.type + ':' + Object.keys(o.userData).slice(0, 3).join(',') + ':' + ([].concat(o.material || [])[0] || {}).name} ${vis ? 'shown' : 'hidden'}`;
+            for (const m of ms) { if (!m) continue; for (const key in m) { const v = m[key]; if (v && v.isTexture) wear(v, k, key); } if (m.uniforms) for (const u in m.uniforms) { const v = m.uniforms[u] && m.uniforms[u].value; if (v && v.isTexture) wear(v, k, u); else if (Array.isArray(v)) v.forEach(t => wear(t, k, u)); } } });
+          const own = Object.entries(O).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${(v / 1048576).toFixed(2)} MB ${k}`), L = {};
+          for (const [x, e] of MT) if (!seenT.has(x)) L[e.label] = (L[e.label] || 0) + e.bytes;
+          const loose = Object.entries(L).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${(v / 1048576).toFixed(2)} MB ${k}`);
+          return { geo, geoOne: one.sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, n), looseBuf, ownGL: own, ownBig: big.sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, n), loose };
+        })();
+        return { ...held, topTex: r.topTex, own: worn, topBuf: r.topBuf, topRb: r.topRb, owners, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
       fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };

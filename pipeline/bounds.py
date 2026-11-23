@@ -16,6 +16,7 @@ import math
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GROUND_ROOM = 70.0    # m past a place of the story or the walk: the street it stands in, and the next corner
@@ -23,6 +24,7 @@ HERO_ROOM = 45.0      # m past a hero level's circle
 AIR_ROOM = 360.0      # m past the ground's places: what the helicopter is given
 MARK_ROOM = 120.0     # m past a landmark the walk's opening flies by
 CEILING = 420.0       # m above the sea: over SKY's roof (244 m) with room, under Haneda's approach and the far map
+DRIVE_ROOM = 40.0     # m past the roads a drive between two of the places takes: the easing at the edge, a carriageway, and a car
 GROUND_SOFT = 22.0    # m inside the ground's edge where a walker and a car are eased (bounds.js)
 AIR_SOFT = 220.0      # m inside the air's edge where the helicopter is turned back, in an arc
 
@@ -113,8 +115,20 @@ def places(game):
     return out
 
 
-def compute(game):
-    P = places(game)
+def drive_room(game, roads):
+    """[(x, y, room)] along the roads that the drives between the places a drive is asked to take (road_routes.py):
+    the planned area holds its own drives, or a route line leads the player into the road works (issue 196: the
+    only way to SKY GATE's kerb, on Meiji-dori's northbound side, is round the station by Route 246, and that
+    left the hull of the places by 57 m)."""
+    if not roads:
+        return []
+    import road_routes
+    spots = road_routes.places(game, {"game": game})
+    return [(x, y, DRIVE_ROOM) for x, y in road_routes.ways(roads, spots)]
+
+
+def compute(game, roads=None):
+    P = places(game) + drive_room(game, roads)
     near = [(x, y) for x, y, _ in P]
     cx, cy = sum(p[0] for p in near) / len(near), sum(p[1] for p in near) / len(near)
     # (a stray far point, such as a quest's in another district, is not what the story is played round)
@@ -148,7 +162,9 @@ def main():
     path = os.path.join(ROOT, "cities", a.city, "city.json")
     cfg = json.load(open(path, encoding="utf8"))
     game = cfg["game"]
-    b = compute(game)
+    gp = os.path.join(ROOT, "web", "data", a.city, "game.json")
+    roads = json.load(open(gp, encoding="utf8"))["paths"]["road"] if os.path.exists(gp) else None
+    b = compute(game, roads)
     old = game.get("bounds") or {}
     b["lines"] = old.get("lines") or LINES
     if a.check:
