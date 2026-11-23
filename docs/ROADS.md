@@ -435,6 +435,12 @@ The drive on the autopilot, a desktop's page, the traffic running, each figure o
 | The Scramble's kerb to 109 by the station's front, 594 m | 112 s (the issue's) | 168 to 253 s while it was built, 90 to 150 of them at Route 246's junction under the expressway before its lights were mended (8) |
 | Back across the Scramble, Bunkamura-dori to Miyamasuzaka, 278 m | not driven; the cars of Bunkamura-dori stood | 47, 121 s |
 
+The drive from SKY GATE to 109 at 17:57 after, a still every 8 s, on a desktop's page (69 s) and a phone's (57 s); the
+kerbs' crowds wait off the carriageway through the traffic's turns:
+
+![The drive on a desktop's page](images/roads/junctions-drive-desktop.jpg)
+![The drive on a phone's page](images/roads/junctions-drive-phone.jpg)
+
 ### What held the queues, in the order the count found them
 
 1. **A way across was held from the line to the far side.** A car let into a junction held every movement its way
