@@ -9,7 +9,7 @@ checks.
 
   asphalt   the survey's carriageways (車道部) and junctions (車道交差部) that a road piece on the ground runs through
   shared    those no piece runs through, or only a piece closed to cars with the crowd's own line down it: a
-            pedestrian street the survey has as a road (Center Gai and its mouth). Paved, no kerb
+            pedestrian street the survey has as a road (Center Gai), and its mouth on a junction. Paved, no kerb
   walk      the footways (歩道部)
   island    the islands (島)
   cover     all of them: where the survey says what the ground is
@@ -33,6 +33,7 @@ import road_survey
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROADW = {"motorway": 14, "trunk": 12, "primary": 12, "secondary": 10, "tertiary": 9, "residential": 7, "unclassified": 6, "living_street": 5}
+MOUTH_M = 15.0     # a junction's mouth onto a shared street is narrower than this
 THROUGH_M = 3.0     # a piece runs through a surveyed polygon when this much of it lies inside
 DECK_M = 3.0        # a piece this far over the ground is on a deck
 MARGIN_M = 60.0     # the page's surface reaches this far past the planned area (the easing at its edge, and the view from the air)
@@ -91,6 +92,25 @@ class Surface:
                 walked = sum(foot[i].intersection(p).length for i in ftree.query(p)) if ftree is not None else 0.0
                 street = driven >= THROUGH_M or (run >= THROUGH_M and walked < THROUGH_M)
                 (asphalt if street else shared).append(p)
+        # A pedestrian street's mouth. The survey has a junction's whole floor as one polygon, the mouths of every street
+        # that comes to it with it; where the street is a shared one (Center Gai) its mouth is nobody's carriageway: no
+        # piece open to cars runs into it, and the crowd stands in it waiting for the walk. It is the part of the
+        # junction that sticks out narrower than MOUTH_M, touches a shared street, and has no open piece through it.
+        if shared:
+            sh = unary_union(shared).buffer(0.4)
+            kept = []
+            for p in asphalt:
+                out = p.difference(p.buffer(-MOUTH_M / 2).buffer(MOUTH_M / 2 + 0.05))
+                for g in polys(out):
+                    if g.area < 12 or not g.intersects(sh):
+                        continue
+                    if sum(self.lines[i].intersection(g).length for i in (tree.query(g) if tree is not None else []) if not self.pieces[i].get("x")) >= THROUGH_M:
+                        continue
+                    g = g.buffer(0.02)
+                    p = p.difference(g)
+                    shared.append(g.intersection(self.geo["cross"].union(self.geo["carriage"])))
+                kept += polys(p)
+            asphalt = [q for q in kept if q.area > 0.5]
         # (the survey's parts were grown by a centimetre to close its tiles' cuts: a carriageway and the junction it
         # comes to share an edge, and are one asphalt)
         self.asphalt = unary_union([p.buffer(0.03) for p in asphalt]).buffer(-0.03) if asphalt else Polygon()

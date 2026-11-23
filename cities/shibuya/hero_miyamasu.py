@@ -264,6 +264,14 @@ class Level(H.Level):
         self.sign_cells()                  # (the street's signs, issue 57: hero.py)
         for key, (w, h, draw) in east_cells().items():   # (the hung signs, the tower's name and the works' boards)
             place_free(A, key, w, h, draw)
+        # (no carriageway where this level and SKY's hall lay floors of their own: the survey's carriageway here is the
+        # east exit's bus apron as it was mapped, and runs on under the forecourt's planks and the hall's stone, which
+        # were built since. Laid there at the ground's height the asphalt stood over the hall's level floor, and the guide
+        # walked 0.75 m under it: tools/guide_way.js, issue 196)
+        own = self.planked().union(self.hall_ground()).buffer(0.05)
+        self.roads = self.roads.difference(own).buffer(0)
+        self.paintable = self.roads.buffer(-(H.GUTTER_M + 0.12))
+        self.S.write_plan(self.plan, self.D, roads=self.roads, own=own)
         self.carriageway()
         self.markings()
         # (no blocks under the forecourt's planks, here or before the hall: a plank is flat from end to end and the

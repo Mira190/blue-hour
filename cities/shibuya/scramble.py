@@ -500,7 +500,7 @@ def plan_rings(plan):
     return road_ground.rings(plan.roads, simplify=0.05)
 
 
-def write_plan(plan, D):
+def write_plan(plan, D, roads=None, own=None):
     """What a level was built from, kept beside it (cities/shibuya/hero_plan.json): its carriageway, what stands on
     its ground (no road is laid under it) and its crosswalks.
     tools/hero_survey_map.py --check holds the built level to the survey with it: a plan that has moved since (the
@@ -509,7 +509,10 @@ def write_plan(plan, D):
     rec = json.load(open(PLAN_FILE, encoding="utf8")) if os.path.exists(PLAN_FILE) else {}
     walks = [c for c in crosswalk_list(D) if plan.disc.contains(Point(*c["a"]))] + plan.zebras
     import road_ground
-    rec[key] = {"roads": plan_rings(plan), "solids": road_ground.rings(plan.solids, simplify=0.2),
+    # (roads: the carriageway as the level lays it, where that is less than the plan's; own: floors the level lays itself
+    # there, a hall's or a forecourt's, which are no road's whatever an older survey has under them)
+    solids = plan.solids if own is None else plan.solids.union(own)
+    rec[key] = {"roads": road_ground.rings(plan.roads if roads is None else roads, simplify=0.05), "solids": road_ground.rings(solids, simplify=0.2),
                 "walks": [[round(v, 1) for v in (*c["a"], *c["b"], c["width"])] for c in walks]}
     json.dump(rec, open(PLAN_FILE, "w", encoding="utf8"), separators=(",", ":"), sort_keys=True)
 
