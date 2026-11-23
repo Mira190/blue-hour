@@ -47,6 +47,7 @@
 #           through a lost context (tools/glcare_phone.js);
 #   budget  the episode played as an iPhone, every still's frame counted: each beat within a phone's budget of draws,
 #           triangles, passes, pixels and GPU memory (tools/beat_budget.py; the story counts the desktop's as it plays);
+#           before landing in the story's three parts, budget1 to budget3, each where the change reaches it;
 #   audio   every sound on the audio thread, as an iPhone makes it: the reverbs a phone hears against the whole convolution
 #           (tools/reverb_check.js), the graph as small after every one-shot has sounded as before, and no sound begun
 #           before the audio thread can take it up (tools/audio_graph_check.js), and the opening and the story's own sound
@@ -112,7 +113,7 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
+KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 storyp storyl walk walk1 walk2 guide guide1 guide2 clip gl touch game"
 ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
@@ -151,7 +152,7 @@ eta() {
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
   case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 600 ;; clip) echo 800 ;;
-    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; game) echo 2700 ;; *) echo 600 ;; esac
+    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; budget1|budget2|budget3) echo 300 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
 static=0 want= base= looks=
@@ -190,7 +191,7 @@ else
   # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
   # (the story in its three parts on the fast tier: side by side where the machine has the cores and the memory, each
   # kept or played by itself, so that a change only frame 7 runs plays frame 7; docs/CHECKS.md, "Checks by reach")
-  page() { if [ "$TIER" = full ]; then add story storyp storyl budget walk mem clip gl touch launch; else add story1 story2 story3 walk1 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
+  page() { if [ "$TIER" = full ]; then add story storyp storyl budget walk mem clip gl touch launch; else add story1 story2 story3 budget1 budget2 budget3 walk1 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -199,8 +200,14 @@ else
   asset() {
     [ -e "$1" ] || { page; return 0; }
     looks="$looks $1"; case "$1" in *.glb) glbs="$glbs $1" ;; esac
-    if [ "$TIER" = full ]; then page; add look; else add look mem; fi
+    if [ "$TIER" = full ]; then page; add look; else add look mem; counted "$1"; fi
   }
+  # What a beat draws (issue 131, after issue 162: a beat one model heavier was found on main, by its full tier's
+  # phone, and main was red for everyone). A model or a picture cannot send the story another way, and can cost a
+  # beat more draws, triangles and memory: so the story's parts are asked for with it, on a phone's tier (budget1 to
+  # budget3) and the desktop's (the story's parts count their beats as they play), and the cache keeps each part that
+  # never fetched the file (tools/check_cache.py counted()): a model only frame 7 loads plays frame 7, twice.
+  counted() { case "$1" in *.mp3|*.ogg|*.m4a|*.wav) ;; *) add story1 story2 story3 budget1 budget2 budget3 ;; esac; return 0; }
   # A harness, or a module harnesses share: the checks that require it (tools/check_cache.py users); on the fast tier only
   # the quickest of several, which shows the module still works, and on main all of them
   harness() {
@@ -208,7 +215,7 @@ else
     [ -n "$u" ] || return 0
     one=$(echo "$u" | wc -w)
     # (on the fast tier the story in its parts and the walk's desktop page, as for a change to the page)
-    [ "$TIER" = full ] || u=$(echo " $u " | sed 's/ story / story1 story2 story3 /; s/ walk / walk1 /' | xargs)
+    [ "$TIER" = full ] || u=$(echo " $u " | sed 's/ story / story1 story2 story3 /; s/ budget / budget1 budget2 budget3 /; s/ walk / walk1 /' | xargs)
     if [ "$TIER" = full ] || [ "$one" -eq 1 ]; then add $u; return 0; fi
     for k in $KINDS; do is_in "$k" "$u" && { add "$k"; return 0; }; done
   }
@@ -220,7 +227,7 @@ else
       # (how the page is loaded, kept and published: issue 116)
       vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
       web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
-      web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
+      web/data/$MAP/d/*) static=1; add mem walk2; [ "$TIER" = full ] || add budget1 budget2 budget3 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
@@ -232,7 +239,7 @@ else
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
       # asks of it is loaded, looked at and weighed, and the story is not played, whatever its nodes are called
-      web/assets/people/*) static=1; if [ "$TIER" = full ]; then page; add look hold; else add look mem hold; fi
+      web/assets/people/*) static=1; if [ "$TIER" = full ]; then page; add look hold; else add look mem hold; counted "$f"; fi
         case "$f" in *.glb|*.webp|*.png|*.jpg) [ -e "$f" ] && looks="$looks $f" ;; esac ;;
       # (a hero level's ground meshes are what everyone walks on, game.js heroCover: where they lie is in the model's
       # contract, tools/model_contract.py, so a level rebuilt with its ground and its names as they were is looked at and
@@ -268,7 +275,7 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
     # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
     # (and the story whole on a runner of its own: a case carried in one page from frame 4 to 5 and from 6 to 7, which the
     # fast tier, playing the parts, no longer plays before landing)
-    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; walk) echo walk1; echo walk2 ;; guide) echo guide1; echo guide2 ;; *) echo "$k" ;; esac
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget ;; walk) echo walk1; echo walk2 ;; guide) echo guide1; echo guide2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
   done
   exit 0
@@ -373,12 +380,22 @@ budgets_kept() {   # (static: the counts of each play whose pass is kept, agains
 }
 # the story as an iPhone plays it (390 x 844 at three pixels to the point, the low tier, its user agent), every still's
 # frame counted: each beat against a phone's budget. One frame in sixty drawn: the stills' frames are drawn whole
-run_budget() {
-  local log="$OUT/budget.log"
-  if CHROME_LOG="$OUT/budget-chrome.log" BUDGET="$OUT/budget-budget.jsonl" PHONE=1 DPR=3 TIER=low DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/budget" 390x844 >"$log" 2>&1; then
-    printf 'ok   %-6s the episode played as a phone plays it; %s\n' budget "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
-    beats_of budget phone "$OUT/budget-budget.jsonl"
-  else printf 'FAIL %-6s %s   (see %s)\n' budget "$(why "$log")" "$log"; fi
+run_budget() { budget_part budget "" "" "the episode played as a phone plays it"; }
+# and in the story's three parts (issue 131): before landing, only the parts a change reaches are played, as the story's
+# are; a part's beats are held to the same budgets as the whole play's (docs/CHECKS.md, "A phone's beats before landing")
+run_budget1() { budget_part budget1 "" 4 "frames 1 to 4 played as a phone plays them"; }
+run_budget2() { budget_part budget2 4 6 "frames 5 and 6 played as a phone plays them, from a case left at frame 5"; }
+run_budget3() { budget_part budget3 6 "" "frame 7 and the last card played as a phone plays them, from a case left at frame 7"; }
+budget_part() {   # <name> <FROM> <UPTO> <what a pass says>
+  # (on the fast tier dry, as the story's parts are: no still taken and no frame rasterised, each still's frame asked
+  # for whole and its calls counted. A phone's three device pixels to the point are the software renderer's slowest
+  # picture: frames 5 and 6 took 461 s drawn and 250 s dry, frame 7 264 s and 173 s, with the same counts. Main's full
+  # tier draws them, one frame in sixty, as the budgets were measured)
+  local n=$1 log="$OUT/$1.log" still=${STILLS:-$([ "$TIER" = full ] && echo 1 || echo 0)} draw=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || { [ "$TIER" = full ] && echo 60 || echo 1000; })}
+  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" PHONE=1 DPR=3 TIER=low FROM=$2 UPTO=$3 STILLS=$still DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 390x844 >"$log" 2>&1; then
+    printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+    beats_of "$n" phone "$OUT/$n-budget.jsonl"
+  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
 }
 # The story on a phone's page, by touch (issue 120): the win played with a finger, as the desktop's is with keys. No
 # still but a failed step's, one frame in sixty drawn, one device pixel to the point: what it checks is that every
@@ -581,7 +598,7 @@ cache_on() { [ "${CHECK_CACHE:-1}" != 0 ] && [ -z "${CHECK_FULL:-}" ] && [ "$TIE
 # rest of the script (a change to the walk's function is no change to how the story is run)
 fnkey() {
   local body h; body=$(declare -f "run_$1")
-  for _ in 1 2 3; do for h in story_part beats_of walk_on twice why fails_of run_guide1 run_guide2; do
+  for _ in 1 2 3; do for h in story_part budget_part beats_of walk_on twice why fails_of run_guide1 run_guide2; do
     case "$body" in *"$h ()"*) ;; *"$h"*) body="$body
 $(declare -f "$h")" ;; esac
   done; done
@@ -651,6 +668,7 @@ rm -rf "$OUT/keep"
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st roads roadplan - '^FAIL|Error' python3 pipeline/road_plan.py --city "$MAP" --check
+    st roads firstdrive "your car's first drive leads on, and every street open to it in the area is one a car can use" '^FAIL|Error' python3 tools/first_drive.py "$MAP"
     st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"

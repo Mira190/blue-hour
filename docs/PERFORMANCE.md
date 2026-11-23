@@ -2814,6 +2814,62 @@ with the leak gone that would give back 2 MB and still the face in a conversatio
 phone's screen shows a face at all; so the faces stay, and the nearest walkers' are the first to go if a megabyte is
 wanted.) Counted on a session's machine as an iPhone emulated; the megabytes are the page's own asks of WebGL.
 
+## Load time and the slowest interaction (issue 186 A, issue 191's first item, November 2026)
+
+The launch review's service levels missed on three counts (PostHog, Blue Hour's pages, 21 to 22 November): load to
+ready p75 **17.0 s on a desktop** (target 10) and **21.3 s on a phone** (target 20), and the **slowest interaction per
+page load p75 844 ms** (target 200; 592 over 7 days). The load's stages at p75, desktop and phone, in seconds from the
+view's start: fetched 2.35 / 3.98 · decoded 2.71 / 4.14 · built 8.97 / 14.36 · first frame 16.86 / 21.17 · ready
+17.02 / 21.28. So the download is not it: the game's set-up after decoding (6 s / 10 s of main thread) and the loader's
+warm-up from "built" to the first frame (8 s / 7 s) are.
+
+**Which interaction.** The telemetry kept only the slowest interaction's duration, not what it was. Read against the
+page loads' event order, nearly every slow one fell in the first half-minute after the title's tap into play (`mode`
+`menu → foot`, `start: true`), beside a 2.7 to 3.5 s long frame in `game.js:frame`; the rest in the minutes after it, on
+long frames of the same kind. `tools/entry_cost.js` on this machine found the cause: the tap's frame drew the stopped
+air's leaves (`stopfx.js`, an instanced two-sided see-through Lambert), whose programs no warm-up had finished, and the
+draw linked them, 5.5 s of `getProgramInfoLog` on the software renderer. Their warm-up (`stopfx.js` `warm`) waits for the
+hero level round the start, so a player who taps before the level is in (an iPhone, a slow network) draws them cold. The
+phone tier showed the same with `tools/load_probe.js`: three programs linked by a draw after the tap, 1.7 to 2.0 s
+waiting on their logs.
+
+**A draw does not wait for a program** (`world.js` `gate`, issue 191 item 1). With `KHR_parallel_shader_compile` a
+program compiles and links off the page's thread, and only a question about it (three.js reads its log on first use)
+waits until it is done. The world's draws now go through a check first: a draw whose material has a program still being
+linked is left out of that frame and drawn in the first frame after it is ready (10 s at most: past that it is drawn and
+waited for as before); a mesh whose own material has no program at all is compiled once the frame is done, for the render
+target and clipping planes it was drawn with, and left out until then, once (a draw with a material the mesh does not own,
+a pass's `overrideMaterial`, is drawn as before: compiling the mesh would never make that one, and the first cut of the
+gate held such a draw for good).
+Only the world scene and the shadow pass go through it (a post pass's quad is never left out: its frame would be black),
+and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent). Without the extension nothing changes. The
+loader goes on a frame the gate left nothing out of (at most 1.5 s more: on the software renderer here, where a link takes seconds and a frame 1.4 s, a 4 s bound held the loader 4.7 s past the first frame; the phone tier waited 0.5 to 0.8 s), so nothing comes in under the title; the page's
+log says when it waited (`warm: the loader waited ...`). `?gate=0` turns it off, to measure against. Measured with
+`tools/load_probe.js` on the phone tier (390 x 844, two runs each): programs a draw linked in the 8 s after the tap
+**3 → 0**, the time waiting on program logs then 1.7–2.0 s → 0.9–1.5 s (what is left is three.js's diagnostics on each
+program's first use, kept: they are how the telemetry caught the 16-texture-unit link failure), 18 to 20 materials
+compiled after their frame instead of in it.
+
+**The set-up's compile, three at a time on a desktop.** The early warm-up (`game.js` `earlyWarm`) kept one program in
+flight while the set-up ran (issue 327: on a GPU that compiles one at a time, the set-up's own synchronous calls waited
+behind the queue). A desktop whose GPU compiles in parallel now keeps three in flight through the set-up (`setUpFlight`;
+a phone keeps one, `?flight=1` for one everywhere). Desktop tier, two runs each: the loader's programs ready 17.1–17.6 s
+after built against 19.8–21.0, the first frame 43–47 s against 46–52, the set-up no slower.
+
+**What a real device will say.** The software renderer here is GPU-bound in every frame (a desktop frame 1.4 s, of it
+50 ms of script), so its interactions measure its frames, not the page's work, and its load is three to six times a real
+desktop's. The telemetry now says what was slow on the devices themselves (version 8): each `time`'s slowest
+interaction with what was pressed (`inp_on`), the event, and its split into the wait for the page, the handlers and the
+paint after them; and on `load` the warm-up's parts (`warm_prog_ms`, `warm_tex_ms`, `warm_buf_ms`), which split the
+8 s from built to the first frame. `tools/slo_report.py` prints both. Read them after the next deploy before the next
+cut: a long `inp_paint` with short handlers is a frame slow to draw after the press; a long `warm_buf_ms` is the 131 MB
+of the city's vertex buffers (`buffers:` in the page's log).
+
+**The set-up's CPU, measured, not yet cut** (desktop tier on this machine, decoded to built 12 to 13 s, inclusive time):
+`OEWorld.create` 2.7 s, setting the clock and the sun (`setSun`, the sky's environment drawn again) 1.35 s,
+`nav.withoutFine` 1.0 s and `nav.create` 0.9 s, `decks.plan` 1.0 s, `night.create` 0.7 s, `surface.copy` 0.5 s. On a
+phone's tier the same order, half the size. Each second here is about half a second on the owner's M3 (6.3 s set-up at
+p75) and more on a phone; they are the next place to cut (issue opened with this).
 ## A desktop's pictures in blocks (November 2026)
 
 A desktop held 1.25 GB of textures in frame 1, none of it in block formats ("A budget for every beat"). Listed by

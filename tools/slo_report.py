@@ -138,7 +138,12 @@ def report(events):
                 reach['end'].add(e['vid'])
         r['story'] = {'began': len({e['vid'] for e in st}), 'reached': {k: len(v) for k, v in sorted(reach.items(), key=lambda kv: (isinstance(kv[0], str), kv[0]))},
                       'seen_through': sum(1 for e in st if e['props'].get('action') == 'seen_through'),
-                      'spent': sum(1 for e in st if e['props'].get('action') == 'spent')}
+                      'spent': sum(1 for e in st if e['props'].get('action') == 'spent'),
+                      # (version 7: every wrong answer by frame, question and which half; hints by frame; and page loads
+                      # that walked at all, so a first Stop left without a step is told apart)
+                      'wrong': dict(Counter(f"{p.get('frame')}.{p.get('q')} {p.get('what')}" for p in (e['props'] for e in st) if p.get('action') == 'wrong')),
+                      'hints': dict(Counter(f"{p.get('frame')}" for p in (e['props'] for e in st) if p.get('action') == 'hint')),
+                      'walked': len({e['props'].get('sid') for e in st if e['props'].get('action') == 'walked'})}
 
     # time on screen, by view; play time is the game's and the reef sites'
     times = [e for e in events if e['event'] == 'time']
@@ -184,10 +189,17 @@ def report(events):
     # a page that ended on screen (reported by the next page load) and how fast the page answers input
     crashes = [e for e in events if e['event'] == 'crash']
     lv['crash_free'] = (1 - len(crashes) / n if n else None, n)
-    worst = defaultdict(float)
+    worst, which = defaultdict(float), {}
     for e in times:
-        worst[e['props'].get('sid')] = max(worst[e['props'].get('sid')], float(e['props'].get('inp') or 0))
+        sid, v = e['props'].get('sid'), float(e['props'].get('inp') or 0)
+        if v > worst[sid]:
+            worst[sid] = v
+            which[sid] = e['props']
     lv['inp_p75'] = (pct(list(worst.values()), 0.75), len(worst))
+    # which interaction each page load's slowest was (telemetry version 8: what was pressed, the event, and its time split into
+    # the wait for the page, its handlers and the paint after them), the slowest first
+    r['slowest_inputs'] = [(int(worst[k]), p.get('inp_on') or '?', p.get('inp_type') or '?', p.get('inp_wait'), p.get('inp_run'), p.get('inp_paint'), p.get('inp_spot') or p.get('spot') or '', p.get('device') or '')
+                           for k, p in sorted(which.items(), key=lambda kv: -worst[kv[0]]) if p.get('inp_on') or p.get('inp_type')][:12]
     r.update(behaviour(events))
     r['crashes'] = dict(Counter(f"{e['props'].get('prev_view')}:{e['props'].get('prev_city') or ''} {e['props'].get('prev_spot') or ''}".strip() for e in crashes).most_common(10))
     r['load_failures'] = dict(Counter(' '.join(str(x) for x in (e['props'].get('why'), e['props'].get('view'), e['props'].get('city')) if x) for e in bad).most_common(10))
@@ -211,7 +223,7 @@ def stage_report(events):
             continue
         k = f"{p.get('view')} {'desktop' if p.get('device') == 'desktop' else 'phone/tablet'}"
         G[k]['ready'].append(p['ms'] / 1000)
-        for st, f in (('fetched', 'fetch_ms'), ('decoded', 'decode_ms'), ('built', 'build_ms'), ('frame', 'frame_ms')):
+        for st, f in (('fetched', 'fetch_ms'), ('decoded', 'decode_ms'), ('built', 'build_ms'), ('programs', 'warm_prog_ms'), ('textures', 'warm_tex_ms'), ('buffers', 'warm_buf_ms'), ('frame', 'frame_ms')):
             if p.get(f) is not None:
                 G[k][st].append(p[f] / 1000)
     return {k: {'n': len(v['ready']), **{st: round(pct(xs, 0.75), 2) for st, xs in v.items() if xs}} for k, v in sorted(G.items())}
@@ -391,6 +403,8 @@ def show(r):
     if r.get('story'):
         s = r['story']
         print(f"Story:    began {s['began']} · reached " + ', '.join(f"{'last card' if k == 'end' else f'frame {k}'} {n}" for k, n in s['reached'].items()) + f" · seen through {s['seen_through']} · frames spent {s['spent']}")
+        if s.get('wrong') or s.get('hints') or s.get('walked'):
+            print(f"          wrong answers (frame.question what): {', '.join(f'{k} ×{n}' for k, n in sorted(s['wrong'].items())) or 'none'} · hints by frame: {', '.join(f'{k} ×{n}' for k, n in sorted(s['hints'].items())) or 'none'} · page loads that walked {s['walked']}")
     print('\nService levels')
     for s in r['slo']:
         v = s['value']
@@ -402,6 +416,12 @@ def show(r):
         print('\nLoad stages, p75 (s from the view\'s start): fetched · decoded · built · first frame · ready')
         for k, v in r['load_stages'].items():
             print(f"  {k:<22} {' · '.join(str(v.get(st, '—')) for st in ('fetched', 'decoded', 'built', 'frame', 'ready'))}  (n={v['n']})")
+            if any(st in v for st in ('programs', 'textures', 'buffers')):  # (the loader's warm-up, telemetry version 8)
+                print(f"  {'':<22} the warm-up after built: programs {v.get('programs', '—')} · textures {v.get('textures', '—')} · buffers {v.get('buffers', '—')}")
+    if r.get('slowest_inputs'):
+        print('\nSlowest interactions (per page load): ms · what · event · wait / handlers / paint ms · where · device')
+        for x in r['slowest_inputs']:
+            print(f"  {x[0]:>6} · {x[1]} · {x[2]} · {x[3]} / {x[4]} / {x[5]} · {x[6]} · {x[7]}")
     if r.get('releases'):
         print('\nBy release: page loads · load p75 · crashes · script errors · lost GL · median fps · slow frames')
         for v, x in list(r['releases'].items())[:8]:
