@@ -94,7 +94,7 @@ function watch({ x, y, secs, R }) {
   await startPlay(p, { asIs: !!process.env.ASIS });
   await p.evaluate(() => { const g = window.__game; for (let t = 0; g.arriving() && t < 10; t += 0.25) g.advance(0.25); g.advance(2); });
   if (process.env.DUMP) { // the junctions as built: their arms, stop lines, ways across and which of them cross
-    for (const [x, y] of PLACES) console.log(await p.evaluate(({ x, y, R }) => {
+    for (const [x, y] of PLACES) console.log(await p.evaluate(({ x, y, R, foot }) => {
       const g = window.__game, JN = g.junctions, L = g.cars.netL, out = [];
       g.hopTo(x, y, g.player.z, 'the kerb'); g.advance(40);
       for (const j of JN.J.filter(q => q.sig && q.mid == null && Math.hypot(q.x - x, q.y - y) < R)) {
@@ -106,6 +106,9 @@ function watch({ x, y, secs, R }) {
           out.push(`  arm ${a.i}: ${l.c}${l.ow ? ' one-way' : ''} line ${a.line} len ${l.len.toFixed(0)} m, heading out ${Math.round(a.out * 180 / Math.PI)} deg, ${a.in ? 'in' : 'out only'}, phase ${a.phase}, line ${a.back.toFixed(1)} m back, lanes ${a.lanes}, far end ${far ? 'junction ' + far.j.id + (far.j.sig ? ' (lights)' : '') : 'none'}`);
           if (a.in) for (const e of JN.exits(a)) { const w = e.way, len = w ? (w.length / 2 - 1) * 1.2 : 0; out.push(`     to arm ${e.m.i}: turn ${Math.round(e.turn * 180 / Math.PI)} deg${e.across ? ' across' : ''}, way ${len.toFixed(0)} m, lanes ${e.lanes}`); M.push([a, e]); }
         }
+        // (where the crowd's footways cross its arms: how far out from the node, against the arm's stop line)
+        { const by = g.crowd && g.crowd.crossings ? g.crowd.crossings.byLine : null, FN = g.crowdNet, at = {};
+          if (by && FN) for (const [fi, X] of by) for (const x of X) { if (x.a && x.a.j === j) { FN.at(fi, x.s, at); out.push(`  footway ${fi} crosses arm ${x.a.i} at ${at.x.toFixed(0)},${at.y.toFixed(0)}, ${Math.hypot(at.x - x.a.x, at.y - x.a.y).toFixed(0)} m out (its line ${x.a.back.toFixed(0)} m), kerb ${x.kerb.toFixed(1)} m${x.scramble ? ', a mapped crosswalk' : ''}`); } } }
         for (let u = 0; u < M.length; u++) { const [a, e] = M[u], X = []; for (let v = 0; v < M.length; v++) { const [b, f] = M[v]; if (b !== a && JN.conflict(j, a.i, e.m.i, b.i, f.m.i)) {
               // (how: the least distance between the two ways and how far along this one, and whether their lines cut each other)
               const A = e.way, B = f.way; let md = 1e9, at = 0, cut = false;
@@ -115,8 +118,17 @@ function watch({ x, y, secs, R }) {
               X.push(`${b.i}>${f.m.i}${b.phase === a.phase ? '*' : ''}(${cut ? 'cuts' : f.m.i === e.m.i ? 'joins' : 'near ' + md.toFixed(1)} at ${at.toFixed(0)} m)`);
             } } out.push(`  ${a.i}>${e.m.i} (phase ${a.phase}) crosses (* in its own stage): ${X.join(' ') || 'none'}`); }
       }
+      // (FOOT=n: a footway of the crowd's as built: its points, whether each is in a carriageway, where it is held to
+      // cross a road on a signal, and who stands on it in a road after a minute and a half)
+      if (foot != null && g.crowdNet.L[foot]) {
+        const f = g.crowdNet.L[foot], road = g.crowd.crossings.road, X = g.crowd.crossings.byLine.get(foot) || [];
+        out.push(`footway ${foot}: ${f.c || ''} len ${f.len.toFixed(0)} m; points ${Array.from({ length: f.pts.length / 3 }, (_, k) => `${f.pts[3 * k].toFixed(0)},${f.pts[3 * k + 1].toFixed(0)}${road(f.pts[3 * k], f.pts[3 * k + 1]) ? ' road' : ''}`).join(' | ')}`);
+        out.push(`  its crossings: ${X.map(q => `s ${q.s.toFixed(0)} kerb ${q.kerb.toFixed(1)} at junction ${q.a ? q.a.j.id : '?'} arm ${q.a ? q.a.i : '?'}${q.at ? ' on scramble ' + q.at.id + "'s walk" : ''}`).join('; ') || 'none'}`);
+        g.advance(90);
+        const P = g.crowd.P; for (let i = 0; i < Math.min(g.crowd.active, P.length); i++) { const q = P[i]; if (q.line === foot && road(q.x, q.y)) out.push(`  walker ${i} at ${q.x.toFixed(1)},${q.y.toFixed(1)} s ${(+q.s).toFixed(1)} dir ${q.dir} v ${(q.v || 0).toFixed(2)} state ${q.state} ph ${q.ph} pz ${!!q.pz} wait ${(q.wait || 0).toFixed(0)} still ${(q.still || 0).toFixed(0)} pause ${(q.pause || 0).toFixed(1)} why ${q.why || q.held || ''} keys ${Object.keys(q).filter(k => typeof q[k] === 'number' && q[k] && /wait|hold|held|stop|x[A-Z]|cross|kerb|gate|red/.test(k)).map(k => k + '=' + (+q[k]).toFixed(1)).join(' ')}`); }
+      }
       return out.join('\n');
-    }, { x, y, R }));
+    }, { x, y, R, foot: process.env.FOOT != null ? +process.env.FOOT : null }));
     await b.close(); return;
   }
   let bad = 0;

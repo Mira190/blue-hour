@@ -1900,7 +1900,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const room = (x, y) => keepRoom(x, y, player ? Math.min(nearest1(i, x, y), Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : nearest1(i, x, y));
         const hard = q.squeeze > 0 || q.ph === 'cross' ? 0.32 : 0.45, n0 = Math.min(hard, room(q.x, q.y));
         // (nor a step into a shut stair well: along its rim on one axis, or round it to the left)
-        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y));
+        // (nor a step off the pavement into a carriageway while the traffic has its turn: on its way to a kerb of the
+        // scramble it waits where the road stops it, and crosses from there with the walk. One sent to the nearest
+        // kerb in a straight line, 30 m off and across Dogenzaka, stood in the lane at the Scramble's western stop line
+        // with a car before it, each waiting on the other, 150 s, issue 175)
+        const offWalk = q.ph !== 'cross' && !!pz.road && Math.abs(q.vx) + Math.abs(q.vy) > 0.05 && !pz.walk() && !pz.road(q.x, q.y);
+        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
+        if (offWalk && pz.road(nx, ny)) { if ((q.kerbT = (q.kerbT || 0) + dt) > 1.5) { q.kerbT = 0; q.T.x = q.x; q.T.y = q.y; q.ph = 'wait'; } } else q.kerbT = 0;
         if (ok(nx, ny)) { q.x = nx; q.y = ny; }
         else if (ok(nx, q.y)) { q.x = nx; q.vy *= 0.3; }
         else if (ok(q.x, ny)) { q.y = ny; q.vx *= 0.3; }
