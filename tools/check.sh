@@ -667,6 +667,7 @@ rm -rf "$OUT/keep"
     st roads roadwidth - '^FAIL|Error' python3 pipeline/road_width.py --city "$MAP" --check
     st roads buslines - '^FAIL|Error' python3 pipeline/bus_lines.py --city "$MAP" --check
     st roads routes - '^FAIL|Error' python3 pipeline/road_routes.py "$MAP" --check
+    st roads firstdrive "your car's first drive leads on, and every street open to it in the area is one a car can use" '^FAIL|Error' python3 tools/first_drive.py "$MAP"
     st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
