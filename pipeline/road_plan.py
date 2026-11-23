@@ -224,7 +224,135 @@ def join_under(cid, roads, unders):
     return len(new), n_s
 
 
-def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None, closures=(), keep_closed=False):
+LANE_TWO_M = 5.5     # the clear width between walls a two-way street needs inside the playable area: two cars pass
+LANE_ONE_M = 3.5     # and a one-way one: a car with room for its mirrors and a door
+
+
+def walls(cid, near):
+    """The built solids that stand on the ground near a shape (not a part raised over it, nor a building the data
+    carves a passage through): [(polygon, its base, the height of its underside)] and an STRtree over them."""
+    bp = os.path.join(ROOT, "web", "data", cid, "buildings.json")
+    if not os.path.exists(bp):
+        return [], None
+    B = json.load(open(bp, encoding="utf8"))
+    f = B["s_fields"]
+    k_b, k_base, k_min, k_ring = f.index("building"), f.index("base_dm"), f.index("min_dm"), f.index("ring_dm")
+    passages = set(B.get("passages") or [])
+    out = []
+    for si, s in enumerate(B["s"]):
+        if len(s[k_ring]) < 6 or s[k_b] in passages or si in passages:
+            continue
+        g = Polygon(np.asarray(s[k_ring], np.float64).reshape(-1, 2) / 10)
+        g = g if g.is_valid else g.buffer(0)
+        if g.is_empty or not g.intersects(near):
+            continue
+        out.append((g, s[k_base] / 10, s[k_min] / 10))
+    return out, (shapely.STRtree([w[0] for w in out]) if out else None)
+
+
+def clear_width(line, z_of, W, tree, step=4.0, reach=15.0):
+    """The clear width between the walls either side of a road's line, at points every `step` metres along it (a wall
+    raised 3 m or more over the road is a soffit, not a wall, and one the road's line runs inside is a passage or a
+    deck the game measures itself, road_measured.json): their median, and the least."""
+    ws = []
+    n = max(3, int(line.length / step))
+    for k in range(1, n):
+        q = line.interpolate(k / n, normalized=True)
+        f = line.project(q)
+        a, b = line.interpolate(max(0.0, f - 1)), line.interpolate(min(line.length, f + 1))
+        h = math.hypot(b.x - a.x, b.y - a.y) or 1.0
+        nx, ny = -(b.y - a.y) / h, (b.x - a.x) / h
+        z = z_of(q)
+        w = 0.0
+        for sg in (1, -1):
+            ray = LineString([(q.x, q.y), (q.x + sg * nx * reach, q.y + sg * ny * reach)])
+            d = reach
+            for j in (tree.query(ray, predicate="intersects") if tree is not None else []):
+                g, base, under = W[j]
+                if base + under > z + 3.0 or g.contains(Point(q.x, q.y)):
+                    continue   # (raised over the road, or the road under it: the game's own measure of that, measured)
+                x = ray.intersection(g)
+                if not x.is_empty:
+                    d = min(d, Point(q.x, q.y).distance(x))
+            w += d
+        ws.append(w)
+    ws = np.asarray(ws)
+    return float(np.median(ws)), float(ws.min())
+
+
+def measured_closed(roads, measured):
+    """The pieces the game's own measure closes (road_measured.json: cut at a wall, or no car fits), by their ends."""
+    by = {tuple(e) for k in ("cut", "off") for e in (measured or {}).get(k, [])}
+    return {i for i, o in enumerate(roads) if len(o["p"]) >= 6 and (o["p"][0], o["p"][1], o["p"][-3], o["p"][-2]) in by}
+
+
+def playable(cid, roads, cfg, measured=None):
+    """Inside the playable area (city.json game.bounds.ground, docs/BOUNDS.md), where your car can go at all, every
+    street the car is offered is one a car can use (the owner's report, 22 November 2026: a first drive into a lane
+    between two buildings): {piece: why} for the pieces closed to cars there, which plan() takes as its own.
+      - a street with less room between its walls than a car needs (LANE_TWO_M two-way, LANE_ONE_M one-way), in the
+        built model the player drives through: the back lanes of Dogenzaka, 3.6 to 4.2 m between shopfronts;
+      - a one-way street into a dead end: no car may leave it again (Center Gai's mouth, 25 m of carriageway into
+        a street that is a footway in the data), and so on back while closing one leaves another so.
+    A street that crosses the area's edge is judged by its part inside. Outside the area nothing changes."""
+    g = ((cfg.get("game") or {}).get("bounds") or {}).get("ground")
+    if not g:
+        return {}
+    area = Polygon(g["poly"])
+    P = [pts_of(o) for o in roads]
+    W, tree = walls(cid, area.buffer(20))
+    shut = {}
+    for i, o in enumerate(roads):
+        if len(P[i]) < 2 or o.get("j") or o.get("d"):
+            continue
+        line = LineString(P[i][:, :2])
+        if not line.intersects(area):
+            continue
+        inside = line.intersection(area)
+        if inside.length < 8:
+            continue
+        p = P[i]
+        z_of = lambda q, p=p: float(p[int(np.argmin(np.hypot(p[:, 0] - q.x, p[:, 1] - q.y))), 2])
+        part = max(getattr(inside, "geoms", [inside]), key=lambda x: x.length)
+        w50, wmin = clear_width(part, z_of, W, tree)
+        need = LANE_ONE_M if o.get("o") else LANE_TWO_M
+        if w50 < need:
+            shut[i] = f"no car fits between its walls: {w50:.1f} m along most of it (a {'one' if o.get('o') else 'two'}-way street needs {need} m)"
+    # one-way streets into a dead end, and stubs left leading only into a closed lane, inside the area, until none is left
+    gone = measured_closed(roads, measured)
+    ok = lambda i: i not in shut and i not in gone and len(P[i]) > 1   # (not the x a run before wrote: this pass decides its own)
+    node_all = collections.defaultdict(list)
+    for i in range(len(roads)):
+        if len(P[i]) > 1:
+            node_all[key_of(*P[i][0, :2])].append(i)
+            node_all[key_of(*P[i][-1, :2])].append(i)
+    while True:
+        node = collections.defaultdict(list)
+        for i in range(len(roads)):
+            if ok(i):
+                node[key_of(*P[i][0, :2])].append(i)
+                node[key_of(*P[i][-1, :2])].append(i)
+        more = False
+        for i, o in enumerate(roads):
+            if not ok(i):
+                continue
+            for end in (0, -1):
+                k = key_of(*P[i][end, :2])
+                if len(node[k]) != 1 or not area.contains(Point(*P[i][end, :2])):
+                    continue
+                if o.get("o") and (end == -1) == (o["o"] == 1):
+                    shut[i] = "a one-way street into a dead end: no car may leave it"
+                elif any(j in shut for j in node_all[k]):
+                    shut[i] = "leads only into a lane closed to cars"
+                else:
+                    continue
+                more = True
+                break
+        if not more:
+            return shut
+
+
+def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None, closures=(), keep_closed=False, shut=None):
     """Write x, e, q and b on the road pieces (dicts of game.json paths.road) and return a report.
 
     extent: [x0, x1, y0, y1] in metres, the edge that gates lie on (the roads' own bounding box when not given);
@@ -249,6 +377,8 @@ def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None,
             w = by.get(ends_dm(o))
             if w:
                 why[i] = w
+    for i, w in (shut or {}).items():   # (the playable area's own: playable(), below)
+        why[i] = w
     for x, y, r, w in closed:
         q = Point(x, y)
         for i, p in enumerate(P):
@@ -529,7 +659,9 @@ def main():
     before = flags(roads)
     n_ow = one_ways(roads, osm) if osm else 0
     n_join = join_gaps(roads)
-    rep, ends, through, succ = plan(roads, closed=rp.get("closed", []), gates=rp.get("gates", []), measured=measured, bus_lines=bus, closures=rp.get("closures", []))
+    shut = playable(a.city, roads, cfg, measured)
+    rep, ends, through, succ = plan(roads, closed=rp.get("closed", []), gates=rp.get("gates", []), measured=measured, bus_lines=bus, closures=rp.get("closures", []), shut=shut)
+    rep["playable_closed"] = {str(i): w for i, w in sorted(shut.items())}
     if a.check:
         bad = []
         if flags(roads) != before or n_join:

@@ -63,4 +63,14 @@ jobs:
           tag="v${{ steps.version.outputs.version }}"
           git tag "$tag" "$SHA"
           git push origin "$tag"
-          git push --force origin "$SHA:refs/heads/live"
+          # Vercel builds each move of live, and its plan allows so many deployments a day: live moves only where
+          # what Vercel serves changed (docs/CHECKS.md, "One deploy a pass"). A pass of docs, tools or the pipeline's
+          # data keeps Vercel on the commit before, which serves the same files; Pages and the tag take every pass.
+          # (web/version.json is written above, in this checkout only: the diff is of the commits, not of it)
+          was=
+          if git fetch -q --depth 1 origin live 2>/dev/null; then was=$(git rev-parse FETCH_HEAD); fi
+          if [ -n "$was" ] && git diff --quiet "$was" "$SHA" -- web vercel.json VERSION tools/vercel_build.sh tools/stamp.js; then
+            echo "live stays at ${was:0:7}: nothing Vercel serves changed since it"
+          else
+            git push --force origin "$SHA:refs/heads/live"
+          fi
