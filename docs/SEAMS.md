@@ -148,6 +148,7 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | `web/game/benches.js`, 23 November 2026 | 70 (benches in the sun, the hour's presets; `benchBudget` kept) | light | 13 | 6 |
 | `web/game/survey.js`, 23 November 2026 | 101 (surveying from a trig station; `surveyLabels`, `surveyFov` kept) | camera | 30 | 2 |
 | `web/game/menus.js`, 23 November 2026 | 58 (the menu, the map, the passport; `bigView`, `waypoint`, `bigPins`, `picked`, `travelKey` kept) | hud | 14 | 5 |
+| `web/game/region.js`, 23 November 2026 | 972 (the region round this map: the big map and its districts, travel, who you play, the title's screen; `titleKeyed`, `bigChips`, `bigNames`, `mapDrag`, `dragged` kept) | hud | 108 | 28 |
 
 A `let` of a section that the rest of the game reads or sets stays in `game.js` (`KEEP=name`): the part asks for it
 like any other name, through a getter and a setter, so both sides see one variable. Cut several sections from the

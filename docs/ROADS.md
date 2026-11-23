@@ -46,8 +46,8 @@ Measured in the game's own road graph (`tools/road_net_dump.js`) and seen in sti
 | PLATEAU (the city model already built: `buildings.json`) and the game's collision | what stands where | CC BY 4.0 | whether a carriageway is clear: measured in the game, and held statically against the footprints |
 
 Tokyu's own GTFS is published through the same centre behind a developer key, which this build does not have; its
-routes come from OpenStreetMap's relations instead. PLATEAU's road surfaces (`tran`) are not in the build's downloads
-and were not used: the carriageway's width is the class's, as the game draws it.
+routes come from OpenStreetMap's relations instead. PLATEAU's road surfaces (`tran`) were not used then: the carriageway's width was the class's. They are now
+("From the base", below).
 
 How others do it, and what was adopted:
 
@@ -167,6 +167,185 @@ the branch:
 The drive to 109 on the autopilot at 17:57, on a desktop's page and a phone's: from the Scramble's kerb 595 m, 112
 and 280 s; from the street in the report 493 m, under the railway, 165 and 106 s (before: no road under the
 railway); from Meiji-dori by SKY GATE 364 m, 401 and 155 s.
+
+## From the base: the carriageway as surveyed, the bus on its line, the drive inside the area
+
+Issue 196. The owner's ask (23 November 2026): design the road pipeline again from first principles, so that a player
+can drive Shibuya and believe it: every road on the protagonist's routes open, the buses on their real routes, widths
+and one-ways as the real network has them.
+
+![The surveyed carriageway under the road pieces](images/roads/widths.jpg)
+
+Drawn by `python tools/road_width_map.py shibuya docs/images/roads/widths.jpg`: the survey's carriageways, junctions,
+footways and islands, and each piece's band at the width it now carries (magenta: a piece that keeps its class's).
+
+### What a road is made of, and what the plan had of each
+
+| What a driver believes | Where it comes from | Before | Now |
+|---|---|---|---|
+| The street goes where it goes | OpenStreetMap's line, through Overture | had | had |
+| Its direction | OpenStreetMap's `oneway`, audited (4,894 of 4,895) | had | had |
+| **How wide it is, kerb to kerb** | a survey of the road itself | its class's width, in five tables | measured |
+| How many lanes | OpenStreetMap's `lanes`, where tagged | by class, taken down by a tag | by class, taken down by a tag or by the width |
+| **Where each bus goes** | each route as an ordered thing | any street any route takes | its own line, piece by piece |
+| **That the drive asked of you can be made** | the routes, inside the area the player is kept to | reachable somewhere on the map | reachable inside the planned area |
+
+### The survey
+
+| Source | What it gives | Licence | Used for |
+|---|---|---|---|
+| Project PLATEAU (MLIT Japan), Shibuya-ku road model 2025, `13113_tran_lod2`, as vector tiles from the catalogue at `api.plateauview.mlit.go.jp/datacatalog/plateau-datasets` (`pipeline/road_survey.py` → `cities/shibuya/road_surface.json`) | every public road cut into carriageway (車道部), junction (車道交差部), footway (歩道部) and island (島), from the 1:2,500 public survey (数値地形図, 公共測量成果): 29.3 ha of carriageway, 8.6 ha of junctions, 10.2 ha of footway over the phone's district | CC BY 4.0 | each piece's width |
+| OpenStreetMap, the API's map call over the planned area and the traffic's ring, fetched 23 November 2026 (`pipeline/bus_lines.py --fetch` → `cities/shibuya/bus_lines.json`) | 85 `route=bus` relations, each one's ways in the order it runs them (the public transport schema, version 2), with its number, operator and destination | ODbL | the bus lines |
+
+How others do it, and what was adopted:
+
+- **Survey-first road models** (PLATEAU's own LOD2 road specification; CityGML's `TrafficArea` and
+  `AuxiliaryTrafficArea`; OpenDRIVE and Lanelet2, which driving simulators such as CARLA and SUMO read): a road is
+  its surface cut by function, and the centre line with a width is only a reference to it. Adopted as far as the
+  width: the piece keeps the map's line, and takes its width from the surface. Not adopted: lanes as surveyed
+  geometry (the survey has no lane lines at LOD2; LOD3 has, issue 90).
+- **Width from tags** (OpenStreetMap's `width`, `lanes`; osm2streets, A/B Street): lanes times a nominal lane.
+  Not adopted: 925 of 6,283 ways here carry `lanes` and almost none `width`, and a nominal lane is the class table
+  again.
+- **Transit in open-world and simulation games** (Cities: Skylines' lines, which are ordered stops with a path
+  between; GTFS `shapes.txt`; the Grand Theft Auto games' buses, which run fixed node routes): a bus belongs to a
+  line and the line is an ordered path. Adopted. Nothing of any game's data or look is used.
+
+### The width (`pipeline/road_width.py`)
+
+Each piece is measured every 4 m: the chord square to its line across the surveyed carriageway, outside the
+junctions' own areas (a mouth is wider than the street that comes to it). Where two pieces run in one carriageway
+(the two ways of Meiji-dori, a slip beside its road) each takes its side, to half way between the lines. Written on
+the piece:
+
+| Key | Meaning |
+|---|---|
+| `cw: w` | The carriageway's width, kerb to kerb, in metres. Never more than puts the band's edge 1.5 m past the nearer kerb (the line is the map's, the kerbs the survey's, and the two agree within a metre over 83 % of the length); a forecourt or a terminal's apron is a lane across it (14 m one-way, 26 m two-way at most). |
+| `st: 1` | A single track: two ways, under 5.2 m, so two cars do not pass. Driven down its middle; no traffic is made on it and none turns in. |
+
+Shibuya, as measured (`cities/shibuya/road_width.json`): 555 pieces, 40.6 km.
+
+| Class | Drawn before | Surveyed: 10th percentile, median, 90th | Length |
+|---|---|---|---|
+| trunk | 12 m | 4.3, 8.8, 13.2 m (each line of Route 246 its share) | 4.2 km |
+| primary | 12 m | 7.8, 9.0, 14.0 m | 2.8 km |
+| secondary | 10 m | 7.0, 9.4, 10.5 m | 1.0 km |
+| tertiary | 9 m | 7.0, 9.1, 13.5 m | 9.7 km |
+| unclassified | 6 m | 4.2, 6.1, 7.8 m | 13.6 km |
+| residential | 7 m | 3.6, 4.6, 6.5 m | 9.3 km |
+
+Dogenzaka above 109 is 11 to 12 m (was 9), Miyamasuzaka 12 to 14 m (was 9), the back streets of Dogenzaka and
+Udagawacho 4 to 6 m (were 6 and 7). 66 pieces are single track.
+
+In the game one function gives a piece's width (`OEStreets.widthOf`, `web/streets.js`: `cw`, else the class's), and
+the five tables read it: the asphalt, the kerb line and the paint (`game.js`), where things stand back from a
+carriageway (`streets.js`), a junction's reach, its stop lines and its signal posts (`junctions.js`), where a car
+pulls in (`cars.js` `kerbOf`: its side at the surveyed kerb), and whether a ride is on the road (`rides.js`). The
+lanes follow (`junctions.js`): a carriageway under 11.2 m two-way or 6.4 m one-way has one lane each way whatever
+its class; on a two-way street under 6.8 m each lane's middle is a quarter of the way across; a single track is
+driven down the middle.
+
+### The bus lines (`pipeline/bus_lines.py`)
+
+A relation's ways are joined end to end into a line. From where the line first meets a road piece it is walked
+through the road graph: at each node the piece that lies along the line ahead (within 7 m on average, the way the
+piece may be driven) is the next. Written as `game.bus_lines` (`[{ref, to, by}]`) and on each piece `bl: [line,
+step, way, ...]`. The steps are places in an order, not indices, so a piece dropped later (the game's cut at a wall,
+a phone's district) leaves the order whole.
+
+Shibuya: 51 lines on 308 pieces, 28.3 km (Toei, Tokyu, Keio, Odakyu, the Hachiko community bus, two long-distance
+coaches on the expressway), each matched over its whole run in the area but for a few metres at the ends
+(`cities/shibuya/bus_lines_report.json`).
+
+In the game a bus is made where a line runs its way and is that line's (`actors.js` `respawn`); at a junction it
+takes the piece with its line's next step (`junctions.js` `choose`); where its line ends (a terminal, the edge of
+what the lines were read over) it takes up a line that goes on from there, and failing that keeps to the bus streets
+as before. The look-ahead that chooses a car's exit two junctions on was not told the car was a bus: it is now.
+
+### The drives (`pipeline/road_routes.py`, `pipeline/bounds.py`)
+
+The plan's check held that every place a drive is asked to can be reached from every other, anywhere on the map.
+The player is kept to the planned area (docs/BOUNDS.md), and the router knows nothing of its edge. Measured: SKY
+GATE's kerb is on Meiji-dori's northbound side, which is entered only from the south; the way there from the
+Scramble is round the station's west side, along Route 246 under the railway and up Meiji-dori, and it left the hull
+of the story's places by 57 m. A player sent there was stopped at the road works with the route line going on.
+
+The planned area is now the hull of its places **and of the roads the drives between them take**, each with 40 m of
+room (the easing at the edge, a carriageway, a car): its south edge moves from y -1223 to -1282. `road_routes.py`
+finds, for every pair of the places a drive is asked to, the shortest way by road on all the roads and on the roads
+inside the area alone, and fails where there is none inside or where the shortest leaves it.
+
+| From | To | Inside the area | Narrowest |
+|---|---|---|---|
+| 109 | SKY GATE's kerb | 473 m | 9.0 m |
+| 109 | where your car starts | 110 m | 9.0 m |
+| SKY GATE's kerb | 109 | 241 m | 9.0 m |
+| SKY GATE's kerb | where your car starts | 195 m | 9.0 m |
+| where your car starts | 109 | 221 m | 6.0 m |
+| where your car starts | SKY GATE's kerb | 300 m | 6.2 m |
+
+### Every vehicle has somewhere to go (`web/game/trips.js`)
+
+Asked whether every vehicle now drives by a logic and a path of its own, the answer on reading the code was no. The
+game has always asked for `OETrips` (`game.js`: `if (window.OETrips) junctions.setTrips(...)`), docs/GAME.md
+describes it, and the file was not in this repository: it was lost when the story was split from the world, the
+guard passed in silence, and every car and taxi picked an exit by chance at every junction. A random walk turns back
+on itself and circles a block, and the flow on a street is what chance left there.
+
+What each kind of vehicle drives by now:
+
+| Vehicle | Where it is going | How it gets there |
+|---|---|---|
+| A car, a van, a taxi of the traffic | a place: one of eight gates on the main roads at the map's edge (out of town), or a street by one of the places the map names (into town); seven in ten are bound, by the hour (three quarters into town in the morning, a quarter in the evening) | a field per place, worked out once: at a junction the exit that brings it nearest by road, one 64 m dearer a third as likely |
+| A bus | its line's end | the piece with its line's next step |
+| Your car on the autopilot, a ride, the car sent for you | the place asked | a route searched on the same graph (`cars.js` `router`) and driven |
+
+The field is a search back from the place over the road graph as it may be driven (one-ways, banned turns, the roads
+to keep off, no turning round at a junction). A metre of back street costs 2.5 of a main road's, a surveyed
+carriageway under 5.5 m 1.6 times that again, a quiet street or a single track three times: through traffic keeps to
+the roads that carry it. A trip into town is over 110 m by road from its place (the car park is round there, not on
+the place), and its place is a street of 6 m or more. The first version sent each trip to the nearest back street
+and ended it only on that street: thirteen cars at a time made for one lane, and the block behind 109 locked in a
+ring, each junction waiting for room in the next (19 vehicles stood 150 s; none after).
+
+`tools/trips_probe.js shibuya 120` (a desktop's page, 17:57, two minutes): 140 of 192 cars bound for one of 18
+places; a car coming onto a new piece is nearer its place by road 22 times of 22; none went back onto the piece it
+had just left. `tools/road_traffic_watch.js` with the trips on: 0 and 3 vehicles stood 150 s at the two kerbs (three
+is the limit; the three wait at 109's lights, issue 175).
+
+### The checks, and what was measured
+
+Static, with `tools/check.sh`'s static checks:
+
+- `python pipeline/road_width.py --city shibuya --check`: the widths in `game.json` are what the survey gives now,
+  and no open piece is narrower than a car;
+- `python pipeline/bus_lines.py --city shibuya --check`: the lines are what the relations give now, none on a
+  closed piece or against a one-way;
+- `python pipeline/road_routes.py shibuya --check`: every drive between the places inside the planned area.
+
+In the browser (software WebGL on a session's machine, a desktop's page, 17:57):
+
+- `tools/road_traffic_watch.js shibuya 3`, three minutes at each of two kerbs: each bus on a line of its own, the way
+  the line runs, for 94.0 % and 99.0 % of the buses' time (a new line of the check: under 20 % off); the buses' time
+  off the bus streets 4.9 % and 0 %; no vehicle made on a quiet street, at a wall or in sight; none inside another;
+  none stood 150 s.
+- `TO=535,-1078 FROM="372,-1041" node tools/road_drive.js shibuya`: your car on the autopilot from the Scramble's
+  kerb to SKY GATE's: 492 m by road with two turns, 210 s, arrived.
+
+Not checked: a real GPU, a phone in hand, Safari.
+
+### Not done here
+
+- **The Scramble's hero level draws its carriageways at their class's width** and keeps it: its floor, kerbs,
+  crosswalks, guard pipes and tactile paving are built from that plan (`cities/shibuya/scramble.py`), so a change is
+  a rebuild of the level and every still of the story taken again. The survey has Dogenzaka-shita at 16.6 m where
+  the level draws 9 m, the station's west side at 14 m against 9 m, Koen-dori's foot at 14.7 m against 9 m
+  (`road_width.json` `hero`). Issue 196, with issue 90.
+- **The survey is Shibuya-ku's.** 34 km of streets in the phone's district lie in Minato, Meguro and Setagaya and
+  keep their class's width; each ward has a road model of its own in the same catalogue.
+- **The ground is painted as a band along each piece.** The survey's junction mouths, corner radii and islands are
+  polygons, and are not yet painted as such.
+- **A bus shows no number or destination**; `game.bus_lines` carries both.
 
 ## The first drive, and the streets inside the playable area
 

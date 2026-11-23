@@ -48,12 +48,12 @@ GTA's radio and soft ceiling, and the turn back rather than a wall.
 - **The ground's edge** is the convex hull of what the story and the walk are played round. Each place gets room
   round it: the hero levels' circles plus 45 m (docs/HERO.md), and 70 m round every place a frame of the story stands
   in or looks at, the walk's views from the street, the start and the car's kerb. The hull is simplified to twelve
-  corners, each simplification moving an edge outward only. That gives x 189 to 684 and y -1223 to -854: about 500 by
-  370 m round the Scramble, Center Gai's mouth, 109's fork, Hachiko, Miyamasu, the Ginza line's box and Scramble
+  corners, each simplification moving an edge outward only. The roads that the drives between its places take are places too, with 40 m of room (`pipeline/road_routes.py`, docs/ROADS.md, issue 196: the only way by road to SKY GATE's kerb is round the station by Route 246, and it left the hull by 57 m). That gives x 190 to 683 and y -1282 to -857: about 500 by
+  425 m round the Scramble, Center Gai's mouth, 109's fork, Hachiko, Miyamasu, the Ginza line's box and Scramble
   Square. It lies well inside the phone's district (`phone_district`), so a phone builds everything inside it at full
   detail (docs/PERFORMANCE.md).
 - **The air's edge** is the same places given 360 m, plus 120 m round the landmarks the walk's opening flies past
-  (Cerulean Tower, Hikarie): x -114 to 978, y -1518 to -559. It is wider than the ground's because the helicopter sees
+  (Cerulean Tower, Hikarie): x -80 to 978, y -1585 to -559. It is wider than the ground's because the helicopter sees
   further. It turns back over the built city, still inside the phone's district, before the land past it shows.
 - **The ceiling** is 420 m above the sea: well over SKY's roof (244 m), and under Haneda's approach, which is the
   reason the tower gives.

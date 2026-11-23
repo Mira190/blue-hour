@@ -132,7 +132,12 @@ window.OECompanion = (function () {
         const half = Math.max(0.05, (bb.max.z - bb.min.z) / 2), a0 = bb.min.x + half, a1 = Math.max(a0, bb.max.x - half);
         Object.assign(body, { spine: [a0, a1], flank: half, reach: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), half) });
       }
+      // (his vertices at the size the picture needs, verts.js: 1.9 MB of his 6.3)
+      if (window.OEVerts) OEVerts.leanObject(m, { normal: 'unit8', skinWeight: 'unorm16', color: 'unorm8' });
       root.add(m);
+      // (he is no roof to the rain's map of what is under cover, any more than a person is: people.js uncovered. Drawn into
+      // it he was 55,000 triangles of a 128-pixel map each time it was made, and left a dry patch where he had sat)
+      if (window.OEPeople && OEPeople.uncovered) OEPeople.uncovered.push(m);
       if (lean) leanBody(m);
       soles = solesOf(m); // (points of the skin by their vertices: the lean index draws the same ones)
       mixer = new THREE.AnimationMixer(m);
@@ -155,7 +160,9 @@ window.OECompanion = (function () {
           const g = o.isMesh && o.geometry;
           if (!g || g.userData.lean || !g.index || g.attributes.position.count !== part.vertices) return; // (a model built again without its index: drawn whole)
           const b = Uint8Array.from(atob(part.index), c => c.charCodeAt(0)).buffer, I = part.bits === 16 ? new Uint16Array(b) : new Uint32Array(b);
+          g.dispose(); // (what the GPU held of the whole body, if he was drawn before the index came)
           g.setIndex(new THREE.BufferAttribute(I, 1)); g.userData.lean = true;
+          if (window.OEVerts) OEVerts.compact(g); // (and only the vertices the lighter index uses)
         });
       }).catch(() => {}); // (no index: drawn whole)
     }

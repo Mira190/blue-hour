@@ -25,6 +25,9 @@ window.OEStreets = (function () {
   // where a car parked at the kerb has its centre (cars.js kerbOf), and the band furniture keeps out of
   const kerb = c => Math.min(6.5, Math.max(3.3, (ROADW[c] || 7) / 2 - 0.1));
   const setback = c => Math.max((ROADW[c] || 7) / 2, kerb(c) + CAR_HW);
+  // a road piece's carriageway, kerb to kerb (m): the surveyed width where the map has one (game.json cw:
+  // pipeline/road_width.py, docs/ROADS.md), else its class's. One function for whoever draws, drives or stands by a road.
+  const widthOf = l => (l && l.cw) || ROADW[l && l.c] || 7;
   const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
 
   // lines: [{ c: class, p: [x, y, z, ...] in metres, cw: the carriageway's width where it is not its class's (m) }]
@@ -209,5 +212,5 @@ window.OEStreets = (function () {
     return api;
   }
 
-  return { ROADW, LEVEL, kerb, setback, carriageways, roadLines, tidy, posts };
+  return { ROADW, widthOf, LEVEL, kerb, setback, carriageways, roadLines, tidy, posts };
 })();

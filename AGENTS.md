@@ -318,7 +318,8 @@ thirty is drawn). So:
   `footing`), never from a ground sampler of its own plus a height. After a step that changes the ground, the
   buildings or the landmarks' feet, `tools/job.sh run regrade -- tools/regrade.sh` makes the levels again in the order
   they depend on each other (the grading, the four passes below, the
-  landmarks, the packs) and ends on `tools/levels_check.py`.
+  landmarks, the packs, then the road plan, `tools/road_plan.sh`, which plays the page: serve `web/` first) and ends on
+  `tools/levels_check.py`.
 - After a step that writes `buildings.json`, first `python pipeline/proportion.py --city shibuya` (a building with
   no class styled by its proportions: a long low footprint is a shed or a walk-up block, not a house; docs/BUILDINGS.md),
   then four passes keep what the map's raw data lacks:
@@ -328,6 +329,13 @@ thirty is drawn). So:
   `python cities/shibuya/scrsq_base.py` (Scramble Square's base as measured: its skirts and its overhang, docs/HERO.md)
   and, last, `python pipeline/roofkit.py --city shibuya` (the stair huts, condenser rows and the fire service's R and H
   on the flat roofs, docs/BUILDINGS.md). All four change nothing when run again.
+- A road piece is as wide as the survey has its carriageway, a bus runs its own line, and the planned area holds its
+  own drives (docs/ROADS.md "From the base", issue 196). After a step that writes the roads of `game.json`
+  (`game_data.py`, `road_plan.py`): `python pipeline/road_width.py --city shibuya` (PLATEAU's surveyed carriageway,
+  `cities/shibuya/road_surface.json`, onto each piece: `cw`, `st`), `python pipeline/bus_lines.py --city shibuya` (each
+  bus route's ordered line, `cities/shibuya/bus_lines.json`, onto the pieces: `bl`), `python pipeline/bounds.py --city
+  shibuya` and `game_text.py` (the area with room for the drives), then `pipeline/pack.py`; `tools/road_plan.sh` runs
+  them in order. In the page a road's width is `OEStreets.widthOf(piece)`, never a table by class.
 - What hangs in the air of a stopped world (`web/assets/stop/stop.glb`: a ginkgo leaf, a zelkova leaf, a
   handbill, and a pigeon in five parts) is built by `blender -b -P blender/build_stop.py`;
   `web/game/stopfx.js` places it. What only the story's camera sees (`web/assets/past/past.glb`: the things

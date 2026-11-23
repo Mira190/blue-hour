@@ -1,0 +1,464 @@
+{
+ "note": "The bus lines as pipeline/bus_lines.py matched them onto the road pieces (docs/ROADS.md).",
+ "lines": [
+  {
+   "line": 0,
+   "ref": "宿51",
+   "to": "新宿駅西口",
+   "by": "京王バス",
+   "track_m": 1617,
+   "on_pieces_m": 1633,
+   "stretches": 1
+  },
+  {
+   "line": 1,
+   "ref": "宿51",
+   "to": "渋谷駅",
+   "by": "京王バス",
+   "track_m": 1857,
+   "on_pieces_m": 1870,
+   "stretches": 1
+  },
+  {
+   "line": 2,
+   "ref": "渋55",
+   "to": "",
+   "by": "京王バス",
+   "track_m": 1055,
+   "on_pieces_m": 1094,
+   "stretches": 1
+  },
+  {
+   "line": 3,
+   "ref": "渋55",
+   "to": "",
+   "by": "京王バス",
+   "track_m": 1102,
+   "on_pieces_m": 1008,
+   "stretches": 1
+  },
+  {
+   "line": 4,
+   "ref": "渋63",
+   "to": "",
+   "by": "京王バス",
+   "track_m": 1689,
+   "on_pieces_m": 1595,
+   "stretches": 1
+  },
+  {
+   "line": 5,
+   "ref": "渋63",
+   "to": "中野駅南口",
+   "by": "京王バス",
+   "track_m": 1790,
+   "on_pieces_m": 1878,
+   "stretches": 1
+  },
+  {
+   "line": 6,
+   "ref": "渋68",
+   "to": "",
+   "by": "京王バス",
+   "track_m": 1642,
+   "on_pieces_m": 1681,
+   "stretches": 1
+  },
+  {
+   "line": 7,
+   "ref": "渋66",
+   "to": "阿佐ヶ谷駅",
+   "by": "京王バス;東京都交通局",
+   "track_m": 1345,
+   "on_pieces_m": 1354,
+   "stretches": 1
+  },
+  {
+   "line": 8,
+   "ref": "渋66",
+   "to": "",
+   "by": "京王バス;東京都交通局",
+   "track_m": 1420,
+   "on_pieces_m": 1326,
+   "stretches": 1
+  },
+  {
+   "line": 9,
+   "ref": "千葉京都線",
+   "to": "鎌取駅",
+   "by": "千葉中央バス 千葉営業所",
+   "track_m": 3267,
+   "on_pieces_m": 3105,
+   "stretches": 2
+  },
+  {
+   "line": 10,
+   "ref": "千葉京都線",
+   "to": "京都駅八条口",
+   "by": "千葉中央バス 千葉営業所",
+   "track_m": 2368,
+   "on_pieces_m": 1946,
+   "stretches": 2
+  },
+  {
+   "line": 11,
+   "ref": "渋26",
+   "to": "調布駅南口",
+   "by": "小田急バス",
+   "track_m": 1328,
+   "on_pieces_m": 1344,
+   "stretches": 1
+  },
+  {
+   "line": 12,
+   "ref": "渋26",
+   "to": "渋谷駅",
+   "by": "小田急バス",
+   "track_m": 1173,
+   "on_pieces_m": 1192,
+   "stretches": 1
+  },
+  {
+   "line": 13,
+   "ref": "渋54",
+   "to": "経堂駅",
+   "by": "小田急バス",
+   "track_m": 1474,
+   "on_pieces_m": 1489,
+   "stretches": 1
+  },
+  {
+   "line": 14,
+   "ref": "渋54",
+   "to": "",
+   "by": "小田急バス",
+   "track_m": 1226,
+   "on_pieces_m": 1208,
+   "stretches": 1
+  },
+  {
+   "line": 15,
+   "ref": "RH01",
+   "to": "六本木ヒルズ",
+   "by": "東京都交通局",
+   "track_m": 918,
+   "on_pieces_m": 803,
+   "stretches": 1
+  },
+  {
+   "line": 16,
+   "ref": "RH01",
+   "to": "",
+   "by": "東京都交通局",
+   "track_m": 838,
+   "on_pieces_m": 681,
+   "stretches": 1
+  },
+  {
+   "line": 17,
+   "ref": "学03",
+   "to": "日赤医療センター前",
+   "by": "東京都交通局",
+   "track_m": 415,
+   "on_pieces_m": 414,
+   "stretches": 1
+  },
+  {
+   "line": 18,
+   "ref": "学03",
+   "to": "",
+   "by": "東京都交通局",
+   "track_m": 1035,
+   "on_pieces_m": 974,
+   "stretches": 1
+  },
+  {
+   "line": 19,
+   "ref": "早81",
+   "to": "",
+   "by": "東京都交通局",
+   "track_m": 2263,
+   "on_pieces_m": 2262,
+   "stretches": 1
+  },
+  {
+   "line": 20,
+   "ref": "早81",
+   "to": "",
+   "by": "東京都交通局",
+   "track_m": 2056,
+   "on_pieces_m": 2056,
+   "stretches": 1
+  },
+  {
+   "line": 21,
+   "ref": "池86",
+   "to": "池袋駅東口",
+   "by": "東京都交通局",
+   "track_m": 2868,
+   "on_pieces_m": 2859,
+   "stretches": 1
+  },
+  {
+   "line": 22,
+   "ref": "田87",
+   "to": "田町駅前",
+   "by": "東京都交通局",
+   "track_m": 1465,
+   "on_pieces_m": 1461,
+   "stretches": 1
+  },
+  {
+   "line": 23,
+   "ref": "田87",
+   "to": "",
+   "by": "東京都交通局",
+   "track_m": 1453,
+   "on_pieces_m": 1311,
+   "stretches": 1
+  },
+  {
+   "line": 24,
+   "ref": "トランセ",
+   "to": "渋谷駅",
+   "by": "東急バス",
+   "track_m": 171,
+   "on_pieces_m": 171,
+   "stretches": 1
+  },
+  {
+   "line": 25,
+   "ref": "トランセ",
+   "to": "渋谷駅",
+   "by": "東急バス",
+   "track_m": 1733,
+   "on_pieces_m": 1735,
+   "stretches": 1
+  },
+  {
+   "line": 26,
+   "ref": "トランセ",
+   "to": "渋谷駅",
+   "by": "東急バス",
+   "track_m": 940,
+   "on_pieces_m": 935,
+   "stretches": 1
+  },
+  {
+   "line": 27,
+   "ref": "渋05",
+   "to": "弦巻営業所",
+   "by": "東急バス",
+   "track_m": 1447,
+   "on_pieces_m": 1479,
+   "stretches": 1
+  },
+  {
+   "line": 28,
+   "ref": "渋05",
+   "to": "渋谷駅",
+   "by": "東急バス",
+   "track_m": 1033,
+   "on_pieces_m": 992,
+   "stretches": 1
+  },
+  {
+   "line": 29,
+   "ref": "渋11",
+   "to": "田園調布駅",
+   "by": "東急バス",
+   "track_m": 1265,
+   "on_pieces_m": 1295,
+   "stretches": 1
+  },
+  {
+   "line": 30,
+   "ref": "渋11",
+   "to": "渋谷駅",
+   "by": "東急バス",
+   "track_m": 1079,
+   "on_pieces_m": 1157,
+   "stretches": 2
+  },
+  {
+   "line": 31,
+   "ref": "渋12",
+   "to": "二子玉川駅",
+   "by": "東急バス",
+   "track_m": 1109,
+   "on_pieces_m": 1083,
+   "stretches": 2
+  },
+  {
+   "line": 32,
+   "ref": "渋21",
+   "to": "上町駅",
+   "by": "東急バス",
+   "track_m": 1371,
+   "on_pieces_m": 1388,
+   "stretches": 1
+  },
+  {
+   "line": 33,
+   "ref": "渋21",
+   "to": "渋谷駅",
+   "by": "東急バス",
+   "track_m": 1129,
+   "on_pieces_m": 1148,
+   "stretches": 1
+  },
+  {
+   "line": 34,
+   "ref": "渋51",
+   "to": "若林折返所",
+   "by": "東急バス",
+   "track_m": 306,
+   "on_pieces_m": 305,
+   "stretches": 1
+  },
+  {
+   "line": 35,
+   "ref": "渋51",
+   "to": "若林折返所",
+   "by": "東急バス",
+   "track_m": 932,
+   "on_pieces_m": 1036,
+   "stretches": 1
+  },
+  {
+   "line": 36,
+   "ref": "渋51",
+   "to": "",
+   "by": "東急バス",
+   "track_m": 228,
+   "on_pieces_m": 228,
+   "stretches": 1
+  },
+  {
+   "line": 37,
+   "ref": "渋51",
+   "to": "",
+   "by": "東急バス",
+   "track_m": 881,
+   "on_pieces_m": 922,
+   "stretches": 2
+  },
+  {
+   "line": 38,
+   "ref": "渋52",
+   "to": "世田谷区民会館（世田谷区役所）",
+   "by": "東急バス",
+   "track_m": 462,
+   "on_pieces_m": 462,
+   "stretches": 1
+  },
+  {
+   "line": 39,
+   "ref": "渋52",
+   "to": "世田谷区民会館（世田谷区役所）",
+   "by": "東急バス",
+   "track_m": 2045,
+   "on_pieces_m": 2044,
+   "stretches": 1
+  },
+  {
+   "line": 40,
+   "ref": "渋71",
+   "to": "洗足駅",
+   "by": "東急バス",
+   "track_m": 1102,
+   "on_pieces_m": 1209,
+   "stretches": 1
+  },
+  {
+   "line": 41,
+   "ref": "渋71",
+   "to": "渋谷駅東口",
+   "by": "東急バス",
+   "track_m": 1091,
+   "on_pieces_m": 1051,
+   "stretches": 1
+  },
+  {
+   "line": 42,
+   "ref": "丘を越えてルート",
+   "to": "",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 1356,
+   "on_pieces_m": 1294,
+   "stretches": 1
+  },
+  {
+   "line": 43,
+   "ref": "丘を越えてルート",
+   "to": "",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 1788,
+   "on_pieces_m": 1849,
+   "stretches": 1
+  },
+  {
+   "line": 44,
+   "ref": "春の小川ルート",
+   "to": "",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 507,
+   "on_pieces_m": 507,
+   "stretches": 1
+  },
+  {
+   "line": 45,
+   "ref": "神宮の杜ルート",
+   "to": "渋谷駅ハチ公口",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 1069,
+   "on_pieces_m": 1130,
+   "stretches": 1
+  },
+  {
+   "line": 46,
+   "ref": "神宮の杜ルート",
+   "to": "渋谷駅ハチ公口",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 1712,
+   "on_pieces_m": 1644,
+   "stretches": 1
+  },
+  {
+   "line": 47,
+   "ref": "神宮の杜ルート",
+   "to": "渋谷駅ハチ公口",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 908,
+   "on_pieces_m": 1006,
+   "stretches": 1
+  },
+  {
+   "line": 48,
+   "ref": "神宮の杜ルート",
+   "to": "渋谷駅ハチ公口",
+   "by": "渋谷区コミュニティバス",
+   "track_m": 740,
+   "on_pieces_m": 740,
+   "stretches": 1
+  },
+  {
+   "line": 49,
+   "ref": "渋88",
+   "to": "新橋駅前",
+   "by": "都営バス",
+   "track_m": 1709,
+   "on_pieces_m": 1613,
+   "stretches": 1
+  },
+  {
+   "line": 50,
+   "ref": "渋88",
+   "to": "渋谷駅前",
+   "by": "都営バス",
+   "track_m": 1607,
+   "on_pieces_m": 1486,
+   "stretches": 1
+  }
+ ]
+}
