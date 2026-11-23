@@ -1,11 +1,11 @@
 // Taxis and rides: the drivers' step, a ride hailed or ordered and the story's own car, boarding and leaving, and what
 // the helicopter can reach. A part of the game cut out of game.js (tools/cut.js; docs/SEAMS.md, "The cut of game.js").
 // `g` is the rest of the game, by name. What this part asks of it:
-//   $, A, CARS_OK, CITY, CR, G, H, KEEP, PLAYER_LOOKS, ROAD_HALF, SCR_AT, SCR_BOX, W, angDiff, blendFrom, cam,
+//   $, A, CARS_OK, CITY, CR, G, H, KEEP, PLAYER_LOOKS, SCR_AT, SCR_BOX, W, angDiff, blendFrom, cam,
 //   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, heliBlock, hopTo, inScramble,
 //   junctions, keepSign, lib, life, makeRig, metro, myCar, nav, npcs, objective, phone, pickupNear, pilot, placeOf,
 //   player, resetCar, ride, rideSeat, roadNet, roads, rq, save, scene, smalltalk, stepOut, story, takeHelm, touch,
-//   vlib, waypoint, world, bounds
+//   vlib, waypoint, world, bounds, rwOf
 // and what it gives back:
 //   HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta,
 //   groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard,
@@ -646,7 +646,7 @@ window.OEGameRides = function (g) {
     if (pl.s < 6 || pl.s > l.len - 6) { o.turnNo = 'by a junction'; return; } // (by the junction, where it would turn in the junction)
     // nothing coming the other way on this street within 45 m, nor on the move within 15 m (about to turn into it)
     if (g.cars.live.some(c => c.line >= 0 && c !== b && Math.abs(c.z - st.z) < 3 && c.v > 0.3 && (c.line === pl.line ? c.dir !== pl.dir && Math.hypot(c.x - st.x, c.y - st.y) < 45 : Math.hypot(c.x - st.x, c.y - st.y) < 15))) { o.turnNo = 'a car coming'; return; }
-    const half = g.ROAD_HALF[l.c] || 3.5, w = 2 * OECars.LANE;
+    const half = g.rwOf(l) / 2, w = 2 * OECars.LANE;
     if (half < 3) { o.turnNo = 'a street too narrow'; return; } // (a lane too narrow to turn in)
     const gapAhead = b ? Math.hypot(b.x - st.x, b.y - st.y) - (b.half || 2.3) - o.C.half : Infinity;
     const z = st.z, mine = g.myCar && g.player.mode !== 'car' ? g.myCar.D.st : null;
@@ -700,7 +700,7 @@ window.OEGameRides = function (g) {
       for (const c of behind) if (c.rev || (g.cars.reverse && g.cars.reverse(c))) asked++;
       o.turnNo = asked ? 'the cars behind back out first' : 'a car behind'; return;
     }
-    const half = g.ROAD_HALF[l.c] || 3.5;
+    const half = g.rwOf(l) / 2;
     const ok = q => {
       const fx = Math.sin(q.h), fy = Math.cos(q.h);
       for (const [a, c] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -708,7 +708,7 @@ window.OEGameRides = function (g) {
         if (!g.nav.room(px, py, z, 0.15, 1.2)) return false;
         // (on the carriageway: the body's corners within its road's kerbs, or over them by less than a bumper)
         const r = g.roadNet.nearest(px, py, 12, z);
-        if (!r || r.d > (g.ROAD_HALF[g.roadNet.L[r.line].c] || half) + 0.6) return false;
+        if (!r || r.d > g.rwOf(g.roadNet.L[r.line]) / 2 + 0.6) return false;
       }
       if (g.cars.footprint(q.x, q.y, z, q.h, o.C.half, o.C.hw, q.leg ? 0.1 : 0.8) > 0) return false; // (in the junction, room round it: a car close by there, held, would hold it in turn)
       if (mine && Math.hypot(mine.x - q.x, mine.y - q.y) < o.C.half + g.myCar.C.half + 0.3) return false;

@@ -3095,3 +3095,111 @@ Listed the same way (a texture no material in the scene wears, by the line that 
   sessions' file: an issue, not this branch.
 - *The levels* are already let go as the story leaves them (frame 4's roof: 64 MB back as frame 5 opens).
 
+
+### The hole over the channels: a distance needs half the texels (issue 130, 23 November)
+
+The largest single texture a phone held that no file names was 3345 x 1891 texels of one byte, 6.3 MB: the ground's
+hole over the walled channels (`inland.js` `holeMask`), a signed distance to the walls' faces at half a metre over the
+box of every walled channel in the district, which is a few strips of river in a box 1.7 km wide. A distance, filtered,
+follows a straight wall as closely from metre to metre as from half metre to half metre: it is linear there. So on a
+phone the mask is sent at half the size, each texel the mean of four, 1.6 MB; the raster that walking and the terrain
+read is as it was (`?holemask=full`: whole, to set beside).
+
+`tools/hole_shot.js` puts a phone's player beside the open Shibuya river and takes stills from 14 m over them looking
+each way and down, with the mask whole and at half: along the walls, at the channel's corner and under the coping
+the two are not told apart; no ground over the coping, no gap. 4.7 MB less in every beat on a phone. Counted on a
+session's machine as an iPhone emulated.
+
+## Vertices at the size the picture needs (issue 130, 23 November)
+
+**Where frame 4's megabytes were.** A phone opened at frame 4 (the roof) holds what a phone played to it from the
+title holds, 290 MB: nothing there is left over from earlier beats, the place itself asks for it. `tools/story_play.js
+BUDGET_TOP=n` now says whose every megabyte is (`geo`, the scene's vertex and index buffers WebGL holds, by the two
+outermost names over each mesh; `own`, the textures by whose material wears them; `loose`, what no material in the
+scene wears: the targets, and anything left behind). Of frame 4's 99 MB of buffers: the map's own (buildings, ground,
+landmarks) 39, the hero levels 21, the cars 20, the guide dog 6. A phone's pictures are in ASTC blocks on the device
+and uncompressed in this count (Mesa's software renderer has no ASTC), so on an iPhone the buffers are the larger
+half of what is held: they are what to cut.
+
+**What a vertex was.** The models' files keep every attribute as 32-bit floats (pipeline/meshopt_glb.mjs: "so the
+code that reads the geometry is unchanged"), and they were sent to the GPU so. A hero level's vertex was 48 bytes:
+a position (12), a normal (12), a texture coordinate (8) and the baked light (16). The GPU needs a unit normal as
+three signed bytes (half a degree at worst, exact along an axis, which a street's walls and paving are), the baked
+light as half floats (it runs to 40, so not bytes), a skin's four weights as sixteen bits each, a painted colour as a
+byte a channel. `web/verts.js` (`OEVerts.lean`, `row`, `compact`) rewrites the attributes a caller names after its
+own code has read them and before the geometry is first drawn, so the float copy never reaches the GPU. Bytes go in
+rows of four: a vertex buffer's stride is a multiple of four on Metal, which every Apple GPU is behind. The design
+is the one `KHR_mesh_quantization` and gltfpack (MIT) apply in the file; done on the page here, so the files and the
+code that reads them stay as they are. No code was taken. `?verts=raw` leaves everything as the file has it.
+
+| what, on a phone at frame 4 | buffers before | after | how |
+|---|---|---|---|
+| the Scramble's level | 12.7 MB | 8.7 | normals in bytes, the baked light in half floats (hero.js) |
+| the roof's and Miyamasu's | 3.9 and 3.3 | 2.7 and 2.3 | the same |
+| the guide dog | 6.0 | 2.7 | normals, weights and colour (companion.js); on a phone only the vertices his lighter index uses (`compact`): the body 3.1 MB to 0.7 |
+| the traffic's models | 5.5 | 3.6 | normals in bytes; the tone, the part and the occlusion, a float each, as one row of four bytes (actors.js) |
+| a car someone gets into | 2.65 | 0.57 | its parts were split with a corner for every triangle, three to six times the vertices its file has: each part's own vertices once, under an index (cars.js) |
+
+The guide dog is also left out of the rain's map of what is under cover, as people are: he was 55,000 triangles of
+a 128-pixel map each time it was made.
+
+| a phone played from the title, GPU memory | frame 1 | frame 2 | frame 3 | frame 4 | frame 5 | frame 6 | frame 7 |
+|---|---|---|---|---|---|---|---|
+| before (main at `9b2fbe1`) | 263.6 MB | 264.0 | 265.3 | 291.8 | 280.4 | 276.1 | 270.3 |
+| after | 247.9 MB | 247.2 | 250.2 | 274.5 | 263.1 | 260.1 | 255.5 |
+| of which buffers, before and after | 86 > 71 | 88 > 71 | 88 > 73 | 101 > 84 | 100 > 83 | 95 > 79 | 92 > 77 |
+
+Frames 5 and 6 are under 270; frame 4 is 4.5 MB over it still. What it holds that the others do not: the roof's
+level and Miyamasu's beside the Scramble's (all three are in the picture when the lens looks down from the east
+glass), the helicopter (3.4 MB) and a second full-size target while the camera is raised (9.5 MB).
+
+Stills of frame 1 and frame 4 on a phone and frame 1 on a desktop, each beside the same build with `?verts=raw`:
+the levels' shading, the cars and the dog are the same; the pairs differ by the crowd's moment. Counted on a
+session's machine as an iPhone emulated; the megabytes are the page's own asks of WebGL. Not checked: a real GPU
+(that Metal takes the rows of four as they are sent is the reason for them, and unproven here).
+
+## The same encoder, written twice (issue 130, 23 November)
+
+The desktop's BC7 above was written in two sessions at once; this one's landed second and was taken out for the
+one above. What its own measure adds: decoded by SwiftShader's decoder in the page (a real GPU's path, where the
+section above used Pillow's and Mesa's), a single-subset mode 6 gave an aerial tile 44.8 dB, the landmarks' atlas
+38.1 and a character's body 47.7, the encoder's own count the decoder's to a tenth of a decibel; and the story's
+first frame on the high tier in BC7 alone, without the normal maps' BC5, held 791 MB where the section above holds
+734. The lesson is the working rule's: fetch and read the branches in flight again before each new part of a long
+session, not only at its start.
+
+## The frame's script by system (issue 130, 23 November)
+
+`PROFILE=<still>:<seconds>` on `tools/story_play.js` writes a CPU profile; `tools/profile_parts.py` sums it by
+whose script it is. A phone's page in frame 1 with the crossing running (the job's beat, thirty seconds, frames not
+drawn, so this is the script alone; a session's machine, so the shares compare systems, not devices):
+
+| whose | share of the frame's script | the heaviest in it |
+|---|---|---|
+| the crowd and the traffic (`actors.js`) | 36% | the traffic's update 8%, the crowd's 5.5%, a plaza's step 5.3%, a walker's walk 4.8% |
+| the near people (`people.js`) | 19% | the arms' clearance (`sliceAt`, `clrAsk`) 9%, placing 3%, the lean 2.5% |
+| three.js | 13% | `updateMatrixWorld` 4.4%, matrices 1.6%, the traversal 1.4% |
+| the browser | 11% | `getBoundingClientRect` 7%: the finder's box read from the page's layout every frame (`story.js` `finderRect`) |
+| the game's frame (`game.js`) | 8% | |
+| collision, the ways, the junctions | 7% | |
+| garbage collection | 1.3% | |
+
+Two things it says. The simulation runs whole at the picture's rate: the traffic and the crowd are half of a
+phone's script, and what of them is out of sight could step at half the rate. And the finder's box: with the
+interface changing every frame, reading two boxes from the layout lays the page out again each time, 6% of the
+script while a camera is up. Keeping the box for a tenth of a second was tried and undone: the camera then no longer
+came up on the thing when raised (the story's check, frame 1). It wants the box worked out from the lines' own
+numbers, not measured.
+
+## What is left of issue 130
+
+- **Level of detail by projected size**: not started in this round. The largest case is the near people (some
+  120,000 triangles of a phone's frame, each drawn whole at any distance: a lighter index over the same vertices,
+  issue 192), then the roofs' kit from above (72,000 triangles, never culled) and the works' hoardings (33,000).
+- **A phone's frame 4**: 274.5 MB against 270 by this round alone; with the head's and hair's pictures at a phone's
+  size (above) the budget's own play says where it stands.
+- **A desktop's pictures in blocks**: what is left is issue 199's.
+- **CPU**: the simulation out of sight at a lower rate; the finder's box without the layout.
+- **WebGPU**: not measured. The game's materials are three.js's WebGL ones patched in GLSL (`onBeforeCompile`), which
+  its WebGPU renderer does not take, so a beat cannot be drawn on it without porting them; what can be measured
+  first is the renderer's own cost for a beat's geometry under plain materials, on the owner's devices.
