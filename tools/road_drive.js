@@ -122,7 +122,7 @@ function driveFor({ secs, mark }) {
       const TO = FROM[k].to || TO0;
       const leg = await p.evaluate(({ to }) => { const g = window.__game, st = g.myCar().D.st; window.__drive = null; const ok = g.pilotTo({ id: 'errand', name: 'the errand', at: to }, { quiet: true });
         // (the scrambles on its way, each with the junctions run from it: one cycle of each is the most their lights can cost it)
-        let cyc = 0; if (ok) { const S = new Set(); for (const nd of g.pilot().drv.st.route.nodes || []) { const a = g.junctions.armAt(nd.line, nd.end), j = a && a.in ? a.j.lead || a.j : null; if (j && j.scramble && j.cycle && !S.has(j)) { S.add(j); cyc += j.co ? j.co.cycle / 2 : j.cycle; } } }
+        let cyc = 0; if (ok) { const S = new Set(); for (const nd of g.pilot().drv.st.route.nodes || []) { const a = g.junctions.armAt(nd.line, nd.end), j = a && a.in ? a.j.lead || a.j : null; if (j && j.scramble && j.cycle && !S.has(j)) { S.add(j); cyc += j.co ? j.co.cycle / 2 : j.cycle; } else if (j && j.sig && !j.scramble && !j.rail && j.mid == null && !S.has(j)) { S.add(j); cyc += j.red || 10; } } } // (and the longest red of each other signal on its way)
         return { ok, cyc, len: ok ? g.pilot().len : 0, turns: ok ? g.pilot().turns.length - 1 : 0, from: [+st.x.toFixed(0), +st.y.toFixed(0)] }; }, { to: TO });
       if (!leg.ok) { console.log(`FAIL start ${k + 1} (${FROM[k]}): no road from there reaches ${TO}`); bad++; continue; }
       let r = null, n = 0;

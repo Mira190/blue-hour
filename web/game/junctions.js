@@ -748,6 +748,10 @@ window.OEJunctions = (function () {
       }
       ways();
       j.cx = new Map();
+      // (a box with a way across over 30 m, as a scramble's: there a long vehicle sweeps its own way, 4.4 m wide, not the
+      // whole junction (may). Route 246's junction under the expressway, with a bus in it on most of its greens, held the
+      // side street's car at its line 150 s, and the drive behind it, which is how main's roads check failed)
+      j.wideBox = ins.some(a => a.exits.some(e => e.way && (e.way.length / 2 - 1) * PSTEP > 30));
       if (j.scramble) stages(j, ins);
     }
     // a scramble's two turns for its traffic, set by what crosses (issue 175): the arms are put in the two stages so
@@ -997,6 +1001,12 @@ window.OEJunctions = (function () {
       // the car turning from the other 63 s)
       // (nor a movement whose car stands behind a queue that comes back to c: it can't clear the junction before c goes.
       // Kyoto's 327: a ride in the junction behind a bus behind the car waiting at its line for the ride's movement)
+      // (nor a movement whose car has stood 6 s in the box for your car or a ride: it clears only when that one moves, and
+      // that one may be waiting on c. Under the expressway at Dogenzaka-shita the autopilot, just out of the box, waited
+      // on the car coming up the side street; a car in the box behind the autopilot waited on it; and the side street's
+      // car was refused the box for that one's movement, 275 s, which is how main's roads check failed after issue 196)
+      // (or stands behind one that does)
+      const forYou = o => { if ((o.c.v || 0) >= 0.3) return false; for (let x = o.c, n = 0; x && n < 6; n++) { if (x.why === 'you' && (x.still || 0) > 6) return true; x = x.front; } return false; };
       const waitsOnMe = o => { for (let x = o.c, n = 0; x && n < 8; n++) { const f = x.front || x.block; if (f === c) return (o.c.v || 0) < 0.3; if (!f || f.line == null) return false; x = f; } return false; };
       // (and for a ride, not a movement whose car has stood 6 s held by another car in the box: a knot in the junction that
       // its movement's way across can't clear; the ride's driver goes by in the room there is, its own eyes stopping it short
@@ -1011,9 +1021,9 @@ window.OEJunctions = (function () {
       // 6 s of the next, issue 175. And in a scramble's wide box a long vehicle sweeps its own way 4.4 m wide, not the
       // whole junction: a bus going straight over held the oncoming lane 20 m from it at its line)
       for (const o of j.active) {
-        if (o.c === c || behind(o) || waitsOnMe(o) || knot(o)) continue;
+        if (o.c === c || behind(o) || waitsOnMe(o) || knot(o) || forYou(o)) continue;
         const long = (o.k !== k || (o.m >> 4) !== (m >> 4)) && (c.half > LONG || o.c.half > LONG) && !stood(o);
-        if (long && !j.scramble) return 'cross';
+        if (long && !j.scramble && !j.wideBox) return 'cross';
         if (long ? zoneEnd(j, o.k, o.m, k, m, WIDE) >= 0 && !past(j, o, k, m, WIDE) : conflict(j, k, m, o.k, o.m) && !past(j, o, k, m)) return 'cross';
       }
       const mine = j.pend.find(o => o.c === c);
@@ -1024,6 +1034,9 @@ window.OEJunctions = (function () {
         if (c.P && o.c.why === 'you') continue; // (a car of the traffic standing for a ride, or for you, doesn't hold a ride's turn: each waited on the other, half a minute in Shinjuku's game check)
         if (c.P && (o.c.why === 'cross' || o.c.why === 'room') && (o.c.still || 0) > 4) continue; // (nor one that has stood held by others for a while: its turn can't be taken, and the ride waited on it for 40 s under load)
         if (o.c.why === 'room' && (o.c.still || 0) > 4) continue;
+        // (nor one that waits here only as the second of two junctions it crosses together, held at the first by its light:
+        // the cars at 109's fork, red, were waited on at the junction beside it by the car with the green there, 79 s)
+        if (o.c.wj2 === j && o.c.wj !== j && o.c.why === 'light') continue;
         if (o.c.why === 'narrow' && (o.c.still || 0) > 4) continue; // (nor one waiting at its line for a car coming up a way out too narrow for both: that car may be the one waiting on it here, each for the other, 69 s at Fushimi Inari, #283) // (nor, for anyone, one waiting for room beyond the junction: it can't take its turn, and the movements across its way stood behind it, 96 s at Shinjuku's 1195 at 18:00, #178)
         // (nor one crossing this junction with a signalled one just after, too close to wait between, whose light
         // there is not green: it can't take its turn. Read as waiting for room, it was passed over for good, and
