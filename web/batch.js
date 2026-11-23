@@ -6,7 +6,7 @@
 // (WEBGL_multi_draw: every iOS Safari from 15, and Chrome; where it is missing three.js draws them one by one, as
 // before). The picture is the same triangles through the same material: nothing is merged across materials, and a
 // square's own matrix (a meshopt-packed position is in its node's units) is kept as its instance's.
-//   OEBatch.merge(root, { name: m => string, skip: o => bool, min: 2 }) -> the batches made (the meshes they replace
+//   OEBatch.merge(root, { name: m => string, skip: o => bool, min: 2, pack: true, unit: ['_bake'] }) -> the batches made (the meshes they replace
 //   are taken out of the tree and their geometry let go). ?batch=off: every mesh as it was.
 window.OEBatch = (function () {
   const off = /[?&]batch=off\b/.test(location.search);
@@ -16,6 +16,30 @@ window.OEBatch = (function () {
     const a = g.attributes, ks = Object.keys(a).sort();
     return `${g.index ? 'i' : '-'}|${ks.map(k => `${k}:${a[k].itemSize}${a[k].normalized ? 'n' : ''}${(a[k].isInterleavedBufferAttribute ? a[k].data.array : a[k].array).constructor.name}`).join(',')}`;
   };
+  // A batch holds its whole model's vertices on the GPU from its first draw, where the meshes it replaces were sent one
+  // by one as each was first seen: so its vertices are packed as they go in (opts.pack). A normal in three 16-bit
+  // numbers (a float's twelve bytes in six: a part in 32,767, renormalised by the shader), and an attribute named in
+  // opts.unit whose values all lie in 0..1 (a hero level's baked light) in 16 bits each
+  function packer(geos, unit) {
+    const THREE = window.THREE, ok = new Set();
+    for (const k of unit) {
+      let fits = true;
+      for (const g of geos) { const a = g.attributes[k]; if (!a || !(a.array instanceof Float32Array) || a.isInterleavedBufferAttribute) { fits = false; break; } const A = a.array; for (let i = 0; i < A.length; i++) if (!(A[i] >= 0 && A[i] <= 1)) { fits = false; break; } if (!fits) break; }
+      if (fits) ok.add(k);
+    }
+    const nrm = geos.every(g => g.attributes.normal && g.attributes.normal.array instanceof Float32Array && !g.attributes.normal.isInterleavedBufferAttribute);
+    if (!nrm && !ok.size) return g => g;
+    return g => {
+      const q = new THREE.BufferGeometry();
+      q.setIndex(g.index); q.boundingBox = g.boundingBox; q.boundingSphere = g.boundingSphere;
+      for (const [k, a] of Object.entries(g.attributes)) {
+        if (k === 'normal' && nrm) { const A = a.array, B = new Int16Array(A.length); for (let i = 0; i < A.length; i++) B[i] = Math.round(Math.max(-1, Math.min(1, A[i])) * 32767); q.setAttribute(k, new THREE.BufferAttribute(B, 3, true)); }
+        else if (ok.has(k)) { const A = a.array, B = new Uint16Array(A.length); for (let i = 0; i < A.length; i++) B[i] = Math.round(A[i] * 65535); q.setAttribute(k, new THREE.BufferAttribute(B, a.itemSize, true)); }
+        else q.setAttribute(k, a);
+      }
+      return q;
+    };
+  }
   function merge(root, opts = {}) {
     const THREE = window.THREE, made = [];
     if (off || !THREE || !THREE.BatchedMesh) return made;
@@ -41,7 +65,8 @@ window.OEBatch = (function () {
       let b;
       try {
         b = new THREE.BatchedMesh(s.length, nv, Math.max(ni, 3), m);
-        for (const o of s) b.setMatrixAt(b.addInstance(b.addGeometry(o.geometry)), rel.multiplyMatrices(inv, o.matrixWorld));
+        const lean = opts.pack ? packer(s.map(o => o.geometry), opts.unit || []) : g => g;
+        for (const o of s) b.setMatrixAt(b.addInstance(b.addGeometry(lean(o.geometry))), rel.multiplyMatrices(inv, o.matrixWorld));
       } catch (e) { console.warn('batch:', m.name, e); if (b) b.dispose(); continue; } // (left as they were)
       b.name = opts.name ? opts.name(m, first) : m.name || 'batch';
       b.castShadow = first.castShadow; b.receiveShadow = first.receiveShadow; b.renderOrder = first.renderOrder; b.layers.mask = first.layers.mask; b.visible = first.visible;

@@ -286,7 +286,7 @@ window.OEHero = (function () {
         root.updateMatrixWorld(true);
         if (opts.ground) opts.ground(L.h, root); // (where its paving is: game.js heroCover)
         // its squares of one material in one draw, each still culled by itself (batch.js; after the paving is read from them)
-        if (window.OEBatch) OEBatch.merge(root, { name: m => `${L.h.id}_${m.name || 'mat'}` });
+        if (window.OEBatch) OEBatch.merge(root, { name: m => `${L.h.id}_${m.name || 'mat'}`, pack: true, unit: ['_bake'] });
         if (Wd.still) Wd.still(root); // (its shadow cached with the city's: world.js shadowCache)
         root.visible = false;
         group.add(root);
