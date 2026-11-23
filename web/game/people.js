@@ -1042,7 +1042,31 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
     }
     g.setAttribute('hairTR', new THREE.BufferAttribute(out, 4));
     g.setAttribute('hairSK', new THREE.BufferAttribute(SK, 2));
-    if (UP) Nn.needsUpdate = true;
+    if (UP) { Nn.needsUpdate = true; looseEnds(g, UP, S, up, u, ahead); }
+  }
+  // The cards that hang loose: below the nape the cards lie along the head's painted hair where it goes in under the
+  // collar, and come out of the jacket in strips beside the lock, a fringe of tassels round the hair's end (the owner,
+  // 23 November 2026); below the ears a card off the painted hair, or past its hem, hangs in the air over the back.
+  // Those triangles are left out: below the nape a long head of hair is its painted lock, and the cards stay round the
+  // head. (In the mesh's own frame, once a character; UP: the head's hair's vertices)
+  function looseEnds(g, UP, S, up, u, ahead) {
+    const P = g.attributes.position, ix = g.index;
+    if (!ix) return;
+    let hem = Infinity;
+    for (let j = 0; j < UP.length; j += 3) hem = Math.min(hem, ((UP[j] - S.x) * up.x + (UP[j + 1] - S.y) * up.y + (UP[j + 2] - S.z) * up.z) / u);
+    const loose = new Uint8Array(P.count), v = new THREE.Vector3();
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i);
+      const h = v.clone().sub(S).dot(up) / u; // (metres over the skull's middle)
+      if (h > -0.09) continue; // (above the ears: a fringe, a parting, the hair over the ears stays as built)
+      let best = Infinity;
+      for (let j = 0; j < UP.length; j += 3) { const dx = UP[j] - v.x, dy = UP[j + 1] - v.y, dz = UP[j + 2] - v.z; best = Math.min(best, dx * dx + dy * dy + dz * dz); }
+      const back = v.clone().sub(S).dot(ahead) / u < -0.02; // (behind the neck, where the collar is)
+      loose[i] = h < (back ? -0.11 : -0.15) || h < hem + 0.005 || Math.sqrt(best) / u > 0.018 ? 1 : 0; // (the nape, 11 cm under the skull's middle behind, 15 at the sides)
+    }
+    const a = ix.array, keep = [];
+    for (let t = 0; t < a.length; t += 3) if (!(loose[a[t]] && loose[a[t + 1]] && loose[a[t + 2]])) keep.push(a[t], a[t + 1], a[t + 2]);
+    if (keep.length < a.length) { g.setIndex(new THREE.BufferAttribute(new a.constructor(keep), 1)); g.userData.oeLoose = (a.length - keep.length) / 3; }
   }
 
   // ------------------------------------------------------------ an afterimage: a person in an old exposure
