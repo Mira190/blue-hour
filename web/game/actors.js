@@ -1924,6 +1924,33 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // frame 7's kerb stood under canopies running through each other, issue 165)
       if (!(q.umbW > 0)) q.umbSlot = false;
       else if (!q.umbSlot && q.ph === 'wait' && q.g && !(q.lead >= 0) && q.T) { q.umbSlot = true; if (!slotFree(q, q.T.x, q.T.y)) slotAt(q.g, q, q.T, pz.road, false); }
+      // (and stood under it with its canopy still inside a neighbour's, once a second: where the kerb had no place left
+      // with an umbrella's room, or a press brought them together after, it stayed, and a kerb packed between the road
+      // and the wall behind cannot push itself an umbrella apart. So of two stood so, the one later on the list finds
+      // another place, at this kerb or one of its corner, or about the square; and where there is none it walks on along
+      // the footway, out of the press, as people do when a kerb fills with umbrellas. Measured where the canopies are,
+      // not where the places were given. Twice at most while its umbrella is up. Until November 2026 frame 7's kerb
+      // stood under canopies running through each other after a long play, issue 187)
+      if (!(q.umbW > 0)) q.umbMoved = q.umbChk = 0;
+      else if (q.umbR > 0 && sp === 0 && (q.ph === 'wait' || q.lst) && q.g && !(q.lead >= 0) && (q.umbMoved || 0) < 2 && (q.umbChk = (q.umbChk || 0) + dt) >= 1) {
+        q.umbChk = 0;
+        const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
+        let inside = false;
+        for (let a = -1; a <= 1 && !inside; a++) for (let b = -1; b <= 1 && !inside; b++) {
+          for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
+            const o = P[k];
+            if (k >= i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || (o.lead >= 0 ? o.lead : o.id) === gq) continue; // (the earlier of the two keeps its place; one walking by is past in a moment; friends lean apart)
+            if (Math.hypot(mx - o.x - (o.ucx || 0), my - o.y - (o.ucy || 0)) < q.umbR + o.umbR - UMB_RIM) { inside = true; break; }
+          }
+        }
+        if (inside) {
+          q.umbMoved = (q.umbMoved || 0) + 1;
+          if (q.ph === 'wait') { let to = slotAt(q.g, q, q.T, pz.road, false); for (const h of q.g.corner || []) { if (to) break; if ((to = slotAt(h, q, q.T, pz.road, false))) { q.g = h; count(q, h); } } if (!to) toFootway(q); }
+          else if (lingerAt(q.g, q, q.T, pz.road)) q.lst = false;
+          else toFootway(q);
+          if (!q.pz) return; // (on along a footway: no longer of the square)
+        }
+      }
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if ((q.ph === 'wait' || (q.umbPush && (q.ph === 'linger' || q.lst))) && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (one standing about whom an umbrella pushed off stays off too: walking back, the canopies met again, issue 165) // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
       if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)
@@ -2608,6 +2635,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     const side = keep === 'right' ? -1 : 1; // the lane is to the left of the centre line, or to the right
     const JN = junctions || OEJunctions.create(net, { keep, lane: LANE, signals: [] });
     const I = lib && lib.cars && lib.info.cars, C = [], tmp = {}, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+    // (a phone, quality.js lean: a car's full model, 22,000 to 25,000 triangles, only within 12 m, where a phone's screen
+    // can show what the 5,000 of its second model cannot; its third, 1,000, past 70 m. At 35 and 110 m a car 30 m off was a
+    // triangle to every pixel or two of it)
+    const LEAN = !!(window.OEQuality && OEQuality.city().lean), LOD1 = I ? (LEAN ? Math.min(12, I.lod1_m) : I.lod1_m) : 0, LOD2 = I ? (LEAN ? Math.min(70, I.lod2_m) : I.lod2_m) : 0;
     let mesh = null, fleet = null, mat = null;
     const oncoming = (c, fx, fy, reach) => oncomingIn(C, c, fx, fy, reach);
     if (I) {
@@ -2661,7 +2692,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function show(c) { // car c, at m4, in the mesh of its model for its distance from the eye, if the eye can see it
       const d = eye ? eye.position.distanceTo(at.setFromMatrixPosition(m4)) : 0;
       if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 3.6, 3.6)))) return; // (or behind the street wall: visibility.js; 3.6 m: a bus)
-      const M = fleet[c.model][d < I.lod1_m ? 0 : d < I.lod2_m ? 1 : 2], j = M.count++, A = M.geometry.attributes;
+      const M = fleet[c.model][d < LOD1 ? 0 : d < LOD2 ? 1 : 2], j = M.count++, A = M.geometry.attributes;
       M.setMatrixAt(j, m4);
       A.aC0.setXYZ(j, c.c0.r, c.c0.g, c.c0.b); A.aC1.setXYZ(j, c.c1.r, c.c1.g, c.c1.b);
       A.aC3.setXY(j, c.brk > 0 ? 1 : 0, c.park ? (c.park.hazard ? 2 : 0) : c.sg || 0); // (its brake lights and indicators: toneMaterial)

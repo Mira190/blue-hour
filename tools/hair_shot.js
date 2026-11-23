@@ -85,6 +85,8 @@ window.ready = true;
     p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log(`${m.type()}: ${m.text().slice(0, 300)}`); });
     const base = `http://localhost:${process.env.PORT || 8800}`;
     await p.route(`${base}/game/__hair.html`, r => r.fulfill({ contentType: 'text/html', body: PAGE(msaa) }));
+    // (PEOPLE=file: that people.js in the game's place, for a still of the hair before a change beside one after)
+    if (process.env.PEOPLE) await p.route(`${base}/game/people.js`, r => r.fulfill({ contentType: 'text/javascript', path: process.env.PEOPLE }));
     await p.goto(`${base}/game/__hair.html`);
     await p.waitForFunction('window.ready', null, { timeout: +(process.env.READY_MS || 240000) });
     for (const v of ['wide', 'close', 'face']) shots.push(Buffer.from((await p.evaluate(v => window[v](), v)).split(',')[1], 'base64'));
