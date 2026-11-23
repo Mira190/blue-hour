@@ -2005,7 +2005,10 @@ def build_npcs(only=None, clips=True):
         print(f"{cid}: {tris} triangles")
     clip_files = dict(sec.get("clips", {}))
     for sex in sorted({s["sex"] for s in cast.values()}) if clips else []:
-        names = NPC_BASE + sorted({c for s in cast.values() if s["sex"] == sex for c in s["clips"]} - set(NPC_BASE))
+        # (and every clip the file already had: the regulars, the walk's people and the story ask for clips by name that
+        # no city's cast names, and a rebuild that dropped them left those people standing in Idle)
+        had = {c for c in clip_files.get(sex, {}).get("clips", []) if c in NPC_CLIPS}
+        names = NPC_BASE + sorted(({c for s in cast.values() if s["sex"] == sex for c in s["clips"]} | had) - set(NPC_BASE))
         bad = [c for c in names if c not in NPC_CLIPS]
         if bad:
             raise SystemExit(f"no clip {bad} in NPC_CLIPS")

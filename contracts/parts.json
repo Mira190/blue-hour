@@ -150,7 +150,8 @@
     "web/game/collision.js",
     "web/game/decks.js",
     "web/game/doors.js",
-    "web/game/routeline.js"
+    "web/game/routeline.js",
+    "web/game/visitors.js"
    ],
    "checks": [
     "story",
@@ -191,6 +192,9 @@
      "create",
      "line",
      "walkable"
+    ],
+    "OEVisitors": [
+     "create"
     ]
    },
    "asks_of_game": {

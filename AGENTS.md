@@ -185,6 +185,11 @@ The owner should not be the one who finds the bug.
   a stopped world, a paused game). Keep the bone's pose as the clip left it, restore it before `mixer.update`, and lay
   the turn over it after (`web/game/companion.js`, the story's `figure` in `web/game/game.js`). Anything that moves in
   the story is looked at for five seconds of stills while time is held, not in one.
+- The walking grid is not the picture. `nav.floorAt` answers from the walk's own solids, which are simpler than what is
+  drawn: round Hachiko's bed they are one raised block a metre wider than the stone, and a person seated by it sat in
+  the air with his feet on the air too, while a check that asked the same grid passed (the owner's still, issue 171).
+  Whatever is placed to touch the drawn world (someone seated, a foot, a thing set on a ledge) is checked against the
+  drawn meshes, a ray down through them (`tools/drawn_seat.js`), never against `nav` alone.
 - Scripted edits land whole or are seen to fail. Several times a batch of exact-string replacements was run from one
   script that asserted every anchor: one anchor was wrong (typed from memory with the wrong indentation, or made stale
   by an edit earlier in the same batch, or a pair that changed nothing), the assert stopped the script before it
