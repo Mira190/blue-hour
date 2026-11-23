@@ -104,7 +104,7 @@ window.OECompanion = (function () {
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; ring.renderOrder = 20; ring.frustumCulled = false;
     root.add(ring);
     const s = { x: 0, y: 0, z: 0, h: 0, state: 'away', ready: false, to: null, reach: 3, look: null, done: null, t: 0, speed: 0, fade: 1, greeted: false };
-    let mixer = null, acts = {}, cur = '', head = null, neck = null, mats = [], soles = [], folding = 0; // (soles: the paws' points of skin; folding: how long the sit's crossfade has to run, onSoles)
+    let mixer = null, acts = {}, cur = '', head = null, neck = null, mats = [], soles = []; // (soles: the paws' points of skin, onSoles)
     const bones = [];
     // his body as the model has it: the capsule's spine (metres along his heading from where he stands), its radius, and
     // how far any of him reaches from where he stands (what game.js keeps off posts, belts and cars)
@@ -171,7 +171,6 @@ window.OECompanion = (function () {
       const a = acts[name];
       a.reset().setEffectiveWeight(1).play();
       if (cur && acts[cur]) acts[cur].crossFadeTo(a, fade, false); else a.fadeIn(fade);
-      if (name === 'sit' || cur === 'sit') folding = fade + 0.05; // (into or out of the sit: onSoles while it fades)
       cur = name;
     }
     const dist = (x, y) => Math.hypot(x - s.x, y - s.y);
@@ -448,9 +447,8 @@ window.OECompanion = (function () {
     // and lifted by what the skin of a paw stands under its floor (issue 157): as he sits down or gets up, the crossfade
     // between the clips folds his hind legs below either clip's pose (up to 5 cm in the model by itself, blender/build_dog.py's
     // Akita, and 4 to 9 cm in the story, where a Stop can hold him halfway down). The sole of each paw is the dozen lowest
-    // points of skin its bone carries as bound, skinned as the GPU skins them, while that crossfade runs (in his own time,
-    // so that a Stop holds it): only then, so that his bones' world matrices are otherwise refreshed when the frame is
-    // drawn, as before, and nothing else of him moves differently (tools/guide_way.js reads his route round the crowd)
+    // points of skin its bone carries as bound, skinned as the GPU skins them. And where his hind feet stand over a higher
+    // floor than his middle (the sky lobby's planks, 11 cm over the ground beside them, as he sat at the lift in frame 4)
     const PAW = /^(lower_f|foot)|paw/i, SV = new THREE.Vector3();
     function solesOf(m) {
       const by = new Map(), p = new THREE.Vector3();
@@ -617,7 +615,7 @@ window.OECompanion = (function () {
       // turn every frame winds the head round)
       for (const b of [neck, head]) if (b && b.userData.over && b.quaternion.equals(b.userData.over)) b.quaternion.copy(b.userData.raw);
       mixer.update(dt);
-      if (folding > 0) { onSoles(); folding -= dt; }
+      onSoles();
       for (const b of [neck, head]) if (b) b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion);
       // the head turns to what it is watching, over the clip's own pose
       if (head && lookAt) {
