@@ -717,8 +717,19 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       await p.evaluate(() => { const g = window.__game, st = g.myCar().D.st, fx = Math.sin(st.h), fy = Math.cos(st.h); g.player.x = st.x - fy * 2.1; g.player.y = st.y + fx * 2.1; g.player.z = st.z; g.player.speed = 0; });
       if (!(await waitPrompt(/Drive your car/))) fail(`beside your car on the walk, nothing offers to drive it ("${await prompt()}")`);
       else {
+        // (the press is the game's at once, its prompt the page's at the next frame drawn, seconds later on a software
+        // renderer: a passer-by to talk to, a seat, or the quiet after a talk ended (hud.js) can take the press by then.
+        // When something else took it, that is said and E pressed again with the car's prompt up; one the car's own
+        // prompt was given and not taken fails)
+        const quiet = await p.evaluate(() => !!window.__game.dlg.quiet);
         await act();
-        if ((await mode()) !== 'car') fail(`E (or a tap) by your car: not at the wheel (${await mode()})`);
+        const went = await p.evaluate(() => { const g = window.__game, d = g.dlg, w = d.open ? 'a talk' : g.player.mode === 'seat' ? 'a seat' : ''; if (d.open) d.quit(); return w; }) || (quiet ? 'the quiet after a talk' : '');
+        if ((await mode()) !== 'car' && went) {
+          console.log(`(E by your car went to ${went}; pressed again)`);
+          if (await p.evaluate(() => window.__game.player.mode === 'seat')) { await act(); await p.waitForTimeout(600); }
+          if (await waitPrompt(/Drive your car/)) await act();
+        }
+        if ((await mode()) !== 'car') fail(`E (or a tap) by your car: not at the wheel (${await mode()}; the prompt "${await prompt()}", the game's "${await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : ''; })}")`);
         else {
           await keysFor(phone ? /drives/i : /steer/i);
           const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [];
