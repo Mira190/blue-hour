@@ -5,7 +5,7 @@
 // renderer as on a GPU; what WebGL holds is tools/gl_mem.js's.
 //   JOB_WAIT=540 tools/job.sh run frame -- xvfb-run -a node tools/phone_frame.js [out dir]
 // PORT (8800), QUERY=&a=b added to both pages' addresses, SIZE=390x844, BY=1 the heaviest things drawn on foot, by name,
-// SETTLE=s on foot before counting (20), HOUR=19.5 the walk's clock (dusk), STILLS=0 none.
+// SETTLE=s on foot before counting (20), HOUR=19.5 the walk's clock (dusk), STILLS=0 none, EVAL=file.js a probe run in the page.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const out = process.argv[2] || 'out/phone_frame';
@@ -70,6 +70,8 @@ const line = (name, c) => `${name.padEnd(14)} ${String(c.draws).padStart(5)} dra
       all.push(c); rows.push([`foot ${k * 90}`, c]); console.log(line(`foot ${k * 90}°`, c));
       if (STILLS) await p.screenshot({ path: `${out}/foot-${k * 90}.png` });
     }
+    // (EVAL=file.js: a function of the page's own, run on foot after the counts, its answer printed: a probe of what is drawn)
+    if (process.env.EVAL) console.log(JSON.stringify(await p.evaluate(fs.readFileSync(process.env.EVAL, 'utf8')), null, 1));
     if (BY) {
       const heavy = all.sort((x, y) => y.tris - x.tris)[0];
       for (const g of heavy.groups.slice(0, 25)) console.log(`   ${String(g.draws).padStart(4)} ${String(Math.round(g.tris / 100) / 10).padStart(7)}k  ${g.group}`);
