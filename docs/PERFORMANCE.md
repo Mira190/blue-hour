@@ -2871,6 +2871,21 @@ of the city's vertex buffers (`buffers:` in the page's log).
 phone's tier the same order, half the size. Each second here is about half a second on the owner's M3 (6.3 s set-up at
 p75) and more on a phone; they are the next place to cut (issue opened with this).
 
+### The one you play: the head's and the hair's pictures at a phone's size (issue 130, 23 November)
+
+By whose each texture is (`BUDGET_TOP`'s `owners`: every texture a material holds, by the names up its mesh's parents),
+the heaviest person on a phone was the one you play: the head's picture and the hair's at 1024 a side and the head's
+relief, 12 MB, where each of the cast's is 1 MB (`people.js` `smaller`: 512 a side on a phone, 256 on the lighter
+levels; "the characters you play keep theirs"). A phone's canvas is 760 pixels wide; the player's face is 300 across
+at its nearest, in a talk's two-shot, and from behind, where it is for most of the game, it is hair. So on a phone the
+head's and the hair's pictures go up at 512 a side, at every level; the clothes' picture, seen large from behind all
+through the game, stays at 1024 (it was tried at 512: the jacket's weave went soft).
+
+`tools/hero_face_shot.js` sets the camera before the player's head on a phone's page, at a talk's distance (1.6 m)
+and nearer than any shot goes (0.7 m), with the pictures as they come (`?herotex=full`) and at the phone's size: at
+1.6 m the two are not told apart; at 0.7 m the skin is a little softer and the jacket the same. The player's head and
+hair: 12 MB of the GPU to 4, in every beat. Counted on a session's machine as an iPhone emulated.
+
 ## Draws: one a material, not one a square (issue 192, November 2026)
 
 The owner's telemetry over a week (`tools/slo_report.py --posthog --days 7`): sixteen visitors of twenty on an iPhone,
@@ -2952,7 +2967,8 @@ A real iPhone, Safari on iOS or macOS (whether its ANGLE makes one Metal call of
 all), and WebGPU. The counts are a software renderer's, which are the page's own asks; the milliseconds are the
 telemetry's to say after the release: `draws` on "apple gpu" expected near 260 on foot where it read 402.
 
-**The budgets hold it** (`tools/budgets/shibuya.json`, a phone's beats): the draws, triangles and passes of every beat
-came down to what the story's play on this code read plus the rule's room (`tools/beat_budget.py set --down`), so the
-title is held to 255 draws where its ceiling was 265, frame 1 to 368 for 485, frame 5 to 521 for 910, frame 7 to 619
-for 1,274. The memory's and the pixels' ceilings are left as the work on issue 130 set them.
+**The budgets hold it** (`tools/budgets/shibuya.json`, a phone's beats): the draws and triangles of every beat came
+down to what the story's play on this code read plus the rule's room (the measure's share, the floor, or three times
+what main's own plays lay apart): frame 1 held to 368 draws where its ceiling was 452, frame 4 to 399 for 683, frame 5
+to 521 for 892, frame 7 (whose plays lie 162 apart: which walkers the rain has near) to 1,038 for 1,412. The memory's
+and the pixels' ceilings are left as the work on issue 130 set them.
