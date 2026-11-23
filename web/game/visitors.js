@@ -78,7 +78,11 @@ window.OEVisitors = (function () {
         let made = false;
         const used = new Set(G.people.filter(v => v.rig).map(v => v.rig.character));
         for (const v of G.people) {
-          if (!v.rig) { if (made || !build(v, used)) continue; made = true; } // (one a frame: a skeleton's copy is not free)
+          if (!v.rig) { // (one a frame: a skeleton's copy is not free)
+            if (made || !build(v, used)) continue;
+            made = true;
+            v.rig.animate(0, 0, v.p.sit != null ? 'sit' : 'ground', t + v.pitch); // (posed once before it is first drawn: a seat's fit, people.js rig.seatH, is worked out from the frame before)
+          }
           show(v, true);
           v.rig.waits = true;
           v.rig.animate(dt, 0, v.p.sit != null ? 'sit' : 'ground', t + v.pitch);

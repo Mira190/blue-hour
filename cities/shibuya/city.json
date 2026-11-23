@@ -1314,11 +1314,11 @@
             -1004.0
           ],
           "wait": {
-            "note": "The line's end (walktalk.js wait, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser.",
+            "note": "The line's end (walktalk.js wait, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser. The point is on the drawn stone, read by a ray down through the meshes (tools/drawn_seat.js), not by the walking grid, which round Hachiko's bed is a metre wider than the stone: at [370.91, -1045.03] she sat in the air beside it (issue 171).",
             "verb": "Wait with her for {train}",
             "beside": [
-              370.91,
-              -1045.03
+              370.7,
+              -1045.22
             ],
             "before": 3,
             "says": [
