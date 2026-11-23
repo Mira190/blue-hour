@@ -37,7 +37,7 @@ const [,, city = 'shibuya', viewsFile, outDir = '.', size = '1440x900'] = proces
 const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
 (async () => {
   const [w, h] = size.split('x').map(Number);
-  const b = await chromium.launch(process.env.DISPLAY
+  const b = await chromium.launch(process.env.GPU === 'metal' ? { args: ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] } /* (a Mac's own GPU) */ : process.env.DISPLAY
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   // LEAN=1: an iPhone, so quality.js's phone-memory path is taken (the ground aerial streamed, the decorative

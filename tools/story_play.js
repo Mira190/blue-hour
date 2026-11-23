@@ -194,6 +194,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
+  // (which GPU drew this play: a number from a real device is worth nothing without it)
+  console.log(`renderer: ${await p.evaluate(() => { const d = document.createElement('canvas').getContext('webgl2'), x = d && d.getExtension('WEBGL_debug_renderer_info'); return d ? (x ? d.getParameter(x.UNMASKED_RENDERER_WEBGL) : d.getParameter(d.RENDERER)) : 'no WebGL2'; })}`);
+  // GOVLOG=1 (a real GPU, DPR=2 for a dense display): the governor runs as on a player's device (under a harness it
+  // stands still, quality.js), and every five seconds a line says the frame, the governor's scale/extras and frame time,
+  // the tier, and the frames drawn in those five seconds with their median and their slowest tenth.
+  if (process.env.GOVLOG) {
+    await p.evaluate(() => { window.__game.governor.auto = true; const T = window.__gaps = []; let l = 0; const f = t => { if (l) T.push(t - l); l = t; requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    setInterval(() => p.evaluate(() => { const g = window.__game, G = g.governor, T = window.__gaps.splice(0).sort((a, b) => a - b), s = g.story && g.story.state, c = g.renderer.domElement;
+      return `gov: frame ${s ? s.fi + 1 : '-'} ${s ? s.phase : ''}: ${G.scale.toFixed(2)}/${G.extras}, ${(G.frameMs || 0).toFixed(1)} ms, tier ${window.OEQuality.tier().name}; ${T.length} frames in 5 s, median ${T.length ? (1000 / T[T.length >> 1]).toFixed(0) : '-'} fps, slowest tenth from ${T.length ? T[Math.floor(T.length * 0.9)].toFixed(0) : '-'} ms; canvas ${c.width}x${c.height}`; }).then(l => console.log(l)).catch(() => {}), 5000).unref();
+  }
   // (a still is of frames drawn whole: every frame drawn from the one before it until it is taken)
   let whole = 0;
   const ONE = process.env.ONE !== '0';
