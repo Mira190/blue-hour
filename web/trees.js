@@ -214,7 +214,7 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
   // lit cherries stand (the Meguro River's festival lanterns, #241);
   // night: the uniform world.js sets after dark (0..1); small: the light tier (fewer lanterns, no glows);
   // farKeep: the share of a wood's far crowns (past 200 m, where half stand for all) the tier draws
-  function create(world, lib, list, { mix = null, woods = null, south = true, lat = null, cherry = null, measured = Infinity, keep = 1, areas = [], fixed = Infinity, own = null, night = null, foot = null, small = false, farKeep = 1 } = {}) {
+  function create(world, lib, list, { mix = null, woods = null, south = true, lat = null, cherry = null, measured = Infinity, keep = 1, areas = [], fixed = Infinity, own = null, night = null, foot = null, small = false, farKeep = 1, send = null } = {}) {
     const I = lib.info, n = list.length / 4;
     const AT = I.atlas || {}, cells = AT.cells || {};
     const A = { cols: AT.columns || 4, rows: AT.rows || 2, bloom: cells.bloom ?? 5, sakura: cells.sakura ?? -10, maple: cells.maple ?? 7, plume: cells.plume ?? -10 };
@@ -639,6 +639,9 @@ vec3 nonPerturbedNormal = normal;`)
         const [c, nm] = await Promise.all([get(id + tag), tag === '_q' ? null : get(id + '_n' + tag)]);
         for (const t of [c, nm]) if (t) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = small ? 1 : 4; t.name = 'bark ' + id; }
         if (c) { c.colorSpace = THREE.SRGBColorSpace; if (window.OETex && OETex.stats && OETex.stats.on) await OETex.pack(c); }
+        // (sent to the GPU first, one picture a frame: send, world.js sendTex. Swapped in as they came, the next frame
+        // uploaded the fifteen scans and their mipmaps at once, half a second on a software renderer: tools/walk_hitch.js)
+        if (send) await Promise.all([c, nm].filter(Boolean).map(t => send(t).catch(() => {})));
         for (const m of B.mats) { if (c) m.map = c; if (nm) m.normalMap = nm; }
         return c && (nm || tag === '_q') ? 1 : 0;
       })).then(r => r.reduce((a, b) => a + b, 0));
