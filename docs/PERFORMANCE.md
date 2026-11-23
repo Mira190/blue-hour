@@ -2864,10 +2864,17 @@ page's own asks of WebGL, a multi-draw one draw):
 
 | | draws, main | this | triangles, main | this |
 |---|---|---|---|---|
-| the title | 198 | TITLE_D | 455,000 | TITLE_T |
-| on foot by Hachiko, four ways | 363 to 393 | 253 to 278 | 577,000 to 651,000 | 535,000 to 581,000 |
+| the title | 198 to 207 | 195 to 209 | 455,000 to 477,000 | 455,000 to 472,000 |
+| on foot by Hachiko, four ways | 357 to 393 | 253 to 286 | 577,000 to 651,000 | 535,000 to 601,000 |
 | of which the hero levels | 71 to 121 | 43 to 52 | 47,000 to 66,000 | the same |
 | of which the trains | 40 | 0 to 18 | 29,000 to 36,000 | 0 to 11,000 (those in view) |
+
+GPU memory: a batch holds its whole level's vertices from its first draw, where the squares were sent as each was
+first seen, so they are packed as they go in (`batch.js` `packer`: a normal in three 16-bit numbers, a level's baked
+light, all of it in 0..1, in four; 34 bytes a vertex for 48). On foot by Hachiko the emulated iPhone holds 226 MB
+where with every square a mesh (`?batch=off`) it holds 232; behind the title, where only what the camera had passed
+was held before, 200 MB for 189. Positions stay floats: packed to a square's own box, two squares' shared edge would
+be rounded two ways and could show a seam.
 
 The same views with the batches on and off (`tools/ab_shots.sh out '&batch=off'`: on foot, from 8 m and from 80 m, at
 dusk, at night and in rain, at 1440 x 900 on the high tier and 390 x 844 on the low) show the same picture, the rain's
