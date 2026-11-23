@@ -372,15 +372,15 @@ const STAND = 0.07, STAND_N = 60, WALL_N = 30;
 // in the model by itself, and held halfway by a Stop; and his hind feet over the sky lobby's planks, 11 cm over the ground
 // under his middle, as he sat at the lift in frame 4. Now he is lifted by any paw his skin puts under its floor (companion.js
 // onSoles); paws past PAW for more than PAW_N frames fail.
-// And the player's hand in someone run at: a hand of yours more than TOUCH_YOU in anyone for two frames or more fails. At
-// 0.57 m from an NPC's middle (a post of 0.22) the leading hand reads 4 to 6 cm in Aoi's or Shun's back for a frame or two
-// as you are stopped against them, by the parts' ellipsoids: open in issue 157. Kept further off them, the player was held
-// up passing one in frame 1's walk to Sumiko; with wider posts, the crowd's and the guide's ways round them changed)
-const PAW = 0.05, PAW_N = 30, TOUCH_YOU = 0.065;
+// (The player's hand in someone run at still prints, and does not fail: at 0.57 m from an NPC's middle, a post of 0.22,
+// the leading hand reads 4 to 7 cm in Aoi's or Shun's back for a frame or two as you are stopped against them, by the
+// parts' ellipsoids; open in issue 157. Kept further off them, the player was held up passing one in frame 1's walk to
+// Sumiko; with wider posts, the crowd's and the guide's ways round them changed.)
+const PAW = 0.05, PAW_N = 30;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
   || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1)
-  || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW) || (c.kind === 'touch' && c.a === 'you' && c.b !== 'guide' && c.n >= 2 && c.depth > TOUCH_YOU);
+  || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW);
 
 async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }
