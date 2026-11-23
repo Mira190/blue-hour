@@ -15,7 +15,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `roads` | The road plan in the game (docs/ROADS.md, issue 167). From two kerbs for three minutes each: no vehicle made on a quiet street, at a wall or within 120 m, buses made on bus streets and keeping to them, no two vehicles one inside the other for over 3 s, no queue held for good, traffic coming in and going out. Then the walk's drive to 109 on the autopilot from three starts, each arriving; a failed drive is run a second time, and fails only where the same start failed both times (else `FLAKY`, issue 175). About ten minutes | `tools/road_traffic_watch.js`, `tools/road_drive.js` |
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). You get in from the kerb seat's door; `PASS=1 SIDE=road` plays #94 instead: you stood off the car's road-side flank as a car of the traffic passes over the spot, which fails every run (`tools/lane_you_probe.js`: a walker set down in a lane ahead of a car, which the traffic never drives into, and one set down inside a car, counted for the one frame before its step moves them out). When the car gives way to a car across its way, each step's line names that car (`xb`: its speed, why it stands and for whom); a ride that did not arrive ends with what held it up, ten cars down the chain (#97). The cause found was a car inside another when it came into sight; the driver now has a bound on standing that no change of reason sets back, and the story one of its own (docs/STORY.md, "The car always comes"); `tools/ride_come.js [trials]` sends for the car again and again and prints what each stood for (`FORCE=overlap`, `FORCE=hold`: the two cases made to happen). Prints the ride's mean speed on the move; stills from behind the car. Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, read with a conversation's depth of field up in the rain at ten at night, the heaviest a player holds; settled JS heap), so that a phone's tab is not killed; then the story as a desktop to its title, the loader's own vertex buffers against 140 MB; counts a phone's lost context as a death at once, once (`tools/lost_check.js`); and plays the story's page through a lost WebGL context as a phone: a death makes the next load lighter, the reload waits for a tab put away to be seen (a minute) | `tools/mem_check.js`, `tools/lost_check.js`, `tools/glcare_phone.js` |
-| `budget` | Plays the episode as an iPhone (390 x 844 at three pixels to the point, the low tier) and counts every still's frame: each beat's draws, triangles, passes, pixels shaded and GPU memory against a phone's budget (`tools/budgets/shibuya.json`; docs/PERFORMANCE.md, "A budget for every beat"). The `story` check counts its own stills against the desktop's budget as it plays, and the static checks hold the counts of a kept play against the budgets as they are now. Main's full tier runs it for every change to the page; on a branch, `tools/check.sh budget` | `tools/story_play.js` with `BUDGET=`, `tools/beat_count.js`, `tools/gl_mem.js`, `tools/beat_budget.py` |
+| `budget` | Plays the episode as an iPhone (390 x 844 at three pixels to the point, the low tier) and counts every still's frame: each beat's draws, triangles, passes, pixels shaded and GPU memory against a phone's budget (`tools/budgets/shibuya.json`; docs/PERFORMANCE.md, "A budget for every beat"). The `story` check counts its own stills against the desktop's budget as it plays, and the static checks hold the counts of a kept play against the budgets as they are now. Main's full tier runs it for every change to the page. Before landing it plays in the story's three parts, `budget1` (frames 1 to 4), `budget2` (5 and 6) and `budget3` (7 and the last card), each only where the change reaches it ("A phone's beats before landing", below) | `tools/story_play.js` with `BUDGET=`, `tools/beat_count.js`, `tools/gl_mem.js`, `tools/beat_budget.py` |
 | `storyp` | Plays the episode on a phone's page by touch (390 x 844, the low tier, `TOUCH=1`): every answer, every line passed, the camera, the release, a hint, the roll, the cards, the order and the helicopter's door are taps of a finger where the thing is on the screen, not a key, a script's click or the story's own functions. A thing that cannot be tapped (off the screen however the page is scrolled, or under something else) fails the play, and is then clicked so that the play goes on and names the rest. Main's full tier only, a runner of its own (issue 120) | `tools/story_play.js` |
 | `storyl` | Plays the episode down its losing branches, as the man (`PLAYER=M SLIP=3,5,6,7 CHOOSE=3:0,4:0 SPEND=5 BACKTO=3`): a lie at the police box, two guesses at the foreman and at Mr Tanaka's pitch, each seen through and asked again where it was lost (issue 93), the summation's first question answered wrongly until she says it herself; the false solution said aloud and the lecturer named, and every line the story says only to one who chose so heard, filed or on the last card; frame 5 spent from the wrong place (its card kept once, then spent), so that the summation's first question is asked in words alone; and from the last card frame 3 gone back into and played to its print. Not played by it: the other frames spent (`SPEND=4` leaves frame 5 nothing to cross-examine with, `SPEND=2` frame 6 nothing to show; run them by hand), *I cannot tell yet* (`CHOOSE=4:2`), silence (`SILENT=3`) and *Play it again*. Main's full tier only, a runner of its own (issue 120) | `tools/story_play.js` |
 | `audio` | Every sound on the audio thread, as an iPhone makes it ([SOUND.md](SOUND.md), "Every sound on the audio thread"): the reverbs a phone hears held to the whole convolution (energy decay by band, the seam, echo density, left and right); every one-shot the street and the story make played many times over, failing on a graph that is larger once they have ended than before them (a node left on the mix is visited in every block) or a sound begun at or before the context's time; the sound's giving up (voices capped, the room and the street's beds let go as the output's clock steps, taken back after ninety quiet seconds); the mix of each place (the level of each of the world's buses read from the graph at set listening points on the real page, the kerb, under the railway's deck, the roof, a lift, the helicopter's cabin and the car's, each in the range of SOUND.md's table; the same train a pass-by at the kerb, weight under the deck and nothing on the roof; nothing of the moving world past the tape at a Stop; as a desktop and as a touch screen); then the page played as an iPhone (the opening shot by shot, a Stop and its choir, every room, the live score), failing on a convolver on the live context longer than WebKit's realtime limit, a second context, a worklet, or anything spoken in the opening; and again touched first on the title, failing on two pieces of music at once in the opening. Run when the sound changes (`audio.js`, `music.js`, `overture.js`, `film-score.js`, `trains.js`, `walkcalls.js`) | `tools/reverb_check.js`, `tools/audio_graph_check.js`, `tools/audio_shed_check.js`, `tools/sound_places.js`, `tools/phone_audio.js` |
@@ -155,14 +155,16 @@ Chromium (`NODE_PATH` set to where `playwright` is installed, if it is not globa
 `origin/main` (after a pass, at what changed since that pass):
 
 - a change to the page's code or data (`web/`, but for the files in the next line) or to the story in
-  `cities/shibuya/city.json` runs `static`, the story in its three parts (`story1`, `story2`, `story3`), the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
+  `cities/shibuya/city.json` runs `static`, the story in its three parts (`story1`, `story2`, `story3`), the same parts as a phone draws them, each beat against its budget (`budget1`, `budget2`, `budget3`), the walk's desktop page (`walk1`) and `mem`; the sound adds `audio`,
   the drivers, the cars and the crowd `ride`, the guide and his ways `guide`, and what a phone alone runs (its tier in
   `quality.js`, the tour's touch words in `onboard.js`, its district under `web/data/shibuya/d/`) the walk's phone page
   (`walk2`). In the sessions of 18 to 21 November the phone's page failed twice, both times beside the desktop's, and
   cost 9 of a run's 42 minutes; main's full tier plays both pages and `touch` (issue 95);
 - a change of models, pictures or sounds alone (`.glb`, `.webp`, `.png`, `.jpg`, `.avif`, `.ktx2`, `.mp3` and the like
-  under `web/`) runs `static`, `look` and `mem`, not the story: such a file can change how the street looks and what a
-  phone holds, not where the story goes. Not so the guide dog's model (his body's size is taken from it), a file
+  under `web/`) runs `static`, `look` and `mem`, and of the story only the counting of its beats: such a file can
+  change how the street looks, what a phone holds and what a beat costs to draw, not where the story goes. So a model
+  or a picture asks for the story's parts on both tiers (`story1` to `story3` count the desktop's beats, `budget1` to
+  `budget3` a phone's), and each part that never fetched the file is kept; a sound asks for none. Not so the guide dog's model (his body's size is taken from it), a file
   removed, or a model that lost or changed a name, a flag or an attribute the code can ask for, or whose ground moved
   (`tools/model_contract.py`; a hero level's ground meshes are what everyone walks on): those run as code does. The
   people's models and their index (`web/assets/people/`) are behind their own contract (`tools/people_contract.py`,
@@ -461,6 +463,53 @@ the crowd's, by what the street happened to do (`queueing`, `oncoming`, `parkNow
 every play seen of the same bytes, this clone's and main's together: a function that ran in any of them ran. A script the
 page evaluates from a string, and a page a page opens by itself, are not counted; the page has neither.
 
+### A phone's beats before landing
+
+Until 23 November 2026 the phone's budget (`budget`: the episode as an iPhone, every beat against its budget of draws,
+triangles, passes, pixels and GPU memory) ran only in main's full tier. A change that cost a beat more was found
+after it was on main, and main was red for everyone (issue 162 was that; issue 131's gap). Now it is routed by reach,
+as the story is:
+
+- **Three parts.** `budget1` plays frames 1 to 4 as a phone, `budget2` frames 5 and 6 from a case left at frame 5,
+  `budget3` frame 7 and the last card (`FROM`, `UPTO`, as the story's parts). A change to the page asks for all
+  three; each is kept where the change cannot reach it, by the same rule and the same count of functions as any
+  check. Main's runners play the three parts, whose passes a fresh session starts from, and the whole episode in one
+  page as before.
+- **What reaches a beat's cost.** A function the part ran (a draw, the crowd, the level's loader), a pack or the
+  hero level's data it fetched, and a model or a picture it fetched: for the six counting checks (`story1` to
+  `story3`, which count the desktop's beats as they play, and `budget1` to `budget3`) a model behind its contract is
+  not apart, as it is for every other play. A change to models or pictures alone therefore plays the parts that
+  loaded the file, on both tiers, and no part that did not. A sound reaches none.
+- **Dry.** Before landing no still is taken and no frame rasterised: each still's frame is asked for whole and its
+  calls counted, and what WebGL holds is read as ever. A phone's picture at three device pixels to the point is the
+  software renderer's slowest: frames 5 and 6 took 461 s drawn and 250 to 277 s dry, frame 7 264 s and 172 s, with
+  the same counts (frame 7: 890 and 1,011 draws in two plays, 1.40 M triangles in both, 261.6 and 262.3 MB). Main's
+  full tier draws one frame in sixty and takes the stills, as the budgets were measured.
+- **A failure says the two ways out**: draw less in that beat on that tier, or set the budget again on purpose with
+  the reason in the commit (`python3 tools/beat_budget.py set <counts.jsonl> phone`; the play's counts are in the
+  file the failure names).
+
+Measured on a session's machine, 23 November 2026 (four cores, two checks side by side): `budget1` 407 s, `budget2`
+277 s, `budget3` 172 s; 14 minutes of checks, 8 of the wall by themselves. What that adds to a landing, from the
+counts of the functions each part ran:
+
+| Change | Added before landing |
+|---|---|
+| One function of `web/game/game.js` (1,385 functions) | nothing at the median: 707 of them no part runs on a phone; 6 min of checks on average; all 14 for the 520 every part runs |
+| One function of `web/game/story.js` (323) | 6.8 min of checks at the median (frames 1 to 4), 8 on average |
+| One function of `web/game/people.js` or `actors.js` (the frame's hot code) | 14 min of checks, about 7.5 of the wall beside the story's parts |
+| Every check of a page change played | 45 min of checks where it was 31; about 23 min of the wall where it was 16 (reckoned from the parts' times, two side by side) |
+| A model or a picture every part loads (the people, the hero level) | the six counting parts: 38 min of checks, about 19 of the wall (reckoned so), where it was 4 to 6 min; a model one frame loads, that frame twice |
+| Main moved under a branch it did not reach | nothing: the parts' passes stand as the story's do |
+
+What it does not hold as tightly as main's whole play: GPU memory in the later parts. A case opened at frame 5 or 7
+has not loaded what frames 1 to 4 left behind, and read 6 to 10 MB under the whole play's beat (frame 5: 275.7 MB
+against 281.7; frame 7: 261.6 against 272.2), with 9 MB of room in the budget. Draws, triangles, passes and pixels
+read as the whole play's do. So a change that adds less than about 15 MB to frames 5 to 7 alone can still pass here
+and fail on main; budgets of the parts' own, set from the parts, would close that (`tools/budgets/shibuya.json` is
+issue 130's). Found on the way: the phone's triangle budgets stand at twice what the beats now read (frame 1: 0.81 M
+of 1.80 M) since the phone's crowd was made lighter, so a triangle regression of up to that much passes everywhere.
+
 ## Main moved
 
 Fifteen sessions land on one main, most of them through `web/game/game.js`; each landing moved main under the others,
@@ -556,7 +605,8 @@ pictures nobody looks at unless the play fails, and a tenth was drawing nothing 
   1.2 s before a beat's still was tried at none (`MARKWAIT=0`): no shorter, the play waits on the game. So the next
   gain here is in the game's own frame (the crowd, the skinning, the world's matrices), which a player gains too.
 - **The long checks to main.** The whole story, the walk's phone page, `touch`, `clip`, `gl` and the phone's budget
-  run on main's runners after landing, a runner each; a session plays what its change reaches.
+  over the whole episode in one page run on main's runners after landing, a runner each; a session plays what its
+  change reaches, the phone's budget in its parts among it ("A phone's beats before landing").
 
 What the same change costs, before and after (a session's machine; "before" from the medians above):
 
