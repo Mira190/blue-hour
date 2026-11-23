@@ -96,6 +96,7 @@ window.OEJunctions = (function () {
   const SCR_CYCLE = 120, SCR_SHARE = 4.2, SCR_SPLIT = 0.57, SCR_GMIN = 7, SCR_GAP = 4, SCR_CLEAR = 2, SCR_URGED = 12;
   const NEAR = 12;      // (m: two junctions with signals whose lines are nearer than this run from one controller: follow)
   const COORD = 45;     // (m: two scrambles with less road than this between their lines run on one cycle: coordinate)
+  const COORD_LAG = 16; // (s: the lesser one's turns come this long after the greater one's: a car from the Scramble's eastern line, 140 m off, from rest)
   const AMBER = 3, ALLRED = 1, CALL = 12, GAP_MIN = 5, FLASH = 3, RED = 10; // seconds; a phase with nobody waiting on the other turns after CALL more; nobody waits at a red longer than RED
   const MID_CLEAR = 2; // (s: a crossing's walk flashing after its green, before its all red: 2 + 4 + 2 + 2 = RED for its cars)
   const W = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -1111,9 +1112,17 @@ window.OEJunctions = (function () {
     // two in one run, the other roads theirs together, and the walks together: closely spaced signals on a common
     // cycle. Its queues count at the greater one, whose turns are run for both
     function coordinate(K, dt) {
-      const S = K.co, pS = K.coS.phase, pK = K.coK.phase, map = p => (p === 3 ? 3 : p === pS ? pK : 1 - pK), ph = map(S.ph);
-      if (ph !== K.ph || S.st !== K.st) dirty.add(K);
-      K.ph = ph; K.st = S.st; K.t = S.t; K.nxt = map(S.nxt); K.green[3] = S.green[3]; K.allred = S.allred; K.amber = S.amber; K.cycle = S.cycle;
+      const S = K.co, pS = K.coS.phase, pK = K.coK.phase, map = p => (p === 3 ? 3 : p === pS ? pK : 1 - pK);
+      // (COORD_LAG behind it, the time a car takes from the one to the other: the cars out of the greater one's green meet
+      // green here, and the road between is empty when its other turn's cars come to it. In step to the second, the
+      // tail of the Scramble's east-west green was left standing on that road at 109's red, and a bus let round from the
+      // station's front in the next turn stood in the middle of the Scramble through the walk, issue 175)
+      const H = K.coH || (K.coH = [{ c: -1e9, ph: S.ph, st: S.st, nxt: S.nxt }]), last = H[H.length - 1];
+      if (last.ph !== S.ph || last.st !== S.st) H.push({ c: clock, ph: S.ph, st: S.st, nxt: S.nxt }); else last.nxt = S.nxt;
+      while (H.length > 1 && H[1].c <= clock - COORD_LAG) H.shift();
+      const was0 = H[0], ph = map(was0.ph), st = was0.st;
+      if (ph !== K.ph || st !== K.st) dirty.add(K);
+      K.ph = ph; K.st = st; K.t = Math.min(clock - COORD_LAG - was0.c, 1e6); K.nxt = map(was0.nxt); K.green[3] = S.green[3]; K.allred = S.allred; K.amber = S.amber; K.cycle = S.cycle;
       K.call = true; K.cut = null; K.mpOn = false;
       const was = K.walkNow;
       K.walkNow = K.ph === 3 && K.t < K.green[3] - 6;
@@ -1185,9 +1194,10 @@ window.OEJunctions = (function () {
           // of its own, 12 s of 29 whatever stood on it, and a queue of six took two cycles. The two together stay
           // within the cycle: the second has what the first left)
           if (j.t < dt * 1.5) {
-            const crit = ph => { let m = j.coQ ? j.coQ[ph] : 0; for (const a of j.arms) if (a.in && a.phase === ph) m = Math.max(m, (a.qn || 0) + (a.qnX || 0)); return m; };
+            const crit = ph => { let m = 0; for (const a of j.arms) if (a.in && a.phase === ph) m = Math.max(m, (a.qn || 0) + (a.qnX || 0)); return m; };
             const c0 = crit(0), c1 = crit(1), veh = j.green[0] + j.green[1];
             j.gNow = c0 + c1 > 0 ? Math.max(SCR_GMIN + 3, Math.min(veh - SCR_GMIN - 3, veh * crit(j.ph) / (c0 + c1))) : j.green[j.ph];
+            if (j.coQ) j.gNow = Math.min(j.gNow, j.green[j.ph]); // (with another on its cycle, no turn past its own share: the other's wait is this one's whole red)
             if (j.ph === 0) j.g0At = clock; else if (j.g0At != null) j.gNow = Math.max(SCR_GMIN, Math.min(j.gNow, veh - (clock - j.g0At - (j.amber || AMBER) - SCR_CLEAR)));
           }
           gLen = j.gNow || gLen;
