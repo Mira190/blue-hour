@@ -65,7 +65,7 @@
 #   gl      the map as an ordinary device opens it: no WebGL call refused, and every material drawn on a GPU with
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
-#   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js), and the BC7 and BC5 one (tools/bc_check.py);
 #   hold    every avatar the street casts through every clip it holds something in: no forearm, hand or held thing inside
 #           its own torso, and no jerk from moving it out (tools/hold_check.js); when the people or their models change;
 #   launch  what a player who comes back meets (tools/launch_check.js, issue 116): the site as two commits, the second
@@ -222,13 +222,13 @@ else
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
     if [ "${frommain:-0}" = 1 ] && mains "$f"; then static=1; skipped=$((skipped + 1)); continue; fi
     case "$f" in
-      web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc launch ;;
+      web/astc.js|web/astc-worker.js|tools/astc_check.js|web/bc7.js|tools/bc_check.py|tools/bc_encode.js) static=1; add astc launch mem ;;
       web/game/people.js|web/game/lineup.html|tools/hold_check.js|tools/hold_depth.js) static=1; [ "${f#tools}" = "$f" ] && page; add hold ;;   # (the arms out of the body over the clips)
       # (how the page is loaded, kept and published: issue 116)
       vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
       web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
       web/data/$MAP/d/*) static=1; add mem walk2; [ "$TIER" = full ] || add budget1 budget2 budget3 ;;   # what a phone loads, and plays its walk in
-      pipeline/district.py|tools/mem_check.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
+      pipeline/district.py|tools/mem_check.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
@@ -465,6 +465,10 @@ run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB ([0-9.]* MB under its [0-9]*' "$OUT/mem.log" | head -1)), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+  # (a desktop's pictures in blocks, web/tex.js and bc7.js: the story to its title with ?tex=bc7, which packs on a software
+  # renderer too: every picture packed, none left under the floor, the textures held under MAX_TEX; docs/PERFORMANCE.md)
+  if MAX_TEX=${MAX_TEX:-400} timeout 900 $X node tools/load_tex.js '?tex=bc7' >"$OUT/load_tex.log" 2>&1; then echo "ok   mem    $(grep -o 'textures [0-9]* MB' "$OUT/load_tex.log" | head -1) at a desktop's title with its pictures in blocks, $(grep -o '"packed":[0-9]*' "$OUT/load_tex.log" | cut -d: -f2) packed"
+  else echo "FAIL mem    $(grep '^FAIL\|page errors' "$OUT/load_tex.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/load_tex.log)"; fi
   # (a phone's lost WebGL context counts as a death at once: the next load is a level lighter, tools/lost_check.js)
   if timeout 300 $X node tools/lost_check.js >"$OUT/lost.log" 2>&1; then echo "ok   mem    a lost context on a phone counts as a death at once, once"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/lost.log" | head -2 | cut -c1-160 | paste -sd ';' -)   (see $OUT/lost.log)"; fi
@@ -565,8 +569,9 @@ run_hold() {   # every cast avatar through every held clip: no limb in its own t
   else echo "FAIL hold   $(grep '^FAIL' "$OUT/hold.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/hold.log)"; fi
 }
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
-  if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then
-    echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page and decoded by the GPU, none under the floor, no cut-out's mipmaps or edge astray"
+  # (and a desktop's BC7 and BC5, web/bc7.js, against Pillow's decoder: every layout it writes, a sky without a band, this project's pictures)
+  if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1 && timeout 600 python3 tools/bc_check.py >>"$OUT/astc.log" 2>&1; then
+    echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded as the page encodes them (ASTC, BC7, BC5) and decoded by another's decoder, none under the floor, no cut-out's mipmaps or edge astray"
   else echo "FAIL astc   $(grep '^FAIL' "$OUT/astc.log" | head -2 | cut -c6-140 | paste -sd ';' -)   (see $OUT/astc.log)"; fi
 }
 # one static check: <name> <log> <what a pass says, or - for the log's last line> <the lines of a failure to show> <command...>
