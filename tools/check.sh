@@ -234,7 +234,7 @@ else
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
       web/game/game.js) static=1; page; add ride ;;
-      web/game/junctions.js|web/game/rides.js|web/game/pilot.js|web/game/autopilot.js|cities/$MAP/road_plan.json|cities/$MAP/road_measured.json|cities/$MAP/roads_osm.json|pipeline/road_plan.py|cities/$MAP/rail.py) static=1; [ "${f#web}" != "$f" ] && page; add roads ;;   # (the road plan and what drives by it)
+      web/game/junctions.js|web/game/trips.js|web/game/rides.js|web/game/pilot.js|web/game/autopilot.js|cities/$MAP/road_plan.json|cities/$MAP/road_measured.json|cities/$MAP/roads_osm.json|pipeline/road_plan.py|cities/$MAP/rail.py|cities/$MAP/road_surface.json|cities/$MAP/bus_lines.json|pipeline/road_width.py|pipeline/road_survey.py|pipeline/bus_lines.py|pipeline/road_routes.py) static=1; [ "${f#web}" != "$f" ] && page; add roads ;;   # (the road plan and what drives by it)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
@@ -442,6 +442,7 @@ walk_on() {
 run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched from two kerbs, and the walk's drive to 109 from three starts
   local ok=1
   if ! GAME_TIME=${GAME_TIME:-17:57} timeout 1500 $X node tools/road_traffic_watch.js "$MAP" 3 >"$OUT/roads-watch.log" 2>&1; then ok=0; echo "FAIL roads  the traffic: $(grep '^FAIL\|pageerror' "$OUT/roads-watch.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-watch.log)"; fi
+  if ! GAME_TIME=${GAME_TIME:-17:57} timeout 900 $X node tools/trips_probe.js "$MAP" 120 >"$OUT/roads-trips.log" 2>&1; then ok=0; echo "FAIL roads  the trips: $(grep '^FAIL\|pageerror' "$OUT/roads-trips.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-trips.log)"; fi
   # (the drives with the traffic running, as the clip and the game check are: a second run when one fails, and a failure
   # only where the same start fails both times; else FLAKY, which main lists under check-flaky. Issue 175: the autopilot
   # and a bus in Dogenzaka-shita's junction under the expressway can still stand each waiting on the other)
@@ -451,7 +452,7 @@ run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched
     if drive; then echo "ok   roads  the drive to 109 from three starts   (the second run; the first: $OUT/roads-drive-first.log)"
     else ok=0; twice roads "$OUT/roads-drive-first.log" "$OUT/roads-drive.log" | sed 's/^FLAKY roads/FLAKY roads  the drive to 109:/; s/^FAIL roads/FAIL roads  the drive to 109:/'; fi
   fi
-  [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their streets, none inside another; 109 reached from three starts"
+  [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their lines, every car bound somewhere and nearer it at each turn, none inside another; 109 reached from three starts"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
@@ -668,6 +669,9 @@ rm -rf "$OUT/keep"
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st roads roadplan - '^FAIL|Error' python3 pipeline/road_plan.py --city "$MAP" --check
+    st roads roadwidth - '^FAIL|Error' python3 pipeline/road_width.py --city "$MAP" --check
+    st roads buslines - '^FAIL|Error' python3 pipeline/bus_lines.py --city "$MAP" --check
+    st roads routes - '^FAIL|Error' python3 pipeline/road_routes.py "$MAP" --check
     st roads firstdrive "your car's first drive leads on, and every street open to it in the area is one a car can use" '^FAIL|Error' python3 tools/first_drive.py "$MAP"
     st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"

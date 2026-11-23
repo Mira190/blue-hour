@@ -35,5 +35,13 @@ for pass in 1 2; do
   python3 pipeline/road_plan.py --city "$c" > "$OUT/plan$pass.log"; grep -v "joined under" "$OUT/plan$pass.log" | sed -n 1,2p
   pack
 done
+# the carriageways as surveyed, the bus lines and the drives (issue 196): each written on the pieces the plan leaves
+python3 pipeline/road_width.py --city "$c" | sed -n 1p
+python3 pipeline/bus_lines.py --city "$c" | sed -n 1p
+python3 pipeline/bounds.py --city "$c" && python3 pipeline/game_text.py --city "$c" | tail -1
+pack
 python3 pipeline/road_plan.py --city "$c" --check
+python3 pipeline/road_width.py --city "$c" --check
+python3 pipeline/bus_lines.py --city "$c" --check
+python3 pipeline/road_routes.py "$c" --check | tail -1
 python3 tools/road_map.py "$c" docs/images/roads | tail -2
