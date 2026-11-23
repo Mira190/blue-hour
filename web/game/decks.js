@@ -23,6 +23,7 @@ window.OEDecks = (function () {
   const DIP = 25;        // a road is carried over a dip this long either side of a point (m)
   const DIP_Z = 0.8;     // and this deep
   const LEVEL = 6;      // the data puts a bridge or a viaduct this much higher per level
+  const RAMP = 0.12;    // a road's deck leaves the ground no steeper than this (the road standard's 12 %, pipeline/street_ground.py RAMP)
   const ROADW = { motorway: 14, trunk: 12, primary: 12, secondary: 10, tertiary: 9, residential: 7, unclassified: 6, living_street: 5 };
   const FOOTW = { pedestrian: 8, footway: 3, path: 2.5, steps: 3, cycleway: 2.5, living_street: 5 };
 
@@ -529,6 +530,29 @@ window.OEDecks = (function () {
         }
     };
     for (const pl of [...lines.map(([o]) => o.p), ...tracks]) for (let k = 0; k + 5 < pl.length; k += 3) file(pl[k] / 10, pl[k + 1] / 10, pl[k + 3] / 10, pl[k + 4] / 10);
+    // what a road's deck has to clear along the piece a-b: [{ t, h }], t along the piece (0 to 1), h the height the deck's
+    // surface needs there: a railway's rail and the wires over it, a street's or a footway's own height and the room
+    // over it, each with the slab (the pieces of the same index, read with their heights)
+    const ROOM = { rail: 5.5, road: 4.7, foot: 2.5 };
+    const zOf = new Map();
+    lines.forEach(([o, kind]) => { for (let k = 0; k + 5 < o.p.length; k += 3) zOf.set(`${o.p[k]},${o.p[k + 1]},${o.p[k + 3]},${o.p[k + 4]}`, [Math.max(o.p[k + 2], o.p[k + 5]) / 10, kind]); });
+    for (const pl of tracks) for (let k = 0; k + 5 < pl.length; k += 3) zOf.set(`${pl[k]},${pl[k + 1]},${pl[k + 3]},${pl[k + 4]}`, [Math.max(pl[k + 2], pl[k + 5]) / 10, 'rail']);
+    const toClear = (ax, ay, bx, by) => {
+      const out = [], seen = new Set();
+      for (let x = Math.floor(Math.min(ax, bx) / UC); x <= Math.floor(Math.max(ax, bx) / UC); x++)
+        for (let y = Math.floor(Math.min(ay, by) / UC); y <= Math.floor(Math.max(ay, by) / UC); y++)
+          for (const q of under2.get(`${x},${y}`) || []) {
+            if (seen.has(q)) continue;
+            seen.add(q);
+            const d = (bx - ax) * (q[3] - q[1]) - (by - ay) * (q[2] - q[0]);
+            if (Math.abs(d) < 1e-9) continue;
+            const t = ((q[0] - ax) * (q[3] - q[1]) - (q[1] - ay) * (q[2] - q[0])) / d, u = ((q[0] - ax) * (by - ay) - (q[1] - ay) * (bx - ax)) / d;
+            if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+            const m = zOf.get([q[0], q[1], q[2], q[3]].map(v => Math.round(v * 10)).join(','));
+            if (m) out.push({ t, z: m[0], h: m[0] + ROOM[m[1]] + THICK });
+          }
+      return out;
+    };
     const passesUnder = (ax, ay, bx, by) => {
       const seen = new Set();
       for (let x = Math.floor(Math.min(ax, bx) / UC); x <= Math.floor(Math.max(ax, bx) / UC); x++)
@@ -546,6 +570,7 @@ window.OEDecks = (function () {
     };
     const joined = (x, y) => (ends.get(key(x, y)) || 0) > 1 || x < frame.x0 + 20 || x > frame.x1 - 20 || y < frame.y0 + 20 || y > frame.y1 - 20;
     const runs = [], segs = [], recs = [];
+    let eased = 0;
     for (const [o, kind] of lines) {
       let p = o.p, n = p.length / 3;
       const X = k => p[3 * k] / 10, Y = k => p[3 * k + 1] / 10;
@@ -679,6 +704,70 @@ window.OEDecks = (function () {
       if (a > 0 || b < n - 1) { p = o.p = p.slice(3 * a, 3 * b + 3); cls = cls.slice(a, b + 1); zs = zs.slice(a, b + 1); n = b - a + 1; }
       const cum = new Float32Array(n);
       for (let k = 1; k < n; k++) cum[k] = cum[k - 1] + Math.hypot(X(k) - X(k - 1), Y(k) - Y(k - 1));
+      // A road's deck is laid by rule, not draped (issue 173). The data lifts a bridge one level over the ground under
+      // each of its points, from its first point: so a deck began 6 m over a street that was on the ground a point
+      // before (laid through the two it rose at 30 % and more, and your car met its end as a wall), and its height
+      // copied the ground under it, a hump over a bank. From first principles a bridge is a line from the street at one
+      // end to the street at the other, raised only where something passes under it, and never steeper than a street:
+      //   - a deck of one level between two ends on the ground starts from the straight line between them; a viaduct
+      //     keeps the data's heights;
+      //   - near an end on the ground it is no higher than a ramp from that end reaches (RAMP);
+      //   - over a railway, a street or a footway that passes under it, it stands that thing's room over it, and comes
+      //     down from there no steeper than a ramp: where that reaches back past the deck's end, the ramp takes its
+      //     length from the street before it (each of its points on the deck now), as the place has an approach there.
+      if (kind === 'road') for (let k = 0; k < n; k++) {
+        if (cls[k] !== 2) continue;
+        let e = k;
+        while (e < n - 1 && cls[e + 1] === 2) e++;
+        const i0 = k > 0 && cls[k - 1] === 0 ? k - 1 : -1, i1 = e < n - 1 && cls[e + 1] === 0 ? e + 1 : -1, k0 = k;
+        k = e;
+        let wet = false, top = -Infinity;
+        for (let i = k0; i <= e; i++) { wet = wet || nav.isWater(X(i), Y(i)); top = Math.max(top, zs[i]); }
+        if (wet || (i0 < 0 && i1 < 0)) continue;   // (a bridge over the water is laid from bank to bank below)
+        const a = i0 >= 0 ? i0 : k0, b = i1 >= 0 ? i1 : e;
+        const one = i0 >= 0 && i1 >= 0 && top <= Math.max(zs[i0], zs[i1]) + LEVEL + 1.5;
+        const base = new Float32Array(n);
+        for (let i = k0; i <= e; i++) {
+          let z = one ? zs[i0] + (zs[i1] - zs[i0]) * (cum[i] - cum[i0]) / Math.max(1e-6, cum[i1] - cum[i0]) : zs[i];
+          if (i0 >= 0) z = Math.min(z, zs[i0] + RAMP * (cum[i] - cum[i0]));
+          if (i1 >= 0) z = Math.min(z, zs[i1] + RAMP * (cum[i1] - cum[i]));
+          base[i] = Math.max(z, nav.terrain(X(i), Y(i)) + 0.05);
+        }
+        // (where it lands it is never under the ground across its width: the bank a deck lands on is not graded level
+        // under it, and a deck laid along its middle lay 0.3 m under the ground at its side, a ledge the other way. So
+        // each landing point stands over the highest ground under the deck half way to its neighbours, and the deck
+        // comes up to it no steeper than a ramp)
+        const hwd = roadW(o) / 2 - 0.3;
+        for (let i = k0; i <= e; i++) {
+          if (base[i] - nav.terrain(X(i), Y(i)) >= RISE) continue;
+          let hi = -Infinity;
+          for (const j of [i - 1, i + 1]) {
+            if (j < 0 || j >= n) continue;
+            const dx = X(j) - X(i), dy = Y(j) - Y(i), L = Math.hypot(dx, dy) || 1, m = Math.max(1, Math.ceil(L / 2));
+            for (let q = 0; q <= m; q++) for (const w of [-1, -0.5, 0, 0.5, 1]) {
+              const t = 0.5 * q / m;
+              hi = Math.max(hi, nav.terrain(X(i) + dx * t - dy / L * w * hwd, Y(i) + dy * t + dx / L * w * hwd));
+            }
+          }
+          base[i] = Math.max(base[i], Math.min(hi + 0.05, base[i] + 1));
+        }
+        for (let i = k0; i <= e; i++) for (let j = k0; j <= e; j++) base[i] = Math.max(base[i], base[j] - RAMP * Math.abs(cum[i] - cum[j]));
+        // what passes under it, where along the line, and how high the deck is over it
+        const need = [];
+        for (let i = a; i < b; i++) for (const c of toClear(X(i), Y(i), X(i + 1), Y(i + 1))) {
+          const at = cum[i] + c.t * (cum[i + 1] - cum[i]), was = zs[i] + c.t * (zs[i + 1] - zs[i]);
+          if (was - c.z > RISE) need.push([at, c.h]);   // (under the deck as the data has it: not a street it meets)
+        }
+        const over = i => need.reduce((z, [at, h]) => Math.max(z, h - RAMP * Math.abs(cum[i] - at)), -Infinity);
+        // (a viaduct is never raised over the data's height: what the ramp from its end took is given back, no more)
+        for (let i = k0; i <= e; i++) zs[i] = Math.max(base[i], one ? over(i) : Math.min(zs[i], over(i)));
+        if (!need.length || !one) continue;
+        for (const [i, step] of [[i0, -1], [i1, 1]]) for (let j = i; j >= 0 && j < n && cls[j] === 0; j += step) {
+          const z = over(j);
+          if (z <= nav.terrain(X(j), Y(j)) + 0.05) break;
+          cls[j] = 2; zs[j] = z; eased++;
+        }
+      }
       // runs of deck points, between the point before and the point after them
       for (let k = 0; k < n; k++) {
         if (cls[k] !== 2) continue;
@@ -740,7 +829,7 @@ window.OEDecks = (function () {
       recs.push({ o, cls, zs, kind });
     }
     const crossing = together(runs, segs, recs, nav, near);
-    return { runs, segs, crossing };
+    return { runs, segs, crossing, eased };
   }
 
   // the decks as one mesh: slab, parapets and columns, from plan()'s runs

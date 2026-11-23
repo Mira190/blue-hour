@@ -573,11 +573,18 @@ if (uWeave > 0.0 && gl_FrontFacing) {
   // of the Scramble). Where the middle alone reaches it, as on almost every street, it is one look, as before.
   const BODY_STEP = 0.2;
   function reachFloor(nav, x0, y0, z0, x1, y1) {
-    const f = carFloor(nav, x1, y1, z0);
-    if (f) return f.z > z0 - 3.5 ? f.z : null;
-    if (Math.hypot(x1 - x0, y1 - y0) <= BODY_STEP) return null;
+    const f = carFloor(nav, x1, y1, z0), far = Math.hypot(x1 - x0, y1 - y0) > BODY_STEP, drop = f && f.z > z0 - 3.5 ? f.z : null;
+    // (a floor found more than a kerb under the middle may be the ground under a deck that climbs: a ramp at a street's
+    // steepest stands 0.27 m over the middle at a car's end, the look from the middle passed under it to the ground
+    // within 3.5 m below, and the car met its own ramp as a ledge, issue 173. So that too is reached by halves, and
+    // the floor below is what is there only when the halves find nothing nearer)
+    // (and a floor within a kerb under it may lie under the foot of such a ramp: is there one a walker would step up to?)
+    const up = f && far && f.z >= z0 - CAR_STEP ? nav.floorAt(x1, y1, z0) : null;
+    if (f && (!far || (f.z >= z0 - CAR_STEP && !(up && up.z > f.z + 0.01)))) return drop;
+    if (!far) return null;
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, zm = reachFloor(nav, x0, y0, z0, mx, my);
-    return zm == null ? null : reachFloor(nav, mx, my, zm, x1, y1);
+    const z = zm == null ? null : reachFloor(nav, mx, my, zm, x1, y1);
+    return z != null ? z : drop;
   }
   function axisFloor(nav, x, y, z, fx, fy, o) {
     const f = carFloor(nav, x, y, z);

@@ -1553,7 +1553,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // a mate's spot by its leader L at a scramble (out): beside it along the kerb waiting, either side, else a step behind;
     // in a ring with it standing about the square, facing in, as people talking stand; beside it crossing
+    // (a mate who carries an umbrella of its own beside a leader who carries one, issue 165's fourth of a group, stands an
+    // umbrella's room from the leader's place, out along the way it stood: the group's ring about where they stand is 0.45 to
+    // 0.55 m across, and two of a group standing about the square in the rain held their canopies 0.42 m through each other,
+    // main's story of 23 November. Kept where it can be stood on; else where the ring put it)
     function mateSpot(L, q, out) {
+      mateSpot0(L, q, out);
+      if (q.umbW > 0 && L.umbW > 0 && L.T && L.ph !== 'cross') {
+        const dx = out.x - L.T.x, dy = out.y - L.T.y, d = Math.hypot(dx, dy) || 1e-3, need = q.umbW + L.umbW + UMB_RIM / 3 + 0.04;
+        if (d < need) { const x = L.T.x + dx / d * need, y = L.T.y + dy / d * need; if (standOk(x, y, L.z, L.pz && L.pz.road)) { out.x = x; out.y = y; } }
+      }
+      return out;
+    }
+    function mateSpot0(L, q, out) {
       const k = q.gk || 1, n = 1 + (L.mates ? L.mates.length : 1), road = L.pz && L.pz.road, g = L.g, z = L.z, T = L.T;
       if (L.ph === 'linger') {
         const a = L.ga ?? (L.ga = rnd() * 6.283), r = n === 2 ? 0.45 : 0.55, cx = T.x - Math.sin(a) * r, cy = T.y - Math.cos(a) * r, b = a + k * 6.283 / n;
@@ -1613,8 +1625,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       else if (L.ph === 'linger' && p.ph !== 'linger' && p.ph !== 'cross') { uncount(p); p.ph = 'linger'; p.lst = false; p.g = L.g; moved = true; }
       else if (L.ph !== 'linger' && L.ph !== 'cross' && p.ph === 'linger') { p.ph = 'stroll'; p.g = L.g; if (L.g) count(p, L.g); moved = true; }
       else if (p.ph !== 'cross' && L.ph !== 'cross' && p.g !== L.g) { p.g = L.g; if (p.ph !== 'linger' && L.g) count(p, L.g); moved = true; }
-      if (moved || p.lTx !== L.T.x || p.lTy !== L.T.y || p.lph !== L.ph) {
-        p.lTx = L.T.x; p.lTy = L.T.y; p.lph = L.ph;
+      const twoUmb = p.umbW > 0 && L.umbW > 0; // (and again as the two umbrellas go up, or down)
+      if (moved || p.lTx !== L.T.x || p.lTy !== L.T.y || p.lph !== L.ph || p.lUmb !== twoUmb) {
+        p.lTx = L.T.x; p.lTy = L.T.y; p.lph = L.ph; p.lUmb = twoUmb;
         mateSpot(L, p, p.T || (p.T = {}));
         if (p.ph === 'wait' && Math.hypot(p.T.x - p.x, p.T.y - p.y) > 0.6) p.ph = 'stroll';
         if (p.ph === 'linger' && Math.hypot(p.T.x - p.x, p.T.y - p.y) > 0.5) p.lst = false;
