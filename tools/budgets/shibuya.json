@@ -417,7 +417,7 @@
     }
    },
    "frame 7": {
-    "draws": 947,
+    "draws": 1412,
     "tris": 1449000,
     "passes": 10,
     "px_x": 3.47,
@@ -427,7 +427,7 @@
     "gpu_mb": 271,
     "js_ms": 60.7,
     "at": {
-     "draws": 845,
+     "draws": 926,
      "tris": 1268808,
      "passes": 10,
      "px_x": 3.3,
@@ -435,7 +435,7 @@
      "gpu_mb": 262.6
     },
     "noise": {
-     "draws": 20,
+     "draws": 162,
      "tris": 60000,
      "passes": 0,
      "px_x": 0.0,
