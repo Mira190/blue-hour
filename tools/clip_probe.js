@@ -24,7 +24,8 @@
 //            avatar through every held clip). Deeper than its LIMIT for three readings fails the play: the owner saw a
 //            texting forearm in a jacket at the crossing in the opening.
 //   seats    in the helicopter and in a car: the seat under the pelvis, the floor under the feet and the roof over the
-//            head, by rays into the vehicle's own model, once a second.
+//            head, by rays into the vehicle's own model, once a second; and each limb against the vehicle from the limb's
+//            own middle outwards. No play of the story runs it (its flight shows no player): tools/clip_people.js seats does.
 //
 // Every case is kept once, with where the story was when it began (frame, phase, beat), the place, its greatest depth
 // and how many frames it lasted. tools/story_play.js prints them all and fails the play on those in `fails`.

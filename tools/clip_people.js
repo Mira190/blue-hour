@@ -19,15 +19,15 @@
 //          the roof (tools/clip_probe.js's seat measure, which no play of the story runs: its flight shows no player), and
 //          stills from outside and from the next seat.
 // STORY=n: the story opened at frame n+1 instead of the map without it. TIER=low PHONE=1 with 390x844: a phone's page.
-// Exits 1 on a hand more than DEEP (0.03 m) in someone for more than 2 frames, an arm more than 5 cm in someone run past,
-// or a head more than DEEP in its own chest for more than a second. How far a run past someone gets is printed for a
+// Exits 1 on a seated head more than 3 cm through a roof, a hand more than DEEP (0.03 m) in someone for more than 2 frames, an arm more than 5 cm in someone run past,
+// or a head or its hair more than HAIR (0.06 m) in its own chest for more than a second. How far a run past someone gets is printed for a
 // look beside the same run on main: head on, a body stops a body, so the distance alone fails nothing.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const probe = require('./clip_probe');
 const { skip, whole } = require('./draw_skip');
 const [,, out = '/tmp/clip-people', size = '1440x900', mode = 'into', names = 'Aoi,Shun'] = process.argv;
-const DEEP = +process.env.DEEP || 0.03;
+const DEEP = +process.env.DEEP || 0.03, HAIR = +process.env.HAIR || 0.06;
 
 function pageSide() {
   const S = window.__skin = {};
@@ -211,7 +211,8 @@ function pageSide() {
         }
       }
       console.log(`${name}${clip ? ` (${clip})` : ''}: head, hair and neck in own chest or shoulders ${hd.deep} m at most (${hd.part || 'nothing'}, ${hd.n || 0} points${hd.at ? `, at ${hd.at.map(v => +v.toFixed(2))}` : ''}), past ${DEEP} m in ${hn} of ${N} readings; hands and forearms in own trunk ${ar.deep} m at most (${ar.part || 'nothing'}), past ${DEEP} m in ${an} of ${N}`);
-      if (hd.deep > DEEP && hn > 4) fail(`${name}: head, hair or neck ${hd.deep} m in their own chest for ${hn} of ${N} readings`);
+      // (hair that lies on a back reads to 4.5 cm with nothing wrong in the picture: Shun's ponytail, in stills from four sides)
+      if (hd.deep > HAIR && hn > 4) fail(`${name}: head, hair or neck ${hd.deep} m in their own chest for ${hn} of ${N} readings`);
       await p.evaluate(() => { const g = window.__game; if (g.cine.active) g.cine.stop(); if (g.player.rig) g.player.rig.root.visible = true; });
     }
   }
@@ -263,6 +264,10 @@ function pageSide() {
 
   const R = await probe.report(p);
   if (R) { const c = R.cases.filter(c => mode === 'seats' ? c.kind === 'seat' : c.kind === 'touch' || c.kind === 'limb' || c.kind === 'bodies'); probe.print({ ...R, cases: c }); }
+  if (R && R.err) fail(`the probe threw: ${R.err}`);
+  // (a head through a roof shows from outside, and a seat with nothing under the hips is no seat: these fail. A thigh in
+  // its bucket seat, a hand round a wheel's rim and soles under a floor mat are printed)
+  if (R && mode === 'seats') for (const c of R.cases) if (c.kind === 'seat' && /head through the roof|no seat under/.test(c.b) && c.depth > 0.03 && c.n > 5) fail(`${c.b}, ${c.depth} m for ${c.n} frames`);
   console.log(`clip_people ${mode}: ${fails.length ? `${fails.length} failed` : 'ok'}; page errors: ${errors.length}`);
   await b.close();
   process.exit(fails.length || errors.length ? 1 : 0);

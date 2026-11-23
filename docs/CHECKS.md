@@ -819,8 +819,39 @@ map's NPC does (`posts`, kind `story`), so the player's step stops at their shou
 guide keeps his body off them, one of them who walks goes round whoever stands in the way, and a player on whom
 someone is set down steps out of them at a walk.
 
-Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
-crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+Not measured by the probe, and said so: the skin itself (hair and collar against the neck are told by the fitted parts
+only), the crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+
+### At the skin (issue 157)
+
+`tools/clip_people.js` is the close measure for the cases the probe leaves as notes. It skins each model on the CPU as
+the GPU does (morphs and bones), calls a point of one body inside another when rays from it along the axes cross that
+body's triangles an odd number of times, and gives its depth as the distance to the nearest triangle. Three modes, each
+with stills on a desktop's page or a phone's (`TIER=low PHONE=1`, 390x844):
+
+- **`into`**: the player walked straight at each of the map's people named from eight directions with the key held, as
+  the play walks into them, and then run past them. What it found on main: the hand that leads the stride 2 to 4.5 cm
+  inside a back or an arm in the one frame the middle stopped at their shoulder, from every side. The cause was the
+  stride and not the post: `walkStep` kept the point the stride reaches out of walls, and not out of people. It now
+  does both, so a walk stops about 0.69 m from someone's middle and a run 0.83 m, and the measure reads no hand in
+  anyone.
+- **`look`**: someone's head, hair and neck against their own chest and shoulders, and their hands and forearms
+  against their trunk, through five seconds of their clip, with a still each second from four sides and one of the
+  deepest reading. Taro's head, 3.8 cm in his chest by the probe's ellipsoids through his Photo clip, is 1.4 cm at the
+  skin at one point and shows nothing in the stills. Shun's ponytail reads 4.5 cm into his upper back and is a
+  ponytail lying on a back in every still; hair fails past 6 cm.
+- **`seats`**: the player at the wheel of their car and in the helicopter, on the map without the story (the story's
+  flight shows no player). It waits for each model to come before boarding: boarded earlier, the helicopter is its
+  stand-in and the car is not drawn at all. The probe's seat measure had thrown at its first ray since it was written
+  (a lamp's sprite in the ray's way asks the ray for a camera), so no seat had been read. Read at last: in the
+  helicopter the head stood 9 cm through the cabin roof and the hands hung into the seat's sides, fixed in `game.js`
+  `heliSit` (the head kept under the roof over it as `cars.js` `sit` does, by `vehicles.js` `roofOver`; the hands in
+  the lap). At the wheel the pose is right; what the probe still prints there is a bucket seat round the thighs and
+  the wheel's rim in the hands. Sinking the body 8 cm for the roof puts the soles that far under the cabin's floor,
+  as it does in the car: under an opaque floor, and printed.
+
+The probe's limb measure in a seat is taken from the limb's own middle out to its points, met from either side: taken
+from the pelvis, the front edge of any cushion stood between a seated hip and its shin and read 15 to 43 cm.
 
 ## Nobody paces (issue 168)
 
