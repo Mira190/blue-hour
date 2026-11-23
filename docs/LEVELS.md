@@ -86,6 +86,59 @@ What is done instead:
 `tools/deck_profile.js <line,...>` prints a road line's profile as a car meets it (the ground, every deck, the line's
 height, across five lanes), and `tools/car_ledge_at.js x,y,z,heading` what the car's rules find under its footprint.
 
+### A railway's embankment is built, not ground (issue 158)
+
+Inside what a player reaches (the planned area and 150 m round it, docs/BOUNDS.md) the paved cells steeper than a
+street were about 80, and almost all lay along one thing: the Yamanote's embankment north of the Scramble (x 427 to
+456, y -910 to -728), 4 to 5 m of earth in the survey, smeared by the 5 m grid over a cell or two either side and kept
+as surveyed because the bed's ballast lay on it. Beside each street under the line the paving climbed a mound to a low
+wall on its top: the owner's "paved mound against a viaduct".
+
+| What | How it took its heights | What it did |
+|---|---|---|
+| The ground under and beside the bed | the survey's embankment, kept wherever a landmark's flat face lay near the ground | a paved bank up to the foot of a wall that stood on the bank's top |
+| The rail's level (`cities/shibuya/rail.py`) | the ground under the track as it is now (the viewer's 10 m grid), smoothed | a function of whatever the grading last did there: with the embankment taken out it would have come down to the street |
+| The bed's walls, masts and abutments | the viewer's 10 m grid | not the ground the game draws |
+
+What is done instead: the embankment is a built thing. `street_ground.py` `viaduct()` marks the nodes within 12 m of a
+track that stands 2.5 m or more over the lowest ground within 20 m of it; `lots()` treats them as it treats the ground
+under a building (unknown: the level of the open ground nearest them), and a hero level's ground stays as it is. The
+rail's level is settled once from the ground as it was (`cities/shibuya/rail_levels.json`), and what stands on the
+ground reads `levels.Levels`. So the bed stands on its ashlar walls from the street up, a girder over each street, and
+the paving runs level to the wall's foot. A track at grade or in a cutting keeps its survey. Steep paved cells: 8,130
+to 7,948 on the map (the budget lowered to 8,000). The Scramble's JR fence north of the bridge, which stood panel by
+panel on the ground under each bay's middle, is built by `levels.stepped` (15 bays).
+
+Left: past the reach, the banks at street edges and the escarpment round (385, -575) are as they were. They are seen
+only from the helicopter; `tools/levels_check.py` still counts them.
+
+### What is placed stands on the ground that is drawn
+
+The owner, 23 November, at a still of the bicycle lot under the Yamanote's viaduct: the bicycles have sunk through the
+ground; look for the others like it. Sixty-six bicycles stood up to 1.66 m under the paving. The Scramble's generator
+(`cities/shibuya/scramble.py`) placed everything it builds on the viewer's 10 m grid read bilinearly, the third
+sampler of the table above: it lies up to a metre off the 5 m ground between its nodes, and 19 % of the planned area
+is more than 10 cm off. Now its `ground()` is `levels.Standing`: the game's ground outside the hero levels, and inside
+a level's circle the ground that level was built on. `tools/levels_check.py` `props` holds every placed thing of the
+landmarks to 8 cm of the ground (57 of 64 failed before, none now). The game's own props (benches, signals, stops)
+are seated on the floor by the page when it loads (`game.js` `seat`), so their stored heights are not what is drawn.
+
+Left, and not this work's to change: inside the Scramble's circle the level's own floor under its viaduct north of the
+girder bridge (x 425 to 440, y -1000 to -910) is the survey's embankment, 4 m of paved mound under a viaduct drawn on
+columns, and the lot at the circle's edge lies on the slope down from it. Taking it out is a change to the hero
+level's floor (docs/HERO.md).
+
+### A picture stands on its building's face (issue 169)
+
+A sign is placed by its own generator from the outline that generator read; the page draws the city model's solid.
+Where the two differ the picture lay inside the solid: a blade at Center Gai's mouth 0.65 m into its building, and
+the station's works hoarding on the Scramble's own outline of the station, 16 m inside the city model's box, where
+nobody could see it. `pipeline/landmarks.py` `signs_out` moves each upright picture whose middle and front are inside a
+solid out of it: a board the way it faces, to the face it is to be read on, a blade through the nearest face until its
+root is at the wall; what stood on the ground is set on the ground where it now is. `tools/sign_check.py` fails a
+picture left inside (4 before, 0 now), beside the two faults it already failed: a picture turned to a wall, and one
+with nothing behind it (each upright picture has had a back since 7dd371a3).
+
 ### What was tried and withdrawn: a retaining block on every break
 
 The first answer to issue 158 put a solid block over every cell where the graded ground broke by more than 1.2 m:
@@ -119,6 +172,6 @@ for ground-hugging surfaces only, and a wall is level-topped.
 - Inside the hero levels the guard rails rake with the graded street and the JR fence steps per panel
   (`cities/shibuya/scramble.py`, `hero.py`, `hero_miyamasu.py`): the `tops` check holds them (no tooth today); they
   are not yet built by `levels.stepped`.
-- Issue 158's walls at street edges, as above: not built yet. The check's `slopes` budget is a ratchet at today's
-  count until they are.
+- Issue 158 past the planned area's reach: the banks at street edges and the escarpments between two streets are as
+  they were (seen from the helicopter only). The check's `slopes` budget is a ratchet at today's count.
 - The utility poles and shop signs of `city.py` still take their height from the build's elevation model.
