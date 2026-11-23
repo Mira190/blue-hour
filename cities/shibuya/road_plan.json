@@ -3,30 +3,34 @@
  "report": {
   "pieces": 4905,
   "km": 360.36,
-  "closed": 9,
-  "closed_km": 0.8,
+  "closed": 15,
+  "closed_km": 1.07,
   "closed_why": {
    "the built model stands across it": 6,
-   "no car fits along it": 3
+   "no car fits along it": 3,
+   "no car fits between its walls: 4.6 m along most of it (a two-way street needs 5.5 m)": 1,
+   "no car fits between its walls: 4.4 m along most of it (a two-way street needs 5.5 m)": 1,
+   "a one-way street into a dead end: no car may leave it": 3,
+   "leads only into a lane closed to cars": 1
   },
-  "quiet": 363,
-  "quiet_km": 23.64,
+  "quiet": 360,
+  "quiet_km": 23.49,
   "bus": 1206,
   "bus_km": 97.92,
   "one_way": 1656,
   "node_degrees": {
-   "1": 561,
-   "2": 145,
-   "3": 2130,
-   "4": 586,
-   "5": 34,
-   "6": 5,
+   "1": 558,
+   "2": 149,
+   "3": 2126,
+   "4": 585,
+   "5": 35,
+   "6": 4,
    "7": 1
   },
   "ends": {
    "gate": 230,
-   "dead end": 329,
-   "closure": 2
+   "dead end": 327,
+   "closure": 1
   },
   "extent": [
    -2700.0,
@@ -34,6 +38,14 @@
    -3100.0,
    900.0
   ],
+  "playable_closed": {
+   "1663": "a one-way street into a dead end: no car may leave it",
+   "1665": "a one-way street into a dead end: no car may leave it",
+   "1668": "no car fits between its walls: 4.6 m along most of it (a two-way street needs 5.5 m)",
+   "1686": "no car fits between its walls: 4.4 m along most of it (a two-way street needs 5.5 m)",
+   "1687": "leads only into a lane closed to cars",
+   "4287": "a one-way street into a dead end: no car may leave it"
+  },
   "survey": {
    "matched": 4895,
    "unmatched": 10,
@@ -59,16 +71,6 @@
   "solids_raised_over_a_road": 0
  },
  "ends": [
-  {
-   "at": [
-    466.4,
-    -1197.9
-   ],
-   "kind": "closure",
-   "piece": 4287,
-   "class": "trunk",
-   "beyond": "the built model stands across it"
-  },
   {
    "at": [
     508.6,
@@ -2214,29 +2216,11 @@
   },
   {
    "at": [
-    254.6,
-    -926.0
-   ],
-   "kind": "dead end",
-   "piece": 1663,
-   "class": "residential"
-  },
-  {
-   "at": [
     306.2,
     -1177.3
    ],
    "kind": "dead end",
    "piece": 1704,
-   "class": "unclassified"
-  },
-  {
-   "at": [
-    347.5,
-    -987.2
-   ],
-   "kind": "dead end",
-   "piece": 1665,
    "class": "unclassified"
   },
   {

@@ -813,7 +813,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const CW = Wd.trees && Wd.trees.crowns ? Wd.trees.crowns() : []; // (and its crown: where its leaves begin, how far out and up they reach)
     for (let i = 0; i < TR.length; i += 4) { const q = posts.add(TR[i], TR[i + 1], TR[i + 2], TR[i + 3], 'tree'), j = i / 4 * 3; if (CW.length) { q.hb = CW[j]; q.rc = CW[j + 1]; q.top = CW[j + 2]; } } }
   // (and a hero level's own lamp posts, hero[].posts: drawn by its model, solid here)
-  for (const h of G.hero || []) for (const [x, y] of h.posts || []) posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp');
+  // A run of them closer than a body is a wall the level draws (SKY GATE's hall: posts every 0.25 m along its panels), marked
+  // q.wall: the chase camera stops at it along the whole line from your head (wallCut), where a lamp post it looks past
+  // unless it stands at the lens. Taken for a post, the hall's wall against the tower stood between you and the lens 2.3 m
+  // from it, and the frame was the wall's dark back with you behind it (the owner's report, 23 November 2026; issue 181)
+  for (const h of G.hero || []) {
+    const P = h.posts || [], qs = P.map(([x, y]) => posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp'));
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) if (Math.hypot(P[i][0] - P[j][0], P[i][1] - P[j][1]) < 0.45) { qs[i].wall = qs[j].wall = true; }
+  }
   // (and its queue belts, hero[].belts: points along each belt, 0.2 m apart, so that nobody, the guide included, walks through one)
   for (const h of G.hero || []) for (const [x, y] of h.belts || []) posts.add(x, y, (h.z ?? nav.terrain(x, y)) + 0.3, 0.06, 'column');
   // (and what stands round in it and is a fence however low, hero[].rounds [x, y, r]: a planter's rail, which the walker's
@@ -1747,7 +1754,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a pose at the kerb of a place on the roads (router.place), facing the way it goes
   function kerbPose(pl, off) {
     roadNet.at(pl.line, pl.s, rq);
-    const hx = rq.hx * pl.dir, hy = rq.hy * pl.dir, k = (off ?? OECars.kerbOf(roadNet.L[pl.line].c, roadNet.L[pl.line].cw)) * keepSign;
+    const hx = rq.hx * pl.dir, hy = rq.hy * pl.dir;
+    const l0 = roadNet.L[pl.line];
+    let k = off ?? OECars.kerbOf(l0.c, l0.cw);
+    // (its outer side inside the asphalt the street's class draws, street_ground.py's half width: kerbOf's 4.4 m on a
+    // street drawn 4.5 m out stood half the car on the kerb wherever no hero level draws the ground: docs/ROADS.md, the first drive)
+    if (off == null) k = Math.max(OECars.LANE, Math.min(k, (l0.cw > 0 ? l0.cw / 2 : ROAD_HALF[l0.c] || 3.5) - 0.95 - 0.25));
+    // (where a hero level draws the carriageway, pulled in only as far as its kerb, never over it onto the paving: by the
+    // west exit Jingu-dori's one lane took your car 4.4 m out, onto the footway, as the rides were by Hachiko, #54)
+    if (off == null && nav.carriageway) {
+      const min = Math.min(k, OECars.LANE), fits = kk => { const lat = (kk + 1.1) * keepSign; for (const a of [-2.3, 0, 2.3]) if (nav.carriageway(rq.x + hx * a - hy * lat, rq.y + hy * a + hx * lat) === false) return false; return true; };
+      while (k > min && !fits(k)) k -= 0.2;
+      k = Math.max(k, min);
+    }
+    k *= keepSign;
     // (the floor a car's wheels take there, within a kerb of the road's own height: never a planter's or a plinth's top by it)
     const x = rq.x - hy * k, y = rq.y + hx * k, f = nav.floorAt(x, y, rq.z + 0.3 + OECars.CAR_STEP - nav.STEP);
     return { x, y, z: f ? f.z : rq.z, h: Math.atan2(hx, hy) };
@@ -6896,7 +6916,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (L < 0.8) return 1;
       let t = 1;
       for (const q of postsNear(b.x, -b.z, 2.5)) {
-        if (q.kind !== 'tree' && q.kind !== 'lamp') continue; // (a planter's low rail and a queue belt are under the lens)
+        if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue; // (a planter's low rail and a queue belt are under the lens; a level's wall is wallCut's)
         if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
         const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
         if (d2 > R * R || (1 - s) * L > 1.5) continue;
@@ -6909,7 +6929,24 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // shoulder (issue 71), a trunk or a pole filled half a phone's frame and hid you behind it, at Hachiko and frame 7's
     // corner; there the camera comes in past it, as for a wall)
     // (in the air nothing is looked past: what the probe meets up there is a tower's corner, not a post)
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g); };
+    // a hero level's walls (posts in a row, q.wall), which nav.clearFraction does not hold: the fraction of the line from your
+    // head to the lens before it meets one, from its foot to 6 m over it, never looked past (in the air, over them)
+    const wallCut = (a, b) => {
+      if (air) return 1;
+      const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
+      if (L < 0.3) return 1;
+      let t = 1;
+      for (const q of postsNear(ax + dx / 2, ay + dy / 2, L / 2 + 0.6)) {
+        if (!q.wall) continue;
+        const R = q.r + 0.3, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
+        if (d2 > R * R) continue;
+        const e = Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L), z = a.y + (b.y - a.y) * e;
+        if (z < q.z - 0.5 || z > q.z + 6) continue;
+        t = Math.min(t, e);
+      }
+      return t;
+    };
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b)); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
     // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
@@ -6968,6 +7005,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // sight and the other not, and the helicopter was hidden behind the roof's edge for seconds)
     const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
+    // (behind a level's wall the lens comes in front of it at once, as in the air: eased in, a swing round put it behind the
+    // wall for a few frames, the wall's back filling the picture)
+    const wallIn = pull < 1 && wallCut(camTarget, camPos) < 0.97;
     // (in the air a tower comes between in a frame: the lens is in front of it in that frame, and eases back out after it.
     // Eased in as on the street, at 170 km/h the helicopter went behind a tower's corner for a few frames and came out
     // again, hidden and shown, as if the model had a hole in it: the owner's report, November 2026)
@@ -6980,7 +7020,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const fa = Math.min(clear(aheadT, aheadP), clear(aheadM, aheadP));
       if (fa < 1) pullAhead = Math.min(pull, Math.max(0.15, fa - 0.04));
     }
-    if (jumped) { /* (set above) */ } else if (air && pull < cam.pull) cam.pull = pull;
+    if (jumped) { /* (set above) */ } else if ((air || wallIn) && pull < cam.pull) cam.pull = pull;
     else cam.pull += pullAhead < cam.pull ? -Math.min(cam.pull - pullAhead, Math.max(dt * (air ? 3 : 2), (cam.pull - pullAhead) * dt * 4)) : Math.min(pullAhead - cam.pull, dt * 0.8);
     if (cam.pull < 1) camPos.lerpVectors(camTarget, camPos, cam.pull);
     // pulled in that close by a wall, it may be over a car: then it looks down over the roof
@@ -6991,7 +7031,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camWant.subVectors(camPos, camTarget);
     if (jumped || camSmooth.distanceTo(camPos) > 60 || camOff.distanceTo(camWant) > 60) camOff.copy(camWant);
     camOff.lerp(camWant, close ? 1 - Math.exp(-dt * 10) : veh ? 1 - Math.exp(-dt * 16) : air ? 1 - Math.exp(-dt * 7) : 1);
-    if (air && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
+    if ((air || wallIn) && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
     camPos.addVectors(camTarget, camOff);
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
@@ -7016,7 +7056,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (f < 1) camPos.lerpVectors(camTarget, camPos.clone(), Math.max(0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
-    if (cam.trace) Object.assign(cam.trace, { jumped, f, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
+    if (cam.trace) Object.assign(cam.trace, { jumped, f, wallIn, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
     live.pos.copy(camPos);
     live.look.copy(camTarget);
     // looking up at a landmark on arrival (cam.tilt): over your head, until you move, steer or drag the view
