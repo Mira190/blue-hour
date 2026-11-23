@@ -1933,16 +1933,21 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // the footway, out of the press, as people do when a kerb fills with umbrellas. Measured where the canopies are,
       // not where the places were given. Twice at most while its umbrella is up. Until November 2026 frame 7's kerb
       // stood under canopies running through each other after a long play, issue 187)
-      if (!(q.umbW > 0)) q.umbMoved = q.umbChk = 0;
-      else if (q.umbR > 0 && sp === 0 && (q.ph === 'wait' || q.lst) && q.g && !(q.lead >= 0) && (q.umbMoved || 0) < 2 && (q.umbChk = (q.umbChk || 0) + dt) >= 1) {
+      // (and one stood with no umbrella whose head stands as high as a neighbour's rim and is under that canopy: the canopy's
+      // holder cannot see to it, so the one under it finds another place, as above, whichever comes first on the list. A
+      // man waiting 0.45 m from a woman's umbrella stood with his head in it, main's story3 of 23 November)
+      if (!(q.ph === 'wait' || q.lst)) q.umbMoved = q.umbChk = 0;
+      else if (sp === 0 && q.g && !(q.lead >= 0) && (q.umbMoved || 0) < 2 && (q.umbChk = (q.umbChk || 0) + dt) >= 1) {
         q.umbChk = 0;
         const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
         let inside = false;
         for (let a = -1; a <= 1 && !inside; a++) for (let b = -1; b <= 1 && !inside; b++) {
           for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
             const o = P[k];
-            if (k >= i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || (o.lead >= 0 ? o.lead : o.id) === gq) continue; // (the earlier of the two keeps its place; one walking by is past in a moment; friends lean apart)
-            if (Math.hypot(mx - o.x - (o.ucx || 0), my - o.y - (o.ucy || 0)) < q.umbR + o.umbR - UMB_RIM) { inside = true; break; }
+            if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || (o.lead >= 0 ? o.lead : o.id) === gq) continue; // (one walking by is past in a moment; friends lean apart)
+            const ox = o.x + (o.ucx || 0), oy = o.y + (o.ucy || 0);
+            if (q.umbR > 0) { if (k < i && Math.hypot(mx - ox, my - oy) < q.umbR + o.umbR - UMB_RIM) { inside = true; break; } } // (of two canopies, the earlier keeps its place)
+            else if (q.crown > o.umbRim - 0.03 && Math.hypot(q.x - ox, q.y - oy) < o.umbR + 0.1) { inside = true; break; } // (a head under a canopy, a head's width in from its rim)
           }
         }
         if (inside) {

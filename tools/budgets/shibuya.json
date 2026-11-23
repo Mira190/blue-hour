@@ -260,17 +260,17 @@
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 308.5,
-    "tex_mb": 177,
+    "tex_mb": 173,
     "buf_mb": 83.05000000000001,
-    "gpu_mb": 272,
+    "gpu_mb": 264,
     "js_ms": 216.39999999999998,
     "at": {
      "draws": 308,
      "tris": 799353,
      "passes": 10.0,
      "px_x": 3.29,
-     "tex_mb": 168.8,
-     "gpu_mb": 252.35
+     "tex_mb": 164.3,
+     "gpu_mb": 244.7
     },
     "noise": {
      "draws": 20,
@@ -284,20 +284,20 @@
    "frame 2": {
     "draws": 365,
     "tris": 953000,
-    "passes": 9,
-    "px_x": 2.41,
+    "passes": 10,
+    "px_x": 3.46,
     "tex_n": 315.5,
-    "tex_mb": 177,
+    "tex_mb": 172,
     "buf_mb": 83.3,
-    "gpu_mb": 271,
+    "gpu_mb": 263,
     "js_ms": 41.099999999999994,
     "at": {
      "draws": 305,
      "tris": 772773,
      "passes": 9.0,
      "px_x": 2.29,
-     "tex_mb": 168.3,
-     "gpu_mb": 251.65
+     "tex_mb": 163.7,
+     "gpu_mb": 243.9
     },
     "noise": {
      "draws": 20,
@@ -314,17 +314,17 @@
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 322.0,
-    "tex_mb": 177,
+    "tex_mb": 172,
     "buf_mb": 88.1,
-    "gpu_mb": 266,
+    "gpu_mb": 261,
     "js_ms": 87.55,
     "at": {
      "draws": 374,
      "tris": 872566,
      "passes": 10.0,
      "px_x": 3.29,
-     "tex_mb": 168.6,
-     "gpu_mb": 257.2
+     "tex_mb": 164.0,
+     "gpu_mb": 252.7
     },
     "noise": {
      "draws": 20,
@@ -341,17 +341,17 @@
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 337,
-    "tex_mb": 191,
+    "tex_mb": 186,
     "buf_mb": 100.9,
-    "gpu_mb": 293,
+    "gpu_mb": 288,
     "js_ms": 75.9,
     "at": {
      "draws": 339,
      "tris": 867731,
      "passes": 10,
      "px_x": 3.29,
-     "tex_mb": 182.2,
-     "gpu_mb": 283.7
+     "tex_mb": 177.7,
+     "gpu_mb": 279.1
     },
     "noise": {
      "draws": 20,
@@ -368,17 +368,17 @@
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 334,
-    "tex_mb": 182,
+    "tex_mb": 177,
     "buf_mb": 100.2,
-    "gpu_mb": 281,
+    "gpu_mb": 276,
     "js_ms": 427.5,
     "at": {
      "draws": 461,
      "tris": 968120,
      "passes": 10,
      "px_x": 3.29,
-     "tex_mb": 173.5,
-     "gpu_mb": 272.3
+     "tex_mb": 169.0,
+     "gpu_mb": 267.7
     },
     "noise": {
      "draws": 20,
@@ -395,17 +395,17 @@
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 337,
-    "tex_mb": 181,
+    "tex_mb": 176,
     "buf_mb": 95.5,
-    "gpu_mb": 277,
+    "gpu_mb": 274,
     "js_ms": 109.7,
     "at": {
      "draws": 336,
      "tris": 781587,
      "passes": 10,
      "px_x": 3.29,
-     "tex_mb": 172.4,
-     "gpu_mb": 268.4
+     "tex_mb": 167.8,
+     "gpu_mb": 265.4
     },
     "noise": {
      "draws": 20,
@@ -422,7 +422,7 @@
     "passes": 10,
     "px_x": 3.47,
     "tex_n": 352,
-    "tex_mb": 178,
+    "tex_mb": 174,
     "buf_mb": 92.4,
     "gpu_mb": 271,
     "js_ms": 60.7,
@@ -431,7 +431,7 @@
      "tris": 1268808,
      "passes": 10,
      "px_x": 3.3,
-     "tex_mb": 169.7,
+     "tex_mb": 165.2,
      "gpu_mb": 262.6
     },
     "noise": {
