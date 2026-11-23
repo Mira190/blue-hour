@@ -94,7 +94,7 @@ window.OECompanion = (function () {
   // between them where there is room and round the edge of the crowd where there is not. Pushing off each one in turn
   // got him nowhere in a crowd shoulder to shoulder, and after a second he went through their coats
   const GRID = 0.35, BODY = 0.5, ROOM = 1.15, SPAN = 26;
-  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
+  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1, lean = false, eye = null }) {
     const RUN = speeds.run || speeds.trot * 2.6;
     const root = new THREE.Group();
     root.visible = false;
@@ -133,12 +133,31 @@ window.OECompanion = (function () {
         Object.assign(body, { spine: [a0, a1], flank: half, reach: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), half) });
       }
       root.add(m);
+      if (lean) leanBody(m);
       mixer = new THREE.AnimationMixer(m);
       for (const c of g.animations) acts[c.name] = mixer.clipAction(c);
       s.ready = true;
       play('idle', 0);
       root.visible = s.state !== 'away';
     }, null, e => console.warn('The guide\'s model did not load:', e));
+    // A phone (lean): his body in the lighter index over the same vertices (pipeline/lod_index.mjs: 20,000 triangles of
+    // 90,000, within a thousandth of his size), and the guard hairs' cards (31,500 triangles) drawn only within COAT_M
+    // of the camera, where a phone's screen can show a hair; past it the coat's own picture is the coat. 125,000
+    // triangles of a phone's frame were this one animal.
+    const COAT_M = 7;
+    let coat = null;
+    function leanBody(m) {
+      m.traverse(o => { if (o.isMesh && /guard|outer/i.test(`${o.name} ${(o.material && o.material.name) || ''}`)) coat = o; });
+      fetch(url.replace(/\.glb$/, '.lod.json')).then(r => (r.ok ? r.json() : null)).then(L => {
+        if (!L) return;
+        for (const part of Object.values(L.parts || {})) m.traverse(o => {
+          const g = o.isMesh && o.geometry;
+          if (!g || g.userData.lean || !g.index || g.attributes.position.count !== part.vertices) return; // (a model built again without its index: drawn whole)
+          const b = Uint8Array.from(atob(part.index), c => c.charCodeAt(0)).buffer, I = part.bits === 16 ? new Uint16Array(b) : new Uint32Array(b);
+          g.setIndex(new THREE.BufferAttribute(I, 1)); g.userData.lean = true;
+        });
+      }).catch(() => {}); // (no index: drawn whole)
+    }
     function play(name, fade = 0.3) {
       if (!acts[name] || cur === name) return;
       const a = acts[name];
@@ -431,6 +450,7 @@ window.OECompanion = (function () {
     function shade(a) { for (const m of mats) { m.transparent = a < 1 || !!m.userData.thin; m.opacity = a; m.depthWrite = a > 0.5 && !m.userData.thin; } }
     function tick(dt) {
       if (s.state === 'away') return;
+      if (coat && eye) coat.visible = Math.hypot(eye.position.x - root.position.x, eye.position.y - root.position.y, eye.position.z - root.position.z) < COAT_M;
       s.t += dt;
       const px = player.x, py = player.y;
       // (where he is and how far off the player as the tick begins: what it may not end further inside of, keepOff's rule)
