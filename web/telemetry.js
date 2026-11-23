@@ -669,50 +669,25 @@ window.OETelemetry = (function () {
   } catch (e) { /* Safari before 18: no Event Timing */ }
 
   // ---------------------------------------------------------------- a page that died on screen
-  // While the page is visible a small note says it is alive (refreshed every five seconds); it is taken away
-  // when the tab is put away or the page closes. A note left behind, and older than half a minute (another
-  // tab of the site keeps its own fresh), means the page ended without closing: the browser or the GPU
-  // process crashed, or the system killed it for memory. The next page load reports it.
-  const ALIVE = 'bh-alive-', crashes = [];   // the reports wait for the first view, so they carry its tier
-  // (lv: the level of a phone's set the page runs at, quality.js level: a death is counted against that level)
-  // a phone whose WebGL context is lost is counted as having died there at once (noteLost, below): iOS often takes the whole
-  // page a moment later, and Safari gives a page two deaths before it stops loading it, so the next load must already be a
-  // level lighter. The note says so (lost), and the next load, which finds the page dead, does not count it twice.
+  // The note that says the page is alive, and the deaths counted from the notes left behind, are the page's own
+  // (web/lifeline.js, issue 128: they make a killed phone's next load lighter, measured or not). Here the note is given
+  // what the measurements know (the view's readiness and step, its spot and mode, how much it had downloaded), and each
+  // dead page the load found is reported as a "crash", once the first view is open so that it carries the tier.
+  const crashes = [];
+  // a phone whose WebGL context is lost is counted as having died there at once (quality.js lost, from glcare.js; noteLost
+  // below for a view glcare does not watch): iOS often takes the whole page a moment later, and Safari gives a page two
+  // deaths before it stops loading it, so the next load must already be a level lighter. The note says so (lost), and the
+  // next load, which finds the page dead, does not count it twice.
   let lostNoted = false;
-  const lvNow = () => { try { const Q = window.OEQuality; return Q && Q.lean() ? Q.city().lighter : undefined; } catch (e) { return undefined; } };
   // (mb: what the view has downloaded, decoded, in MB: the browsers that give no heap (Safari, iOS) still say how much a
   // page held when it died, the memory signal for a phone killed mid-load)
   const held = () => { let b = 0; try { const t0 = cur ? cur.t0 : 0; for (const r of performance.getEntriesByType('resource')) if (r.startTime >= t0) b += r.decodedBodySize || 0; } catch (e) { /* no Resource Timing */ } return Math.round(b / 1048576); };
-  const alive = () => { try { localStorage.setItem(ALIVE + sid, JSON.stringify(Object.assign({ t: Date.now(), up: Math.round(now() / 1000), ready: !!(cur && cur.ready), stage, lv: lvNow(), mb: held(), lost: (lostNoted || !!(window.OEQuality && OEQuality.lostHere && OEQuality.lostHere())) || undefined }, cur ? { view: cur.kind, city: cur.city } : {}, snap()))); } catch (e) { /* storage blocked */ } };
-  const gone = () => { try { localStorage.removeItem(ALIVE + sid); } catch (e) { /* storage blocked */ } };
-  // This tab's last page load, by the tab's own session storage, which outlives a page that was killed: Safari
-  // loads a tab again the moment its page dies, so the note it left is seconds old, and taken for another tab's it
-  // went uncounted; the second load was then as heavy as the first, died the same way, and left the visitor on
-  // "A problem repeatedly occurred" (issue 443). A note of this tab's own is a dead page's at any age.
-  let before = null;
-  try { before = sessionStorage.getItem('bh-sid'); sessionStorage.setItem('bh-sid', sid); } catch (e) { /* storage blocked */ }
-  try {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const k = localStorage.key(i);
-      if (!k || k.indexOf(ALIVE) || k === ALIVE + sid) continue;
-      let o = null; try { o = JSON.parse(localStorage.getItem(k)); } catch (e) { o = null; }
-      const age = o ? Date.now() - o.t : 1e12;
-      if (age < 30000 && k !== ALIVE + before) continue; // (another tab's, still alive; this tab's own last page is dead whatever its age)
-      localStorage.removeItem(k);
-      // the memory loop (quality.js died; issue 443): a map whose page died on this device loads lighter the next
-      // time, one step for each death, so that a phone it killed once is not killed the same way again
-      if (o && o.city && (o.view === 'game' || o.view === 'city') && age < 14 * 864e5) try {
-        let d = null; try { d = JSON.parse(localStorage.getItem(`bh-died-${o.city}`)); } catch (e) { d = null; }
-        // (lv: the lightest level a page of this map has died at, for quality.js level; a page from before levels
-        // were written died at 0 or 1, the sets of that time)
-        if (o.lost) throw 0; // (counted when its context was lost: noteLost)
-        const was = d && d.n > 0 ? (d.lv != null ? d.lv : 1) : -1, lv = Math.max(was, o.lv != null ? o.lv : 1);
-        localStorage.setItem(`bh-died-${o.city}`, JSON.stringify({ n: Math.min(9, ((d && d.n) || 0) + 1), t: Date.now(), ready: !!o.ready, lv }));
-      } catch (e) { /* storage blocked */ }
-      if (age < 3 * 864e5) crashes.push(() => track('crash', { prev_view: o.view, prev_city: o.city, prev_spot: o.spot, prev_mode: o.mode, prev_ready: o.ready, prev_stage: o.stage || undefined, prev_lv: o.lv, prev_mb: o.mb, prev_up_s: o.up, ago_s: Math.round(age / 1000) }));
-    }
-  } catch (e) { /* storage blocked */ }
-  setInterval(() => { if (!document.hidden && !going) alive(); }, 5000);
+  const L = window.OELifeline || null;
+  const alive = () => { if (L) L.alive(); };
+  if (L) {
+    L.extra(() => Object.assign({ ready: !!(cur && cur.ready), stage: stage || undefined, mb: held() }, lostNoted ? { lost: true } : {}, cur ? { view: cur.kind, city: cur.city } : {}, snap()));
+    for (const o of L.found) if (o.age < 3 * 864e5) crashes.push(() => track('crash', { prev_view: o.view, prev_city: o.city, prev_spot: o.spot, prev_mode: o.mode, prev_ready: o.ready, prev_stage: o.stage || undefined, prev_lv: o.lv, prev_mb: o.mb, prev_up_s: o.up, ago_s: Math.round(o.age / 1000) }));
+  }
 
   // ---------------------------------------------------------------- errors and the GPU
   let errors = 0;
@@ -752,16 +727,16 @@ window.OETelemetry = (function () {
   // ---------------------------------------------------------------- the page's life
   addEventListener('hashchange', () => { changed = now(); view(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { gone(); sendTime(false); flush(); } else { alive(); bank(); }
+    if (document.hidden) { sendTime(false); flush(); } else bank(); // (the alive note goes and comes back by itself: lifeline.js)
   });
   // how the page ended: where the visitor was, how long the page was open, how long since they last touched it
   addEventListener('pagehide', () => {
     if (cur && !going) track('exit', { page_s: Math.round(now() / 1000), view_s: Math.round((cur.active + (cur.since != null ? now() - cur.since : 0)) / 1000), views,
       idle_s: lastInput > 0 ? Math.round((now() - lastInput) / 1000) : null, ready: cur.ready, tour_max: cur.tourMax || undefined, hidden: document.hidden });
-    going = true; gone(); leave('closed'); flush();
+    going = true; leave('closed'); flush();
   });
   // back from the back-forward cache: the page lives again, so its view starts over (ready already, no load)
-  addEventListener('pageshow', e => { if (e.persisted) { going = false; alive(); view(true); } });
+  addEventListener('pageshow', e => { if (e.persisted) { going = false; view(true); } });
   setInterval(() => { if (activeNow()) { sendTime(false); flush(); } }, 300000);
 
   // how the page itself arrived: time to first byte and first paint, once per page
@@ -775,7 +750,7 @@ window.OETelemetry = (function () {
   alive();
   // (switched off: nothing waits and nothing more is taken. The page's note to itself that it is alive stays: it is not
   // sent, and it is how a phone whose page died loads a level lighter the next time, quality.js)
-  halt = () => { queue = []; stopped = true; api.on = false; };
+  halt = () => { queue = []; stopped = true; api.on = false; if (L) L.extra(null); }; // (the page's own note goes on, with only what it keeps itself: lifeline.js)
   const api = { on: true, consent, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample };   // frames, here, sample: for tools/telemetry_check.js
   return api;
 })();

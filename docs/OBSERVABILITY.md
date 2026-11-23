@@ -113,6 +113,12 @@ note older than 30 s that is still there when the site next opens means the page
 the browser or its GPU process crashed, or the system killed it for memory. The next page load sends a
 `crash` with where it was. A tab killed in the background is normal and is not counted.
 
+The note and the death it counts are the page's own, not the measurements' (`web/lifeline.js`, issue 128): the next
+load counts the death against its map and the phone's level (`bh-died-<map>`) and loads a level lighter
+(`quality.js` `level`) with Do Not Track, Global Privacy Control, the Credits switch off, `?telemetry=off` or an
+automated browser as well; nothing of it leaves the device. Where the measurements run, `telemetry.js` adds what it
+knows to the note (the spot, the mode, `mb`) and reports each dead page found as the `crash`.
+
 The report and the dashboard answer:
 
 - **Where do visitors stay?** Minutes by city, spot and mode, with the share engaged.

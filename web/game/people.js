@@ -2149,7 +2149,7 @@ transformed = crowdPose(transformed, false);`);
   // real: the textured Rocketbox characters (the NPCs' cast, build_people.py --npcs) the nearest walkers are drawn
   // as, each the sex of their far figure, instead of the far crowd's own character close up: at eye level a
   // passer-by is a person, with the scanned face, hair and clothes the NPCs have (none: the far crowd's own)
-  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0 } = {}) {
+  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity } = {}) {
     { const m = /[?&]crowdnear=(\d+)/.exec(location.search); if (m) near = +m[1]; } // (to look at the far copies close up: tools/game_shot.js QUERY=?crowdnear=0)
     // a real person's height: the Japanese adult's mean (MHLW National Health and Nutrition Survey 2019: women
     // 1.58 m, men 1.71 m; a city may say otherwise in game.crowd.height) with the far figure's own spread
@@ -2186,7 +2186,9 @@ transformed = crowdPose(transformed, false);`);
     // past COARSE_M (by the lens, as near is counted below) a cast member's walker is drawn as its coarser copy: a walker 60 m
     // off is about 35 px tall on a phone, and its copy's 1,000 to 1,400 triangles were one for every three pixels (issue 61);
     // the step has 4 m of slack either way, so a walker at the edge does not change back and forth
-    let COARSE_M = 60;
+    // (coarseM: a phone's is nearer, game.js; farM: past it, by the lens, a walker is not drawn at all, a phone's 260 m, where
+    // one is some ten pixels tall at the governor's scale)
+    let COARSE_M = coarseM;
     { const m = /[?&]coarsem=(\d+)/.exec(location.search); if (m) COARSE_M = +m[1]; } // (to look at the coarser copies close up: QUERY=?crowdnear=0&coarsem=0)
     let lodX = 0, lodY = 0, lodZoom = 1;
     const SWAP = ['iSkin', 'iHair', 'iTop', 'iLegs', 'iPat', 'aAnim', 'iUmb', 'iDress', 'iDye'], tmpDress = new THREE.Vector3(), tmpDye = new THREE.Vector2();
@@ -2501,6 +2503,7 @@ transformed = crowdPose(transformed, false);`);
       at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
       if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 2.3, 2.3)))) { unshow(p); return; } // (or behind the street wall: visibility.js)
+      if (farM < Infinity && Math.hypot(p.rx - lodX, p.ry - lodY) / lodZoom > farM) { unshow(p); return; }
       if (p.ms && p.ms.length > 1) {
         const d = Math.hypot(p.rx - lodX, p.ry - lodY) / lodZoom, lod = d > COARSE_M + (p.lod ? -4 : 4) ? 1 : 0;
         if (lod !== p.lod) { unshow(p); p.lod = lod; p.mesh = p.ms[lod]; p.slot = p.sl[lod]; }

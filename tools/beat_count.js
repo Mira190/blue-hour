@@ -16,7 +16,7 @@ exports.hook = () => {
     let scene_px = 0, scene_targets = 0; for (const t of c.targets.values()) if (t.scene) { scene_px += t.px; scene_targets++; }
     return { draws: c.draws, tris: Math.round(c.tris), passes: c.passes, pass_px: c.pass_px, scene_px, scene_targets, targets: c.targets.size, clears: c.clears, blits: c.blits,
       sky_refresh: c.sky, sky_draws: c.sky_draws, sky_tris: Math.round(c.sky_tris),
-      groups: [...c.groups.entries()].map(([k, v]) => ({ group: k, draws: v.draws, tris: Math.round(v.tris) })).sort((a, b) => b.tris - a.tris).slice(0, 40),
+      groups: [...c.groups.entries()].map(([k, v]) => ({ group: k, draws: v.draws, tris: Math.round(v.tris) })).sort((a, b) => b.tris - a.tris).slice(0, B.top || 40), // (BUDGET_GROUPS=n in tools/story_play.js: the n heaviest)
       by: [...c.by.entries()].map(([k, v]) => ({ target: k, draws: v.draws, tris: Math.round(v.tris), passes: v.passes })).sort((a, b) => b.tris - a.tris || b.draws - a.draws) };
   };
   // the context's state as the page sets it: the framebuffer drawn into, and the viewport

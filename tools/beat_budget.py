@@ -7,7 +7,10 @@ renderbuffers). A beat is one of the episode's frames (and the title before the 
 its stills (of what a frame draws, the second heaviest: a thing drawn once is not the beat's cost). The budgets are in tools/budgets/<map>.json, a set for the desktop's tier and one for a phone's.
 
   tools/beat_budget.py check <samples.jsonl> <desktop|phone> [--map shibuya]   exit 1 on a beat over its budget
-  tools/beat_budget.py set   <samples.jsonl> <desktop|phone> [--margin 0.1]    the budgets from a play (only its beats)
+  tools/beat_budget.py set   <samples.jsonl>... <desktop|phone> [--margin 0.1] the budgets from a play, or better from
+                                                    several of the same code: each measure the median of them, the room
+                                                    over it never under three times what they differed by (only their beats)
+                                                    --parts a.jsonl b.jsonl ...: the files are parts of one play
                                                     --down: only where the play is under the budget it has (after a cut)
   tools/beat_budget.py table [--map shibuya]                                    the budgets as a table for the docs
   tools/beat_budget.py show  <samples.jsonl>                                    a play's beats as measured
@@ -20,6 +23,13 @@ import json, math, sys, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 # what is held to a budget, with the room a play's own variation needs (the crowd and the traffic differ from play to play)
 GATED = {'draws': 0.12, 'tris': 0.12, 'passes': 0.0, 'px_x': 0.05, 'tex_mb': 0.03, 'gpu_mb': 0.03}
+# The room over a beat's reading is never less than this, whatever the share above comes to, nor less than three times
+# what plays of the same code were seen to differ by (set from several plays: the spread is kept in the budgets, "noise").
+# One code played again reads a beat's GPU memory two megabytes apart and its triangles a few percent apart (what has
+# been collected yet, which walkers are near): a ceiling nearer than that to the reading trips on nothing (main went red
+# on 304.2 MB over 304, 22 November 2026). FLOOR is the least room; NOISE what is assumed where no spread was measured.
+FLOOR = {'draws': 30, 'tris': 100000, 'passes': 0, 'px_x': 0.1, 'tex_mb': 8, 'gpu_mb': 8}
+NOISE = {'draws': 20, 'tris': 60000, 'passes': 0, 'px_x': 0.0, 'tex_mb': 2, 'gpu_mb': 2}
 ONCE = ('draws', 'tris', 'passes', 'px_x')   # what one frame draws: the second heaviest still of a beat (beats(), below)
 SHOWN = ['draws', 'tris', 'passes', 'px_x', 'tex_n', 'tex_mb', 'buf_mb', 'gpu_mb', 'js_ms']
 NAMES = {'draws': 'draws', 'tris': 'triangles', 'passes': 'passes', 'px_x': 'pixels shaded, canvases', 'tex_n': 'textures', 'tex_mb': 'textures, MB',
@@ -101,12 +111,31 @@ def main(a):
                 b = d['beats'][n]
                 print('| %s | ' % n + ' | '.join(fmt(k, b[k]) if k in b else '' for k in ks) + ' |')
         return 0
-    got, meta = beats(a[1])
+    dev = a[-1] if cmd in ('set', 'check') else None
+    files = a[1:-1] if dev else a[1:]
+    if '--parts' in files:   # the files are the parts of one play (the story's check plays in three): one play, its beats the heaviest of any part
+        files = [f for f in files if f != '--parts']
+        import tempfile
+        whole = tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False)
+        for p in files:
+            whole.write(open(p).read().rstrip('\n') + '\n')
+        whole.close(); files = [whole.name]
+    plays = [beats(p) for p in files]
+    meta = plays[-1][1]
+    # several plays of the same code: each beat's measure is the median of them, with how far they lay apart
+    got, spread = {}, {}
+    for n in set().union(*[set(g) for g, _ in plays]):
+        got[n] = {}; spread[n] = {}
+        for k in SHOWN:
+            vs = sorted([g[n][k] for g, _ in plays if n in g and k in g[n]], key=lambda x: x[0])
+            if not vs:
+                continue
+            got[n][k] = vs[(len(vs) - 1) // 2] if len(vs) % 2 else ((vs[len(vs) // 2 - 1][0] + vs[len(vs) // 2][0]) / 2.0, vs[len(vs) // 2][1])
+            spread[n][k] = vs[-1][0] - vs[0][0]
     if cmd == 'show':
         for n in order(got):
             print(n.ljust(8), '  '.join('%s %s' % (k, fmt(k, got[n][k][0])) for k in SHOWN if k in got[n]))
         return 0
-    dev = a[2]
     if cmd == 'set':
         d = B.setdefault(dev, {'beats': {}})
         d.update(meta)
@@ -118,7 +147,9 @@ def main(a):
                 v = got[n][k][0]
                 if k in GATED:
                     r = GATED[k] if margin is None else (0.0 if GATED[k] == 0 else margin)
-                    v = v * (1 + r)
+                    noise = max(spread[n].get(k, 0), NOISE[k]) if len(plays) > 1 else NOISE[k]
+                    b.setdefault('at', {})[k] = round(v, 2); b.setdefault('noise', {})[k] = round(noise, 2)
+                    v = v + max(v * r, FLOOR[k], 3 * noise)
                     v = int(math.ceil(v / 1000.0) * 1000) if k == 'tris' else int(math.ceil(v)) if k in ('draws', 'passes', 'tex_mb', 'gpu_mb') else round(v + 0.005, 2)
                 b[k] = min(v, b[k]) if down and k in b and k in GATED else v
         d['beats'] = {n: d['beats'][n] for n in order(d['beats'])}
@@ -136,6 +167,14 @@ def main(a):
             if not b:
                 print('FAIL %s: no budget for this beat (tools/beat_budget.py set, with the play that measured it)' % n); bad += 1; continue
             over = []
+            near = []
+            for k in GATED:
+                # (memory within twice its noise of its ceiling: said, not failed, so that the room is seen to go before it has
+                # gone: each change adds a megabyte under the line until one, no heavier than the rest, is over it)
+                if k in ('tex_mb', 'gpu_mb') and k in got[n] and k in b and got[n][k][0] <= b[k] and b[k] - got[n][k][0] < 2 * max(NOISE[k], b.get('noise', {}).get(k, 0)):
+                    near.append('%s %s of %s' % (NAMES[k], fmt(k, got[n][k][0]), fmt(k, b[k])))
+            if near:
+                print('near %s: %s (little room left: pay for it, or set the budget on purpose)' % (n, '; '.join(near)))
             for k in GATED:
                 if k in got[n] and k in b and got[n][k][0] > b[k]:
                     over.append('%s %s over %s at %s' % (NAMES[k], fmt(k, got[n][k][0]), fmt(k, b[k]), got[n][k][1]))
