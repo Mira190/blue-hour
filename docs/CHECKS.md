@@ -217,7 +217,11 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   previews and the production site stayed on `fc003e3` from 21 to 23 November (#193). Now:
   - `vercel.json` `git.deploymentEnabled` makes no deployment of any branch but `live` (a branch cut before this
     still carries the old file until it merges main; its push is cancelled by `ignoreCommand`, kept as the backstop,
-    and by the project's own Ignored Build Step, the same command, for a branch with no `vercel.json` at all);
+    and by the project's own Ignored Build Step, the same command, for a branch with no `vercel.json` at all). The
+    rule is `"**": false`: Vercel matches branch names with minimatch, whose `*` stops at a slash, so `"*": false`
+    (23 to 24 November) left every `claude/…` and `fix/…` branch on the default, a deployment made and cancelled
+    for each of their pushes (`claude/junctions-175`, `claude/hero-survey-196`) while `main` and `fix-roads-943` made
+    none. A branch on more than one rule is deployed if any of them is true, so `live` still is;
   - `check-passes` carries a `vercel.json` of its own that turns deployments off (`checks.yml`, the passes job);
   - `pages.yml` moves `live` only when what Vercel serves changed since it (`web/`, `vercel.json`, `VERSION`,
     `tools/vercel_build.sh`, `tools/stamp.js`): a pass of docs, tools or checks is published to Pages and tagged,
@@ -840,3 +844,34 @@ fro. Nothing measured whether a walker gets anywhere.
 
 Not measured: whether a walker who stops where the way ends reads as someone waiting (that is for stills), and a
 real phone's crowd, which is thinner than the emulated one only by its tier.
+
+## The glass that mirrors its place (issue 203)
+
+On 23 November 2026 a play from the title on the owner's M3 showed SKY STAGE's glass black in frame 4's Stop, and the
+man at it with a black mask for a face; begun at frame 4 the same stills were right. Nothing here had seen it, for
+two reasons that are now both closed.
+
+- **The cube was never drawn here.** The glass mirrors a cube of the scene taken once, when the level is first shown
+  (`hero.js` `probe`). `tools/story_play.js` draws one frame in thirty and leaves the draws out of the rest, and the
+  cube's six draws were left out with them: every play mirrored an empty cube, so the checks' roof had clean glass
+  whatever a GPU would have drawn in it. A cube's draws are now passed on whatever frame they fall in (the harness
+  wraps `THREE.CubeCamera.prototype.update`): the cube a play mirrors is the one a GPU makes.
+- **Nothing looked at the glass.** At each Stop where a level's cube has been taken, the play now reads the cube back
+  (`hero.probes()`): it must be drawn (over half its texels lit), hold no texel that is no number, and under 0.2% at
+  128 or more (a right cube of the roof at night has none; the guide's whiskers put a third of its sky at 65504).
+  Then it takes the picture twice, with the glass and without it (`hero.glass(false)`), and over the pane's footprint
+  (the pixels the two differ in) sets how light the picture is with the glass against without it: a pane a fifth
+  opaque that adds what it mirrors leaves it about as light (1.1 times on a desktop, 1.9 on a phone, whose 64-pixel
+  cube spreads the towers' lamps over the pane); the black pane left it at 0.35 to 0.4, garbage on Mesa at 3.4. The
+  play fails under 0.7 or over 3. The camera eases between the two pictures, so they are not compared pixel by pixel.
+  Both are in every play that reaches a
+  Stop on the roof, so in `story1`, `budget1`, `storyp` and `storyl`; with `STILLS=1` the picture without the glass is
+  kept beside the still (`4-stop-no-glass.png`).
+
+`?probe=all` puts whoever moves back in the cube (the fault as it was): the check fails on it, which is how it was
+tried. `LINKLAG=ms` plays a GPU that links a program in that many milliseconds, one after another (a software renderer
+links as it is asked, so no draw here meets a program still linking); each still then prints what `world.js`'s gate
+has left out so far. It did not make #203's picture; what it did show is issue 205.
+
+Not measured here: Metal's own reading of the same cube (a Mac shows black where Mesa shows noise: both are the
+garbage, read differently), and the guide's black coat in frame 6's Stop on a phone, which no play here has shown.

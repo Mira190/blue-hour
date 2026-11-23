@@ -60,7 +60,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   // (ENGINE=webkit: Playwright's WebKit, which takes none of Chromium's switches; HEADED=1 for its window)
-  const b = process.env.ENGINE === 'webkit' ? await require('playwright').webkit.launch({ headless: !process.env.HEADED }) : await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
+  const b = process.env.ENGINE === 'safari' ? await require('./safari').launch() : process.env.ENGINE === 'webkit' ? await require('playwright').webkit.launch({ headless: !process.env.HEADED }) : await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   // (DPR=3 PHONE=1: the page as an iPhone has it, three device pixels to the point and its user agent, as tools/mem_check.js opens it)
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +process.env.DPR || 1, hasTouch: w < 500, isMobile: w < 500,
     ...(process.env.PHONE ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' } : {}) });
@@ -73,7 +73,28 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
+  // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
+  // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
+  // complete until its turn in the queue is over; three.js's own wait for a link (LINK_STATUS) is not held. Each still
+  // then prints what the page's gate (world.js gate) has left out of frames so far.
+  const LINKLAG = +(process.env.LINKLAG || 0);
+  if (LINKLAG) await p.addInitScript(lag => {
+    const P = WebGL2RenderingContext.prototype, link = P.linkProgram, get = P.getProgramParameter, due = new WeakMap();
+    let last = 0;
+    P.linkProgram = function (prog) { const t = Math.max(performance.now(), last) + lag; last = t; due.set(prog, t); return link.call(this, prog); };
+    P.getProgramParameter = function (prog, what) { if (what === 0x91B1 && due.has(prog) && performance.now() < due.get(prog)) return false; return get.call(this, prog, what); };
+  }, LINKLAG);
   const DRAW = +(process.env.DRAW || 0);
+  // A cube taken of the scene (a level's reflection probe, hero.js probe) is drawn whatever the frame it falls in: it is
+  // taken once and kept for the beat, and in a frame not drawn its six draws were left out with the rest, so every play
+  // here mirrored an empty cube in the roof's glass and no check saw what a GPU draws there (issue 203).
+  if (DRAW > 1) await p.addInitScript(() => {
+    window.addEventListener('three-ready', () => {
+      const C = window.THREE && window.THREE.CubeCamera, up = C && C.prototype.update;
+      if (!up) return;
+      C.prototype.update = function (...a) { const D = window.__draw, was = D && [D.on, D.dry]; if (D) { D.on = true; D.dry = false; } try { return up.apply(this, a); } finally { if (D) [D.on, D.dry] = was; } };
+    }, { once: true });
+  });
   if (DRAW > 1) await p.addInitScript(([n, tasks, glcount]) => {
     const P = WebGL2RenderingContext.prototype, raf = window.requestAnimationFrame.bind(window), D = window.__draw = { all: false, on: true, frames: 0, drawn: 0, skipped: 0, steps: 0, js: 0, rendered: false, own: 0 };
     // The page's frames are taken over here, as the display gives them: every callback asked for in one frame is called in
@@ -346,7 +367,54 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // clear is passed on to the renderer. Where nothing is counted, nothing is asked for. The photographs the story itself
   // takes are drawn as ever)
   const NOSTILL = process.env.STILLS === '0', dry = on => (NOSTILL && DRAW > 1 ? p.evaluate(on => { window.__draw.dry = on; }, on) : null);
-  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await p.evaluate(by => { const D = window.__draw; window.__beat.names(by); D.counted = null; D.count = true; }, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await p.evaluate(() => { const B = window.__beat, D = window.__draw, c = D.counted; D.count = false; D.counted = null; B.names(false); return c ? B.report([c]) : null; }).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } if (BARE && !NOSTILL && BARE.test(name)) { const st = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }); try { fs.mkdirSync(`${out}/bare`, { recursive: true }); await p.screenshot({ path: `${out}/bare/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no bare still ${name})`); } await st.evaluate(e => e.remove()); } ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET && !name.startsWith('into-')) await budget(name, counted); /* (a walk-into's still is the harness's own view from the side, not a beat of the story: issue 126) */ await drawAll(false); await dry(false); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  const snap = async name => { const t0 = Date.now(); const own = BUDGET && DRAW > 1 && ONE; if (NOSTILL && !own) { ST.n++; return; } await dry(true); if (own) await p.evaluate(by => { const D = window.__draw; window.__beat.names(by); D.counted = null; D.count = true; }, !!process.env.BUDGET_BY).catch(() => {}); await drawAll(true); await hold(true); const counted = own ? await p.evaluate(() => { const B = window.__beat, D = window.__draw, c = D.counted; D.count = false; D.counted = null; B.names(false); return c ? B.report([c]) : null; }).catch(() => null) : null; const t1 = Date.now(); if (!NOSTILL) try { await p.screenshot({ path: `${out}/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still ${name})`); } if (BARE && !NOSTILL && BARE.test(name)) { const st = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }); try { fs.mkdirSync(`${out}/bare`, { recursive: true }); await p.screenshot({ path: `${out}/bare/${name}.png`, timeout: 120000 }); } catch (e) { console.log(`(no bare still ${name})`); } await st.evaluate(e => e.remove()); } if (LINKLAG) console.log(`  gate at ${name}: ${await p.evaluate(() => (window.__gate ? JSON.stringify(window.__gate.n) : 'none')).catch(() => '?')}`); ST.n++; ST.whole += t1 - t0; ST.shot += Date.now() - t1; if (process.env.COUNT) console.log(`  ${name}: ${await require('./crowd_count').count(p, +process.env.COUNT || 60).catch(e => String(e).slice(0, 120))}`); await hold(false); if (BUDGET && !name.startsWith('into-')) await budget(name, counted); /* (a walk-into's still is the harness's own view from the side, not a beat of the story: issue 126) */ await drawAll(false); await dry(false); if (/^\d+-stop$/.test(name)) await glassLook(name); if (name === profAt) await profile(); if (name === process.env.GPUCOST) await gpuCost(); if (name === process.env.SHOTCOST) await shotCost(); if (name === process.env.ONETEST) await oneTest();  if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/${name}.json`, { ctx: w < 500 ? 'touch' : 'desk' }).catch(e => console.log('(no dump)', String(e).slice(0, 120))); };
+  // The glass that mirrors its place (issue 203: after a play from the title SKY STAGE's glass was black on a Mac's GPU,
+  // nothing of the city showing through it, and the man at it had a black mask for a face). At a Stop where a level's
+  // cube has been taken: the cube itself is read (drawn, no texel that is no number, none at 128 or more: the guide's
+  // whiskers filled a third of its sky with 65504), and the picture is taken twice, with the glass and without it: what is
+  // behind a pane must still be there with it.
+  const glassLook = async name => {
+    const hero = () => { const h = window.__game && window.__game.hero && window.__game.hero(); return h && h.probes ? h : null; };
+    const cubes = await p.evaluate(`(${hero})() ? (${hero})().probes() : []`).catch(() => []);
+    if (!cubes.length) return;
+    for (const q of cubes) {
+      const ok = q.lit > 0.5 && q.over < 0.002 && q.bad === 0;
+      console.log(`  ${name}: the glass's cube of ${q.id} (${q.res} a side, taken ${q.taken}): ${(q.lit * 100).toFixed(0)}% lit, ${(q.over * 100).toFixed(2)}% at 128 or more, ${(q.bad * 100).toFixed(2)}% no number${ok ? '' : ' (WRONG)'}`);
+      if (!ok) { errors.push(`${name}: the cube ${q.id}'s glass mirrors is wrong`); console.log(`error: ${name}: the cube the glass of ${q.id} mirrors is ${q.lit <= 0.5 ? 'not drawn' : 'not light a place gives'} (issue 203)`); }
+    }
+    const shot = async () => { await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await drawAll(true); await hold(true); let b = null; try { b = await p.screenshot({ timeout: 120000 }); } catch (e) { /* no picture: nothing compared */ } await hold(false); await drawAll(false); return b; };
+    const panes = await p.evaluate(`(${hero})().glass(true)`).catch(() => 0);
+    if (!panes) return;
+    const withIt = await shot();
+    await p.evaluate(`(${hero})().glass(false)`);
+    const without = await shot();
+    await p.evaluate(`(${hero})().glass(true)`);
+    if (!withIt || !without) return;
+    if (!NOSTILL) fs.writeFileSync(`${out}/${name}-no-glass.png`, without);
+    // (compared in a page of its own, over the pane's footprint, the pixels the two pictures differ in at all: a pane
+    // that is right is a fifth opaque and adds what it mirrors, so the footprint is about as light with it as without,
+    // lighter where a phone's small cube spreads the towers' lamps over it (1.9 times, measured); a black pane left it
+    // at 0.35 to 0.4 of the picture behind, and garbage on Mesa at 3.4 times. The camera eases between the two
+    // pictures, so they are not compared pixel by pixel: the share that differs widely is printed, not judged)
+    const q = await b.newPage();
+    const r = await q.evaluate(async ([A, B]) => {
+      const px = async s => { const im = await createImageBitmap(await (await fetch(`data:image/png;base64,${s}`)).blob()), c = new OffscreenCanvas(im.width, im.height), g = c.getContext('2d'); g.drawImage(im, 0, 0); return g.getImageData(0, 0, im.width, im.height).data; };
+      const a = await px(A), b2 = await px(B), L = (d, i) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+      let n = 0, far = 0, la = 0, lb = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.max(Math.abs(a[i] - b2[i]), Math.abs(a[i + 1] - b2[i + 1]), Math.abs(a[i + 2] - b2[i + 2]));
+        if (d > 48) far++;
+        if (d > 8) { n++; la += L(a, i); lb += L(b2, i); }
+      }
+      const all = a.length / 4;
+      return { pane: n / all, far: far / all, k: n ? la / Math.max(lb, 1) : 1 };
+    }, [withIt.toString('base64'), without.toString('base64')]).catch(e => { console.log('(the glass not compared)', String(e).slice(0, 120)); return null; });
+    await q.close();
+    if (!r || r.pane < 0.02) return; // (no pane in the picture)
+    const wrong = r.k < 0.7 ? 'the glass blacks out what is behind it' : r.k > 3 ? 'the glass is a glare over what is behind it' : '';
+    console.log(`  ${name}: with the glass, its ${(r.pane * 100).toFixed(0)}% of the picture is ${r.k.toFixed(2)} times as light as without it (${(r.far * 100).toFixed(1)}% of the picture differs by more than 48 of 255)${wrong ? ' (WRONG)' : ''}`);
+    if (wrong) { errors.push(`${name}: ${wrong}`); console.log(`error: ${name}: ${wrong}: ${r.k.toFixed(2)} times as light with it (0.7 to 3; issue 203)`); }
+  };
   await snap('00-title');
     // (the lines given to the dialogue for the story's people, as they are given: every line of a talk is shown, one press at a time;
   // read from the call, not the screen, where a line passed between two looks was missed)
@@ -839,7 +907,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           await press('KeyH'); await frames(3); await p.waitForTimeout(2500);
           const h2 = await p.evaluate(stand => { const st = window.__game.story.state, d = st.dog; return { n: st.hint, dog: !!d, to: d && d.to ? Math.hypot(d.to[0] - stand[0], d.to[1] - stand[1]) : -1, state: d ? d.state : '', lit: st.lit }; }, T.stand);
           await snap(`${s.fi + 1}-hint-dog`);
-          await press('KeyH'); await frames(4);
+          // (the light is put on at the story's next step, which a whole play's load can take past four frames drawn: waited
+          // for, up to ten seconds, and still failed where it never comes; main's budget on d1a6016 read it too soon)
+          await press('KeyH'); await frames(4); await p.waitForFunction(() => window.__game.lights().story, null, { timeout: 10000, polling: 200 }).catch(() => {});
           const h3 = await p.evaluate(() => { const st = window.__game.story.state, L = window.__game.lights(); return { n: st.hint, lit: st.lit, kind: st.kind, target: !!st.target, light: L.story, objective: L.objective }; });
           console.log(`frame ${s.fi + 1} hints:`, JSON.stringify({ h1, h2, h3 }));
           if (h1.n !== 1 || h2.n !== 2 || !h2.dog || h2.to < 0 || h2.to > 1.5 || h2.lit || h3.n !== 3 || !h3.lit || !h3.light || h3.objective) { errors.push(`frame ${s.fi + 1}: its hints did not give a word, the dog at the place and the light in turn: ${JSON.stringify({ h1, h2, h3 })}`); console.log(errors[errors.length - 1]); }

@@ -199,14 +199,53 @@ window.OEHero = (function () {
       p.t = t; p.night = night; p.n++;
       const glass = L.mats.filter(m => m.userData.probeGlass), shadow = renderer.shadowMap.autoUpdate;
       for (const m of glass) { m.userData.probeVis = m.visible; m.visible = false; }
+      // Whoever moves is left out of it (people with what they carry, the cars, the guide: people.js uncovered, as the
+      // rain's map of what is under cover leaves them out). The cube is one picture kept for the beat: someone caught
+      // in it would stand still in the glass while they walked away. And a cube's cameras are not the screen's: three.js
+      // gives them a field of view of -90, and a shader that works a width in pixels from the projection (the guide's
+      // whiskers) drew sheets hundreds of metres wide at the half float's ceiling over a third of the cube's sky. The
+      // sky-light map made of that was garbage, the glass mirrored it, black on a Mac's GPU, and the lens carried it
+      // over whoever stood at the glass (issue 203: seen only after a play from the title, where the guide is on the
+      // roof before the cube is taken)
+      // (?probe=all: the cube with them in it, as it was, to set beside: tools/story_play.js's check of the glass must fail on it)
+      const movers = /[?&]probe=all\b/.test(location.search) ? [] : ((window.OEPeople && OEPeople.uncovered) || []).filter(o => o.visible);
+      for (const o of movers) o.visible = false;
       renderer.shadowMap.autoUpdate = false;
       const prevT = renderer.getRenderTarget();
       try { p.cc.updateMatrixWorld(); p.cc.update(renderer, Wd.world); } finally {
         renderer.setRenderTarget(prevT);
         renderer.shadowMap.autoUpdate = shadow;
+        for (const o of movers) o.visible = true;
         for (const m of glass) m.visible = m.userData.probeVis;
       }
     }
+    // (for the harnesses, tools/story_play.js: each cube as the GPU holds it, read back, which waits for the GPU. `lit`,
+    // the share of its texels that are not black; `over`, the share at 128 or more, which no texel of a right cube
+    // reaches (the roof's at night: none); `bad`, those that are no number)
+    function probes() {
+      const out = [];
+      for (const L of levels) {
+        const p = L.h._probe;
+        if (!p || !p.n) continue;
+        const res = p.rt.width, buf = new Uint16Array(res * res * 4), prevT = renderer.getRenderTarget();
+        let lit = 0, over = 0, bad = 0;
+        try {
+          for (let f = 0; f < 6; f++) {
+            renderer.readRenderTargetPixels(p.rt, 0, 0, res, res, buf, f);
+            for (let i = 0; i < buf.length; i += 4) {
+              let hi = 0;
+              for (let c = 0; c < 3; c++) { const e = buf[i + c] & 0x7c00; if (e === 0x7c00) { hi = 99; break; } if (e >= 0x5800) hi = Math.max(hi, 2); else if (buf[i + c] & 0x7fff) hi = Math.max(hi, 1); }
+              if (hi === 99) bad++; else if (hi === 2) over++; if (hi) lit++;
+            }
+          }
+        } finally { renderer.setRenderTarget(prevT); }
+        const n = res * res * 6;
+        out.push({ id: L.h.id, res, taken: p.n, lit: lit / n, over: over / n, bad: bad / n });
+      }
+      return out;
+    }
+    // (and its glass drawn or not, for a harness that sets the picture with it beside the picture without)
+    function glass(on) { let n = 0; for (const L of levels) for (const m of L.mats) if (m.userData.probeGlass) { m.visible = !!on; n++; } return n; }
 
     // a texture made smaller on the low tier before it reaches the GPU: halved, or on a phone's lean sub-tier no
     // side over 1024. Resized by createImageBitmap where it can (no full-size canvas copy, which is tens of MB of
@@ -424,6 +463,7 @@ window.OEHero = (function () {
 
     return {
       group, levels, update, tier, light: { bake: uBake, street: uStreet }, // (its baked light's gain and its share of the street lights, as update() sets them: tools/stop_grade.js)
+      probes, glass,
       // (for the harnesses: whether each is loaded and shown, tools/game_check.js)
       state: () => levels.map(L => ({ id: L.h.id, state: L.state, shown: !!(L.root && L.root.visible), materials: L.mats.length,
         fine: L.fine, fineShown: L.fineMeshes.filter(o => o.visible).length, fineMeshes: L.fineMeshes.length, probe: L.h._probe ? { res: L.h._probe.rt.width, taken: L.h._probe.n } : null })),

@@ -14,10 +14,12 @@
 //   air(centre, { leaves, birds })   the scene's air round the player: how many leaves, how many birds
 //   start(centre, { rain })          centre: where the player stands (a THREE.Vector3); rain: beads of it in the air
 //   tick(dt, scale, player, high)    dt in real seconds; player: where the player is now; high: up a tower (no leaves)
+// create()'s floor(x, y, z) is the floor a walker at height z stands on at the map's (x, y) (game.js: nav.floorAt), or
+// null: the Stop's ring runs out over it, up a kerb and down off a footway, as far as the floor goes (issue 136)
 'use strict';
 window.OEStopFX = (function () {
   const R = 16, H = 7; // the air it fills: this far round the player, this high
-  function create({ THREE, world, audio, sound }) {
+  function create({ THREE, world, audio, sound, floor = null }) {
     const LEAN = !!(window.OEQuality && OEQuality.city().lean);
     let g = null, amb = null, age = 0, fall = 0, drift = 0, letGo = -1, leaves = null, birds = null, motes = null, drops = null, ring = null, splash = null;
     const rnd = (a, b) => a + Math.random() * (b - a), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), S = new THREE.Vector3();
@@ -156,9 +158,55 @@ window.OEStopFX = (function () {
         o.material.uniforms.uH.value = 1e6; splash = o; g.add(o);
       }
       // the moment itself: a ring running out along the ground from where you stand
-      ring = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 128), new THREE.MeshBasicMaterial({ color: 0xbfd6ff, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-      ring.rotation.x = -Math.PI / 2; ring.position.y = 0.12; ring.renderOrder = 19; g.add(ring);
+      ring = laid(centre); g.add(ring);
       world.add(g);
+    }
+    // the ring on the floor (issue 136): flat at one height, it floated over the road from a raised footway and sank
+    // under the footways from the road. Along each of NA rays from the centre the floor is found outward, a sample
+    // every RS[i] metres, each from the height of the one before (a kerb is a step up, a slope is followed, a roof or a
+    // deck stays underfoot), a little ahead of the ring as it grows, and the ring's strip is laid on it each frame. Where
+    // the floor ends (none, or a drop of more than DROP: the edge of a deck or a roof) the ring fades out along that ray.
+    // (A phone, quality.js lean: 96 rays, the floor asked 11,000 times over the ring's second rather than 18,000)
+    const NA = LEAN ? 96 : 160, DROP = 1.4, LIFT = 0.06, RMAX = 86, ROWS = [[0.955, 0], [0.968, 1], [1, 1]];
+    const RS = (() => { const r = [0]; while (r[r.length - 1] < RMAX + 1) { const q = r[r.length - 1]; r.push(q + (q < 4 ? 0.25 : q < 20 ? 0.5 : 1)); } return Float32Array.from(r); })();
+    const ringMat = () => new THREE.MeshBasicMaterial({ color: 0xbfd6ff, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    function laid(centre) {
+      const nv = NA * ROWS.length, geo = new THREE.BufferGeometry(), idx = [];
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nv * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nv * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      for (let j = 0; j + 1 < ROWS.length; j++) for (let k = 0; k < NA; k++) { const a = j * NA + k, b = j * NA + (k + 1) % NA; idx.push(a, a + NA, b, b, a + NA, b + NA); }
+      geo.setIndex(idx);
+      const m = new THREE.Mesh(geo, ringMat()); m.renderOrder = 19; m.frustumCulled = false;
+      // (per ray: the heights found so far over the centre's, NaN past the floor's end; how many found)
+      m.userData = { cx: centre.x, cy: -centre.z, cz: centre.y, h: new Float32Array(NA * RS.length).fill(NaN), n: new Uint16Array(NA), last: Float32Array.from({ length: NA }, () => centre.y), cos: Float32Array.from({ length: NA }, (_, k) => Math.cos(k / NA * 2 * Math.PI)), sin: Float32Array.from({ length: NA }, (_, k) => Math.sin(k / NA * 2 * Math.PI)) };
+      layRing(m, 1, 0.9);
+      return m;
+    }
+    function layRing(m, r, alpha) {
+      const U = m.userData, need = Math.min(RS.length - 1, (() => { let i = 0; while (i < RS.length - 1 && RS[i] < r + 1) i++; return i; })());
+      for (let k = 0; k < NA; k++) { // (find the floor out to just past the ring)
+        for (let i = U.n[k]; i <= need; i++) {
+          const o = k * RS.length + i, z = U.last[k];
+          if (Number.isNaN(z)) { U.h[o] = NaN; continue; }
+          const f = !floor ? U.cz : i === 0 ? z : floor(U.cx + U.cos[k] * RS[i], U.cy + U.sin[k] * RS[i], z);
+          if (f == null || !(Math.abs(f - z) <= DROP)) { U.h[o] = NaN; U.last[k] = NaN; continue; }
+          U.h[o] = f - U.cz; U.last[k] = f;
+        }
+        U.n[k] = Math.max(U.n[k], need + 1);
+      }
+      const P = m.geometry.attributes.position, C = m.geometry.attributes.color;
+      for (let j = 0; j < ROWS.length; j++) {
+        const rr = r * ROWS[j][0], a = ROWS[j][1] * alpha;
+        let i = 0; while (i < RS.length - 2 && RS[i + 1] < rr) i++;
+        const t = Math.min(1, Math.max(0, (rr - RS[i]) / (RS[i + 1] - RS[i])));
+        for (let k = 0; k < NA; k++) {
+          const o = k * RS.length + i, h0 = U.h[o], h1 = U.h[o + 1], v = j * NA + k;
+          const ok0 = !Number.isNaN(h0), ok1 = !Number.isNaN(h1), h = ok0 && ok1 ? h0 + (h1 - h0) * t : ok0 ? h0 : ok1 ? h1 : 0, w = ok0 && ok1 ? 1 : ok0 ? 1 - t : 0;
+          P.setXYZ(v, U.cos[k] * rr, h + LIFT, -U.sin[k] * rr);
+          const c = a * w; C.setXYZ(v, c, c, c);
+        }
+      }
+      P.needsUpdate = true; C.needsUpdate = true;
     }
     // one of each thing made here (the air's points, a leaf of each kind and the bill, a bird's five parts, the ring),
     // kept hidden in the world and compiled while the title is up (fn: game.js warmFor): made at the story's first beat,
@@ -169,7 +217,7 @@ window.OEStopFX = (function () {
       return kitP.then(k => {
         if (!k || spare) return null;
         spare = new THREE.Group(); spare.name = 'stopfx-spare'; spare.visible = false;
-        const ringM = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 8), new THREE.MeshBasicMaterial({ color: 0xbfd6ff, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        const ringM = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 8), ringMat()); ringM.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ringM.geometry.attributes.position.count * 3).fill(1), 3));
         spare.add(points(4, 1, 1, 0.05, 0xfff1d6, true), points(4, 1, 1, 0.05, 0xcfe0ff, false), cards(3), flock(1), ringM);
         world.add(spare);
         return fn(spare);
@@ -194,7 +242,7 @@ window.OEStopFX = (function () {
       fall += wdt;
       if (drops) { drops.material.uniforms.uFall.value = fall * 7.5; drops.material.uniforms.uFade.value = fade * 0.85; drops.material.uniforms.uP.value.copy(at); }
       if (splash) { splash.material.uniforms.uFall.value = letGo >= 0 ? letGo * letGo * 4 : 0; splash.material.uniforms.uFade.value = fade * 0.9; splash.material.uniforms.uP.value.copy(at); }
-      if (ring) { const k = Math.min(1, age / 1.1), e = 1 - Math.pow(1 - k, 3); ring.scale.setScalar(1 + e * 85); ring.material.opacity = 0.9 * (1 - k); if (k >= 1) { g.remove(ring); ring.geometry.dispose(); ring.material.dispose(); ring = null; } }
+      if (ring) { const k = Math.min(1, age / 1.1), e = 1 - Math.pow(1 - k, 3); layRing(ring, 1 + e * (RMAX - 1), 0.9 * (1 - k)); if (k >= 1) { g.remove(ring); ring.geometry.dispose(); ring.material.dispose(); ring = null; } }
     }
     return { air, start, release, tick, dispose, warm, get on() { return !!g; } };
   }
