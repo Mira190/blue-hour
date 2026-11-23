@@ -419,22 +419,21 @@ scrambles' reach:
 
 | | Before | After |
 |---|---|---|
-| The Scramble's cycle; walk, east-west, north-south | 73 s; 26, 17, 9 | 77 s as its queues ask (118 at most); 26, 20, 14 |
-| East arm (from Miyamasuzaka): into the box an hour, of its queue a green, first away after | 77; 2.0 of 2.0 with 62 s of its greens lost to a car crossing the box; 10.8 s | 151; 3.3 of 5.3; 2.6 s |
-| West arm (from 109): the same | 84; 1.6 of 3.6; 13.3 s | 175; 4.7 of 1.3; 6.3 s |
-| The junction beside 109, westbound to 109 | 0 vehicles in 8 minutes: 173 s of its greens waiting on 109's light, 7 m on | 111 an hour |
-| 109's fork: from the Scramble, down Dogenzaka, from Bunkamura-dori | 7, 104, 15 an hour | 243, 111, 51 |
+| The Scramble's cycle; walk, east-west, north-south | 73 s; 26, 17, 9 | 77 to 100 s as its queues ask (118 at most); 26, 20 to 22, 14 to 25 |
+| East arm (from Miyamasuzaka): into the box an hour, of its queue a green, first away after | 77; 2.0 of 2.0 with 62 s of its greens lost to a car crossing the box; 10.8 s | 108 to 151; 3.0 to 3.3 of 5.3 to 5.7; 2.6 to 5.8 s |
+| West arm (from 109): the same | 84; 1.6 of 3.6; 13.3 s | 175 to 192; its queue and those that come up behind it |
+| The junction beside 109, westbound to 109 | 0 vehicles in 8 minutes: 173 s of its greens waiting on 109's light, 7 m on | 229 an hour |
+| 109's fork: down Dogenzaka, from Bunkamura-dori | 104, 15 an hour | 135, 90 |
+| Route 246 under the expressway at Dogenzaka-shita: its cycle; the trunk road's arms; the side street's | 17 s, 3.7 s of green a turn; 94 to 259 an hour, 0.4 to 1.3 cars of queues of 6 a green; 50 | 30 s, 13 and 7 s; 152 to 593, 1.5 to 4.9 a green; 152 |
 
 The drive on the autopilot, a desktop's page, the traffic running, each figure one drive:
 
 | | Before | After |
 |---|---|---|
-| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s; a phone's page 155 (the issue's) | 66, 76, 110, 126 s as landed (49 to 127 over fourteen drives while it was built, median 80) |
-| The street under the railway to 109, 493 m | 165 s (the issue's) | 119 s (78 to 130 over five) |
-| The Scramble's kerb to 109 by the station's front, 594 m | 112 s (the issue's) | 168 to 253 s, 90 to 120 of them at Route 246's junction under the expressway, before the Scramble |
-| Back across the Scramble, Bunkamura-dori to Miyamasuzaka, 278 m | not driven; the cars of Bunkamura-dori stood | 155, 203 s |
-
-The figures of the landed arrangement are from the last runs; the phone's page is in the table of the checks below.
+| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s; a phone's page 155 (the issue's) | 64, 70, 90 s as landed (49 to 127 over the twenty drives before, median 80) |
+| The street under the railway to 109, 493 m | 165 s (the issue's) | 106 s (78 to 130 over six before) |
+| The Scramble's kerb to 109 by the station's front, 594 m | 112 s (the issue's) | 168 to 253 s while it was built, 90 to 150 of them at Route 246's junction under the expressway before its lights were mended (8) |
+| Back across the Scramble, Bunkamura-dori to Miyamasuzaka, 278 m | not driven; the cars of Bunkamura-dori stood | 47, 121 s |
 
 ### What held the queues, in the order the count found them
 
@@ -470,15 +469,15 @@ The figures of the landed arrangement are from the last runs; the phone's page i
    its queue, the 29 m of Dogenzaka between the Scramble's western line and the junction beside 109 was what held: the
    Scramble's east-west green filled it in its first seconds and stood full, 109's emptied it into a red, and a queue
    of fourteen on Miyamasuzaka moved three cars a cycle (306 s to 109 in one drive of the check). A scramble joined to
-   a greater one by less than 45 m of road now runs on that one's cycle (`coordinate`), 16 s behind it, the time a car
-   takes from the Scramble's eastern line to 109 from rest: the cars out of the Scramble's east-west green meet green
-   at 109, and the road between is empty when the next turn's cars come to it. All of 109's traffic has the one turn
-   (Bunkamura-dori in a turn of its own, with the Scramble's north-south, found the road between full every time and
-   stood 150 s); the junction's own rule, the longest waiting first, shares it. The side streets beside 109 have
-   theirs through the rest of the cycle. 109's cycle is then the Scramble's, not shorter as the issue put it: on a
-   cycle of its own it could not pass its cars. Counted after (five minutes): 109's eastern arm 243 an hour (7 before,
-   one car in eight minutes), Dogenzaka's downhill arm 111, Bunkamura-dori 51 with its queue passed; the Scramble's
-   west arm 175 and east arm 151 (84 and 77).
+   a greater one by less than 45 m of road now runs on that one's cycle, in step (`coordinate`). All of 109's own
+   traffic has the one turn, with the Scramble's east-west (Bunkamura-dori in a turn of its own, with the Scramble's
+   north-south, found the road between full every time and stood 150 s); the junction's rule, the longest waiting
+   first, shares it. 109's arm from the Scramble is green through both of the Scramble's turns, nothing of 109's own
+   moving in the second, so the tail of the east-west green and what the north-south turn sends round from the
+   station's front run on through (a bus let round stood in the middle of the Scramble through the walk when that road
+   was full). A lag of a car's time between the two junctions was tried first: it cleared the road westbound and left
+   the eastbound cars four a cycle. 109's cycle is then the Scramble's, not shorter as the issue put it: on a cycle of
+   its own it could not pass its cars.
 6. **The signals saw a queue only on the last piece of an arm.** The Scramble's east arm is 25 m from the junction
    before it and 109's downhill arm 9 m: the cars behind stood unseen, their green ended with three of eight through
    or their turn was passed over (a car stood 150 s at the junction before 109). A car is counted for the line whose
@@ -487,7 +486,13 @@ The figures of the landed arrangement are from the last runs; the phone's page i
    straight line, 30 m off and across Dogenzaka, stood in the lane at the western stop line with a car before it for
    150 s. The scramble's crowd no longer steps off the pavement outside its walk; one standing in a driver's way off
    the walk is asked aside after 3 s, as the traffic's cars already asked.
-8. **The autopilot read a long red as a jam.** A car stood 40 s was "longer than a red light lasts", and the drive went
+8. **A trunk road's junction turned every 3.7 s.** Route 246's junction under the expressway at Dogenzaka-shita (nine
+   arms, a box 50 m across) is where the drive from the Scramble's kerb goes round to come back up the station's
+   front, and where it stood behind a car held 150 to 195 s (the comment on issue 175: "a bus that stays in the box
+   with no reason given"). With a queue on every arm, the rule that nobody waits at a red longer than 10 s gave each
+   turn 3.7 s of green in a cycle of 17 with 10 of it amber and all red. Where a trunk road is crossed the longest
+   red is now 20 s (`j.red`).
+9. **The autopilot read a long red as a jam.** A car stood 40 s was "longer than a red light lasts", and the drive went
    round by another way (213 s). The limit is now the red of the scramble the road leads to, and a wait in the queue
    for a red is not counted as a road that will not clear.
 
@@ -557,6 +562,9 @@ junction as built: arms, stop lines, ways across, which cross and where, and whe
   that are 10 m apart on the real junction come within 2 m of each other there, and are read as crossing (the cars
   from the north and from the station's front, both in the north-south turn, take turns at the middle). Shaping the
   ways by the box, not the graph, is the next gain there.
-- **Dogenzaka-shita's junction under the expressway** (945) can still hold the autopilot behind a bus in its box
-  (the comment on issue 175): not the Scramble's nor 109's signals. Issue 176 has the taxis' ranks, a dressed closure,
-  the clipped expressway pieces and Tokyu's GTFS.
+- **Every other junction keeps the game's 10 s red.** Their greens are 6 to 13 s against about 6 s lost at each
+  change; what the count found at the scrambles and at Route 246 holds for them in a smaller measure, and
+  `tools/junction_flow.js` at a place says how much. Issue 176 has the taxis' ranks, a dressed closure, the clipped
+  expressway pieces and Tokyu's GTFS.
+- **With you on foot at a scramble's kerb its traffic's turns are 12 s** (20 for the one 109 shares), so that the
+  walk comes for you within half a minute: the traffic round you passes about half of what it does with you away.

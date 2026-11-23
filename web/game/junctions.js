@@ -335,6 +335,11 @@ window.OEJunctions = (function () {
       if (j.sig) {
         const top = p => Math.max(0, ...j.arms.filter(a => a.phase === p).map(a => a.rank));
         j.green = [8 + top(0), 5 + top(1), 3 + 0.25 * top(0)]; // (s: 13 on a primary road, 8 on a tertiary across it, 4 for an arrow)
+        // (the longest red: RED, and twice that where a trunk road is crossed. Route 246's junction under the expressway
+        // at Dogenzaka-shita, nine arms and a box 50 m across, with a queue on every arm, turned every 3.7 s of green in
+        // a cycle of 17 with 10 of it amber and all red: 1.3 cars of a queue of 6.4 a green, the cars from the side
+        // street stood 195 s, and the drive from the Scramble's kerb to 109 stood there every other time, issue 175)
+        j.red = top(0) >= 6 ? 2 * RED : RED;
         // a protected turn across after the main road's phase: at a big junction of two main roads
         const mainIn = j.arms.filter(a => a.in && a.phase === 0);
         j.arrow = j.arms.length >= 4 && top(0) >= 4 && top(1) >= 3 && mainIn.length >= 2 && mainIn.some(a => !L[a.line].ow);
@@ -1168,7 +1173,7 @@ window.OEJunctions = (function () {
         let cap = Infinity;
         if (j.st === 'g' && j.ph < 2 && !j.scramble && !(j.mid != null && j.ph === 1)) { // (a scramble's turns are short and fixed: its walk, not they, is what it is waited through)
           const q = 1 - j.ph;
-          if (ask[q] != null) cap = Math.max(MIN_G, j.t + ask[q] + RED - j.amber - (j.allred || ALLRED) - clock);
+          if (ask[q] != null) cap = Math.max(MIN_G, j.t + ask[q] + (j.red || RED) - j.amber - (j.allred || ALLRED) - clock);
         }
         const held = j.hold != null && j.hold >= frame - 2 && j.ph !== 2 && j.t < Math.min(j.green[j.ph], cap) + HOLD; // (a vehicle with priority coming: held green for it)
         // gap-out (as SCATS and vehicle-actuated signals do): someone waits on another phase and no
