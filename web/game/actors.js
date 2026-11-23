@@ -1846,7 +1846,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
-      if (q.give) { q.give = false; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+      if (q.give) { q.give = false; if (q.ph === 'cross') q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
@@ -1935,6 +1935,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (best) { q.g = null; toGate(q, best); q.jam = 0; return; }
         q.jam = pz.walk() ? 3.5 : 1.5;
       }
+      // (out on the crossing with a car standing before it that has waited on it: a few steps out to that car's side, and on
+      // past it. Caught in the box by the walk, a driver and the two of the crowd whose way lay through it stood nose to
+      // nose 150 s, neither stepping into the other)
+      if (q.sideT > 0) { q.sideT -= dt; let o = null, bd = 7; for (const c of nearCars) { const e = Math.hypot(q.x - c.x, q.y - c.y); if (e < bd) { bd = e; o = c; } }
+        if (o) { const sx = Math.cos(o.h), sy = -Math.sin(o.h), lat = (q.x - o.x) * sx + (q.y - o.y) * sy, sd = Math.abs(lat) > 0.05 ? Math.sign(lat) : 1; q.vx = sx * sd * 1.2; q.vy = sy * sd * 1.2; } }
       const was = carDepth(q.x, q.y, M), nx = q.x + q.vx * dt, ny = q.y + q.vy * dt;
       if (was > 0.02) { // (caught by one, a car pulling up: straight out of it, the shortest way)
         const e = 0.05, gx = carDepth(q.x + e, q.y, M) - carDepth(q.x - e, q.y, M), gy = carDepth(q.x, q.y + e, M) - carDepth(q.x, q.y - e, M), gl = Math.hypot(gx, gy);
