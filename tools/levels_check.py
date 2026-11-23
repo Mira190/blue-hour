@@ -38,6 +38,7 @@ TOL = 0.03          # the heights are written to the centimetre, the ground to t
 TOOTH_M = 0.08      # a top this far over or under both its neighbours
 TOOTH_LEN_M = 9.0   # ... on a panel no longer than this (a longer level stretch is a terrace, not a tooth)
 BASE_M = 0.25       # a building's base this far from the lowest ground along its walls
+PROP_M = 0.08       # a placed thing this far over or under the ground is not standing on it
 STEEP = 0.15        # a paved cell steeper than this (a street's limit is 12 %: 道路構造令, small streets)
 
 
@@ -175,6 +176,22 @@ def check_bases(city, G, game, scene, L):
     return n, fails
 
 
+def check_props(L, G, game):
+    """The landmarks' placed things (landmarks.json "props": bicycles in their racks) stand on the ground the game
+    draws, outside the hero levels (a level's floor is its own): (how many, the ones that do not)."""
+    hero = [(h["at"][0], h["at"][1], h["r"] + 10.0) for h in game.get("hero", []) if h.get("at") and h.get("r")]
+    n, bad = 0, []
+    for p in L.get("props", []):
+        for x, y, z, *_ in p["at"]:
+            if any(np.hypot(x - hx, y - hy) < r for hx, hy, r in hero):
+                continue
+            n += 1
+            d = z - float(G.at(x, y))
+            if abs(d) > PROP_M:
+                bad.append((abs(d), f"{p['name']} at {x:.0f},{y:.0f}: {d:+.2f} m off the ground"))
+    return n, bad
+
+
 def steep_cells(city, G, game, scene):
     """The paved cells steeper than a street: (their number, the places of the worst clusters)."""
     from scipy import ndimage
@@ -227,6 +244,7 @@ def main():
     say("feet", *check_feet(R, G), "footings on the ground as it is")
     say("tops", *check_tops(L, tuple(budget.get("tops_skip", []))), "top edges of the landmarks' upright faces without a tooth", budget.get("teeth", 0))
     say("bases", *check_bases(a.city, G, game, scene, L), "buildings with their base on the lowest ground along their walls", budget.get("bases", 0))
+    say("props", *check_props(L, G, game), "placed things of the landmarks standing on the ground the game draws")
     n, places = steep_cells(a.city, G, game, scene)
     found["slopes"] = [t[1] for t in places]
     lim = budget.get("steep_cells")

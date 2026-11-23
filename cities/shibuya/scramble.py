@@ -148,7 +148,11 @@ class Data:
         self.foot = [[(r["p"][k] / 10, r["p"][k + 1] / 10) for k in range(0, len(r["p"]), 3)] for r in G["paths"]["foot"]]   # (the lines the crowd walks)
 
     def ground(self, x, y):
-        return self.T(x, y)
+        # (the ground the game draws, outside the hero levels: pipeline/levels.py Standing)
+        if getattr(self, "_stand", None) is None:
+            import levels
+            self._stand = levels.Standing(self.C.id, self.T)
+        return self._stand(x, y)
 
 
 def unit(v):

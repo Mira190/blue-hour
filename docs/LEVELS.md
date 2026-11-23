@@ -112,6 +112,22 @@ panel on the ground under each bay's middle, is built by `levels.stepped` (15 ba
 Left: past the reach, the banks at street edges and the escarpment round (385, -575) are as they were. They are seen
 only from the helicopter; `tools/levels_check.py` still counts them.
 
+### What is placed stands on the ground that is drawn
+
+The owner, 23 November, at a still of the bicycle lot under the Yamanote's viaduct: the bicycles have sunk through the
+ground; look for the others like it. Sixty-six bicycles stood up to 1.66 m under the paving. The Scramble's generator
+(`cities/shibuya/scramble.py`) placed everything it builds on the viewer's 10 m grid read bilinearly, the third
+sampler of the table above: it lies up to a metre off the 5 m ground between its nodes, and 19 % of the planned area
+is more than 10 cm off. Now its `ground()` is `levels.Standing`: the game's ground outside the hero levels, and inside
+a level's circle the ground that level was built on. `tools/levels_check.py` `props` holds every placed thing of the
+landmarks to 8 cm of the ground (57 of 64 failed before, none now). The game's own props (benches, signals, stops)
+are seated on the floor by the page when it loads (`game.js` `seat`), so their stored heights are not what is drawn.
+
+Left, and not this work's to change: inside the Scramble's circle the level's own floor under its viaduct north of the
+girder bridge (x 425 to 440, y -1000 to -910) is the survey's embankment, 4 m of paved mound under a viaduct drawn on
+columns, and the lot at the circle's edge lies on the slope down from it. Taking it out is a change to the hero
+level's floor (docs/HERO.md).
+
 ### A picture stands on its building's face (issue 169)
 
 A sign is placed by its own generator from the outline that generator read; the page draws the city model's solid.
