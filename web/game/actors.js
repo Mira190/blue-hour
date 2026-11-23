@@ -208,6 +208,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // uncovered): drawn into it, a car on the move left a dry strip of road behind it until the map was next made
   const noCover = m => { if (window.OEPeople && OEPeople.uncovered) OEPeople.uncovered.push(m); return m; };
   function instanced(geo, mat, n) {
+    // (its vertices at the size the picture needs, verts.js: the normal in bytes, and the tone, the part and the occlusion, a float each, as one row of four bytes)
+    if (window.OEVerts) { OEVerts.lean(geo, { normal: 'unit8' }); OEVerts.row(geo, geo.attributes.ao ? [['tone', 'byte'], ['part', 'byte'], ['ao', 'unorm']] : [['tone', 'byte'], ['part', 'byte']]); }
     for (const a of ['aC0', 'aC1', 'aC2', 'aC3', 'aAnim']) geo.setAttribute(a, new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
     const m = new THREE.InstancedMesh(geo, mat, n);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -440,7 +442,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // gates to another (a cul-de-sac, a stub before a closure): no traffic is made on it and none turns in; bus: 1 on a
       // street a bus route takes; ends: what its two ends are where nothing joins them (1 a gate, 2 a dead end, 3 a closure)
       return { pts, cum, len: cum[n - 1], v: o.v || 0, c: o.c || '', deck: o.d || null, ow: o.o || 0, i0: o.r0 != null ? o.r0 : i0, nt: o.nt || null, tl: o.tl || null, ntw: o.ntw || null, tb: o.tb || null, nl: o.nl || 0, wall: o.w || 0, cw: o.cw || 0,
-        quiet: o.q || 0, bus: o.b || 0, ends: o.e || null };
+        quiet: o.q || o.st || 0, st: o.st || 0, bus: o.b || 0, bl: o.bl || null, ends: o.e || null };
     }).filter(l => l.len > 4);
     const key = (x, y) => `${Math.round(x / 2)},${Math.round(y / 2)}`;
     const nodes = new Map(), grid = new Map(), GC = 100;
@@ -523,7 +525,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // avoid: per line, 1 for a line no one should be put on or turn into (a road through a
     // building, which route.js finds); set by the game once it knows
-    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null, planned: L.some(l => l.ends || l.quiet), busStreets: L.some(l => l.bus) }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
+    const api = { L, at, near: (x, y, rMin, rMax) => (api.avoid ? near(x, y, rMin, rMax).filter(i => !api.avoid[i]) : near(x, y, rMin, rMax)), nearest, next, only, nodes, key, avoid: null, fit: null, planned: L.some(l => l.ends || l.quiet), busStreets: L.some(l => l.bus), busLines: L.some(l => l.bl) }; // (fit: per line, the widest vehicle's half-width it has room for, game.js)
     return api;
   }
 
@@ -3055,6 +3057,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // cul-de-sac or on the stub before a closure, where it could only stand at the end; nor on a piece the game itself
         // cuts at a wall; and a bus only on a street a bus route takes, issue 167)
         if (L1.quiet || L1.wall || (c.bus && net.busStreets && !L1.bus)) continue;
+        // (and a bus is one of a line's, made where a line runs its way: bus_lines.py, issue 196)
+        if (c.bus && net.busLines) { c.bl = OEJunctions.lineOn(L1, dir, -1 - Math.floor(rnd() * 8)); if (c.bl < 0) continue; }
         if (L1.ow && !net.next(line, dir > 0 ? 1 : 0, true)) continue; // (not on a one-way street that leads nowhere: stuck at its end)
         const ahead = dir > 0 ? L1.len - s : s, ar = JN.armAt(line, dir > 0 ? 1 : 0);
         if (ar && ahead < ar.back + 10) continue; // not at a junction's line, or over it
@@ -3559,7 +3563,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const end = c.dir > 0 ? 1 : 0, arm = JN.armAt(c.line, end);
         if (c.nx === undefined) {
           // (the way across chosen before it got here: coming up to it, or crossing the junction before with it)
-          c.ex = arm ? (c.exA && c.exA.a === arm ? c.exA.e : c.ex2 && c.ex2.a === arm ? c.ex2.e : JN.choose(arm, c.hw, c.half, tripOf(c), c.bus)) : null;
+          c.ex = arm ? (c.exA && c.exA.a === arm ? c.exA.e : c.ex2 && c.ex2.a === arm ? c.ex2.e : JN.choose(arm, c.hw, c.half, tripOf(c), c.bus, c)) : null;
           if (c.exA && c.exA.a === arm) c.exA = null;
           if (c.ex2 && c.ex2.a === arm) c.ex2 = null;
           c.plan = c.ex ? c.ex.steps.slice(1) : null;
@@ -3604,7 +3608,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (TR && c.trip >= 0 && !c.parking) {
           const P = TR.places[c.trip];
           if (P.line === c.line && !c.wantPark) { if (P.kind === 'centre' && !c.bus) c.wantPark = 30; c.trip = TR.pick(c.x, c.y); c.trips = (c.trips || 0) + 1; }
-          else if (P.kind === 'centre' && !c.bus && !c.wantPark && (c.nearT = (c.nearT || 0) - dt) <= 0) { c.nearT = 1; if (TR.cost(c.trip, c.line, c.dir) < 300 + l.len) c.wantPark = 2; }
+          else if (P.kind === 'centre' && !c.bus && !c.wantPark && (c.nearT = (c.nearT || 0) - dt) <= 0) {
+            c.nearT = 1;
+            const left = TR.cost(c.trip, c.line, c.dir);
+            // (in its part of town, the trip is over: the kerb if there is room, and on to the next place. The place's own
+            // street is not where every car bound for it has to drive to, trips.js ARRIVE)
+            if (TR.ARRIVE && left < TR.ARRIVE) { c.wantPark = 30; c.trip = TR.pick(c.x, c.y); c.trips = (c.trips || 0) + 1; }
+            else if (left < 300 + l.len) c.wantPark = 2;
+          }
         }
         // a van on its round: every minute or two it stops at the kerb for a delivery, hazards on, and goes again
         if (c.van && !c.parking && !c.wantPark && (c.dropT = (c.dropT ?? 20 + rnd() * 80) - dt) <= 0) { c.dropT = 50 + rnd() * 90; c.wantPark = 14; c.deliver = true; }
@@ -3965,7 +3976,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             li = n2[0]; ld = n2[1] === 0 ? 1 : -1;
           }
           if (a2 && d2 < c.half + 6 + c.v * c.v / 6) {
-            if (!c.exA || c.exA.a !== a2) c.exA = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c)) };
+            if (!c.exA || c.exA.a !== a2) c.exA = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c), c.bus, c) };
             if (c.exA.e) { jArm = a2; jEx = c.exA.e; toLine = d2; }
           }
         }
@@ -4020,7 +4031,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               const a2 = go ? JN.after(jEx, 2 * c.half + 3) : null;
               let light2 = false; // (held by that one's light: waiting for it, as at a red here, not for room)
               if (a2) {
-                if (!c.ex2 || c.ex2.a !== a2) c.ex2 = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c)) };
+                if (!c.ex2 || c.ex2.a !== a2) c.ex2 = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c), c.bus, c) };
                 const lt2 = JN.light(a2, c.ex2.e);
                 if (!c.ex2.e || !(lt2 == null || lt2 === 'g') || a2.sign === 'stop') go = false;
                 else if (!room(c, c.ex2.e)) { go = false; noRoom = true; } // (no room beyond the second: another way out after 5 s, as for the first's, below; Shinjuku's 1103 arm 0 stood 198 s for room past 1105, #331)

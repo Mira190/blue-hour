@@ -367,6 +367,7 @@
     "web/game/vehicles.js",
     "web/game/autopilot.js",
     "web/game/junctions.js",
+    "web/game/trips.js",
     "web/game/rail.js",
     "web/game/trains.js",
     "web/game/pilot.js",
@@ -404,12 +405,16 @@
     "OEGameRides": [],
     "OEJunctions": [
      "RANK",
-     "create"
+     "create",
+     "lineOn"
     ],
     "OERail": [
      "create"
     ],
     "OETrains": [
+     "create"
+    ],
+    "OETrips": [
      "create"
     ],
     "OEVehicles": [
@@ -489,7 +494,6 @@
      "H",
      "KEEP",
      "PLAYER_LOOKS",
-     "ROAD_HALF",
      "SCR_AT",
      "SCR_BOX",
      "W",
@@ -532,6 +536,7 @@
      "roadNet",
      "roads",
      "rq",
+     "rwOf",
      "save",
      "scene",
      "smalltalk",
@@ -988,6 +993,7 @@
     "web/pack.js",
     "web/pack-worker.js",
     "web/tex.js",
+    "web/verts.js",
     "web/astc.js",
     "web/bc7.js",
     "web/astc-worker.js",
@@ -1030,7 +1036,8 @@
     "OEStreets": [
      "carriageways",
      "posts",
-     "setback"
+     "setback",
+     "widthOf"
     ],
     "OESurface": [
      "active",
@@ -1044,6 +1051,12 @@
      "stats"
     ],
     "OETrees": [],
+    "OEVerts": [
+     "compact",
+     "lean",
+     "leanObject",
+     "row"
+    ],
     "OEVis": [
      "at",
      "cot",

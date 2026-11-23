@@ -75,6 +75,9 @@
 window.OEJunctions = (function () {
   const RANK = { motorway: 7, trunk: 6, primary: 5, secondary: 4, tertiary: 3, unclassified: 2, residential: 2, living_street: 1 };
   const ROADW = { motorway: 14, trunk: 12, primary: 12, secondary: 10, tertiary: 9, residential: 7, unclassified: 6, living_street: 5 };
+  // a road piece's carriageway, kerb to kerb: the surveyed width where the map has one (game.json cw: pipeline/road_width.py,
+  // docs/ROADS.md), else its class's
+  const wOf = l => (l && l.cw) || ROADW[l && l.c] || 7;
   const LINK = 24;      // a piece this short joining two junction nodes lies inside one junction (m)
   const SPAN = 42;      // and a junction is no wider than this (m)
   const SCR_W_POST = 5.0; // (m: a scramble's walk signal stands this far to the side of its crosswalk's line, clear of its stripes (up to 8 m wide) and the crowd spread across them)
@@ -95,13 +98,28 @@ window.OEJunctions = (function () {
   const byClass = l => (TWO[l.c] || (l.ow && l.c === 'secondary') ? 2 : 1);
   const lanesOf = l => l.lanes || byClass(l); // (l.lanes: OSM's count, smoothed: create)
   const SHORT2 = 120, SHORT1 = 40; // m
+  // the bus lines on a piece (game.json bl: [line, step, way, ...], pipeline/bus_lines.py): the line a bus keeps to where
+  // it runs the piece this way (want: its own; under 0, any, the (-1 - want)th of them), or -1; and that line's step there
+  const lineOn = (l, way, want) => {
+    const b = l && l.bl; if (!b) return -1;
+    let first = -1, n = 0;
+    for (let i = 0; i < b.length; i += 3) if (b[i + 2] === way) { if (b[i] === want) return want; if (first < 0) first = b[i]; n++; }
+    if (want < -1 && n > 1) { let k = (-1 - want) % n; for (let i = 0; i < b.length; i += 3) if (b[i + 2] === way && k-- === 0) return b[i]; }
+    return first;
+  };
+  const stepOn = (l, line, way) => { const b = l && l.bl; if (b) for (let i = 0; i < b.length; i += 3) if (b[i] === line && b[i + 2] === way) return b[i + 1]; return -1; };
   // a lane's offset from the first lane's place (LANE to the keep side of the line): the second lane
   // across from it on a two-way road, inside it on a one-way road (the pair about centred); and the
   // only lane of a one-way road on the line itself, the middle of its carriageway (#177). Cars ease
   // from one lane's place to the next at a lane change's rate where two roads meet (actors.js loT)
   const ONE_LANE = 1.7;
-  const centred = l => !!(l && l.ow && lanesOf(l) < 2);
-  const shiftOf = (l, ln) => (ln ? (l.ow ? -3.2 : 3.0) : centred(l) ? -ONE_LANE : 0);
+  // ... and a single track (game.json st: two ways on a carriageway two cars do not pass on) down its middle too. On a
+  // surveyed two-way street narrower than two lanes at their usual places, each lane's middle a quarter of the way across
+  const centred = l => !!(l && (l.st || (l.ow && lanesOf(l) < 2)));
+  const shiftOf = (l, ln) => (ln ? (l.ow ? -3.2 : 3.0) : centred(l) ? -ONE_LANE : l.cw > 0 && !l.ow ? Math.min(0, l.cw / 4 - ONE_LANE) : 0);
+  // a surveyed carriageway too narrow for two lanes each way where they are driven (a one-way pair 1.7 m and 1.5 m either
+  // side of the line, a two-way road's outer lane 4.7 m off it): one lane, whatever its class
+  const tight = l => l.cw > 0 && l.cw < (l.ow ? 6.4 : 11.2);
 
   // net: actors.network of the roads; opts.signals, .stops, .giveWay: mapped points [x, y, z, ...]
   // in decimetres; keep: the side the traffic keeps to; lane: its lane's offset from the line (m)
@@ -129,7 +147,7 @@ window.OEJunctions = (function () {
     // a road between junctions: the pieces joined end to end at nodes where only two meet
     const through = (line, end) => { const v = net.nodes.get(nodeKey(line, end)); if (!v || v.length !== 2) return null; const o = v[0][0] === line && v[0][1] === end ? v[1] : v[0]; return o[0] === line ? null : o; }; // [line, its end there]
     {
-      for (const l of L) l.lanes = byClass(l) > 1 && l.nl === 1 ? 1 : byClass(l);
+      for (const l of L) l.lanes = byClass(l) > 1 && (l.nl === 1 || tight(l)) ? 1 : byClass(l);
       const seen = new Set();
       for (let i = 0; i < L.length; i++) {
         if (seen.has(i)) continue;
@@ -247,7 +265,7 @@ window.OEJunctions = (function () {
     // the stop line: back from the node by half the widest road crossing there, and a crossing's width
     for (const j of J) for (const a of j.arms) {
       let w = 0;
-      for (const [line] of deg.get(a.node)) if (line !== a.line) w = Math.max(w, ROADW[L[line].c] || 7);
+      for (const [line] of deg.get(a.node)) if (line !== a.line) w = Math.max(w, wOf(L[line]));
       a.back = Math.max(3.5, Math.min(11, w / 2 + 1.8, L[a.line].len * 0.4));
     }
     // ------------------------------------------------ signals and signs
@@ -411,13 +429,13 @@ window.OEJunctions = (function () {
       const on = mids.get(q.line) || [];
       if (on.some(o => Math.abs(o.mid - q.s) < 25)) return; // (one per stretch: a crossing with an island is mapped as two)
       net.at(q.line, q.s, tmp);
-      const j = { id: J.length, mid: q.s, line: q.line, nodes: [], arms: [], inner: new Set(), x: tmp.x, y: tmp.y, z: tmp.z, hx: tmp.hx, hy: tmp.hy, sig, half: (ROADW[l.c] || 7) / 2,
+      const j = { id: J.length, mid: q.s, line: q.line, nodes: [], arms: [], inner: new Set(), x: tmp.x, y: tmp.y, z: tmp.z, hx: tmp.hx, hy: tmp.hy, sig, half: wOf(l) / 2,
         green: [10, 4, 0], amber: (l.v || 11) > 16 ? AMBER + 1 : AMBER, allred: 2, ph: 0, st: 'g', t: rnd() * 20, nxt: 1, active: [], pend: [], near: [], demand: [0, 0, 0], seen: -1 };
       for (const end of [1, 0]) { // (the traffic heading for each end)
         if (!canReach(q.line, end)) continue;
         net.at(q.line, Math.max(0, Math.min(l.len, q.s + (end ? -6 : 6))), tmp);
         j.arms.push({ j, i: j.arms.length, line: q.line, end, mid: q.s, node: null, x: j.x, y: j.y, z: j.z, out: Math.atan2(tmp.x - j.x, tmp.y - j.y), c: l.c, rank: RANK[l.c] || 2,
-          in: true, exit: true, back: (ROADW[l.c] || 7) > 9 ? 3.6 : 3.0, phase: 0, sign: null, exits: [] });
+          in: true, exit: true, back: wOf(l) > 9 ? 3.6 : 3.0, phase: 0, sign: null, exits: [] });
       }
       if (!j.arms.length) return;
       J.push(j); on.push(j); on.sort((a, b) => a.mid - b.mid); mids.set(q.line, on);
@@ -440,7 +458,7 @@ window.OEJunctions = (function () {
       const l = L[q.line], half = w / 2;
       if (q.s < half + 4 || q.s > l.len - half - 4) return null; // (at the very end of a piece: no room for its lines)
       net.at(q.line, q.s, tmp);
-      const j = { id: J.length, mid: q.s, line: q.line, nodes: [], arms: [], inner: new Set(), x: tmp.x, y: tmp.y, z: tmp.z, hx: tmp.hx, hy: tmp.hy, sig: true, half: (ROADW[l.c] || 7) / 2,
+      const j = { id: J.length, mid: q.s, line: q.line, nodes: [], arms: [], inner: new Set(), x: tmp.x, y: tmp.y, z: tmp.z, hx: tmp.hx, hy: tmp.hy, sig: true, half: wOf(l) / 2,
         green: [1e9, 1e9, 0], amber: AMBER, allred: 0, ph: 0, st: 'g', t: 0, nxt: 0, active: [], pend: [], near: [], demand: [0, 0, 0], seen: -1, rail: { w, state, t } };
       for (const end of [1, 0]) {
         net.at(q.line, Math.max(0, Math.min(l.len, q.s + (end ? -6 : 6))), tmp);
@@ -535,10 +553,27 @@ window.OEJunctions = (function () {
     // choose an exit: ahead more often than a turn, and a main road more often than a lane
     let trips = null; // (where the traffic is going, trips.js: set by the game once the roads to keep off are known)
     // (trip: the place the car is bound for, trips.js, or -1: its exits are weighed by how near each brings it)
-    function choose(a, hw = 0, half = 0, trip = -1, bus = false) {
+    function choose(a, hw = 0, half = 0, trip = -1, bus = false, car = null) {
       let ex = exits(a);
       if (!ex.length) return null;
-      if (bus && ex.length > 1) { const w = ex.filter(e => L[e.m.line].bus); if (w.length) ex = w; } // (a bus keeps to the streets its routes take, where one goes on from here)
+      if (bus && ex.length > 1) {
+        // a bus runs its line: the piece with the line's next step, taken whatever else is offered. Where its line ends
+        // (a terminal, the edge of what the lines were read over) it takes up one that goes on from here; and where none
+        // does it keeps to the streets the routes take, as before the lines were known
+        let w = null;
+        if (car && net.busLines) {
+          const way = a.end ? 1 : -1, la = L[a.line], k = lineOn(la, way, car.bl == null ? -1 : car.bl);
+          if (k >= 0) {
+            const n = stepOn(la, k, way);
+            let best = null, bn = Infinity;
+            for (const e of ex) { const n2 = stepOn(L[e.m.line], k, e.m.end ? -1 : 1); if (n2 > n && n2 - n <= 2 && n2 < bn) { bn = n2; best = e; } }
+            if (best) { w = [best]; car.bl = k; }
+          }
+          if (!w) { const on = ex.filter(e => lineOn(L[e.m.line], e.m.end ? -1 : 1, -1) >= 0); if (on.length) w = on; }
+        }
+        if (!w) w = ex.filter(e => L[e.m.line].bus);
+        if (w.length) ex = w;
+      }
       if (hw && net.fit && ex.length > 1) { const w = ex.filter(e => net.fit[e.m.line] >= hw); if (w.length) ex = w; } // (not into a street too narrow for it, if there is another way: #202)
       // (nor onto a piece shorter than it up to the next line that can't be crossed with the junction there, a piece
       // that comes straight back to this junction: a bus out of Shinjuku's 1195 onto one stood across it 69 s, at the
@@ -1025,7 +1060,7 @@ window.OEJunctions = (function () {
           // reach a little past the crossing's own point too, which the other arm would cover on a two-way road)
           const d0 = a.mid != null && j.arms.length === 1 ? -Math.min(6, d1) : 0;
           for (let d = d0; d <= d1 + 1e-6; d += 1) { net.at(a.line, Math.max(0, Math.min(l.len, alongArm(l, a, d))), tmp); R2.push(tmp.x, tmp.y); }
-          const half = (ROADW[a.c] || 7) / 2;
+          const half = wOf(L[a.line]) / 2;
           for (const fi of new Set(fnet.near(a.x, a.y, 0, d1 + 12))) {
             if (skip && skip.has(fi)) continue;
             const f = F[fi], m = f.pts.length / 3;
@@ -1138,7 +1173,7 @@ window.OEJunctions = (function () {
       const ux = (w[2] - w[0]) / len, uy = (w[3] - w[1]) / len, t = (x - w[0]) * ux + (y - w[1]) * uy;
       return t > -2.5 && t < len + 2.5 && Math.abs((x - w[0]) * uy - (y - w[1]) * ux) < SCR_W_POST - 0.3;
     });
-    const inLanes = (x, y) => { const q = net.nearest(x, y, 10); return !!q && q.d < (ROADW[net.L[q.line].c] || 7) / 2 + 0.3; };
+    const inLanes = (x, y) => { const q = net.nearest(x, y, 10); return !!q && q.d < wOf(net.L[q.line]) / 2 + 0.3; };
     for (const j of J) {
       if (!j.sig) continue;
       for (const a of j.arms) {
@@ -1153,13 +1188,13 @@ window.OEJunctions = (function () {
           net.at(a.line, Math.max(0, Math.min(l.len, s)), tmp);
           const dir = a.end ? 1 : -1;
           for (const w of [0, 1, 2, 3]) {
-            const kb = (ROADW[a.c] || 7) / 2 + 0.7 + w, x = tmp.x - tmp.hy * dir * kb * side, y = tmp.y + tmp.hx * dir * kb * side;
+            const kb = wOf(net.L[a.line]) / 2 + 0.7 + w, x = tmp.x - tmp.hy * dir * kb * side, y = tmp.y + tmp.hx * dir * kb * side;
             if (!onWalk(j, x, y) && !inLanes(x, y)) { clearOf = true; wider = w; break; }
           }
         }
         if (!clearOf) continue;
         const dir = a.end ? 1 : -1, hx = tmp.hx * dir, hy = tmp.hy * dir; // the way the arm's traffic drives
-        const kerb = (ROADW[a.c] || 7) / 2 + 0.7 + wider;
+        const kerb = wOf(net.L[a.line]) / 2 + 0.7 + wider;
         const gz = (x, y) => { const g = ground ? ground(x, y, tmp) : null; return g != null ? g : tmp.z; };
         // the near-side pole at the stop line, the lantern facing the driver (who comes along h)
         const h = Math.atan2(-hx, -hy), rank = a.rank;
@@ -1224,7 +1259,6 @@ window.OEJunctions = (function () {
     }
     // walk signals: a slim post on each kerb of every arm's crossing, the lantern facing across
     const peds = [], dropped = []; // (dropped: walk posts with no place clear of the carriageways near their kerb)
-    const POST_ROAD_HALF = { motorway: 7, trunk: 6, primary: 6, secondary: 5, tertiary: 4.5, residential: 3.5, unclassified: 3, living_street: 2.5 }; // (as the game draws the roads)
     for (const j of J) {
       if (!j.sig) continue;
       if (j.scramble && j.walks && j.walks.length) { // (a scramble's: at both ends of each crosswalk, behind the kerb on the pavement, facing across)
@@ -1237,7 +1271,7 @@ window.OEJunctions = (function () {
           const t = (px - w[0]) * ux + (py - w[1]) * uy, d = Math.abs((px - w[0]) * uy - (py - w[1]) * ux);
           return d > SCR_W_POST - 0.3 || t < -5.5 || t > len + 5.5;
         });
-        const inRoad = (px, py, m = 1.5) => { const q = net.nearest(px, py, 10); return !!q && q.d < (POST_ROAD_HALF[net.L[q.line].c] || 3.5) + m; };
+        const inRoad = (px, py, m = 1.5) => { const q = net.nearest(px, py, 10); return !!q && q.d < (wOf(net.L[q.line]) / 2) + m; };
         // (and on a pavement: by a footway the crowd walks, where it runs along the kerb, not out across the road)
         const paved = (px, py) => { if (!foot) return true; const f = foot.nearest(px, py, 3, j.z, 3); return !!f && !inRoad(f.x, f.y, 0.3); };
         for (const w of W2) {
@@ -1263,7 +1297,7 @@ window.OEJunctions = (function () {
       for (const a of (j.mid != null ? j.arms.slice(0, 1) : j.arms)) { // (a crossing between junctions: one post on each kerb)
         const l = net.L[a.line], d = Math.max(1.5, a.back - 1.6), s = alongArm(l, a, d);
         net.at(a.line, Math.max(0, Math.min(l.len, s)), tmp);
-        const kerb = (ROADW[a.c] || 7) / 2 + 0.55;
+        const kerb = wOf(net.L[a.line]) / 2 + 0.55;
         for (const k of [1, -1]) {
           // (clear of every road's lanes, a wider one meeting it too: out a little further, then round
           // about for room clear of the carriageways (clear, roads.js kerbside), else none)
@@ -1447,5 +1481,5 @@ window.OEJunctions = (function () {
       peds, dropped }; // (the walk signals, { a: its arm, x, y, z, h }: walkcalls.js sounds them)
   }
 
-  return { create, STYLES, RANK, lanesOf, shiftOf, centred };
+  return { create, STYLES, RANK, lanesOf, shiftOf, centred, lineOn, stepOn };
 })();
