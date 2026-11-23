@@ -683,7 +683,8 @@ of motion interrupted, at every depth, that the viewer then moves through. So (`
 
 - time is braked, not cut: the world slows to nothing over most of a second, and a tone falls away
   with it; it runs up again faster than it stopped;
-- a ring runs out along the ground from where you stand: the moment has an edge;
+- a ring runs out along the ground from where you stand: the moment has an edge. It runs over the floor a walker
+  stands on, up a kerb and off a footway, and ends where that floor ends (`stopfx.js` laid, issue 136);
 - what was falling or flying hangs where it was (modelled, `blender/build_stop.py`, since a player
   walks up to them): ginkgo and zelkova leaves and handbills at the height of a
   face, a flock of pigeons half way off the pavement with their wings wherever the beat left them,
