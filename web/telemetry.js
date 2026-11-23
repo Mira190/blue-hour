@@ -49,7 +49,8 @@ window.OETelemetry = (function () {
     format: 'posthog',     // 'posthog' or 'jsonl'
     key: 'phc_v8YPULU9RMwSuJD4K3WYDM8KaGck9Z2XeAFdKeVRD95B',   // the project's public capture key (it only writes events)
   };
-  const VERSION = 6;   // 6: the story's progress ("story" events: begin, frame, print, seen_through, spent, end) and its
+  const VERSION = 7;   // 7: the story's wrong answers ("wrong": q, what), hints asked for ("hint": n), the first walk ("walked")
+                       // 6: the story's progress ("story" events: begin, frame, print, seen_through, spent, end) and its
                        //    frame and beat as the spot; the time zone (tz) with the language
                        // 5: shader errors ("error" kind "shader"), "gl_lost" says how far the load had come, a dead page's
                        //    "crash" says how much it had downloaded (prev_mb), and no events from a local checkout unless asked
@@ -575,7 +576,7 @@ window.OETelemetry = (function () {
         const S = g.story && g.story.state;
         if (S && S.phase && S.phase !== 'idle' && S.phase !== 'dressed') {
           return { spot: S.phase === 'done' ? 'the last card' : clip(`frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`), mode: 'story', watching: ['still', 'guide', 'flight', 'prologue', 'call'].includes(S.beat), // (watched with no hand on anything: the Stop falling, the dog's film, a flight, a call; a line or a question that waits on a key, or a Stop walked in, counts as engaged only with input, as everywhere: an open box once counted a player half an hour away as playing)
-            story: { fi: S.fi, phase: S.phase, prints: (S.prints || []).length, spent: (S.prints || []).filter(q => q.plain).length, failed: S.failed || 0, pairs: (S.pairs || []).length, ep: S.ep && S.ep.id } };
+            story: { fi: S.fi, phase: S.phase, prints: (S.prints || []).length, spent: (S.prints || []).filter(q => q.plain).length, failed: S.failed || 0, pairs: (S.pairs || []).length, ep: S.ep && S.ep.id, wrong: S.wrong || 0, wq: S.wrongAt || null, hint: S.hint || 0, walked: !!S.walked } };
         }
         const p = g.player, a = g.places && g.places.area && g.places.area();
         const spot = (a && a.name) || nearest(names(g), p.x, p.y, 300) || 'streets';
@@ -645,6 +646,11 @@ window.OETelemetry = (function () {
         if (a.fi !== b.fi) track('story', Object.assign({ action: 'frame' }, at));
         if (a.prints > b.prints) track('story', Object.assign({ action: a.spent > b.spent ? 'spent' : 'print' }, at));
         if (a.failed > b.failed) { track('story', Object.assign({ action: 'seen_through' }, at)); flush(); }
+        // (every wrong answer, with its question and which half was wrong: the summation's are never a card; each hint asked
+        // for, by its number; and the first time the player walks, so a Stop left by one who never moved is told apart)
+        if (a.wrong > b.wrong && a.wq) track('story', Object.assign({ action: 'wrong', q: a.wq.q + 1, what: a.wq.what }, at));
+        if (a.hint > b.hint) track('story', Object.assign({ action: 'hint', n: a.hint }, at));
+        if (a.walked && !b.walked) track('story', Object.assign({ action: 'walked' }, at));
         if (a.phase === 'done' && b.phase !== 'done') { track('story', Object.assign({ action: 'end', spent: a.spent, failed: a.failed, pairs: a.pairs }, at)); flush(); } // (the last card: sent at once)
       }
     }

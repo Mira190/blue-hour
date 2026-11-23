@@ -1090,13 +1090,28 @@ def neck_camera(arm, mesh):
     if len(back_arc) < 12:
         raise SystemExit("neck_camera: no neck found")
 
+    # out from the body's axis (upright through the neck), level: the way a strap is lifted and the way it lies flat
+    def radial(p):
+        d = Vector((p.x - neck.x, p.y - neck.y, 0.0))
+        return d.normalized() if d.length > 1e-6 else fwd.copy()
+
+    def outer(p, gap):
+        """p, on or over the outermost cloth or skin seen from outside along the radial: under a lapel's roll the
+        nearest surface is the shirt beneath, and a strap laid by that went in under the lapel and the collar, cut off
+        at the top of the lapel as if sunk into the jacket (the owner, 23 November 2026)."""
+        d = radial(p)
+        hit = bvh.ray_cast(p + d * 0.4, -d, 0.4)[0]
+        if hit is not None and (p - hit).dot(d) < gap:
+            return p + d * (gap - (p - hit).dot(d))
+        return p
+
     def strap_line(ends):   # right lug -> right side of the neck -> round the back -> left side -> left lug
-        down_r = [off(ends[0] + (back_arc[0] - ends[0]) * (j / 16), GAP) for j in range(0, 16)]
-        down_l = [off(back_arc[-1] + (ends[1] - back_arc[-1]) * (j / 16), GAP) for j in range(1, 17)]
+        down_r = [outer(off(ends[0] + (back_arc[0] - ends[0]) * (j / 16), GAP), GAP) for j in range(0, 16)]
+        down_l = [outer(off(back_arc[-1] + (ends[1] - back_arc[-1]) * (j / 16), GAP), GAP) for j in range(1, 17)]
         line = down_r + back_arc + down_l
-        for _ in range(2):   # a strap's curves, not corners; lifted off again after
+        for _ in range(3):   # a strap's curves, not corners; lifted off again after
             line = [line[0]] + [line[i - 1] * 0.25 + line[i] * 0.5 + line[i + 1] * 0.25 for i in range(1, len(line) - 1)] + [line[-1]]
-            line = [line[0]] + [off(p, GAP) for p in line[1:-1]] + [line[-1]]
+            line = [line[0]] + [outer(off(p, GAP), GAP) for p in line[1:-1]] + [line[-1]]
         return line
 
     strap_end = []   # for each strap vertex, how far along its strap it is from the nearer end (for the weights)
@@ -1105,9 +1120,15 @@ def neck_camera(arm, mesh):
         s0 = len(verts)
         for i, c in enumerate(line):
             tan = (line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]).normalized()
-            h, nrm, _, _ = bvh.find_nearest(c)
-            nrm = nrm if h is not None else fwd
+            # (flat across the line and the way out from the body, which turns smoothly: the nearest surface's normal
+            # turned over at a lapel's edge and twisted the strap there, a stretch that read as broken)
+            nrm = radial(c)
+            nrm = (nrm - tan * nrm.dot(tan)).normalized()
             wdir = tan.cross(nrm).normalized()
+            # (and each edge on the cloth too: lifted by the line alone, an edge sank into a lapel's roll)
+            e1, e2 = outer(c + wdir * half, GAP), outer(c - wdir * half, GAP)
+            lift = max((e1 - (c + wdir * half)).dot(nrm), (e2 - (c - wdir * half)).dot(nrm), 0.0)
+            c = c + nrm * lift
             for o in (-0.001, 0.001):
                 verts.extend([c + nrm * o + wdir * half, c + nrm * o - wdir * half])
         for i in range(len(line) - 1):

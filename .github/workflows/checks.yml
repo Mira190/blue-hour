@@ -203,6 +203,9 @@ jobs:
           mkdir shared
           if git fetch -q --depth 1 origin check-passes 2>/dev/null; then git archive FETCH_HEAD | tar -x -C shared; fi
           cp passes-in/*.json.gz shared/
+          # (a branch Vercel sees pushed, with no vercel.json of its own: deployed, and failed, every run. Its own says
+          # it is not a site: no deployment is made of it, docs/CHECKS.md "One deploy a pass")
+          echo '{ "git": { "deploymentEnabled": false } }' > shared/vercel.json
           cd shared
           git init -q -b check-passes
           git add -A
