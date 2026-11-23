@@ -591,6 +591,23 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const slip = SLIPS.includes(s.fi + 1) && slipped < 2 && await p.evaluate(() => !!window.__game.story.state.canFail && window.__game.story.state.want >= 0);
         if (slip) { slipped = slipAt[s.fi + 1] = 1; told0 = told0 ?? await p.evaluate(() => window.__game.story.state.told || 0); }
         { const pv = await p.evaluate(() => !!window.__game.story.state.proving); if (pv) proved++; const k = `summation-${pv ? 'evidence' : 'words'}`; if (s.fi === 6 && !seen.has(k)) { seen.add(k); await snap(`7-${k}`); } } // (the summation: the roll laid out with its pairs, then the words)
+        // (#186 C: the summation's first question, the right name and then the roof's print, which is not the proof: she
+        // must answer for what that print says and what it does not, `wrong_print_by`, never only "not that picture";
+        // then it is answered rightly. Not with SLIP=7, which counts its own wrong answers)
+        if (s.fi === 6 && !SLIPS.includes(7) && !seen.has('print-speaks') && await p.evaluate(() => { const st = window.__game.story.state; return !!st.proving && (st.asked | 0) === 0; })) {
+          seen.add('print-speaks');
+          const r = await p.evaluate(() => { const st = window.__game.story.state, q = (st.fr.meet.ask || [])[0] || {}, A = [...document.querySelectorAll('#gd-choices button')], b = A.find(e => (e.querySelector('b') || {}).textContent === '4'); return { i: A.indexOf(b), want: (q.wrong_print_by || {})[4] || '', n: window.__heard.lines.length }; });
+          if (r.i < 0 || !r.want) { errors.push(`frame 7: the summation's first question has no roof's print to show wrongly, or no line for it (${JSON.stringify(r)})`); console.log(errors[errors.length - 1]); }
+          else {
+            await clickEl('#gd-choices button', r.i);
+            await p.waitForFunction(n => window.__heard.lines.length > n, r.n, { timeout: 120000, polling: 250 }).catch(() => {});
+            const heard = await p.evaluate(n => window.__heard.lines.slice(n), r.n);
+            await snap('7-print-speaks');
+            console.log(`frame 7: the right name on the roof's print: ${JSON.stringify(heard)}`);
+            if (!heard.some(l => String(l).includes(r.want.slice(0, 40)))) { errors.push(`frame 7: the roof's print, shown wrongly, was not answered for what it says: ${JSON.stringify(heard)}`); console.log(errors[errors.length - 1]); }
+          }
+          await p.waitForTimeout(350); continue;
+        }
         { // (CHOOSE=3:0,4:0: at that frame's question with no right answer, that option; ACCUSE=1 is 3:0, the false solution said aloud)
           const pick = await p.evaluate(([slip, choose]) => { const st = window.__game.story.state, A = [...document.querySelectorAll('#gd-choices button')], B = A.filter(b => !b.querySelector('.look')); const free = !st.canFail && choose != null && B.length > choose; const b = free ? B[choose] : B[slip ? (st.want + 1) % B.length : st.want] || B[0]; return { i: A.indexOf(b), free, text: b ? b.textContent.slice(0, 60) : '' }; }, [slip, CHOOSE[s.fi + 1] != null && !chose[s.fi + 1] ? CHOOSE[s.fi + 1] : null]);
           if (pick.free) { chose[s.fi + 1] = pick.text; console.log(`frame ${s.fi + 1}: chose "${pick.text}"`); }
@@ -736,6 +753,20 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const q1 = await look(); await snap('1-seek-4s');
         console.log(`the first Stop, walking to her: ${JSON.stringify(q0)}, then ${JSON.stringify(q1)}`);
         if (!q1 || !q1.at || (q1.d > 12 && q1.halo < 0.1)) { errors.push(`the first Stop: four seconds into the walk to her she is ${!q1 || !q1.at ? 'not in the picture' : `${q1.d} m off with no light round her`}`); console.log(errors[errors.length - 1]); }
+        // (#186 C: players who left here had pressed nothing for minutes. One who has not walked yet has the walking keys
+        // on the screen, and the goal's second line says which; standing still SEEK_ASK_S, it is said again as their turn,
+        // the keys beat, and by touch the stick comes up. Stills of each, readable over the street: #185)
+        const k0 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'); return { walked: !!st.walked, keys: K.classList.contains('on'), how: document.querySelector('#g-story-goal em').textContent }; });
+        console.log(`the first Stop, the walking keys: ${JSON.stringify(k0)}`);
+        if (!k0.walked) {
+          if (!k0.keys || !/walk/i.test(k0.how)) { errors.push(`the first Stop: not yet walked, and ${!k0.keys ? 'no walking keys on the screen' : `the goal does not say how to walk ("${k0.how}")`}`); console.log(errors[errors.length - 1]); }
+          const toasts0 = await p.evaluate(() => document.querySelectorAll('.g-toast').length);
+          await p.waitForFunction(() => (window.__game.story.state.seekAsked || 0) >= 1 || window.__game.story.state.beat !== 'seek', null, { timeout: 600000, polling: 250 }).catch(() => {});
+          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', n: T.length }; });
+          await snap('1-seek-ask');
+          console.log(`the first Stop, standing still: ${JSON.stringify(k1)} (toasts before: ${toasts0})`);
+          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(k1.toast) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
+        }
         continue;
       }
       if (!seen.has(`guide-${s.fi}`) && s.fi === 0) { seen.add(`guide-${s.fi}`); const d = await p.evaluate(() => { const g = window.__game, d = g.story.state.dog; return d ? Math.hypot(d.x - g.player.x, d.y - g.player.y) : -1; }); console.log(`the guide met: ${d.toFixed(1)} m from you`); if (d < 0 || d > 6) { errors.push(`the guide's film ended with him ${d.toFixed(1)} m from you`); console.log(errors[errors.length - 1]); } } const at = await p.evaluate(() => { const g = window.__game.story.state.ghost; return g ? [g.x, g.y, g.z] : null; }); await mark(s, 'stop'); if (at) { await goTo(at, 6); await p.waitForTimeout(800); await snap(`${s.fi + 1}-afterimage`); await goTo(at, 2.2); } }

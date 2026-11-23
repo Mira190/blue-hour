@@ -268,7 +268,7 @@ window.OEStory = (function () {
       st.beat = 'job'; st.t = 0; st.jobReady = false; st.jobT = 0; st.cutCall = false; st.cam = false; camLabel(); camBtn.classList.remove('up', 'on'); finder.classList.remove('on');
       finder.dataset.year = ''; delete finder.dataset.fix; delete finder.dataset.off;
       goal(J.goal || ''); aimAt(spot(J.at), true, 'frame');
-      if (!st.hinted) { st.hinted = true; st.from = [ctx.player.x, ctx.player.y]; keysHint(true); } // (the street is the player's now: the walking keys)
+      if (!st.walked) { st.from = [ctx.player.x, ctx.player.y]; keysHint(true); } // (the street is the player's now: the walking keys, until they have walked)
       const ready = () => { if (st.fr !== fr || st.beat !== 'job') return; st.jobReady = true; st.camAfter = performance.now() + 400; };
       const lines = L(P.lines), push = L(P.push);
       if (st.rang || !(lines.length || push.length)) return ready();
@@ -290,7 +290,7 @@ window.OEStory = (function () {
     const jobFramed = () => { const J = st.fr.job, at = jobAt(), q = ctx.screen(at), r = finderRect(); return !!st.cam && q.front && q.x > r[0] && q.x < r[2] && q.y > r[1] && q.y < r[3] && Math.hypot(at[0] - ctx.player.x, at[1] - ctx.player.y) < (J.within_m || 80); };
     function jobTick(dt) {
       const J = st.fr.job;
-      if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; keysHint(false); }
+      if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; st.walked = true; keysHint(false); }
       camBtn.classList.toggle('on', st.cam || (st.jobReady && !camWait()));
       const on = jobFramed();
       st.jobT = on ? st.jobT + dt : 0;
@@ -549,6 +549,22 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const KEYS = () => (ctx.padOn && ctx.padOn() ? `<span><kbd class="pad">${K('Left stick')}</kbd>walk</span><span><kbd class="pad">${K('Right stick')}</kbd>look</span>` : ctx.touch ? '<span>Left thumb · walk, pushed further · run</span><span>Drag · look</span>' : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>walk</span><span><kbd>Shift</kbd>run</span><span>Mouse · look</span>');
     let keysAre = '';
     function keysHint(on) { if (on) { keysAre = KEYS(); keys.innerHTML = keysAre; } keys.classList.toggle('on', on); }
+    // Standing still in the first Stop with someone to walk to (the seek), before the player has ever walked: at SEEK_ASK_S
+    // the keys are drawn up again and said in words, once more at twice that, and nothing more (the dog has led, the lane
+    // is open and the mark is on her: what was missing was that it is the player's turn, and how to take it)
+    const SEEK_ASK_S = 8;
+    function seekIdleTick(dt) {
+      if (st.walked || st.mov || st.beat !== 'seek' || (st.seekAsked || 0) >= 2) return;
+      const p = [ctx.player.x, ctx.player.y], was = st.seekAt || p; st.seekAt = p;
+      if (Math.hypot(p[0] - was[0], p[1] - was[1]) > 0.02) { st.seekIdle = 0; return; } // (moving: it is being taken)
+      st.seekIdle = (st.seekIdle || 0) + dt;
+      if (st.seekIdle < SEEK_ASK_S * ((st.seekAsked || 0) + 1)) return;
+      st.seekAsked = (st.seekAsked || 0) + 1;
+      const pad = ctx.padOn && ctx.padOn(), who = st.ghost && (st.fr.afterimage || {}).name ? 'her' : 'them';
+      ctx.toast(esc(pad ? `Your turn. The left stick walks you to ${who}.` : ctx.touch ? `Your turn. Push the circle at the bottom left with your thumb: it walks you to ${who}.` : `Your turn. Hold ${K('W')} to walk to ${who}; the mouse turns you.`));
+      keysHint(true); keys.classList.remove('ask'); void keys.offsetWidth; keys.classList.add('ask');
+      ctx.stage.classList.add('story-walk-ask'); // (by touch: the stick itself, faint until it is used, comes up and beats: story.css)
+    }
     const voiceOf = a => Object.assign(a.year ? { pitch: 170, past: 1 } : a.age >= 70 ? { pitch: 160, breath: 1 } : { pitch: 200 }, a.voice || {}); // (someone of another year is heard twice; the old have breath in it)
     const who = a => ({ name: a.name || '', role: a.year ? String(a.year) : [a.age ? `${a.age}` : '', a.role || ''].filter(Boolean).join(' · '), alive: !a.year, voice: voiceOf(a) }); // (the living: their age tonight; an afterimage: its year)
 
@@ -742,6 +758,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
         else {
+          wrongNoted(q, q.frame ? 'print' : 'said');
           if (c && (q.frame || q.fail)) gone.p.add(c.k); // (a print that was not it is off the roll for the next try; and a lie told once is not told again)
           if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines), back = () => ask(m, w, done, as); return F.length ? ctx.say(w, F, () => failed(q.fail, w, back)) : failed(q.fail, w, back); }
         }
@@ -765,6 +782,14 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     let mixedBy = new WeakMap();
     const mixed = q => { let o = mixedBy.get(q); if (!o) { o = (q.options || []).map((_, i) => i); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } mixedBy.set(q, o); } return o; };
     const wrongFor = (q, k) => (q.wrong_by && k != null && q.wrong_by[k] != null ? q.wrong_by[k] : q.wrong); // (a wrong answer is answered for what was said: a hint at the print to look at again)
+    // (the right name on a print that does not prove it: answered for what that print does say, and what it does not
+    // (`wrong_print_by`, keyed by the print's number or the pair's "a-b"), so that the choice itself says why it was not
+    // the one; a print with no line of its own has the question's `wrong_print`. Players at the summation guessed at
+    // prints once the name was right, told only that it was not that one: #186 C)
+    const printWrong = (q, k) => (q.wrong_print_by && k != null && q.wrong_print_by[k] != null ? q.wrong_print_by[k] : q.wrong_print);
+    // (every wrong answer counted for the page's telemetry, web/telemetry.js: which frame and question, and whether the
+    // words or the print were wrong; the summation's are never a card, so `failed` did not see them)
+    const wrongNoted = (q, what) => { st.wrong = (st.wrong || 0) + 1; st.wrongAt = { q: st.asked | 0, what }; };
     // The summation (a question with `proof`): the challenge to the reader. Answered in words first and then with the
     // evidence: the one asked names it (`who`: one of the case's people, from all of them; else one of `options`), then
     // shows the print or the pair that proves it. Both are judged together, and a wrong one counts once toward `fail`;
@@ -795,6 +820,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // (how.free: a wrong answer the evidence fairly led to, a statement marked `near`: answered and struck off, and not counted)
     function judged(m, w, q, ok, said, done, how = {}) {
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
+      if (!ok) wrongNoted(q, how.okS ? 'print' : 'said'); // (for the page's telemetry: which question, and which half of the answer)
       const nm = q.who && how.named != null ? nameOf(how.named) : '';
       if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
       else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines), back = () => ask(m, w, done); return F.length ? ctx.say(w, F, () => failed(q.fail, w, back)) : failed(q.fail, w, back); }
@@ -828,7 +854,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
           ctx.ask(w, [q.show || 'Show me which of your prints says it.'], opts, c2 => {
             if (c2 && c2.k === LOOK) return atHand(prove); // (the name kept: the roll looked at before the print is shown)
             const okS = named === q.answer, okP = !!c2 && proofs.includes(c2.k), ok = okS && okP;
-            judged(m, w, q, ok, ok ? q.right : okS ? (q.wrong_print || 'That is so. But that print does not say it. Show me the one that does.') : wrongFor(q, named), done, { named, okS });
+            judged(m, w, q, ok, ok ? q.right : okS ? (printWrong(q, c2 && c2.k) || 'That is so. But that print does not say it. Show me the one that does.') : wrongFor(q, named), done, { named, okS });
           });
         };
         prove();
@@ -854,7 +880,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         ctx.ask(w.alive ? w : Object.assign({}, w, { name: 'The roll', role: `${st.prints.length} prints`, alive: true }), [q.show || 'And what does the roll have against it?'], opts, c2 => {
           const okS = k === q.lie, okP = !!c2 && c2.k === q.frame, ok = okS && okP;
           if (!okS && k >= 0) gone.s.add(k); else if (okS && c2 && !okP) gone.p.add(c2.k); // (a statement that stands, or a print that is not it: off the table for the next try)
-          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : q.wrong_print || 'That is nothing to me.', done, { free: !okS && !!(q.press[k] || {}).near });
+          judged(m, w, q, ok, ok ? q.right : !okS ? ((q.press[k] || {}).no || q.wrong || 'That stands.') : printWrong(q, c2 && c2.k) || 'That is nothing to me.', done, { free: !okS && !!(q.press[k] || {}).near, okS });
         });
       });
     }
@@ -917,7 +943,13 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         goal(a.seek || 'Someone is still moving. Go to them.');
         aimAt(spot([st.ghost.x, st.ghost.y, st.ghost.z]), true, 'ghost');
         if (st.ghost.glow) st.ghost.glow(true); // (the halation of an old exposure round them, from across the street: game.js storyFigure glow)
-        if (!st.hinted) { st.hinted = true; keysHint(true); }
+        // (the walking keys again, for whoever has not yet walked: they were shown with the call and put away when the world
+        // stopped, and a player who had stood still through the call met the first thing they must walk to with no word of
+        // how. Everything before it plays by itself (the opening, the call, the Stop falling, the dog's film): players who
+        // left here had pressed nothing for minutes, #186 C. So the keys stay up until the player has walked, and standing
+        // still asks again: seekIdle in tick)
+        st.seekIdle = 0; st.seekAsked = 0;
+        if (!st.walked) keysHint(true);
       };
     }
     // The guide's entrance, the first time the world stops (ep.guide, and `meet` on it: from_m, speed, hold_s, lines).
@@ -1201,7 +1233,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
         const go = () => { st.beat = st.beatWas || 'talk'; st.slips = 0; const A = L(B.again); return A.length ? ctx.say(B.w, A, B.back) : B.back(); };
         return roll ? atHand(go) : go();
       }
-      veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
+      veil.classList.remove('on'); ctx.stage.classList.remove('story-stop', 'story-walk-ask');
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; keysHint(false); teach(null); if (ctx.here) ctx.here(null);
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false }); if (ctx.held) ctx.held(false);
       for (const k of ['ghost', 'ghost2', 'relic']) if (st[k]) { st[k].remove(); st[k] = null; }
@@ -1268,7 +1300,7 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
     function resume(late) {
       const fr = st.fr;
       st.phase = 'after'; st.t = 0; st.beat = ''; st.late = !!late;
-      veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
+      veil.classList.remove('on'); ctx.stage.classList.remove('story-stop', 'story-walk-ask');
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; keysHint(false); aimAt(null); goal(''); if (ctx.here) ctx.here(null);
       if (st.teach) teach(null); // (a Stop run out with the camera untaught: the card goes with it, and comes again with the frame)
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false });
@@ -1404,7 +1436,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
       if (keys.classList.contains('on') && KEYS() !== keysAre) keysHint(true); // (the keys, or the pad's sticks, as the hand changes)
       { // under the goal, how: one plain line for whoever has not played a game like this (and the first frame says the keys)
         const f = st.beat === 'shoot' && fr.task ? framed() : null;
-        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
+        const dogN = st.dog ? (st.ep.guide || {}).name || 'the dog' : '', how = !goalText ? '' : st.beat === 'meet' ? (dogN ? `Follow ${dogN}: he takes you to them. They speak when you are close.` : 'Walk up to them: they speak when you are close.') : st.beat === 'approach' ? (fr.find && !st.lit ? `No ring stands there this time. The roll has the place: ${ctx.touch ? 'tap it' : K('Tab')}.` : dogN ? `Follow ${dogN}.` : 'Follow the ring.') : st.beat === 'seek' ? `${st.walked ? '' : ctx.padOn && ctx.padOn() ? 'The left stick walks. ' : ctx.touch ? 'The circle at the bottom left walks. ' : `${K('W')} walks. `}${st.dog ? `Follow ${(st.ep.guide || {}).name || 'the dog'}: he goes ahead to the pale figure.` : 'Walk to the ring: the pale figure.'}`
           : st.beat === 'job' ? (!st.jobReady ? `The call is hands-free: walk and look while it is said${ctx.touch && !(ctx.padOn && ctx.padOn()) ? '' : `; ${K('E')} passes a line`}.` : !st.cam ? (ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap Raise the camera.' : `Raise the camera: ${K('R')}.`) : 'Hold her corner inside the frame lines.')
           : st.beat === 'ride' ? (st.inCar ? ((ctx.rideNow() || {}).arrived ? `You are there. ${ctx.touch ? 'Tap Get out.' : `Press ${K('E')} to get out.`}` : `${ctx.touch ? 'Tap Skip' : `Press ${K('F')}`} to be there now.`) : `Walk to the car and ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} to get in. Or walk the whole way.`)
           : st.beat === 'board' ? `${dogN ? `Follow ${dogN} to it, and` : 'Walk to it and'} ${ctx.touch ? 'tap Get in' : `press ${K('E')}`} beside it.` : f ? (!f.placed ? (fr.task.find && !st.lit ? 'Raise the camera: the two halves of the line in the middle of the finder come together as you come to the place.' : 'Stand in the light on the ground.') : !st.cam ? 'The camera is in your hand. With it up you see what it sees.' : !f.aimed ? (fr.task.relic ? 'Look through the frame lines: something stands there that tonight does not have. While it is outside them, the arrow on their edge points to it.' : 'Turn until it is inside the frame lines.') : ctx.touch && !(ctx.padOn && ctx.padOn()) ? 'Tap the shutter.' : `Press ${K('F')}, or click the shutter.`) : '';
@@ -1454,9 +1486,10 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         for (const q of [g, st.ghost2]) if (q) { q.animate(dt); const o = st.meet && (q === g ? st.ghost2 : g); if (!q.to) { if (o) q.face(o.x, o.y); else q.face(ctx.player.x, ctx.player.y); } }
         if (st.beat === 'seek') {
           // the keys are put away once they have been used
-          if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; keysHint(false); }
+          if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; st.walked = true; keysHint(false); ctx.stage.classList.remove('story-walk-ask'); }
+          seekIdleTick(dt);
           if (g && near([g.x, g.y, g.z], a.reach_m || 3.2)) {
-            st.beat = 'talk'; keysHint(false); aimAt(null); goal(''); if (g.glow) g.glow(false);
+            st.beat = 'talk'; keysHint(false); ctx.stage.classList.remove('story-walk-ask'); aimAt(null); goal(''); if (g.glow) g.glow(false);
             sfx('ghost'); hear(a, who(a), () => task());
           }
         }
