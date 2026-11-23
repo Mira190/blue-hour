@@ -1,0 +1,84 @@
+renderer: ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)
+3-said-go-talk-yuna {"phase":"go","beat":"talk","fi":3,"t":1,"left":4,"dlg":true,"choices":[],"goal":"Go up. The lift at Shibuya Scramble Square, east of the station.","at":[526.9,-1077.1,16]}
+  the face moves (2 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+  the face moves (5 shapes on)
+  the face moves (4 shapes on)
+  the face moves (7 shapes on)
+  the face moves (4 shapes on)
+  the face moves (6 shapes on)
+  the face moves (4 shapes on)
+walked into npc Yuna 優奈 at frame 4 go approach: nearest 0.57 m from their middle, stopped at 0.57 m
+frame 4: ok   SHIBUYA SKY 46F, the escalator to the roof to episode late frame 4's place: 74 m, rides SHIBUYA SKY escalator, north with its steps
+frame 4: ok   SHIBUYA SKY 46F, the escalator to the roof to the top of SHIBUYA SKY escalator, north: 30 m, rides SHIBUYA SKY escalator, north with its steps
+frame 4: ok   SHIBUYA SKY 46F, the escalator to the roof to the top of SHIBUYA SKY escalator, west: 30 m, rides no escalator
+frame 4: ok   SHIBUYA SKY escalator, north, the way it runs: 26 m, rides SHIBUYA SKY escalator, north with its steps
+frame 4: ok   SHIBUYA SKY escalator, north, back the other way: 29 m, rides no escalator
+frame 4: ok   SHIBUYA SKY escalator, west, the way it runs: 26 m, rides SHIBUYA SKY escalator, west with its steps
+frame 4: ok   SHIBUYA SKY escalator, west, back the other way: 31 m, rides no escalator
+frame 4 lift ride: {"k":0.11,"at":[528.8,-1080.1,19.5],"z":15.8,"clear":1}
+frame 4 lift ride: {"k":0.25,"at":[528.3,-1079.8,31.8],"z":15.8,"clear":1}
+frame 4 lift ride: {"k":0.4,"at":[521.5,-1075.2,73.7],"z":15.8,"clear":1}
+frame 4 lift ride: {"k":0.52,"at":[505.6,-1066.4,142.8],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.66,"at":[488.5,-1072.9,206.4],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.75,"at":[485.6,-1081.9,226.9],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.83,"at":[484.5,-1087.2,236.7],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.89,"at":[482.4,-1095.8,238.2],"z":232.8,"clear":1}
+frame 4 lift ride: {"k":0.99,"at":[479.8,-1105.7,235.4],"z":232.8,"clear":0.65}
+frame 4: out of the lift 3.0 m from its stop
+frame 4: from SHIBUYA SKY 46F, the escalator to the roof, the line (99 points, 0.5 m from you) goes left, on SHIBUYA SKY escalator, north
+frame 4 lift-way camera: {"off":5.41,"over":2.53,"yaw":1.2,"swing":0,"lift":0.01,"pull":1,"f":1,"want":0,"mode":"chase","pmode":"foot","cine":false,"fp":false}
+frame 4 lift-way-1 camera: {"off":5.41,"over":2.53,"yaw":1.2,"swing":0,"lift":0.01,"pull":1,"f":1,"want":0,"mode":"chase","pmode":"foot","cine":false,"fp":false}
+frame 4 lift-way-2 camera: {"off":5.41,"over":2.53,"yaw":1.2,"swing":0,"lift":0.01,"pull":1,"f":1,"want":0,"mode":"chase","pmode":"foot","cine":false,"fp":false}
+3-stop {"phase":"stop","beat":"seek","fi":3,"t":2.7,"left":4,"dlg":false,"choices":[],"goal":"Up here the city has stopped too. One man is at the east glass, looking down at where his roof was.","at":[539,-1110.9,241.8]}
+3-said-stop-talk-kanbara {"phase":"stop","beat":"talk","fi":3,"t":6.6,"left":4,"dlg":true,"choices":[],"goal":"Up here the city has stopped too. One man is at the east glass, looking down at where his roof was.","at":[540.8,-1111.2,241.8]}
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (2 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (6 shapes on)
+  the face moves (5 shapes on)
+  the face moves (6 shapes on)
+  the face moves (3 shapes on)
+  the face moves (4 shapes on)
+  the face moves (3 shapes on)
+  the face moves (5 shapes on)
+  the face moves (5 shapes on)
+walked into Kanbara at frame 4 stop shoot: nearest 0.63 m from their middle, stopped at 0.63 m
+walked into the guide at frame 4 stop shoot: nearest 0.57 m from their middle, stopped at 1.02 m
+frame 4 hints: {"h1":{"n":1,"goal":"A pace from him along the glass, on Hikarie's side: the edge of the roof he is looking over."},"h2":{"n":2,"dog":true,"to":0,"state":"sit","lit":false},"h3":{"n":3,"lit":true,"kind":"stand","target":true,"light":true,"objective":false}}
+frame 4 raised from 63 degrees off: the thing at -0.00, -0.04 in the picture, the lens drifting 0.00 degrees and turning 0.00 at most a frame with no hand on it (23 frames)
+frame 4, the lens swept over the thing: on it: ready, 0.64 in the print; tilted -0.16 rad: not ready, 0.54; tilted -0.1 rad: ready, 0.63; tilted -0.06 rad: ready, 0.64; tilted 0.06 rad: ready, 0.64; tilted 0.1 rad: ready, 0.64; tilted 0.16 rad: ready, 0.56; turned -0.12 rad: ready, 0.58; turned -0.07 rad: ready, 0.62; turned 0.07 rad: ready, 0.65; turned 0.12 rad: ready, 0.66
+3-aimed {"phase":"stop","beat":"shoot","fi":3,"t":15.5,"left":4,"dlg":false,"choices":[],"goal":"No light marks it this time. Stand at the glass beside him, and look where he looks: down, at where the dome stood.","at":[540.8,-1111.2,241.8]}
+frame 4, as the release goes: ready, 0.64 of the thing in the print, formed 1
+end {"phase":"stop","beat":"shown","fi":3,"t":60.5,"left":3,"dlg":true,"choices":[],"goal":"The dome, inside the tower that replaced it. Take it.","at":[543.1,-1109.1,241.8]}
+under the last card: 0 of tonight's 2 people on their way, 0 held in mid-step
+note guard: one of the crowd (281, linger) moved out of Hayase Sumiko 早瀬澄子, 0.442 m from them, at frame 4 stop shoot (Stop), (359.04, -983.26)
+guard: the last guard moved 1 of the crowd out of someone not of it (frame 4 stop shoot (Stop))
+bodies: nobody of the crowd drawn within 0.45 m of the story's people, the player or the guide
+note clip floating: you / R Foot, 0.129 m deep (floor 232.82), at frame 4 go approach, (483.86, -1104.11, 232.82), 8 frames
+note clip floating: you / L Foot, 0.086 m deep (floor 15.14), at frame 1 dressed , (376.9, -1013.1, 15.14), 1 frames
+note clip floating: you / L Foot, 0.068 m deep (floor 241.90), at frame 4 stop seek (Stop), (537, -1110.65, 241.9), 1 frames
+note clip floating: you / L Foot, 0.067 m deep (floor 241.90), at frame 4 stop still (Stop), (538.98, -1110.91, 241.9), 1 frames
+note clip floating: you / L Foot, 0.066 m deep (floor 232.82), at frame 4 go approach, (528.06, -1077.62, 16.01), 7 frames
+note clip floating: guide / paws, 0.052 m deep (floor 241.80), at frame 4 stop shoot (Stop), (543.29, -1108.85, 241.8), 439 frames
+note clip floating: guide / paws, 0.051 m deep (floor 241.83), at frame 4 stop shown (Stop), (542.5, -1108.2, 241.83), 177 frames
+note clip limb: npc Taro 太郎 / own Head in own Spine2, 0.038 m deep, at frame 4 go approach, (492.37, -1109.7, 243.32), 169 frames
+note clip limb: you / own L Hand in own Spine2, 0.037 m deep, at frame 4 stop shoot (Stop), (540.61, -1109.07, 243.14), 2 frames
+note clip sunk: npc Yuna 優奈 / R Foot, 0.082 m deep (floor 15.91), at frame 4 go talk (talk), (528.58, -1077.84, 15.91), 7 frames
+note clip sunk: npc Yuna 優奈 / L Foot, 0.08 m deep (floor 15.91), at frame 4 go talk (talk), (528.58, -1077.84, 15.91), 7 frames
+note clip sunk: you / L Foot, 0.077 m deep (floor 15.96), at frame 4 go talk (talk), (526.92, -1077.13, 15.96), 2 frames
+note clip sunk: you / R Foot, 0.07 m deep (floor 15.96), at frame 4 go talk (talk), (526.92, -1077.13, 15.96), 1 frames
+note clip sunk: guide / paws, 0.067 m deep (floor 241.83), at frame 4 stop shoot (Stop), (539.87, -1109.28, 241.83), 18 frames
+note clip sunk: guide / paws, 0.037 m deep (floor 241.83), at frame 4 stop seek (Stop), (540.92, -1109.3, 241.83), 4 frames
+note clip sunk: Kanbara (afterimage) / R Foot, 0.031 m deep (floor 241.80), at frame 4 stop still (Stop), (542.95, -1111.44, 241.8), 1 frames
+note clip sunk: Kanbara (afterimage) / L Foot, 0.031 m deep (floor 241.80), at frame 4 stop still (Stop), (542.95, -1111.44, 241.8), 1 frames
+note clip touch: you / guide, 0.03 m deep (L Foot in guide's spine), at frame 4 stop shoot (Stop), (541.03, -1108.99, 241.83), 1 frames
+note clip touch: you / Kanbara (afterimage), 0.022 m deep (R Hand in Kanbara (afterimage)'s Spine1), at frame 4 stop shoot (Stop), (542.33, -1111.36, 241.83), 1 frames
+note clip wall: guide (other end) / a wall, 0.194 m deep, at frame 4 stop shoot (Stop), (542.21, -1108.01, 241.8), 1 frames
+clip: 3153 frames measured over 9 beats; 7 feet over the floor, 2 a limb in its own body, 8 a foot under the floor, 2 a part of one in another, 1 a body in a wall
+pacing: 1753 walkers followed over 981 windows of 30 s, 0 paced
+stills: 32, 0 s drawing their frames whole, 21 s taking them
+played in 130 s; page errors: 0
