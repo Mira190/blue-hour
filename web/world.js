@@ -813,11 +813,10 @@ vec3 steepRock(vec3 c, float k) {
     // uploads it, and what is drawn here for the GPU (the roofs' photo, the water's cover) is drawn no larger
     const QW = window.OEQuality ? OEQuality.city() : null, LEAN = !!(QW && QW.lean);
     if (QW && QW.tex < renderer.capabilities.maxTextureSize) renderer.capabilities.maxTextureSize = QW.tex;
-    // a phone's pictures as ASTC blocks, a quarter of the GPU's memory (tex.js, issue 443): the game's, where the GPU decodes them
-    // (and a desktop's as BC7 blocks, bc7.js, issue 130: 640 MB of colour pictures on the high tier were four bytes a texel.
-    // PACK: packed on a desktop, whose pictures keep their size; ASTC: on a phone, where they are made smaller as well)
-    const BLOCKS = !!(window.OETex && OETex.on(renderer, game, { lean: LEAN })), ASTC = BLOCKS && LEAN, PACK = BLOCKS && !LEAN;
-    if (BLOCKS && window.OETelemetry && OETelemetry.set) OETelemetry.set(ASTC ? { astc: 1 } : { bc7: OETex.stats.fmt === 'bc7' ? 1 : 0, astc: OETex.stats.fmt === 'astc' ? 1 : 0 }); // (rides on the view's events: which devices run packed)
+    // the game's pictures in blocks, a quarter of the GPU's memory (tex.js): a phone's as ASTC (issue 443), a desktop's
+    // as BC7 with its normal maps as BC5 (docs/PERFORMANCE.md, "A desktop's pictures in blocks"), where the GPU decodes them
+    const ASTC = !!(window.OETex && OETex.on(renderer, !!game, LEAN));
+    if (ASTC && window.OETelemetry && OETelemetry.set) OETelemetry.set(OETex.stats.fmt === 'astc' ? { astc: 1 } : { bc: 1 }); // (rides on the view's events: which devices run packed, and in what)
     if (LEAN && window.OETelemetry && OETelemetry.set) OETelemetry.set({ lv: QW.lighter }); // (and the level of a phone's set it runs at: quality.js level)
     const SHADOW = Math.min(renderer.capabilities.maxTextureSize, shadow || (renderer.capabilities.maxTextureSize >= 8192 && !small ? 4096 : 2048));
 
@@ -1568,18 +1567,13 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
         if (!pics.overview) tileLoaded(img);
         if (!img) return;
         if (stream) { stream.img[i] = img; stream.lo[i] = tex; if (stream.at) groundKeep(...stream.at, true); return; }
-        if (pics.first[i]) {
-          tex.image = img; tex.needsUpdate = true;
-          // (a desktop: shown as it came, then its blocks sent between frames and worn in its place, a quarter of its memory)
-          if (PACK) { const own = photoTex(img); OETex.pack(own).then(ok => (ok ? sendTex(renderer, own) : Promise.reject())).then(() => { m.material.map = own; tex.dispose(); }, () => own.dispose()); }
-          return;
-        }
+        if (pics.first[i]) { tex.image = img; tex.needsUpdate = true; if (ASTC) OETex.pack(tex); return; } // (in blocks before it is sent, a phone's and a desktop's: tex.js)
         // a far tile, after the game opened: sent to the GPU between frames, then swapped in. One texture a frame, in the
         // queue every streamed model shares (sendTex): each tile waited for idle time of its own, and the tiles that came
         // in together were sent in the same idle moment, four 1000 x 1200 pictures and their mipmaps in one frame
         // (tools/walk_hitch.js, issue 184)
         const own = photoTex(img);
-        if (PACK) await OETex.pack(own); // (a desktop: in blocks before it is sent)
+        if (ASTC) await OETex.pack(own);
         await sendTex(renderer, own);
         m.material.map = own;
       }));
@@ -2225,7 +2219,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // is drawn once at its own size then let go. A text sign stays legible: these are seen across a street, not read.
     const LEAN_CAP = 1024 >> (QW && QW.lighter >= 3 ? 1 : 0); // (half on the lightest set, quality.js level: at 512 a shop's name across the Scramble no longer reads, so a phone's first set keeps 1024; at a quarter no sign does)
     const leanDown = tex => {
-      if (PACK && tex && tex.image) { tex.userData.picture = tex.image; OETex.pack(tex); return tex; } // (a desktop: at its own size, in blocks; held back until they are there. The picture itself is kept for what reads its pixels: the screens' light, neon.js)
+      if (!LEAN && ASTC && tex && tex.image) { tex.userData.thumbSide = 512; OETex.pack(tex); return tex; } // (a desktop: at its own size, in blocks; a small copy kept for neon.js, which reads a screen's programme by the pixel)
       if (!LEAN || !tex || !tex.image) return tex;
       if (ASTC) { tex.userData.max = LEAN_CAP; OETex.pack(tex); return tex; } // (drawn at that size and encoded in the Worker: tex.js)
       const im = tex.image, side = Math.max(im.width || 0, im.height || 0);

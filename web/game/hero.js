@@ -284,12 +284,14 @@ window.OEHero = (function () {
             if (opts.mirror && /^ground/.test(n)) opts.mirror.patch(m);
           }
         });
-        // (its vertices at the size the picture needs, before any is sent: a normal in bytes, the baked light in half floats; verts.js)
-        if (window.OEVerts) OEVerts.leanObject(root, LEAN_VERTS);
         root.updateMatrixWorld(true);
         if (opts.ground) opts.ground(L.h, root); // (where its paving is: game.js heroCover)
         // its squares of one material in one draw, each still culled by itself (batch.js; after the paving is read from them)
         if (window.OEBatch) OEBatch.merge(root, { name: m => `${L.h.id}_${m.name || 'mat'}`, pack: true, unit: ['_bake'] });
+        // (and what the batches left as floats, before any is sent, verts.js: a baked light that runs past 1, which is the
+        // Scramble's, the roof's and Miyamasu's, in half floats, in a batch's own buffer too; a mesh that stands alone,
+        // its normal in bytes. After the merge: a batch takes its meshes' attributes as plain arrays)
+        if (window.OEVerts) OEVerts.leanObject(root, LEAN_VERTS);
         if (Wd.still) Wd.still(root); // (its shadow cached with the city's: world.js shadowCache)
         root.visible = false;
         group.add(root);
@@ -350,7 +352,10 @@ window.OEHero = (function () {
       if (L.root) { group.remove(L.root); dispose(L.root); }
       if (L.fineRoot) { group.remove(L.fineRoot); dispose(L.fineRoot); }
       release(L);
-      if (L.h._probe) { L.h._probe.rt.dispose(); L.h._probe = null; }
+      // (the probe's cube, and the sky-light map three.js made of it for the glass: that map is let go when the cube's
+      // texture says it is disposed, which a render target's own dispose does not say. 6 MB on a desktop stayed from
+      // frame 4 to the last card)
+      if (L.h._probe) { L.h._probe.rt.texture.dispose(); L.h._probe.rt.dispose(); L.h._probe = null; }
       showHidden(L, true);
       L.h.shown = false; // (let go: nobody stands on its paving)
       Object.assign(L, { state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], fine: 'idle', fineRoot: null, fineMeshes: [] });

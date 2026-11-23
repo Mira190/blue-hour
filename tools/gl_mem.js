@@ -9,7 +9,7 @@ exports.hook = () => {
     0x881A: 8, 0x8814: 16, 0x822F: 4, 0x822E: 4, 0x8230: 8, 0x822D: 2, 0x8D62: 2, 0x8056: 2, 0x8057: 2, 0x8C3A: 4, 0x8C3D: 4,
     0x81A5: 2, 0x81A6: 3, 0x88F0: 4, 0x8CAC: 4, 0x8CAD: 8, 0x1902: 4, 0x8D9F: 4, 0x8F94: 4, 0x8059: 4, 0x8236: 4, 0x8235: 4, 0x8234: 2, 0x8233: 1,
     0x8232: 1, 0x8231: 1, 0x823C: 8, 0x823B: 4, 0x823A: 4, 0x8239: 2, 0x8238: 2, 0x8237: 2, 0x8D70: 16, 0x8D76: 16, 0x8D7C: 4, 0x8D82: 16, 0x8D88: 16, 0x8D8E: 4,
-    0x93B0: 1, 0x93D0: 1, 0x8E8C: 1, 0x8E8D: 1 }; // (ASTC 4x4 and BC7, linear and sRGB: sixteen bytes a block of sixteen texels)
+    0x93B0: 1, 0x93D0: 1, 0x8E8C: 1, 0x8E8D: 1, 0x8DBD: 1, 0x8DBB: 0.5 }; // (ASTC 4x4, linear and sRGB, BC7 the same, BC5: sixteen bytes a block of sixteen texels; BC4 eight)
   const M = window.__mem = { tex: new Map(), buf: new Map(), rb: new Map(), peak: 0, peakAt: '', sum: 0, log: [], logged: 0 };
   // the load's own steps (game.js loadStep), each with the GPU memory and the heap when it was named: which step takes the memory
   const SP = window.__steps = [], pm = performance.mark.bind(performance);
@@ -87,4 +87,21 @@ exports.hook = () => {
   };
   const get = HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.getContext = function (type, opts) { const r = get.call(this, type, opts); if (r && /webgl/.test(type)) this.__gl = true; return r; };
+};
+
+// Where each texture was made (BUDGET_TOP in tools/story_play.js): every three.js texture, a render target's and a
+// depth texture among them, notes the page's own lines that made it (texture.__at), and is kept weakly in
+// window.__texAll, so that one no material wears can still be named.
+exports.own = () => {
+  window.__texAll = new Set();
+  const hook = () => {
+    const T = window.THREE;
+    if (!T || !T.Texture) return;
+    Object.defineProperty(T.Texture.prototype, 'uuid', { configurable: true, get() { return undefined; }, set(v) {
+      Object.defineProperty(this, 'uuid', { value: v, writable: true, enumerable: true, configurable: true });
+      this.__at = (new Error().stack || '').split('\n').filter(l => /\.js/.test(l) && !/vendor\/three|gl_mem|playwright/.test(l)).slice(0, 3).map(l => l.replace(/^.*\/(\w[\w.-]*\.js)[^:]*:(\d+):\d+\)?$/, '$1:$2').trim()).join(' < ');
+      window.__texAll.add(new WeakRef(this));
+    } });
+  };
+  if (window.THREE) hook(); else addEventListener('three-ready', hook, { once: true });
 };

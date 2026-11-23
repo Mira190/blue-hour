@@ -10,7 +10,6 @@
 const { chromium } = require('playwright');
 const pics = process.argv.slice(2).length ? process.argv.slice(2) : ['data/shibuya/ground_2_1.jpg', 'data/shibuya/atlas.webp', 'data/shibuya/scramble.webp', 'data/shibuya/far.jpg', 'assets/trees/trees_far.glb#0', 'assets/people/R_Female_Adult_14.glb#1', 'assets/people/H_Kagami_M.glb#3', 'assets/animals/akita.glb#2', 'assets/people/R_Business_Female_01.glb#4'];
 const MIN = +(process.env.MIN_DB || 30);
-const FMT = process.env.FMT === 'bc7' ? 'bc7' : 'astc'; // (FMT=bc7: a desktop's blocks, web/bc7.js, by the same measure)
 const MAX_DRIFT = +(process.env.MAX_DRIFT || 8), MAX_RIM = +(process.env.MAX_RIM || 30); // (8-bit sRGB steps: a cut-out's mipmaps and its edge)
 (async () => {
   const b = await chromium.launch({ args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -19,10 +18,9 @@ const MAX_DRIFT = +(process.env.MAX_DRIFT || 8), MAX_RIM = +(process.env.MAX_RIM
   await p.goto(`http://localhost:${process.env.PORT || 8800}/data/cities.json`);
   await p.setContent('<!doctype html><canvas id=c></canvas>');
   await p.addScriptTag({ url: `http://localhost:${process.env.PORT || 8800}/astc.js` });
-  if (FMT === 'bc7') await p.addScriptTag({ url: `http://localhost:${process.env.PORT || 8800}/bc7.js` });
   let bad = 0;
   for (const pic of pics) {
-    const r = await p.evaluate(async ([url, fmt]) => {
+    const r = await p.evaluate(async ([url, force]) => {
       // (a picture inside a model: assets/trees/trees_far.glb#0 is the first image of that GLB)
       let blob;
       if (/\.glb#\d+$/.test(url)) {
@@ -34,24 +32,21 @@ const MAX_DRIFT = +(process.env.MAX_DRIFT || 8), MAX_RIM = +(process.env.MAX_RIM
       const w = Math.min(1024, img.width), h = Math.min(1024, img.height), cv = new OffscreenCanvas(w, h), g = cv.getContext('2d', { willReadFrequently: true });
       g.drawImage(img, 0, 0, w, h);
       const src = g.getImageData(0, 0, w, h).data;
-      const gl = document.getElementById('c').getContext('webgl2'), bc7 = fmt === 'bc7', ext = gl.getExtension(bc7 ? 'EXT_texture_compression_bptc' : 'WEBGL_compressed_texture_astc');
-      if (!ext) return { error: bc7 ? 'no BC7 here' : 'no ASTC here' };
-      const E = bc7 ? OEBc7 : OEAstc, GLFMT = bc7 ? ext.COMPRESSED_RGBA_BPTC_UNORM_EXT : ext.COMPRESSED_RGBA_ASTC_4x4_KHR;
-      // (the levels as astc-worker.js makes them: the top, then each the half of the one above)
-      const levelsOf = (px, w, h, alpha) => { if (!bc7) return OEAstc.mips(px, w, h, alpha, true); const out = [{ data: E.encode(px, w, h, alpha), width: w, height: h }]; for (let cur = { data: px, width: w, height: h }; cur.width > 1 || cur.height > 1;) { cur = OEAstc.half(cur.data, cur.width, cur.height, true); out.push({ data: E.encode(cur.data, cur.width, cur.height, alpha), width: cur.width, height: cur.height }); } return out; };
+      const gl = document.getElementById('c').getContext('webgl2'), ext = gl.getExtension('WEBGL_compressed_texture_astc');
+      if (!ext) return { error: 'no ASTC here' };
       const out = {};
       for (const mode of ['opaque', 'alpha']) {
         const px = src.slice();
         if (mode === 'opaque') for (let i = 3; i < px.length; i += 4) px[i] = 255;
         else if (OEAstc.opaque(px)) for (let i = 0; i < px.length; i += 4) px[i + 3] = Math.max(0, Math.min(255, ((px[i] + px[i + 1] + px[i + 2]) / 3 - 96) * 9)); // (a cut-out made of an opaque picture: its darks cut away, a soft edge between)
         if (mode === 'alpha' && OEAstc.bleed) OEAstc.bleed(px, w, h); // (as astc-worker.js does before it encodes: what is cut away given its neighbours' colour)
-        E.stats.reset();
-        E.encode(px, w, h, mode === 'alpha');
-        const own = +E.stats.db().toFixed(1); // (the encoder's own account of the top level, which astc-worker.js goes by)
-        const t0 = performance.now(), levels = levelsOf(px, w, h, mode === 'alpha'), ms = performance.now() - t0;
+        OEAstc.stats.reset();
+        OEAstc.encode(px, w, h, mode === 'alpha');
+        const own = +OEAstc.stats.db().toFixed(1); // (the encoder's own account of the top level, which astc-worker.js goes by)
+        const t0 = performance.now(), levels = OEAstc.mips(px, w, h, mode === 'alpha', true), ms = performance.now() - t0;
         const tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        levels.forEach((l, i) => gl.compressedTexImage2D(gl.TEXTURE_2D, i, GLFMT, l.width, l.height, 0, l.data));
+        levels.forEach((l, i) => gl.compressedTexImage2D(gl.TEXTURE_2D, i, ext.COMPRESSED_RGBA_ASTC_4x4_KHR, l.width, l.height, 0, l.data));
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         const fb = gl.createFramebuffer(), rt = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, rt); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -123,7 +118,7 @@ const MAX_DRIFT = +(process.env.MAX_DRIFT || 8), MAX_RIM = +(process.env.MAX_RIM
         gl.deleteTexture(tex); gl.deleteTexture(rt); gl.deleteFramebuffer(fb);
       }
       return { w, h, out };
-    }, [`http://localhost:${process.env.PORT || 8800}/${pic}`, FMT]).catch(e => ({ error: String(e).slice(0, 300) }));
+    }, [`http://localhost:${process.env.PORT || 8800}/${pic}`]).catch(e => ({ error: String(e).slice(0, 300) }));
     if (r.error) { console.log(`FAIL ${pic}: ${r.error}`); bad++; continue; }
     for (const [mode, o] of Object.entries(r.out)) {
       const ok = o.db >= MIN && !o.err && !o.magenta && Math.abs(o.own - o.db) < 1 && (o.alphaDb === undefined || o.alphaDb >= 20) && o.drift <= MAX_DRIFT && o.rim <= MAX_RIM;

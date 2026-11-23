@@ -52,8 +52,6 @@ window.OENeon = (function () {
     return out;
   }
 
-  // a sheet's picture to read: the one it came as, where the GPU has it in blocks (tex.js keeps no pixels; world.js keeps the picture)
-  const pictureOf = map => (map ? (map.userData && map.userData.picture) || map.image : null);
   // the mean linear colour of every keyframe in a programme's sheet
   function cellMeans(m, img) {
     const [cols, rows] = m.sheet, ch = m.sheet[3], K = 8, cv = document.createElement('canvas');
@@ -249,7 +247,7 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
       let all = true;
       for (const e of em) {
         if (!e.rgb) continue;
-        const s = e.s, m = s.entry.m, img = pictureOf(s.entry.mat.map);
+        const s = e.s, m = s.entry.m, img = s.entry.mat.map && s.entry.mat.map.image;
         let cm = means.get(m);
         if (!cm && img && img.width > 0 && img.complete !== false) try { means.set(m, cm = cellMeans(m, img)); } catch (er) { cm = null; }
         if (!cm) { all = false; continue; }
@@ -341,9 +339,10 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
       const m = s.entry.m, mat = s.entry.mat;
       let cm = means.get(m);
       if (!cm) {
-        const img = pictureOf(mat.map);
+        // (a picture in blocks has no pixels on the page: tex.js keeps a small copy of it for this)
+        const img = mat.map && (mat.map.isCompressedTexture ? mat.map.userData.thumb : mat.map.image);
         if (!img || !(img.width > 0) || img.complete === false) return null;
-        try { means.set(m, cm = cellMeans(m, img)); } catch (er) { return null; } // (a picture that cannot be read: no light of its own)
+        means.set(m, cm = cellMeans(m, img));
       }
       const F = m.frames || 1, D = (m.frame_s || 4) * F, tt = t + s.phase, k = Math.floor(tt / D);
       let clip = scrClip(s.mask, ((k % s.clips) + s.clips) % s.clips), ct = tt / D - k;

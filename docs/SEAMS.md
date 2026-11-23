@@ -90,8 +90,10 @@ What the contract does not hold, and a session still owes: how the set looks in 
 stills beside the people already there, on a desktop and a phone (AGENTS.md, "Checking your own work"); and main's
 full tier plays the story with it after it lands.
 
-One exception is written into the contract: `oda` is cast with the clip `Drink`, which the men's file has not, so
-he stands in `Idle`. Building the clip or recasting him removes the line.
+The contract has a place for an exception (`cast_clips_known`: someone cast with a clip their sex's file has not, who
+stands in `Idle`), and none is in it: Mr Oda's `Drink` was the last, and the men's file has it since issue 177. A
+rebuild of the clips keeps every clip the file already had (`build_people.py`), so a clip asked for by the regulars or
+the walk's events, which no city's cast names, is not dropped.
 
 ## The hero levels
 
@@ -146,6 +148,7 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | `web/game/benches.js`, 23 November 2026 | 70 (benches in the sun, the hour's presets; `benchBudget` kept) | light | 13 | 6 |
 | `web/game/survey.js`, 23 November 2026 | 101 (surveying from a trig station; `surveyLabels`, `surveyFov` kept) | camera | 30 | 2 |
 | `web/game/menus.js`, 23 November 2026 | 58 (the menu, the map, the passport; `bigView`, `waypoint`, `bigPins`, `picked`, `travelKey` kept) | hud | 14 | 5 |
+| `web/game/region.js`, 23 November 2026 | 972 (the region round this map: the big map and its districts, travel, who you play, the title's screen; `titleKeyed`, `bigChips`, `bigNames`, `mapDrag`, `dragged` kept) | hud | 108 | 28 |
 
 A `let` of a section that the rest of the game reads or sets stays in `game.js` (`KEEP=name`): the part asks for it
 like any other name, through a getter and a setter, so both sides see one variable. Cut several sections from the

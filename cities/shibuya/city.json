@@ -606,6 +606,25 @@
         {"id": "last", "who": "A salaryman the worse for drink, on the square from ten past eleven; at 00:28 he makes for the station, misses the 00:33, and comes slowly back to stand facing it.", "wear": {"cast": "R_Male_Adult_06", "dress": 2}, "rows": [{"t": "23:10", "at": [380.0, -1030.0], "face": [408.0, -1030.0]}, {"t": "00:28", "at": [380.0, -1030.0], "face": [408.0, -1030.0]}, {"t": "00:29", "at": [407.0, -1026.0], "pace": 1.6}, {"t": "00:36", "at": [407.0, -1026.0], "face": [420.0, -1026.0]}, {"t": "00:38", "at": [383.0, -1031.0], "pace": 0.6}, {"t": "01:40", "at": [383.0, -1031.0], "face": [408.0, -1030.0], "off": true}]}
       ]
     },
+    "visitors": {
+      "note": "The people a place keeps (web/game/visitors.js; issues 112 and 171): a few anonymous people where the place puts them, standing or seated, each drawn as one of the crowd's own cast (game.crowd.cast, loaded for the near crowd: no model or texture is added), made only when the camera comes within r of the place (counted in height too) and drawn only while it is, on a phone only those marked phone. An overheard line of the place is said by them (game.js speakers). at: [x, y, z], z naming the floor (found again there); face: a point they look toward; sit: a seat's rake (perch.js; 0.15 a bench at chair height, 0.7 the wall's stone), the root on the floor before the seat; seat: the drawn seat's top over that floor (the thighs slope down until the hip joint stands 9 cm over it; tools/drawn_seat.js checks it against what is drawn, never the walking grid, which round Hachiko's bed is a metre wider than the stone); clip: one of the cast's clips (people.json npcs.clips), what they do while they stay; why: who they are. walk: the group on the walk only. tools/visitors_check.js stands each on its floor, clear of what is solid and of each other, and gives each line its speakers.",
+      "groups": [
+        {"id": "sky-stage", "name": "SHIBUYA SKY's roof", "at": [518.45, -1124.31, 241.8], "r": 100, "people": [
+          {"at": [489.02, -1111.24, 241.8], "face": [368.0, -1004.0], "sex": "f", "clip": "Photo", "phone": true, "why": "at the west glass, photographing the scramble 230 m down"},
+          {"at": [489.36, -1111.96, 241.8], "face": [368.0, -1004.0], "sex": "m", "clip": "Idle_Neutral", "phone": true, "why": "beside her, looking where she points"},
+          {"at": [490.0, -1119.0, 237.3], "face": [488.0, -1119.1], "sex": "f", "clip": "Photo", "phone": true, "why": "SKY EDGE: on the stair's landing, framing her friend against the corner"},
+          {"at": [488.0, -1119.1, 237.3], "face": [490.0, -1119.0], "sex": "m", "clip": "Idle_Neutral", "phone": true, "why": "posing at the corner's handrail, waiting for the lights"},
+          {"at": [495.88, -1146.1, 241.8], "face": [486.57, -1149.75], "sex": "m", "clip": "Idle", "sit": 0.15, "seat": 0.49, "why": "resting on a west bench, facing Shinjuku"},
+          {"at": [548.75, -1122.24, 241.8], "face": [558.06, -1118.59], "sex": "f", "clip": "Idle", "sit": 0.15, "seat": 0.49, "why": "on an east bench, facing Roppongi"},
+          {"at": [519.83, -1087.37, 241.8], "face": [512.46, -1079.52], "sex": "m", "clip": "Photo", "why": "at the north glass, photographing Shinjuku's towers"},
+          {"at": [527.45, -1157.18, 241.8], "face": [532.5, -1165.67], "sex": "f", "clip": "Phone", "why": "at the south glass, a message home"},
+          {"at": [526.8, -1157.44, 241.8], "face": [529.71, -1166.77], "sex": "f", "clip": "LookAround", "why": "her friend, looking for Tokyo Tower"}
+        ]},
+        {"id": "hachiko-wall", "name": "Hachiko's wall", "at": [370.8, -1045.2, 15.3], "r": 60, "walk": true, "people": [
+          {"at": [371.33, -1045.68, 15.42], "face": [375.83, -1036.78], "sex": "m", "clip": "Idle", "sit": 0.7, "seat": 0.4, "phone": true, "why": "sitting on Hachiko's wall along its face from the free place, past where Nagi sits to wait, watching the crossing"}
+        ]}
+      ]
+    },
     "tonight": {
       "place": "Shibuya",
       "lead": 6,
@@ -957,7 +976,8 @@
           "legs": "#2a2e36",
           "shirt": "#2f3440",
           "pants": "#2a2e36",
-          "clip": "Drink"
+          "clip": "Drink",
+          "drink": "can"
         },
         "idle": [
           "Thirty years I drove these streets. I still come down at night with a hot can of coffee."
@@ -1295,11 +1315,11 @@
             -1004.0
           ],
           "wait": {
-            "note": "The line's end (walktalk.js wait, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser.",
+            "note": "The line's end (walktalk.js wait, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser. The point is on the drawn stone, read by a ray down through the meshes (tools/drawn_seat.js), not by the walking grid, which round Hachiko's bed is a metre wider than the stone: at [370.91, -1045.03] she sat in the air beside it (issue 171).",
             "verb": "Wait with her for {train}",
             "beside": [
-              370.91,
-              -1045.03
+              370.7,
+              -1045.22
             ],
             "before": 3,
             "says": [
@@ -1982,8 +2002,8 @@
         "lift": 0.05,
         "posts": [[294.0, -1001.0], [277.2, -989.3], [309.1, -986.8], [370.6, -971.9], [376.5, -946.6], [382.3, -921.2], [395.1, -997.1], [421.7, -930.0], [420.4, -956.0], [419.3, -982.0], [431.8, -998.4], [457.8, -997.1], [414.0, -1009.8], [348.7, -1061.0], [357.9, -1036.7], [328.6, -1063.2], [332.4, -1041.8], [340.4, -1007.8]],
         "rounds": [[381.0, -1035.5, 1.75], [383.6, -1049.2, 1.75]],
-        "perches": [{"name": "Hachiko's wall", "at": [370.21, -1044.77], "face": [-0.07, 0.998], "cam": {"back": 2.6, "side": -1.6, "up": 1.45}, "look": [368.0, -1004.0]}],
-        "perches_note": "Where you sit and watch the crossing on the walk (web/game/perch.js): the outer corner of the low granite wall round Hachiko's bed on his left (city.py HK_BED: the bed is behind him as he looks north-east to the station's Hachiko exit, its wall 0.48 m over his setts, its end blocks 0.3 m thick), sat across the corner with the legs over it, facing north to the scramble 40 m off, as people sit on the wall in the photographs of the square. The bed's other end faces east, away from the crossing. at: the hips, over the stone; face: the way the seat looks (a unit vector, x east, y north); cam: where the camera stands, from the hips: back (m behind them), side (m to the seat's right; negative, to its left, so that the bed's lantern 0.9 m behind you stays out of the view; on a tall screen the camera also stands a metre further back and 0.6 m higher, and the aim keeps you nearer the middle), up (m over the feet); look: what the camera frames, the scramble's middle.",
+        "perches": [{"name": "Hachiko's wall", "at": [370.21, -1044.77], "face": [-0.07, 0.998], "seat": 0.4, "cam": {"back": 2.6, "side": -1.6, "up": 1.45}, "look": [368.0, -1004.0]}],
+        "perches_note": "Where you sit and watch the crossing on the walk (web/game/perch.js): the outer corner of the low granite wall round Hachiko's bed on his left (city.py HK_BED: the bed is behind him as he looks north-east to the station's Hachiko exit, its wall 0.48 m over his setts, its end blocks 0.3 m thick), sat across the corner with the legs over it, facing north to the scramble 40 m off, as people sit on the wall in the photographs of the square. The bed's other end faces east, away from the crossing. at: the hips, over the stone; face: the way the seat looks (a unit vector, x east, y north); cam: where the camera stands, from the hips: back (m behind them), side (m to the seat's right; negative, to its left, so that the bed's lantern 0.9 m behind you stays out of the view; on a tall screen the camera also stands a metre further back and 0.6 m higher, and the aim keeps you nearer the middle), up (m over the feet); look: what the camera frames, the scramble's middle. seat: the stone's top over the setts the feet are on (0.4 m drawn): the thighs slope down to it so that the hip joint stands on the stone, not sunk in it (people.js rig.seatH; tools/drawn_seat.js checks it against what is drawn).",
         "rounds_note": "What stands round in the level and is a fence to a walker however low: Hachiko Square's two planters (city.py HK_PLANTERS), 0.72 m of granite a walker would step up onto, inside a stainless rail 1.69 m from their middle. [x, y, radius to the rail's outside, m].",
         "bake": 0.7,
         "fill": 0.3,
