@@ -78,7 +78,8 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // and at night in the rain every frame drawn whole was all of its time on a software renderer (issue 131)
   await skip(p, +(process.env.DRAW || 0));
   const errors = [];
-  const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
+  const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
+  const fail = m => { m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
