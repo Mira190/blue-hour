@@ -30,6 +30,54 @@ window.OECompanion = (function () {
   // animal, is held off the player by its own size. Until then, the Akita's (blender/build_dog.py: 0.52 m behind where
   // he stands to 0.72 m in front)
   const SPINE = [-0.33, 0.53], FLANK = 0.19, PLAYER_R = 0.35;
+  const THIN_PX = 0.6; // a strand thin() draws is never narrower than this many pixels either side of its middle
+
+  // His whiskers (any strand a fraction of a pixel across): drawn at least a pixel wide, as faint as the part of that
+  // pixel they really cover ("phone-wire anti-aliasing", Emil Persson, 2011: the method, no code). Without
+  // multisampling, as a phone draws, a strand narrower than a pixel falls between the pixels' centres and comes out as
+  // broken dark dots: his cheeks were speckled on an iPhone and clean on a desktop (November 2026). A strand is a tube
+  // of rings of three (blender/build_dog.py muzzle_whiskers); each vertex's ring is the two vertices nearest it (a ring
+  // is a fraction of a millimetre across, the rings a centimetre apart along it), and its offset from the ring's middle
+  // is what the vertex shader stretches, after the skin has posed it, until the tube is THIN_PX either side.
+  function thin(o) {
+    const g = o.geometry, P = g.attributes.position, n = P.count, off = new Float32Array(n * 3);
+    const X = new Float32Array(n), Y = new Float32Array(n), Z = new Float32Array(n);
+    for (let i = 0; i < n; i++) { X[i] = P.getX(i); Y[i] = P.getY(i); Z[i] = P.getZ(i); }
+    for (let i = 0; i < n; i++) {
+      let a = i, b = i, da = Infinity, db = Infinity;
+      for (let j = 0; j < n; j++) {
+        const d = (X[j] - X[i]) ** 2 + (Y[j] - Y[i]) ** 2 + (Z[j] - Z[i]) ** 2;
+        if (d < 1e-16) continue; // (itself, or a copy of it where the file split a vertex)
+        if (d < da) { db = da; b = a; da = d; a = j; } else if (d < db) { db = d; b = j; }
+      }
+      off[3 * i] = X[i] - (X[i] + X[a] + X[b]) / 3; off[3 * i + 1] = Y[i] - (Y[i] + Y[a] + Y[b]) / 3; off[3 * i + 2] = Z[i] - (Z[i] + Z[a] + Z[b]) / 3;
+    }
+    g.setAttribute('thinOff', new THREE.BufferAttribute(off, 3));
+    const m = o.material, U = { thinH: { value: 1 } }, before = m.onBeforeCompile, vp = new THREE.Vector4();
+    o.onBeforeRender = r => { r.getCurrentViewport(vp); U.thinH.value = vp.w; }; // (the height drawn to, in pixels)
+    o.castShadow = false; // (a fraction of a texel of the shadow map: speckles on the cheek under it)
+    Object.assign(m, { transparent: true, depthWrite: false });
+    m.userData.thin = true;
+    m.customProgramCacheKey = () => 'oe-thin';
+    m.onBeforeCompile = (sh, r) => {
+      if (before) before(sh, r);
+      sh.uniforms.thinH = U.thinH;
+      sh.vertexShader = 'attribute vec3 thinOff;\nuniform float thinH;\nvarying float vThinCover;\n' + sh.vertexShader.replace('#include <skinning_vertex>', `#include <skinning_vertex>
+	{
+		vec3 tOff = thinOff;
+		#ifdef USE_SKINNING
+			tOff = ( bindMatrixInverse * ( skinWeight.x * boneMatX + skinWeight.y * boneMatY + skinWeight.z * boneMatZ + skinWeight.w * boneMatW ) * bindMatrix * vec4( tOff, 0.0 ) ).xyz;
+		#endif
+		vec3 tMid = transformed - tOff;
+		float tDepth = max( 1e-4, -( modelViewMatrix * vec4( tMid, 1.0 ) ).z );
+		float tPx = length( ( modelViewMatrix * vec4( tOff, 0.0 ) ).xyz ) * projectionMatrix[ 1 ][ 1 ] * 0.5 * thinH / tDepth;
+		transformed = tMid + tOff * max( 1.0, ${THIN_PX.toFixed(2)} / max( tPx, 1e-6 ) );
+		vThinCover = min( 1.0, tPx / ${THIN_PX.toFixed(2)} );
+	}`);
+      sh.fragmentShader = 'varying float vThinCover;\n' + sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n\tdiffuseColor.a *= vThinCover;');
+    };
+    m.needsUpdate = true;
+  }
   // route(x, y, z, tx, ty) -> [[x, y, z], ...] | null: the way on foot (route.js ways.walk), so that it leads along the
   // footways and over the crossings and not in a straight line into a wall
   // edge(x, y, z, fromX, fromY): is that past the edge of the way (a wall, a drop, a well, the carriageway beyond a kerb,
@@ -46,7 +94,7 @@ window.OECompanion = (function () {
   // between them where there is room and round the edge of the crowd where there is not. Pushing off each one in turn
   // got him nowhere in a crowd shoulder to shoulder, and after a second he went through their coats
   const GRID = 0.35, BODY = 0.5, ROOM = 1.15, SPAN = 26;
-  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
+  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1 }) {
     const RUN = speeds.run || speeds.trot * 2.6;
     const root = new THREE.Group();
     root.visible = false;
@@ -73,6 +121,7 @@ window.OECompanion = (function () {
         // (it carries a little light of its own, as whoever moves in a stopped world does: a dark coat on a wet night
         // street is not lost among the people standing in it)
         o.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * 0.3;'); };
+        if (/whisker/i.test(o.material.name || '')) thin(o);
         mats.push(o.material);
       });
       // (his size from the model's own bounds: the length along +x, the width across it; the head and the tail are the
@@ -133,7 +182,14 @@ window.OECompanion = (function () {
       if (s.gainT > 1) { if (s.gain < 0.35 * Math.min(speed, speeds.trot)) { s.held = (s.held || 0) + 1; if (s.det) { s.det = null; if (s.held > 3) s.thru = 1.5; } else s.thru = 2.5; if (s.to) replan(); } else s.held = 0; s.gain = 0; s.gainT = 0; } // (held up: through the crowd, never a wall; and the way again from here)
       return d - step;
     }
-    const face = (x, y, dt) => turn(Math.atan2(y - s.y, x - s.x), 4, dt);
+    // (whether his whole body has room at (x, y) facing h: both ends of him clear of every wall)
+    const fits = (x, y, h) => !wall || body.spine.every(a => !wall(x + Math.cos(h) * a, y + Math.sin(h) * a, s.z, body.flank));
+    // A turn he makes standing still, only where his body has room for it (issue 182). Sitting at the roof's glass
+    // and facing the relic beyond it, or at heel facing the way you face, put his nose through the pane: the walls
+    // pushed him off, and he turned back in, every frame of frame 4's Stop and after it. What he would face is kept
+    // (s.want), so that when he has to step off a wall he steps to where he can face it.
+    const turnStill = (to, rate, dt) => { s.want = to; const h0 = s.h, d = turn(to, rate, dt); if (wall && s.h !== h0 && !fits(s.x, s.y, s.h) && fits(s.x, s.y, h0)) s.h = h0; return d; };
+    const face = (x, y, dt) => turnStill(Math.atan2(y - s.y, x - s.x), 4, dt);
     // The player's body has the right of way over his. Each frame, whatever he is doing (leading, at heel, sitting
     // where the picture is taken from, standing where he was put), if the player's circle reaches his spine he is moved
     // off it at once, along the way out from them (as a walker steps, never into a wall); and when he was sitting or
@@ -141,6 +197,54 @@ window.OECompanion = (function () {
     // He was steered round the player only while he led or kept at heel, as a pull on his way, and never stood off
     // them at all: the player walked through him where he sat beside the camera's light, and he through their legs.
     // Where a wall holds him and he cannot go, `jammed` says so, and the player stops at his flank (game.js).
+    // The rule, where he is pushed against a wall with nowhere to make way (issues 133 and 138): neither body enters
+    // the other. His capsule (his spine and his flank) and the player's circle may touch and never overlap: whatever
+    // of the push the wall kept from him, the player is stopped short by, in the same frame, and a step or a turn
+    // of his own that would end inside the player's circle with the wall still holding him is not taken (tick).
+    // He was let 3 cm into the player before he said he was held, and walked or turned further in on his own tick:
+    // the check's margin was that same 3 cm, so a run passed or failed by where the crowd he plans round stood.
+    const TOUCH = 0.002; // (m: what two bodies set down against each other may differ by, the solver's own)
+    // ... and his body off the walls, both ends of it (issue 157). A walker's circle is at his middle, and where he was
+    // put, or sat down, with his length across a wall's line, his nose or his rump stood up to 25 cm inside it: the
+    // roof's glass for the whole of frame 4's Stop. wall(x, y, z, r) is where a circle of his flank's radius there is
+    // pushed to, or nothing where it stands clear (nav.push, as the clip probe asks). He is moved by what his two ends
+    // are pushed, all of it at once; and where a wall holds each end
+    // from a different side (a corner, a gap narrower than he is long) he turns along it instead.
+    function wallsOff(dt) {
+      if (!wall) return;
+      const hx = Math.cos(s.h), hy = Math.sin(s.h);
+      let mx = 0, my = 0, n = 0, against = false;
+      for (const a of body.spine) {
+        const ex = s.x + hx * a, ey = s.y + hy * a, w = wall(ex, ey, s.z, body.flank);
+        if (!w) continue;
+        const dx = w.x - ex, dy = w.y - ey;
+        if (dx * dx + dy * dy < 1e-4) continue;
+        if (n && mx * dx + my * dy < 0) against = true;
+        mx += dx; my += dy; n++;
+      }
+      if (!n) { s.wallT = 0; return; }
+      s.wallT = (s.wallT || 0) + Math.max(dt, 1 / 60);
+      // (still in it after half a second, held there by the player, a corner or his own turn: the nearest place and
+      // heading round him where both ends stand clear of every wall and he is off the player, and he steps there)
+      if (s.wallT > 0.5) {
+        const x0 = s.x, y0 = s.y, h0 = s.h, clear = () => body.spine.every(a => !wall(s.x + Math.cos(s.h) * a, s.y + Math.sin(s.h) * a, s.z, body.flank)) && offPlayer() >= -TOUCH;
+        // (first where he can face what he was facing, s.want, so that his next turn does not take him back in; then
+        // any way round)
+        const any = [h0, h0 + Math.PI / 2, h0 - Math.PI / 2, h0 + Math.PI];
+        for (const hs of s.want != null ? [[s.want], any] : [any]) for (let r = 0.1; r <= 1.5; r += 0.1) for (let k = 0; k < 12; k++) for (const hh of hs) {
+          const a = k * Math.PI / 6;
+          s.x = x0 + Math.cos(a) * r; s.y = y0 + Math.sin(a) * r; s.h = hh;
+          if ((!stand || stand(s.x, s.y, s.z)) && clear()) { s.wallT = 0; return; }
+        }
+        s.x = x0; s.y = y0; s.h = h0; s.wallT = 0.25; // (nowhere near: tried again in a quarter of a second)
+        return;
+      }
+      if (against) { s.h += Math.min(1, dt * 2); return; }
+      // (the whole of the push, in one frame. It was a pace a second, to be seen to shift rather than jump, and he trots
+      // at 2.3: walking on into the glass after frame 4's photograph he went in faster than he was pushed out, and stood
+      // 11 to 13 cm in it on a machine whose frames are slow, main's checks, issue 157)
+      s.x += mx; s.y += my;
+    }
     function spineNear(px, py) {
       const hx = Math.cos(s.h), hy = Math.sin(s.h), a0 = body.spine[0], a1 = body.spine[1];
       const t = Math.max(a0, Math.min(a1, (px - s.x) * hx + (py - s.y) * hy));
@@ -165,6 +269,12 @@ window.OECompanion = (function () {
       if (slide) { const m = slide(s.x, s.y, s.z, mx, my); s.x = m.x; s.y = m.y; } else { s.x += mx; s.y += my; }
       return Math.hypot(s.x - x0, s.y - y0) < 0.5 * Math.hypot(mx, my);
     }
+    // how far his capsule is off the player's circle now (m, less than nothing inside it; a floor apart or the player not on foot: far)
+    function offPlayer() {
+      if ((player.mode && player.mode !== 'foot') || (player.z != null && Math.abs((s.z ?? player.z) - player.z) > 1.5)) return Infinity;
+      const [cx, cy] = spineNear(player.x, player.y);
+      return Math.hypot(cx - player.x, cy - player.y) - (PLAYER_R + body.flank);
+    }
     function keepOff(dt) {
       s.jam = false;
       if (player.mode && player.mode !== 'foot') return;
@@ -181,7 +291,7 @@ window.OECompanion = (function () {
         const sx = -my, sy = mx;
         for (const g of [1, -1]) { if (!slide) break; const m = slide(s.x, s.y, s.z, sx * g, sy * g); if (Math.hypot(m.x - s.x, m.y - s.y) > 0.5 * Math.hypot(mx, my)) { s.x = m.x; s.y = m.y; break; } }
       }
-      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - 0.03;
+      const [qx, qy] = spineNear(px, py); s.jam = Math.hypot(qx - px, qy - py) < need - TOUCH;
       if (bonesOff(px, py)) s.jam = true;
       // (sitting, standing or waiting where he was: up, a pace aside out of the way they are going, and down again)
       // (not for a brush, where he only shifts: the film of him coming sits him close beside you)
@@ -317,11 +427,15 @@ window.OECompanion = (function () {
       if (s.to) replan();
     }
     // its coat's opacity: faded in where it appears, out where it goes (opaque again when whole, so that it sorts as a solid)
-    function shade(a) { for (const m of mats) { m.transparent = a < 1; m.opacity = a; m.depthWrite = a > 0.5; } }
+    // (a strand thin() draws is always blended: its opacity is how much of a pixel it covers)
+    function shade(a) { for (const m of mats) { m.transparent = a < 1 || !!m.userData.thin; m.opacity = a; m.depthWrite = a > 0.5 && !m.userData.thin; } }
     function tick(dt) {
       if (s.state === 'away') return;
       s.t += dt;
       const px = player.x, py = player.y;
+      // (where he is and how far off the player as the tick begins: what it may not end further inside of, keepOff's rule)
+      const x0 = s.x, y0 = s.y, h0 = s.h, gap0 = offPlayer();
+      s.want = null; // (what he would face standing still: set again by this tick's turn, if he is still)
       // (the player in a car, a lift, the air: he is not seen, and is at their heels again when they are on foot)
       // (the player in a car, a lift, the air: it fades where it stood, and is at their heels again when they are on foot)
       // (a lift he rides with you, at your side in the car: gone at the bottom and found at the top, he was a dog that
@@ -389,9 +503,16 @@ window.OECompanion = (function () {
           }
         }
       } else if (s.state === 'heel') { // at the player's side, a pace behind: off when they are, still when they stop
-        const h = player.h || 0, hx = px - Math.sin(h) * 1.1 + Math.cos(h) * 0.8, hy = py - Math.cos(h) * 1.1 - Math.sin(h) * 0.8, dh = dist(hx, hy);
-        if (dh > 0.6) { const w = through(hx, hy); move(w[0], w[1], Math.max(speeds.walk, Math.min(RUN * 1.45, ps + (dh - 0.3) * 1.5)), dt); }
-        else { s.speed = 0; turn(Math.atan2(Math.cos(h), Math.sin(h)), 3, dt); }
+        // (his place a pace behind, on your right; where his body has no room there, facing your way, the left, then
+        // straight behind you. You at the roof's glass with it on your right: his place was through the pane, and he
+        // walked on the spot against it after the photograph, the walls pushing him back, issue 182)
+        const h = player.h || 0, fh = Math.atan2(Math.cos(h), Math.sin(h)), at = side => [px - Math.sin(h) * 1.1 + Math.cos(h) * side, py - Math.cos(h) * 1.1 - Math.sin(h) * side];
+        const room = q => fits(q[0], q[1], fh) && (!stand || stand(q[0], q[1], s.z));
+        let q = at(s.heelSide ?? 0.8);
+        if (wall && !room(q)) { const o = [0.8, -0.8, 0].find(sd => room(at(sd))); if (o != null) { s.heelSide = o; q = at(o); } }
+        const [hx, hy] = q, dh = dist(hx, hy), none = wall && !room(q); // (nowhere with room: as near as he gets, he stops)
+        if (dh > (none ? 1.5 : 0.6)) { const w = through(hx, hy); move(w[0], w[1], Math.max(speeds.walk, Math.min(RUN * 1.45, ps + (dh - 0.3) * 1.5)), dt); }
+        else { s.speed = 0; turnStill(fh, 3, dt); }
       } else if (s.state === 'go') {
         const w = through(s.to[0], s.to[1]);
         move(w[0], w[1], s.goV || speeds.trot, dt);
@@ -404,12 +525,18 @@ window.OECompanion = (function () {
         if (s.look) face(l[0], l[1], dt); else if (s.t < 1.2) face(px, py, dt);
         lookAt = l;
       } else if (s.state === 'leave') {
-        const left = move(s.to[0], s.to[1], speeds.trot * 1.4, dt);
+        // (along the way home, not the crow's line: from the meeting's kerb the line to Hachiko ran into a building's
+        // corner, and he ran on into its wall until he had faded, issue 182)
+        const w = onWay() || s.to; move(w[0], w[1], speeds.trot * 1.4, dt);
+        const left = dist(s.to[0], s.to[1]);
         if (s.t > 1.2) s.fade = Math.max(0, s.fade - dt / 1.4);
         shade(s.fade);
         if (left < 0.3 || s.fade <= 0) { s.state = 'away'; root.visible = false; if (s.done) { const d = s.done; s.done = null; d(); } return; }
       }
       keepOff(dt);
+      // (held by a wall and further into the player than he began: his own step or turn did it, and it is not taken)
+      if (s.jam && (s.x !== x0 || s.y !== y0 || s.h !== h0)) { const g1 = offPlayer(); if (g1 < -TOUCH && g1 < gap0) { s.x = x0; s.y = y0; s.h = h0; s.speed = 0; } }
+      { const wx = s.x, wy = s.y, wh = s.h, g0 = offPlayer(); wallsOff(dt); if (offPlayer() < Math.min(-TOUCH, g0)) { s.x = wx; s.y = wy; s.h = wh; } } // (off a wall, never into the player)
       s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)
@@ -463,7 +590,7 @@ window.OECompanion = (function () {
         return best;
       },
       lead(to, reach = 3, done = null) { s.to = to; s.reach = reach; s.done = done; s.held = 0; s.state = s.greeted ? 'lead' : 'greet'; s.t = 0; replan(); return api; },
-      heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; return api; },
+      heel() { s.to = null; s.path = null; s.done = null; s.state = 'heel'; s.t = 0; s.heelSide = null; return api; },
       aboard(on) { s.aboard = !!on; return api; }, // (gone in with the player where nothing shows the seat: a story's helicopter; out at their heels after them)
       go(to, look = null, speed = 0) { s.to = to; s.look = look; s.goV = speed; s.state = 'go'; s.t = 0; s.det = null; return api; },
       call() { if (s.state === 'lead' || s.state === 'wait') { s.state = 'fetch'; s.t = 0; } return api; },
@@ -472,11 +599,11 @@ window.OECompanion = (function () {
       // (makeWay: game.js, at once after the player has moved: off them, or jammed, in the same frame)
       get jammed() { return !!s.jam; }, makeWay() { if (s.ready && s.state !== 'away') keepOff(0); return api; }, get clearance() { return PLAYER_R + body.flank; }, get reach() { return body.reach; }, get body() { return { spine: body.spine.slice(), flank: body.flank, reach: body.reach }; }, get yielded() { return s.yielded || 0; }, spineNear, // (game.js: the player stops at his flank where a wall holds him; tools/guide_body.js)
       get behind() { return (s.state === 'lead' || s.state === 'fetch') && onAhead(); }, // (the player further along the way than he is)
-      leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; return api; },
+      leave(to, done = null) { s.to = to; s.done = done; s.state = 'leave'; s.t = 0; replan(); return api; },
       tick,
       remove() { world.remove(root); s.state = 'away'; },
     };
     return api;
   }
-  return { create };
+  return { create, thin }; // (thin: for tools/coat_shot.js, which draws his model as this draws it)
 })();

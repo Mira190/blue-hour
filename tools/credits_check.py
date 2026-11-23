@@ -138,7 +138,7 @@ if html.find('src="version.js"') > html.find('src="credits.js"'):
     fails.append("web/index.html loads credits.js before version.js")
 if "OEVersion" not in read(WEB, "credits.js"):
     fails.append("web/credits.js does not show the version")
-for q, where in ((r'id="gt-credits-go"[^>]*data-credits', "the title's menu"), (r'id="gm-credits"[^>]*data-credits', "the pause menu")):
+for q, where in ((r'id="gt-opts-credits"[^>]*data-credits', "the title's options"), (r'id="gm-credits"[^>]*data-credits', "the pause menu")):
     if not re.search(q, html):
         fails.append(f"no way to the Credits from {where} (web/index.html)")
 if "data-credits" not in read(WEB, "game", "story.js"):

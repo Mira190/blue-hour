@@ -16,7 +16,7 @@
 //   create({ G, floorAt(x, y) -> z of the ground there, or null })
 'use strict';
 window.OEPerch = (function () {
-  const REACH = 1.6;         // m from the seat's front at which E offers it
+  const REACH = 2.4;         // m from the seat's front at which E offers it (1.6 at first: the prompt came only with the knees at the stone)
   const BACK = 2.9, SIDE = 0.9, HIGH = 1.4; // the tripod, where a seat gives none: behind the hips, off to the right, over the feet
   const IDLE_S = 5;          // seconds without a hand on the view before it drifts back to the crossing
   const WARP = 150;          // the clock held fast: two and a half minutes a second (the blue hour into the night in about 25 s)
@@ -69,6 +69,16 @@ window.OEPerch = (function () {
       // fills the rest: close in, a phone's frame was your back from the shoulders, cut off at its edge)
       const tall = Math.max(0, Math.min(1, (1.6 - aspect) / 1.15));
       const c = p.cam || {}, back = (c.back ?? BACK) + 1.0 * tall, side = c.side ?? SIDE, up = (c.up ?? HIGH) + 0.6 * tall;
+      // someone sitting with you (p.with, game.js waitWith): the two of you from in front, a little to the side and at the
+      // height of your faces, the bed's lantern and Hachiko behind you, as a film frames two people waiting; from behind,
+      // the lantern on the bed stood in front of one or the other from every side the tripod could take
+      if (p.with) {
+        const mx = (p.at[0] + p.with[0]) / 2, my = (p.at[1] + p.with[1]) / 2, d2 = 3.3 + 0.9 * tall;
+        const cpos = [mx + fx * d2 - rx * (0.7 + bx), my + fy * d2 - ry * (0.7 + bx), z0 + 1.05 + 0.25 * tall + bz];
+        const ya = Math.atan2(mx - cpos[0], my - cpos[1]) + look.yaw, el = Math.atan2(z0 + 0.85 - cpos[2], d2) + look.pitch;
+        last = cpos;
+        return { pos: cpos, look: [cpos[0] + Math.sin(ya) * Math.cos(el) * 30, cpos[1] + Math.cos(ya) * Math.cos(el) * 30, cpos[2] + Math.sin(el) * 30], fovAdd: -4 };
+      }
       const pos = [p.at[0] - fx * back + rx * (side + bx), p.at[1] - fy * back + ry * (side + bx), z0 + up + bz];
       // the aim: at the crossing, turned by the head
       let dx = p.look[0] - pos[0], dy = p.look[1] - pos[1];
@@ -77,7 +87,7 @@ window.OEPerch = (function () {
       // (and you kept in the frame: where the crossing's bearing would leave you past seven tenths of the half-width, the
       // aim swings towards you by the difference)
       const H = Math.atan(Math.tan(fov * Math.PI / 360) * aspect) * (0.7 - 0.4 * tall), // (on a tall screen nearer the middle, clear of the buttons at its edge)
-        ap = Math.atan2(p.at[0] - pos[0], p.at[1] - pos[1]);
+        ap = p.with ? Math.atan2((p.at[0] + p.with[0]) / 2 - pos[0], (p.at[1] + p.with[1]) / 2 - pos[1]) : Math.atan2(p.at[0] - pos[0], p.at[1] - pos[1]); // (kept in the frame: you, or the two of you)
       const off = Math.atan2(Math.sin(ap - a0), Math.cos(ap - a0));
       if (Math.abs(off) > H) a0 += off - Math.sign(off) * H;
       // (and tilted further down on a tall screen: you above the prompt, the crossing in the upper half of the frame)

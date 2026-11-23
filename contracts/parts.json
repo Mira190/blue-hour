@@ -4,7 +4,8 @@
   "game": {
    "for": "The composition root: loads the map, makes every other part, runs the loop and the title. The one part that may ask all the others.",
    "files": [
-    "web/game/game.js"
+    "web/game/game.js",
+    "web/game/bounds.js"
    ],
    "checks": [
     "story",
@@ -13,6 +14,7 @@
     "ride"
    ],
    "offers": {
+    "OEBounds": [],
     "OpenEarthGame": []
    }
   },
@@ -27,6 +29,7 @@
     "web/game/walk.js",
     "web/game/walktalk.js",
     "web/game/tonight.js",
+    "web/game/regulars.js",
     "web/game/places.js"
    ],
    "checks": [
@@ -42,6 +45,9 @@
      "create"
     ],
     "OEPlaces": [
+     "create"
+    ],
+    "OERegulars": [
      "create"
     ],
     "OEStopFX": [
@@ -158,6 +164,7 @@
      "benches",
      "boxes",
      "crowd",
+     "join",
      "makePerson",
      "network",
      "pick",
@@ -326,6 +333,7 @@
      "W",
      "angDiff",
      "blendFrom",
+     "bounds",
      "cam",
      "camera",
      "carCfg",
@@ -338,6 +346,7 @@
      "fmtSec",
      "guideMade",
      "headlamp",
+     "heliBlock",
      "hopTo",
      "inScramble",
      "junctions",
@@ -399,9 +408,13 @@
      "doorChime",
      "engine",
      "far",
+     "gaveUp",
+     "guard",
      "health",
      "heard",
      "held",
+     "hold",
+     "holding",
      "honk",
      "horn",
      "hush",
@@ -415,10 +428,13 @@
      "murmur",
      "musicBus",
      "muted",
+     "needsTouch",
      "on",
+     "onGaveUp",
      "pending",
      "place",
      "platformChime",
+     "quiet",
      "rain",
      "reach",
      "road",
@@ -431,10 +447,13 @@
      "start",
      "step",
      "stop",
+     "streetOff",
      "thump",
      "thunder",
      "train",
      "trainAt",
+     "tune",
+     "tunes",
      "wind",
      "world",
      "x",
@@ -463,7 +482,8 @@
     "web/game/pad.js",
     "web/onboard.js",
     "web/plate.js",
-    "web/credits.js"
+    "web/credits.js",
+    "web/game/marks.js"
    ],
    "checks": [
     "story",
@@ -487,6 +507,9 @@
      "rideMap",
      "stamp",
      "toast"
+    ],
+    "OEMarks": [
+     "create"
     ],
     "OEOnboard": [
      "active",

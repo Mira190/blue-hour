@@ -159,7 +159,9 @@ function table() {
   await p.evaluate(() => { const g = window.__game, s = g.heli.st; g.player.x = s.x + 2; g.player.y = s.y; g.player.z = s.z; g.enterHeli(); for (let i = 0; i < 80; i++) g.advance(0.1, ['Space']); });
   judge('heli', 'heli', await listen(`g.heli.st.rotor = Math.max(g.heli.st.rotor, 1);`, SEC + 2, SEC));
   await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 200 && !g.heli.st.landed; i++) g.advance(0.25, ['KeyC']); });
-  // 8. the car's cabin, standing at the kerb with its engine running
+  // 8. the car's cabin, standing at the kerb with its engine running (a touch screen's car is parked once its late parts
+  // are in, game.js afterPlayable: got into before that, there was no car, now and then)
+  await p.waitForFunction(() => window.__game.myCar(), null, { timeout: 180000, polling: 500 }).catch(() => fail('your car is not parked three minutes in'));
   const car = await p.evaluate(() => {
     const g = window.__game;
     if (g.player.mode === 'heli') { g.player.mode = 'foot'; g.player.vehicle = null; }

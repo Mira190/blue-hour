@@ -409,11 +409,11 @@ up the stair behind him*).
 
 | Where | What the player does | What answers it |
 |---|---|---|
-| 3, the police box | says who they are to a detective of 1964, from three answers laid out in a new order each time the frame is taken up. The truth opens him; either lie is seen through | **failure**: a card, and the frame taken up again from its beginning |
+| 3, the police box | says who they are to a detective of 1964, from three answers laid out in a new order each time the frame is taken up. The truth opens him; either lie is seen through, and is not on the table the next time | **failure**: a card that says what it cost (a line in the file against the player, a minute of the Stop), and he asks again where he stood: nothing is played twice (issue 93, below) |
 | 3, after the print | says the false solution aloud (*it was her*), or will not on a glove alone | Kanbara on the roof answers the one who accused her (*You have the girl's name in your mouth*); the file strikes the line through; the last card remembers it |
 | 4, after the print | names whose boots: the lecturer's, a man's from the works, or not yet | Tatsuo answers the one who named the lecturer (*All Tokyo will, by morning*), and the file strikes it |
-| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above |
-| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns back to the station | failure, as above |
+| 5, Tatsuo | picks the one of his four statements the roll will not let stand, and the print that breaks it (`press`, `lie`, `frame`); a true statement pressed is answered as true and is struck off for the next try, as is a print that was not it. After the first wrong one the roll says where to look (`help`). Two wrong and he knows a guess | failure, as above: the card has the roll at hand, and he is pressed again |
+| 6, Mr Tanaka | shows him his pitch; a print that was not it is struck off, and after the first wrong one the roll says where to look (`help`). Two wrong and he turns to go | failure, as above: he looks again |
 | 3, after the print | the detective waits for her name; thirty seconds of silence is an answer too (`wait_s`, `silent`) | as *not yet*, and the file says the player said nothing |
 | 7, Sumiko's three questions | names one of the case's seven people for each (`who`, the episode's `people`), then shows the print or the pair that proves it (`proof`); the roll and the file open from inside the question (`atHand`). Where every print that proves one was spent, she asks it by name alone (`lost_q`). Then the player says the sentence the boy never said | never a failure: a wrong answer is answered for what was named or shown and written in the file, struck through; the second also says more and marks the print on the roll (`wrong2`); the third, she says it herself (`told`). The last card counts both |
 | 2 to 6, the camera | the release pressed twice from the wrong place asks, once, whether to **spend the frame** (a card over the finder, the hand on *Keep the frame*; the release is not an answer to it, so a double tap on a phone spends nothing); spent, it is a print of tonight and nothing under it | whoever would have answered to that print says something else: without the roof's frame Tatsuo confesses nothing, and the drowned boy is never named. The last card lists what the evening did not show |
@@ -620,7 +620,9 @@ frame rate. They are the pause menu's own controls, lent to the screen while it 
 stay in the pause menu. Every screen has its Back at the top left and on Esc or B, and the hand comes back to the row that
 opened it. Who you play, asked from the story's screen, returns to it.
 
-*Credits* is the menu's last row, and is also in the pause menu and on the story's last card: one screen in the title's
+*Credits* is the last row under the title's Options, and is also in the pause menu and on the story's last card (the
+owner's decision, 22 November 2026, issue 186: the title's menu holds the ways in and nothing a player does not go to
+there; the credits stay reachable in two presses, as the data's licences and the measurements' switch ask): one screen in the title's
 look (`web/credits.js`, `web/credits.css`) that lies over whatever was up and gives it back on Back, Esc or B. It leads
 with the credit lines the map's data asks for (OpenStreetMap, Overture, PLATEAU, Tokyo's ortho photographs, GSI), then
 the map's sources as the pipeline wrote them (`scene.json` `sources`), the third-party works the page ships with their
@@ -983,8 +985,10 @@ and *Return of the Obra Dinn* give no hints at all, and the *Professor Layton* g
 to a puzzle, each saying more than the last. In each the clue is the place's own and the answer is given on the spot. Nothing of theirs is copied; the split-image line is a camera's own (the focusing screens of the 1950s
 and the rangefinders' coincident images).
 
-Failure costs the minute and is seen: nobody is sent back further than the frame they are in, and the flight or the ride
-to it is not made twice. `tools/story_play.js` plays these too (`SLIP=n`, `SPEND=n`).
+Failure is seen and costs something, and nothing is played twice for it: the one who saw through the player is still
+there and asks again (*Seen through, and asked again*, below). `tools/story_play.js` plays these too (`SLIP=n` or a
+list, `SPEND=n`, `CHOOSE=frame:option` for what the player commits to, `ACCUSE=1` the false solution), and main's
+full checks play them down the losing branches and by touch on a phone's page (`storyl`, `storyp`: docs/CHECKS.md).
 
 **How the case was worked, and going back in.** The last card says, in the file's hand, what the player said and what
 they took back (struck through), which frames were spent and what stood there, which of the five pairs were never set
@@ -1065,7 +1069,7 @@ So the first frame plays:
 5. **The Stop**, from across the road: the lens held 1.1 s of the story's time while the street brakes in it, then down;
    the turn round you, the title, the dog's film, and the walk across the held crossing to her (it was a walk of a few
    steps from a Stop begun at her kerb by the card; now the whole crossing, through three thousand people standing still).
-6. Her talk, the camera of 1964 taught, the print, and time running: the office back on the line if it was cut off, the
+6. Her talk (six lines before the camera is in the hand; the lift, the night train, the tickets and the match after the print, since issue 164), the camera of 1964 taught, the print, and time running: the office back on the line if it was cut off, the
    after-lines, and the second frame's goal at once.
 
 A case taken up again at the first frame hears the call again; a Stop that runs out comes again where it stopped,
@@ -1315,6 +1319,9 @@ from what a player wants of it, not from the old free game this map once had:
 - **What it is for.** To be at the crossing at an hour you choose and move at your own pace; to look round before the
   case, and to stay out in the night after it. The place is the whole of it: the hundred metres the hero level is, the
   crowd, the screens, the rain. Nothing in it is owed: no goal, no light standing in the street, no clock running out.
+- **Where it ends.** The walk and the story keep to the planned area round the Scramble, on foot, by car and in the air:
+  road works close the streets at its edge, a walker is turned back in, a car stops short of the barriers, the tower
+  turns the helicopter round, and nothing offers a place past it ([BOUNDS.md](BOUNDS.md)).
 - **What it must not cost the story.** Nothing of the case is in it: no Stop, no afterimage, no 1964 in the finder, no
   dog. Walked first, it spoils nothing; walked after, it undoes nothing.
 - **One world, not two games.** The same Kagami, the same evening's screens, the story's own card, type and amber. The
@@ -1520,8 +1527,10 @@ and a speech mark over those who can talk, as the big open-world games do. Worke
   Their theme is the evening's own, lightly: two friends waiting on two sides of one name, which is what the story is
   about, without a word of it.
 - *Found, never owed.* A speech mark over the head of whoever has something to say: amber, its dots breathing, while they
-  have a part of a story for you (seen from 24 metres), pale for a word in passing (from eighteen); their name and what
-  they are under it once you are within eleven metres. A mark is only ever over someone the player can see: their head
+  have a part of a story for you (seen from 18 metres), pale for a word in passing (from ten); their name and what
+  they are under it once you are within eight metres (24, 18 and 11 until the owner asked for the talk's marks only when
+  close, 22 November 2026). Every mark keeps the picture's perspective (docs/MARKS.md, `marks.js`): never over the
+  player's body or anyone nearer the eye than its point. A mark is only ever over someone the player can see: their head
   in sight of the lens (a ray against the city's solids, `ctx.seen`, asked every eighth frame), and it fades in and out
   over a quarter of a second as they step behind something. It was seen from 42 m and through anything: on SHIBUYA
   SKY's roof Taro's mark stood over the glass with him out of sight behind the heliport's deck, a few pixels of a man on a
@@ -1620,6 +1629,40 @@ the crowd. Not adopted: a map of marks, rewards, or a mark over every passer-by 
 and a mark on each says nothing).
 
 On the page: `web/game/walktalk.js` (the stories, the marks, what was asked and its checks), `cities/shibuya/city.json`
+**The walk's words over any picture, a phone's captions, and the notch (issue 154, November 2026).** Three things of
+one kind, left from issues 114 and 134. *The walk's corner* (the place, the hour, the date, tonight's line, what was
+asked and its metres), its keys, a name over the street, the marks' names and a call now carry the story's own shade
+(`--halo`, `--halo-small`): the owner's still had what was asked across a lit red sign. `tools/legible.js` measures
+them with the story's words: the faintest is the keys' line, 6.3:1 on pale paving and 4.3:1 on white (4.5 and 3 are
+asked). *On a phone a line said over the picture* lay across the legs of the one you play, 262 px up from the foot of
+the screen; it now sits under the corner's words, the goal's or the walk's, wherever they end (`hud.js` `put` measures
+them, `--under`), over the sky and the buildings, and stays over the thumbs only while the camera is up, when the head
+of the frame is the finder's. The other place it could go, lower, has no room: under the player's feet are the stick
+and the buttons. *The notch*: `tools/ui_fit.js SAFE=1` tells Chromium the safe area of a notched phone (47 px at the
+head and 34 at the foot upright; 47 at each end on its side) and fails any word or button under it. It found the
+title's card under the notch of a phone on its side, cut off at the screen's left edge, its five ways in running out
+of their boxes once moved clear, tonight's line in the corner and a giver's call wider than their boxes; all fixed.
+The walk's corner itself was already clear of it. Stills: `docs/images/issue-154-phone.jpg`. Not checked: a real
+phone, Safari, iOS.
+
+**The walk's first ten minutes (issue 146, November 2026).** The launch review (issue 134) found that the walk's first
+minute taught the keys and said nothing of what there is to do: a player who did not press Esc could leave after two
+minutes having seen a crossing and nothing else. The rule since, from first principles: one thing offered at a time, by
+the world before the interface, and always one line in the corner that says what it is and how far. The sheet the walk
+is held to, and `tools/walk_play.js` plays:
+
+| By | What the player has met | How it is offered |
+| --- | --- | --- |
+| the first minute | where and when they are; that the night has a timetable; that someone here has something to say, who, how far and which way; their car | the corner: the place, the hour, the date and the sky; under the date tonight's next moment from an hour before it (*CROSSING LIGHT · 21:30*; on a phone its name and time on one line); under that the one line of the storyline with its metres and its needle (*Mei has something to say · 30 m*). The first time from the title the office rings (four lines, *Your car* lit while it is spoken of) and the view eases round to Mei, who calls out. The keys once at the foot of the frame; on a phone one line for the thumbs, not two |
+| minute three | a talk in the story's box; the crossing on the green; the seat | *Which Hachiko*: Mei by the dog, Riko across the scramble, back. Mei stands nine metres from the free place on Hachiko's wall: a pale mark over it from twenty metres, named from eleven (*Sit · Hachiko's wall*), until it has been sat on once in this browser; the prompt from 2.4 m. A street moment may come up to them |
+| minute ten | their car driven; the camera; a view or two of Shibuya found; a moment of tonight seen or named; the menu | *Once round by car*, then *The shot everyone takes*; each view found is named over the street and kept in the menu's album; the timetable's moment is named over the street as it begins; Esc holds the hour, the sky, the stories, the album and tonight |
+| after | the lift, the roof, the helicopter | *Forty-five floors* and *Above the crossing*, the storyline's last two |
+
+Nothing in the sheet is a card of instructions, and nothing is said twice: the office rings once in a browser, a
+giver calls out the first time you come near while it is their turn, the seat's mark goes once you have sat. What the
+sheet still lacks, kept as an issue: someone already sitting on the wall beside the free place (a seat for the crowd on
+the stone, or one more person inside a phone's memory), so that the seat is offered by a person and not by a mark.
+
 `game.walk` (the stories in their order, the people's parts, their lines and what each asks: `talk`, `go`, `drive`,
 `up`, `photo`, `meet`, `next`; `wait`, a giver's word before their turn; `views`, the photographer's list; `events` and
 `event_spots`, the street's moments; `intro`, the office's call), the
@@ -1703,6 +1746,81 @@ On the page: `web/game/tonight.js`, `cities/shibuya/city.json` `game.tonight` (t
 Yamanote's last and first trains), the styles after the walk's stories in `web/game/story.css`.
 `tools/tonight_play.js` sets the clock to just before each moment, checks it happens, and takes its stills on a desktop
 and a phone.
+
+### The street's own people (issue 168, November 2026)
+
+The crowd is a flow: it has no one in it. A place is remembered for the two or three people you came to recognise, so
+ten of the crowd on the walk have a routine that the clock carries and that says who they are without a word
+(`cities/shibuya/city.json` `game.regulars`, `web/game/regulars.js`). They are on the walk only; the case keeps its
+own people.
+
+**Who they are, and from what.** Drawn from what the Scramble holds on an ordinary evening, kept to what could be
+checked in photographs and accounts (sources below) and put where the ground was checked to stand on:
+
+| | Where | When | What says who they are |
+|---|---|---|---|
+| The man who waits | by Hachiko, facing the station's square | 17:30 until she comes | stands, looks to the station; turns when she is there |
+| The one he waits for | out of the station | 17:51 to 18:16, a different minute each night | straight to him, and away with him |
+| The station attendant | at the station's wall on the square | 16:30 to 00:50 | stands at the wall all evening; at 19:38 walks over to the busker |
+| The busker | on Hachiko's square | 18:30 until moved on at 19:40; in the rain under the deck east of the crossing until 21:00 | faces the crossing; leaves after the attendant has come |
+| The tissue hander | the kerb at the crossing's north-west corner | 16:30 to 20:00, not in the rain | faces the people coming off the crossing |
+| The shop girl | her door on Center Gai | 20:30 to the shutters at 21:00 | at the door, then off to the crossing at 21:04 |
+| The patrol, two of them | a round of Center Gai's mouth | every 12 minutes, 18:00 to midnight | walk slowly side by side (Shibuya's street-drinking patrol, since October 2024) |
+| The tourist | at Hachiko | 19:45 to 21:30, once the busker has gone | photographs the dog; turns to look at whoever has stood by her nine seconds, once a night |
+| The salaryman who misses the last train | on the square from 23:10 | 00:28 he makes for the station; back slowly at 00:38 | runs, stands at the station, walks back slower and stands facing it |
+
+The walk's own people (`walk.people`, `walk.events`) and the opening of #164 are one cast with these: the walk's
+story speaks with its people where they stand, and these are the people round them. Where #164's opening has a
+stranger who asks for a photograph, or the one knocked down, they are a speaking part; these never speak.
+
+**Things to find, never announced.** The time the woman comes is drawn from the date, so it is a different minute
+every night and there is no telling when (`vary`, the two routines sharing one draw, `seed`, so that they meet). The
+busker is elsewhere in the rain, and the tissue hander is not there at all. The attendant crosses the square at 19:38
+only when it is dry, and the busker has gone two minutes later. The tourist looks round at you once a night, if you
+have stood by her long enough.
+
+**What it costs, from first principles.** A routine is data: a few rows of a clock time and a place. Where someone is
+at any minute is a function of the clock alone (standing at a row's place, or on the straight way to the next row's,
+timed to be there at its minute), so nobody is stepped while away: four times a second each routine's place is worked
+out (a few subtractions) and nothing more. When you come within 110 m of where the clock puts someone, a walker the
+crowd already has, of the body and the clothes that person wears (`wear`: one of the cast a phone has too, and one of
+its changes of clothes), is lent to the routine where the camera cannot see, and given back beyond 150 m. Nobody
+comes into being within 30 m of the camera, so a routine is lent as you approach. No model, texture, material or draw
+is added: the lent walker is drawn in the slot it always had, and while lent it is walked straight to its goal (one
+comparison a frame, `actors.js` `regStep`). At most six are lent at once; that two or three are in sight is the
+routines' own doing, by where and when they are written. The beat budgets and a phone's memory are unchanged
+(`tools/check.sh budget`, `mem`). A phone keeps the routines whose every place is in its district (`district.py`).
+
+**How games do it, and what was taken.** Learned from their design, nothing copied:
+- *The Legend of Zelda: Majora's Mask*: each scheduled person's script takes the day and the time and returns where
+  they are and what they do; a schedule is a pure function of the clock. Taken: `plan(clock, sky)`.
+  (zeldawiki.wiki, "MM Schedule"; the decompilation project's notes on its schedule scripts.)
+- *Stardew Valley*: one schedule per person in a data file, each entry a time, a place, a facing and an animation,
+  with variants chosen by the day and the rain. Taken: the row (time, place, facing), and the rain variant (`if`).
+  (stardewvalleywiki.com, "Modding:NPC data".)
+- *Oblivion and Skyrim*: AI process levels by distance; an actor out of the player's cell moves by elapsed time along
+  its way, not by its navigation mesh. Taken: out of reach, place from time alone. (cs.uesp.net, "GetProcessLevel".)
+- *Assassin's Creed Unity*: "AI recycling", a pool of full people swapped onto cheap crowd members near the player.
+  Taken: a routine borrows a crowd walker, it does not bring a body of its own. (GDC 2015, "Massive Crowd on
+  Assassin's Creed Unity".)
+- *Unreal's Mass*: levels of detail with a hard count per level. Taken: a cap on those lent at once.
+- *Shenmue*: shops and people run by the in-game clock. A place made of a few recurring people is the lesson of
+  Majora's Mask's Clock Town and Shenmue's Dobuita alike.
+
+**What Shibuya's evening holds, and from where.** Station attendants and the Hachiko exit's koban (gotokyo.org); the
+statue as the meeting place, and the queue to photograph it (gotokyo.org, japantravel.com); buskers moved on by the
+police as an obstruction (Japan Times, 2002); pocket tissues handed out at exits, declining (Japan Times, 2007);
+SHIBUYA109 and MAGNET shutting at 21:00 (their own listings); the ward's patrol against street drinking from 18:00,
+since October 2024, in blue caps (nippon.com); the Yamanote's last trains from Shibuya (`tonight.trains`). Left out
+for want of a source: a woman who feeds the cats behind Center Gai (no record of street cats or feeders there; the
+documented animal of Center Gai's night is the rat), and a delivery rider between two doors (no source for where they
+wait). The butsukari, men who shoulder into people at stations, are #164's to treat, not a routine's.
+
+**Checked by** `tools/regulars_play.js`: every place a routine stands is ground a body can stand on, off the
+carriageway, and every leg is walked straight on it every half metre; at each row's minute and on each leg, clear and
+in the rain, you stand ten metres off and the person is there, within 1.5 m of where the clock puts them (12 m on a
+leg); nobody stays lent two kilometres away; never more than the cap at once. With an out_dir it takes a still of each
+at each of their hours.
 
 ## 11. The voice
 
@@ -2052,6 +2170,41 @@ roll and the file from inside it and must be asked again; `SILENT=3` leaves the 
 `AFTER=1` with `UPTO=n` plays on past frame n's print, through what is said after it, so that a frame's call is played
 with it.
 
+### Seen through, and asked again (issue 93, 21 November 2026)
+
+Frame 7's summation stopped sending anyone back (above), and frames 3, 5 and 6 still did: one lie to the detective, or
+two guesses at the foreman or at Mr Tanaka's pitch, and the card *Seen through* took the frame up from its beginning:
+the walk to them, the call, the Stop falling and every line they had said, for one answer. Telemetry had one such
+failure at frame 5, and the owner was sent back there twice in one evening. Their failure is part of the scene, a liar
+who sees a guess and an old man who turns to go, so it keeps its card; what changed is where the player is when the
+card is put down (`story.js` `failed`, `retry`; the question's `fail`):
+
+- **Asked again where they stand.** The one who saw through the player has not left, and neither has the player. He
+  says one line of his own (`fail.again`: *Still standing there. A liar who stays is rarer than one who lies*) and the
+  question is put again. Nothing said before it is said twice, the Stop does not fall twice, and nobody walks anywhere.
+- **Each time round is narrower.** What a wrong answer took off the table stays off it: a lie told to the detective
+  is not offered again, a statement of Tatsuo's that stood and a print that was not it stay struck. The question ends
+  by elimination for whoever cannot work it out, and each elimination costs a card.
+- **What it costs is on the card**, under its line: *Entered in the file, against you* (`fail.file`, written into the
+  file in the pen's ink and struck through, as frame 7's wrong answers are, and read back on the last card), and in a
+  Stop *a minute of the Stop gone* (`fail.cost_s`, 60; the Stop's own clock on the goal line, never its last minute and
+  a half, so a card cannot run a Stop out by itself). The last card counts the cards: *Seen through twice, and asked
+  again*.
+- **The roll first.** The card's second button opens the roll and the file, and shutting them asks the question:
+  frame 5's card had always said *look at it before you go back to him*, with no way to do so but to go back. Tab is
+  that button; the arrows go between the two.
+
+| Frame | Before | Now |
+|---|---|---|
+| 3, the police box | one lie: the Stop let go, and the walk to the box, the Stop and his six lines again | one lie: the card, a line in the file, a minute of the Stop; he asks again, and that lie is gone |
+| 5, Tatsuo | two guesses: the roof again from the Stop's fall, his statement again | two guesses: the card (the roll at hand from it), the file, a minute; he is pressed again with what was struck off still off |
+| 6, Mr Tanaka | two wrong prints: back to the kerb where the car set you down, the walk to him, his lines again | two wrong prints: the card, the file; he looks again, those prints off the roll |
+
+A frame's data can still ask for the old way (`fail.from: "start"`), and nothing does. `tools/story_play.js` plays all
+three (`SLIP=3,5,6`): at each card it reads what the card says it cost, that it fits the screen and that the file has
+the line; after it, that the talk was taken up at the question (no line of the talk's beginning heard again, nobody
+moved); at frame 5 it goes by the roll; and the last card must count them.
+
 ### The case read for agreement (issue 117, 21 November 2026)
 
 The launch review read every line of `game.story` as a reader of detective stories does, for whether its facts agree.
@@ -2081,6 +2234,150 @@ What was settled, each by sections 5 and 6 above:
 
 A wrong answer at the police box still takes frame 3 up again from its beginning; that is issue 93's.
 
+### The two stories from first principles: the case's first ten minutes, and the walk's line (issue 164, 21 November 2026)
+
+The owner asked for both lines summarised and analysed against the best, for the walk to be given a story that
+happens to the player (the stranger who asks for a photograph brought forward; an opening with the people who walk
+into others on purpose), and for research first. `docs/images/walk-line/` has the stills.
+
+**What was studied, and what was taken** (design only; nothing of any work's story, look, words or code). Where a
+claim was not confirmed against a source in this session it is marked *from memory*.
+
+| Work or source | What it does | What is taken |
+|---|---|---|
+| *Return of the Obra Dinn* (2018) ([PC Gamer's review](https://www.pcgamer.com/uk/return-of-the-obra-dinn-review/)) | The tool's first use is the first story beat: the watch comes up at the first body, shows a death, and points to the next | The first print is the hook. Everything said before it is in its way |
+| *The Case of the Golden Idol* (2022) ([its developer on testing](https://www.gamedeveloper.com/road-to-igf-2023/-the-case-of-the-golden-idol-i-used-frequent-testing-to-improve-its-mystery-solving)) | A first case that is one frozen moment, solved in minutes; the complex ones frustrated testers until it was tested often | Frame 1 asks one small thing and answers it; issue 14's five players are the measure |
+| *Firewatch* (2016) ([its writer](https://www.gamedeveloper.com/design/writing-i-firewatch-i-and-capturing-the-beauty-of-being-alone)) | Who you are is given as a few choices, not as lines listened to | What Sumiko tells before the camera is in the hand is cut to what puts it there |
+| *Half-Life 2* (2004) ([The Escapist](https://www.escapistmagazine.com/half-life-2-pick-up-the-can/)) | "Pick up that can": a character's demand teaches the control | The walk's camera is taught by someone who needs a photograph taken |
+| *Yakuza 0* and the series' substories ([its director](https://www.pcgamer.com/games/rpg/like-a-dragon-series-director-sums-up-why-sidequests-are-essential-to-a-great-rpg-with-a-single-metaphor-a-good-main-dish-alone-will-not-earn-you-a-michelin-star)); *Red Dead Redemption*'s ambient events ([GameSpot](https://www.gamespot.com/articles/red-dead-redemption-exclusive-qanda/1100-6249985)) | An incident already under way in the street, seen before any prompt; walking on is an answer too | The walk's opening is seen, not found; a walker who does nothing is not held |
+| *TOEM* (2021) ([its makers](https://gamingtrend.com/feature/interviews/toem-interview/)); *Season* (2023); *Umurangi Generation* (2020) | The camera's use is a favour for a person; a photograph is the story's verb, never an extra | The first thing the walk's camera is for is her photograph, in the first two minutes |
+| *Before Sunrise* (1995); *After Hours* (1985) ([Ebert](https://www.rogerebert.com/reviews/after-hours-1985-1)); *Collateral*, *Victoria*, *Tokyo Godfathers* (from memory) | An encounter nobody chose, a small favour, a clock everyone can read (a train), and a last image that answers the first | The line is carried by the night's own timetable and ends at the 0:33; its last photograph answers its first |
+| G. Loewenstein, *The Psychology of Curiosity* (1994) | Curiosity is a gap in what one already knows: it needs some knowledge to form | Show the thing that cannot be so, then speak. A print first, then her story as its answer |
+| Hitchcock to Truffaut (suspense and surprise); Parker and Stone (*therefore* and *but*, never *and then*); J. Schell's interest curve; the *Left 4 Dead* director's build, peak, relax; kishōtenketsu | Tell the audience what to wait for; join beats by cause; rest between peaks | Each of the line's beats is caused by the one before (*therefore* she asks; *but* she is leaving) and names the hour of the next |
+| R. McKee (the inciting incident happens on screen, early, to the protagonist); B. Snyder (an early kind act puts us on someone's side); Darley and Latané on bystanders (all from memory) | One person addressed directly helps; a crowd does not | The crowd goes round her; the prompt is the player's alone |
+| Numbers: a talk listed at GDC, *The Sticky Science of New*, says most free-to-play players are lost in the first minutes; a narrative game's public figures show about 79% reaching its first chapter's end | | Three of eight past frame 1 is far under what a first chapter should keep |
+
+Not found: per-minute figures for a narrative game's first ten minutes.
+
+**From first principles.** A story holds someone for as long as six things are true, and lets go the moment one fails.
+
+1. *Something has happened to them.* Before it, they are a visitor; after it, they are in it. It has to be seen, early,
+   and not chosen.
+2. *They know one thing and are missing the next.* A gap, not a fog: curiosity needs a fact to hang from.
+3. *Someone wants something from them*, small and concrete, that only they can give now.
+4. *Their hand did the last thing that mattered.* What is told between two acts is on credit.
+5. *Each beat is caused by the one before* and costs something of a clock they can read.
+6. *The end answers the beginning*, so that the first image means more than it did.
+
+**The case, beat by beat.** What the player knows, wants and fears at each beat, and where the pull slackens.
+
+| Beat | Knows | Wants | Fears | The pull |
+|---|---|---|---|---|
+| The press, the menu, who you play (two screens) | The place, the hour, a line that promises *somebody turns to look at you* | To begin | Nothing | Three screens ask before anything is given. Each is one question, and they are well made; the promise is still unpaid |
+| The film, the job sheet | A job: one kerb at 17:14, late | To get there | Nothing | Half a minute watched and a card read: no act yet |
+| The call, the walk to the kerb | The kerb is to be dug up; a client who will not say why; a sister who rang | To raise the camera | Nothing yet | The first input, about a minute and a half in. It holds: the street is live and the call does not stop the feet |
+| The camera raised: the Stop | The world has stopped in the finder | To know why | That it is the player's doing | **The hook, and it is good.** The player's own act causes it |
+| The title again, the dog's film, the walk across | A dog moves; somebody at the far kerb moves | To reach her | Nothing | Three things stand between the hook and the person it promised. Telemetry: about four minutes here before the lane and the halation |
+| Her nine lines | The promise, the night train, the match, the boy, the camera, the rule | To use the camera | Nothing | **The pull slackens here.** Nine lines answer questions the player has not yet asked: the names and the train mean nothing until a print has shown that 1964 is there to be seen. Principle 2 and 4 fail together |
+| The card of four steps, then the goals that teach the same four | How the camera sees 1964 | To take it | Wasting a frame | The camera is taught twice, once on a card and once by its goals |
+| The first print | 1964 is in the glass: a board, his name | To find out what stopped him | Seven frames, no eighth | **The first act that pays**, six to eight minutes after the press. This is where a player is won, and five of eight had gone before it |
+| Frames 2 to 7 | | | | They escalate as a classical case does: a false solution at the midpoint (the glove), a liar broken by the roll, a witness won by a print, the challenge, the reveal. Each is reasoned to from the one before. Nothing to change in their order |
+
+*Why the telemetry says the title and frame 1.* The best openings of the kind put the tool's first use within about two
+minutes and let it raise the question. Here the question (*why did he not cross?*) is told before the tool is used,
+by someone the player met forty seconds ago, in nine lines. The Stop is a strong hook and it is then explained
+before it is played.
+
+*Are the people people?* Sumiko wants, hides and changes (she hides that she is alive and that she ran; she crosses).
+Tatsuo wants to be believed and is broken; Mr Tanaka trusts only what he is shown; the detective waits. Akira is kept
+off stage and that is right. The weak one is **Kagami**: the reason this photographer takes jobs on the tenth of
+October is given by a call and a message, never by an act of the player's, so the player has no stake of their own
+until frame 5.
+
+*Does the last frame pay for the first?* Yes, twice: *You came late*, in an old woman's voice, is answered when she
+crosses, and the word pencilled on the plan in the first minute is the word on the ticket in the last. The title's
+own promise (*somebody turns to look at you*) is paid at about minute four.
+
+**What to change in the case, most valuable first.**
+
+| # | Change | Why | State |
+|---|---|---|---|
+| 1 | Before the camera is in the hand she says only what puts it there (six lines: *You came late*; whom she was not waiting for; what he said of the hour; the boy; *take it*; *raise it to my corner*). The lift and the glove, the night train, the tickets and the family's match are said **after** the first print, as the answer to the board with his name on it | The print opens the gap her story fills (Loewenstein; *Obra Dinn*). Every fact stays in frame 1, so section 9's fair play is unchanged | **Built** (`cities/shibuya/city.json` frame 1 `afterimage.lines` and `task.lines`) |
+| 2 | The camera is taught by its goals alone; the card of four steps goes | It is taught twice, and the goals already say each step at the moment it is done | Proposed; the default is to cut the card |
+| 3 | Nothing between the Stop and the walk to her but the dog: the title falls over the walk, not before it | The hook is the Stop; each thing after it and before her spends it | Proposed |
+| 4 | Kagami's own stake as an act in frame 1 or 2 (the phone taken out and the sister's call let ring, by the player's hand), not only a call heard | Principle 1 for the one person the player is | Proposed; a choice of taste |
+| 5 | Who you play asked after the first print, or kept to one press | Three screens before the street | Proposed; the owner asked for the screen as it is, so the default is to keep it |
+| 6 | Measure it: the seconds from the press to the first print as a `story` beat of its own, and issue 14's five players | Three of eight is eight plays, all the owner's | Proposed |
+
+**The walk's line.** The walk had people to find, a call from the office as a way in, and street moments in which a
+stranger asks a favour after a minute or two (a photograph of them, the way somewhere); nothing in it happened to the
+player, and the first photograph anyone asked for came by chance. It now opens on one story that is not found but
+seen, the first of the night's line told one at a time, and the door to the rest: *The last train*. The office's call
+ends by turning the view to whoever has the first story: that is now her, a few steps behind you, a moment before
+it happens. No street moment begins while the line has the street. Before it, the corner's one line (issue 146) leads to her
+with the metres and the way (*A woman is photographing the screens*): where to look, never what is about to happen.
+
+*The incident, and how it is treated.* Deliberate shouldering in Tokyo's crowds is real and reported: a video of a man
+ramming women in Shinjuku station in May 2018; arrests for injury at Nijubashimae in 2019 (a 34-year-old woman, three
+weeks of bruising) and at Kamata in 2020; fractures reported at Tamachi in 2024; and at this crossing in February 2026
+a child knocked down from behind while being photographed (sources:
+[the summary of the Japanese press](https://en.wikipedia.org/wiki/Butsukari_otoko);
+[Shujo PRIME, 2019](https://www.jprime.jp/articles/-/16250);
+[Tokyo Weekender, 2025](https://www.tokyoweekender.com/japan-life/news-and-opinion/butsukari-otoko-japans-bumping-men/);
+[The Star, 2026](https://www.thestar.com.my/aseanplus/aseanplus-news/2026/02/26/clip-of-girl-shoved-at-tokyos-shibuya-crossing-goes-viral-sparks-outrage-online);
+[Toyo Keizai, 2025](https://toyokeizai.net/articles/-/901187?display=b)). It is assault under article 208 of the Penal
+Code and injury under 204 ([Bengo4](https://www.bengo4.com/c_1009/n_17265/)); those hit are mostly women; it is over
+before it is understood, the one who did it walks on, most people go round, and many never report it because intent
+is hard to prove. So, in the walk: it is fast and nobody explains it; he does not turn, speak or come back, and is not
+a caricature (a man in a suit, like a third of the crossing); she is on the ground before anyone understands; the
+crowd goes round; nobody is chased or caught and nothing is promised; no line makes light of it, and the word for
+it in the corner is what he did (*He walked into her and did not stop*). The harm is hers and the story stays with her.
+
+*The line, decided (22 November 2026): an opening that is whole, and an ending that is offered.* A first draft hung
+four more beats on the timetable's hours (19:00, 21:00, 0:00, 0:33). Read from first principles it owed too much:
+the walk's clock runs at the wall's pace, so the 0:33 named in the second minute was seven hours of real time away and
+almost nobody would be there to see it paid, and on a walk set out at the hour it is in Tokyo after midnight the line
+was simply false. A promise made and never kept costs more than none. So:
+
+| # | When | Where | What happens | State |
+|---|---|---|---|---|
+| 1 | As you come down, at any hour | The kerb you set out from | She is walked into and left on the ground; *Help her up*, or she gets up alone after 24 seconds | Built |
+| 2 | The first two minutes | The same kerb | Her photograph, the camera's first use. Shown it: *I look as if nothing happened. That's the one my mother gets.* That is the opening's own end: an incident, and a photograph that hides it. She is *on the last train tonight* (after it has gone, *the first train this morning*), and her mother does not know | Built |
+| 3 | Whenever you like | Hachiko's wall | Beside her by the wall: *Wait with her for the last train*. The two of you sit on the stone, framed from in front with the bed's lantern behind (from behind, the lantern stood in front of one of you from every side), and the night passes by itself to a few minutes before the train, slowed round the timetable's moments so that they are seen: the searchlights (*Three years, and I never once looked up*), the shutters (*That's the fourth time, you know*), the screens going dark (*I've never seen it dark*). Standing up ends the wait where it is | Built |
+| 4 | A few minutes before the train | The station's front, where the walkway along the works' hoarding begins (the entrance is behind the hoarding in the hero level) | *That's mine.* She walks there and asks for one more photograph, *not with the lights behind me this time. Just me, going home*; shown it, *that's the one she gets*; she takes yours (*nobody ever takes the photographer's*), goes in along the walkway with the people going in, turns round once, and is gone for good in this browser | Built |
+
+The three middle beats of the first draft are not separate scenes: they happen in the wait, as the city does them by
+itself. Waiting is the whole work's subject (a woman at a kerb for sixty-two years, a dog at a station for ten), and
+one act, sitting down beside her, turns seven hours nobody controls into a minute the player chose.
+
+*The end answers the beginning.* It opens on a woman standing still who is walked into by a man who does not turn
+round, and on a photograph made to look as if nothing had happened. It ends on a true photograph, hers to send, one of
+the photographer for once, and someone who turns round.
+
+*What it owes the case* (issue 149), only in a browser where the case is closed, so that walked first it spoils
+nothing: at beat 5 she has seen an old woman cross on the diagonal in the rain, slowly, and everyone went round her;
+the walk's photographs are kept as its roll (issue 47), hers among them; the north-west kerb is named once as you
+pass it.
+
+*A walker who wants no story* is not held: the incident asks nothing, she gets up by herself, and from then on she is
+one more person with an amber mark. It happens once in a browser and never again.
+
+**The first minute and the first ten of the walk** (issue 146's beat sheet; the corner's line and the marks are that
+issue's): by minute one the incident has been seen and *Help her up* offered; by minute three the camera has been
+used once, for her, and her train has been named; by minute ten she is by Hachiko's wall beside the seat, where Mei is
+looking for Riko and Mr Oda has his coffee, and the corner has the night's next moment.
+
+**On the page.** `cities/shibuya/city.json` `game.walk.people[0]` (`incident`, `alone`, `then.shot`, `rest`) and
+`game.npcs` (Nagi); `web/game/walktalk.js` (the incident, the photograph with someone in it, where she waits);
+`web/game/game.js` (the walker, her phone on the ground, *Help her up*). `tools/walk_play.js` plays the opening;
+`tools/walk_line.js` takes its stills and the storyboard's.
+
+**Not done, and not checked.** She and the man are cast from the people that exist (a face of her own is a build of
+the people's models). She sits on the ground with her legs out, a pose made from the seat's; there is no fall or
+kneel in the clips. The sound of the shoulder is the page's low knock. The station has no gate to walk through in the hero level (its front is the works' hoarding): she goes in along the walkway beside it. Not checked: a
+real GPU (the two characters load a few seconds after the street there, minutes on a software renderer, and the
+incident waits for them), Safari, iOS, and whether it holds anyone: issue 14.
+
 ## 13. What is left, and the marks without colour
 
 What issue 10 asked that a container cannot finish is planned and split off: recorded Japanese voices and faces that
@@ -2105,7 +2402,7 @@ The owner was stuck twice in one evening: on frame 4's glass, not seeing that a 
 | Game | Wrong, and stuck | Taken, or not |
 |---|---|---|
 | *Ace Attorney* (2001–) | Pressing a statement is free and is how the player learns; only evidence presented wrongly costs, one of five marks. *The Great Ace Attorney Chronicles* adds a Story Mode that presents the right evidence itself | Taken: a statement that stands is answered in his own words and struck off for the next try. Not taken: five marks (the question has four statements) and a mode that plays itself |
-| *Return of the Obra Dinn* (2018) | Nothing is ever failed; fates are confirmed three at a time, so a guess is not told right or wrong alone | Its principle is kept: guessing must cost. Here the cost is the frame taken up again, after two |
+| *Return of the Obra Dinn* (2018) | Nothing is ever failed; fates are confirmed three at a time, so a guess is not told right or wrong alone | Its principle is kept: guessing must cost. Here the cost was the frame taken up again, after two; since issue 93 it is a card, a line in the file against the player and a minute of the Stop, and the question asked again |
 | *The Case of the Golden Idol* (2022) | Hints exist, are limited, and are behind a warning and a small task, so that they are asked for on purpose | Already the rule here (a hint is asked for, never given). What was wrong was that the offer was not seen |
 | *L.A. Noire* (2011) | A case goes on whatever is answered; reviewers faulted that it was rarely clear why a mistake was a mistake | Taken as a warning: `near`, below |
 | *Professor Layton* (2007–) | Three hints to a puzzle, each saying more, bought by the player | Already here |
@@ -2121,7 +2418,8 @@ What was changed:
   broken by the roof's print (nailed boots on the stair, and every man on the works wore them). It is not: boots are
   not a face, and the foreman is careful to say *my gang*. Pressed, it is answered so, struck off, and not counted
   (`near` on the statement).
-- Failing after two counted wrong answers is unchanged: a guesser still fails, and the frame is short to take up again.
+- Failing after two counted wrong answers is unchanged: a guesser still fails. (What failing costs changed with issue
+  93: *Seen through, and asked again*, above.)
 
 Sources read: the *Return of the Obra Dinn* article on Wikipedia and Film Stories' "Exploring Return of the Obra Dinn's
 rule of three"; PC Gamer's guide to *The Great Ace Attorney Chronicles* (Story Mode) and StrategyWiki's *Ace Attorney*

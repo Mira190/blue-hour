@@ -7,6 +7,8 @@
 // city: the cast its crowd draws from (game.crowd.real_from too) and its NPCs' characters; "crowd": the far
 // crowd's own figures (M_, W_) too. Prints each character's triangles, height and anything out of the ordinary:
 // a head, hand or foot bone missing, a hand or a foot far from where a person's is, a figure off the floor.
+// DRESS=k: each scanned person in the crowd's change of clothes k (people.js DRESS), as the crowd wears them.
+// UMB=1: each holding an open umbrella up (people.js holdUmbrella: the right arm raised over the clip).
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -36,6 +38,8 @@ const [,, out = 'lineup', which = 'shibuya', extra = ''] = process.argv;
     if (extra === 'crowd') list = list.concat(Object.keys(info.characters));
     return list;
   }, [which, extra]);
+  if (process.env.DRESS) await p.evaluate(k => { window.__dress = k; }, +process.env.DRESS);
+  if (process.env.UMB) await p.evaluate(() => { window.__umb = true; });
   await p.evaluate(async () => {
     const W = 1400, H = 900;
     const cv = document.createElement('canvas');
@@ -64,6 +68,8 @@ const [,, out = 'lineup', which = 'shibuya', extra = ''] = process.argv;
     await lib.require(name);
     const info = lib.info.npcs.characters[name] || lib.info.characters[name] || {};
     const rig = OEPeople.person(lib, name[0] === 'R' || name[0] === 'H' ? { character: name, scale: 1 } : Object.assign(OEPeople.randomLook ? OEPeople.randomLook(lib, name) || {} : {}, { character: name, scale: 1 }));
+    if (window.__umb) rig.setLook({ acc: ['umbrella_open'] }); // (UMB=1: an open umbrella held up, people.js holdUmbrella)
+    if (window.__dress != null && rig.dress) rig.dress(window.__dress); // (DRESS=k: in the crowd's change of clothes k, people.js DRESS)
     L.cur = rig; sc.add(rig.root);
     const bones = {}; let tris = 0, meshes = 0;
     rig.root.traverse(o => { if (o.isBone) bones[o.name] = o; if (o.isSkinnedMesh) { meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } });

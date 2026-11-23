@@ -25,9 +25,43 @@ river the photograph shows wider than the landmark draws it) (web/world.js water
 import json
 import os
 
+import numpy as np
+
 import bridges
 import webtex
 from cityctx import city_args
+
+
+BACK_M = 0.05   # how far behind its picture a sign's back stands (m)
+
+
+def sign_backs(materials, meshes):
+    """A sign's back: every upright face that carries a picture (an atlas's sign, a print, a screen) gets a plain
+    painted panel BACK_M behind it, facing the other way. The landmarks' materials are drawn double-sided, so a
+    picture with nothing behind it is seen from behind, mirrored: from the street past a scaffold's advert, from a
+    deck above it, from the helicopter (tools/sign_check.py). Against a wall the panel is out of sight; a floor's
+    picture (a compass, a marking) is left as it is."""
+    pos, idx = [], []
+    for m in meshes:
+        mt = materials.get(m["material"], {})
+        if not mt.get("map") or mt["map"].startswith("ground") or mt.get("cutout") or "uv" not in m:
+            continue
+        P = np.asarray(m["position"], float).reshape(-1, 3)
+        for i, j, k in np.asarray(m["index"], int).reshape(-1, 3):
+            a, b, c = P[i], P[j], P[k]
+            n = np.cross(b - a, c - a)
+            ln = np.linalg.norm(n)
+            if ln < 0.02 or abs(n[2]) / ln > 0.7:   # a sliver, or a floor's picture
+                continue
+            d = -n / ln * BACK_M
+            base = len(pos)
+            pos += [a + d, c + d, b + d]   # wound the other way: its face is the back
+            idx += [base, base + 1, base + 2]
+    if not pos:
+        return None
+    materials.setdefault("sign_back", {"color": "#45484c", "roughness": 0.6, "metalness": 0.35, "solid": False})
+    return {"name": "sign_back", "material": "sign_back", "smooth": False, "floodlit": False,
+            "position": np.round(np.asarray(pos), 3).ravel().tolist(), "index": idx}
 
 
 def main():
@@ -50,9 +84,18 @@ def main():
     for k in [k for k, v in materials.items() if v.get("map") and k not in used and not os.path.exists(os.path.join(city.out, v["map"]))]:
         print(f"  material {k}: unused, its image {materials[k]['map']} not here; left out")
         del materials[k]
-    out = {"materials": materials, "meshes": [m.dump() for m in meshes],
+    dumped = [m.dump() for m in meshes]
+    back = sign_backs(materials, dumped)
+    if back:
+        dumped.append(back)
+    out = {"materials": materials, "meshes": dumped,
            "notes": "Parametric; dimensions from published figures, anchors from OpenStreetMap footprints." if meshes else "No parametric landmarks."}
     out.update(extra)
+    # what was built by the one rule of levels (pipeline/levels.py): each run of bays with its tops and feet, and each
+    # footing, for tools/levels_check.py to hold against the ground as it is, and for street_ground.py, which does not
+    # keep the survey's lumps under what follows the ground by rule
+    import levels
+    levels.save(city.id)   # (beside the city's sources, cities/<id>/levels.json: the page has no use for it)
     if city.hook("landmark_glows"):
         out["glows"] = city.hook("landmark_glows")(scene)
     if bridges.glows(scene):

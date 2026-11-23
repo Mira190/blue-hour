@@ -18,11 +18,13 @@ the west edge, half-lengths, the deck's height):
   * the deck: dark grey porcelain pavers 600 by 600 mm on pedestals in straight courses with 5 mm open joints, each
     paver its own part of the stone, cut clean at the channels, the pad and the glass; a stainless slot drain along
     the glass's foot;
-  * GEO COMPASS: the raised deck's top in a non-slip coat with the heliport's marking (the white edge line, the yellow
-    touchdown circle, the white H) and round it the compass (a white ring, its degrees, north, east, south and west,
-    a gold line to each far place with its name and distance, true north), drawn here (`skypad`); its sides in dark
-    metal panels; its four flights of steps in the deck's stone with a pale nosing and a line of light under each;
-    green flush lights round the pad's edge, as a heliport has;
+  * the heliport, raised in the roof's middle: its top artificial turf in one mid-green with every mark yellow laid
+    into it (a ring and an H, the square boundary doubled on one side, a diagonal at each corner, two arrows, MAX 5t),
+    and beside it at the head of the steps toward Yoyogi Park GEO COMPASS, a plinth of pale stone slabs edged in timber
+    with a dark metal star and ring, the names of far places cut in the ring at their bearings round a world map as it
+    lies from here (azimuthal equidistant), drawn here (`skypad`, issue 137); its sides in dark metal panels; its four
+    flights of steps in the deck's stone with a pale nosing and a line of light under each; green flush lights round
+    the pad's edge, as a heliport has;
   * the glass round the deck: frameless panes on a dark aluminium shoe with a line of light in its face toward the
     deck, a slim steel cap; at SKY EDGE and over the channels the city's own lower glass stays;
   * CLOUD HAMMOCK: three nets of white rope on low dark steel frames over beds of short artificial lawn in a timber
@@ -82,8 +84,10 @@ def materials(K):
         # at a low angle, which is how its courses read in the photographs (issue 125; wet in the rain: ground*)
         "ground_deck": {"tex": "granite", "maps": "cn", "rough": 0.44, "tint": granite((70, 72, 75)), "sky": 0.85},
         "ground_deck_joint": {"color": (0.012, 0.012, 0.013), "rough": 0.9},
-        # the pad's top: its coat and its paint, drawn here
-        "ground_pad": {"tex": "skypad", "maps": "cn", "rough": 0.6, "sky": 0.7},
+        # the heliport's top: artificial turf with its yellow laid in, and GEO COMPASS's plinth at its edge, drawn here
+        # (its roughness map: the turf matt, the stone honed, the ring satin, the map's cover polished; a phone, which
+        # goes without the map, has the turf's)
+        "ground_pad": {"tex": "skypad", "maps": "cnr", "rough": 0.9, "sky": 0.25},
         # the steps: the deck's stone, a pale honed nosing
         "ground_step": {"tex": "granite", "maps": "cn", "rough": 0.46, "tint": granite((70, 72, 75)), "sky": 0.85},
         "ground_nosing": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((168, 166, 160)), "sky": 0.5},
@@ -102,8 +106,9 @@ def materials(K):
         "wood_slat": {"tex": "deck", "maps": "cn", "rough": 0.55, "tint": K.tint_to("deck", (128, 92, 62)), "sky": 0.4},
         # the nets' rope, white
         "net_rope": {"color": (0.78, 0.78, 0.76), "rough": 0.9},
-        # the glass round the deck: clear, a little of the sky in it
-        "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.2, "sky": 1.0},
+        # the glass round the deck: clear; what it mirrors is the roof's probe (web/game/hero.js), laid over the pane at
+        # full strength, held to 0.7 of it: at night the far city's lights in it, not a veil of the sky (issue 137)
+        "glass_wall": {"color": (0.55, 0.62, 0.64), "rough": 0.03, "alpha": 0.2, "sky": 0.7},
         # what gives light after dark (lamp*: off by day): the lines along the glass and under the steps, the
         # searchlights' lenses, the pad's green lights
         "lamp_line": {"color": (0.4, 0.37, 0.33), "emissive": WARM, "glow": 0.85},
@@ -117,11 +122,50 @@ def materials(K):
 # ---------------------------------------------------------------- the pad's top, drawn here
 
 PAD_N = 2048
+PAD_LINE_IN = 1.0     # the heliport's boundary line, in from the top's edge
+PAD_RING = 7.0        # its ring, across (read against people standing in it in the photographs: 6 to 7 m)
+COMPASS_PLINTH = 6.4  # GEO COMPASS's plinth, square (about 6 m in the photographs)
+COMPASS_RING = 4.6    # its metal ring, across (4 to 5 m)
+TURF = (66, 104, 56)  # the heliport's artificial turf: one even mid-green
+# the world's land, coarsely (lon, lat), for the map in GEO COMPASS's ring: at 1.2 cm a pixel a continent is a few
+# dozen pixels across, and what the map says is where things lie from here, not a coast
+LAND = [
+    [(-9, 43), (-9, 37), (-5, 36), (3, 43), (12, 44), (16, 38), (22, 37), (27, 37), (36, 36), (35, 31), (43, 13), (52, 16), (59, 22), (57, 26), (67, 25),
+     (72, 20), (77, 8), (80, 15), (88, 22), (94, 16), (98, 8), (104, 1), (103, 10), (109, 12), (106, 20), (110, 21), (120, 24), (122, 31), (118, 38),
+     (122, 40), (126, 35), (129, 36), (128, 40), (132, 43), (140, 50), (142, 54), (135, 55), (143, 59), (156, 62), (163, 60), (170, 60), (180, 65),
+     (190, 66), (180, 69), (160, 70), (140, 73), (110, 74), (100, 77), (80, 73), (68, 69), (55, 69), (44, 67), (40, 65), (33, 69), (25, 71), (15, 69),
+     (5, 62), (8, 58), (12, 56), (8, 54), (4, 52), (-2, 49), (-4, 48), (-1, 44)],
+    [(-17, 15), (-16, 21), (-13, 28), (-6, 36), (10, 37), (11, 33), (20, 31), (32, 31), (35, 24), (43, 12), (51, 12), (41, -2), (40, -15), (35, -24),
+     (28, -33), (18, -34), (12, -17), (13, -5), (9, 4), (-8, 4), (-13, 8)],
+    [(-168, 66), (-156, 71), (-125, 70), (-95, 72), (-80, 73), (-62, 60), (-56, 52), (-66, 45), (-70, 42), (-76, 35), (-81, 31), (-80, 25), (-84, 30),
+     (-90, 29), (-97, 26), (-97, 19), (-91, 19), (-87, 21), (-88, 16), (-83, 10), (-78, 9), (-80, 7), (-85, 10), (-92, 15), (-105, 20), (-110, 23),
+     (-115, 30), (-118, 34), (-124, 41), (-124, 48), (-133, 56), (-150, 60), (-158, 57), (-165, 61)],
+    [(-78, 9), (-72, 12), (-62, 10), (-51, 4), (-50, 0), (-35, -6), (-39, -15), (-48, -26), (-58, -35), (-65, -42), (-68, -53), (-74, -50), (-72, -37),
+     (-70, -18), (-81, -5), (-79, 1)],
+    [(114, -22), (122, -17), (131, -12), (136, -12), (142, -11), (146, -19), (153, -27), (150, -37), (144, -38), (138, -35), (131, -32), (123, -34), (115, -34)],
+    [(-45, 60), (-22, 70), (-20, 80), (-40, 83), (-60, 81), (-70, 77), (-54, 68)],
+    [(130, 31), (131, 34), (135, 34), (137, 35), (140, 35), (141, 38), (142, 40), (141, 41), (140, 41), (139, 38), (136, 37), (133, 35), (130, 33)],
+    [(140, 42), (142, 45), (145, 44), (143, 42)],
+    [(-5, 50), (1, 51), (-2, 56), (-5, 58), (-6, 55)], [(44, -25), (47, -25), (50, -15), (49, -12), (44, -17)],
+    [(131, -1), (141, -3), (147, -6), (150, -10), (141, -9), (138, -7), (133, -4)], [(109, 1), (113, -3), (116, -4), (118, 1), (117, 7), (113, 4)],
+    [(95, 5), (98, 4), (104, -2), (106, -6), (102, -4)], [(172, -34), (178, -38), (175, -41), (168, -46), (166, -45), (172, -41)],
+    [(105, -7), (110, -7), (114, -8), (110, -8)], [(-24, 65), (-14, 66), (-14, 64), (-22, 63)],
+]
+
+
+def compass_side(frame):
+    """The side of the pad GEO COMPASS stands at: the one that looks most nearly north-north-west, toward Yoyogi Park
+    and Shinjuku (the photographs), as (du, dv) in the pad's frame."""
+    a1, a2 = frame["a1"], frame["a2"]
+    e_, n_ = math.sin(math.radians(335)), math.cos(math.radians(335))
+    u, v = e_ * a1[0] + n_ * a1[1], e_ * a2[0] + n_ * a2[1]
+    return ((1 if u > 0 else -1), 0) if abs(u) > abs(v) else (0, (1 if v > 0 else -1))
 
 
 def pad_maker(city, frame, lobby):
-    """make(dir) for GEO COMPASS's top: a non-slip coat (its fine aggregate the only grain in it), the heliport's
-    paint and the compass, in the pad's own frame (u to the image's right, v up), turned so that north is true north."""
+    """make(dir) for the heliport's top: the turf (its pile the only grain in it, in its colour), the yellow laid in,
+    and GEO COMPASS's plinth at its edge (compass_side), in the pad's own frame (u to the image's right, v up), the
+    compass and its map turned so that north is true north (docs/HERO.md, "SHIBUYA SKY from the sources, again")."""
     gc = city.SKY["compass_m"] / 2
     a1, a2 = frame["a1"], frame["a2"]
 
@@ -131,118 +175,171 @@ def pad_maker(city, frame, lobby):
         N = PAD_N
         S = N / (2 * gc)                      # pixels a metre
         P = lambda u, v: ((u + gc) * S, (gc - v) * S)
-        # a mask per paint: white, yellow, gold
-        masks = {k: Image.new("L", (N, N), 0) for k in ("white", "yellow", "gold")}
-        D = {k: ImageDraw.Draw(m) for k, m in masks.items()}
         w = lambda m: max(1, int(round(m * S)))
-        # the edge line, 0.3 m wide 0.3 m in
-        e = gc - 0.3
-        D["white"].rectangle([*P(-e, e), *P(e, -e)], outline=255, width=w(0.3))
-        # the touchdown circle (yellow, 0.5 m wide, 9 m across) and the H (white, 3 by 4 m, strokes 0.6 m)
-        r = 4.5
-        D["yellow"].ellipse([*P(-r, r), *P(r, -r)], outline=255, width=w(0.5))
-        for x0, x1, y0, y1 in ((-1.5, -0.9, -2.0, 2.0), (0.9, 1.5, -2.0, 2.0), (-0.9, 0.9, -0.3, 0.3)):
-            D["white"].rectangle([*P(x0, y1), *P(x1, y0)], fill=255)
-        # the compass: its ring (white, 0.25 m at 10.6 m), an inner ring, degrees every 5, the four letters
-        R, Ri = 10.6, 5.4
-        D["white"].ellipse([*P(-R, R), *P(R, -R)], outline=255, width=w(0.25))
-        D["white"].ellipse([*P(-Ri, Ri), *P(Ri, -Ri)], outline=255, width=w(0.08))
         dirv = lambda brg: (math.sin(math.radians(brg)), math.cos(math.radians(brg)))      # (east, north)
         to_uv = lambda e_, n_: (e_ * a1[0] + n_ * a1[1], e_ * a2[0] + n_ * a2[1])          # world xy -> pad (u, v)
-        for k in range(72):
-            du, dv = to_uv(*dirv(k * 5))
-            r0 = R - (0.9 if k % 18 == 0 else 0.55 if k % 6 == 0 else 0.32)
-            D["white"].line([P(du * r0, dv * r0), P(du * (R - 0.12), dv * (R - 0.12))], fill=255, width=w(0.1 if k % 6 == 0 else 0.05))
-        big = lobby.font("jost", w(1.1), 500)
-        for lab, brg in (("N", 0), ("E", 90), ("S", 180), ("W", 270)):
-            du, dv = to_uv(*dirv(brg))
-            one = Image.new("L", (w(2.0), w(2.0)), 0)
-            ImageDraw.Draw(one).text((one.width / 2, one.height / 2), lab, font=big, fill=255, anchor="mm")
-            # (each letter reads from the middle, its foot toward the middle)
-            ang = math.degrees(math.atan2(du, dv))
-            one = one.rotate(ang, resample=Image.BICUBIC)
-            cx, cy = P(du * (R - 1.7), dv * (R - 1.7))
-            masks["white"].paste(255, (int(cx - one.width / 2), int(cy - one.height / 2)), one)
-        # each far place: a gold line from the inner ring toward the outer at its bearing, its name and distance along
-        # it. Places in nearly one direction (Mt Fuji, Osaka, Kyoto, Hong Kong all lie west-south-west) would write
-        # over one another: each name takes the first of its places along its line and either side of it that is
-        # clear of the names placed before it, the four letters and the other lines
-        from shapely.geometry import LineString, Point, Polygon as SPoly
-        small = lobby.font("jost", w(0.26), 500)
-        noto = lobby.font("noto", w(0.26), 500)
-        meas = ImageDraw.Draw(Image.new("L", (1, 1)))
-        places = []
-        for name, ll in city.COMPASS_TO.items():
-            brg, km = city.bearing_km(city.COMPASS_FROM, ll)
-            near = min(abs((brg - c4 + 180) % 360 - 180) for c4 in (0, 90, 180, 270))
-            places.append((brg, km, name, to_uv(*dirv(brg)), R - (2.7 if near < 6 else 0.9)))     # (short of a letter it points at)
-        taken = [Point(*[q * (R - 1.7) for q in to_uv(*dirv(b))]).buffer(0.75) for b in (0, 90, 180, 270)]
-        lines = []
-        for brg, km, name, (du, dv), end in places:
-            D["gold"].line([P(du * (Ri + 0.15), dv * (Ri + 0.15)), P(du * end, dv * end)], fill=255, width=w(0.05))
-            D["gold"].ellipse([*P(du * end - 0.12, dv * end + 0.12), *P(du * end + 0.12, dv * end - 0.12)], fill=255)
-            lines.append(LineString([(du * (Ri + 0.15), dv * (Ri + 0.15)), (du * end, dv * end)]).buffer(0.04))
-        for brg, km, name, (du, dv), end in sorted(places):
-            text = f"{name}  {km:,.0f} km" if km >= 10 else f"{name}  {km:.1f} km"
-            f = noto if any(ord(ch) > 0x3000 for ch in text) else small
-            ln = (meas.textlength(text, font=f) + 8) / S                 # its length, metres
-            hgt = 0.34
-            own = LineString([(du * (Ri + 0.15), dv * (Ri + 0.15)), (du * end, dv * end)]).buffer(0.04)
-            others = [g for g in lines if not g.equals(own)]
-            nu_, nv_ = -dv, du                                             # across the line
-            best = None
-            for side in (1, -1):
-                for r0 in np.linspace(Ri + 0.3, max(Ri + 0.3, end - 0.1 - ln), 6):
-                    a, b = 0.1 * side, (0.1 + hgt) * side
-                    poly = SPoly([(du * r0 + nu_ * a, dv * r0 + nv_ * a), (du * (r0 + ln) + nu_ * a, dv * (r0 + ln) + nv_ * a),
-                                  (du * (r0 + ln) + nu_ * b, dv * (r0 + ln) + nv_ * b), (du * r0 + nu_ * b, dv * r0 + nv_ * b)])
-                    if not any(poly.intersects(g) for g in taken + others):
-                        best = (poly, r0, (a + b) / 2)
-                        break
-                if best:
-                    break
-            if best is None:                                               # (nowhere clear: its own line's outer end)
-                r0 = end - 0.1 - ln
-                best = (None, r0, 0.27)
-            poly, r0, mid = best
-            if poly is not None:
-                taken.append(poly.buffer(0.04))
+        side = compass_side(frame)
+        T = lambda p_, q_: {(0, 1): (p_, q_), (1, 0): (q_, -p_), (0, -1): (-p_, -q_), (-1, 0): (-q_, p_)}[side]   # along the edge, out
+        # a mask for each thing laid in the top: the heliport's yellow in the turf; the plinth's stone, its joints, its
+        # timber edge, its metal, the letters cut in the metal, the map's sea, its land and its lines
+        keys = ("yellow", "stone", "joint", "wood", "metal", "text", "sea", "land", "line")
+        masks = {k: Image.new("L", (N, N), 0) for k in keys}
+        D = {k: ImageDraw.Draw(m) for k, m in masks.items()}
+
+        # ---- the heliport: yellow laid into the turf (the photographs: a ring with an H, a square boundary doubled on
+        # one side, a diagonal at each corner, two arrows along one side, its weight)
+        e = gc - PAD_LINE_IN
+        D["yellow"].rectangle([*P(-e, e), *P(e, -e)], outline=255, width=w(0.3))
+        (u0, v0), (u1, v1) = T(-e, -(e - 0.75)), T(e, -(e - 0.75))                                   # doubled on the side away from the compass
+        D["yellow"].line([P(u0, v0), P(u1, v1)], fill=255, width=w(0.3))
+        for su in (-1, 1):
+            for sv in (-1, 1):
+                D["yellow"].line([P(su * e, sv * e), P(su * (e - 2.2), sv * (e - 2.2))], fill=255, width=w(0.3))
+        r = PAD_RING / 2
+        D["yellow"].ellipse([*P(-r, r), *P(r, -r)], outline=255, width=w(0.4))
+        # the H reads from the side away from the compass (its uprights along the way out to it)
+        for p0, p1, q0, q1 in ((-1.15, -0.7, -1.6, 1.6), (0.7, 1.15, -1.6, 1.6), (-0.7, 0.7, -0.22, 0.22)):
+            D["yellow"].polygon([P(*T(p0, q0)), P(*T(p1, q0)), P(*T(p1, q1)), P(*T(p0, q1))], fill=255)
+        for p0 in (-(e - 2.0), e - 2.0):                                                             # an arrow either side, toward the compass
+            D["yellow"].polygon([P(*T(p0 - 0.15, -5.5)), P(*T(p0 + 0.15, -5.5)), P(*T(p0 + 0.15, -1.9)), P(*T(p0 - 0.15, -1.9))], fill=255)
+            D["yellow"].polygon([P(*T(p0 - 0.6, -1.9)), P(*T(p0 + 0.6, -1.9)), P(*T(p0, -0.5))], fill=255)
+        one = Image.new("L", (w(5.0), w(1.3)), 0)
+        ImageDraw.Draw(one).text((one.width / 2, one.height / 2), "MAX 5t", font=lobby.font("jost", w(0.95), 600), fill=255, anchor="mm")
+        ang = {(0, 1): 0, (1, 0): -90, (0, -1): 180, (-1, 0): 90}[side]
+        one = one.rotate(ang, resample=Image.BICUBIC, expand=True)
+        cx, cy = P(*T(0, -(r + 1.9)))
+        masks["yellow"].paste(255, (int(cx - one.width / 2), int(cy - one.height / 2)), one)
+
+        # ---- GEO COMPASS: a plinth of pale stone at the head of the steps, edged in timber, flush with the turf
+        h = COMPASS_PLINTH / 2
+        pc = T(0, gc - 0.2 - h)                                                                      # its middle
+        C = lambda du, dv: P(pc[0] + du, pc[1] + dv)
+        box = lambda k, a, fill=255: D[k].rectangle([*C(-a, a), *C(a, -a)], fill=fill)
+        for k in keys:                                                                               # (nothing of the heliport's under it)
+            box(k, h, 0)
+        box("wood", h)
+        box("wood", h - 0.2, 0)
+        box("stone", h - 0.2)
+        R, Rm = COMPASS_RING / 2, COMPASS_RING / 2 - 0.4
+        # the slabs: laid radially round the ring, a joint every 15 degrees from the ring to the edge, and one course round
+        for k in range(24):
+            du, dv = to_uv(*dirv(k * 15 + 7.5))
+            D["joint"].line([C(du * R, dv * R), C(du * h * 1.5, dv * h * 1.5)], fill=255, width=1)
+        rj = (R + h - 0.2) / 2 + 0.25
+        D["joint"].ellipse([*C(-rj, rj), *C(rj, -rj)], outline=255, width=1)
+        # the star: a long point to each of the four winds and a short one between, in the ring's metal
+        for k in range(8):
+            du, dv = to_uv(*dirv(k * 45))
+            nu_, nv_ = -dv, du
+            tip = (h - 0.32) / max(abs(du), abs(dv)) if k % 2 == 0 else R + 0.75
+            wd = 0.2 if k % 2 == 0 else 0.13
+            D["metal"].polygon([C(du * (R - 0.05) + nu_ * wd, dv * (R - 0.05) + nv_ * wd), C(du * tip, dv * tip), C(du * (R - 0.05) - nu_ * wd, dv * (R - 0.05) - nv_ * wd)], fill=255)
+        # (the star and the joints stay on the plinth's stone)
+        keep = np.asarray(masks["stone"]) > 0
+        for k in ("joint", "metal"):
+            masks[k] = Image.fromarray((np.asarray(masks[k]) * keep).astype(np.uint8), "L")
+            D[k] = ImageDraw.Draw(masks[k])
+        # the ring: metal, 0.4 m wide, the four letters and the far places cut in it, each at its bearing
+        D["metal"].ellipse([*C(-R, R), *C(R, -R)], fill=255)
+        D["joint"].ellipse([*C(-R, R), *C(R, -R)], fill=0)
+        for k in ("stone",):
+            D[k].ellipse([*C(-R, R), *C(R, -R)], fill=0)
+        rt = (R + Rm) / 2
+
+        def on_ring(text, brg, font, hgt):
+            """text set along the ring at a bearing, read from outside it; its half-width in degrees"""
+            ln = (meas.textlength(text, font=font) + 6) / S
             one = Image.new("L", (int(ln * S), w(hgt)), 0)
-            ImageDraw.Draw(one).text((4, one.height / 2), text, font=f, fill=255, anchor="lm")
-            ang = math.degrees(math.atan2(dv, du))
-            flip = 90 < (ang % 360) < 270
-            one = one.rotate(ang + (180 if flip else 0), resample=Image.BICUBIC, expand=True)
-            rm = r0 + ln / 2
-            cx, cy = P(du * rm + nu_ * mid, dv * rm + nv_ * mid)
-            masks["gold"].paste(255, (int(cx - one.width / 2), int(cy - one.height / 2)), one)
-        # the name, small, inside the edge line on the side toward the scramble (+v)
-        one = Image.new("L", (w(9), w(0.6)), 0)
-        ImageDraw.Draw(one).text((one.width / 2, one.height / 2), "GEO COMPASS   SHIBUYA SKY  229.71 m", font=lobby.font("jost", w(0.34), 500), fill=255, anchor="mm")
-        cx, cy = P(0, e - 0.75)
-        masks["white"].paste(255, (int(cx - one.width / 2), int(cy - one.height / 2)), one.rotate(180))
+            ImageDraw.Draw(one).text((one.width / 2, one.height / 2), text, font=font, fill=255, anchor="mm")
+            du, dv = to_uv(*dirv(brg))
+            one = one.rotate(math.degrees(math.atan2(dv, du)) - 90, resample=Image.BICUBIC, expand=True)
+            cx, cy = C(du * rt, dv * rt)
+            masks["text"].paste(255, (int(cx - one.width / 2), int(cy - one.height / 2)), one)
+
+        meas = ImageDraw.Draw(Image.new("L", (1, 1)))
+        big, small, noto = lobby.font("jost", w(0.26), 600), lobby.font("jost", w(0.15), 500), lobby.font("noto", w(0.15), 500)
+        half = lambda text, f: math.degrees(((meas.textlength(text, font=f) + 6) / S) / rt) / 2
+        taken = []
+        for lab, brg in (("N", 0), ("E", 90), ("S", 180), ("W", 270)):
+            on_ring(lab, brg, big, 0.32)
+            taken.append(((brg - 5) % 360, (brg + 5) % 360))
+        # each place as near its bearing as the ring has room: those that lie in nearly one direction (Mt Fuji, Osaka,
+        # Kyoto and Hong Kong, west-south-west) stand side by side there, nearest first, a tick at each one's true bearing
+        places = sorted((city.bearing_km(city.COMPASS_FROM, ll) + (name,) for name, ll in city.COMPASS_TO.items()), key=lambda t: t[1])
+        over = lambda a, b, t0, t1: ((t0 - a) % 360) < ((b - a) % 360) or ((a - t0) % 360) < ((t1 - t0) % 360)   # two arcs, each clockwise
+        free = lambda a, b: not any(over(a, b, t0, t1) for t0, t1 in taken)
+        for brg, km, name in places:
+            text = f"{name.split(' ')[0] if any(ord(ch) > 0x3000 for ch in name) and len(name) > 14 else name}  {km:,.0f} km" if km >= 10 else f"{name}  {km:.1f} km"
+            f = noto if any(ord(ch) > 0x3000 for ch in text) else small
+            hw = half(text, f) + 1.0
+            for off in sorted(np.arange(-60, 60.1, 1.0), key=abs):
+                a, b = (brg + off - hw) % 360, (brg + off + hw) % 360
+                if free(a, b):
+                    on_ring(text, brg + off, f, 0.2)
+                    taken.append((a, b))
+                    break
+            du, dv = to_uv(*dirv(brg))
+            D["text"].line([C(du * (Rm + 0.015), dv * (Rm + 0.015)), C(du * (Rm + 0.06), dv * (Rm + 0.06))], fill=255, width=w(0.03))
+        # the map inside the ring: the world as it lies from here (azimuthal equidistant about the roof: a place's
+        # bearing on the map is its bearing from the roof, its distance along it true), land over sea, a ring every
+        # 5,000 km and a line every 30 degrees, under a clear cover
+        D["metal"].ellipse([*C(-Rm, Rm), *C(Rm, -Rm)], fill=0)
+        D["text"].ellipse([*C(-Rm, Rm), *C(Rm, -Rm)], fill=0)
+        D["sea"].ellipse([*C(-Rm, Rm), *C(Rm, -Rm)], fill=255)
+        far = math.pi * 6371.0
+
+        def onmap(lon, lat):
+            brg, km = city.bearing_km(city.COMPASS_FROM, (lon, lat))
+            du, dv = to_uv(*dirv(brg))
+            rr = km / far * (Rm - 0.02)
+            return C(du * rr, dv * rr)
+
+        for ring in LAND:
+            pts = []
+            for (lo0, la0), (lo1, la1) in zip(ring, ring[1:] + ring[:1]):
+                n_ = max(1, int(max(abs(lo1 - lo0), abs(la1 - la0)) / 2))
+                pts += [onmap(lo0 + (lo1 - lo0) * t / n_, la0 + (la1 - la0) * t / n_) for t in range(n_)]
+            D["land"].polygon(pts, fill=255)
+        for km in (5000, 10000, 15000):
+            rr = km / far * (Rm - 0.02)
+            D["line"].ellipse([*C(-rr, rr), *C(rr, -rr)], outline=255, width=1)
+        for k in range(12):
+            du, dv = to_uv(*dirv(k * 30))
+            D["line"].line([C(du * 0.12, dv * 0.12), C(du * (Rm - 0.02), dv * (Rm - 0.02))], fill=255, width=1)
+        inmap = np.asarray(masks["sea"]) > 0
+        for k in ("land", "line"):
+            masks[k] = Image.fromarray((np.asarray(masks[k]) * inmap).astype(np.uint8), "L")
+
         M = {k: np.asarray(m, float) / 255 for k, m in masks.items()}
-        # the coat: one dark grey, its fine aggregate a pixel's grain (a millimetre's), nothing larger
+        # ---- the turf: one even green, its only grain the pile's (a pixel is 1.2 cm: a tuft), nothing larger; the
+        # yellow is turf too, laid in
         rng = np.random.default_rng(72)
         grain = ndimage.gaussian_filter(rng.normal(size=(N, N)), 0.7)
         grain /= grain.std() or 1
-        base = np.array([54, 56, 59.0])
-        col = base[None, None, :] + grain[..., None] * 2.2
-        paint = {"white": np.array([214, 215, 212.0]), "yellow": np.array([214, 164, 36.0]), "gold": np.array([196, 160, 92.0])}
-        cover = np.zeros((N, N))
-        for k in ("white", "yellow", "gold"):
-            a = M[k][..., None]
-            col = col * (1 - a) + (paint[k][None, None, :] + grain[..., None] * 1.2) * a
-            cover = np.maximum(cover, M[k])
+        fine = ndimage.gaussian_filter(rng.normal(size=(N, N)), 0.5)
+        fine /= fine.std() or 1
+        col = np.array(TURF, float)[None, None, :] * (1 + grain[..., None] * 0.045)
+        lay = lambda k, rgb, g=0.0: (np.array(rgb, float)[None, None, :] * (1 + (grain if g else fine)[..., None] * (g or 0.012)), M[k][..., None])
+        for k, rgb, g in (("yellow", (206, 168, 44), 0.04), ("wood", (122, 92, 64), 0.0), ("stone", (178, 178, 173), 0.0), ("joint", (104, 104, 102), 0.0),
+                          ("metal", (58, 66, 78), 0.0), ("text", (224, 225, 222), 0.0), ("sea", (198, 210, 222), 0.0), ("land", (98, 116, 138), 0.0),
+                          ("line", (150, 168, 188), 0.0)):
+            c_, a_ = lay(k, rgb, g)
+            col = col * (1 - a_) + c_ * a_
         os.makedirs(d, exist_ok=True)
         Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "Color.png"))
-        # the paint stands half a millimetre proud of the coat; the aggregate's grain
-        hgt = ndimage.gaussian_filter(cover, 1.0) * 1.0 + grain * 0.12
+        # the relief: the stone flat between joints a millimetre deep; the yellow laid a hair lower than the pile; the letters cut
+        # in the metal; the land standing off the map's sea
+        hard = np.clip(M["stone"] + M["wood"] + M["metal"] + M["sea"] + M["joint"] + M["text"], 0, 1)
+        # (the turf's pile is in its colour only: at 1.2 cm a pixel a tuft's relief is noise to the eye from 2 m, and 1.4 MB
+        # of the model's download)
+        hgt = ndimage.gaussian_filter(M["land"] * 0.8 - M["joint"] * 0.9 - M["text"] * 0.5 - M["yellow"] * 0.15, 0.8)
         gy, gx = np.gradient(hgt)
         nm = np.dstack([-gx * 0.6, gy * 0.6, np.ones_like(gx)])
         nm /= np.linalg.norm(nm, axis=2, keepdims=True)
         Image.fromarray(np.clip((nm * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "NormalGL.png"))
-        rough = np.clip(0.74 - 0.16 * cover + grain * 0.01, 0, 1)
-        Image.fromarray((rough * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
+        # turf matt; the stone honed, the metal satin, the map's cover polished
+        rough = 0.94 * (1 - hard) + 0.52 * M["stone"] + 0.62 * M["wood"] + 0.7 * M["joint"] + 0.36 * np.clip(M["metal"] + M["text"], 0, 1) + 0.1 * M["sea"]
+        Image.fromarray((np.clip(rough, 0, 1) * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
 
     return make
 
@@ -677,6 +774,18 @@ class Level:
             put(u, v, "u", 3.1, 1.85, z + 0.92)
         for (u, v) in self.beams:                                    # the searchlights: the plinth, the yoke and the drum
             put(u, v, "u", 0.34, 0.34, z + 1.0)
+        # the steps' cheeks, where the flight stands higher than a knee (from its second step to the pad): the landmark
+        # under the level has the steps as a floor and nothing as their sides, so a walker going along beside a flight was
+        # kept off it by their middle alone, and half their body went into it (the owner's screenshot, November 2026).
+        # Its first step, 0.2 m, is left open: it is stepped onto from the side, as an open stair is
+        gc = self.gc
+        for su, sv in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            for t in (-2.53, 2.53):
+                s = gc + 0.9
+                if su:
+                    put(su * s, su * t, "u", 0.9, 0.03, z + 2.03)
+                else:
+                    put(-sv * t, sv * s, "v", 0.9, 0.03, z + 2.03)
         return out
 
 

@@ -102,7 +102,7 @@ window.OEStory = (function () {
   //        figure(look, at) -> { x, y, z, face(x, y), walkTo(x, y, speed), animate(dt), remove() } (look.alive: a living person),
   //        person(id) -> one of the map's people { x, y, z, name, role }, beacon(at | null): a light standing at [x, y, , floor]
   //        (none: taken away), screen(at) -> { x, y, front, dist } where [x, y, z] is in the frame (0..1), aim(at) -> degrees
-  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], clear(a, b) -> the held crowd out of the way from a to b, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
+  //        between the lens and it, seen(at) -> nothing solid between the lens and [x, y, z], see(x, y, z, o) -> why a mark drawn there is hidden (marks.js), clear(a, b) -> the held crowd out of the way from a to b, snap() -> the frame as a data URL, again(), free(): the episode once more; the map without its story }
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     let enterLater = () => {}; // (going back into a frame from the title: set once the case's functions exist, below)
@@ -282,6 +282,7 @@ window.OEStory = (function () {
     function jobRaise(on) {
       if (st.cam === on) return;
       if (on && (!st.jobReady || camWait())) return; // (not before the office has asked for the picture, nor on a press that passed a line)
+      if (on) fitFinder(); // (the same lines as every frame's: inside the print)
       st.cam = on; st.jobT = 0; camLabel(); camBtn.classList.toggle('up', on); finder.classList.toggle('on', on);
       say(on ? 'Camera up' : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
@@ -471,7 +472,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const W = ctx.stage.clientWidth, H = ctx.stage.clientHeight, m = 46;
       // (someone to talk to: the mark over their head, not on their chest, where a pale mark on a pale figure was lost)
       const person = !via && (st.kind === 'meet' || st.kind === 'ghost'), head = person ? [to[0], to[1], to[2] + 0.95] : to;
-      let q = ctx.screen(head);
+      let q = ctx.screen(head), pt = head; // (pt: the point of the world the mark is drawn at)
       const talk = person && q.front && q.dist <= TALK_M && (!ctx.seen || ctx.seen(head)); // (near and in sight: a speech mark; else a place to walk to)
       // getting nearer? (the leg is the beat and the kind of goal: a car that moves is the same leg)
       // (the way there, where it is a place to walk to: route.js ways.walk, as the gold line draws it and the dog follows it.
@@ -493,7 +494,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       // straight to the goal, it is the goal's own mark (docs/STORY.md "Who shows the way")
       st.wayAim = null;
       if (!st.guided && !talk && wy) {
-        if (wy.aim) { st.wayAim = wy.aim; q = ctx.screen([wy.aim[0], wy.aim[1], wy.aim[2] + 1.2]); k = 'go'; }
+        if (wy.aim) { st.wayAim = wy.aim; pt = [wy.aim[0], wy.aim[1], wy.aim[2] + 1.2]; q = ctx.screen(pt); k = 'go'; }
         q.dist = wy.left;
       }
       if (st.guided && !talk) {
@@ -527,7 +528,21 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       mark.querySelector('b').textContent = lens ? `${(R && R.name) || 'Frame this'}${side}` : k === 'frame' ? `Frame this${side}` : k === 'guide' ? `${(st.ep.guide || {}).name || 'The dog'}${side}` : `${MARKS[k] ? `${MARKS[k]} · ` : ''}${Math.max(1, Math.round(q.dist))} m${side}`;
       // (the thing to photograph: marked while the camera is down; with it up, only the arrow and its name while it is
       // outside the lines; inside them the finder's bright lines are the guide)
-      mark.classList.toggle('on', lens ? off : k === 'frame' || k === 'guide' || q.dist > 4); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
+      // Drawn where it is, in the frame, a mark is a thing in the picture, and keeps its perspective (marks.js): never over
+      // the player's body (walking to a goal straight ahead, its ring stood on the back of her head) nor anyone nearer the
+      // eye. Someone to talk to is hidden by them, as by a wall or a deck. The way's own sign (a place to go, a thing to
+      // frame) is what a lost player is given (LOST_S), so it is not taken away by a figure in front of it: it is held
+      // just over the figure, on the same line. Nor are the walls asked of it: it points where the way can be walked straight
+      // from here (ctx.way), so what a ray meets before it is a post, a tree, an awning, never a wall (on the way from Center
+      // Gai to Hachiko a ray at head height took it away from the guide's check); and a thing to frame is itself a building.
+      // At the frame's edge, an arrow
+      st.veil = '';
+      if (!off && !up && ctx.see) {
+        const way = k === 'go' || k === 'frame', v = ctx.see(pt[0], pt[1], pt[2], { pad: 18, solid: !way, key: 'goal', lift: way });
+        st.veil = v.why; st.lifted = v.lifted || '';
+        if (!v.why && v.lifted) { y = Math.max(m + 70, Math.min(y, v.y)); mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`; }
+      }
+      mark.classList.toggle('on', !st.veil && (lens ? off : k === 'frame' || k === 'guide' || q.dist > 4)); mark.classList.toggle('off', off); mark.classList.toggle('lens', lens); // (lens is a boolean: toggle with undefined flips the class every frame, and the mark trembled)
       if (off) mark.style.setProperty('--a', `${Math.atan2(y - H / 2, x - W / 2).toFixed(3)}rad`); // (its arrow points the way to turn)
     }
     // (with a controller in the hand: its sticks)
@@ -661,9 +676,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const fly = () => { st.beat = 'flight'; goal(''); aimAt(null); frames.classList.remove('on'); if (st.dog && st.dog.aboard) st.dog.aboard(true); ctx.film(fr.flight, () => { frames.classList.add('on'); if (st.dog && st.dog.aboard) st.dog.aboard(false); go(); }); };
       const B = fr.flight && ctx.film && !st.again && fr.flight.board, pad = B && ctx.board ? ctx.board(() => { if (st.fr === fr && st.beat === 'board') fly(); }) : null;
       // (why it is there, first: the office rings, in its own voice, the episode prologue's, with flight.board.call)
-      const board = () => { if (st.fr !== fr) return; st.beat = 'board'; goal(B.goal || 'Get in the helicopter.'); aimAt(spot(pad), true); if (ctx.look) ctx.look(pad, true); };
+      const board = () => { if (st.fr !== fr) return; st.beat = 'board'; goal(B.goal || 'Get in the helicopter.'); aimAt(spot(pad), false); if (ctx.look) ctx.look(pad, true, true); }; // (the view to the pad from where the camera has room behind you: game.js look, room)
       const C = pad && B.call, P = st.ep.prologue || {};
-      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true); ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
+      if (C && L(C.lines).length) { st.beat = 'call'; goal(''); aimAt(null); if (ctx.look) ctx.look(pad, true, true); ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}, C.voice || {}) }, C.who || P.who || {}), L(C.lines), board); }
       else if (pad) board();
       else if (fr.flight && ctx.film && !st.again) fly();
       else go();
@@ -687,8 +702,8 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // - a question with `choice` has no right answer: each option { text, set: flag, say } is something the player
     //   commits to, kept in st.flags (and in the save) for later lines to answer;
     // - a question with `fail: { after, lines, title, line }` can be lost: after that many wrong answers in one talk
-    //   the one asked sees through the player, the Stop lets go, and the frame is taken up again from its beginning
-    //   (failed, retry). Nothing but the minute is lost, but it is lost in front of the player;
+    //   the one asked sees through the player: a card, a line in the file against them, a minute of the Stop, and the
+    //   question is asked again where it was (failed, retry; issue 93). Nothing is played twice for one answer;
     // - a question that wants a print the player spent on nothing (shoot: plain) is passed over; the frame's
     //   `lost<n>` flag is set, so those who would have answered to it say something else.
     const L = list => [].concat(list || []).filter(l => typeof l === 'string' || ((!l.if || st.flags[l.if]) && (!l.not || !st.flags[l.not]))).map(l => (typeof l === 'string' ? l : l.say));
@@ -700,7 +715,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (q.proof) return summation(m, w, q, done);
       if (q.choice) {
         const opts = q.options.map((o, i) => ({ k: i, text: o.text }));
-        st.want = q.play || 0; // (tools/story_play.js takes this one)
+        st.want = q.play || 0; st.canFail = false; // (tools/story_play.js takes this one, or with CHOOSE another: nothing here is wrong, so nothing can be lost; left as the question before had it, a choice read as one that could be)
         // (a question someone is waiting on, wait_s: silence is an answer too. Once its answers are up a line under them
         // runs down, held while the roll, the log or the menu is open, and when it has run out the player has said
         // nothing (`silent`, answered as an option is). Frame 3's question after the print held one player half an hour:
@@ -726,8 +741,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         const ok = !!c && c.k === right, said = L((ok ? q.right : wrongFor(q, c && c.k)) || (ok ? [] : ['No. Look at the prints again.']));
         sfx(ok ? 'right' : 'wrong'); st.want = -1;
         if (ok) st.asked++;
-        else if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
-        else if (q.frame && c) gone.p.add(c.k); // (a print that was not it is off the roll for the next try)
+        else {
+          if (c && (q.frame || q.fail)) gone.p.add(c.k); // (a print that was not it is off the roll for the next try; and a lie told once is not told again)
+          if (q.fail && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines), back = () => ask(m, w, done, as); return F.length ? ctx.say(w, F, () => failed(q.fail, w, back)) : failed(q.fail, w, back); }
+        }
         const more = ok ? said : said.concat(helpFor(q));
         return more.length ? ctx.say(w, more, () => ask(m, w, done)) : ask(m, w, done);
       });
@@ -735,7 +752,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     // What a wrong answer takes off the table for the next try (a statement that stands, a print that is not it), so that
     // each try is narrower than the last and a player who cannot work it out still gets to the end of the question by
     // elimination, and the line that says where to look, after the first slip (`help` on the question): the second
-    // is the last the one asked allows. Both are forgotten when the frame is taken up again.
+    // is the last the one asked allows. What is struck off stays off when the player is seen through and asked again.
     let struckBy = new WeakMap();
     const struck = q => { let g = struckBy.get(q); if (!g) struckBy.set(q, g = { s: new Set(), p: new Set() }); return g; };
     const helpFor = q => (q.help && st.slips === 1 ? L(q.help) : []);
@@ -769,7 +786,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
     function atHand(back) { st.reask = back; st.want = -1; albumOpen(true); }
     const nameOf = k => ((st.ep.people || []).find(o => o.id === k) || {}).name || '';
     // An answer judged. A question with `fail` can be lost: after that many wrong answers in one talk the one asked
-    // sees through the player and the frame is taken up again from its beginning (frames 3, 5 and 6). A question with
+    // sees through the player, and asks again once the card has been read (frames 3, 5 and 6: failed). A question with
     // `told` (the summation, frame 7) is never lost, and nobody plays the frame again for one answer: a wrong answer is
     // answered for what was said (wrong_by, wrong_print) and written in the file against the player, struck through; a
     // second says more (`wrong2`) and marks the print that answers it on the roll; a third, and she says it herself
@@ -780,7 +797,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       sfx(ok ? 'right' : 'wrong'); st.want = -1; st.proving = false;
       const nm = q.who && how.named != null ? nameOf(how.named) : '';
       if (ok) { sting('turn'); st.asked++; st.qmiss = 0; if (q.file) { filed(`${q.file}: you said ${nm || 'it'}. She took it.`, { kind: 'said' }); settle(m, true); } }
-      else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines); return F.length ? ctx.say(w, F, () => failed(q.fail)) : failed(q.fail); }
+      else if (q.fail && !how.free && ++st.slips >= (q.fail.after || 1)) { const F = L(q.fail.lines), back = () => ask(m, w, done); return F.length ? ctx.say(w, F, () => failed(q.fail, w, back)) : failed(q.fail, w, back); }
       else if (q.told) {
         const n = st.qmiss = (st.qmiss || 0) + 1; st.misses = (st.misses || 0) + 1;
         if (q.file) filed(`${q.file}: you said ${nm || 'that'}${how.okS ? ', and showed her the wrong print' : ''}. She did not take it.`, { kind: 'said', wrong: true });
@@ -1138,12 +1155,26 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       // only its `spent` lines)
       later(4600, () => hear(spend ? { lines: T.spent || [] } : { lines: T.lines, ask: T.ask, then: T.then }, who(fr.afterimage || T.voice || {}), () => resume()));
     }
-    // seen through: the card says so, and the frame is taken up again from its beginning (the flight or the ride to it
-    // is not made twice)
-    function failed(F) {
-      st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong'); struckBy = new WeakMap(); mixedBy = new WeakMap(); // (taken up again: nothing is struck off, and the answers are laid out afresh)
-      failEl.innerHTML = `<div class="card"><small>${esc(st.fr.stamp || '')} · frame ${st.fi + 1}</small><h2>${esc(F.title || 'Seen through')}</h2><p>${esc(F.line || '')}</p><div class="row"><button type="button" class="go">Take it up again${st.fr.stamp ? ` · ${esc(st.fr.stamp)}` : ''}</button></div></div>`;
-      failEl.classList.add('on'); st.failed = (st.failed || 0) + 1;
+    // Seen through (issue 93): the card says so, and the talk is taken up again at the question that was lost, not at the
+    // frame's beginning. The walk to them, the call, the Stop falling and everything they had said were played again for
+    // one answer; now the one asked is still there, says one line (`fail.again`) and asks again, and what the wrong
+    // answers took off the table stays off it, so each time round is narrower than the last and the question ends. What
+    // it costs is seen: the card; a line in the file against the player, written and struck through as frame 7's wrong
+    // answers are (`fail.file`); in a Stop, a minute of it (`fail.cost_s`, never its last minute and a half); and the
+    // last card counts it. The card's second button opens the roll and the file first, and closing them asks again.
+    //   fail: { after, lines, title, line, again: lines, file: text, go: the button's words, cost_s: 60, from: 'start' }
+    // (from: 'start': the frame from its beginning, as it was; the flight or the ride to it is not made twice)
+    function failed(F, w, back) {
+      st.beatWas = st.beat; st.beat = 'failed'; aimAt(null); goal(''); sfx('wrong');
+      const again = !!back && F.from !== 'start', inStop = st.phase === 'stop', S = st.fr.stop_s || 420;
+      const cost = again && inStop ? Math.max(0, Math.min(F.cost_s != null ? F.cost_s : 60, S - 90 - st.t)) : 0;
+      st.failBack = again ? { w, back, again: F.again } : null;
+      if (!again) { struckBy = new WeakMap(); mixedBy = new WeakMap(); } // (from the start: nothing is struck off, and the answers are laid out afresh)
+      if (cost > 0) st.t += cost; // (the Stop's own clock, which the goal line shows)
+      if (again && F.file) filed(F.file, { kind: 'said', wrong: true });
+      const paid = [again && F.file ? 'Entered in the file, against you' : '', cost >= 1 ? `${cost >= 59 ? 'A minute' : `${Math.round(cost)} seconds`} of the Stop gone` : ''].filter(Boolean).join(' · ');
+      failEl.innerHTML = `<div class="card"><small>${esc(st.fr.stamp || '')} · frame ${st.fi + 1}</small><h2>${esc(F.title || 'Seen through')}</h2><p>${esc(F.line || '')}</p>${paid ? `<em class="paid">${esc(paid)}</em>` : ''}<div class="row"><button type="button" class="go" data-fail="go">${esc(again ? F.go || 'Ask again' : 'Take it up again')}${!again && st.fr.stamp ? ` · ${esc(st.fr.stamp)}` : ''}</button>${again && st.prints.length ? '<button type="button" data-fail="roll">The roll and the file first</button>' : ''}</div></div>`;
+      failEl.classList.add('on'); st.failed = (st.failed || 0) + 1; keep();
       if (document.exitPointerLock) document.exitPointerLock();
       const b = failEl.querySelector('button'); if (b) b.focus({ preventScroll: true });
     }
@@ -1162,8 +1193,14 @@ showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.
       st.spendAsk = false; spendEl.classList.remove('on');
       if (yes) shoot(true);
     }
-    function retry() {
+    function retry(roll) {
+      if (!failEl.classList.contains('on')) return;
       failEl.classList.remove('on');
+      const B = st.failBack; st.failBack = null;
+      if (B) { // (at the question: they are where they were, and so are you)
+        const go = () => { st.beat = st.beatWas || 'talk'; st.slips = 0; const A = L(B.again); return A.length ? ctx.say(B.w, A, B.back) : B.back(); };
+        return roll ? atHand(go) : go();
+      }
       veil.classList.remove('on'); ctx.stage.classList.remove('story-stop');
       shutter.classList.remove('on'); finder.classList.remove('on'); camBtn.classList.remove('on', 'up'); st.cam = false; keysHint(false); teach(null); if (ctx.here) ctx.here(null);
       ctx.hush(false); ctx.hold(false); st.orbit = 0; if (ctx.score) ctx.score({ held: false }); if (ctx.held) ctx.held(false);
@@ -1273,7 +1310,7 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
       const P = ep.pairs || [], never = P.map(q => pairKey(q.of[0] - 1, q.of[1] - 1)).filter(k => !st.pairs.includes(k));
       if (P.length) li.push(`<li class="pair"><b>${st.pairs.length}/${P.length}</b><span>${never.length ? `Never set side by side: ${never.map(k => `frames ${k.replace('-', ' and ')}`).join('; ')}.` : 'Every pair of prints that argues was set side by side.'}</span></li>`);
       if (st.misses || st.told) li.push(`<li><b>×${st.misses || 0}</b><span>${st.misses ? `Answered her wrongly ${st.misses === 1 ? 'once' : `${st.misses} times`}.` : ''}${st.told ? ` She answered ${st.told === 1 ? 'one question' : `${st.told} questions`} herself.` : ''}</span></li>`);
-      if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and taken up again.</span></li>`);
+      if (st.failed) li.push(`<li><b>×${st.failed}</b><span>Seen through ${st.failed === 1 ? 'once' : `${st.failed} times`}, and asked again.</span></li>`);
       { const found = ep.frames.map((f, i) => (f.find || (f.task && f.task.find) ? i : -1)).filter(i => i >= 0 && st.prints[i]), alone = found.filter(i => !st.helped[i]), helped = found.filter(i => st.helped[i]);
         const L2 = a => a.map(i => i + 1).join(a.length > 2 ? ', ' : ' and ');
         if (found.length) li.push(`<li class="found"><b>${alone.length}/${found.length}</b><span>${alone.length ? `Found alone: frame${alone.length > 1 ? 's' : ''} ${L2(alone)}.` : ''}${helped.length ? ` With a hint: ${helped.map(i => `${i + 1} (${['a word', 'the dog', 'the light'][st.helped[i] - 1]})`).join(', ')}.` : ''}</span></li>`); }
@@ -1319,7 +1356,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
     }
     endEl.addEventListener('click', e => { const g = e.target.closest('button[data-back]'); if (g) return enter(+g.dataset.back); const b = e.target.closest('button[data-do]'); if (b) (b.dataset.do === 'sheet' ? saveSheet : b.dataset.do === 'again' ? ctx.again : ctx.free)(); });
     shutter.addEventListener('click', shoot);
-    failEl.addEventListener('click', e => { if (e.target.closest('button')) retry(); });
+    failEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) retry(b.dataset.fail === 'roll'); });
     spendEl.addEventListener('click', e => { e.stopPropagation(); const b = e.target.closest('button[data-spend]'); if (b && (b.dataset.spend === '0' || performance.now() - st.spendAt > 700)) spendAnswer(b.dataset.spend === '1'); });
     frames.type = 'button'; frames.addEventListener('click', () => albumOpen(true));
     const onKey = e => {
@@ -1327,6 +1364,12 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); spendAnswer(false); }
         else if (e.code === 'KeyF' || e.code === 'KeyR' || e.code === 'KeyH' || e.code === 'Tab') { e.preventDefault(); e.stopPropagation(); }
         else if (/^Arrow/.test(e.code)) { e.preventDefault(); e.stopPropagation(); const B = [...spendEl.querySelectorAll('button')], i = B.indexOf(document.activeElement); if (B.length) B[(i + 1) % B.length].focus({ preventScroll: true }); }
+        return;
+      }
+      if (failEl.classList.contains('on')) { // (seen through: the arrows go between the card's two; Tab is its second, the roll first; nothing else is a key of the street's)
+        if (e.code === 'Tab' && !e.repeat) { e.preventDefault(); e.stopPropagation(); retry(!!st.failBack && !!failEl.querySelector('[data-fail="roll"]')); }
+        else if (/^Arrow/.test(e.code)) { e.preventDefault(); e.stopPropagation(); const B = [...failEl.querySelectorAll('button')], i = B.indexOf(document.activeElement); if (B.length) B[(i + 1) % B.length].focus({ preventScroll: true }); }
+        else if (e.code === 'KeyF' || e.code === 'KeyR' || e.code === 'KeyH' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); }
         return;
       }
       if (e.code === 'KeyF' && !e.repeat && (st.beat === 'shoot' || (st.phase === 'go' && st.beat === 'job'))) { e.preventDefault(); e.stopPropagation(); shoot(); }
@@ -1500,7 +1543,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         const T = st.fr.task, S = subjectOf(T), m = S && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null;
         return m ? [m[0], m[1], S[2]] : S;
       },
-      get span() { const T = st.fr && st.fr.task, m = T && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null; return m ? [m[2], m[3]] : null; }, // (the heights of the thing's foot and top: the raised camera tilts so that all of it is in the print, where it fits)
+      get span() { const T = st.phase === 'stop' && st.fr && st.fr.task, m = T && T.relic && !T.relic.over && st.relic && st.relic.middle ? st.relic.middle() : null; return m ? [m[2], m[3]] : null; }, // (the heights of the thing's foot and top: the raised camera tilts so that all of it is in the print, where it fits)
       // (where the lens is eased onto while it is up: the middle of the crossing as the last frame's two walk to it, so that
       // the lens closing on them does not close on the road beside them)
       get steer() { return st.phase === 'stop' && st.meet === 'walk' && st.cam && st.mid ? st.mid : null; },

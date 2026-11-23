@@ -2,10 +2,10 @@
 // the helicopter can reach. A part of the game cut out of game.js (tools/cut.js; docs/SEAMS.md, "The cut of game.js").
 // `g` is the rest of the game, by name. What this part asks of it:
 //   $, A, CARS_OK, CITY, CR, G, H, KEEP, PLAYER_LOOKS, ROAD_HALF, SCR_AT, SCR_BOX, W, angDiff, blendFrom, cam,
-//   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, hopTo, inScramble,
+//   camera, carCfg, cars, cine, clockT, crowd, dlg, driveTo, fmtSec, guideMade, headlamp, heliBlock, hopTo, inScramble,
 //   junctions, keepSign, lib, life, makeRig, metro, myCar, nav, npcs, objective, phone, pickupNear, pilot, placeOf,
 //   player, resetCar, ride, rideSeat, roadNet, roads, rq, save, scene, smalltalk, stepOut, story, takeHelm, touch,
-//   vlib, waypoint, world
+//   vlib, waypoint, world, bounds
 // and what it gives back:
 //   HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta,
 //   groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard,
@@ -160,7 +160,9 @@ window.OEGameRides = function (g) {
       }
     };
     if (g.crowd && g.crowd.P) for (let i = 0, n = Math.min(g.crowd.active, g.crowd.P.length); i < n; i++) { const p = g.crowd.P[i]; if (p.line >= 0 || p.pz) test(p.x, p.y, p.z); }
-    for (const n of g.npcs) test(n.x, n.y, n.z);
+    // (someone who stands on the pavement is not on its way, however near the kerb: the walk's people stand at the
+    // corners its drives turn round, and a driver waited on one for good 80 m short of 109, issue 167)
+    for (const n of g.npcs) if (!g.nav.carriageway || g.nav.carriageway(n.x, n.y) !== false) test(n.x, n.y, n.z);
     if (g.player.mode === 'foot') {
       const g0 = gap; test(g.player.x, g.player.y, g.player.z);
       if (gap < g0 && st.s + C.half + gap > st.end - 6) gap = g0;
@@ -383,6 +385,7 @@ window.OEGameRides = function (g) {
     const out = [], seen = new Set();
     const add = (id, name, at, note) => {
       if (!at || seen.has(id) || Math.hypot(at[0] - x, at[1] - y) < 150) return;
+      if (g.bounds && !g.bounds.inside(at[0], at[1], 'ground', 25)) return; // (nowhere past the planned area's edge: bounds.js)
       const pl = g.roads.place(at[0], at[1], 300, g.keepSign, groundZ(at[0], at[1]));
       if (!pl || Math.hypot(pl.x - x, pl.y - y) < 180) return;
       seen.add(id); out.push({ id, name, at: [at[0], at[1]], note });
@@ -458,7 +461,7 @@ window.OEGameRides = function (g) {
       // (and set down moving no faster than it can stop at short of the first person on its way in: put down at 5.5 m/s
       // 6 m short, it braked for a woman waiting at the kerb by Hachiko and stopped with her in its bonnet, #50)
       const s = setDown(o) ?? setDown(o, Infinity);
-      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 2) o.drv.finish(); else { const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
+      if (s == null) { /* it drives on in from where it stood */ } else if (o.drv.st.end - s < 0.3) o.drv.finish(); else { /* (finished only where it was found clear: two metres on, at the stop, it once stood on a walker by Hachiko) */ const go = Math.min(o.drv.st.end - s, wayIn(o, s) - 1.5); o.drv.jump(s); o.drv.st.v = Math.min(8, Math.sqrt(2 * 2.5 * Math.max(0, go))); }
     }, quiet: true });
   }
   // where a skipped ride is set down: the furthest point of its way within SET_DOWN metres short of its stop (and not behind
@@ -515,6 +518,9 @@ window.OEGameRides = function (g) {
     if (g.myCar && o !== g.pilot) { const parked = g.player.mode !== 'car' && g.myCar.D.st.speed < 0.3; out.push({ x: g.myCar.D.st.x, y: g.myCar.D.st.y, half: g.myCar.C.half, hw: g.myCar.C.hw, still: parked, stay: parked }); }
     // (the autopilot sees a ride as the ride sees your car: one pulled in for you is driven round)
     if (o === g.pilot && g.ride) { const rs = g.ride.drv.st, parked = (g.ride.phase === 'waiting' || g.ride.phase === 'arrived' || !!g.ride.hold) && rs.v < 0.3; out.push({ x: rs.x, y: rs.y, half: g.ride.C.half, hw: g.ride.C.hw, v: Math.max(0, rs.v), still: parked, stay: parked }); }
+    // (and the helicopter set down on the road: there for as long as it stands there, gone round where there is room, else waited for)
+    const hb = g.heliBlock();
+    if (hb && Math.abs(hb.x - st.x) < 60 && Math.abs(hb.y - st.y) < 60) out.push({ x: hb.x, y: hb.y, h: hb.h, half: hb.half, hw: hb.hw, v: 0, still: true, stay: true });
     if (g.player.mode === 'foot' && o.phase !== 'coming') out.push(g.player);
     return out;
   }
@@ -951,7 +957,10 @@ window.OEGameRides = function (g) {
     // taxi stood 30 s so)
     if (!o.turn && !o.hold && st.v < 0.3 && !st.mv && !(st.backoff > 0)) {
       const mutual = g.cars.live.some(c => c.line >= 0 && c.v < 0.3 && c.why === 'you' && (c.youBy || '').startsWith(o.blockId || 'ride') && (c.mv ? /^the line/.test(st.why || '') || st.block === c || (st.block && st.block.of === c) : st.block === c || (st.block && st.block.of === c)) && Math.hypot(c.x - st.x, c.y - st.y) < 25); // (st.block: the car itself, or its stand-in as one stopped for good)
-      o.mutJ = mutual ? (o.mutJ || 0) + dt : 0;
+      // (or one held by this car's body as it steps, a turn across it in a junction it has pulled into: the car at
+      // Dogenzaka-shita's junction held so by the autopilot's car beside it, each waiting on the other 100 s, issue 167)
+      const heldByMe = g.cars.live.some(c => c.line >= 0 && c.v < 0.3 && c.why === 'held' && c.front && !g.cars.C.includes(c.front) && (c.still || 0) > 2 && Math.hypot(c.x - st.x, c.y - st.y) < c.half + o.C.half + 3);
+      o.mutJ = mutual || heldByMe ? (o.mutJ || 0) + dt : 0;
       if (o.mutJ > 2) { o.mutJ = -3; st.backoff = 1.5; o.yielded = (o.yielded || 0) + 1; }
     } else if (!(st.backoff > 0)) o.mutJ = 0;
     return st;

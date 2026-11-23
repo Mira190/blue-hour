@@ -8,13 +8,14 @@
 //   const c = await require('./beat_count').sample(page);           // two frames of the game's, the heavier of them
 exports.hook = () => {
   const P = WebGL2RenderingContext.prototype, B = window.__beat = { on: false, cur: null, group: '' };
-  const fresh = () => ({ draws: 0, tris: 0, passes: 0, pass_px: 0, targets: new Map(), clears: 0, blits: 0, by: new Map(), groups: new Map() });
+  const fresh = () => ({ draws: 0, tris: 0, passes: 0, pass_px: 0, targets: new Map(), clears: 0, blits: 0, by: new Map(), groups: new Map(), sky: 0, sky_draws: 0, sky_tris: 0 });
   B.begin = () => { B.cur = fresh(); B.on = true; };
   B.end = () => {
     B.on = false; const c = B.cur; B.cur = null; if (!c) return null;
     // (a target's pixels: the largest viewport the scene's own draws had in it; a pass's are counted where it is drawn)
     let scene_px = 0, scene_targets = 0; for (const t of c.targets.values()) if (t.scene) { scene_px += t.px; scene_targets++; }
     return { draws: c.draws, tris: Math.round(c.tris), passes: c.passes, pass_px: c.pass_px, scene_px, scene_targets, targets: c.targets.size, clears: c.clears, blits: c.blits,
+      sky_refresh: c.sky, sky_draws: c.sky_draws, sky_tris: Math.round(c.sky_tris),
       groups: [...c.groups.entries()].map(([k, v]) => ({ group: k, draws: v.draws, tris: Math.round(v.tris) })).sort((a, b) => b.tris - a.tris).slice(0, 40),
       by: [...c.by.entries()].map(([k, v]) => ({ target: k, draws: v.draws, tris: Math.round(v.tris), passes: v.passes })).sort((a, b) => b.tris - a.tris || b.draws - a.draws) };
   };
@@ -35,7 +36,13 @@ exports.hook = () => {
     else { t.scene = true; t.px = Math.max(t.px, s.w * s.h); }
   };
   // (a frame the harness does not draw, tools/story_play.js DRAW=n, asks for its draws all the same and they are passed over: not counted)
-  const wrap = (k, fn) => { const f = P[k]; if (!f) return; P[k] = function (...a) { if (B.on && !(window.__draw && !window.__draw.on)) fn(this, a); return f.apply(this, a); }; };
+  const wrap = (k, fn) => { const f = P[k]; if (!f) return; P[k] = function (...a) { if (B.on && !(window.__draw && !window.__draw.on)) { if (B.aside) aside(this, k, a); else fn(this, a); } return f.apply(this, a); }; };
+  // The sky's light taken afresh (world.js setSun: three.js's PMREMGenerator.fromScene, the sky dome drawn into a cube and
+  // its mips, a dozen targets of 256 x 256 and smaller) when the sun or the sky has moved on enough: once in a while, in
+  // whichever frame it falls, and counted with that frame it doubled the frame's targets and showed as a beat's cost
+  // (issue 151). It is counted as what it is: sky_refresh, with its draws and triangles beside the frame's, not in them
+  const aside = (gl, k, a) => { const c = B.cur; if (!/^draw/.test(k)) return; const mode = a[0], count = k === 'drawRangeElements' ? a[3] : k === 'drawElements' || k === 'drawElementsInstanced' ? a[1] : a[2], inst = k === 'drawArraysInstanced' ? a[3] : k === 'drawElementsInstanced' ? a[4] : 1; c.sky_draws++; c.sky_tris += mode === 4 ? (count / 3) * inst : mode === 5 || mode === 6 ? Math.max(0, count - 2) * inst : 0; };
+  addEventListener('three-ready', () => { const G = window.THREE && window.THREE.PMREMGenerator; if (!G || G.prototype.__beat) return; const f = G.prototype.fromScene; G.prototype.__beat = true; G.prototype.fromScene = function (...a) { const was = B.aside; if (B.on && B.cur) B.cur.sky++; B.aside = true; try { return f.apply(this, a); } finally { B.aside = was; } }; }, { once: true });
   wrap('drawArrays', (gl, a) => tri(gl, a[0], a[2], 1, false));
   wrap('drawElements', (gl, a) => tri(gl, a[0], a[1], 1, true));
   wrap('drawRangeElements', (gl, a) => tri(gl, a[0], a[3], 1, true));
@@ -91,5 +98,14 @@ exports.sample = (p, frames = 2, by = false) => p.evaluate(([frames, by]) => new
 }), [frames, by]);
 // One frame the caller draws itself, counted from begin to end: a still's own frame, drawn whole (tools/story_play.js),
 // which costs a play no frame more.
-exports.begin = (p, by = false) => p.evaluate(by => { const B = window.__beat; B.names(by); B.begin(); }, by);
-exports.end = p => p.evaluate(() => { const B = window.__beat, c = B.end(); B.names(false); return B.report([c]); });
+// On a busy runner a second of the game's frames is now and then drawn before the count is ended, and the still was
+// given both: twice its draws, triangles and passes (22 passes of 12, 3.07 M triangles of 1.5 M, main red on it,
+// issues 151 and 162). The frames drawn between begin and end are counted (the harness's own count, __draw.drawn), and
+// a count of more than one is brought to a frame's.
+exports.begin = (p, by = false) => p.evaluate(by => { const B = window.__beat; B.names(by); B.drawn0 = window.__draw ? window.__draw.drawn : null; B.begin(); }, by);
+exports.end = p => p.evaluate(() => {
+  const B = window.__beat, c = B.end(); B.names(false);
+  const n = c && B.drawn0 != null && window.__draw ? Math.max(1, window.__draw.drawn - B.drawn0) : 1;
+  if (c && n > 1) for (const k of ['draws', 'tris', 'passes', 'pass_px', 'scene_px', 'clears', 'blits']) c[k] = Math.round(c[k] / n);
+  return { ...B.report([c]), frames: n };
+});

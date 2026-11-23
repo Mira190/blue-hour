@@ -85,7 +85,15 @@ const LEADS = [
     if (L.live) await p.evaluate(({ at, target }) => { const g = window.__game, st = g.story.state, pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = at[2]; st.target = target; const d = st.dog, f = d.free(pl.x + 1.2, pl.y + 1.2, 2) || [pl.x, pl.y]; d.place(f[0], f[1], 0); d.met(); }, live);
     // (no hero level half come: a level loading is not drawn yet, and the ground under him would read as the game's own; a
     // second level, frame 5's place, comes as the way nears it)
-    await p.evaluate(L => new Promise(ok => { const g = window.__game, t0 = Date.now(); const f = () => (!g.hero || g.hero().levels.every(q => q.state !== 'loading') || Date.now() - t0 > 900000 ? ok() : setTimeout(f, 1000)); f(); }), L.live ? {} : L);
+    // (and for a way the story does not give, the player put at its start first, so that the levels waited for are the
+    // ones round where it begins: waited for where the last way ended, the levels at the SKY lift's foot came as the dog set
+    // off from it, and his first metres read the game's own ground under them, 7.5 cm, issue 182. Nothing loading for
+    // four seconds running: a level is asked for a frame or two after the player comes near it)
+    await p.evaluate(L => new Promise(ok => {
+      const g = window.__game, t0 = Date.now();
+      if (!L.live && L.from) { const pl = g.player, nav = g.nav; g.story.state.beat = 'check'; pl.x = L.from[0]; pl.y = L.from[1]; const fl = nav.floorAt(pl.x, pl.y, (L.from[2] ?? nav.terrain(pl.x, pl.y)) + 1); pl.z = fl ? fl.z : pl.z; }
+      let calm = 0; const f = () => { calm = !g.hero || g.hero().levels.every(q => q.state !== 'loading') ? calm + 1 : 0; return calm >= 4 || Date.now() - t0 > 900000 ? ok() : setTimeout(f, 1000); }; f();
+    }), L.live ? {} : L);
     let r = null;
     const run = p.evaluate(({ L, FLOAT_M, SINK_M, WIDE_M, EDGE_M, RUN_M, DOG_RUN_M, MOUTH_M }) => new Promise(async done => {
       // (the story held off its own beat while a way it is not on is led: passing Yuna on the way to Tanaka began her talk,
@@ -194,7 +202,7 @@ const LEADS = [
         if (mv > 0.5 && pl.mode === 'foot') {
           const sz = surface(dog.x, dog.y, dog.z), gap = sz == null ? null : dog.z - sz;
           if (gap != null) { maxGap = Math.max(maxGap, gap); minGap = Math.min(minGap, gap); }
-          if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind]);
+          if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind, g.hero ? g.hero().state().filter(h => h.state !== 'idle').map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : '']);
           const nx = -(dog.y - lastY) / mv, ny = (dog.x - lastX) / mv, [l, rr] = ways.room(dog.x, dog.y, dog.z, nx, ny);
           if (ways.crossing(dog.x, dog.y, dog.z, nx, ny)) mouths.push([dog.x, dog.y]);
           if (nearMouth(dog.x, dog.y)) run = 0;

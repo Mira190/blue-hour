@@ -19,6 +19,7 @@ class Mesh:
         self.keep_uv = uv  # write texture coordinates (for a patterned material)
         self.sky = None  # the share of the sky's (ambient) light it takes, under a slab or a canopy; None: all
         self.bounce = None  # under one, the colour of the ground its light comes back up off (sRGB hex)
+        self.direct = None  # with sky: the share of the direct light (the sun's, the screens') it takes, shut in under a roof; None: all
         self.digits = 2  # positions to the centimetre; a sculpted mesh (sculptkit.py) keeps millimetres
 
     def _uv(self, uvs, n):
@@ -191,4 +192,6 @@ class Mesh:
             out["sky"] = round(float(self.sky), 2)
             if self.bounce:
                 out["bounce"] = self.bounce
+            if self.direct is not None:
+                out["direct"] = round(float(self.direct), 2)
         return out
