@@ -2853,9 +2853,6 @@ An ANGLE report (issue 8566) has multi-draw slow on Metal with `flat` shading; n
 - **The canals' walls, copings, rails and beds** a draw a material across the bodies (`inland.js`).
 - **The counters count a multi-draw as one draw** with the triangles of all its parts: the telemetry's sampled frame
   (`telemetry.js`) and `tools/beat_count.js`.
-- **Nobody in view within six metres of a phone's lens is a far copy** (issue 174; `people.js` `closeM`): a head is
-  thirty points tall on a phone's screen at six metres. The count of whole people on a phone was ten whatever stood
-  at the lens; it is now those in view within six metres as the lens sees them (sixteen at most), and eight at least.
 
 ### Before and after
 
@@ -2887,7 +2884,8 @@ wet paving under the level's canopies included.
   the page's memory to add to its buffer. They want a buffer of their own kind: one GPU arena the cells are written
   into as they come, a multi-draw over the cells the sweep and the frustum leave (issue in the tracker).
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
-- **The near people, three draws each** (body, head, hair), 38 to 44 a frame.
+- **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
+  is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.
 - **Instanced meshes with nothing in them** (38 by Hachiko: the trees' and the traffic's sets with a count of 0) make
   no draw call but are still given their program and uniforms each frame; hidden while empty they would cost nothing.
 
