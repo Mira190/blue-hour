@@ -145,6 +145,7 @@ class Data:
         self.by_id = {n["id"]: n for n in self.nodes}
         G = json.load(open(os.path.join(self.C.out, "game.json")))
         self.roads = [(r["c"], [(r["p"][k] / 10, r["p"][k + 1] / 10, r["p"][k + 2] / 10) for k in range(0, len(r["p"]), 3)]) for r in G["paths"]["road"]]
+        self.pieces = G["paths"]["road"]   # (as the game has them: their one-ways and the widths they carry)
         self.foot = [[(r["p"][k] / 10, r["p"][k + 1] / 10) for k in range(0, len(r["p"]), 3)] for r in G["paths"]["foot"]]   # (the lines the crowd walks)
 
     def ground(self, x, y):
@@ -188,16 +189,15 @@ def flat(m, pts, z, uvm=True):
 # two on the station side about 9 m, Dogenzaka's and Center Gai's 7 to 8 m. OSM's short crossing
 # north of Center Gai's mouth is not painted. Bars 45 cm wide with 45 cm gaps (the national standard,
 # 道路標示 横断歩道: 45 cm bars, gaps of 45 to 90 cm), parallel to the traffic, so you step over them.
+# The photograph gives each walk's line and width; its two ends are the surveyed kerbs' (fit_walk: PLATEAU's road
+# model, issue 196), so `a` and `b` here are where to look, and crosswalk_list(D) is what is painted.
 CROSSWALKS = [
-    {"id": "diagonal", "a": [358.4, -985.9], "b": [376.0, -1012.6], "width": 9.4},   # QFRONT to Hachiko
+    {"id": "diagonal", "a": [358.4, -985.9], "b": [376.0, -1012.6], "width": 9.4, "inside": 1},   # QFRONT to Hachiko: across the junction's middle, no arm's
     {"id": "north", "a": [366.9, -979.5], "b": [381.6, -982.5], "width": 9.2},       # QFRONT to MAGNET, across Bunkamura-dori's end
     {"id": "east", "a": [385.2, -1011.1], "b": [387.6, -994.8], "width": 9.0},       # MAGNET to Hachiko, across the road under the tracks
     {"id": "south", "a": [343.8, -1013.7], "b": [368.9, -1018.9], "width": 7.8},     # Hachiko to the Ekimae building, across Dogenzaka's foot
     {"id": "west", "a": [338.9, -987.1], "b": [335.5, -1004.5], "width": 7.2},       # Center Gai's corner to the Ekimae building
 ]
-# Where traffic comes in and stops before a crosswalk (OSM's one-way tags): the half of the road the
-# traffic coming in keeps to (Japan keeps left), or all of it on a one-way street
-STOPS = {"west": "half", "north": "half", "east": "half", "south": "full"}   # Dogenzaka, Jingu-dori, under the tracks, Jingu-dori from the south
 BAR, GAP = 0.45, 0.45
 STOP_W, STOP_BACK = 0.45, 2.0   # the stop line: 45 cm wide (30 to 45 cm), about 2 m before the crosswalk (estimate)
 
@@ -210,37 +210,169 @@ def crosswalk_poly(c):
 
 
 ROADW = {"motorway": 14, "trunk": 12, "primary": 12, "secondary": 10, "tertiary": 9, "residential": 7, "unclassified": 6, "living_street": 5}  # as web/game/game.js
+WALK_REACH = 10.0     # how far past a crosswalk's measured end its kerb is looked for
+ZEBRA_W = 4.0         # a crossing OpenStreetMap maps and the photograph was not measured for: the standard's least width
+ZEBRA_TAGS = ("traffic_signals", "marked", "uncontrolled", "zebra")
+
+
+def road_bands(D):
+    """The carriageway round the Scramble: the survey's own polygons (pipeline/road_ground.py: PLATEAU's road model,
+    the carriageways and junctions a road piece runs through), and a piece's band only where the survey has no
+    ground. Until issue 196 it was every piece's band at its class's width, which drew Dogenzaka-shita 9 m wide
+    where it is 16.6 m, and an island down the middle of the road south of the junction that is not there."""
+    if not hasattr(D, "_bands"):
+        import road_ground
+        D.surface = road_ground.Surface(D.C.id, D.pieces, D.ground, foot=[LineString(f) for f in D.foot if len(f) > 1])
+        D._bands = D.surface.carriageway(clip=Point(*HERO_CENTRE).buffer(420.0))
+    return D._bands
+
+
+def _chord(area, mid, f, half):
+    """The stretch of the line through `mid` along `f` that lies on `area` and holds `mid` (or is nearest it), as
+    (t0, t1) along f from mid; None where the line meets none of it."""
+    line = LineString([mid - f * half, mid + f * half])
+    best = None
+    for g in lines_of(line.intersection(area)):
+        t = (g - mid) @ f
+        t0, t1 = float(t.min()), float(t.max())
+        d = 0.0 if t0 <= 0 <= t1 else min(abs(t0), abs(t1))
+        if best is None or d < best[0]:
+            best = (d, t0, t1)
+    return best and best[1:]
+
+
+def fit_walk(c, area):
+    """A crosswalk as measured off the photograph, its ends taken to the surveyed kerbs: `a` and `b` where its middle
+    line meets them, and `lay`, how far along a to b its bars are laid so that both its edges reach a kerb that
+    runs askew (the paint is cut to the asphalt). `moved`: how far each end went."""
+    a, b = np.asarray(c["a"], float), np.asarray(c["b"], float)
+    f = unit(b - a)
+    l = np.array([-f[1], f[0]])
+    mid, L = (a + b) / 2, float(np.linalg.norm(b - a))
+    ch = [_chord(area, mid + l * k * c["width"] * 0.45, f, L / 2 + WALK_REACH) for k in (0, -1, 1)]
+    if ch[0] is None:
+        return dict(c, lay=(0.0, L), moved=(0.0, 0.0))
+    t0, t1 = ch[0]
+    na, nb = mid + f * t0, mid + f * t1
+    lo = min(t[0] for t in ch if t) - t0
+    hi = max(t[1] for t in ch if t) - t0
+    return dict(c, a=[float(na[0]), float(na[1])], b=[float(nb[0]), float(nb[1])], lay=(float(lo), float(hi)),
+                moved=(round(float(np.linalg.norm(na - a)), 2), round(float(np.linalg.norm(nb - b)), 2)), drawn=(c["a"], c["b"]))
+
+
+def crosswalk_list(D):
+    """The five crosswalks, kerb to kerb as surveyed."""
+    if not hasattr(D, "_walks"):
+        area = road_bands(D)
+        D._walks = [fit_walk(c, area) for c in CROSSWALKS]
+    return D._walks
+
+
+def zebras(D, disc=None):
+    """The other crossings OpenStreetMap maps as marked round the Scramble (a way tagged footway=crossing with
+    signals or marks), each a zebra across the surveyed carriageway where the way crosses it, ZEBRA_W wide: Koen-dori's
+    foot, under Mark City, the back streets' mouths. Not the five, and not a crossing inside the junction's own floor
+    (OpenStreetMap's short crossing north of Center Gai's mouth is not painted). The fetch keeps a way's `crossing`
+    and not its `footway=crossing`."""
+    if not hasattr(D, "_zebras"):
+        area = road_bands(D)
+        five = [Polygon(crosswalk_poly(c)).buffer(3.0) for c in crosswalk_list(D)]
+        hull = Polygon([p for c in crosswalk_list(D) for p in crosswalk_poly(c)]).convex_hull.buffer(2.0)
+        out = []
+        for w in D.ways:
+            t = w.get("tags", {})
+            if t.get("highway") != "footway" or t.get("crossing") not in ZEBRA_TAGS or len(w["xy"]) < 2 or t.get("layer") or t.get("tunnel") or t.get("bridge"):
+                continue
+            ln = LineString(w["xy"])
+            if ln.distance(Point(*HERO_CENTRE)) > 130.0 or any(q.intersects(ln) for q in five) or hull.contains(ln.centroid):
+                continue
+            a, b = np.asarray(w["xy"][0], float), np.asarray(w["xy"][-1], float)
+            if np.linalg.norm(b - a) < 2.0:
+                continue
+            f = unit(b - a)
+            ch = _chord(area, (a + b) / 2, f, float(np.linalg.norm(b - a)) / 2 + 4.0)
+            if ch is None or ch[1] - ch[0] < 3.0 or ch[1] - ch[0] > 34.0:
+                continue
+            c = fit_walk({"id": f"w{w['id']}", "a": list((a + b) / 2 + f * ch[0]), "b": list((a + b) / 2 + f * ch[1]), "width": ZEBRA_W}, area)
+            if any(Polygon(crosswalk_poly(c)).intersects(Polygon(crosswalk_poly(o))) for o in out):
+                continue
+            out.append(c)
+        D._zebras = out
+    # (a level paints the ones that lie whole inside it: past its rim the map's own drawing has the crossing)
+    return D._zebras if disc is None else [c for c in D._zebras if disc.buffer(-2.0).contains(Polygon(crosswalk_poly(c)))]
+
+
+def walk_bars(c):
+    """Each bar of a crosswalk as the ends of its middle line across the walk: along the traffic (you step over
+    them), 45 cm wide with 45 cm gaps, laid from kerb to kerb."""
+    a, b = np.asarray(c["a"], float), np.asarray(c["b"], float)
+    f = unit(b - a)
+    l = np.array([-f[1], f[0]]) * c["width"] / 2
+    lo, hi = c.get("lay", (0.0, float(np.linalg.norm(b - a))))
+    L = hi - lo
+    n = int((L - 0.6) // (BAR + GAP))
+    u0 = lo + (L - (n * (BAR + GAP) - GAP)) / 2
+    return [(a + f * (u0 + k * (BAR + GAP) + BAR / 2) - l, a + f * (u0 + k * (BAR + GAP) + BAR / 2) + l) for k in range(n)]
+
+
+def stop_line(D, c, centre):
+    """Where the traffic coming in to a crosswalk stops: (p, q, lanes, out, left), the line's ends, a point in each
+    lane's middle, the way out of the junction and the incoming driver's left; None where nothing comes in. Read
+    from the road pieces that cross it (their one-ways) on the surveyed carriageway: from the line that divides the
+    two ways (a two-way piece's own, or half way between the pieces in and out) to the left kerb, Japan keeping left;
+    the whole width where every piece comes in."""
+    if c.get("inside"):
+        return None
+    a, b = np.asarray(c["a"], float), np.asarray(c["b"], float)
+    f = unit(b - a)
+    o = np.array([-f[1], f[0]])
+    mid = (a + b) / 2
+    if (mid - centre) @ o < 0:
+        o = -o                                       # outward, away from the junction
+    left = np.array([o[1], -o[0]])                   # the left of a driver coming in (heading -o)
+    back = mid + o * (c["width"] / 2 + STOP_BACK + STOP_W / 2)
+    ch = _chord(road_bands(D), back, left, float(np.linalg.norm(b - a)) / 2 + 6.0)
+    if ch is None:
+        return None
+    u0, u1 = ch
+    line = LineString([back + left * u0, back + left * u1])
+    ins, outs, both = [], [], []
+    for piece, ln in zip(D.surface.pieces, D.surface.lines):
+        if piece.get("x") or not ln.intersects(line):
+            continue
+        x = ln.intersection(line)
+        g = x if x.geom_type == "Point" else x.centroid
+        s = ln.project(g)
+        h = np.subtract(ln.interpolate(min(ln.length, s + 1)).coords[0], ln.interpolate(max(0, s - 1)).coords[0])
+        u = float((np.array([g.x, g.y]) - back) @ left)
+        way = piece.get("o", 0)
+        if not way:
+            both.append(u)
+        elif (h @ -o) * way > 0:
+            ins.append(u)
+        else:
+            outs.append(u)
+    if both:
+        div = float(np.mean(both))
+    elif ins and outs:
+        div = (max(outs) + min(ins)) / 2
+    elif ins:
+        div = u0 - 0.15
+    else:
+        return None
+    w = u1 - div
+    if w < 2.4:
+        return None
+    n = max(1, int(w // 3.1))
+    return back + left * (div + 0.15), back + left * (u1 - 0.5), [back + left * (div + (k + 0.5) * w / n) for k in range(n)], o, left
 
 
 def junction_area(D):
-    """The scramble's floor: the carriageways (the game's road bands) inside the hull of the crosswalks,
-    which the asphalt covers over the game's street texture (so no lane line runs through it)."""
-    from shapely.ops import unary_union
-    pts = [p for c in CROSSWALKS for p in crosswalk_poly(c)]
-    hull = Polygon(pts).convex_hull
-    bands = [LineString([p[:2] for p in pts]).buffer(ROADW.get(c, 7) / 2 + 0.5, cap_style=2) for c, pts in D.roads
-             if len(pts) > 1 and LineString([p[:2] for p in pts]).distance(hull) < 1 and min(p[2] - D.ground(p[0], p[1]) for p in pts) < 3]
-    # the middle: the crosswalks' sides toward the junction, joined round it
-    node = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in CROSSWALKS], axis=0) / 2
-    inner = []
-    for c in CROSSWALKS:
-        q = crosswalk_poly(c)
-        side = (q[0] + q[1]) / 2, (q[2] + q[3]) / 2
-        k = 0 if np.linalg.norm(side[0] - node) < np.linalg.norm(side[1] - node) else 1
-        inner += [q[0], q[1]] if k == 0 else [q[2], q[3]]
-    inner.sort(key=lambda p: math.atan2(p[1] - node[1], p[0] - node[0]))
-    middle = Polygon(inner).convex_hull
-    area = unary_union(bands + [middle] + [Polygon(crosswalk_poly(c)) for c in CROSSWALKS]).intersection(hull.buffer(0.3, join_style=2))
-    # each crosswalk ends at a kerb: beyond its ends is the pavement, for 3 m at least
-    kerbs = []
-    for c in CROSSWALKS:
-        a, b = np.asarray(c["a"], float), np.asarray(c["b"], float)
-        f = unit(b - a)
-        l = np.array([-f[1], f[0]]) * (c["width"] / 2 + 1.0)
-        for e, d in ((a, -f), (b, f)):
-            kerbs.append(Polygon([e - l + d * 0.02, e + l + d * 0.02, e + l + d * 3.0, e - l + d * 3.0]))
-    area = area.difference(unary_union(kerbs))
-    return max(getattr(area, "geoms", [area]), key=lambda g: g.area)   # (slivers left between kerbs dropped)
+    """The scramble's floor: the surveyed carriageway inside the hull of the five crosswalks, which the asphalt
+    covers over the game's street texture (so no lane line runs through it)."""
+    hull = Polygon([p for c in crosswalk_list(D) for p in crosswalk_poly(c)]).convex_hull
+    area = road_bands(D).intersection(hull.buffer(0.3, join_style=2))
+    return max(getattr(area, "geoms", [area]), key=lambda g: g.area)   # (a sliver of a neighbouring carriageway inside the hull dropped)
 
 
 def ground_polygon(m, area, gz, z_off, cell=2.0):
@@ -283,29 +415,16 @@ def crosswalks(K, D, node):
     gz = lambda p: D.ground(*p)
     area = junction_area(D)
     ground_polygon(asphalt, area, gz, 0.03)
-    centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in CROSSWALKS], axis=0) / 2
-    for cw in CROSSWALKS:
-        mode = STOPS.get(cw["id"])
-        if not mode:
+    walks = crosswalk_list(D)
+    centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in walks], axis=0) / 2
+    bands = road_bands(D)
+    for cw in walks:
+        st = stop_line(D, cw, centre)
+        if st is None:
             continue
-        a, b = np.asarray(cw["a"], float), np.asarray(cw["b"], float)
-        f = unit(b - a)
-        o = np.array([-f[1], f[0]])
-        mid = (a + b) / 2
-        if (mid - centre) @ o < 0:
-            o = -o                                   # outward, away from the junction
-        back = mid + o * (cw["width"] / 2 + STOP_BACK + STOP_W / 2)
-        L = float(np.linalg.norm(b - a)) - 0.6
-        drv_left = -np.array([-o[1], o[0]])          # the left of a driver coming in (heading -o)
-        if mode == "full":
-            p, q = back - f * L / 2, back + f * L / 2
-            lanes = [back + (f if f @ drv_left > 0 else -f) * (L / 2 - 1.6 - 3.1 * k) for k in range(int(L // 3.1))]
-        else:
-            p, q = back + drv_left * 0.15, back + drv_left * L / 2
-            lanes = [back + drv_left * (1.6 + 3.1 * k) for k in range(int((L / 2) // 3.1))]
+        p, q, lanes, o, drv_left = st
         paint_strip(paint, gz, p, q, STOP_W)
         # the diamonds that warn of the crosswalk ahead (横断歩道又は自転車横断帯あり), 30 m and 50 m back, one per lane
-        bands = road_bands(D)
         for c0 in lanes:
             for d in (30.0, 50.0):
                 cc = c0 + o * d
@@ -314,31 +433,12 @@ def crosswalks(K, D, node):
                 pts = [cc + o * 2.5, cc + drv_left * 0.75, cc - o * 2.5, cc - drv_left * 0.75]
                 for k in range(4):
                     paint_strip(paint, gz, pts[k], pts[(k + 1) % 4], 0.2, n=2)
-    # the bars: along the traffic (across the walk), one every 90 cm across the walk's length
-    for cw in CROSSWALKS:
-        a, b = np.asarray(cw["a"], float), np.asarray(cw["b"], float)
-        f = unit(b - a)
-        L = float(np.linalg.norm(b - a))
-        l = np.array([-f[1], f[0]])
-        hw = cw["width"] / 2
-        n = int((L - 0.6) // (BAR + GAP))
-        u0 = (L - (n * (BAR + GAP) - GAP)) / 2
-        for k in range(n):
-            u = u0 + k * (BAR + GAP)
-            q = [a + f * u - l * hw, a + f * (u + BAR) - l * hw, a + f * (u + BAR) + l * hw, a + f * u + l * hw]
-            seg = [q[0] + (q[3] - q[0]) * t for t in np.linspace(0, 1, 4)]
-            seg2 = [q[1] + (q[2] - q[1]) * t for t in np.linspace(0, 1, 4)]
-            for j in range(3):
-                pts = [seg[j], seg2[j], seg2[j + 1], seg[j + 1]]
-                paint.quad(*[np.array([*p, gz(p) + 0.045]) for p in pts])
-
-
-def road_bands(D):
-    if not hasattr(D, "_bands"):
-        from shapely.ops import unary_union
-        D._bands = unary_union([LineString([p[:2] for p in pts]).buffer(ROADW.get(c, 7) / 2, cap_style=2) for c, pts in D.roads
-                                if len(pts) > 1 and min(p[2] - D.ground(p[0], p[1]) for p in pts) < 3])
-    return D._bands
+    # the bars: along the traffic (across the walk), one every 90 cm across the walk's length, on the asphalt only
+    lay = bands.buffer(-0.3)
+    for cw in walks + zebras(D, Point(*HERO_CENTRE).buffer(HERO_R, 48)):
+        for p, q in walk_bars(cw):
+            for co in lines_of(LineString([p, q]).intersection(lay)):
+                paint_strip(paint, gz, co[0], co[-1], BAR, n=3)
 
 
 # The junction's plan, which the landmarks here and the hero level (hero.py) both draw from, so that what is
@@ -365,12 +465,13 @@ class Plan:
         self.wells = unary_union([Polygon(q).buffer(0.25) for q in wells if len(q) >= 3])
         self.junction = junction_area(D)
         self.roads = unary_union([road_bands(D), self.junction]).intersection(self.disc).difference(self.solids).buffer(0)
-        self.walks = unary_union([Polygon(crosswalk_poly(cw)) for cw in CROSSWALKS])
+        self.zebras = zebras(D, self.disc)
+        self.walks = unary_union([Polygon(crosswalk_poly(cw)) for cw in crosswalk_list(D) + self.zebras])
         self.pave = self.disc.difference(self.roads.buffer(KERB_M)).difference(self.solids).difference(self.wells).buffer(0)
         # where walkers step off a crosswalk: its band carried 4 m past each end, a metre wider each side. Nothing
         # stands there (a guard pipe across a crosswalk's end is a fence across the crossing)
         mouths = []
-        for cw in CROSSWALKS:
+        for cw in crosswalk_list(D) + self.zebras:
             a, b = np.asarray(cw["a"], float), np.asarray(cw["b"], float)
             f = unit(b - a)
             mouths.append(Polygon(crosswalk_poly({"a": a - f * 4.0, "b": b + f * 4.0, "width": cw["width"] + 2.0})))
@@ -531,7 +632,7 @@ def tactile_layout(D, plan, radius=None):
     # each crosswalk's two ends: where its middle line meets the kerb, and the way onto the paving there. Every line
     # that comes to a crosswalk comes to the middle of its end, so that the lines of a corner share one way in
     ends = []
-    for cw in CROSSWALKS:
+    for cw in crosswalk_list(D):
         A, B = np.asarray(cw["a"], float), np.asarray(cw["b"], float)
         f = unit(B - A)
         for e, out_ in ((A, -f), (B, f)):

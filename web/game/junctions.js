@@ -95,7 +95,9 @@ window.OEJunctions = (function () {
   // the place along an arm's piece d metres back from where its traffic meets the junction (the
   // piece's end, or for a crossing between junctions the crossing itself)
   const alongArm = (l, a, d) => (a.mid != null ? a.mid + (a.end ? -d : d) : a.end ? l.len - d : d);
-  const byClass = l => (TWO[l.c] || (l.ow && l.c === 'secondary') ? 2 : 1);
+  // ... and two on any street the survey has wide enough for them (Dogenzaka-shita, 16.7 m; Koen-dori's foot, 14.7 m:
+  // tertiary roads by their class, four lanes in fact; streets.js roomForTwo, issue 196)
+  const byClass = l => (TWO[l.c] || (l.ow && l.c === 'secondary') || OEStreets.roomForTwo(l) ? 2 : 1);
   const lanesOf = l => l.lanes || byClass(l); // (l.lanes: OSM's count, smoothed: create)
   const SHORT2 = 120, SHORT1 = 40; // m
   // the bus lines on a piece (game.json bl: [line, step, way, ...], pipeline/bus_lines.py): the line a bus keeps to where

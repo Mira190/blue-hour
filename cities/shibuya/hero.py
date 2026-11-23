@@ -377,6 +377,8 @@ class Level:
         self.S = S = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(S)
         self.D = D = S.Data("shibuya")
+        import road_ground
+        self.road_ground = road_ground
         # the junction's plan is the landmarks' own (scramble.Plan): one kerb line, one set of guard pipes
         L = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "landmarks.json")))
         self.plan = P = S.Plan(D, [q["ring"] for q in L.get("clip", [])], self.centre, self.r, standing=self.standing)
@@ -482,32 +484,17 @@ class Level:
         S, D, rng = self.S, self.D, self.rng
         from shapely.geometry import LineString, Point
         k = 1.0 / TEX["paint"][1]
-        centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in S.CROSSWALKS], axis=0) / 2
+        walks = S.crosswalk_list(D)
+        centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in walks], axis=0) / 2
         bands = S.road_bands(D)
-        for cw in S.CROSSWALKS:
-            a, b = np.asarray(cw["a"], float), np.asarray(cw["b"], float)
-            f = unit(b - a)
-            L = float(np.linalg.norm(b - a))
-            l = np.array([-f[1], f[0]])
-            hw = cw["width"] / 2
-            n = int((L - 0.6) // (S.BAR + S.GAP))
-            u0 = (L - (n * (S.BAR + S.GAP) - S.GAP)) / 2
-            for i in range(n):
-                u = u0 + i * (S.BAR + S.GAP) + S.BAR / 2
-                self.paint(a + f * u - l * hw, a + f * u + l * hw, S.BAR, step=2.4)
-            mode = S.STOPS.get(cw["id"])
-            if not mode:
+        for cw in walks + self.plan.zebras:
+            for p, q in S.walk_bars(cw):
+                self.paint(p, q, S.BAR, step=2.4)
+        for cw in walks:
+            st = S.stop_line(D, cw, centre)
+            if st is None:
                 continue
-            o = l if ((a + b) / 2 - centre) @ l > 0 else -l          # outward, away from the junction
-            back = (a + b) / 2 + o * (hw + S.STOP_BACK + S.STOP_W / 2)
-            Ls = L - 0.6
-            left = -np.array([-o[1], o[0]])                          # the left of a driver coming in
-            if mode == "full":
-                p, q = back - f * Ls / 2, back + f * Ls / 2
-                lanes = [back + (f if f @ left > 0 else -f) * (Ls / 2 - 1.6 - 3.1 * j) for j in range(int(Ls // 3.1))]
-            else:
-                p, q = back + left * 0.15, back + left * Ls / 2
-                lanes = [back + left * (1.6 + 3.1 * j) for j in range(int((Ls / 2) // 3.1))]
+            p, q, lanes, o, left = st
             self.paint(p, q, S.STOP_W)
             for c0 in lanes:                                          # the diamonds 30 m and 50 m before a crossing
                 for dd in (30.0, 50.0):
@@ -520,15 +507,27 @@ class Level:
         # centre lines on the two-way streets, up to the stop lines (none through the junction)
         keep_out = self.junction.buffer(S.STOP_BACK + 1.0).union(self.walks.buffer(S.STOP_BACK + 1.0))
         inner = self.roads.buffer(-2.5)
-        for cls, pts in D.roads:
-            if S.ROADW.get(cls, 7) < 9:
+        for piece, line in zip(D.surface.pieces, D.surface.lines):
+            w = piece.get("cw") or S.ROADW.get(piece.get("c"), 7)
+            if piece.get("o") or piece.get("x") or w < 9:
                 continue
-            ln = LineString([p[:2] for p in pts]).intersection(inner).difference(keep_out)
-            for co in self.lines(ln):
+            for co in self.lines(line.intersection(inner).difference(keep_out)):
                 if LineString(co).length < 4:
                     continue
                 for a, b in zip(co[:-1], co[1:]):
                     self.paint(a, b, 0.15)
+            # two lanes each way where the game drives two (web/game/junctions.js: the second lane 3 m outside the
+            # first, which is 1.7 m off the line): a broken line between them, 5 m of paint and 5 m of gap
+            if self.road_ground.lanes_each_way(piece) < 2:
+                continue
+            for side in (3.2, -3.2):
+                off = line.offset_curve(side)
+                for co in self.lines(off.intersection(inner).difference(keep_out)):
+                    P = HP.Path(np.c_[co, np.zeros(len(co))])
+                    d = 0.0
+                    while d + 5.0 <= P.L:
+                        self.paint(P.xy(d, 0.0), P.xy(d + 5.0, 0.0), 0.15)
+                        d += 10.0
 
     # -- the pavements
     def pavements(self):

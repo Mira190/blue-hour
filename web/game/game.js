@@ -448,6 +448,29 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // streets drawn from the footway and road data at 0.5 m per pixel, for the tiles near the player
   const rwOf = OEStreets.widthOf; // a road piece's carriageway, kerb to kerb: surveyed where the map has it, else its class's (streets.js)
   const FOOTW = OEActors.FOOTW;
+  // The planned area's ground as surveyed (game.json road_ground, pipeline/road_ground.py; docs/ROADS.md, issue 196):
+  // inside its ring the carriageways, footways and islands are the survey's own polygons, painted as such, and a road
+  // piece's band is painted only outside it. A band along a centre line has no junction mouth, corner radius or
+  // island, and lies off a carriageway the map's line is not the middle of. Paths in metres, made once.
+  const RG = G.road_ground || null;
+  let rgPaths = null;
+  function roadGround() {
+    if (!RG || rgPaths) return rgPaths;
+    const ring = (P, r) => { for (let k = 0; k < r.length; k += 2) { if (k) P.lineTo(r[k] / 10, r[k + 1] / 10); else P.moveTo(r[k] / 10, r[k + 1] / 10); } P.closePath(); };
+    const polys = list => { const P = new Path2D(); for (const p of list || []) for (const r of p) ring(P, r); return P; };
+    const area = new Path2D(), out = new Path2D(), box = [Infinity, Infinity, -Infinity, -Infinity];
+    ring(area, RG.area); out.rect(-1e6, -1e6, 2e6, 2e6); ring(out, RG.area);
+    for (let k = 0; k < RG.area.length; k += 2) { const x = RG.area[k] / 10, y = RG.area[k + 1] / 10; box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], y); box[2] = Math.max(box[2], x); box[3] = Math.max(box[3], y); }
+    return rgPaths = { area, out, box, asph: polys(RG.a), pave: polys((RG.w || []).concat(RG.s || [], RG.i || [])) };
+  }
+  function inRoadGround(x, y) { // inside the ring the survey paints
+    if (!RG) return false;
+    const r = RG.area; let c = false;
+    for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const xi = r[i] / 10, yi = r[i + 1] / 10, xj = r[j] / 10, yj = r[j + 1] / 10; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; }
+    return c;
+  }
+  // two lanes each way on a piece by its surveyed width where its class has one (junctions.js byClass drives the same)
+  const twoLanes = r => (r.nl || 1) >= 2 || OEStreets.roomForTwo(r);
   // where three or more road ends meet [x, y, the widest road's half width there], and each zebra crossing of the
   // data on the road it crosses [x, y, the road's direction there, half the road's width less the gutters]
   let nodesMemo = null, zebrasMemo = null;
@@ -467,6 +490,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const Z = (G.props || {}).crossing_zebra || [], out = [], roads = G.paths.road;
     for (let i = 0; i < Z.length; i += 3) {
       const x = Z[i] / 10, y = Z[i + 1] / 10;
+      if (inRoadGround(x, y)) continue; // (the survey's own: road_ground.z, kerb to kerb)
       let best = null, bd = 12 * 12;
       for (const r of roads) {
         const p = r.p;
@@ -502,7 +526,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const FAR = G.paths.far || {}; // (a district's streets past its edge: painted, not walked or driven; pipeline/district.py)
     const foot = G.paths.foot.concat(FAR.foot || []).filter(f => inTile(f.p)), roads = G.paths.road.concat(FAR.road || []).filter(r => inTile(r.p));
     for (const f of foot) { path(f.p); g.strokeStyle = '#b3ada1'; g.lineWidth = (FOOTW[f.c] || 3) / PX; g.stroke(); }
-    for (const r of roads) { path(r.p); g.strokeStyle = '#9d988d'; g.lineWidth = (rwOf(r) + 1) / PX; g.stroke(); } // kerbs
+    // the survey's ground where this tile has it: `survey` draws in metres inside its ring, `bands` outside it
+    const S = roadGround(), inS = !!S && t.x1 > S.box[0] && t.x0 < S.box[2] && t.y1 > S.box[1] && t.y0 < S.box[3];
+    const metres = () => g.setTransform(1 / PX, 0, 0, -1 / PX, -t.x0 / PX, t.y1 / PX);
+    const survey = (fn, onAsphalt) => { if (!inS) return; g.save(); metres(); g.clip(S.area); if (onAsphalt) g.clip(S.asph, 'evenodd'); fn(); g.restore(); };
+    const bands = fn => { if (!inS) { fn(); return; } g.save(); metres(); g.clip(S.out, 'evenodd'); g.setTransform(1, 0, 0, 1, 0, 0); fn(); g.restore(); };
+    survey(() => { g.fillStyle = '#b3ada1'; g.fill(S.pave, 'evenodd'); g.strokeStyle = '#9d988d'; g.lineWidth = 1; g.stroke(S.asph); }); // footways, shared streets and islands; the kerbs
+    bands(() => { for (const r of roads) { path(r.p); g.strokeStyle = '#9d988d'; g.lineWidth = (rwOf(r) + 1) / PX; g.stroke(); } }); // kerbs
     // Asphalt as a worn city road is under the sun (an albedo near 0.11: from the air the roads were black ribbons at
     // 0.07, issue 148), in the hero level's own tone, and on it the paint a Tokyo road carries, each line where the
     // road's lanes put it: the edge lines half a metre in from the kerbs, a broken line between two lanes of one way,
@@ -511,7 +541,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // faint as it is from there, and a junction is cleared of the lines that would run through it.
     const ASPHALT = '#5c5f63', PAINT = '#e4e1d8', LW = 0.2;
     const rw = rwOf;
-    for (const r of roads) { path(r.p); g.strokeStyle = ASPHALT; g.lineWidth = rw(r) / PX; g.stroke(); }
+    bands(() => { for (const r of roads) { path(r.p); g.strokeStyle = ASPHALT; g.lineWidth = rw(r) / PX; g.stroke(); } });
+    survey(() => { g.fillStyle = ASPHALT; g.fill(S.asph, 'evenodd'); });
+    // (the edge lines half a metre in from the surveyed kerbs: the outline's stroke, cut to the asphalt, with its middle taken back)
+    survey(() => { g.lineJoin = 'round'; g.strokeStyle = PAINT; g.lineWidth = 1 + LW; g.stroke(S.asph); g.strokeStyle = ASPHALT; g.lineWidth = 1 - LW; g.stroke(S.asph); }, true);
     g.lineCap = 'butt';
     const pair = (r, off, dash) => { // two lines, off metres either side of the road's middle
       g.setLineDash(dash ? [3 / PX, 5 / PX] : []);
@@ -520,24 +553,33 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       path(r.p); g.strokeStyle = ASPHALT; g.lineWidth = (2 * off - LW) / PX; g.stroke();
     };
     const lined = roads.filter(r => rw(r) >= 9).sort((a, b) => rw(b) - rw(a));
-    for (const r of lined) pair(r, rw(r) / 2 - 0.5, false);
+    bands(() => { for (const r of lined) pair(r, rw(r) / 2 - 0.5, false); });
     for (const r of lined) {
-      const w = rw(r), nl = r.nl || 1;
+      const w = rw(r), nl = twoLanes(r) ? 2 : 1;
       if (r.o) { if (nl === 2) { g.setLineDash([3 / PX, 5 / PX]); path(r.p); g.strokeStyle = PAINT; g.lineWidth = LW / PX; g.stroke(); g.setLineDash([]); } continue; }
-      if (nl >= 2) pair(r, (w - 1) / 4, true);
+      if (nl >= 2) pair(r, Math.min((w - 1) / 4, 3.2), true); // (the game's second lane is 3 m outside its first, 1.7 m off the line)
       g.setLineDash(nl >= 2 ? [] : [5 / PX, 5 / PX]);
       path(r.p); g.strokeStyle = PAINT; g.lineWidth = LW / PX; g.stroke();
       g.setLineDash([]);
     }
-    for (const [x, y, rad] of streetNodes()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
+    // a junction cleared of the lines through it: outside the survey's ring a disc, inside it the disc's part on the asphalt
+    bands(() => { for (const [x, y, rad] of streetNodes()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
       g.beginPath(); g.arc((x - t.x0) / PX, (t.y1 - y) / PX, rad / PX, 0, 6.2832); g.fillStyle = ASPHALT; g.fill();
-    }
+    } });
+    survey(() => { for (const [x, y, rad] of streetNodes()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
+      g.beginPath(); g.arc(x, y, rad, 0, 6.2832); g.fillStyle = ASPHALT; g.fill();
+    } }, true);
     g.setLineDash([0.45 / PX, 0.45 / PX]);
     for (const [x, y, ux, uy, half] of streetZebras()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
       g.beginPath(); g.moveTo((x - uy * half - t.x0) / PX, (t.y1 - (y + ux * half)) / PX); g.lineTo((x + uy * half - t.x0) / PX, (t.y1 - (y - ux * half)) / PX);
       g.strokeStyle = PAINT; g.lineWidth = 4 / PX; g.stroke();
     }
     g.setLineDash([]);
+    survey(() => { // the zebras of the data inside the ring, each from kerb to kerb
+      g.setLineDash([0.45, 0.45]); g.strokeStyle = PAINT; g.lineWidth = 4;
+      for (const z of RG.z || []) { g.beginPath(); g.moveTo(z[0] / 10, z[1] / 10); g.lineTo(z[2] / 10, z[3] / 10); g.stroke(); }
+      g.setLineDash([]);
+    }, true);
     if (window.OETex && OETex.stats.on && typeof createImageBitmap === 'function') {
       // a phone (tex.js): the overlay in ASTC blocks, a quarter of the GPU's memory; the aerial photo shows until it is in (groundLod)
       const tex = new THREE.Texture();

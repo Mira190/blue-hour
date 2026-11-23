@@ -1,119 +1,37 @@
 {
  "pieces": 4905,
- "measured": 555,
- "measured_m": 40622,
+ "measured": 565,
+ "measured_m": 41363,
  "unmeasured_m": 34327,
- "hero": [
-  [
-   "scramble",
-   "residential",
-   298,
-   -935,
-   7,
-   5.0
-  ],
-  [
-   "scramble",
-   "tertiary",
-   334,
-   -995,
-   9,
-   16.7
-  ],
-  [
-   "scramble",
-   "unclassified",
-   295,
-   -1016,
-   6,
-   4.0
-  ],
-  [
-   "scramble",
-   "tertiary",
-   278,
-   -995,
-   9,
-   16.6
-  ],
-  [
-   "scramble",
-   "unclassified",
-   302,
-   -1049,
-   6,
-   3.8
-  ],
-  [
-   "scramble",
-   "unclassified",
-   290,
-   -1064,
-   6,
-   6.1
-  ],
-  [
-   "scramble",
-   "tertiary",
-   336,
-   -1081,
-   9,
-   14.0
-  ],
-  [
-   "scramble",
-   "tertiary",
-   356,
-   -1094,
-   9,
-   14.0
-  ],
-  [
-   "scramble",
-   "tertiary",
-   382,
-   -948,
-   9,
-   14.7
-  ],
-  [
-   "scramble",
-   "unclassified",
-   417,
-   -939,
-   6,
-   5.4
-  ]
- ],
- "single_track": 66,
+ "single_track": 68,
  "off_m": {
   "note": "share of the measured length whose line lies this far or more from the surveyed carriageway's middle",
-  "0.5": 0.465,
-  "1.0": 0.169,
-  "1.5": 0.074,
-  "2.0": 0.035,
+  "0.5": 0.464,
+  "1.0": 0.17,
+  "1.5": 0.076,
+  "2.0": 0.034,
   "3.0": 0.013
  },
  "by_class": {
   "tertiary": {
-   "pieces": 134,
-   "km": 9.67,
+   "pieces": 139,
+   "km": 10.05,
    "class_m": 9,
    "p10": 7.0,
-   "median": 9.1,
-   "p90": 13.5
+   "median": 9.3,
+   "p90": 14.0
   },
   "unclassified": {
-   "pieces": 206,
-   "km": 13.63,
+   "pieces": 210,
+   "km": 13.87,
    "class_m": 6,
    "p10": 4.2,
-   "median": 6.1,
+   "median": 6.0,
    "p90": 7.8
   },
   "residential": {
-   "pieces": 130,
-   "km": 9.31,
+   "pieces": 131,
+   "km": 9.43,
    "class_m": 7,
    "p10": 3.6,
    "median": 4.6,
