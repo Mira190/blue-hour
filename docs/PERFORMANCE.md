@@ -2894,3 +2894,8 @@ wet paving under the level's canopies included.
 A real iPhone, Safari on iOS or macOS (whether its ANGLE makes one Metal call of a multi-draw; the frame time at
 all), and WebGPU. The counts are a software renderer's, which are the page's own asks; the milliseconds are the
 telemetry's to say after the release: `draws` on "apple gpu" expected near 260 on foot where it read 402.
+
+**The budgets hold it** (`tools/budgets/shibuya.json`, a phone's beats): the draws, triangles and passes of every beat
+came down to what the story's play on this code read plus the rule's room (`tools/beat_budget.py set --down`), so the
+title is held to 255 draws where its ceiling was 265, frame 1 to 368 for 485, frame 5 to 521 for 910, frame 7 to 619
+for 1,274. The memory's and the pixels' ceilings are left as the work on issue 130 set them.
