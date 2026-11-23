@@ -2707,7 +2707,7 @@ linked is left out of that frame and drawn in the first frame after it is ready;
 compiled once the frame is done, for the render target and clipping planes it was drawn with, and left out until then.
 Only the world scene and the shadow pass go through it (a post pass's quad is never left out: its frame would be black),
 and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent). Without the extension nothing changes. The
-loader goes on a frame the gate left nothing out of (at most 4 s more), so nothing comes in under the title; the page's
+loader goes on a frame the gate left nothing out of (at most 1.5 s more: on the software renderer here, where a link takes seconds and a frame 1.4 s, a 4 s bound held the loader 4.7 s past the first frame; the phone tier waited 0.5 to 0.8 s), so nothing comes in under the title; the page's
 log says when it waited (`warm: the loader waited ...`). `?gate=0` turns it off, to measure against. Measured with
 `tools/load_probe.js` on the phone tier (390 x 844, two runs each): programs a draw linked in the 8 s after the tap
 **3 → 0**, the time waiting on program logs then 1.7–2.0 s → 0.9–1.5 s (what is left is three.js's diagnostics on each

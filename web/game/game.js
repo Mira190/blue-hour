@@ -6477,10 +6477,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     glCheck(now); // (on the first frame it waits for the GPU to draw it: the first draw of each program is where a driver finishes it)
     if (!framesDrawn) console.info(`warm: the first frame ${((performance.now() - wt0) / 1000).toFixed(1)} s from built, ${((performance.now() - gc0) / 1000).toFixed(1)} s of it waiting for the GPU to draw it`);
     care.drawn();
-    // (the loader goes on a frame the gate left nothing out of, world.js gate: no mesh comes in under the title; 4 s at most)
+    // (the loader goes on a frame the gate left nothing out of, world.js gate: no mesh comes in under the title; 1.5 s at most, past
+    // which what is still linking comes in under the title: a software renderer's links took longer, and each of its frames 1.4 s)
     const heldF = renderer.__gate ? renderer.__gate.n.held + renderer.__gate.n.late - held0 : 0;
-    if (framesDrawn === 1 && heldF && performance.now() < (cleanBy || (cleanBy = performance.now() + 4000))) { /* drawn again next frame */ }
-    else if (framesDrawn < 2 && ++framesDrawn === 2) { firstDrawn(); if (cleanBy) console.info(`warm: the loader waited ${((performance.now() - cleanBy + 4000) / 1000).toFixed(1)} s for a frame the gate left nothing out of${heldF ? ' (and went without it)' : ''}`); }
+    if (framesDrawn === 1 && heldF && performance.now() < (cleanBy || (cleanBy = performance.now() + 1500))) { /* drawn again next frame */ }
+    else if (framesDrawn < 2 && ++framesDrawn === 2) { firstDrawn(); if (cleanBy) console.info(`warm: the loader waited ${((performance.now() - cleanBy + 1500) / 1000).toFixed(1)} s for a frame the gate left nothing out of${heldF ? ' (and went without it)' : ''}`); }
     else if (framesDrawn === 1) try { performance.mark('oe:frame', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the load's first frame (telemetry.js)
     if (framesDrawn === 1) firstFrame();
     if (!unseenFrame()) updateLabels(); // (the names over the street are placed for the frame drawn: none in a check's frame not drawn)
