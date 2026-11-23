@@ -221,7 +221,7 @@ else
       vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
       web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
-      pipeline/district.py|tools/mem_check.js|tools/lost_check.js) static=1; add mem ;;
+      pipeline/district.py|tools/mem_check.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
@@ -455,6 +455,12 @@ run_mem() {
   # never from a tab put away (tools/glcare_phone.js, docs/PERFORMANCE.md "Measure, then grant")
   if timeout 900 $X node tools/glcare_phone.js >"$OUT/glcare_phone.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/glcare_phone.log") steps of a phone's lost context and its next load"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/glcare_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/glcare_phone.log)"; fi
+  # a killed page counted with the measurements off (issue 128, web/lifeline.js), and a lost context at the story's beats
+  # and on the walk: restored in place on a desktop, taken up where it was after a phone's reload (issue 118)
+  if timeout 300 $X node tools/killed_check.js >"$OUT/killed.log" 2>&1; then echo "ok   mem    a killed page loads a level lighter next time with the measurements off"
+  else echo "FAIL mem    $(grep '^FAIL' "$OUT/killed.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/killed.log)"; fi
+  if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
+  else echo "FAIL mem    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {

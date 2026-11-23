@@ -587,7 +587,10 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
     const kinds = {}, dummy = new THREE.Object3D();
     const capOf = stockId => services.filter(s => s.stock === stockId).reduce((n, s) => n + s.cars * (Math.ceil(Math.max(plan(s, true, true).T, plan(s, false).T) / s.every_s) + 1), 0);
     const tier = window.OEQuality ? window.OEQuality.tier().name : 'high';
-    const LOD_M = tier === 'low' || tier === 'still' ? 40 : tier === 'medium' ? 60 : 85; // the Blender cars' far copy beyond this
+    // (FAR_T: a phone's cars past 350 m are not drawn, where a 20 m car is some thirty pixels long on its screen; the trains
+    // round Shibuya's station were 104,000 triangles of a phone's frame on foot at Hachiko)
+    const FAR_T = window.OEQuality && OEQuality.city().lean ? 350 : 0;
+    const LOD_M = window.OEQuality && OEQuality.city().lean ? 15 : tier === 'low' || tier === 'still' ? 40 : tier === 'medium' ? 60 : 85; // the Blender cars' far copy beyond this (a phone's: past 15 m, so in all but a platform's view)
     // a Blender car: per level of detail, one instanced mesh per material; a tail car is the driving car turned about
     function glbKind(stockId, role) {
       const S = STOCK[stockId], body = role === 'head' || role === 'tail' ? 'Head' : role === 'pan' ? 'Pan' : 'Mid', key = `${stockId}|${body}`;
@@ -708,13 +711,15 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
           const half = s.S.len * 0.345;
           c.at(d + half, fwd); c.at(d - half, aft);
           const role = roleOf(s, i), K = kind(s.stock, role), cx = (fwd.x + aft.x) / 2, cy = (fwd.y + aft.y) / 2;
-          const L = K.lods.length > 1 && eye && Math.hypot(cx - eye.x, cy - eye.y, fwd.z - eye.z) > LOD_M ? K.lods[1] : K.lods[0];
+          const de = eye ? Math.hypot(cx - eye.x, cy - eye.y, fwd.z - eye.z) : 0, L = K.lods.length > 1 && eye && de > LOD_M ? K.lods[1] : K.lods[0];
           if (L.n >= K.cap) continue;
-          dummy.position.set(cx, (fwd.z + aft.z) / 2, -cy);
-          dummy.rotation.set(0, Math.PI - Math.atan2(fwd.x - aft.x, fwd.y - aft.y) + (K.glb && role === 'tail' ? Math.PI : 0), 0);
-          dummy.updateMatrix();
-          for (const m of L.meshes) m.setMatrixAt(L.n, dummy.matrix);
-          L.n++;
+          if (!(FAR_T && de > FAR_T)) { // (a phone: a car past FAR_T is not drawn; it is still heard, and still lit)
+            dummy.position.set(cx, (fwd.z + aft.z) / 2, -cy);
+            dummy.rotation.set(0, Math.PI - Math.atan2(fwd.x - aft.x, fwd.y - aft.y) + (K.glb && role === 'tail' ? Math.PI : 0), 0);
+            dummy.updateMatrix();
+            for (const m of L.meshes) m.setMatrixAt(L.n, dummy.matrix);
+            L.n++;
+          }
           if (o.listener) { const l = o.listener(), dd = Math.hypot((fwd.x + aft.x) / 2 - l.x, (fwd.y + aft.y) / 2 - l.y, fwd.z + 1.5 - l.z); if (dd < tr.near) { tr.near = dd; tr.nx = (fwd.x + aft.x) / 2; tr.ny = (fwd.y + aft.y) / 2; tr.nz = (fwd.z + aft.z) / 2; } }
           // (and every third car and the last, their bodies' middles: a train is heard from the length of it that is in the
           // open, not only its nearest car, which may be behind the station, audio.js trainAt)

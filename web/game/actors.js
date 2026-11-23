@@ -2608,6 +2608,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     const side = keep === 'right' ? -1 : 1; // the lane is to the left of the centre line, or to the right
     const JN = junctions || OEJunctions.create(net, { keep, lane: LANE, signals: [] });
     const I = lib && lib.cars && lib.info.cars, C = [], tmp = {}, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+    // (a phone, quality.js lean: a car's full model, 22,000 to 25,000 triangles, only within 12 m, where a phone's screen
+    // can show what the 5,000 of its second model cannot; its third, 1,000, past 70 m. At 35 and 110 m a car 30 m off was a
+    // triangle to every pixel or two of it)
+    const LEAN = !!(window.OEQuality && OEQuality.city().lean), LOD1 = I ? (LEAN ? Math.min(12, I.lod1_m) : I.lod1_m) : 0, LOD2 = I ? (LEAN ? Math.min(70, I.lod2_m) : I.lod2_m) : 0;
     let mesh = null, fleet = null, mat = null;
     const oncoming = (c, fx, fy, reach) => oncomingIn(C, c, fx, fy, reach);
     if (I) {
@@ -2661,7 +2665,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function show(c) { // car c, at m4, in the mesh of its model for its distance from the eye, if the eye can see it
       const d = eye ? eye.position.distanceTo(at.setFromMatrixPosition(m4)) : 0;
       if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 3.6, 3.6)))) return; // (or behind the street wall: visibility.js; 3.6 m: a bus)
-      const M = fleet[c.model][d < I.lod1_m ? 0 : d < I.lod2_m ? 1 : 2], j = M.count++, A = M.geometry.attributes;
+      const M = fleet[c.model][d < LOD1 ? 0 : d < LOD2 ? 1 : 2], j = M.count++, A = M.geometry.attributes;
       M.setMatrixAt(j, m4);
       A.aC0.setXYZ(j, c.c0.r, c.c0.g, c.c0.b); A.aC1.setXYZ(j, c.c1.r, c.c1.g, c.c1.b);
       A.aC3.setXY(j, c.brk > 0 ? 1 : 0, c.park ? (c.park.hazard ? 2 : 0) : c.sg || 0); // (its brake lights and indicators: toneMaterial)

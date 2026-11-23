@@ -676,8 +676,10 @@
      "cot",
      "create",
      "dispose",
+     "gate",
      "hold",
-     "seenNext"
+     "seenNext",
+     "ungate"
     ],
     "OEWater": [],
     "OEWorld": [
@@ -706,6 +708,7 @@
    "files": [
     "web/quality.js",
     "web/glcare.js",
+    "web/lifeline.js",
     "web/telemetry.js",
     "web/version.js",
     "web/game/perf.js"
@@ -723,6 +726,7 @@
      "trace",
      "watch"
     ],
+    "OELifeline": [],
     "OEPerf": [
      "run"
     ],
