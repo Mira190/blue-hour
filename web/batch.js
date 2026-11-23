@@ -131,6 +131,7 @@ window.OEBatch = (function () {
       grow(nc) { this.give(this.cap, nc - this.cap); this.cap = nc; } }; };
     let lay = null, V = null, I = null, bufs = {}, ibuf = null; // (lay: [{ name, size, type, bytes, normalized }])
     const geo = new THREE.BufferGeometry(), slots = new Set();
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity); geo.boundingBox = new THREE.Box3(new THREE.Vector3(-Infinity, -Infinity, -Infinity), new THREE.Vector3(Infinity, Infinity, Infinity)); // (never asked of the buffers: a cell is culled by its own bounds)
     const mesh = new THREE.Mesh(geo, material);
     const one = new THREE.DataTexture(new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), 4, 1, THREE.RGBAFormat, THREE.FloatType);
     one.needsUpdate = true;
@@ -145,12 +146,17 @@ window.OEBatch = (function () {
       geo.index = new THREE.GLBufferAttribute(ibuf, 0x1405, 1, 4, I.cap);
     };
     const make = bytes => { const b = gl.createBuffer(); gl.bindBuffer(CW, b); gl.bufferData(CW, bytes, gl.STATIC_DRAW); gl.bindBuffer(CW, null); return b; };
-    const regrow = (b, was, now) => { const n = make(now); gl.bindBuffer(CR, b); gl.bindBuffer(CW, n); gl.copyBufferSubData(CR, CW, 0, 0, was); gl.bindBuffer(CR, null); gl.bindBuffer(CW, null); gl.deleteBuffer(b); return n; };
+    // (an index buffer is one from its first binding: WebGL keeps the two kinds apart, and will not copy one kind into
+    // the other. A buffer grown through a copy lost every cell it held: their indices were never copied, and whole
+    // blocks of buildings were not drawn. So it is first bound as an index buffer, with no vertex array bound, whose
+    // own index binding that would have changed)
+    const makeIndex = bytes => { const b = gl.createBuffer(), vao = gl.getParameter(0x85B5); gl.bindVertexArray(null); gl.bindBuffer(0x8893, b); gl.bufferData(0x8893, bytes, gl.STATIC_DRAW); gl.bindBuffer(0x8893, null); gl.bindVertexArray(vao); return b; };
+    const regrow = (b, was, now, index = false) => { const n = index ? makeIndex(now) : make(now); gl.bindBuffer(CR, b); gl.bindBuffer(CW, n); gl.copyBufferSubData(CR, CW, 0, 0, was); gl.bindBuffer(CR, null); gl.bindBuffer(CW, null); gl.deleteBuffer(b); return n; };
     const room = (nv, ni) => { // buffers for nv vertices and ni indices more than fit now
       // (a tenth over what is asked: the room is the GPU's memory, and a phone's cells are 20 MB of it)
       const vc = Math.ceil((V.cap + nv) * 1.1), ic = Math.ceil((I.cap + ni) * 1.1);
       for (const a of lay) bufs[a.name] = bufs[a.name] ? regrow(bufs[a.name], V.cap * a.size * a.bytes, vc * a.size * a.bytes) : make(vc * a.size * a.bytes);
-      ibuf = ibuf ? regrow(ibuf, I.cap * 4, ic * 4) : make(ic * 4);
+      ibuf = ibuf ? regrow(ibuf, I.cap * 4, ic * 4, true) : makeIndex(ic * 4);
       V.grow(vc); I.grow(ic); attach(); stats.grown = (stats.grown || 0) + 1;
     };
     const write = s => {
@@ -193,8 +199,9 @@ window.OEBatch = (function () {
       pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(mesh.matrixWorld);
       fr.setFromProjectionMatrix(pm, camera.coordinateSystem, camera.reversedDepth);
       const S = mesh._multiDrawStarts, C = mesh._multiDrawCounts; let n = 0;
-      for (const s of slots) if ((s.o.layers.mask & 1) && s.o.visible && fr.intersectsSphere(s.ball)) { S[n] = s.i0 * 4; C[n] = s.ni; n++; }
-      mesh._multiDrawCount = n;
+      let hid = 0, out = 0;
+      for (const s of slots) { if (!(s.o.layers.mask & 1) || !s.o.visible) { hid++; continue; } if (!fr.intersectsSphere(s.ball)) { out++; continue; } S[n] = s.i0 * 4; C[n] = s.ni; n++; }
+      mesh._multiDrawCount = n; mesh.userData.last = { drawn: n, hidden: hid, out, cells: slots.size };
     };
     mesh.onBeforeRender = (r, scene, camera) => list(camera);
     mesh.onBeforeShadow = (r, object, camera, shadowCamera) => list(shadowCamera);
