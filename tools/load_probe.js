@@ -31,7 +31,7 @@ async function once(b, run) {
     // when the loader's warm-up was done (game.js logs it: "warm: from built, ...")
     const ci = console.info; console.info = function (...a) { if (typeof a[0] === 'string' && a[0].startsWith('warm: from built')) window.__warmDone = performance.now(); return ci.apply(this, a); };
     const LF = window.__loaf = [];
-    try { new PerformanceObserver(l => { for (const e of l.getEntries()) LF.push({ t: e.startTime, ms: e.duration, render: e.renderStart ? e.startTime + e.duration - e.renderStart : 0, style: e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0, script: (e.scripts || []).reduce((q, x) => q + x.duration, 0), top: (e.scripts || []).sort((x, y) => y.duration - x.duration).slice(0, 2).map(x => `${x.sourceFunctionName || x.invoker} ${Math.round(x.duration)}`) }); }).observe({ type: 'long-animation-frame', buffered: true }); } catch (e) { /* no LoAF */ }
+    try { new PerformanceObserver(l => { for (const e of l.getEntries()) LF.push({ t: e.startTime, ms: e.duration, render: e.renderStart ? e.startTime + e.duration - e.renderStart : 0, style: e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0, script: (e.scripts || []).reduce((q, x) => q + x.duration, 0), top: [...(e.scripts || [])].sort((x, y) => y.duration - x.duration).slice(0, 2).map(x => `${x.sourceFunctionName || x.invoker} ${Math.round(x.duration)}`) }); }).observe({ type: 'long-animation-frame', buffered: true }); } catch (e) { /* no LoAF */ }
     const E = window.__events = [];
     try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.interactionId) E.push({ t: e.startTime, ms: e.duration, type: e.name, proc: e.processingEnd - e.processingStart, delay: e.processingStart - e.startTime }); }).observe({ type: 'event', durationThreshold: 16, buffered: true }); } catch (e) { /* no Event Timing */ }
   });
@@ -105,9 +105,10 @@ async function once(b, run) {
 }
 
 (async () => {
-  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--enable-experimental-web-platform-features'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+  const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] /* (a Mac's own GPU) */ : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--enable-experimental-web-platform-features'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
   const out = [];
+  { const p = await b.newPage(); console.log(`renderer: ${await p.evaluate(() => { const d = document.createElement('canvas').getContext('webgl2'), x = d && d.getExtension('WEBGL_debug_renderer_info'); return d ? (x ? d.getParameter(x.UNMASKED_RENDERER_WEBGL) : d.getParameter(d.RENDERER)) : 'no WebGL2'; })}`); await p.close(); }
   for (let r = 1; r <= RUNS; r++) {
     const o = await once(b, r); out.push(o);
     const s = x => (x == null ? '—' : (x / 1000).toFixed(1));

@@ -7,6 +7,9 @@
 //   wall        the car's body is in a building's solid
 // A leg's pieces are counted as it passes them, so most legs drive several.
 //   xvfb-run -a node tools/road_drive.js shibuya [radius=320]        (MINUTES=40 of the game's time at most; LOG=1)
+// TRACE=1 prints each stand of a drive (when, where, how long, why, and the light it stood at); TIMED=1 fails a drive
+// that takes longer than its road at 6 m/s and one cycle of each scramble on its way, or than its start's own figure
+// ("x,y@180") (issue 175).
 // An errand's drive instead: TO=x,y FROM="x,y;x,y;x,y" drives from each start (the car brought to the kerb there, as
 // the C key does) to the place, and fails if one does not arrive within r=35 m; OUT=dir takes a still every EVERY=8 s
 // of each drive. PHONE=1 plays a phone's district.
@@ -15,8 +18,9 @@ const fs = require('fs');
 const { startPlay } = require('./start_play');
 const { pinClock } = require('./pin_clock');
 const [,, city = 'shibuya', RADIUS = '320'] = process.argv;
-const TO = process.env.TO ? process.env.TO.split(',').map(Number) : null;
-const FROM = (process.env.FROM || '').split(';').filter(Boolean).map(s => s.split(',').map(Number));
+const TO0 = process.env.TO ? process.env.TO.split(',').map(Number) : null, TO = TO0;
+// (a start may name its own place to drive to, "x,y>x,y": the drive back across the Scramble beside the drives to 109)
+const FROM = (process.env.FROM || '').split(';').filter(Boolean).map(s => { const [ab, cap] = s.split('@'), [a, b] = ab.split('>'), f = a.split(',').map(Number); if (b) f.to = b.split(',').map(Number); if (cap) f.cap = +cap; return f; });
 const OUT = process.env.OUT, EVERY = +(process.env.EVERY || 8);
 
 // (in the page) into the driver's seat of your car, brought to the kerb at (x, y) when given
@@ -57,6 +61,22 @@ function driveFor({ secs, mark }) {
     { const o = g.pilot(); if (o) { const d = o.drv.st, bl = d.block; S.last = `${o.join ? 'joining ' + (o.joinWhy || '') : d.why || '?'}${o.turn ? ' turning' : ''} stood ${(o.stoodT || 0).toFixed(0)} s, crawl ${o.crawl ? o.crawl.t.toFixed(0) : 0} s, at ${st.x.toFixed(0)},${st.y.toFixed(0)}${bl ? `, behind ${bl.walker ? 'a person' : g.cars.C.includes(bl) ? (() => { const ch = []; for (let q = bl, n = 0; q && n < 6; n++) { const i = g.cars.C.indexOf(q); if (i < 0) { ch.push(q === car.C ? 'MY CAR' : 'other'); break; } ch.push(`car ${i}${q.bus ? ' (bus)' : ''}${q.park ? ' parked' : ''} at ${q.x.toFixed(0)},${q.y.toFixed(0)} v ${(q.v || 0).toFixed(1)} ${q.why || ''}${q.heldBy ? '/' + q.heldBy : ''}${q.mv ? ' in j' + q.mv.j.id : q.lineArm ? ' at j' + q.lineArm.j.id : ''}`); q = q.front; } return ch.join(' < '); })() : bl.id || 'something'}` : ''}`; } }
     S.t += 0.5;
     S.stood = st.speed < 0.3 ? S.stood + 0.5 : 0;
+    if (S.stood === 20) { // (TRACE=1: twenty seconds into a stand, what the driver sees: its reasons, what it brakes for, who is near)
+      const o = g.pilot(), d = o && o.drv.st, C = g.cars.C, name = q => (!q ? 'none' : q.walker ? 'someone on foot' : C.includes(q) ? `car ${C.indexOf(q)}${q.bus ? ' bus' : ''} at ${Math.round(q.x)},${Math.round(q.y)} v ${(q.v || 0).toFixed(1)} ${q.why || ''}` : q === d ? 'itself' : q.id || 'something');
+      if (d) { const near = []; for (const q of C) if (q.line >= 0 && Math.hypot(q.x - st.x, q.y - st.y) < 14) near.push(name(q) + (q.front === d || q.youBy ? ' (waits on you)' : ''));
+        let ppl = 0; const P = g.crowd && g.crowd.P ? g.crowd.P : []; for (let i = 0; i < Math.min(g.crowd ? g.crowd.active : 0, P.length); i++) if (Math.hypot(P[i].x - st.x, P[i].y - st.y) < 5) ppl++;
+        (S.detail || (S.detail = [])).push(`   at ${S.t} s, stood 20 s at ${st.x.toFixed(0)},${st.y.toFixed(0)} heading ${Math.round(st.h * 180 / Math.PI)}: why ${d.why}; junction ${d.junction || ''}; block ${name(d.block)}; crossing ${name(d.xBlock)}${d.xMutual ? ' (each for the other)' : ''}; in ${d.mv ? 'j' + d.mv.j.id + ' arm ' + d.mv.a.i + '>' + d.mv.e.m.i : 'no junction'}; to its next line ${(+d.toLine).toFixed(1)} m; way points ${d.np}; ${ppl} of the crowd within 5 m; cars within 14 m: ${near.join('; ') || 'none'}`); } }
+    // (what it stands behind: the car ahead, and the head of that car's queue: where, why it stands, the line it waits at and its light)
+    const behind = bl => {
+      if (!bl) return '';
+      if (bl.walker) return ' behind someone on foot';
+      if (!g.cars.C.includes(bl)) return ` behind ${bl.id || 'something'}`;
+      let h = bl; for (let n = 0; n < 12 && h.front && g.cars.C.includes(h.front) && h.front !== bl; n++) h = h.front;
+      const one = q => `${q.bus ? 'bus' : q.park ? 'parked car' : 'car'} at ${Math.round(q.x)},${Math.round(q.y)} v ${(q.v || 0).toFixed(1)} ${q.why || '?'}${q.heldBy ? '/' + q.heldBy : ''} still ${Math.round(q.still || 0)} s${q.mv ? ` in j${q.mv.j.id}` : ''}${q.lineArm ? ` for j${q.lineArm.j.id}${q.lineArm.j.lead ? ' (run from j' + q.lineArm.j.lead.id + ')' : ''} arm ${q.lineArm.i} light ${g.junctions.light(q.lineArm, q.lineEx)}${q.ex2 && q.ex2.a ? ` then j${q.ex2.a.j.id} light ${g.junctions.light(q.ex2.a, q.ex2.e)}` : ''}` : ''}`;
+      return ` behind a ${one(bl)}${h !== bl ? `; the head of its queue: ${one(h)}` : ''}`;
+    };
+    { const o = g.pilot(), d = o && o.drv.st, a = d && d.lineAt, j = a && a.j; // (TRACE=1: where the time went, and at which light)
+      (S.tr || (S.tr = [])).push([S.t, Math.round(st.x), Math.round(st.y), +st.speed.toFixed(1), d ? `${d.junction || ''}|${d.why || ''}${st.speed < 0.3 ? behind(d.block) : ''}` : '', j && st.speed < 0.3 ? `j${j.id}${j.scramble ? ' scramble' : ''} arm ${a.i} ${j.sig ? `ph ${j.ph}${j.st} ${j.t.toFixed(0)} s` : "no lights"}${d.junction === 'cross' || d.junction === 'walk' || d.junction === 'turn' ? ` busy ${j.busy || 0}; in the box: ${j.active.map(q => `arm ${q.k}>${q.m} ${q.c.bus ? 'bus ' : ''}${q.c === d ? 'ME ' : ''}at ${Math.round(q.c.x)},${Math.round(q.c.y)} v ${(q.c.v || 0).toFixed(1)} ${q.c.why || ''} still ${(q.c.still || 0).toFixed(0)}`).join('; ')}; waiting: ${j.pend.map(q => `arm ${q.k}>${q.m} ${q.c.why || ''}`).join('; ')}` : ''}` : '']); }
     const q = g.roadNet.nearest(st.x, st.y, 14, st.z, 4);
     if (q) {
       if (mark && q.d < 4) S.seen[q.line] = 1;
@@ -95,10 +115,15 @@ function driveFor({ secs, mark }) {
   const tag = process.env.PHONE ? '_phone' : '';
   if (TO) {
     if (OUT) fs.mkdirSync(OUT, { recursive: true });
+    const cycle = await p.evaluate(() => Math.max(60, ...window.__game.junctions.scrambles.map(j => j.cycle || 0)));
     for (let k = 0; k < FROM.length; k++) {
       const no = await p.evaluate(seatAt, FROM[k]);
       if (no) { console.log(`FAIL start ${k + 1} (${FROM[k]}): ${no}`); bad++; continue; }
-      const leg = await p.evaluate(({ to }) => { const g = window.__game, st = g.myCar().D.st; window.__drive = null; const ok = g.pilotTo({ id: 'errand', name: 'the errand', at: to }, { quiet: true }); return { ok, len: ok ? g.pilot().len : 0, turns: ok ? g.pilot().turns.length - 1 : 0, from: [+st.x.toFixed(0), +st.y.toFixed(0)] }; }, { to: TO });
+      const TO = FROM[k].to || TO0;
+      const leg = await p.evaluate(({ to }) => { const g = window.__game, st = g.myCar().D.st; window.__drive = null; const ok = g.pilotTo({ id: 'errand', name: 'the errand', at: to }, { quiet: true });
+        // (the scrambles on its way, each with the junctions run from it: one cycle of each is the most their lights can cost it)
+        let cyc = 0; if (ok) { const S = new Set(); for (const nd of g.pilot().drv.st.route.nodes || []) { const a = g.junctions.armAt(nd.line, nd.end), j = a && a.in ? a.j.lead || a.j : null; if (j && j.scramble && j.cycle && !S.has(j)) { S.add(j); cyc += j.co ? j.co.cycle / 2 : j.cycle; } } }
+        return { ok, cyc, len: ok ? g.pilot().len : 0, turns: ok ? g.pilot().turns.length - 1 : 0, from: [+st.x.toFixed(0), +st.y.toFixed(0)] }; }, { to: TO });
       if (!leg.ok) { console.log(`FAIL start ${k + 1} (${FROM[k]}): no road from there reaches ${TO}`); bad++; continue; }
       let r = null, n = 0;
       for (let t = 0; t < 600; t += EVERY) {
@@ -107,8 +132,20 @@ function driveFor({ secs, mark }) {
         if (r.done) break;
       }
       const d = Math.hypot(r.at[0] - TO[0], r.at[1] - TO[1]), S = await p.evaluate(() => window.__drive);
-      const ok = d <= 35 && !S.bad.length;
-      console.log(`${ok ? 'ok  ' : 'FAIL'} start ${k + 1}: from ${leg.from} by road ${Math.round(leg.len)} m with ${leg.turns} turn${leg.turns === 1 ? '' : 's'}, ${r.t.toFixed(0)} s; ended ${d.toFixed(0)} m from ${TO} (${r.done || 'still driving'}${r.why ? ', ' + r.why : ''})${S.bad.length ? ' ' + JSON.stringify(S.bad.slice(0, 4)) : ''}`);
+      S.bad = S.bad.filter(q => q.what !== 'off' || Math.hypot(q.x - TO[0], q.y - TO[1]) > 12); // (not the pull in to the kerb where it arrives)
+      // (TIMED=1, issue 175: a drive takes no longer than its road at 6 m/s and one whole cycle of each scramble on its
+      // way, 118 s at Shibuya's, and half of it more for 109's fork, which runs on the Scramble's cycle: a car that comes
+      // to it out of the Scramble's other turn waits the walk and that turn's end; and no longer than the figure its start names, "x,y@180": the
+      // 364 m from SKY GATE across the Scramble to 109, which took 401 s, in the three minutes the issue asks)
+      const limit = process.env.TIMED ? Math.min(leg.len / 6 + (leg.cyc || cycle), FROM[k].cap || Infinity) : Infinity, slow = r.t > limit;
+      const ok = d <= 35 && !S.bad.length && !slow;
+      if (process.env.TRACE) { // (each stand of 3 s or more: when, where, how long, why at its start and its end, the light then)
+        let run = null; const put = r => { if (r && r.n >= 6) console.log(`   stood ${String(r.n / 2).padStart(5)} s from ${String(r.t).padStart(5)} s at ${r.x},${r.y}: ${r.why} [${r.j}] ... ${r.why1} [${r.j1}]`); };
+        for (const [t, x, y, v, why, j] of S.tr || []) { if (v < 0.3) { if (!run) run = { t, x, y, n: 0, why, j }; run.n++; run.why1 = why; run.j1 = j; } else { put(run); run = null; } }
+        put(run);
+        for (const l of S.detail || []) console.log(l);
+      }
+      console.log(`${ok ? 'ok  ' : 'FAIL'} start ${k + 1}: from ${leg.from} by road ${Math.round(leg.len)} m with ${leg.turns} turn${leg.turns === 1 ? '' : 's'}, ${r.t.toFixed(0)} s${process.env.TIMED ? ` (${slow ? 'over' : 'within'} ${limit.toFixed(0)} s)` : ''}; ended ${d.toFixed(0)} m from ${TO} (${r.done || 'still driving'}${r.why ? ', ' + r.why : ''})${S.bad.length ? ' ' + JSON.stringify(S.bad.slice(0, 4)) : ''}`);
       if (!ok) bad++;
     }
     await b.close();
