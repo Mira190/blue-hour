@@ -6,6 +6,7 @@
 //   THROTTLE=4: the main thread's CPU slowed four times (a phone's), the times then divided by it
 //   WARM=seconds the page is left before the sampling (25); DRAW=n (240); OUT=file: the profile kept (.cpuprofile)
 //   LAYOUTS=n: only the count of the walkers' and the cars' hidden layouts, failing over n (the check)
+//   TURN=1: with STILLS, eight stills, the camera turned by a drag between them
 //   STILLS=dir: five stills a second apart of frames drawn whole, after the sampling (the crowd moving)
 // Prints the frames run, the script a frame, the heaviest files and functions by self time a frame, and what the
 // crowd held (walkers simulated, near people drawn) at the end. The milliseconds are this machine's.
@@ -95,7 +96,10 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   console.log(`after: ${JSON.stringify(await state())}`);
   if (process.env.STILLS) { // (five seconds of the crowd moving, each still of a frame drawn whole)
     fs.mkdirSync(process.env.STILLS, { recursive: true }); if (RATE > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
-    for (let k = 0; k < 5; k++) { await whole(p, () => p.screenshot({ path: `${process.env.STILLS}/${phone ? 'phone' : 'desktop'}-${k}.png`, timeout: 120000 })); await p.waitForTimeout(1000); }
+    // (TURN=1: the camera turned a sixth of the screen's width between stills, by a drag: the edge of the view is where a
+    // walker stepped coarsely out of the picture becomes one drawn)
+    const turn = async () => { if (!process.env.TURN) return; const y = h * 0.45; await p.mouse.move(w * 0.5, y); await p.mouse.down(); for (let k = 1; k <= 8; k++) await p.mouse.move(w * 0.5 + k * w / 48, y); await p.mouse.up(); };
+    for (let k = 0; k < (process.env.TURN ? 8 : 5); k++) { await whole(p, () => p.screenshot({ path: `${process.env.STILLS}/${phone ? 'phone' : 'desktop'}-${k}.png`, timeout: 120000 })); await turn(); await p.waitForTimeout(1000); }
   }
   if (errors.length) console.log(`page errors: ${errors.slice(0, 5).join(' | ')}`);
   await b.close();
