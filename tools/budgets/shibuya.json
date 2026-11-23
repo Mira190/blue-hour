@@ -284,8 +284,8 @@
    "frame 2": {
     "draws": 365,
     "tris": 953000,
-    "passes": 9,
-    "px_x": 2.41,
+    "passes": 10,
+    "px_x": 3.46,
     "tex_n": 315.5,
     "tex_mb": 177,
     "buf_mb": 83.3,
