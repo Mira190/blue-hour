@@ -676,7 +676,7 @@ window.OEOverture = (function () {
     }
     function startScore(offset = 0) {
       if (!scoreBuf || (window.OEAudio && OEAudio.muted)) return;
-      if (scoreBuf.blob) { scoreSrc = OEAudio.tune(scoreBuf, { at: offset }); return; }
+      if (scoreBuf.blob) { scoreSrc = OEAudio.tune(scoreBuf, { at: () => (active && t > offset ? t : offset) }); return; } // (begun once the tune before it has faded out: joined where the film is then, audio.js tune)
       try {
         // on the game's own context and its music bus (docs/SOUND.md): a second context made here, after the touch that
         // started the game's, is one a phone (iOS) leaves suspended, and it was outside the Sound switch and the duck

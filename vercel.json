@@ -4,7 +4,7 @@
   "installCommand": "true",
   "buildCommand": "bash tools/vercel_build.sh",
   "outputDirectory": "web",
-  "git": { "deploymentEnabled": { "*": false, "live": true } },
+  "git": { "deploymentEnabled": { "**": false, "live": true } },
   "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"live\" ]",
   "headers": [
     { "source": "/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
