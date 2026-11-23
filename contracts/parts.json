@@ -226,6 +226,7 @@
     "web/game/vehicles.js",
     "web/game/autopilot.js",
     "web/game/junctions.js",
+    "web/game/trips.js",
     "web/game/rail.js",
     "web/game/trains.js",
     "web/game/pilot.js",
@@ -268,6 +269,9 @@
      "create"
     ],
     "OETrains": [
+     "create"
+    ],
+    "OETrips": [
      "create"
     ],
     "OEVehicles": [

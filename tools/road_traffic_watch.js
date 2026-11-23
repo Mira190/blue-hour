@@ -43,7 +43,7 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
       g.hopTo(k ? k.x : x, k ? k.y : y, k ? k.z : q ? q.z : g.player.z, 'the kerb');
       g.advance(20); // (the traffic settles round the new place: what is made in these seconds is not counted)
       const prev = C.map(c => ({ line: c.line, x: c.x, y: c.y })), still = new Float32Array(C.length), pairT = new Map();
-      const out = { at: [x, y], secs, made: 0, madeQuiet: [], busMadeOff: [], madeNear: [], inside: [], stood: [], busT: 0, busOffT: 0, busLineOffT: 0, cameIn: 0, wentOut: 0, quietT: 0, carT: 0, cars: 0, buses: 0 };
+      const out = { at: [x, y], secs, made: 0, madeQuiet: [], busMadeOff: [], madeNear: [], inside: [], stood: [], busT: 0, busOffT: 0, busLineOffT: 0, cameIn: 0, wentOut: 0, quietT: 0, carT: 0, cars: 0, buses: 0, bound: 0, tripsEnded: 0, places: 0, fields: 0 };
       const box = c => { const hx = Math.sin(c.h), hy = Math.cos(c.h); return { x: c.x, y: c.y, hx, hy, l: Math.max(0.3, c.half - 0.25), w: Math.max(0.2, c.hw - 0.25) }; };
       const sep = (A, B, ax, ay) => { // (is axis (ax, ay) a separating one?)
         const pa = Math.abs(ax * A.hx + ay * A.hy) * A.l + Math.abs(-ax * A.hy + ay * A.hx) * A.w, pb = Math.abs(ax * B.hx + ay * B.hy) * B.l + Math.abs(-ax * B.hy + ay * B.hx) * B.w;
@@ -82,7 +82,8 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
           if (s === 3.5) out.inside.push({ t, x: +A.x.toFixed(0), y: +A.y.toFixed(0), a: A.bus ? 'bus' : A.park ? 'parked' : 'car', b: B.bus ? 'bus' : B.park ? 'parked' : 'car' });
         }
       }
-      for (let i = 0; i < Math.min(C.length, cars.active); i++) if (C[i].line >= 0) { out.cars++; if (C[i].bus) out.buses++; }
+      for (let i = 0; i < Math.min(C.length, cars.active); i++) if (C[i].line >= 0) { out.cars++; if (C[i].bus) out.buses++; else { if (C[i].trip >= 0) out.bound++; out.tripsEnded += C[i].trips || 0; } }
+      { const T = cars.junctions.trips && cars.junctions.trips(); if (T) { out.places = T.places.length; out.fields = T.fields ? T.fields() : 0; } }
       return out;
     }, { x, y, secs: +MIN * 60 });
     const share = r.busT ? r.busOffT / r.busT : 0;
@@ -97,6 +98,7 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
       // (a scramble's turns are a few seconds long, and the head of a queue there can wait two of its cycles: one or two
       // vehicles so held are a slow junction, more are a jam that does not clear)
       [r.stood.length <= 3, `no queue stood for good: ${r.stood.length} vehicle${r.stood.length === 1 ? '' : 's'} stood 150 s within 250 m (3 at most)`],
+      [r.places > 0 && r.bound >= 0.5 * (r.cars - r.buses), `every car has somewhere to go (trips.js): ${r.bound} of ${r.cars - r.buses} cars bound for one of ${r.places} places (seven in ten are; the rest take what comes), ${r.tripsEnded} trips ended and begun again, ${r.fields} fields worked out`],
       [r.cameIn > 0 && r.wentOut > 0, `traffic came in and went out round ${x}, ${y}: ${r.cameIn} in, ${r.wentOut} out in ${MIN} min; ${r.cars} vehicles alive, ${r.buses} buses`],
     ];
     for (const [ok, what] of checks) { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) bad++; }

@@ -3601,7 +3601,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (TR && c.trip >= 0 && !c.parking) {
           const P = TR.places[c.trip];
           if (P.line === c.line && !c.wantPark) { if (P.kind === 'centre' && !c.bus) c.wantPark = 30; c.trip = TR.pick(c.x, c.y); c.trips = (c.trips || 0) + 1; }
-          else if (P.kind === 'centre' && !c.bus && !c.wantPark && (c.nearT = (c.nearT || 0) - dt) <= 0) { c.nearT = 1; if (TR.cost(c.trip, c.line, c.dir) < 300 + l.len) c.wantPark = 2; }
+          else if (P.kind === 'centre' && !c.bus && !c.wantPark && (c.nearT = (c.nearT || 0) - dt) <= 0) {
+            c.nearT = 1;
+            const left = TR.cost(c.trip, c.line, c.dir);
+            // (in its part of town, the trip is over: the kerb if there is room, and on to the next place. The place's own
+            // street is not where every car bound for it has to drive to, trips.js ARRIVE)
+            if (TR.ARRIVE && left < TR.ARRIVE) { c.wantPark = 30; c.trip = TR.pick(c.x, c.y); c.trips = (c.trips || 0) + 1; }
+            else if (left < 300 + l.len) c.wantPark = 2;
+          }
         }
         // a van on its round: every minute or two it stops at the kerb for a delivery, hazards on, and goes again
         if (c.van && !c.parking && !c.wantPark && (c.dropT = (c.dropT ?? 20 + rnd() * 80) - dt) <= 0) { c.dropT = 50 + rnd() * 90; c.wantPark = 14; c.deliver = true; }

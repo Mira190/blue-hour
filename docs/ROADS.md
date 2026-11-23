@@ -284,6 +284,35 @@ inside the area alone, and fails where there is none inside or where the shortes
 | where your car starts | 109 | 221 m | 6.0 m |
 | where your car starts | SKY GATE's kerb | 300 m | 6.2 m |
 
+### Every vehicle has somewhere to go (`web/game/trips.js`)
+
+Asked whether every vehicle now drives by a logic and a path of its own, the answer on reading the code was no. The
+game has always asked for `OETrips` (`game.js`: `if (window.OETrips) junctions.setTrips(...)`), docs/GAME.md
+describes it, and the file was not in this repository: it was lost when the story was split from the world, the
+guard passed in silence, and every car and taxi picked an exit by chance at every junction. A random walk turns back
+on itself and circles a block, and the flow on a street is what chance left there.
+
+What each kind of vehicle drives by now:
+
+| Vehicle | Where it is going | How it gets there |
+|---|---|---|
+| A car, a van, a taxi of the traffic | a place: one of eight gates on the main roads at the map's edge (out of town), or a street by one of the places the map names (into town); seven in ten are bound, by the hour (three quarters into town in the morning, a quarter in the evening) | a field per place, worked out once: at a junction the exit that brings it nearest by road, one 64 m dearer a third as likely |
+| A bus | its line's end | the piece with its line's next step |
+| Your car on the autopilot, a ride, the car sent for you | the place asked | a route searched on the same graph (`cars.js` `router`) and driven |
+
+The field is a search back from the place over the road graph as it may be driven (one-ways, banned turns, the roads
+to keep off, no turning round at a junction). A metre of back street costs 2.5 of a main road's, a surveyed
+carriageway under 5.5 m 1.6 times that again, a quiet street or a single track three times: through traffic keeps to
+the roads that carry it. A trip into town is over 110 m by road from its place (the car park is round there, not on
+the place), and its place is a street of 6 m or more. The first version sent each trip to the nearest back street
+and ended it only on that street: thirteen cars at a time made for one lane, and the block behind 109 locked in a
+ring, each junction waiting for room in the next (19 vehicles stood 150 s; none after).
+
+`tools/trips_probe.js shibuya 120` (a desktop's page, 17:57, two minutes): 140 of 192 cars bound for one of 18
+places; a car coming onto a new piece is nearer its place by road 22 times of 22; none went back onto the piece it
+had just left. `tools/road_traffic_watch.js` with the trips on: 0 and 3 vehicles stood 150 s at the two kerbs (three
+is the limit; the three wait at 109's lights, issue 175).
+
 ### The checks, and what was measured
 
 Static, with `tools/check.sh`'s static checks:
