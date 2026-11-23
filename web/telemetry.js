@@ -49,7 +49,9 @@ window.OETelemetry = (function () {
     format: 'posthog',     // 'posthog' or 'jsonl'
     key: 'phc_v8YPULU9RMwSuJD4K3WYDM8KaGck9Z2XeAFdKeVRD95B',   // the project's public capture key (it only writes events)
   };
-  const VERSION = 7;   // 7: the story's wrong answers ("wrong": q, what), hints asked for ("hint": n), the first walk ("walked")
+  const VERSION = 8;   // 8: which interaction was the slowest (inp_on, inp_type, inp_wait, inp_run, inp_paint, inp_spot) and the
+                       //    loader's warm-up on "load" (warm_prog_ms, warm_tex_ms, warm_buf_ms)
+                       // 7: the story's wrong answers ("wrong": q, what), hints asked for ("hint": n), the first walk ("walked")
                        // 6: the story's progress ("story" events: begin, frame, print, seen_through, spent, end) and its
                        //    frame and beat as the spot; the time zone (tz) with the language
                        // 5: shader errors ("error" kind "shader"), "gl_lost" says how far the load had come, a dead page's
@@ -239,7 +241,7 @@ window.OETelemetry = (function () {
   let engFlush = 0;         // seconds of it the visitor was engaged (input in the last minute, or a tour playing)
   // the slowest interaction (ms) and the most memory (MB) since the last "time"; the long frames the browser
   // reported (their count, the time they blocked input, and the worst with the script that held it)
-  const fresh0 = () => ({ inp: 0, heap: 0, block: 0, loaf: 0, worst: null });
+  const fresh0 = () => ({ inp: 0, inpAt: null, heap: 0, block: 0, loaf: 0, worst: null });
   let slice = fresh0();
   let extra = {};           // what the view says of its own state (OETelemetry.set): the governor's scale, what it shed
 
@@ -280,6 +282,7 @@ window.OETelemetry = (function () {
     }
     props.eng_s = Math.round(engFlush / 100) / 10;
     if (slice.inp) props.inp = slice.inp;
+    if (slice.inp && slice.inpAt) Object.assign(props, slice.inpAt); // (which it was: inp_on, inp_type, inp_wait, inp_run, inp_paint, inp_spot)
     if (slice.heap) props.heap_mb = slice.heap;
     if (slice.loaf) { props.loaf = slice.loaf; props.block_ms = Math.round(slice.block); }
     if (final) props.final = true;
@@ -341,7 +344,8 @@ window.OETelemetry = (function () {
   // the stages of a view's load, from the pages' performance marks: "oe:<stage>", with { detail: { view, city } }
   // where one page has several views (world.js serves the model and the game). The last mark of each stage
   // since the view started counts; a mark naming another view (one left while it loaded) does not.
-  const STAGES = { fetched: 'fetch_ms', decoded: 'decode_ms', built: 'build_ms', frame: 'frame_ms' };
+  // (and from version 8 the loader's warm-up after "built", game.js: its programs compiled, its pictures and its vertex buffers sent)
+  const STAGES = { fetched: 'fetch_ms', decoded: 'decode_ms', built: 'build_ms', 'warm-programs': 'warm_prog_ms', 'warm-textures': 'warm_tex_ms', 'warm-buffers': 'warm_buf_ms', frame: 'frame_ms' };
   function markOf(stage, v) {
     let at = null;
     try {
@@ -655,7 +659,18 @@ window.OETelemetry = (function () {
   setInterval(sample, 1000);
   // how long the page takes to answer a tap or a key (the Event Timing API behind INP): the slowest in each piece
   try {
-    new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.interactionId && e.duration > slice.inp) slice.inp = Math.round(e.duration); })
+    // (and which it was, version 8: what was pressed, by its id or else its tag and first class; the event; the time it waited
+    // for the page to take it, the time its handlers ran and the time from them to the frame painted after; and the spot then)
+    const named = el => { try { if (!el || !el.tagName) return ''; const b = el.closest && el.closest('button, a, input, label, [id]'); const t = b || el; return t.id ? `#${t.id}` : `${t.tagName.toLowerCase()}${t.classList && t.classList[0] ? `.${t.classList[0]}` : ''}`; } catch (e) { return ''; } };
+    new PerformanceObserver(l => {
+      for (const e of l.getEntries()) {
+        if (!e.interactionId || e.duration <= slice.inp) continue;
+        slice.inp = Math.round(e.duration);
+        let spot = ''; try { const w = cur && cur.ready ? look(cur.kind) : null; spot = w && w.spot ? w.spot : ''; } catch (x) { /* no spot */ }
+        slice.inpAt = { inp_on: named(e.target), inp_type: e.name, inp_wait: Math.round(e.processingStart - e.startTime), inp_run: Math.round(e.processingEnd - e.processingStart),
+          inp_paint: Math.round(e.startTime + e.duration - e.processingEnd), inp_spot: spot };
+      }
+    })
       .observe({ type: 'event', buffered: true, durationThreshold: 40 });
   } catch (e) { /* Safari before 18: no Event Timing */ }
 
