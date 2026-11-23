@@ -381,6 +381,10 @@ is a guest of the page's frames, and gives way to them:
   The player is told once ("The street's sound is off ... To try the street again, turn Sound off and on in the menu"),
   and the loading cue's loop comes back on its element in the street's place (`sndBed`), so play is never silent. The Sound
   switch turned off and on asks again.
+  A context's first second and a half, made or let go again, is not read (`SETTLE`): its clock runs ahead of its output
+  until the output has begun and then steps back to it for good, 180 to 240 ms in WebKit on a Mac, and read as a break that
+  step gave the street up within a second of every start (four runs of four; `tools/opening_audio.js` with `ENGINE=webkit`
+  fails on it). Not yet heard on an iPhone.
 - *Remembered*: each give-up is noted on the device (`bh-snd-gave`, three days); a phone noted twice makes no context at
   all from the next page on (`streetOff`): its music is its elements', the street is silent and never breaks. Three minutes
   of the street played without a break clear the note.

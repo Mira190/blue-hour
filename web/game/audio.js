@@ -1372,8 +1372,8 @@ window.OEAudio = (function () {
   // break only if it falls inside it: a 6 ms break between two readings 16 ms apart is seen one time in three, and none
   // while the main thread stands still for less than the break lasts. It is a floor, not a count.
   const PROBE_ON = /[?&]snd=1\b/.test(location.search);
-  const P = { n: 0, ep: [0, 0, 0], max: 0, at: '', lost: 0, b0: null, b1: null, bAt: 0, in: 0, inMax: 0, inAt: 0, oBase: null, oMax: 0, main: 0, wk: 0, states: [], under: 0, underMs: 0, ps: null, el: 0, elMax: 0, eBase: null, eIn: false, log: [], lagNow: 0, tot: [0, 0, 0], totMax: 0, totUnder: 0, totEl: 0 };
-  const LAG = [6, 25, 100];
+  const P = { n: 0, ep: [0, 0, 0], max: 0, at: '', lost: 0, b0: null, b1: null, bAt: 0, in: 0, inMax: 0, inAt: 0, oBase: null, oMax: 0, main: 0, wk: 0, states: [], runAt: 0, under: 0, underMs: 0, ps: null, el: 0, elMax: 0, eBase: null, eIn: false, log: [], lagNow: 0, tot: [0, 0, 0], totMax: 0, totUnder: 0, totEl: 0 };
+  const LAG = [6, 25, 100], SETTLE = 1500;
   // (the first of them is 6 ms where the output asks for a block at a time, as iOS does: two blocks and a reading's own
   // error. An output that asks for 10 ms at a time moves the clock in steps of 10 ms, which is not a break: one and a
   // half of its steps and 3 ms there)
@@ -1385,9 +1385,13 @@ window.OEAudio = (function () {
   function probePoll() {
     tuneProbe();
     if (!ctx) return;
-    if (ctx.state !== pState) { pState = ctx.state; P.states.push(pState[0]); if (P.states.length > 24) P.states.shift(); probeNote(`context ${pState}`); }
+    if (ctx.state !== pState) { pState = ctx.state; P.states.push(pState[0]); if (P.states.length > 24) P.states.shift(); probeNote(`context ${pState}`); if (pState === 'running') P.runAt = performance.now(); }
     if (ctx.state !== 'running' || document.hidden || muted) { probeReset(); return; }
     const now = performance.now(), gap = now - ctx.currentTime * 1000;
+    // (a context's first second and a half, made or let go again: its clock runs ahead of its output until the output has
+    // begun, in WebKit 180 to 240 ms, and then steps back to it for good. That step is no break, and read as one it gave
+    // the street up within a second of every start. The clocks' offset is taken once the output is going)
+    if (now - P.runAt < SETTLE) { probeReset(); return; }
     P.n++;
     if (P.b0 === null || now - P.bAt > 20000) { P.b1 = P.b0; P.b0 = gap; P.bAt = now; } else if (gap < P.b0) P.b0 = gap;
     const base = P.b1 === null ? P.b0 : Math.min(P.b0, P.b1), lag = gap - base;
