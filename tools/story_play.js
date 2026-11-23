@@ -185,6 +185,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
   const BUDGET = process.env.BUDGET || '';
+  if (BUDGET && +process.env.BUDGET_TOP) await p.addInitScript(require('./gl_mem').own);
   if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
   if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // FROM=n: as a case left at frame n (counted from 0) and opened again
@@ -280,7 +281,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const top = +process.env.BUDGET_TOP ? await p.evaluate(n => { const r = window.__memReport(n); const g = window.__game, T = window.THREE, M = {}; let root = g.world; while (root.parent) root = root.parent;
         // (and the meshes drawn with shapes, by whose they are: three.js keeps a texture of the shapes for each such geometry)
         root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.morphAttributes && o.geometry.morphAttributes.position) { let vis = true, top = ''; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name) top = q.name; } const k = `${top} ${vis ? 'shown' : 'hidden'}`; M[k] = (M[k] || 0) + 1; } });
-        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
+        // (and each of the largest textures by the slot that wears it: "name" mesh/material.slot; one no material wears is a target or a pass's)
+        const R = g.renderer, by = new Map();
+        const note = (t, who) => { if (!t || !t.isTexture) return; const w = R.properties.get(t).__webglTexture; if (!w) return; if (!by.has(w)) by.set(w, { t, who: new Set() }); by.get(w).who.add(who); };
+        root.traverse(o => { for (const m of [].concat(o.material || [])) { if (!m) continue; for (const k in m) if (m[k] && m[k].isTexture) note(m[k], `${o.name || o.type}/${m.name || m.type}.${k}`); if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) note(v, `${o.name || o.type}/${m.name || m.type}.u.${k}`); } } });
+        for (const q of window.__texAll || []) { const t = q.deref(); if (t) note(t, `made at ${t.__at}`); }
+        const own = [...window.__mem.tex].sort((x, y) => y[1].bytes - x[1].bytes).slice(0, n).map(([w, e]) => { const h = by.get(w); return `${(e.bytes / 1048576).toFixed(1)} MB ${e.label} ${h ? `"${h.t.name || ''}" ${h.t.isCompressedTexture ? 'blocks' : h.t.isDataTexture ? 'data' : h.t.isCanvasTexture ? 'canvas' : 'picture'} ${[...h.who].slice(0, 2).join(', ')}${h.t.__at ? ` [${h.t.__at}]` : ''}${h.who.size > 2 ? ` +${h.who.size - 2}` : ''}` : '(no material)'}`; });
+        return { topTex: r.topTex, own, topBuf: r.topBuf, topRb: r.topRb, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
       fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };

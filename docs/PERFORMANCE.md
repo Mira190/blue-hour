@@ -2813,3 +2813,69 @@ listening and the nearest. (The owner asked whether a weak phone should go witho
 with the leak gone that would give back 2 MB and still the face in a conversation's close shot, which is where a
 phone's screen shows a face at all; so the faces stay, and the nearest walkers' are the first to go if a megabyte is
 wanted.) Counted on a session's machine as an iPhone emulated; the megabytes are the page's own asks of WebGL.
+
+## A desktop's pictures in blocks (November 2026)
+
+A desktop held 1.25 GB of textures in frame 1, none of it in block formats ("A budget for every beat"). Listed by
+what wears each (`tools/story_play.js` `BUDGET_TOP`, which now names a texture's slot and the line that made it):
+650 MB were colour pictures from files (the landmarks' four atlases 139 MB, twenty ground tiles 122, the cast's
+bodies and heads at 5.3 MB each, the trees' leaves, the hero level's surfaces), 125 MB colour drawn on a canvas (the
+roofs' photograph 77, the streets' paint 49), 44 MB normal maps, 21 MB packed roughness and metalness, and the rest
+not pictures: two shadow maps of 64 MB, the night's light map, masks, render targets.
+
+**What was surveyed** (23 November 2026; what is adopted is the design, no code was copied):
+
+| Way | What was found | Here |
+|---|---|---|
+| KTX2 with Basis Universal, shipped | three.js r186's `KTX2Loader` (MIT) transcodes UASTC to ASTC 4x4, else BC7, else ETC2, and ETC1S to ETC2, else BC7 mode 5, with Binomial's `basis_transcoder.wasm` (Apache-2.0; 527 KB, 245 KB gzipped). ETC1S is 0.3 to 3 bits a texel on disk at low to medium quality; UASTC 8 bits a texel, made smaller by RDO and Zstandard, and is what Khronos' KTX Artist Guide gives for normal maps, packed channels and detailed colour. Basis 2.x adds XUASTC and XUBC7 (about 2 bits a texel), which r186's loader does not read. The transcoder never targets BC5: a two-channel normal map ships as raw BC5 with an EAC or ASTC twin for Apple and phones. ([KTX2Loader r186](https://github.com/mrdoob/three.js/blob/r186/examples/jsm/loaders/KTX2Loader.js), [Basis Universal](https://github.com/BinomialLLC/basis_universal), [KTX Artist Guide](https://github.com/KhronosGroup/3D-Formats-Guidelines/blob/main/KTXArtistGuide.md)) | **Not taken.** The trial at the top of this file stands: ETC1S softens a photograph and smears a sign (27.7 dB), UASTC is three and a half times the download of the JPEG it replaces, and this project's pictures are WebP and AVIF inside models and beside them. Two of the largest are drawn on the device (the roofs' photograph, the streets' paint) and cannot be shipped at all. |
+| Encoded on the GPU as it loads | Ludicon's spark.js encodes BC1, BC5, BC7, ETC2 and ASTC in shaders on WebGPU and WebGL 2. Its shaders are under its own licence: free below US$100,000 of revenue with a visible credit, paid above ([spark.js](https://github.com/Ludicon/spark.js), [its licence](https://www.ludicon.com/sparkjs/eula.html)). | **Not taken**: not open source, and a credit on the page is the owner's to give. |
+| Encoded on the device in a Worker | What a phone already does for ASTC ("A phone's pictures in ASTC blocks"): the files stay, the download does not grow, and every picture goes the same way whatever made it. | **Adopted for a desktop**, in BC7 and BC5. |
+| Which blocks a desktop decodes | BC7 (`EXT_texture_compression_bptc`) on 99.7% of Windows, 85% of macOS and 93% of Linux browsers; BC5 (`EXT_texture_compression_rgtc`) the same and a little more; ASTC on 1.9% of Windows and 92% of macOS ([Web3D Survey](https://web3dsurvey.com/webgl2/extensions/EXT_texture_compression_bptc)). Apple Silicon decodes both families (Apple's Metal feature tables); an Intel Mac BC only. | BC7 where it is offered, else ASTC, else the pixels as before. |
+| Android without ASTC | 99.8% of Android's WebGL 2 browsers offer ASTC (the same survey); what is left is GPUs of 2013 and 2014. | **ETC2 not written**: a phone without ASTC keeps its pixels, as before. |
+| A normal map in two channels | three.js works a normal's blue out of its red and green when the map's format has two channels (`USE_PACKED_NORMALMAP`, since r184; BC5 among them). | **Adopted**: a model's normal maps as BC5. |
+
+**The encoder** (`web/bc7.js`, in the Workers `web/tex.js` already keeps). BC7 has eight block layouts and a block
+names its own; three are written. Mode 6 (one line through the block in four channels, endpoints of 7 bits and a
+shared bit, a 4-bit step a texel) takes every smooth block: a sky, a wall, a face. Mode 1 (two lines, the texels
+divided by one of 32 of the format's patterns, 6-bit endpoints, a 3-bit step) is tried for an opaque block one line
+fits badly, from the three patterns nearest to how the first line divided it: a sign's letter in one colour beside a
+ground of another. Mode 5 (colour and alpha each on a line of their own) takes a block of a cut-out whose alpha does
+not follow its colour. BC5 is a block of eight values for red and one for green. A line is the principal axis of its
+texels, refined once by least squares against the steps chosen, as the ASTC encoder's is; the mipmaps, the colour
+bled under a cut-out and the quality floor (33 dB, 27 for alpha: under it a picture keeps its pixels) are the ASTC
+path's own. No code was taken: the layouts are the Khronos data format specification's.
+
+`tools/bc_check.py` (with `tools/check.sh astc`) encodes with the page's encoder in Node and decodes with Pillow's,
+which is not ours: 2,560 made-up blocks that force each layout and every pattern decode to within a fifth of a
+decibel of the encoder's own count; a dusk sky's gradient comes back with no texel more than one step of 255 from
+what it was (mean 0.32: no band); and this project's pictures at their own size:
+
+| Picture | BC7, opaque | as a cut-out (colour, alpha) | Phone's ASTC, for comparison |
+|---|---|---|---|
+| a ground tile | 45.5 dB | 36.4, 34.1 | 39.6 |
+| the signs' atlases (`atlas`, `scramble`, `yongen`) | 44.1, 44.0, 47.0 | 39.4 to 41.8 | 35.6 to 47.8 over all pictures |
+| the screens' programmes | 45.1 | 40.2, 41.8 | |
+| the far trees' leaves | 46.1 | 39.2, 40.9 | |
+| a body of the cast | 47.9 | | |
+| a normal map as BC5 | 52.0 in red and green | | not packed |
+
+**What is packed on a desktop**: everything a phone packs, at its full size (`world.js` `leanDown`, the far tiles,
+`farcity.js`'s towers), and a model's tangent-space normal maps where nothing else wears the same picture. **What is
+not, and why**: the packed roughness, metalness and occlusion (three unrelated channels on one line: 21 MB, the next
+candidate, as BC7 with two lines or as two BC4); the trees' bark normals (swapped in after the game opens: a
+two-channel map is another program, so a compile in play; 27 MB); masks read by the pixel (`woods`, `shore`: 28 MB,
+which could be one channel); data textures, canvases drawn again, render targets and shadow maps.
+
+**Three things a desktop's path met that a phone's had not.** WebGL takes a BC texture only where its top level is
+whole blocks (ASTC has no such rule): the roofs' photograph is 4096 x 3682, so a side is drawn at the multiple of
+four under it (a third of a percent at most). A texture already sent as pixels cannot become blocks in the same
+storage: `wear()` lets the old one go first. And `neon.js` reads the screens' programmes by the pixel for the light
+they throw: a picture in blocks has no pixels on the page, so the Worker hands back a copy 512 on a side for it
+(`userData.thumb`).
+
+**A software renderer keeps its pixels.** Mesa's llvmpipe offers BC7 and decodes it a texel at a time as it samples:
+a drawn frame went from 1.6 s to 9.7 s here. So where the renderer names itself software (`tex.js` `on`), nothing is
+packed unless `?tex=bc7` asks; the checks' plays are as they were, and a count in blocks is asked for with
+`Q='?tex=bc7' STILLS=0 DRAW=1000` (the page's asks of WebGL are counted, not rasterised). `?tex=raw` turns it off
+anywhere, and the telemetry's events carry `bc: 1` where it is on (`astc: 1` on a phone, as before).
+

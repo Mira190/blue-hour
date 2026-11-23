@@ -8,6 +8,7 @@
 // dz is metres over the ground there; "people": [x, y] (with crowd_r, crowd_n) stages the crowd round a point, as a film shot does. "date": [month, day]; TIER=high|medium|low (default high);
 // ONLY=name,name and TIMES=day,night pick some; SETTLE=seconds the world runs before each still (6).
 // EVAL=js runs in the page before each still (g: the game), its result printed.
+// QUERY='&tex=bc7' adds to the page's address (the pictures in blocks on a software renderer, beside QUERY='&tex=raw').
 // PROBE=fx,fy;fx,fy lists what a ray through those points of the frame meets (a still that looks wrong: what is it?).
 // Prints the frame time the page measured for each still (ms, median of FRAMES (9) frames on this renderer).
 const { chromium } = require('playwright');
@@ -37,7 +38,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
   p.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
   fs.mkdirSync(outDir, { recursive: true });
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1${process.env.QUERY || ''}#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 600000 });
   await startPlay(p); // (the title card up, Play pressed and the game started: tools/start_play.js, #423)
   await p.waitForTimeout(1500);
