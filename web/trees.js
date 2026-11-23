@@ -532,10 +532,14 @@ vec3 nonPerturbedNormal = normal;`)
     const Y = yozakura();
     const PT = petals();
     const farCut = 1 + 127 * Math.min(1, Math.max(0, farKeep)); // (half[] is 1..254 for a wood's trees, 0 for the rest: never cut)
-    const WOOD_M = keep < 1 ? 600 : 900, L = I.lod_m || [130, 520], last = new THREE.Vector3(1e9, 0, 0), cam = new THREE.Vector3();
+    // (a phone, quality.js lean: the tree's full model, 2,000 triangles, within 80 m, its second, 500, to 320 m, and the
+    // hero model, 10,000, within 14 m and for a dozen trees at most. From the street at Hachiko the near and mid trees
+    // were 70,000 triangles of a phone's frame)
+    const LEANT = !!(window.OEQuality && OEQuality.city().lean);
+    const WOOD_M = keep < 1 ? 600 : 900, L = LEANT ? [80, 320] : I.lod_m || [130, 520], last = new THREE.Vector3(1e9, 0, 0), cam = new THREE.Vector3();
     // the hero models (trees.json hero_m: the full tier's reach and the light tier's): the trunk on its root spurs in
     // its scanned bark, the limbs' collars, the twigs, and the leaves at their own size on stalks (build_trees.py grow)
-    const HERO_M = (I.hero_m || [0, 0])[small ? 1 : 0];
+    const HERO_M = LEANT ? Math.min(14, (I.hero_m || [0, 0])[1]) : (I.hero_m || [0, 0])[small ? 1 : 0];
     let sortedAt = -1e9;
     // re-sort the trees into near, mid and far when the camera has moved far enough
     // The near and mid trees cast the sun's shadow, but they are instanced meshes the GPU draws whole (frustum
@@ -612,7 +616,7 @@ vec3 nonPerturbedNormal = normal;`)
     // as many trees as can stand within that reach (HERO_N, the rest of them the near model), not every tree of its
     // species in the city as the other levels' do, and is shown only while it draws one, so that a species' model
     // goes up to the GPU when one of its trees is first near (on a phone, 2 to 3 MB of instances and 5 of models)
-    const HERO_N = small ? 40 : 160, heroN = new Int32Array(names.length);
+    const HERO_N = LEANT ? 12 : small ? 40 : 160, heroN = new Int32Array(names.length);
     function addHero(gltf) {
       if (!gltf) return 0;
       let added = 0;
