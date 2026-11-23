@@ -155,7 +155,8 @@ def layout():
         n = int(g.length / STEP) + 1
         pts = np.array([g.interpolate(k * g.length / (n - 1)).coords[0] for k in range(n)])
         s = np.linspace(0, g.length, n)
-        ground = np.array([T(x, y) for x, y in pts])
+        # (the ground under the track as surveyed, settled once and kept: _surveyed())
+        ground = _surveyed(tid, pts, T)
         # the rail never under the ground, and across a valley on an embankment: the upper envelope of the smoothed
         # ground at the steepest grade (Shibuya Station stands in the valley of the Shibuya River on its second floor)
         zs = _smooth(ground, 5) + 0.8
@@ -251,6 +252,24 @@ def underbridges():
     return out
 
 
+def _surveyed(tid, pts, T):
+    """The ground under a track's samples as the survey had it, kept beside the city's sources (rail_levels.json).
+
+    The rail's level is made from the ground under the track, embankment and all. Read from the ground as it is now, it
+    was a function of what the grading had last done there: with the embankment taken out of the ground (the bed stands
+    on its walls, pipeline/street_ground.py viaduct(), issue 158) the line would have come down to the street. So the
+    profile is written once, from the ground as it was when the line was laid out, and read from then on; a track
+    whose samples have changed (the mapped line moved) is laid out afresh."""
+    path = os.path.join(HERE, "rail_levels.json")
+    rec = json.load(open(path, encoding="utf8")) if os.path.exists(path) else {"note": "The ground under the Yamanote's tracks as surveyed, a value at each sample of rail.py layout() (m): written once, so that the rail's level does not follow what the grading does to the ground under it.", "tracks": {}}
+    t = rec["tracks"].get(tid)
+    key = [round(float(v), 1) for v in (pts[0][0], pts[0][1], pts[-1][0], pts[-1][1])]
+    if not t or t["n"] != len(pts) or t["ends"] != key:
+        t = rec["tracks"][tid] = {"n": len(pts), "ends": key, "ground": [round(T(x, y), 2) for x, y in pts]}
+        json.dump(rec, open(path, "w", encoding="utf8"), separators=(",", ":"))
+    return np.array(t["ground"], float)
+
+
 def _open(t, i):
     """Whether the bed is drawn at sample i: not in a station's box, nor on the Scramble's stretch."""
     if t["scramble"][i]:
@@ -265,7 +284,10 @@ def meshes(Mesh):
         return {}, []
     from railkit import Kit, offset
     K = Kit(Mesh, "yl", MATERIALS, uv={"yl_wall", "yl_ballast"})
-    T = L["T"]
+    # (what stands on the ground reads the ground the game draws: pipeline/levels.py, docs/LEVELS.md)
+    import levels
+    GL = levels.Levels("shibuya")
+    T = lambda x, y: float(GL.at(x, y))
     U = underbridges()
     under = lambda p: next((u for u in U if u["line"].distance(Point(float(p[0]), float(p[1]))) < u["hw"]), None)
     two = lambda mesh, a, b, c, d: (mesh.quad(a, b, c, d), mesh.quad(d, c, b, a))   # (seen from either side)

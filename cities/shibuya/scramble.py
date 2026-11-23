@@ -149,7 +149,11 @@ class Data:
         self.foot = [[(r["p"][k] / 10, r["p"][k + 1] / 10) for k in range(0, len(r["p"]), 3)] for r in G["paths"]["foot"]]   # (the lines the crowd walks)
 
     def ground(self, x, y):
-        return self.T(x, y)
+        # (the ground the game draws, outside the hero levels: pipeline/levels.py Standing)
+        if getattr(self, "_stand", None) is None:
+            import levels
+            self._stand = levels.Standing(self.C.id, self.T)
+        return self._stand(x, y)
 
 
 def unit(v):
@@ -1120,6 +1124,7 @@ def jr_lines(K, A, D):
            Pw(0, -1.6, zb - JR["girder_m"] + 1.05), "jr_clear")
     # the viaduct's columns, in three rows, and the fence between the western ones (open at the bicycle lot)
     lot = JR_LOT
+    fence = []
     for yy in np.arange(b1 + 6.0, JR["y1"], 7.5):
         xa, xb = np.interp(yy, ys, west), np.interp(yy, ys, east)
         g = D.ground((xa + xb) / 2, yy)
@@ -1128,8 +1133,22 @@ def jr_lines(K, A, D):
         y2 = yy + 7.5
         if y2 < JR["y1"] and not (lot[1] - 1 < yy + 3.75 < lot[3] + 1):
             xa2 = np.interp(y2, ys, west)
-            K["x_fence"].quad(np.array([xa + 0.15, yy, g]), np.array([xa2 + 0.15, y2, g]), np.array([xa2 + 0.15, y2, g + 1.8]), np.array([xa + 0.15, yy, g + 1.8]),
-                              [[0, 0], [7.5, 0], [7.5, 1.8], [0, 1.8]])
+            fence.append(((xa + 0.15, yy), (xa2 + 0.15, y2)))
+    # (the fence by the rule of levels, pipeline/levels.py: each panel had stood on the ground under its own bay's
+    # middle, so its top rose and fell with the ground from panel to panel, a tooth of 0.26 m once the embankment was
+    # taken out from under the viaduct, issue 158)
+    import levels
+    runs_, GLv = [], ground_levels()
+    for seg in fence:
+        if runs_ and math.hypot(runs_[-1][-1][0] - seg[0][0], runs_[-1][-1][1] - seg[0][1]) < 1e-6:
+            runs_[-1].append(seg[1])
+        else:
+            runs_.append([seg[0], seg[1]])
+    for line in runs_:
+        for bay in levels.stepped(line, GLv, 1.8, bay=7.5, kind="fence"):
+            h = bay.top - bay.foot
+            K["x_fence"].quad(np.array([*bay.a, bay.foot]), np.array([*bay.b, bay.foot]), np.array([*bay.b, bay.top]), np.array([*bay.a, bay.top]),
+                              [[0, 0], [7.5, 0], [7.5, h], [0, h]])
     D.props = getattr(D, "props", []) + bicycles(D, lot)
     for row_y, face in ((lot[1] + 1.2, 1), (lot[3] - 1.2, -1)):     # the racks' rails
         K["x_rail"].tube([np.array([lot[0] + 0.5, row_y + face * 0.6, D.ground(lot[0], row_y) + 0.3]),
