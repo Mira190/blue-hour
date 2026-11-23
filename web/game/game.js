@@ -3631,7 +3631,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
   let crowdAuto = true, govCrowd = 1; // (govCrowd: the frame-time governor's share of the crowd, its ladder below)
-  function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd); }
+  // (a phone's crowd as many as its faces can fill: the walkers near you are drawn whole from QC.budget.cast scanned people,
+  // 4 on a phone's usual set and 2 on its lightest (quality.js), and a phone's whole crowd, far copies too, is those same
+  // people (people.js realOf, farOf). Round 2 people a crowd of 640 was the same man and the same woman at every elbow
+  // (the owner's iPhone, the walk's opening, 22 November 2026). The crowd is now as large as LOW_CAST faces would fill
+  // and no larger: half on the usual set, a quarter on the lightest; any other device keeps all of it)
+  const faceShare = QC.lean && QC.budget && QC.budget.cast ? Math.min(1, QC.budget.cast / LOW_CAST) : 1;
+  function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); }
   // mode: 'chase', 'bird' (the helicopter's bird's-eye view) or 'cockpit' (the pilot's eyes, looking lookYaw left and lookPitch up)
   // distTo and yawTo, when set, ease the chase camera somewhere (out to the helicopter's view, round to its door)
   // on foot the chase camera rests 5.5 m behind the head at 0.17 rad (issue 71): its eye about 2.5 m over the street, at
@@ -5702,7 +5708,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (const end of [-1, 1]) {
         const len = crowdNet.L[line].len, sk = Math.max(0, Math.min(len, x.s + end * x.kerb));
         crowdNet.at(line, sk, tmp);
-        const mine = Math.hypot(tmp.x - player.x, tmp.y - player.y) < 6, n = mine ? 11 : 4;
+        const mine = Math.hypot(tmp.x - player.x, tmp.y - player.y) < 6, n = Math.max(1, Math.round((mine ? 11 : 4) * faceShare)); // (a phone's as its faces can fill: faceShare)
         // behind the kerb, facing across; where the footway ends at the kerb, the first steps out onto the stripes
         const back = end > 0 ? len - sk : sk;
         for (let i = 0; i < n; i++) spots.push({ line, s: back > 1.5 ? sk + end * (0.3 + srnd() * Math.min(back - 0.3, mine ? 3.5 : 2.5)) : sk - end * srnd() * (mine ? 3 : 2), dir: -end, side: -1.6 + srnd() * 3.6 });
@@ -5766,7 +5772,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // lets the loading cue go as it sets out; opts.walk, opts.fill: the walk's film, and what its type's {tokens} say)
   makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     walk: !!opts.walk, fill: opts.fill || null, levelReady: () => levelReady(), get levelWait() { return LEVEL_WAIT_S; }, // (both read when played: they are declared further on)
-    junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
+    junctions, crowd, faceShare, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
   if (overture && (story || OEOverture.due(CITY.id))) overture.prepareScore();
@@ -6136,6 +6142,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       carsHeld = false;
       lateBusy = true;
       lateOn = Promise.all([...people, carsIn(), treesIn()]).finally(() => { lateBusy = false; });
+      // then the pictures of what is in the scene and not drawn yet, one a frame (world.js uploadRest, issue 184)
+      lateOn.then(() => (OEWorld.uploadRest ? OEWorld.uploadRest(renderer, world) : 0)).then(n => { if (n) console.info(`late: ${n} pictures sent ahead of their first draw`); }).catch(() => {});
     } else {
       // (and none of it under the opening's film, before any step or any one of the people: the city seen whole from the
       // air is the most a phone holds, and what came in beside it was the step its GPU died on, eight seconds into the
@@ -6208,6 +6216,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.setShadowSize) { const S = Wd.shadowSize; gov.rung('shadow', [S, Math.max(1024, S / 2), 1024], v => Wd.setShadowSize(v)); }
   // the crowd: whole, whole, and three in four with none (crowd.active, as the menu's density sets it)
   gov.rung('crowd', [1, 1, 0.75], v => { govCrowd = v; applyDensity(); });
+  // A tier down, or back up, when the governor has nothing left to give on this one (quality.js tierStep, issue 184): the
+  // new tier's canvas, scene budget, multisampling and shadow map at once; what the world was built with (its set of
+  // details, the woods, the cast) from the next load, which starts on the tier this one ended on.
+  gov.tierRoom = gov.auto ? OEQuality.room() : 0; gov.tierDown = QC.stepped || 0; gov.upWait = OEQuality.stepped(cityId).wait;
+  gov.onTier(dir => {
+    const was = QC.name;
+    gov.tierDown = OEQuality.tierStep(dir, cityId);
+    Object.assign(QC, OEQuality.city());
+    gov.tierRoom = OEQuality.room(); gov.upWait = OEQuality.stepped(cityId).wait;
+    if (Wd.setShadowSize) { const S = QC.shadow; gov.revalue('shadow', [S, Math.max(1024, S / 2), 1024]); }
+    resize();
+    console.info(`Frame budget: tier ${was} → ${QC.name} (${gov.frameMs.toFixed(1)} ms a frame at ${gov.scale.toFixed(2)}/${gov.extras})`);
+    if (window.OETelemetry) { if (OETelemetry.set) OETelemetry.set({ tier: QC.name }); if (OETelemetry.track) OETelemetry.track('tier_step', { from: was, to: QC.name, ms: +gov.frameMs.toFixed(1), scale: +gov.scale.toFixed(2), shed: 2 - 2 * gov.extras }); }
+  });
   gov.on((extras, scale, extrasChanged) => {
     resize();
     if (window.OETelemetry && OETelemetry.set) OETelemetry.set({ scale: +scale.toFixed(2), shed: 2 - 2 * extras, msaa: atmos && atmos.composer ? atmos.composer.samples : QC.samples || 0, cap: gov.cap }); // (each step is a "quality" event: telemetry.js)

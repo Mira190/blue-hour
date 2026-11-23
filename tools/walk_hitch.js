@@ -28,8 +28,11 @@ const [,, city = 'shibuya', secs = '40', speed = '9'] = process.argv;
         c.n++; c.ms += dt; c.max = Math.max(c.max, dt);
         // the texel count of an upload: (target, level, ifmt, w, h, ...) or (target, level, ifmt, fmt, type, source)
         let px = 0;
-        if (name === 'texImage2D' || name === 'texSubImage2D') px = typeof a[3] === 'number' && typeof a[4] === 'number' && a.length >= 8 ? a[3] * a[4] : (a[a.length - 1] && (a[a.length - 1].width * a[a.length - 1].height || 0)) || 0;
+        if (name === 'texSubImage2D' && a.length >= 9 && typeof a[4] === 'number') px = a[4] * a[5]; // (target, level, x, y, w, h, ...)
+        else if (name === 'texImage2D' || name === 'texSubImage2D') px = typeof a[3] === 'number' && typeof a[4] === 'number' && a.length >= 8 ? a[3] * a[4] : (a[a.length - 1] && (a[a.length - 1].width * a[a.length - 1].height || 0)) || 0;
         const e = { t: t0, name, ms: dt, px };
+        // (STACK=1: a large upload's draw and the page's frames that sent it: which model's pictures arrive in one frame)
+        if (window.__stack && px >= 262144) { e.obj = window.__drawing; e.from = (new Error().stack || '').split('\n').filter(l => /\/(game|web)\/|\/[a-z]+\.js/.test(l) && !/vendor|three|walk_hitch/.test(l)).slice(0, 4).map(l => l.trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, '')).join(' < '); }
         if ((name === 'getProgramParameter' || name === 'getProgramInfoLog') && dt > 20) e.prog = (gl.progs && gl.progs.get(a[0])) || '?'; // (which program a long wait was for)
         gl.log.push(e);
         return r;
@@ -63,7 +66,7 @@ const [,, city = 'shibuya', secs = '40', speed = '9'] = process.argv;
       const O = window.THREE && THREE.Object3D && THREE.Object3D.prototype;
       if (!O) return;
       const path = o => { const n = []; for (let q = o; q && n.length < 4; q = q.parent) n.push(q.name || q.type); return n.join('<'); };
-      const mark = shadow => function (r, s, c, g, m) { window.__drawing = (shadow ? 'shadow ' : '') + path(this) + ' / ' + (m && (m.name || m.type)); };
+      const mark = shadow => function (r, s, c, g, m) { window.__drawing = (shadow ? 'shadow ' : '') + path(this) + ' / ' + (m && (m.name || m.type)) + (m && m.map ? ` map=${m.map.name || (m.map.image && String(m.map.image.src || m.map.image.currentSrc || m.map.image.constructor && m.map.image.constructor.name || '').split('/').pop()) || '?'}` : '') + (g && g.attributes && g.attributes.position ? ` v${g.attributes.position.count}` : ''); };
       const b = O.onBeforeRender, sh = O.onBeforeShadow, on = mark(false), onS = mark(true);
       O.onBeforeRender = function (...a) { on.apply(this, a); return b && b.apply(this, a); };
       if (sh) O.onBeforeShadow = function (...a) { onS.apply(this, a); return sh.apply(this, a); };
