@@ -41,6 +41,12 @@ function watch({ x, y, secs, R }) {
       const now = new Set();
       for (const q of j.active) { now.add(q.c); if (!s.seen.has(q.c)) { const A = o.arms.find(a => a.i === q.k); if (A && A.cur) A.cur.in.push(+(t - A.cur.t0).toFixed(2)); else if (A) A.late = (A.late || 0) + 1; } }
       s.seen = now;
+      // (a scramble's crowd off its walk: who stands in the carriageway while the traffic has its turn, sampled each second)
+      if (j.scramble && j.ph < 2 && j.st === 'g' && j.t > 3 && Math.abs(t - Math.round(t)) < 1e-6 && g.crowd && g.crowd.P && g.crowd.crossings) {
+        let n = 0; const P = g.crowd.P, road = g.crowd.crossings.road;
+        for (let i = 0; i < Math.min(g.crowd.active, P.length); i++) { const q = P[i]; if ((q.line >= 0 || q.pz) && (q.v || 0) < 0.3 && Math.hypot(q.x - j.x, q.y - j.y) < (j.reach || 30) + 12 && road(q.x, q.y)) { n++; const k = `${Math.round(q.x / 4) * 4},${Math.round(q.y / 4) * 4} ${q.pz ? q.ph : 'footway'}`; (o.inRoad || (o.inRoad = {}))[k] = (o.inRoad[k] || 0) + 1; } }
+        o.roadN = (o.roadN || 0) + n; o.roadT = (o.roadT || 0) + 1; o.roadMax = Math.max(o.roadMax || 0, n);
+      }
       for (const A of o.arms) {
         const a = j.arms[A.i], lt = JN.light(a);
         if (lt === 'g' && !A.cur) A.cur = { t0: t, q: a.qn || 0, in: [] };
@@ -140,6 +146,7 @@ function watch({ x, y, secs, R }) {
           if (queued.length >= 3 && qMean >= 2 && passQ < Math.min(qMean, 3) / 3) { bad++; console.log(`FAIL junction ${j.id} arm ${A.i}: a queue of ${f1(qMean)} and ${f1(passQ)} through a green`); }
         }
       }
+      if (j.roadT) console.log(`   standing in the carriageway in the traffic's turns: ${f1(j.roadN / j.roadT)} of the crowd at a time, ${j.roadMax} at most; where: ${Object.entries(j.inRoad || {}).sort((u, v) => v[1] - u[1]).slice(0, 6).map(([w, n]) => `${w} ${f1(n / j.roadT)}`).join('; ')}`);
       if (j.people) console.log(`   stood for people: ${Object.entries(j.people).sort((u, v) => v[1] - u[1]).slice(0, 8).map(([w, t]) => `${w}${Math.round(t)} s`).join('; ')}`);
       if (process.env.CHECK && cyc.length && Math.max(...lens) > 130) { bad++; console.log(`FAIL junction ${j.id}: a cycle of ${f1(Math.max(...lens))} s (130 at most)`); }
     }

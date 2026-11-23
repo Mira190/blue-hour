@@ -1791,6 +1791,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const L = P[q.lead], ahead = ((L.x - q.x) * dx + (L.y - q.y) * dy) / d;
         sp = Math.max(0.45, Math.min(2, Math.max(L.v || 0, 0.3) + Math.max(-0.6, Math.min(0.6, ahead * 1.2))));
       }
+      // (stood in the road in front of a car that has waited on them, off the walk: on through the press to a spot
+      // further back from the kerb, as the footways' walkers turn back for one, below. One pressed against the crowd
+      // at the kerb by the Scramble's western stop line held a driver there 150 s, issue 175)
+      if (q.give) { q.give = false; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); } } }
       if (q.pause > 0) sp = 0;
       let vx = d > 1e-3 ? dx / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0, vy = d > 1e-3 ? dy / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0;
       // the others near: apart, and, meeting someone coming the other way, a step to the left
@@ -4003,7 +4007,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               // and the room asked for is beyond it: asked here, a piece shorter than a car up to that line never had
               // room, and no car ever took it; Shibuya's 811 onto a 39 m piece whose far line is 28 m back, a car stood
               // 121 s at it, #243. Not with a car on the short piece going that way: it waits behind that one)
-              const pair = go ? JN.after(jEx, 2 * c.half + 3) : null;
+              // (not from the side road of a junction run from the scramble beside it, junctions.js follow: its green is that
+              // scramble's walk, so the two never show green together. It crosses this one alone and waits the scramble's
+              // turn on the short piece between, as a driver does, issue 175)
+              const twin = () => { const q = JN.after(jEx, 2 * c.half + 3); return q && jArm.j.lead === q.j && jArm.phase !== jArm.j.leadPh ? null : q; };
+              const pair = go ? twin() : null;
               const through = pair && !(onLine.get(jEx.m.line) || []).some(j => C[j] !== c && C[j].dir === (jEx.m.end === 0 ? 1 : -1));
               if (go && !through && !room(c, jEx)) { go = false; noRoom = true; }
               let narrowOut = false;
@@ -4025,7 +4033,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               const inLane = (c.anyLane === jArm && (c.mv || c.mv0)) || (jEx.lanes.includes(c.ln || 0) && (Math.abs(c.lo - side * JN.shiftOf(l, c.ln)) < 0.3 || (c.mv && c.mv.j !== jArm.j)));
               if (!inLane) go = false;
               // a junction just after, too close to wait between: crossed with this one, its way chosen now
-              const a2 = go ? JN.after(jEx, 2 * c.half + 3) : null;
+              const a2 = go ? twin() : null;
               let light2 = false; // (held by that one's light: waiting for it, as at a red here, not for room)
               if (a2) {
                 if (!c.ex2 || c.ex2.a !== a2) c.ex2 = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c)) };
@@ -4033,9 +4041,6 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                 if (!c.ex2.e || !(lt2 == null || lt2 === 'g') || a2.sign === 'stop') go = false;
                 else if (!room(c, c.ex2.e)) { go = false; noRoom = true; } // (no room beyond the second: another way out after 5 s, as for the first's, below; Shinjuku's 1103 arm 0 stood 198 s for room past 1105, #331)
                 if (c.ex2.e && lt2 && lt2 !== 'g') light2 = true;
-                // (from the side road of a junction run from the scramble beside it, junctions.js follow: its green is that
-                // scramble's walk, so the way into the scramble never opens with it. Another way out, as for no room, below)
-                if (light2 && jArm.j.lead === a2.j && jArm.phase !== jArm.j.leadPh) noRoom = true;
                 // (held at this line by the next one's light: a call for its phase, as if at its line, and the time
                 // counted lost on this green, junctions.js; a 6 s green at Shinjuku's 1105 went by on 1103's red, #264)
                 // (at a scramble's, counted in that arm's queue instead: its turn is run for its queues, and passed over with

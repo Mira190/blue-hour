@@ -151,15 +151,18 @@ window.OEGameRides = function (g) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (let k = 0; k < np; k++) { const x = ps[2 * k], y = ps[2 * k + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     const R = C.hw + 0.3 + 0.25, R2 = R * R;
-    let gap = Infinity;
-    const test = (px, py, pz) => {
+    let gap = Infinity, who = null;
+    const test = (px, py, pz, p = null) => {
       if (px < x0 - R || px > x1 + R || py < y0 - R || py > y1 + R || (pz != null && Math.abs(pz - st.z) > 2.5)) return;
       for (let k = 0; k < np && k * step < gap; k++) {
         const ex = ps[2 * k] - px, ey = ps[2 * k + 1] - py;
-        if (ex * ex + ey * ey < R2) { gap = Math.min(gap, Math.max(0, k * step - 0.3)); return; }
+        if (ex * ex + ey * ey < R2) { gap = Math.min(gap, Math.max(0, k * step - 0.3)); who = p; return; }
       }
     };
-    if (g.crowd && g.crowd.P) for (let i = 0, n = Math.min(g.crowd.active, g.crowd.P.length); i < n; i++) { const p = g.crowd.P[i]; if (p.line >= 0 || p.pz) test(p.x, p.y, p.z); }
+    if (g.crowd && g.crowd.P) for (let i = 0, n = Math.min(g.crowd.active, g.crowd.P.length); i < n; i++) { const p = g.crowd.P[i]; if (p.line >= 0 || p.pz) test(p.x, p.y, p.z, p); }
+    // (stopped 3 s for one of the crowd standing in its way: asked to step aside, as a car of the traffic asks,
+    // actors.js give; a driver stood 150 s for one pressed against the kerb's crowd at the Scramble, issue 175)
+    if (who && (st.v || 0) < 0.6 && gap < 6) { if (st.pwWho !== who) { st.pwWho = who; st.pwAt = g.clockT; } else if (g.clockT - st.pwAt > 3) { who.give = true; st.pwAt = g.clockT; } } else st.pwWho = null;
     // (someone who stands on the pavement is not on its way, however near the kerb: the walk's people stand at the
     // corners its drives turn round, and a driver waited on one for good 80 m short of 109, issue 167)
     for (const n of g.npcs) if (!g.nav.carriageway || g.nav.carriageway(n.x, n.y) !== false) test(n.x, n.y, n.z);
