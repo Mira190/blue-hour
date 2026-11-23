@@ -37,14 +37,20 @@ const [,, size = '390x844'] = process.argv;
   }, DRAW);
   // the readings, taken in the page so that a slow harness loses none
   await p.addInitScript(() => {
-    const R = window.__snd = { rows: [], phase: 'load', steps: [] };
-    // (each step of the load as game.js marks it, and whether the opening's film was on as it began)
-    try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.name === 'oe:step' && e.detail) { const g = window.__game, o = g && g.overture && g.overture(); R.steps.push({ step: e.detail.step, t: e.startTime, film: !!(o && o.active) }); } }).observe({ type: 'mark' }); } catch (e) { /* no observer */ }
+    const R = window.__snd = { rows: [], phase: 'load', steps: [], taps: [] };
+    // (when the context is made, by what, and every touch: a context made while the street is to wait says which let it in)
+    addEventListener('pointerup', () => R.taps.push([performance.now(), R.phase]), { capture: true });
+    const AC0 = window.AudioContext;
+    if (AC0) { window.AudioContext = window.webkitAudioContext = function (...a) { R.ctxAt = [performance.now(), R.phase, (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ')]; return new AC0(...a); }; window.AudioContext.prototype = AC0.prototype; }
+    // (each step of the load as game.js marks it, and whether the opening's film was on at that moment: read in the mark
+    // itself, not in an observer, whose entries come later, when the film may have begun after a step taken just before it)
+    { const mark = performance.mark.bind(performance);
+      performance.mark = function (name, o) { if (name === 'oe:step' && o && o.detail) { const g = window.__game, f = g && g.overture && g.overture(); R.steps.push({ step: o.detail.step, t: performance.now(), film: !!(f && f.active) }); } return mark(name, o); }; }
     setInterval(() => {
       const A = window.OEAudio; if (!A) return;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
       R.rows.push({ t: performance.now(), phase: R.phase, film: !!(o && o.active), ctx: c ? c.state : null, tot: P.tot.slice(), el: P.totEl, under: ps ? ps.underrunEvents : null, underMs: ps ? ps.underrunDuration * 1000 : null,
-        main: P.main });
+        main: P.main, held: !!A.holding, lateIn: !!R.lateIn, act: !!(navigator.userActivation && navigator.userActivation.isActive), log: c && !R.made ? (R.made = P.log.slice(-4).join(' | ')) : undefined });
     }, 250);
   });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?snd=1${WEB ? '&music=web' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -79,10 +85,23 @@ const [,, size = '390x844'] = process.argv;
     if (!WEB) music.push(await playingNow());
     await p.waitForTimeout(1000);
   }
-  await p.evaluate(() => { window.__snd.phase = 'after'; });
   console.log(`the film: ${((Date.now() - t0) / 1000).toFixed(0)} s on the wall's clock`);
-  // after it: one touch, as a player's first on the street, and the context is made
-  await p.waitForTimeout(2500);
+  // after it the phone's late parts come in (game.js afterPlayable), and the street waits for them (audio.js hold, the
+  // guard: docs/SOUND.md "The guard"): a touch meanwhile, as a player's first on the street, makes no context that runs
+  const guard = !WEB && await p.evaluate(() => !!window.OEAudio.guard);
+  if (guard) {
+    await p.evaluate(() => { window.__snd.phase = 'late'; window.__snd.lateIn = false; window.__game.lateReady().then(() => { window.__snd.lateIn = true; }); });
+    await p.waitForTimeout(1500);
+    await p.touchscreen.tap(w / 2, h * 0.3);
+    const tl = Date.now();
+    await p.waitForFunction(() => window.__snd.lateIn, null, { timeout: 600000, polling: 500 }).catch(() => fail('the late parts are not in ten minutes after the film'));
+    console.log(`the late parts: in ${((Date.now() - tl) / 1000).toFixed(0)} s after the film on the wall's clock`);
+    // (the street let go three seconds after the page is still: then a touch makes the context)
+    await p.waitForFunction(() => !window.OEAudio.holding, null, { timeout: 30000, polling: 250 }).catch(() => fail('the street is still held 30 s after the late parts are in'));
+  }
+  await p.evaluate(() => { window.__snd.phase = 'after'; });
+  // then one touch, as a player's on the street, and the context is made
+  await p.waitForTimeout(guard ? 500 : 2500);
   await p.touchscreen.tap(w / 2, h * 0.3);
   const made = await p.waitForFunction(() => window.OEAudio.ctx && window.OEAudio.ctx.state === 'running', null, { timeout: 10000, polling: 250 }).then(() => true, () => false);
   await p.waitForTimeout(3000);
@@ -110,10 +129,12 @@ const [,, size = '390x844'] = process.argv;
     const head = music.slice(0, 20), quietHead = head.filter(n => n < 1).length;
     if (WALK ? quietHead > 3 : music.length && silent > Math.max(2, music.length * 0.1)) fail(`no music plays at ${WALK ? `${quietHead} of the film's first ${head.length}` : `${silent} of ${music.length}`} readings in the film`);
     if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
+    const late = by('late').filter(r => !r.lateIn), lateRun = late.filter(r => r.ctx === 'running').length; // (until the late parts are in: the street is let go three seconds after, and may be made then)
+    if (guard) { console.log(`while the late parts came in: ${late.length} readings, the context running at ${lateRun}, the street held at ${late.filter(r => r.held).length}`); for (const r of late.filter(q => q.ctx === 'running' || q.log)) console.log(`  at ${(r.t / 1000).toFixed(1)} s: context ${r.ctx}, held ${r.held}, activation ${r.act}${r.log ? `, made: ${r.log}` : ''}`); const mk = R.find(q => q.log); if (mk) console.log(`the context made at ${(mk.t / 1000).toFixed(1)} s (${mk.phase}): ${mk.log}`); const X = await p.evaluate(() => ({ at: window.__snd.ctxAt, taps: window.__snd.taps })); console.log(`  made by: ${JSON.stringify(X.at)}; touches: ${X.taps.map(t => `${(t[0] / 1000).toFixed(1)} s ${t[1]}`).join(', ')}`); if (lateRun) fail(`the context ran at ${lateRun} of ${late.length} readings while the phone's late parts came in: the street is to wait for a page with room for it`); }
     if (!made) fail('ten seconds after the film and a touch, the context is not made and running: the street has no sound');
     else console.log(`after the film and a touch: context ${last.ctx}`);
   }
-  console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on an element without a stall under a main thread throttled ${RATE} times, the context made at the first touch after it`);
+  console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on an element without a stall under a main thread throttled ${RATE} times, ${guard ? 'no context running while the late parts came in, ' : ''}the context made at the first touch after it`);
   await b.close();
   process.exit(errors.length ? 1 : 0);
 })();

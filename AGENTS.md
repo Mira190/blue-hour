@@ -173,7 +173,9 @@ The owner should not be the one who finds the bug.
   bug 320149; the third time the owner's iPhone found the opening's noise, issue 166). A lighter graph does not fix what
   is not the graph's cost. So: a phone's music is a media element's by itself (`audio.js` `tune()`: the system's player,
   outside the page's thread), no AudioContext exists from the page's load to the end of an opening's film (`quiet()`),
-  and nothing new that loads, compiles or uploads is put under a sound on the context. A break is read by the probe
+  and nothing new that loads, compiles or uploads is put under a sound on the context: on a phone the street's context is
+  held (suspended) while a level, a person or the late parts come in or frames fall under 18 a second, and gives up for
+  the page on a break the probe counts (`audio.js` hold and the guard, docs/SOUND.md "The guard"). A break is read by the probe
   (`snd_lag`, `snd_lag_max`, `snd_lag_at`; any page with `?snd=1` shows it), never by `snd_stall` or `snd_xrun` alone:
   those read zero through an opening the owner heard break. `tools/opening_audio.js` holds a phone's opening to it.
   A session cannot run iOS: say where each figure was measured, and leave the issue open until the owner has heard it.
