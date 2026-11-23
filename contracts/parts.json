@@ -1036,6 +1036,7 @@
     "OEStreets": [
      "carriageways",
      "posts",
+     "roomForTwo",
      "setback",
      "widthOf"
     ],

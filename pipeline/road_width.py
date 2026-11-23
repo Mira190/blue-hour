@@ -19,9 +19,9 @@ cities/<id>/road_surface.json) has the carriageway itself, kerb to kerb. This me
                 (web/game/junctions.js, actors.js).
 
 and takes away what an earlier run wrote. A piece the survey does not have (outside its area, on a deck or a viaduct,
-in a tunnel, a private way) keeps its class's width, and is counted. A piece inside a hero level (game.json `hero`
-with a drawn ground: docs/HERO.md) keeps the width its level draws, and its measure goes in the report only: the
-level's ground is built from its own plan, and is held to the survey as a figure there until it is built again.
+in a tunnel, a private way) keeps its class's width, and is counted. A piece inside a hero level is measured as any
+other: the level's ground is the survey's own polygons (pipeline/road_ground.py, cities/shibuya/scramble.py
+`road_bands`), so the lanes, the stop lines and the signals' posts stand where the level draws the road.
 
 `--check` fails where game.json's widths are not what the survey gives now, where a piece is narrower than a car
 needs.
@@ -139,21 +139,11 @@ def measure(roads, geo, ground=None):
     return out
 
 
-def in_hero(game, line):
-    """Whether most of a piece lies inside a hero level that draws its own ground."""
-    for h in game.get("hero", []):
-        if h.get("z") or not h.get("lift"):
-            continue   # (a level in the air or indoors draws no street)
-        if line.intersection(Point(*h["at"]).buffer(h["r"])).length > 0.5 * line.length:
-            return h["id"]
-    return None
-
-
 def widths(game, geo, ground=None):
     """The keys each piece is to carry ({} for one the survey does not have), and the report."""
     roads = game["paths"]["road"]
     m = measure(roads, geo, ground)
-    keys, rep = [], {"pieces": len(roads), "measured": 0, "measured_m": 0.0, "unmeasured_m": 0.0, "hero": [], "single_track": 0, "off_m": [],
+    keys, rep = [], {"pieces": len(roads), "measured": 0, "measured_m": 0.0, "unmeasured_m": 0.0, "single_track": 0, "off_m": [],
                      "by_class": {}}
     for o, r in zip(roads, m):
         p = pts_of(o)
@@ -165,12 +155,6 @@ def widths(game, geo, ground=None):
             keys.append(k)
             continue
         w = round(min(ONE_WAY_MAX if o.get("o") else TWO_WAY_MAX, max(MIN_W, r[0])), 1)
-        cls = ROADW.get(o.get("c"), 7)
-        hero = in_hero(game, line)
-        if hero:
-            rep["hero"].append([hero, o.get("c"), round(float(line.interpolate(0.5, normalized=True).x)), round(float(line.interpolate(0.5, normalized=True).y)), cls, w])
-            keys.append(k)
-            continue
         rep["measured"] += 1
         rep["measured_m"] += line.length
         c = rep["by_class"].setdefault(o.get("c"), [])
@@ -247,7 +231,7 @@ def main():
     json.dump(game, open(gp, "w"), separators=(",", ":"))   # as game_data.py writes it
     json.dump(rep, open(C.file("road_width.json"), "w", encoding="utf8"), indent=1, ensure_ascii=False)
     print(f"road widths: {rep['measured']} of {rep['pieces']} pieces measured ({rep['measured_m'] / 1000:.1f} km; {rep['unmeasured_m'] / 1000:.1f} km in the "
-          f"survey's area keep their class's), {rep['single_track']} single track, {len(rep['hero'])} in a hero level; {n} changed")
+          f"survey's area keep their class's), {rep['single_track']} single track; {n} changed")
     for c, v in sorted(rep["by_class"].items(), key=lambda kv: -kv[1]["class_m"]):
         print(f"  {c:13s} class {v['class_m']:>2} m   surveyed {v['p10']:.1f} / {v['median']:.1f} / {v['p90']:.1f} m (p10, median, p90)   {v['km']} km")
 
