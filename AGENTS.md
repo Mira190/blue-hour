@@ -193,6 +193,15 @@ The owner should not be the one who finds the bug.
   the air with his feet on the air too, while a check that asked the same grid passed (the owner's still, issue 171).
   Whatever is placed to touch the drawn world (someone seated, a foot, a thing set on a ledge) is checked against the
   drawn meshes, a ray down through them (`tools/drawn_seat.js`), never against `nav` alone.
+- A second camera is not the screen's, and a picture that is kept keeps what was wrong in it. The roof's glass mirrors
+  a cube taken once a beat; three.js gives a cube's cameras a field of view of -90, and the guide's whiskers, which work
+  their width in pixels from `projectionMatrix[1][1]`, were thrown over a third of the cube's sky at the half float's
+  ceiling: the glass was black on the owner's M3 and the man at it had a black mask, after a play from the title only
+  (issue 203). The checks never saw it, because the harness left the cube's draws out of the frames it does not draw.
+  So: a shader that reads the projection or the viewport for a size is tried in every camera that draws it (a cube's,
+  a mirror's, a shadow's, a print's), and takes the absolute value; a picture taken once and kept (a cube, a cover map,
+  a cache, a print) leaves out whoever moves; and a harness that skips draws passes on the draws of what is kept
+  (`tools/story_play.js`, which reads the cube back and takes the roof with the glass and without it: docs/CHECKS.md).
 - Scripted edits land whole or are seen to fail. Several times a batch of exact-string replacements was run from one
   script that asserted every anchor: one anchor was wrong (typed from memory with the wrong indentation, or made stale
   by an edit earlier in the same batch, or a pair that changed nothing), the assert stopped the script before it

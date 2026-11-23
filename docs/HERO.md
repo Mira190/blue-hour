@@ -1155,6 +1155,18 @@ December and February, not October. Seen on a software renderer only.
   is only in the cube's lowest face. The glass takes it as its environment, and is drawn premultiplied so that what
   it mirrors goes over the pane at full strength (held to 0.7) instead of at the pane's opacity, a fifth. At night the
   far towers' lights and the sky are in the pane over the city behind it.
+  **The cube is of the place, not of who is in it** (issue 203). Whoever moves is left out of it: people with what
+  they carry, the cars, the guide (`people.js` `uncovered`, the list the rain's cover map leaves out). It is one
+  picture kept for the beat, so someone caught in it would stand in the glass after they had walked away; and a cube's
+  cameras are not the screen's. three.js gives a `CubeCamera` a field of view of -90, so `projectionMatrix[1][1]` is -1
+  in it, and the guide's whiskers, which work their width in pixels from that term (`companion.js` `thin`), came out
+  with a negative width: each was thrown a million times its offset from its axis, with a negative alpha, and lay
+  over 29 to 42% of the cube's sky at the half float's ceiling (65504). The sky-light map three.js makes of the cube
+  was garbage, the glass mirrored it (black on a Mac's GPU, a bright noise on Mesa's), and the lens's blur and bloom
+  carried it over whoever stood at the glass: the man at the east glass had a black mask for a face. It was seen only
+  after a play from the title, because only then is the guide on the roof before the cube is taken. `?probe=all`
+  draws the cube with them in it, to set beside. A shader that reads the projection for a size in pixels takes its
+  absolute value (`weather.js`'s rain floors its width, so it was never thrown).
 
 Where it still falls short: one place's picture cannot show whoever stands at the glass, nor the roof as seen from
 where you are; the probe is low-resolution, and a far tower's red light reads as a soft blot in it. The deck is still
