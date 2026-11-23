@@ -6305,14 +6305,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const t = run > 8 ? new THREE.Vector3(B.x - A.x, 0, B.z - A.z).normalize() : new THREE.Vector3(A.x - S0.x, 0, A.z - S0.z).normalize(), n0 = new THREE.Vector3(-t.z, 0, t.x);
     const OUT = Math.min(26, Math.max(12, Math.abs(dz) * 0.1)), OFF = 13, UP = 7;
     const cv = Math.abs(dz) > 60 ? l.view || (G.start && G.start.at) : null, city = cv ? W(cv[0], cv[1], (nav.terrain(cv[0], cv[1]) || 0) + 8) : null, d1 = new THREE.Vector3(), d2 = new THREE.Vector3();
-    const way = (n, h0 = 0, h1 = 0) => {
+    // (S1: where the climb sets off from. Where no way up from the chase camera's own place is clear, the shot first comes in
+    // toward your shoulder over its first sixth, into the open air of the hall, and climbs from there: SKY GATE's chase camera
+    // stands 5.5 m west of the stop under the edge of Scramble Square's base, and every way up from it went through the
+    // overhang, the clearest of them taken anyway, issue 181)
+    const way = (n, h0 = 0, h1 = 0, S1 = S0) => {
       const E = B.clone().addScaledVector(n, OFF).addScaledVector(t, run > 8 ? -9 : 0); E.y += UP;
-      const pos = new THREE.Vector3(), lk = new THREE.Vector3();
+      const pos = new THREE.Vector3(), lk = new THREE.Vector3(), Sk = new THREE.Vector3();
       return k => {
         const e = OECine.ease.inOut(k), g = Math.min(1, e + 0.24 * Math.sin(Math.PI * k)); // (the look runs on ahead of the camera: up the face, to where you are going)
         const eh = h0 || h1 ? OECine.ease.inOut(OECine.span(k, h0, 1 - h1)) : e; // (across: held back while it rises out of a well, below)
-        pos.lerpVectors(S0, E, eh).addScaledVector(n, OUT * Math.sin(Math.PI * eh));
-        pos.y = S0.y + (E.y - S0.y) * e;
+        Sk.lerpVectors(S0, S1, OECine.ease.inOut(OECine.span(k, 0, 0.16)));
+        pos.lerpVectors(Sk, E, eh).addScaledVector(n, OUT * Math.sin(Math.PI * eh));
+        pos.y = Sk.y + (E.y - Sk.y) * e;
         lk.lerpVectors(A, B, g);
         // The climb is the city's (issue 144: the shot looked up the tower's face all the way, curtain wall and sky, and
         // the night it rises through was behind the lens). Once it has left your shoulder the view turns out from the
@@ -6335,8 +6340,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const open = f => { const q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
     const n1 = n0.clone().negate();
     let climb = null, best = -1;
-    for (const h of [0, 0.15, 0.3, 0.4]) {
-      for (const n of [n0, n1]) { const f = dz >= 0 ? way(n, h, 0) : way(n, 0, h), c = open(f); if (c > best + 1e-6) { best = c; climb = f; } }
+    for (const s of [1, 0.6, 0.3]) {
+      const S1 = s === 1 ? S0 : A.clone().lerp(S0, s);
+      if (s < 1 && nav.clearFraction(A, S1) < 0.99) continue; // (a start in toward you only where the chase camera itself could stand)
+      for (const h of [0, 0.15, 0.3, 0.4]) {
+        for (const n of [n0, n1]) { const f = dz >= 0 ? way(n, h, 0, S1) : way(n, 0, h, S1), c = open(f); if (c > best + 1e-6) { best = c; climb = f; } }
+        if (best >= 0.99) break;
+      }
       if (best >= 0.99) break;
     }
     // (the far stop's fine collision is laid on the way there, a few ms a frame: where you step out to and where the
