@@ -592,22 +592,55 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
     const FAR_T = window.OEQuality && OEQuality.city().lean ? 350 : 0;
     const LOD_M = window.OEQuality && OEQuality.city().lean ? 15 : tier === 'low' || tier === 'still' ? 40 : tier === 'medium' ? 60 : 85; // the Blender cars' far copy beyond this (a phone's: past 15 m, so in all but a platform's view)
     // a Blender car: per level of detail, one instanced mesh per material; a tail car is the driving car turned about
+    // The cars of one material in one draw (batch.js pool, issue 192): a stock's three bodies, each near and far, were an
+    // instanced mesh a material each, 40 draws round Shibuya's station for 30,000 triangles. A material's shapes of every
+    // body and level share one buffer and one draw now, and a car out of the camera's view is left out of it
+    let pools = null;
+    function poolsOf() {
+      if (pools) return pools;
+      pools = new Map();
+      if (!window.OEBatch || !OEBatch.pool) return pools;
+      const want = new Map(); // material -> { geos, slot: Map(key -> index), cap }
+      for (const stockId of new Set(services.map(s => s.stock))) {
+        const S = STOCK[stockId]; if (!S.model || !LIB.nodes[`${S.model}_Mid`]) continue;
+        const cap = capOf(stockId);
+        for (const body of ['Head', 'Mid', 'Pan']) for (const [k, node] of [LIB.nodes[`${S.model}_${body}`], LIB.nodes[`${S.model}_${body}_LOD1`]].entries()) {
+          if (!node) continue;
+          const by = new Map();
+          for (const [name, list] of node) { const m = ao(glbMat(name, S)); if (!by.has(m)) by.set(m, []); by.get(m).push(...list); }
+          for (const [m, list] of by) {
+            let w = want.get(m); if (!w) want.set(m, w = { geos: [], slot: new Map(), caps: new Map() });
+            w.slot.set(`${stockId}|${body}|${k}`, w.geos.length); w.geos.push(list.length === 1 ? list[0] : THREE.BufferGeometryUtils.mergeGeometries(list, false));
+            w.caps.set(stockId, cap);
+          }
+        }
+      }
+      for (const [m, w] of want) {
+        const p = OEBatch.pool(m, w.geos, [...w.caps.values()].reduce((a, b) => a + b, 0));
+        if (!p) continue;
+        p.mesh.castShadow = p.mesh.receiveShadow = true; p.mesh.name = `train-${m.name || 'cars'}`;
+        world.add(p.mesh); pools.set(m, Object.assign(p, { slot: w.slot }));
+      }
+      return pools;
+    }
     function glbKind(stockId, role) {
       const S = STOCK[stockId], body = role === 'head' || role === 'tail' ? 'Head' : role === 'pan' ? 'Pan' : 'Mid', key = `${stockId}|${body}`;
       if (kinds[key]) return kinds[key];
-      const cap = capOf(stockId), lods = [];
+      const cap = capOf(stockId), lods = [], P = poolsOf();
       for (const [k, node] of [LIB.nodes[`${S.model}_${body}`], LIB.nodes[`${S.model}_${body}_LOD1`]].entries()) {
         if (!node) continue;
         const by = new Map();
         for (const [name, list] of node) { const m = ao(glbMat(name, S)); if (!by.has(m)) by.set(m, []); by.get(m).push(...list); }
-        const meshes = [];
+        const meshes = [], parts = [];
         for (const [m, list] of by) {
+          const p = P.get(m);
+          if (p && p.slot.has(`${key}|${k}`)) { parts.push([p, p.slot.get(`${key}|${k}`)]); continue; }
           const geo = list.length === 1 ? list[0] : THREE.BufferGeometryUtils.mergeGeometries(list, false);
           const im = new THREE.InstancedMesh(geo, m, cap);
           im.castShadow = true; im.receiveShadow = k === 0; im.frustumCulled = false; im.count = 0; im.visible = false; im.name = `train-${key}-${k}`;
           world.add(im); meshes.push(im);
         }
-        lods.push({ meshes, n: 0 });
+        lods.push({ meshes, parts, n: 0 });
       }
       return (kinds[key] = { lods, cap, glb: true });
     }
@@ -645,6 +678,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       if (o.warm) {
         for (const sv of services) for (let k = 0; k < sv.cars; k++) kind(sv.stock, roleOf(sv, k));
         for (const K of Object.values(kinds)) if (K.glb) for (const L of K.lods) for (const m of L.meshes) o.warm(m);
+        if (pools) for (const p of pools.values()) o.warm(p.mesh);
       }
     });
     // head and tail lamps, a pair of sprites per end of each train drawn
@@ -699,6 +733,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         E.Display.emissiveIntensity = 0.7 + 1.3 * n; E.Lamp.emissiveIntensity = 0.5 + 2.5 * n; E.LampTail.emissiveIntensity = 0.4 + 2.0 * n;
         for (const [src, c] of AO) if (src.emissive) c.emissiveIntensity = src.emissiveIntensity; }
       for (const k of Object.values(kinds)) for (const L of k.lods) L.n = 0;
+      if (pools) for (const p of pools.values()) p.begin();
       const eye = o.listener ? o.listener() : null;
       let lamps = 0;
       for (const tr of live) {
@@ -718,6 +753,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
             dummy.rotation.set(0, Math.PI - Math.atan2(fwd.x - aft.x, fwd.y - aft.y) + (K.glb && role === 'tail' ? Math.PI : 0), 0);
             dummy.updateMatrix();
             for (const m of L.meshes) m.setMatrixAt(L.n, dummy.matrix);
+            if (L.parts) for (const [p, k] of L.parts) p.put(k, dummy.matrix);
             L.n++;
           }
           if (o.listener) { const l = o.listener(), dd = Math.hypot((fwd.x + aft.x) / 2 - l.x, (fwd.y + aft.y) / 2 - l.y, fwd.z + 1.5 - l.z); if (dd < tr.near) { tr.near = dd; tr.nx = (fwd.x + aft.x) / 2; tr.ny = (fwd.y + aft.y) / 2; tr.nz = (fwd.z + aft.z) / 2; } }
@@ -733,6 +769,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       }
       for (let i = lamps; i < lampPool.length; i++) lampPool[i].visible = false;
       for (const k of Object.values(kinds)) for (const L of k.lods) for (const m of L.meshes) { m.count = L.n; m.visible = L.n > 0; if (L.n) m.instanceMatrix.needsUpdate = true; }
+      if (pools) for (const p of pools.values()) p.end();
     }
 
     // ---------------------------------------------------------- the doors

@@ -90,8 +90,10 @@ What the contract does not hold, and a session still owes: how the set looks in 
 stills beside the people already there, on a desktop and a phone (AGENTS.md, "Checking your own work"); and main's
 full tier plays the story with it after it lands.
 
-One exception is written into the contract: `oda` is cast with the clip `Drink`, which the men's file has not, so
-he stands in `Idle`. Building the clip or recasting him removes the line.
+The contract has a place for an exception (`cast_clips_known`: someone cast with a clip their sex's file has not, who
+stands in `Idle`), and none is in it: Mr Oda's `Drink` was the last, and the men's file has it since issue 177. A
+rebuild of the clips keeps every clip the file already had (`build_people.py`), so a clip asked for by the regulars or
+the walk's events, which no city's cast names, is not dropped.
 
 ## The hero levels
 
@@ -140,11 +142,48 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | `web/game/quests.js`, 23 November 2026 | 107 (the quests in parallel lines: what the game shows when a line moves on) | story | 34 | 21 |
 | `web/game/heights.js`, 23 November 2026 | 51 (the height challenge) | hud | 13 | 3 |
 | `web/game/photo.js`, 23 November 2026 | 125 (photo mode) | camera | 36 | 6 |
+| `web/game/fishing.js`, 23 November 2026 | 29 (fishing from the shore; `viewingNoted` kept in `game.js`) | world | 29 | 5 |
+| `web/game/objective.js`, 23 November 2026 | 34 (the objective's marker and the route's line in the world; `routeMode`, `routePeek` kept) | hud | 18 | 6 |
+| `web/game/clock.js`, 23 November 2026 | 30 (the place's own clock; `sun`, `clockUtc` kept) | light | 14 | 3 |
+| `web/game/benches.js`, 23 November 2026 | 70 (benches in the sun, the hour's presets; `benchBudget` kept) | light | 13 | 6 |
+| `web/game/survey.js`, 23 November 2026 | 101 (surveying from a trig station; `surveyLabels`, `surveyFov` kept) | camera | 30 | 2 |
+| `web/game/menus.js`, 23 November 2026 | 58 (the menu, the map, the passport; `bigView`, `waypoint`, `bigPins`, `picked`, `travelKey` kept) | hud | 14 | 5 |
+| `web/game/region.js`, 23 November 2026 | 972 (the region round this map: the big map and its districts, travel, who you play, the title's screen; `titleKeyed`, `bigChips`, `bigNames`, `mapDrag`, `dragged` kept) | hud | 108 | 28 |
+
+A `let` of a section that the rest of the game reads or sets stays in `game.js` (`KEEP=name`): the part asks for it
+like any other name, through a getter and a setter, so both sides see one variable. Cut several sections from the
+highest lines down: each cut moves the lines after it.
 
 A local of a section's own called `g` (a canvas's context, a group, a parameter) would hide the part's `g` from every
 name of the game's beside it (`g.world.add(g)`): the tool renames it `g_`, by its symbol. Found on 23 November 2026,
 when three of six sections had one and `tools/seams.py` failed on `g.add` and `g.fillText`, which no contract offers:
 the seam's check is what caught a cut that would have thrown in the page.
+
+**What a cut buys, measured** (23 November 2026, from the counts of the functions each check ran on the six parts
+of that day's first landing, the checks a page change asks for: the story's three parts, a phone's three budget
+parts, `walk1`, `ride`, `mem`):
+
+| Part | Functions | No check runs | A change to one function, minutes of checks (median, mean) |
+|---|---|---|---|
+| `handset.js` | 9 | 7 | 0, 20 |
+| `modeltext.js` | 15 | 9 | 0, 24 |
+| `quests.js` | 40 | 25 | 0, 32 |
+| `heights.js` | 7 | 5 | 0, 25 |
+| `photo.js` | 27 | 13 | 15, 16 |
+| `pilot.js` | 20 | 15 | 0, 22 |
+| `rides.js` | 98 | 30 | 20, 15 |
+| `routeline.js` | 18 | 7 | 53, 46 |
+| `game.js`, what is left | 1,512 | 553 | 15, 36 |
+
+Read plainly: a cut does not shorten the checks of a change to one function. The reach rule already judged `game.js`
+function by function, so a function reaches the same checks in a part's file as it did in the closure, and a
+statement at a part's own level still runs in every check, as one at the closure's level did. What a cut buys is
+elsewhere: the part's surface is written and held (a name used across it that is not offered fails in a second, as
+the local `g` did); two sessions in two sections no longer share a file, so main moving under a branch is the
+file-level rule (55 to 65 s, measured on each of that day's landings) with no function to compare; and the count
+shows what nothing plays: 64 of the 102 functions of the six small parts are run by no check, the old free game's
+tools that the story and the walk never reach. Those are candidates to be cut from the product, the owner's call
+(AGENTS.md, "Nothing comes back by itself"), not to be kept green for nobody.
 
 What a cut is not: a redesign. The section asks for what it used, which for the sections woven into the loop is most
 of the game (`tools/cut_survey.js`: the loop asks 198 names, the camera's shots 249). Those want their state gathered

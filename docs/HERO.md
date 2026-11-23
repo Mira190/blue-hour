@@ -1029,8 +1029,8 @@ of SKY STAGE, 2019-2024, looked at for the deck's tone, the glass and the benche
 
 Where it still falls short: the furniture's sizes and places are read from photographs and the landmark's plan, not
 measured; whether the heliport's paint is the H and circle drawn here, or the compass alone, could not be settled from
-the photographs found; there are no people sitting on the benches or lying in the nets unless the story puts them
-there; and it has been seen on a software renderer only.
+the photographs found; its visitors stand at the glass and sit on two benches (`game.visitors`, docs/STORY.md "The people of the
+places"), but nobody lies in the nets; and it has been seen on a software renderer only.
 
 ### SHIBUYA SKY from the sources, again (November 2026, issues 137, 139, 144)
 

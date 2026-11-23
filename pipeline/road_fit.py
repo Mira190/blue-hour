@@ -14,7 +14,7 @@ both sides: a car's half width, the gutter and a hand past the outer lane's midd
 piece that ends on it. A piece with no room for its lanes at all (a street narrower than they need) is left as it is.
 A second run moves nothing.
 
-    python pipeline/road_fit.py --city shibuya            # then road_width.py, bus_lines.py, road_ground.py, pack.py (tools/road_plan.sh)
+    python pipeline/road_fit.py --city shibuya            # after road_width.py; then bus_lines.py, road_ground.py, pack.py (tools/road_plan.sh)
     python pipeline/road_fit.py --city shibuya --check    # no vertex in the area is to be moved
 """
 import json
@@ -116,9 +116,16 @@ def main():
     if not os.path.exists(os.path.join(ROOT, "cities", a.city, "road_surface.json")):
         print(f"{a.city}: no road_surface.json; the pieces keep the map's lines")
         return
+    import road_survey
+    import road_width
+    from cityctx import City
+    geo = road_survey.load(os.path.join(ROOT, "cities", a.city, "road_surface.json"))
+    ground = road_width.ground_of(City(a.city), game)
     total, worst = 0, 0.0
-    for _ in range(1 if a.check else 4):           # (a vertex moved changes its neighbours' direction a little: a few passes settle it)
-        w = moves(game, road_ground.of_game(a.city, game))
+    # (a vertex moved changes its neighbours' direction a little, and a piece's width, which is measured from its line and
+    # gives its lanes their places: the widths are measured again after each pass, and a few passes settle both)
+    for _ in range(1 if a.check else 8):
+        w = moves(game, road_ground.of_game(a.city, game, ground))
         w = {k: v for k, v in w.items() if np.hypot(*v) >= (0.25 if a.check else TOL_M)}
         if a.check:
             for (i, k), v in list(w.items())[:12]:
@@ -136,6 +143,7 @@ def main():
             p[3 * k + 1] = int(round(p[3 * k + 1] + v[1] * 10))
             worst = max(worst, float(np.hypot(*v)))
         total += len(w)
+        road_width.apply(game, road_width.widths(game, geo, ground)[0])
     if total:
         json.dump(game, open(gp, "w"), separators=(",", ":"))
     print(f"road fit: {total} vertices moved inside the surveyed carriageway, {worst:.1f} m at most")

@@ -224,8 +224,8 @@ float fcP(float x, float a, float b, float w) { // the share of a filter w wide 
       }
       const loader = new THREE.TextureLoader();
       for (const [id, def] of defs) {
-        // (a phone's at a quarter of the size, and in ASTC blocks where its GPU takes them: tex.js)
-        const lo = small && def.low, pack = t => { if (small && window.OETex && OETex.stats.on) OETex.pack(t); };
+        // (a phone's at a quarter of the size; in blocks where the GPU takes them, a phone's and a desktop's: tex.js)
+        const lo = small && def.low, pack = t => { if (window.OETex && OETex.stats.on) OETex.pack(t); };
         const day = loader.load(ASSETS + (lo ? def.low : def.picture), pack), night = loader.load(ASSETS + (lo ? def.night_low : def.night), pack);
         day.colorSpace = THREE.SRGBColorSpace; night.colorSpace = THREE.NoColorSpace;
         for (const t of [day, night]) { t.anisotropy = small ? 2 : 4; t.generateMipmaps = true; texs.push(t); }
