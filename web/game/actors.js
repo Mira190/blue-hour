@@ -1826,6 +1826,27 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const L = P[q.lead], ahead = ((L.x - q.x) * dx + (L.y - q.y) * dy) / d;
         sp = Math.max(0.45, Math.min(2, Math.max(L.v || 0, 0.3) + Math.max(-0.6, Math.min(0.6, ahead * 1.2))));
       }
+      // (stood in the road in front of a car that has waited on them, off the walk: on through the press to a spot
+      // further back from the kerb, as the footways' walkers turn back for one, below. One pressed against the crowd
+      // at the kerb by the Scramble's western stop line held a driver there 150 s, issue 175)
+      // (still out on the carriageway off the walk, pressed against the crowd at the kerb: through the press after 3 s,
+      // and after 8 to the nearest pavement whichever kerb it is; looked at twice a second. The longer the traffic's
+      // turns, the deeper the kerbs' crowds, and a bus stood 150 s for one in the gutter by the western stop line)
+      if (q.ph !== 'cross' && pz.road && (q.roadCk = (q.roadCk || 0) - dt) <= 0) {
+        q.roadCk = 0.5;
+        if (!pz.walk() && pz.road(q.x, q.y)) {
+          q.roadT = (q.roadT || 0) + 0.5;
+          if (q.roadT > 3) q.squeeze = Math.max(q.squeeze || 0, 1);
+          if (q.roadT > 8 && !q.roadOut) {
+            let bx = 0, by = 0, br = 9;
+            for (const r of [1, 2, 3, 4]) { for (let k = 0; k < 8 && br > r; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); if (!pz.road(q.x + ux * r, q.y + uy * r) && !pz.road(q.x + ux * (r + 0.8), q.y + uy * (r + 0.8))) { br = r; bx = ux; by = uy; } } if (br <= r) break; }
+            if (br < 9) { q.T.x = q.x + bx * (br + 0.6); q.T.y = q.y + by * (br + 0.6); q.ph = 'wait'; q.roadOut = true; q.squeeze = 4; }
+          }
+        } else { q.roadT = 0; q.roadOut = false; }
+      }
+      if (q.give) { q.give = false; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+        // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
+        else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
       let vx = d > 1e-3 ? dx / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0, vy = d > 1e-3 ? dy / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0;
       // the others near: apart, and, meeting someone coming the other way, a step to the left
@@ -1931,7 +1952,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const room = (x, y) => keepRoom(x, y, player ? Math.min(nearest1(i, x, y), Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : nearest1(i, x, y));
         const hard = q.squeeze > 0 || q.ph === 'cross' ? 0.32 : 0.45, n0 = Math.min(hard, room(q.x, q.y));
         // (nor a step into a shut stair well: along its rim on one axis, or round it to the left)
-        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y));
+        // (nor a step off the pavement into a carriageway while the traffic has its turn: on its way to a kerb of the
+        // scramble it waits where the road stops it, and crosses from there with the walk. One sent to the nearest
+        // kerb in a straight line, 30 m off and across Dogenzaka, stood in the lane at the Scramble's western stop line
+        // with a car before it, each waiting on the other, 150 s, issue 175)
+        const offWalk = q.ph !== 'cross' && !!pz.road && Math.abs(q.vx) + Math.abs(q.vy) > 0.05 && !pz.walk() && !pz.road(q.x, q.y);
+        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
+        // (a pace back from that kerb, the way it came: left at the road's very edge it stood within a passing car's
+        // clearance, and a driver from the station's front waited on one at the Scramble's southern stop line 150 s)
+        if (offWalk && pz.road(nx, ny)) { if ((q.kerbT = (q.kerbT || 0) + dt) > 1.5) { const vl = Math.hypot(q.vx, q.vy) || 1; q.kerbT = 0; q.T.x = q.x - q.vx / vl * 1.2; q.T.y = q.y - q.vy / vl * 1.2; q.ph = 'wait'; } } else q.kerbT = 0;
         if (ok(nx, ny)) { q.x = nx; q.y = ny; }
         else if (ok(nx, q.y)) { q.x = nx; q.vy *= 0.3; }
         else if (ok(q.x, ny)) { q.y = ny; q.vx *= 0.3; }
@@ -3257,6 +3286,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // is there room for car c on exit e of a junction, beyond it, behind the last car going out
     // that way (and the cars already crossing to it)?
     // (on an exit with two lanes, behind the cars in the lane it will be in)
+    // the arm with signals whose queue car c stands in, by the cars ahead of it (each queued behind the next), or null
+    function queuedFor(c) {
+      let x = c.front;
+      if (c.why === 'room' && c.lineArm && !c.lineArm.j.sig) x = c;
+      for (let n = 0; n < 8 && x && x.q; n++) {
+        const a = x.lineArm;
+        if (a && a.j.sig) return a;
+        if (a && x.why === 'light' && x.ex2 && x.ex2.a && x.ex2.a.j.sig) return x.ex2.a; // (held at this line by the light of the junction just after)
+        if (a && x.why === 'room' && x.lineEx) { const b = JN.armBy(x.lineEx.m.line, 1 - x.lineEx.m.end); return b && b.in && b.j.sig ? b : null; }
+        x = x.front;
+      }
+      return null;
+    }
     function room(c, e) {
       const m = e.m, ml = net.L[m.line], out = m.end === 0 ? 1 : -1, two = JN.lanesOf(ml) > 1, ln = c.ln && e.lanes.includes(c.ln) ? c.ln : 0;
       let free = JN.reach(e), need = 2 * c.half + 2.5;
@@ -4081,7 +4123,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               // and the room asked for is beyond it: asked here, a piece shorter than a car up to that line never had
               // room, and no car ever took it; Shibuya's 811 onto a 39 m piece whose far line is 28 m back, a car stood
               // 121 s at it, #243. Not with a car on the short piece going that way: it waits behind that one)
-              const pair = go ? JN.after(jEx, 2 * c.half + 3) : null;
+              // (not from the side road of a junction run from the scramble beside it, junctions.js follow: its green is that
+              // scramble's walk, so the two never show green together. It crosses this one alone and waits the scramble's
+              // turn on the short piece between, as a driver does, issue 175)
+              const twin = () => { const q = JN.after(jEx, 2 * c.half + 3); return q && jArm.j.lead === q.j && jArm.phase !== jArm.j.leadPh ? null : q; };
+              const pair = go ? twin() : null;
+              // (and only a vehicle that fits on that short piece: a bus from the side street by 109 stood across the
+              // junction's box with its nose at the scramble's line, and the road it shares stood behind it)
+              if (go && !pair && JN.reach(jEx) < 2 * c.half + 1) { const q = JN.after(jEx, 2 * c.half + 3); if (q && jArm.j.lead === q.j && jArm.phase !== jArm.j.leadPh) { go = false; noRoom = true; } }
               const through = pair && !(onLine.get(jEx.m.line) || []).some(j => C[j] !== c && C[j].dir === (jEx.m.end === 0 ? 1 : -1));
               if (go && !through && !room(c, jEx)) { go = false; noRoom = true; }
               let narrowOut = false;
@@ -4103,7 +4152,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               const inLane = (c.anyLane === jArm && (c.mv || c.mv0)) || (jEx.lanes.includes(c.ln || 0) && (Math.abs(c.lo - side * JN.shiftOf(l, c.ln)) < 0.3 || (c.mv && c.mv.j !== jArm.j)));
               if (!inLane) go = false;
               // a junction just after, too close to wait between: crossed with this one, its way chosen now
-              const a2 = go ? JN.after(jEx, 2 * c.half + 3) : null;
+              const a2 = go ? twin() : null;
               let light2 = false; // (held by that one's light: waiting for it, as at a red here, not for room)
               if (a2) {
                 if (!c.ex2 || c.ex2.a !== a2) c.ex2 = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c), c.bus, c) };
@@ -4113,7 +4162,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                 if (c.ex2.e && lt2 && lt2 !== 'g') light2 = true;
                 // (held at this line by the next one's light: a call for its phase, as if at its line, and the time
                 // counted lost on this green, junctions.js; a 6 s green at Shinjuku's 1105 went by on 1103's red, #264)
-                if (c.ex2.e && lt2 && lt2 !== 'g') { if (!a2.j.scramble) JN.want(a2); if (toLine - c.half < 3 && jArm.j.sig) jArm.lost1 = true; }
+                // (at a scramble's, counted in that arm's queue instead: its turn is run for its queues, and passed over with
+                // none. The cars down Dogenzaka wait for 109's fork at the line of the junction before it, 9 m short, and
+                // unseen there they stood 150 s while their turn was passed over, issue 175)
+                if (c.ex2.e && lt2 && lt2 !== 'g') { if (!a2.j.scramble) JN.want(a2); else if (toLine - c.half < 3) a2.qn1 = (a2.qn1 || 0) + 1; if (toLine - c.half < 3 && jArm.j.sig) jArm.lost1 = true; }
               }
               // (in it already: its way through this junction let in, or, crossing two close junctions together, this
               // one's let in with the one just after, mv0: then a light turning red behind it, or the room beyond
@@ -4315,6 +4367,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         c.q = atLine || (why === 'person' && walker >= 0 && c.v < 0.5 && lineGap < gap + 4) || (byCar && c.v < 0.5 && (front != null ? !!front.q && !(front.line === c.line && front.dir !== c.dir) : why === 'you' && youQ)); // (not behind one coming the other way, queued at its own line: a wait on that is a narrow street's, turned round in the end, #283) // queueing at a junction (behind a car, or a ride, queueing there; or held by the crowd crossing at its line, not by you, who may stand there for good)
         // counted at its arm for the signals' max-pressure (junctions.js): queued, and whether the head of the queue waits for room beyond
         if (c.q && c.lineArm && c.lineArm.j.sig && c.toLine < 80) { const a = c.lineArm; a.qn1 = (a.qn1 || 0) + 1; if (why === 'room' && c.toLine - c.half < 3) a.full1 = true; if (why === 'cross' && c.toLine - c.half < 3) a.lost1 = true; }
+        // (and one further back: behind the cars of that line's queue on the pieces before it, or at a junction without
+        // signals waiting for room on the piece that leads to it. The back of the queue a scramble's green is run for:
+        // seen only on the last piece of its arm, 25 m of the Scramble's east arm, a queue of eight had its green end
+        // with three through, issue 175)
+        else if (c.q) { const b = queuedFor(c); if (b) b.qn1 = (b.qn1 || 0) + 1; }
         // caught up in another car (two stopped for each other can't get out by waiting): the
         // one in front creeps on, as far as that frees it, and the other backs off (below)
         // (getting out of one never takes it into another: `caught` holds the ones it is caught up with)

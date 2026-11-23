@@ -8,7 +8,8 @@ const { chromium } = require('playwright');
 const [,, query = ''] = process.argv;
 (async () => {
   const [w, h] = (process.env.SIZE || '1440x900').split('x').map(Number);
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  // (GPU=metal: a Mac's own GPU; SHOT=file.png: a still of the title once the pictures have settled, to set blocks beside pixels)
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: w, height: h } });
   const errors = [];
   p.on('pageerror', e => errors.push(String(e).slice(0, 200)));
@@ -20,10 +21,13 @@ const [,, query = ''] = process.argv;
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 250 });
   const title = (Date.now() - t0) / 1000;
   await p.evaluate(() => (window.OETex ? OETex.settled() : null));
+  console.log(`pictures settled at ${((Date.now() - t0) / 1000).toFixed(1)} s (the title at ${title.toFixed(1)})`);
   await p.waitForTimeout(3000);
   const r = await p.evaluate(() => { const m = window.__memReport(0), T = window.OETex ? OETex.stats : {};
     return { steps: window.__steps, tex: m.tex, buf: m.buf, rb: m.rb, peak: m.peak, nTex: m.nTex,
       tex_stats: { on: T.on, fmt: T.fmt, normals: T.normals, packed: T.packed, kept: T.kept, mtexels: +(T.texels / 1e6).toFixed(1), mb: +(T.bytes / 1048576).toFixed(1), s: +(T.ms / 1000).toFixed(1), worst: T.worst, keptList: (T.log || []).filter(l => l.kept).map(l => `${l.name} ${l.w}x${l.h} ${l.db}`) } }; });
+  if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT });
+  console.log(`renderer: ${await p.evaluate(() => { const d = document.createElement('canvas').getContext('webgl2'), x = d && d.getExtension('WEBGL_debug_renderer_info'); return d ? (x ? d.getParameter(x.UNMASKED_RENDERER_WEBGL) : d.getParameter(d.RENDERER)) : 'no WebGL2'; })}`);
   const MB = v => (v / 1048576).toFixed(0);
   for (const s of r.steps) console.log(`${String(s.t).padStart(6)} s  ${MB(s.gpu).padStart(5)} MB  ${s.step}`);
   console.log(`${query || '(default)'}: the title at ${title.toFixed(1)} s; last step at ${r.steps.length ? r.steps[r.steps.length - 1].t : '?'} s; textures ${MB(r.tex)} MB (${r.nTex}), buffers ${MB(r.buf)} MB, renderbuffers ${MB(r.rb)} MB, peak ${MB(r.peak)} MB`);

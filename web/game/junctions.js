@@ -36,9 +36,12 @@
 //   scramble a junction a city names in opts.scrambles (Shibuya's scramble: scene landmarks) runs
 //            Japan's 歩車分離 (pedestrian-only phase) after the cross road's: every arm's traffic
 //            held at red while the walkers cross every way at once, the diagonals too, and nobody
-//            walks in the traffic's phases. Shibuya's own cycle is about two minutes with 40 to 50 s
-//            of walk (live japan); the game keeps the walk (its crowd needs it to cross) and cuts
-//            the traffic's turns to a few seconds each.
+//            walks in the traffic's phases. Shibuya's own cycle was timed at 140 s with 47 of walk
+//            (docs/ROADS.md, "The junctions' capacity"); the game keeps the walk its crowd needs to
+//            cross and runs the traffic's two turns in what is left of a cycle of two minutes at
+//            most, each as long as its queues ask (issue 175). Its two turns are the split of its
+//            arms that crosses least (stages), and a junction with signals too near it to queue
+//            between runs from its controller (follow).
 //   timing   a game's lights, not a city's: nobody waits at a red longer than RED (10 s), as the
 //            real cycle (a minute or two) scaled down. A real controller's maximum green starts
 //            timing when a car calls on a conflicting phase (NEMA TS 2 actuated control); here a
@@ -62,7 +65,8 @@
 //   walkers  the crowd crosses an arm's road at a junction with signals while that arm's traffic is
 //            held at red, and presses the button for it; it waits at the kerb otherwise.
 //   the box  a car goes in only when its movement (from its arm to its exit) crosses no movement
-//            already in the junction, and when there is room for it on its exit beyond the
+//            already in the junction whose car has yet to pass where the two ways cross (past),
+//            and when there is room for it on its exit beyond the
 //            junction, so a queue never locks a junction up. A car that has waited longest goes
 //            first: one turning across the oncoming traffic gets its turn.
 // The signal heads are modelled here: a pole at the kerb by the stop line with its lantern facing
@@ -82,6 +86,17 @@ window.OEJunctions = (function () {
   const SPAN = 42;      // and a junction is no wider than this (m)
   const SCR_W_POST = 5.0; // (m: a scramble's walk signal stands this far to the side of its crosswalk's line, clear of its stripes (up to 8 m wide) and the crowd spread across them)
   const SCR_V = 1.45, SCR_MIN = 15; // a scramble's crowd's pace across (m/s) and its shortest walk (s)
+  // a scramble's cycle (issue 175, docs/ROADS.md "The junctions' capacity"): no longer than SCR_CYCLE, nor than
+  // SCR_SHARE times its walk (Shibuya's Scramble timed at 140 s with 47 of walk, a third; here its walk is the 28 s its
+  // crowd takes at the game's pace and the cycle 118 at most, 109's fork 15 and 63). What is left after the walk and
+  // the changes is its traffic's, split as the Scramble's is (44 s to 33). Each turn runs SCR_GMIN at least, and on
+  // while its queues are there to its share; SCR_GAP after the last of its queue has gone it ends. SCR_CLEAR: the all
+  // red between its two turns (the walk's is longer: a wide box, and the crowd). SCR_URGED: with you on foot at its
+  // kerb, the turn that cannot be passed over for your walk runs this long at most
+  const SCR_CYCLE = 120, SCR_SHARE = 4.2, SCR_SPLIT = 0.57, SCR_GMIN = 7, SCR_GAP = 4, SCR_CLEAR = 2, SCR_URGED = 12;
+  const NEAR = 12;      // (m: two junctions with signals whose lines are nearer than this run from one controller: follow)
+  const COORD = 45;     // (m: two scrambles with less road than this between their lines run on one cycle: coordinate)
+  const COORD_LAG = 0;  // (s: the lesser one's turns after the greater one's. None: its arm from the greater one is green through both of that one's turns instead, a.thru)
   const AMBER = 3, ALLRED = 1, CALL = 12, GAP_MIN = 5, FLASH = 3, RED = 10; // seconds; a phase with nobody waiting on the other turns after CALL more; nobody waits at a red longer than RED
   const MID_CLEAR = 2; // (s: a crossing's walk flashing after its green, before its all red: 2 + 4 + 2 + 2 = RED for its cars)
   const W = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -320,6 +335,11 @@ window.OEJunctions = (function () {
       if (j.sig) {
         const top = p => Math.max(0, ...j.arms.filter(a => a.phase === p).map(a => a.rank));
         j.green = [8 + top(0), 5 + top(1), 3 + 0.25 * top(0)]; // (s: 13 on a primary road, 8 on a tertiary across it, 4 for an arrow)
+        // (the longest red: RED, and twice that where a trunk road is crossed. Route 246's junction under the expressway
+        // at Dogenzaka-shita, nine arms and a box 50 m across, with a queue on every arm, turned every 3.7 s of green in
+        // a cycle of 17 with 10 of it amber and all red: 1.3 cars of a queue of 6.4 a green, the cars from the side
+        // street stood 195 s, and the drive from the Scramble's kerb to 109 stood there every other time, issue 175)
+        j.red = top(0) >= 6 ? 2 * RED : RED;
         // a protected turn across after the main road's phase: at a big junction of two main roads
         const mainIn = j.arms.filter(a => a.in && a.phase === 0);
         j.arrow = j.arms.length >= 4 && top(0) >= 4 && top(1) >= 3 && mainIn.length >= 2 && mainIn.some(a => !L[a.line].ow);
@@ -396,14 +416,52 @@ window.OEJunctions = (function () {
       // with a few seconds to step out, and no longer: the cars' red is the walk (#199)
       const longest = segs.reduce((m, w) => Math.max(m, Math.hypot(w[2] - w[0], w[3] - w[1])), 0);
       j.green = [10, 8, 0, Math.max(SCR_MIN, Math.min(32, Math.ceil(longest / SCR_V + 5)))]; j.allred = 4; // (and longer all-red round the walk: a wide box to clear)
-      // (its turns 10 s and 8 s: at 8 s and 6 s, a car through every 3 s from a standing start, the queues backed up
-      // through the junction behind, Shinjuku's 1105 arm 2 a minute and more, #264)
-      // (the cross road's turn as long as the main road's when a road as great comes in on it: Shinjuku's 1105, whose arm 2
-      // is Shinjuku-dori from 1106 as its arm 1 is, gave it 8 s against 10, and the queue it fed backed up through 1106,
-      // 1108 and 1120 to the game's start, #331)
-      const topIn = p => j.arms.reduce((m, a) => a.in && a.phase === p ? Math.max(m, a.rank) : m, -1);
-      if (topIn(1) >= topIn(0)) j.green[1] = j.green[0];
+      // (its turns were 10 s and 8 s, a game's: with 3 s of amber, 4 of all red and 4 to 6 before the first car was
+      // away, a turn passed one car, 55 to 64 an hour a lane, and a drive across stood through three cycles, issue 175.
+      // They are its real cycle's now: timing)
+      timing(j);
       j.ph = 3; j.st = 'g'; j.t = 4; j.nxt = 0; // (the game opens on the walk: the crowd already stepping out)
+    }
+    // the junctions with signals too near a scramble to queue between (follow)
+    for (const S of J) if (S.scramble) for (const a of S.arms) {
+      const b = armOf.get(a.line * 2 + 1 - a.end), K = b && b.j;
+      if (!K || K === S || !K.sig || K.scramble || K.mid != null || K.lead || L[a.line].len - a.back - b.back >= NEAR) continue;
+      K.lead = S; K.leadPh = b.phase; K.leadArm = a; K.leadIn = b; K.arrow = false; K.ph = b.phase; K.st = 'g'; K.t = 0; K.nxt = 1 - b.phase;
+    }
+    // a scramble joined to a greater one by a road with room for fewer than a turn's cars (COORD m between their
+    // lines, through a junction run from it if one lies between) runs on that one's cycle: coordinate
+    // (the arm with signals at the far end of arm a's road, on through junctions without signals straight ahead, and
+    // the road up to its line: the Scramble's western road has such a junction part way to 109)
+    const beyond = arm => {
+      let a = arm, len = 0;
+      for (let n = 0; n < 4; n++) {
+        const c = armOf.get(a.line * 2 + 1 - a.end);
+        len += L[a.line].len;
+        if (!c) { const nx = net.only ? net.only(a.line, 1 - a.end) : null; if (!nx) return null; a = { line: nx[0], end: nx[1] }; continue; } // (two pieces that simply follow one another)
+        if (c.j.sig) return { c, len: len - c.back };
+        let o = null;
+        for (const q of c.j.arms) if (q !== c && q.exit && (!o || Math.abs(angle(q.out, c.out + Math.PI)) < Math.abs(angle(o.out, c.out + Math.PI)))) o = q;
+        if (!o || Math.abs(angle(o.out, c.out + Math.PI)) > 0.6) return null;
+        a = o;
+      }
+      return null;
+    };
+    for (const K of J) if (K.scramble) for (const a of K.arms) {
+      const b0 = armOf.get(a.line * 2 + 1 - a.end);
+      let from = a;
+      if (b0 && b0.j.lead === K && b0 === b0.j.leadIn) { // (on through the junction run from it, along the road they share)
+        from = b0.j.arms.find(q => q !== b0 && q.phase === b0.j.leadPh && q.exit);
+        if (!from) continue;
+      }
+      const r = beyond(from), b = r && r.c, X = b && b.j;
+      if (!X || X === K || !X.scramble || X.co || K.co || r.len - from.back >= COORD || !(X.green[3] > K.green[3]) || !a.in || !b.in) continue;
+      K.co = X; K.coK = a; K.coS = b;
+      // (all its own traffic in the one turn, with the greater one's turn for the road they share: Bunkamura-dori in a
+      // turn of its own with the Scramble's north-south found the 29 m between the two full each time, left so by
+      // Dogenzaka's cars as the east-west green ended, and stood 150 s; in one turn its cars take theirs with
+      // Dogenzaka's by the junction's own rule, the longest waiting first, while that road drains)
+      for (const q of K.arms) if (q.in) q.phase = a.phase;
+      a.thru = true;
     }
     const scrambleNear = (x, y) => J.find(j => j.scramble && Math.hypot(j.x - x, j.y - y) < j.reach + 4);
     const inScramble = (x, y) => J.some(j => j.scramble && Math.hypot(j.x - x, j.y - y) < j.reach); // (in a scramble's box: no car is put there)
@@ -625,11 +683,17 @@ window.OEJunctions = (function () {
         Q.push(tmp.x, tmp.y);
         si += di * PSTEP;
       }
-      const n = Q.length / 2, k0 = Math.round(behind / PSTEP), k1 = Math.max(k0 + 1, n - 2), out = [], off = (lane + shiftOf(L[a.line], ln)) * side; // (not the two points past the far line)
+      const n = Q.length / 2, k0 = Math.round(behind / PSTEP), k1 = Math.max(k0 + 1, n - 2), out = [], off0 = (lane + shiftOf(L[a.line], ln)) * side; // (not the two points past the far line)
+      // (across a scramble's wide box the way eases from its arm's lane to the lane of the road it leaves by, as the
+      // cars do (actors.js loT): held to the arm's place all the way, the way out of a one-way street, which keeps to
+      // the middle, ran up the middle of the two-way road it left by, 1.7 m from that road's oncoming lane, and every
+      // car from the station's front was read as crossing the cars from the north, issue 175)
+      const lm = L[e.m.line], off1 = a.j.scramble ? (lane + shiftOf(lm, lanesOf(lm) > 1 ? ln : 0)) * side : off0;
       for (let k = k0; k < Math.min(n, k1); k++) {
         const ka = Math.max(0, k - 2), kb = Math.min(n - 1, k + 2);
         let hx = Q[2 * kb] - Q[2 * ka], hy = Q[2 * kb + 1] - Q[2 * ka + 1];
         const h = Math.hypot(hx, hy) || 1; hx /= h; hy /= h;
+        const f = Math.min(1, Math.max(0, (k - k0) / Math.max(1, k1 - 1 - k0))), off = off0 + (off1 - off0) * f * f * (3 - 2 * f);
         out.push(Q[2 * k] - hy * off, Q[2 * k + 1] + hx * off);
       }
       return new Float32Array(out);
@@ -682,6 +746,70 @@ window.OEJunctions = (function () {
       }
       ways();
       j.cx = new Map();
+      if (j.scramble) stages(j, ins);
+    }
+    // a scramble's two turns for its traffic, set by what crosses (issue 175): the arms are put in the two stages so
+    // that as little as can be of what moves in one stage crosses the rest of it, as a signal engineer groups the
+    // movements that can run together. By the arms' bearings alone (create), Shibuya's Scramble had the one-way street
+    // from the station's front, whose every way across cuts both ways of the east-west road, in the east-west road's
+    // turn: one car from it held both of that road's lines for its whole way across, 50 m, and a green passed one car.
+    // The real junction runs east-west, then north-south, then the walk (docs/ROADS.md). Each pair of ways across
+    // from different arms that cross counts by how often each is taken (choose's weights); the arm of the greatest
+    // road stays in the first stage, and the stages as they were stand unless another split crosses a fifth less
+    function timing(j) {
+      const walk = j.green[3], cap = Math.min(SCR_CYCLE, SCR_SHARE * walk), lost = 3 * (j.amber || AMBER) + 2 * j.allred + SCR_CLEAR;
+      const veh = Math.max(2 * SCR_GMIN + 6, cap - walk - lost);
+      j.green[0] = Math.round(veh * SCR_SPLIT); j.green[1] = Math.round(veh) - j.green[0];
+      j.cycle = j.green[0] + j.green[1] + walk + lost;
+    }
+    function stages(j, ins) {
+      if (ins.length < 3 || ins.length > 8 || j.co) return; // (one run on another's cycle keeps the road they share in one turn: coordinate)
+      const M = [], X = [];
+      for (const a of ins) for (const e of a.exits) M.push([ins.indexOf(a), a.i, e.m.i, Math.max(0.15, 1 + 1.6 * Math.cos(e.turn))]);
+      for (let u = 0; u < M.length; u++) for (let v = u + 1; v < M.length; v++) if (M[u][0] !== M[v][0] && conflict(j, M[u][1], M[u][2], M[v][1], M[v][2])) X.push([M[u][0], M[v][0], M[u][3] * M[v][3]]);
+      const cost = mask => { let s = 0; for (const [p, q, w] of X) if (((mask >> p) & 1) === ((mask >> q) & 1)) s += w; return s; };
+      let now = 0; ins.forEach((a, i) => { if (a.phase === 1) now |= 1 << i; });
+      const main = ins.indexOf(ins.reduce((m, a) => (a.rank > m.rank || (a.rank === m.rank && a.phase === 0 && m.phase !== 0) ? a : m), ins[0]));
+      let best = now, bc = cost(now) * 0.8;
+      for (let mask = 1; mask < (1 << ins.length) - 1; mask++) { if ((mask >> main) & 1) continue; const c = cost(mask); if (c < bc - 1e-9) { bc = c; best = mask; } }
+      if (best === now) return;
+      ins.forEach((a, i) => { a.phase = (best >> i) & 1; });
+      j.staged = true; timing(j); dirty.add(j);
+    }
+    // where two ways across a junction cross: how far along the way of movement (k, m), from its line, its last point
+    // within r of the way of (k2, m2) lies (m); -1 where they never come that near, Infinity where a way is not known.
+    // A car that has gone that far, and its tail with it, is out of the other's way: may()
+    function zoneEnd(j, k, m, k2, m2, r) {
+      const Z = j.zx || (j.zx = new Map()), key = (((k * 32 + m) * 32 + k2) * 32 + m2) * 2 + (r > 3 ? 1 : 0);
+      if (Z.has(key)) return Z.get(key);
+      const e1 = wayFor(j, k, m), e2 = wayFor(j, k2, m2), A = e1 && e1.ways && e1.ways[e1.lanes.indexOf(m >> 4)], B = e2 && e2.ways && e2.ways[e2.lanes.indexOf(m2 >> 4)];
+      let v = Infinity;
+      if (A && B) { v = -1; const r2 = r * r; for (let i = A.length - 2; i >= 0 && v < 0; i -= 2) for (let q = 0; q < B.length; q += 2) { const dx = A[i] - B[q], dy = A[i + 1] - B[q + 1]; if (dx * dx + dy * dy < r2) { v = (i / 2) * PSTEP; break; } } }
+      Z.set(key, v);
+      return v;
+    }
+    // how far along its way across the car of movement o (in j.active) is, from its line (m); -1 when it is not on it
+    // (followed along its way from one step to the next, never found afresh: the way of a turn that doubles back, the
+    // Scramble's from the station's front round into Dogenzaka, passes itself 3 m off, and the nearest of all its
+    // points to a car on the way in was one on the way out. Read as past every crossing, it had the cars it was yet
+    // to cross let in on it, and stood in the middle of the box through a whole cycle)
+    const progress = (j, o) => (o.pi != null ? o.pi * PSTEP : -1);
+    function track(j, o) {
+      const e = wayFor(j, o.k, o.m), A = e && e.ways && e.ways[e.lanes.indexOf(o.m >> 4)];
+      if (!A || o.c.x == null) return;
+      const i0 = o.pi || 0, i1 = Math.min(A.length / 2 - 1, i0 + 6);
+      let bi = -1, bd = 9;
+      for (let i = i0; i <= i1; i++) { const dx = A[2 * i] - o.c.x, dy = A[2 * i + 1] - o.c.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
+      if (bi >= 0) o.pi = bi;
+    }
+    // has the car of movement o gone by where its way crosses that of movement (k, m), its tail and 1.5 m more?
+    const TAIL = 1.5;
+    function past(j, o, k, m, r = 2.8) {
+      const z = zoneEnd(j, o.k, o.m, k, m, r);
+      if (z < 0) return true;
+      if (z === Infinity || (o.m === m && o.k !== k)) return false; // (into the same lane of the same road: followed out, not crossed)
+      const p = progress(j, o);
+      return p >= 0 && p - (o.c.half || 2.4) > z + TAIL;
     }
     // a movement is its exit's arm and its lane: m + 16 * lane (mv() gives a car's)
     const wayFor = (j, k, m) => (j.arms[k].exits || []).find(e => e.m.i === (m & 15));
@@ -709,7 +837,7 @@ window.OEJunctions = (function () {
       if (typeof e === 'number') e = wayFor(j, a.i, e);
       const turn = j.arrow && a.phase === 0 && e && e.across;
       if (j.ph === 2) return turn ? st : 'r';
-      if (j.ph !== a.phase) return 'r';
+      if (j.ph !== a.phase) return a.thru && j.ph < 2 ? st : 'r'; // (the arm from the greater scramble, green in both of that one's turns: coordinate)
       if (turn && j.nxt === 2 && j.st !== 'g') return 'g';
       return st;
     }
@@ -753,15 +881,17 @@ window.OEJunctions = (function () {
     // (a scramble's walk under way runs its course, its crowd out on the road; one not yet started
     // waits for the ride's turn. A crossing's walk under way runs its few seconds too.)
     const MIN_G = 4, HOLD = 6;
-    const MP_MIN = 8, MP_MAX = 1.6, SCR_MP = 2.5; // (max-pressure: the least green before a blocked phase gives way, and how far a busy one runs on, never past RED's cap)
+    const MP_MIN = 8, MP_MAX = 1.6; // (max-pressure: the least green before a blocked phase gives way, and how far a busy one runs on, never past RED's cap)
     function toward(j, p, hold = true) {
+      if (j.lead) return; // (run from the scramble beside it: follow)
+      if (j.co) { toward(j.co, p === 3 ? 3 : p === j.coK.phase ? j.coS.phase : 1 - j.coS.phase, hold); return; } // (on another's cycle: asked of that one)
       if (j.ph === p && j.st === 'g') { if (hold) j.hold = frame; return; }
       if ((j.ph === 3 || (j.mid != null && j.ph === 1)) && j.st === 'g') return; // (in their change, the phase after them may still be chosen)
       // (a scramble's turn passed over for you comes the next time round whatever: never the same one
       // twice running, while you stand at its kerb or sit at its line; j.skip)
       const after = j.st === 'g' ? (j.ph === 0 ? 1 : j.ph === 1 ? 3 : 0) : j.nxt;
       if (j.scramble && after !== p && j.skip === after) return;
-      if (j.ph !== p && j.st === 'g' && j.t >= MIN_G) { j.st = 'y'; j.t = 0; j.nxt = p; dirty.add(j); } // (its phase next: not the arrow's, nor the walk's)
+      if (j.ph !== p && j.st === 'g' && j.t >= (j.scramble ? SCR_GMIN : MIN_G)) { j.st = 'y'; j.t = 0; j.nxt = p; dirty.add(j); } // (its phase next: not the arrow's, nor the walk's; a scramble's turn has its least first, since 4 s of it passes nobody across a box that wide)
       else if (j.st !== 'g' && j.nxt !== p && j.ph !== p) j.nxt = p; // (changing already: to its phase next)
       else return;
       if (j.scramble && after !== p) j.skip = after;
@@ -782,12 +912,16 @@ window.OEJunctions = (function () {
       const j = a.j;
       if (!j.sig) return;
       call(a);
-      if (j.scramble) toward(j, 3, false);
+      // (at a scramble on another's cycle the greater one's turns are kept short for you, none of them passed over or cut:
+      // stood at 109's kerb you cut the Scramble's turns to 4 s, 110 m off, and its north arm stood 150 s, issue 175)
+      if (j.scramble) { (j.co || j).urged = frame; if (!j.co) toward(j, 3, false); }
+      else if (j.lead && a.phase === j.leadPh) { const S = j.lead; (S.co || S).urged = frame; if (!S.co) toward(S, 3, false); } // (across the road it shares with a scramble: on that one's walk)
     }
     // the scramble j's walk in `inS` seconds (the game opening on it): every arm held at red until then, or
     // the walk already that far in (inS < 0)
     function walkIn(j, inS) {
       if (!j || !j.scramble) return;
+      if (j.co) j = j.co;
       if (inS > 0) { j.st = 'r'; j.nxt = 3; j.t = (j.allred || ALLRED) - inS; } else { j.ph = 3; j.st = 'g'; j.t = -inS; }
       j.walkNow = j.ph === 3 && j.st === 'g'; dirty.add(j);
     }
@@ -840,6 +974,7 @@ window.OEJunctions = (function () {
     // longer crosses it) or 'give' (it gives way to a car coming on the main road)
     const WAITED = 5; // seconds at the line after which a waiting car's turn comes before newcomers'
     const LONG = 3.5; // a vehicle longer than twice this (a bus) has the junction to itself: it swings wide
+    const WIDE = 4.4; // (m: in a scramble's box, what comes this near a long vehicle's way crosses it)
     // (and, given a2 and e2, the junction just after, which it crosses with this one: both or neither)
     function request(c, a, e, t, a2 = null, e2 = null) {
       const r = may(c, a, e, t);
@@ -868,7 +1003,17 @@ window.OEJunctions = (function () {
       // (a long vehicle stood a while in the box for someone on foot no longer sweeps the whole junction: only its own way
       // across counts, as anyone's does. A bus held so in Shinjuku's 1105 by a walker kept every arm out a whole cycle, #331)
       const stood = o => o.c.half > LONG && (o.c.v || 0) < 0.3 && (o.c.still || 0) > 4 && (o.c.why === 'person' || o.c.why === 'walk' || o.c.heldBy === 'person');
-      for (const o of j.active) if (o.c !== c && !behind(o) && ((o.k !== k || (o.m >> 4) !== (m >> 4)) && (c.half > LONG || o.c.half > LONG) && !stood(o) || conflict(j, k, m, o.k, o.m)) && !waitsOnMe(o) && !knot(o)) return 'cross';
+      // (a movement in the box holds another out only until its car, tail and all, has gone by where their two ways
+      // cross: past. It held the other for its whole way across, 43 to 64 m of Shibuya's Scramble, 8 to 10 s: a car
+      // turning across the oncoming road took that road's whole green, and one late out of the last turn the first 4 to
+      // 6 s of the next, issue 175. And in a scramble's wide box a long vehicle sweeps its own way 4.4 m wide, not the
+      // whole junction: a bus going straight over held the oncoming lane 20 m from it at its line)
+      for (const o of j.active) {
+        if (o.c === c || behind(o) || waitsOnMe(o) || knot(o)) continue;
+        const long = (o.k !== k || (o.m >> 4) !== (m >> 4)) && (c.half > LONG || o.c.half > LONG) && !stood(o);
+        if (long && !j.scramble) return 'cross';
+        if (long ? zoneEnd(j, o.k, o.m, k, m, WIDE) >= 0 && !past(j, o, k, m, WIDE) : conflict(j, k, m, o.k, o.m) && !past(j, o, k, m)) return 'cross';
+      }
       const mine = j.pend.find(o => o.c === c);
       for (const o of j.pend) {
         if (o === mine || (mine && o.since >= mine.since) || t - o.since < WAITED || o.c.line < 0) continue;
@@ -949,21 +1094,69 @@ window.OEJunctions = (function () {
     const innerAll = new Set();
     for (const j of J) for (const i of j.inner) innerAll.add(i);
     const inner = line => innerAll.has(line);
+    // a junction run from the scramble beside it (create: their lines nearer than NEAR, no room for a car between):
+    // the road they share has its green through both of the scramble's turns, and the roads across it, with the
+    // walkers over the shared road, theirs with the scramble's walk. One controller for two junctions too close to
+    // queue between, as closely spaced signals are run. Its queues for the scramble count at the scramble's arm
+    function follow(j, dt) {
+      // (the scramble's traffic has its turn on the road they share: not in its walk, nor, for one on another's
+      // cycle, in the turn it sits out; then the side roads have theirs here too)
+      const S = j.lead, P = j.leadPh, Q = 1 - P, open = p => p !== 3;
+      const now = open(S.ph), next = S.st === 'g' ? now : open(S.nxt);
+      const ph = now ? P : Q, st = S.st !== 'g' && now !== next ? S.st : 'g';
+      if (ph !== j.ph || st !== j.st) { j.ph = ph; j.st = st; j.t = 0; dirty.add(j); } else j.t += dt;
+      j.nxt = ph === P ? Q : P; j.call = true; j.cut = null; j.mpOn = false;
+      j.gEnd = ph === Q && st === 'g' && S.ph === 3 ? j.t + Math.max(0, S.green[3] - S.t) - 3 : Infinity;
+      const was = j.walkNow;
+      j.walkNow = !(j.t > j.gEnd - FLASH);
+      if (was !== j.walkNow) dirty.add(j);
+      let q = 0; for (const a of j.arms) if (a.in && a.phase === P && a !== j.leadIn) q += a.qn || 0;
+      j.leadArm.qnX = q;
+    }
+    // a scramble on a greater one's cycle (create: 109's fork, 29 m of road for four cars from the Scramble's western
+    // line). Each on its own cycle, the Scramble's east-west green filled that road in its first seconds and stood
+    // full for the rest, and 109's emptied it into a red: three cars a cycle from Miyamasuzaka, a queue of fourteen,
+    // 306 s to 109 (issue 175). On one cycle the road they share has its green at both together, its cars through the
+    // two in one run, the other roads theirs together, and the walks together: closely spaced signals on a common
+    // cycle. Its queues count at the greater one, whose turns are run for both
+    function coordinate(K, dt) {
+      const S = K.co, pS = K.coS.phase, pK = K.coK.phase, map = p => (p === 3 ? 3 : p === pS ? pK : 1 - pK);
+      // (in step with it. The arm from the greater one, a.thru, is green through both of that one's turns, nothing of
+      // this junction's own moving in the second: the tail of the Scramble's east-west green, and what its other turn
+      // sends round from the station's front, run on through instead of standing on the 29 m between at a red, where
+      // a bus let round stood in the middle of the Scramble through the walk, issue 175. A lag of a car's time
+      // between the two was tried first: it cleared that road westbound and left the eastbound cars four a cycle)
+      const H = K.coH || (K.coH = [{ c: -1e9, ph: S.ph, st: S.st, nxt: S.nxt }]), last = H[H.length - 1];
+      if (last.ph !== S.ph || last.st !== S.st) H.push({ c: clock, ph: S.ph, st: S.st, nxt: S.nxt }); else last.nxt = S.nxt;
+      while (H.length > 1 && H[1].c <= clock - COORD_LAG) H.shift();
+      const was0 = H[0], ph = map(was0.ph), st = was0.st;
+      if (ph !== K.ph || st !== K.st) dirty.add(K);
+      K.ph = ph; K.st = st; K.t = Math.min(clock - COORD_LAG - was0.c, 1e6); K.nxt = map(was0.nxt); K.green[3] = S.green[3]; K.allred = S.allred; K.amber = S.amber; K.cycle = S.cycle;
+      K.call = true; K.cut = null; K.mpOn = false;
+      const was = K.walkNow;
+      K.walkNow = K.ph === 3 && K.t < K.green[3] - 6;
+      if (was !== K.walkNow) dirty.add(K);
+      const Q = p => { let n = 0; for (const a of K.arms) if (a.in && a.phase === p && !a.full) n += (a.qn || 0) + (a.qnX || 0); return n; };
+      const q = S.coQ || (S.coQ = [0, 0]);
+      q[pS] = Q(pK); q[1 - pS] = 0; S.coPs = pS;
+    }
     // step the signals; and drop movements whose car has gone (taken, put back elsewhere)
     function update(dt, t) {
       frame++; clock += dt;
       for (const j of J) {
         if (j.sig) for (const a of j.arms) { a.qn = a.qn1 || 0; a.full = !!a.full1; a.lost = !!a.lost1; a.qn1 = 0; a.full1 = a.lost1 = false; } // (last frame's queues, counted by the traffic as it went)
-        if (j.active.length) for (let i = j.active.length - 1; i >= 0; i--) { const o = j.active[i]; if (o.c.line < 0 || (!o.c.mv || o.c.mv.j !== j) && (!o.c.mv0 || o.c.mv0.j !== j)) j.active.splice(i, 1); }
+        if (j.active.length) for (let i = j.active.length - 1; i >= 0; i--) { const o = j.active[i]; if (o.c.line < 0 || (!o.c.mv || o.c.mv.j !== j) && (!o.c.mv0 || o.c.mv0.j !== j)) j.active.splice(i, 1); else if (j.ready) track(j, o); }
         if (j.pend.length) for (let i = j.pend.length - 1; i >= 0; i--) { const o = j.pend[i]; if (o.c.line < 0 || (o.c.wj !== j && o.c.wj2 !== j) || t - o.since > 180) j.pend.splice(i, 1); }
         for (let x = 0; x < j.active.length; x++) for (let y = x + 1; y < j.active.length; y++) {
           const p = j.active[x], q = j.active[y];
           const pair = `${j.id}:${carId(p.c)}:${p.k}:${p.m}:${carId(q.c)}:${q.k}:${q.m}`; // (a pair once: a car asks again every frame while it waits, or crosses two close junctions together)
-          if (conflict(j, p.k, p.m, q.k, q.m) && !seenPairs.has(pair)) { seenPairs.add(pair); if (p.forced || q.forced) crossedOver++; else crossed++; if (crossLog.length < 20) { crossLog.push(`${p.forced || q.forced ? 'over the line: ' : ''}junction ${j.id}${j.sig ? ` phase ${j.ph} ${j.st} at ${j.t.toFixed(1)} s` : ''}: arm ${p.k} to ${p.m} in at ${p.t} and arm ${q.k} to ${q.m} in at ${q.t}${p.c === q.c ? ', the same car' : ''}, now ${t.toFixed(1)}${p.forced ? ` (the first over the line: ${p.c.overWhy})` : q.forced ? ` (the second over the line: ${q.c.overWhy})` : ''}`); } }
+          if (conflict(j, p.k, p.m, q.k, q.m) && !seenPairs.has(pair) && !past(j, p, q.k, q.m) && !past(j, q, p.k, p.m)) { seenPairs.add(pair); if (p.forced || q.forced) crossedOver++; else crossed++; if (crossLog.length < 20) { crossLog.push(`${p.forced || q.forced ? 'over the line: ' : ''}junction ${j.id}${j.sig ? ` phase ${j.ph} ${j.st} at ${j.t.toFixed(1)} s` : ''}: arm ${p.k} to ${p.m} in at ${p.t} and arm ${q.k} to ${q.m} in at ${q.t}${p.c === q.c ? ', the same car' : ''}, now ${t.toFixed(1)}${p.forced ? ` (the first over the line: ${p.c.overWhy})` : q.forced ? ` (the second over the line: ${q.c.overWhy})` : ''}`); } }
         }
         if (!j.sig) continue;
         // (a level crossing: its lights are the railway's state, not a cycle: amber for its alarm's first seconds, red while it is shut)
         if (j.rail) { const s = j.rail.state(), ph = s === 'closed' ? 1 : 0, st = s === 'warning' ? 'y' : 'g'; if (ph !== j.ph || st !== j.st) { j.ph = ph; j.st = st; j.t = 0; } else j.t += dt; continue; }
+        if (j.lead) { follow(j, dt); continue; }
+        if (j.co) { coordinate(j, dt); continue; }
         j.t += dt;
         // the phase after this one: the main road's (0), its arrow (2) when someone waits to turn
         // across, the cross road's (1); a call from another phase ends this one's green
@@ -980,7 +1173,7 @@ window.OEJunctions = (function () {
         let cap = Infinity;
         if (j.st === 'g' && j.ph < 2 && !j.scramble && !(j.mid != null && j.ph === 1)) { // (a scramble's turns are short and fixed: its walk, not they, is what it is waited through)
           const q = 1 - j.ph;
-          if (ask[q] != null) cap = Math.max(MIN_G, j.t + ask[q] + RED - j.amber - (j.allred || ALLRED) - clock);
+          if (ask[q] != null) cap = Math.max(MIN_G, j.t + ask[q] + (j.red || RED) - j.amber - (j.allred || ALLRED) - clock);
         }
         const held = j.hold != null && j.hold >= frame - 2 && j.ph !== 2 && j.t < Math.min(j.green[j.ph], cap) + HOLD; // (a vehicle with priority coming: held green for it)
         // gap-out (as SCATS and vehicle-actuated signals do): someone waits on another phase and no
@@ -996,30 +1189,44 @@ window.OEJunctions = (function () {
         // after MP_MIN when another phase has cars waiting; one whose queues still far outweigh the next
         // phase's runs on, up to MP_MAX times its green but never past `cap`, so no red is waited over RED.
         // Only the queues at hand: nothing to forecast
-        // a scramble's turn whose head waits at its line for a car still crossing the box (the walk's or the last
-        // turn's, late out) has its green run on by the time so lost, up to 8 s: a green of 6 s otherwise went by
-        // with one car through, and a queue stood a minute in Shinjuku's 1105 (#264)
+        // a scramble's turn (issue 175): as long as its share of the cycle (timing) while its queues are there, and
+        // ended SCR_GAP after the last of them has gone and nobody is within 6 s of its lines, SCR_GMIN at least: an
+        // actuated signal's minimum, extension and maximum (SUMO's actuated lights, A/B Street's variable stages). An
+        // arm whose head waits for room beyond counts for nothing: its green moves nobody. With you on foot at its
+        // kerb its turn is SCR_URGED at most
         let gLen = j.green[j.ph];
+        const stageQ = ph => { let n = j.coQ ? j.coQ[ph] : 0; for (const a of j.arms) if (a.in && a.phase === ph) n += (a.qn || 0) + (a.qnX || 0); return n; };
+        if (j.scramble && j.st === 'g' && j.ph === 3 && j.t < dt * 1.5) j.g0At = null;
         if (j.scramble && j.st === 'g' && j.ph < 2) {
-          if (j.t < dt * 1.5) j.lostT = 0;
-          let lost = false; for (const a of j.arms) if (a.in && a.phase === j.ph && a.lost) { lost = true; break; }
-          if (lost && j.t < gLen + 8) j.lostT = (j.lostT || 0) + dt;
-          gLen += Math.min(j.lostT || 0, 8);
+          // (the traffic's time split between its two turns by the queues that wait as each begins, the longest of each
+          // turn's arms, as a signal's split follows its critical flows: 109's fork gave Dogenzaka's downhill arm, a turn
+          // of its own, 12 s of 29 whatever stood on it, and a queue of six took two cycles. The two together stay
+          // within the cycle: the second has what the first left)
+          if (j.t < dt * 1.5) {
+            const crit = ph => { let m = 0; for (const a of j.arms) if (a.in && a.phase === ph) m = Math.max(m, (a.qn || 0) + (a.qnX || 0)); return m; };
+            const c0 = crit(0), c1 = crit(1), veh = j.green[0] + j.green[1];
+            j.gNow = c0 + c1 > 0 ? Math.max(SCR_GMIN + 3, Math.min(veh - SCR_GMIN - 3, veh * crit(j.ph) / (c0 + c1))) : j.green[j.ph];
+            if (j.coQ) j.gNow = Math.min(j.gNow, j.green[j.ph]); // (with another on its cycle, no turn past its own share: the other's wait is this one's whole red)
+            if (j.ph === 0) j.g0At = clock; else if (j.g0At != null) j.gNow = Math.max(SCR_GMIN, Math.min(j.gNow, veh - (clock - j.g0At - (j.amber || AMBER) - SCR_CLEAR)));
+          }
+          gLen = j.gNow || gLen;
+          if (j.urged != null && j.urged >= frame - 2) gLen = Math.min(gLen, j.coQ && j.ph === j.coPs ? SCR_URGED + 8 : SCR_URGED); // (the turn another scramble's traffic shares, a little longer)
+          let q = j.coQ ? j.coQ[j.ph] : 0; for (const a of j.arms) if (a.in && a.phase === j.ph && !a.full) q += (a.qn || 0) + (a.qnX || 0);
+          if (!q && j.seen >= frame - 2) for (const o of j.near) if (j.arms[o.k].phase === j.ph && o.eta < 6 && (o.c.v || 0) > 1) { q = 1; break; }
+          j.gapT = q > 0 || j.t < dt * 1.5 ? 0 : (j.gapT || 0) + dt;
+          if (j.cut == null && j.t >= SCR_GMIN && j.gapT >= SCR_GAP) j.cut = j.t;
         }
         if (j.st === 'g' && j.ph < 2 && !(j.mid != null)) {
           const pr = ph => { let n = 0; for (const a of j.arms) if (a.in && a.phase === ph && !a.full) n += a.qn || 0; return n; };
           const other = j.ph === 0 ? 1 : 0, mine = pr(j.ph), next = pr(other);
           let blocked = false;
           for (const a of j.arms) if (a.in && a.phase === j.ph && (a.qn || 0) > 0) { blocked = !!a.full; if (!blocked) break; }
-          if (j.cut == null && blocked && mine === 0 && next > 0 && j.t >= MP_MIN) { j.cut = j.t; j.mpCut = (j.mpCut || 0) + 1; }
+          // (not a scramble's turn while the scramble on its cycle has cars for it, nor in its first 14 s: the road between
+          // the two stands full as the turn begins and empties as both go green, and the Scramble's east arm, its head
+          // waiting those seconds for room, had its green cut at 8 s with 109's queues still to pass, issue 175)
+          if (j.cut == null && blocked && mine === 0 && next > 0 && j.t >= (j.scramble ? MP_MIN + 6 : MP_MIN) && !(j.coQ && j.coQ[j.ph] > 0)) { j.cut = j.t; j.mpCut = (j.mpCut || 0) + 1; }
           const was = j.mpOn;
-          // (a scramble's turns too, which are short so that its walk comes round soon: a queue there that far outweighs
-          // the other road's runs its green on to SCR_MP times its length, as a busy junction's does, rather than queue
-          // through three greens of 8 s, Shinjuku's 1106, #264)
-          // (at a scramble, as soon as its queues outnumber the other turn's by a few: its cycle is the walk's, long, and its
-          // turn of 10 s let 3 cars a minute out of Shinjuku's 1105 arm 2, the queue backing up through 1106 to 1120. So,
-          // 61 cars in 900 s against 42, and car-seconds stood 30 s or more round there 6041 against 8332, #331)
-          j.mpOn = j.cut == null && mine >= 3 && mine > (j.scramble ? next + 2 : 2 * next + 1) && j.t < Math.min(gLen * (j.scramble ? SCR_MP : MP_MAX), cap - FLASH);
+          j.mpOn = !j.scramble && j.cut == null && mine >= 3 && mine > 2 * next + 1 && j.t < Math.min(gLen * MP_MAX, cap - FLASH); // (a scramble's turn is its share already)
           if (was && !j.mpOn && j.cut == null && j.t > gLen - FLASH) { j.cut = j.t + FLASH; j.mpExt = true; } // (run on past its green: it ends after the walkers' flash, never at once)
         } else j.mpOn = false;
         const end = j.gEnd = Math.min(j.cut != null ? (j.mpExt ? j.cut : Math.min(gLen, j.cut)) : j.mpOn ? Infinity : gLen, cap);
@@ -1028,12 +1235,18 @@ window.OEJunctions = (function () {
             j.st = 'y'; j.t = 0; dirty.add(j);
             // (the arrow only while nobody waits on the cross road, and after it the cross road's turn only
             // if someone waits for it, else back to the main road's: RED holds for both)
-            j.nxt = j.ph === 0 ? (arrowCall && !W(1) ? 2 : 1) : j.ph === 2 ? (W(1) ? 1 : 0) : j.ph === 1 && j.scramble ? 3 : 0;
+            // (a scramble's turn with nobody waiting on it is passed over, as an actuated signal skips a stage: the walk
+            // sooner, or after the walk the turn that has a queue)
+            // (never the same turn twice running: a queue the signals do not see, round a bend or behind a junction
+            // without lights, has its turn at least every other cycle)
+            const need = ph => W(ph) || stageQ(ph) > 0 || j.missed === ph;
+            const skip = ph => { if (need(ph)) { if (j.missed === ph) j.missed = null; return false; } j.missed = ph; return true; };
+            j.nxt = j.scramble ? (j.ph === 0 ? (skip(1) ? 3 : 1) : j.ph === 1 ? 3 : need(1) && skip(0) ? 1 : 0) : j.ph === 0 ? (arrowCall && !W(1) ? 2 : 1) : j.ph === 2 ? (W(1) ? 1 : 0) : 0;
           }
         } else if (j.st === 'y' && j.t >= (j.mid != null && j.ph === 1 ? MID_CLEAR : j.amber)) { j.st = 'r'; j.t = 0; dirty.add(j); } // (a crossing's walk ends in its flashing, not a car's amber)
         // (the walk's all-red is held 10 s at most for the last of its crowd, not 25: one walker lingering on the road
         // kept every arm of Shinjuku's 1105 red a further 6 to 10 s a cycle, and the cars stop for anyone in their way)
-        else if (j.st === 'r' && j.t >= (j.allred || ALLRED) && !(j.ph === 3 && j.busy > 0 && j.t < j.allred + 10) && !(j.nxt === 3 && j.active.length && j.t < j.allred + 12)) { j.ph = j.nxt; j.st = 'g'; j.t = 0; j.cut = null; j.mpExt = j.mpOn = false; if (j.skip === j.ph) j.skip = null; dirty.add(j); } // (a scramble's all-red held a few seconds more for the last of its crowd out on its road, j.busy (actors.js), or of the cars in its box)
+        else if (j.st === 'r' && j.t >= (j.scramble && j.ph < 2 && j.nxt < 2 ? SCR_CLEAR : j.allred || ALLRED) && !(j.ph === 3 && j.busy > 0 && j.t < j.allred + 10) && !(j.nxt === 3 && j.active.length && j.t < j.allred + 20)) { j.ph = j.nxt; j.st = 'g'; j.t = 0; j.cut = null; j.mpExt = j.mpOn = false; if (j.skip === j.ph) j.skip = null; dirty.add(j); } // (a scramble's all-red held a few seconds more for the last of its crowd out on its road, j.busy (actors.js), or of the cars in its box: up to 20 s for those, as long as the Scramble's longest way across, 64 m round from the station's front, takes a car let in on the last of its green; at 12 the walk came on with it in the middle, issue 175)
         j.walkNow = j.scramble ? j.ph === 3 && j.t < j.green[3] - 6 : !(j.call && j.t > end - FLASH);
         if (j.walkNow !== wasWalk) dirty.add(j); // (the walk signals: the walk is over)
       }
@@ -1140,7 +1353,14 @@ window.OEJunctions = (function () {
     // the crossings between junctions on a piece, along it (or null)
     const midsOn = line => mids.get(line) || null;
     net.midsOn = midsOn; // (the rides' router notes the crossings along a route: cars.js)
-    return { J, inScramble, scrambles: J.filter(j => j.scramble), midsOn, armAt, exits, choose, setTrips: t => { trips = t; }, trips: () => trips, addRail, dropRail, rails, laneRun, setClock, shutNow, closedNow, light, arrow, walk, walkLeft, call, want, urgeWalk, armBy: (line, end) => armOf.get(line * 2 + end) || null, walkIn, RED, crossings, lanesOf, shiftOf, centred: line => centred(L[line]), mv, approach, priority, toGreen, request, enter, after, reach, wait, unwait, release, forget, update, build, stats, conflict, conflicts, inner, get heads() { return heads; } };
+    // the longest red the traffic on road piece `line` can be shown at either end of it: a scramble's cycle less its
+    // own turn's least, or that of the scramble a junction is run from; 0 elsewhere (a game's lights: RED)
+    function longRed(line) {
+      let s = 0;
+      for (let end = 0; end < 2; end++) { const a = armOf.get(line * 2 + end), j = a && a.in ? a.j.lead || a.j : null; if (j && j.scramble && j.cycle) s = Math.max(s, j.cycle - SCR_GMIN); }
+      return s;
+    }
+    return { J, longRed, inScramble, scrambles: J.filter(j => j.scramble), midsOn, armAt, exits, choose, setTrips: t => { trips = t; }, trips: () => trips, addRail, dropRail, rails, laneRun, setClock, shutNow, closedNow, light, arrow, walk, walkLeft, call, want, urgeWalk, armBy: (line, end) => armOf.get(line * 2 + end) || null, walkIn, RED, crossings, lanesOf, shiftOf, centred: line => centred(L[line]), mv, approach, priority, toGreen, request, enter, after, reach, wait, unwait, release, forget, update, build, stats, conflict, conflicts, inner, get heads() { return heads; } };
   }
 
   // ------------------------------------------------------------ signal heads
