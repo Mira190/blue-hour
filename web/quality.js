@@ -30,6 +30,10 @@ window.OEQuality = (function () {
       memory: navigator.deviceMemory || 0, cores: navigator.hardwareConcurrency || 0, dpr: window.devicePixelRatio || 1,
       // an iPad says it is a Mac; its touch screen gives it away
       touch: navigator.maxTouchPoints > 0 && matchMedia('(any-pointer: coarse)').matches,
+      // Safari (WebKit's own WebGL, not Chrome's or Firefox's): every call crosses to the GPU process and its ANGLE on
+      // Metal resolves a multisampled half-float target slowly. The owner's Mac drew the city at 10 to 26 frames a
+      // second there with 28 ms of script a frame where Chrome on the same M3 drew 59 (issue 184)
+      safari: /AppleWebKit/.test(navigator.userAgent || '') && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Edg\/|OPR\/|Firefox/.test(navigator.userAgent || ''),
     };
     const ctx = attrs => document.createElement('canvas').getContext('webgl2', attrs);
     let gl = null;
@@ -85,8 +89,32 @@ window.OEQuality = (function () {
     if (!c.gl2 || c.maxTex < 2048) return 'still';
     const phone = c.touch && Math.min(innerWidth, innerHeight) < 600;
     if (c.software || phone || (c.memory && c.memory <= 4)) return 'low';
-    if (c.touch || !c.hdrMsaa || c.maxTex < 8192 || (c.memory && c.memory < 8) || (c.cores && c.cores < 4)) return 'medium';
+    if (c.touch || c.safari || !c.hdrMsaa || c.maxTex < 8192 || (c.memory && c.memory < 8) || (c.cores && c.cores < 4)) return 'medium';
     return 'high';
+  }
+  // A desktop that turns out slower than its tier (issue 184): the governor (below) asks for a tier down when it has
+  // nothing left to give and the frames still do not fit, and for one back up after a minute held at its ceiling.
+  // The step is kept for this device and map (bh-tier-<map>: how many tiers below its own, and how long the next climb
+  // waits), so the next visit starts where this one ended; a climb that fails within two minutes doubles the wait
+  // (one minute up to sixteen). A phone's tier is its level's business (level()), and a tier the visitor chose is theirs.
+  const TKEY = id => `bh-tier-${id}`, UP0 = 60000, UPMAX = 960000;
+  function stepped(id = mapId()) {
+    const d = id ? note(TKEY(id)) : null;
+    return { down: d ? Math.max(0, Math.min(2, d.down | 0)) : 0, wait: d && d.wait ? Math.max(UP0, Math.min(UPMAX, d.wait)) : UP0, upAt: (d && d.upAt) || 0 };
+  }
+  // how many tiers further down this device can go from where it draws now (0 where it cannot step: a phone, a chosen tier)
+  function room(c = probe()) {
+    const t = tier();
+    if (t.chosen || lean(c) || t.name === 'still') return 0;
+    return Math.max(0, ORDER.indexOf('low') - ORDER.indexOf(t.name));
+  }
+  // dir -1: a tier down, +1: one back up; returns the new step (tiers below the device's own)
+  function tierStep(dir, id = mapId()) {
+    const s = stepped(id), now = Date.now();
+    if (dir < 0) { if (room() <= 0) return s.down; s.down++; if (s.upAt && now - s.upAt < 120000) s.wait = Math.min(UPMAX, s.wait * 2); }
+    else if (s.down > 0) { s.down--; s.upAt = now; }
+    try { if (id) localStorage.setItem(TKEY(id), JSON.stringify({ down: s.down, wait: s.wait, upAt: s.upAt, t: now })); } catch (e) { /* storage blocked */ }
+    return s.down;
   }
   function override() {
     try { const v = localStorage.getItem(KEY); return ORDER.includes(v) ? v : null; } catch (e) { return null; }
@@ -97,18 +125,20 @@ window.OEQuality = (function () {
   // what to draw with: the visitor's choice where they made one, never more than the device can render
   function tier() {
     const c = probe(), a = auto(c), o = override();
-    let name = o || a;
+    // (a desktop stepped down by its own frames: stepped(), above; never below low, and never a phone's)
+    const down = !o && a !== 'still' && a !== 'low' && !lean(c) ? stepped().down : 0;
+    let name = o || (down ? ORDER[Math.min(ORDER.indexOf('low'), ORDER.indexOf(a) + down)] : a);
     if (!c.gl2) name = 'still';
     const t = name === 'still' ? null : Object.assign({}, TIERS[name]);
     if (t) {
       if (!c.hdrTarget) t.hdr = false;
       // (?msaa=on: a check draws with the tier's samples on a software renderer too. Without it no check ever drew
       // the multisampled scene a desktop GPU draws every frame: issue 485)
-      if (!c.hdrMsaa || (c.software && !/[?&]msaa=on\b/.test(location.search))) t.samples = 0;
+      if (!c.hdrMsaa || c.safari || (c.software && !/[?&]msaa=on\b/.test(location.search))) t.samples = 0;
       if (c.maxTex < 8192) t.lights8k = false;
       t.tex = Math.min(t.tex, c.maxTex); t.clouds = Math.min(t.clouds, c.maxTex);
     }
-    return { name, auto: a, chosen: !!o, settings: t };
+    return { name, auto: a, chosen: !!o, stepped: name === a || o ? 0 : ORDER.indexOf(name) - ORDER.indexOf(a), settings: t };
   }
   // the next tier down, for a device that turns out slower than its tier
   const below = name => ORDER[Math.min(ORDER.length - 1, ORDER.indexOf(name) + 1)];
@@ -239,7 +269,7 @@ window.OEQuality = (function () {
       // cast: how many of the scanned avatars walk beside the player (game.js realCast); extras: the helicopter's and
       // the near trees' models fetched ahead of need (game.js afterPlayable), which the lightest set leaves to demand
       budget: thin ? { gpuMB: 270, heapMB: 400, groundTiles: [6, 4, 2, 1][lighter], map: MAP[lighter], cast: [8, 8, 4, 2][lighter], extras: lighter < LIGHTEST } : null, shadow: name === 'high' ? 4096 : 2048, antialias: name !== 'low', woods: name === 'medium' ? 0.5 : 1,
-      post: c.hdrTarget, samples: c.hdrMsaa ? { high: 4, medium: 2, low: 0 }[name] : 0,
+      post: c.hdrTarget, samples: c.hdrMsaa && !c.safari ? { high: 4, medium: 2, low: 0 }[name] : 0, stepped: t.stepped || 0,
       // A phone's canvas: two device pixels to the CSS pixel within the tier's budget (1.5 at its lightest level),
       // where the low tier's 1.25 is a slow laptop's. On a 3x screen 1.25 was 491 x 869 for a 393 x 695 view, the
       // governor's floor under it 295 x 521, and the owner's verdict on an iPhone was that the picture was far too
@@ -297,8 +327,35 @@ window.OEQuality = (function () {
   // startLow() starts a device with no record of its own at 0.8 of the scene's resolution and half the extras, and
   // climbs from there a try every second and a half until a try does not fit (a fast device is at its ceiling in some
   // ten seconds); a device that has a record (what it held on this map before) starts from it.
+  // What a frame costs, read past its hitches (issue 184). The governor's measure was a moving average of every frame,
+  // and a frame held up by the page's script (a model arriving, a texture sent, the garbage collected) weighs as much
+  // in it as a scene too heavy for the GPU: an Apple M3 drawing the street at 59 frames a second, its 95th-percentile
+  // frame 33 ms, was stepped down at each hitch and held at 0.45 to 0.55 of its resolution with every extra shed for
+  // hours (telemetry, November 2026); modelled (tools/governor_unit.js), 3 frames in 100 of 60 to 140 ms take a
+  // device whose scene costs 11 ms to its floor. Pixels cannot buy back a hitch, so the measure is the mean of the
+  // last 48 frames with their hitches left out: a scene that is slow is slow in most of its frames, and a hitch
+  // is one frame in many: a frame over two and a half times the median (and over 40 ms), up to one in six, is left
+  // out. (A frame that waits for the next refresh, 33 ms where most take 17, is the scene's and counts.) (The hitches are the loading's to spread: world.js upload.)
+  // A tier down (stepped(), above): when the governor has nothing left to give (its floor, every extra shed) and the
+  // frames still miss their target for eight seconds, or come under twenty a second for six whatever it holds, or it
+  // has sat at its floor for twenty, it calls onTier(-1); after the view has held its ceiling with every extra for
+  // upWait (a minute at first) in a tier below its own, onTier(+1). The game draws the new tier's pixels at once and
+  // the rest of it from the next load. tierRoom and tierDown, set by the game, say whether either way is open.
   function governor({ min = 0.6, mid = 0.8, max = 1, cap = 60, auto = !navigator.webdriver } = {}) {
-    const STEP = 0.05, subs = [];
+    const STEP = 0.05, subs = [], WIN = 48, CUT = 8, ring = new Float32Array(WIN), srt = new Float32Array(WIN);
+    let rn = 0, ri = 0;
+    const robust = () => {
+      const n = Math.min(rn, WIN);
+      for (let i = 0; i < n; i++) srt[i] = ring[i];
+      const a = srt.subarray(0, n).sort(), cut = Math.max(2.5 * a[n >> 1], 40);
+      let k = n;
+      while (k > n - Math.round(n * CUT / WIN) && a[k - 1] > cut) k--; // (a hitch: well over the frame most frames take)
+      let sum = 0;
+      for (let i = 0; i < k; i++) sum += a[i];
+      return sum / Math.max(1, k);
+    };
+    const tierSubs = [];
+    let starveT = 0, floorHeld = 0, slowT = 0, comfyT = 0, tierCool = 0;
     const q = v => Math.round(v / STEP) * STEP;
     let last = 0, ema = 0, refresh = 0, since = 0, calm = 0, wait = 4000, tried = 0, floorT = 0, halved = false, climbing = false;
     // what did not fit (see above), on the clock of frames in play. top: the step a try up to it failed at, and how
@@ -329,6 +386,11 @@ window.OEQuality = (function () {
     const g = {
       scale: Math.min(1, max), extras: 1, min, mid, max, cap, auto,
       get frameMs() { return ema; },
+      tierRoom: 0, tierDown: 0, upWait: 60000,
+      // a tier down (-1) or back up (+1) asked for: see above
+      onTier(fn) { tierSubs.push(fn); return g; },
+      // a rung's values for a new tier (the shadow map's size)
+      revalue(name, values) { for (const r of rungs) if (r.name === name) { r.values = values; apply(r); } return g; },
       get refreshMs() { return refresh; },
       // the frame time aimed at: the cap's interval or the display's, whichever is longer; twice the display's where that cannot be met
       get targetMs() { const t = Math.max(g.cap > 0 ? 1000 / g.cap : 0, refresh || 1000 / 60); return halved ? Math.max(t, 2 * (refresh || 1000 / 60)) : t; },
@@ -370,10 +432,11 @@ window.OEQuality = (function () {
         // governed at all, and an M3 sat at five for minutes in the story's rain. It counts, as a quarter of a second.)
         if (!active || !ms || ms > 3000) return;
         const fms = Math.min(ms, 250);
-        ema = ema ? ema + (fms - ema) * (fms >= 250 ? 0.3 : 0.08) : fms;
+        ring[ri] = fms; ri = (ri + 1) % WIN; rn++;
+        ema = robust();
         if (g.auto) decide(fms);
       },
-      reset() { last = 0; ema = 0; since = calm = floorT = 0; flat = false; e0 = flatTry = kept = 0; flatTop = Infinity; },
+      reset() { last = 0; ema = 0; rn = ri = 0; starveT = slowT = floorHeld = comfyT = tierCool = 0; since = calm = floorT = 0; flat = false; e0 = flatTry = kept = 0; flatTop = Infinity; },
       get flat() { return flat; },
       set(scale, extras) { change(scale ?? g.scale, extras ?? g.extras); },
       // for the checks: frames of frameOf(scale, extras) milliseconds on a clock of its own, as a GPU would show
@@ -398,9 +461,26 @@ window.OEQuality = (function () {
       if (ex) for (const r of rungs) apply(r);
       if (moved) for (const fn of subs) fn(g.extras, g.scale, ex);
     }
+    function tierAsk(dir) {
+      starveT = slowT = floorHeld = comfyT = 0; tierCool = 10000;
+      for (const fn of tierSubs) try { fn(dir); } catch (e) { console.warn('governor: tier', e); }
+    }
+    // the tier's way down and up (see above), once a frame in play
+    function tierWatch(ms, load) {
+      if (tierCool > 0) { tierCool -= ms; return; }
+      if (rn < WIN) return; // (a full window of frames first)
+      const spent = g.extras <= 0 && (g.scale <= g.min + 1e-6 || flat);
+      slowT = ema > 50 ? slowT + ms : 0;
+      starveT = spent && load > 1.15 ? starveT + ms : 0;
+      floorHeld = spent ? floorHeld + ms : 0;
+      if (g.tierRoom > 0 && (slowT > 6000 || starveT > 8000 || floorHeld > 20000)) { tierAsk(-1); return; }
+      comfyT = g.scale >= g.max - 1e-6 && g.extras >= 1 && !halved && load <= 1.04 ? comfyT + ms : 0;
+      if (g.tierDown > 0 && comfyT > g.upWait) tierAsk(1);
+    }
     function decide(ms) {
       since += ms; clock += ms;
       const target = g.targetMs, load = ema / target;
+      tierWatch(ms, load);
       // at half the display's rate, frames that come at its full rate again say the scene has lightened: full rate
       // is the aim again at once, with no step to see (before, half rate stayed while the resolution climbed to
       // its ceiling under it, and a heavy half minute left a device at thirty frames a second for good)
@@ -463,5 +543,5 @@ window.OEQuality = (function () {
     }
     return g;
   }
-  return { probe, auto, tier, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, lostHere: () => lostHere, governor, TIERS, ORDER, NAMES };
+  return { probe, auto, tier, stepped, room, tierStep, override, setOverride, below, pixelRatio, gpuBytes, city, lean, died, sinceDeath, level, held, lost, lostHere: () => lostHere, governor, TIERS, ORDER, NAMES };
 })();

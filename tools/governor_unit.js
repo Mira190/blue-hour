@@ -11,7 +11,10 @@
 //     a third of a second) is there within five seconds;
 //   - a device with a record starts from it and does not try the step above for half a minute;
 //   - frames that cost the same at any resolution get the resolution back (web/quality.js `flat`), and frames
-//     that are half pixels keep the floor.
+//     that are half pixels keep the floor;
+//   - hitches (a frame in thirty held up by the page's script) are not taken for the scene's cost (issue 184);
+//   - a device under twenty frames a second with nothing left to give steps a tier down, and back up once it holds
+//     its ceiling for a minute; a fast device, a hitchy one and one settled below its ceiling keep their tier.
 //   node tools/governor_unit.js [--old <path to an older quality.js>]    (prints each model's changes a minute)
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const file = process.argv.includes('--old') ? process.argv[process.argv.indexOf('--old') + 1] : path.join(__dirname, '..', 'web', 'quality.js');
@@ -101,4 +104,68 @@ for (const [name, cost] of [['at 40 a second', () => 24], ['at 25 a second', () 
 // and where the pixels are half of a slow frame, the floor is kept: it was worth having
 { const g = gov(); g.startLow(); play(g, 120, s => 14 + 30 * s * s, 10);
   check(Math.abs(g.scale - g.min) < 1e-6, `frames that are half pixels keep the floor (${g.scale.toFixed(2)}/${g.extras})`); }
+// 7. hitches are not load (issue 184): a device whose scene costs it 4 to 13 ms, with 3 frames in 100 held up 60 to 140 ms
+// by the page's script and one in 300 by 300 ms (a model arriving, a texture sent), keeps its ceiling with every
+// extra. (The governor took each hitch for the scene's cost: modelled, such a device ended at 0.45 with every extra
+// shed, as an Apple M3 at 59 frames a second sat at 0.45 to 0.55 for hours.)
+{ const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
+  const r = rng(42);
+  play(g, 600, (s, e) => { const x = r(); return x < 0.003 ? 300 : x < 0.03 ? 60 + 80 * r() : 4 + 7 * s * s + 2 * e; }, 3);
+  check(g.scale === 1 && g.extras === 1, `a light scene with 3% hitches keeps its ceiling and every extra (${g.scale.toFixed(2)}/${g.extras})`); }
+
+// 8. a tier down, and back up (issue 184 item 2): the game's part modelled (each tier down draws the scene at
+// 0.55 of the pixels' cost of the one above, and the rest of the frame at 0.8)
+if (has('onTier')) {
+  const tiered = (g, base) => {
+    let tier = 0; const asks = [];
+    g.tierRoom = 2; g.tierDown = 0; g.upWait = 60000;
+    g.onTier(d => { tier = Math.max(0, Math.min(2, tier - d)); g.tierDown = tier; g.tierRoom = 2 - tier; asks.push({ d, t: g.__t }); });
+    return { asks, get tier() { return tier; }, cost: (s, e, t) => base(s, e, t) * [1, 0.7, 0.5][tier] };
+  };
+  // a Mac's Safari: 13 to 26 frames a second at its floor with the extras shed, on the high tier
+  { const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
+    const T = tiered(g, (s, e) => 18 + 70 * s * s + 14 * e);
+    play(g, 30, T.cost, 11); const at30 = T.tier;
+    play(g, 90, T.cost, 12);
+    check(at30 >= 1 && T.tier === 2 && T.asks.every(a => a.d < 0), `a device under 20 frames a second at its floor steps a tier down within thirty seconds (${at30} down at 30 s) and on to low (${T.tier} down at two minutes)`);
+    // the scene lightens (the device was busy, or the player went where there is less to draw): back up after a minute held
+    const T2 = { n: T.asks.length };
+    play(g, 200, (s, e) => (4 + 6 * s * s + 2 * e) * [1, 0.7, 0.5][T.tier], 13);
+    check(T.tier < 2 && T.asks.slice(T2.n).every(a => a.d > 0), `and climbs back a tier after a minute held at its ceiling (${T.tier} down, ${T.asks.length - T2.n} up)`);
+  }
+  // a fast device, and the light one with hitches, never step down
+  for (const [name, cost] of [['a fast device', (s, e) => 3 + 6 * s * s + 2 * e], ['a light scene with hitches', (() => { const r = rng(5); return (s, e) => { const x = r(); return x < 0.03 ? 60 + 80 * r() : 4 + 7 * s * s + 2 * e; }; })()]]) {
+    const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
+    const T = tiered(g, cost); play(g, 300, T.cost, 14);
+    check(T.asks.length === 0, `${name} keeps its tier (${T.asks.length} steps in five minutes)`);
+  }
+  // a device at its limit between two steps of resolution, at 60 frames a second, keeps its tier
+  { const g = gov(); g.startLow(); const T = tiered(g, (s, e) => 5.2 + 13.5 * s * s + 4 * e); play(g, 600, T.cost, 15);
+    check(T.asks.length === 0, `a device settled below its ceiling keeps its tier (${T.asks.length} steps in ten minutes, at ${g.scale.toFixed(2)}/${g.extras})`); }
+}
+// 9. the tier a desktop draws at (quality.js auto, tierStep, issue 184), on a WebGL 2 context faked as a desktop GPU's
+function desktop(ua) {
+  const store = new Map(), window = { devicePixelRatio: 2 };
+  const gl = { MAX_TEXTURE_SIZE: 1, MAX_SAMPLES: 2, RENDERER: 3, FRAMEBUFFER: 4, FRAMEBUFFER_COMPLETE: 5, TEXTURE_2D: 6, RGBA16F: 7, RGBA: 8, HALF_FLOAT: 9, COLOR_ATTACHMENT0: 10, RENDERBUFFER: 11,
+    getParameter: k => ({ 1: 16384, 2: 8, 3: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)' })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
+    createFramebuffer() {}, bindFramebuffer() {}, deleteFramebuffer() {}, createTexture() {}, bindTexture() {}, texImage2D() {}, framebufferTexture2D() {}, deleteTexture() {},
+    createRenderbuffer() {}, bindRenderbuffer() {}, renderbufferStorageMultisample() {}, framebufferRenderbuffer() {}, deleteRenderbuffer() {}, checkFramebufferStatus: () => 5 };
+  const ctx = { window, navigator: { webdriver: false, userAgent: ua, maxTouchPoints: 0, hardwareConcurrency: 8, deviceMemory: 8 }, location: { search: '', hash: '' },
+    localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) },
+    document: { createElement: () => ({ getContext: () => gl }), documentElement: { dataset: { map: 'shibuya' } }, hidden: false }, matchMedia: () => ({ matches: false }), innerWidth: 1440, innerHeight: 900, console, Math, Date, JSON };
+  ctx.globalThis = ctx;
+  vm.runInNewContext(fs.readFileSync(file, 'utf8'), ctx);
+  return window.OEQuality;
+}
+if (desktop('x').tierStep) {
+  const chrome = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36');
+  const seen = [chrome.tier().name, chrome.city().samples];
+  chrome.tierStep(-1); seen.push(chrome.tier().name, chrome.city().samples, chrome.room());
+  chrome.tierStep(-1); chrome.tierStep(-1); seen.push(chrome.tier().name, chrome.room());
+  chrome.tierStep(1); seen.push(chrome.tier().name, chrome.stepped().wait);
+  chrome.tierStep(-1); seen.push(chrome.stepped().wait); // (a climb that failed at once: the next waits twice as long)
+  check(seen.join(' ') === 'high 4 medium 2 1 low 0 medium 60000 120000', `a desktop steps high → medium → low and no lower, back up, and waits twice as long after a climb that failed (${seen.join(' ')})`);
+  const safari = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
+  check(safari.tier().name === 'medium' && safari.city().samples === 0 && safari.tier().settings.samples === 0, `a Mac's Safari starts on medium without multisampling (${safari.tier().name}, ${safari.city().samples} samples)`);
+}
 process.exit(fails ? 1 : 0);
