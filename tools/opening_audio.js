@@ -17,14 +17,14 @@
 // GStreamer, not the Cocoa path the fault is in.
 //   python3 -m http.server 8800 --directory web &
 //   NODE_PATH=$(npm root -g) DRAW=60 xvfb-run -a node tools/opening_audio.js [WxH]
-const { chromium } = require('playwright');
+const { launch, cdp: cdpOf, phone, ENGINE } = require('./engine');   // (ENGINE=webkit, GPU=metal: tools/engine.js)
 const [,, size = '390x844'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), WEB = process.env.MUSIC === 'web', WALK = !!process.env.WALK, RATE = +(process.env.THROTTLE || 6);
-  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: args.concat('--autoplay-policy=document-user-activation-required') });
+  const b = await launch(['--autoplay-policy=document-user-activation-required']);
   const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, userAgent: IOS_UA });
+  await phone(p);
   const errors = [], fail = m => { errors.push(m); console.log('FAIL', m); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 300)}`));
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
@@ -71,7 +71,8 @@ const [,, size = '390x844'] = process.argv;
   if (!WEB) { const n = await playingNow(); if (n < 1) fail(`after the loading screen's touch ${n < 0 ? 'the elements still wait for one' : 'no music plays'}`); else console.log(`after the loading screen's touch: ${n} playing on an element, context ${await p.evaluate(() => (window.OEAudio.ctx ? window.OEAudio.ctx.state : 'not made'))}`); }
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(1500);
-  const cdp = await p.context().newCDPSession(p);
+  const cdp = (await cdpOf(p)) || { send: async () => {} };   // (no throttle outside Chromium: the page at this machine's own pace)
+  if (ENGINE !== 'chromium') console.log(`engine ${ENGINE}: the main thread is not throttled`);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE });
   await p.evaluate(() => { window.__snd.phase = 'title'; });
   if (WALK) { // (the title's second way in, then "set out", as tools/walk_play.js presses them)
@@ -138,7 +139,7 @@ const [,, size = '390x844'] = process.argv;
     if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
     const late = by('late').filter(r => !r.lateIn), lateRun = late.filter(r => r.ctx === 'running').length; // (until the late parts are in: the street is let go three seconds after, and may be made then)
     if (guard) { console.log(`while the late parts came in: ${late.length} readings, the context running at ${lateRun}, the street held at ${late.filter(r => r.held).length}`); for (const r of late.filter(q => q.ctx === 'running' || q.log)) console.log(`  at ${(r.t / 1000).toFixed(1)} s: context ${r.ctx}, held ${r.held}, activation ${r.act}${r.log ? `, made: ${r.log}` : ''}`); const mk = R.find(q => q.log); if (mk) console.log(`the context made at ${(mk.t / 1000).toFixed(1)} s (${mk.phase}): ${mk.log}`); const X = await p.evaluate(() => ({ at: window.__snd.ctxAt, taps: window.__snd.taps })); console.log(`  made by: ${JSON.stringify(X.at)}; touches: ${X.taps.map(t => `${(t[0] / 1000).toFixed(1)} s ${t[1]}`).join(', ')}`); if (lateRun) fail(`the context ran at ${lateRun} of ${late.length} readings while the phone's late parts came in: the street is to wait for a page with room for it`); }
-    if (!made) fail('ten seconds after the film and a touch, the context is not made and running: the street has no sound');
+    if (!made) fail(`ten seconds after the film and a touch, the context is not made and running: the street has no sound (context ${last.ctx}, the street ${last.held ? 'held' : 'not held'}; after the film: ${by('after').map(r => `${(r.ctx || 'none')[0]}${r.held ? 'h' : ''}${r.act ? 'a' : ''}`).join(' ')})`);
     else console.log(`after the film and a touch: context ${last.ctx}`);
   }
   console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on an element without a stall under a main thread throttled ${RATE} times, ${guard ? 'no context running while the late parts came in, ' : ''}the context made at the first touch after it`);
