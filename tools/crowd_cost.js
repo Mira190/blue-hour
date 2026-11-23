@@ -5,6 +5,7 @@
 //   HZ=60: the crowd's update alone, called `seconds` of its time at sixty a second (a player's pace: see below)
 //   THROTTLE=4: the main thread's CPU slowed four times (a phone's), the times then divided by it
 //   WARM=seconds the page is left before the sampling (25); DRAW=n (240); OUT=file: the profile kept (.cpuprofile)
+//   LAYOUTS=n: only the count of the walkers' and the cars' hidden layouts, failing over n (the check)
 //   STILLS=dir: five stills a second apart of frames drawn whole, after the sampling (the crowd moving)
 // Prints the frames run, the script a frame, the heaviest files and functions by self time a frame, and what the
 // crowd held (walkers simulated, near people drawn) at the end. The milliseconds are this machine's.
@@ -48,6 +49,14 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   console.log(await p.evaluate(() => { const g = window.__game, N = g.roadNet, c = g.crowd, o = {}; if (!N || !N.nearD || !c) return 'nearD: not there to compare'; let n = 0, bad = 0;
     for (let i = 0; i < c.active; i++) { const q = c.P[i]; if (q.line < 0 && !q.pz) continue; for (let k = 0; k < 9; k++) { const x = q.x + (k ? Math.cos(k) * k * 1.3 : 0), y = q.y + (k ? Math.sin(k) * k * 1.3 : 0), a = N.nearest(x, y, 8), b = N.nearD(x, y, 8, o); n++; if (!a !== !b || (a && (a.line !== b.line || a.d !== b.d))) bad++; } }
     return `nearD against nearest at ${n} points: ${bad ? bad + ' DIFFER' : 'the same line and distance at every one'}`; }));
+  // LAYOUTS=n: the check (tools/check.sh mem): no more than n hidden layouts among the walkers, nor among the cars. A
+  // field first set on one of them outside the literal that makes it (actors.js crowd(), traffic()'s whole()) splits
+  // them again, and every read of a field in their steps goes the slow way without anything else showing it.
+  if (+process.env.LAYOUTS) {
+    const st = await state(), most = +process.env.LAYOUTS, bad = [['walkers', st.crowd && st.crowd.layouts], ['cars', st.cars && st.cars.layouts]].filter(([, n]) => n == null || n > most);
+    console.log(bad.length ? `LAYOUTS: ${bad.map(([k, n]) => `${n == null ? 'no count of' : n + ' layouts among'} the ${k}`).join(', ')} (${most} at most): name the new field where they are made, actors.js crowd() and traffic()'s whole()` : `layouts: the walkers ${st.crowd.layouts}, the cars ${st.cars.layouts} (${most} at most)`);
+    await b.close(); process.exit(bad.length ? 1 : 0);
+  }
   // HZ=60: the crowd's own step alone, at a device's pace. On a software renderer a frame takes a third of a second,
   // the game moves a twentieth of a second in it, and whatever steps by the time gone by (a walker out of the picture,
   // ten times a second) steps every other frame as it would at twenty frames a second: not a player's sixty. So the
