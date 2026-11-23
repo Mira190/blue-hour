@@ -2149,7 +2149,7 @@ transformed = crowdPose(transformed, false);`);
   // real: the textured Rocketbox characters (the NPCs' cast, build_people.py --npcs) the nearest walkers are drawn
   // as, each the sex of their far figure, instead of the far crowd's own character close up: at eye level a
   // passer-by is a person, with the scanned face, hair and clothes the NPCs have (none: the far crowd's own)
-  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity } = {}) {
+  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity, closeM = 0, closeMax = 0 } = {}) {
     { const m = /[?&]crowdnear=(\d+)/.exec(location.search); if (m) near = +m[1]; } // (to look at the far copies close up: tools/game_shot.js QUERY=?crowdnear=0)
     // a real person's height: the Japanese adult's mean (MHLW National Health and Nutrition Survey 2019: women
     // 1.58 m, men 1.71 m; a city may say otherwise in game.crowd.height) with the far figure's own spread
@@ -2446,8 +2446,13 @@ transformed = crowdPose(transformed, false);`);
       }
       ball.radius = 30;
       want.sort((a, b) => a[0] - b[0]);
-      const keep = new Set(want.slice(0, nNear).map(w => w[1]));
-      lastPick = { nNear, culling, zoom, want: want.length, unloaded: 0, capped: 0, top: want.slice(0, nNear + 4).map(w => [w[1], +w[0].toFixed(2)]) }; // (for the checks: nearInfo)
+      // (and nobody in the view within closeM of the lens is a far copy, issue 174: a head is thirty points tall on a
+      // phone's screen at six metres, where a copy's face is a blur and its hand a few facets. On a phone the count was
+      // ten whatever stood at the lens: now those the eye resolves, closeMax at most, and `near` of them at least)
+      let nKeep = nNear;
+      if (closeM && !count) { let c = 0; while (c < want.length && c < closeMax && want[c][0] < closeM) c++; nKeep = Math.max(nNear, c); }
+      const keep = new Set(want.slice(0, nKeep).map(w => w[1]));
+      lastPick = { nNear: nKeep, culling, zoom, want: want.length, unloaded: 0, capped: 0, top: want.slice(0, nNear + 4).map(w => [w[1], +w[0].toFixed(2)]) }; // (for the checks: nearInfo)
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
       for (const i of keep) {
         // (a stand-in gives way to the walker's own character once that has come, not only when they next come near)

@@ -2813,3 +2813,79 @@ listening and the nearest. (The owner asked whether a weak phone should go witho
 with the leak gone that would give back 2 MB and still the face in a conversation's close shot, which is where a
 phone's screen shows a face at all; so the faces stay, and the nearest walkers' are the first to go if a megabyte is
 wanted.) Counted on a session's machine as an iPhone emulated; the megabytes are the page's own asks of WebGL.
+
+## Draws: one a material, not one a square (issue 192, November 2026)
+
+The owner's telemetry over a week (`tools/slo_report.py --posthog --days 7`): sixteen visitors of twenty on an iPhone,
+playing at a median of 32 frames a second with a third of the frames slower than 50 ms, at about 400 draws, 1.3 M
+triangles and 11 passes a frame, GPU-bound three quarters of the time; a Mac's Safari at 10 frames a second. "A
+phone's frame halved" took the triangles and two passes; the draws stayed (352 to 393 on foot by Hachiko). In WebKit
+every WebGL call crosses to the GPU process, so a draw there costs its binds, its uniforms and the call, whatever it
+draws: 84 draws of a hero level's squares for 30,000 triangles cost what 84 draws of anything cost.
+
+### What runs in a browser today, and what was taken
+
+| technique | where it is from, licence | taken? |
+|---|---|---|
+| `BatchedMesh`: many geometries of one material in one buffer, each with a matrix, culled by itself, drawn by one `multiDrawElementsWEBGL` | three.js r186 core, MIT | **yes**: the hero levels' squares, the canals' walls, the trains' cars (`web/batch.js`) |
+| `WEBGL_multi_draw` | the extension BatchedMesh draws with. Safari 15 and later on iOS and macOS (WebKit bug 219139), Chrome; not Firefox, where three.js draws the parts one by one, as before | yes, through BatchedMesh |
+| merged static geometry (`BufferGeometryUtils.mergeGeometries`) | three.js, MIT | no: one draw but nothing left out by the frustum, and a level's 149,000 triangles would all be drawn where 47,000 are seen |
+| texture arrays or an atlas, so that several materials are one | (a technique; three.js `DataArrayTexture`, MIT) | not yet: it changes how each material is sampled and filtered (the paving's anisotropy, the joints at an atlas's seams), so it is a change to the picture and wants its own stills. It is what would take the hero levels and the landmarks from a draw a material to a few |
+| BVH culling and levels of detail for BatchedMesh and InstancedMesh | `@three.ez/batched-mesh-extensions`, `@three.ez/instanced-mesh` (agargaro), MIT | no: a level has a few hundred squares, tested against the frustum in microseconds |
+| octahedral impostors | `octahedral-impostor` (agargaro), MIT | no: the far trees are impostors already ("The far trees as impostors"), the far crowd the scanned cast's copies |
+
+Not known from here: whether ANGLE on Metal runs a multi-draw as one Metal call or a loop of them inside the GPU
+process. Either way the page makes one call and one set of binds where it made dozens, which is the cost WebKit adds.
+An ANGLE report (issue 8566) has multi-draw slow on Metal with `flat` shading; nothing here is flat-shaded.
+
+### What was done
+
+- **A hero level's squares of one material are one draw** (`hero.js`, `batch.js` `merge`). The Scramble's level is 486
+  meshes of 21 materials; each material's squares are now one BatchedMesh, each square with its own matrix (a
+  meshopt-packed position is in its node's units) and its own bounds, so the frustum leaves out what it left out
+  before. Same triangles, same materials, same shaders with three.js's batching variant. Done after the paving has been
+  read from the squares (`game.js` `heroCover`). `?batch=off` draws every mesh as it was.
+- **The rain's cover map draws a batch**: its own shader reads the batch's matrices (`weather.js` `occMat`), and a batch
+  is not taken for a thing that draws its own pass.
+- **The trains' cars of one material are one draw** (`trains.js` `poolsOf`, `batch.js` `pool`): a stock's three bodies,
+  each near and far, were an instanced mesh a material each; now a material's shapes of every body share a buffer, a car
+  is a place in the pool given its shape and matrix each frame, and a car out of view is left out (before, none was).
+- **The canals' walls, copings, rails and beds** a draw a material across the bodies (`inland.js`).
+- **The counters count a multi-draw as one draw** with the triangles of all its parts: the telemetry's sampled frame
+  (`telemetry.js`) and `tools/beat_count.js`.
+- **Nobody in view within six metres of a phone's lens is a far copy** (issue 174; `people.js` `closeM`): a head is
+  thirty points tall on a phone's screen at six metres. The count of whole people on a phone was ten whatever stood
+  at the lens; it is now those in view within six metres as the lens sees them (sixteen at most), and eight at least.
+
+### Before and after
+
+The iPhone emulated on a session's machine (`tools/phone_frame.js`, 390 x 844, the low tier, dusk; the counts are the
+page's own asks of WebGL, a multi-draw one draw):
+
+| | draws, main | this | triangles, main | this |
+|---|---|---|---|---|
+| the title | 198 | TITLE_D | 455,000 | TITLE_T |
+| on foot by Hachiko, four ways | 363 to 393 | 253 to 278 | 577,000 to 651,000 | 535,000 to 581,000 |
+| of which the hero levels | 71 to 121 | 43 to 52 | 47,000 to 66,000 | the same |
+| of which the trains | 40 | 0 to 18 | 29,000 to 36,000 | 0 to 11,000 (those in view) |
+
+The same views with the batches on and off (`tools/ab_shots.sh out '&batch=off'`: on foot, from 8 m and from 80 m, at
+dusk, at night and in rain, at 1440 x 900 on the high tier and 390 x 844 on the low) show the same picture, the rain's
+wet paving under the level's canopies included.
+
+### What is left over 250 draws
+
+- **The buildings' cells, 27 to 45 draws of one material.** They are streamed round the player, hidden cell by cell by
+  the visibility sweep, and on a phone their arrays are the GPU's alone once sent; a BatchedMesh keeps every vertex in
+  the page's memory to add to its buffer. They want a buffer of their own kind: one GPU arena the cells are written
+  into as they come, a multi-draw over the cells the sweep and the frustum leave (issue in the tracker).
+- **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
+- **The near people, three draws each** (body, head, hair), 38 to 44 a frame.
+- **Instanced meshes with nothing in them** (38 by Hachiko: the trees' and the traffic's sets with a count of 0) make
+  no draw call but are still given their program and uniforms each frame; hidden while empty they would cost nothing.
+
+### Not checked here
+
+A real iPhone, Safari on iOS or macOS (whether its ANGLE makes one Metal call of a multi-draw; the frame time at
+all), and WebGPU. The counts are a software renderer's, which are the page's own asks; the milliseconds are the
+telemetry's to say after the release: `draws` on "apple gpu" expected near 260 on foot where it read 402.

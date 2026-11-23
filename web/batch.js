@@ -56,5 +56,28 @@ window.OEBatch = (function () {
     }
     return made;
   }
-  return { merge, stats, off };
+  // Things that move, of one material and several shapes, in one draw: a pool of `cap` places, each given a shape and a
+  // matrix a frame (a train's cars: three bodies, each near and far, in one material's draw, each car culled by itself).
+  //   const p = OEBatch.pool(material, geometries, cap); p.begin(); p.put(k, matrix) ...; p.end();   null: not here
+  function pool(material, geos, cap) {
+    const THREE = window.THREE;
+    if (off || !THREE || !THREE.BatchedMesh || !geos.length) return null;
+    if (new Set(geos.map(sig)).size > 1) return null;
+    let nv = 0, ni = 0;
+    for (const g of geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
+    let b, ids;
+    try {
+      b = new THREE.BatchedMesh(cap, nv, Math.max(ni, 3), material);
+      ids = geos.map(g => b.addGeometry(g));
+      for (let i = 0; i < cap; i++) b.setVisibleAt(b.addInstance(ids[0]), false);
+    } catch (e) { console.warn('batch pool:', material.name, e); if (b) b.dispose(); return null; }
+    b.frustumCulled = false; b.perObjectFrustumCulled = true; b.sortObjects = !!material.transparent; b.visible = false;
+    b.userData.batched = cap;
+    const at = new Int32Array(cap).fill(0); let n = 0, shown = 0;
+    stats.batches++;
+    return { mesh: b, begin() { n = 0; },
+      put(k, matrix) { if (n >= cap) return false; if (at[n] !== k) { b.setGeometryIdAt(n, ids[k]); at[n] = k; } b.setMatrixAt(n, matrix); if (n >= shown) b.setVisibleAt(n, true); n++; return true; },
+      end() { for (let i = n; i < shown; i++) b.setVisibleAt(i, false); shown = n; b.visible = n > 0; } };
+  }
+  return { merge, pool, stats, off };
 })();
