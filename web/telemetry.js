@@ -461,13 +461,14 @@ window.OETelemetry = (function () {
   const DRAWS = ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements'];
   let tq = null, cnt = null;     // an open timer query { gl, ext, q, run }; a frame being counted { gl, draws, tris, passes }
   function glDrop() {
-    if (cnt) { for (const k of DRAWS) delete cnt.gl[k]; cnt = null; }
+    if (cnt) { for (const k of DRAWS) delete cnt.gl[k]; if (cnt.md) delete cnt.md.multiDrawElementsWEBGL; cnt = null; }
     if (tq) { try { if (tq.run) tq.gl.endQuery(tq.ext.TIME_ELAPSED_EXT); tq.gl.deleteQuery(tq.q); } catch (e) { /* the context has gone */ } tq = null; }
   }
   function glTick(live) {
     // close what the last frame opened
     if (cnt) {
       for (const k of DRAWS) delete cnt.gl[k];
+      if (cnt.md) delete cnt.md.multiDrawElementsWEBGL;
       if (live && cnt.draws) { const f = cur.frames; put(f.draws, cnt.draws); put(f.tris, cnt.tris); put(f.passes, cnt.passes); }
       cnt = null;
     }
@@ -493,6 +494,9 @@ window.OETelemetry = (function () {
       gl.drawRangeElements = function (m, s0, e0, n, t, o) { c.draws++; c.tris += tri(m, n, 1); return WebGL2RenderingContext.prototype.drawRangeElements.call(this, m, s0, e0, n, t, o); };
       gl.drawArraysInstanced = function (m, a, n, i) { c.draws++; c.tris += tri(m, n, i); return WebGL2RenderingContext.prototype.drawArraysInstanced.call(this, m, a, n, i); };
       gl.drawElementsInstanced = function (m, n, t, o, i) { c.draws++; c.tris += tri(m, n, i); return WebGL2RenderingContext.prototype.drawElementsInstanced.call(this, m, n, t, o, i); };
+      // (many squares of one material in one call, batch.js: one draw, the triangles of all of them)
+      const md = gl.getExtension('WEBGL_multi_draw');
+      if (md && md.multiDrawElementsWEBGL) { c.md = md; const f = Object.getPrototypeOf(md).multiDrawElementsWEBGL; md.multiDrawElementsWEBGL = function (m, cs, co, t, os, oo, n) { c.draws++; for (let i = 0; i < n; i++) c.tris += tri(m, cs[co + i], 1); return f.call(this, m, cs, co, t, os, oo, n); }; }
     } else if (!tq && fno % 30 === 0) {
       const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
       if (!ext || gl.getQuery(ext.TIME_ELAPSED_EXT, gl.CURRENT_QUERY)) return;
