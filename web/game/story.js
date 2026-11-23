@@ -618,7 +618,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       for (const [i, r] of ((ep && ep.set) || []).entries()) if (ctx.relic && !st[`set${i}`]) st[`set${i}`] = ctx.relic(Object.assign({ set: true }, r));
     }
     // as the player is given the street
-    function begin() {
+    // resume: { fi, begun } where a lost context's reload takes the case up again (game.js resume): at the frame it was at,
+    // from that frame's beginning, and a first frame already under way without its call and its order again
+    function begin(resume = null) {
       const ep = st.ep || dress();
       if (ep && !kept()) forget(); // (a case of another shape, or one that cannot be read: gone before the evening starts again, the log's lines with it; log.js restore)
       if (!ep) return;
@@ -629,14 +631,15 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (k) { st.left = k.left; st.prints = k.prints; st.flags = k.flags || {}; st.pairs = k.pairs || []; st.file = k.file || k.prints.map(p => ({ at: p.stamp, text: p.note || p.cap || '' })).filter(e => e.text); st.failed = k.failed || 0; st.snaps = Array.isArray(k.snaps) ? k.snaps : []; st.helped = k.helped || {}; st.told = k.told || 0; st.misses = k.misses || 0; }
       else { st.flags = {}; st.pairs = []; st.file = []; st.snaps = []; }
       st.resumed = !!k;
-      if (ep.walk_in_s != null && !k) ctx.walkIn(ep.walk_in_s);
+      const R = resume && resume.begun ? resume : null;
+      if (ep.walk_in_s != null && !k && !R) ctx.walkIn(ep.walk_in_s);
       show(); if (k) frames.classList.add('on');
       // a case begun at its first frame opens on a voice: who you are, why you are on this kerb at this hour, and the one
       // odd thing about the job (ep.prologue: {who, voice, lines}); a case taken up again goes straight to its frame
-      const P = !k && ep.prologue && !ep.prologue.after && !(ep.frames[0] || {}).job && ep.prologue; // (a first frame with a job says the call in it, hands-free: jobBegin)
+      const P = !k && !R && ep.prologue && !ep.prologue.after && !(ep.frames[0] || {}).job && ep.prologue; // (a first frame with a job says the call in it, hands-free: jobBegin)
       if (P && (P.lines || []).length) { st.phase = 'go'; st.beat = 'prologue'; ctx.say(Object.assign({ alive: true, auto: true, voice: Object.assign({ pitch: 150 }, P.voice || {}) }, P.who || {}), P.lines, () => frame(0)); }
-      else if (!k) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
-      else frame(k.fi);
+      else if (!k && !R) order(() => frame(0)); // (a case begun: the order in the hand first, then the street, and a second later the Stop)
+      else { if (R) frames.classList.add('on'); frame(k ? k.fi : 0); }
     }
     // The rain, once in the evening (docs/STORY.md, "Weather, light and sound"). It came on as the last frame began, at
     // once: the street wet and nine in ten umbrellas up in one frame, and the words "It has begun to rain" after it, on no

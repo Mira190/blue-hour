@@ -777,6 +777,9 @@ def main():
     import meshopt
     meshopt.compress(OUT)
     print(f"wrote {os.path.relpath(OUT, ROOT)}: {raw / 1024:.0f} kB, {os.path.getsize(OUT) / 1024:.0f} kB compressed")
+    # a phone's lighter body over the same vertices (pipeline/lod_index.mjs; companion.js swaps the index in on a phone)
+    import subprocess
+    subprocess.run(["node", os.path.join(ROOT, "pipeline", "lod_index.mjs"), OUT, OUT.replace(".glb", ".lod.json"), "Akita:0:0.22"], check=True)
 
 
 if __name__ == "__main__":

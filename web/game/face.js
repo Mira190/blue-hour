@@ -105,10 +105,18 @@ window.OEFace = (function () {
   function liveOf(full) {
     let L = LIVE.get(full);
     if (!L) {
-      const g = new THREE.BufferGeometry(), own = a => (a.isInterleavedBufferAttribute ? null : new THREE.BufferAttribute(a.array, a.itemSize, a.normalized));
-      let shared = false;
+      // (its own attributes over the same arrays, interleaved ones too: a live geometry that shared an interleaved buffer with
+      // the still one was never disposed, for the still one's sake, and the texture of its shapes with it: a face that
+      // moved, rested and moved again left one behind each time, 0.46 MB, 80 of them on a phone by frame 7: issue 130)
+      const g = new THREE.BufferGeometry(), inter = new Map();
+      const own = a => {
+        if (!a.isInterleavedBufferAttribute) return new THREE.BufferAttribute(a.array, a.itemSize, a.normalized);
+        let d = inter.get(a.data); if (!d) { d = new THREE.InterleavedBuffer(a.data.array, a.data.stride); inter.set(a.data, d); }
+        return new THREE.InterleavedBufferAttribute(d, a.itemSize, a.offset, a.normalized);
+      };
+      const shared = false;
       if (full.index) g.setIndex(own(full.index));
-      for (const k in full.attributes) { const a = own(full.attributes[k]); if (a) g.setAttribute(k, a); else { g.setAttribute(k, full.attributes[k]); shared = true; } }
+      for (const k in full.attributes) g.setAttribute(k, own(full.attributes[k]));
       for (const gr of full.groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
       g.morphAttributes = full.morphAttributes; g.morphTargetsRelative = full.morphTargetsRelative;
       g.boundingBox = full.boundingBox; g.boundingSphere = full.boundingSphere; g.userData = full.userData;
@@ -290,5 +298,5 @@ window.OEFace = (function () {
       get state() { return { blink: st.blink, gaze: [st.gy, st.gp], open: st.open, shapes: Object.fromEntries(SHAPES.map((k, i) => [k, +st.shapes[i].toFixed(3)])) }; },
     };
   }
-  return { attach, prepare, moodOf, SHAPES };
+  return { attach, prepare, moodOf, SHAPES, live: () => LIVE.size }; // (live: the geometries with shapes now in use, each with a texture of them on the GPU: tools/story_play.js BUDGET_TOP)
 })();

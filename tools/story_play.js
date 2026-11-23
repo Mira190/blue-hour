@@ -186,6 +186,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
   const BUDGET = process.env.BUDGET || '';
   if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
+  if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
   if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
@@ -276,7 +277,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const x = await p.evaluate(() => { const g = window.__game, s = g && g.story && g.story.state, D = window.__draw, o = D && D.split ? D.split.off : null; return { fi: s ? s.fi : -1, phase: s ? s.phase : '', off: o ? { n: o.n, js: o.js } : null, tier: window.OEQuality && OEQuality.tier ? OEQuality.tier().name : '' }; });
       const js = x.off && x.off.n > jsWas.n ? +((x.off.js - jsWas.js) / (x.off.n - jsWas.n)).toFixed(1) : null; if (x.off) jsWas = x.off;
       // (BUDGET_TOP=n: and the n largest textures and buffers WebGL holds, by what each was made from: what a beat brought and what it left behind)
-      const top = +process.env.BUDGET_TOP ? await p.evaluate(n => { const r = window.__memReport(n); return { topTex: r.topTex, topBuf: r.topBuf }; }, +process.env.BUDGET_TOP) : {};
+      const top = +process.env.BUDGET_TOP ? await p.evaluate(n => { const r = window.__memReport(n); const g = window.__game, T = window.THREE, M = {}; let root = g.world; while (root.parent) root = root.parent;
+        // (and the meshes drawn with shapes, by whose they are: three.js keeps a texture of the shapes for each such geometry)
+        root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.morphAttributes && o.geometry.morphAttributes.position) { let vis = true, top = ''; for (let q = o; q && q !== root; q = q.parent) { if (!q.visible) vis = false; if (q.name) top = q.name; } const k = `${top} ${vis ? 'shown' : 'hidden'}`; M[k] = (M[k] || 0) + 1; } });
+        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
       fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };

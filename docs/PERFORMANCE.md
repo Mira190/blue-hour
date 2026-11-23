@@ -1808,6 +1808,18 @@ level 2 and was killed at `built` 12 s later; Safari's own reload at level 2 aga
 `tools/glcare_phone.js` plays all of it as a phone (the levels from the notes, a loss with the tab put away, a loss
 seen), and fails on the code before.
 
+**A loss is taken up where it happened** (issue 118, 23 November 2026). The reload put the player back on the title: the
+owner's phone lost its context four times in five minutes in the first frame, and each time began the evening again,
+its film and its call. Now the game notes where the player was as `glcare.js` gives up (`onGiveUp`, game.js
+`noteResume`, in the tab's session storage) and the next load takes them up there with no title and no film
+(`takeResume`): the story at the frame it was at, from that frame's beginning (a Stop's words and photograph are not
+kept part way; standing where the world stopped, it stops again), the walk at its hour and sky, and on foot where they
+stood. A killed page's death is counted with the measurements off too (`web/lifeline.js`, issue 128). On 21 and 22
+November every `r.byteLength` error in the telemetry came from builds without the frames' hold above: 0.1.137 on GitHub
+Pages and `0.1+fc003e3` on Vercel, whose production deploy stayed on that commit of 21 November 09:11 after
+`vercel.json` began building the branch `live` only. `tools/ctx_beats.js` loses and restores the context at the third
+frame's street, at its Stop and on the walk, on a desktop (restored in place) and on a phone (taken up after the reload).
+
 | Level | Buildings whole / simplified / skyline from | Largest picture | Sun's shadow map | Signs / NPC pictures | Aerial tiles of their own | Scanned walkers | Fetched ahead |
 |---|---|---|---|---|---|---|---|
 | 0 | 500 m / 1.5 km / 25 m | 2048 | 2048 | 1024 / 512 | 6 | 8 | all |
@@ -2680,3 +2692,124 @@ hold requestAnimationFrame to 30 a second; the governor then aims at 60 and find
 gives counts (uploads, compiles, programs), not a GPU's milliseconds. The numbers to read next are the owner's: the
 `time` events' `scale` and `shed` on the M3 in Chrome (expected at or near 1.00 and 0), and `tier`, `fps` and `cpu_ms`
 on Safari.
+
+## A phone's frame halved (November 2026)
+
+The owner's ask: a basic playable game on a weaker device first, from first principles: do less, and only what is needed.
+The owner's iPhone on foot at the Scramble (build 0.1.233): 27 to 34 frames a second, 40% of frames slow, 1.34 to 1.37
+million triangles, 412 to 454 draws, 11 passes, and its WebGL context lost often (issue 118). The aim: half of that.
+
+**Measured first.** `tools/phone_frame.js` opens the page as an iPhone (390 x 844 at three pixels to the point, touch, its
+user agent, the low tier), counts the title's frame and then the walk on foot by Hachiko facing four ways, each by what
+was drawn (`BY=1`; tools/beat_count.js), with a still of each. `tools/story_play.js BUDGET_GROUPS=n` does the same at
+every still of the story; `tools/beat_compare.py` sets two plays' counts side by side. Main, on foot at dusk:
+
+| what (main, on foot by Hachiko, the heaviest way) | triangles | draws |
+|---|---|---|
+| the game's ground, four fine tiles of the 5 m grid drawn whole and the far tiles | 304,000 | 8 |
+| the far crowd, the scanned cast instanced | 154,000 | 8 |
+| the near walkers, the speaking cast and the guide dog | 123,000 + 125,000 (the dog, in the story) | 47 |
+| the trains round the station | 104,000 | 40 |
+| the roofs' kit (stair huts, tanks, plant) | 72,000 | 7 |
+| the near and mid trees | 78,000 | 30 |
+| the traffic, its full model within 35 m | 37,000 to 78,000 | 4 to 30 |
+| the Stop's leaves and pigeons (the story), drawn twice | 116,000 | 16 |
+| the buildings round the player | 58,000 | 43 |
+| the hero levels | 24,000 to 34,000 | 65 to 84 |
+
+**What was done**, each where the player cannot see the difference:
+
+- *The ground near the player is cut into squares* (game.js `fineTile`, world.js `chunkGeo`): a fine tile is a kilometre
+  of ground drawn as one mesh, never out of view. In squares of 240 m, each over the tile's shared vertices with its own
+  bounds, the frustum leaves out what is behind the camera and the visibility sweep what the walls hide (the squares
+  are gated, visibility.js). 264,000 triangles became 26,000 to 54,000. The grid is also drawn with only the triangles
+  its shape needs (world.js `gridLod`: a quadtree of blocks that lie within 5 cm of the surface their corners span,
+  crack-free; the far tiles, drawn only past 260 m, within 0.3 m). Shibuya's 5 m grid has the street's own relief, so
+  that alone took a tenth to a fifth. `?groundchunk=off`, `?gridlod=off`. The far tiles cut into squares were tried and
+  undone: 33 draws for 36,000 triangles where whole they are 3 for 54,000.
+- *The far crowd's coarser copy from 24 m on a phone* (people.js `coarseM`, 60 m elsewhere): a walker 24 m off is some
+  110 device pixels tall at full scale and 65 at the governor's 0.6; its copy's 1,000 to 1,400 triangles were a
+  triangle to every pixel, the coarser copy's 300 one to every three. Nobody is drawn past 260 m by the lens (`farM`).
+  The near walkers drawn whole stay ten (issue 174).
+- *The guide dog's body in a lighter index over the same vertices* (pipeline/lod_index.mjs, `akita.lod.json`; companion.js
+  `leanBody`): 20,000 triangles of 90,000 within a thousandth of his size, posed by the same skeleton; his guard hairs
+  (31,500 triangles of cards) only within 7 m of the camera. blender/build_dog.py writes the index after its build; a
+  model built without it is drawn whole.
+- *The Stop's leaves and pigeons drawn once* (stopfx.js): three.js draws a two-sided translucent thing twice, back faces
+  then front; a leaf is a card. On every device: 58,000 triangles and 8 draws fewer. A phone has two thirds of them.
+- *The roofs' kit only from a camera above the street* on a phone (game.js, `Wd.roofKit`): from the street it is behind
+  the parapets, and its instanced meshes, each over a cell of the map, were never out of view.
+- *The traffic's full model within 12 m, its third past 70 m* on a phone (actors.js; 35 and 110 m elsewhere); *the
+  trains' far copy past 15 m and none past 350 m* (trains.js; still heard); *the trees' full model within 80 m and their
+  hero model within 14 m, a dozen at most* (trees.js; 130 m, 24 m and 40 on the low tier).
+- *Two passes fewer*: the bloom's three levels on a phone, not four (atmosphere.js), the widest level's share given to
+  the three kept. 11 passes became 9.
+- *Late uploads and compiles in 12 ms slices on a phone* (world.js `sliceMs`; 25 to 50 ms before): iOS draws every tab's
+  WebGL and plays the page's sound in one GPU process (issue 166).
+- *A smaller or older phone starts at the lightest set* (quality.js `first`): 3 GB or less, or a screen of 700 points or
+  less on its long side (an iPhone SE). It climbs from there a level a minute held, as every phone does.
+
+**Before and after**, the iPhone emulated on a session's machine (the counts are the page's own; the GPU memory is
+WebGL's as tools/gl_mem.js weighs it, the pictures uncompressed):
+
+| 390 x 844, low tier | triangles, main | this | draws, main | this | passes | GPU MB |
+|---|---|---|---|---|---|---|
+| the title | 919,000 | 520,000 | 214 | 207 | 11 > 9 | 197 > 191 |
+| on foot by Hachiko at dusk (four ways) | 1,108,000 to 1,180,000 | 646,000 to 660,000 | 358 to 383 | 352 to 373 | 11 > 9 | 236 > 234 |
+| the story's frame 1, at its Stop | 1,592,000 | about 1,000,000 | 396 | about 380 | 11 > 9 | 255 > 248 |
+
+What is left over the aim (600,000 triangles and 250 draws on foot): the draws are the hero levels' squares (65 to 84,
+one a material and a square), the buildings' cells (43), the trains (40) and the near people (50, three meshes each);
+the triangles the near people (120,000, each 8,000 in full at any distance), the far crowd (100,000) and the far tiles
+(60,000). These are the follow-up (issue in the tracker: a lighter index for the near people past a few metres, the
+hero levels' squares merged by material on a phone, the trains' far cars in one mesh). Not measured on a real iPhone:
+its frame time and whether its context still goes are for the telemetry to say after the release.
+
+### The room over a reading, and what one code reads twice (issue 130, 22 November)
+
+Main went red on a phone's frame 7 at 304.2 MB over a ceiling of 304. Nothing heavy had landed: the ceiling had been
+set three percent over one play's reading after a cut (`--down`), other sessions' work had each added a megabyte or
+two under it, and the same code played again reads that beat anywhere in two megabytes (296.7 to 298.6 in three plays:
+what the browser has collected yet, which of the cast are near). The last megabyte tripped it, and it would have been
+whichever change came next. A ceiling nearer to its reading than the reading is to itself is not a budget. The rules
+now (`tools/beat_budget.py`):
+
+- **A reading is the median of several plays of the same code** where there are several (`set a.jsonl b.jsonl ... phone`),
+  and how far they lay apart is kept with the budget (`noise`, beside `at`, the reading itself).
+- **The room over a reading** is the largest of: the measure's share (12% for draws and triangles, 5% for the pixels
+  shaded, 3% for memory); a floor (8 MB of memory, 100,000 triangles, 30 draws, a tenth of a canvas); and three times
+  the noise (two megabytes and 60,000 triangles are assumed where only one play was read). Passes have no room: a
+  pass more is a pass more.
+- **Memory near its ceiling is said before it is over** (`near frame 7: GPU memory 299 of 305`, within twice the
+  noise): not a failure, a line in the check's log for whoever is adding to that beat, so that the room is seen to go.
+- **Over is over.** A change that takes a beat past its ceiling pays for it in that beat, or sets the budget on purpose
+  from plays of its own code with the reason in the commit. Raising one number by hand to get past a run is neither.
+- **After a cut** the budgets come down with `--down` from the plays that measured it, by the same rule: the room is
+  the rule's, not what the cut happened to leave.
+
+### What the faces left behind (issue 130, 22 November)
+
+A phone played from the title held 297 MB at frame 7 where the same phone opened at frame 7 held 266. The difference,
+listed by `BUDGET_TOP` (every texture WebGL holds, a still at a time): 55 three-dimensional textures more, 0.46 MB
+each. They are the textures three.js makes of a mesh's shapes (its morph targets) the first time it is drawn with
+them: the speaking cast's faces (`face.js`). A face is drawn from a still geometry and given one with its shapes only
+while it moves ("The speaking cast's faces"), and letting it go was to dispose that geometry, texture and all. But a
+head whose vertex data is interleaved shared its buffer with the still geometry, and for the still one's sake was
+never disposed: each time such a face moved, rested and moved again it made a new geometry and left the last one's
+texture behind. Played through, frame 6 alone left sixteen.
+
+Now a live geometry has attributes of its own over the same arrays, interleaved ones included, and is always
+disposed; and a face no longer chosen is put to rest where the faces are chosen (`game.js` `faceChoose`), not at its
+rig's next animation, which someone gone from the scene never has. The sky light's map also gives back the depth
+buffer three.js draws it with (2.3 MB at 768 x 1024, read by nothing once the map is made: `world.js` `envSpare`).
+
+| a phone played from the title, GPU memory | frame 1 | frame 4 | frame 6 | frame 7 | shapes' textures at frame 7 |
+|---|---|---|---|---|---|
+| before (main at `04097a4`) | 268 MB | 311 MB | 299 MB | 297 MB | 80 |
+| after | 259 MB | 293 MB | 278 MB | 272 MB | 0 to 4, those of the faces moving |
+
+So the faces cost what the picture shows of them: at most four textures, 2 MB, for the one speaking, the one
+listening and the nearest. (The owner asked whether a weak phone should go without the faces' shapes altogether:
+with the leak gone that would give back 2 MB and still the face in a conversation's close shot, which is where a
+phone's screen shows a face at all; so the faces stay, and the nearest walkers' are the first to go if a megabyte is
+wanted.) Counted on a session's machine as an iPhone emulated; the megabytes are the page's own asks of WebGL.
