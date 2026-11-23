@@ -136,6 +136,17 @@ merges cleanly; a branch that did carries its edit over to the new file by hand,
 | `web/game/pilot.js`, November 2026 | 342 (the autopilot of your own car, the driver assists) | traffic | 38 names | 11 |
 | `web/game/rides.js`, November 2026 | 1,005 (taxis and rides: the drivers' step, the story's car, boarding, the helicopter's reach) | traffic | 60 | 24 |
 | `web/game/routeline.js`, November 2026 | 165 (the route to go: the gold line, the way on foot) | crowd | 21 | 3 |
+| `web/game/handset.js`, 23 November 2026 | 75 (the phone, N: order a ride, bring your car) | traffic | 17 | 5 |
+| `web/game/trig.js`, 23 November 2026 | 20 (the trig stations' pillars) | world | 6 | 2 |
+| `web/game/modeltext.js`, 23 November 2026 | 83 (text from the model: what a place says of itself, small talk) | story | 17 | 7 |
+| `web/game/quests.js`, 23 November 2026 | 107 (the quests in parallel lines: what the game shows when a line moves on) | story | 34 | 21 |
+| `web/game/heights.js`, 23 November 2026 | 51 (the height challenge) | hud | 13 | 3 |
+| `web/game/photo.js`, 23 November 2026 | 125 (photo mode) | camera | 36 | 6 |
+
+A local of a section's own called `g` (a canvas's context, a group, a parameter) would hide the part's `g` from every
+name of the game's beside it (`g.world.add(g)`): the tool renames it `g_`, by its symbol. Found on 23 November 2026,
+when three of six sections had one and `tools/seams.py` failed on `g.add` and `g.fillText`, which no contract offers:
+the seam's check is what caught a cut that would have thrown in the page.
 
 What a cut is not: a redesign. The section asks for what it used, which for the sections woven into the loop is most
 of the game (`tools/cut_survey.js`: the loop asks 198 names, the camera's shots 249). Those want their state gathered
