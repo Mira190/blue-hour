@@ -185,6 +185,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
   const BUDGET = process.env.BUDGET || '';
+  if (BUDGET && +process.env.BUDGET_TOP) await p.addInitScript(require('./gl_mem').own);
   if (BUDGET) { await p.addInitScript(require('./gl_mem').hook); await p.addInitScript(require('./beat_count').hook); fs.writeFileSync(BUDGET, ''); }
   if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // FROM=n: as a case left at frame n (counted from 0) and opened again
@@ -289,7 +290,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           for (const m of Array.isArray(o.material) ? o.material : [o.material]) { if (!m) continue; for (const p in m) texOf(m[p], k); if (m.uniforms) for (const u in m.uniforms) texOf(m.uniforms[u] && m.uniforms[u].value, k); }
           const g = o.geometry; if (g && !seenG.has(g)) { seenG.add(g); let b = 0; const cnt = new Set(); for (const a of [g.index, o.instanceMatrix, o.instanceColor, ...Object.values(g.attributes || {})]) { const d = a && (a.isInterleavedBufferAttribute ? a.data : a); if (d && d.array && !cnt.has(d)) { cnt.add(d); b += d.array.byteLength; } } (own[k] || (own[k] = { tex: 0, n: 0, buf: 0 })).buf += b / 1048576; } });
         const owners = Object.entries(own).map(([k, v]) => [k, +v.tex.toFixed(1), v.n, +v.buf.toFixed(1)]).sort((x, y) => (y[1] + y[3]) - (x[1] + x[3])).slice(0, 60);
-        return { topTex: r.topTex, topBuf: r.topBuf, topRb: r.topRb, owners, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
+        // (and each of the largest textures by the slot that wears it: "name" mesh/material.slot; one no material wears is a target or a pass's)
+        const R = g.renderer, by = new Map();
+        const note = (t, who) => { if (!t || !t.isTexture) return; const w = R.properties.get(t).__webglTexture; if (!w) return; if (!by.has(w)) by.set(w, { t, who: new Set() }); by.get(w).who.add(who); };
+        root.traverse(o => { for (const m of [].concat(o.material || [])) { if (!m) continue; for (const k in m) if (m[k] && m[k].isTexture) note(m[k], `${o.name || o.type}/${m.name || m.type}.${k}`); if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) note(v, `${o.name || o.type}/${m.name || m.type}.u.${k}`); } } });
+        for (const q of window.__texAll || []) { const t = q.deref(); if (t) note(t, `made at ${t.__at}`); }
+        const worn = [...window.__mem.tex].sort((x, y) => y[1].bytes - x[1].bytes).slice(0, n).map(([w, e]) => { const h = by.get(w); return `${(e.bytes / 1048576).toFixed(1)} MB ${e.label} ${h ? `"${h.t.name || ''}" ${h.t.isCompressedTexture ? 'blocks' : h.t.isDataTexture ? 'data' : h.t.isCanvasTexture ? 'canvas' : 'picture'} ${[...h.who].slice(0, 2).join(', ')}${h.t.__at ? ` [${h.t.__at}]` : ''}${h.who.size > 2 ? ` +${h.who.size - 2}` : ''}` : '(no material)'}`; });
+        return { topTex: r.topTex, own: worn, topBuf: r.topBuf, topRb: r.topRb, owners, morph: M, npcs: (g.npcs || []).length, live: window.OEFace && OEFace.live ? OEFace.live() : null }; }, +process.env.BUDGET_TOP) : {};
       fs.appendFileSync(BUDGET, `${JSON.stringify({ still: name, fi: x.fi, phase: x.phase, tier: x.tier, size, js_ms: js, ...c, ...top })}\n`);
     } catch (e) { console.log(`(no count at ${name}: ${String(e).slice(0, 120)})`); }
   };

@@ -339,7 +339,8 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
       const m = s.entry.m, mat = s.entry.mat;
       let cm = means.get(m);
       if (!cm) {
-        const img = mat.map && mat.map.image;
+        // (a picture in blocks has no pixels on the page: tex.js keeps a small copy of it for this)
+        const img = mat.map && (mat.map.isCompressedTexture ? mat.map.userData.thumb : mat.map.image);
         if (!img || !(img.width > 0) || img.complete === false) return null;
         means.set(m, cm = cellMeans(m, img));
       }

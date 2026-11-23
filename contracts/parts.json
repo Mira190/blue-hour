@@ -881,6 +881,7 @@
     "web/pack-worker.js",
     "web/tex.js",
     "web/astc.js",
+    "web/bc7.js",
     "web/astc-worker.js",
     "web/gltf.js",
     "web/game/trig.js",
