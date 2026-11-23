@@ -635,6 +635,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // who walk together are left to it on the move: of two friends one carries and the other shares it (people.js
   // wantUmb), and where both carry the canopies lean apart, and stood waiting they stand an umbrella apart
   const UMB_RIM = 0.06;
+  // (where a canopy's middle is from where its bearer stands: over the head a hand to the right and forward, people.js
+  // UMB_TOP, and the head ahead of the feet by a lean. Two at a kerb a canopy apart by their feet stood with their rims
+  // 0.1 to 0.3 m inside each other, frame 7's rain in main's checks, issue 187)
+  const UMB_OFF = 0.2;
   function umbRoom(p, o) {
     const a = p.umbR || 0, b = o.umbR || 0;
     if (a > 0 && b > 0) return a + b + UMB_RIM / 3;
@@ -1252,7 +1256,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // (in the rain, two who will both put an umbrella up are given an umbrella's room: the two canopies' radii and a
         // little more, p.umbW, which the crowd's renderer writes. A crowd under umbrellas stands looser at a kerb, as it
         // does in the rain, and canopies meet at most at their rims; issue 165)
-        if (q && q.umbW > 0 && o.umbW > 0) rr = Math.max(rr, q.umbW + o.umbW + UMB_RIM / 3);
+        if (q && q.umbW > 0 && o.umbW > 0) rr = Math.max(rr, q.umbW + o.umbW + 2 * UMB_OFF + UMB_RIM / 3);
         if (Math.abs(ex) < rr && Math.abs(ey) < rr && ex * ex + ey * ey < rr * rr) return false;
       }
       return true;
@@ -1923,7 +1927,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // that has, once, as people step apart to put theirs up; where the kerb has none left it stays. Until November 2026
       // frame 7's kerb stood under canopies running through each other, issue 165)
       if (!(q.umbW > 0)) q.umbSlot = false;
-      else if (!q.umbSlot && q.ph === 'wait' && q.g && !(q.lead >= 0) && q.T) { q.umbSlot = true; if (!slotFree(q, q.T.x, q.T.y)) slotAt(q.g, q, q.T, pz.road, false); }
+      else if (!q.umbSlot && q.ph === 'wait' && q.g && !(q.lead >= 0) && q.T) { q.umbSlot = true; if (!slotFree(q, q.T.x, q.T.y)) { slotAt(q.g, q, q.T, pz.road, false); if (!slotFree(q, q.T.x, q.T.y)) q.umbNoRoom = true; } }
+      // (and where the kerb has no umbrella's room left for them, they wait with theirs furled, as people packed at a kerb
+      // do, and put it up as they cross: people.js wantUmb. Left to stand, two canopies ran through each other, issue 187)
+      if (q.umbNoRoom && q.ph !== 'wait') q.umbNoRoom = false;
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
       if ((q.ph === 'wait' || (q.umbPush && (q.ph === 'linger' || q.lst))) && q.v > 0 && Math.hypot(q.T.x - q.x, q.T.y - q.y) < 1.5 && !(pz.road && pz.road(q.x, q.y))) { q.T.x = q.x; q.T.y = q.y; } // (one standing about whom an umbrella pushed off stays off too: walking back, the canopies met again, issue 165) // (and stays where it was pushed, up to a pace and a half, not back into the one who pushed it: walking back it turned about and back, Tokyo's kerb check, #283)
       if (!(q.ph === 'linger' && q.lst)) q.lh = null; // (its way to look round from, set afresh at each stand)

@@ -2341,7 +2341,7 @@ transformed = crowdPose(transformed, false);`);
     // (of those who walk together the two beside the one who leads share that one's umbrella, as friends do: two
     // canopies do not fit over two people shoulder to shoulder; a fourth, who stands or walks a canopy's width from the
     // leader in the group's rows, actors.js mateSpot, carries their own: issue 165)
-    const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < umbFrac && !(p.lead >= 0 && (p.gk === 1 || p.gk === 2));
+    const wantUmb = p => UMBRELLAS && rain > 0.06 && p.mode !== 'sit' && p.umbK < umbFrac && !p.umbNoRoom && !(p.lead >= 0 && (p.gk === 1 || p.gk === 2)); // (umbNoRoom: waiting where the kerb has no umbrella's room left, actors.js)
     // how far up this person's umbrella is (p.umbT, 0..1): each goes up over UMB_OPEN_S once they want it, and down a
     // little faster; one not drawn a moment ago, or a rain that came in at once (umbSnap), as it is by now
     function umbStep(p) {
