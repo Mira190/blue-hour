@@ -661,8 +661,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // under it is not built (the walkers hung in the air over its stairs, went in to the dead end and came out
   // again, and new ones appeared in its mouth). A well that opens stops being shut and is walked like any footway.
   const SEEN = 170;      // beyond this a walker put on the street is a few pixels: not seen to appear (m)
+  // (that was so from above. Down a straight street someone 200 to 400 m off is small and still a person who was
+  // there and is not: tools/crowd_vanish.js counted ten a minute. On the level, as far as a desktop draws them.
+  // ponytail: one distance for every lens; a long lens that fills the frame at 400 m would want it by the zoom)
+  const SEEN_STREET = 420;
   const SEEN_NEAR = 30;  // nearer than this the camera has only to turn (m)
-  function crowd(world, net, U, n, radius, makeRenderer, { benches: BN = null, ground = null, wall = null, posts: PO = null, clear = null, eye = null, shut = null } = {}) {
+  function crowd(world, net, U, n, radius, makeRenderer, { benches: BN = null, ground = null, wall = null, posts: PO = null, clear = null, eye = null, shut = null, sight = wall } = {}) {
     const P = [], tmp = {}, ahead = {};
     for (let i = 0; i < n; i++) P.push({ line: -1, s: 0, dir: 1, speed: 1.1 + rnd() * 0.6, phase: rnd() * 6.28, side: 0.6 + rnd() * 1.2, spread: rnd() * 2 - 1, lat: null, dodge: 0, v: 0, vx: 0, vy: 0,
       pause: 0, x: 0, y: 0, z: 0, h: 0, scale: 0.92 + rnd() * 0.16, state: 'walk', mode: 'ground', seat: null, t: 0, rest: rnd() * 30,
@@ -700,14 +704,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function seen(x, y, z, cone = 0.2) {
       if (!eye) return false;
       const ex = eye.position.x, ey = -eye.position.z, ez = eye.position.y, dx = x - ex, dy = y - ey, d = Math.hypot(dx, dy); // (sim y is -z)
-      if (d > SEEN) return false;
+      if (d > SEEN_STREET) return false;
       if (d < SEEN_NEAR) return true;
       eye.getWorldDirection(look);
       const h = Math.hypot(look.x, look.z); // (looking down from high up, all round it)
+      if (d > SEEN && h <= 0.3) return false;
       if (h > 0.3 && (dx * look.x - dy * look.z) / (d * h) < cone) return false;
-      if (!wall) return true;
+      // (sight: what stands between an eye and a walker, a building's solid. Not `wall`, what a walker cannot walk
+      // through: the planned area's edge and a shut stair's well are walls to the crowd and nothing to the eye, and
+      // those across the edge from the camera, or at it, were sent elsewhere as if nobody saw them go)
+      if (!sight) return true;
       const k = Math.ceil(d / 2.5), dz = z + 1.5 - ez;
-      for (let i = 1; i < k; i++) if (wall(ex + dx * i / k, ey + dy * i / k, ez + dz * i / k)) return false;
+      for (let i = 1; i < k; i++) if (sight(ex + dx * i / k, ey + dy * i / k, ez + dz * i / k)) return false;
       return true;
     }
     // a footway that leads into a place that is shut (most of it there, or a short one that ends there), or that runs
@@ -727,7 +735,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       shutLines.set(li, v);
       return v;
     }
+    function retire(p) { release(p); if (p.pz) { uncount(p); p.pz = p.g = null; p.state = 'walk'; } if (p.lead >= 0 || p.mates) partGroup(p); p.line = -1; } // (off the street)
     function respawn(p, cx, cy, rMin, rMax = radius) { // (rMax: no farther off than that, out of sight still: one held on a footway, walk())
+      if (api.why) p.goneWhy = (new Error().stack.split('\n')[2] || '').trim(); // (for the harnesses: which line sent it elsewhere, tools/crowd_vanish.js)
       release(p);
       if (p.lead >= 0 || p.mates) partGroup(p);
       p.stop = null; p.stopFace = null; p.arrived = 0; p.reg = null; if (p.look0) { p.look = p.look0; p.look0 = null; }
@@ -777,7 +787,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return false;
     }
     let opened = false, stepNo = 0; // (stepNo: the update under way, for the neighbours' hash) // (has the crowd taken its first step: update)
-    const api = { R, P, active: n, benches: BN, cars: null, sitChance: () => 0, crossings: null, kerbWait: 0, kerbWaits: [], fresh: 0, hot: null, plazas: null, muster, bodies: null };
+    const api = { R, P, active: n, want: null, benches: BN, cars: null, sitChance: () => 0, crossings: null, kerbWait: 0, kerbWaits: [], fresh: 0, hot: null, plazas: null, muster, bodies: null };
     // where footway li steps off the kerb onto a road with no crossing marked there, each way along it
     // ({ s, dir, x, y }): found the first time a walker is on it, a metre at a time (crossings.road, from
     // game.js, says what is carriageway; crossings.zebra, a zebra's stripes, where the cars give way instead)
@@ -1395,7 +1405,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // (taken from those well out of sight, or all at once as the game starts)
         for (let i = 0; i < api.active && have < want; i++) {
           const q = P[i];
-          if (q.pz || q.state !== 'walk' || q.lead >= 0 || (t >= 1 && q.line >= 0 && Math.hypot(q.x - cx, q.y - cy) < 120)) continue; // (a mate comes with its leader)
+          if (q.pz || q.off || q.state !== 'walk' || q.lead >= 0 || (t >= 1 && q.line >= 0 && Math.hypot(q.x - cx, q.y - cy) < 120)) continue; // (a mate comes with its leader)
           const g1 = G[Math.floor(rnd() * G.length)], g2 = G[Math.floor(rnd() * G.length)], g = g1.n / g1.len <= g2.n / g2.len ? g1 : g2; // (the less crowded of two kerbs for its crosswalk's width: no one kerb heaped while the next stands empty)
           if (t >= 1 && seen(g.x, g.y, g.z)) continue; // (not put at a kerb the camera sees: those who walk up to it join, toPlaza)
           const was = [q.line, q.x, q.y, q.z];
@@ -2152,12 +2162,24 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // out of sight and 270 m off, or 45 m off where the crowd gathers. Nobody stood within 32 m of the player at
       // any map's opening (issue 494), whatever the map's numbers.
       const fresh = api.fresh > 0 || !opened; opened = true; if (api.fresh > 0) api.fresh -= dt;
+      // (api.want: how many the street is to hold. More come at once, each put out of sight (respawn). Fewer, the hour
+      // getting late or a slow device's governor taking a quarter off, leave from the list's end one at a time and only
+      // one nobody is looking at: a quarter of the people in view were gone in one frame. At a cut, all at once)
+      if (api.want != null) {
+        if (api.want >= api.active || fresh) api.active = api.want;
+        else if (frame % 15 === 0) {
+          for (let i = api.want; i < api.active; i++) { const q = P[i]; if (!q.off && !((q.line >= 0 || q.pz) && seen(q.x, q.y, q.z))) { retire(q); q.off = true; } } // (off: gone, and not to come back elsewhere)
+          while (api.active > api.want && P[api.active - 1].off) api.active--;
+        }
+        if (api.active === api.want) api.want = null;
+      }
       K = api.bodies || [];
       lensUpdate(player, dt); KW = LN ? K.concat([LN]) : K;
       const pvx = player ? Math.sin(player.h) * player.speed : 0, pvy = player ? Math.cos(player.h) * player.speed : 0;
       for (let i = 0; i < n; i++) {
         p = P[i];
-        if (i >= api.active) { R.hide(i); release(p); if (p.pz) { uncount(p); p.pz = p.g = null; p.state = 'walk'; } if (p.lead >= 0 || p.mates) partGroup(p); p.line = -1; continue; }
+        if (i >= api.active) { R.hide(i); retire(p); p.off = false; continue; }
+        if (p.off) { if (api.want != null && i >= api.want) { R.hide(i); continue; } p.off = false; }
         if (p.lead >= 0) groupSync(p); // (a mate: where its leader is, on a footway or at a scramble, and as it is)
         if (p.pz) { if (p.pause > 0) p.pause -= dt; plazaStep(i, p, dt, player); p.mode = 'ground'; gait(p, dt); R.place(i, p, p.moving); continue; }
         if (p.line < 0 || Math.hypot(p.x - cx, p.y - cy) > radius * 1.15) respawn(p, cx, cy, p.line < 0 && (t < 1 || fresh) ? 0 : radius * 0.6);
@@ -2660,7 +2682,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const q = m > 0 && net.nearest ? net.nearest(door.x, door.y, 14, door.z) : null; // (the footway by the door)
       for (let i = api.active - 1, j = 0; q && i >= 0 && j < m; i--) {
         const p = P[i];
-        if (p.line < 0 || p.state !== 'walk' || p.pz || Math.hypot(p.x - cx, p.y - cy) < radius * 0.55) continue;
+        if (p.line < 0 || p.state !== 'walk' || p.pz || Math.hypot(p.x - cx, p.y - cy) < radius * 0.55 || seen(p.x, p.y, p.z)) continue; // (nor one the camera sees where it walks)
         release(p); partGroup(p); p.stop = null; p.stopFace = null;
         p.line = q.line; p.s = q.s; p.x = door.x + (rnd() - 0.5) * 0.8; p.y = door.y + (rnd() - 0.5) * 0.8; p.z = door.z; p.lat = null; p.v = 0; p.kerbNext = null; p.kerbBack = false; p.pause = j * 1.1;
         backTo(p); p.state = 'leave'; j++; api.alighted++;
@@ -3123,7 +3145,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           const line = cand[Math.floor(rnd() * cand.length)], L1 = net.L[line];
           if (!kerbLo(line)) continue;
           const s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (rnd() < 0.5 ? 1 : -1);
-          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8)) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
+          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8 || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
         }
       }
       for (let k = 0; k < 4 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
@@ -3151,6 +3173,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // (out of the ring's inside: a long piece with one vertex in the ring has the rest of its length anywhere, and a
         // car put on Meiji-dori 85 m from you appeared in sight, issue 167)
         if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8) continue;
+        // (nor anywhere the camera sees, as a walker is put (the crowd's seen()): by distance alone a car came onto a
+        // straight street 280 to 350 m off, in the frame, tools/crowd_vanish.js)
+        if (rMin > 0 && crowd && crowd.seen(tmp.x, tmp.y, tmp.z)) continue;
         c.z = tmp.z;
         if (!clear(tmp.x, tmp.y, 12, c, tmp.z) || overlaps(c, tmp.x, tmp.y, tmp.hx, tmp.hy, 3, 1) > 0 || peopleIn(c, tmp.x, tmp.y, tmp.hx, tmp.hy) > 0) continue; // (and not on your car or a ride)
         c.line = line; c.s = s; c.dir = dir; c.v = L1.v * 0.7; c.stuck = 0; c.dodgeT = 0; c.dodgeBrake = false; c.rev = null; c.vBend = Infinity; c.nx = undefined; c.plan = c.ex = c.ex2 = c.exA = c.pv = null; c.halt = false; c.q = false; c.off = 0;
