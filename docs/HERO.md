@@ -163,12 +163,18 @@ The Shibuya map's game opens on Hachiko Square at the junction's south-east corn
 diagonal to QFRONT. The level (`cities/shibuya/hero.py`, `hero/scramble.glb`) is the hundred metres round the
 junction, and its first part is what fills most of the frame from eye level: the ground.
 
-- **The carriageways**: one asphalt surface on the game's own road bands, a 50 cm concrete gutter along every
+- **The carriageways**: one asphalt surface on the surveyed carriageway itself (PLATEAU's road model, the
+  carriageways and junctions as polygons: `scramble.road_bands`, `pipeline/road_ground.py`; docs/ROADS.md "The ground
+  as surveyed", issue 196. Until then it lay on each road piece's band at its class's width: Dogenzaka-shita 9 m wide
+  where it is 16.7 m, a paved island down the road past Hachiko that is not there), a 50 cm concrete gutter along every
   kerb, flush granite kerbs, manholes and gully grates. The asphalt is ambientCG's `Asphalt031` with its
   aggregate a little clearer (`asphalt_texture`). Clean and of one tone: no patches, stains or wear ("The bar"
   in AGENTS.md: the ground is never aged).
 - **The paint**: the five crosswalks at the places measured off GSI's aerial photograph
-  (`scramble.CROSSWALKS`), stop lines, the diamonds before them and centre lines, in an even off-white
+  (`scramble.CROSSWALKS`), each end taken to the surveyed kerb (`fit_walk`: nine of the ten ends moved under 0.9 m,
+  the south one's at Hachiko Square 2.8 m, where the photograph has the bars end too), stop lines from the dividing
+  line to the left kerb as the road pieces' one-ways give them (`stop_line`), the diamonds before them, centre lines,
+  and a broken line between two lanes of one way where the survey has room for two, in an even off-white
   thermoplastic with the grain of its glass beads (`paint_texture`).
 - **The pavements**: grey blocks (`PavingStones136`), and Hachiko Square in the red-brown block the 2024
   photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks

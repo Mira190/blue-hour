@@ -139,6 +139,13 @@ const LEADS = [
         const own = ways.walk({ x: pl.x, y: pl.y, z: pl.z }, { x: to[0], y: to[1], z: to[3] }), faults = [], P = own ? own.pts : null;
         if (!P) return ['no way'];
         st.lost = true; st.guided = false;
+        // (the mark's own way is worked out by the page from where the player stands when it first asks, which is a step
+        // from here once the dog and the crowd have made room; where two ways are as short as each other (round Center
+        // Gai's mouth by QFRONT's forecourt, or along its kerb: issue 196) a step chooses between them. So the aim is held
+        // to the way from here as it was, or to the way from where the player stands when the mark is read)
+        let P2 = null;
+        const offWay = (x, y) => Math.min(onWay(x, y), P2 ? onWayOf(P2, x, y) : Infinity);
+        const onWayOf = (Q, x, y) => { let b = Infinity; for (let i = 1; i < Q.length; i++) { const [ax, ay] = Q[i - 1], [bx, by] = Q[i], ux = bx - ax, uy = by - ay, k = Math.max(0, Math.min(1, ((x - ax) * ux + (y - ay) * uy) / (ux * ux + uy * uy || 1e-9))); b = Math.min(b, Math.hypot(ax + ux * k - x, ay + uy * k - y)); } return b; };
         const onWay = (x, y) => { let b = Infinity; for (let i = 1; i < P.length; i++) { const [ax, ay] = P[i - 1], [bx, by] = P[i], ux = bx - ax, uy = by - ay, k = Math.max(0, Math.min(1, ((x - ax) * ux + (y - ay) * uy) / (ux * ux + uy * uy || 1e-9))); b = Math.min(b, Math.hypot(ax + ux * k - x, ay + uy * k - y)); } return b; };
         const straight = (x, y) => { const d = Math.hypot(x - pl.x, y - pl.y), m = Math.ceil(d / 0.5); let z = pl.z; for (let i = 1; i < m; i++) { const w = nav.walk(pl.x + (x - pl.x) * i / m, pl.y + (y - pl.y) * i / m, z + 0.3, true); if (!w.ok) return false; z = w.z; } return true; };
         const plen = own.len;
@@ -152,7 +159,8 @@ const LEADS = [
           const m = /([0-9]+) m/.exec(txt), metres = m ? +m[1] : null;
           const f = [];
           if (!mk.classList.contains('on')) f.push('no mark');
-          if (st.wayAim && onWay(a[0], a[1]) > 2) f.push(`aim ${onWay(a[0], a[1]).toFixed(1)} m off the way`);
+          { const now = ways.walk({ x: pl.x, y: pl.y, z: pl.z }, { x: to[0], y: to[1], z: to[3] }); P2 = now ? now.pts : null; }
+          if (st.wayAim && offWay(a[0], a[1]) > 2) f.push(`aim ${offWay(a[0], a[1]).toFixed(1)} m off the way (aim ${a[0].toFixed(1)}, ${a[1].toFixed(1)} from ${pl.x.toFixed(1)}, ${pl.y.toFixed(1)}; the way ${P.slice(0, 6).map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' / ')})`);
           if (!straight(a[0], a[1])) f.push('aim not reachable straight');
           if (metres != null && Math.abs(metres - plen) > Math.max(5, plen * 0.1)) f.push(`says ${metres} m, the way is ${plen.toFixed(0)} m`);
           if (f.length) faults.push(`${(yaw * 180 / Math.PI).toFixed(0)}: ${f.join(', ')} [${txt}]`);

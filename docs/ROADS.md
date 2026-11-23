@@ -146,8 +146,9 @@ the plan change):
   or within 120 m; no bus made off the bus streets, and under 15 % of the buses' time off them; no two vehicles one
   inside the other for over 3 s; no more than three held 150 s; traffic coming in and going out.
 - `tools/road_drive.js` with `TO` and `FROM`: the walk's drive to 109 on the autopilot from three starts (the
-  Scramble's kerb, the street in the report, Meiji-dori by SKY GATE), each arriving within the errand's 35 m without
-  leaving the carriageway or standing in a wall.
+  Scramble's kerb, the street in the report, Meiji-dori by SKY GATE) and one back across the Scramble, each arriving
+  within the errand's 35 m without leaving the carriageway or standing in a wall, and within its time (issue 175).
+- `tools/junction_flow.js`: the Scramble's cycle and what each arm passes of its queue ("The junctions' capacity").
 
 By hand: `xvfb-run -a node tools/road_drive.js shibuya 320` drives every piece within 320 m of the start once, a leg
 at a time, and fails where no route is found, the car stands 150 s, leaves the carriageway or meets a wall.
@@ -336,16 +337,112 @@ Not checked: a real GPU, a phone in hand, Safari.
 
 ### Not done here
 
-- **The Scramble's hero level draws its carriageways at their class's width** and keeps it: its floor, kerbs,
-  crosswalks, guard pipes and tactile paving are built from that plan (`cities/shibuya/scramble.py`), so a change is
-  a rebuild of the level and every still of the story taken again. The survey has Dogenzaka-shita at 16.6 m where
-  the level draws 9 m, the station's west side at 14 m against 9 m, Koen-dori's foot at 14.7 m against 9 m
-  (`road_width.json` `hero`). Issue 196, with issue 90.
 - **The survey is Shibuya-ku's.** 34 km of streets in the phone's district lie in Minato, Meguro and Setagaya and
   keep their class's width; each ward has a road model of its own in the same catalogue.
-- **The ground is painted as a band along each piece.** The survey's junction mouths, corner radii and islands are
-  polygons, and are not yet painted as such.
 - **A bus shows no number or destination**; `game.bus_lines` carries both.
+
+## The ground as surveyed: the hero levels, and the planned area's streets
+
+Issue 196, its second part. The owner's ask (23 November 2026): "Rebuild the road surface of the Scramble's core area
+at the surveyed widths too. Follow the actual survey and the real road network; at the very least the protagonist's
+radius of action must reproduce Shibuya completely."
+
+A band along a centre line cannot be a road's ground: it has no junction mouth, no corner radius and no island, and
+it lies off any carriageway whose middle is not the map's line. The survey's polygons are the ground itself. So
+inside the planned area nothing is a band any more: `pipeline/road_ground.py` sorts the survey's polygons by what
+the road pieces say of them, and the hero levels, the page's drawing of the streets and the checks all read it.
+
+| What | Is |
+|---|---|
+| asphalt | the survey's carriageways (車道部) and junctions (車道交差部) that a road piece on the ground runs through |
+| shared | those no piece runs through, or only one closed to cars with the crowd's own line down it: a pedestrian street the survey has as a road (Center Gai). Paved, with no kerb |
+| walk | the footways (歩道部) |
+| island | the islands (島): Route 246's and Meiji-dori's medians |
+| a piece's own band | only where the survey has no ground (a private way) |
+
+### Measured before anything was changed
+
+![The Scramble's level on the survey, before and after](images/roads/hero-survey.jpg)
+
+`python tools/hero_survey_map.py shibuya out.jpg [cx cy r]` draws a level's carriageway (cyan) on the survey, its
+crosswalks (white) and OpenStreetMap's crossings (yellow), and gives the figures:
+
+| The Scramble's level (r 100 m) | Before | Now |
+|---|---|---|
+| Carriageway drawn | 6,200 m² | 8,194 m² |
+| The survey's carriageway not drawn as one | 3,612 m² | 0 |
+| Drawn as carriageway on a surveyed footway | 198 m² | 0 |
+| Kerb within the survey's accuracy (1.75 m at map level 2500) | 34 % of 779 m | 100 % of 637 m |
+| Mean distance between the two kerb lines | 4.6 m (worst 29.5 m) | 0 |
+
+What that was on the street: Dogenzaka-shita 9 m wide where it is 16.7 m; the road south of the junction, past
+Hachiko, drawn as two lanes round a paved island 15 m by 40 m that does not exist (the two one-way pieces' bands with
+the gap between them paved); Koen-dori's foot two 9 m bands where one carriageway of 14.7 m is; the road under the
+tracks 9 m against 14.4 m. Miyamasu (r 50 m): 2,607 m² drawn, the survey 4,097 m² (the east exit's bus apron).
+
+**The sources against each other.** The five crosswalks were placed from OpenStreetMap's crossing ways and GSI's
+aerial photograph. Taken to the surveyed kerbs (`scramble.fit_walk`), nine of their ten ends move 0.01 to 0.82 m:
+two independent surveys agree to well inside either's accuracy. The tenth, the south crosswalk's end at Hachiko
+Square, moves 2.82 m, more than the survey's 1.75 m, so it was checked against a third: on GSI's seamless photograph
+(zoom 18, `tools/aerial_local.py shibuya 365 -1010 45`) the bars run to x 372.5; the survey's kerb is at 371.6 and
+OpenStreetMap's way ends at 368.9. The survey is right, and the map's way is short. The crowd waits at the ends of
+those ways, so its walkers stood 2.8 m out in the carriageway there: the game now takes the lines kerb to kerb
+(`road_ground.x`).
+
+| Crosswalk | Length kerb to kerb | As drawn before | Width (the photograph's) |
+|---|---|---|---|
+| The diagonal, QFRONT to Hachiko | 31.9 m | 32.0 m | 9.4 m |
+| North, QFRONT to MAGNET | 15.2 m | 15.0 m | 9.2 m |
+| East, MAGNET to Hachiko | 15.7 m | 16.5 m | 9.0 m |
+| South, Hachiko to the Ekimae building | 29.3 m | 25.6 m | 7.8 m |
+| West, across Dogenzaka-shita | 17.6 m | 17.7 m | 7.2 m |
+
+Not done: PLATEAU's LOD3 road tiles for the same streets (`13113_tran_lod3`, 3D Tiles; issue 90) were not read. They
+would add the lane lines as surveyed; the kerbs are settled by the three sources above.
+
+### The hero levels (`cities/shibuya/scramble.py`, `hero.py`)
+
+- `road_bands(D)` is the survey's asphalt; `junction_area` the same inside the crosswalks' hull. Everything that
+  follows the kerb is generated from it as before, and so moved with it: the gutter, the granite kerb, the guard
+  pipes, the bollards along QFRONT's forecourt, the lamp posts, the tactile lines' ends, the gully grates.
+- The crosswalks end at the surveyed kerbs, and their bars are laid from kerb to kerb where the kerb runs askew.
+  Crossings OpenStreetMap maps as marked that lie whole inside a level are painted too (`zebras`), 4 m wide.
+- A stop line is read from the road pieces that cross it (`stop_line`): from the line dividing the two ways to the
+  left kerb. The table it replaces had the road from the south as one-way and stopped its whole width.
+- A piece inside a level carries its surveyed width like any other (`road_width.py` has no exception left), and two
+  lanes each way are driven and painted where the survey has room for them (13.6 m two-way, 9.6 m one-way,
+  `OEStreets.roomForTwo`): Dogenzaka-shita, Koen-dori's foot, Miyamasuzaka, the station's west side.
+- Each level's plan is kept beside it (`cities/shibuya/hero_plan.json`) when it is built.
+
+### The planned area's streets (`game.json` `road_ground`, `web/game/game.js` `streetTexture`)
+
+![The planned area's ground as surveyed](images/roads/ground.jpg)
+
+`python pipeline/road_ground.py --city shibuya` writes the planned area's ground and 60 m round it (25 kB: 5
+carriageways, 10 shared streets, 50 footways, 4 islands, the zebra crossings each from kerb to kerb). Inside that ring
+the page fills the polygons: footways, shared streets and islands in the paving's tone, a kerb line round the asphalt,
+the asphalt, an edge line half a metre in from the surveyed kerb; a piece's band is painted only outside the ring.
+Centre and lane lines stay on the pieces' lines, which is where the traffic drives. It costs a phone nothing new:
+the same drawing at the same size.
+
+### A line inside its kerbs (`pipeline/road_fit.py`)
+
+The surveyed ground showed what a centred band had hidden. A piece's line is the map's and the traffic drives at fixed
+places off it; the road past Hachiko is 29 m wide and the map's line runs 2.5 m from its east kerb, so the lane 1.7 m
+to the left of it had its wheels on the kerb, and the ride back to Hachiko set you down with two corners of the car
+on the square (`tools/ride_people.js` found it: the first full run of the checks on this branch). `road_fit.py` moves
+each vertex of a piece in the planned area square to its line until the lanes driven there have their room on both
+sides (half a car, the gutter and a hand past the outer lane's middle), a node once for every piece that ends on it:
+92 vertices of 37 pieces, 1.3 m or less but for one of 1.8 m (Meiji-dori by Scramble Square). A street with no room
+for its lanes at all is left as it is. The widths, the bus lines and the levels are made again on the lines as moved.
+
+### The checks
+
+- `python pipeline/road_fit.py --city shibuya --check`: no lane driven in the planned area lies over a surveyed kerb;
+- `python pipeline/road_ground.py --city shibuya --check`: `road_ground` is what the survey gives now;
+- `python tools/hero_survey_map.py shibuya --check`: every level that draws ground, as built, against the survey:
+  its carriageway's overlap, its kerb within 1.75 m, none of it on a surveyed footway, every crosswalk's end on a kerb;
+- `python pipeline/road_width.py --city shibuya --check`, with no hero exception.
 
 ## The first drive, and the streets inside the playable area
 
@@ -408,6 +505,146 @@ Scramble): the area's designed edge, said by the works and their line, not a fau
 `xvfb-run -a node tools/first_drive.js out_dir [WxH] [hour]` opens the walk as a player does, takes the car where it
 waits, and drives it on the autopilot to 109's foot and to SKY GATE's kerb, a still every few seconds.
 
+## The junctions' capacity
+
+Issue 175. With the roads joined, the Scramble and the fork at 109 were what limited a drive: the autopilot's 364 m from
+Meiji-dori by SKY GATE to 109 took 401 s. Counted at the stop lines as a traffic engineer counts a junction
+(`tools/junction_flow.js`: each phase's green, the vehicles into the box per green against the queue that waited, and
+the seconds of green the vehicle at the line stood, by its reason), 17:57, eight minutes, the watcher out of the
+scrambles' reach:
+
+| | Before | After |
+|---|---|---|
+| The Scramble's cycle; walk, east-west, north-south | 73 s; 26, 17, 9 | 77 to 100 s as its queues ask (118 at most); 26, 20 to 22, 14 to 25 |
+| East arm (from Miyamasuzaka): into the box an hour, of its queue a green, first away after | 77; 2.0 of 2.0 with 62 s of its greens lost to a car crossing the box; 10.8 s | 108 to 151; 3.0 to 3.3 of 5.3 to 5.7; 2.6 to 5.8 s |
+| West arm (from 109): the same | 84; 1.6 of 3.6; 13.3 s | 175 to 192; its queue and those that come up behind it |
+| The junction beside 109, westbound to 109 | 0 vehicles in 8 minutes: 173 s of its greens waiting on 109's light, 7 m on | 229 an hour |
+| 109's fork: down Dogenzaka, from Bunkamura-dori | 104, 15 an hour | 135, 90 |
+| Route 246 under the expressway at Dogenzaka-shita: its cycle; the trunk road's arms; the side street's | 17 s, 3.7 s of green a turn; 94 to 259 an hour, 0.4 to 1.3 cars of queues of 6 a green; 50 | 30 s, 13 and 7 s; 152 to 593, 1.5 to 4.9 a green; 152 |
+
+The drive on the autopilot, a desktop's page, the traffic running, each figure one drive:
+
+| | Before | After |
+|---|---|---|
+| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s; a phone's page 155 (the issue's) | 64, 70, 90 s as landed (49 to 127 over the twenty drives before, median 80) |
+| The street under the railway to 109, 493 m | 165 s (the issue's) | 106 s (78 to 130 over six before) |
+| The Scramble's kerb to 109 by the station's front, 594 m | 112 s (the issue's) | 168 to 253 s while it was built, 90 to 150 of them at Route 246's junction under the expressway before its lights were mended (8) |
+| Back across the Scramble, Bunkamura-dori to Miyamasuzaka, 278 m | not driven; the cars of Bunkamura-dori stood | 47, 121 s |
+
+The drive from SKY GATE to 109 at 17:57 after, a still every 8 s, on a desktop's page (69 s) and a phone's (57 s); the
+kerbs' crowds wait off the carriageway through the traffic's turns:
+
+![The drive on a desktop's page](images/roads/junctions-drive-desktop.jpg)
+![The drive on a phone's page](images/roads/junctions-drive-phone.jpg)
+
+### What held the queues, in the order the count found them
+
+1. **A way across was held from the line to the far side.** A car let into a junction held every movement its way
+   crosses until it had left the junction: 43 to 64 m of the Scramble's box, 8 to 10 s. A car turning across the
+   oncoming road took that road's whole green, and one late out of the last turn the first seconds of the next (first
+   away after 11 to 13 s of a 17 s green). Now a movement holds another only until its car, tail and 1.5 m more, has
+   gone by the stretch where the two ways come within a car's width (`junctions.js` `zoneEnd`, `past`): the conflict
+   area of SUMO's internal lanes and of an intersection manager's tiles, not the whole movement. In a scramble's wide
+   box a bus sweeps its own way 4.4 m wide, not the whole junction. A car's place on its way is followed from step
+   to step: the way of the turn from the station's front round into Dogenzaka doubles back past itself.
+2. **The stages were set by the arms' bearings, not by what crosses.** The one-way street out of the station's front
+   (the Scramble's south-west arm) lay 41 degrees off the east-west road and was put in its turn, though every way out
+   of it cuts both of that road's directions. A scramble's two turns are now the split of its arms that crosses least,
+   each crossing pair of ways weighed by how often it is driven (`stages`): east-west, and north-south with the
+   station's front, which is how the real junction runs. 109's fork came out with Dogenzaka's downhill arm in a turn of
+   its own, which crosses nothing.
+3. **Two junctions 7 m apart ran on two cycles.** The junction between the Scramble and 109 (806: the side streets by
+   Center-gai) has room for one car before 109's line, so a car crosses the two together and needed both green at
+   once: 109's turn was 10 s in 60. A junction whose line is within 12 m of a scramble's now runs from that scramble's
+   controller (`follow`): the road they share is green through both of the scramble's turns, the side roads and the
+   walkers over the shared road have theirs with the scramble's walk. A car from the side road crosses its own
+   junction alone and waits the scramble's turn on the short piece; a bus, which does not fit there, takes another
+   way out.
+4. **A game's cycle.** The turns were 10 and 8 s (17 and 9 as the queues stretched them). With 3 s of amber, 4 of all red and 4 to 6 before the first car was
+   away, a turn passed one or two cars: 55 to 84 an hour a lane, against a saturation flow of 1,800 to 2,000. They are
+   now the real cycle's (below), run as an actuated signal runs them: 7 s at least, on while the queue is there, ended
+   4 s after the last of it has gone, a turn with nobody waiting passed over (never twice running); the traffic's time
+   is split between the two turns by the queues that wait as each begins. With you on foot at a scramble's kerb the
+   walk still comes next, and the turn that cannot be passed over for you runs 12 s at most. The all red
+   between the two turns is 2 s, since what is late in the box now holds only what it crosses.
+5. **The Scramble and 109's fork each ran their own cycle, with room for four cars between them.** Once each passed
+   its queue, the 29 m of Dogenzaka between the Scramble's western line and the junction beside 109 was what held: the
+   Scramble's east-west green filled it in its first seconds and stood full, 109's emptied it into a red, and a queue
+   of fourteen on Miyamasuzaka moved three cars a cycle (306 s to 109 in one drive of the check). A scramble joined to
+   a greater one by less than 45 m of road now runs on that one's cycle, in step (`coordinate`). All of 109's own
+   traffic has the one turn, with the Scramble's east-west (Bunkamura-dori in a turn of its own, with the Scramble's
+   north-south, found the road between full every time and stood 150 s); the junction's rule, the longest waiting
+   first, shares it. 109's arm from the Scramble is green through both of the Scramble's turns, nothing of 109's own
+   moving in the second, so the tail of the east-west green and what the north-south turn sends round from the
+   station's front run on through (a bus let round stood in the middle of the Scramble through the walk when that road
+   was full). A lag of a car's time between the two junctions was tried first: it cleared the road westbound and left
+   the eastbound cars four a cycle. 109's cycle is then the Scramble's, not shorter as the issue put it: on a cycle of
+   its own it could not pass its cars.
+6. **The signals saw a queue only on the last piece of an arm.** The Scramble's east arm is 25 m from the junction
+   before it and 109's downhill arm 9 m: the cars behind stood unseen, their green ended with three of eight through
+   or their turn was passed over (a car stood 150 s at the junction before 109). A car is counted for the line whose
+   queue it stands in, through the cars ahead and across a junction without lights (`actors.js` `queuedFor`).
+7. **A walker and a driver each waited on the other.** One of the crowd sent to the nearest kerb of the Scramble in a
+   straight line, 30 m off and across Dogenzaka, stood in the lane at the western stop line with a car before it for
+   150 s. The scramble's crowd no longer steps off the pavement outside its walk; one standing in a driver's way off
+   the walk is asked aside after 3 s, as the traffic's cars already asked.
+8. **A trunk road's junction turned every 3.7 s.** Route 246's junction under the expressway at Dogenzaka-shita (nine
+   arms, a box 50 m across) is where the drive from the Scramble's kerb goes round to come back up the station's
+   front, and where it stood behind a car held 150 to 195 s (the comment on issue 175: "a bus that stays in the box
+   with no reason given"). With a queue on every arm, the rule that nobody waits at a red longer than 10 s gave each
+   turn 3.7 s of green in a cycle of 17 with 10 of it amber and all red. Where a trunk road is crossed the longest
+   red is now 20 s (`j.red`).
+9. **The autopilot read a long red as a jam.** A car stood 40 s was "longer than a red light lasts", and the drive went
+   round by another way (213 s). The limit is now the red of the scramble the road leads to, and a wait in the queue
+   for a red is not counted as a road that will not clear.
+
+### The real junctions, and what was taken
+
+| Source | What it gives | Standing | Used for |
+|---|---|---|---|
+| shingou-saikuru.com, "渋谷駅前" (signal 331-06), timed by stopwatch on 25 August 2020 at 18:00, two cycles alike | cycle 140 s: walk 37 s and 10 flashing, all red 4; east-west (Dogenzaka to Miyamasuzaka) 44, amber 3, all red 3; north-south 33, 3, 3. No arrow. Right turns banned on every approach by day | one observer's timing, not the police's | the order of the stages, the split 44 to 33, the walk's third of the cycle |
+| ja.wikipedia, 渋谷スクランブル交差点 (citing the Asahi Shimbun, 2016) | up to 3,000 across in one green, every two minutes; a scramble since 1973 | secondary | the cycle's cap, 120 s |
+| shingou-saikuru.com, "道玄坂下" (331-05), 26 August 2020 | by day Bunkamura-dori has a left arrow and no full green, its right turn banned; U-turns banned on Dogenzaka 8 to 20 h. Its cycle is in a picture only | one observer's | not adopted: the game's fork passes Bunkamura-dori in the east arm's turn, which crosses nothing of it |
+| 交通工学研究会, 平面交差の計画と設計 (as quoted in Nihon University's proceedings, F-17) | saturation flow 2,000 pcu a green hour for a through lane, 1,800 for a turning one; measured values 10 to 20 % lower | the design manual, at second hand | the bar the count is read against |
+| FHWA, Traffic Signal Timing Manual, chapter 3 | 1,900 pc/h/lane ideal, about 2 s lost at start-up, 4 s a phase in all | official | the same; the lost time in the drive's limit |
+| Osaka Prefectural Police, signal timing | a walker's 1.0 m/s for the walk | official | not adopted: the game's crowd crosses at 1.45 m/s and its walk is the time that takes |
+
+No official timing of either junction was found, nor traffic counts for these streets, nor whether 109's fork is a
+separated-phase signal; the game keeps it a scramble as it was. No signal was found between the Scramble and 109: the
+game's junction 806 there has mapped signals in the data and now runs as part of 109's.
+
+How simulators do it, and what was adopted:
+
+- **SUMO** (Eclipse, EPL-2.0; its documentation, no code): a turn waits inside the junction on an internal lane for a
+  gap in its foes, and conflicts are held at the place two lanes cross; `keepClear` keeps a junction's box free;
+  actuated lights run a phase between a minimum and a maximum and end it a gap after the last vehicle (5 to 50 s,
+  `max-gap` 3 s). Adopted: the conflict held at the place the ways cross, and the minimum, extension and maximum.
+- **A/B Street** (Apache-2.0; its documentation): a stage lists the turns that may run together, none of its protected
+  turns crossing another; a stage's time is fixed or variable (a minimum, extended while there is demand); close
+  junctions are crossed as one "uber-turn". Adopted: stages made of what does not cross, and the junction beside a
+  scramble run as one with it.
+- **traffic-simulation.de** (GPL-3.0; read, nothing taken): the IDM's time gap of 1.5 s, which the game's traffic
+  already has near (a headway of 2.2 to 2.4 s from a standing queue where nothing crosses).
+- **Closely spaced signals** are run on a common cycle with an offset of the travel time between them, so that a
+  platoon released by one meets green at the next (FHWA's Traffic Signal Timing Manual, chapter 6; A/B Street's
+  signal groups). Adopted: `coordinate`, and its 16 s.
+- Not adopted: gap acceptance for a turn across the oncoming road (the turner still goes in its turn of arrival, and
+  holds the oncoming road only while it is on the crossing place: 9 to 18 s of 8 minutes at the Scramble's arms).
+
+### The checks
+
+In the `roads` target: `tools/junction_flow.js` with `CHECK=1` counts the Scramble for four minutes and fails on a
+cycle over 130 s, on more than a quarter of an arm's queued greens passing nobody, and on an arm that passes under a
+third of its queue. `tools/road_drive.js` with `TIMED=1` fails a drive that takes longer than its road at 6 m/s and
+one whole cycle of each scramble on its way (118 s at the Scramble; half as much again for 109's fork, which runs on
+the Scramble's cycle: a car that comes to it out of the Scramble's other turn waits the walk and the rest), and the
+364 m from SKY GATE to 109 that takes longer than the three minutes the issue asks (`@180` on its start). The figure is the worst an
+undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
+comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
+Scramble, from Bunkamura-dori to Miyamasuzaka. `TRACE=1` prints
+each stand of a drive: where, how long, behind what, at which light. `DUMP=1 node tools/junction_flow.js` prints a
+junction as built: arms, stop lines, ways across, which cross and where, and where footways cross its arms.
+
 ## Not done, and why
 
 - **The mounds beside the streets at the embankment** are the survey's ground, left as it is by `street_ground.py`
@@ -423,6 +660,13 @@ waits, and drives it on the autopilot to 109's foot and to SKY GATE's kerb, a st
   terminal island's solid and the building east of it in the model, which the plan's width test reads as a pinch, not
   a lane (its median width is the street's). The traffic and your car pass it; the island's footprint wants standing
   back (issue 195).
-- **The Scramble and 109 still pass too few cars** (issue 175): a drive across the Scramble from SKY GATE's kerb
-  took 401 s for 364 m on a desktop's page. The taxis' ranks, a dressed closure, the clipped expressway pieces and
-  Tokyu's GTFS are issue 176.
+- **The ways across a scramble all pass its node.** The road graph has one node at the Scramble's middle, so ways
+  that are 10 m apart on the real junction come within 2 m of each other there, and are read as crossing (the cars
+  from the north and from the station's front, both in the north-south turn, take turns at the middle). Shaping the
+  ways by the box, not the graph, is the next gain there.
+- **Every other junction keeps the game's 10 s red.** Their greens are 6 to 13 s against about 6 s lost at each
+  change; what the count found at the scrambles and at Route 246 holds for them in a smaller measure, and
+  `tools/junction_flow.js` at a place says how much. Issue 176 has the taxis' ranks, a dressed closure, the clipped
+  expressway pieces and Tokyu's GTFS.
+- **With you on foot at a scramble's kerb its traffic's turns are 12 s** (20 for the one 109 shares), so that the
+  walk comes for you within half a minute: the traffic round you passes about half of what it does with you away.

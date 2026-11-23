@@ -56,8 +56,9 @@
 #           when the sound changes;
 #   roads   the road plan in the game (docs/ROADS.md, issue 167): the traffic watched for three minutes from two kerbs
 #           (none made on a quiet street, at a wall or within 120 m, buses on bus streets, no vehicle inside another,
-#           none stood for good: tools/road_traffic_watch.js) and the walk's drive to 109 on the autopilot from three
-#           starts (tools/road_drive.js); when the traffic, the drivers, the junctions or the plan change. The plan
+#           none stood for good: tools/road_traffic_watch.js), the Scramble's cycle and what each arm passes of its
+#           queue (tools/junction_flow.js, issue 175) and the walk's drive to 109 on the autopilot from three starts and
+#           back across the Scramble, each timed (tools/road_drive.js); when the traffic, the drivers, the junctions or the plan change. The plan
 #           itself is held with the static checks (pipeline/road_plan.py --check)
 #   ride    frame 6's car taken from where the flight sets you down to Hachiko, every car checked against every person
 #           on every step: never one standing in someone (tools/ride_people.js); when the drivers, the cars or the crowd change;
@@ -151,7 +152,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 600 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|guide1|guide2) echo 560 ;; budget1|budget2|budget3) echo 300 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
@@ -439,20 +440,26 @@ walk_on() {
   [ $ok -eq 1 ] && echo "ok   walk   $said: two ways in, the hour and the sky, out with no story"
   return 0
 }
-run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched from two kerbs, and the walk's drive to 109 from three starts
+run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched from two kerbs, the Scramble's cycle and flow, and the drives to 109 and back across the Scramble, timed
   local ok=1
+  # (issue 175, docs/ROADS.md "The junctions' capacity": the Scramble counted at its stop lines for four minutes: no cycle
+  # over 130 s, no green that passes nobody of a queue, no arm that passes under a third of its queue)
+  if ! GAME_TIME=${GAME_TIME:-17:57} CHECK=1 timeout 1200 $X node tools/junction_flow.js "$MAP" 4 372,-1010 >"$OUT/roads-flow.log" 2>&1; then ok=0; echo "FAIL roads  the Scramble's flow: $(grep '^FAIL\|pageerror' "$OUT/roads-flow.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-flow.log)"; fi
   if ! GAME_TIME=${GAME_TIME:-17:57} timeout 1500 $X node tools/road_traffic_watch.js "$MAP" 3 >"$OUT/roads-watch.log" 2>&1; then ok=0; echo "FAIL roads  the traffic: $(grep '^FAIL\|pageerror' "$OUT/roads-watch.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-watch.log)"; fi
   if ! GAME_TIME=${GAME_TIME:-17:57} timeout 900 $X node tools/trips_probe.js "$MAP" 120 >"$OUT/roads-trips.log" 2>&1; then ok=0; echo "FAIL roads  the trips: $(grep '^FAIL\|pageerror' "$OUT/roads-trips.log" | head -3 | cut -c1-170 | paste -sd ';' -)   (see $OUT/roads-trips.log)"; fi
   # (the drives with the traffic running, as the clip and the game check are: a second run when one fails, and a failure
   # only where the same start fails both times; else FLAKY, which main lists under check-flaky. Issue 175: the autopilot
   # and a bus in Dogenzaka-shita's junction under the expressway can still stand each waiting on the other)
-  drive() { GAME_TIME=${GAME_TIME:-17:57} TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
+  # (timed, issue 175: each drive within its road at 6 m/s and one cycle of each scramble on its way, and the 364 m from
+  # SKY GATE, which took 401 s, within the issue's three minutes; the fourth start drives back across the Scramble, from
+  # Bunkamura-dori to Miyamasuzaka)
+  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100@180;247,-964>505,-996" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
   if ! drive; then
     cp "$OUT/roads-drive.log" "$OUT/roads-drive-first.log"
-    if drive; then echo "ok   roads  the drive to 109 from three starts   (the second run; the first: $OUT/roads-drive-first.log)"
+    if drive; then echo "ok   roads  the drives to 109 and back across the Scramble, each within its time   (the second run; the first: $OUT/roads-drive-first.log)"
     else ok=0; twice roads "$OUT/roads-drive-first.log" "$OUT/roads-drive.log" | sed 's/^FLAKY roads/FLAKY roads  the drive to 109:/; s/^FAIL roads/FAIL roads  the drive to 109:/'; fi
   fi
-  [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their lines, every car bound somewhere and nearer it at each turn, none inside another; 109 reached from three starts"
+  [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their lines, every car bound somewhere and nearer it at each turn, none inside another; the Scramble's cycle within 130 s and its queues passed; 109 reached from three starts and the Scramble crossed back, each within its time"
   return 0
 }
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
@@ -670,6 +677,7 @@ rm -rf "$OUT/keep"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st roads roadplan - '^FAIL|Error' python3 pipeline/road_plan.py --city "$MAP" --check
     st roads roadwidth - '^FAIL|Error' python3 pipeline/road_width.py --city "$MAP" --check
+    st roads roadground "the planned area's ground and every hero level's as the survey has them, every lane inside its kerbs" '^FAIL|Error' bash -c "python3 pipeline/road_ground.py --city $MAP --check && python3 tools/hero_survey_map.py $MAP --check && python3 pipeline/road_fit.py --city $MAP --check"
     st roads buslines - '^FAIL|Error' python3 pipeline/bus_lines.py --city "$MAP" --check
     st roads routes - '^FAIL|Error' python3 pipeline/road_routes.py "$MAP" --check
     st roads firstdrive "your car's first drive leads on, and every street open to it in the area is one a car can use" '^FAIL|Error' python3 tools/first_drive.py "$MAP"
