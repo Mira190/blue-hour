@@ -2870,3 +2870,18 @@ of the city's vertex buffers (`buffers:` in the page's log).
 `nav.withoutFine` 1.0 s and `nav.create` 0.9 s, `decks.plan` 1.0 s, `night.create` 0.7 s, `surface.copy` 0.5 s. On a
 phone's tier the same order, half the size. Each second here is about half a second on the owner's M3 (6.3 s set-up at
 p75) and more on a phone; they are the next place to cut (issue opened with this).
+
+### The one you play: the head's and the hair's pictures at a phone's size (issue 130, 23 November)
+
+By whose each texture is (`BUDGET_TOP`'s `owners`: every texture a material holds, by the names up its mesh's parents),
+the heaviest person on a phone was the one you play: the head's picture and the hair's at 1024 a side and the head's
+relief, 12 MB, where each of the cast's is 1 MB (`people.js` `smaller`: 512 a side on a phone, 256 on the lighter
+levels; "the characters you play keep theirs"). A phone's canvas is 760 pixels wide; the player's face is 300 across
+at its nearest, in a talk's two-shot, and from behind, where it is for most of the game, it is hair. So on a phone the
+head's and the hair's pictures go up at 512 a side, at every level; the clothes' picture, seen large from behind all
+through the game, stays at 1024 (it was tried at 512: the jacket's weave went soft).
+
+`tools/hero_face_shot.js` sets the camera before the player's head on a phone's page, at a talk's distance (1.6 m)
+and nearer than any shot goes (0.7 m), with the pictures as they come (`?herotex=full`) and at the phone's size: at
+1.6 m the two are not told apart; at 0.7 m the skin is a little softer and the jacket the same. The player's head and
+hair: 12 MB of the GPU to 4, in every beat. Counted on a session's machine as an iPhone emulated.
