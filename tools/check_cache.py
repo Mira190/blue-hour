@@ -43,7 +43,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # each target's harness: the scripts tools/check.sh runs for it (their requires follow), and what else it reads itself
 HARNESS = {
     'story': ['tools/story_play.js'], 'story1': ['tools/story_play.js'], 'story2': ['tools/story_play.js'],
-    'story3': ['tools/story_play.js'], 'budget': ['tools/story_play.js'],
+    'story3': ['tools/story_play.js'], 'budget': ['tools/story_play.js'], 'budget1': ['tools/story_play.js'],
+    'budget2': ['tools/story_play.js'], 'budget3': ['tools/story_play.js'],
     'storyp': ['tools/story_play.js'], 'storyl': ['tools/story_play.js'],
     'guide': ['tools/guide_way.js', 'tools/guide_body.js'], 'guide1': ['tools/guide_way.js'],
     'guide2': ['tools/guide_body.js'],
@@ -54,7 +55,7 @@ HARNESS = {
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'hold': ['tools/hold_check.js', 'tools/hold_depth.js'], 'game': ['tools/game_check.js'],
     'launch': ['tools/launch_check.js'],
 }
-EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget', 'storyp', 'storyl')}  # (story_play.js reads it)
+EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget', 'budget1', 'budget2', 'budget3', 'storyp', 'storyl')}  # (story_play.js reads it)
 EXTRA['launch'] = ['vercel.json', 'web/index.html', 'web/fonts.css', 'web/game/story.css', 'web/game/story.js', 'web/data/shibuya/game.json']  # (read, and stamped, by the tool itself)
 # the settings a run takes from the environment that change what it plays or measures (CHECK_FN: a hash of the
 # functions tools/check.sh runs the target with)
@@ -404,6 +405,7 @@ SOURCE = {'web/data/shibuya/game.bin': ('web/data/shibuya/game.json', ('story',)
           'web/data/shibuya/d/game.bin': ('web/data/shibuya/game.json', ('story',)),
           'cities/shibuya/city.json': ('cities/shibuya/city.json', ('game', 'story'))}
 FRAMES = {'story1': {0, 1, 2, 3}, 'story2': {4, 5}, 'story3': {0, 6},   # (the last card offers the first frame again)
+          'budget1': {0, 1, 2, 3}, 'budget2': {4, 5}, 'budget3': {0, 6},
           'story': set(range(7)), 'budget': set(range(7)), 'storyp': set(range(7)), 'storyl': set(range(7)), 'ride': {5}}
 
 
@@ -457,12 +459,21 @@ def words(target, path, was):
 # (tools/people_contract.py, with the static checks), any other by its own interface as the check's pass read it
 # (tools/model_contract.py: its names, flags, attributes and where its ground lies).
 SEEN_BY = ('look', 'mem')
+# And what a beat draws is counted (issue 131): the story's parts hold each beat they play to its budget of draws,
+# triangles, passes, pixels and GPU memory, on the desktop's tier (story1 to story3) and a phone's (budget1 to budget3;
+# tools/beat_budget.py). A model or a picture one of them fetched can cost its beats more while it keeps every name the
+# code asks for, so for these it is not apart: the part is played and its beats counted before the change lands. A part
+# that never fetched the file has no line of it in its pass, and is kept. A sound draws nothing.
+COUNTED = ('story1', 'story2', 'story3', 'budget1', 'budget2', 'budget3', 'budget')
+SOUNDS = ('.mp3', '.ogg', '.m4a', '.wav')
 PICTURES = ('.webp', '.png', '.jpg', '.jpeg', '.avif', '.ktx2', '.mp3', '.ogg', '.m4a', '.wav')
 
 
 def looked(target, path, was):
     if target in SEEN_BY or not path.startswith('web/') or was == 'missing' or not os.path.isfile(os.path.join(ROOT, path)):
         return None
+    if target in COUNTED and path.endswith(('.glb',) + PICTURES) and not path.endswith(SOUNDS):
+        return True, f'{path}: a {"model" if path.endswith(".glb") else "picture"} it drew, its beats counted again'
     if path.endswith(PICTURES):
         return False, f'{path}: a picture or a sound, looked at and weighed'
     if not path.endswith('.glb'):
