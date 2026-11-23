@@ -1,4 +1,4 @@
-"""Every road piece's carriageway, measured against the surveyed road surface (docs/ROADS.md, issue 195).
+"""Every road piece's carriageway, measured against the surveyed road surface (docs/ROADS.md, issue 196).
 
 A road was as wide as its class (web/game: ROADW, in five tables). The survey (pipeline/road_survey.py ->
 cities/<id>/road_surface.json) has the carriageway itself, kerb to kerb. This measures each piece of game.json
@@ -240,7 +240,7 @@ def main():
         for b in bad[:20]:
             print("  " + b)
         if bad:
-            raise SystemExit(f"road widths: {len(bad)} pieces are not as the survey gives them (python pipeline/road_width.py --city {a.city}, then pipeline/pack.py)")
+            raise SystemExit(f"FAIL road widths: {len(bad)} pieces are not as the survey gives them (python pipeline/road_width.py --city {a.city}, then pipeline/pack.py)")
         print(f"road widths: {rep['measured']} pieces carry the surveyed carriageway ({rep['measured_m'] / 1000:.1f} km), {rep['single_track']} single track")
         return
     n = apply(game, keys)

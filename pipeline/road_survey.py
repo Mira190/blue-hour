@@ -1,6 +1,6 @@
 """The surveyed road surface: the carriageways, junctions, footways and islands of Project PLATEAU's road model.
 
-Until issue 195 a road was as wide as its class said (a primary road 12 m, a residential street 7 m, in five tables),
+Until issue 196 a road was as wide as its class said (a primary road 12 m, a residential street 7 m, in five tables),
 which is true of no street. Tokyo's wards publish the road itself: PLATEAU's `tran` model at LOD2 cuts every public
 road into its carriageway (車道部), its junctions (車道交差部), its footways (歩道部) and its islands (島), from the
 1:2,500 public survey (数値地形図, 公共測量成果). The city's `road_survey` block names the vector tiles (the

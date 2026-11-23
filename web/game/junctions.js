@@ -98,6 +98,16 @@ window.OEJunctions = (function () {
   const byClass = l => (TWO[l.c] || (l.ow && l.c === 'secondary') ? 2 : 1);
   const lanesOf = l => l.lanes || byClass(l); // (l.lanes: OSM's count, smoothed: create)
   const SHORT2 = 120, SHORT1 = 40; // m
+  // the bus lines on a piece (game.json bl: [line, step, way, ...], pipeline/bus_lines.py): the line a bus keeps to where
+  // it runs the piece this way (want: its own; under 0, any, the (-1 - want)th of them), or -1; and that line's step there
+  const lineOn = (l, way, want) => {
+    const b = l && l.bl; if (!b) return -1;
+    let first = -1, n = 0;
+    for (let i = 0; i < b.length; i += 3) if (b[i + 2] === way) { if (b[i] === want) return want; if (first < 0) first = b[i]; n++; }
+    if (want < -1 && n > 1) { let k = (-1 - want) % n; for (let i = 0; i < b.length; i += 3) if (b[i + 2] === way && k-- === 0) return b[i]; }
+    return first;
+  };
+  const stepOn = (l, line, way) => { const b = l && l.bl; if (b) for (let i = 0; i < b.length; i += 3) if (b[i] === line && b[i + 2] === way) return b[i + 1]; return -1; };
   // a lane's offset from the first lane's place (LANE to the keep side of the line): the second lane
   // across from it on a two-way road, inside it on a one-way road (the pair about centred); and the
   // only lane of a one-way road on the line itself, the middle of its carriageway (#177). Cars ease
@@ -543,10 +553,27 @@ window.OEJunctions = (function () {
     // choose an exit: ahead more often than a turn, and a main road more often than a lane
     let trips = null; // (where the traffic is going, trips.js: set by the game once the roads to keep off are known)
     // (trip: the place the car is bound for, trips.js, or -1: its exits are weighed by how near each brings it)
-    function choose(a, hw = 0, half = 0, trip = -1, bus = false) {
+    function choose(a, hw = 0, half = 0, trip = -1, bus = false, car = null) {
       let ex = exits(a);
       if (!ex.length) return null;
-      if (bus && ex.length > 1) { const w = ex.filter(e => L[e.m.line].bus); if (w.length) ex = w; } // (a bus keeps to the streets its routes take, where one goes on from here)
+      if (bus && ex.length > 1) {
+        // a bus runs its line: the piece with the line's next step, taken whatever else is offered. Where its line ends
+        // (a terminal, the edge of what the lines were read over) it takes up one that goes on from here; and where none
+        // does it keeps to the streets the routes take, as before the lines were known
+        let w = null;
+        if (car && net.busLines) {
+          const way = a.end ? 1 : -1, la = L[a.line], k = lineOn(la, way, car.bl == null ? -1 : car.bl);
+          if (k >= 0) {
+            const n = stepOn(la, k, way);
+            let best = null, bn = Infinity;
+            for (const e of ex) { const n2 = stepOn(L[e.m.line], k, e.m.end ? -1 : 1); if (n2 > n && n2 - n <= 2 && n2 < bn) { bn = n2; best = e; } }
+            if (best) { w = [best]; car.bl = k; }
+          }
+          if (!w) { const on = ex.filter(e => lineOn(L[e.m.line], e.m.end ? -1 : 1, -1) >= 0); if (on.length) w = on; }
+        }
+        if (!w) w = ex.filter(e => L[e.m.line].bus);
+        if (w.length) ex = w;
+      }
       if (hw && net.fit && ex.length > 1) { const w = ex.filter(e => net.fit[e.m.line] >= hw); if (w.length) ex = w; } // (not into a street too narrow for it, if there is another way: #202)
       // (nor onto a piece shorter than it up to the next line that can't be crossed with the junction there, a piece
       // that comes straight back to this junction: a bus out of Shinjuku's 1195 onto one stood across it 69 s, at the
@@ -1454,5 +1481,5 @@ window.OEJunctions = (function () {
       peds, dropped }; // (the walk signals, { a: its arm, x, y, z, h }: walkcalls.js sounds them)
   }
 
-  return { create, STYLES, RANK, lanesOf, shiftOf, centred };
+  return { create, STYLES, RANK, lanesOf, shiftOf, centred, lineOn, stepOn };
 })();
