@@ -1260,11 +1260,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const hash = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   const npcs = [];
-  // (the map's people as posts the player is kept off: as the story's, a hand's width more than a body. At 0.22 the player
-  // run at them stopped 0.57 m from their middle and the leading hand, the camera raised, stood 4 to 6 cm in Aoi's back at
-  // frame 1's shutter and in Shun's at frame 2's, issue 157. Wider does not help: Aoi's upper arm, out to her side as she
-  // talks, met the hand for a frame at 0.67 m as at 0.63, and at 0.32 the crowd's ways round them changed)
-  const NPC_POST = 0.28;
+  // (the map's people as posts: what the crowd and the guide go round. The player is kept off them further, NPC_KEEP from
+  // their middle (as off the story's people, posts of 0.28: a hand's width more than a body), at a walk: stopped at 0.57 m
+  // by the post alone, the leading hand, the camera raised, stood 4 to 6 cm in Aoi's back at frame 1's shutter and in Shun's
+  // at frame 2's, issue 157. The posts themselves wider, the guide's way past Hachiko's wall, with someone sat on it, closed
+  // and he went over the planter instead)
+  const NPC_POST = 0.22, NPC_KEEP = 0.63;
   // the old characters run large; the Rocketbox ones (R_) are life size
   const npcLook = n => Object.assign({ scale: /^W_/.test(n.look.character) ? 0.91 : /^M_/.test(n.look.character) ? 0.96 : 1 }, n.look);
   // where someone stands at (at): on the ground, or a strip or roof below 200 m (not up on a viaduct passing over), or
@@ -6330,7 +6331,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
     // and someone who has come to stand where you are (one of the story's people set down or walked there, a map's NPC
     // back at its place): you step out of them at a walk, with or without a key held (issue 126)
-    { const o = posts.pushOut(player.x, player.y, 0.3, player.z);
+    { let o = posts.pushOut(player.x, player.y, 0.3, player.z);
+      if (!o.hit) { const q = posts.pushOut(player.x, player.y, NPC_KEEP - NPC_POST, player.z); if (q.hit && q.hit.kind === 'npc') o = q; } // (and off the map's people to NPC_KEEP)
       if (o.hit && (o.hit.kind === 'npc' || o.hit.kind === 'story')) {
         const dx = o.x - player.x, dy = o.y - player.y, d = Math.hypot(dx, dy), s = Math.min(d, GAIT.walk * dt);
         if (d > 1e-3 && nav.walk(player.x + dx / d * s, player.y + dy / d * s, player.z, true).ok) { player.x += dx / d * s; player.y += dy / d * s; moved = Math.max(moved, s); }
