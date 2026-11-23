@@ -424,8 +424,20 @@ the asphalt, an edge line half a metre in from the surveyed kerb; a piece's band
 Centre and lane lines stay on the pieces' lines, which is where the traffic drives. It costs a phone nothing new:
 the same drawing at the same size.
 
+### A line inside its kerbs (`pipeline/road_fit.py`)
+
+The surveyed ground showed what a centred band had hidden. A piece's line is the map's and the traffic drives at fixed
+places off it; the road past Hachiko is 29 m wide and the map's line runs 2.5 m from its east kerb, so the lane 1.7 m
+to the left of it had its wheels on the kerb, and the ride back to Hachiko set you down with two corners of the car
+on the square (`tools/ride_people.js` found it: the first full run of the checks on this branch). `road_fit.py` moves
+each vertex of a piece in the planned area square to its line until the lanes driven there have their room on both
+sides (half a car, the gutter and a hand past the outer lane's middle), a node once for every piece that ends on it:
+92 vertices of 37 pieces, 1.3 m or less but for one of 1.8 m (Meiji-dori by Scramble Square). A street with no room
+for its lanes at all is left as it is. The widths, the bus lines and the levels are made again on the lines as moved.
+
 ### The checks
 
+- `python pipeline/road_fit.py --city shibuya --check`: no lane driven in the planned area lies over a surveyed kerb;
 - `python pipeline/road_ground.py --city shibuya --check`: `road_ground` is what the survey gives now;
 - `python tools/hero_survey_map.py shibuya --check`: every level that draws ground, as built, against the survey:
   its carriageway's overlap, its kerb within 1.75 m, none of it on a surveyed footway, every crosswalk's end on a kerb;

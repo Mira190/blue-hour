@@ -1,15 +1,15 @@
 {
  "pieces": 4905,
  "measured": 565,
- "measured_m": 41363,
- "unmeasured_m": 34327,
+ "measured_m": 41364,
+ "unmeasured_m": 34326,
  "single_track": 68,
  "off_m": {
   "note": "share of the measured length whose line lies this far or more from the surveyed carriageway's middle",
-  "0.5": 0.464,
-  "1.0": 0.17,
-  "1.5": 0.076,
-  "2.0": 0.034,
+  "0.5": 0.462,
+  "1.0": 0.162,
+  "1.5": 0.069,
+  "2.0": 0.031,
   "3.0": 0.013
  },
  "by_class": {
@@ -49,7 +49,7 @@
    "pieces": 29,
    "km": 2.84,
    "class_m": 12,
-   "p10": 7.8,
+   "p10": 8.4,
    "median": 9.0,
    "p90": 14.0
   },

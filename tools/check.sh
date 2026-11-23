@@ -665,7 +665,7 @@ rm -rf "$OUT/keep"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st roads roadplan - '^FAIL|Error' python3 pipeline/road_plan.py --city "$MAP" --check
     st roads roadwidth - '^FAIL|Error' python3 pipeline/road_width.py --city "$MAP" --check
-    st roads roadground "the planned area's ground and every hero level's as the survey has them" '^FAIL|Error' bash -c "python3 pipeline/road_ground.py --city $MAP --check && python3 tools/hero_survey_map.py $MAP --check"
+    st roads roadground "the planned area's ground and every hero level's as the survey has them, every lane inside its kerbs" '^FAIL|Error' bash -c "python3 pipeline/road_ground.py --city $MAP --check && python3 tools/hero_survey_map.py $MAP --check && python3 pipeline/road_fit.py --city $MAP --check"
     st roads buslines - '^FAIL|Error' python3 pipeline/bus_lines.py --city "$MAP" --check
     st roads routes - '^FAIL|Error' python3 pipeline/road_routes.py "$MAP" --check
     st roads firstdrive "your car's first drive leads on, and every street open to it in the area is one a car can use" '^FAIL|Error' python3 tools/first_drive.py "$MAP"
