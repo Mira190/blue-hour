@@ -453,6 +453,8 @@ window.OEInland = (function () {
           group.add(m);
         }
       }
+      // the walls, copings, rails and beds of every body, a draw a material (batch.js): each body's still culled by itself
+      if (window.OEBatch) OEBatch.merge(group, { skip: o => /water|foam|glints/.test(o.name), name: (m, o) => o.name });
       return { group, length };
     }
 

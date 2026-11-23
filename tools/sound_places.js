@@ -166,6 +166,9 @@ function table() {
     const g = window.__game;
     if (g.player.mode === 'heli') { g.player.mode = 'foot'; g.player.vehicle = null; }
     const f = g.nav.floorAt(380, -1028, 400); g.player.x = 380; g.player.y = -1028; g.player.z = f ? f.z : g.nav.terrain(380, -1028);
+    // (the car brought to the kerb here first, by the viaduct where the row's range was set: it waits elsewhere since
+    // the first drive moved it, game.start.car, and was heard from 97 m off the trains, docs/ROADS.md)
+    g.advance(0.2); g.bringCar(); for (let t = 0; t < 12 && g.carComing(); t += 0.5) g.advance(0.5);
     g.advance(0.2); g.enterCar(); g.advance(0.2);
     return g.player.mode;
   });

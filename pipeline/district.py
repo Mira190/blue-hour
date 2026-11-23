@@ -631,6 +631,12 @@ def cut_game(G, P, scene, R, city):
         keep = [r for r in rg["people"] if all(inr(q["at"]) for q in r.get("rows", []) if q.get("at"))]
         cut["regulars"] = [r["id"] for r in rg["people"] if r not in keep]
         out["regulars"] = dict(rg, people=keep)
+    # ---- the people a place keeps (game.visitors, visitors.js): a group whose place is inside
+    vs = G.get("visitors")
+    if vs and vs.get("groups"):
+        keep = [g for g in vs["groups"] if inr(g["at"])]
+        cut["visitors"] = [g["id"] for g in vs["groups"] if g not in keep]
+        out["visitors"] = dict(vs, groups=keep)
     npcs = {n["id"] for n in out.get("npcs", [])}
     spots = {s["id"] for s in out.get("spots", [])}
     flocks = {f.get("id") for f in out.get("flocks", [])}
