@@ -47,6 +47,10 @@ One model of levels that every generator reads, in the pipeline (nothing is adde
 
 The order things depend on, and are made in (`tools/regrade.sh`): survey → `street_ground.py` → `stations.py`,
 `lobby.py`, the city's base passes, `roofkit.py` → `landmarks.py` → `pack.py`.
+Then the road plan (`tools/road_plan.sh`, docs/ROADS.md), which `tools/regrade.sh` now runs last, with the page served:
+`stations.py` gives a building that stands off the ground one underside, the lowest its solids have, and the plan then
+raises the solids a road passes under. With the plan left out after a regrade, the Ginza line's viaduct stood 3.9 m
+over Meiji-dori instead of 6.7, the buses under it stood, and `tools/check.sh` failed the drive to 109 behind them.
 
 ### A bridge meets its road (issue 173)
 

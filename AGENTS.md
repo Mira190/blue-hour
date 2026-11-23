@@ -307,7 +307,8 @@ thirty is drawn). So:
   `footing`), never from a ground sampler of its own plus a height. After a step that changes the ground, the
   buildings or the landmarks' feet, `tools/job.sh run regrade -- tools/regrade.sh` makes the levels again in the order
   they depend on each other (the grading, the four passes below, the
-  landmarks, the packs) and ends on `tools/levels_check.py`.
+  landmarks, the packs, then the road plan, `tools/road_plan.sh`, which plays the page: serve `web/` first) and ends on
+  `tools/levels_check.py`.
 - After a step that writes `buildings.json`, first `python pipeline/proportion.py --city shibuya` (a building with
   no class styled by its proportions: a long low footprint is a shed or a walk-up block, not a house; docs/BUILDINGS.md),
   then four passes keep what the map's raw data lacks:
