@@ -243,7 +243,7 @@ waits, and drives it on the autopilot to 109's foot and to SKY GATE's kerb, a st
 - **A pinch on Jingu-dori south of the bus terminal**: for about 20 m the southbound carriageway has 2.6 m between the
   terminal island's solid and the building east of it in the model, which the plan's width test reads as a pinch, not
   a lane (its median width is the street's). The traffic and your car pass it; the island's footprint wants standing
-  back (issue 176).
+  back (issue 195).
 - **The Scramble and 109 still pass too few cars** (issue 175): a drive across the Scramble from SKY GATE's kerb
   took 401 s for 364 m on a desktop's page. The taxis' ranks, a dressed closure, the clipped expressway pieces and
   Tokyu's GTFS are issue 176.
