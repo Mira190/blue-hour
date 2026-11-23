@@ -1464,10 +1464,12 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
         if (!img) return;
         if (stream) { stream.img[i] = img; stream.lo[i] = tex; if (stream.at) groundKeep(...stream.at, true); return; }
         if (pics.first[i]) { tex.image = img; tex.needsUpdate = true; return; }
-        // a far tile, after the game opened: sent to the GPU between frames, then swapped in
+        // a far tile, after the game opened: sent to the GPU between frames, then swapped in. One texture a frame, in the
+        // queue every streamed model shares (sendTex): each tile waited for idle time of its own, and the tiles that came
+        // in together were sent in the same idle moment, four 1000 x 1200 pictures and their mipmaps in one frame
+        // (tools/walk_hitch.js, issue 184)
         const own = photoTex(img);
-        await idle();
-        try { renderer.initTexture(own); } catch (e) { /* sent on its first draw */ }
+        await sendTex(renderer, own);
         m.material.map = own;
       }));
       m.material.onBeforeCompile = gradePhoto;
@@ -2079,7 +2081,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const nT = TR.length / 4;
     let trees = null;
     if (nT && window.OETrees) {
-      try { trees = OETrees.create(world, await OETrees.load('assets/trees/'), TR, { mix: (scene.trees || {}).mix, woods: (scene.trees || {}).woods, areas: (scene.trees || {}).areas, south: D.CITY.lat < 0, lat: D.CITY.lat, cherry: (scene.trees || {}).cherry_open, measured: nMapped, keep: small ? 0.35 : 1, farKeep: window.OEQuality ? OEQuality.city().woods : 1, fixed: nFixed, own, night: U.uNight, foot: D.N, small }); }
+      try { trees = OETrees.create(world, await OETrees.load('assets/trees/'), TR, { mix: (scene.trees || {}).mix, woods: (scene.trees || {}).woods, areas: (scene.trees || {}).areas, south: D.CITY.lat < 0, lat: D.CITY.lat, cherry: (scene.trees || {}).cherry_open, measured: nMapped, keep: small ? 0.35 : 1, farKeep: window.OEQuality ? OEQuality.city().woods : 1, fixed: nFixed, own, night: U.uNight, foot: D.N, small, send: t => sendTex(renderer, t) }); }
       catch (e) { console.warn('Tree models unavailable, using simple ones:', e); }
     }
     if (nT && !trees) {
@@ -2953,6 +2955,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     if (!queue.length) { pumping = false; return; }
     pumping = true;
     later(() => {
+      // (a texture a draw has sent already costs no frame: the next is taken in the same moment)
+      const up = j => { try { const p = j.renderer.properties.get(j.tex); return p.__webglTexture && p.__version === j.tex.version; } catch (e) { return false; } };
+      while (queue.length > 1 && up(queue[0])) queue.shift().done();
       const job = queue.shift();
       try { job.renderer.initTexture(job.tex); } catch (e) { /* uploaded on its first draw instead */ }
       job.done();
@@ -2965,6 +2970,33 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       for (const m of [].concat(o.material || [])) for (const v of Object.values(m)) if (v && v.isTexture && !v.isRenderTargetTexture && v.image) out.add(v);
     });
     return [...out];
+  }
+  // Every picture of what stands in the scene and has not been drawn yet, into the queue behind what waits there (issue
+  // 184): what the player first comes near or first sees cast a shadow (the canals' walls, a model shown later) otherwise
+  // uploads its pictures and their mipmaps in that frame. Visible objects only; the game asks once its late models are in.
+  function uploadRest(renderer, root) {
+    if (!renderer || !renderer.initTexture || !root) return Promise.resolve();
+    const waits = [];
+    root.traverseVisible(o => {
+      for (const m of [].concat(o.material || [])) for (const v of Object.values(m)) {
+        if (!v || !v.isTexture || v.isRenderTargetTexture || !v.image || sent.has(v)) continue;
+        let p = null; try { p = renderer.properties.get(v); } catch (e) { /* none */ }
+        if (p && p.__webglTexture) continue;
+        waits.push(sendTex(renderer, v));
+      }
+    });
+    return Promise.all(waits).then(() => waits.length);
+  }
+  // one texture into the same queue (a picture swapped in for another, with no object to traverse yet)
+  function sendTex(renderer, tex) {
+    if (!renderer || !renderer.initTexture || !tex) return Promise.resolve();
+    if (sent.has(tex)) { const q = queue.find(j => j.tex === tex); return q ? q.p : Promise.resolve(); }
+    sent.add(tex);
+    const job = { renderer, tex };
+    job.p = new Promise(r => { job.done = r; });
+    queue.push(job);
+    if (!pumping) pump();
+    return job.p;
   }
   function upload(renderer, obj, opts) {
     if (!renderer || !renderer.initTexture || !obj) return Promise.resolve();
@@ -3518,5 +3550,5 @@ if (dot(vRailT, vRailT) > 0.25) { vec3 oeT = normalize(vRailT), oeV = normalize(
   // opening will show (the city's light show, which its evening reaches in the opening's first seconds) says so with
   // userData.warmFirst, and is in the first set too
   const shown = o => { for (let x = o; x; x = x.parent) if (!x.visible && !x.userData.warmFirst) return false; return true; };
-  return { load, loadLine, create, lin, smooth, compile, compiling: () => compiling > 0, shown, upload, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
+  return { load, loadLine, create, lin, smooth, compile, compiling: () => compiling > 0, shown, upload, uploadRest, uploadSliced, uploadBuffers, warm, readAsync, warmPasses, settleUnderFloors, carveUnderWater, deepenUnderWater, railGlint };
 })();
