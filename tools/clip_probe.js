@@ -134,6 +134,14 @@ function pageSide(NEAR, HOLD) {
   // the lowest of each foot (a person), or of the whole animal: found once, in the pose it is first seen in
   const soles = (rig) => {
     if (rig.soles) return rig.soles;
+    // (an animal: its skin itself, every vertex of the lowest band of it as it was bound, skinned as the GPU skins it. Moved
+    // by its one strongest bone, the folded hock of the guide sitting read 10 cm under the floor where the skin, blended
+    // over its bones, is 1.4 cm under it at most: issue 157)
+    if (!rig.human && rig.meshes.length) {
+      const band = [];
+      for (const o of rig.meshes) { const pos = o.geometry.attributes.position; let lo = Infinity, hi = -Infinity; const ys = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) { ys[i] = v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).y; lo = Math.min(lo, ys[i]); hi = Math.max(hi, ys[i]); } const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight; for (let i = 0; i < pos.count; i++) if (ys[i] < lo + (hi - lo) * 0.12) { let bi = 0, bw = -1; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } } band.push([o, i, (o.skeleton.bones[bi] || {}).name || '?']); } }
+      return (rig.soles = [{ name: 'paws', skin: band }]);
+    }
     const feet = rig.human ? rig.parts.filter(x => /Foot$/.test(x.bone.name)) : [null];
     rig.soles = feet.map(part => {
       const cand = [];
@@ -208,9 +216,11 @@ function pageSide(NEAR, HOLD) {
         for (const s of soles(rig)) {
           // (each foot over the floor under it: on a slope or a step the floor at the body's middle is not the foot's)
           let y = Infinity;
-          for (const [, pt, l] of s.pts) { v.copy(l).applyMatrix4(pt.bone.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) y = h; }
+          let at = '';
+          if (s.skin) for (const [o, i, bn] of s.skin) { o.getVertexPosition(i, v).applyMatrix4(o.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) { y = h; at = bn; } }
+          else for (const [, pt, l] of s.pts) { v.copy(l).applyMatrix4(pt.bone.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) y = h; }
           if (y < low) { low = y; lowName = s.name; }
-          if (y < -0.03) note('sunk', a.name, s.name, -y, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}`);
+          if (y < -0.03) note('sunk', a.name, s.name, -y, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}${at ? `, under ${at}` : ''}`);
         }
         if (low < Infinity && low > 0.04 && !a.moving) note('floating', a.name, lowName, low, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}`);
       }
@@ -356,9 +366,21 @@ const H = require('./hold_depth');
 // read 11 cm for a hundred frames on main as it was, a reading of his sit pose not yet looked at in a still, issue 157)
 // (and the guide's body in a wall for more than WALL_N frames: he stood in the roof's glass for 492 frames of frame 4)
 const STAND = 0.07, STAND_N = 60, WALL_N = 30;
+// (issue 157 again, on 8ff6099: the guide's paws read 4 to 11 cm under the floor through every beat of frames 1 and 2,
+// 67 frames at frame 2's shutter, the floors there flat to 2 cm. The model's own sit is 1.4 cm low at most
+// (blender/build_dog.py's Akita); it was his hind feet as the crossfade between a clip and the sit folded them, up to 5 cm
+// in the model by itself, and held halfway by a Stop. Now he is lifted by any paw his skin puts under its floor
+// (companion.js onSoles), and laid on the floor under his four paws where it steps (laid); paws past PAW for more than
+// PAW_N frames fail.
+// And the player's hand in someone run at: at 0.57 m from an NPC's middle (a post of 0.22) the leading hand stood 4 to 6 cm
+// in Aoi's and Shun's backs; the map's people are kept off as the story's are (game.js NPC_POST), and a hand of yours more
+// than TOUCH_YOU in anyone for two frames or more fails. For one frame, as you are stopped against them, it still prints:
+// a talker's arm out to her side met the leading hand for a frame at 0.63 and at 0.67 m alike, by the parts' ellipsoids)
+const PAW = 0.05, PAW_N = 30, TOUCH_YOU = 0.04;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
-  || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1);
+  || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1)
+  || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW) || (c.kind === 'touch' && c.a === 'you' && c.b !== 'guide' && c.n >= 2 && c.depth > TOUCH_YOU);
 
 async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }

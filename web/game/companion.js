@@ -133,6 +133,7 @@ window.OECompanion = (function () {
         Object.assign(body, { spine: [a0, a1], flank: half, reach: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), half) });
       }
       root.add(m);
+      soles = solesOf(m);
       mixer = new THREE.AnimationMixer(m);
       for (const c of g.animations) acts[c.name] = mixer.clipAction(c);
       s.ready = true;
@@ -416,6 +417,58 @@ window.OECompanion = (function () {
     }
     // found again behind the player, out of the way of their view, when it has been left far behind: on ground a walker
     // may stand on (behind, or beside, or at their feet), and coming into sight there, not there all at once
+    // laid on the floor under his paws, not at his middle alone (issue 157): stood at the floor under his middle, where he
+    // sat or stood across a kerb's lip or the crossing's edge his fore or hind paws were 4 to 11 cm in the step. The
+    // floor is found under the four paws (a step higher or lower than STEP_UP is a wall or a drop, not his floor), he is
+    // pitched and rolled to the plane through them and raised by what still stands over it, eased in over a tenth of a
+    // second; held time holds him as he was
+    const tilt = { p: 0, r: 0, z: 0 }, STEP_UP = 0.3;
+    // and lifted by what the skin of a paw stands under its floor (issue 157): as he sits down or gets up, the crossfade
+    // between the clips folds his hind legs below either clip's pose (up to 5 cm in the model by itself, blender/build_dog.py's
+    // Akita, and 4 to 9 cm in the story, where a Stop can hold him halfway down). The sole of each paw is the dozen lowest
+    // points of skin its bone carries as bound, skinned each frame as the GPU skins them
+    let soles = [];
+    const PAW = /^(lower_f|foot)|paw/i, SV = new THREE.Vector3();
+    function solesOf(m) {
+      const by = new Map(), p = new THREE.Vector3();
+      m.traverse(o => {
+        if (!o.isSkinnedMesh || !o.geometry.attributes.skinIndex) return;
+        const g = o.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
+        for (let i = 0; i < pos.count; i++) {
+          let bi = 0, bw = -1; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } }
+          const b = bones[bi]; if (!b || !PAW.test(b.name)) continue;
+          const y = p.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).y;
+          let l = by.get(b); if (!l) by.set(b, l = []); l.push([y, o, i]);
+        }
+      });
+      const out = []; for (const l of by.values()) { l.sort((a, b) => a[0] - b[0]); for (const [, o, i] of l.slice(0, 12)) out.push([o, i]); }
+      return out;
+    }
+    function onSoles() {
+      if (!soles.length) return;
+      root.updateMatrixWorld(true);
+      let lift = 0, fx = NaN, fy = NaN, f = null;
+      for (const [o, i] of soles) {
+        o.getVertexPosition(i, SV).applyMatrix4(o.matrixWorld);
+        // (the floor under it, asked again only a hand's width on: a dozen points of a paw share one)
+        if (!(Math.abs(SV.x - fx) < 0.08 && Math.abs(SV.z - fy) < 0.08)) { fx = SV.x; fy = SV.z; f = ground(SV.x, -SV.z, s.z + 0.2); if (f != null && Math.abs(f - s.z) > STEP_UP) f = null; }
+        if (f != null) lift = Math.max(lift, f - SV.y);
+      }
+      if (lift > 0.004) { root.position.y += Math.min(lift, 0.15); root.updateMatrixWorld(true); }
+    }
+    function laid(dt) {
+      if (!(dt > 0)) return;
+      const c = Math.cos(s.h), sn = Math.sin(s.h), f = body.spine[1] * 0.7, b = body.spine[0] * 0.75, w = body.flank * 0.75;
+      // (u along him, v to his right: the map's (sin h, -cos h))
+      const at = (u, v) => { const z = ground(s.x + c * u + sn * v, s.y + sn * u - c * v, s.z + 0.2); return z == null || Math.abs(z - s.z) > STEP_UP ? s.z : z; };
+      const fl = at(f, -w), fr = at(f, w), bl = at(b, -w), br = at(b, w);
+      const su = ((fl + fr) - (bl + br)) / 2 / (f - b), sv = ((fr + br) - (fl + bl)) / 2 / (2 * w);
+      let zc = (fl + fr + bl + br) / 4 - su * (f + b) / 2;
+      let need = 0; for (const [u, v, z] of [[f, -w, fl], [f, w, fr], [b, -w, bl], [b, w, br]]) need = Math.max(need, z - (zc + su * u + sv * v));
+      zc += need;
+      const k = Math.min(1, dt * 10), cl = (x, m) => Math.max(-m, Math.min(m, x));
+      tilt.p += (cl(Math.atan(su), 0.3) - tilt.p) * k; tilt.r += (cl(-Math.atan(sv), 0.2) - tilt.r) * k; tilt.z += (cl(zc - s.z, STEP_UP) - tilt.z) * k;
+    }
     function catchUp() {
       const h = player.h || 0, sn = Math.sin(h), cs = Math.cos(h);
       let bx = player.x, by = player.y;
@@ -538,8 +591,9 @@ window.OECompanion = (function () {
       if (s.jam && (s.x !== x0 || s.y !== y0 || s.h !== h0)) { const g1 = offPlayer(); if (g1 < -TOUCH && g1 < gap0) { s.x = x0; s.y = y0; s.h = h0; s.speed = 0; } }
       { const wx = s.x, wy = s.y, wh = s.h, g0 = offPlayer(); wallsOff(dt); if (offPlayer() < Math.min(-TOUCH, g0)) { s.x = wx; s.y = wy; s.h = wh; } } // (off a wall, never into the player)
       s.z = ground(s.x, s.y, s.z);
-      root.position.copy(W(s.x, s.y, s.z));
-      root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)
+      laid(dt);
+      root.position.copy(W(s.x, s.y, s.z + tilt.z));
+      root.rotation.set(tilt.r, s.h, tilt.p, 'YZX'); // (the model looks along +x; the map's y is the scene's -z; leaned to the floor under his paws)
       const leading = s.state === 'greet' || s.state === 'lead' || s.state === 'wait' || s.state === 'fetch';
       ring.material.opacity += ((leading ? 0.7 + 0.2 * Math.sin(s.t * 3) : 0) - ring.material.opacity) * Math.min(1, dt * 3);
       if (!mixer) return;
@@ -553,6 +607,7 @@ window.OECompanion = (function () {
       // turn every frame winds the head round)
       for (const b of [neck, head]) if (b && b.userData.over && b.quaternion.equals(b.userData.over)) b.quaternion.copy(b.userData.raw);
       mixer.update(dt);
+      onSoles();
       for (const b of [neck, head]) if (b) b.userData.raw = (b.userData.raw || new THREE.Quaternion()).copy(b.quaternion);
       // the head turns to what it is watching, over the clip's own pose
       if (head && lookAt) {

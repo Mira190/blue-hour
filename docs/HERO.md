@@ -1353,8 +1353,14 @@ placement is now measured by `tools/screen_fit.py`: the wall behind a wall scree
 top, and every leg of a roof screen on its roof. It found Rakuten Vision on an edge typed at 45 degrees, 0.8 to 1.4 m off
 the mapped wall and askew to it (now on the wall's own edge, its published 10.24 m overhanging the mapped 8.6 m face by
 0.84 m each end, on its frame), and the Toei Plaza's two Synchro7 faces hanging past the ends of their roof (their sizes
-estimates: now 8.4 m each). Still open: Shibuya Ekimae Vision hangs about 5 m past the north end of the Ekimae building's
-mapped roof, and moving it would run it into Shibuhachi Hit Vision; the published sizes and the mapped roof disagree (issue 172).
+estimates: now 8.4 m each). Shibuya Ekimae Vision hung about 5 m past the north end of the Ekimae building's mapped roof
+(issue 172). Its sizes are right: 21.6 x 12.144 m over a 21.6 x 4.176 m banner, one 16.32 m panel at 16 mm pitch (Tokyu's
+release of 20 December 2018 and the TOKYU OOH media sheet of 17 March 2023), on the roof of the Shibuya Ekimae building
+(Dogenzaka 2-3-1) "facing the Scramble crossing"; Shibuhachi Hit Vision (24.32 x 17.28 m) is on the Osoto building next to
+it (2-3-2), and the two are one footprint in the open data (OSM way 60739635). The place was wrong: it was set 12.5 m north
+along the 34 m east face, 21.6 m on the 17.6 m left of it beside HIT's screen. It now faces the crossing on the 15.7 m face
+that cuts the corner, 2 m back on the roof (`back`, pipeline/screens.py), its ends past that face's on legs over the roof
+behind them; every leg stands on the roof.
 
 Stills: `tools/views/nova-tower.json` (`tools/game_shot.js`): from the helicopter's height north of the face and from
 Miyamasuzaka-shita, at 17:53 and 21:00 on 10 October, on a desktop and a phone.
