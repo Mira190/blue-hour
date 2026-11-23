@@ -162,9 +162,10 @@ try, without the level, left a 4 m step at the floor's edge, because the level's
 default layer and a level's ground is drawn on a layer of its own, so the probe read no ground under the Scramble
 (issue 201). The probe's rays now meet every layer; the order is `tools/regrade.sh`, both levels built again
 (`blender/build_hero.py`), the probe's export, `pipeline/hero_floor.py`, `pipeline/pack.py`. The ground under the bed
-went from 20.2 m to 16.1 to 16.5 m, level with the lanes either side; the floors of all three levels that draw ground
-are exported (the Scramble, Miyamasu, SKY's lobby: the last was 8 cm off its floor, now 1.1 cm). Views:
-`tools/views/viaduct-158.json`.
+went from 20.2 m to 16.1 to 16.5 m, level with the lanes either side, and the Scramble's floor is exported on it.
+Miyamasu's and SKY's lobby's floors are not: exported too, the two patches met at the forecourt's edge with lifts of
+their own (5 cm and 1.2 cm) and the guide stood 6 cm over the paving there (`tools/guide_way.js`, frames 4 and 6), so
+they are left as main has them, without a patch (issue 201). Views: `tools/views/viaduct-158.json`.
 
 Left: under the bed's east half north of y -945 the ground is still 1.7 m up (17.8 m): the bicycle lot's paving at
 the circle's edge is a landmark's, laid on the survey's slope at 17.6 m, and the ground nearest the unknown nodes
