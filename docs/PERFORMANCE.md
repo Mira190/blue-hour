@@ -2703,8 +2703,11 @@ waiting on their logs.
 **A draw does not wait for a program** (`world.js` `gate`, issue 191 item 1). With `KHR_parallel_shader_compile` a
 program compiles and links off the page's thread, and only a question about it (three.js reads its log on first use)
 waits until it is done. The world's draws now go through a check first: a draw whose material has a program still being
-linked is left out of that frame and drawn in the first frame after it is ready; a material with no program at all is
-compiled once the frame is done, for the render target and clipping planes it was drawn with, and left out until then.
+linked is left out of that frame and drawn in the first frame after it is ready (10 s at most: past that it is drawn and
+waited for as before); a mesh whose own material has no program at all is compiled once the frame is done, for the render
+target and clipping planes it was drawn with, and left out until then, once (a draw with a material the mesh does not own,
+a pass's `overrideMaterial`, is drawn as before: compiling the mesh would never make that one, and the first cut of the
+gate held such a draw for good).
 Only the world scene and the shadow pass go through it (a post pass's quad is never left out: its frame would be black),
 and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent). Without the extension nothing changes. The
 loader goes on a frame the gate left nothing out of (at most 1.5 s more: on the software renderer here, where a link takes seconds and a frame 1.4 s, a 4 s bound held the loader 4.7 s past the first frame; the phone tier waited 0.5 to 0.8 s), so nothing comes in under the title; the page's
