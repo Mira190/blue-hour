@@ -25,6 +25,7 @@
 // (-1 left, 1 right), in focus (see below);
 // "clear": metres within which the stand moves to the clearest view of "look" (see below);
 // "car": {dist, az, up, lookUp, drive} looks at your own car from round it (az: degrees clockwise from its nose);
+// "visitors": true waits for the people a place keeps round the camera (web/game/visitors.js) to be made and drawn;
 // "js": a statement run in the page before a view is taken (g: the game), e.g. a clear sky for the stars, or the
 // railway at a second of its timetable ("g.trains.t = 131; g.trains.update(0, g.camera)");
 // in the city's local frame (x east, y north, z up, metres).
@@ -418,6 +419,10 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     }, v);
     // the plush traveller, once photo mode has the camera where the still is taken from (a few frames on)
     await p.evaluate(async () => { await window.__mapWait; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    // "visitors": true: the people a place keeps (visitors.js) made round the camera and drawn, their bodies loaded, first
+    if (v.visitors) await p.evaluate(async () => { const g = window.__game, V = g.visitors; if (!V) return; const c = g.camera.position, eye = { x: c.x, y: -c.z, z: c.y };
+      for (let i = 0; i < 450; i++) { V.update(0, g.t(), eye, true); if (V.groups.every(G => !G.on || G.people.every(q => q.rig))) break; await new Promise(r => setTimeout(r, 200)); }
+      V.update(0, g.t(), eye, true); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
     await p.evaluate(async () => { if (!window.__plushPlace) return; for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r)); window.__plushPlace(); window.__plushPlace = null; });
     // (a hero level near the stand, fetched as the player was put there: loaded and shown first, as scramble_shot waits)
     await p.evaluate(async () => { const g = window.__game; if (g.hero && g.hero()) for (let i = 0; i < 1200; i++) { await new Promise(r => requestAnimationFrame(r)); if (i > 3 && !g.hero().state().some(h => h.state === 'loading')) break; } });
