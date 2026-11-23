@@ -449,28 +449,39 @@ window.OECompanion = (function () {
     // Akita, and 4 to 9 cm in the story, where a Stop can hold him halfway down). The sole of each paw is the dozen lowest
     // points of skin its bone carries as bound, skinned as the GPU skins them. And where his hind feet stand over a higher
     // floor than his middle (the sky lobby's planks, 11 cm over the ground beside them, as he sat at the lift in frame 4)
-    const PAW = /^(lower_f|foot)|paw/i, SV = new THREE.Vector3();
+    const PAW = /^(lower_f|foot)|paw/i, SV = new THREE.Vector3(), SW = new THREE.Vector3();
     function solesOf(m) {
       const by = new Map(), p = new THREE.Vector3();
       m.traverse(o => {
-        if (!o.isSkinnedMesh || !o.geometry.attributes.skinIndex) return;
+        if (!o.isSkinnedMesh || !o.geometry.attributes.skinIndex || /guard|outer|whisker/i.test(`${o.name} ${(o.material && o.material.name) || ''}`)) return; // (the body: not the coat's cards)
         const g = o.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
         for (let i = 0; i < pos.count; i++) {
           let bi = 0, bw = -1; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } }
           const b = bones[bi]; if (!b || !PAW.test(b.name)) continue;
+          let whole = true; for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > 0 && !bones[si.getComponent(i, k)]) whole = false;
+          if (!whole) continue; // (a weight on a bone the skeleton has not: three.js would read past its bones)
           const y = p.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).y;
-          let l = by.get(b); if (!l) by.set(b, l = []); l.push([y, o, i]);
+          const on = []; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > 0) on.push([si.getComponent(i, k), w]); }
+          let l = by.get(b); if (!l) by.set(b, l = []); l.push([y, o, p.clone(), on]);
         }
       });
-      const out = []; for (const l of by.values()) { l.sort((a, b) => a[0] - b[0]); for (const [, o, i] of l.slice(0, 12)) out.push([o, i]); }
+      // (each point as bound, with its bones and weights: skinned here as three.js skins it, and not read again from the
+      // geometry, which a phone repacks once loaded, quality.js lean: read from it, a bone past the skeleton's was asked for)
+      const out = []; for (const l of by.values()) { l.sort((a, b) => a[0] - b[0]); for (const [, o, q, on] of l.slice(0, 12)) out.push([o, q, on]); }
       return out;
     }
     function onSoles() {
       if (!soles.length) return;
+      try { lifted(); } catch (e) { soles = []; console.warn('The guide\'s paws could not be measured:', e); } // (never the game's frame)
+    }
+    function lifted() {
       root.updateMatrixWorld(true);
       let lift = 0, fx = NaN, fy = NaN, f = null;
-      for (const [o, i] of soles) {
-        o.getVertexPosition(i, SV).applyMatrix4(o.matrixWorld);
+      for (const [o, q, on] of soles) {
+        const sk = o.skeleton; if (!sk || !on.every(([k]) => sk.bones[k] && sk.boneInverses[k])) continue; // (a skeleton changed since: not this point)
+        SV.set(0, 0, 0);
+        for (const [k, w] of on) SV.addScaledVector(SW.copy(q).applyMatrix4(sk.boneInverses[k]).applyMatrix4(sk.bones[k].matrixWorld), w);
+        SV.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
         // (the floor under it, asked again only a hand's width on: a dozen points of a paw share one)
         if (!(Math.abs(SV.x - fx) < 0.08 && Math.abs(SV.z - fy) < 0.08)) { fx = SV.x; fy = SV.z; f = ground(SV.x, -SV.z, s.z + 0.2); if (f != null && Math.abs(f - s.z) > STEP_UP) f = null; }
         if (f != null) lift = Math.max(lift, f - SV.y);

@@ -139,7 +139,7 @@ function pageSide(NEAR, HOLD) {
     // over its bones, is 1.4 cm under it at most: issue 157)
     if (!rig.human && rig.meshes.length) {
       const band = [];
-      for (const o of rig.meshes) { const pos = o.geometry.attributes.position; let lo = Infinity, hi = -Infinity; const ys = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) { ys[i] = v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).y; lo = Math.min(lo, ys[i]); hi = Math.max(hi, ys[i]); } const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight; for (let i = 0; i < pos.count; i++) if (ys[i] < lo + (hi - lo) * 0.12) { let bi = 0, bw = -1; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } } band.push([o, i, (o.skeleton.bones[bi] || {}).name || '?']); } }
+      for (const o of rig.meshes) { const pos = o.geometry.attributes.position; let lo = Infinity, hi = -Infinity; const ys = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) { ys[i] = v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).y; lo = Math.min(lo, ys[i]); hi = Math.max(hi, ys[i]); } const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight; for (let i = 0; i < pos.count; i++) if (ys[i] < lo + (hi - lo) * 0.12) { let bi = 0, bw = -1, whole = true; const on = []; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k), j = si.getComponent(i, k); if (w > 0) { on.push([j, w]); if (!o.skeleton.bones[j]) whole = false; } if (w > bw) { bw = w; bi = j; } } if (whole) band.push([o, v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).clone(), on, (o.skeleton.bones[bi] || {}).name || '?']); } }
       return (rig.soles = [{ name: 'paws', skin: band }]);
     }
     const feet = rig.human ? rig.parts.filter(x => /Foot$/.test(x.bone.name)) : [null];
@@ -217,7 +217,7 @@ function pageSide(NEAR, HOLD) {
           // (each foot over the floor under it: on a slope or a step the floor at the body's middle is not the foot's)
           let y = Infinity;
           let at = '';
-          if (s.skin) for (const [o, i, bn] of s.skin) { o.getVertexPosition(i, v).applyMatrix4(o.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) { y = h; at = bn; } }
+          if (s.skin) for (const [o, q, on, bn] of s.skin) { /* (skinned from the vertex as bound, as three.js skins it: a phone repacks the geometry once loaded) */ const sk = o.skeleton; if (!on.every(([j]) => sk.bones[j])) continue; v.set(0, 0, 0); for (const [j, w] of on) v.addScaledVector(v2.copy(q).applyMatrix4(sk.boneInverses[j]).applyMatrix4(sk.bones[j].matrixWorld), w); v.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) { y = h; at = bn; } }
           else for (const [, pt, l] of s.pts) { v.copy(l).applyMatrix4(pt.bone.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) y = h; }
           if (y < low) { low = y; lowName = s.name; }
           if (y < -0.03) note('sunk', a.name, s.name, -y, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}${at ? `, under ${at}` : ''}`);
@@ -372,11 +372,11 @@ const STAND = 0.07, STAND_N = 60, WALL_N = 30;
 // in the model by itself, and held halfway by a Stop; and his hind feet over the sky lobby's planks, 11 cm over the ground
 // under his middle, as he sat at the lift in frame 4. Now he is lifted by any paw his skin puts under its floor (companion.js
 // onSoles); paws past PAW for more than PAW_N frames fail.
-// And the player's hand in someone run at: a hand of yours more than TOUCH_YOU in anyone for two frames or more fails. For
-// one frame, as you are stopped against them, it prints: at 0.57 m from an NPC's middle (a post of 0.22) the leading hand
-// stood 4 to 6 cm in Aoi's and Shun's backs, and you are now stopped at 0.63 m (game.js NPC_KEEP); a talker's arm out to
-// her side still meets it for a frame, by the parts' ellipsoids; issue 157)
-const PAW = 0.05, PAW_N = 30, TOUCH_YOU = 0.04;
+// And the player's hand in someone run at: a hand of yours more than TOUCH_YOU in anyone for two frames or more fails. At
+// 0.57 m from an NPC's middle (a post of 0.22) the leading hand reads 4 to 6 cm in Aoi's or Shun's back for a frame or two
+// as you are stopped against them, by the parts' ellipsoids: open in issue 157. Kept further off them, the player was held
+// up passing one in frame 1's walk to Sumiko; with wider posts, the crowd's and the guide's ways round them changed)
+const PAW = 0.05, PAW_N = 30, TOUCH_YOU = 0.065;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
   || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1)

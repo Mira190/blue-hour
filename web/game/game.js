@@ -1259,7 +1259,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const hash = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   const npcs = [];
-  const NPC_KEEP = 0.63; // (how near the player walks up to one of the map's people: as to the story's, walkStep)
   // the old characters run large; the Rocketbox ones (R_) are life size
   const npcLook = n => Object.assign({ scale: /^W_/.test(n.look.character) ? 0.91 : /^M_/.test(n.look.character) ? 0.96 : 1 }, n.look);
   // where someone stands at (at): on the ground, or a strip or roof below 200 m (not up on a viaduct passing over), or
@@ -5359,18 +5358,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
     // and someone who has come to stand where you are (one of the story's people set down or walked there, a map's NPC
     // back at its place): you step out of them at a walk, with or without a key held (issue 126)
-    // (and a step towards one of the map's people that ends nearer than NPC_KEEP is taken back to it, or to where you were
-    // if that was nearer: you stop at arm's length. One standing near is left where they are. Stopped by their post alone,
-    // 0.57 m from their middle, the leading hand, the camera raised, stood 4 to 6 cm in Aoi's back at frame 1's shutter and
-    // in Shun's at frame 2's, issue 157. Their posts made wider, the crowd's and the guide's ways round them changed)
-    for (const n of npcs) {
-      if (n.away || !n.post || Math.abs(n.z - player.z) > 1.2) continue;
-      const d1 = Math.hypot(player.x - n.x, player.y - n.y); if (d1 >= NPC_KEEP || d1 < 1e-3) continue;
-      const d0 = Math.hypot(x0 - n.x, y0 - n.y); if (d1 >= d0) continue;
-      const k = Math.min(d0, NPC_KEEP) / d1, nx = n.x + (player.x - n.x) * k, ny = n.y + (player.y - n.y) * k;
-      if (nav.walk(nx, ny, player.z, true).ok) { player.x = nx; player.y = ny; } else { player.x = x0; player.y = y0; }
-      moved = Math.hypot(player.x - x0, player.y - y0);
-    }
     { const o = posts.pushOut(player.x, player.y, 0.3, player.z);
       if (o.hit && (o.hit.kind === 'npc' || o.hit.kind === 'story')) {
         const dx = o.x - player.x, dy = o.y - player.y, d = Math.hypot(dx, dy), s = Math.min(d, GAIT.walk * dt);
