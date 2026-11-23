@@ -48,6 +48,11 @@ exports.hook = () => {
   wrap('drawRangeElements', (gl, a) => tri(gl, a[0], a[3], 1, true));
   wrap('drawArraysInstanced', (gl, a) => tri(gl, a[0], a[2], a[3], false));
   wrap('drawElementsInstanced', (gl, a) => tri(gl, a[0], a[1], a[4], true));
+  // many meshes of one material in one call (web/batch.js, WEBGL_multi_draw): one draw, the triangles of all of them
+  { const ge = P.getExtension, done = new WeakSet(); P.getExtension = function (n) { const e = ge.call(this, n), gl = this;
+    if (e && n === 'WEBGL_multi_draw' && !done.has(e)) { done.add(e); const f = e.multiDrawElementsWEBGL;
+      e.multiDrawElementsWEBGL = function (mode, cs, co, t, os, oo, dn) { if (B.on && !(window.__draw && !window.__draw.on)) { let n = 0; for (let i = 0; i < dn; i++) n += cs[co + i]; if (B.aside) aside(gl, 'drawElements', [mode, n]); else tri(gl, mode, n, 1, true); } return f.call(this, mode, cs, co, t, os, oo, dn); }; }
+    return e; }; }
   wrap('clear', () => { B.cur.clears++; });
   wrap('blitFramebuffer', () => { B.cur.blits++; });
   // names(true): each draw put down to the thing drawn, by the names up its parents. three.js draws every thing through

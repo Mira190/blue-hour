@@ -944,7 +944,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
             // a banned turn (junctions.js), or one at this hour, or a street shut to cars now: never on the
             // legal search; on the search along any street (none legal), allowed at a cost
             const ban = !!(B && B.some(b => b[2] === 1 && b[0] === li && b[1] === (dir > 0 ? 0 : 1))) || !!(net.shutNow && net.shutNow(li, dir > 0 ? 1 : -1) || net.turnShut && net.turnShut(from, li, dir > 0 ? 0 : 1));
-            if (ban && edges === adj) continue;
+            if ((ban && edges === adj) || L[li].edge) continue; // (edge: the works at the playable area's edge stand across it, bounds.js)
             // (along any street, a street driven against its one way costs WRONG times its length, so the
             // way found keeps to the one-way streets but for the fewest metres it must: a navigator's way
             // in to a street the map lets no car reach, not 300 m against the traffic)
