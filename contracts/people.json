@@ -26,7 +26,7 @@
   "ground_speed": ["Walk"],
   "field_clips": ["Run"],
   "cast_clips": "every look.clip the map's people are cast with (cities/shibuya/city.json game.npcs[].look.clip) is in their sex's file",
-  "cast_clips_known": {"_": "Cast with a clip their sex's file has not, and so standing in Idle (people.js play()); to be built or recast", "oda": "Drink"}
+  "cast_clips_known": {"_": "Cast with a clip their sex's file has not, and so standing in Idle (people.js play()); to be built or recast. None now: the men's Drink was built for Mr Oda (#177)"}
  },
  "face": {"_": "A model the index gives a `face` has a mesh with these shapes (face.js)", "shapes": ["eyeBlink", "eyeSquint", "eyeWide", "browInnerUp", "browDown", "browOuterUp", "mouthSmile", "mouthFrown", "mouthPress", "viseme_aa", "viseme_E", "viseme_O", "viseme_U", "viseme_PP"]},
  "far": {"_": "The crowd's far copy (index crowd_cast.file): a node for each of the crowd's cast and its coarse copy; pipeline/crowd_cast.py --check holds it", "suffix": "~coarse"},

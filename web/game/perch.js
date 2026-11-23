@@ -25,7 +25,7 @@ window.OEPerch = (function () {
     const list = [];
     for (const h of G.hero || []) for (const p of h.perches || []) {
       const face = p.face, fh = Math.atan2(face[0], face[1]); // (a heading as the player's: 0 north, clockwise; game.js h)
-      list.push({ perch: true, name: p.name, at: p.at.slice(0, 2), face, h: fh, look: p.look, cam: p.cam || null, rake: p.rake ?? 0.7, verb: p.verb || 'Sit and watch the crossing', z: null });
+      list.push({ perch: true, name: p.name, at: p.at.slice(0, 2), face, h: fh, look: p.look, cam: p.cam || null, rake: p.rake ?? 0.7, seat: p.seat ?? null, verb: p.verb || 'Sit and watch the crossing', z: null });
     }
     // where the feet rest (in front of the stone), resolved once the ground there is loaded
     const ground = p => {

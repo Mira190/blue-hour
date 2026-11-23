@@ -287,7 +287,8 @@
     "web/game/collision.js",
     "web/game/decks.js",
     "web/game/doors.js",
-    "web/game/routeline.js"
+    "web/game/routeline.js",
+    "web/game/visitors.js"
    ],
    "checks": [
     "story",
@@ -328,6 +329,9 @@
      "create",
      "line",
      "walkable"
+    ],
+    "OEVisitors": [
+     "create"
     ]
    },
    "asks_of_game": {
@@ -985,6 +989,7 @@
     "web/pack-worker.js",
     "web/tex.js",
     "web/astc.js",
+    "web/bc7.js",
     "web/astc-worker.js",
     "web/gltf.js",
     "web/game/trig.js",

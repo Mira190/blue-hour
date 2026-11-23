@@ -33,7 +33,7 @@
 //     kept as heard; a street moment (Ren asking the way) cannot be answered by a choice and thanked;
 //   - as the walk lands the corner does not say who has the first story with the metres and the way, or does not name
 //     tonight's next moment when it is within the hour, or a phone is taught its thumbs in two lines (issue 146);
-//   - nine metres from Hachiko's wall no mark offers the seat, or it is still marked once sat on;
+//   - nine metres from Hachiko's wall nobody sits on it beside the free place, or a mark is drawn over the free place;
 //   - beside the end of Hachiko's wall nothing offers to sit and watch the crossing, or seated the camera does not stand
 //     behind your shoulder framing the scramble, a drag does not turn it (and left alone it does not come back), the
 //     time-lapse held (Space; on a phone its button) does not run the clock fast, or E (or a tap) does not stand you up
@@ -63,6 +63,7 @@ const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
+const { drawnSeat } = require('./drawn_seat'); // (the seated sat on something drawn, not on the walking grid: issue 171)
 const { measure: umbrellaHeld } = require('./umbrella_held'); // (in the rain: every umbrella held, issue 165)
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
@@ -396,19 +397,21 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const seat = await p.evaluate(() => { const g = window.__game, P = g.perch; if (!P || !P.list.length) return null; const s = P.list[0]; g.player.x = s.at[0] + s.face[0] * 1.4; g.player.y = s.at[1] + s.face[1] * 1.4; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.player.speed = 0; g.cam.yaw = g.player.h; g.advance(0.3); return { name: s.name }; });
     if (!seat) fail('no place to sit on the walk (game.json hero[].perches, perch.js)');
     else {
-      // (the street offers the seat: from nine metres off, in sight of it, a pale mark over the free place with its
-      // name, until it has been sat on once: issue 146)
+      // (the street offers the seat by a person: from nine metres off, someone of the place already sits on the wall beside
+      // the free place (visitors.js, game.json visitors), and no mark is drawn over it: issues 146, 171)
       const placeMark = () => p.evaluate(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e ? { o: +e.style.opacity || 0, name: e.querySelector('span').textContent } : null; });
       const here = await p.evaluate(() => [window.__game.player.x, window.__game.player.y]);
       await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; g.player.x = s.at[0] + s.face[0] * 9; g.player.y = s.at[1] + s.face[1] * 9; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.cam.yaw = g.player.h; g.cam.pitch = 0.1; g.advance(0.3); });
       await frames(24);
-      // (waited for as it is judged, shown and named: the mark may be up already from where you stood before, pale and
-      // without its name, and beside another check the page had not drawn a frame since you were set down here; read then,
-      // it failed as "not named" one run in two with two cores kept busy: issue 159)
-      const pm = await p.waitForFunction(() => { const e = document.querySelector('.g-walk-mark[data-k="place"]'); return e && +e.style.opacity > 0.4 && /Sit/.test(e.querySelector('span').textContent); }, null, { timeout: 60000, polling: 300 }).then(placeMark, placeMark);
-      if (!pm || pm.o < 0.4) fail(`nine metres from ${seat.name}, facing it, no mark offers the seat (${JSON.stringify(pm)})`);
-      else if (!/Sit/.test(pm.name)) fail(`the seat's mark is not named from nine metres ("${pm.name}")`);
-      else ok(`nine metres from ${seat.name}: its mark, "${pm.name}"`);
+      // (the sitter's body may still be coming: the crowd's cast loads a few at a time)
+      const sitter = await p.waitForFunction(() => { const g = window.__game, s = g.perch.list[0], V = g.visitors; if (!V) return 'none'; const q = V.shown().find(v => v.sit && Math.hypot(v.x - s.at[0], v.y - s.at[1]) < 2); if (!q) { g.frame(0.05); return false; } return { d: +Math.hypot(q.x - s.at[0], q.y - s.at[1]).toFixed(2), who: q.character }; }, null, { timeout: 90000, polling: 300 }).then(h => h.jsonValue(), () => null);
+      const pm = await placeMark();
+      if (!sitter || sitter === 'none') fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place`);
+      else ok(`nine metres from ${seat.name}: someone sits ${sitter.d} m from the free place (${sitter.who})`);
+      // (sat on the stone drawn, not on the walking grid's wider block: a ray down through the meshes, tools/drawn_seat.js)
+      for (const r of await p.evaluate(drawnSeat, { rigs: 'visitors' })) { if (r.ok === null) console.log(`(${r.who}: what is drawn under them cannot be read here: this device let go of its vertices)`); else if (!r.ok) fail(`${r.who}: not on anything drawn (${JSON.stringify(r.under)})`); else ok(`the one on the wall sits on the drawn stone (hips ${r.under.pelvis} m over it)`); }
+      if (pm && pm.o > 0.05) fail(`${seat.name} is still offered by a mark ("${pm.name}", ${pm.o}): the person beside it does that`);
+      else ok(`${seat.name}: no mark over it, the person beside it offers it`);
       await shot('4f-seat-mark');
       await p.evaluate(([x, y]) => { const g = window.__game; g.player.x = x; g.player.y = y; g.advance(0.2); }, here);
       await frames(6);
@@ -427,6 +430,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         // (the hands in the lap, over the stone's top 0.4 m above the feet: hung straight down from a standing clip they went into it)
         if (s.hand != null && s.hand < 0.44) fail(`seated, your hand is ${s.hand} m over your feet: in the stone, not in your lap`);
         else if (s.hand != null) ok(`seated, the hands in the lap (${s.hand} m over the feet)`);
+        for (const r of await p.evaluate(drawnSeat, { rigs: 'player' })) { if (r.ok === null) console.log(`(${r.who}: what is drawn under them cannot be read here: this device let go of its vertices)`); else if (!r.ok) fail(`seated, you are not on anything drawn (${JSON.stringify(r.under)})`); else ok(`seated on the drawn stone (hips ${r.under.pelvis} m over it)`); }
         if (!(await waitPrompt(/Stand up/))) fail(`seated, nothing offers to stand up ("${await prompt()}")`);
         await shot('4f-sit');
         // a drag turns the head (on a phone a finger, by touch)
@@ -576,6 +580,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                       const sat = await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return { me: g.player.mode, her: !!n.sit, wait: g.walkLine().wait }; });
                       if (sat.me !== 'seat' || !sat.her || !sat.wait) fail(`Wait with her: not the two of them sat on the wall (${JSON.stringify(sat)})`);
                       else ok('Wait with her: the two of you on Hachiko\'s wall, the night passing');
+                      for (const r of await p.evaluate(drawnSeat, { rigs: ['nagi'] })) { if (r.ok === null) console.log(`(${r.who}: what is drawn under them cannot be read here: this device let go of its vertices)`); else if (!r.ok) fail(`Wait with her: ${r.who} is not sat on anything drawn (${JSON.stringify(r.under)})`); else ok(`Wait with her: ${r.who} on the drawn stone`); }
                       await shot('4b-wait');
                       if (!(await p.waitForFunction(() => window.__game.walkLine().gate === 'ask', null, { timeout: 900000, polling: 500 }).then(() => true, () => false))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
                       else {

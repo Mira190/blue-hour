@@ -90,8 +90,10 @@ What the contract does not hold, and a session still owes: how the set looks in 
 stills beside the people already there, on a desktop and a phone (AGENTS.md, "Checking your own work"); and main's
 full tier plays the story with it after it lands.
 
-One exception is written into the contract: `oda` is cast with the clip `Drink`, which the men's file has not, so
-he stands in `Idle`. Building the clip or recasting him removes the line.
+The contract has a place for an exception (`cast_clips_known`: someone cast with a clip their sex's file has not, who
+stands in `Idle`), and none is in it: Mr Oda's `Drink` was the last, and the men's file has it since issue 177. A
+rebuild of the clips keeps every clip the file already had (`build_people.py`), so a clip asked for by the regulars or
+the walk's events, which no city's cast names, is not dropped.
 
 ## The hero levels
 
