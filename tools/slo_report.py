@@ -138,7 +138,12 @@ def report(events):
                 reach['end'].add(e['vid'])
         r['story'] = {'began': len({e['vid'] for e in st}), 'reached': {k: len(v) for k, v in sorted(reach.items(), key=lambda kv: (isinstance(kv[0], str), kv[0]))},
                       'seen_through': sum(1 for e in st if e['props'].get('action') == 'seen_through'),
-                      'spent': sum(1 for e in st if e['props'].get('action') == 'spent')}
+                      'spent': sum(1 for e in st if e['props'].get('action') == 'spent'),
+                      # (version 7: every wrong answer by frame, question and which half; hints by frame; and page loads
+                      # that walked at all, so a first Stop left without a step is told apart)
+                      'wrong': dict(Counter(f"{p.get('frame')}.{p.get('q')} {p.get('what')}" for p in (e['props'] for e in st) if p.get('action') == 'wrong')),
+                      'hints': dict(Counter(f"{p.get('frame')}" for p in (e['props'] for e in st) if p.get('action') == 'hint')),
+                      'walked': len({e['props'].get('sid') for e in st if e['props'].get('action') == 'walked'})}
 
     # time on screen, by view; play time is the game's and the reef sites'
     times = [e for e in events if e['event'] == 'time']
@@ -391,6 +396,8 @@ def show(r):
     if r.get('story'):
         s = r['story']
         print(f"Story:    began {s['began']} · reached " + ', '.join(f"{'last card' if k == 'end' else f'frame {k}'} {n}" for k, n in s['reached'].items()) + f" · seen through {s['seen_through']} · frames spent {s['spent']}")
+        if s.get('wrong') or s.get('hints') or s.get('walked'):
+            print(f"          wrong answers (frame.question what): {', '.join(f'{k} ×{n}' for k, n in sorted(s['wrong'].items())) or 'none'} · hints by frame: {', '.join(f'{k} ×{n}' for k, n in sorted(s['hints'].items())) or 'none'} · page loads that walked {s['walked']}")
     print('\nService levels')
     for s in r['slo']:
         v = s['value']

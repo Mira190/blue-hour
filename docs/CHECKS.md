@@ -210,6 +210,21 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   `live` to it, which Vercel's production deploys (`vercel.json` builds `live`; the Vercel project's
   production branch is `live`). A red main leaves the site on the last commit that passed. Deploy to Pages run by
   hand publishes main as it is.
+- **One deploy a pass** (23 November 2026). Vercel's plan allows so many deployments a day, and every branch pushed
+  made one: each push to main a production build cancelled by `ignoreCommand`, each session's branch and `land/*`
+  a preview cancelled the same way, and `check-passes` (no `vercel.json` of its own) a build that failed, about
+  forty a day for nothing. Meanwhile the project's production branch was still `main`, so `live`'s builds were
+  previews and the production site stayed on `fc003e3` from 21 to 23 November (#193). Now:
+  - `vercel.json` `git.deploymentEnabled` makes no deployment of any branch but `live` (a branch cut before this
+    still carries the old file until it merges main; its push is cancelled by `ignoreCommand`, kept as the backstop,
+    and by the project's own Ignored Build Step, the same command, for a branch with no `vercel.json` at all);
+  - `check-passes` carries a `vercel.json` of its own that turns deployments off (`checks.yml`, the passes job);
+  - `pages.yml` moves `live` only when what Vercel serves changed since it (`web/`, `vercel.json`, `VERSION`,
+    `tools/vercel_build.sh`, `tools/stamp.js`): a pass of docs, tools or checks is published to Pages and tagged,
+    and Vercel keeps the commit before, which serves the same files;
+  - a commit main's checks fail never reaches either host, as before.
+  The Vercel project's production branch has to be `live` (Settings, Environments, Production, Branch Tracking):
+  that setting is the account's, not the repository's.
 - Each browser shard prints which renderer it got and on which CPU (`tools/gl_renderer.js`): llvmpipe, or SwiftShader
   when the GL backend could not start, about three times slower. Chromium's download and the shaders llvmpipe compiled
   are kept from one run to the next (`actions/cache`), the shaders a CPU apiece (its model and its flags in the
