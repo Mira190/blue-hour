@@ -3320,7 +3320,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const hr = clock.min / 60;
     // (the crowd is back as the people round you, a third of the level the owner found too loud and always there, and
     // nothing where nobody stands: issue 127's kerb. ?noise=1 plays it and the screens' song as they were)
-    A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + sndCount / 80) : level * 0.32 * Math.min(1, sndCount / 60));
+    // (counted as the street has them, not as this device draws them: a phone's crowd is the share its faces can fill
+    // (faceShare) and the governor's under slow frames (govCrowd), and its kerb was heard 4 to 6 dB under a desktop's, out
+    // of the near bus's range in main's audio check of 23 November. The player's own density, and the hour, still count)
+    const heard = sndCount / Math.max(0.2, govCrowd * faceShare);
+    A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + heard / 80) : level * 0.32 * Math.min(1, heard / 60));
     A.screens(CITY_NOISE ? level * (hr >= 9 || hr < 0.1 ? 1 : 0) : 0, P.fc);
     // the city's far events, every minute or two: a siren, now and then a train's horn, from 350 to 900 m off, heard late
     // by that distance (audio.js far). On the roof they are the only single sounds the city has
