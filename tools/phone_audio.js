@@ -18,15 +18,15 @@
 // speakers and how much of it is under 150 Hz, the rooms' reverb), and the audio thread's health as telemetry.js reads it.
 //   python3 -m http.server 8800 --directory web &
 //   NODE_PATH=$(npm root -g) DRAW=60 xvfb-run -a node tools/phone_audio.js [WxH]
-const { chromium } = require('playwright');
+const { launch, phone } = require('./engine');   // (ENGINE=webkit, GPU=metal: tools/engine.js)
 const [,, size = '390x844'] = process.argv;
 const MAXNODES = +(process.env.MAXNODES || 400), MAXLIVE = +(process.env.MAXLIVE || 160);
 (async () => {
   const [w, h] = size.split('x').map(Number);
-  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: args.concat('--autoplay-policy=document-user-activation-required') });
+  const b = await launch(['--autoplay-policy=document-user-activation-required']);
   const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, userAgent: IOS_UA });
+  await phone(p);
   const errors = [], fail = m => { errors.push(m); console.log('FAIL', m); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 300)}`));
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
