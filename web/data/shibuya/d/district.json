@@ -15,9 +15,9 @@
   "buildings": 12752,
   "solids": 14370,
   "skyline": 1045,
-  "meshes": 135,
+  "meshes": 143,
   "skyline_meshes": 0,
-  "materials": 107,
+  "materials": 115,
   "quests": [
    "hachi",
    "gai",
@@ -64,14 +64,14 @@
  "files": {
   "buildings.bin": 884867,
   "game.bin": 227087,
-  "landmarks.bin": 365989,
+  "landmarks.bin": 376330,
   "places.bin": 83701,
   "scene.bin": 32149,
   "shore.png": 4935,
   "vis.bin": 234104,
   "woods.webp": 191728
  },
- "bytes": 2024560,
- "whole_bytes": 4786319,
- "sha256": "ee63270a781268656262404f6742df4ac1cb5e78a7afedcbc8fa8ca22284b228"
+ "bytes": 2034901,
+ "whole_bytes": 4798730,
+ "sha256": "e26ef8db3ab40af014a4810933b2db55fa6f5741af6f83ad137febc9af17b30b"
 }

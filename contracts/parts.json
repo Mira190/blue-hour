@@ -408,9 +408,13 @@
      "doorChime",
      "engine",
      "far",
+     "gaveUp",
+     "guard",
      "health",
      "heard",
      "held",
+     "hold",
+     "holding",
      "honk",
      "horn",
      "hush",
@@ -426,6 +430,7 @@
      "muted",
      "needsTouch",
      "on",
+     "onGaveUp",
      "pending",
      "place",
      "platformChime",
@@ -442,6 +447,7 @@
      "start",
      "step",
      "stop",
+     "streetOff",
      "thump",
      "thunder",
      "train",
@@ -668,8 +674,10 @@
      "cot",
      "create",
      "dispose",
+     "gate",
      "hold",
-     "seenNext"
+     "seenNext",
+     "ungate"
     ],
     "OEWater": [],
     "OEWorld": [
@@ -687,6 +695,7 @@
      "shown",
      "upload",
      "uploadBuffers",
+     "uploadRest",
      "uploadSliced",
      "warmPasses"
     ]
@@ -697,6 +706,7 @@
    "files": [
     "web/quality.js",
     "web/glcare.js",
+    "web/lifeline.js",
     "web/telemetry.js",
     "web/version.js",
     "web/game/perf.js"
@@ -714,6 +724,7 @@
      "trace",
      "watch"
     ],
+    "OELifeline": [],
     "OEPerf": [
      "run"
     ],
@@ -721,8 +732,11 @@
      "city",
      "governor",
      "held",
+     "room",
      "sinceDeath",
-     "tier"
+     "stepped",
+     "tier",
+     "tierStep"
     ],
     "OETelemetry": [
      "consent",

@@ -337,7 +337,7 @@ is not be on that path where it matters most:
 - Telemetry: `snd_music` (`el 1`: on elements, how many playing; `fixed` where the volume cannot be set), `snd_el`
   (`stalls/worst ms`: an element's own clock 400 ms and more behind the wall's), `snd_quiet` while there is no context.
 
-**The noise heard again with no context at all** (22 November 2026, build 0.1.215, which had all of the above). The owner
+**The noise heard again with no context at all** (22 November 2026, build 0.1.215, which had all of the above; read again under "The guard" below: the walk's second play and the story's had a context, made two seconds into a start without a film, and it broke). The owner
 heard a loud noise, not a crackle, in both openings on the iPhone: the walk's at its title, the story's at the shot from
 above, where its title is; once in the street it was gone. The telemetry of those plays: in the walk's film `snd` read
 `no context` and `snd_quiet` true, and eight seconds in the WebGL context was lost (`gl_lost`, step `late trees`) and the
@@ -354,6 +354,45 @@ its film when Play is pressed before it is ready.
 After the opening the street and the live score are still Web Audio's, on the same path. Their breaks are what the
 probe counts from then on, and the sound still gives up its own load when they come ("Giving up sound before a click").
 A phone whose WebKit has 317968@main plays silence for a late block instead of its stale buffer.
+
+**The guard: the street waits for a page with room for it** (issue 166, 22 November 2026; `audio.js` "the street waits",
+`game.js` `sndHold`). The 0.1.215 plays above, read again event by event, were not all without a context. The walk's first
+play had none and lost its WebGL context at `late trees`. Its second (the next page) made the context two seconds into the
+start, as `quiet` then did for a start without a film, while the scramble level was being sent to the GPU (`upload` 2.7 s,
+`warm` 2.6 s): one break of 110 ms, and a minute later one of 1,025 ms with 4 s of the sound's time lost. The story's play
+(taken up from the walk, no film) made it the same way: `snd_lag` 32/0/0 in its first two seconds and 98/1/0 in the next
+six, at 17 frames a second held by the GPU. Build 0.1.233's walk (23 November): one break of 142 ms at the start, while the
+level was still being warmed, then none at 27 to 34 frames a second. The breaks follow the page's load and a GPU at its
+limit, not the graph: the context at frame 1 rendered a few voices. So on a phone whose music is its elements' the street
+is a guest of the page's frames, and gives way to them:
+
+- *Held while the page is busy*: a level being fetched and sent to the GPU (`hero.js` `loading`, the veil's `levelHold`), a
+  person's character coming in (`npcLoad`), the phone's late parts (`afterPlayable`, until `late in`), or frames slower
+  than 18 a second (the governor's smoothed frame time over 55 ms, back under 45 to end it). `A.hold(true)` fades the
+  street out in 40 ms and suspends the context, which plays nothing: there is no block to come late. Three seconds after
+  the last of these it is let go: resumed, and up again in a tenth of a second. The two-second wake and a touch do not
+  resume a held context. A hold longer than eight seconds (a phone drawing a heavy beat at its limit) brings the loading
+  cue's loop in on its element until the street plays again (`sndBed`, below), so the phone has music rather than nothing.
+- *Made only then*: the context is first made once the film is over **and** the street is not held (`sndQuiet`), at the
+  touch after that (iOS wants one). On the walk the loading cue plays on its element until the street does, rather than
+  stopping at the start (`sndCueOut`), so the minutes the late parts take are not silent.
+- *The guard*: a break the probe counts while the street plays and the page is seen, of 100 ms, or two of 25 ms within half
+  a minute, or six of any size within four seconds, and the street **gives up** for the page: faded out, suspended, kept so.
+  The player is told once ("The street's sound is off ... To try the street again, turn Sound off and on in the menu"),
+  and the loading cue's loop comes back on its element in the street's place (`sndBed`), so play is never silent. The Sound
+  switch turned off and on asks again.
+- *Remembered*: each give-up is noted on the device (`bh-snd-gave`, three days); a phone noted twice makes no context at
+  all from the next page on (`streetOff`): its music is its elements', the street is silent and never breaks. Three minutes
+  of the street played without a break clear the note.
+- Telemetry: `snd_held` (seconds held) and `snd_holds`, `snd_gave` (why and where), `snd: street off`. `?snd=1` shows
+  "held: page busy", "GAVE UP" and "street off" on the page. `?guard=0` turns it off on a phone, `?guard=1` on with a mouse,
+  `?guardfps=1` counts frames under automation (where a software renderer's frames say nothing of a device, as the
+  governor's do not).
+- Checked by `tools/snd_guard_check.js` (the page's audio alone: held through a touch and the wake, let go, given up on a
+  held clock, asked again, off on the next page after two give-ups) and `tools/opening_audio.js` (as an iPhone: no context
+  running while the late parts come in after the film, the context made at the first touch once they are in). What only
+  the owner's iPhone can say: whether the street, once let go, stays clean at the frame rates a phone plays at, and how
+  often a phone gives up. If it is often, the next step is the one above: the street's beds as rendered loops on elements.
 
 **One tab** (`game.js`, `web/tab.html`). A phone has the memory, the GPU and the cores for one world. On a touch screen
 the world is held under a lock of the site's (the Web Locks API); a second tab of the game asks the first to give way
