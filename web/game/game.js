@@ -6331,8 +6331,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
     // and someone who has come to stand where you are (one of the story's people set down or walked there, a map's NPC
     // back at its place): you step out of them at a walk, with or without a key held (issue 126)
-    { let o = posts.pushOut(player.x, player.y, 0.3, player.z);
-      if (!o.hit) { const q = posts.pushOut(player.x, player.y, NPC_KEEP - NPC_POST, player.z); if (q.hit && q.hit.kind === 'npc') o = q; } // (and off the map's people to NPC_KEEP)
+    // (and a step towards one of the map's people that ends nearer than NPC_KEEP is taken back to it, or to where you were
+    // if that was nearer: you stop at arm's length. One standing near is left where they are)
+    for (const n of npcs) {
+      if (n.away || !n.post || Math.abs(n.z - player.z) > 1.2) continue;
+      const d1 = Math.hypot(player.x - n.x, player.y - n.y); if (d1 >= NPC_KEEP || d1 < 1e-3) continue;
+      const d0 = Math.hypot(x0 - n.x, y0 - n.y); if (d1 >= d0) continue;
+      const k = Math.min(d0, NPC_KEEP) / d1, nx = n.x + (player.x - n.x) * k, ny = n.y + (player.y - n.y) * k;
+      if (nav.walk(nx, ny, player.z, true).ok) { player.x = nx; player.y = ny; } else { player.x = x0; player.y = y0; }
+      moved = Math.hypot(player.x - x0, player.y - y0);
+    }
+    { const o = posts.pushOut(player.x, player.y, 0.3, player.z);
       if (o.hit && (o.hit.kind === 'npc' || o.hit.kind === 'story')) {
         const dx = o.x - player.x, dy = o.y - player.y, d = Math.hypot(dx, dy), s = Math.min(d, GAIT.walk * dt);
         if (d > 1e-3 && nav.walk(player.x + dx / d * s, player.y + dy / d * s, player.z, true).ok) { player.x += dx / d * s; player.y += dy / d * s; moved = Math.max(moved, s); }
