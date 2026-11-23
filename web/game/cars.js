@@ -43,7 +43,7 @@ window.OECars = (function () {
   // on a lane narrowed to a carriageway cw wide (a canal bank's lane, the Philosopher's Path: game.js draws it so,
   // and its trees stand just past it, streets.js) its body's side at the carriageway's edge instead, never inside
   // its lane: with the class's 3.3 m a taxi stopping there stood in the bank's trees (#315)
-  const kerbOf = (c, cw) => cw > 0 ? clamp(cw / 2 - 1.0, LANE, 6.5) : clamp((ROADW[c] || 7) / 2 - 0.1, 3.3, 6.5);
+  const kerbOf = (c, cw) => cw > 0 ? clamp(cw / 2 - 1.0, Math.min(LANE, Math.max(0.3, cw / 2 - 1.0)), 6.5) : clamp((ROADW[c] || 7) / 2 - 0.1, 3.3, 6.5);
   // The weather as drivers meet it (#355), from the weather's one state (weather.js S, read by the game each step:
   // setWeather). grip: the tyres' against a dry road's (the state's own number where it has one; else 0.7
   // wet, 0.4 on settled snow); pace: the share of a dry day's speed drivers keep (grip, and how far they can see in

@@ -444,7 +444,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const T = D.T = Tfine;
   const fineTiles = scene.ground.map(() => null);
   // streets drawn from the footway and road data at 0.5 m per pixel, for the tiles near the player
-  const ROADW = { motorway: 14, trunk: 12, primary: 12, secondary: 10, tertiary: 9, residential: 7, unclassified: 6, living_street: 5 };
+  const rwOf = OEStreets.widthOf; // a road piece's carriageway, kerb to kerb: surveyed where the map has it, else its class's (streets.js)
   const FOOTW = OEActors.FOOTW;
   // where three or more road ends meet [x, y, the widest road's half width there], and each zebra crossing of the
   // data on the road it crosses [x, y, the road's direction there, half the road's width less the gutters]
@@ -453,7 +453,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (nodesMemo) return nodesMemo;
     const at = new Map();
     for (const r of G.paths.road.concat((G.paths.far || {}).road || [])) {
-      const w = r.cw || ROADW[r.c] || 7, p = r.p;
+      const w = rwOf(r), p = r.p;
       if (z3(p, 0) || z3(p, p.length - 3)) continue;
       for (const k of [0, p.length - 3]) { const key = Math.round(p[k] / 10) + ',' + Math.round(p[k + 1] / 10), e = at.get(key) || [p[k] / 10, p[k + 1] / 10, 0, 0]; e[2] = Math.max(e[2], w / 2); e[3]++; at.set(key, e); }
     }
@@ -472,7 +472,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           const ax = p[k] / 10, ay = p[k + 1] / 10, bx = p[k + 3] / 10 - ax, by = p[k + 4] / 10 - ay, l2 = bx * bx + by * by;
           if (l2 < 0.01 || Math.abs(ax - x) > 80 || Math.abs(ay - y) > 80) continue;
           const u = Math.max(0, Math.min(1, ((x - ax) * bx + (y - ay) * by) / l2)), dx = ax + bx * u - x, dy = ay + by * u - y, d = dx * dx + dy * dy;
-          if (d < bd && !z3(p, k)) { bd = d; const l = Math.sqrt(l2); best = [ax + bx * u, ay + by * u, bx / l, by / l, (r.cw || ROADW[r.c] || 7) / 2 - 0.6]; }
+          if (d < bd && !z3(p, k)) { bd = d; const l = Math.sqrt(l2); best = [ax + bx * u, ay + by * u, bx / l, by / l, rwOf(r) / 2 - 0.6]; }
         }
       }
       if (best) out.push(best);
@@ -500,7 +500,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const FAR = G.paths.far || {}; // (a district's streets past its edge: painted, not walked or driven; pipeline/district.py)
     const foot = G.paths.foot.concat(FAR.foot || []).filter(f => inTile(f.p)), roads = G.paths.road.concat(FAR.road || []).filter(r => inTile(r.p));
     for (const f of foot) { path(f.p); g.strokeStyle = '#b3ada1'; g.lineWidth = (FOOTW[f.c] || 3) / PX; g.stroke(); }
-    for (const r of roads) { path(r.p); g.strokeStyle = '#9d988d'; g.lineWidth = ((r.cw || ROADW[r.c] || 7) + 1) / PX; g.stroke(); } // kerbs
+    for (const r of roads) { path(r.p); g.strokeStyle = '#9d988d'; g.lineWidth = (rwOf(r) + 1) / PX; g.stroke(); } // kerbs
     // Asphalt as a worn city road is under the sun (an albedo near 0.11: from the air the roads were black ribbons at
     // 0.07, issue 148), in the hero level's own tone, and on it the paint a Tokyo road carries, each line where the
     // road's lanes put it: the edge lines half a metre in from the kerbs, a broken line between two lanes of one way,
@@ -508,7 +508,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // has a crossing. A line is drawn at its own width (0.2 m, less than a pixel here), so from the air it is as
     // faint as it is from there, and a junction is cleared of the lines that would run through it.
     const ASPHALT = '#5c5f63', PAINT = '#e4e1d8', LW = 0.2;
-    const rw = r => r.cw || ROADW[r.c] || 7;
+    const rw = rwOf;
     for (const r of roads) { path(r.p); g.strokeStyle = ASPHALT; g.lineWidth = rw(r) / PX; g.stroke(); }
     g.lineCap = 'butt';
     const pair = (r, off, dash) => { // two lines, off metres either side of the road's middle
@@ -1131,7 +1131,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } });
     junctions.oneLane = one; }
   // the roads' half-widths as the game draws them
-  const ROAD_HALF = { motorway: 7, trunk: 6, primary: 6, secondary: 5, tertiary: 4.5, residential: 3.5, unclassified: 3, living_street: 2.5 };
   // how wide a vehicle each lesser street has room for (#202): along each street of a lane each way or
   // narrower, every 3 m (clear of its ends, where the junction's corners are), the widest body (most of its
   // width, knee to 1.4 m, as tools/game_check.js counts a car in a wall) that its lane has room for, the
@@ -1141,7 +1140,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const fit = roadNet.fit = new Float32Array(RL.length).fill(9);
     nav.withoutFine(() => { for (let i = 0; i < RL.length; i++) {
       const l = RL[i];
-      if ((ROAD_HALF[l.c] || 3.5) > 3.5 || junctions.lanesOf(l) > 1 || l.len < 12) continue;
+      if (rwOf(l) / 2 > 3.5 || junctions.lanesOf(l) > 1 || l.len < 12) continue;
       const lane = side * (OECars.LANE + junctions.shiftOf(l, 0));
       let k = 0; // (the widest still passing: the samples only ever narrow it)
       for (let s = 5; s <= l.len - 5 && k < R.length; s += 3) {
@@ -1174,7 +1173,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
   if (junctions.heads && junctions.heads.walkPosts) for (const q of junctions.heads.walkPosts) posts.add(q.x, q.y, q.z, 0.09, 'lamp'); // (a scramble's walk signals stand beside its crosswalks: walked round)
   // (is (x, y) in a carriageway, as the game draws the roads? nobody waits there)
-  const onRoad = (x, y) => { const q = roadNet.nearest(x, y, 8); return !!q && q.d < (ROAD_HALF[roadNet.L[q.line].c] || 3.5) + 0.3; };
+  const onRoad = (x, y) => { const q = roadNet.nearest(x, y, 8); return !!q && q.d < rwOf(roadNet.L[q.line]) / 2 + 0.3; };
   // the crowd waits at the kerb for the walk signal where its footways cross a junction's roads
   // (and where a footway steps onto a road with no crossing marked, the crowd looks for a gap in the traffic:
   // road says what is carriageway, zebra where a zebra's stripes are, the cars giving way there instead)
@@ -2037,7 +2036,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   // ------------------------------------------------------------ taxis and rides: rides.js
   // (cut out by tools/cut.js, issue 131: the object handed over is what the part asks of the game, the names taken back what it gives)
-  const { HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta, groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard, rideStep, skipRide, srnd, turnRound } = OEGameRides({ get $() { return $; }, get A() { return A; }, get CARS_OK() { return CARS_OK; }, get CITY() { return CITY; }, get CR() { return CR; }, get G() { return G; }, get H() { return H; }, get KEEP() { return KEEP; }, get PLAYER_LOOKS() { return PLAYER_LOOKS; }, get ROAD_HALF() { return ROAD_HALF; }, get SCR_AT() { return SCR_AT; }, get SCR_BOX() { return SCR_BOX; }, get W() { return W; }, get angDiff() { return angDiff; }, get blendFrom() { return blendFrom; }, get cam() { return cam; }, get camera() { return camera; }, get carCfg() { return carCfg; }, get cars() { return cars; }, get cine() { return cine; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get crowd() { return crowd; }, get dlg() { return dlg; }, get driveTo() { return driveTo; }, get fmtSec() { return fmtSec; }, get guideMade() { return guideMade; }, set guideMade(v) { guideMade = v; }, get headlamp() { return headlamp; }, get heliBlock() { return heliBlock; }, get hopTo() { return hopTo; }, get inScramble() { return inScramble; }, get junctions() { return junctions; }, get keepSign() { return keepSign; }, get lib() { return lib; }, set lib(v) { lib = v; }, get life() { return life; }, get makeRig() { return makeRig; }, get metro() { return metro; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get nav() { return nav; }, get npcs() { return npcs; }, get objective() { return objective; }, get phone() { return phone; }, get pickupNear() { return pickupNear; }, get pilot() { return pilot; }, set pilot(v) { pilot = v; }, get placeOf() { return placeOf; }, get player() { return player; }, get resetCar() { return resetCar; }, get ride() { return ride; }, set ride(v) { ride = v; }, get rideSeat() { return rideSeat; }, get roadNet() { return roadNet; }, get roads() { return roads; }, get rq() { return rq; }, get save() { return save; }, get scene() { return scene; }, get smalltalk() { return smalltalk; }, get stepOut() { return stepOut; }, get story() { return story; }, get takeHelm() { return takeHelm; }, get touch() { return touch; }, get vlib() { return vlib; }, set vlib(v) { vlib = v; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get world() { return world; }, get bounds() { return bounds; } });
+  const { HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta, groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard, rideStep, skipRide, srnd, turnRound } = OEGameRides({ get $() { return $; }, get A() { return A; }, get CARS_OK() { return CARS_OK; }, get CITY() { return CITY; }, get CR() { return CR; }, get G() { return G; }, get H() { return H; }, get KEEP() { return KEEP; }, get PLAYER_LOOKS() { return PLAYER_LOOKS; }, get rwOf() { return rwOf; }, get SCR_AT() { return SCR_AT; }, get SCR_BOX() { return SCR_BOX; }, get W() { return W; }, get angDiff() { return angDiff; }, get blendFrom() { return blendFrom; }, get cam() { return cam; }, get camera() { return camera; }, get carCfg() { return carCfg; }, get cars() { return cars; }, get cine() { return cine; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get crowd() { return crowd; }, get dlg() { return dlg; }, get driveTo() { return driveTo; }, get fmtSec() { return fmtSec; }, get guideMade() { return guideMade; }, set guideMade(v) { guideMade = v; }, get headlamp() { return headlamp; }, get heliBlock() { return heliBlock; }, get hopTo() { return hopTo; }, get inScramble() { return inScramble; }, get junctions() { return junctions; }, get keepSign() { return keepSign; }, get lib() { return lib; }, set lib(v) { lib = v; }, get life() { return life; }, get makeRig() { return makeRig; }, get metro() { return metro; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get nav() { return nav; }, get npcs() { return npcs; }, get objective() { return objective; }, get phone() { return phone; }, get pickupNear() { return pickupNear; }, get pilot() { return pilot; }, set pilot(v) { pilot = v; }, get placeOf() { return placeOf; }, get player() { return player; }, get resetCar() { return resetCar; }, get ride() { return ride; }, set ride(v) { ride = v; }, get rideSeat() { return rideSeat; }, get roadNet() { return roadNet; }, get roads() { return roads; }, get rq() { return rq; }, get save() { return save; }, get scene() { return scene; }, get smalltalk() { return smalltalk; }, get stepOut() { return stepOut; }, get story() { return story; }, get takeHelm() { return takeHelm; }, get touch() { return touch; }, get vlib() { return vlib; }, set vlib(v) { vlib = v; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get world() { return world; }, get bounds() { return bounds; } });
 
   // ------------------------------------------------------------ the phone (N): order a ride, bring your car
   const phone = { el: $('#g-phone'), body: $('#gph-body'), map: $('#gph-map'), view: 'home', acts: [], at: 0, fresh: true };

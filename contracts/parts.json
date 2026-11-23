@@ -327,7 +327,6 @@
      "H",
      "KEEP",
      "PLAYER_LOOKS",
-     "ROAD_HALF",
      "SCR_AT",
      "SCR_BOX",
      "W",
@@ -370,6 +369,7 @@
      "roadNet",
      "roads",
      "rq",
+     "rwOf",
      "save",
      "scene",
      "smalltalk",
@@ -655,7 +655,8 @@
     "OEStreets": [
      "carriageways",
      "posts",
-     "setback"
+     "setback",
+     "widthOf"
     ],
     "OESurface": [
      "active",

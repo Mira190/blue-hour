@@ -440,7 +440,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // gates to another (a cul-de-sac, a stub before a closure): no traffic is made on it and none turns in; bus: 1 on a
       // street a bus route takes; ends: what its two ends are where nothing joins them (1 a gate, 2 a dead end, 3 a closure)
       return { pts, cum, len: cum[n - 1], v: o.v || 0, c: o.c || '', deck: o.d || null, ow: o.o || 0, i0: o.r0 != null ? o.r0 : i0, nt: o.nt || null, tl: o.tl || null, ntw: o.ntw || null, tb: o.tb || null, nl: o.nl || 0, wall: o.w || 0, cw: o.cw || 0,
-        quiet: o.q || 0, bus: o.b || 0, ends: o.e || null };
+        quiet: o.q || o.st || 0, st: o.st || 0, bus: o.b || 0, ends: o.e || null };
     }).filter(l => l.len > 4);
     const key = (x, y) => `${Math.round(x / 2)},${Math.round(y / 2)}`;
     const nodes = new Map(), grid = new Map(), GC = 100;
