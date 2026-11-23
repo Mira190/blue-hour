@@ -91,7 +91,7 @@ def draw(city, out, win, name, title, scale=1.0, labels=False):
     leg = [Line2D([], [], color=OPEN, lw=2.5, label="Open to traffic (a way from gate to gate)"),
            Line2D([], [], color=BUS, lw=6, alpha=0.5, label="A bus street (OSM route=bus, Toei GTFS)"),
            Line2D([], [], color=QUIET, lw=2, label="Quiet: a cul-de-sac or a stub; no traffic made, none turns in"),
-           Line2D([], [], color=SHUT, lw=2, ls=(0, (2, 1.5)), label="Closed to cars: the model stands across it"),
+           Line2D([], [], color=SHUT, lw=2, ls=(0, (2, 1.5)), label="Closed to cars: the model stands across it, or no car fits"),
            Line2D([], [], color="#ffb000", lw=0, marker=">", ms=7, label="One-way"),
            Line2D([], [], color=GATE, lw=0, marker="^", ms=8, label=f"Gate: the street leaves the map ({r['ends'].get('gate', 0)})"),
            Line2D([], [], color=DEAD, lw=0, marker="o", ms=6, label=f"Dead end, as in the city ({r['ends'].get('dead end', 0)})"),

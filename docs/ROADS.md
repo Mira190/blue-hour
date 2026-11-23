@@ -168,6 +168,67 @@ The drive to 109 on the autopilot at 17:57, on a desktop's page and a phone's: f
 and 280 s; from the street in the report 493 m, under the railway, 165 and 106 s (before: no road under the
 railway); from Meiji-dori by SKY GATE 364 m, 401 and 155 s.
 
+## The first drive, and the streets inside the playable area
+
+The owner's report (22 November 2026), on the walk at 17:39, just set out: the road ahead ended in buildings with a
+lane between them that no car could take, and the car was put on it. "Either move where your car waits so that the
+drive from it goes on, or build the place as it is. Change what is on the blade's edge."
+
+What the player meets first is the car: "YOUR CAR [C]" is on the screen from the first second. Measured in the game
+(`tools/first_drive.js`) and in the graph (`tools/first_drive.py`), the first drive went wrong in three ways:
+
+1. **The car faced the edge.** It waited on Jingu-dori's southbound carriageway by the west exit (piece 1693, the
+   survey's real three-lane road). 105 m south of it the street crosses the playable area's edge, where the road works
+   stand (docs/BOUNDS.md), and the only way off it before them, the link round the bus terminal's island (piece 1700),
+   is shut to cars from 06:00 to 22:00 (Overture's timed access, `road_rules.py`). So at every hour of the story the
+   first drive could only end at the barriers on a one-way street, where no car may turn round.
+2. **Lanes no car fits were open to it.** Inside the area, Dogenzaka's back lanes (pieces 1668 and 1686, OpenStreetMap
+   `unclassified` and two-way) have 4.4 to 4.6 m between the shopfronts in the built model; the autopilot's drive to 109
+   went through one (the alley in the report), and the piece joining them to the Mark City street (1687) led only there.
+3. **One-way streets into a dead end.** Center Gai's mouth is 25 m of one-way carriageway from the Scramble into a
+   street the data maps as a footway beyond; a lane at the area's north-west corner and a service stub on Route 246's
+   north side were the same. A car that took one could not leave it.
+
+![Before and after, from the car's start along the first drive, desktop and phone, at 17:38](images/roads/first_drive.jpg)
+
+What was done, the least change for each:
+
+- **The car waits on the other carriageway** (`city.json` `game.start.car`, its note says why): Jingu-dori's
+  northbound side by the west exit, facing the Scramble, 77 m from the junction where Dogenzaka (and 109, and
+  Bunkamura-dori past it), Jingu-dori north and the old Oyama road to Meiji-dori all go on. It is 80 m' walk from the
+  start, and its ring in the area's hull is inside the edge as it was, so the edge does not move.
+- **A parked car inside the drawn asphalt** (`game.js` `kerbPose`): your car, parked or brought to the kerb (C), stood
+  with its centre 4.4 m off a tertiary street's line (`cars.js` `kerbOf`), and the street is drawn 4.5 m out
+  (`street_ground.py`): half of it on the kerb wherever no hero level draws the ground. Its outer side now stays 0.25 m
+  inside the class's drawn edge, and inside a hero level it pulls in only as far as the kerb the level draws, as the
+  rides do (#54).
+- **The routes never cross the area's edge** (`bounds.js` `closeRoads` marks the pieces `edge`, `cars.js` router):
+  when no legal way was left, the router's search along any street let a shut street through at a cost. That is right
+  for a street shut at an hour, but wrong for one the works stand across. The autopilot, held in the Scramble's queue,
+  turned round and drove out past the works along the Mark City street, 30 m out of the area.
+- **The playable area's own pass in the plan** (`pipeline/road_plan.py` `playable()`): inside `game.bounds.ground`,
+  a street with less clear width between its walls along most of its length than a car needs (5.5 m two-way, 3.5 m
+  one-way; walls raised 3 m or more over the road, and a footprint the road runs inside, are left to the game's own
+  measure) is closed, as is a one-way street into a dead end and a stub left leading only into a closed lane, until
+  none is left. Closed means the plan's `x: 1`: out of the traffic's graph and every route, still painted and walked.
+  Six pieces, 0.2 km (`road_plan.json` `report.playable_closed` names each with its reason). Outside the area
+  nothing changes.
+
+**The check** (`python tools/first_drive.py shibuya`, 4 s, in `tools/check.sh`'s static checks): the graph inside the
+area as the game drives it at each hour of the story's day (closed pieces out, one-ways, the turns banned at all
+times, the streets shut at that hour, the streets that cross the edge ending at the works; a two-way street may be
+turned round in where it ends, a one-way never). It fails where the car's drive does not reach the area's main
+group, or the main group begins more than 200 m ahead, or an errand's place is not reached from the car, or a street
+open to cars inside the area is a one-way into a dead end, narrower than a car needs, or not a carriageway in the
+survey (OpenStreetMap: pedestrian, footway, path, steps, a service road with no access). Put back where it was, the
+car fails it at 16 hours, 06:30 to 21:30. It prints every drivable dead end inside the area: two culs-de-sac (a
+residential lane at the north-west corner, a service road beside Route 246) and the one-way streets that lead only to
+the works at the edge (Meiji-dori's carriageways, Route 246, and, from 06:30 to 21:30, Jingu-dori south of the
+Scramble): the area's designed edge, said by the works and their line, not a fault of the roads.
+
+`xvfb-run -a node tools/first_drive.js out_dir [WxH] [hour]` opens the walk as a player does, takes the car where it
+waits, and drives it on the autopilot to 109's foot and to SKY GATE's kerb, a still every few seconds.
+
 ## Not done, and why
 
 - **The mounds beside the streets at the embankment** are the survey's ground, left as it is by `street_ground.py`
@@ -179,6 +240,10 @@ railway); from Meiji-dori by SKY GATE 364 m, 401 and 155 s.
 - **Taxi ranks**: OpenStreetMap maps seven in the map; taxis do not yet stand at them.
 - **Expressway pieces clipped by a tower's corner** on their decks are left to the game's own cut (three, at Ohashi
   and Ikejiri): closing 400 m of expressway for 2 m of footprint would be the larger fault.
+- **A pinch on Jingu-dori south of the bus terminal**: for about 20 m the southbound carriageway has 2.6 m between the
+  terminal island's solid and the building east of it in the model, which the plan's width test reads as a pinch, not
+  a lane (its median width is the street's). The traffic and your car pass it; the island's footprint wants standing
+  back (issue 176).
 - **The Scramble and 109 still pass too few cars** (issue 175): a drive across the Scramble from SKY GATE's kerb
   took 401 s for 364 m on a desktop's page. The taxis' ranks, a dressed closure, the clipped expressway pieces and
   Tokyu's GTFS are issue 176.

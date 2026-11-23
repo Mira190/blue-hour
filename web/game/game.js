@@ -1716,7 +1716,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a pose at the kerb of a place on the roads (router.place), facing the way it goes
   function kerbPose(pl, off) {
     roadNet.at(pl.line, pl.s, rq);
-    const hx = rq.hx * pl.dir, hy = rq.hy * pl.dir, k = (off ?? OECars.kerbOf(roadNet.L[pl.line].c, roadNet.L[pl.line].cw)) * keepSign;
+    const hx = rq.hx * pl.dir, hy = rq.hy * pl.dir;
+    const l0 = roadNet.L[pl.line];
+    let k = off ?? OECars.kerbOf(l0.c, l0.cw);
+    // (its outer side inside the asphalt the street's class draws, street_ground.py's half width: kerbOf's 4.4 m on a
+    // street drawn 4.5 m out stood half the car on the kerb wherever no hero level draws the ground: docs/ROADS.md, the first drive)
+    if (off == null) k = Math.max(OECars.LANE, Math.min(k, (l0.cw > 0 ? l0.cw / 2 : ROAD_HALF[l0.c] || 3.5) - 0.95 - 0.25));
+    // (where a hero level draws the carriageway, pulled in only as far as its kerb, never over it onto the paving: by the
+    // west exit Jingu-dori's one lane took your car 4.4 m out, onto the footway, as the rides were by Hachiko, #54)
+    if (off == null && nav.carriageway) {
+      const min = Math.min(k, OECars.LANE), fits = kk => { const lat = (kk + 1.1) * keepSign; for (const a of [-2.3, 0, 2.3]) if (nav.carriageway(rq.x + hx * a - hy * lat, rq.y + hy * a + hx * lat) === false) return false; return true; };
+      while (k > min && !fits(k)) k -= 0.2;
+      k = Math.max(k, min);
+    }
+    k *= keepSign;
     // (the floor a car's wheels take there, within a kerb of the road's own height: never a planter's or a plinth's top by it)
     const x = rq.x - hy * k, y = rq.y + hx * k, f = nav.floorAt(x, y, rq.z + 0.3 + OECars.CAR_STEP - nav.STEP);
     return { x, y, z: f ? f.z : rq.z, h: Math.atan2(hx, hy) };
