@@ -4140,6 +4140,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               if (go && !pair && JN.reach(jEx) < 2 * c.half + 1) { const q = JN.after(jEx, 2 * c.half + 3); if (q && jArm.j.lead === q.j && jArm.phase !== jArm.j.leadPh) { go = false; noRoom = true; } }
               const through = pair && !(onLine.get(jEx.m.line) || []).some(j => C[j] !== c && C[j].dir === (jEx.m.end === 0 ? 1 : -1));
               if (go && !through && !room(c, jEx)) { go = false; noRoom = true; }
+              // (the room on a way out is the longest waiting's: a car at its line 15 s for room on this way out, from
+              // another arm, has the next place there. At 109's fork each place on the 29 m to the Scramble was taken by
+              // the cars down Dogenzaka as it came free, and Bunkamura-dori's stood at a green 179 s, issue 204. The claim
+              // is kept only while its car still waits for room: one that has room and waits on something else holds nobody)
+              { const m = jEx.m, atLine = toLine - c.half < 2.5 && c.v < 0.6;
+                if (noRoom && atLine) { if (m.rwC !== c && !(m.rwC && m.rwC.line >= 0 && t - m.rwSeen < 1)) { m.rwC = c; m.rwT = t; } if (m.rwC === c) m.rwSeen = t; }
+                else if (go && m.rwC && m.rwC !== c && m.rwC.line >= 0 && t - m.rwSeen < 1 && t - m.rwT > 15 && m.rwC.lineArm !== jArm) { go = false; noRoom = true; } }
               let narrowOut = false;
               if (go && narrowComing(c, jEx)) { go = false; noRoom = narrowOut = true; } // (and after 5 s, another way out, as for room, below)
               // keep the box clear: not in while its way across is blocked by a ride or your car standing in the
