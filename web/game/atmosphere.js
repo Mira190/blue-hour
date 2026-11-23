@@ -423,7 +423,9 @@ window.OEAtmos = (function () {
       // the frame, which the lens does as it reads. On the low tier from a quarter of the frame, and four levels.
       const lowBloom = QC.name === 'low';
       bloom = new THREE.UnrealBloomPass(lowBloom ? size.clone().multiplyScalar(0.5) : size.clone(), 0.15, 0.4, 6.0);
-      bloom.levels = lowBloom ? 4 : bloom.nMips;
+      // (a phone, quality.js lean: three levels, two passes fewer of a tile-based GPU's loads and stores; the widest
+      // level's share goes to the three kept)
+      bloom.levels = lowBloom ? (QC.lean ? 3 : 4) : bloom.nMips;
       // its levels' blurs as one program (issue 27): three.js writes each level's kernel into its shader (KERNEL_PAIRS 3 to 11),
       // five programs for one blur. Each keeps its own taps and weights, read up to its own count (uPairs), as before
       { const B = bloom.separableBlurMaterials, MAX = Math.max(...B.map(m => +m.defines.KERNEL_PAIRS || 0)), loop = 'for ( int i = 0; i < KERNEL_PAIRS; i ++ ) {';
@@ -435,7 +437,7 @@ window.OEAtmos = (function () {
           m.fragmentShader = m.fragmentShader.replace('uniform float centerWeight;', 'uniform float centerWeight;\nuniform int uPairs;').replace(loop, `${loop}\n  if ( i >= uPairs ) break;`);
           m.needsUpdate = true;
         } }
-      if (lowBloom) bloom.compositeMaterial.uniforms.bloomFactors.value = [0.8, 0.6, 0.4, 0.2, 0.0]; // (the half-size level's share left out, the rest as they were)
+      if (lowBloom) bloom.compositeMaterial.uniforms.bloomFactors.value = QC.lean ? [0.85, 0.68, 0.5, 0.0, 0.0] : [0.8, 0.6, 0.4, 0.2, 0.0]; // (the half-size level's share left out, the rest as they were)
       bloom.materialHighPassFilter.dispose(); bloom.blendMaterial.dispose(); bloom._basic.dispose();
       const brightSh = OELens.bright({ shade: shade.coarse });
       bloom.highPassUniforms = brightSh.uniforms;
