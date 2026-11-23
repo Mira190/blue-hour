@@ -1808,6 +1808,18 @@ level 2 and was killed at `built` 12 s later; Safari's own reload at level 2 aga
 `tools/glcare_phone.js` plays all of it as a phone (the levels from the notes, a loss with the tab put away, a loss
 seen), and fails on the code before.
 
+**A loss is taken up where it happened** (issue 118, 23 November 2026). The reload put the player back on the title: the
+owner's phone lost its context four times in five minutes in the first frame, and each time began the evening again,
+its film and its call. Now the game notes where the player was as `glcare.js` gives up (`onGiveUp`, game.js
+`noteResume`, in the tab's session storage) and the next load takes them up there with no title and no film
+(`takeResume`): the story at the frame it was at, from that frame's beginning (a Stop's words and photograph are not
+kept part way; standing where the world stopped, it stops again), the walk at its hour and sky, and on foot where they
+stood. A killed page's death is counted with the measurements off too (`web/lifeline.js`, issue 128). On 21 and 22
+November every `r.byteLength` error in the telemetry came from builds without the frames' hold above: 0.1.137 on GitHub
+Pages and `0.1+fc003e3` on Vercel, whose production deploy stayed on that commit of 21 November 09:11 after
+`vercel.json` began building the branch `live` only. `tools/ctx_beats.js` loses and restores the context at the third
+frame's street, at its Stop and on the walk, on a desktop (restored in place) and on a phone (taken up after the reload).
+
 | Level | Buildings whole / simplified / skyline from | Largest picture | Sun's shadow map | Signs / NPC pictures | Aerial tiles of their own | Scanned walkers | Fetched ahead |
 |---|---|---|---|---|---|---|---|
 | 0 | 500 m / 1.5 km / 25 m | 2048 | 2048 | 1024 / 512 | 6 | 8 | all |

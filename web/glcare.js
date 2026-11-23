@@ -85,16 +85,17 @@ body > .gl-note { position: fixed; }
   }
 
   // renderer: a THREE.WebGLRenderer; host: the element the note goes in (the stage);
-  // onLost(n), onRestored(n): the view's own pause and rebuild; waitMs: how long a lost context
+  // onLost(n), onRestored(n): the view's own pause and rebuild; onGiveUp(why): the view's last word before the page
+  // reloads (where its player was, for the next load to take up: game.js resume); waitMs: how long a lost context
   // may stay away before the page reloads
-  function watch({ renderer, host, onLost = () => {}, onRestored = () => {}, waitMs = 8000 }) {
+  function watch({ renderer, host, onLost = () => {}, onRestored = () => {}, onGiveUp = () => {}, waitMs = 8000 }) {
     const canvas = renderer.domElement, gl = renderer.getContext(), note = noteIn(host);
     // gone: given up (the page reloads, or waits on the note): the frames hold from then on, since a restored context
     // that is not rebuilt draws what it no longer has (a phone's walls, let go of once uploaded, threw "null is not
     // an object (evaluating 'r.byteLength')" from three.js in the frame after the restore)
     let lost = false, gone = false, check = 0, timer = 0, losses = 0, restores = 0;
     const stats = { losses: 0, restores: 0, drawn: 0, reloads: 0 };
-    const giveUp = why => { check = 0; gone = true; stats.reloads++; still(); reload(note, why); };
+    const giveUp = why => { check = 0; gone = true; stats.reloads++; still(); try { onGiveUp(why); } catch (err) { console.warn('glcare: onGiveUp', err); } reload(note, why); };
     // and nothing draws again, whoever asks: the frame loop holds on care.lost, but a slice of buffers sent ahead of its
     // first draw (world.js uploadBuffers), a tree's impostor or a level's warm-up runs on its own clock, and drew what the
     // phone had let go of (the same error, from a render outside the frame, in tools/glcare_phone.js one run in three)
