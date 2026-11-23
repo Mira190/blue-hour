@@ -1260,12 +1260,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const hash = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   const npcs = [];
-  // (the map's people as posts: what the crowd and the guide go round. The player is kept off them further, NPC_KEEP from
-  // their middle (as off the story's people, posts of 0.28: a hand's width more than a body), at a walk: stopped at 0.57 m
-  // by the post alone, the leading hand, the camera raised, stood 4 to 6 cm in Aoi's back at frame 1's shutter and in Shun's
-  // at frame 2's, issue 157. The posts themselves wider, the guide's way past Hachiko's wall, with someone sat on it, closed
-  // and he went over the planter instead)
-  const NPC_POST = 0.22, NPC_KEEP = 0.63;
   // the old characters run large; the Rocketbox ones (R_) are life size
   const npcLook = n => Object.assign({ scale: /^W_/.test(n.look.character) ? 0.91 : /^M_/.test(n.look.character) ? 0.96 : 1 }, n.look);
   // where someone stands at (at): on the ground, or a strip or roof below 200 m (not up on a viaduct passing over), or
@@ -1316,11 +1310,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (someone of the walk's own, game.json npcs[].walk: out on the walk only, walkPeople. In the story they are not
     // there at all, neither drawn nor in the crowd's way nor loaded)
     if (n.walk) { rig.root.visible = false; o.away = true; continue; }
-    o.post = posts.add(o.x, o.y, o.z, NPC_POST, 'npc'); // (where they stand: the crowd walks round them, not through them)
+    o.post = posts.add(o.x, o.y, o.z, 0.22, 'npc'); // (where they stand: the crowd walks round them, not through them)
   }
   // the walk's own people out on the street (startWalk, walkOnFromStory): drawn, and in the crowd's way
   function walkPeople() {
-    for (const n of npcs) if (n.away && !n.event) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, NPC_POST, 'npc'); } // (a street moment's people stay away until one puts them out: walktalk.js events)
+    for (const n of npcs) if (n.away && !n.event) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); } // (a street moment's people stay away until one puts them out: walktalk.js events)
   }
   const npcById = id => npcs.find(n => n.id === id);
   // the free game's mark over someone with something for you (?walk=1, goals.js): as every mark is (marks.js), within
@@ -2595,7 +2589,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // a street moment's people (walktalk.js events): put where they would stand, out of sight, facing what they look at
     // (the crossing, or the one they are with), in the crowd's way, and drawn once their model has come; and away again
     place: (n, at, faceTo) => {
-      if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, NPC_POST, 'npc'); }
+      if (n.away) { n.away = false; n.rig.root.visible = true; n.post = posts.add(n.x, n.y, n.z, 0.22, 'npc'); }
       npcMove(n, at);
       const t = faceTo || { x: 368, y: -1002 }; n.h = Math.atan2(t.x - n.x, t.y - n.y); n.rig.root.rotation.y = Math.PI - n.h;
     },
@@ -6331,16 +6325,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
     // and someone who has come to stand where you are (one of the story's people set down or walked there, a map's NPC
     // back at its place): you step out of them at a walk, with or without a key held (issue 126)
-    // (and a step towards one of the map's people that ends nearer than NPC_KEEP is taken back to it, or to where you were
-    // if that was nearer: you stop at arm's length. One standing near is left where they are)
-    for (const n of npcs) {
-      if (n.away || !n.post || Math.abs(n.z - player.z) > 1.2) continue;
-      const d1 = Math.hypot(player.x - n.x, player.y - n.y); if (d1 >= NPC_KEEP || d1 < 1e-3) continue;
-      const d0 = Math.hypot(x0 - n.x, y0 - n.y); if (d1 >= d0) continue;
-      const k = Math.min(d0, NPC_KEEP) / d1, nx = n.x + (player.x - n.x) * k, ny = n.y + (player.y - n.y) * k;
-      if (nav.walk(nx, ny, player.z, true).ok) { player.x = nx; player.y = ny; } else { player.x = x0; player.y = y0; }
-      moved = Math.hypot(player.x - x0, player.y - y0);
-    }
     { const o = posts.pushOut(player.x, player.y, 0.3, player.z);
       if (o.hit && (o.hit.kind === 'npc' || o.hit.kind === 'story')) {
         const dx = o.x - player.x, dy = o.y - player.y, d = Math.hypot(dx, dy), s = Math.min(d, GAIT.walk * dt);

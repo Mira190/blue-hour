@@ -372,10 +372,11 @@ const STAND = 0.07, STAND_N = 60, WALL_N = 30;
 // in the model by itself, and held halfway by a Stop. Now he is lifted by any paw his skin puts under its floor
 // (companion.js onSoles), and laid on the floor under his four paws where it steps (laid); paws past PAW for more than
 // PAW_N frames fail.
-// And the player's hand in someone run at: at 0.57 m from an NPC's middle (a post of 0.22) the leading hand stood 4 to 6 cm
-// in Aoi's and Shun's backs; the map's people are kept off as the story's are (game.js NPC_POST), and a hand of yours more
-// than TOUCH_YOU in anyone for two frames or more fails. For one frame, as you are stopped against them, it still prints:
-// a talker's arm out to her side met the leading hand for a frame at 0.63 and at 0.67 m alike, by the parts' ellipsoids)
+// And the player's hand in someone run at: a hand of yours more than TOUCH_YOU in anyone for two frames or more fails. For
+// one frame, as you are stopped against them, it prints: at 0.57 m from an NPC's middle (a post of 0.22) the leading hand
+// read 4 to 6 cm in Aoi's back for a frame, and a talker's arm out to her side met it at 0.63 and at 0.67 m alike, by the
+// parts' ellipsoids. Kept further off, the player's few centimetres decided between two ways of the same length, and the
+// guide's lost sign pointed down the other one (tools/guide_way.js f3); issue 157)
 const PAW = 0.05, PAW_N = 30, TOUCH_YOU = 0.04;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
