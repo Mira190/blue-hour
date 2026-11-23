@@ -279,6 +279,9 @@ body > .gl-note { position: fixed; }
     if (p.numSpotLightMaps > 0) out.set('spotLightMap', p.numSpotLightMaps);
     if (p.numRectAreaLights > 0 && /\bltc_1\b/.test(THREE.ShaderChunk.lights_pars_begin || '')) { out.set('ltc_1', 1); out.set('ltc_2', 1); } // (not with neon.js lean)
     if (p.numLightProbeGrids > 0) out.set('probesSH', 1);
+    // (a batch's matrices and the table of which is which, read by its vertex shader: batch.js. Counted with the
+    // rest: a program's units are one set, and sampler_probe.js holds this count to what the program linked with)
+    if (p.batching) { out.set('batchingTexture', 1); out.set('batchingIdTexture', 1); if (p.batchingColor) out.set('batchingColorTexture', 1); }
     return out;
   }
   const DECL = /\buniform\s+(?:(?:highp|mediump|lowp)\s+)?[iu]?sampler\w*\s+([^;]+);/g;
