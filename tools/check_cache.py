@@ -49,7 +49,7 @@ HARNESS = {
     'guide': ['tools/guide_way.js', 'tools/guide_body.js'], 'guide1': ['tools/guide_way.js'],
     'guide2': ['tools/guide_body.js'],
     'walk': ['tools/walk_play.js'], 'walk1': ['tools/walk_play.js'], 'walk2': ['tools/walk_play.js'],
-    'ride': ['tools/ride_people.js'], 'roads': ['tools/road_traffic_watch.js', 'tools/road_drive.js'], 'mem': ['tools/mem_check.js', 'tools/lost_check.js', 'tools/glcare_phone.js', 'tools/killed_check.js', 'tools/ctx_beats.js'], 'look': ['tools/look_check.js'],
+    'ride': ['tools/ride_people.js'], 'roads': ['tools/road_traffic_watch.js', 'tools/road_drive.js', 'tools/junction_flow.js'], 'mem': ['tools/mem_check.js', 'tools/lost_check.js', 'tools/glcare_phone.js', 'tools/killed_check.js', 'tools/ctx_beats.js'], 'look': ['tools/look_check.js'],
     'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/sound_places.js', 'tools/phone_audio.js'],
     'clip': ['tools/clip_check.js'], 'gl': ['tools/gl_error_probe.js', 'tools/sampler_probe.js'],
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'hold': ['tools/hold_check.js', 'tools/hold_depth.js'], 'game': ['tools/game_check.js'],
