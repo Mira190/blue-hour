@@ -553,12 +553,31 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (QC.lean) tex.onUpdate = () => { cv.width = cv.height = 1; }; // (a phone: the canvas let go once it is on the GPU)
     return tex;
   }
+  // A fine tile is a kilometre of ground (96,000 triangles at 5 m), and drawn as one mesh it was never out of view: the
+  // four round the player were 240,000 triangles of every frame, most of them behind the camera or behind the street's
+  // walls. Cut into squares of CHUNK_M (world.js chunkGeo: one index each over the tile's shared vertices, its own bounds), the
+  // camera's frustum leaves out what is behind it and the visibility sweep (visibility.js) what the walls hide.
+  // ?groundchunk=off draws each tile whole.
+  const CHUNK_M = /[?&]groundchunk=off\b/.test(location.search) ? 0 : 240;
   function fineTile(i) { // the 5 m version of a ground tile, built the first time the player comes near
     const g = Wd.tileGeometry(scene.ground[i], D.drawTfine || T), coarse = Wd.groundMeshes[i];
-    const m = Wd.groundMesh(g, coarse.material);
-    m.receiveShadow = true;
-    world.add(m);
-    return m;
+    const parts = Wd.chunkGeo(g, CHUNK_M);
+    if (!parts) {
+      const m = Wd.groundMesh(g, coarse.material);
+      m.receiveShadow = true;
+      world.add(m);
+      return m;
+    }
+    const grp = new THREE.Group();
+    grp.userData.oeStill = true;
+    for (const q of parts) {
+      const m = Wd.groundMesh(q, coarse.material);
+      m.receiveShadow = true;
+      if (window.OEVis) OEVis.gate(m, true); // (read now: on a phone the arrays go once uploaded)
+      grp.add(m);
+    }
+    world.add(grp);
+    return grp;
   }
   function groundLod(x, y) {
     if (Wd.mapAt) Wd.mapAt(x, y); // (a phone: the map is built round the player, world.js: the buildings' cells and the aerial pictures nearest here)
@@ -568,7 +587,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (near && !fineTiles[i]) fineTiles[i] = fineTile(i);
       if (fineTiles[i]) fineTiles[i].visible = near;
       // (a phone: a fine tile left 700 m behind goes, its geometry with it, and is built again on the way back)
-      if (QC.lean && fineTiles[i] && d > 700) { const f = fineTiles[i]; fineTiles[i] = null; world.remove(f); f.traverse(c => { if (c.geometry) c.geometry.dispose(); }); }
+      if (QC.lean && fineTiles[i] && d > 700) { const f = fineTiles[i]; fineTiles[i] = null; world.remove(f); f.traverse(c => { if (c.geometry) c.geometry.dispose(); if (window.OEVis) OEVis.ungate(c); }); }
       const ud = Wd.groundMeshes[i].material.userData;
       if (near && ud.street && !ud.street.value) ud.street.value = streetTexture(i);
       else if (d > 700 && ud.street && ud.street.value) { ud.street.value.dispose(); ud.street.value = null; } // (drawn again if you come back: 24 MB a tile)
@@ -1097,7 +1116,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the walkers there are room for: on the medium and high tiers a city's peak (game.crowd.pedestrians_peak),
   // on the low tier its usual number, so a phone draws no more people than it did
   const crowdPool = QC.name === 'low' ? CR.pedestrians || 300 : CR.pedestrians_peak || CR.pedestrians || 300;
-  const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, stillNear: touch ? 24 : 40, style: CR.style, camera, real: realCast(), realHeight: CR.height }))),
+  const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, stillNear: touch ? 24 : 40, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
     { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) || (bounds && Math.abs(bounds.sd(x, y).s) < 0.8), posts,
       clear: wellAt ? (x, y, z) => nav.room(x, y, z, 0.3) && !wellAt(x, y) : (x, y, z) => nav.room(x, y, z, 0.3), eye: camera, shut: wellAt }); // (a shut well is a wall to the crowd: nobody cuts across its mouth)
   // the side of the road the city keeps to: game.keep, its trams', or the country's rule
@@ -3121,7 +3140,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a guide (companion.js): an animal that goes ahead of you to where the story wants you
   // walked as the player walks: slid along walls, round posts, trunks, rails and cars (nav.slide), never onto ground the
   // walker may not stand on, so that it goes round a fence and not through it
-  const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
+  const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, lean: QC.lean, eye: camera, ground: (x, y, z) => { const f = nav.floorAt(x, y, z + 0.5); return f ? f.z : Math.max(0, nav.terrain(x, y)); }, player, height: g.scale || 1,
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
     edge: (x, y, z, fx, fy) => ways.edge(x, y, z, fx, fy),
     wall: (x, y, z, r) => { const w = nav.push(x, y, z, r); return w && Math.hypot(w.x - x, w.y - y) > 0.01 ? w : null; }, // (each end of him off a wall, issue 157)
@@ -3632,7 +3651,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
   let crowdAuto = true, govCrowd = 1; // (govCrowd: the frame-time governor's share of the crowd, its ladder below)
-  function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd); }
+  // (a phone's crowd as many as its faces can fill: the walkers near you are drawn whole from QC.budget.cast scanned people,
+  // 4 on a phone's usual set and 2 on its lightest (quality.js), and a phone's whole crowd, far copies too, is those same
+  // people (people.js realOf, farOf). Round 2 people a crowd of 640 was the same man and the same woman at every elbow
+  // (the owner's iPhone, the walk's opening, 22 November 2026). The crowd is now as large as LOW_CAST faces would fill
+  // and no larger: half on the usual set, a quarter on the lightest; any other device keeps all of it)
+  const faceShare = QC.lean && QC.budget && QC.budget.cast ? Math.min(1, QC.budget.cast / LOW_CAST) : 1;
+  function applyDensity() { if (crowdAuto) crowd.active = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); }
   // mode: 'chase', 'bird' (the helicopter's bird's-eye view) or 'cockpit' (the pilot's eyes, looking lookYaw left and lookPitch up)
   // distTo and yawTo, when set, ease the chase camera somewhere (out to the helicopter's view, round to its door)
   // on foot the chase camera rests 5.5 m behind the head at 0.17 rad (issue 71): its eye about 2.5 m over the street, at
@@ -5703,7 +5728,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (const end of [-1, 1]) {
         const len = crowdNet.L[line].len, sk = Math.max(0, Math.min(len, x.s + end * x.kerb));
         crowdNet.at(line, sk, tmp);
-        const mine = Math.hypot(tmp.x - player.x, tmp.y - player.y) < 6, n = mine ? 11 : 4;
+        const mine = Math.hypot(tmp.x - player.x, tmp.y - player.y) < 6, n = Math.max(1, Math.round((mine ? 11 : 4) * faceShare)); // (a phone's as its faces can fill: faceShare)
         // behind the kerb, facing across; where the footway ends at the kerb, the first steps out onto the stripes
         const back = end > 0 ? len - sk : sk;
         for (let i = 0; i < n; i++) spots.push({ line, s: back > 1.5 ? sk + end * (0.3 + srnd() * Math.min(back - 0.3, mine ? 3.5 : 2.5)) : sk - end * srnd() * (mine ? 3 : 2), dir: -end, side: -1.6 + srnd() * 3.6 });
@@ -5767,7 +5792,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // lets the loading cue go as it sets out; opts.walk, opts.fill: the walk's film, and what its type's {tokens} say)
   makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     walk: !!opts.walk, fill: opts.fill || null, levelReady: () => levelReady(), get levelWait() { return LEVEL_WAIT_S; }, // (both read when played: they are declared further on)
-    junctions, crowd, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
+    junctions, crowd, faceShare, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
   overture = window.OEOverture && (G.overture || epOv) ? makeFilm(epOv ? Object.assign({}, G.overture, epOv, { night: null }) : G.overture) : null;
   if (overture && (story || OEOverture.due(CITY.id))) overture.prepareScore();
@@ -6508,6 +6533,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     mirrorTick();
     if (window.OEVis) { const sy = Wd.sunDir.y; OEVis.cot = sy > 0.03 ? Math.sqrt(1 - sy * sy) / sy : 0; } // (how far a shadow reaches, for the crowd's and the cars' culling)
     if (window.OEVis) OEVis.at(camera); // what cannot be seen from here is left out (visibility.js)
+    // (a phone: the roofs' kit, the stair huts, tanks and plant on them, only from a camera above the street. From the
+    // street it is behind the parapets, and its instanced meshes, each over a cell of the map, were never out of view:
+    // 72,000 triangles of every frame on foot. On a roof, in a lift's glass and from the helicopter the camera is up)
+    if (QC.lean && Wd.roofKit) Wd.roofKit.visible = camera.position.y - Math.max(0, nav.terrain(camera.position.x, -camera.position.z)) > 12;
     if (atmos) atmos.render(world, camera); else renderer.render(world, camera);
     const gc0 = performance.now();
     glCheck(now); // (on the first frame it waits for the GPU to draw it: the first draw of each program is where a driver finishes it)

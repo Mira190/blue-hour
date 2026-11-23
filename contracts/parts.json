@@ -674,8 +674,10 @@
      "cot",
      "create",
      "dispose",
+     "gate",
      "hold",
-     "seenNext"
+     "seenNext",
+     "ungate"
     ],
     "OEWater": [],
     "OEWorld": [

@@ -1364,7 +1364,68 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
     // a ground tile draped on terrain grid Tg (the viewer's 10 m grid, or the game's 5 m one near the player)
     // Drawn only within the frame: the tiles' grid overhangs it by up to 800 m, which past the frame is
     // only haze and would lie over the open sea there, cutting it off along a straight line (issue 57).
-    function tileGeometry(t, Tg) {
+    // A ground tile's grid drawn with as few triangles as its shape needs (issue: a phone's load, November 2026). The
+    // terrain grid is sampled every cell (5 m near the player), and most of it is a plane or a steady slope: the four
+    // tiles round the player were 240,000 triangles a frame, a fifth of a phone's. (Measured on Shibuya's 5 m grid, whose
+    // ground has the street's own relief: a tenth to a fifth of the triangles go at 3 to 8 cm; the rest of the saving is the
+    // squares the game cuts a tile into, game.js chunked.) Here the grid is cut as a quadtree,
+    // from blocks of 16 cells down: a block whose every point lies within `eps` metres of the surface its four corners
+    // span is drawn as that surface, the rest split, down to a single cell drawn as before. A block keeps every point
+    // of the grid on its edges that a neighbour uses (a fan from its middle), so no crack opens between a large block
+    // and the small ones beside it; on the tile's own border every point is kept, for the tile next to it. The heights
+    // the game walks on are the terrain grid's, not this mesh's (nav.js), and eps is a few centimetres: what is drawn
+    // moves by less than the paving's own joints. ?gridlod=off draws every cell as before.
+    const GRID_LOD = !/[?&]gridlod=off\b/.test(location.search);
+    function gridLod(g, cols, rows, eps) {
+      if (!GRID_LOD || cols < 2 || rows < 2) return;
+      const p = g.attributes.position, C = cols + 1, id = (c, r) => r * C + c, Y = (c, r) => p.getY(id(c, r));
+      const used = new Uint8Array(C * (rows + 1)), blocks = [], cells = [];
+      for (let c = 0; c <= cols; c++) used[id(c, 0)] = used[id(c, rows)] = 1;
+      for (let r = 0; r <= rows; r++) used[id(0, r)] = used[id(cols, r)] = 1;
+      const fits = (c0, r0, s) => {
+        const a = Y(c0, r0), b = Y(c0 + s, r0), d = Y(c0, r0 + s), e = Y(c0 + s, r0 + s);
+        for (let r = 0; r <= s; r++) for (let c = 0; c <= s; c++) {
+          const u = c / s, v = r / s, z = (a * (1 - u) + b * u) * (1 - v) + (d * (1 - u) + e * u) * v;
+          if (Math.abs(Y(c0 + c, r0 + r) - z) > eps) return false;
+        }
+        return true;
+      };
+      const rec = (c0, r0, s) => {
+        if (c0 >= cols || r0 >= rows) return;
+        if (s === 1) { cells.push(c0, r0); used[id(c0, r0)] = used[id(c0 + 1, r0)] = used[id(c0, r0 + 1)] = used[id(c0 + 1, r0 + 1)] = 1; return; }
+        if (c0 + s <= cols && r0 + s <= rows && fits(c0, r0, s)) { blocks.push(c0, r0, s); used[id(c0, r0)] = used[id(c0 + s, r0)] = used[id(c0, r0 + s)] = used[id(c0 + s, r0 + s)] = 1; return; }
+        const h = s / 2; rec(c0, r0, h); rec(c0 + h, r0, h); rec(c0, r0 + h, h); rec(c0 + h, r0 + h, h);
+      };
+      for (let r = 0; r < rows; r += 16) for (let c = 0; c < cols; c += 16) rec(c, r, 16);
+      if (!blocks.length) return;
+      // the index, wound as PlaneGeometry winds it: (c,r) (c,r+1) (c+1,r), then (c,r+1) (c+1,r+1) (c+1,r)
+      const idx = [], xyz = [], uvs = [], uv = g.attributes.uv;
+      let next = p.count;
+      for (let k = 0; k < cells.length; k += 2) { const c = cells[k], r = cells[k + 1], a = id(c, r), b = id(c, r + 1), e = id(c + 1, r + 1), d = id(c + 1, r); idx.push(a, b, d, b, e, d); }
+      for (let k = 0; k < blocks.length; k += 3) {
+        const c0 = blocks[k], r0 = blocks[k + 1], s = blocks[k + 2], loop = [];
+        // round its edge: down the left, along the bottom, up the right, back along the top (the cells' own turn)
+        for (let r = 0; r < s; r++) if (r === 0 || used[id(c0, r0 + r)]) loop.push(id(c0, r0 + r));
+        for (let c = 0; c < s; c++) if (c === 0 || used[id(c0 + c, r0 + s)]) loop.push(id(c0 + c, r0 + s));
+        for (let r = s; r > 0; r--) if (r === s || used[id(c0 + s, r0 + r)]) loop.push(id(c0 + s, r0 + r));
+        for (let c = s; c > 0; c--) if (c === s || used[id(c0 + c, r0)]) loop.push(id(c0 + c, r0));
+        if (loop.length === 4) { const [a, b, e, d] = loop; idx.push(a, b, d, b, e, d); continue; }
+        // a fan from its middle, on the surface its corners span
+        const a = id(c0, r0), e = id(c0 + s, r0 + s);
+        xyz.push((p.getX(a) + p.getX(e)) / 2, (Y(c0, r0) + Y(c0 + s, r0) + Y(c0, r0 + s) + Y(c0 + s, r0 + s)) / 4, (p.getZ(a) + p.getZ(e)) / 2);
+        uvs.push((uv.getX(a) + uv.getX(e)) / 2, (uv.getY(a) + uv.getY(e)) / 2);
+        const m = next++;
+        for (let i = 0; i < loop.length; i++) idx.push(m, loop[i], loop[(i + 1) % loop.length]);
+      }
+      if (xyz.length) {
+        const P = new Float32Array(p.array.length + xyz.length); P.set(p.array); P.set(xyz, p.array.length);
+        const U = new Float32Array(uv.array.length + uvs.length); U.set(uv.array); U.set(uvs, uv.array.length);
+        g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+        g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(P.length), 3));
+      }
+      g.setIndex(idx);
+    }
+    function tileGeometry(t, Tg, eps = 0) {
       const F = scene.worldFrame, x0 = Math.max(t.x0, F.x[0]), x1 = Math.min(t.x1, F.x[1]), y0 = Math.max(t.y0, F.y[0]), y1 = Math.min(t.y1, F.y[1]);
       if (x1 <= x0 || y1 <= y0) { // wholly outside: nothing to draw (kept, so groundMeshes stays one to a tile)
         const e = new THREE.BufferGeometry();
@@ -1379,6 +1440,7 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
       for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) - t.x0) / (t.x1 - t.x0), (-p.getZ(i) - t.y0) / (t.y1 - t.y0)); // the whole tile's photo
       if (Q) Tg = Q.raise(Tg, true); // the points out in the water along a quay at its level
       for (let i = 0; i < p.count; i++) p.setY(i, S.terrainAt(Tg, p.getX(i), -p.getZ(i)));
+      if (!Tg.up) gridLod(g, Math.max(1, Math.round(w / Tg.cell)), Math.max(1, Math.round(h / Tg.cell)), eps || Math.max(0.05, Tg.cell * 0.006));
       g.computeVertexNormals();
       // under the cells raised to a quay, which the ground shader leaves open above the water: the bottom
       if (Tg.up) {
@@ -1409,12 +1471,35 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
     // only the model viewer casts a ray at the ground). A lost context there reloads the page (see lean).
     const shed = g => {
       if (!(LEAN && game) || !g || !g.attributes.position || !g.attributes.position.count) return g;
-      g.computeBoundingSphere(); g.computeBoundingBox();
+      if (!g.userData.bounds) { g.computeBoundingSphere(); g.computeBoundingBox(); } // (a chunk keeps its own: chunkGeo)
       const go = function () { this.array = null; };
       for (const a of Object.values(g.attributes)) a.onUpload(go);
       if (g.index) g.index.onUpload(go);
       return g;
     };
+    // A geometry's triangles cut into squares of `size` metres by where each lies, each square a geometry of its own over
+    // the same vertices (shared attributes, sent once), with its own bounds for the frustum (game.js fineTile). null where there is nothing to cut.
+    function chunkGeo(g, size) {
+      const I = g.index, P = g.attributes.position;
+      if (!size || !I || !P) return null;
+      const by = new Map(), p = P.array, ix = I.array;
+      for (let t = 0; t < ix.length; t += 3) {
+        const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+        const k = Math.floor((p[a] + p[b] + p[c]) / 3 / size) * 4096 + Math.floor((p[a + 2] + p[b + 2] + p[c + 2]) / 3 / size);
+        let l = by.get(k); if (!l) by.set(k, l = []); l.push(ix[t], ix[t + 1], ix[t + 2]);
+      }
+      if (by.size < 2) return null;
+      return [...by.values()].map((l, n0) => {
+        const q = new THREE.BufferGeometry();
+        for (const [k, a] of Object.entries(g.attributes)) q.setAttribute(k, a);
+        q.setIndex(l);
+        const box = new THREE.Box3(), v = new THREE.Vector3();
+        for (const n of l) box.expandByPoint(v.fromArray(p, n * 3));
+        if (!n0 && g.userData.underlay) q.userData.underlay = g.userData.underlay; // (a quay's bed, once)
+        q.userData.bounds = box; q.boundingBox = box; q.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+        return q;
+      });
+    }
     function groundMesh(g, material) {
       const m = new THREE.Mesh(shed(g), material);
       m.userData.oeStill = true; // (it never moves: the rain's cover map keeps it, weather.js occStill)
@@ -1454,10 +1539,13 @@ totalEmissiveRadiance += diffuseColor.rgb * streetLight(transpose(mat3(viewMatri
       im.onload = im.onerror = null; im.removeAttribute('src');
     };
     scene.ground.forEach((t, i) => {
-      const g = tileGeometry(t, D.drawT || T); // (the drawn ground deeper under a narrow moat, where the game made it: deepenUnderWater)
+      // (the game's far tiles, drawn only past 260 m of the player: their shape within 0.3 m, a tenth of a pixel there)
+      const g = tileGeometry(t, D.drawT || T, game ? 0.3 : 0); // (the drawn ground deeper under a narrow moat, where the game made it: deepenUnderWater)
       let tex;
       if (loTex && (!pics.first[i] || stream)) tex = loPart(t); // (until its picture comes)
       else tex = photoTex(null);
+      // (not cut as the near tiles are, game.js fineTile: measured, the far tiles cut into squares of 500 m were 33 draws
+      // for 36,000 triangles where whole they are 3 for 54,000)
       const m = groundMesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.96, metalness: 0 }));
       shown.push(pics.tiles[i].then(async img => {
         if (!pics.overview) tileLoaded(img);
@@ -2528,7 +2616,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const api = {
       // the screens' faces and their programmes' clock, hour and night (neon.js lights the street from them)
       screens: { meshes: screenMeshes, clock: SCREEN, night: LM_NIGHT },
-      world, sky, su, sunLight, shCam, hemi, nightU: NU, faceCap: prev => faceCap(prev, U.uFaceCap), pmrem, far, outposts, groundMeshes, skyLit, skyVis: SKYVIS, farSun: FARSUN ? farSun : null, groundPictures: pics, quayMeshes, quays: Q, inland, inlandWater: IN, inlandGlints: () => glints, gradePhoto, streetLit, tileGeometry, groundMesh, water, waterMat, sea, waterCover, trees, buildings, bGeo, gpuOnly, groundKeep, mapAt, mapStream: BLD.stream, U, SRC, extrude, bColour, floodMats, lmMats, night,
+      world, sky, su, sunLight, shCam, hemi, nightU: NU, faceCap: prev => faceCap(prev, U.uFaceCap), pmrem, far, outposts, groundMeshes, skyLit, skyVis: SKYVIS, farSun: FARSUN ? farSun : null, groundPictures: pics, quayMeshes, quays: Q, inland, inlandWater: IN, inlandGlints: () => glints, gradePhoto, streetLit, tileGeometry, groundMesh, chunkGeo, water, waterMat, sea, waterCover, trees, buildings, bGeo, gpuOnly, groundKeep, mapAt, mapStream: BLD.stream, roofKit: BLD.props, U, SRC, extrude, bColour, floodMats, lmMats, night,
       skyReady, // (its program compiled and checked: the game's shaders start compiling after it, game.js earlyWarm)
       hazeProbe: { cpu: az => { const c = hazeOf(az); return c && c.clone(); }, gpu: readHaze }, // (tools/haze_check.js)
       sunDir: new THREE.Vector3(0, 1, 0), day: 1, shadowStill, still, edgeFade, // the width of the haze at the model's edge, metres (edgeHaze)
@@ -2787,6 +2875,12 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // of 10 to 25 seconds. The caller holds its draws until this resolves, since a draw would compile the
   // rest in one frame again.
   const SLICE_MS = 50, SLICED = 40, FLIGHT = 6;
+  // (a phone in play, quality.js lean: a slice of 12 ms behind the scene and for what comes late. iOS draws every tab's
+  // WebGL and plays the page's sound in one GPU process; a slice of 25 to 50 ms there is a frame or two the GPU is
+  // not drawing and the output's buffer is not being filled: docs/SOUND.md, issue 166)
+  let leanMemo = null;
+  const leanNow = () => (leanMemo != null ? leanMemo : (leanMemo = !!(window.OEQuality && OEQuality.city().lean)));
+  const sliceMs = late => (late && leanNow() ? 12 : SLICE_MS);
   // how many sliced compiles are under way (compiling(), for the game's periodic WebGL error check, which waits for the GPU:
   // behind the title it waited for every program queued, seconds in the frame after the tap on Play, issue 27)
   let compiling = 0;
@@ -2845,7 +2939,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
           // (and no more than FLIGHT programs still being compiled at a time: the next shader's source otherwise waits
           // in the call that sends it until the GPU has caught up, a stall of seconds on a software renderer or a
           // device that compiles one at a time, issue 299; the slice ends and the next one waits for them instead)
-          while (i < n && performance.now() - s0 < (behind ? SLICE_MS / 2 : SLICE_MS) && inFlight() < flight) {
+          while (i < n && performance.now() - s0 < (behind ? sliceMs(true) / 2 + (leanNow() ? 6 : 0) : SLICE_MS) && inFlight() < flight) {
             const add = m => { mats.add(m); const p = props.get(m).currentProgram; if (p && p.isReady && !p.isReady()) flying.add(p); };
             if (i < objs.length) for (const m of renderer.compile(objs[i++], camera, scene)) add(m);
             else { const j = i - objs.length, k = Math.min(casters.length, j + 24); for (const m of compileDepth(renderer, casters.slice(j, k), camera, scene)) add(m); i += k - j; }
@@ -3219,7 +3313,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       return n;
     };
     const t0 = performance.now();
-    let budget = 4 << 20, i = 0, slices = 0, longest = 0, total = 0;
+    let budget = late && leanNow() ? 1 << 20 : 4 << 20, i = 0, slices = 0, longest = 0, total = 0;
     const log = [], by = new Map(); // (by: the bytes by what sent them, an object's name or its nearest named parent's)
     const nameOf = o => { for (let q = o; q; q = q.parent) if (q.name) return q.name.replace(/[-_ ]?\d+$/, ''); return o.type; };
     while (i < objs.length) {
@@ -3253,7 +3347,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       const dt = performance.now() - s0;
       slices++; longest = Math.max(longest, dt); total += sb; log.push(`${(sb / 1048576).toFixed(1)}/${Math.round(dt)}`);
       // (the next slice's size from this one's rate: about SLICE_MS of uploads a slice)
-      budget = Math.max(256 << 10, Math.min(64 << 20, sb * SLICE_MS / Math.max(dt, 1)));
+      budget = Math.max(256 << 10, Math.min(64 << 20, sb * sliceMs(late) / Math.max(dt, 1)));
     }
     console.info(`${late ? 'late buffers' : 'buffers'}: ${objs.length} objects, ${(total / 1048576).toFixed(0)} MB in ${slices} slices (MB/ms: ${log.slice(0, 8).join(' ')}), the longest ${Math.round(longest)} ms, done after ${Math.round(performance.now() - t0)} ms; the most: ${[...by].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ${(v / 1048576).toFixed(1)}`).join(', ')}`);
   }
