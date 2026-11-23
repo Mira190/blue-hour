@@ -64,6 +64,94 @@ def sign_backs(materials, meshes):
             "position": np.round(np.asarray(pos), 3).ravel().tolist(), "index": idx}
 
 
+OUT_M = 0.06   # a picture moved out of a building stands this far off its face
+OUT_REACH_M = 30.0   # ... and is moved no further than this the way it faces
+
+
+def signs_out(city, materials, meshes, hidden=()):
+    """A picture stands in front of its building's face, never inside it (issue 169): how many were moved.
+
+    A sign is placed by its own generator from the footprint that generator read (the Scramble's own outline of a
+    building, a survey of the street), and the building the page draws there is the city model's solid: where the two
+    differ by a hand's breadth the picture's front lay inside the solid, in the wall or behind it (a blade sign at
+    Center Gai's mouth stood 0.65 m into its building, the station's hoarding prints 0.25 m). So each upright picture
+    (a quad as its generator wrote it) whose middle and whose front lie inside one of the buildings' solids at its
+    height is moved out of it: a board the way it faces, to the face of the solid it is to be read on (the station's
+    hoarding stood on the Scramble's own outline of the station, 16 m inside the city model's box: it goes to the
+    box's side on the square), a blade (two faces back to back) through the nearest face until its root is at the
+    wall. What stood on the ground is set on the ground where it now is. tools/sign_check.py fails one left inside."""
+    bp = os.path.join(city.out, "buildings.json")
+    if not os.path.exists(bp):
+        return 0
+    import shapely
+    from shapely.geometry import LineString, Point, Polygon
+    B = json.load(open(bp, encoding="utf8"))
+    hidden, polys, zs = set(hidden), [], []
+    for si, sd in enumerate(B["s"]):
+        if si in hidden or len(sd[4]) < 6:
+            continue
+        g = Polygon(np.asarray(sd[4], float).reshape(-1, 2) / 10)
+        polys.append(g if g.is_valid else g.buffer(0))
+        zs.append(((sd[1] + sd[2]) / 10, (sd[1] + sd[3]) / 10))
+    tree, moved = shapely.STRtree(polys), 0
+    import levels
+    GL = None
+    for m in meshes:
+        mt = materials.get(m["material"], {})
+        if not mt.get("map") or mt["map"].startswith("ground") or mt.get("cutout") or "uv" not in m:
+            continue
+        P = np.asarray(m["position"], float).reshape(-1, 3)
+        I = np.asarray(m["index"], int).reshape(-1, 3)
+        quads, t = [], 0
+        while t < len(I):
+            vs, step = set(I[t].tolist()), 1
+            if t + 1 < len(I) and len(vs & set(I[t + 1].tolist())) == 2:   # a quad's two triangles
+                vs, step = vs | set(I[t + 1].tolist()), 2
+            a, b, c = P[I[t]]
+            n = np.cross(b - a, c - a)
+            ln = np.linalg.norm(n)
+            t += step
+            if ln >= 0.02 and abs(n[2]) / ln <= 0.7:
+                quads.append((sorted(vs), n / ln))
+        ctrs = [P[vs].mean(0) for vs, _ in quads]
+        changed = False
+        for k, (vs, n) in enumerate(quads):
+            ctr = ctrs[k]
+            for j in tree.query(Point(*ctr[:2])):
+                g = polys[j]
+                if not (zs[j][0] - 0.05 <= ctr[2] <= zs[j][1] + 0.05 and g.contains(Point(*ctr[:2])) and g.contains(Point(*(ctr[:2] + n[:2] * 0.25)))):
+                    continue
+                # a blade (a face with its twin back to back) goes out through the nearest face and keeps its depth; a
+                # board goes out the way it faces, to the face it is to be read on
+                twin = any(q != k and float(n @ quads[q][1]) < -0.9 and np.linalg.norm(ctrs[q] - ctr) < 0.6 for q in range(len(quads)))
+                d2 = n[:2] / (np.hypot(*n[:2]) or 1.0)
+                ahead = LineString([ctr[:2], ctr[:2] + d2 * OUT_REACH_M]).intersection(g.exterior)
+                if not twin and not ahead.is_empty:
+                    out = d2
+                    depth = min(float((np.array(q_.coords[0]) - ctr[:2]) @ d2) for q_ in getattr(ahead, "geoms", [ahead]) if q_.geom_type == "Point")
+                else:
+                    q_ = g.exterior.interpolate(g.exterior.project(Point(*ctr[:2])))
+                    out = np.array([q_.x - ctr[0], q_.y - ctr[1]])
+                    if np.hypot(*out) < 1e-6:
+                        continue
+                    out /= np.hypot(*out)
+                    depth = max(float((q_.x - P[v, 0]) * out[0] + (q_.y - P[v, 1]) * out[1]) for v in vs)
+                # (what stood on the ground stands on the ground where it now is: its foot as far under it as it was)
+                GL = GL or levels.Levels(city.id)
+                lo = P[vs, 2].min()
+                foot = [v for v in vs if P[v, 2] - lo < 0.01]
+                was = float(np.min(GL.at(P[foot, 0], P[foot, 1]))) - lo
+                P[vs, :2] += out * (depth + OUT_M)
+                if abs(was) < 1.0:
+                    P[vs, 2] += float(np.min(GL.at(P[foot, 0], P[foot, 1]))) - was - lo
+                ctrs[k] = P[vs].mean(0)
+                moved, changed = moved + 1, True
+                break
+        if changed:
+            m["position"] = np.round(P, 3).ravel().tolist()
+    return moved
+
+
 def main():
     city, _ = city_args(__doc__.splitlines()[0])
     scene = json.load(open(os.path.join(city.out, "scene.json")))
@@ -85,6 +173,9 @@ def main():
         print(f"  material {k}: unused, its image {materials[k]['map']} not here; left out")
         del materials[k]
     dumped = [m.dump() for m in meshes]
+    n_out = signs_out(city, materials, dumped, list(extra.get("hidden", [])) + list(extra.get("demolished", [])))
+    if n_out:
+        print(f"  {n_out} pictures moved out of a building to its face")
     back = sign_backs(materials, dumped)
     if back:
         dumped.append(back)

@@ -82,6 +82,28 @@ class Levels:
         return float(z.min()), float(z.max())
 
 
+class Standing:
+    """The ground a generator stands things on: the game's ground (Levels) everywhere outside the hero levels, and
+    inside a hero level's circle the ground that level was built and looked at on (`inside`: the generator's own
+    sampler), which a level's own floor is drawn to.
+
+    A bicycle lot's 66 bicycles stood up to 1.7 m under the paving, its racks with them (the owner, 23 November, at a
+    still of the lot under the Yamanote's viaduct): the Scramble's generator placed everything it builds on the
+    viewer's 10 m grid, read bilinearly, which lies up to a metre off the 5 m ground the game draws between its nodes
+    and further where the grading has moved the ground since (19 % of the planned area is over 10 cm off). One ground
+    for whatever is placed on it, as for whatever has a top."""
+
+    def __init__(self, city_id, inside, pad=10.0):
+        self.G, self.inside = Levels(city_id), inside
+        game = json.load(open(os.path.join(ROOT, "web", "data", city_id, "game.json"), encoding="utf8"))
+        self.hero = [(h["at"][0], h["at"][1], h["r"] + pad) for h in game.get("hero", []) if h.get("at") and h.get("r")]
+
+    def __call__(self, x, y):
+        if any(math.hypot(x - hx, y - hy) < r for hx, hy, r in self.hero):
+            return float(self.inside(x, y))
+        return float(self.G.at(x, y))
+
+
 def split(line, bay=BAY_M, closed=False):
     """A polyline cut into bays: each edge into a whole number of equal bays as near `bay` long as it holds, so a post
     stands on every corner. [(a, b), ...] in order."""
