@@ -47,6 +47,44 @@ One model of levels that every generator reads, in the pipeline (nothing is adde
 
 The order things depend on, and are made in (`tools/regrade.sh`): survey → `street_ground.py` → `stations.py`,
 `lobby.py`, the city's base passes, `roofkit.py` → `landmarks.py` → `pack.py`.
+Then the road plan (`tools/road_plan.sh`, docs/ROADS.md), which `tools/regrade.sh` now runs last, with the page served:
+`stations.py` gives a building that stands off the ground one underside, the lowest its solids have, and the plan then
+raises the solids a road passes under. With the plan left out after a regrade, the Ginza line's viaduct stood 3.9 m
+over Meiji-dori instead of 6.7, the buses under it stood, and `tools/check.sh` failed the drive to 109 behind them.
+
+### A bridge meets its road (issue 173)
+
+`tools/car_edges.js` drove your car's rules along every lane within 900 m of the start and found 47 places where the
+car stopped on dry, open road. Thirty were three bridges south of the station, and the cause was the draping again:
+
+| What | How it took its heights | What it did |
+|---|---|---|
+| A bridge in the lines (`game.json` paths) | the data lifts a bridge one level, 6 m over the ground under each of its points, whatever it crosses | where the Shibuya River runs under a street the ground is kept across it (`inland_water.py` "decks"), and upstream of Inari-bashi no river is drawn: a point stood 6 m over level ground between two ends 16 to 24 m apart, the page laid a deck through the three, and the car met a hump of 1 to 3 m rising at 30 % |
+| A deck's end (`web/game/decks.js`) | from the street's last point on the ground to the first lifted point, 8 m on | the deck began at 30 % and more: a kerb and a half over the ground at the car's front corners a metre in, "Careful! That was a wall." |
+| A deck's height along it | the data's, which is the survey's ground plus a level at each point | the bridge over the Yamanote south of Namikibashi copied the bank under it: 15 m up to 20.6, on to 24.5, down to 22.6 |
+| The car's reach (`web/game/cars.js` `reachFloor`) | the floor at the car's end read once from its middle: where a deck stood more than a kerb over the middle and ground lay within 3.5 m under it, the ground was taken | a ramp at a street's steepest (12 %, 0.27 m over the middle at the car's end) was met as a ledge on every deck with ground near under it |
+
+What is done instead:
+
+1. **A bridge that spans nothing lies on the ground** (`street_ground.py` `spans_nothing`, kept in the survey's record
+   of which points lie on the ground). A run off the ground between two ends on it is the street itself where it is
+   too short to clear anything at a street's steepest (2 x 2.5 m / 12 %) or stands under a clearance over its ground,
+   no water is drawn under it, no railway runs under it and the ground does not fall away under it. 134 points of 102
+   lines; the grading then levels the street there like any other.
+2. **A road's deck is laid by rule** (`decks.js`): a deck of one level between two ends on the ground starts from the
+   straight line between them (a viaduct keeps the data's heights); near an end it is no higher than a 12 % ramp from
+   that end reaches; over a railway, a street or a footway that passes under it, it stands that thing's room over it
+   (5.5, 4.7, 2.5 m and the slab) and comes down from there at 12 %, the ramp taking its length from the street before
+   the deck where the deck is too short, as the place has an approach there; where it lands it stands over the
+   ground across its width.
+3. **The car climbs a ramp on a deck as it climbs one on the ground** (`cars.js` `reachFloor`): a floor found more than
+   a kerb under the middle, or within a kerb under a floor a walker would step up to, is reached by halves first.
+4. **The check counts where a car can go** (`tools/car_edges.js`): inside the planned area and the band where it is
+   turned back (docs/BOUNDS.md). 47 stops before, 0 where a car can go now; 11 are listed past the edge (the banks at
+   street edges of issue 158 north-west of the level, and a motorway's embankment at x 1050), where no car is driven.
+
+`tools/deck_profile.js <line,...>` prints a road line's profile as a car meets it (the ground, every deck, the line's
+height, across five lanes), and `tools/car_ledge_at.js x,y,z,heading` what the car's rules find under its footprint.
 
 ### What was tried and withdrawn: a retaining block on every break
 

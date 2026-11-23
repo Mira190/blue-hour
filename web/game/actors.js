@@ -208,6 +208,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // uncovered): drawn into it, a car on the move left a dry strip of road behind it until the map was next made
   const noCover = m => { if (window.OEPeople && OEPeople.uncovered) OEPeople.uncovered.push(m); return m; };
   function instanced(geo, mat, n) {
+    // (its vertices at the size the picture needs, verts.js: the normal in bytes, and the tone, the part and the occlusion, a float each, as one row of four bytes)
+    if (window.OEVerts) { OEVerts.lean(geo, { normal: 'unit8' }); OEVerts.row(geo, geo.attributes.ao ? [['tone', 'byte'], ['part', 'byte'], ['ao', 'unorm']] : [['tone', 'byte'], ['part', 'byte']]); }
     for (const a of ['aC0', 'aC1', 'aC2', 'aC3', 'aAnim']) geo.setAttribute(a, new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
     const m = new THREE.InstancedMesh(geo, mat, n);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1551,7 +1553,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     // a mate's spot by its leader L at a scramble (out): beside it along the kerb waiting, either side, else a step behind;
     // in a ring with it standing about the square, facing in, as people talking stand; beside it crossing
+    // (a mate who carries an umbrella of its own beside a leader who carries one, issue 165's fourth of a group, stands an
+    // umbrella's room from the leader's place, out along the way it stood: the group's ring about where they stand is 0.45 to
+    // 0.55 m across, and two of a group standing about the square in the rain held their canopies 0.42 m through each other,
+    // main's story of 23 November. Kept where it can be stood on; else where the ring put it)
     function mateSpot(L, q, out) {
+      mateSpot0(L, q, out);
+      if (q.umbW > 0 && L.umbW > 0 && L.T && L.ph !== 'cross') {
+        const dx = out.x - L.T.x, dy = out.y - L.T.y, d = Math.hypot(dx, dy) || 1e-3, need = q.umbW + L.umbW + UMB_RIM / 3 + 0.04;
+        if (d < need) { const x = L.T.x + dx / d * need, y = L.T.y + dy / d * need; if (standOk(x, y, L.z, L.pz && L.pz.road)) { out.x = x; out.y = y; } }
+      }
+      return out;
+    }
+    function mateSpot0(L, q, out) {
       const k = q.gk || 1, n = 1 + (L.mates ? L.mates.length : 1), road = L.pz && L.pz.road, g = L.g, z = L.z, T = L.T;
       if (L.ph === 'linger') {
         const a = L.ga ?? (L.ga = rnd() * 6.283), r = n === 2 ? 0.45 : 0.55, cx = T.x - Math.sin(a) * r, cy = T.y - Math.cos(a) * r, b = a + k * 6.283 / n;
@@ -1611,8 +1625,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       else if (L.ph === 'linger' && p.ph !== 'linger' && p.ph !== 'cross') { uncount(p); p.ph = 'linger'; p.lst = false; p.g = L.g; moved = true; }
       else if (L.ph !== 'linger' && L.ph !== 'cross' && p.ph === 'linger') { p.ph = 'stroll'; p.g = L.g; if (L.g) count(p, L.g); moved = true; }
       else if (p.ph !== 'cross' && L.ph !== 'cross' && p.g !== L.g) { p.g = L.g; if (p.ph !== 'linger' && L.g) count(p, L.g); moved = true; }
-      if (moved || p.lTx !== L.T.x || p.lTy !== L.T.y || p.lph !== L.ph) {
-        p.lTx = L.T.x; p.lTy = L.T.y; p.lph = L.ph;
+      const twoUmb = p.umbW > 0 && L.umbW > 0; // (and again as the two umbrellas go up, or down)
+      if (moved || p.lTx !== L.T.x || p.lTy !== L.T.y || p.lph !== L.ph || p.lUmb !== twoUmb) {
+        p.lTx = L.T.x; p.lTy = L.T.y; p.lph = L.ph; p.lUmb = twoUmb;
         mateSpot(L, p, p.T || (p.T = {}));
         if (p.ph === 'wait' && Math.hypot(p.T.x - p.x, p.T.y - p.y) > 0.6) p.ph = 'stroll';
         if (p.ph === 'linger' && Math.hypot(p.T.x - p.x, p.T.y - p.y) > 0.5) p.lst = false;
@@ -1931,16 +1946,21 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // the footway, out of the press, as people do when a kerb fills with umbrellas. Measured where the canopies are,
       // not where the places were given. Twice at most while its umbrella is up. Until November 2026 frame 7's kerb
       // stood under canopies running through each other after a long play, issue 187)
-      if (!(q.umbW > 0)) q.umbMoved = q.umbChk = 0;
-      else if (q.umbR > 0 && sp === 0 && (q.ph === 'wait' || q.lst) && q.g && !(q.lead >= 0) && (q.umbMoved || 0) < 2 && (q.umbChk = (q.umbChk || 0) + dt) >= 1) {
+      // (and one stood with no umbrella whose head stands as high as a neighbour's rim and is under that canopy: the canopy's
+      // holder cannot see to it, so the one under it finds another place, as above, whichever comes first on the list. A
+      // man waiting 0.45 m from a woman's umbrella stood with his head in it, main's story3 of 23 November)
+      if (!(q.ph === 'wait' || q.lst)) q.umbMoved = q.umbChk = 0;
+      else if (sp === 0 && q.g && !(q.lead >= 0) && (q.umbMoved || 0) < 2 && (q.umbChk = (q.umbChk || 0) + dt) >= 1) {
         q.umbChk = 0;
         const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
         let inside = false;
         for (let a = -1; a <= 1 && !inside; a++) for (let b = -1; b <= 1 && !inside; b++) {
           for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
             const o = P[k];
-            if (k >= i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || (o.lead >= 0 ? o.lead : o.id) === gq) continue; // (the earlier of the two keeps its place; one walking by is past in a moment; friends lean apart)
-            if (Math.hypot(mx - o.x - (o.ucx || 0), my - o.y - (o.ucy || 0)) < q.umbR + o.umbR - UMB_RIM) { inside = true; break; }
+            if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || (o.lead >= 0 ? o.lead : o.id) === gq) continue; // (one walking by is past in a moment; friends lean apart)
+            const ox = o.x + (o.ucx || 0), oy = o.y + (o.ucy || 0);
+            if (q.umbR > 0) { if (k < i && Math.hypot(mx - ox, my - oy) < q.umbR + o.umbR - UMB_RIM) { inside = true; break; } } // (of two canopies, the earlier keeps its place)
+            else if (q.crown > o.umbRim - 0.03 && Math.hypot(q.x - ox, q.y - oy) < o.umbR + 0.1) { inside = true; break; } // (a head under a canopy, a head's width in from its rim)
           }
         }
         if (inside) {

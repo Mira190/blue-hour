@@ -68,7 +68,7 @@ exports.hook = () => {
     proto.bindBuffer = function (t, x) { bufs.set(t, x); return o.bindBuffer.call(this, t, x); };
     proto.bufferData = function (t, d) {
       const x = bufs.get(t);
-      if (x) { M.buf.set(x, { bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex' }); bump('buffer'); }
+      if (x) { M.buf.set(x, { bytes: typeof d === 'number' ? d : (d ? d.byteLength : 0), label: t === 0x8893 ? 'index' : 'vertex', src: d && d.buffer && typeof WeakRef === 'function' ? new WeakRef(d.buffer) : null }); bump('buffer'); } // (src: the page's own array, by which a report finds whose buffer it is)
       return o.bufferData.apply(this, arguments);
     };
     proto.deleteBuffer = function (x) { M.buf.delete(x); bump('- buffer'); return o.deleteBuffer.call(this, x); };
