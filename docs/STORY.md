@@ -1847,6 +1847,49 @@ at each of their hours.
 
 ## 12. Reviews
 
+### The people of the places (issues 112, 171, 177; November 2026)
+
+A place is read by who is in it. SHIBUYA SKY's roof was empty at the blue hour but for the story's people, so its two
+overheard lines had nobody to say them (since an overheard line is said only by someone standing there in sight), and
+Hachiko's wall offered its free place by a pale mark, not by a person (#146 asked for the world before the interface).
+`web/game/visitors.js` keeps a few anonymous people where a place puts them (`cities/shibuya/city.json`
+`game.visitors`), standing or seated, each with one of the cast's clips:
+
+| Where | Who | On a phone |
+|---|---|---|
+| SKY STAGE, the west glass | a couple: she photographs the scramble 230 m down, he looks where she points; they say "You can see the scramble breathing." | yes |
+| SKY EDGE, the west stair's landing | a photographer framing her friend against the corner's handrail; they say "Stop there, one step down." | yes |
+| SKY STAGE, a west and an east bench | someone resting, facing out through the glass | no |
+| SKY STAGE, the north glass | someone photographing Shinjuku's towers | no |
+| SKY STAGE, the south glass | two friends, a message home, looking for Tokyo Tower | no |
+| Hachiko's wall, on the walk | someone already sitting on the stone along its face from the free place, past where Nagi sits to wait | yes |
+
+**What it costs.** No model and no texture: each is drawn as one of the crowd's own cast (`game.crowd.cast`, which the
+near crowd loads anyway), a copy of a skeleton over the same geometry and pictures; never the body of one of the map's
+named people. A group is made only when the camera comes within its `r`, counted in height too as a hero level is (from
+the street 230 m under the roof they do not exist), one person a frame, and drawn only while within it; a phone makes
+only those marked `phone` (four on the roof, the four who speak). In the story they are on the roof in frames 4 to 6, and
+the Stop holds them as it holds everyone. The seat on Hachiko's wall is marked only where nobody of a place sits beside it
+(`game.js` seatMarks).
+
+**Seated on what is drawn.** The first sitter on the wall sat in the air: he was placed by the walking grid
+(`nav.floorAt`), which round Hachiko's bed is one raised block a metre wider than the stone drawn, and his feet stood on
+that block's air too; the check that asked the same grid passed. A seated person now keeps the floor the data gives, a
+`seat` height says how high the drawn seat's top is, and the thighs slope down from the hips (`people.js`
+`rig.thighDown`) until the hip joint stands 9 cm over it with the feet on the floor (a chair's pose put the hip joint
+level with a 0.44 m bench, the body sunk into it). `tools/drawn_seat.js` casts a ray down through the drawn meshes from
+the hips, the thighs and the ankles; `tools/visitors_check.js` and the walk's beat (`tools/walk_play.js`, for the wall's
+sitter, for you on the wall and for Nagi waiting beside you) fail on anyone seated on nothing drawn.
+
+**Mr Oda's can of coffee** (#177). He was cast with `Drink`, which the men's shared clips did not have, so he stood in
+Idle with nothing in his hand. The men's file now has Rocketbox's `m_drink_idle` (`blender/build_people.py`; a rebuild
+keeps every clip the file already had, since the regulars and the walk's events ask for clips no city's cast names), and
+he holds a vending machine's hot can (`look.drink: "can"`, `people.js` `can`: 53 mm by 104 mm, dark lacquer, no maker's
+name) rather than a paper cup.
+
+Checked on a software renderer only (stills at 17:38 and 21:00, 1440x900 and 390x844): not on a real GPU, in Safari or
+on an iPhone.
+
 ### The words checked against the street (November 2026)
 
 Every line of the episode was read against where things stand and against the truth above, once every place but the
