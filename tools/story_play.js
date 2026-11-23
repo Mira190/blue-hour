@@ -924,7 +924,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180 / Math.PI;
         // (counted in frames, not the wall's time: the game moves 0.05 s a frame at most, so on a software renderer the raise's
         // half a second is many seconds of the wall's; after 20 frames, a second of the game's own time, it is up)
-        const settle = R.slice(20), first = settle[0], last = settle[settle.length - 1];
+        // (and on a real GPU twenty frames are a third of a second: a phone's page at sixty a second was caught half way up,
+        // "moves by itself" by 6 to 10 degrees in five frames of seven. The second is counted in the game's own time, a frame's
+        // wall time or 0.05 s, whichever is less; never fewer than the twenty frames)
+        let up = 1, gameMs = 0; while (up < R.length - 2 && (up < 20 || gameMs < 1000)) { gameMs += Math.min(50, R[up].t - R[up - 1].t); up++; }
+        const settle = R.slice(up), first = settle[0], last = settle[settle.length - 1];
         let jit = 0; for (let i = 1; i < settle.length; i++) jit = Math.max(jit, ang(settle[i].d, settle[i - 1].d));
         const drift = ang(first.d, last.d), q = last.q, inFrame = q[2] < 1 && Math.abs(q[0]) < 0.7 && Math.abs(q[1]) < 0.7;
         await snap(`${s.fi + 1}-raised`);
