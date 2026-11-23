@@ -225,14 +225,20 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     return parts.map((tris, p) => {
       if (!tris.length) return null;
       const out = new THREE.BufferGeometry(), q = wheels[p];
+      // (the part's own vertices, each once, under an index of its own: a corner for every triangle was three to six
+      // times the vertices, 2.7 MB of one car on the GPU where its file holds 0.6; issue 130)
+      const seen = new Map(), order = [], ix = [];
+      for (const t of tris) for (let c = 0; c < 3; c++) { const v = vi(3 * t + c); let k = seen.get(v); if (k === undefined) { k = order.length; seen.set(v, k); order.push(v); } ix.push(k); }
       for (const name of Object.keys(geo.attributes)) {
-        const a = geo.attributes[name], A = raw(a), size = a.itemSize, arr = new A.arr.constructor(tris.length * 3 * size);
+        const a = geo.attributes[name], A = raw(a), size = a.itemSize, arr = new A.arr.constructor(order.length * size);
         let j = 0;
-        for (const t of tris) for (let c = 0; c < 3; c++) { const o = A.off + vi(3 * t + c) * A.stride; for (let e = 0; e < size; e++) arr[j++] = A.arr[o + e]; }
+        for (const v of order) { const o = A.off + v * A.stride; for (let e = 0; e < size; e++) arr[j++] = A.arr[o + e]; }
         if (name === 'position' && q) for (let k = 0; k < arr.length; k += 3) { arr[k] -= q.x; arr[k + 1] -= q.r; arr[k + 2] -= q.z; }
         out.setAttribute(name, new THREE.BufferAttribute(arr, size, a.normalized));
       }
-      if (!out.attributes.color) out.setAttribute('color', new THREE.BufferAttribute(new Float32Array(tris.length * 9).fill(1), 3));
+      out.setIndex(new THREE.BufferAttribute(order.length > 65535 ? Uint32Array.from(ix) : Uint16Array.from(ix), 1));
+      if (!out.attributes.color) out.setAttribute('color', new THREE.BufferAttribute(new Float32Array(order.length * 3).fill(1), 3));
+      if (window.OEVerts) OEVerts.lean(out, { color: 'unorm8' }); // (the occlusion painted into its vertices: a byte a channel)
       out.computeBoundingSphere();
       return out;
     });

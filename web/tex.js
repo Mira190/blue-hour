@@ -2,8 +2,9 @@
 // what they are; each picture is encoded on the device after it is decoded and before it is first sent to the GPU,
 // so the uncompressed copy never is: a quarter of the GPU's memory for the same download.
 //
-//   OETex.on(renderer, want)   turns it on where the GPU decodes ASTC and `want` (the game on a phone, game.js; or
-//                              ?tex=astc anywhere, ?tex=raw nowhere); returns whether it is on
+//   OETex.on(renderer, want, { lean })   turns it on where `want` (the game) and the GPU decodes the blocks: ASTC on a
+//                              phone (lean), BC7 on a desktop (bc7.js, issue 130; ASTC where it has that alone);
+//                              ?tex=astc or ?tex=bc7 asks for one, ?tex=raw for none; returns whether it is on
 //   OETex.pack(texture)        a promise: the texture's picture in blocks (or left as it was: off, not a picture,
 //                              too small, or below the encoder's quality floor). Until it resolves the texture is
 //                              held back from the GPU (drawn black), so call it before what wears it is shown
@@ -12,7 +13,7 @@
 //                              is left alone: its owner makes the pictures smaller first, then calls packObject
 //   OETex.packObject(root)     every colour picture the materials under root wear
 //   OETex.settled()            a promise: nothing left encoding
-//   OETex.stats                { packed, kept, texels, bytes, ms, worst } for the tools and the telemetry
+//   OETex.stats                { on, fmt, packed, kept, texels, bytes, ms, worst } for the tools and the telemetry
 //
 // Only colour is packed (a material's map and emissiveMap): normals and the packed roughness, metalness and occlusion
 // have channels that do not move together, which a block's one line of colours cannot follow. Canvases, data
@@ -23,23 +24,41 @@
   const FLOOR = 33, ALPHA_FLOOR = 27, MIN_SIDE = 32; // (dB of the top level by the encoder's own count; smaller pictures cost nothing)
   const stats = { on: false, packed: 0, kept: 0, texels: 0, bytes: 0, ms: 0, worst: 99, log: [] }; // (log: each picture, for tools/mem_check.js)
   const note = (tex, img, r, kept) => { if (stats.log.length < 400) stats.log.push({ name: tex.name || String((img && (img.currentSrc || img.src)) || '').split('/').slice(-2).join('/'), w: r.width || (img && img.width) || 0, h: r.height || (img && img.height) || 0, db: r.db != null ? +r.db.toFixed(1) : null, adb: r.adb != null && r.adb < 99 ? +r.adb.toFixed(1) : undefined, kept, why: r.error }); };
-  let worker = null, seq = 0, max = 4096, pending = 0, idle = [];
+  let seq = 0, max = 4096, pending = 0, idle = [], fmt = null, pool = 1;
+  const workers = [];
   const waiting = new Map(), bySource = new WeakMap(), byTex = new WeakMap();
 
-  function on(renderer, want = true) {
+  // which blocks this device takes: a phone's ASTC, which every iPhone decodes; a desktop's BC7 (bc7.js: every desktop GPU,
+  // Apple's M-series among them), or ASTC where it has that alone
+  function on(renderer, want = true, { lean = true } = {}) {
     const q = new URLSearchParams(location.search).get('tex');
-    const has = !!(renderer && renderer.extensions && renderer.extensions.has('WEBGL_compressed_texture_astc')) && typeof OffscreenCanvas === 'function' && typeof createImageBitmap === 'function' && typeof Worker === 'function';
-    stats.on = has && q !== 'raw' && (want || q === 'astc');
+    const ext = renderer && renderer.extensions, can = typeof OffscreenCanvas === 'function' && typeof createImageBitmap === 'function' && typeof Worker === 'function';
+    const astc = !!(ext && ext.has('WEBGL_compressed_texture_astc')), bptc = !!(ext && ext.has('EXT_texture_compression_bptc'));
+    // (a desktop on a software renderer is left as it is: there is no GPU's memory to save there, and it decodes a block
+    // each time a texel is read. The story's checks, which run on one, took two and a half times as long. ?tex=bc7 asks all the same)
+    let soft = false;
+    try { const gl = renderer.getContext(), dbg = gl.getExtension('WEBGL_debug_renderer_info'); soft = /swiftshader|llvmpipe|softpipe|software|basic render/i.test(String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER))); } catch (e) { /* not told */ }
+    fmt = q === 'astc' ? (astc ? 'astc' : null) : q === 'bc7' ? (bptc ? 'bc7' : null) : lean ? (astc ? 'astc' : null) : soft ? null : bptc ? 'bc7' : astc ? 'astc' : null;
+    stats.on = can && !!fmt && q !== 'raw' && (want || q === 'astc' || q === 'bc7');
+    stats.fmt = stats.on ? fmt : null;
+    // (a desktop's pictures are larger and many, and it has the cores: up to four Workers, two cores left to the page)
+    pool = lean ? 1 : Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 2));
     if (renderer) max = renderer.capabilities.maxTextureSize;
     return stats.on;
   }
+  // a picture goes to the Worker with the least waiting on it; one more is made while fewer than `pool` are and all are busy
   function post(msg, transfer) {
-    if (!worker) {
-      worker = new Worker(window.OEV ? window.OEV(new URL('astc-worker.js', here), true) : new URL('astc-worker.js', here));
-      worker.onmessage = e => { const w = waiting.get(e.data.id); if (w) { waiting.delete(e.data.id); w(e.data); } };
-      worker.onerror = e => { e.preventDefault(); stats.on = false; for (const w of waiting.values()) w({ keep: true, error: 'the worker failed' }); waiting.clear(); };
+    let w = workers.find(x => !x.busy);
+    if (!w && workers.length < pool) {
+      w = { busy: 0, worker: new Worker(window.OEV ? window.OEV(new URL('astc-worker.js', here), true) : new URL('astc-worker.js', here)) };
+      const mine = w;
+      w.worker.onmessage = e => { const f = waiting.get(e.data.id); if (f) { waiting.delete(e.data.id); mine.busy--; f(e.data); } };
+      w.worker.onerror = e => { e.preventDefault(); stats.on = false; for (const f of waiting.values()) f({ keep: true, error: 'the worker failed' }); waiting.clear(); };
+      workers.push(w);
     }
-    return new Promise(ok => { const id = ++seq; waiting.set(id, ok); worker.postMessage(Object.assign({ id }, msg), transfer); });
+    if (!w) w = workers.reduce((a, x) => (x.busy < a.busy ? x : a));
+    w.busy++;
+    return new Promise(ok => { const id = ++seq; waiting.set(id, ok); w.worker.postMessage(Object.assign({ id, fmt }, msg), transfer); });
   }
   const done = () => { if (--pending === 0) { for (const f of idle) f(); idle = []; } };
 
@@ -47,7 +66,7 @@
   function wear(tex, r) {
     tex.mipmaps = r.levels;
     tex.image = { width: r.width, height: r.height };
-    tex.format = THREE.RGBA_ASTC_4x4_Format;
+    tex.format = r.fmt === 'bc7' ? THREE.RGBA_BPTC_Format : THREE.RGBA_ASTC_4x4_Format;
     tex.type = THREE.UnsignedByteType;
     // (a CompressedTexture from here on, so that a clone made later is one too: clone() makes what its constructor is)
     Object.setPrototypeOf(tex, THREE.CompressedTexture.prototype);

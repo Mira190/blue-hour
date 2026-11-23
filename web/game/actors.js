@@ -208,6 +208,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // uncovered): drawn into it, a car on the move left a dry strip of road behind it until the map was next made
   const noCover = m => { if (window.OEPeople && OEPeople.uncovered) OEPeople.uncovered.push(m); return m; };
   function instanced(geo, mat, n) {
+    // (its vertices at the size the picture needs, verts.js: the normal in bytes, and the tone, the part and the occlusion, a float each, as one row of four bytes)
+    if (window.OEVerts) { OEVerts.lean(geo, { normal: 'unit8' }); OEVerts.row(geo, geo.attributes.ao ? [['tone', 'byte'], ['part', 'byte'], ['ao', 'unorm']] : [['tone', 'byte'], ['part', 'byte']]); }
     for (const a of ['aC0', 'aC1', 'aC2', 'aC3', 'aAnim']) geo.setAttribute(a, new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
     const m = new THREE.InstancedMesh(geo, mat, n);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

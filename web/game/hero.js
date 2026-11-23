@@ -42,6 +42,7 @@
 'use strict';
 window.OEHero = (function () {
   const LOAD_M = 260, DROP_M = 520, SHOW_M = 420, FINE_LOAD_M = 30, FINE_M = 70;
+  const LEAN_VERTS = { normal: 'unit8', _bake: 'half' };
 
   // the baked light (_BAKE) and the glow's hum, in every material of a hero model
   const BAKE_V = `attribute vec4 _bake;\nvarying vec4 vHeroBake;\n`;
@@ -283,6 +284,8 @@ window.OEHero = (function () {
             if (opts.mirror && /^ground/.test(n)) opts.mirror.patch(m);
           }
         });
+        // (its vertices at the size the picture needs, before any is sent: a normal in bytes, the baked light in half floats; verts.js)
+        if (window.OEVerts) OEVerts.leanObject(root, LEAN_VERTS);
         root.updateMatrixWorld(true);
         if (opts.ground) opts.ground(L.h, root); // (where its paving is: game.js heroCover)
         if (Wd.still) Wd.still(root); // (its shadow cached with the city's: world.js shadowCache)
@@ -323,6 +326,7 @@ window.OEHero = (function () {
           L.fineMeshes.push(o);
           for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && !seen.has(m)) { seen.add(m); L.mats.push(m); patch(m, L.h); }
         });
+        if (window.OEVerts) OEVerts.leanObject(root, LEAN_VERTS);
         root.updateMatrixWorld(true);
         group.add(root);
         L.fineRoot = root; L.fine = 'ready';

@@ -622,7 +622,9 @@
     "web/pack.js",
     "web/pack-worker.js",
     "web/tex.js",
+    "web/verts.js",
     "web/astc.js",
+    "web/bc7.js",
     "web/astc-worker.js",
     "web/gltf.js"
    ],
@@ -669,6 +671,12 @@
      "stats"
     ],
     "OETrees": [],
+    "OEVerts": [
+     "compact",
+     "lean",
+     "leanObject",
+     "row"
+    ],
     "OEVis": [
      "at",
      "cot",

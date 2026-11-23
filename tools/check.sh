@@ -64,7 +64,7 @@
 #   gl      the map as an ordinary device opens it: no WebGL call refused, and every material drawn on a GPU with
 #           sixteen texture units (tools/gl_error_probe.js, tools/sampler_probe.js);
 #   touch   the free game played by touch on a phone's page (tools/touch_check.js);
-#   astc    the device-side ASTC encoder against a real decoder (tools/astc_check.js);
+#   astc    the device-side ASTC encoder, and a desktop's BC7 (web/bc7.js), against a real decoder (tools/astc_check.js);
 #   hold    every avatar the street casts through every clip it holds something in: no forearm, hand or held thing inside
 #           its own torso, and no jerk from moving it out (tools/hold_check.js); when the people or their models change;
 #   launch  what a player who comes back meets (tools/launch_check.js, issue 116): the site as two commits, the second
@@ -215,11 +215,11 @@ else
   for f in $( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u); do
     if [ "${frommain:-0}" = 1 ] && mains "$f"; then static=1; skipped=$((skipped + 1)); continue; fi
     case "$f" in
-      web/astc.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc launch ;;
+      web/astc.js|web/bc7.js|web/astc-worker.js|tools/astc_check.js) static=1; add astc launch ;;
       web/game/people.js|web/game/lineup.html|tools/hold_check.js|tools/hold_depth.js) static=1; [ "${f#tools}" = "$f" ] && page; add hold ;;   # (the arms out of the body over the clips)
       # (how the page is loaded, kept and published: issue 116)
       vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
-      web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
+      web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/verts.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
       web/data/$MAP/d/*) static=1; add mem walk2 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
@@ -548,8 +548,9 @@ run_hold() {   # every cast avatar through every held clip: no limb in its own t
   else echo "FAIL hold   $(grep '^FAIL' "$OUT/hold.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/hold.log)"; fi
 }
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
-  if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1; then
-    echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page and decoded by the GPU, none under the floor, no cut-out's mipmaps or edge astray"
+  # (and a desktop's BC7, web/bc7.js, by the same measure: FMT=bc7)
+  if timeout 600 env -u DISPLAY node tools/astc_check.js >"$OUT/astc.log" 2>&1 && timeout 600 env -u DISPLAY FMT=bc7 node tools/astc_check.js >>"$OUT/astc.log" 2>&1; then
+    echo "ok   astc   $(grep -c '^ok' "$OUT/astc.log") pictures encoded on the page as ASTC and as BC7 and decoded by the GPU, none under the floor, no cut-out's mipmaps or edge astray"
   else echo "FAIL astc   $(grep '^FAIL' "$OUT/astc.log" | head -2 | cut -c6-140 | paste -sd ';' -)   (see $OUT/astc.log)"; fi
 }
 # one static check: <name> <log> <what a pass says, or - for the log's last line> <the lines of a failure to show> <command...>
