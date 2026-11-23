@@ -872,6 +872,20 @@ Surveyed for #170 (ideas only; no code or asset copied):
 
 The phone tier gets the same shading at the same cost: the cut stays a plain alpha test there.
 
+**The hair's end, and the camera's strap** (the owner's report, 23 November 2026: the ends of the hair look like a
+tassel's fringe; the strap round the neck seems sunk into the jacket, broken in one place or the jacket's colour).
+
+- Below the nape the cards lay along the head's painted hair where it goes in under the collar, and came out of the
+  jacket in strips beside the lock. `people.js` `looseEnds` leaves those triangles out once a character: below 11 cm
+  under the skull's middle behind the neck and 15 cm at the sides, past the painted hair's hem, or off it by more than
+  1.8 cm below the ears. Below the nape a long head of hair is its painted lock, and the cards stay round the head.
+  `tools/hair_probe.js` prints how many triangles went (46 + the nape's on Kagami).
+- The strap was laid 3.5 mm over the *nearest* surface, which under a lapel's roll is the shirt: it went in under the
+  lapel and the collar and stopped at the lapel's top in a hard cut, and where the nearest normal turned over at the
+  lapel's edge the strap twisted in facets. `blender/build_people.py` `neck_camera` now lifts every point of the line
+  and both of its edges to the outermost cloth seen from outside (a ray in toward the body's axis), and lays the strap
+  flat across the way out from that axis, which turns smoothly.
+
 Stills: `tools/hair_shot.js` (`PEOPLE=` the commit before beside this one), `R_Female_Adult_09_f011_grey_handbag`
 at dusk, `R_Female_Adult_15_f011_brown` by day and at night, `H_Kagami_W` at dusk and night; `tools/game_shot.js`
 with `tools/views/kagami-back-123.json` and `tools/views/hair-plaza.json` at 1440x900 and 390x844.

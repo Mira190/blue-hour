@@ -660,6 +660,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
       if (HERO_CUT.tex.value) HERO_CUT.tex.value.dispose();
       HERO_CUT.tex.value = t; HERO_CUT.box.value.set(x0, y0, n * HC, 0); HERO_CUT.h = h;
+      // (where the ground is not drawn for its floor: there alone its floor stands under the ground, nav.js lift)
+      h.cutAt = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i >= 0 && j >= 0 && i < n && j < n && cut[j * n + i] > 0; };
     }
     h.coverMs = Math.round(performance.now() - t0); // (for tools/guide_way.js)
     // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)

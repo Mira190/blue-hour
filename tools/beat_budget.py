@@ -180,6 +180,10 @@ def main(a):
                     over.append('%s %s over %s at %s' % (NAMES[k], fmt(k, got[n][k][0]), fmt(k, b[k]), got[n][k][1]))
             if over:
                 bad += 1; print('FAIL %s: %s' % (n, '; '.join(over)))
+                if bad == 1:
+                    # (the two ways out, said with the first failure, where tools/check.sh's line carries it: issue 131)
+                    print('FAIL two ways out: draw less in that beat on the %s tier, or set its budget again on purpose, the reason in the commit'
+                          ' (python3 tools/beat_budget.py set <counts.jsonl> %s)' % (dev, dev))
             else:
                 print('ok   %s: %s' % (n, ', '.join('%s %s of %s' % (k, fmt(k, got[n][k][0]), fmt(k, b[k])) for k in ('draws', 'tris', 'passes', 'gpu_mb') if k in got[n] and k in b)))
         return 1 if bad else 0
