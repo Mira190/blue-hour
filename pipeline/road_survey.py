@@ -21,14 +21,12 @@ import json
 import math
 import os
 
-import mapbox_vector_tile
 import numpy as np
 import shapely
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
 
 from cityctx import city_args, polygons
-from fetch_tiles import get, tile_xy
 
 KIND = {"車道部": "carriage", "車道交差部": "cross", "歩道部": "walk", "島": "island"}
 SIMPLIFY_M = 0.12
@@ -48,6 +46,9 @@ def rings_of(geom):
 
 
 def read(C, cfg):
+    # only the fetch needs these (and requests behind fetch_tiles): what the checks import of this file is load()
+    import mapbox_vector_tile
+    from fetch_tiles import get, tile_xy
     z = cfg.get("zoom", 16)
     x0, x1, y0, y1 = cfg.get("area") or (C.x0, C.x1, C.y0, C.y1)
     lon, lat = C.inv.transform([x0, x1, x0, x1], [y0, y0, y1, y1])
