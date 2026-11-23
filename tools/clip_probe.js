@@ -299,13 +299,15 @@ function pageSide(NEAR, HOLD) {
     const now = performance.now();
     if ((player.mode === 'heli' || player.mode === 'car') && player.rig && player.rig.root && player.rig.root.visible && now - P.seatT > 1000) {
       P.seatT = now;
-      const veh = player.mode === 'heli' ? ctx.heli && (ctx.heli.root || ctx.heli.group || ctx.heli.model) : ctx.car && (ctx.car.root || ctx.car.group || (ctx.car.D && ctx.car.D.root));
+      const veh = player.mode === 'heli' ? ctx.heli && (ctx.heli.root || ctx.heli.group || ctx.heli.model) : ctx.car && (ctx.car.root || ctx.car.group || (ctx.car.C && ctx.car.C.group) || (ctx.car.D && ctx.car.D.root));
       const rig = rigOf(player.rig.root, 'you');
       if (veh && rig) {
         pose(player.rig.root, rig); veh.updateWorldMatrix(true, true);
-        const ray = new T.Raycaster(); ray.firstHitOnly = false;
+        const ray = new T.Raycaster(); ray.firstHitOnly = false; ray.camera = ctx.camera; // (a lamp's sprite in the ray's way asks for a camera: without one the measure threw at its first ray, and no seat was ever read, issue 157)
         const skip = o => { for (let q = o; q; q = q.parent) if (q === player.rig.root) return true; return false; };
-        const cast = (from, dir, far) => { ray.set(from, dir); ray.far = far; ray.near = 0; const h = ray.intersectObject(veh, true).filter(x => !skip(x.object) && x.object.visible); return h.length ? h[0].distance : null; };
+        // (a surface is met from either side: one-sided, a limb's middle already inside a cushion saw nothing on its way out. Each material's side is put back before anything is drawn)
+        const mats = []; veh.traverse(o => { if (o.isMesh && !skip(o)) for (const mt of [].concat(o.material || [])) if (mt && mt.side !== T.DoubleSide && !mats.some(q => q[0] === mt)) mats.push([mt, mt.side]); });
+        const cast = (from, dir, far) => { ray.set(from, dir); ray.far = far; ray.near = 0; let h = []; for (const q of mats) q[0].side = T.DoubleSide; try { h = ray.intersectObject(veh, true).filter(x => !skip(x.object) && x.object.visible && x.object.isMesh && !x.object.isSprite); } finally { for (const q of mats) q[0].side = q[1]; } return h.length ? h[0].distance : null; };
         const part = n => rig.parts.find(x => x.bone.name.endsWith(n));
         const world = (pt, l) => l.clone().applyMatrix4(pt.bone.matrixWorld);
         const pel = part('Pelvis'), head = part('Head');
@@ -332,9 +334,13 @@ function pageSide(NEAR, HOLD) {
           else if (d != null && d > 0.25 + 0.12) note('seat', 'you', `${name}: ${s.name} over the floor`, d - 0.25, ctx, player.x, player.y, player.z);
         }
         for (const pa of rig.parts) if (/(Hand|Forearm|Calf|Thigh)$/.test(pa.bone.name)) {
-          // (a limb through the shell: from the pelvis out to each of its points, the first thing of the vehicle met on the way)
-          const c = pel ? world(pel, pel.c) : null; if (!c) break;
-          for (const pt of pa.pts) { const w = world(pa, pt), dir = w.clone().sub(c), L = dir.length(); if (L < 0.05) continue; const d = cast(c, dir.normalize(), L); if (d != null && L - d > 0.05 && d > 0.25) { note('seat', 'you', `${name}: ${pa.name} through a part of it`, L - d, ctx, player.x, player.y, player.z); break; } }
+          // (a limb in a part of the vehicle: from the limb's own middle out to each of its points, anything of the vehicle
+          // met on the way lies inside the limb. Until issue 157 the ray was from the pelvis, and a thigh on its own
+          // cushion or a shin behind a seat's front edge read 15 to 43 cm "through a part": the cushion's edge stands
+          // between any seated hip and its shin)
+          const c = world(pa, pa.c); let deep = 0;
+          for (const pt of pa.pts) { const w = world(pa, pt), dir = w.clone().sub(c), len = dir.length(); if (len < 0.02) continue; const d = cast(c, dir.normalize(), len); if (d != null && len - d > deep) deep = len - d; }
+          if (deep > 0.04) note('seat', 'you', `${name}: ${pa.name} in a part of it`, deep, ctx, player.x, player.y, player.z);
         }
       }
     }

@@ -107,6 +107,7 @@ function pageSide() {
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await p.addInitScript(() => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }); // (the map's tour of its keys has been taken: its card is not in the stills)
   await probe.install(p);
   await p.addInitScript(pageSide);
   const STILL = !!process.env.STILL;
@@ -117,6 +118,7 @@ function pageSide() {
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(1500);
   await p.evaluate(() => document.getElementById('gt-play').click());
+  await p.addStyleTag({ content: '[class^="ob-"] { display: none !important; }' }); // (the first flight's coach and the tour's cards: not in the stills)
   await p.waitForTimeout(story ? 20000 : 8000);
   await p.evaluate(() => { const g = window.__game; if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); });
   await p.waitForTimeout(2000);
@@ -196,8 +198,12 @@ function pageSide() {
         for (let k = 0; k < 4; k++) { // (four readings a second of the story's clock: twenty frames of a twentieth)
           const r = await one(); N++; clip = r.clip;
           if (r.head.deep > DEEP) hn++; if (r.arms.deep > DEEP) an++;
-          if (r.head.deep > hd.deep) hd = r.head; if (r.arms.deep > ar.deep) ar = r.arms;
-          if (k === 0) for (const [vn, da, dist, dz] of [['front', 0.5, 1.15, 1.5], ['side', 1.6, 1.15, 1.5], ['body', 0.7, 2.7, 1.2]]) {
+          if (r.head.deep > hd.deep) { hd = r.head;
+            if (hd.deep > 0.02 && hd.at) { // (the deepest so far, from the side it is on, half a pace off)
+              await p.evaluate(([name, at]) => { const S = window.__skin, o = S.who(name).o; let dx = at[0] - o.x, dy = at[1] - o.y; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; S.cam([at[0] + dx * 0.75 - dy * 0.35, at[1] + dy * 0.75 + dx * 0.35, at[2] + 0.12], at); }, [name, hd.at]);
+              await frames(1); await shot(`look-${name.toLowerCase().replace(/[^a-z]+/g, '-')}-deepest`); } }
+          if (r.arms.deep > ar.deep) ar = r.arms;
+          if (k === 0) for (const [vn, da, dist, dz] of [['front', 0.5, 1.15, 1.5], ['side', 1.6, 1.15, 1.5], ['back', 3.6, 1.15, 1.55], ['body', 0.7, 2.7, 1.2]]) {
             await p.evaluate(([name, da, dist, dz]) => { const S = window.__skin, o = S.who(name).o, a = (o.h ?? 0) + da; S.cam([o.x + Math.sin(a) * dist, o.y + Math.cos(a) * dist, (o.z || 0) + dz], [o.x, o.y, (o.z || 0) + (dist > 2 ? 1.0 : 1.45)]); }, [name, da, dist, dz]);
             await frames(2); await shot(`look-${name.toLowerCase().replace(/[^a-z]+/g, '-')}-${vn}-${s}s`);
           }
@@ -213,11 +219,21 @@ function pageSide() {
   if (mode === 'seats') {
     const seat = async (what) => {
       const R0 = await probe.report(p), n0 = R0 ? R0.cases.filter(c => c.kind === 'seat').length : 0; void n0;
-      for (let k = 0; k < 6; k++) { await p.waitForTimeout(1200); await frames(8); } // (the probe's seat measure runs once a second of the wall clock)
+      for (let k = 0; k < 6; k++) { await p.waitForTimeout(1200); await frames(12); } // (the probe's seat measure runs once a second of the wall clock)
       const st = await p.evaluate(() => { const g = window.__game, pl = g.player; return { mode: pl.mode, seen: !!(pl.rig && pl.rig.root && pl.rig.root.visible), at: [pl.x, pl.y, pl.z].map(v => +v.toFixed(2)), h: pl.h }; });
       console.log(`${what}: mode ${st.mode}, the player ${st.seen ? 'drawn' : 'not drawn'}, at (${st.at})`);
-      if (st.seen) for (const [vn, da, dist, dz] of [['door', Math.PI / 2, 2.6, 1.3], ['front', 0.35, 3.2, 1.5], ['in', -Math.PI / 2, 0.75, 1.25]]) {
-        await p.evaluate(([da, dist, dz]) => { const g = window.__game, pl = g.player, T = window.THREE, S = window.__skin, w = pl.rig.root.getWorldPosition(new T.Vector3()), a = pl.h + da; S.cam([w.x + Math.sin(a) * dist, -w.z + Math.cos(a) * dist, w.y + dz], [w.x, -w.z, w.y + 0.9]); }, [da, dist, dz]);
+      // (from the door's side, from ahead through the glass, and from the next seat: where the player is as the world has them,
+      // in the vehicle's frame, and the way the vehicle faces)
+      // each view: the camera's place and what it looks at, from the hips, as [ahead, to the player's left, up] in the way
+      // the player faces: from each door's side, from ahead through the glass, from the next seat, and close on the head
+      // under the roof and on the legs
+      if (st.seen) for (const [vn, c, t] of [['door', [0.2, -2.4, 0.5], [0, 0, 0.25]], ['other-door', [0.2, 2.4, 0.5], [0, 0, 0.25]], ['front', [2.9, 0.9, 0.7], [0, 0, 0.3]],
+        ['in', [0.25, 0.8, 0.45], [0.1, 0, 0.3]], ['head', [0.55, 0.5, 0.72], [0, 0, 0.72]], ['head-side', [0.05, -0.75, 0.8], [0, 0, 0.72]], ['legs', [0.5, 0.62, 0.3], [0.4, 0, -0.15]], ['legs-side', [0.45, -0.8, 0.15], [0.4, 0, -0.15]]]) {
+        await p.evaluate(([c, t]) => { const g = window.__game, pl = g.player, T = window.THREE, S = window.__skin, root = pl.rig.root; root.updateWorldMatrix(true, true);
+          let hips = null; root.traverse(o => { if (!hips && o.isBone && /Pelvis$/.test(o.name)) hips = o; });
+          const w = (hips || root).getWorldPosition(new T.Vector3()), f = new T.Vector3(0, 0, 1).transformDirection(root.matrixWorld), fx = f.x, fy = -f.z, lx = -fy, ly = fx;
+          const at = q => [w.x + fx * q[0] + lx * q[1], -w.z + fy * q[0] + ly * q[1], w.y + q[2]];
+          S.cam(at(c), at(t)); }, [c, t]);
         await frames(2); await shot(`seat-${what}-${vn}`);
       }
       await p.evaluate(() => { const g = window.__game; if (g.cine.active) g.cine.stop(); });
@@ -225,10 +241,22 @@ function pageSide() {
       return st;
     };
     // the car: brought to the kerb, then at its wheel
-    const car = await p.evaluate(async () => { const g = window.__game; try { if (g.bringCar) g.bringCar(); } catch (e) { return String(e); } for (let i = 0; i < 400 && !(g.myCar && g.myCar()); i++) await new Promise(r => setTimeout(r, 250)); for (let i = 0; i < 60 && g.carComing && g.carComing(); i++) await new Promise(r => setTimeout(r, 500)); try { g.enterCar(); } catch (e) { return String(e); } return g.player.mode; });
+    const car = await p.evaluate(async () => { const g = window.__game, pl = g.player;
+      // (the car as it stands parked, once its model has come and is shown: entered before that, nothing of it is drawn)
+      for (let i = 0; i < 720 && !(g.myCar && g.myCar() && g.myCar().C.group.visible); i++) await new Promise(r => setTimeout(r, 250));
+      const c = g.myCar && g.myCar(); if (!c) return 'no car of your own'; if (!c.C.group.visible) return 'the car is not shown';
+      const st = c.D.st; pl.x = st.x + Math.cos(st.h) * 2; pl.y = st.y - Math.sin(st.h) * 2; pl.z = st.z;
+      for (let i = 0; i < 20; i++) await new Promise(r => requestAnimationFrame(r));
+      try { g.enterCar(); } catch (e) { return String(e); } return g.player.mode; });
     console.log(`the car: ${car}`);
     if (car === 'car') { await seat('car'); await p.evaluate(() => window.__game.exitCar()); await frames(10); } else fail(`could not sit at the wheel (${car})`);
-    const heli = await p.evaluate(async () => { const g = window.__game; try { g.enterHeli(); } catch (e) { return String(e); } await new Promise(r => setTimeout(r, 1500)); return g.player.mode; });
+    const heli = await p.evaluate(async () => { const g = window.__game, pl = g.player, st = g.heli.st;
+      // (beside it on its pad, until its own model has come: boarded before, it is the simple stand-in until you are out again)
+      pl.x = st.x + 4; pl.y = st.y; pl.z = st.z + 0.1; pl.vz = 0;
+      for (let i = 0; i < 720 && !(g.heli.loaded() && g.heli.group.visible); i++) await new Promise(r => setTimeout(r, 250));
+      if (!g.heli.loaded()) return 'the helicopter\'s model did not come';
+      for (let i = 0; i < 20; i++) await new Promise(r => requestAnimationFrame(r));
+      try { g.enterHeli(); } catch (e) { return String(e); } await new Promise(r => setTimeout(r, 1500)); return g.player.mode; });
     console.log(`the helicopter: ${heli}`);
     if (heli === 'heli') { await seat('heli'); } else fail(`could not board the helicopter (${heli})`);
   }

@@ -435,6 +435,27 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
       const c = Math.cos(st.h), s = Math.sin(st.h), door = V.door;
       return { x: st.x + door.x * c + door.y * s, y: st.y - door.x * s + door.y * c };
     };
+    // how far over a point of the scene the cabin's roof (or its glass) is, in metres, or null where nothing of the model
+    // is over it within 2.5 m: a ray straight up through the model's own meshes, each met from either side (the lining
+    // is the roof's inner face). skip: whoever sits in it. For seating someone under the roof (game.js heliSit)
+    let roofRay = null;
+    const roofOver = (w, skip = null) => {
+      if (!roofRay) { roofRay = new THREE.Raycaster(); roofRay.near = 0; roofRay.far = 2.5; }
+      g.updateMatrixWorld(true);
+      roofRay.set(w, new THREE.Vector3(0, 1, 0));
+      let best = null;
+      const hits = [];
+      g.traverse(o => {
+        if (!o.isMesh || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
+        for (let q = o; q; q = q.parent) { if (q === skip || !q.visible) return; if (q === g) break; }
+        const ms = [].concat(o.material || []), was = ms.map(m => m.side);
+        for (const m of ms) m.side = THREE.DoubleSide;
+        hits.length = 0;
+        try { o.raycast(roofRay, hits); } finally { ms.forEach((m, i) => { m.side = was[i]; }); }
+        for (const h of hits) if (best == null || h.distance < best) best = h.distance;
+      });
+      return best;
+    };
     // a point in the model's frame (+z forward, +y up, +x left) in the world's game coordinates
     // and a point in the world's game coordinates in the model's frame
     const toWorld = (v, out = new THREE.Vector3()) => { g.updateMatrixWorld(); out.copy(v).applyMatrix4(g.matrixWorld); return { x: out.x, y: -out.z, z: out.y }; };
@@ -447,7 +468,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // (the title screen: it would appear out of nowhere in the shot); want() then puts it there at once
     const prefetch = () => (ready && !asked ? ready() : Promise.resolve(null));
     const show = () => { g.visible = true; };
-    return { group: g, st, get seat() { return V.seat; }, update, place, doorAt, get door() { return V.door; }, get way() { return V.way; }, toWorld, toLocal, want, prefetch, show,
+    return { group: g, st, get seat() { return V.seat; }, update, place, doorAt, get door() { return V.door; }, get way() { return V.way; }, toWorld, toLocal, roofOver, want, prefetch, show,
       boxes: () => boxesAt(), boxesAt, loaded: () => !ready || V === real };
   }
 

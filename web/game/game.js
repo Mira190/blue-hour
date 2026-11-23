@@ -3936,6 +3936,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.auto = null; player.speed = 0;
     heli.group.attach(root); // (you ride in the helicopter's frame from here)
     root.position.copy(heli.way.seat); root.rotation.set(0, 0, 0);
+    heliSit();
     player.mode = 'heli'; player.vehicle = heli;
     st.on = true; st.door = 1; st.doorTo = 0; // (shut behind you, a third of a second, as the view comes round)
     // the chase view behind it (near enough that it fills a sixth of the picture's height), come round to from where you
@@ -3947,11 +3948,37 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!walk && !heliCoach()) H.toast(touch ? 'Door shut, rotor spooling up: it lifts at 90%. Hold <b>Up</b> to climb and <b>Down</b> to descend; the stick flies and turns; <b>View</b> changes the view.'
       : 'Door shut, rotor spooling up: it lifts at 90%. <kbd>Space</kbd> climb, <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd>, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> change view.');
   }
+  // Seated in the helicopter as in a car (cars.js sit): the top of the head kept clear of the cabin's roof over it, the
+  // body sunk a little into the cushion and, if still too tall for this cabin, a little smaller about the seat; and the
+  // hands in the lap. (At the seat's own place the player's head stood 9 cm through the roof, hair showing over it from
+  // outside, and the hands hung into the seat's sides: tools/clip_people.js seats, issue 157)
+  const heliLapV = new THREE.Vector3();
+  const heliLap = () => { const root = player.rig.root; root.updateWorldMatrix(true, false); return root.localToWorld(heliLapV.set(0, 0.56, 0.27)); };
+  function heliSit() {
+    const rig = player.rig, root = rig.root, seatY = heli.way.seat.y, REACH = 0.4, own = root.scale.x; // (own: its size in the helicopter's frame as it got in)
+    if (!rig.headTop || !heli.roofOver) return;
+    const top = new THREE.Vector3(), foot = new THREE.Vector3(), sc = new THREE.Vector3();
+    for (let k = 0; k < 5; k++) {
+      rig.reach = heliLap(); rig.animate(0, 0, 'sit', clockT);
+      heli.group.updateWorldMatrix(true, true);
+      rig.headTop(top);
+      const up = heli.roofOver(foot.copy(top).setY(top.y - REACH), root); // (from inside the head: a roof it is already through is still over the ray's foot)
+      if (up == null) break;
+      const over = REACH - up + 0.06; // (6 cm of room, for the seated idle's sway)
+      if (over <= 0.002) break;
+      const s = heli.group.getWorldScale(sc).y || 1, sunk = (seatY - root.position.y) * s;
+      if (sunk < 0.08 - 1e-4) { root.position.y -= Math.min(0.08 - sunk, over) / s; continue; }
+      const h = top.y - root.getWorldPosition(foot).y, to = root.scale.x * Math.max(0.86 * own / root.scale.x, (h - over) / Math.max(0.3, h));
+      if (Math.abs(to - root.scale.x) < 1e-4) break;
+      root.scale.setScalar(to);
+    }
+  }
   function exitHeli() {
     const st = heli.st, d = heli.doorAt(), p = placeNear(d.x, d.y, st.z + 0.5, heli.boxes()); // (beside its door, outside its hull)
     if (!p) { H.toast('Land somewhere you can step out.'); return; }
     if (coachHeli && coachHeli.active && coachHeli.id !== 'land') coachHeli.end(); // out before the end: again next flight
     world.attach(player.rig.root);
+    player.rig.root.scale.setScalar(1); player.rig.reach = null; // (a cabin too low for you made you a little smaller, and your hands lay in your lap: heliSit)
     player.mode = 'foot'; player.vehicle = null; player.speed = 0; player.ground = true; player.vz = 0; player.auto = null;
     [player.x, player.y, player.z] = p;
     player.h = st.h + HALF_PI; // (facing out from the door: three-quarters to the view)
@@ -5087,6 +5114,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       A.rotor(heli.st.rotor, Math.abs(lift) + Math.abs(fwd) * 0.5);
       A.wind(Math.min(1, heli.st.speed / 60));
+      player.rig.reach = heliLap(); // (the hands in the lap, wherever the helicopter now is: heliSit)
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'seat') {
       if (perch && perch.seat) { // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
