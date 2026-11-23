@@ -13,7 +13,7 @@ const { startPlay } = require('./start_play');
   await p.waitForFunction('window.__game', null, { timeout: 400000 });
   await startPlay(p);
   await p.waitForFunction(() => window.__game.player && window.__game.player.rig && window.__game.player.rig.root, null, { timeout: 400000 });
-  const r = await p.evaluate(() => { const out = []; window.__game.player.rig.root.traverse(o => { if (!o.isSkinnedMesh) return; const A = o.geometry.attributes; let marked = 0, hem = 0; if (A.hairSK) for (let i = 0; i < A.hairSK.count; i++) { if (A.hairSK.getY(i) > 0.5) marked++; if (A.hairTR.getW(i) < 0) hem++; } out.push({ mesh: o.name, material: [].concat(o.material).map(m => m.name).join(), vertices: A.position.count, hair: !!A.hairSK, marked, hem }); }); return out; });
+  const r = await p.evaluate(() => { const out = []; window.__game.player.rig.root.traverse(o => { if (!o.isSkinnedMesh) return; const A = o.geometry.attributes; let marked = 0, hem = 0; if (A.hairSK) for (let i = 0; i < A.hairSK.count; i++) { if (A.hairSK.getY(i) > 0.5) marked++; if (A.hairTR.getW(i) < 0) hem++; } out.push({ loose: o.geometry.userData.oeLoose || 0, tris: o.geometry.index ? o.geometry.index.count / 3 : 0, mesh: o.name, material: [].concat(o.material).map(m => m.name).join(), vertices: A.position.count, hair: !!A.hairSK, marked, hem }); }); return out; });
   for (const m of r) console.log(JSON.stringify(m));
   await b.close();
   const head = r.filter(m => /_head/.test(m.material));
