@@ -336,16 +336,100 @@ Not checked: a real GPU, a phone in hand, Safari.
 
 ### Not done here
 
-- **The Scramble's hero level draws its carriageways at their class's width** and keeps it: its floor, kerbs,
-  crosswalks, guard pipes and tactile paving are built from that plan (`cities/shibuya/scramble.py`), so a change is
-  a rebuild of the level and every still of the story taken again. The survey has Dogenzaka-shita at 16.6 m where
-  the level draws 9 m, the station's west side at 14 m against 9 m, Koen-dori's foot at 14.7 m against 9 m
-  (`road_width.json` `hero`). Issue 196, with issue 90.
 - **The survey is Shibuya-ku's.** 34 km of streets in the phone's district lie in Minato, Meguro and Setagaya and
   keep their class's width; each ward has a road model of its own in the same catalogue.
-- **The ground is painted as a band along each piece.** The survey's junction mouths, corner radii and islands are
-  polygons, and are not yet painted as such.
 - **A bus shows no number or destination**; `game.bus_lines` carries both.
+
+## The ground as surveyed: the hero levels, and the planned area's streets
+
+Issue 196, its second part. The owner's ask (23 November 2026): "Rebuild the road surface of the Scramble's core area
+at the surveyed widths too. Follow the actual survey and the real road network; at the very least the protagonist's
+radius of action must reproduce Shibuya completely."
+
+A band along a centre line cannot be a road's ground: it has no junction mouth, no corner radius and no island, and
+it lies off any carriageway whose middle is not the map's line. The survey's polygons are the ground itself. So
+inside the planned area nothing is a band any more: `pipeline/road_ground.py` sorts the survey's polygons by what
+the road pieces say of them, and the hero levels, the page's drawing of the streets and the checks all read it.
+
+| What | Is |
+|---|---|
+| asphalt | the survey's carriageways (車道部) and junctions (車道交差部) that a road piece on the ground runs through |
+| shared | those no piece runs through, or only one closed to cars with the crowd's own line down it: a pedestrian street the survey has as a road (Center Gai). Paved, with no kerb |
+| walk | the footways (歩道部) |
+| island | the islands (島): Route 246's and Meiji-dori's medians |
+| a piece's own band | only where the survey has no ground (a private way) |
+
+### Measured before anything was changed
+
+![The Scramble's level on the survey, before and after](images/roads/hero-survey.jpg)
+
+`python tools/hero_survey_map.py shibuya out.jpg [cx cy r]` draws a level's carriageway (cyan) on the survey, its
+crosswalks (white) and OpenStreetMap's crossings (yellow), and gives the figures:
+
+| The Scramble's level (r 100 m) | Before | Now |
+|---|---|---|
+| Carriageway drawn | 6,200 m² | 8,194 m² |
+| The survey's carriageway not drawn as one | 3,612 m² | 0 |
+| Drawn as carriageway on a surveyed footway | 198 m² | 0 |
+| Kerb within the survey's accuracy (1.75 m at map level 2500) | 34 % of 779 m | 100 % of 637 m |
+| Mean distance between the two kerb lines | 4.6 m (worst 29.5 m) | 0 |
+
+What that was on the street: Dogenzaka-shita 9 m wide where it is 16.7 m; the road south of the junction, past
+Hachiko, drawn as two lanes round a paved island 15 m by 40 m that does not exist (the two one-way pieces' bands with
+the gap between them paved); Koen-dori's foot two 9 m bands where one carriageway of 14.7 m is; the road under the
+tracks 9 m against 14.4 m. Miyamasu (r 50 m): 2,607 m² drawn, the survey 4,097 m² (the east exit's bus apron).
+
+**The sources against each other.** The five crosswalks were placed from OpenStreetMap's crossing ways and GSI's
+aerial photograph. Taken to the surveyed kerbs (`scramble.fit_walk`), nine of their ten ends move 0.01 to 0.82 m:
+two independent surveys agree to well inside either's accuracy. The tenth, the south crosswalk's end at Hachiko
+Square, moves 2.82 m, more than the survey's 1.75 m, so it was checked against a third: on GSI's seamless photograph
+(zoom 18, `tools/aerial_local.py shibuya 365 -1010 45`) the bars run to x 372.5; the survey's kerb is at 371.6 and
+OpenStreetMap's way ends at 368.9. The survey is right, and the map's way is short. The crowd waits at the ends of
+those ways, so its walkers stood 2.8 m out in the carriageway there: the game now takes the lines kerb to kerb
+(`road_ground.x`).
+
+| Crosswalk | Length kerb to kerb | As drawn before | Width (the photograph's) |
+|---|---|---|---|
+| The diagonal, QFRONT to Hachiko | 31.9 m | 32.0 m | 9.4 m |
+| North, QFRONT to MAGNET | 15.2 m | 15.0 m | 9.2 m |
+| East, MAGNET to Hachiko | 15.7 m | 16.5 m | 9.0 m |
+| South, Hachiko to the Ekimae building | 29.3 m | 25.6 m | 7.8 m |
+| West, across Dogenzaka-shita | 17.6 m | 17.7 m | 7.2 m |
+
+Not done: PLATEAU's LOD3 road tiles for the same streets (`13113_tran_lod3`, 3D Tiles; issue 90) were not read. They
+would add the lane lines as surveyed; the kerbs are settled by the three sources above.
+
+### The hero levels (`cities/shibuya/scramble.py`, `hero.py`)
+
+- `road_bands(D)` is the survey's asphalt; `junction_area` the same inside the crosswalks' hull. Everything that
+  follows the kerb is generated from it as before, and so moved with it: the gutter, the granite kerb, the guard
+  pipes, the bollards along QFRONT's forecourt, the lamp posts, the tactile lines' ends, the gully grates.
+- The crosswalks end at the surveyed kerbs, and their bars are laid from kerb to kerb where the kerb runs askew.
+  Crossings OpenStreetMap maps as marked that lie whole inside a level are painted too (`zebras`), 4 m wide.
+- A stop line is read from the road pieces that cross it (`stop_line`): from the line dividing the two ways to the
+  left kerb. The table it replaces had the road from the south as one-way and stopped its whole width.
+- A piece inside a level carries its surveyed width like any other (`road_width.py` has no exception left), and two
+  lanes each way are driven and painted where the survey has room for them (13.6 m two-way, 9.6 m one-way,
+  `OEStreets.roomForTwo`): Dogenzaka-shita, Koen-dori's foot, Miyamasuzaka, the station's west side.
+- Each level's plan is kept beside it (`cities/shibuya/hero_plan.json`) when it is built.
+
+### The planned area's streets (`game.json` `road_ground`, `web/game/game.js` `streetTexture`)
+
+![The planned area's ground as surveyed](images/roads/ground.jpg)
+
+`python pipeline/road_ground.py --city shibuya` writes the planned area's ground and 60 m round it (25 kB: 5
+carriageways, 10 shared streets, 50 footways, 4 islands, the zebra crossings each from kerb to kerb). Inside that ring
+the page fills the polygons: footways, shared streets and islands in the paving's tone, a kerb line round the asphalt,
+the asphalt, an edge line half a metre in from the surveyed kerb; a piece's band is painted only outside the ring.
+Centre and lane lines stay on the pieces' lines, which is where the traffic drives. It costs a phone nothing new:
+the same drawing at the same size.
+
+### The checks
+
+- `python pipeline/road_ground.py --city shibuya --check`: `road_ground` is what the survey gives now;
+- `python tools/hero_survey_map.py shibuya --check`: every level that draws ground, as built, against the survey:
+  its carriageway's overlap, its kerb within 1.75 m, none of it on a surveyed footway, every crosswalk's end on a kerb;
+- `python pipeline/road_width.py --city shibuya --check`, with no hero exception.
 
 ## The first drive, and the streets inside the playable area
 
