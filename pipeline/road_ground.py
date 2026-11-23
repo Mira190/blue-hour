@@ -181,20 +181,63 @@ def zebra_lines(game, S, area):
     return out
 
 
+def kerb_to_kerb(S, a, b, reach=6.0):
+    """The line a-b across a carriageway taken to the surveyed kerbs at both ends: where its own line leaves the
+    asphalt; a and b themselves where it meets none."""
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    L = float(np.hypot(*(b - a)))
+    if L < 1e-6:
+        return a, b
+    f, mid = (b - a) / L, (a + b) / 2
+    best = None
+    hit = LineString([mid - f * (L / 2 + reach), mid + f * (L / 2 + reach)]).intersection(S.asphalt)
+    for g in getattr(hit, "geoms", [hit]):
+        if g.geom_type != "LineString" or g.is_empty:
+            continue
+        t = (np.asarray(g.coords) - mid) @ f
+        d = 0.0 if t.min() <= 0 <= t.max() else min(abs(t.min()), abs(t.max()))
+        if best is None or d < best[0]:
+            best = (d, float(t.min()), float(t.max()))
+    if best is None or best[0] > 0:
+        return a, b
+    return mid + f * best[1], mid + f * best[2]
+
+
+def scramble_lines(city, S):
+    """The scramble's mapped crosswalks (scene.json landmarks.scramble.lines: OpenStreetMap's crossing ways, which the
+    crowd crosses along and waits at the ends of) from kerb to kerb as surveyed, in the scene's order; None where the
+    map has no scramble. OpenStreetMap's south crosswalk ends 2.8 m short of Hachiko Square's kerb, which GSI's
+    aerial photograph has where the survey has it: its walkers waited in the carriageway."""
+    scene = json.load(open(os.path.join(ROOT, "web", "data", city, "scene.json"), encoding="utf8"))
+    sc = (scene.get("landmarks") or {}).get("scramble")
+    if not sc or not sc.get("lines"):
+        return None
+    out = []
+    for a, b in sc["lines"]:
+        p, q = kerb_to_kerb(S, a, b)
+        out.append([[round(float(p[0]), 2), round(float(p[1]), 2)], [round(float(q[0]), 2), round(float(q[1]), 2)]])
+    return out
+
+
 def page_surface(city, game, ground=None):
     """game.json `road_ground`: the planned area's ground as the page paints it (web/game/game.js `streetTexture`):
     "area" the ring inside which the survey is the ground (the planned area and MARGIN_M round it), "a" the
     carriageways (and, where the survey has none, the pieces' own bands), "s" the shared streets, "w" the footways,
-    "i" the islands, each [[ring, hole, ...], ...] in decimetres, and "z" the zebra crossings' lines."""
+    "i" the islands, each [[ring, hole, ...], ...] in decimetres, "z" the zebra crossings' lines, and "x" the
+    scramble's crosswalks from kerb to kerb (metres, as scene.json has them)."""
     b = game.get("bounds", {}).get("ground", {}).get("poly")
     if not b:
         return None
     area = Polygon(b).buffer(MARGIN_M, join_style=2).simplify(1.0)
     S = of_game(city, game, ground)
     cut = lambda g: g.intersection(area.buffer(2.0))
-    return {"area": [int(round(v * 10)) for xy in np.asarray(area.exterior.coords)[:-1] for v in xy],
-            "a": rings(cut(S.carriageway(area.buffer(30.0)))), "s": rings(cut(S.shared)), "w": rings(cut(S.walk)), "i": rings(cut(S.island)),
-            "z": zebra_lines(game, S, area)}
+    out = {"area": [int(round(v * 10)) for xy in np.asarray(area.exterior.coords)[:-1] for v in xy],
+           "a": rings(cut(S.carriageway(area.buffer(30.0)))), "s": rings(cut(S.shared)), "w": rings(cut(S.walk)), "i": rings(cut(S.island)),
+           "z": zebra_lines(game, S, area)}
+    x = scramble_lines(city, S)
+    if x:
+        out["x"] = x
+    return out
 
 
 def main():
@@ -210,7 +253,6 @@ def main():
         return
     s = page_surface(a.city, game)
     n = {k: len(v) for k, v in s.items() if k != "area"}
-    n["i"] = len(s["i"])
     if a.check:
         if game.get("road_ground") != s:
             raise SystemExit(f"FAIL road ground: game.json `road_ground` is not what the survey gives now (python pipeline/road_ground.py --city {a.city}, then pipeline/pack.py)")

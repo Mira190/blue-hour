@@ -452,7 +452,7 @@ class Plan:
     def __init__(self, D, wells=(), centre=HERO_CENTRE, r=HERO_R, standing=None):
         from shapely.ops import unary_union
         c = np.asarray(centre)
-        self.centre = c
+        self.centre, self.r = c, float(r)
         self.disc = Point(*c).buffer(r, 48)
         # what stands on the ground: not a deck or a bridge over it. (`base` is the underside over the ground and
         # `ground` the ground's height over the sea, so the test the Scramble was built with counts every solid as
@@ -489,6 +489,29 @@ class Plan:
             mouths.append(ln.intersection(self.roads.buffer(4.0)).buffer(2.5))
         self.mouths = unary_union(mouths)
         self.footways = unary_union([LineString(pts) for pts in D.foot if len(pts) > 1 and LineString(pts).intersects(near)])
+
+
+PLAN_FILE = os.path.join(HERE, "hero_plan.json")
+
+
+def plan_rings(plan):
+    """A plan's carriageway as [[ring, hole, ...], ...] in decimetres."""
+    import road_ground
+    return road_ground.rings(plan.roads, simplify=0.05)
+
+
+def write_plan(plan, D):
+    """What a level was built from, kept beside it (cities/shibuya/hero_plan.json): its carriageway, what stands on
+    its ground (no road is laid under it) and its crosswalks.
+    tools/hero_survey_map.py --check holds the built level to the survey with it: a plan that has moved since (the
+    survey fetched again, a piece's width, this file) is a level to build again."""
+    key = f"{plan.centre[0]:.0f},{plan.centre[1]:.0f},{plan.r:.0f}"
+    rec = json.load(open(PLAN_FILE, encoding="utf8")) if os.path.exists(PLAN_FILE) else {}
+    walks = [c for c in crosswalk_list(D) if plan.disc.contains(Point(*c["a"]))] + plan.zebras
+    import road_ground
+    rec[key] = {"roads": plan_rings(plan), "solids": road_ground.rings(plan.solids, simplify=0.2),
+                "walks": [[round(v, 1) for v in (*c["a"], *c["b"], c["width"])] for c in walks]}
+    json.dump(rec, open(PLAN_FILE, "w", encoding="utf8"), separators=(",", ":"), sort_keys=True)
 
 
 def lines_of(geom):

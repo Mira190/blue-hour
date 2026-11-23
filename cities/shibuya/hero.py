@@ -383,6 +383,7 @@ class Level:
         L = json.load(open(os.path.join(ROOT, "web", "data", "shibuya", "landmarks.json")))
         self.plan = P = S.Plan(D, [q["ring"] for q in L.get("clip", [])], self.centre, self.r, standing=self.standing)
         self.disc, self.solids, self.wells, self.junction, self.roads, self.walks, self.pave = P.disc, P.solids, P.wells, P.junction, P.roads, P.walks, P.pave
+        S.write_plan(P, D)   # (what this level is built from, for tools/hero_survey_map.py --check)
         # paint lies on the asphalt: inside the gutter's line, never over a kerb or a pavement
         self.paintable = self.roads.buffer(-(GUTTER_M + 0.12))
         self.box = box

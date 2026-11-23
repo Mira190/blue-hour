@@ -1176,7 +1176,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     midCrossings: { signals: G.props.crossing_signals, zebra: G.props.crossing_zebra },
     // (and the crossings between junctions: signals or zebra stripes); the scrambles, every way at once in
     // a phase of their own: Shibuya's with its mapped crosswalks (scene landmarks), the others a city names
-    scrambles: [(scene.landmarks || {}).scramble, ...(G.scrambles || [])].filter(Boolean), foot: crowdNet });
+    // (the Scramble's crosswalks from kerb to kerb as surveyed where the map has them, road_ground.x: the crowd waits at their ends)
+    scrambles: [(scene.landmarks || {}).scramble && RG && RG.x ? Object.assign({}, scene.landmarks.scramble, { lines: RG.x }) : (scene.landmarks || {}).scramble, ...(G.scrambles || [])].filter(Boolean), foot: crowdNet });
   // a main road whose second lane runs into a solid somewhere between its junctions (a tower beside an
   // expressway's deck, Sydney's Cahill Expressway past one at 33 m, issue 119; the data's lanes are where
   // the line is, not where the second lane is) has one lane there, so no car waits at the facade for room

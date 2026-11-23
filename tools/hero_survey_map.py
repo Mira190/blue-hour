@@ -2,6 +2,7 @@
 
     python tools/hero_survey_map.py shibuya out.jpg [cx cy r]      # default: the Scramble's level
     python tools/hero_survey_map.py shibuya --figures [cx cy r]    # the figures alone
+    python tools/hero_survey_map.py shibuya --check                # every level as built against the survey (tools/check.sh)
 
 The survey's carriageways (dark), junctions (lighter), footways (sand) and islands (green); over them the level's
 carriageway as its plan has it (cyan outline), its crosswalks (white), and OpenStreetMap's crossings (yellow: the
@@ -62,7 +63,53 @@ def figures(plan_roads, geo, disc, asphalt=None, solids=None):
     return out
 
 
+def check(city):
+    """Every level that draws ground, as built (cities/<id>/hero_plan.json), against the survey as it is now."""
+    S = scramble(city)
+    geo = road_survey.load(os.path.join(ROOT, "cities", city, "road_surface.json"))
+    game = json.load(open(os.path.join(ROOT, "web", "data", city, "game.json"), encoding="utf8"))
+    rec = json.load(open(S.PLAN_FILE, encoding="utf8")) if os.path.exists(S.PLAN_FILE) else {}
+    import road_ground
+    surface = road_ground.of_game(city, game)
+    bad, said = [], []
+    ring = lambda f: np.asarray(f, float).reshape(-1, 2) / 10
+    poly = lambda rs: unary_union([Polygon(ring(p[0]), [ring(q) for q in p[1:]]).buffer(0) for p in rs]) if rs else Polygon()
+    for h in game.get("hero", []):
+        if h.get("z") or not h.get("lift"):
+            continue    # (a level in the air or indoors draws no street)
+        key = f"{h['at'][0]:.0f},{h['at'][1]:.0f},{h['r']:.0f}"
+        build = f"python blender/build_hero.py --city {city}{'' if h['id'] == 'scramble' else ' --level ' + h['id']}"
+        if key not in rec:
+            bad.append(f"{h['id']}: no record of the plan it was built from ({build})")
+            continue
+        disc = Point(*h["at"]).buffer(h["r"], 64)
+        built, solids = poly(rec[key]["roads"]), poly(rec[key].get("solids"))
+        want = surface.carriageway(disc.buffer(30)).intersection(disc).difference(solids)
+        f = figures(built, geo, disc, want, solids)
+        moved = built.symmetric_difference(want).buffer(-0.2).area
+        said.append(f"{h['id']} {f['plan_m2']} m2 of carriageway, {int(round(f['kerb_within_1_75'] * 100))} % of {f['kerb_m']} m of kerb within {ACCURACY_M} m of the survey's")
+        if f["iou"] < 0.97 or f["kerb_within_1_75"] < 0.97 or f["plan_on_survey_walk_m2"] > 0.01 * max(f["plan_m2"], 1) or moved > 5.0:
+            bad.append(f"{h['id']}: its carriageway as built is not the survey's now: overlap {f['iou']}, {int(f['kerb_within_1_75'] * 100)} % of the kerb within "
+                       f"{ACCURACY_M} m, {f['plan_on_survey_walk_m2']} m2 of it on a surveyed footway, {moved:.0f} m2 apart ({build})")
+        edge = built.boundary
+        for w in rec[key]["walks"]:
+            for e in (w[0:2], w[2:4]):
+                d = edge.distance(Point(*e))
+                if d > 0.5:
+                    bad.append(f"{h['id']}: a crosswalk's end at {e[0]:.0f}, {e[1]:.0f} is {d:.1f} m from the kerb")
+    for b in bad:
+        print("  " + b)
+    if bad:
+        raise SystemExit(f"FAIL hero ground: {len(bad)} ways a level's ground is not the surveyed one")
+    print("hero ground: " + "; ".join(said))
+
+
+ACCURACY_M = 1.75
+
+
 def main():
+    if "--check" in sys.argv:
+        return check([v for v in sys.argv[1:] if not v.startswith("--")][0])
     a = [v for v in sys.argv[1:] if not v.startswith("--")]
     city = a[0]
     only = "--figures" in sys.argv
