@@ -1297,6 +1297,15 @@ pipeline writes. The only city-specific code is landmark geometry in
       twenty-five seconds, and then walk back, once. Nobody turns twice in twenty seconds: where they would, they
       stop instead. A mate turns when its leader does, never for a reason of its own. The turn back on a whim (one
       in ten at a line's end) is made only where nobody sees it and not within two minutes of another turn.
+    - **Nobody leaves or joins the street in sight** (`seen`; `tools/crowd_vanish.js` counts those who do, by its
+      own reckoning of the screen, limit one in two minutes). Four things broke it, 23 November 2026, 56 a minute
+      counted on main and none after: what hides a walker from the camera was what stops a walker's feet, so the
+      planned area's edge and a shut stair's well hid people standing in the open (`sight`, a building's solid
+      only); the camera was taken to see 170 m, and down a straight street a figure 200 to 400 m off was there and
+      then not (`SEEN_STREET`, on the level; from above it stays 170); a crowd made smaller, by the hour or by a
+      slow device's governor taking a quarter off, lost that quarter in one frame wherever they stood (`want`:
+      they leave one by one once unseen, all at once only at a cut); and a bus's alighting took walkers from where
+      the camera saw them. A car is put by the same test, not by its distance alone.
     - The same measure rides along with the plays (`tools/pacing_watch.js` in `tools/walk_play.js` and
       `tools/story_play.js`): a walker who paces for a minute, or turns four times in thirty seconds, fails them.
   - **The crowd and the walls:** a footway that runs into a building (an arcade,
