@@ -2443,7 +2443,7 @@ is the design; no code was copied.
 | Triangles within a frame | Epic's guideline for mobile: at most 700 draws and 500,000 triangles in view ([Unreal Engine, performance guidelines for mobile](https://dev.epicgames.com/documentation/en-us/unreal-engine/performance-guidelines-for-mobile-devices-in-unreal-engine)). Virtualised geometry in a browser exists on WebGPU only ([Scthe/nanite-webgpu](https://github.com/Scthe/nanite-webgpu), MIT; no streaming, no skinning). On WebGL 2: three.js's `BatchedMesh` (per-object culling, multi-draw), [agargaro/instanced-mesh](https://github.com/agargaro/instanced-mesh) (MIT: per-instance culling, a BVH, levels of detail), meshoptimizer's simplifier (MIT, already in the pipeline). | **A level of detail by projected size for every kind of thing**, built in the pipeline with meshoptimizer, chosen by the height in pixels a thing has on this screen; a phone's beat aims at Epic's half million. The draws are within the guideline; the triangles were 2.5 times over it. Nanite-like clusters: not taken (WebGPU only, and the level is small enough for discrete levels). |
 | Resolution | three.js has a temporal upscaler (`TAAUNode`) and FSR 1 (`FSR1Node`) for its WebGPU renderer. FSR 1's two passes (EASU, RCAS; AMD, MIT) run on WebGL 2 (Babylon.js ships it). Arm's ASR (MIT, from FSR 2) is the temporal one on phones. | The governor's render scale is kept. A sharpening upscale when the scale is under 0.8 is the candidate, to be judged on the devices (it costs a pass, and a pass is what a phone is short of). |
 | Lights | three.js's tiled and clustered lighting are WebGPU only; no measured gain was found under some tens of lights. | **Not taken.** The ten screens' lights are in closed form already ("The device's own numbers"); the street's lamps are a baked map. |
-| Texture memory | A 4096 x 4096 RGBA texture with its mips is about 90 MB on the GPU whatever its file's size; block formats cut that four to eight times ([Don McCurdy, 2024](https://www.donmccurdy.com/2024/02/11/web-texture-formats/)). iOS gives a tab no fixed limit; context loss is reported there without growth, too. | ASTC on a phone is done ("A phone's pictures in ASTC blocks"). **Next: what a beat leaves behind is freed**, and a desktop's textures (1.25 GB resident in frame 1 here, none of it in blocks). |
+| Texture memory | A 4096 x 4096 RGBA texture with its mips is about 90 MB on the GPU whatever its file's size; block formats cut that four to eight times ([Don McCurdy, 2024](https://www.donmccurdy.com/2024/02/11/web-texture-formats/)). iOS gives a tab no fixed limit; context loss is reported there without growth, too. | ASTC on a phone is done ("A phone's pictures in ASTC blocks"), and BC7 and BC5 on a desktop ("A desktop's pictures in blocks": 1.25 GB of textures in frame 1 to 535 MB). What a beat leaves behind: the same section. |
 | Crowds | Past a hundred skinned meshes the cost is the skeletons' update on the CPU; bone matrices baked to a texture with instancing is the standard answer (GPU Gems 3, chapter 2). | The far crowd is instanced from baked poses already (issue 475); the near cast stays skinned. |
 | Shaders at load | `KHR_parallel_shader_compile` is exposed by Safari, but compiling is reported to block there still (WebKit bug 251514). | Programs are compiled behind the loading plate ("The loader's compile"), never counted on to be asynchronous. |
 | WebGPU | Safari 26 ships it on iOS, Chrome on Android since 121. three.js's WebGPU renderer is slower than its WebGL one with many separate meshes (682 against 2,562 meshes at 60 frames a second in one comparison, [ICS, 2025](https://ics.media/en/entry/250501/)). | **Not moved to.** At 400 draws it buys nothing by itself; its worth would be compute culling and a temporal upscale, to be measured on one beat before any move. WebGL 2 stays the path every device has. |
@@ -2930,8 +2930,65 @@ they throw: a picture in blocks has no pixels on the page, so the Worker hands b
 (`userData.thumb`).
 
 **A software renderer keeps its pixels.** Mesa's llvmpipe offers BC7 and decodes it a texel at a time as it samples:
-a drawn frame went from 1.6 s to 9.7 s here. So where the renderer names itself software (`tex.js` `on`), nothing is
+a drawn frame went from 1.7 s to 9.7 s here. So where the renderer names itself software (`tex.js` `on`), nothing is
 packed unless `?tex=bc7` asks; the checks' plays are as they were, and a count in blocks is asked for with
 `Q='?tex=bc7' STILLS=0 DRAW=1000` (the page's asks of WebGL are counted, not rasterised). `?tex=raw` turns it off
 anywhere, and the telemetry's events carry `bc: 1` where it is on (`astc: 1` on a phone, as before).
+
+**Before and after**, the episode played on the desktop tier (800 x 500, the high tier; `Q='?tex=bc7' STILLS=0
+DRAW=1000 BUDGET=...`, against the same play unpacked; a session's machine, where the megabytes are the page's own
+asks of WebGL and so are a GPU's):
+
+| beat | textures, MB | GPU memory, MB |
+|---|---|---|
+| frame 1 | 1239 -> 535 | 1438 -> 734 |
+| frame 2 | 1236 -> 532 | 1443 -> 738 |
+| frame 3 | 1247 -> 538 | 1454 -> 745 |
+| frame 4 | 1355 -> 592 | 1578 -> 814 |
+| frame 5 | 1357 -> 594 | 1580 -> 816 |
+| frame 6 | 1269 -> 552 | 1488 -> 771 |
+| frame 7 | 1270 -> 547 | 1482 -> 766 |
+
+At the title on 1440 x 900: textures 660 -> 356 MB, the peak 858 -> 553 MB; 182 pictures packed, 142 million texels
+into 181 MB of blocks, none left under the floor (the worst 35.6 dB). What a desktop still holds in frame 1 that is
+not blocks: the two shadow maps (128 MB), the night's light map and the masks (58 MB), the unpacked channels above,
+render targets. A phone's formats are untouched: its numbers are the budgets' own.
+
+**The load.** The encoder writes 10 million texels a second on one core of a session's machine (a 2.3 GHz Xeon;
+`tools/bc_encode.js`), so a desktop's 190 million with their mipmaps are some twenty core-seconds there, spread over
+up to four Workers (`tex.js` `crew`: the cores less two), beside a main thread that is building the map meanwhile.
+On this machine, where the software renderer has the same four cores, the title came at 54 s unpacked and 103 s in
+blocks (`tools/load_tex.js`): a guide to nothing but this machine. On a GPU the pixels' upload and the mipmaps the
+GPU made of them (1.2 GB) are no longer asked for, and the blocks are sent as they are. Which of the two is the
+greater on an ordinary desktop is **not measured here**: the telemetry's `bc: 1` splits load-to-ready by it, and
+`?tex=raw` is the comparison on one machine. If the first visit is slower, the next step is to keep the blocks
+(Cache Storage, by a hash of the pixels) so that a second visit encodes nothing.
+
+**Stills**, 1440 x 900 on the high tier at dusk and at night, `?tex=raw` beside `?tex=bc7`
+(`tools/scramble_shot.js` with `QUERY=`; the Scramble from its middle, from Hachiko and from the cafe): the static
+signs (HIKARIDO, the green board's kana and its small line, the bookshop's four characters, the subway's small
+type), the leaves and the paving are the same at three times their size, and the sky has no band (it is drawn, not a
+picture; the encoder's own gradient is held by `tools/bc_check.py`). The pairs differ by the screens' and the crowd's
+moment.
+
+**Not checked**: a real GPU (the decode is the GPU's own; Pillow's and llvmpipe's agree with the encoder), Safari and
+its `EXT_texture_compression_bptc`, an Apple Silicon Mac (it offers BC7 and ASTC; BC7 is taken), WebGPU (the page is
+WebGL 2), and the load's seconds on any of them.
+
+### What a beat leaves behind
+
+Listed the same way (a texture no material in the scene wears, by the line that made it), a desktop's play leaves:
+
+- *The probe of frame 4's glass.* SKY STAGE's glass mirrors a cube taken from the roof (`hero.js` `probeOf`); three.js
+  makes a sky-light map of that cube for the glass (768 x 1024 in half floats, 6 MB) and lets it go when the cube's
+  texture says it is disposed. Letting the level go disposed the render target, which does not say so: the map stayed
+  from frame 4 to the last card, with the generator's second target of the same size beside it. `drop()` now disposes
+  the texture too: 6 MB back on a desktop (0.7 on a phone, whose cube is 64). The generator's own second target is
+  three.js's and is kept by it (6 MB, once).
+- *The cast.* 172 to 283 MB of bodies and heads that nobody on the street wears at the moment (143 to 179 pictures):
+  the templates the crowd is cloned from and the rigs waiting in its pool (`people.js` `lib.tpl`, `free`). They are
+  worn again as walkers come near, so they are a cache, not a leak; in blocks they are 43 to 71 MB. Which of them a
+  beat will not ask for again (the speaking cast of a frame that is over) is the next cut, and it is the people's
+  sessions' file: an issue, not this branch.
+- *The levels* are already let go as the story leaves them (frame 4's roof: 64 MB back as frame 5 opens).
 
