@@ -139,6 +139,9 @@ jobs:
       - name: What the static checks import
         if: matrix.target == 'static'
         run: pip install numpy scipy shapely pyproj pillow   # (scipy: pipeline/street_ground.py --check)
+      - name: What the BC7 and BC5 check imports
+        if: matrix.target == 'astc'
+        run: pip install numpy pillow   # (tools/bc_check.py)
       - name: Check
         env:
           TARGET: ${{ matrix.target }}
