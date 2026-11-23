@@ -885,7 +885,7 @@ window.OEJunctions = (function () {
       // twice running, while you stand at its kerb or sit at its line; j.skip)
       const after = j.st === 'g' ? (j.ph === 0 ? 1 : j.ph === 1 ? 3 : 0) : j.nxt;
       if (j.scramble && after !== p && j.skip === after) return;
-      if (j.ph !== p && j.st === 'g' && j.t >= MIN_G) { j.st = 'y'; j.t = 0; j.nxt = p; dirty.add(j); } // (its phase next: not the arrow's, nor the walk's)
+      if (j.ph !== p && j.st === 'g' && j.t >= (j.scramble ? SCR_GMIN : MIN_G)) { j.st = 'y'; j.t = 0; j.nxt = p; dirty.add(j); } // (its phase next: not the arrow's, nor the walk's; a scramble's turn has its least first, since 4 s of it passes nobody across a box that wide)
       else if (j.st !== 'g' && j.nxt !== p && j.ph !== p) j.nxt = p; // (changing already: to its phase next)
       else return;
       if (j.scramble && after !== p) j.skip = after;
@@ -906,8 +906,10 @@ window.OEJunctions = (function () {
       const j = a.j;
       if (!j.sig) return;
       call(a);
-      if (j.scramble) { (j.co || j).urged = frame; toward(j, 3, false); }
-      else if (j.lead && a.phase === j.leadPh) { j.lead.urged = frame; toward(j.lead, 3, false); } // (across the road it shares with a scramble: on that one's walk)
+      // (at a scramble on another's cycle the greater one's turns are kept short for you, none of them passed over or cut:
+      // stood at 109's kerb you cut the Scramble's turns to 4 s, 110 m off, and its north arm stood 150 s, issue 175)
+      if (j.scramble) { (j.co || j).urged = frame; if (!j.co) toward(j, 3, false); }
+      else if (j.lead && a.phase === j.leadPh) { const S = j.lead; (S.co || S).urged = frame; if (!S.co) toward(S, 3, false); } // (across the road it shares with a scramble: on that one's walk)
     }
     // the scramble j's walk in `inS` seconds (the game opening on it): every arm held at red until then, or
     // the walk already that far in (inS < 0)

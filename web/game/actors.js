@@ -1809,6 +1809,21 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // (stood in the road in front of a car that has waited on them, off the walk: on through the press to a spot
       // further back from the kerb, as the footways' walkers turn back for one, below. One pressed against the crowd
       // at the kerb by the Scramble's western stop line held a driver there 150 s, issue 175)
+      // (still out on the carriageway off the walk, pressed against the crowd at the kerb: through the press after 3 s,
+      // and after 8 to the nearest pavement whichever kerb it is; looked at twice a second. The longer the traffic's
+      // turns, the deeper the kerbs' crowds, and a bus stood 150 s for one in the gutter by the western stop line)
+      if (q.ph !== 'cross' && pz.road && (q.roadCk = (q.roadCk || 0) - dt) <= 0) {
+        q.roadCk = 0.5;
+        if (!pz.walk() && pz.road(q.x, q.y)) {
+          q.roadT = (q.roadT || 0) + 0.5;
+          if (q.roadT > 3) q.squeeze = Math.max(q.squeeze || 0, 1);
+          if (q.roadT > 8 && !q.roadOut) {
+            let bx = 0, by = 0, br = 9;
+            for (const r of [1, 2, 3, 4]) { for (let k = 0; k < 8 && br > r; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); if (!pz.road(q.x + ux * r, q.y + uy * r) && !pz.road(q.x + ux * (r + 0.8), q.y + uy * (r + 0.8))) { br = r; bx = ux; by = uy; } } if (br <= r) break; }
+            if (br < 9) { q.T.x = q.x + bx * (br + 0.6); q.T.y = q.y + by * (br + 0.6); q.ph = 'wait'; q.roadOut = true; q.squeeze = 4; }
+          }
+        } else { q.roadT = 0; q.roadOut = false; }
+      }
       if (q.give) { q.give = false; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
