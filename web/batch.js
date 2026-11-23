@@ -104,5 +104,116 @@ window.OEBatch = (function () {
       put(k, matrix) { if (n >= cap) return false; if (at[n] !== k) { b.setGeometryIdAt(n, ids[k]); at[n] = k; } b.setMatrixAt(n, matrix); if (n >= shown) b.setVisibleAt(n, true); n++; return true; },
       end() { for (let i = n; i < shown; i++) b.setVisibleAt(i, false); shown = n; b.visible = n > 0; } };
   }
-  return { merge, pool, stats, off };
+  // Cells that come and go, of one material, in one draw, their vertices the GPU's alone: the buildings round the
+  // player (buildings.js put). A cell was a mesh and a draw of its own, 27 to 45 of them in a phone's frame on foot. A
+  // BatchedMesh keeps every vertex in the page's memory to add to its buffer, and a phone's cells are 20 MB that it
+  // lets go once sent (world.js onCell). So the arena holds one buffer an attribute on the GPU (THREE.GLBufferAttribute,
+  // written with bufferSubData as a cell comes, its place given back as it goes, grown by a copy on the GPU when it
+  // is full), and draws through three.js's own multi-draw path: the cells the sweep has not hidden (a cell's mesh is
+  // kept, undrawn, for the visibility sweep to gate: its layer says whether it is seen) and the frustum of the pass
+  // being drawn leaves, their index ranges in one multiDrawElementsWEBGL. Every cell stands where it is, so the
+  // batch's matrix is one identity for all of them.
+  //   const a = OEBatch.arena(renderer, material, { name }); a.mesh in the scene; slot = a.add(cellMesh); a.remove(slot)
+  function arena(renderer, material, opts = {}) {
+    const THREE = window.THREE;
+    if (off || !THREE || !THREE.GLBufferAttribute || !THREE.BatchedMesh || !renderer || !renderer.getContext) return null;
+    let gl = renderer.getContext();
+    if (!gl || !gl.copyBufferSubData) return null;
+    const TYPES = [[Float32Array, 0x1406], [Int8Array, 0x1400], [Uint8Array, 0x1401], [Int16Array, 0x1402], [Uint16Array, 0x1403], [Uint32Array, 0x1405]];
+    const typeOf = arr => { for (const [C, t] of TYPES) if (arr instanceof C) return t; return 0; };
+    const CW = 0x8F37, CR = 0x8F36; // (COPY_WRITE_BUFFER, COPY_READ_BUFFER: no vertex array's state is touched by a write)
+    // ranges of a buffer, given out first fit and given back joined to their neighbours
+    const ranges = cap => { let free = cap ? [[0, cap]] : []; return { cap,
+      take(n) { for (let i = 0; i < free.length; i++) if (free[i][1] >= n) { const s = free[i][0]; free[i][0] += n; free[i][1] -= n; if (!free[i][1]) free.splice(i, 1); return s; } return -1; },
+      give(s, n) { let i = 0; while (i < free.length && free[i][0] < s) i++; free.splice(i, 0, [s, n]);
+        if (i + 1 < free.length && free[i][0] + free[i][1] === free[i + 1][0]) { free[i][1] += free[i + 1][1]; free.splice(i + 1, 1); }
+        if (i > 0 && free[i - 1][0] + free[i - 1][1] === free[i][0]) { free[i - 1][1] += free[i][1]; free.splice(i, 1); } },
+      grow(nc) { this.give(this.cap, nc - this.cap); this.cap = nc; } }; };
+    let lay = null, V = null, I = null, bufs = {}, ibuf = null; // (lay: [{ name, size, type, bytes, normalized }])
+    const geo = new THREE.BufferGeometry(), slots = new Set();
+    const mesh = new THREE.Mesh(geo, material);
+    const one = new THREE.DataTexture(new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), 4, 1, THREE.RGBAFormat, THREE.FloatType);
+    one.needsUpdate = true;
+    const which = new THREE.DataTexture(new Uint32Array(64 * 64), 64, 64, THREE.RedIntegerFormat, THREE.UnsignedIntType); // (every cell: matrix 0)
+    which.needsUpdate = true;
+    Object.assign(mesh, { isBatchedMesh: true, _matricesTexture: one, _indirectTexture: which, _colorsTexture: null, _multiDrawInstances: null,
+      _multiDrawStarts: new Int32Array(256), _multiDrawCounts: new Int32Array(256), _multiDrawCount: 0, frustumCulled: false, matrixAutoUpdate: false });
+    mesh.name = opts.name || 'cells'; mesh.userData.batched = 0;
+    mesh.raycast = () => {}; // (nothing is picked from it: the game picks from its collision world)
+    const attach = () => { // the buffers as the geometry's attributes: new ones each time a buffer is another, so that three.js binds them again
+      for (const a of lay) { const g = new THREE.GLBufferAttribute(bufs[a.name], a.type, a.size, a.bytes, V.cap); g.normalized = a.normalized; geo.setAttribute(a.name, g); }
+      geo.index = new THREE.GLBufferAttribute(ibuf, 0x1405, 1, 4, I.cap);
+    };
+    const make = bytes => { const b = gl.createBuffer(); gl.bindBuffer(CW, b); gl.bufferData(CW, bytes, gl.STATIC_DRAW); gl.bindBuffer(CW, null); return b; };
+    const regrow = (b, was, now) => { const n = make(now); gl.bindBuffer(CR, b); gl.bindBuffer(CW, n); gl.copyBufferSubData(CR, CW, 0, 0, was); gl.bindBuffer(CR, null); gl.bindBuffer(CW, null); gl.deleteBuffer(b); return n; };
+    const room = (nv, ni) => { // buffers for nv vertices and ni indices more than fit now
+      // (a tenth over what is asked: the room is the GPU's memory, and a phone's cells are 20 MB of it)
+      const vc = Math.ceil((V.cap + nv) * 1.1), ic = Math.ceil((I.cap + ni) * 1.1);
+      for (const a of lay) bufs[a.name] = bufs[a.name] ? regrow(bufs[a.name], V.cap * a.size * a.bytes, vc * a.size * a.bytes) : make(vc * a.size * a.bytes);
+      ibuf = ibuf ? regrow(ibuf, I.cap * 4, ic * 4) : make(ic * 4);
+      V.grow(vc); I.grow(ic); attach(); stats.grown = (stats.grown || 0) + 1;
+    };
+    const write = s => {
+      const g = s.o.geometry;
+      for (const a of lay) { gl.bindBuffer(CW, bufs[a.name]); gl.bufferSubData(CW, s.v0 * a.size * a.bytes, g.attributes[a.name].array); }
+      const src = g.index.array, idx = new Uint32Array(s.ni); for (let k = 0; k < s.ni; k++) idx[k] = src[k] + s.v0; // (an index counts from its cell's first vertex)
+      gl.bindBuffer(CW, ibuf); gl.bufferSubData(CW, s.i0 * 4, idx); gl.bindBuffer(CW, null);
+    };
+    const used = { v: 0, i: 0 };
+    const layout = g => {
+      lay = Object.keys(g.attributes).map(name => { const a = g.attributes[name]; return { name, size: a.itemSize, type: a.array ? typeOf(a.array) : 0, bytes: a.array ? a.array.BYTES_PER_ELEMENT : 0, normalized: !!a.normalized }; });
+      if (lay.some(a => !a.type)) { lay = null; return false; }
+      V = ranges(0); I = ranges(0); return true;
+    };
+    // a cell's mesh (its geometry indexed, its arrays still the page's): sent, and drawn from now on. null: not one of these
+    function add(o) {
+      const g = o.geometry, P = g && g.attributes.position;
+      if (!P || !P.array || !g.index || !g.index.array) return null;
+      if (!lay && !layout(g)) return null;
+      for (const a of lay) { const q = g.attributes[a.name]; if (!q || !q.array || q.itemSize !== a.size || typeOf(q.array) !== a.type) return null; }
+      const nv = P.count, ni = g.index.count;
+      let v0 = V.take(nv), i0 = v0 < 0 ? -1 : I.take(ni);
+      if (v0 < 0 || i0 < 0) { if (v0 >= 0) V.give(v0, nv); room(nv, ni); v0 = V.take(nv); i0 = I.take(ni); }
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const s = { o, v0, nv, i0, ni, ball: g.boundingSphere.clone() };
+      write(s); slots.add(s); used.v += nv; used.i += ni; mesh.userData.batched = slots.size;
+      if (slots.size > mesh._multiDrawStarts.length) { mesh._multiDrawStarts = new Int32Array(slots.size * 2); mesh._multiDrawCounts = new Int32Array(slots.size * 2); }
+      return s;
+    }
+    function remove(s) { if (!s || !slots.delete(s)) return; V.give(s.v0, s.nv); I.give(s.i0, s.ni); used.v -= s.nv; used.i -= s.ni; mesh.userData.batched = slots.size; }
+    // room made once for cells about to come (nv vertices and ni indices in all), not cell by cell
+    function reserve(nv, ni, like) {
+      if (!lay) { if (!like || !layout(like)) return; }
+      const dv = used.v + nv - V.cap, di = used.i + ni - I.cap;
+      if (dv > 0 || di > 0) room(Math.max(0, dv), Math.max(0, di));
+    }
+    // the cells a pass draws: those the sweep has left on the layer every camera sees, inside that pass's frustum
+    const fr = new THREE.Frustum(), pm = new THREE.Matrix4();
+    const list = camera => {
+      pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(mesh.matrixWorld);
+      fr.setFromProjectionMatrix(pm, camera.coordinateSystem, camera.reversedDepth);
+      const S = mesh._multiDrawStarts, C = mesh._multiDrawCounts; let n = 0;
+      for (const s of slots) if ((s.o.layers.mask & 1) && s.o.visible && fr.intersectsSphere(s.ball)) { S[n] = s.i0 * 4; C[n] = s.ni; n++; }
+      mesh._multiDrawCount = n;
+    };
+    mesh.onBeforeRender = (r, scene, camera) => list(camera);
+    mesh.onBeforeShadow = (r, object, camera, shadowCamera) => list(shadowCamera);
+    // a context that came back: the buffers made again from the cells whose arrays the page still has (a desktop's;
+    // a phone's are the GPU's alone and its game loads again: world.js gpuOnly)
+    const back = () => {
+      if (!lay) return;
+      gl = renderer.getContext();
+      const all = [...slots].filter(s => s.o.geometry.attributes.position.array && s.o.geometry.index.array);
+      bufs = {}; ibuf = null; V = ranges(0); I = ranges(0); slots.clear(); used.v = used.i = 0;
+      let nv = 0, ni = 0; for (const s of all) { nv += s.nv; ni += s.ni; }
+      room(nv, ni);
+      for (const s of all) { s.v0 = V.take(s.nv); s.i0 = I.take(s.ni); write(s); slots.add(s); used.v += s.nv; used.i += s.ni; }
+      one.needsUpdate = which.needsUpdate = true;
+    };
+    if (renderer.domElement && renderer.domElement.addEventListener) renderer.domElement.addEventListener('webglcontextrestored', back);
+    stats.batches++;
+    return { mesh, add, remove, reserve, slots, info: () => ({ cells: slots.size, vertices: V ? V.cap : 0, indices: I ? I.cap : 0, bytes: lay ? lay.reduce((n, a) => n + V.cap * a.size * a.bytes, I.cap * 4) : 0 }),
+      dispose() { for (const k in bufs) gl.deleteBuffer(bufs[k]); if (ibuf) gl.deleteBuffer(ibuf); one.dispose(); which.dispose(); slots.clear(); } };
+  }
+  return { merge, pool, arena, stats, off };
 })();
