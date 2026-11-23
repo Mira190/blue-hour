@@ -1796,7 +1796,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // (stood in the road in front of a car that has waited on them, off the walk: on through the press to a spot
       // further back from the kerb, as the footways' walkers turn back for one, below. One pressed against the crowd
       // at the kerb by the Scramble's western stop line held a driver there 150 s, issue 175)
-      if (q.give) { q.give = false; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); } } }
+      if (q.give) { q.give = false; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+        // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
+        else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
       let vx = d > 1e-3 ? dx / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0, vy = d > 1e-3 ? dy / d * Math.min(sp, d / Math.max(dt, 1e-3)) : 0;
       // the others near: apart, and, meeting someone coming the other way, a step to the left
@@ -1908,7 +1910,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // with a car before it, each waiting on the other, 150 s, issue 175)
         const offWalk = q.ph !== 'cross' && !!pz.road && Math.abs(q.vx) + Math.abs(q.vy) > 0.05 && !pz.walk() && !pz.road(q.x, q.y);
         const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
-        if (offWalk && pz.road(nx, ny)) { if ((q.kerbT = (q.kerbT || 0) + dt) > 1.5) { q.kerbT = 0; q.T.x = q.x; q.T.y = q.y; q.ph = 'wait'; } } else q.kerbT = 0;
+        // (a pace back from that kerb, the way it came: left at the road's very edge it stood within a passing car's
+        // clearance, and a driver from the station's front waited on one at the Scramble's southern stop line 150 s)
+        if (offWalk && pz.road(nx, ny)) { if ((q.kerbT = (q.kerbT || 0) + dt) > 1.5) { const vl = Math.hypot(q.vx, q.vy) || 1; q.kerbT = 0; q.T.x = q.x - q.vx / vl * 1.2; q.T.y = q.y - q.vy / vl * 1.2; q.ph = 'wait'; } } else q.kerbT = 0;
         if (ok(nx, ny)) { q.x = nx; q.y = ny; }
         else if (ok(nx, q.y)) { q.x = nx; q.vy *= 0.3; }
         else if (ok(q.x, ny)) { q.y = ny; q.vx *= 0.3; }
