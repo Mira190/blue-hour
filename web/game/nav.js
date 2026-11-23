@@ -1064,7 +1064,10 @@ window.OENav = (function () {
           inside = true;
           // (a level whose floor is its own, level where the ground under it slopes: SHIBUYA SKY's hall, game.json hero[].floor.
           // Its drawn floor is what is stood on, under the ground or over it, wherever its model has drawn one: h.height)
-          if (h.floor) { const z = h.height ? h.height(x, y) : null; if (z !== null) return z - terrain(x, y); continue; }
+          // (but under the ground only where the ground is not drawn for it, h.cutAt: elsewhere the ground is drawn over what
+          // the level has there, and is what is stood on. Out on SKY's forecourt past its planks the level had only the slab of
+          // grout under them, 13 to 15 cm under the ground drawn over it, and the guide walked in the ground there, issue 190)
+          if (h.floor) { const z = h.height ? h.height(x, y) : null; if (z !== null) { const t = terrain(x, y); return z < t && !(h.cutAt && h.cutAt(x, y)) ? 0 : z - t; } continue; }
           if (!h.cover || h.cover(x, y)) l = Math.max(l, h.lift * Math.min(1, d / 2));
         }
       }
