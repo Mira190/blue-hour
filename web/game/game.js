@@ -217,6 +217,7 @@ window.OpenEarthGame = async function game(cityId) {
   const Wd = await OEWorld.create(D, renderer, { onMsg: loadMsg, small: QC.small, shadow: QC.shadow, game: true, nearCars: ((G.crowd || {}).radius_m || 450) + 100,
     groundAt: G.start && G.start.at }); // (the aerial tiles round the start before the game opens, the rest after it: issue 335)
   const world = Wd.world, U = Wd.U;
+  if (OEWorld.gate) OEWorld.gate(renderer, { scene: world }); // (a draw whose program is still being linked comes a frame later, not waited for: world.js gate)
   fitRoot = world;
   // After dark, a soft fill that goes with you: the city's lights are drawn as an aerial photograph shows
   // them, and between the lamps (a hillside track, a shrine's woods, a deck above the town) the ground was
@@ -660,6 +661,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
       if (HERO_CUT.tex.value) HERO_CUT.tex.value.dispose();
       HERO_CUT.tex.value = t; HERO_CUT.box.value.set(x0, y0, n * HC, 0); HERO_CUT.h = h;
+      // (where the ground is not drawn for its floor: there alone its floor stands under the ground, nav.js lift)
+      h.cutAt = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i >= 0 && j >= 0 && i < n && j < n && cut[j * n + i] > 0; };
     }
     h.coverMs = Math.round(performance.now() - t0); // (for tools/guide_way.js)
     // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)
@@ -691,7 +694,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // loader is all that is left to wait on. Not a slice a frame, as behind the title: no frame is drawn under the loader, and the
   // set-up's long tasks let a frame through so seldom that its compile all but stopped till the set-up was done, issue 27)
   let setUp = false;
-  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, flight: () => (setUp ? 6 : 1), only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
+  // (on a desktop whose GPU compiles in parallel, three at a time through the set-up: its synchronous calls do not wait on a program
+  // they do not use, and one at a time left the compile threads idle for the set-up's seconds, the first frame waiting on what
+  // was left (issue 186 A). A phone keeps one: an iPhone compiles one at a time whatever the extension says, issue 27)
+  const setUpFlight = !QC.lean && renderer.extensions.has('KHR_parallel_shader_compile') && !/[?&]flight=1\b/.test(location.search) ? 3 : 1;
+  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, flight: () => (setUp ? 6 : setUpFlight), only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
   // landmark solids (the Opera House shells) and walkable strips (the bridge deck) shade the ground too
   for (const [name, m] of Object.entries(nav.tops)) if ((G.shade_landmarks || []).some(p => name.startsWith(p))) for (const [k, z] of m) if (z > DSM.data[k]) DSM.data[k] = z;
   for (const s of nav.strips) for (let i = 0; i < s.us.length - 1; i++) {
@@ -5654,7 +5661,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (tools/flyover.js); the plate has none, and resolves false
   // the loader stays up until the scene has been drawn twice: the shaders compile on the first
   // draw, which can take seconds, and a loader that faded before it showed a black frame
-  let framesDrawn = 0, firstDrawn;
+  let framesDrawn = 0, firstDrawn, cleanBy = 0;
   const drawn = new Promise(r => { firstDrawn = r; });
   // (and the passes the title doesn't draw: the opening shot's depth of field and motion blur, atmosphere.js)
   try { performance.mark('oe:built', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the scene built (telemetry.js)
@@ -5662,10 +5669,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   loadMsg('Compiling the shaders for this view', 1);
   // (the loader's first set, issue 27: what is shown and the passes that are on; the rest behind the title, warmRest)
   // (each part's time from "built", in the log as "warm: ...": what the loader waits for, tools/entry_cost.js)
-  const wt0 = performance.now(), wlog = [], wpart = (k, p) => Promise.resolve(p).then(r => { wlog.push(`${k} ${((performance.now() - wt0) / 1000).toFixed(1)} s`); return r; });
+  const wt0 = performance.now(), wlog = [], wpart = (k, p) => Promise.resolve(p).then(r => { wlog.push(`${k} ${((performance.now() - wt0) / 1000).toFixed(1)} s`); try { performance.mark(`oe:warm-${k.replace(' ', '-')}`, { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } return r; }); // (and marked for the telemetry's load: warm_prog_ms, warm_tex_ms, warm_buf_ms)
   const warm = Promise.all([wpart('programs', earlyWarm.then(() => compileFor(world, world, { only: OEWorld.shown }))), wpart('passes', atmos && atmos.warm ? atmos.warm({ first: true }) : null), wpart('textures', OEWorld.uploadSliced ? (window.OETex ? OETex.settled() : Promise.resolve()).then(() => OEWorld.uploadSliced(renderer, world)) : null), wpart('far trees', Wd.ready)]) // (and its textures sent, in slices too, and the far trees' atlas drawn)
-    .then(() => OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })) // (then its vertex buffers, in slices)
-    .finally(() => console.info(`warm: from built, ${wlog.join(', ')}, buffers ${((performance.now() - wt0) / 1000).toFixed(1)} s`));
+    .then(() => wpart('buffers', OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null }))) // (then its vertex buffers, in slices)
+    .finally(() => console.info(`warm: from built, ${wlog.join(', ')}`));
   // and behind the loader the rain's passes are drawn once too (its streaks, the occlusion map from
   // above and the wet street's mirror), so that the first rain of a visit comes on without a stall; the
   // mirror's variant of every shader compiles in slices behind the title, not holding the loader up
@@ -6094,12 +6101,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // street it is behind the parapets, and its instanced meshes, each over a cell of the map, were never out of view:
     // 72,000 triangles of every frame on foot. On a roof, in a lift's glass and from the helicopter the camera is up)
     if (QC.lean && Wd.roofKit) Wd.roofKit.visible = camera.position.y - Math.max(0, nav.terrain(camera.position.x, -camera.position.z)) > 12;
+    const held0 = renderer.__gate ? renderer.__gate.n.held + renderer.__gate.n.late : 0;
     if (atmos) atmos.render(world, camera); else renderer.render(world, camera);
     const gc0 = performance.now();
     glCheck(now); // (on the first frame it waits for the GPU to draw it: the first draw of each program is where a driver finishes it)
     if (!framesDrawn) console.info(`warm: the first frame ${((performance.now() - wt0) / 1000).toFixed(1)} s from built, ${((performance.now() - gc0) / 1000).toFixed(1)} s of it waiting for the GPU to draw it`);
     care.drawn();
-    if (framesDrawn < 2 && ++framesDrawn === 2) firstDrawn();
+    // (the loader goes on a frame the gate left nothing out of, world.js gate: no mesh comes in under the title; 1.5 s at most, past
+    // which what is still linking comes in under the title: a software renderer's links took longer, and each of its frames 1.4 s)
+    const heldF = renderer.__gate ? renderer.__gate.n.held + renderer.__gate.n.late - held0 : 0;
+    if (framesDrawn === 1 && heldF && performance.now() < (cleanBy || (cleanBy = performance.now() + 1500))) { /* drawn again next frame */ }
+    else if (framesDrawn < 2 && ++framesDrawn === 2) { firstDrawn(); if (cleanBy) console.info(`warm: the loader waited ${((performance.now() - cleanBy + 1500) / 1000).toFixed(1)} s for a frame the gate left nothing out of${heldF ? ' (and went without it)' : ''}`); }
     else if (framesDrawn === 1) try { performance.mark('oe:frame', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the load's first frame (telemetry.js)
     if (framesDrawn === 1) firstFrame();
     if (!unseenFrame()) updateLabels(); // (the names over the street are placed for the frame drawn: none in a check's frame not drawn)
