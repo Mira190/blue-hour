@@ -4081,6 +4081,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               if (!inLane) go = false;
               // a junction just after, too close to wait between: crossed with this one, its way chosen now
               const a2 = go ? JN.after(jEx, 2 * c.half + 3) : null;
+              // (the two lights linked for it, as a pair too close to wait between are: at its line, its own green a few seconds
+              // off or come, the next one's turn for it called on now, or its green held while it crosses. Unlinked, a car had
+              // its green at 109's 808 as 805 just past it went amber, stood its green through, and a cycle on found that turn
+              // passed over: 150 s at the line, main's roads of 23 November)
+              if (jArm.j.sig && toLine - c.half < 3 && !c.mv && (go || JN.toGreen(jArm) < 8)) { const aN = a2 || JN.after(jEx, 2 * c.half + 3); if (aN && aN.j.sig && !aN.j.scramble && !aN.j.rail) JN.priority(aN); }
               let light2 = false; // (held by that one's light: waiting for it, as at a red here, not for room)
               if (a2) {
                 if (!c.ex2 || c.ex2.a !== a2) c.ex2 = { a: a2, e: JN.choose(a2, c.hw, c.half, tripOf(c), c.bus, c) };
