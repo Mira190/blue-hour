@@ -1701,6 +1701,16 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return deep;
     }
     // how far the nearest other walker is from (x, y), up to 1 m (the neighbour hash as this step began)
+    // (whether no other body's middle is within r of (x, y): bodies only, not the room an umbrella asks, plazaStep's step apart)
+    function bodyClear(self, x, y, r) {
+      const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
+        if (k === self) continue;
+        const o = P[k], ex = o.x - x, ey = o.y - y;
+        if (o.line >= 0 && ex * ex + ey * ey < r * r) return false;
+      }
+      return true;
+    }
     function nearest1(self, x, y) {
       let best = 1;
       const me = P[self], us = me.squeeze > 0 ? 0.4 : 1; // (through a press, shuffling: the canopies lean and brush)
@@ -1969,6 +1979,33 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           else if (lingerAt(q.g, q, q.T, pz.road)) q.lst = false;
           else toFootway(q);
           if (!q.pz) return; // (on along a footway: no longer of the square)
+        }
+      }
+      // (and a step apart as the canopies meet, whoever stands under them: the crowd's steering pushes them apart only as fast
+      // as a push is not stood through (0.35 m/s), and one of a group, one held up on its way or one moved aside by the
+      // story's sightline stands where it is for any other rule above. So each one stood under an open umbrella whose
+      // canopy is inside a stood neighbour's steps away from it, half the overlap each, at up to SEP_V, never onto the road,
+      // into a stair well or into someone; and where it then stands is its place, so it does not walk back. A knot of eight
+      // standing about the corner held canopies 0.39 m through each other twenty seconds into frame 7's rain, issue 190)
+      if (q.umbR > 0 && q.ph !== 'cross' && (q.av ?? q.v ?? 0) < 0.3) {
+        const SEP_V = 0.6, mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
+        let sx = 0, sy = 0;
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+          for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
+            const o = P[k];
+            if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+            const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
+            if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
+          }
+        }
+        const sm = Math.hypot(sx, sy), cap = SEP_V * dt;
+        if (sm > 1e-3) {
+          if (sm > cap) { sx *= cap / sm; sy *= cap / sm; }
+          const nx = q.x + sx, ny = q.y + sy;
+          if (!(pz.road && pz.road(nx, ny)) && !(shut && shut(nx, ny)) && keepRoom(nx, ny, 0.5) >= 0.35 && bodyClear(i, nx, ny, 0.42)) {
+            q.x = nx; q.y = ny;
+            if (q.T && (q.ph === 'wait' || q.lst || q.lead >= 0 || Math.hypot(q.T.x - q.x, q.T.y - q.y) < 0.6)) { q.T.x = q.x; q.T.y = q.y; }
+          }
         }
       }
       // (waiting, pushed aside a step: the body keeps facing the road, as it does, rather than turning to every shove)
