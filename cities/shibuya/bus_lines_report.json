@@ -43,7 +43,7 @@
    "to": "",
    "by": "京王バス",
    "track_m": 1689,
-   "on_pieces_m": 1595,
+   "on_pieces_m": 1594,
    "stretches": 1
   },
   {
@@ -124,7 +124,7 @@
    "to": "経堂駅",
    "by": "小田急バス",
    "track_m": 1474,
-   "on_pieces_m": 1489,
+   "on_pieces_m": 1488,
    "stretches": 1
   },
   {
@@ -205,7 +205,7 @@
    "to": "田町駅前",
    "by": "東京都交通局",
    "track_m": 1465,
-   "on_pieces_m": 1461,
+   "on_pieces_m": 1462,
    "stretches": 1
   },
   {
@@ -232,7 +232,7 @@
    "to": "渋谷駅",
    "by": "東急バス",
    "track_m": 1733,
-   "on_pieces_m": 1735,
+   "on_pieces_m": 1734,
    "stretches": 1
   },
   {

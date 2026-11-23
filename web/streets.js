@@ -28,6 +28,10 @@ window.OEStreets = (function () {
   // a road piece's carriageway, kerb to kerb (m): the surveyed width where the map has one (game.json cw:
   // pipeline/road_width.py, docs/ROADS.md), else its class's. One function for whoever draws, drives or stands by a road.
   const widthOf = l => (l && l.cw) || ROADW[l && l.c] || 7;
+  // room for two lanes each way on a piece whose class gives it one: a surveyed carriageway of 13.6 m two-way (the outer
+  // lane's middle 4.7 m off the line, a car and a gutter past it) or 9.6 m one-way, unless the map's own count says one
+  // (pipeline/road_ground.py lanes_each_way; junctions.js drives it, game.js paints it). l: a piece of game.json or a line of the net
+  const roomForTwo = l => !!l && l.cw >= ((l.o || l.ow) ? 9.6 : 13.6) && l.nl !== 1;
   const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
 
   // lines: [{ c: class, p: [x, y, z, ...] in metres, cw: the carriageway's width where it is not its class's (m) }]
@@ -212,5 +216,5 @@ window.OEStreets = (function () {
     return api;
   }
 
-  return { ROADW, widthOf, LEVEL, kerb, setback, carriageways, roadLines, tidy, posts };
+  return { ROADW, widthOf, roomForTwo, LEVEL, kerb, setback, carriageways, roadLines, tidy, posts };
 })();
