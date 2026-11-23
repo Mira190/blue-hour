@@ -132,6 +132,7 @@ function driveFor({ secs, mark }) {
         if (r.done) break;
       }
       const d = Math.hypot(r.at[0] - TO[0], r.at[1] - TO[1]), S = await p.evaluate(() => window.__drive);
+      S.bad = S.bad.filter(q => q.what !== 'off' || Math.hypot(q.x - TO[0], q.y - TO[1]) > 12); // (not the pull in to the kerb where it arrives)
       // (TIMED=1, issue 175: a drive takes no longer than its road at 6 m/s and one whole cycle of each scramble on its
       // way, 118 s at Shibuya's, and half of it more for 109's fork, which runs on the Scramble's cycle: a car that comes
       // to it out of the Scramble's other turn waits the walk and that turn's end; and no longer than the figure its start names, "x,y@180": the

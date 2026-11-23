@@ -450,6 +450,11 @@ window.OEJunctions = (function () {
       const r = beyond(from), b = r && r.c, X = b && b.j;
       if (!X || X === K || !X.scramble || X.co || K.co || r.len - from.back >= COORD || !(X.green[3] > K.green[3]) || !a.in || !b.in) continue;
       K.co = X; K.coK = a; K.coS = b;
+      // (all its traffic in the one turn, with the greater one's turn for the road they share: Bunkamura-dori in a
+      // turn of its own with the Scramble's north-south found the 29 m between the two full each time, left so by
+      // Dogenzaka's cars as the east-west green ended, and stood 150 s; in one turn its cars take theirs with
+      // Dogenzaka's by the junction's own rule, the longest waiting first, while that road drains)
+      for (const q of K.arms) if (q.in) q.phase = a.phase;
     }
     const scrambleNear = (x, y) => J.find(j => j.scramble && Math.hypot(j.x - x, j.y - y) < j.reach + 4);
     const inScramble = (x, y) => J.some(j => j.scramble && Math.hypot(j.x - x, j.y - y) < j.reach); // (in a scramble's box: no car is put there)
@@ -1085,11 +1090,14 @@ window.OEJunctions = (function () {
     // walkers over the shared road, theirs with the scramble's walk. One controller for two junctions too close to
     // queue between, as closely spaced signals are run. Its queues for the scramble count at the scramble's arm
     function follow(j, dt) {
-      const S = j.lead, P = j.leadPh, Q = 1 - P;
-      const ph = S.ph === 3 ? Q : P, st = S.ph === 3 ? S.st : S.nxt === 3 && S.st !== 'g' ? S.st : 'g';
+      // (the scramble's traffic has its turn on the road they share: not in its walk, nor, for one on another's
+      // cycle, in the turn it sits out; then the side roads have theirs here too)
+      const S = j.lead, P = j.leadPh, Q = 1 - P, open = p => p !== 3 && !(S.co && p !== S.coK.phase);
+      const now = open(S.ph), next = S.st === 'g' ? now : open(S.nxt);
+      const ph = now ? P : Q, st = S.st !== 'g' && now !== next ? S.st : 'g';
       if (ph !== j.ph || st !== j.st) { j.ph = ph; j.st = st; j.t = 0; dirty.add(j); } else j.t += dt;
       j.nxt = ph === P ? Q : P; j.call = true; j.cut = null; j.mpOn = false;
-      j.gEnd = ph === Q && st === 'g' ? S.green[3] - 3 : Infinity;
+      j.gEnd = ph === Q && st === 'g' && S.ph === 3 ? j.t + Math.max(0, S.green[3] - S.t) - 3 : Infinity;
       const was = j.walkNow;
       j.walkNow = !(j.t > j.gEnd - FLASH);
       if (was !== j.walkNow) dirty.add(j);
@@ -1112,7 +1120,7 @@ window.OEJunctions = (function () {
       if (was !== K.walkNow) dirty.add(K);
       const Q = p => { let n = 0; for (const a of K.arms) if (a.in && a.phase === p && !a.full) n += (a.qn || 0) + (a.qnX || 0); return n; };
       const q = S.coQ || (S.coQ = [0, 0]);
-      q[pS] = Q(pK); q[1 - pS] = Q(1 - pK);
+      q[pS] = Q(pK); q[1 - pS] = 0;
     }
     // step the signals; and drop movements whose car has gone (taken, put back elsewhere)
     function update(dt, t) {
@@ -1194,7 +1202,10 @@ window.OEJunctions = (function () {
           const other = j.ph === 0 ? 1 : 0, mine = pr(j.ph), next = pr(other);
           let blocked = false;
           for (const a of j.arms) if (a.in && a.phase === j.ph && (a.qn || 0) > 0) { blocked = !!a.full; if (!blocked) break; }
-          if (j.cut == null && blocked && mine === 0 && next > 0 && j.t >= MP_MIN) { j.cut = j.t; j.mpCut = (j.mpCut || 0) + 1; }
+          // (not a scramble's turn while the scramble on its cycle has cars for it, nor in its first 14 s: the road between
+          // the two stands full as the turn begins and empties as both go green, and the Scramble's east arm, its head
+          // waiting those seconds for room, had its green cut at 8 s with 109's queues still to pass, issue 175)
+          if (j.cut == null && blocked && mine === 0 && next > 0 && j.t >= (j.scramble ? MP_MIN + 6 : MP_MIN) && !(j.coQ && j.coQ[j.ph] > 0)) { j.cut = j.t; j.mpCut = (j.mpCut || 0) + 1; }
           const was = j.mpOn;
           j.mpOn = !j.scramble && j.cut == null && mine >= 3 && mine > 2 * next + 1 && j.t < Math.min(gLen * MP_MAX, cap - FLASH); // (a scramble's turn is its share already)
           if (was && !j.mpOn && j.cut == null && j.t > gLen - FLASH) { j.cut = j.t + FLASH; j.mpExt = true; } // (run on past its green: it ends after the walkers' flash, never at once)
